@@ -489,6 +489,37 @@ export type SSEEvent =
 	  }
 	| {
 			/**
+			 * Emitted by ``stream_new_chat`` AFTER ``data-turn-info`` /
+			 * ``data-turn-status`` and BEFORE any LLM streaming events,
+			 * once ``persist_user_turn`` has resolved the canonical
+			 * ``new_chat_messages.id`` for the user-side row of the
+			 * current turn. The frontend renames its optimistic
+			 * ``msg-user-XXX`` placeholder id to ``msg-{message_id}``
+			 * so DB-id-gated UI (comments, edit-from-this-message)
+			 * unlocks immediately. Not emitted by ``stream_resume_chat``
+			 * (resume reuses the original turn's user message).
+			 */
+			type: "data-user-message-id";
+			data: { message_id: number; turn_id: string };
+	  }
+	| {
+			/**
+			 * Emitted by ``stream_new_chat`` AND ``stream_resume_chat``
+			 * AFTER ``data-turn-info`` / ``data-turn-status`` and BEFORE
+			 * any LLM streaming events, once ``persist_assistant_shell``
+			 * has resolved the canonical ``new_chat_messages.id`` for
+			 * the assistant-side row of the current turn. The frontend
+			 * renames its optimistic ``msg-assistant-XXX`` placeholder
+			 * id, migrates the local ``tokenUsageStore`` and
+			 * ``pendingInterrupt`` references, and binds the running
+			 * mutable ``assistantMsgId`` closure variable to the
+			 * canonical id for the rest of the stream.
+			 */
+			type: "data-assistant-message-id";
+			data: { message_id: number; turn_id: string };
+	  }
+	| {
+			/**
 			 * Best-effort revert pass that ran BEFORE this regeneration.
 			 * Per-action results are forwarded to the UI so the user
 			 * can see which downstream actions were rolled

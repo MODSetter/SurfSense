@@ -82,6 +82,7 @@ import {
 	mergeChatTurnIdIntoMessage,
 	mergeEditedInterruptAction,
 	readStreamedChatTurnId,
+	readStreamedMessageId,
 } from "@/lib/chat/stream-side-effects";
 import {
 	buildContentForPersistence,
@@ -256,110 +257,17 @@ export default function NewChatPage() {
 		[tokenUsageStore]
 	);
 
-	const persistUserTurn = useCallback(
-		async ({
-			threadId,
-			userMsgId,
-			content,
-			mentionedDocs,
-			turnId,
-			logContext,
-		}: {
-			threadId: number | null;
-			userMsgId: string;
-			content: unknown;
-			mentionedDocs?: MentionedDocumentInfo[];
-			turnId?: string | null;
-			logContext: string;
-		}) => {
-			if (!threadId) return null;
-			try {
-				const normalizedContent = Array.isArray(content) ? ([...content] as unknown[]) : [content];
-				const hasMentionedDocumentsPart = normalizedContent.some(
-					(part) => MentionedDocumentsPartSchema.safeParse(part).success
-				);
-				if (mentionedDocs && mentionedDocs.length > 0 && !hasMentionedDocumentsPart) {
-					normalizedContent.push({
-						type: "mentioned-documents",
-						documents: mentionedDocs,
-					});
-				}
-
-				const savedUserMessage = await appendMessage(threadId, {
-					role: "user",
-					content: normalizedContent as AppendMessage["content"],
-					turn_id: turnId,
-				});
-				const newUserMsgId = `msg-${savedUserMessage.id}`;
-				setMessages((prev) =>
-					prev.map((m) =>
-						m.id === userMsgId
-							? mergeChatTurnIdIntoMessage({ ...m, id: newUserMsgId }, savedUserMessage.turn_id)
-							: m
-					)
-				);
-				if (mentionedDocs && mentionedDocs.length > 0) {
-					setMessageDocumentsMap((prev) => {
-						const { [userMsgId]: _, ...rest } = prev;
-						return {
-							...rest,
-							[newUserMsgId]: mentionedDocs,
-						};
-					});
-				}
-				return newUserMsgId;
-			} catch (err) {
-				console.error(`Failed to persist ${logContext} user message:`, err);
-				return null;
-			}
-		},
-		[setMessageDocumentsMap]
-	);
-
-	const persistAssistantTurn = useCallback(
-		async ({
-			threadId,
-			assistantMsgId,
-			content,
-			tokenUsage,
-			turnId,
-			logContext,
-			onRemapped,
-		}: {
-			threadId: number | null;
-			assistantMsgId: string;
-			content: unknown;
-			tokenUsage?: TokenUsageData;
-			turnId?: string | null;
-			logContext: string;
-			onRemapped?: (newMsgId: string) => void;
-		}) => {
-			if (!threadId) return null;
-			try {
-				const savedMessage = await appendMessage(threadId, {
-					role: "assistant",
-					content: content as AppendMessage["content"],
-					token_usage: tokenUsage,
-					turn_id: turnId,
-				});
-				const newMsgId = `msg-${savedMessage.id}`;
-				tokenUsageStore.rename(assistantMsgId, newMsgId);
-				setMessages((prev) =>
-					prev.map((m) =>
-						m.id === assistantMsgId
-							? mergeChatTurnIdIntoMessage({ ...m, id: newMsgId }, savedMessage.turn_id)
-							: m
-					)
-				);
-				onRemapped?.(newMsgId);
-				return newMsgId;
-			} catch (err) {
-				console.error(`Failed to persist ${logContext} assistant message:`, err);
-				return null;
-			}
-		},
-		[tokenUsageStore]
-	);
+	// NOTE: ``persistUserTurn`` / ``persistAssistantTurn`` callbacks
+	// were removed in the SSE-based message ID handshake refactor.
+	// ``stream_new_chat`` and ``stream_resume_chat`` now persist both
+	// the user and assistant rows server-side via
+	// ``persist_user_turn`` / ``persist_assistant_shell`` and emit
+	// ``data-user-message-id`` / ``data-assistant-message-id`` SSE
+	// events; the consumers below rename the optimistic ids in real
+	// time. ``persistAssistantErrorMessage`` (above) is intentionally
+	// kept — it is the pre-stream-error fallback fired when the
+	// server NEVER accepted the request, and the BE has nothing to
+	// persist in that case.
 
 	// Get disabled tools from the tool toggle UI
 	const disabledTools = useAtomValue(disabledToolsAtom);
@@ -891,8 +799,13 @@ export default function NewChatPage() {
 				setPendingUserImageUrls((prev) => prev.filter((u) => !urlsSnapshot.includes(u)));
 			}
 
-			// Add user message to state
-			const userMsgId = `msg-user-${Date.now()}`;
+			// Add user message to state. Mutable because the SSE
+			// ``data-user-message-id`` handler (below) renames this
+			// optimistic id to the canonical ``msg-{db_id}`` once the
+			// backend's ``persist_user_turn`` resolves the row, and
+			// the in-stream flush / interrupt closures need to see
+			// the post-rename value via this live ``let`` binding.
+			let userMsgId = `msg-user-${Date.now()}`;
 
 			// Always include author metadata so the UI layer can decide visibility
 			const authorMetadata = currentUser
@@ -958,22 +871,16 @@ export default function NewChatPage() {
 				}));
 			}
 
-			const persistContent: unknown[] = [...userDisplayContent];
-
-			if (allMentionedDocs.length > 0) {
-				persistContent.push({
-					type: "mentioned-documents",
-					documents: allMentionedDocs,
-				});
-			}
-
 			// Start streaming response
 			setIsRunning(true);
 			const controller = new AbortController();
 			abortControllerRef.current = controller;
 
-			// Prepare assistant message
-			const assistantMsgId = `msg-assistant-${Date.now()}`;
+			// Prepare assistant message. Mutable for the same reason
+			// as ``userMsgId`` above — the ``data-assistant-message-id``
+			// SSE handler reassigns this once
+			// ``persist_assistant_shell`` returns its canonical id.
+			let assistantMsgId = `msg-assistant-${Date.now()}`;
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
@@ -983,11 +890,7 @@ export default function NewChatPage() {
 			};
 			const { contentParts } = contentPartsState;
 			let wasInterrupted = false;
-			let tokenUsageData: TokenUsageData | null = null;
 			let newAccepted = false;
-			let userPersisted = false;
-			// Captured from ``data-turn-info`` at stream start.
-			let streamedChatTurnId: string | null = null;
 			let streamBatcher: FrameBatchedUpdater | null = null;
 
 			try {
@@ -1047,6 +950,18 @@ export default function NewChatPage() {
 							mentioned_surfsense_doc_ids: hasSurfsenseDocIds
 								? mentionedDocumentIds.surfsense_doc_ids
 								: undefined,
+							// Full mention metadata so the BE can embed a
+							// ``mentioned-documents`` ContentPart on the
+							// persisted user message (replaces the old FE-side
+							// injection in ``persistUserTurn``).
+							mentioned_documents:
+								allMentionedDocs.length > 0
+									? allMentionedDocs.map((d) => ({
+											id: d.id,
+											title: d.title,
+											document_type: d.document_type,
+										}))
+									: undefined,
 							disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
 							...(userImages.length > 0 ? { user_images: userImages } : {}),
 						}),
@@ -1089,7 +1004,6 @@ export default function NewChatPage() {
 							scheduleFlush,
 							forceFlush,
 							onTokenUsage: (data) => {
-								tokenUsageData = data;
 								tokenUsageStore.set(assistantMsgId, data);
 							},
 							onTurnStatus: (data) => {
@@ -1189,7 +1103,6 @@ export default function NewChatPage() {
 
 						case "data-turn-info": {
 							const turnId = readStreamedChatTurnId(parsed.data);
-							streamedChatTurnId = turnId;
 							if (turnId) {
 								setMessages((prev) =>
 									applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
@@ -1197,46 +1110,96 @@ export default function NewChatPage() {
 							}
 							break;
 						}
+
+						case "data-user-message-id": {
+							// Server-authoritative user message id resolved by
+							// ``persist_user_turn`` (or recovered via ON CONFLICT).
+							// Rename the optimistic ``msg-user-XXX`` placeholder to
+							// the canonical ``msg-{db_id}`` so DB-id-gated UI
+							// (comments, edit-from-this-message) unlocks immediately,
+							// migrate the local mentioned-documents map, and reassign
+							// the closure variable so all downstream
+							// ``m.id === userMsgId`` checks see the new value.
+							const parsedMsg = readStreamedMessageId(parsed.data);
+							if (!parsedMsg) break;
+							const newUserMsgId = `msg-${parsedMsg.messageId}`;
+							const oldUserMsgId = userMsgId;
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === oldUserMsgId
+										? mergeChatTurnIdIntoMessage(
+												{ ...m, id: newUserMsgId },
+												parsedMsg.turnId
+											)
+										: m
+								)
+							);
+							if (allMentionedDocs.length > 0) {
+								setMessageDocumentsMap((prev) => {
+									if (!(oldUserMsgId in prev)) {
+										return { ...prev, [newUserMsgId]: allMentionedDocs };
+									}
+									const { [oldUserMsgId]: _removed, ...rest } = prev;
+									return { ...rest, [newUserMsgId]: allMentionedDocs };
+								});
+							}
+							userMsgId = newUserMsgId;
+							if (isNewThread) {
+								// First user-side row landed in ``new_chat_messages``;
+								// refresh the sidebar so the freshly-bumped
+								// ``thread.updated_at`` reorders this thread.
+								queryClient.invalidateQueries({
+									queryKey: ["threads", String(searchSpaceId)],
+								});
+							}
+							break;
+						}
+
+						case "data-assistant-message-id": {
+							// Server-authoritative assistant message id resolved
+							// by ``persist_assistant_shell``. Rename the optimistic
+							// id, migrate ``tokenUsageStore`` so any pending
+							// ``data-token-usage`` payload binds to the new id,
+							// remap any in-flight ``pendingInterrupt`` reference,
+							// and reassign the closure variable so the in-stream
+							// flush callback (line ~1074) keeps writing to the
+							// renamed message.
+							const parsedMsg = readStreamedMessageId(parsed.data);
+							if (!parsedMsg) break;
+							const newAssistantMsgId = `msg-${parsedMsg.messageId}`;
+							const oldAssistantMsgId = assistantMsgId;
+							tokenUsageStore.rename(oldAssistantMsgId, newAssistantMsgId);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === oldAssistantMsgId
+										? mergeChatTurnIdIntoMessage(
+												{ ...m, id: newAssistantMsgId },
+												parsedMsg.turnId
+											)
+										: m
+								)
+							);
+							setPendingInterrupt((prev) =>
+								prev && prev.assistantMsgId === oldAssistantMsgId
+									? { ...prev, assistantMsgId: newAssistantMsgId }
+									: prev
+							);
+							assistantMsgId = newAssistantMsgId;
+							break;
+						}
 					}
 				});
 
 				batcher.flush();
 
-				// Skip persistence for interrupted messages -- handleResume will persist the final version
-				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
+				// Server-authoritative persistence: ``stream_new_chat``
+				// already wrote the user row in ``persist_user_turn``
+				// (the FE renamed the optimistic id mid-stream via
+				// ``data-user-message-id``) and finalises the assistant
+				// row in ``finalize_assistant_turn`` from a shielded
+				// ``finally`` block. Nothing left for the FE to persist
+				// here — track the response and unblock the UI.
 				if (contentParts.length > 0 && !wasInterrupted) {
-					if (!userPersisted) {
-						const persistedUserMsgId = await persistUserTurn({
-							threadId: currentThreadId,
-							userMsgId,
-							content: persistContent,
-							mentionedDocs: allMentionedDocs,
-							turnId: streamedChatTurnId,
-							logContext: "new chat",
-						});
-						userPersisted = Boolean(persistedUserMsgId);
-						if (userPersisted && isNewThread) {
-							queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
-						}
-					}
-
-					await persistAssistantTurn({
-						threadId: currentThreadId,
-						assistantMsgId,
-						content: finalContent,
-						tokenUsage: tokenUsageData ?? undefined,
-						turnId: streamedChatTurnId,
-						logContext: "new chat",
-						onRemapped: (newMsgId) => {
-							setPendingInterrupt((prev) =>
-								prev && prev.assistantMsgId === assistantMsgId
-									? { ...prev, assistantMsgId: newMsgId }
-									: prev
-							);
-						},
-					});
-
-					// Track successful response
 					trackChatResponseReceived(searchSpaceId, currentThreadId);
 				}
 			} catch (error) {
@@ -1247,51 +1210,21 @@ export default function NewChatPage() {
 					threadId: currentThreadId,
 					assistantMsgId,
 					accepted: newAccepted,
-					onAbort: async () => {
-						if (newAccepted && !userPersisted) {
-							const persistedUserMsgId = await persistUserTurn({
-								threadId: currentThreadId,
-								userMsgId,
-								content: persistContent,
-								mentionedDocs: allMentionedDocs,
-								turnId: streamedChatTurnId,
-								logContext: "new chat (aborted)",
-							});
-							userPersisted = Boolean(persistedUserMsgId);
-							if (userPersisted && isNewThread) {
-								queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
-							}
-						}
-
-						const hasContent = hasPersistableContent(contentParts, toolsWithUI);
-						if (hasContent && currentThreadId) {
-							const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
-							await persistAssistantTurn({
-								threadId: currentThreadId,
-								assistantMsgId,
-								content: partialContent,
-								turnId: streamedChatTurnId,
-								logContext: "partial new chat",
-							});
-						}
-					},
-					onAcceptedStreamError: async () => {
-						if (!userPersisted) {
-							const persistedUserMsgId = await persistUserTurn({
-								threadId: currentThreadId,
-								userMsgId,
-								content: persistContent,
-								mentionedDocs: allMentionedDocs,
-								turnId: streamedChatTurnId,
-								logContext: "new chat (stream error)",
-							});
-							userPersisted = Boolean(persistedUserMsgId);
-							if (userPersisted && isNewThread) {
-								queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
-							}
-						}
-					},
+					// Server-side ``finalize_assistant_turn`` runs from a
+					// shielded ``anyio.CancelScope(shield=True)`` finally
+					// block, so partial content (incl. abort-mid-stream)
+					// is already persisted by the BE for the assistant
+					// row, and ``persist_user_turn`` ran before any LLM
+					// call. The FE's only remaining responsibility on
+					// abort / accepted-stream-error is to surface the
+					// error toast (handled by ``handleStreamTerminalError``
+					// itself).
 					onPreAcceptFailure: async () => {
+						// Pre-accept failure means the BE never accepted the
+						// request — no server-side persistence ran. Roll
+						// back the optimistic UI insertions we made before
+						// the fetch so the user message and any local
+						// mentioned-docs metadata don't linger.
 						setMessages((prev) => prev.filter((m) => m.id !== userMsgId));
 						setMessageDocumentsMap((prev) => {
 							if (!(userMsgId in prev)) return prev;
@@ -1325,8 +1258,6 @@ export default function NewChatPage() {
 			fetchWithTurnCancellingRetry,
 			handleStreamTerminalError,
 			handleChatFailure,
-			persistAssistantTurn,
-			persistUserTurn,
 		]
 	);
 
@@ -1339,7 +1270,12 @@ export default function NewChatPage() {
 			}>
 		) => {
 			if (!pendingInterrupt) return;
-			const { threadId: resumeThreadId, assistantMsgId } = pendingInterrupt;
+			const { threadId: resumeThreadId } = pendingInterrupt;
+			// Destructured separately as ``let`` so the SSE
+			// ``data-assistant-message-id`` handler (resume always
+			// allocates a fresh server-side row) can rename it to
+			// the canonical ``msg-{db_id}`` mid-stream.
+			let assistantMsgId = pendingInterrupt.assistantMsgId;
 			setPendingInterrupt(null);
 			setIsRunning(true);
 
@@ -1362,10 +1298,7 @@ export default function NewChatPage() {
 				toolCallIndices: new Map(),
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
-			let tokenUsageData: TokenUsageData | null = null;
 			let resumeAccepted = false;
-			// Captured from ``data-turn-info`` at stream start.
-			let streamedChatTurnId: string | null = null;
 			let streamBatcher: FrameBatchedUpdater | null = null;
 
 			const existingMsg = messages.find((m) => m.id === assistantMsgId);
@@ -1466,7 +1399,6 @@ export default function NewChatPage() {
 							scheduleFlush,
 							forceFlush,
 							onTokenUsage: (data) => {
-								tokenUsageData = data;
 								tokenUsageStore.set(assistantMsgId, data);
 							},
 							onTurnStatus: (data) => {
@@ -1514,7 +1446,6 @@ export default function NewChatPage() {
 
 						case "data-turn-info": {
 							const turnId = readStreamedChatTurnId(parsed.data);
-							streamedChatTurnId = turnId;
 							if (turnId) {
 								setMessages((prev) =>
 									applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
@@ -1522,22 +1453,44 @@ export default function NewChatPage() {
 							}
 							break;
 						}
+
+						case "data-assistant-message-id": {
+							// Resume always allocates a fresh ``new_chat_messages``
+							// row anchored to a new ``turn_id`` (the original
+							// interrupted turn's row stays as-is), so this is a
+							// real id swap. Rename the optimistic placeholder to
+							// ``msg-{db_id}`` and reassign closure state. Resume
+							// does NOT emit ``data-user-message-id`` — the user
+							// row belongs to the original interrupted turn.
+							const parsedMsg = readStreamedMessageId(parsed.data);
+							if (!parsedMsg) break;
+							const newAssistantMsgId = `msg-${parsedMsg.messageId}`;
+							const oldAssistantMsgId = assistantMsgId;
+							tokenUsageStore.rename(oldAssistantMsgId, newAssistantMsgId);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === oldAssistantMsgId
+										? mergeChatTurnIdIntoMessage(
+												{ ...m, id: newAssistantMsgId },
+												parsedMsg.turnId
+											)
+										: m
+								)
+							);
+							assistantMsgId = newAssistantMsgId;
+							break;
+						}
 					}
 				});
 
 				batcher.flush();
 
-				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
-				if (contentParts.length > 0) {
-					await persistAssistantTurn({
-						threadId: resumeThreadId,
-						assistantMsgId,
-						content: finalContent,
-						tokenUsage: tokenUsageData ?? undefined,
-						turnId: streamedChatTurnId,
-						logContext: "resumed chat",
-					});
-				}
+				// Server-authoritative persistence: ``stream_resume_chat``
+				// finalises the assistant row in
+				// ``finalize_assistant_turn`` from a shielded
+				// ``finally`` block (covers both happy-path and
+				// abort-mid-stream). FE has no remaining persistence
+				// work here.
 			} catch (error) {
 				streamBatcher?.dispose();
 				await handleStreamTerminalError({
@@ -1546,19 +1499,6 @@ export default function NewChatPage() {
 					threadId: resumeThreadId,
 					assistantMsgId,
 					accepted: resumeAccepted,
-					onAbort: async () => {
-						if (!resumeAccepted) return;
-						const hasContent = hasPersistableContent(contentParts, toolsWithUI);
-						if (!hasContent) return;
-						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
-						await persistAssistantTurn({
-							threadId: resumeThreadId,
-							assistantMsgId,
-							content: partialContent,
-							turnId: streamedChatTurnId,
-							logContext: "partial resumed chat",
-						});
-					},
 				});
 			} finally {
 				setIsRunning(false);
@@ -1574,7 +1514,6 @@ export default function NewChatPage() {
 			tokenUsageStore,
 			fetchWithTurnCancellingRetry,
 			handleStreamTerminalError,
-			persistAssistantTurn,
 		]
 	);
 
@@ -1715,9 +1654,12 @@ export default function NewChatPage() {
 			const controller = new AbortController();
 			abortControllerRef.current = controller;
 
-			// Add placeholder user message if we have a new query (edit mode)
-			const userMsgId = `msg-user-${Date.now()}`;
-			const assistantMsgId = `msg-assistant-${Date.now()}`;
+			// Add placeholder user message if we have a new query (edit mode).
+			// Mutable for the same reason as in ``onNew`` — both ids are
+			// renamed mid-stream by the new ``data-user-message-id`` /
+			// ``data-assistant-message-id`` SSE handlers below.
+			let userMsgId = `msg-user-${Date.now()}`;
+			let assistantMsgId = `msg-assistant-${Date.now()}`;
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
 
 			const contentPartsState: ContentPartsState = {
@@ -1727,13 +1669,7 @@ export default function NewChatPage() {
 				toolCallIndices: new Map(),
 			};
 			const { contentParts } = contentPartsState;
-			let tokenUsageData: TokenUsageData | null = null;
 			let regenerateAccepted = false;
-			let userPersisted = false;
-			// Captured from ``data-turn-info`` at stream start; stamped
-			// onto persisted messages so future edits can locate the
-			// right LangGraph checkpoint.
-			let streamedChatTurnId: string | null = null;
 			let streamBatcher: FrameBatchedUpdater | null = null;
 
 			// Add placeholder messages to UI
@@ -1747,9 +1683,6 @@ export default function NewChatPage() {
 				createdAt: new Date(),
 				metadata: isEdit ? undefined : originalUserMessageMetadata,
 			};
-			const userContentToPersist = isEdit
-				? (editExtras?.userMessageContent ?? [{ type: "text", text: newUserQuery ?? "" }])
-				: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }];
 			const sourceMentionedDocs =
 				sourceUserMessageId && messageDocumentsMap[sourceUserMessageId]
 					? messageDocumentsMap[sourceUserMessageId]
@@ -1765,6 +1698,18 @@ export default function NewChatPage() {
 					filesystem_mode: selection.filesystem_mode,
 					client_platform: selection.client_platform,
 					local_filesystem_mounts: selection.local_filesystem_mounts,
+					// Full mention metadata for the regenerate-specific
+					// source list. Only meaningful for edit (the BE only
+					// re-persists a user row when ``user_query`` is set);
+					// reload reuses the original turn's mentioned_documents.
+					mentioned_documents:
+						sourceMentionedDocs.length > 0
+							? sourceMentionedDocs.map((d) => ({
+									id: d.id,
+									title: d.title,
+									document_type: d.document_type,
+								}))
+							: undefined,
 				};
 				if (isEdit) {
 					requestBody.user_images = editExtras?.userImages ?? [];
@@ -1852,7 +1797,6 @@ export default function NewChatPage() {
 							scheduleFlush,
 							forceFlush,
 							onTokenUsage: (data) => {
-								tokenUsageData = data;
 								tokenUsageStore.set(assistantMsgId, data);
 							},
 							onTurnStatus: (data) => {
@@ -1897,12 +1841,62 @@ export default function NewChatPage() {
 
 						case "data-turn-info": {
 							const turnId = readStreamedChatTurnId(parsed.data);
-							streamedChatTurnId = turnId;
 							if (turnId) {
 								setMessages((prev) =>
 									applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
 								);
 							}
+							break;
+						}
+
+						case "data-user-message-id": {
+							// Same role as in ``onNew`` but the regenerate-specific
+							// mention metadata (``sourceMentionedDocs``) is the
+							// list to migrate onto the canonical id key.
+							const parsedMsg = readStreamedMessageId(parsed.data);
+							if (!parsedMsg) break;
+							const newUserMsgId = `msg-${parsedMsg.messageId}`;
+							const oldUserMsgId = userMsgId;
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === oldUserMsgId
+										? mergeChatTurnIdIntoMessage(
+												{ ...m, id: newUserMsgId },
+												parsedMsg.turnId
+											)
+										: m
+								)
+							);
+							if (sourceMentionedDocs.length > 0) {
+								setMessageDocumentsMap((prev) => {
+									if (!(oldUserMsgId in prev)) {
+										return { ...prev, [newUserMsgId]: sourceMentionedDocs };
+									}
+									const { [oldUserMsgId]: _removed, ...rest } = prev;
+									return { ...rest, [newUserMsgId]: sourceMentionedDocs };
+								});
+							}
+							userMsgId = newUserMsgId;
+							break;
+						}
+
+						case "data-assistant-message-id": {
+							const parsedMsg = readStreamedMessageId(parsed.data);
+							if (!parsedMsg) break;
+							const newAssistantMsgId = `msg-${parsedMsg.messageId}`;
+							const oldAssistantMsgId = assistantMsgId;
+							tokenUsageStore.rename(oldAssistantMsgId, newAssistantMsgId);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === oldAssistantMsgId
+										? mergeChatTurnIdIntoMessage(
+												{ ...m, id: newAssistantMsgId },
+												parsedMsg.turnId
+											)
+										: m
+								)
+							);
+							assistantMsgId = newAssistantMsgId;
 							break;
 						}
 
@@ -1946,28 +1940,14 @@ export default function NewChatPage() {
 
 				batcher.flush();
 
-				// Persist messages after streaming completes
-				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
+				// Server-authoritative persistence: ``stream_new_chat``
+				// (regenerate flow) wrote the user row in
+				// ``persist_user_turn`` and finalises the assistant row
+				// in ``finalize_assistant_turn`` from a shielded
+				// ``finally`` block (covers both happy-path and
+				// abort-mid-stream). FE only needs to track the
+				// successful response here.
 				if (contentParts.length > 0) {
-					const persistedUserMsgId = await persistUserTurn({
-						threadId,
-						userMsgId,
-						content: userContentToPersist,
-						mentionedDocs: sourceMentionedDocs,
-						turnId: streamedChatTurnId,
-						logContext: "regenerated",
-					});
-					userPersisted = Boolean(persistedUserMsgId);
-
-					await persistAssistantTurn({
-						threadId,
-						assistantMsgId,
-						content: finalContent,
-						tokenUsage: tokenUsageData ?? undefined,
-						turnId: streamedChatTurnId,
-						logContext: "regenerated",
-					});
-
 					trackChatResponseReceived(searchSpaceId, threadId);
 				}
 			} catch (error) {
@@ -1978,44 +1958,6 @@ export default function NewChatPage() {
 					threadId,
 					assistantMsgId,
 					accepted: regenerateAccepted,
-					onAbort: async () => {
-						if (!regenerateAccepted) return;
-						if (!userPersisted) {
-							const persistedUserMsgId = await persistUserTurn({
-								threadId,
-								userMsgId,
-								content: userContentToPersist,
-								mentionedDocs: sourceMentionedDocs,
-								turnId: streamedChatTurnId,
-								logContext: "regenerated (aborted)",
-							});
-							userPersisted = Boolean(persistedUserMsgId);
-						}
-						const hasContent = hasPersistableContent(contentParts, toolsWithUI);
-						if (!hasContent) return;
-						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
-						await persistAssistantTurn({
-							threadId,
-							assistantMsgId,
-							content: partialContent,
-							tokenUsage: tokenUsageData ?? undefined,
-							turnId: streamedChatTurnId,
-							logContext: "partial regenerated chat",
-						});
-					},
-					onAcceptedStreamError: async () => {
-						if (!userPersisted) {
-							const persistedUserMsgId = await persistUserTurn({
-								threadId,
-								userMsgId,
-								content: userContentToPersist,
-								mentionedDocs: sourceMentionedDocs,
-								turnId: streamedChatTurnId,
-								logContext: "regenerated (stream error)",
-							});
-							userPersisted = Boolean(persistedUserMsgId);
-						}
-					},
 				});
 			} finally {
 				setIsRunning(false);
@@ -2034,8 +1976,6 @@ export default function NewChatPage() {
 			tokenUsageStore,
 			fetchWithTurnCancellingRetry,
 			handleStreamTerminalError,
-			persistAssistantTurn,
-			persistUserTurn,
 		]
 	);
 

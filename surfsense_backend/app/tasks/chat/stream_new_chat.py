@@ -25,7 +25,6 @@ from uuid import UUID
 
 import anyio
 from langchain_core.messages import HumanMessage
-from sqlalchemy import func
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
@@ -314,6 +313,19 @@ class StreamResult:
     verification_succeeded: bool = False
     commit_gate_passed: bool = True
     commit_gate_reason: str = ""
+    # Pre-allocated assistant ``new_chat_messages.id`` for this turn,
+    # captured by ``persist_assistant_shell`` right after the user row is
+    # persisted. ``None`` for the legacy / anonymous code paths that don't
+    # opt in to server-side ``ContentPart[]`` projection.
+    assistant_message_id: int | None = None
+    # In-memory mirror of the FE's assistant-ui ``ContentPartsState``,
+    # populated by the lifecycle methods called from ``_stream_agent_events``
+    # at each ``streaming_service.format_*`` yield site. Snapshot in the
+    # streaming ``finally`` to produce the rich JSONB persisted by
+    # ``finalize_assistant_turn``. ``repr=False`` keeps the
+    # log-on-error path (``StreamResult`` is logged in some error
+    # branches) from dumping a potentially-large parts list.
+    content_builder: Any | None = field(default=None, repr=False)
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -721,6 +733,7 @@ async def _stream_agent_events(
     fallback_commit_filesystem_mode: FilesystemMode = FilesystemMode.CLOUD,
     fallback_commit_thread_id: int | None = None,
     runtime_context: Any = None,
+    content_builder: Any | None = None,
 ) -> AsyncGenerator[str, None]:
     """Shared async generator that streams and formats astream_events from the agent.
 
@@ -737,6 +750,15 @@ async def _stream_agent_events(
         initial_step_id: If set, the helper inherits an already-active thinking step.
         initial_step_title: Title of the inherited thinking step.
         initial_step_items: Items of the inherited thinking step.
+        content_builder: Optional ``AssistantContentBuilder``. When set, every
+            ``streaming_service.format_*`` yield site also drives the matching
+            builder lifecycle method (``on_text_*``, ``on_reasoning_*``,
+            ``on_tool_*``, ``on_thinking_step``, ``on_step_separator``) so the
+            in-memory ``ContentPart[]`` projection stays in lockstep with what
+            the FE renders live. Pure in-memory accumulation — no DB I/O —
+            consumed by the streaming ``finally`` to produce the rich JSONB
+            persisted via ``finalize_assistant_turn``. ``None`` (the default)
+            is used by the anonymous / legacy code paths and is a no-op.
 
     Yields:
         SSE-formatted strings for each event.
@@ -801,10 +823,44 @@ async def _stream_agent_events(
     current_lc_tool_call_id: dict[str, str | None] = {"value": None}
 
     def _emit_tool_output(call_id: str, output: Any) -> str:
+        # Drive the builder before formatting the SSE so the in-memory
+        # ContentPart[] mirror sees the result attached to the same
+        # card the FE will render. Builder method is a no-op when
+        # ``content_builder`` is None (anonymous / legacy paths).
+        if content_builder is not None:
+            content_builder.on_tool_output_available(
+                call_id, output, current_lc_tool_call_id["value"]
+            )
         return streaming_service.format_tool_output_available(
             call_id,
             output,
             langchain_tool_call_id=current_lc_tool_call_id["value"],
+        )
+
+    def _emit_thinking_step(
+        *,
+        step_id: str,
+        title: str,
+        status: str = "in_progress",
+        items: list[str] | None = None,
+    ) -> str:
+        """Format a thinking-step SSE event and notify the builder.
+
+        Single helper used at every ``format_thinking_step`` yield site
+        in this generator. Drives ``AssistantContentBuilder.on_thinking_step``
+        first so the FE-mirror state lands the update before the SSE
+        carrying the same data leaves the wire — order matches the FE
+        pipeline (``processSharedStreamEvent`` updates state, then
+        flushes). Builder call is a no-op when ``content_builder`` is
+        None (anonymous / legacy paths).
+        """
+        if content_builder is not None:
+            content_builder.on_thinking_step(step_id, title, status, items)
+        return streaming_service.format_thinking_step(
+            step_id=step_id,
+            title=title,
+            status=status,
+            items=items,
         )
 
     def next_thinking_step_id() -> str:
@@ -816,7 +872,7 @@ async def _stream_agent_events(
         nonlocal last_active_step_id
         if last_active_step_id and last_active_step_id not in completed_step_ids:
             completed_step_ids.add(last_active_step_id)
-            event = streaming_service.format_thinking_step(
+            event = _emit_thinking_step(
                 step_id=last_active_step_id,
                 title=last_active_step_title,
                 status="completed",
@@ -861,6 +917,8 @@ async def _stream_agent_events(
             if parity_v2 and reasoning_delta:
                 if current_text_id is not None:
                     yield streaming_service.format_text_end(current_text_id)
+                    if content_builder is not None:
+                        content_builder.on_text_end(current_text_id)
                     current_text_id = None
                 if current_reasoning_id is None:
                     completion_event = complete_current_step()
@@ -873,13 +931,21 @@ async def _stream_agent_events(
                         just_finished_tool = False
                     current_reasoning_id = streaming_service.generate_reasoning_id()
                     yield streaming_service.format_reasoning_start(current_reasoning_id)
+                    if content_builder is not None:
+                        content_builder.on_reasoning_start(current_reasoning_id)
                 yield streaming_service.format_reasoning_delta(
                     current_reasoning_id, reasoning_delta
                 )
+                if content_builder is not None:
+                    content_builder.on_reasoning_delta(
+                        current_reasoning_id, reasoning_delta
+                    )
 
             if text_delta:
                 if current_reasoning_id is not None:
                     yield streaming_service.format_reasoning_end(current_reasoning_id)
+                    if content_builder is not None:
+                        content_builder.on_reasoning_end(current_reasoning_id)
                     current_reasoning_id = None
                 if current_text_id is None:
                     completion_event = complete_current_step()
@@ -892,8 +958,12 @@ async def _stream_agent_events(
                         just_finished_tool = False
                     current_text_id = streaming_service.generate_text_id()
                     yield streaming_service.format_text_start(current_text_id)
+                    if content_builder is not None:
+                        content_builder.on_text_start(current_text_id)
                 yield streaming_service.format_text_delta(current_text_id, text_delta)
                 accumulated_text += text_delta
+                if content_builder is not None:
+                    content_builder.on_text_delta(current_text_id, text_delta)
 
             # Live tool-call argument streaming. Runs AFTER text/reasoning
             # processing so chunks containing both stay in their natural
@@ -925,11 +995,17 @@ async def _stream_agent_events(
                             # within the same stream window.
                             if current_text_id is not None:
                                 yield streaming_service.format_text_end(current_text_id)
+                                if content_builder is not None:
+                                    content_builder.on_text_end(current_text_id)
                                 current_text_id = None
                             if current_reasoning_id is not None:
                                 yield streaming_service.format_reasoning_end(
                                     current_reasoning_id
                                 )
+                                if content_builder is not None:
+                                    content_builder.on_reasoning_end(
+                                        current_reasoning_id
+                                    )
                                 current_reasoning_id = None
 
                             index_to_meta[idx] = {
@@ -942,6 +1018,8 @@ async def _stream_agent_events(
                                 name,
                                 langchain_tool_call_id=lc_id,
                             )
+                            if content_builder is not None:
+                                content_builder.on_tool_input_start(ui_id, name, lc_id)
 
                     # Emit args delta for any chunk at a registered
                     # index (including idless continuations). Once an
@@ -957,6 +1035,10 @@ async def _stream_agent_events(
                             yield streaming_service.format_tool_input_delta(
                                 meta["ui_id"], args_chunk
                             )
+                            if content_builder is not None:
+                                content_builder.on_tool_input_delta(
+                                    meta["ui_id"], args_chunk
+                                )
                     else:
                         pending_tool_call_chunks.append(tcc)
 
@@ -974,6 +1056,8 @@ async def _stream_agent_events(
 
             if current_text_id is not None:
                 yield streaming_service.format_text_end(current_text_id)
+                if content_builder is not None:
+                    content_builder.on_text_end(current_text_id)
                 current_text_id = None
 
             if last_active_step_title != "Synthesizing response":
@@ -994,7 +1078,7 @@ async def _stream_agent_events(
                 )
                 last_active_step_title = "Listing files"
                 last_active_step_items = [ls_path]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Listing files",
                     status="in_progress",
@@ -1009,7 +1093,7 @@ async def _stream_agent_events(
                 display_fp = fp if len(fp) <= 80 else "…" + fp[-77:]
                 last_active_step_title = "Reading file"
                 last_active_step_items = [display_fp]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Reading file",
                     status="in_progress",
@@ -1024,7 +1108,7 @@ async def _stream_agent_events(
                 display_fp = fp if len(fp) <= 80 else "…" + fp[-77:]
                 last_active_step_title = "Writing file"
                 last_active_step_items = [display_fp]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Writing file",
                     status="in_progress",
@@ -1039,7 +1123,7 @@ async def _stream_agent_events(
                 display_fp = fp if len(fp) <= 80 else "…" + fp[-77:]
                 last_active_step_title = "Editing file"
                 last_active_step_items = [display_fp]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Editing file",
                     status="in_progress",
@@ -1056,7 +1140,7 @@ async def _stream_agent_events(
                 )
                 last_active_step_title = "Searching files"
                 last_active_step_items = [f"{pat} in {base_path}"]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Searching files",
                     status="in_progress",
@@ -1076,7 +1160,7 @@ async def _stream_agent_events(
                 last_active_step_items = [
                     f'"{display_pat}"' + (f" in {grep_path}" if grep_path else "")
                 ]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Searching content",
                     status="in_progress",
@@ -1091,7 +1175,7 @@ async def _stream_agent_events(
                 display_path = rm_path if len(rm_path) <= 80 else "…" + rm_path[-77:]
                 last_active_step_title = "Deleting file"
                 last_active_step_items = [display_path] if display_path else []
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Deleting file",
                     status="in_progress",
@@ -1108,7 +1192,7 @@ async def _stream_agent_events(
                 )
                 last_active_step_title = "Deleting folder"
                 last_active_step_items = [display_path] if display_path else []
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Deleting folder",
                     status="in_progress",
@@ -1125,7 +1209,7 @@ async def _stream_agent_events(
                 )
                 last_active_step_title = "Creating folder"
                 last_active_step_items = [display_path] if display_path else []
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Creating folder",
                     status="in_progress",
@@ -1148,7 +1232,7 @@ async def _stream_agent_events(
                 last_active_step_items = (
                     [f"{display_src} → {display_dst}"] if src or dst else []
                 )
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Moving file",
                     status="in_progress",
@@ -1165,7 +1249,7 @@ async def _stream_agent_events(
                     if todo_count
                     else []
                 )
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Planning tasks",
                     status="in_progress",
@@ -1180,7 +1264,7 @@ async def _stream_agent_events(
                 display_title = doc_title[:60] + ("…" if len(doc_title) > 60 else "")
                 last_active_step_title = "Saving document"
                 last_active_step_items = [display_title]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Saving document",
                     status="in_progress",
@@ -1196,7 +1280,7 @@ async def _stream_agent_events(
                 last_active_step_items = [
                     f"Prompt: {prompt[:80]}{'...' if len(prompt) > 80 else ''}"
                 ]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Generating image",
                     status="in_progress",
@@ -1212,7 +1296,7 @@ async def _stream_agent_events(
                 last_active_step_items = [
                     f"URL: {url[:80]}{'...' if len(url) > 80 else ''}"
                 ]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Scraping webpage",
                     status="in_progress",
@@ -1235,7 +1319,7 @@ async def _stream_agent_events(
                     f"Content: {content_len:,} characters",
                     "Preparing audio generation...",
                 ]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Generating podcast",
                     status="in_progress",
@@ -1256,7 +1340,7 @@ async def _stream_agent_events(
                     f"Topic: {report_topic}",
                     "Analyzing source content...",
                 ]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title=step_title,
                     status="in_progress",
@@ -1271,7 +1355,7 @@ async def _stream_agent_events(
                 display_cmd = cmd[:80] + ("…" if len(cmd) > 80 else "")
                 last_active_step_title = "Running command"
                 last_active_step_items = [f"$ {display_cmd}"]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title="Running command",
                     status="in_progress",
@@ -1288,7 +1372,7 @@ async def _stream_agent_events(
                     tool_name.replace("_", " ").strip().capitalize() or tool_name
                 )
                 last_active_step_items = []
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=tool_step_id,
                     title=last_active_step_title,
                     status="in_progress",
@@ -1349,6 +1433,10 @@ async def _stream_agent_events(
                     tool_name,
                     langchain_tool_call_id=langchain_tool_call_id,
                 )
+                if content_builder is not None:
+                    content_builder.on_tool_input_start(
+                        tool_call_id, tool_name, langchain_tool_call_id
+                    )
 
             if run_id:
                 ui_tool_call_id_by_run[run_id] = tool_call_id
@@ -1371,6 +1459,13 @@ async def _stream_agent_events(
                 _safe_input,
                 langchain_tool_call_id=langchain_tool_call_id,
             )
+            if content_builder is not None:
+                content_builder.on_tool_input_available(
+                    tool_call_id,
+                    tool_name,
+                    _safe_input,
+                    langchain_tool_call_id,
+                )
 
         elif event_type == "on_tool_end":
             active_tool_depth = max(0, active_tool_depth - 1)
@@ -1443,70 +1538,70 @@ async def _stream_agent_events(
                 current_lc_tool_call_id["value"] = lc_tool_call_id_by_run[run_id]
 
             if tool_name == "read_file":
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Reading file",
                     status="completed",
                     items=last_active_step_items,
                 )
             elif tool_name == "write_file":
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Writing file",
                     status="completed",
                     items=last_active_step_items,
                 )
             elif tool_name == "edit_file":
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Editing file",
                     status="completed",
                     items=last_active_step_items,
                 )
             elif tool_name == "glob":
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Searching files",
                     status="completed",
                     items=last_active_step_items,
                 )
             elif tool_name == "grep":
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Searching content",
                     status="completed",
                     items=last_active_step_items,
                 )
             elif tool_name == "rm":
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Deleting file",
                     status="completed",
                     items=last_active_step_items,
                 )
             elif tool_name == "rmdir":
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Deleting folder",
                     status="completed",
                     items=last_active_step_items,
                 )
             elif tool_name == "mkdir":
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Creating folder",
                     status="completed",
                     items=last_active_step_items,
                 )
             elif tool_name == "move_file":
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Moving file",
                     status="completed",
                     items=last_active_step_items,
                 )
             elif tool_name == "write_todos":
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Planning tasks",
                     status="completed",
@@ -1523,7 +1618,7 @@ async def _stream_agent_events(
                     *last_active_step_items,
                     result_str[:80] if is_error else "Saved to knowledge base",
                 ]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Saving document",
                     status="completed",
@@ -1542,7 +1637,7 @@ async def _stream_agent_events(
                         else "Generation failed"
                     )
                     completed_items = [*last_active_step_items, f"Error: {error_msg}"]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Generating image",
                     status="completed",
@@ -1566,7 +1661,7 @@ async def _stream_agent_events(
                         ]
                 else:
                     completed_items = [*last_active_step_items, "Content extracted"]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Scraping webpage",
                     status="completed",
@@ -1612,7 +1707,7 @@ async def _stream_agent_events(
                     ]
                 else:
                     completed_items = last_active_step_items
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Generating podcast",
                     status="completed",
@@ -1647,7 +1742,7 @@ async def _stream_agent_events(
                     ]
                 else:
                     completed_items = last_active_step_items
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Generating video presentation",
                     status="completed",
@@ -1695,7 +1790,7 @@ async def _stream_agent_events(
                 else:
                     completed_items = last_active_step_items
 
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title=step_title,
                     status="completed",
@@ -1721,7 +1816,7 @@ async def _stream_agent_events(
                     ]
                 else:
                     completed_items = [*last_active_step_items, "Finished"]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Running command",
                     status="completed",
@@ -1761,7 +1856,7 @@ async def _stream_agent_events(
                         completed_items.append(f"(+{len(file_names) - 4} more)")
                 else:
                     completed_items = ["No files found"]
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title="Listing files",
                     status="completed",
@@ -1773,7 +1868,7 @@ async def _stream_agent_events(
                 fallback_title = (
                     tool_name.replace("_", " ").strip().capitalize() or tool_name
                 )
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=original_step_id,
                     title=fallback_title,
                     status="completed",
@@ -2113,7 +2208,7 @@ async def _stream_agent_events(
                     # Phase transitions: replace everything after topic
                     last_active_step_items = [*topic_items, message]
 
-                yield streaming_service.format_thinking_step(
+                yield _emit_thinking_step(
                     step_id=last_active_step_id,
                     title=last_active_step_title,
                     status="in_progress",
@@ -2155,10 +2250,14 @@ async def _stream_agent_events(
         elif event_type in ("on_chain_end", "on_agent_end"):
             if current_text_id is not None:
                 yield streaming_service.format_text_end(current_text_id)
+                if content_builder is not None:
+                    content_builder.on_text_end(current_text_id)
                 current_text_id = None
 
     if current_text_id is not None:
         yield streaming_service.format_text_end(current_text_id)
+        if content_builder is not None:
+            content_builder.on_text_end(current_text_id)
 
     completion_event = complete_current_step()
     if completion_event:
@@ -2243,8 +2342,14 @@ async def _stream_agent_events(
             )
             gate_text_id = streaming_service.generate_text_id()
             yield streaming_service.format_text_start(gate_text_id)
+            if content_builder is not None:
+                content_builder.on_text_start(gate_text_id)
             yield streaming_service.format_text_delta(gate_text_id, gate_notice)
+            if content_builder is not None:
+                content_builder.on_text_delta(gate_text_id, gate_notice)
             yield streaming_service.format_text_end(gate_text_id)
+            if content_builder is not None:
+                content_builder.on_text_end(gate_text_id)
             yield streaming_service.format_terminal_info(gate_notice, "error")
             accumulated_text = gate_notice
     else:
@@ -2270,6 +2375,7 @@ async def stream_new_chat(
     llm_config_id: int = -1,
     mentioned_document_ids: list[int] | None = None,
     mentioned_surfsense_doc_ids: list[int] | None = None,
+    mentioned_documents: list[dict[str, Any]] | None = None,
     checkpoint_id: str | None = None,
     needs_history_bootstrap: bool = False,
     thread_visibility: ChatVisibility | None = None,
@@ -2949,6 +3055,96 @@ async def stream_new_chat(
         )
         yield streaming_service.format_data("turn-status", {"status": "busy"})
 
+        # Persist the user-side row for this turn before any expensive
+        # work runs. Closes the "ghost-thread" abuse vector
+        # (authenticated client hits POST /new_chat then never calls
+        # /messages — empty new_chat_messages, free LLM completion).
+        # Idempotent against the unique index in migration 141 so the
+        # legacy frontend appendMessage call is a no-op on the second
+        # writer. Hard failure aborts the turn so we never produce a
+        # title or assistant row that isn't anchored to a persisted
+        # user message.
+        from app.tasks.chat.content_builder import AssistantContentBuilder
+        from app.tasks.chat.persistence import (
+            persist_assistant_shell,
+            persist_user_turn,
+        )
+
+        user_message_id = await persist_user_turn(
+            chat_id=chat_id,
+            user_id=user_id,
+            turn_id=stream_result.turn_id,
+            user_query=user_query,
+            user_image_data_urls=user_image_data_urls,
+            mentioned_documents=mentioned_documents,
+        )
+        if user_message_id is None:
+            yield _emit_stream_error(
+                message=(
+                    "We couldn't save your message. Please try again in a moment."
+                ),
+                error_kind="server_error",
+                error_code="MESSAGE_PERSIST_FAILED",
+            )
+            yield streaming_service.format_data("turn-status", {"status": "idle"})
+            yield streaming_service.format_finish_step()
+            yield streaming_service.format_finish()
+            yield streaming_service.format_done()
+            return
+
+        # Emit canonical user message id BEFORE any LLM streaming so the
+        # FE can rename its optimistic ``msg-user-XXX`` placeholder to
+        # ``msg-{user_message_id}`` and unlock features gated on a real
+        # DB id (comments, edit-from-this-message). See B4 in
+        # ``sse-based_message_id_handshake`` plan.
+        yield streaming_service.format_data(
+            "user-message-id",
+            {"message_id": user_message_id, "turn_id": stream_result.turn_id},
+        )
+
+        # Pre-write the assistant row for this turn so we have a stable
+        # ``message_id`` to anchor mid-stream metadata (token_usage,
+        # future agent_action_log.message_id correlation) and a
+        # write-once UPDATE target at finalize time. Idempotent against
+        # the (thread_id, turn_id, ASSISTANT) partial unique index from
+        # migration 141 — if the legacy frontend appendMessage races
+        # this, we recover the existing row's id.
+        assistant_message_id = await persist_assistant_shell(
+            chat_id=chat_id,
+            user_id=user_id,
+            turn_id=stream_result.turn_id,
+        )
+        if assistant_message_id is None:
+            # Genuine DB failure — abort the turn rather than stream
+            # into a void. The user row is already persisted so the
+            # legacy "ghost-thread" gate isn't reopened.
+            yield _emit_stream_error(
+                message=(
+                    "We couldn't initialize the assistant message. Please try again."
+                ),
+                error_kind="server_error",
+                error_code="MESSAGE_PERSIST_FAILED",
+            )
+            yield streaming_service.format_data("turn-status", {"status": "idle"})
+            yield streaming_service.format_finish_step()
+            yield streaming_service.format_finish()
+            yield streaming_service.format_done()
+            return
+
+        # Emit canonical assistant message id BEFORE any LLM streaming
+        # so the FE can rename its optimistic ``msg-assistant-XXX``
+        # placeholder to ``msg-{assistant_message_id}`` and bind
+        # ``tokenUsageStore`` / ``pendingInterrupt`` to the real id
+        # immediately. See B4 in ``sse-based_message_id_handshake``
+        # plan.
+        yield streaming_service.format_data(
+            "assistant-message-id",
+            {"message_id": assistant_message_id, "turn_id": stream_result.turn_id},
+        )
+
+        stream_result.assistant_message_id = assistant_message_id
+        stream_result.content_builder = AssistantContentBuilder()
+
         # Initial thinking step - analyzing the request
         if mentioned_surfsense_docs:
             initial_title = "Analyzing referenced content"
@@ -2981,6 +3177,15 @@ async def stream_new_chat(
         initial_items = [f"{action_verb}: {' '.join(processing_parts)}"]
         initial_step_id = "thinking-1"
 
+        # Drive the builder for this initial thinking step too — the
+        # ``_emit_thinking_step`` helper lives inside ``_stream_agent_events``
+        # so it isn't in scope here, but the FE folds this step into
+        # the same singleton ``data-thinking-steps`` part as everything
+        # the agent stream emits later. Mirror that fold server-side.
+        if stream_result.content_builder is not None:
+            stream_result.content_builder.on_thinking_step(
+                initial_step_id, initial_title, "in_progress", initial_items
+            )
         yield streaming_service.format_thinking_step(
             step_id=initial_step_id,
             title=initial_title,
@@ -2997,16 +3202,34 @@ async def stream_new_chat(
         # Check if this is the first assistant response so we can generate
         # a title in parallel with the agent stream (better UX than waiting
         # until after the full response).
-        assistant_count_result = await session.execute(
-            select(func.count(NewChatMessage.id)).filter(
+        # Use a LIMIT 1 EXISTS-style probe rather than COUNT(*) because
+        # this is now a hot path executed on every turn, and COUNT scales
+        # with thread length (server-side persistence can grow rows
+        # quickly under power users).
+        #
+        # IMPORTANT: ``persist_assistant_shell`` above (line ~3112) already
+        # inserted THIS turn's assistant row. We must therefore exclude
+        # it from the probe — otherwise the gate fires on every turn
+        # except the very first, and title generation never runs for new
+        # threads. Excluding by primary key (``id != assistant_message_id``)
+        # is bulletproof regardless of ``turn_id`` shape (legacy NULLs,
+        # resume turns, etc.).
+        first_assistant_probe = await session.execute(
+            select(NewChatMessage.id)
+            .filter(
                 NewChatMessage.thread_id == chat_id,
                 NewChatMessage.role == "assistant",
+                NewChatMessage.id != assistant_message_id,
             )
+            .limit(1)
         )
-        is_first_response = (assistant_count_result.scalar() or 0) == 0
+        is_first_response = first_assistant_probe.scalars().first() is None
 
         title_task: asyncio.Task[tuple[str | None, dict | None]] | None = None
-        if is_first_response:
+        # Gate title generation on a persisted user message so a stream
+        # that fails before persistence (we abort above) can never leave
+        # behind a thread with a generated title and no anchoring rows.
+        if is_first_response and user_message_id is not None:
 
             async def _generate_title() -> tuple[str | None, dict | None]:
                 """Generate a short title via litellm.acompletion.
@@ -3138,6 +3361,7 @@ async def stream_new_chat(
                     ),
                     fallback_commit_thread_id=chat_id,
                     runtime_context=runtime_context,
+                    content_builder=stream_result.content_builder,
                 ):
                     if not _first_event_logged:
                         _perf_log.info(
@@ -3492,6 +3716,81 @@ async def stream_new_chat(
 
             with contextlib.suppress(Exception):
                 await session.close()
+
+            # Server-side assistant-message + token_usage finalization.
+            # Runs after the main session has been closed (uses its own
+            # shielded session) so we don't fight the same DB connection.
+            # Idempotent against the legacy frontend appendMessage:
+            #  * the assistant row was already INSERTed by
+            #    ``persist_assistant_shell`` above, so this just UPDATEs
+            #    it with the rich ContentPart[] from the builder.
+            #  * token_usage uses INSERT ... ON CONFLICT DO NOTHING
+            #    against migration 142's partial unique index, so a
+            #    racing append_message recovery branch can never
+            #    double-write.
+            # ``mark_interrupted`` closes any open text/reasoning blocks
+            # and flips running tool-calls (no result) to state=aborted
+            # so the persisted JSONB reflects a coherent end-state even
+            # on client disconnect.
+            # Never raises (best-effort, logs only).
+            if (
+                stream_result
+                and stream_result.turn_id
+                and stream_result.assistant_message_id
+            ):
+                from app.tasks.chat.persistence import finalize_assistant_turn
+
+                builder_stats: dict[str, int] | None = None
+                if stream_result.content_builder is not None:
+                    stream_result.content_builder.mark_interrupted()
+                    # Snapshot stats BEFORE deepcopy in ``snapshot()`` so
+                    # the perf log records the actual finalised payload
+                    # (post-mark_interrupted), not the live-mutating
+                    # builder state.
+                    builder_stats = stream_result.content_builder.stats()
+                    content_payload = stream_result.content_builder.snapshot()
+                else:
+                    # Defensive fallback — we always set the builder
+                    # alongside ``assistant_message_id`` above, so this
+                    # branch only fires if a future refactor ever
+                    # decouples them. Persist whatever accumulated
+                    # text we captured so the row at least renders.
+                    content_payload = [
+                        {
+                            "type": "text",
+                            "text": stream_result.accumulated_text or "",
+                        }
+                    ]
+
+                if builder_stats is not None:
+                    _perf_log.info(
+                        "[stream_new_chat] finalize_payload chat_id=%s "
+                        "message_id=%s parts=%d bytes=%d text=%d "
+                        "reasoning=%d tool_calls=%d "
+                        "tool_calls_completed=%d tool_calls_aborted=%d "
+                        "thinking_step_parts=%d step_separators=%d",
+                        chat_id,
+                        stream_result.assistant_message_id,
+                        builder_stats["parts"],
+                        builder_stats["bytes"],
+                        builder_stats["text"],
+                        builder_stats["reasoning"],
+                        builder_stats["tool_calls"],
+                        builder_stats["tool_calls_completed"],
+                        builder_stats["tool_calls_aborted"],
+                        builder_stats["thinking_step_parts"],
+                        builder_stats["step_separators"],
+                    )
+
+                await finalize_assistant_turn(
+                    message_id=stream_result.assistant_message_id,
+                    chat_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    turn_id=stream_result.turn_id,
+                    content=content_payload,
+                    accumulator=accumulator,
+                )
 
         # Persist any sandbox-produced files to local storage so they
         # remain downloadable after the Daytona sandbox auto-deletes.
@@ -3937,6 +4236,50 @@ async def stream_resume_chat(
         )
         yield streaming_service.format_data("turn-status", {"status": "busy"})
 
+        # Pre-write a fresh assistant row for this resume turn. The
+        # original (interrupted) ``stream_new_chat`` invocation already
+        # persisted its own assistant row anchored to a different
+        # ``turn_id``; resume allocates a new ``turn_id`` (above) so we
+        # need a separate row keyed on the same ``(thread_id, turn_id,
+        # ASSISTANT)`` invariant. Idempotent against migration 141's
+        # partial unique index — recovers existing id on retry.
+        from app.tasks.chat.content_builder import AssistantContentBuilder
+        from app.tasks.chat.persistence import persist_assistant_shell
+
+        assistant_message_id = await persist_assistant_shell(
+            chat_id=chat_id,
+            user_id=user_id,
+            turn_id=stream_result.turn_id,
+        )
+        if assistant_message_id is None:
+            yield _emit_stream_error(
+                message=(
+                    "We couldn't initialize the assistant message. Please try again."
+                ),
+                error_kind="server_error",
+                error_code="MESSAGE_PERSIST_FAILED",
+            )
+            yield streaming_service.format_data("turn-status", {"status": "idle"})
+            yield streaming_service.format_finish_step()
+            yield streaming_service.format_finish()
+            yield streaming_service.format_done()
+            return
+
+        # Emit canonical assistant message id BEFORE any LLM streaming
+        # so the FE can rename ``pendingInterrupt.assistantMsgId`` to
+        # ``msg-{assistant_message_id}`` immediately. Resume does NOT
+        # emit ``data-user-message-id`` because the user row is from
+        # the original interrupted turn (different ``turn_id``) and is
+        # never re-persisted here. See B5 in the
+        # ``sse-based_message_id_handshake`` plan.
+        yield streaming_service.format_data(
+            "assistant-message-id",
+            {"message_id": assistant_message_id, "turn_id": stream_result.turn_id},
+        )
+
+        stream_result.assistant_message_id = assistant_message_id
+        stream_result.content_builder = AssistantContentBuilder()
+
         # Resume path doesn't carry new ``mentioned_document_ids`` —
         # those are seeded in the original turn. We still pass a
         # context so future middleware extensions (Phase 2) can rely on
@@ -3968,6 +4311,7 @@ async def stream_resume_chat(
                     ),
                     fallback_commit_thread_id=chat_id,
                     runtime_context=runtime_context,
+                    content_builder=stream_result.content_builder,
                 ):
                     if not _first_event_logged:
                         _perf_log.info(
@@ -4218,6 +4562,64 @@ async def stream_resume_chat(
 
             with contextlib.suppress(Exception):
                 await session.close()
+
+            # Server-side assistant-message + token_usage finalization for
+            # the resume flow. The original user message was persisted by
+            # the original (interrupted) ``stream_new_chat`` invocation;
+            # the resume's own ``persist_assistant_shell`` write lives at
+            # the new ``turn_id`` above. This finalize updates that row
+            # with the rich ContentPart[] from the builder and writes
+            # token_usage idempotently via migration 142's partial
+            # unique index. Best-effort, never raises.
+            if (
+                stream_result
+                and stream_result.turn_id
+                and stream_result.assistant_message_id
+            ):
+                from app.tasks.chat.persistence import finalize_assistant_turn
+
+                builder_stats: dict[str, int] | None = None
+                if stream_result.content_builder is not None:
+                    stream_result.content_builder.mark_interrupted()
+                    builder_stats = stream_result.content_builder.stats()
+                    content_payload = stream_result.content_builder.snapshot()
+                else:
+                    content_payload = [
+                        {
+                            "type": "text",
+                            "text": stream_result.accumulated_text or "",
+                        }
+                    ]
+
+                if builder_stats is not None:
+                    _perf_log.info(
+                        "[stream_resume] finalize_payload chat_id=%s "
+                        "message_id=%s parts=%d bytes=%d text=%d "
+                        "reasoning=%d tool_calls=%d "
+                        "tool_calls_completed=%d tool_calls_aborted=%d "
+                        "thinking_step_parts=%d step_separators=%d",
+                        chat_id,
+                        stream_result.assistant_message_id,
+                        builder_stats["parts"],
+                        builder_stats["bytes"],
+                        builder_stats["text"],
+                        builder_stats["reasoning"],
+                        builder_stats["tool_calls"],
+                        builder_stats["tool_calls_completed"],
+                        builder_stats["tool_calls_aborted"],
+                        builder_stats["thinking_step_parts"],
+                        builder_stats["step_separators"],
+                    )
+
+                await finalize_assistant_turn(
+                    message_id=stream_result.assistant_message_id,
+                    chat_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    turn_id=stream_result.turn_id,
+                    content=content_payload,
+                    accumulator=accumulator,
+                )
 
         agent = llm = connector_service = None
         stream_result = None

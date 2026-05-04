@@ -144,6 +144,17 @@ export async function getThreadMessages(threadId: number): Promise<ThreadHistory
  * via ``data-turn-info``. Persisting it lets later edits locate the
  * matching LangGraph checkpoint without HumanMessage scanning. Older
  * callers can still omit it for back-compat.
+ *
+ * @deprecated Replaced by the SSE-based message ID handshake. The
+ * streaming generator (`stream_new_chat` / `stream_resume_chat`) now
+ * persists both the user and assistant rows server-side via
+ * `persist_user_turn` / `persist_assistant_shell` and emits
+ * `data-user-message-id` / `data-assistant-message-id` SSE events so
+ * the UI renames its optimistic IDs in real time. The only remaining
+ * caller is `persistAssistantErrorMessage` (pre-stream error fallback
+ * for requests the server never accepted — the server has nothing to
+ * persist in that case). After the legacy route is removed in a
+ * follow-up PR this function will be deleted entirely.
  */
 export async function appendMessage(
 	threadId: number,
