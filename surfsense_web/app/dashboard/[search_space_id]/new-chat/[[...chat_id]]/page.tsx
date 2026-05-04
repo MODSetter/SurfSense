@@ -147,6 +147,31 @@ function markInterruptsCompleted(contentParts: Array<{ type: string; result?: un
 }
 
 /**
+ * Most recent pending tool-call card with this name, so a new HITL interrupt
+ * does not overwrite an already-approved card with the same tool name.
+ */
+function findHitlTargetToolCallId(
+	toolCallIndices: Map<string, number>,
+	contentParts: Array<{
+		type: string;
+		toolName?: string;
+		result?: unknown;
+	}>,
+	toolName: string
+): string | null {
+	const entries = Array.from(toolCallIndices.entries());
+	for (let i = entries.length - 1; i >= 0; i--) {
+		const [tcId, idx] = entries[i];
+		const part = contentParts[idx];
+		if (!part || part.type !== "tool-call" || part.toolName !== toolName) continue;
+		const result = part.result as Record<string, unknown> | undefined | null;
+		if (result == null) return tcId;
+		if (result.__interrupt__ === true && !result.__decided__) return tcId;
+	}
+	return null;
+}
+
+/**
  * Zod schema for mentioned document info (for type-safe parsing)
  */
 const MentionedDocumentInfoSchema = z.object({
@@ -949,12 +974,13 @@ export default function NewChatPage() {
 								args: Record<string, unknown>;
 							}>;
 							for (const action of actionRequests) {
-								const existingIdx = Array.from(toolCallIndices.entries()).find(([, idx]) => {
-									const part = contentParts[idx];
-									return part?.type === "tool-call" && part.toolName === action.name;
-								});
-								if (existingIdx) {
-									updateToolCall(contentPartsState, existingIdx[0], {
+								const targetTcId = findHitlTargetToolCallId(
+									toolCallIndices,
+									contentParts,
+									action.name
+								);
+								if (targetTcId) {
+									updateToolCall(contentPartsState, targetTcId, {
 										result: { __interrupt__: true, ...interruptData },
 									});
 								} else {
@@ -1265,6 +1291,7 @@ export default function NewChatPage() {
 					body: JSON.stringify({
 						search_space_id: searchSpaceId,
 						decisions,
+						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
 						filesystem_mode: selection.filesystem_mode,
 						client_platform: selection.client_platform,
 						local_filesystem_mounts: selection.local_filesystem_mounts,
@@ -1388,12 +1415,13 @@ export default function NewChatPage() {
 								args: Record<string, unknown>;
 							}>;
 							for (const action of actionRequests) {
-								const existingIdx = Array.from(toolCallIndices.entries()).find(([, idx]) => {
-									const part = contentParts[idx];
-									return part?.type === "tool-call" && part.toolName === action.name;
-								});
-								if (existingIdx) {
-									updateToolCall(contentPartsState, existingIdx[0], {
+								const targetTcId = findHitlTargetToolCallId(
+									toolCallIndices,
+									contentParts,
+									action.name
+								);
+								if (targetTcId) {
+									updateToolCall(contentPartsState, targetTcId, {
 										result: {
 											__interrupt__: true,
 											...interruptData,
@@ -1514,6 +1542,25 @@ export default function NewChatPage() {
 				const decision = detail.decisions[0];
 				const decisionType = decision?.type as "approve" | "reject" | "edit";
 
+				// Fan a single click out to N decisions when the backend bundled
+				// N tool calls into one HITLRequest (one Approve/Reject covers
+				// the whole batch until per-card decisions land).
+				const interruptData = pendingInterrupt.interruptData as
+					| { action_requests?: unknown[] }
+					| undefined;
+				const expectedCount = Array.isArray(interruptData?.action_requests)
+					? interruptData.action_requests.length
+					: detail.decisions.length;
+				const submittedDecisions =
+					detail.decisions.length >= expectedCount || expectedCount <= 1
+						? detail.decisions
+						: [
+								...detail.decisions,
+								...Array.from({ length: expectedCount - detail.decisions.length }, () => ({
+									...detail.decisions[detail.decisions.length - 1],
+								})),
+							];
+
 				setMessages((prev) =>
 					prev.map((m) => {
 						if (m.id !== pendingInterrupt.assistantMsgId) return m;
@@ -1554,7 +1601,7 @@ export default function NewChatPage() {
 						return { ...m, content: newContent as unknown as ThreadMessageLike["content"] };
 					})
 				);
-				handleResume(detail.decisions);
+				handleResume(submittedDecisions);
 			}
 		};
 		window.addEventListener("hitl-decision", handler);

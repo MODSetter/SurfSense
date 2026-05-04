@@ -21,6 +21,7 @@ A tool with no resolver from either path simply opts out of dedup.
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -55,6 +56,19 @@ def wrap_dedup_key_by_arg_name(arg_name: str) -> DedupResolver:
         return str(args.get(arg_name, "")).lower()
 
     return _resolver
+
+
+def dedup_key_full_args(args: dict[str, Any]) -> str:
+    """Resolver that collapses calls only when **every** argument is identical.
+
+    Safe default for tools where no single field uniquely identifies a call
+    (e.g. MCP tools whose first required field is a shared workspace id).
+    """
+
+    try:
+        return json.dumps(args, sort_keys=True, default=str)
+    except (TypeError, ValueError):
+        return repr(sorted(args.items())) if isinstance(args, dict) else repr(args)
 
 
 # Backwards-compatible alias for code that imported the original
