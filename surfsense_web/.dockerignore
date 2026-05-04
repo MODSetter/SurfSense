@@ -12,3 +12,11 @@ Dockerfile
 .dockerignore
 node_modules
 README.md
+
+# Playwright (never ship E2E tests to production runtime image)
+tests
+playwright.config.ts
+playwright
+playwright-report
+test-results
+blob-report

@@ -9,3 +9,10 @@ node_modules/
 deepagents/
 debug.log
 opencode/
+.cursor/skills/playwright-testing
+
+# Playwright (E2E test artifacts — never commit)
+surfsense_web/playwright/.auth/
+surfsense_web/playwright-report/
+surfsense_web/test-results/
+surfsense_web/blob-report/
