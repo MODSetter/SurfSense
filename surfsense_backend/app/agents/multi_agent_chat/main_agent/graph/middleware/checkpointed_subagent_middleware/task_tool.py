@@ -139,13 +139,6 @@ def build_task_tool_with_parent_config(
             if resume_value is not None:
                 expected = hitlrequest_action_count(pending_value)
                 resume_value = fan_out_decisions_to_match(resume_value, expected)
-                logger.info(
-                    "Forwarding surfsense_resume_value into subagent %r "
-                    "(action_requests=%d, targeted_id=%s)",
-                    subagent_type,
-                    expected,
-                    pending_id is not None,
-                )
                 result = subagent.invoke(
                     build_resume_command(resume_value, pending_id),
                     config=sub_config,
@@ -211,13 +204,6 @@ def build_task_tool_with_parent_config(
             if resume_value is not None:
                 expected = hitlrequest_action_count(pending_value)
                 resume_value = fan_out_decisions_to_match(resume_value, expected)
-                logger.info(
-                    "Forwarding surfsense_resume_value into subagent %r "
-                    "(action_requests=%d, targeted_id=%s)",
-                    subagent_type,
-                    expected,
-                    pending_id is not None,
-                )
                 result = await subagent.ainvoke(
                     build_resume_command(resume_value, pending_id),
                     config=sub_config,

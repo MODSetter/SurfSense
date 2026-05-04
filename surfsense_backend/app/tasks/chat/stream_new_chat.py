@@ -2758,7 +2758,6 @@ async def stream_resume_chat(
         fs_mode,
         fs_platform,
     )
-
     from app.services.token_tracking_service import start_turn
 
     accumulator = start_turn()

@@ -22,7 +22,12 @@ def hitlrequest_action_count(pending_value: Any) -> int:
 
 
 def fan_out_decisions_to_match(resume_value: Any, expected_count: int) -> Any:
-    """Pad a single-decision resume to N entries so an ``action_requests=N`` bundle accepts it."""
+    """Legacy fallback: pad a 1-decision resume to N for an ``action_requests=N`` bundle.
+
+    Modern frontend submits N decisions per bundle (one per action_request) so
+    this is a no-op; kept for backwards compatibility with old in-flight
+    threads or non-bundle clients that send a single decision.
+    """
     if expected_count <= 1:
         return resume_value
     if not isinstance(resume_value, dict):

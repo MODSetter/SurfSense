@@ -40,6 +40,7 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
+import { withBundleStep } from "@/components/hitl-bundle-pager";
 import type { SerializableCitation } from "@/components/tool-ui/citation";
 import {
 	openSafeNavigationHref,
@@ -484,6 +485,51 @@ const MessageInfoDropdown: FC = () => {
 	);
 };
 
+// Wrap each tool-ui card with ``withBundleStep`` so multi-card HITL bundles
+// page through them and stage decisions instead of firing one resume per card.
+const TOOLS_BY_NAME = {
+	generate_report: withBundleStep(GenerateReportToolUI),
+	generate_resume: withBundleStep(GenerateResumeToolUI),
+	generate_podcast: withBundleStep(GeneratePodcastToolUI),
+	generate_video_presentation: withBundleStep(GenerateVideoPresentationToolUI),
+	display_image: withBundleStep(GenerateImageToolUI),
+	generate_image: withBundleStep(GenerateImageToolUI),
+	update_memory: withBundleStep(UpdateMemoryToolUI),
+	execute: withBundleStep(SandboxExecuteToolUI),
+	execute_code: withBundleStep(SandboxExecuteToolUI),
+	create_notion_page: withBundleStep(CreateNotionPageToolUI),
+	update_notion_page: withBundleStep(UpdateNotionPageToolUI),
+	delete_notion_page: withBundleStep(DeleteNotionPageToolUI),
+	create_linear_issue: withBundleStep(CreateLinearIssueToolUI),
+	update_linear_issue: withBundleStep(UpdateLinearIssueToolUI),
+	delete_linear_issue: withBundleStep(DeleteLinearIssueToolUI),
+	create_google_drive_file: withBundleStep(CreateGoogleDriveFileToolUI),
+	delete_google_drive_file: withBundleStep(DeleteGoogleDriveFileToolUI),
+	create_onedrive_file: withBundleStep(CreateOneDriveFileToolUI),
+	delete_onedrive_file: withBundleStep(DeleteOneDriveFileToolUI),
+	create_dropbox_file: withBundleStep(CreateDropboxFileToolUI),
+	delete_dropbox_file: withBundleStep(DeleteDropboxFileToolUI),
+	create_calendar_event: withBundleStep(CreateCalendarEventToolUI),
+	update_calendar_event: withBundleStep(UpdateCalendarEventToolUI),
+	delete_calendar_event: withBundleStep(DeleteCalendarEventToolUI),
+	create_gmail_draft: withBundleStep(CreateGmailDraftToolUI),
+	update_gmail_draft: withBundleStep(UpdateGmailDraftToolUI),
+	send_gmail_email: withBundleStep(SendGmailEmailToolUI),
+	trash_gmail_email: withBundleStep(TrashGmailEmailToolUI),
+	create_jira_issue: withBundleStep(CreateJiraIssueToolUI),
+	update_jira_issue: withBundleStep(UpdateJiraIssueToolUI),
+	delete_jira_issue: withBundleStep(DeleteJiraIssueToolUI),
+	create_confluence_page: withBundleStep(CreateConfluencePageToolUI),
+	update_confluence_page: withBundleStep(UpdateConfluencePageToolUI),
+	delete_confluence_page: withBundleStep(DeleteConfluencePageToolUI),
+	web_search: () => null,
+	link_preview: () => null,
+	multi_link_preview: () => null,
+	scrape_webpage: () => null,
+} as const;
+
+const TOOLS_FALLBACK = withBundleStep(ToolFallback);
+
 const AssistantMessageInner: FC = () => {
 	const isMobile = !useMediaQuery("(min-width: 768px)");
 
@@ -495,47 +541,8 @@ const AssistantMessageInner: FC = () => {
 						Text: MarkdownText,
 						Reasoning: ReasoningMessagePart,
 						tools: {
-							by_name: {
-								generate_report: GenerateReportToolUI,
-								generate_resume: GenerateResumeToolUI,
-								generate_podcast: GeneratePodcastToolUI,
-								generate_video_presentation: GenerateVideoPresentationToolUI,
-								display_image: GenerateImageToolUI,
-								generate_image: GenerateImageToolUI,
-								update_memory: UpdateMemoryToolUI,
-								execute: SandboxExecuteToolUI,
-								execute_code: SandboxExecuteToolUI,
-								create_notion_page: CreateNotionPageToolUI,
-								update_notion_page: UpdateNotionPageToolUI,
-								delete_notion_page: DeleteNotionPageToolUI,
-								create_linear_issue: CreateLinearIssueToolUI,
-								update_linear_issue: UpdateLinearIssueToolUI,
-								delete_linear_issue: DeleteLinearIssueToolUI,
-								create_google_drive_file: CreateGoogleDriveFileToolUI,
-								delete_google_drive_file: DeleteGoogleDriveFileToolUI,
-								create_onedrive_file: CreateOneDriveFileToolUI,
-								delete_onedrive_file: DeleteOneDriveFileToolUI,
-								create_dropbox_file: CreateDropboxFileToolUI,
-								delete_dropbox_file: DeleteDropboxFileToolUI,
-								create_calendar_event: CreateCalendarEventToolUI,
-								update_calendar_event: UpdateCalendarEventToolUI,
-								delete_calendar_event: DeleteCalendarEventToolUI,
-								create_gmail_draft: CreateGmailDraftToolUI,
-								update_gmail_draft: UpdateGmailDraftToolUI,
-								send_gmail_email: SendGmailEmailToolUI,
-								trash_gmail_email: TrashGmailEmailToolUI,
-								create_jira_issue: CreateJiraIssueToolUI,
-								update_jira_issue: UpdateJiraIssueToolUI,
-								delete_jira_issue: DeleteJiraIssueToolUI,
-								create_confluence_page: CreateConfluencePageToolUI,
-								update_confluence_page: UpdateConfluencePageToolUI,
-								delete_confluence_page: DeleteConfluencePageToolUI,
-								web_search: () => null,
-								link_preview: () => null,
-								multi_link_preview: () => null,
-								scrape_webpage: () => null,
-							},
-							Fallback: ToolFallback,
+							by_name: TOOLS_BY_NAME,
+							Fallback: TOOLS_FALLBACK,
 						},
 					}}
 				/>
