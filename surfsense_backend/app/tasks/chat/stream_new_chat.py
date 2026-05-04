@@ -1978,9 +1978,8 @@ async def stream_new_chat(
     _premium_reserved = 0
     _premium_request_id: str | None = None
 
-    # ``BusyMutexMiddleware.abefore_agent`` raises ``BusyError`` *before*
-    # acquiring the lock, so a concurrent caller must not release the
-    # in-flight caller's lock from its own ``finally`` block.
+    # ``BusyError`` fires before the lock is acquired; the ``finally`` must
+    # not release the in-flight caller's lock.
     _busy_error_raised = False
 
     session = async_session_maker()
@@ -2704,10 +2703,8 @@ async def stream_new_chat(
                             chat_id, stream_result.sandbox_files
                         )
 
-        # Release the busy lock here too: ``aafter_agent`` does not fire if the
-        # graph paused on ``interrupt()`` or the stream bailed out early.
-        # Skip on ``BusyError``: this caller never acquired the lock, so a
-        # release here would steal the in-flight caller's lock.
+        # ``aafter_agent`` doesn't fire on ``interrupt()`` or early bailout.
+        # Skip on ``BusyError`` (caller never acquired the lock).
         if not _busy_error_raised:
             with contextlib.suppress(Exception):
                 if _release_busy_lock(str(chat_id)):
@@ -2766,8 +2763,7 @@ async def stream_resume_chat(
 
     accumulator = start_turn()
 
-    # See ``stream_new_chat``: skip the finally release when ``BusyError``
-    # short-circuited before this caller acquired the lock.
+    # Skip the finally release on ``BusyError`` (caller never acquired the lock).
     _busy_error_raised = False
 
     session = async_session_maker()
@@ -3107,9 +3103,8 @@ async def stream_resume_chat(
             with contextlib.suppress(Exception):
                 await session.close()
 
-        # Release the busy lock left held by the originally-interrupted turn,
-        # and any re-interrupt or early bailout from this resume.
-        # Skip on ``BusyError``: this caller never acquired the lock.
+        # Release the lock from the original interrupted turn or any
+        # re-interrupt/bailout. Skip on ``BusyError`` (lock not held here).
         if not _busy_error_raised:
             with contextlib.suppress(Exception):
                 if _release_busy_lock(str(chat_id)):

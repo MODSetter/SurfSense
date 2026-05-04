@@ -18,7 +18,11 @@ from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
 from langgraph.types import Command
 
-from .config import consume_surfsense_resume, subagent_invoke_config
+from .config import (
+    consume_surfsense_resume,
+    has_surfsense_resume,
+    subagent_invoke_config,
+)
 from .constants import EXCLUDED_STATE_KEYS
 from .propagation import (
     amaybe_propagate_subagent_interrupt,
@@ -116,7 +120,15 @@ def build_task_tool_with_parent_config(
             try:
                 snapshot = get_state(sub_config)
                 pending_id, pending_value = get_first_pending_subagent_interrupt(snapshot)
-            except Exception:  # pragma: no cover - defensive
+            except Exception:
+                # Fail loud if a resume is queued: silent fallback would
+                # replay the original interrupt to the user.
+                if has_surfsense_resume(runtime):
+                    logger.exception(
+                        "Subagent %r get_state raised with resume queued; re-raising.",
+                        subagent_type,
+                    )
+                    raise
                 logger.debug(
                     "Subagent get_state failed; falling back to fresh invoke",
                     exc_info=True,
@@ -182,7 +194,13 @@ def build_task_tool_with_parent_config(
             try:
                 snapshot = await aget_state(sub_config)
                 pending_id, pending_value = get_first_pending_subagent_interrupt(snapshot)
-            except Exception:  # pragma: no cover - defensive
+            except Exception:
+                if has_surfsense_resume(runtime):
+                    logger.exception(
+                        "Subagent %r aget_state raised with resume queued; re-raising.",
+                        subagent_type,
+                    )
+                    raise
                 logger.debug(
                     "Subagent aget_state failed; falling back to fresh ainvoke",
                     exc_info=True,

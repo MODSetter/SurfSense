@@ -27,14 +27,18 @@ def subagent_invoke_config(runtime: ToolRuntime) -> dict[str, Any]:
 
 
 def consume_surfsense_resume(runtime: ToolRuntime) -> Any:
-    """Pop the resume payload so only the first matching subagent applies it.
-
-    Sibling/nested ``task`` calls in the same parent run share the same
-    ``configurable`` dict by reference; leaving the value would replay decisions
-    onto unrelated subagent interrupts.
-    """
+    """Pop the resume payload; siblings share ``configurable`` by reference."""
     cfg = runtime.config or {}
     configurable = cfg.get("configurable") if isinstance(cfg, dict) else None
     if not isinstance(configurable, dict):
         return None
     return configurable.pop("surfsense_resume_value", None)
+
+
+def has_surfsense_resume(runtime: ToolRuntime) -> bool:
+    """True iff a resume payload is queued on this runtime (non-destructive)."""
+    cfg = runtime.config or {}
+    configurable = cfg.get("configurable") if isinstance(cfg, dict) else None
+    if not isinstance(configurable, dict):
+        return False
+    return "surfsense_resume_value" in configurable

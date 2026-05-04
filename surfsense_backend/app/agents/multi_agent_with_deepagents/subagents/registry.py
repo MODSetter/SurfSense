@@ -149,12 +149,7 @@ def _filter_disabled_tools_in_place(
     spec: SubAgent,
     disabled_names: frozenset[str],
 ) -> None:
-    """Drop UI-disabled tools from ``spec["tools"]`` and ``spec["interrupt_on"]``.
-
-    Single funnel for both native (loaded by the route's ``load_tools``) and MCP
-    (passed via ``extra_tools_bucket``) — by post-processing the packed spec we
-    avoid touching every per-route ``build_subagent``.
-    """
+    """Drop UI-disabled tools from ``spec["tools"]`` and ``spec["interrupt_on"]``."""
     if not disabled_names:
         return
     tools = spec.get("tools")  # type: ignore[typeddict-item]

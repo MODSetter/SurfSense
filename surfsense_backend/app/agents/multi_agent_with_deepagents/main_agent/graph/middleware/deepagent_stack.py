@@ -143,6 +143,25 @@ def build_main_agent_deepagent_middleware(
     # Tools that self-prompt via ``request_approval`` must not also appear
     # as ``ask`` rules — that would double-prompt the user for one call.
     _tool_names_in_use = {t.name for t in tools}
+
+    # Deny parent-bound tools whose ``required_connector`` is missing.
+    # No-op today (connector subagents are pruned upstream); guards future
+    # additions to the parent's tool list.
+    if permission_enabled:
+        _available_set = set(available_connectors or [])
+        _synthesized: list[Rule] = []
+        for tool_def in BUILTIN_TOOLS:
+            if tool_def.name not in _tool_names_in_use:
+                continue
+            rc = tool_def.required_connector
+            if rc and rc not in _available_set:
+                _synthesized.append(
+                    Rule(permission=tool_def.name, pattern="*", action="deny")
+                )
+        if _synthesized:
+            permission_rulesets.append(
+                Ruleset(rules=_synthesized, origin="connector_synthesized")
+            )
     gp_interrupt_on: dict[str, bool] = {
         rule.permission: True
         for rs in permission_rulesets
@@ -159,13 +178,8 @@ def build_main_agent_deepagent_middleware(
     if gp_interrupt_on:
         general_purpose_spec["interrupt_on"] = gp_interrupt_on
 
-    # ``deny`` rules must apply on every tool call, including those emitted
-    # from ``task`` runs that never reach the parent's ``PermissionMiddleware``.
-    # Stripping ``allow``/``ask`` keeps the bucket-based ask gates (per-tool
-    # ``interrupt_on`` for ``mcp`` rows + ``request_approval`` in native tool
-    # bodies) as the single ask path — no double-prompt — and ensures the
-    # ``runtime_ruleset`` mutation in ``_persist_always`` is unreachable, so a
-    # shared instance across subagents stays read-only.
+    # Deny-only on subagents: ``task`` runs bypass the parent's
+    # PermissionMiddleware, while bucket-based ask gates own the ask path.
     subagent_deny_rulesets: list[Ruleset] = [
         Ruleset(
             rules=[r for r in rs.rules if r.action == "deny"],
@@ -182,9 +196,8 @@ def build_main_agent_deepagent_middleware(
     )
 
     if subagent_deny_permission_mw is not None:
-        # Match new_chat ordering: deny check runs on already-repaired tool
-        # calls. Insert just before ``PatchToolCallsMiddleware`` (and fall back
-        # to append if the slot moves).
+        # Run deny check on already-repaired tool calls; insert before
+        # PatchToolCallsMiddleware (append if the slot moves).
         _patch_idx = next(
             (
                 i

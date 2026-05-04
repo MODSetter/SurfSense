@@ -37,10 +37,10 @@ def fan_out_decisions_to_match(resume_value: Any, expected_count: int) -> Any:
 
 
 def get_first_pending_subagent_interrupt(state: Any) -> tuple[str | None, Any]:
-    """First pending ``(interrupt_id, value)`` in the snapshot, else ``(None, None)``.
+    """First pending ``(interrupt_id, value)``; ``(None, None)`` if no interrupt.
 
-    The ``id`` lets the caller target ``Command(resume={id: value})`` so the
-    payload is not broadcast to a later fresh interrupt in the same run.
+    Assumes at most one pending interrupt per snapshot (sequential tool nodes).
+    Parallel tool nodes would need an id-aware lookup instead of first-wins.
     """
     if state is None:
         return None, None
