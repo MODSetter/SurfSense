@@ -212,6 +212,7 @@ async def create_surfsense_deep_agent(
         checkpointer=checkpointer,
         subagent_dependencies=dependencies,
         mcp_tools_by_agent=mcp_tools_by_agent,
+        disabled_tools=disabled_tools,
     )
     _perf_log.info(
         "[create_agent] Middleware stack + graph compiled in %.3fs",

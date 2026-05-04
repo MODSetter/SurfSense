@@ -88,6 +88,7 @@ def build_main_agent_deepagent_middleware(
     subagent_dependencies: dict[str, Any],
     checkpointer: Checkpointer,
     mcp_tools_by_agent: dict[str, ToolsPermissions] | None = None,
+    disabled_tools: list[str] | None = None,
 ) -> list[Any]:
     """Build ordered middleware for ``create_agent`` (Nones already stripped)."""
     _memory_middleware = MemoryInjectionMiddleware(
@@ -158,6 +159,42 @@ def build_main_agent_deepagent_middleware(
     if gp_interrupt_on:
         general_purpose_spec["interrupt_on"] = gp_interrupt_on
 
+    # ``deny`` rules must apply on every tool call, including those emitted
+    # from ``task`` runs that never reach the parent's ``PermissionMiddleware``.
+    # Stripping ``allow``/``ask`` keeps the bucket-based ask gates (per-tool
+    # ``interrupt_on`` for ``mcp`` rows + ``request_approval`` in native tool
+    # bodies) as the single ask path — no double-prompt — and ensures the
+    # ``runtime_ruleset`` mutation in ``_persist_always`` is unreachable, so a
+    # shared instance across subagents stays read-only.
+    subagent_deny_rulesets: list[Ruleset] = [
+        Ruleset(
+            rules=[r for r in rs.rules if r.action == "deny"],
+            origin=rs.origin,
+        )
+        for rs in permission_rulesets
+    ]
+    subagent_deny_rulesets = [rs for rs in subagent_deny_rulesets if rs.rules]
+
+    subagent_deny_permission_mw: PermissionMiddleware | None = (
+        PermissionMiddleware(rulesets=subagent_deny_rulesets)
+        if subagent_deny_rulesets
+        else None
+    )
+
+    if subagent_deny_permission_mw is not None:
+        # Match new_chat ordering: deny check runs on already-repaired tool
+        # calls. Insert just before ``PatchToolCallsMiddleware`` (and fall back
+        # to append if the slot moves).
+        _patch_idx = next(
+            (
+                i
+                for i, m in enumerate(gp_middleware)
+                if isinstance(m, PatchToolCallsMiddleware)
+            ),
+            len(gp_middleware),
+        )
+        gp_middleware.insert(_patch_idx, subagent_deny_permission_mw)
+
     registry_subagents: list[SubAgent] = []
     try:
         subagent_extra_middleware: list[Any] = [
@@ -170,12 +207,15 @@ def build_main_agent_deepagent_middleware(
                 thread_id=thread_id,
             ),
         ]
+        if subagent_deny_permission_mw is not None:
+            subagent_extra_middleware.append(subagent_deny_permission_mw)
         registry_subagents = build_subagents(
             dependencies=subagent_dependencies,
             model=llm,
             extra_middleware=subagent_extra_middleware,
             mcp_tools_by_agent=mcp_tools_by_agent or {},
             exclude=get_subagents_to_exclude(available_connectors),
+            disabled_tools=disabled_tools,
         )
         logging.info(
             "Registry subagents: %s",

@@ -26,10 +26,15 @@ def subagent_invoke_config(runtime: ToolRuntime) -> dict[str, Any]:
     return merged
 
 
-def extract_surfsense_resume(runtime: ToolRuntime) -> Any:
-    """Resume payload stashed by ``stream_resume_chat``; ``None`` on a first-time call."""
+def consume_surfsense_resume(runtime: ToolRuntime) -> Any:
+    """Pop the resume payload so only the first matching subagent applies it.
+
+    Sibling/nested ``task`` calls in the same parent run share the same
+    ``configurable`` dict by reference; leaving the value would replay decisions
+    onto unrelated subagent interrupts.
+    """
     cfg = runtime.config or {}
     configurable = cfg.get("configurable") if isinstance(cfg, dict) else None
     if not isinstance(configurable, dict):
         return None
-    return configurable.get("surfsense_resume_value")
+    return configurable.pop("surfsense_resume_value", None)

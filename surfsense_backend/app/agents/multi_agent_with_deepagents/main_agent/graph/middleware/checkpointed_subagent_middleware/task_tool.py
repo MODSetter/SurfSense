@@ -18,7 +18,7 @@ from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
 from langgraph.types import Command
 
-from .config import extract_surfsense_resume, subagent_invoke_config
+from .config import consume_surfsense_resume, subagent_invoke_config
 from .constants import EXCLUDED_STATE_KEYS
 from .propagation import (
     amaybe_propagate_subagent_interrupt,
@@ -123,7 +123,7 @@ def build_task_tool_with_parent_config(
                 )
 
         if pending_value is not None:
-            resume_value = extract_surfsense_resume(runtime)
+            resume_value = consume_surfsense_resume(runtime)
             if resume_value is not None:
                 expected = hitlrequest_action_count(pending_value)
                 resume_value = fan_out_decisions_to_match(resume_value, expected)
@@ -189,7 +189,7 @@ def build_task_tool_with_parent_config(
                 )
 
         if pending_value is not None:
-            resume_value = extract_surfsense_resume(runtime)
+            resume_value = consume_surfsense_resume(runtime)
             if resume_value is not None:
                 expected = hitlrequest_action_count(pending_value)
                 resume_value = fan_out_decisions_to_match(resume_value, expected)

@@ -145,6 +145,30 @@ def get_subagents_to_exclude(
     return sorted(excluded_names)
 
 
+def _filter_disabled_tools_in_place(
+    spec: SubAgent,
+    disabled_names: frozenset[str],
+) -> None:
+    """Drop UI-disabled tools from ``spec["tools"]`` and ``spec["interrupt_on"]``.
+
+    Single funnel for both native (loaded by the route's ``load_tools``) and MCP
+    (passed via ``extra_tools_bucket``) — by post-processing the packed spec we
+    avoid touching every per-route ``build_subagent``.
+    """
+    if not disabled_names:
+        return
+    tools = spec.get("tools")  # type: ignore[typeddict-item]
+    if isinstance(tools, list):
+        spec["tools"] = [  # type: ignore[typeddict-unknown-key]
+            t for t in tools if getattr(t, "name", None) not in disabled_names
+        ]
+    interrupt_on = spec.get("interrupt_on")  # type: ignore[typeddict-item]
+    if isinstance(interrupt_on, dict):
+        spec["interrupt_on"] = {  # type: ignore[typeddict-unknown-key]
+            k: v for k, v in interrupt_on.items() if k not in disabled_names
+        }
+
+
 def build_subagents(
     *,
     dependencies: dict[str, Any],
@@ -152,6 +176,7 @@ def build_subagents(
     extra_middleware: Sequence[Any] | None = None,
     mcp_tools_by_agent: dict[str, ToolsPermissions] | None = None,
     exclude: list[str] | None = None,
+    disabled_tools: list[str] | None = None,
 ) -> list[SubAgent]:
     """Build registry subagents; skip memory/research; skip names in exclude."""
     mcp = mcp_tools_by_agent or {}
@@ -159,16 +184,17 @@ def build_subagents(
     excluded = ["memory", "research"]
     if exclude:
         excluded.extend(exclude)
+    disabled_names = frozenset(disabled_tools or ())
     for name in sorted(SUBAGENT_BUILDERS_BY_NAME):
         if name in excluded:
             continue
         builder = SUBAGENT_BUILDERS_BY_NAME[name]
-        specs.append(
-            builder(
-                dependencies=dependencies,
-                model=model,
-                extra_middleware=extra_middleware,
-                extra_tools_bucket=mcp.get(name),
-            ),
+        spec = builder(
+            dependencies=dependencies,
+            model=model,
+            extra_middleware=extra_middleware,
+            extra_tools_bucket=mcp.get(name),
         )
+        _filter_disabled_tools_in_place(spec, disabled_names)
+        specs.append(spec)
     return specs

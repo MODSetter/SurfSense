@@ -46,6 +46,7 @@ from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
     extract_and_save_team_memory,
 )
+from app.agents.new_chat.errors import BusyError
 from app.agents.new_chat.middleware.busy_mutex import release_lock as _release_busy_lock
 from app.agents.new_chat.middleware.kb_persistence import (
     commit_staged_filesystem_state,
@@ -1977,6 +1978,11 @@ async def stream_new_chat(
     _premium_reserved = 0
     _premium_request_id: str | None = None
 
+    # ``BusyMutexMiddleware.abefore_agent`` raises ``BusyError`` *before*
+    # acquiring the lock, so a concurrent caller must not release the
+    # in-flight caller's lock from its own ``finally`` block.
+    _busy_error_raised = False
+
     session = async_session_maker()
     try:
         # Mark AI as responding to this user for live collaboration
@@ -2094,10 +2100,6 @@ async def stream_new_chat(
 
         _t0 = time.perf_counter()
         if use_multi_agent:
-            # TODO: Propagate ``disabled_tools`` into registry subagents. Today only the main
-            # agent honors UI disables; ``task`` delegates still get full specialist tool sets.
-            # Deliverables (and similar) are user-disableable but implemented on subagents, so
-            # disabling them in the UI does not fully apply until subagents filter too.
             agent = await create_registry_deep_agent(
                 llm=llm,
                 search_space_id=search_space_id,
@@ -2620,6 +2622,13 @@ async def stream_new_chat(
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
 
+    except BusyError as e:
+        _busy_error_raised = True
+        yield streaming_service.format_error(str(e))
+        yield streaming_service.format_finish_step()
+        yield streaming_service.format_finish()
+        yield streaming_service.format_done()
+
     except Exception as e:
         # Handle any errors
         import traceback
@@ -2697,12 +2706,15 @@ async def stream_new_chat(
 
         # Release the busy lock here too: ``aafter_agent`` does not fire if the
         # graph paused on ``interrupt()`` or the stream bailed out early.
-        with contextlib.suppress(Exception):
-            if _release_busy_lock(str(chat_id)):
-                _perf_log.info(
-                    "[stream_new_chat] released stale busy lock (chat_id=%s)",
-                    chat_id,
-                )
+        # Skip on ``BusyError``: this caller never acquired the lock, so a
+        # release here would steal the in-flight caller's lock.
+        if not _busy_error_raised:
+            with contextlib.suppress(Exception):
+                if _release_busy_lock(str(chat_id)):
+                    _perf_log.info(
+                        "[stream_new_chat] released stale busy lock (chat_id=%s)",
+                        chat_id,
+                    )
 
         # Break circular refs held by the agent graph, tools, and LLM
         # wrappers so the GC can reclaim them in a single pass.
@@ -2753,6 +2765,10 @@ async def stream_resume_chat(
     from app.services.token_tracking_service import start_turn
 
     accumulator = start_turn()
+
+    # See ``stream_new_chat``: skip the finally release when ``BusyError``
+    # short-circuited before this caller acquired the lock.
+    _busy_error_raised = False
 
     session = async_session_maker()
     try:
@@ -3036,6 +3052,13 @@ async def stream_resume_chat(
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
 
+    except BusyError as e:
+        _busy_error_raised = True
+        yield streaming_service.format_error(str(e))
+        yield streaming_service.format_finish_step()
+        yield streaming_service.format_finish()
+        yield streaming_service.format_done()
+
     except Exception as e:
         import traceback
 
@@ -3086,12 +3109,14 @@ async def stream_resume_chat(
 
         # Release the busy lock left held by the originally-interrupted turn,
         # and any re-interrupt or early bailout from this resume.
-        with contextlib.suppress(Exception):
-            if _release_busy_lock(str(chat_id)):
-                _perf_log.info(
-                    "[stream_resume] released stale busy lock (chat_id=%s)",
-                    chat_id,
-                )
+        # Skip on ``BusyError``: this caller never acquired the lock.
+        if not _busy_error_raised:
+            with contextlib.suppress(Exception):
+                if _release_busy_lock(str(chat_id)):
+                    _perf_log.info(
+                        "[stream_resume] released stale busy lock (chat_id=%s)",
+                        chat_id,
+                    )
 
         agent = llm = connector_service = None
         stream_result = None

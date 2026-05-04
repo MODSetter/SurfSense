@@ -41,6 +41,7 @@ def build_compiled_agent_graph_sync(
     checkpointer: Checkpointer,
     subagent_dependencies: dict[str, Any],
     mcp_tools_by_agent: dict[str, ToolsPermissions] | None = None,
+    disabled_tools: list[str] | None = None,
 ):
     """Sync compile: middleware + ``create_agent`` (run via ``asyncio.to_thread``)."""
     main_agent_middleware = build_main_agent_deepagent_middleware(
@@ -61,6 +62,7 @@ def build_compiled_agent_graph_sync(
         subagent_dependencies=subagent_dependencies,
         checkpointer=checkpointer,
         mcp_tools_by_agent=mcp_tools_by_agent,
+        disabled_tools=disabled_tools,
     )
 
     agent = create_agent(
