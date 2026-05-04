@@ -19,6 +19,16 @@ export function useHitlDecision() {
 	const dispatch = useCallback(
 		(decisions: HitlDecision[]) => {
 			if (bundle && toolCallId && bundle.isInBundle(toolCallId) && decisions.length > 0) {
+				if (decisions.length > 1 && process.env.NODE_ENV !== "production") {
+					// Tool-ui cards stage one decision per call; a multi-decision
+					// dispatch into an active bundle would silently drop tail entries.
+					// eslint-disable-next-line no-console
+					console.warn(
+						"[hitl] dispatch received %d decisions inside an active bundle; only [0] will be staged for %s",
+						decisions.length,
+						toolCallId
+					);
+				}
 				bundle.stage(toolCallId, decisions[0]);
 				return;
 			}

@@ -1283,36 +1283,36 @@ export default function NewChatPage() {
 				}
 			}
 
-			// Merge edited args if present to fix race condition
-			if (decisions.length > 0 && decisions[0].type === "edit" && decisions[0].edited_action) {
-				const editedAction = decisions[0].edited_action;
+			// Apply each decision to its own card by toolCallId so mixed
+			// bundles (approve/edit/reject) and multi-edit bundles do not
+			// collapse onto ``decisions[0]``. Cards outside the bundle are
+			// untouched. Mirrors the host ``hitl-decision`` handler.
+			const decisionByTcId = new Map<string, (typeof decisions)[number]>();
+			const tcIds = pendingInterrupt.bundleToolCallIds;
+			if (decisions.length === tcIds.length) {
+				for (let i = 0; i < tcIds.length; i++) decisionByTcId.set(tcIds[i], decisions[i]);
+			}
+			if (decisionByTcId.size > 0) {
 				for (const part of contentParts) {
-					if (part.type === "tool-call" && part.toolName === editedAction.name) {
-						const mergedArgs = { ...part.args, ...editedAction.args };
+					if (part.type !== "tool-call") continue;
+					const tcId = part.toolCallId as string | undefined;
+					const d = tcId ? decisionByTcId.get(tcId) : undefined;
+					if (!d) continue;
+					if (typeof part.result !== "object" || part.result === null) continue;
+					if (!("__interrupt__" in (part.result as Record<string, unknown>))) continue;
+					const decided = d.type as "approve" | "reject" | "edit";
+					if (decided === "edit" && d.edited_action) {
+						const mergedArgs = { ...part.args, ...d.edited_action.args };
 						part.args = mergedArgs;
 						// Sync argsText so the rendered card shows the
-						// edited inputs — assistant-ui prefers caller-
-						// supplied argsText over JSON.stringify(args).
+						// edited inputs (assistant-ui prefers it over
+						// JSON.stringify(args)).
 						part.argsText = JSON.stringify(mergedArgs, null, 2);
-						break;
 					}
-				}
-			}
-
-			const decisionType = decisions[0]?.type as "approve" | "reject" | undefined;
-			if (decisionType) {
-				for (const part of contentParts) {
-					if (
-						part.type === "tool-call" &&
-						typeof part.result === "object" &&
-						part.result !== null &&
-						"__interrupt__" in (part.result as Record<string, unknown>)
-					) {
-						part.result = {
-							...(part.result as Record<string, unknown>),
-							__decided__: decisionType,
-						};
-					}
+					part.result = {
+						...(part.result as Record<string, unknown>),
+						__decided__: decided,
+					};
 				}
 			}
 
@@ -1579,16 +1579,19 @@ export default function NewChatPage() {
 			const tcIds = pendingInterrupt.bundleToolCallIds;
 			const N = tcIds.length;
 
-			// Build a per-card decision map. Bundle path: one decision per
-			// action_request in order. Legacy single-click on a multi-card
-			// interrupt: replay the last decision across the bundle.
-			const byTcId = new Map<string, (typeof incoming)[number]>();
-			if (incoming.length === N) {
-				for (let i = 0; i < N; i++) byTcId.set(tcIds[i], incoming[i]);
-			} else {
-				const fallback = incoming[incoming.length - 1];
-				for (const tcId of tcIds) byTcId.set(tcId, fallback);
+			// Bundles must submit exactly one decision per action_request.
+			// Refuse rather than silently broadcast a single decision across
+			// the bundle (would mis-apply rejects/edits and diverge from
+			// what handleResume sends to /resume).
+			if (N > 1 && incoming.length !== N) {
+				toast.error(
+					`Cannot resume: ${incoming.length} decision(s) submitted for ${N} pending actions.`
+				);
+				return;
 			}
+
+			const byTcId = new Map<string, (typeof incoming)[number]>();
+			for (let i = 0; i < tcIds.length; i++) byTcId.set(tcIds[i], incoming[i]);
 			const submittedDecisions = tcIds.map((id) => byTcId.get(id)!);
 
 			setMessages((prev) =>

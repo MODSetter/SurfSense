@@ -136,20 +136,20 @@ def build_task_tool_with_parent_config(
 
         if pending_value is not None:
             resume_value = consume_surfsense_resume(runtime)
-            if resume_value is not None:
-                expected = hitlrequest_action_count(pending_value)
-                resume_value = fan_out_decisions_to_match(resume_value, expected)
-                result = subagent.invoke(
-                    build_resume_command(resume_value, pending_id),
-                    config=sub_config,
+            if resume_value is None:
+                # Bridge invariant: a queued resume must accompany any pending
+                # subagent interrupt. Fall-through replay would silently re-prompt
+                # the user; raise so the streaming layer surfaces a clear error.
+                raise RuntimeError(
+                    f"Subagent {subagent_type!r} has a pending interrupt but no "
+                    "surfsense_resume_value on config; resume bridge is broken."
                 )
-            else:
-                logger.warning(
-                    "Subagent %r has pending interrupt but no surfsense_resume_value "
-                    "on config — replaying with fresh state (interrupt will re-fire).",
-                    subagent_type,
-                )
-                result = subagent.invoke(subagent_state, config=sub_config)
+            expected = hitlrequest_action_count(pending_value)
+            resume_value = fan_out_decisions_to_match(resume_value, expected)
+            result = subagent.invoke(
+                build_resume_command(resume_value, pending_id),
+                config=sub_config,
+            )
         else:
             result = subagent.invoke(subagent_state, config=sub_config)
         maybe_propagate_subagent_interrupt(subagent, sub_config, subagent_type)
@@ -201,20 +201,17 @@ def build_task_tool_with_parent_config(
 
         if pending_value is not None:
             resume_value = consume_surfsense_resume(runtime)
-            if resume_value is not None:
-                expected = hitlrequest_action_count(pending_value)
-                resume_value = fan_out_decisions_to_match(resume_value, expected)
-                result = await subagent.ainvoke(
-                    build_resume_command(resume_value, pending_id),
-                    config=sub_config,
+            if resume_value is None:
+                raise RuntimeError(
+                    f"Subagent {subagent_type!r} has a pending interrupt but no "
+                    "surfsense_resume_value on config; resume bridge is broken."
                 )
-            else:
-                logger.warning(
-                    "Subagent %r has pending interrupt but no surfsense_resume_value "
-                    "on config — replaying with fresh state (interrupt will re-fire).",
-                    subagent_type,
-                )
-                result = await subagent.ainvoke(subagent_state, config=sub_config)
+            expected = hitlrequest_action_count(pending_value)
+            resume_value = fan_out_decisions_to_match(resume_value, expected)
+            result = await subagent.ainvoke(
+                build_resume_command(resume_value, pending_id),
+                config=sub_config,
+            )
         else:
             result = await subagent.ainvoke(subagent_state, config=sub_config)
         await amaybe_propagate_subagent_interrupt(subagent, sub_config, subagent_type)
