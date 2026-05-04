@@ -31,8 +31,8 @@ from .propagation import (
 from .resume import (
     build_resume_command,
     fan_out_decisions_to_match,
-    hitlrequest_action_count,
     get_first_pending_subagent_interrupt,
+    hitlrequest_action_count,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,9 @@ def build_task_tool_with_parent_config(
     )
 
     if task_description is None:
-        description = TASK_TOOL_DESCRIPTION.format(available_agents=subagent_description_str)
+        description = TASK_TOOL_DESCRIPTION.format(
+            available_agents=subagent_description_str
+        )
     elif "{available_agents}" in task_description:
         description = task_description.format(available_agents=subagent_description_str)
     else:
@@ -90,11 +92,11 @@ def build_task_tool_with_parent_config(
     def task(
         description: Annotated[
             str,
-            "A detailed description of the task for the subagent to perform autonomously. Include all necessary context and specify the expected output format.",  # noqa: E501
+            "A detailed description of the task for the subagent to perform autonomously. Include all necessary context and specify the expected output format.",
         ],
         subagent_type: Annotated[
             str,
-            "The type of subagent to use. Must be one of the available agent types listed in the tool description.",  # noqa: E501
+            "The type of subagent to use. Must be one of the available agent types listed in the tool description.",
         ],
         runtime: ToolRuntime,
     ) -> str | Command:
@@ -119,7 +121,9 @@ def build_task_tool_with_parent_config(
         if callable(get_state):
             try:
                 snapshot = get_state(sub_config)
-                pending_id, pending_value = get_first_pending_subagent_interrupt(snapshot)
+                pending_id, pending_value = get_first_pending_subagent_interrupt(
+                    snapshot
+                )
             except Exception:
                 # Fail loud if a resume is queued: silent fallback would
                 # replay the original interrupt to the user.
@@ -158,11 +162,11 @@ def build_task_tool_with_parent_config(
     async def atask(
         description: Annotated[
             str,
-            "A detailed description of the task for the subagent to perform autonomously. Include all necessary context and specify the expected output format.",  # noqa: E501
+            "A detailed description of the task for the subagent to perform autonomously. Include all necessary context and specify the expected output format.",
         ],
         subagent_type: Annotated[
             str,
-            "The type of subagent to use. Must be one of the available agent types listed in the tool description.",  # noqa: E501
+            "The type of subagent to use. Must be one of the available agent types listed in the tool description.",
         ],
         runtime: ToolRuntime,
     ) -> str | Command:
@@ -186,7 +190,9 @@ def build_task_tool_with_parent_config(
         if callable(aget_state):
             try:
                 snapshot = await aget_state(sub_config)
-                pending_id, pending_value = get_first_pending_subagent_interrupt(snapshot)
+                pending_id, pending_value = get_first_pending_subagent_interrupt(
+                    snapshot
+                )
             except Exception:
                 if has_surfsense_resume(runtime):
                     logger.exception(

@@ -638,6 +638,12 @@ class NewChatThread(BaseModel, TimestampMixin):
         default=False,
         server_default="false",
     )
+    # Auto (Fastest) model pin for this thread: concrete resolved global LLM
+    # config id. NULL means no pin; Auto will resolve on the next turn.
+    # Single-writer invariant: only app.services.auto_model_pin_service sets
+    # or clears this column (plus bulk clears when a search space's
+    # agent_llm_id changes). Unindexed: all reads are by primary key.
+    pinned_llm_config_id = Column(Integer, nullable=True)
 
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")
@@ -668,6 +674,23 @@ class NewChatMessage(BaseModel, TimestampMixin):
     """
 
     __tablename__ = "new_chat_messages"
+
+    # Partial unique index on (thread_id, turn_id, role) where turn_id IS NOT NULL.
+    # Mirrors alembic migration 141. Lets the streaming agent and the
+    # legacy frontend appendMessage call coexist idempotently — the second
+    # writer trips the unique and recovers without creating a duplicate row.
+    # Partial so legacy NULL turn_id rows and clone/snapshot inserts in
+    # app/services/public_chat_service.py (which omit turn_id) are unaffected.
+    __table_args__ = (
+        Index(
+            "uq_new_chat_messages_thread_turn_role",
+            "thread_id",
+            "turn_id",
+            "role",
+            unique=True,
+            postgresql_where=text("turn_id IS NOT NULL"),
+        ),
+    )
 
     role = Column(SQLAlchemyEnum(NewChatMessageRole), nullable=False)
     # Content stored as JSONB to support rich content (text, tool calls, etc.)
@@ -722,9 +745,26 @@ class TokenUsage(BaseModel, TimestampMixin):
 
     __tablename__ = "token_usage"
 
+    # Partial unique index on (message_id) where message_id IS NOT NULL.
+    # Mirrors alembic migration 142. Lets the streaming agent's
+    # ``finalize_assistant_turn`` and the legacy frontend ``append_message``
+    # recovery branch both use ``INSERT ... ON CONFLICT DO NOTHING`` without
+    # racing on a SELECT-then-INSERT window. Partial so non-chat usage rows
+    # (indexing, image generation, podcasts) — which keep ``message_id`` NULL
+    # because there is no per-message anchor — are unaffected.
+    __table_args__ = (
+        Index(
+            "uq_token_usage_message_id",
+            "message_id",
+            unique=True,
+            postgresql_where=text("message_id IS NOT NULL"),
+        ),
+    )
+
     prompt_tokens = Column(Integer, nullable=False, default=0)
     completion_tokens = Column(Integer, nullable=False, default=0)
     total_tokens = Column(Integer, nullable=False, default=0)
+    cost_micros = Column(BigInteger, nullable=False, default=0, server_default="0")
     model_breakdown = Column(JSONB, nullable=True)
     call_details = Column(JSONB, nullable=True)
 
@@ -1787,7 +1827,15 @@ class PagePurchase(Base, TimestampMixin):
 
 
 class PremiumTokenPurchase(Base, TimestampMixin):
-    """Tracks Stripe checkout sessions used to grant additional premium token credits."""
+    """Tracks Stripe checkout sessions used to grant additional premium credit (USD micro-units).
+
+    Note: the table name is preserved (``premium_token_purchases``) for
+    operational continuity even though the unit is now USD micro-credits
+    instead of raw tokens. The ``credit_micros_granted`` column replaced
+    the legacy ``tokens_granted`` in migration 140; the stored values
+    were not transformed because the prior $1 = 1M tokens Stripe price
+    makes the unit conversion 1:1 numerically.
+    """
 
     __tablename__ = "premium_token_purchases"
     __allow_unmapped__ = True
@@ -1804,7 +1852,7 @@ class PremiumTokenPurchase(Base, TimestampMixin):
     )
     stripe_payment_intent_id = Column(String(255), nullable=True, index=True)
     quantity = Column(Integer, nullable=False)
-    tokens_granted = Column(BigInteger, nullable=False)
+    credit_micros_granted = Column(BigInteger, nullable=False)
     amount_total = Column(Integer, nullable=True)
     currency = Column(String(10), nullable=True)
     status = Column(
@@ -2103,16 +2151,16 @@ if config.AUTH_TYPE == "GOOGLE":
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
-        premium_tokens_limit = Column(
+        premium_credit_micros_limit = Column(
             BigInteger,
             nullable=False,
-            default=config.PREMIUM_TOKEN_LIMIT,
-            server_default=str(config.PREMIUM_TOKEN_LIMIT),
+            default=config.PREMIUM_CREDIT_MICROS_LIMIT,
+            server_default=str(config.PREMIUM_CREDIT_MICROS_LIMIT),
         )
-        premium_tokens_used = Column(
+        premium_credit_micros_used = Column(
             BigInteger, nullable=False, default=0, server_default="0"
         )
-        premium_tokens_reserved = Column(
+        premium_credit_micros_reserved = Column(
             BigInteger, nullable=False, default=0, server_default="0"
         )
 
@@ -2235,16 +2283,16 @@ else:
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
-        premium_tokens_limit = Column(
+        premium_credit_micros_limit = Column(
             BigInteger,
             nullable=False,
-            default=config.PREMIUM_TOKEN_LIMIT,
-            server_default=str(config.PREMIUM_TOKEN_LIMIT),
+            default=config.PREMIUM_CREDIT_MICROS_LIMIT,
+            server_default=str(config.PREMIUM_CREDIT_MICROS_LIMIT),
         )
-        premium_tokens_used = Column(
+        premium_credit_micros_used = Column(
             BigInteger, nullable=False, default=0, server_default="0"
         )
-        premium_tokens_reserved = Column(
+        premium_credit_micros_reserved = Column(
             BigInteger, nullable=False, default=0, server_default="0"
         )
 

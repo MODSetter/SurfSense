@@ -11,7 +11,9 @@ from .delete_page import create_delete_confluence_page_tool
 from .update_page import create_update_confluence_page_tool
 
 
-def load_tools(*, dependencies: dict[str, Any] | None = None, **kwargs: Any) -> ToolsPermissions:
+def load_tools(
+    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
+) -> ToolsPermissions:
     resolved_dependencies = {**(dependencies or {}), **kwargs}
     session_dependencies = {
         "db_session": resolved_dependencies["db_session"],

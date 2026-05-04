@@ -27,14 +27,9 @@ WRITE_TOOL_DENY_PATTERNS: tuple[str, ...] = (
 NON_PROVIDER_STATE_MUTATION_DENY: frozenset[str] = frozenset(
     {
         # Exact tool names from shared deny patterns.
-        *{
-            name
-            for name in WRITE_TOOL_DENY_PATTERNS
-            if "*" not in name
-        },
+        *{name for name in WRITE_TOOL_DENY_PATTERNS if "*" not in name},
         # Additional non-provider state mutation controls.
         "write_todos",
         "task",
     }
 )
-

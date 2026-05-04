@@ -13,6 +13,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { disabledToolsAtom } from "@/atoms/agent-tools/agent-tools.atoms";
 import {
 	clearTargetCommentIdAtom,
@@ -30,6 +31,7 @@ import {
 	clearPlanOwnerRegistry,
 	// extractWriteTodosFromContent,
 } from "@/atoms/chat/plan-state.atom";
+import { setPremiumAlertForThreadAtom } from "@/atoms/chat/premium-alert.atom";
 import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { type AgentCreatedDocument, agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
@@ -59,27 +61,35 @@ import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
+import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
+import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
 	looksLikePodcastRequest,
 	setActivePodcastTaskId,
 } from "@/lib/chat/podcast-state";
+import { createStreamFlushHelpers } from "@/lib/chat/stream-flush";
 import {
-	addStepSeparator,
+	consumeSseEvents,
+	hasPersistableContent,
+	markInterruptsCompleted,
+	processSharedStreamEvent,
+} from "@/lib/chat/stream-pipeline";
+import {
+	applyTurnIdToAssistantMessageList,
+	mergeChatTurnIdIntoMessage,
+	readStreamedChatTurnId,
+	readStreamedMessageId,
+} from "@/lib/chat/stream-side-effects";
+import {
 	addToolCall,
-	appendReasoning,
-	appendText,
-	appendToolInputDelta,
 	buildContentForPersistence,
 	buildContentForUI,
 	type ContentPartsState,
-	endReasoning,
-	FrameBatchedUpdater,
-	readSSEStream,
+	type FrameBatchedUpdater,
 	type ThinkingStepData,
 	type ToolUIGate,
-	updateThinkingSteps,
 	updateToolCall,
 } from "@/lib/chat/streaming-state";
 import {
@@ -99,8 +109,9 @@ import {
 import { NotFoundError } from "@/lib/error";
 import { type BundleSubmit, HitlBundleProvider } from "@/lib/hitl";
 import {
+	trackChatBlocked,
 	trackChatCreated,
-	trackChatError,
+	trackChatErrorDetailed,
 	trackChatMessageSent,
 	trackChatResponseReceived,
 } from "@/lib/posthog/events";
@@ -127,25 +138,6 @@ const MobileReportPanel = dynamic(
 		})),
 	{ ssr: false }
 );
-
-/**
- * After a tool produces output, mark any previously-decided interrupt tool
- * calls as completed so the ApprovalCard can transition from shimmer to done.
- */
-function markInterruptsCompleted(contentParts: Array<{ type: string; result?: unknown }>): void {
-	for (const part of contentParts) {
-		if (
-			part.type === "tool-call" &&
-			typeof part.result === "object" &&
-			part.result !== null &&
-			(part.result as Record<string, unknown>).__interrupt__ === true &&
-			(part.result as Record<string, unknown>).__decided__ &&
-			!(part.result as Record<string, unknown>).__completed__
-		) {
-			part.result = { ...(part.result as Record<string, unknown>), __completed__: true };
-		}
-	}
-}
 
 /**
  * Generate a synthetic ``toolCallId`` for an action_request that has no
@@ -243,28 +235,20 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
  * ``stream_new_chat.py``) keep the JSON from ballooning.
  */
 const TOOLS_WITH_UI_ALL: ToolUIGate = "all";
+const TURN_CANCELLING_INITIAL_DELAY_MS = 200;
+const TURN_CANCELLING_BACKOFF_FACTOR = 2;
+const TURN_CANCELLING_MAX_DELAY_MS = 1500;
+const RECENT_CANCEL_WINDOW_MS = 5_000;
 
-/**
- * When a streamed message is persisted, the backend returns the durable
- * ``turn_id`` (``configurable.turn_id`` from the agent run). Merge it
- * into the assistant-ui message metadata so the per-turn "Revert turn"
- * button can scope to this turn's actions even after a full chat reload.
- */
-function mergeChatTurnIdIntoMessage(
-	msg: ThreadMessageLike,
-	turnId: string | null | undefined
-): ThreadMessageLike {
-	if (!turnId) return msg;
-	const existingMeta = (msg.metadata ?? {}) as { custom?: Record<string, unknown> };
-	const existingCustom = existingMeta.custom ?? {};
-	if ((existingCustom as { chatTurnId?: string }).chatTurnId === turnId) return msg;
-	return {
-		...msg,
-		metadata: {
-			...existingMeta,
-			custom: { ...existingCustom, chatTurnId: turnId },
-		},
-	};
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function computeFallbackTurnCancellingRetryDelay(attempt: number): number {
+	const safeAttempt = Math.max(1, attempt);
+	const raw =
+		TURN_CANCELLING_INITIAL_DELAY_MS * TURN_CANCELLING_BACKOFF_FACTOR ** (safeAttempt - 1);
+	return Math.min(raw, TURN_CANCELLING_MAX_DELAY_MS);
 }
 
 export default function NewChatPage() {
@@ -277,6 +261,7 @@ export default function NewChatPage() {
 	const [isRunning, setIsRunning] = useState(false);
 	const [tokenUsageStore] = useState(() => createTokenUsageStore());
 	const abortControllerRef = useRef<AbortController | null>(null);
+	const recentCancelRequestedAtRef = useRef(0);
 	const [pendingInterrupt, setPendingInterrupt] = useState<{
 		threadId: number;
 		assistantMsgId: string;
@@ -284,6 +269,63 @@ export default function NewChatPage() {
 		bundleToolCallIds: string[];
 	} | null>(null);
 	const toolsWithUI = TOOLS_WITH_UI_ALL;
+	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
+
+	const persistAssistantErrorMessage = useCallback(
+		async ({
+			threadId,
+			assistantMsgId,
+			text,
+		}: {
+			threadId: number | null;
+			assistantMsgId: string;
+			text: string;
+		}) => {
+			setMessages((prev) =>
+				prev.map((m) =>
+					m.id === assistantMsgId
+						? {
+								...m,
+								content: [{ type: "text", text }],
+							}
+						: m
+				)
+			);
+
+			if (!threadId) return;
+
+			// Persist only temporary assistant placeholders to avoid duplicate rows
+			// when the message already has a database-backed ID.
+			if (!assistantMsgId.startsWith("msg-assistant-")) return;
+
+			try {
+				const savedMessage = await appendMessage(threadId, {
+					role: "assistant",
+					content: [{ type: "text", text }],
+				});
+				const newMsgId = `msg-${savedMessage.id}`;
+				tokenUsageStore.rename(assistantMsgId, newMsgId);
+				setMessages((prev) =>
+					prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+				);
+			} catch (persistErr) {
+				console.error("Failed to persist assistant error message:", persistErr);
+			}
+		},
+		[tokenUsageStore]
+	);
+
+	// NOTE: ``persistUserTurn`` / ``persistAssistantTurn`` callbacks
+	// were removed in the SSE-based message ID handshake refactor.
+	// ``stream_new_chat`` and ``stream_resume_chat`` now persist both
+	// the user and assistant rows server-side via
+	// ``persist_user_turn`` / ``persist_assistant_shell`` and emit
+	// ``data-user-message-id`` / ``data-assistant-message-id`` SSE
+	// events; the consumers below rename the optimistic ids in real
+	// time. ``persistAssistantErrorMessage`` (above) is intentionally
+	// kept — it is the pre-stream-error fallback fired when the
+	// server NEVER accepted the request, and the BE has nothing to
+	// persist in that case.
 
 	// Get disabled tools from the tool toggle UI
 	const disabledTools = useAtomValue(disabledToolsAtom);
@@ -291,9 +333,10 @@ export default function NewChatPage() {
 	// Get mentioned document IDs from the composer.
 	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
+	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
-	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
+	const setPremiumAlertForThread = useSetAtom(setPremiumAlertForThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
@@ -317,6 +360,8 @@ export default function NewChatPage() {
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
+	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
+	const localFilesystemEnabled = agentFlags?.enable_desktop_local_filesystem === true;
 
 	// Live collaboration: sync session state and messages via Zero
 	useChatSessionStateSync(threadId);
@@ -407,6 +452,143 @@ export default function NewChatPage() {
 		}
 		return Number.isNaN(parsed) ? 0 : parsed;
 	}, [params.chat_id]);
+
+	const handleChatFailure = useCallback(
+		async ({
+			error,
+			flow,
+			threadId,
+			assistantMsgId,
+		}: {
+			error: unknown;
+			flow: ChatFlow;
+			threadId: number | null;
+			assistantMsgId: string;
+		}) => {
+			const normalized = classifyChatError({
+				error,
+				flow,
+				context: {
+					searchSpaceId,
+					threadId,
+				},
+			});
+
+			const logger =
+				normalized.severity === "error"
+					? console.error
+					: normalized.severity === "warn"
+						? console.warn
+						: console.info;
+			logger(`[NewChatPage] ${flow} ${normalized.kind}:`, error);
+
+			const telemetryPayload = {
+				flow,
+				kind: normalized.kind,
+				error_code: normalized.errorCode,
+				severity: normalized.severity,
+				is_expected: normalized.isExpected,
+				message: normalized.userMessage,
+			};
+			if (normalized.telemetryEvent === "chat_blocked") {
+				trackChatBlocked(searchSpaceId, threadId, telemetryPayload);
+			} else {
+				trackChatErrorDetailed(searchSpaceId, threadId, telemetryPayload);
+			}
+
+			if (normalized.channel === "silent") {
+				return;
+			}
+
+			if (normalized.channel === "pinned_inline") {
+				if (threadId) {
+					setPremiumAlertForThread({
+						threadId,
+						message: normalized.userMessage,
+						userId: currentUser?.id ?? null,
+					});
+				}
+				if (normalized.assistantMessage) {
+					await persistAssistantErrorMessage({
+						threadId,
+						assistantMsgId,
+						text: normalized.assistantMessage,
+					});
+				}
+				return;
+			}
+
+			toast.error(normalized.userMessage);
+		},
+		[currentUser?.id, persistAssistantErrorMessage, searchSpaceId, setPremiumAlertForThread]
+	);
+
+	const handleStreamTerminalError = useCallback(
+		async ({
+			error,
+			flow,
+			threadId,
+			assistantMsgId,
+			accepted,
+			onAbort,
+			onPreAcceptFailure,
+			onAcceptedStreamError,
+		}: {
+			error: unknown;
+			flow: ChatFlow;
+			threadId: number | null;
+			assistantMsgId: string;
+			accepted: boolean;
+			onAbort?: () => Promise<void>;
+			onPreAcceptFailure?: () => Promise<void>;
+			onAcceptedStreamError?: () => Promise<void>;
+		}) => {
+			if (error instanceof Error && error.name === "AbortError") {
+				await onAbort?.();
+				return;
+			}
+
+			if (!accepted) {
+				await onPreAcceptFailure?.();
+			} else {
+				await onAcceptedStreamError?.();
+			}
+
+			await handleChatFailure({
+				error: !accepted ? tagPreAcceptSendFailure(error) : error,
+				flow,
+				threadId,
+				assistantMsgId: accepted ? assistantMsgId : "no-persist-assistant",
+			});
+		},
+		[handleChatFailure]
+	);
+
+	const fetchWithTurnCancellingRetry = useCallback(async (runFetch: () => Promise<Response>) => {
+		const maxAttempts = 4;
+		for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+			const response = await runFetch();
+			if (response.ok) {
+				return response;
+			}
+			const error = await toHttpResponseError(response);
+			const withMeta = error as Error & { errorCode?: string; retryAfterMs?: number };
+			const isTurnCancelling = withMeta.errorCode === "TURN_CANCELLING";
+			const isRecentThreadBusyAfterCancel =
+				withMeta.errorCode === "THREAD_BUSY" &&
+				Date.now() - recentCancelRequestedAtRef.current <= RECENT_CANCEL_WINDOW_MS;
+			if ((isTurnCancelling || isRecentThreadBusyAfterCancel) && attempt < maxAttempts) {
+				const waitMs = withMeta.retryAfterMs ?? computeFallbackTurnCancellingRetryDelay(attempt);
+				await sleep(waitMs);
+				continue;
+			}
+			throw error;
+		}
+
+		throw Object.assign(new Error("Turn cancellation retry limit exceeded"), {
+			errorCode: "TURN_CANCELLING",
+		});
+	}, []);
 
 	// Initialize thread and load messages
 	// For new chats (no urlChatId), we use lazy creation - thread is created on first message
@@ -577,12 +759,39 @@ export default function NewChatPage() {
 
 	// Cancel ongoing request
 	const cancelRun = useCallback(async () => {
+		if (threadId) {
+			const token = getBearerToken();
+			if (token) {
+				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				try {
+					const response = await fetch(
+						`${backendUrl}/api/v1/threads/${threadId}/cancel-active-turn`,
+						{
+							method: "POST",
+							headers: {
+								Authorization: `Bearer ${token}`,
+							},
+						}
+					);
+					if (response.ok) {
+						const payload = (await response.json()) as {
+							error_code?: string;
+						};
+						if (payload.error_code === "TURN_CANCELLING") {
+							recentCancelRequestedAtRef.current = Date.now();
+						}
+					}
+				} catch (error) {
+					console.warn("[NewChatPage] Failed to signal cancel-active-turn:", error);
+				}
+			}
+		}
 		if (abortControllerRef.current) {
 			abortControllerRef.current.abort();
 			abortControllerRef.current = null;
 		}
 		setIsRunning(false);
-	}, []);
+	}, [threadId]);
 
 	// Handle new message from user
 	const onNew = useCallback(
@@ -634,7 +843,12 @@ export default function NewChatPage() {
 					);
 				} catch (error) {
 					console.error("[NewChatPage] Failed to create thread:", error);
-					toast.error("Failed to start chat. Please try again.");
+					await handleChatFailure({
+						error: tagPreAcceptSendFailure(error),
+						flow: "new",
+						threadId: currentThreadId,
+						assistantMsgId: "no-persist-assistant",
+					});
 					return;
 				}
 			}
@@ -643,8 +857,13 @@ export default function NewChatPage() {
 				setPendingUserImageUrls((prev) => prev.filter((u) => !urlsSnapshot.includes(u)));
 			}
 
-			// Add user message to state
-			const userMsgId = `msg-user-${Date.now()}`;
+			// Add user message to state. Mutable because the SSE
+			// ``data-user-message-id`` handler (below) renames this
+			// optimistic id to the canonical ``msg-{db_id}`` once the
+			// backend's ``persist_user_turn`` resolves the row, and
+			// the in-stream flush / interrupt closures need to see
+			// the post-rename value via this live ``let`` binding.
+			let userMsgId = `msg-user-${Date.now()}`;
 
 			// Always include author metadata so the UI layer can decide visibility
 			const authorMetadata = currentUser
@@ -710,72 +929,33 @@ export default function NewChatPage() {
 				}));
 			}
 
-			const persistContent: unknown[] = [...userDisplayContent];
-
-			if (allMentionedDocs.length > 0) {
-				persistContent.push({
-					type: "mentioned-documents",
-					documents: allMentionedDocs,
-				});
-			}
-
-			appendMessage(currentThreadId, {
-				role: "user",
-				content: persistContent,
-			})
-				.then((savedMessage) => {
-					const newUserMsgId = `msg-${savedMessage.id}`;
-					setMessages((prev) =>
-						prev.map((m) => (m.id === userMsgId ? { ...m, id: newUserMsgId } : m))
-					);
-					setMessageDocumentsMap((prev) => {
-						const docs = prev[userMsgId];
-						if (!docs) return prev;
-						const { [userMsgId]: _, ...rest } = prev;
-						return { ...rest, [newUserMsgId]: docs };
-					});
-					if (isNewThread) {
-						queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
-					}
-				})
-				.catch((err) => console.error("Failed to persist user message:", err));
-
 			// Start streaming response
 			setIsRunning(true);
 			const controller = new AbortController();
 			abortControllerRef.current = controller;
 
-			// Prepare assistant message
-			const assistantMsgId = `msg-assistant-${Date.now()}`;
+			// Prepare assistant message. Mutable for the same reason
+			// as ``userMsgId`` above — the ``data-assistant-message-id``
+			// SSE handler reassigns this once
+			// ``persist_assistant_shell`` returns its canonical id.
+			let assistantMsgId = `msg-assistant-${Date.now()}`;
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
-			const batcher = new FrameBatchedUpdater();
-
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
 				currentTextPartIndex: -1,
 				currentReasoningPartIndex: -1,
 				toolCallIndices: new Map(),
 			};
-			const { contentParts, toolCallIndices } = contentPartsState;
+			const { contentParts } = contentPartsState;
 			let wasInterrupted = false;
-			let tokenUsageData: Record<string, unknown> | null = null;
-			// Captured from ``data-turn-info`` at stream start.
-			let streamedChatTurnId: string | null = null;
-
-			// Add placeholder assistant message
-			setMessages((prev) => [
-				...prev,
-				{
-					id: assistantMsgId,
-					role: "assistant",
-					content: [{ type: "text", text: "" }],
-					createdAt: new Date(),
-				},
-			]);
+			let newAccepted = false;
+			let streamBatcher: FrameBatchedUpdater | null = null;
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const selection = await getAgentFilesystemSelection(searchSpaceId);
+				const selection = await getAgentFilesystemSelection(searchSpaceId, {
+					localFilesystemEnabled,
+				});
 				if (
 					selection.filesystem_mode === "desktop_local_folder" &&
 					(!selection.local_filesystem_mounts || selection.local_filesystem_mounts.length === 0)
@@ -807,33 +987,59 @@ export default function NewChatPage() {
 					setMentionedDocuments([]);
 				}
 
-				const response = await fetch(`${backendUrl}/api/v1/new_chat`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({
-						chat_id: currentThreadId,
-						user_query: userQuery.trim(),
-						search_space_id: searchSpaceId,
-						filesystem_mode: selection.filesystem_mode,
-						client_platform: selection.client_platform,
-						local_filesystem_mounts: selection.local_filesystem_mounts,
-						messages: messageHistory,
-						mentioned_document_ids: hasDocumentIds ? mentionedDocumentIds.document_ids : undefined,
-						mentioned_surfsense_doc_ids: hasSurfsenseDocIds
-							? mentionedDocumentIds.surfsense_doc_ids
-							: undefined,
-						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
-						...(userImages.length > 0 ? { user_images: userImages } : {}),
-					}),
-					signal: controller.signal,
-				});
+				const response = await fetchWithTurnCancellingRetry(() =>
+					fetch(`${backendUrl}/api/v1/new_chat`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify({
+							chat_id: currentThreadId,
+							user_query: userQuery.trim(),
+							search_space_id: searchSpaceId,
+							filesystem_mode: selection.filesystem_mode,
+							client_platform: selection.client_platform,
+							local_filesystem_mounts: selection.local_filesystem_mounts,
+							messages: messageHistory,
+							mentioned_document_ids: hasDocumentIds
+								? mentionedDocumentIds.document_ids
+								: undefined,
+							mentioned_surfsense_doc_ids: hasSurfsenseDocIds
+								? mentionedDocumentIds.surfsense_doc_ids
+								: undefined,
+							// Full mention metadata so the BE can embed a
+							// ``mentioned-documents`` ContentPart on the
+							// persisted user message (replaces the old FE-side
+							// injection in ``persistUserTurn``).
+							mentioned_documents:
+								allMentionedDocs.length > 0
+									? allMentionedDocs.map((d) => ({
+											id: d.id,
+											title: d.title,
+											document_type: d.document_type,
+										}))
+									: undefined,
+							disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
+							...(userImages.length > 0 ? { user_images: userImages } : {}),
+						}),
+						signal: controller.signal,
+					})
+				);
 
 				if (!response.ok) {
-					throw new Error(`Backend error: ${response.status}`);
+					throw await toHttpResponseError(response);
 				}
+				newAccepted = true;
+				setMessages((prev) => [
+					...prev,
+					{
+						id: assistantMsgId,
+						role: "assistant",
+						content: [{ type: "text", text: "" }],
+						createdAt: new Date(),
+					},
+				]);
 
 				const flushMessages = () => {
 					setMessages((prev) =>
@@ -844,123 +1050,41 @@ export default function NewChatPage() {
 						)
 					);
 				};
-				const scheduleFlush = () => batcher.schedule(flushMessages);
-				// Force-flush helper: ``batcher.flush()`` is a no-op when
-				// ``dirty=false`` (e.g. a tool starts before any text
-				// streamed). ``scheduleFlush(); batcher.flush()`` sets
-				// the dirty bit FIRST so terminal events render
-				// promptly without the 50ms throttle delay.
-				const forceFlush = () => {
-					scheduleFlush();
-					batcher.flush();
-				};
+				const { batcher, scheduleFlush, forceFlush } = createStreamFlushHelpers(flushMessages);
+				streamBatcher = batcher;
 
-				for await (const parsed of readSSEStream(response)) {
-					switch (parsed.type) {
-						case "text-delta":
-							appendText(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-delta":
-							appendReasoning(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-end":
-							endReasoning(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "start-step":
-							addStepSeparator(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "finish-step":
-							break;
-
-						case "tool-input-start":
-							addToolCall(
-								contentPartsState,
-								toolsWithUI,
-								parsed.toolCallId,
-								parsed.toolName,
-								{},
-								false,
-								parsed.langchainToolCallId
-							);
-							forceFlush();
-							break;
-
-						case "tool-input-delta":
-							// High-frequency event: deltas can fire dozens
-							// of times per call, so use throttled
-							// scheduleFlush (NOT forceFlush) to coalesce.
-							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
-							scheduleFlush();
-							break;
-
-						case "tool-input-available": {
-							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
-							if (toolCallIndices.has(parsed.toolCallId)) {
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									args: parsed.input || {},
-									argsText: finalArgsText,
-									langchainToolCallId: parsed.langchainToolCallId,
-								});
-							} else {
-								addToolCall(
-									contentPartsState,
-									toolsWithUI,
-									parsed.toolCallId,
-									parsed.toolName,
-									parsed.input || {},
-									false,
-									parsed.langchainToolCallId
-								);
-								// addToolCall doesn't accept argsText today;
-								// backfill via updateToolCall so the new card
-								// renders pretty-printed JSON.
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									argsText: finalArgsText,
-								});
-							}
-							forceFlush();
-							break;
-						}
-
-						case "tool-output-available": {
-							updateToolCall(contentPartsState, parsed.toolCallId, {
-								result: parsed.output,
-								langchainToolCallId: parsed.langchainToolCallId,
-							});
-							markInterruptsCompleted(contentParts);
-							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
-								const idx = toolCallIndices.get(parsed.toolCallId);
-								if (idx !== undefined) {
-									const part = contentParts[idx];
-									if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-										setActivePodcastTaskId(String(parsed.output.podcast_id));
+				await consumeSseEvents(response, async (parsed) => {
+					if (
+						processSharedStreamEvent(parsed, {
+							contentPartsState,
+							toolsWithUI,
+							currentThinkingSteps,
+							scheduleFlush,
+							forceFlush,
+							onTokenUsage: (data) => {
+								tokenUsageStore.set(assistantMsgId, data);
+							},
+							onTurnStatus: (data) => {
+								if (data.status === "cancelling") {
+									recentCancelRequestedAtRef.current = Date.now();
+								}
+							},
+							onToolOutputAvailable: (event, sharedCtx) => {
+								if (event.output?.status === "pending" && event.output?.podcast_id) {
+									const idx = sharedCtx.toolCallIndices.get(event.toolCallId);
+									if (idx !== undefined) {
+										const part = sharedCtx.contentPartsState.contentParts[idx];
+										if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+											setActivePodcastTaskId(String(event.output.podcast_id));
+										}
 									}
 								}
-							}
-							forceFlush();
-							break;
-						}
-
-						case "data-thinking-step": {
-							const stepData = parsed.data as ThinkingStepData;
-							if (stepData?.id) {
-								currentThinkingSteps.set(stepData.id, stepData);
-								const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
-								if (didUpdate) {
-									scheduleFlush();
-								}
-							}
-							break;
-						}
-
+							},
+						})
+					) {
+						return;
+					}
+					switch (parsed.type) {
 						case "data-thread-title-update": {
 							const titleData = parsed.data as { threadId: number; title: string };
 							if (titleData?.title && titleData?.threadId === currentThreadId) {
@@ -1006,13 +1130,21 @@ export default function NewChatPage() {
 								name: string;
 								args: Record<string, unknown>;
 							}>;
-							const paired = pairBundleToolCallIds(toolCallIndices, contentParts, actionRequests);
+							const paired = pairBundleToolCallIds(
+								contentPartsState.toolCallIndices,
+								contentPartsState.contentParts,
+								actionRequests
+							);
 							const bundleToolCallIds: string[] = [];
 							for (let i = 0; i < actionRequests.length; i++) {
 								const action = actionRequests[i];
 								let targetTcId = paired[i];
 								if (!targetTcId) {
-									targetTcId = freshSynthToolCallId(toolCallIndices, action.name, i);
+									targetTcId = freshSynthToolCallId(
+										contentPartsState.toolCallIndices,
+										action.name,
+										i
+									);
 									addToolCall(
 										contentPartsState,
 										toolsWithUI,
@@ -1061,125 +1193,131 @@ export default function NewChatPage() {
 						}
 
 						case "data-turn-info": {
-							streamedChatTurnId = parsed.data.chat_turn_id || null;
-							if (streamedChatTurnId) {
+							const turnId = readStreamedChatTurnId(parsed.data);
+							if (turnId) {
 								setMessages((prev) =>
-									prev.map((m) =>
-										m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, streamedChatTurnId) : m
-									)
+									applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
 								);
 							}
 							break;
 						}
 
-						case "data-token-usage":
-							tokenUsageData = parsed.data;
-							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
-							break;
-
-						case "error":
-							throw new Error(parsed.errorText || "Server error");
-					}
-				}
-
-				batcher.flush();
-
-				// Skip persistence for interrupted messages -- handleResume will persist the final version
-				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
-				if (contentParts.length > 0 && !wasInterrupted) {
-					try {
-						const savedMessage = await appendMessage(currentThreadId, {
-							role: "assistant",
-							content: finalContent,
-							token_usage: tokenUsageData ?? undefined,
-							turn_id: streamedChatTurnId,
-						});
-
-						// Update message ID from temporary to database ID so comments work immediately
-						const newMsgId = `msg-${savedMessage.id}`;
-						tokenUsageStore.rename(assistantMsgId, newMsgId);
-						setMessages((prev) =>
-							prev.map((m) =>
-								m.id === assistantMsgId
-									? mergeChatTurnIdIntoMessage({ ...m, id: newMsgId }, savedMessage.turn_id)
-									: m
-							)
-						);
-
-						// Update pending interrupt with the new persisted message ID
-						setPendingInterrupt((prev) =>
-							prev && prev.assistantMsgId === assistantMsgId
-								? { ...prev, assistantMsgId: newMsgId }
-								: prev
-						);
-					} catch (err) {
-						console.error("Failed to persist assistant message:", err);
-					}
-
-					// Track successful response
-					trackChatResponseReceived(searchSpaceId, currentThreadId);
-				}
-			} catch (error) {
-				batcher.dispose();
-				if (error instanceof Error && error.name === "AbortError") {
-					// Request was cancelled by user - persist partial response if any content was received
-					const hasContent = contentParts.some(
-						(part) =>
-							(part.type === "text" && part.text.length > 0) ||
-							(part.type === "reasoning" && part.text.length > 0) ||
-							(part.type === "tool-call" &&
-								(toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
-					);
-					if (hasContent && currentThreadId) {
-						const partialContent = buildContentForPersistence(contentPartsState, toolsWithUI);
-						try {
-							const savedMessage = await appendMessage(currentThreadId, {
-								role: "assistant",
-								content: partialContent,
-								turn_id: streamedChatTurnId,
-							});
-
-							// Update message ID from temporary to database ID
-							const newMsgId = `msg-${savedMessage.id}`;
+						case "data-user-message-id": {
+							// Server-authoritative user message id resolved by
+							// ``persist_user_turn`` (or recovered via ON CONFLICT).
+							// Rename the optimistic ``msg-user-XXX`` placeholder to
+							// the canonical ``msg-{db_id}`` so DB-id-gated UI
+							// (comments, edit-from-this-message) unlocks immediately,
+							// migrate the local mentioned-documents map, and reassign
+							// the closure variable so all downstream
+							// ``m.id === userMsgId`` checks see the new value.
+							const parsedMsg = readStreamedMessageId(parsed.data);
+							if (!parsedMsg) break;
+							const newUserMsgId = `msg-${parsedMsg.messageId}`;
+							const oldUserMsgId = userMsgId;
 							setMessages((prev) =>
 								prev.map((m) =>
-									m.id === assistantMsgId
-										? mergeChatTurnIdIntoMessage({ ...m, id: newMsgId }, savedMessage.turn_id)
+									m.id === oldUserMsgId
+										? mergeChatTurnIdIntoMessage({ ...m, id: newUserMsgId }, parsedMsg.turnId)
 										: m
 								)
 							);
-						} catch (err) {
-							console.error("Failed to persist partial assistant message:", err);
+							if (allMentionedDocs.length > 0) {
+								setMessageDocumentsMap((prev) => {
+									if (!(oldUserMsgId in prev)) {
+										return { ...prev, [newUserMsgId]: allMentionedDocs };
+									}
+									const { [oldUserMsgId]: _removed, ...rest } = prev;
+									return { ...rest, [newUserMsgId]: allMentionedDocs };
+								});
+							}
+							userMsgId = newUserMsgId;
+							if (isNewThread) {
+								// First user-side row landed in ``new_chat_messages``;
+								// refresh the sidebar so the freshly-bumped
+								// ``thread.updated_at`` reorders this thread.
+								queryClient.invalidateQueries({
+									queryKey: ["threads", String(searchSpaceId)],
+								});
+							}
+							break;
+						}
+
+						case "data-assistant-message-id": {
+							// Server-authoritative assistant message id resolved
+							// by ``persist_assistant_shell``. Rename the optimistic
+							// id, migrate ``tokenUsageStore`` so any pending
+							// ``data-token-usage`` payload binds to the new id,
+							// remap any in-flight ``pendingInterrupt`` reference,
+							// and reassign the closure variable so the in-stream
+							// flush callback (line ~1074) keeps writing to the
+							// renamed message.
+							const parsedMsg = readStreamedMessageId(parsed.data);
+							if (!parsedMsg) break;
+							const newAssistantMsgId = `msg-${parsedMsg.messageId}`;
+							const oldAssistantMsgId = assistantMsgId;
+							tokenUsageStore.rename(oldAssistantMsgId, newAssistantMsgId);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === oldAssistantMsgId
+										? mergeChatTurnIdIntoMessage({ ...m, id: newAssistantMsgId }, parsedMsg.turnId)
+										: m
+								)
+							);
+							setPendingInterrupt((prev) =>
+								prev && prev.assistantMsgId === oldAssistantMsgId
+									? { ...prev, assistantMsgId: newAssistantMsgId }
+									: prev
+							);
+							assistantMsgId = newAssistantMsgId;
+							break;
 						}
 					}
-					return;
+				});
+
+				batcher.flush();
+
+				// Server-authoritative persistence: ``stream_new_chat``
+				// already wrote the user row in ``persist_user_turn``
+				// (the FE renamed the optimistic id mid-stream via
+				// ``data-user-message-id``) and finalises the assistant
+				// row in ``finalize_assistant_turn`` from a shielded
+				// ``finally`` block. Nothing left for the FE to persist
+				// here — track the response and unblock the UI.
+				if (contentParts.length > 0 && !wasInterrupted) {
+					trackChatResponseReceived(searchSpaceId, currentThreadId);
 				}
-				console.error("[NewChatPage] Chat error:", error);
-
-				// Track chat error
-				trackChatError(
-					searchSpaceId,
-					currentThreadId,
-					error instanceof Error ? error.message : "Unknown error"
-				);
-
-				toast.error("Failed to get response. Please try again.");
-				// Update assistant message with error
-				setMessages((prev) =>
-					prev.map((m) =>
-						m.id === assistantMsgId
-							? {
-									...m,
-									content: [
-										{
-											type: "text",
-											text: "Sorry, there was an error. Please try again.",
-										},
-									],
-								}
-							: m
-					)
-				);
+			} catch (error) {
+				streamBatcher?.dispose();
+				await handleStreamTerminalError({
+					error,
+					flow: "new",
+					threadId: currentThreadId,
+					assistantMsgId,
+					accepted: newAccepted,
+					// Server-side ``finalize_assistant_turn`` runs from a
+					// shielded ``anyio.CancelScope(shield=True)`` finally
+					// block, so partial content (incl. abort-mid-stream)
+					// is already persisted by the BE for the assistant
+					// row, and ``persist_user_turn`` ran before any LLM
+					// call. The FE's only remaining responsibility on
+					// abort / accepted-stream-error is to surface the
+					// error toast (handled by ``handleStreamTerminalError``
+					// itself).
+					onPreAcceptFailure: async () => {
+						// Pre-accept failure means the BE never accepted the
+						// request — no server-side persistence ran. Roll
+						// back the optimistic UI insertions we made before
+						// the fetch so the user message and any local
+						// mentioned-docs metadata don't linger.
+						setMessages((prev) => prev.filter((m) => m.id !== userMsgId));
+						setMessageDocumentsMap((prev) => {
+							if (!(userMsgId in prev)) return prev;
+							const { [userMsgId]: _removed, ...rest } = prev;
+							return rest;
+						});
+					},
+				});
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
@@ -1196,12 +1334,15 @@ export default function NewChatPage() {
 			setAgentCreatedDocuments,
 			queryClient,
 			currentUser,
+			localFilesystemEnabled,
 			disabledTools,
 			updateChatTabTitle,
 			tokenUsageStore,
 			pendingUserImageUrls,
 			setPendingUserImageUrls,
-			toolsWithUI,
+			fetchWithTurnCancellingRetry,
+			handleStreamTerminalError,
+			handleChatFailure,
 		]
 	);
 
@@ -1214,7 +1355,12 @@ export default function NewChatPage() {
 			}>
 		) => {
 			if (!pendingInterrupt) return;
-			const { threadId: resumeThreadId, assistantMsgId } = pendingInterrupt;
+			const { threadId: resumeThreadId } = pendingInterrupt;
+			// Destructured separately as ``let`` so the SSE
+			// ``data-assistant-message-id`` handler (resume always
+			// allocates a fresh server-side row) can rename it to
+			// the canonical ``msg-{db_id}`` mid-stream.
+			let assistantMsgId = pendingInterrupt.assistantMsgId;
 			setPendingInterrupt(null);
 			setIsRunning(true);
 
@@ -1229,7 +1375,6 @@ export default function NewChatPage() {
 			abortControllerRef.current = controller;
 
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
-			const batcher = new FrameBatchedUpdater();
 
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
@@ -1238,9 +1383,8 @@ export default function NewChatPage() {
 				toolCallIndices: new Map(),
 			};
 			const { contentParts, toolCallIndices } = contentPartsState;
-			let tokenUsageData: Record<string, unknown> | null = null;
-			// Captured from ``data-turn-info`` at stream start.
-			let streamedChatTurnId: string | null = null;
+			let resumeAccepted = false;
+			let streamBatcher: FrameBatchedUpdater | null = null;
 
 			const existingMsg = messages.find((m) => m.id === assistantMsgId);
 			if (existingMsg && Array.isArray(existingMsg.content)) {
@@ -1318,27 +1462,32 @@ export default function NewChatPage() {
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const selection = await getAgentFilesystemSelection(searchSpaceId);
-				const response = await fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({
-						search_space_id: searchSpaceId,
-						decisions,
-						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
-						filesystem_mode: selection.filesystem_mode,
-						client_platform: selection.client_platform,
-						local_filesystem_mounts: selection.local_filesystem_mounts,
-					}),
-					signal: controller.signal,
+				const selection = await getAgentFilesystemSelection(searchSpaceId, {
+					localFilesystemEnabled,
 				});
+				const response = await fetchWithTurnCancellingRetry(() =>
+					fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify({
+							search_space_id: searchSpaceId,
+							decisions,
+							disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
+							filesystem_mode: selection.filesystem_mode,
+							client_platform: selection.client_platform,
+							local_filesystem_mounts: selection.local_filesystem_mounts,
+						}),
+						signal: controller.signal,
+					})
+				);
 
 				if (!response.ok) {
-					throw new Error(`Backend error: ${response.status}`);
+					throw await toHttpResponseError(response);
 				}
+				resumeAccepted = true;
 
 				const flushMessages = () => {
 					setMessages((prev) =>
@@ -1349,115 +1498,51 @@ export default function NewChatPage() {
 						)
 					);
 				};
-				const scheduleFlush = () => batcher.schedule(flushMessages);
-				const forceFlush = () => {
-					scheduleFlush();
-					batcher.flush();
-				};
+				const { batcher, scheduleFlush, forceFlush } = createStreamFlushHelpers(flushMessages);
+				streamBatcher = batcher;
 
-				for await (const parsed of readSSEStream(response)) {
-					switch (parsed.type) {
-						case "text-delta":
-							appendText(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-delta":
-							appendReasoning(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-end":
-							endReasoning(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "start-step":
-							addStepSeparator(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "finish-step":
-							break;
-
-						case "tool-input-start":
-							addToolCall(
-								contentPartsState,
-								toolsWithUI,
-								parsed.toolCallId,
-								parsed.toolName,
-								{},
-								false,
-								parsed.langchainToolCallId
-							);
-							forceFlush();
-							break;
-
-						case "tool-input-delta":
-							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
-							scheduleFlush();
-							break;
-
-						case "tool-input-available": {
-							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
-							if (toolCallIndices.has(parsed.toolCallId)) {
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									args: parsed.input || {},
-									argsText: finalArgsText,
-									langchainToolCallId: parsed.langchainToolCallId,
-								});
-							} else {
-								addToolCall(
-									contentPartsState,
-									toolsWithUI,
-									parsed.toolCallId,
-									parsed.toolName,
-									parsed.input || {},
-									false,
-									parsed.langchainToolCallId
-								);
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									argsText: finalArgsText,
-								});
-							}
-							forceFlush();
-							break;
-						}
-
-						case "tool-output-available":
-							updateToolCall(contentPartsState, parsed.toolCallId, {
-								result: parsed.output,
-								langchainToolCallId: parsed.langchainToolCallId,
-							});
-							markInterruptsCompleted(contentParts);
-							forceFlush();
-							break;
-
-						case "data-thinking-step": {
-							const stepData = parsed.data as ThinkingStepData;
-							if (stepData?.id) {
-								currentThinkingSteps.set(stepData.id, stepData);
-								const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
-								if (didUpdate) {
-									scheduleFlush();
+				await consumeSseEvents(response, async (parsed) => {
+					if (
+						processSharedStreamEvent(parsed, {
+							contentPartsState,
+							toolsWithUI,
+							currentThinkingSteps,
+							scheduleFlush,
+							forceFlush,
+							onTokenUsage: (data) => {
+								tokenUsageStore.set(assistantMsgId, data);
+							},
+							onTurnStatus: (data) => {
+								if (data.status === "cancelling") {
+									recentCancelRequestedAtRef.current = Date.now();
 								}
-							}
-							break;
-						}
-
+							},
+						})
+					) {
+						return;
+					}
+					switch (parsed.type) {
 						case "data-interrupt-request": {
 							const interruptData = parsed.data as Record<string, unknown>;
 							const actionRequests = (interruptData.action_requests ?? []) as Array<{
 								name: string;
 								args: Record<string, unknown>;
 							}>;
-							const paired = pairBundleToolCallIds(toolCallIndices, contentParts, actionRequests);
+							const paired = pairBundleToolCallIds(
+								contentPartsState.toolCallIndices,
+								contentPartsState.contentParts,
+								actionRequests
+							);
 							const bundleToolCallIds: string[] = [];
 							for (let i = 0; i < actionRequests.length; i++) {
 								const action = actionRequests[i];
 								let targetTcId = paired[i];
 								if (!targetTcId) {
-									targetTcId = freshSynthToolCallId(toolCallIndices, action.name, i);
+									targetTcId = freshSynthToolCallId(
+										contentPartsState.toolCallIndices,
+										action.name,
+										i
+									);
 									addToolCall(
 										contentPartsState,
 										toolsWithUI,
@@ -1504,64 +1589,74 @@ export default function NewChatPage() {
 						}
 
 						case "data-turn-info": {
-							streamedChatTurnId = parsed.data.chat_turn_id || null;
-							if (streamedChatTurnId) {
+							const turnId = readStreamedChatTurnId(parsed.data);
+							if (turnId) {
 								setMessages((prev) =>
-									prev.map((m) =>
-										m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, streamedChatTurnId) : m
-									)
+									applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
 								);
 							}
 							break;
 						}
 
-						case "data-token-usage":
-							tokenUsageData = parsed.data;
-							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
+						case "data-assistant-message-id": {
+							// Resume always allocates a fresh ``new_chat_messages``
+							// row anchored to a new ``turn_id`` (the original
+							// interrupted turn's row stays as-is), so this is a
+							// real id swap. Rename the optimistic placeholder to
+							// ``msg-{db_id}`` and reassign closure state. Resume
+							// does NOT emit ``data-user-message-id`` — the user
+							// row belongs to the original interrupted turn.
+							const parsedMsg = readStreamedMessageId(parsed.data);
+							if (!parsedMsg) break;
+							const newAssistantMsgId = `msg-${parsedMsg.messageId}`;
+							const oldAssistantMsgId = assistantMsgId;
+							tokenUsageStore.rename(oldAssistantMsgId, newAssistantMsgId);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === oldAssistantMsgId
+										? mergeChatTurnIdIntoMessage({ ...m, id: newAssistantMsgId }, parsedMsg.turnId)
+										: m
+								)
+							);
+							assistantMsgId = newAssistantMsgId;
 							break;
-
-						case "error":
-							throw new Error(parsed.errorText || "Server error");
+						}
 					}
-				}
+				});
 
 				batcher.flush();
 
-				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
-				if (contentParts.length > 0) {
-					try {
-						const savedMessage = await appendMessage(resumeThreadId, {
-							role: "assistant",
-							content: finalContent,
-							token_usage: tokenUsageData ?? undefined,
-							turn_id: streamedChatTurnId,
-						});
-						const newMsgId = `msg-${savedMessage.id}`;
-						tokenUsageStore.rename(assistantMsgId, newMsgId);
-						setMessages((prev) =>
-							prev.map((m) =>
-								m.id === assistantMsgId
-									? mergeChatTurnIdIntoMessage({ ...m, id: newMsgId }, savedMessage.turn_id)
-									: m
-							)
-						);
-					} catch (err) {
-						console.error("Failed to persist resumed assistant message:", err);
-					}
-				}
+				// Server-authoritative persistence: ``stream_resume_chat``
+				// finalises the assistant row in
+				// ``finalize_assistant_turn`` from a shielded
+				// ``finally`` block (covers both happy-path and
+				// abort-mid-stream). FE has no remaining persistence
+				// work here.
 			} catch (error) {
-				batcher.dispose();
-				if (error instanceof Error && error.name === "AbortError") {
-					return;
-				}
-				console.error("[NewChatPage] Resume error:", error);
-				toast.error("Failed to resume. Please try again.");
+				streamBatcher?.dispose();
+				await handleStreamTerminalError({
+					error,
+					flow: "resume",
+					threadId: resumeThreadId,
+					assistantMsgId,
+					accepted: resumeAccepted,
+				});
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
 			}
 		},
-		[pendingInterrupt, messages, searchSpaceId, tokenUsageStore, toolsWithUI]
+		[
+			pendingInterrupt,
+			messages,
+			searchSpaceId,
+			localFilesystemEnabled,
+			disabledTools,
+			queryClient,
+			tokenUsageStore,
+			fetchWithTurnCancellingRetry,
+			handleStreamTerminalError,
+		]
 	);
 
 	useEffect(() => {
@@ -1705,6 +1800,7 @@ export default function NewChatPage() {
 			editExtras?: {
 				userMessageContent: ThreadMessageLike["content"];
 				userImages: NewChatUserImagePayload[];
+				sourceUserMessageId?: string;
 			},
 			editFromPosition?: {
 				/** Message id (numeric, parsed from ``msg-<n>``) to rewind to. */
@@ -1736,11 +1832,13 @@ export default function NewChatPage() {
 			let userQueryToDisplay: string | undefined;
 			let originalUserMessageContent: ThreadMessageLike["content"] | null = null;
 			let originalUserMessageMetadata: ThreadMessageLike["metadata"] | undefined;
+			let sourceUserMessageId: string | undefined = editExtras?.sourceUserMessageId;
 
 			if (!isEdit) {
 				// Reload mode - find and preserve the last user message content
 				const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
 				if (lastUserMessage) {
+					sourceUserMessageId = lastUserMessage.id;
 					originalUserMessageContent = lastUserMessage.content;
 					originalUserMessageMetadata = lastUserMessage.metadata;
 					// Extract text for the API request
@@ -1755,34 +1853,17 @@ export default function NewChatPage() {
 				userQueryToDisplay = newUserQuery;
 			}
 
-			// Remove downstream messages from the UI immediately. The
-			// backend will also delete them from the database.
-			//
-			// When an explicit ``fromMessageId`` is passed, slice from
-			// that message forward; otherwise fall back to the legacy
-			// "drop the last 2" behaviour.
-			setMessages((prev) => {
-				if (editFromPosition?.fromMessageId != null) {
-					const targetId = `msg-${editFromPosition.fromMessageId}`;
-					const sliceIndex = prev.findIndex((m) => m.id === targetId);
-					if (sliceIndex >= 0) {
-						return prev.slice(0, sliceIndex);
-					}
-				}
-				if (prev.length >= 2) {
-					return prev.slice(0, -2);
-				}
-				return prev;
-			});
-
 			// Start streaming
 			setIsRunning(true);
 			const controller = new AbortController();
 			abortControllerRef.current = controller;
 
-			// Add placeholder user message if we have a new query (edit mode)
-			const userMsgId = `msg-user-${Date.now()}`;
-			const assistantMsgId = `msg-assistant-${Date.now()}`;
+			// Add placeholder user message if we have a new query (edit mode).
+			// Mutable for the same reason as in ``onNew`` — both ids are
+			// renamed mid-stream by the new ``data-user-message-id`` /
+			// ``data-assistant-message-id`` SSE handlers below.
+			let userMsgId = `msg-user-${Date.now()}`;
+			let assistantMsgId = `msg-assistant-${Date.now()}`;
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
 
 			const contentPartsState: ContentPartsState = {
@@ -1791,13 +1872,9 @@ export default function NewChatPage() {
 				currentReasoningPartIndex: -1,
 				toolCallIndices: new Map(),
 			};
-			const { contentParts, toolCallIndices } = contentPartsState;
-			const batcher = new FrameBatchedUpdater();
-			let tokenUsageData: Record<string, unknown> | null = null;
-			// Captured from ``data-turn-info`` at stream start; stamped
-			// onto persisted messages so future edits can locate the
-			// right LangGraph checkpoint.
-			let streamedChatTurnId: string | null = null;
+			const { contentParts } = contentPartsState;
+			let regenerateAccepted = false;
+			let streamBatcher: FrameBatchedUpdater | null = null;
 
 			// Add placeholder messages to UI
 			// Always add back the user message (with new query for edit, or original content for reload)
@@ -1810,21 +1887,14 @@ export default function NewChatPage() {
 				createdAt: new Date(),
 				metadata: isEdit ? undefined : originalUserMessageMetadata,
 			};
-			setMessages((prev) => [...prev, userMessage]);
-
-			// Add placeholder assistant message
-			setMessages((prev) => [
-				...prev,
-				{
-					id: assistantMsgId,
-					role: "assistant",
-					content: [{ type: "text", text: "" }],
-					createdAt: new Date(),
-				},
-			]);
-
+			const sourceMentionedDocs =
+				sourceUserMessageId && messageDocumentsMap[sourceUserMessageId]
+					? messageDocumentsMap[sourceUserMessageId]
+					: [];
 			try {
-				const selection = await getAgentFilesystemSelection(searchSpaceId);
+				const selection = await getAgentFilesystemSelection(searchSpaceId, {
+					localFilesystemEnabled,
+				});
 				const requestBody: Record<string, unknown> = {
 					search_space_id: searchSpaceId,
 					user_query: newUserQuery,
@@ -1832,6 +1902,18 @@ export default function NewChatPage() {
 					filesystem_mode: selection.filesystem_mode,
 					client_platform: selection.client_platform,
 					local_filesystem_mounts: selection.local_filesystem_mounts,
+					// Full mention metadata for the regenerate-specific
+					// source list. Only meaningful for edit (the BE only
+					// re-persists a user row when ``user_query`` is set);
+					// reload reuses the original turn's mentioned_documents.
+					mentioned_documents:
+						sourceMentionedDocs.length > 0
+							? sourceMentionedDocs.map((d) => ({
+									id: d.id,
+									title: d.title,
+									document_type: d.document_type,
+								}))
+							: undefined,
 				};
 				if (isEdit) {
 					requestBody.user_images = editExtras?.userImages ?? [];
@@ -1846,18 +1928,56 @@ export default function NewChatPage() {
 						requestBody.revert_actions = true;
 					}
 				}
-				const response = await fetch(getRegenerateUrl(threadId), {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify(requestBody),
-					signal: controller.signal,
-				});
+				const response = await fetchWithTurnCancellingRetry(() =>
+					fetch(getRegenerateUrl(threadId), {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+						body: JSON.stringify(requestBody),
+						signal: controller.signal,
+					})
+				);
 
 				if (!response.ok) {
-					throw new Error(`Backend error: ${response.status}`);
+					throw await toHttpResponseError(response);
+				}
+				regenerateAccepted = true;
+
+				// Only switch UI to regenerated placeholder messages after the backend accepts
+				// regenerate. This avoids local message loss when regenerate fails early (e.g. 400).
+				//
+				// When an explicit ``editFromPosition.fromMessageId`` is passed, slice from
+				// that message forward so edit-from-arbitrary-position drops every downstream
+				// message; otherwise fall back to the legacy "drop the last 2" behaviour.
+				setMessages((prev) => {
+					let base = prev;
+					if (editFromPosition?.fromMessageId != null) {
+						const targetId = `msg-${editFromPosition.fromMessageId}`;
+						const sliceIndex = prev.findIndex((m) => m.id === targetId);
+						if (sliceIndex >= 0) {
+							base = prev.slice(0, sliceIndex);
+						}
+					} else if (prev.length >= 2) {
+						base = prev.slice(0, -2);
+					}
+					return [
+						...base,
+						userMessage,
+						{
+							id: assistantMsgId,
+							role: "assistant",
+							content: [{ type: "text", text: "" }],
+							createdAt: new Date(),
+						},
+					];
+				});
+				if (sourceMentionedDocs.length > 0) {
+					setMessageDocumentsMap((prev) => ({
+						...prev,
+						[userMsgId]: sourceMentionedDocs,
+					}));
 				}
 
 				const flushMessages = () => {
@@ -1869,111 +1989,41 @@ export default function NewChatPage() {
 						)
 					);
 				};
-				const scheduleFlush = () => batcher.schedule(flushMessages);
-				const forceFlush = () => {
-					scheduleFlush();
-					batcher.flush();
-				};
+				const { batcher, scheduleFlush, forceFlush } = createStreamFlushHelpers(flushMessages);
+				streamBatcher = batcher;
 
-				for await (const parsed of readSSEStream(response)) {
-					switch (parsed.type) {
-						case "text-delta":
-							appendText(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-delta":
-							appendReasoning(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-end":
-							endReasoning(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "start-step":
-							addStepSeparator(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "finish-step":
-							break;
-
-						case "tool-input-start":
-							addToolCall(
-								contentPartsState,
-								toolsWithUI,
-								parsed.toolCallId,
-								parsed.toolName,
-								{},
-								false,
-								parsed.langchainToolCallId
-							);
-							forceFlush();
-							break;
-
-						case "tool-input-delta":
-							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
-							scheduleFlush();
-							break;
-
-						case "tool-input-available": {
-							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
-							if (toolCallIndices.has(parsed.toolCallId)) {
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									args: parsed.input || {},
-									argsText: finalArgsText,
-									langchainToolCallId: parsed.langchainToolCallId,
-								});
-							} else {
-								addToolCall(
-									contentPartsState,
-									toolsWithUI,
-									parsed.toolCallId,
-									parsed.toolName,
-									parsed.input || {},
-									false,
-									parsed.langchainToolCallId
-								);
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									argsText: finalArgsText,
-								});
-							}
-							forceFlush();
-							break;
-						}
-
-						case "tool-output-available":
-							updateToolCall(contentPartsState, parsed.toolCallId, {
-								result: parsed.output,
-								langchainToolCallId: parsed.langchainToolCallId,
-							});
-							markInterruptsCompleted(contentParts);
-							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
-								const idx = toolCallIndices.get(parsed.toolCallId);
-								if (idx !== undefined) {
-									const part = contentParts[idx];
-									if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-										setActivePodcastTaskId(String(parsed.output.podcast_id));
+				await consumeSseEvents(response, async (parsed) => {
+					if (
+						processSharedStreamEvent(parsed, {
+							contentPartsState,
+							toolsWithUI,
+							currentThinkingSteps,
+							scheduleFlush,
+							forceFlush,
+							onTokenUsage: (data) => {
+								tokenUsageStore.set(assistantMsgId, data);
+							},
+							onTurnStatus: (data) => {
+								if (data.status === "cancelling") {
+									recentCancelRequestedAtRef.current = Date.now();
+								}
+							},
+							onToolOutputAvailable: (event, sharedCtx) => {
+								if (event.output?.status === "pending" && event.output?.podcast_id) {
+									const idx = sharedCtx.toolCallIndices.get(event.toolCallId);
+									if (idx !== undefined) {
+										const part = sharedCtx.contentPartsState.contentParts[idx];
+										if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+											setActivePodcastTaskId(String(event.output.podcast_id));
+										}
 									}
 								}
-							}
-							forceFlush();
-							break;
-
-						case "data-thinking-step": {
-							const stepData = parsed.data as ThinkingStepData;
-							if (stepData?.id) {
-								currentThinkingSteps.set(stepData.id, stepData);
-								const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
-								if (didUpdate) {
-									scheduleFlush();
-								}
-							}
-							break;
-						}
-
+							},
+						})
+					) {
+						return;
+					}
+					switch (parsed.type) {
 						case "data-action-log": {
 							if (threadId !== null) {
 								applyActionLogSse(queryClient, threadId, searchSpaceId, parsed.data);
@@ -1994,14 +2044,57 @@ export default function NewChatPage() {
 						}
 
 						case "data-turn-info": {
-							streamedChatTurnId = parsed.data.chat_turn_id || null;
-							if (streamedChatTurnId) {
+							const turnId = readStreamedChatTurnId(parsed.data);
+							if (turnId) {
 								setMessages((prev) =>
-									prev.map((m) =>
-										m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, streamedChatTurnId) : m
-									)
+									applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
 								);
 							}
+							break;
+						}
+
+						case "data-user-message-id": {
+							// Same role as in ``onNew`` but the regenerate-specific
+							// mention metadata (``sourceMentionedDocs``) is the
+							// list to migrate onto the canonical id key.
+							const parsedMsg = readStreamedMessageId(parsed.data);
+							if (!parsedMsg) break;
+							const newUserMsgId = `msg-${parsedMsg.messageId}`;
+							const oldUserMsgId = userMsgId;
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === oldUserMsgId
+										? mergeChatTurnIdIntoMessage({ ...m, id: newUserMsgId }, parsedMsg.turnId)
+										: m
+								)
+							);
+							if (sourceMentionedDocs.length > 0) {
+								setMessageDocumentsMap((prev) => {
+									if (!(oldUserMsgId in prev)) {
+										return { ...prev, [newUserMsgId]: sourceMentionedDocs };
+									}
+									const { [oldUserMsgId]: _removed, ...rest } = prev;
+									return { ...rest, [newUserMsgId]: sourceMentionedDocs };
+								});
+							}
+							userMsgId = newUserMsgId;
+							break;
+						}
+
+						case "data-assistant-message-id": {
+							const parsedMsg = readStreamedMessageId(parsed.data);
+							if (!parsedMsg) break;
+							const newAssistantMsgId = `msg-${parsedMsg.messageId}`;
+							const oldAssistantMsgId = assistantMsgId;
+							tokenUsageStore.rename(oldAssistantMsgId, newAssistantMsgId);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === oldAssistantMsgId
+										? mergeChatTurnIdIntoMessage({ ...m, id: newAssistantMsgId }, parsedMsg.turnId)
+										: m
+								)
+							);
+							assistantMsgId = newAssistantMsgId;
 							break;
 						}
 
@@ -2040,95 +2133,48 @@ export default function NewChatPage() {
 							}
 							break;
 						}
-
-						case "data-token-usage":
-							tokenUsageData = parsed.data;
-							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
-							break;
-
-						case "error":
-							throw new Error(parsed.errorText || "Server error");
 					}
-				}
+				});
 
 				batcher.flush();
 
-				// Persist messages after streaming completes
-				const finalContent = buildContentForPersistence(contentPartsState, toolsWithUI);
+				// Server-authoritative persistence: ``stream_new_chat``
+				// (regenerate flow) wrote the user row in
+				// ``persist_user_turn`` and finalises the assistant row
+				// in ``finalize_assistant_turn`` from a shielded
+				// ``finally`` block (covers both happy-path and
+				// abort-mid-stream). FE only needs to track the
+				// successful response here.
 				if (contentParts.length > 0) {
-					try {
-						// Persist user message (for both edit and reload modes, since backend deleted it)
-						const userContentToPersist = isEdit
-							? (editExtras?.userMessageContent ?? [{ type: "text", text: newUserQuery ?? "" }])
-							: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }];
-
-						const savedUserMessage = await appendMessage(threadId, {
-							role: "user",
-							content: userContentToPersist,
-							turn_id: streamedChatTurnId,
-						});
-
-						// Update user message ID to database ID
-						const newUserMsgId = `msg-${savedUserMessage.id}`;
-						setMessages((prev) =>
-							prev.map((m) =>
-								m.id === userMsgId
-									? mergeChatTurnIdIntoMessage({ ...m, id: newUserMsgId }, savedUserMessage.turn_id)
-									: m
-							)
-						);
-
-						// Persist assistant message
-						const savedMessage = await appendMessage(threadId, {
-							role: "assistant",
-							content: finalContent,
-							token_usage: tokenUsageData ?? undefined,
-							turn_id: streamedChatTurnId,
-						});
-
-						const newMsgId = `msg-${savedMessage.id}`;
-						tokenUsageStore.rename(assistantMsgId, newMsgId);
-						setMessages((prev) =>
-							prev.map((m) =>
-								m.id === assistantMsgId
-									? mergeChatTurnIdIntoMessage({ ...m, id: newMsgId }, savedMessage.turn_id)
-									: m
-							)
-						);
-
-						trackChatResponseReceived(searchSpaceId, threadId);
-					} catch (err) {
-						console.error("Failed to persist regenerated message:", err);
-					}
+					trackChatResponseReceived(searchSpaceId, threadId);
 				}
 			} catch (error) {
-				if (error instanceof Error && error.name === "AbortError") {
-					return;
-				}
-				batcher.dispose();
-				console.error("[NewChatPage] Regeneration error:", error);
-				trackChatError(
-					searchSpaceId,
+				streamBatcher?.dispose();
+				await handleStreamTerminalError({
+					error,
+					flow: "regenerate",
 					threadId,
-					error instanceof Error ? error.message : "Unknown error"
-				);
-				toast.error("Failed to regenerate response. Please try again.");
-				setMessages((prev) =>
-					prev.map((m) =>
-						m.id === assistantMsgId
-							? {
-									...m,
-									content: [{ type: "text", text: "Sorry, there was an error. Please try again." }],
-								}
-							: m
-					)
-				);
+					assistantMsgId,
+					accepted: regenerateAccepted,
+				});
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
 			}
 		},
-		[threadId, searchSpaceId, messages, disabledTools, tokenUsageStore, toolsWithUI]
+		[
+			threadId,
+			searchSpaceId,
+			messages,
+			disabledTools,
+			localFilesystemEnabled,
+			messageDocumentsMap,
+			setMessageDocumentsMap,
+			queryClient,
+			tokenUsageStore,
+			fetchWithTurnCancellingRetry,
+			handleStreamTerminalError,
+		]
 	);
 
 	// Handle editing a message - truncates history and regenerates with new query.
@@ -2162,7 +2208,11 @@ export default function NewChatPage() {
 			if (fromMessageId == null) {
 				// No source id (or non-DB id) — fall back to today's
 				// last-2 behaviour. The user gets the legacy edit flow.
-				await handleRegenerate(queryForApi, { userMessageContent, userImages });
+				await handleRegenerate(queryForApi, {
+					userMessageContent,
+					userImages,
+					sourceUserMessageId: sourceId,
+				});
 				return;
 			}
 
@@ -2211,7 +2261,7 @@ export default function NewChatPage() {
 				// Nothing to revert — submit silently.
 				await handleRegenerate(
 					queryForApi,
-					{ userMessageContent, userImages },
+					{ userMessageContent, userImages, sourceUserMessageId: sourceId },
 					{ fromMessageId, revertActions: false }
 				);
 				return;
@@ -2246,6 +2296,7 @@ export default function NewChatPage() {
 				{
 					userMessageContent: pending.userMessageContent,
 					userImages: pending.userImages,
+					sourceUserMessageId: `msg-${pending.fromMessageId}`,
 				},
 				{
 					fromMessageId: pending.fromMessageId,

@@ -8,7 +8,10 @@ const userQueryFn = () => userApiService.getMe();
 export const currentUserAtom = atomWithQuery(() => {
 	return {
 		queryKey: USER_QUERY_KEY,
-		staleTime: 5 * 60 * 1000,
+		// Live-changing numeric fields (pages_*, premium_credit_micros_*)
+		// are now pushed via Zero (queries.user.me()), so /users/me only
+		// needs to fire once per session for the static profile fields.
+		staleTime: Infinity,
 		enabled: !!getBearerToken(),
 		queryFn: userQueryFn,
 	};

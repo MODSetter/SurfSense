@@ -27,6 +27,8 @@ const AgentFeatureFlagsSchema = z.object({
 	enable_plugin_loader: z.boolean(),
 
 	enable_otel: z.boolean(),
+
+	enable_desktop_local_filesystem: z.boolean(),
 });
 
 export type AgentFeatureFlags = z.infer<typeof AgentFeatureFlagsSchema>;

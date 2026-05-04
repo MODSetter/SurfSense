@@ -13,7 +13,7 @@ from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
 )
-from app.utils.google_credentials import build_composio_credentials
+from app.services.composio_service import ComposioService
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,42 @@ class GoogleDriveFile:
 class GoogleDriveToolMetadataService:
     def __init__(self, db_session: AsyncSession):
         self._db_session = db_session
+
+    def _is_composio_connector(self, connector: SearchSourceConnector) -> bool:
+        return (
+            connector.connector_type
+            == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+        )
+
+    def _get_composio_connected_account_id(
+        self, connector: SearchSourceConnector
+    ) -> str:
+        cca_id = connector.config.get("composio_connected_account_id")
+        if not cca_id:
+            raise ValueError("Composio connected_account_id not found")
+        return cca_id
+
+    async def _execute_composio_drive_tool(
+        self,
+        connector: SearchSourceConnector,
+        tool_name: str,
+        params: dict,
+    ) -> tuple[dict | list | None, str | None]:
+        result = await ComposioService().execute_tool(
+            connected_account_id=self._get_composio_connected_account_id(connector),
+            tool_name=tool_name,
+            params=params,
+            entity_id=f"surfsense_{connector.user_id}",
+        )
+        if not result.get("success"):
+            return None, result.get("error", "Unknown Composio Drive error")
+        data = result.get("data")
+        if isinstance(data, dict):
+            inner = data.get("data", data)
+            if isinstance(inner, dict):
+                return inner.get("response_data", inner), None
+            return inner, None
+        return data, None
 
     async def get_creation_context(self, search_space_id: int, user_id: str) -> dict:
         accounts = await self._get_google_drive_accounts(search_space_id, user_id)
@@ -200,19 +236,21 @@ class GoogleDriveToolMetadataService:
             if not connector:
                 return True
 
-            pre_built_creds = None
-            if (
-                connector.connector_type
-                == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
-            ):
-                cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    pre_built_creds = build_composio_credentials(cca_id)
+            if self._is_composio_connector(connector):
+                _data, error = await self._execute_composio_drive_tool(
+                    connector,
+                    "GOOGLEDRIVE_LIST_FILES",
+                    {
+                        "q": "trashed = false",
+                        "page_size": 1,
+                        "fields": "files(id)",
+                    },
+                )
+                return bool(error)
 
             client = GoogleDriveClient(
                 session=self._db_session,
                 connector_id=connector_id,
-                credentials=pre_built_creds,
             )
             await client.list_files(
                 query="trashed = false", page_size=1, fields="files(id)"
@@ -274,19 +312,39 @@ class GoogleDriveToolMetadataService:
                     parent_folders[connector_id] = []
                     continue
 
-                pre_built_creds = None
-                if (
-                    connector.connector_type
-                    == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
-                ):
-                    cca_id = connector.config.get("composio_connected_account_id")
-                    if cca_id:
-                        pre_built_creds = build_composio_credentials(cca_id)
+                if self._is_composio_connector(connector):
+                    data, error = await self._execute_composio_drive_tool(
+                        connector,
+                        "GOOGLEDRIVE_LIST_FILES",
+                        {
+                            "q": "mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'root' in parents",
+                            "fields": "files(id,name)",
+                            "page_size": 50,
+                        },
+                    )
+                    if error:
+                        logger.warning(
+                            "Failed to list folders for connector %s: %s",
+                            connector_id,
+                            error,
+                        )
+                        parent_folders[connector_id] = []
+                        continue
+                    folders = []
+                    if isinstance(data, dict):
+                        folders = data.get("files", [])
+                    elif isinstance(data, list):
+                        folders = data
+                    parent_folders[connector_id] = [
+                        {"folder_id": f["id"], "name": f["name"]}
+                        for f in folders
+                        if f.get("id") and f.get("name")
+                    ]
+                    continue
 
                 client = GoogleDriveClient(
                     session=self._db_session,
                     connector_id=connector_id,
-                    credentials=pre_built_creds,
                 )
 
                 folders, _, error = await client.list_files(

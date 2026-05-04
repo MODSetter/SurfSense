@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.tools.hitl import request_approval
 from app.connectors.notion_history import NotionAPIError, NotionHistoryConnector
+from app.db import async_session_maker
 from app.services.notion import NotionToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -20,8 +21,14 @@ def create_update_notion_page_tool(
     """
     Factory function to create the update_notion_page tool.
 
+    The tool acquires its own short-lived ``AsyncSession`` per call via
+    :data:`async_session_maker` so the closure is safe to share across
+    HTTP requests by the compiled-agent cache (see
+    ``create_create_notion_page_tool`` for the full rationale).
+
     Args:
-        db_session: Database session for accessing Notion connector
+        db_session: Reserved for registry compatibility. Per-call sessions
+            are opened via :data:`async_session_maker` inside the tool body.
         search_space_id: Search space ID to find the Notion connector
         user_id: User ID for fetching user-specific context
         connector_id: Optional specific connector ID (if known)
@@ -29,6 +36,7 @@ def create_update_notion_page_tool(
     Returns:
         Configured update_notion_page tool
     """
+    del db_session  # per-call session — see docstring
 
     @tool
     async def update_notion_page(
@@ -71,7 +79,7 @@ def create_update_notion_page_tool(
             f"update_notion_page called: page_title='{page_title}', content_length={len(content) if content else 0}"
         )
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if search_space_id is None or user_id is None:
             logger.error(
                 "Notion tool not properly configured - missing required parameters"
             )
@@ -88,152 +96,155 @@ def create_update_notion_page_tool(
             }
 
         try:
-            metadata_service = NotionToolMetadataService(db_session)
-            context = await metadata_service.get_update_context(
-                search_space_id, user_id, page_title
-            )
-
-            if "error" in context:
-                error_msg = context["error"]
-                # Check if it's a "not found" error (softer handling for LLM)
-                if "not found" in error_msg.lower():
-                    logger.warning(f"Page not found: {error_msg}")
-                    return {
-                        "status": "not_found",
-                        "message": error_msg,
-                    }
-                else:
-                    logger.error(f"Failed to fetch update context: {error_msg}")
-                    return {
-                        "status": "error",
-                        "message": error_msg,
-                    }
-
-            account = context.get("account", {})
-            if account.get("auth_expired"):
-                logger.warning(
-                    "Notion account %s has expired authentication",
-                    account.get("id"),
-                )
-                return {
-                    "status": "auth_error",
-                    "message": "The Notion account for this page needs re-authentication. Please re-authenticate in your connector settings.",
-                }
-
-            page_id = context.get("page_id")
-            document_id = context.get("document_id")
-            connector_id_from_context = context.get("account", {}).get("id")
-
-            logger.info(
-                f"Requesting approval for updating Notion page: '{page_title}' (page_id={page_id})"
-            )
-            result = request_approval(
-                action_type="notion_page_update",
-                tool_name="update_notion_page",
-                params={
-                    "page_id": page_id,
-                    "content": content,
-                    "connector_id": connector_id_from_context,
-                },
-                context=context,
-            )
-
-            if result.rejected:
-                logger.info("Notion page update rejected by user")
-                return {
-                    "status": "rejected",
-                    "message": "User declined. Do not retry or suggest alternatives.",
-                }
-
-            final_page_id = result.params.get("page_id", page_id)
-            final_content = result.params.get("content", content)
-            final_connector_id = result.params.get(
-                "connector_id", connector_id_from_context
-            )
-
-            logger.info(
-                f"Updating Notion page with final params: page_id={final_page_id}, has_content={final_content is not None}"
-            )
-
-            from sqlalchemy.future import select
-
-            from app.db import SearchSourceConnector, SearchSourceConnectorType
-
-            if final_connector_id:
-                result = await db_session.execute(
-                    select(SearchSourceConnector).filter(
-                        SearchSourceConnector.id == final_connector_id,
-                        SearchSourceConnector.search_space_id == search_space_id,
-                        SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type
-                        == SearchSourceConnectorType.NOTION_CONNECTOR,
-                    )
-                )
-                connector = result.scalars().first()
-
-                if not connector:
-                    logger.error(
-                        f"Invalid connector_id={final_connector_id} for search_space_id={search_space_id}"
-                    )
-                    return {
-                        "status": "error",
-                        "message": "Selected Notion account is invalid or has been disconnected. Please select a valid account.",
-                    }
-                actual_connector_id = connector.id
-                logger.info(f"Validated Notion connector: id={actual_connector_id}")
-            else:
-                logger.error("No connector found for this page")
-                return {
-                    "status": "error",
-                    "message": "No connector found for this page.",
-                }
-
-            notion_connector = NotionHistoryConnector(
-                session=db_session,
-                connector_id=actual_connector_id,
-            )
-
-            result = await notion_connector.update_page(
-                page_id=final_page_id,
-                content=final_content,
-            )
-            logger.info(
-                f"update_page result: {result.get('status')} - {result.get('message', '')}"
-            )
-
-            if result.get("status") == "success" and document_id is not None:
-                from app.services.notion import NotionKBSyncService
-
-                logger.info(f"Updating knowledge base for document {document_id}...")
-                kb_service = NotionKBSyncService(db_session)
-                kb_result = await kb_service.sync_after_update(
-                    document_id=document_id,
-                    appended_content=final_content,
-                    user_id=user_id,
-                    search_space_id=search_space_id,
-                    appended_block_ids=result.get("appended_block_ids"),
+            async with async_session_maker() as db_session:
+                metadata_service = NotionToolMetadataService(db_session)
+                context = await metadata_service.get_update_context(
+                    search_space_id, user_id, page_title
                 )
 
-                if kb_result["status"] == "success":
-                    result["message"] = (
-                        f"{result['message']}. Your knowledge base has also been updated."
-                    )
-                    logger.info(
-                        f"Knowledge base successfully updated for page {final_page_id}"
-                    )
-                elif kb_result["status"] == "not_indexed":
-                    result["message"] = (
-                        f"{result['message']}. This page will be added to your knowledge base in the next scheduled sync."
-                    )
-                else:
-                    result["message"] = (
-                        f"{result['message']}. Your knowledge base will be updated in the next scheduled sync."
-                    )
+                if "error" in context:
+                    error_msg = context["error"]
+                    # Check if it's a "not found" error (softer handling for LLM)
+                    if "not found" in error_msg.lower():
+                        logger.warning(f"Page not found: {error_msg}")
+                        return {
+                            "status": "not_found",
+                            "message": error_msg,
+                        }
+                    else:
+                        logger.error(f"Failed to fetch update context: {error_msg}")
+                        return {
+                            "status": "error",
+                            "message": error_msg,
+                        }
+
+                account = context.get("account", {})
+                if account.get("auth_expired"):
                     logger.warning(
-                        f"KB update failed for page {final_page_id}: {kb_result['message']}"
+                        "Notion account %s has expired authentication",
+                        account.get("id"),
+                    )
+                    return {
+                        "status": "auth_error",
+                        "message": "The Notion account for this page needs re-authentication. Please re-authenticate in your connector settings.",
+                    }
+
+                page_id = context.get("page_id")
+                document_id = context.get("document_id")
+                connector_id_from_context = context.get("account", {}).get("id")
+
+                logger.info(
+                    f"Requesting approval for updating Notion page: '{page_title}' (page_id={page_id})"
+                )
+                result = request_approval(
+                    action_type="notion_page_update",
+                    tool_name="update_notion_page",
+                    params={
+                        "page_id": page_id,
+                        "content": content,
+                        "connector_id": connector_id_from_context,
+                    },
+                    context=context,
+                )
+
+                if result.rejected:
+                    logger.info("Notion page update rejected by user")
+                    return {
+                        "status": "rejected",
+                        "message": "User declined. Do not retry or suggest alternatives.",
+                    }
+
+                final_page_id = result.params.get("page_id", page_id)
+                final_content = result.params.get("content", content)
+                final_connector_id = result.params.get(
+                    "connector_id", connector_id_from_context
+                )
+
+                logger.info(
+                    f"Updating Notion page with final params: page_id={final_page_id}, has_content={final_content is not None}"
+                )
+
+                from sqlalchemy.future import select
+
+                from app.db import SearchSourceConnector, SearchSourceConnectorType
+
+                if final_connector_id:
+                    result = await db_session.execute(
+                        select(SearchSourceConnector).filter(
+                            SearchSourceConnector.id == final_connector_id,
+                            SearchSourceConnector.search_space_id == search_space_id,
+                            SearchSourceConnector.user_id == user_id,
+                            SearchSourceConnector.connector_type
+                            == SearchSourceConnectorType.NOTION_CONNECTOR,
+                        )
+                    )
+                    connector = result.scalars().first()
+
+                    if not connector:
+                        logger.error(
+                            f"Invalid connector_id={final_connector_id} for search_space_id={search_space_id}"
+                        )
+                        return {
+                            "status": "error",
+                            "message": "Selected Notion account is invalid or has been disconnected. Please select a valid account.",
+                        }
+                    actual_connector_id = connector.id
+                    logger.info(f"Validated Notion connector: id={actual_connector_id}")
+                else:
+                    logger.error("No connector found for this page")
+                    return {
+                        "status": "error",
+                        "message": "No connector found for this page.",
+                    }
+
+                notion_connector = NotionHistoryConnector(
+                    session=db_session,
+                    connector_id=actual_connector_id,
+                )
+
+                result = await notion_connector.update_page(
+                    page_id=final_page_id,
+                    content=final_content,
+                )
+                logger.info(
+                    f"update_page result: {result.get('status')} - {result.get('message', '')}"
+                )
+
+                if result.get("status") == "success" and document_id is not None:
+                    from app.services.notion import NotionKBSyncService
+
+                    logger.info(
+                        f"Updating knowledge base for document {document_id}..."
+                    )
+                    kb_service = NotionKBSyncService(db_session)
+                    kb_result = await kb_service.sync_after_update(
+                        document_id=document_id,
+                        appended_content=final_content,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        appended_block_ids=result.get("appended_block_ids"),
                     )
 
-            return result
+                    if kb_result["status"] == "success":
+                        result["message"] = (
+                            f"{result['message']}. Your knowledge base has also been updated."
+                        )
+                        logger.info(
+                            f"Knowledge base successfully updated for page {final_page_id}"
+                        )
+                    elif kb_result["status"] == "not_indexed":
+                        result["message"] = (
+                            f"{result['message']}. This page will be added to your knowledge base in the next scheduled sync."
+                        )
+                    else:
+                        result["message"] = (
+                            f"{result['message']}. Your knowledge base will be updated in the next scheduled sync."
+                        )
+                        logger.warning(
+                            f"KB update failed for page {final_page_id}: {kb_result['message']}"
+                        )
+
+                return result
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt

@@ -11,7 +11,9 @@ from .delete_issue import create_delete_linear_issue_tool
 from .update_issue import create_update_linear_issue_tool
 
 
-def load_tools(*, dependencies: dict[str, Any] | None = None, **kwargs: Any) -> ToolsPermissions:
+def load_tools(
+    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
+) -> ToolsPermissions:
     d = {**(dependencies or {}), **kwargs}
     common = {
         "db_session": d["db_session"],

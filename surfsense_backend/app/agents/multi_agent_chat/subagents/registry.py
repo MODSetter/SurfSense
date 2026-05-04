@@ -8,6 +8,9 @@ from typing import Any, Protocol
 from deepagents import SubAgent
 from langchain_core.language_models import BaseChatModel
 
+from app.agents.multi_agent_chat.constants import (
+    SUBAGENT_TO_REQUIRED_CONNECTOR_MAP,
+)
 from app.agents.multi_agent_chat.subagents.builtins.deliverables.agent import (
     build_subagent as build_deliverables_subagent,
 )
@@ -62,9 +65,6 @@ from app.agents.multi_agent_chat.subagents.connectors.slack.agent import (
 from app.agents.multi_agent_chat.subagents.connectors.teams.agent import (
     build_subagent as build_teams_subagent,
 )
-from app.agents.multi_agent_chat.constants import (
-    SUBAGENT_TO_REQUIRED_CONNECTOR_MAP,
-)
 from app.agents.multi_agent_chat.subagents.shared.md_file_reader import (
     read_md_file,
 )
@@ -104,6 +104,7 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "slack": build_slack_subagent,
     "teams": build_teams_subagent,
 }
+
 
 def _route_resource_package(builder: SubagentBuilder) -> str:
     mod = builder.__module__

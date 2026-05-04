@@ -226,6 +226,31 @@ class TestCompose:
         # Default block should NOT be present
         assert "<knowledge_base_only_policy>" not in prompt
 
+    def test_provider_hints_render_with_custom_system_instructions(
+        self, fixed_today: datetime
+    ) -> None:
+        """Regression guard for the always-append decision: provider hints
+        append AFTER a custom system prompt.
+
+        Provider hints are stylistic nudges (parallel tool-call rules,
+        formatting guidance, etc.) that help the model regardless of
+        what the system instructions say. Suppressing them when a
+        custom prompt is set would partially defeat the per-family
+        prompt machinery.
+        """
+        prompt = compose_system_prompt(
+            today=fixed_today,
+            custom_system_instructions="You are a custom assistant.",
+            model_name="anthropic/claude-3-5-sonnet",
+        )
+        assert "You are a custom assistant." in prompt
+        assert "<provider_hints>" in prompt
+        # The custom prompt must come BEFORE the provider hints so the
+        # user's framing isn't drowned out by the stylistic nudges.
+        assert prompt.index("You are a custom assistant.") < prompt.index(
+            "<provider_hints>"
+        )
+
     def test_use_default_false_with_no_custom_yields_no_system_block(
         self, fixed_today: datetime
     ) -> None:

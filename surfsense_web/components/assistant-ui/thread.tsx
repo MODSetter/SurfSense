@@ -5,12 +5,10 @@ import {
 	ThreadPrimitive,
 	useAui,
 	useAuiState,
-	useThreadViewportStore,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertCircle,
-	ArrowDownIcon,
 	ArrowUpIcon,
 	Camera,
 	ChevronDown,
@@ -37,10 +35,13 @@ import {
 	toggleToolAtom,
 } from "@/atoms/agent-tools/agent-tools.atoms";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
-import {
-	mentionedDocumentsAtom,
-} from "@/atoms/chat/mentioned-documents.atom";
+import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
+import { mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
+import {
+	clearPremiumAlertForThreadAtom,
+	premiumAlertByThreadAtom,
+} from "@/atoms/chat/premium-alert.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
@@ -52,6 +53,7 @@ import {
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
+import { ChatViewport } from "@/components/assistant-ui/chat-viewport";
 import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import {
@@ -90,8 +92,8 @@ import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
 
@@ -109,10 +111,13 @@ const ThreadContent: FC = () => {
 				["--thread-max-width" as string]: "44rem",
 			}}
 		>
-			<ThreadPrimitive.Viewport
-				turnAnchor="top"
-				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
-				style={{ scrollbarGutter: "stable" }}
+			<ChatViewport
+				footer={
+					<AuiIf condition={({ thread }) => !thread.isEmpty}>
+						<PremiumQuotaPinnedAlert />
+						<Composer />
+					</AuiIf>
+				}
 			>
 				<AuiIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
@@ -125,36 +130,39 @@ const ThreadContent: FC = () => {
 						AssistantMessage,
 					}}
 				/>
-
-				<AuiIf condition={({ thread }) => !thread.isEmpty}>
-					<div className="grow" />
-				</AuiIf>
-
-				<ThreadPrimitive.ViewportFooter
-					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-main-panel pb-4 md:pb-6"
-					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-				>
-					<ThreadScrollToBottom />
-					<AuiIf condition={({ thread }) => !thread.isEmpty}>
-						<Composer />
-					</AuiIf>
-				</ThreadPrimitive.ViewportFooter>
-			</ThreadPrimitive.Viewport>
+			</ChatViewport>
 		</ThreadPrimitive.Root>
 	);
 };
 
-const ThreadScrollToBottom: FC = () => {
+const PremiumQuotaPinnedAlert: FC = () => {
+	const currentThreadState = useAtomValue(currentThreadAtom);
+	const alertsByThread = useAtomValue(premiumAlertByThreadAtom);
+	const clearPremiumAlertForThread = useSetAtom(clearPremiumAlertForThreadAtom);
+
+	const currentThreadId = currentThreadState?.id;
+	if (!currentThreadId) return null;
+
+	const alert = alertsByThread[currentThreadId];
+	if (!alert) return null;
+
 	return (
-		<ThreadPrimitive.ScrollToBottom asChild>
-			<TooltipIconButton
-				tooltip="Scroll to bottom"
-				variant="outline"
-				className="aui-thread-scroll-to-bottom -top-12 absolute z-10 self-center rounded-full p-4 disabled:invisible dark:bg-main-panel dark:hover:bg-accent"
-			>
-				<ArrowDownIcon />
-			</TooltipIconButton>
-		</ThreadPrimitive.ScrollToBottom>
+		<div className="mx-0 overflow-hidden rounded-2xl border-input bg-muted px-4 py-4 text-foreground select-none">
+			<div className="flex items-center gap-2">
+				<AlertCircle className="size-4 shrink-0 text-muted-foreground" />
+				<div className="min-w-0 flex-1">
+					<p className="text-sm">{alert.message}</p>
+				</div>
+				<button
+					type="button"
+					className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+					aria-label="Dismiss premium quota alert"
+					onClick={() => clearPremiumAlertForThread(currentThreadId)}
+				>
+					<X className="size-4" />
+				</button>
+			</div>
+		</div>
 	);
 };
 
@@ -374,23 +382,9 @@ const Composer: FC = () => {
 	>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
-	const viewportRef = useRef<Element | null>(null);
 	const { search_space_id, chat_id } = useParams();
 	const aui = useAui();
-	const threadViewportStore = useThreadViewportStore();
 	const hasAutoFocusedRef = useRef(false);
-	const submitCleanupRef = useRef<(() => void) | null>(null);
-
-	useEffect(() => {
-		return () => {
-			submitCleanupRef.current?.();
-		};
-	}, []);
-
-	// Store viewport element reference on mount
-	useEffect(() => {
-		viewportRef.current = document.querySelector(".aui-thread-viewport");
-	}, []);
 
 	const electronAPI = useElectronAPI();
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
@@ -589,7 +583,6 @@ const Composer: FC = () => {
 		[showDocumentPopover, showPromptPicker]
 	);
 
-	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
 	const handleSubmit = useCallback(() => {
 		if (isThreadRunning || isBlockedByOtherUser) return;
 		if (showDocumentPopover || showPromptPicker) return;
@@ -601,50 +594,9 @@ const Composer: FC = () => {
 			setClipboardInitialText(undefined);
 		}
 
-		const viewportEl = viewportRef.current;
-		const heightBefore = viewportEl?.scrollHeight ?? 0;
-
 		aui.composer().send();
 		editorRef.current?.clear();
 		setMentionedDocuments([]);
-
-		// With turnAnchor="top", ViewportSlack adds min-height to the last
-		// assistant message so that scrolling-to-bottom actually positions the
-		// user message at the TOP of the viewport. That slack height is
-		// calculated asynchronously (ResizeObserver → style → layout).
-		// Poll via rAF for ~500ms, re-scrolling whenever scrollHeight changes.
-		const scrollToBottom = () =>
-			threadViewportStore.getState().scrollToBottom({ behavior: "instant" });
-
-		let lastHeight = heightBefore;
-		let frames = 0;
-		let cancelled = false;
-		const POLL_FRAMES = 30;
-
-		const pollAndScroll = () => {
-			if (cancelled) return;
-			const el = viewportRef.current;
-			if (el) {
-				const h = el.scrollHeight;
-				if (h !== lastHeight) {
-					lastHeight = h;
-					scrollToBottom();
-				}
-			}
-			if (++frames < POLL_FRAMES) {
-				requestAnimationFrame(pollAndScroll);
-			}
-		};
-		requestAnimationFrame(pollAndScroll);
-
-		const t1 = setTimeout(scrollToBottom, 100);
-		const t2 = setTimeout(scrollToBottom, 300);
-
-		submitCleanupRef.current = () => {
-			cancelled = true;
-			clearTimeout(t1);
-			clearTimeout(t2);
-		};
 	}, [
 		showDocumentPopover,
 		showPromptPicker,
@@ -653,7 +605,6 @@ const Composer: FC = () => {
 		clipboardInitialText,
 		aui,
 		setMentionedDocuments,
-		threadViewportStore,
 	]);
 
 	const handleDocumentRemove = useCallback(

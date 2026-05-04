@@ -14,8 +14,10 @@ from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..graph.compile_graph_sync import build_compiled_agent_graph_sync
-from ..tools import MAIN_AGENT_SURFSENSE_TOOL_NAMES, MAIN_AGENT_SURFSENSE_TOOL_NAMES_ORDERED
+from app.agents.multi_agent_chat.subagents import (
+    get_subagents_to_exclude,
+    main_prompt_registry_subagent_lines,
+)
 from app.agents.multi_agent_chat.subagents.mcp_tools.index import (
     load_mcp_tools_by_connector,
 )
@@ -24,16 +26,18 @@ from app.agents.new_chat.feature_flags import AgentFeatureFlags, get_flags
 from app.agents.new_chat.filesystem_backends import build_backend_resolver
 from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.new_chat.llm_config import AgentConfig
-from app.agents.multi_agent_chat.subagents import (
-    get_subagents_to_exclude,
-    main_prompt_registry_subagent_lines,
-)
-from ..system_prompt import build_main_agent_system_prompt
 from app.agents.new_chat.tools.invalid_tool import INVALID_TOOL_NAME, invalid_tool
 from app.agents.new_chat.tools.registry import build_tools_async
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
+
+from ..graph.compile_graph_sync import build_compiled_agent_graph_sync
+from ..system_prompt import build_main_agent_system_prompt
+from ..tools import (
+    MAIN_AGENT_SURFSENSE_TOOL_NAMES,
+    MAIN_AGENT_SURFSENSE_TOOL_NAMES_ORDERED,
+)
 
 _perf_log = get_perf_logger()
 

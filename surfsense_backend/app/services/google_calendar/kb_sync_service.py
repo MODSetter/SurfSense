@@ -14,6 +14,7 @@ from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
 )
+from app.services.composio_service import ComposioService
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
@@ -21,7 +22,6 @@ from app.utils.document_converters import (
     generate_document_summary,
     generate_unique_identifier_hash,
 )
-from app.utils.google_credentials import build_composio_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -203,23 +203,46 @@ class GoogleCalendarKBSyncService:
                 logger.warning("Document %s not found in KB", document_id)
                 return {"status": "not_indexed"}
 
-            creds = await self._build_credentials_for_connector(connector_id)
-            loop = asyncio.get_event_loop()
-            service = await loop.run_in_executor(
-                None, lambda: build("calendar", "v3", credentials=creds)
-            )
-
             calendar_id = (document.document_metadata or {}).get(
                 "calendar_id"
             ) or "primary"
-            live_event = await loop.run_in_executor(
-                None,
-                lambda: (
-                    service.events()
-                    .get(calendarId=calendar_id, eventId=event_id)
-                    .execute()
-                ),
-            )
+            connector = await self._get_connector(connector_id)
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+            ):
+                cca_id = connector.config.get("composio_connected_account_id")
+                if not cca_id:
+                    raise ValueError("Composio connected_account_id not found")
+                composio_result = await ComposioService().execute_tool(
+                    connected_account_id=cca_id,
+                    tool_name="GOOGLECALENDAR_EVENTS_GET",
+                    params={"calendar_id": calendar_id, "event_id": event_id},
+                    entity_id=f"surfsense_{user_id}",
+                )
+                if not composio_result.get("success"):
+                    raise RuntimeError(
+                        composio_result.get("error", "Unknown Composio Calendar error")
+                    )
+                live_event = composio_result.get("data", {})
+                if isinstance(live_event, dict):
+                    live_event = live_event.get("data", live_event)
+                    if isinstance(live_event, dict):
+                        live_event = live_event.get("response_data", live_event)
+            else:
+                creds = await self._build_credentials_for_connector(connector_id)
+                loop = asyncio.get_event_loop()
+                service = await loop.run_in_executor(
+                    None, lambda: build("calendar", "v3", credentials=creds)
+                )
+                live_event = await loop.run_in_executor(
+                    None,
+                    lambda: (
+                        service.events()
+                        .get(calendarId=calendar_id, eventId=event_id)
+                        .execute()
+                    ),
+                )
 
             event_summary = live_event.get("summary", "")
             description = live_event.get("description", "")
@@ -322,7 +345,7 @@ class GoogleCalendarKBSyncService:
             await self.db_session.rollback()
             return {"status": "error", "message": str(e)}
 
-    async def _build_credentials_for_connector(self, connector_id: int) -> Credentials:
+    async def _get_connector(self, connector_id: int) -> SearchSourceConnector:
         result = await self.db_session.execute(
             select(SearchSourceConnector).where(
                 SearchSourceConnector.id == connector_id
@@ -331,15 +354,17 @@ class GoogleCalendarKBSyncService:
         connector = result.scalar_one_or_none()
         if not connector:
             raise ValueError(f"Connector {connector_id} not found")
+        return connector
 
+    async def _build_credentials_for_connector(self, connector_id: int) -> Credentials:
+        connector = await self._get_connector(connector_id)
         if (
             connector.connector_type
             == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
         ):
-            cca_id = connector.config.get("composio_connected_account_id")
-            if cca_id:
-                return build_composio_credentials(cca_id)
-            raise ValueError("Composio connected_account_id not found")
+            raise ValueError(
+                "Composio Calendar connectors must use Composio tool execution"
+            )
 
         config_data = dict(connector.config)
 

@@ -11,7 +11,9 @@ from .list_events import create_list_luma_events_tool
 from .read_event import create_read_luma_event_tool
 
 
-def load_tools(*, dependencies: dict[str, Any] | None = None, **kwargs: Any) -> ToolsPermissions:
+def load_tools(
+    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
+) -> ToolsPermissions:
     d = {**(dependencies or {}), **kwargs}
     common = {
         "db_session": d["db_session"],

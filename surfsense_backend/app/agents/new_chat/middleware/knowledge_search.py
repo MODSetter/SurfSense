@@ -732,7 +732,6 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         state: AgentState,
         runtime: Runtime[Any],
     ) -> dict[str, Any] | None:
-        del runtime
         if self.filesystem_mode != FilesystemMode.CLOUD:
             return None
 
@@ -755,7 +754,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         if anon_doc:
             return self._anon_priority(state, anon_doc)
 
-        return await self._authenticated_priority(state, messages, user_text)
+        return await self._authenticated_priority(state, messages, user_text, runtime)
 
     def _anon_priority(
         self,
@@ -787,6 +786,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         state: AgentState,
         messages: Sequence[BaseMessage],
         user_text: str,
+        runtime: Runtime[Any] | None = None,
     ) -> dict[str, Any]:
         t0 = asyncio.get_event_loop().time()
         (
@@ -799,13 +799,45 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             user_text=user_text,
         )
 
+        # Per-turn ``mentioned_document_ids`` flow:
+        # 1. Preferred path (Phase 1.5+): read from ``runtime.context`` — the
+        #    streaming task supplies a fresh :class:`SurfSenseContextSchema`
+        #    on every ``astream_events`` call, so this list is naturally
+        #    scoped to the current turn. Allows cross-turn graph reuse via
+        #    ``agent_cache``.
+        # 2. Legacy fallback (cache disabled / context not propagated): the
+        #    constructor-injected ``self.mentioned_document_ids`` list. We
+        #    drain it after the first read so a cached graph (no Phase 1.5
+        #    wiring) doesn't keep replaying the same mentions on every
+        #    turn.
+        #
+        # CRITICAL: distinguish "context absent" (legacy caller, no field at
+        # all) from "context provided but empty" (turn with no mentions).
+        # ``ctx_mentions`` is a ``list[int]``; an empty list is falsy in
+        # Python, so a naive ``if ctx_mentions:`` would fall through to the
+        # legacy closure on every no-mention follow-up turn — replaying the
+        # mentions baked in by turn 1's cache-miss build. Always drain the
+        # closure once the runtime path has fired so a cached middleware
+        # instance can never resurrect stale state.
+        mention_ids: list[int] = []
+        ctx = getattr(runtime, "context", None) if runtime is not None else None
+        ctx_mentions = getattr(ctx, "mentioned_document_ids", None) if ctx else None
+        if ctx_mentions is not None:
+            # Runtime path is authoritative — even an empty list means
+            # "this turn has no mentions", NOT "look at the closure".
+            mention_ids = list(ctx_mentions)
+            if self.mentioned_document_ids:
+                self.mentioned_document_ids = []
+        elif self.mentioned_document_ids:
+            mention_ids = list(self.mentioned_document_ids)
+            self.mentioned_document_ids = []
+
         mentioned_results: list[dict[str, Any]] = []
-        if self.mentioned_document_ids:
+        if mention_ids:
             mentioned_results = await fetch_mentioned_documents(
-                document_ids=self.mentioned_document_ids,
+                document_ids=mention_ids,
                 search_space_id=self.search_space_id,
             )
-            self.mentioned_document_ids = []
 
         if is_recency:
             doc_types = _resolve_search_types(

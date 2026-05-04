@@ -11,7 +11,7 @@ from app.db import Document
 from app.indexing_pipeline.adapters.file_upload_adapter import UploadDocumentAdapter
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.tasks.celery_tasks import get_celery_session_maker
+from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +25,7 @@ def reindex_document_task(self, document_id: int, user_id: str):
         document_id: ID of document to reindex
         user_id: ID of user who edited the document
     """
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(_reindex_document(document_id, user_id))
-    finally:
-        loop.close()
+    return run_async_celery_task(lambda: _reindex_document(document_id, user_id))
 
 
 async def _reindex_document(document_id: int, user_id: str):

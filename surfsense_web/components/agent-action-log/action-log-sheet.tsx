@@ -17,10 +17,7 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-	agentActionsQueryKey,
-	useAgentActionsQuery,
-} from "@/hooks/use-agent-actions-query";
+import { agentActionsQueryKey, useAgentActionsQuery } from "@/hooks/use-agent-actions-query";
 import { ActionLogItem } from "./action-log-item";
 
 function EmptyState() {

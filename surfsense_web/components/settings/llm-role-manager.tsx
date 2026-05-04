@@ -11,7 +11,7 @@ import {
 	RefreshCw,
 	ScanEye,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
 	globalImageGenConfigsAtom,
@@ -143,23 +143,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	}));
 
 	const [savingRole, setSavingRole] = useState<string | null>(null);
-	const savingRef = useRef(false);
-
-	useEffect(() => {
-		if (!savingRef.current) {
-			setAssignments({
-				agent_llm_id: preferences.agent_llm_id ?? "",
-				document_summary_llm_id: preferences.document_summary_llm_id ?? "",
-				image_generation_config_id: preferences.image_generation_config_id ?? "",
-				vision_llm_config_id: preferences.vision_llm_config_id ?? "",
-			});
-		}
-	}, [
-		preferences?.agent_llm_id,
-		preferences?.document_summary_llm_id,
-		preferences?.image_generation_config_id,
-		preferences?.vision_llm_config_id,
-	]);
 
 	const handleRoleAssignment = useCallback(
 		async (prefKey: string, configId: string) => {
@@ -167,7 +150,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 			setAssignments((prev) => ({ ...prev, [prefKey]: value }));
 			setSavingRole(prefKey);
-			savingRef.current = true;
 
 			try {
 				await updatePreferences({
@@ -177,7 +159,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 				toast.success("Role assignment updated");
 			} finally {
 				setSavingRole(null);
-				savingRef.current = false;
 			}
 		},
 		[updatePreferences, searchSpaceId]
@@ -390,6 +371,17 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 															</SelectLabel>
 															{roleGlobalConfigs.map((config) => {
 																const isAuto = "is_auto_mode" in config && config.is_auto_mode;
+																// Read billing_tier from the global config; default to "free"
+																// for legacy YAMLs / Auto stub. Premium gets a purple badge,
+																// free gets an emerald one — same palette as the chat
+																// model selector so the meaning is consistent across
+																// surfaces (issues E, H).
+																const billingTier =
+																	("billing_tier" in config &&
+																		typeof config.billing_tier === "string" &&
+																		config.billing_tier) ||
+																	"free";
+																const isPremium = billingTier === "premium";
 																return (
 																	<SelectItem
 																		key={config.id}
@@ -401,12 +393,26 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																			<span className="truncate text-xs md:text-sm">
 																				{config.name}
 																			</span>
-																			{isAuto && (
+																			{isAuto ? (
 																				<Badge
 																					variant="secondary"
 																					className="text-[8px] md:text-[9px] shrink-0 bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 [[data-slot=select-trigger]_&]:hidden"
 																				>
 																					Recommended
+																				</Badge>
+																			) : isPremium ? (
+																				<Badge
+																					variant="secondary"
+																					className="text-[8px] md:text-[9px] shrink-0 bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border-0 [[data-slot=select-trigger]_&]:hidden"
+																				>
+																					Premium
+																				</Badge>
+																			) : (
+																				<Badge
+																					variant="secondary"
+																					className="text-[8px] md:text-[9px] shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-0 [[data-slot=select-trigger]_&]:hidden"
+																				>
+																					Free
 																				</Badge>
 																			)}
 																		</div>

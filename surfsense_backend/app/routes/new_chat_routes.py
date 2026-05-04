@@ -15,9 +15,10 @@ import json
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text as sa_text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -29,6 +30,12 @@ from app.agents.new_chat.filesystem_selection import (
     FilesystemSelection,
     LocalFilesystemMount,
 )
+from app.agents.new_chat.middleware.busy_mutex import (
+    get_cancel_state,
+    is_cancel_requested,
+    manager,
+    request_cancel,
+)
 from app.config import config
 from app.db import (
     ChatComment,
@@ -38,12 +45,14 @@ from app.db import (
     NewChatThread,
     Permission,
     SearchSpace,
+    TokenUsage,
     User,
     get_async_session,
     shielded_async_session,
 )
 from app.schemas.new_chat import (
     AgentToolInfo,
+    CancelActiveTurnResponse,
     LocalFilesystemMountPayload,
     NewChatMessageRead,
     NewChatRequest,
@@ -60,10 +69,11 @@ from app.schemas.new_chat import (
     ThreadListItem,
     ThreadListResponse,
     TokenUsageSummary,
+    TurnStatusResponse,
 )
-from app.services.token_tracking_service import record_token_usage
 from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
 from app.users import current_active_user
+from app.utils.perf import get_perf_logger
 from app.utils.rbac import check_permission
 from app.utils.user_message_multimodal import (
     split_langchain_human_content,
@@ -71,7 +81,11 @@ from app.utils.user_message_multimodal import (
 )
 
 _logger = logging.getLogger(__name__)
+_perf_log = get_perf_logger()
 _background_tasks: set[asyncio.Task] = set()
+TURN_CANCELLING_INITIAL_DELAY_MS = 200
+TURN_CANCELLING_BACKOFF_FACTOR = 2
+TURN_CANCELLING_MAX_DELAY_MS = 1500
 
 router = APIRouter()
 
@@ -134,6 +148,72 @@ def _resolve_filesystem_selection(
     return FilesystemSelection(
         mode=FilesystemMode.CLOUD,
         client_platform=resolved_platform,
+    )
+
+
+def _compute_turn_cancelling_retry_delay(attempt: int) -> int:
+    """Bounded exponential delay for TURN_CANCELLING retry hints."""
+    if attempt < 1:
+        attempt = 1
+    delay = TURN_CANCELLING_INITIAL_DELAY_MS * (
+        TURN_CANCELLING_BACKOFF_FACTOR ** (attempt - 1)
+    )
+    return min(delay, TURN_CANCELLING_MAX_DELAY_MS)
+
+
+def _build_turn_status_payload(thread_id: int) -> dict[str, object]:
+    lock = manager.lock_for(str(thread_id))
+    if not lock.locked():
+        return {"status": "idle"}
+
+    if is_cancel_requested(str(thread_id)):
+        cancel_state = get_cancel_state(str(thread_id))
+        attempt = cancel_state[0] if cancel_state else 1
+        retry_after_ms = _compute_turn_cancelling_retry_delay(attempt)
+        retry_after_at = int(datetime.now(UTC).timestamp() * 1000) + retry_after_ms
+        return {
+            "status": "cancelling",
+            "retry_after_ms": retry_after_ms,
+            "retry_after_at": retry_after_at,
+        }
+
+    return {"status": "busy"}
+
+
+def _set_retry_after_headers(response: Response, retry_after_ms: int) -> None:
+    response.headers["retry-after-ms"] = str(retry_after_ms)
+    response.headers["Retry-After"] = str(max(1, (retry_after_ms + 999) // 1000))
+
+
+def _raise_if_thread_busy_for_start(thread_id: int) -> None:
+    status_payload = _build_turn_status_payload(thread_id)
+    status = status_payload["status"]
+    if status == "idle":
+        return
+    if status == "cancelling":
+        retry_after_ms = int(status_payload.get("retry_after_ms") or 0)
+        detail = {
+            "errorCode": "TURN_CANCELLING",
+            "message": "A previous response is still stopping. Please try again in a moment.",
+            "retry_after_ms": retry_after_ms if retry_after_ms > 0 else None,
+            "retry_after_at": status_payload.get("retry_after_at"),
+        }
+        headers = (
+            {
+                "retry-after-ms": str(retry_after_ms),
+                "Retry-After": str(max(1, (retry_after_ms + 999) // 1000)),
+            }
+            if retry_after_ms > 0
+            else None
+        )
+        raise HTTPException(status_code=409, detail=detail, headers=headers)
+
+    raise HTTPException(
+        status_code=409,
+        detail={
+            "errorCode": "THREAD_BUSY",
+            "message": "Another response is still finishing for this thread. Please try again in a moment.",
+        },
     )
 
 
@@ -1210,6 +1290,24 @@ async def append_message(
     user: User = Depends(current_active_user),
 ):
     """
+    .. deprecated:: 2026-05
+       Replaced by the **SSE-based message ID handshake**. The streaming
+       generator (`stream_new_chat` / `stream_resume_chat`) now persists
+       both the user and assistant rows server-side via
+       ``persist_user_turn`` / ``persist_assistant_shell`` and emits
+       ``data-user-message-id`` / ``data-assistant-message-id`` SSE events
+       so the frontend can rename its optimistic IDs in real time. The
+       new FE bundle no longer calls this route.
+
+       This handler is retained as a **silent no-op for legacy / cached
+       FE bundles**: the underlying ``INSERT ... ON CONFLICT DO NOTHING``
+       pattern means a stale bundle hitting this route after the SSE
+       handshake already wrote the row simply returns the existing row
+       (200 OK) without raising or duplicating data. After a 2-week soak
+       (target: ``[persist_user_turn] outcome=race_recovered`` rate ~0)
+       this entire route — and the FE ``appendMessage`` function — is
+       earmarked for removal.
+
     Append a message to a thread.
     This is used by ThreadHistoryAdapter.append() to persist messages.
 
@@ -1220,6 +1318,22 @@ async def append_message(
     Requires CHATS_UPDATE permission.
     """
     try:
+        # Capture ``user.id`` as a primitive UUID up front. The
+        # ``current_active_user`` dependency hands us a ``User`` ORM
+        # row bound to ``session``; if the outer ``except
+        # IntegrityError`` block below ever fires (an unexpected
+        # constraint like a foreign key violation — the common
+        # ``(thread_id, turn_id, role)`` race is now handled silently
+        # by ``ON CONFLICT DO NOTHING`` so it never raises) it calls
+        # ``session.rollback()``, which expires every attached ORM
+        # row including this user. Any later ``user.id`` access would
+        # then trigger a lazy PK reload — which on async SQLAlchemy
+        # fails with ``MissingGreenlet`` because the reload happens
+        # outside the awaitable greenlet boundary. Reading ``id``
+        # once here pins the value as a plain UUID so all downstream
+        # uses (TokenUsage insert, response build) are immune.
+        user_uuid = user.id
+
         # Parse raw body - extract only role and content, ignoring extra fields
         raw_body = await request.json()
         role = raw_body.get("role")
@@ -1274,37 +1388,166 @@ async def append_message(
             else None
         )
 
-        db_message = NewChatMessage(
-            thread_id=thread_id,
-            role=message_role,
-            content=content,
-            author_id=user.id,
-            turn_id=turn_id_value,
-        )
-        session.add(db_message)
-
-        # Update thread's updated_at timestamp
+        # Update thread's updated_at timestamp (always — both insert
+        # and recovery paths represent thread activity).
         thread.updated_at = datetime.now(UTC)
 
-        # flush assigns the PK/defaults without a round-trip SELECT
-        await session.flush()
+        # Insert the new message via ``INSERT ... ON CONFLICT DO NOTHING``
+        # keyed on the ``(thread_id, turn_id, role)`` partial unique
+        # index from migration 141 (``WHERE turn_id IS NOT NULL``).
+        #
+        # Why ON CONFLICT instead of ``session.add() + flush() + except
+        # IntegrityError``:
+        #   1. The conflict between this legacy FE ``appendMessage``
+        #      round-trip and the server-side
+        #      ``finalize_assistant_turn`` writer is a NORMAL,
+        #      *expected* race — every assistant turn fires it. Using
+        #      catch-and-recover means asyncpg raises
+        #      ``UniqueViolationError`` -> SQLAlchemy wraps it as
+        #      ``IntegrityError`` -> our handler catches and recovers.
+        #      Functionally fine, but every ``raise`` event lights up
+        #      VS Code's debugger (debugpy's ``justMyCode=false`` mode
+        #      loses track of the catch frame across SQLAlchemy's
+        #      async greenlet boundary, so even ``Raised Exceptions``
+        #      being unchecked doesn't reliably suppress the pause).
+        #      ON CONFLICT pushes the conflict resolution into Postgres
+        #      where no Python exception is constructed at all.
+        #   2. No ``session.rollback()`` -> no expiring of attached
+        #      ORM rows -> no risk of ``MissingGreenlet`` from
+        #      lazy-loading expired user/thread state later in the
+        #      handler.
+        #   3. Cleaner production logs (no SQLAlchemy ``IntegrityError``
+        #      tracebacks emitted by uvicorn's logger between the
+        #      ``raise`` and our ``except``).
+        #
+        # When ``turn_id_value`` is ``None`` the partial index doesn't
+        # apply and the INSERT proceeds normally. Other constraint
+        # violations (FK, NOT NULL, etc.) still raise ``IntegrityError``
+        # and are caught by the outer ``except IntegrityError`` block
+        # to preserve the legacy 400 behavior.
+        #
+        # Note on ``content``: when we recover the existing row, we
+        # intentionally discard the FE's ``content`` payload from
+        # ``raw_body`` and return the row's existing ``content``. The
+        # streaming task is now the *authoritative writer* for
+        # assistant ``ContentPart[]`` shape (mid-stream
+        # ``AssistantContentBuilder`` -> ``finalize_assistant_turn``)
+        # so the FE's later ``appendMessage`` is just a stale snapshot
+        # of the same data — keeping the server-built rich content
+        # (with full tool-call args / argsText / langchainToolCallId)
+        # is correct, not lossy.
+        insert_stmt = (
+            pg_insert(NewChatMessage)
+            .values(
+                thread_id=thread_id,
+                role=message_role,
+                content=content,
+                author_id=user_uuid,
+                turn_id=turn_id_value,
+            )
+            .on_conflict_do_nothing(
+                index_elements=["thread_id", "turn_id", "role"],
+                index_where=sa_text("turn_id IS NOT NULL"),
+            )
+            .returning(NewChatMessage.id)
+        )
+        inserted_id = (await session.execute(insert_stmt)).scalar()
 
-        # Persist token usage if provided (for assistant messages)
+        if inserted_id is None:
+            # Conflict on partial unique index — server-side stream
+            # already wrote this row. Look it up and reuse it.
+            if turn_id_value is None:
+                # Defensive: ON CONFLICT only fires for ``turn_id IS
+                # NOT NULL`` rows, so this branch should be
+                # unreachable. Preserve the legacy 400 just in case
+                # Postgres ever surprises us.
+                raise HTTPException(
+                    status_code=400,
+                    detail="Database constraint violation. Please check your input data.",
+                ) from None
+            lookup = await session.execute(
+                select(NewChatMessage).filter(
+                    NewChatMessage.thread_id == thread_id,
+                    NewChatMessage.turn_id == turn_id_value,
+                    NewChatMessage.role == message_role,
+                )
+            )
+            existing_message = lookup.scalars().first()
+            if existing_message is None:
+                # Conflict reported but the row vanished between
+                # INSERT and SELECT — extremely unlikely (would
+                # require a concurrent DELETE within the same
+                # transaction visibility), but preserve safe
+                # behavior.
+                raise HTTPException(
+                    status_code=400,
+                    detail="Database constraint violation. Please check your input data.",
+                ) from None
+            db_message = existing_message
+            # Perf signal: counts how often the legacy FE round-trip
+            # races the server-side ``finalize_assistant_turn``. A
+            # rising rate after the rework is OK (it's exactly the
+            # ghost-thread fix's recovery path firing); a sudden drop
+            # to zero would mean the FE isn't posting appendMessage
+            # at all (different bug).
+            _perf_log.info(
+                "[append_message] outcome=recovered_via_unique_index "
+                "thread_id=%s turn_id=%s role=%s message_id=%s",
+                thread_id,
+                turn_id_value,
+                message_role.value,
+                db_message.id,
+            )
+        else:
+            # INSERT succeeded — load the full ORM row so the
+            # response can include server-side-defaulted columns
+            # (``created_at``, etc.) and the relationship surface
+            # stays consistent with the recovery path.
+            inserted_row = await session.get(NewChatMessage, inserted_id)
+            if inserted_row is None:
+                # Should be impossible: we just inserted it in this
+                # same transaction. Fail loud if it happens.
+                raise HTTPException(
+                    status_code=500,
+                    detail="Inserted message could not be loaded.",
+                ) from None
+            db_message = inserted_row
+
+        # Persist token usage if provided (for assistant messages).
+        # ``cost_micros`` is the provider USD cost reported by LiteLLM,
+        # forwarded by the FE through the appendMessage round-trip so
+        # the historical TokenUsage row matches the credit debit applied
+        # at finalize time.
+        #
+        # De-dup: ``finalize_assistant_turn`` may also race to write a
+        # token_usage row for this same ``message_id`` (cross-session,
+        # cross-shielded). Use ``INSERT ... ON CONFLICT DO NOTHING`` keyed
+        # on the ``uq_token_usage_message_id`` partial unique index
+        # (migration 142). The loser silently drops its insert; exactly
+        # one row results regardless of which writer commits first.
         token_usage_data = raw_body.get("token_usage")
         if token_usage_data and message_role == NewChatMessageRole.ASSISTANT:
-            await record_token_usage(
-                session,
-                usage_type="chat",
-                search_space_id=thread.search_space_id,
-                user_id=user.id,
-                prompt_tokens=token_usage_data.get("prompt_tokens", 0),
-                completion_tokens=token_usage_data.get("completion_tokens", 0),
-                total_tokens=token_usage_data.get("total_tokens", 0),
-                model_breakdown=token_usage_data.get("usage"),
-                call_details=token_usage_data.get("call_details"),
-                thread_id=thread_id,
-                message_id=db_message.id,
+            insert_stmt = (
+                pg_insert(TokenUsage)
+                .values(
+                    usage_type="chat",
+                    prompt_tokens=token_usage_data.get("prompt_tokens", 0),
+                    completion_tokens=token_usage_data.get("completion_tokens", 0),
+                    total_tokens=token_usage_data.get("total_tokens", 0),
+                    cost_micros=token_usage_data.get("cost_micros", 0),
+                    model_breakdown=token_usage_data.get("usage"),
+                    call_details=token_usage_data.get("call_details"),
+                    thread_id=thread_id,
+                    message_id=db_message.id,
+                    search_space_id=thread.search_space_id,
+                    user_id=user_uuid,
+                )
+                .on_conflict_do_nothing(
+                    index_elements=["message_id"],
+                    index_where=sa_text("message_id IS NOT NULL"),
+                )
             )
+            await session.execute(insert_stmt)
 
         await session.commit()
 
@@ -1324,6 +1567,9 @@ async def append_message(
     except HTTPException:
         raise
     except IntegrityError:
+        # Any IntegrityError that escaped the inline handler above
+        # comes from a *different* constraint (foreign key, etc.) —
+        # preserve the legacy 400 path.
         await session.rollback()
         raise HTTPException(
             status_code=400,
@@ -1476,6 +1722,7 @@ async def handle_new_chat(
 
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
+        _raise_if_thread_busy_for_start(request.chat_id)
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
@@ -1516,6 +1763,12 @@ async def handle_new_chat(
             else None
         )
 
+        mentioned_documents_payload = (
+            [doc.model_dump() for doc in request.mentioned_documents]
+            if request.mentioned_documents
+            else None
+        )
+
         return StreamingResponse(
             stream_new_chat(
                 user_query=request.user_query,
@@ -1525,6 +1778,7 @@ async def handle_new_chat(
                 llm_config_id=llm_config_id,
                 mentioned_document_ids=request.mentioned_document_ids,
                 mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
+                mentioned_documents=mentioned_documents_payload,
                 needs_history_bootstrap=thread.needs_history_bootstrap,
                 thread_visibility=thread.visibility,
                 current_user_display_name=user.display_name or "A team member",
@@ -1548,6 +1802,93 @@ async def handle_new_chat(
             status_code=500,
             detail=f"An unexpected error occurred: {e!s}",
         ) from None
+
+
+@router.post(
+    "/threads/{thread_id}/cancel-active-turn",
+    response_model=CancelActiveTurnResponse,
+)
+async def cancel_active_turn(
+    thread_id: int,
+    response: Response,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Signal cancellation for the currently running turn on ``thread_id``."""
+    result = await session.execute(
+        select(NewChatThread).filter(NewChatThread.id == thread_id)
+    )
+    thread = result.scalars().first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    await check_permission(
+        session,
+        user,
+        thread.search_space_id,
+        Permission.CHATS_UPDATE.value,
+        "You don't have permission to update chats in this search space",
+    )
+    await check_thread_access(session, thread, user)
+
+    status_payload = _build_turn_status_payload(thread_id)
+    if status_payload["status"] == "idle":
+        return CancelActiveTurnResponse(
+            status="idle",
+            error_code="NO_ACTIVE_TURN",
+        )
+
+    request_cancel(str(thread_id))
+    response.status_code = 202
+    updated_payload = _build_turn_status_payload(thread_id)
+    retry_after_ms = int(updated_payload.get("retry_after_ms") or 0)
+    retry_after_at = (
+        int(updated_payload["retry_after_at"])
+        if "retry_after_at" in updated_payload
+        else None
+    )
+    if retry_after_ms > 0:
+        _set_retry_after_headers(response, retry_after_ms)
+    return CancelActiveTurnResponse(
+        status="cancelling",
+        error_code="TURN_CANCELLING",
+        retry_after_ms=retry_after_ms if retry_after_ms > 0 else None,
+        retry_after_at=retry_after_at,
+    )
+
+
+@router.get(
+    "/threads/{thread_id}/turn-status",
+    response_model=TurnStatusResponse,
+)
+async def get_turn_status(
+    thread_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    result = await session.execute(
+        select(NewChatThread).filter(NewChatThread.id == thread_id)
+    )
+    thread = result.scalars().first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    await check_permission(
+        session,
+        user,
+        thread.search_space_id,
+        Permission.CHATS_READ.value,
+        "You don't have permission to view chats in this search space",
+    )
+    await check_thread_access(session, thread, user)
+
+    status_payload = _build_turn_status_payload(thread_id)
+    return TurnStatusResponse(
+        status=status_payload["status"],  # type: ignore[arg-type]
+        active_turn_id=None,
+        retry_after_ms=status_payload.get("retry_after_ms"),  # type: ignore[arg-type]
+        retry_after_at=status_payload.get("retry_after_at"),  # type: ignore[arg-type]
+    )
 
 
 # =============================================================================
@@ -1605,6 +1946,7 @@ async def regenerate_response(
 
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
+        _raise_if_thread_busy_for_start(thread_id)
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
@@ -1907,6 +2249,11 @@ async def regenerate_response(
                     "data": revert_results,
                 }
                 yield f"data: {json.dumps(envelope, default=str)}\n\n".encode()
+            mentioned_documents_payload = (
+                [doc.model_dump() for doc in request.mentioned_documents]
+                if request.mentioned_documents
+                else None
+            )
             try:
                 async for chunk in stream_new_chat(
                     user_query=str(user_query_to_use),
@@ -1916,6 +2263,7 @@ async def regenerate_response(
                     llm_config_id=llm_config_id,
                     mentioned_document_ids=request.mentioned_document_ids,
                     mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
+                    mentioned_documents=mentioned_documents_payload,
                     checkpoint_id=target_checkpoint_id,
                     needs_history_bootstrap=thread.needs_history_bootstrap,
                     thread_visibility=thread.visibility,
@@ -1924,6 +2272,7 @@ async def regenerate_response(
                     filesystem_selection=filesystem_selection,
                     request_id=getattr(http_request.state, "request_id", "unknown"),
                     user_image_data_urls=regenerate_image_urls or None,
+                    flow="regenerate",
                 ):
                     yield chunk
                 streaming_completed = True
@@ -2011,6 +2360,7 @@ async def resume_chat(
         )
 
         await check_thread_access(session, thread, user)
+        _raise_if_thread_busy_for_start(thread_id)
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,

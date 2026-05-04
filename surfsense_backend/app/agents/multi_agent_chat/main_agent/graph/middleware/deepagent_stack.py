@@ -23,7 +23,6 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 
-from ...context_prune.prune_tool_names import safe_exclude_tools
 from app.agents.multi_agent_chat.subagents import (
     build_subagents,
     get_subagents_to_exclude,
@@ -66,6 +65,7 @@ from app.agents.new_chat.plugin_loader import (
 from app.agents.new_chat.tools.registry import BUILTIN_TOOLS
 from app.db import ChatVisibility
 
+from ...context_prune.prune_tool_names import safe_exclude_tools
 from .checkpointed_subagent_middleware import SurfSenseCheckpointedSubAgentMiddleware
 
 

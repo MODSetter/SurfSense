@@ -10,7 +10,9 @@ We use ``create_agent`` (from langchain) rather than ``create_deep_agent``
 This lets us swap in ``SurfSenseFilesystemMiddleware`` — a customisable
 subclass of the default ``FilesystemMiddleware`` — while preserving every
 other behaviour that ``create_deep_agent`` provides (todo-list, subagents,
-summarisation, prompt-caching, etc.).
+summarisation, etc.). Prompt caching is configured at LLM-build time via
+``apply_litellm_prompt_caching`` (LiteLLM-native, multi-provider) rather
+than as a middleware.
 """
 
 import asyncio
@@ -33,12 +35,18 @@ from langchain.agents.middleware import (
     TodoListMiddleware,
     ToolCallLimitMiddleware,
 )
-from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.new_chat.agent_cache import (
+    flags_signature,
+    get_cache,
+    stable_hash,
+    system_prompt_hash,
+    tools_signature,
+)
 from app.agents.new_chat.context import SurfSenseContextSchema
 from app.agents.new_chat.feature_flags import AgentFeatureFlags, get_flags
 from app.agents.new_chat.filesystem_backends import build_backend_resolver
@@ -52,6 +60,7 @@ from app.agents.new_chat.middleware import (
     DedupHITLToolCallsMiddleware,
     DoomLoopMiddleware,
     FileIntentMiddleware,
+    FlattenSystemMessageMiddleware,
     KnowledgeBasePersistenceMiddleware,
     KnowledgePriorityMiddleware,
     KnowledgeTreeMiddleware,
@@ -74,6 +83,7 @@ from app.agents.new_chat.plugin_loader import (
     load_allowed_plugin_names_from_env,
     load_plugin_middlewares,
 )
+from app.agents.new_chat.prompt_caching import apply_litellm_prompt_caching
 from app.agents.new_chat.subagents import build_specialized_subagents
 from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
@@ -93,6 +103,39 @@ from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
 
 _perf_log = get_perf_logger()
+
+
+def _resolve_prompt_model_name(
+    agent_config: AgentConfig | None,
+    llm: BaseChatModel,
+) -> str | None:
+    """Resolve the model id to feed to provider-variant detection.
+
+    Preference order (matches the established idiom in
+    ``llm_router_service.py`` — see ``params.get("base_model") or
+    params.get("model", "")`` usages there):
+
+    1. ``agent_config.litellm_params["base_model"]`` — required for Azure
+       deployments where ``model_name`` is the deployment slug, not the
+       underlying family. Without this, a deployment named e.g.
+       ``"prod-chat-001"`` would silently miss every provider regex.
+    2. ``agent_config.model_name`` — the user's configured model id.
+    3. ``getattr(llm, "model", None)`` — fallback for direct callers that
+       don't supply an ``AgentConfig`` (currently a defensive path; all
+       production callers pass ``agent_config``).
+
+    Returns ``None`` when nothing is available; ``compose_system_prompt``
+    treats that as the ``"default"`` variant (no provider block emitted).
+    """
+    if agent_config is not None:
+        params = agent_config.litellm_params or {}
+        base_model = params.get("base_model")
+        if isinstance(base_model, str) and base_model.strip():
+            return base_model
+        if agent_config.model_name:
+            return agent_config.model_name
+    return getattr(llm, "model", None)
+
 
 # =============================================================================
 # Connector Type Mapping
@@ -279,6 +322,14 @@ async def create_surfsense_deep_agent(
         )
     """
     _t_agent_total = time.perf_counter()
+
+    # Layer thread-aware prompt caching onto the LLM. Idempotent with the
+    # build-time call in ``llm_config.py``; this run merely adds
+    # ``prompt_cache_key=f"surfsense-thread-{thread_id}"`` for OpenAI-family
+    # configs now that ``thread_id`` is known. No-op when ``thread_id`` is
+    # None or the provider is non-OpenAI-family.
+    apply_litellm_prompt_caching(llm, agent_config=agent_config, thread_id=thread_id)
+
     filesystem_selection = filesystem_selection or FilesystemSelection()
     backend_resolver = build_backend_resolver(
         filesystem_selection,
@@ -287,23 +338,39 @@ async def create_surfsense_deep_agent(
         else None,
     )
 
-    # Discover available connectors and document types for this search space
+    # Discover available connectors and document types for this search space.
+    #
+    # NOTE: These two calls cannot be parallelized via ``asyncio.gather``.
+    # ``ConnectorService`` shares a single ``AsyncSession`` (``self.session``);
+    # SQLAlchemy explicitly forbids concurrent operations on the same session
+    # ("This session is provisioning a new connection; concurrent operations
+    # are not permitted on the same session"). The Phase 1.4 in-process TTL
+    # cache in ``connector_service`` already collapses the warm path to a
+    # near-zero pair of dict lookups, so sequential awaits cost nothing in
+    # the common case while remaining correct on cold cache misses.
     available_connectors: list[str] | None = None
     available_document_types: list[str] | None = None
 
     _t0 = time.perf_counter()
     try:
-        connector_types = await connector_service.get_available_connectors(
-            search_space_id
-        )
-        if connector_types:
-            available_connectors = _map_connectors_to_searchable_types(connector_types)
+        try:
+            connector_types_result = await connector_service.get_available_connectors(
+                search_space_id
+            )
+            if connector_types_result:
+                available_connectors = _map_connectors_to_searchable_types(
+                    connector_types_result
+                )
+        except Exception as e:
+            logging.warning("Failed to discover available connectors: %s", e)
 
-        available_document_types = await connector_service.get_available_document_types(
-            search_space_id
-        )
-
-    except Exception as e:
+        try:
+            available_document_types = (
+                await connector_service.get_available_document_types(search_space_id)
+            )
+        except Exception as e:
+            logging.warning("Failed to discover available document types: %s", e)
+    except Exception as e:  # pragma: no cover - defensive outer guard
         logging.warning(f"Failed to discover available connectors/document types: {e}")
     _perf_log.info(
         "[create_agent] Connector/doc-type discovery in %.3fs",
@@ -398,6 +465,7 @@ async def create_surfsense_deep_agent(
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
             mcp_connector_tools=_mcp_connector_tools,
+            model_name=_resolve_prompt_model_name(agent_config, llm),
         )
     else:
         system_prompt = build_surfsense_system_prompt(
@@ -405,6 +473,7 @@ async def create_surfsense_deep_agent(
             enabled_tool_names=_enabled_tool_names,
             disabled_tool_names=_user_disabled_tool_names,
             mcp_connector_tools=_mcp_connector_tools,
+            model_name=_resolve_prompt_model_name(agent_config, llm),
         )
     _perf_log.info(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0
@@ -424,29 +493,77 @@ async def create_surfsense_deep_agent(
     # entire middleware build + main-graph compile into a single
     # ``asyncio.to_thread`` so the heavy CPU work runs off-loop and the
     # event loop stays responsive.
+    #
+    # PHASE 1: cache the resulting compiled graph. ``agent_cache`` is keyed
+    # on every per-request value that any middleware in the stack closes
+    # over in ``__init__`` — drop one and you risk leaking state across
+    # threads. Hits collapse this whole block to a microsecond lookup;
+    # misses pay the original CPU cost AND populate the cache.
+    config_id = agent_config.config_id if agent_config is not None else None
+
+    async def _build_agent() -> Any:
+        return await asyncio.to_thread(
+            _build_compiled_agent_blocking,
+            llm=llm,
+            tools=tools,
+            final_system_prompt=final_system_prompt,
+            backend_resolver=backend_resolver,
+            filesystem_mode=filesystem_selection.mode,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            thread_id=thread_id,
+            visibility=visibility,
+            anon_session_id=anon_session_id,
+            available_connectors=available_connectors,
+            available_document_types=available_document_types,
+            # ``mentioned_document_ids`` is consumed by
+            # ``KnowledgePriorityMiddleware`` per turn via
+            # ``runtime.context`` (Phase 1.5). We still pass the
+            # caller-provided list here for the legacy fallback path
+            # (cache disabled / context not propagated) — the middleware
+            # drains its own copy after the first read so a cached graph
+            # never replays stale mentions.
+            mentioned_document_ids=mentioned_document_ids,
+            max_input_tokens=_max_input_tokens,
+            flags=_flags,
+            checkpointer=checkpointer,
+        )
+
     _t0 = time.perf_counter()
-    agent = await asyncio.to_thread(
-        _build_compiled_agent_blocking,
-        llm=llm,
-        tools=tools,
-        final_system_prompt=final_system_prompt,
-        backend_resolver=backend_resolver,
-        filesystem_mode=filesystem_selection.mode,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        thread_id=thread_id,
-        visibility=visibility,
-        anon_session_id=anon_session_id,
-        available_connectors=available_connectors,
-        available_document_types=available_document_types,
-        mentioned_document_ids=mentioned_document_ids,
-        max_input_tokens=_max_input_tokens,
-        flags=_flags,
-        checkpointer=checkpointer,
-    )
+    if _flags.enable_agent_cache and not _flags.disable_new_agent_stack:
+        # Cache key components — order matters only for human readability;
+        # the resulting hash is what's stored. Every component must
+        # rotate on a real shape change AND stay stable across identical
+        # invocations.
+        cache_key = stable_hash(
+            "v1",  # schema version of the key — bump if components change
+            config_id,
+            thread_id,
+            user_id,
+            search_space_id,
+            visibility,
+            filesystem_selection.mode,
+            anon_session_id,
+            tools_signature(
+                tools,
+                available_connectors=available_connectors,
+                available_document_types=available_document_types,
+            ),
+            flags_signature(_flags),
+            system_prompt_hash(final_system_prompt),
+            _max_input_tokens,
+            # ``mentioned_document_ids`` deliberately omitted — middleware
+            # reads it from ``runtime.context`` (Phase 1.5).
+        )
+        agent = await get_cache().get_or_build(cache_key, builder=_build_agent)
+    else:
+        agent = await _build_agent()
     _perf_log.info(
-        "[create_agent] Middleware stack + graph compiled in %.3fs",
+        "[create_agent] Middleware stack + graph compiled in %.3fs (cache=%s)",
         time.perf_counter() - _t0,
+        "on"
+        if _flags.enable_agent_cache and not _flags.disable_new_agent_stack
+        else "off",
     )
 
     _perf_log.info(
@@ -568,7 +685,6 @@ def _build_compiled_agent_blocking(
         ),
         create_surfsense_compaction_middleware(llm, StateBackend),
         PatchToolCallsMiddleware(),
-        AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
     ]
 
     general_purpose_spec: SubAgent = {  # type: ignore[typeddict-unknown-key]
@@ -998,6 +1114,14 @@ def _build_compiled_agent_blocking(
         noop_mw,
         retry_mw,
         fallback_mw,
+        # Coalesce a multi-text-block system message into one block
+        # immediately before the model call. Sits innermost on the
+        # system-message-mutation chain so it observes every appender
+        # (todo / filesystem / skills / subagents …) and prevents
+        # OpenRouter→Anthropic from redistributing ``cache_control``
+        # across N blocks and tripping Anthropic's 4-breakpoint cap.
+        # See ``middleware/flatten_system.py`` for full rationale.
+        FlattenSystemMessageMiddleware(),
         # Tool-call repair must run after model emits but before
         # permission / dedup / doom-loop interpret the calls.
         repair_mw,
@@ -1010,12 +1134,12 @@ def _build_compiled_agent_blocking(
         action_log_mw,
         PatchToolCallsMiddleware(),
         DedupHITLToolCallsMiddleware(agent_tools=list(tools)),
-        # Plugin slot — sits just before AnthropicCache so plugin-side
-        # transforms see the final tool result and run before any
-        # caching heuristics. Multiple plugins in declared order; loader
-        # filtered by the admin allowlist already.
+        # Plugin slot — sits at the tail so plugin-side transforms see the
+        # final tool result. Prompt caching is now applied at LLM build time
+        # via ``apply_litellm_prompt_caching`` (see prompt_caching.py), so no
+        # caching middleware is needed here. Multiple plugins run in declared
+        # order; loader filtered by the admin allowlist already.
         *plugin_middlewares,
-        AnthropicPromptCachingMiddleware(unsupported_model_behavior="ignore"),
     ]
     deepagent_middleware = [m for m in deepagent_middleware if m is not None]
 

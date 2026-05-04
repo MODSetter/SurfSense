@@ -11,7 +11,9 @@ from .delete_page import create_delete_notion_page_tool
 from .update_page import create_update_notion_page_tool
 
 
-def load_tools(*, dependencies: dict[str, Any] | None = None, **kwargs: Any) -> ToolsPermissions:
+def load_tools(
+    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
+) -> ToolsPermissions:
     d = {**(dependencies or {}), **kwargs}
     common = {
         "db_session": d["db_session"],

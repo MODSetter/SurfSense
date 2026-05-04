@@ -1,11 +1,8 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect } from "react";
-import { USER_QUERY_KEY } from "@/atoms/user/user-query.atoms";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -18,13 +15,7 @@ import {
 
 export default function PurchaseSuccessPage() {
 	const params = useParams();
-	const queryClient = useQueryClient();
 	const searchSpaceId = String(params.search_space_id ?? "");
-
-	useEffect(() => {
-		void queryClient.invalidateQueries({ queryKey: USER_QUERY_KEY });
-		void queryClient.invalidateQueries({ queryKey: ["token-status"] });
-	}, [queryClient]);
 
 	return (
 		<div className="flex min-h-[calc(100vh-64px)] items-center justify-center px-4 py-8">

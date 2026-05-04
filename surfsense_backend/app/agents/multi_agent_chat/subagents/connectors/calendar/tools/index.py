@@ -12,7 +12,9 @@ from .search_events import create_search_calendar_events_tool
 from .update_event import create_update_calendar_event_tool
 
 
-def load_tools(*, dependencies: dict[str, Any] | None = None, **kwargs: Any) -> ToolsPermissions:
+def load_tools(
+    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
+) -> ToolsPermissions:
     resolved_dependencies = {**(dependencies or {}), **kwargs}
     session_dependencies = {
         "db_session": resolved_dependencies["db_session"],

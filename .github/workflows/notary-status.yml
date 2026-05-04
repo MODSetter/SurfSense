@@ -1,0 +1,60 @@
+name: Notary status check
+
+# One-off diagnostic workflow. Queries Apple's notary service to see if your
+# submissions are queued, in progress, accepted, or rejected. Useful when a
+# notarization seems "hung" — most often the queue itself, especially on a
+# brand-new Apple Developer account.
+#
+# Run via: Actions tab -> "Notary status check" -> Run workflow.
+# Inputs are optional; if you provide a submission ID, it also fetches that
+# submission's full Apple log.
+#
+# Safe to delete after diagnosis.
+
+on:
+  workflow_dispatch:
+    inputs:
+      submission_id:
+        description: 'Optional: submission UUID to fetch full Apple log for'
+        required: false
+        default: ''
+
+jobs:
+  status:
+    runs-on: macos-latest
+    steps:
+      - name: List recent notarization submissions
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          echo "::group::Submission history (most recent first)"
+          xcrun notarytool history \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID"
+          echo "::endgroup::"
+
+      - name: Inspect specific submission (if id provided)
+        if: ${{ inputs.submission_id != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          SUBMISSION_ID: ${{ inputs.submission_id }}
+        run: |
+          set -euo pipefail
+          echo "::group::Submission info"
+          xcrun notarytool info "$SUBMISSION_ID" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID"
+          echo "::endgroup::"
+          echo "::group::Apple's processing log for this submission"
+          xcrun notarytool log "$SUBMISSION_ID" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" || true
+          echo "::endgroup::"

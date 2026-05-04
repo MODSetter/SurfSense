@@ -400,6 +400,19 @@ function formatMessageDate(date: Date): string {
 	});
 }
 
+/**
+ * Format provider USD cost (in micro-USD) for inline display next to a
+ * token count. Falls back to ``"<$0.001"`` for sub-tenth-of-a-cent
+ * costs so a real-but-tiny figure doesn't render as ``$0.000``.
+ */
+function formatTurnCost(micros: number): string {
+	const dollars = micros / 1_000_000;
+	if (dollars >= 1) return `$${dollars.toFixed(2)}`;
+	if (dollars >= 0.01) return `$${dollars.toFixed(3)}`;
+	if (dollars > 0) return "<$0.001";
+	return "$0";
+}
+
 const MessageInfoDropdown: FC = () => {
 	const messageId = useAuiState(({ message }) => message?.id);
 	const createdAt = useAuiState(({ message }) => message?.createdAt);
@@ -452,6 +465,7 @@ const MessageInfoDropdown: FC = () => {
 						{models.length > 0 ? (
 							models.map(([model, counts]) => {
 								const { name, icon } = resolveModel(model);
+								const costMicros = counts.cost_micros;
 								return (
 									<ActionBarMorePrimitive.Item
 										key={model}
@@ -464,6 +478,7 @@ const MessageInfoDropdown: FC = () => {
 										</span>
 										<span className="text-xs text-muted-foreground">
 											{counts.total_tokens.toLocaleString()} tokens
+											{costMicros && costMicros > 0 ? ` · ${formatTurnCost(costMicros)}` : ""}
 										</span>
 									</ActionBarMorePrimitive.Item>
 								);
@@ -475,6 +490,9 @@ const MessageInfoDropdown: FC = () => {
 							>
 								<span className="text-xs text-muted-foreground">
 									{usage.total_tokens.toLocaleString()} tokens
+									{usage.cost_micros && usage.cost_micros > 0
+										? ` · ${formatTurnCost(usage.cost_micros)}`
+										: ""}
 								</span>
 							</ActionBarMorePrimitive.Item>
 						)}
@@ -555,8 +573,10 @@ const AssistantMessageInner: FC = () => {
 				</div>
 			)}
 
-			<div className="aui-assistant-message-footer mt-3 mb-5 ml-2 flex items-center gap-2">
-				<AssistantActionBar />
+			<div className="aui-assistant-message-footer mt-3 mb-5 ml-2 h-6">
+				<div className="h-full opacity-100 transition-opacity">
+					<AssistantActionBar />
+				</div>
 			</div>
 		</CitationMetadataProvider>
 	);
@@ -649,35 +669,41 @@ export const AssistantMessage: FC = () => {
 			className="aui-assistant-message-root group fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
 			data-role="assistant"
 		>
-			{/* Comment trigger — right-aligned, just below user query on all screen sizes */}
-			{showCommentTrigger && (
-				<div className="mr-2 mb-1 flex justify-end">
-					<button
-						ref={isDesktop ? commentTriggerRef : undefined}
-						type="button"
-						onClick={
-							isDesktop ? () => setIsInlineOpen((prev) => !prev) : () => setIsSheetOpen(true)
-						}
-						className={cn(
-							"flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
-							isDesktop && isInlineOpen
-								? "bg-primary/10 text-primary"
-								: hasComments
-									? "text-primary hover:bg-primary/10"
-									: "text-muted-foreground hover:text-foreground hover:bg-muted"
-						)}
-					>
-						<MessageCircleReply className={cn("size-3.5", hasComments && "fill-current")} />
-						{hasComments ? (
-							<span>
-								{commentCount} {commentCount === 1 ? "comment" : "comments"}
-							</span>
-						) : (
-							<span>Add comment</span>
-						)}
-					</button>
-				</div>
-			)}
+			{/* Fixed trigger slot prevents any vertical reflow when visibility changes */}
+			<div className="mr-2 mb-1 flex h-7 justify-end">
+				<button
+					ref={isDesktop ? commentTriggerRef : undefined}
+					type="button"
+					onClick={
+						showCommentTrigger
+							? isDesktop
+								? () => setIsInlineOpen((prev) => !prev)
+								: () => setIsSheetOpen(true)
+							: undefined
+					}
+					aria-hidden={!showCommentTrigger}
+					tabIndex={showCommentTrigger ? 0 : -1}
+					className={cn(
+						"flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
+						"opacity-0 pointer-events-none",
+						showCommentTrigger && "opacity-100 pointer-events-auto",
+						isDesktop && isInlineOpen
+							? "bg-primary/10 text-primary"
+							: hasComments
+								? "text-primary hover:bg-primary/10"
+								: "text-muted-foreground hover:text-foreground hover:bg-muted"
+					)}
+				>
+					<MessageCircleReply className={cn("size-3.5", hasComments && "fill-current")} />
+					{hasComments ? (
+						<span>
+							{commentCount} {commentCount === 1 ? "comment" : "comments"}
+						</span>
+					) : (
+						<span>Add comment</span>
+					)}
+				</button>
+			</div>
 
 			{/* Desktop floating comment panel — overlays on top of chat content */}
 			{showCommentTrigger && isDesktop && isInlineOpen && dbMessageId && (

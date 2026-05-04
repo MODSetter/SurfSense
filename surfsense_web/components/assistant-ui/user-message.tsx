@@ -1,4 +1,10 @@
-import { ActionBarPrimitive, AuiIf, MessagePrimitive, useAuiState } from "@assistant-ui/react";
+import {
+	ActionBarPrimitive,
+	AuiIf,
+	MessagePrimitive,
+	useAuiState,
+	useMessagePartText,
+} from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
 import { CheckIcon, CopyIcon, Pencil } from "lucide-react";
 import Image from "next/image";
@@ -7,6 +13,8 @@ import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import { parseMentionSegments } from "@/lib/chat/parse-mention-segments";
 
 interface AuthorMetadata {
 	displayName: string | null;
@@ -47,23 +55,40 @@ const UserAvatar: FC<AuthorMetadata> = ({ displayName, avatarUrl }) => {
 	);
 };
 
-export const UserMessage: FC = () => {
+const UserTextPart: FC = () => {
 	const messageId = useAuiState(({ message }) => message?.id);
-	const messageText = useAuiState(({ message }) =>
-		(message?.content ?? [])
-			.map((part) =>
-				typeof part === "object" &&
-				part !== null &&
-				"type" in part &&
-				(part as { type?: string }).type === "text" &&
-				"text" in part
-					? String((part as { text?: string }).text ?? "")
-					: ""
-			)
-			.join("")
-	);
+	const part = useMessagePartText();
+	const text = (part as { text?: string }).text ?? "";
 	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
-	const mentionedDocs = messageId ? messageDocumentsMap[messageId] : undefined;
+	const mentionedDocs = (messageId ? messageDocumentsMap[messageId] : undefined) ?? [];
+
+	const segments = parseMentionSegments(text, mentionedDocs);
+
+	return (
+		<p style={{ whiteSpace: "pre-line" }} className="break-words">
+			{segments.map((segment) =>
+				segment.type === "text" ? (
+					<span key={`txt-${segment.start}`}>{segment.value}</span>
+				) : (
+					<span
+						key={`mention-${getMentionDocKey(segment.doc)}-${segment.start}`}
+						className="inline-flex items-center gap-1 mx-0.5 px-1 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary/60 select-none align-middle leading-none"
+						title={segment.doc.title}
+					>
+						<span className="flex items-center text-muted-foreground">
+							{getConnectorIcon(segment.doc.document_type ?? "UNKNOWN", "h-3 w-3")}
+						</span>
+						<span className="max-w-[120px] truncate">{segment.doc.title}</span>
+					</span>
+				)
+			)}
+		</p>
+	);
+};
+
+const userMessageParts = { Text: UserTextPart };
+
+export const UserMessage: FC = () => {
 	const metadata = useAuiState(({ message }) => message?.metadata);
 	const author = metadata?.custom?.author as AuthorMetadata | undefined;
 	const isSharedChat = useAtomValue(currentThreadAtom).visibility === "SEARCH_SPACE";
@@ -78,11 +103,7 @@ export const UserMessage: FC = () => {
 				<div className="aui-user-message-content-wrapper flex items-end gap-2">
 					<div className="relative flex-1 min-w-0">
 						<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
-							{mentionedDocs && mentionedDocs.length > 0 ? (
-								<UserMessageWithMentionChips text={messageText} mentionedDocs={mentionedDocs} />
-							) : (
-								<MessagePrimitive.Parts />
-							)}
+							<MessagePrimitive.Parts components={userMessageParts} />
 						</div>
 						<div className="absolute right-0 top-full mt-1 z-10 opacity-100 pointer-events-auto md:opacity-0 md:pointer-events-none md:transition-opacity md:duration-200 md:delay-300 md:group-hover/user-msg:opacity-100 md:group-hover/user-msg:delay-0 md:group-hover/user-msg:pointer-events-auto">
 							<UserActionBar />
@@ -96,64 +117,6 @@ export const UserMessage: FC = () => {
 				</div>
 			</div>
 		</MessagePrimitive.Root>
-	);
-};
-
-const UserMessageWithMentionChips: FC<{
-	text: string;
-	mentionedDocs: { id: number; title: string; document_type: string }[];
-}> = ({ text, mentionedDocs }) => {
-	type Segment =
-		| { type: "text"; value: string; start: number }
-		| { type: "mention"; doc: { id: number; title: string; document_type: string }; start: number };
-
-	const tokens = mentionedDocs
-		.map((doc) => ({ doc, token: `@${doc.title}` }))
-		.sort((a, b) => b.token.length - a.token.length);
-
-	const segments: Segment[] = [];
-	let i = 0;
-	let buffer = "";
-	let bufferStart = 0;
-	while (i < text.length) {
-		const tokenMatch = tokens.find(({ token }) => text.startsWith(token, i));
-		if (tokenMatch) {
-			if (buffer) {
-				segments.push({ type: "text", value: buffer, start: bufferStart });
-				buffer = "";
-			}
-			segments.push({ type: "mention", doc: tokenMatch.doc, start: i });
-			i += tokenMatch.token.length;
-			bufferStart = i;
-			continue;
-		}
-		if (!buffer) bufferStart = i;
-		buffer += text[i];
-		i += 1;
-	}
-	if (buffer) {
-		segments.push({ type: "text", value: buffer, start: bufferStart });
-	}
-
-	return (
-		<span className="whitespace-pre-wrap break-words">
-			{segments.map((segment) =>
-				segment.type === "text" ? (
-					<span key={`txt-${segment.start}`}>{segment.value}</span>
-				) : (
-					<span
-						key={`mention-${segment.doc.document_type}:${segment.doc.id}-${segment.start}`}
-						className="inline-flex items-center gap-1 mx-0.5 px-1 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary/60 select-none align-baseline"
-						title={segment.doc.title}
-					>
-						<span className="flex items-center text-muted-foreground">
-							{getConnectorIcon(segment.doc.document_type ?? "UNKNOWN", "h-3 w-3")}
-						</span>
-						<span className="max-w-[120px] truncate">{segment.doc.title}</span>
-					</span>
-				)
-			)}
-		</span>
 	);
 };
 

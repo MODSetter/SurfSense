@@ -565,20 +565,31 @@ class VercelStreamingService:
     # Error Part
     # =========================================================================
 
-    def format_error(self, error_text: str) -> str:
+    def format_error(
+        self,
+        error_text: str,
+        error_code: str | None = None,
+        extra: dict[str, object] | None = None,
+    ) -> str:
         """
         Format an error message.
 
         Args:
             error_text: The error message text
+            error_code: Optional machine-readable error code for frontend branching
 
         Returns:
             str: SSE formatted error part
 
         Example output:
-            data: {"type":"error","errorText":"Something went wrong"}
+            data: {"type":"error","errorText":"Something went wrong","errorCode":"SOME_CODE"}
         """
-        return self._format_sse({"type": "error", "errorText": error_text})
+        payload: dict[str, object] = {"type": "error", "errorText": error_text}
+        if error_code:
+            payload["errorCode"] = error_code
+        if extra:
+            payload.update(extra)
+        return self._format_sse(payload)
 
     # =========================================================================
     # Tool Parts

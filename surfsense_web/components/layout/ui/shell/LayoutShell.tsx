@@ -132,7 +132,7 @@ function MainContentPanel({
 	const isDocumentTab = activeTab?.type === "document";
 
 	return (
-		<div className="relative flex flex-1 flex-col min-w-0">
+		<div className="relative isolate flex flex-1 flex-col min-w-0">
 			<TabBar
 				onTabSwitch={onTabSwitch}
 				onNewChat={onNewChat}

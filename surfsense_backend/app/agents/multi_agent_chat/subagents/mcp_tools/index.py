@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 ## Helper functions for fetching connector metadata maps
 
+
 async def fetch_mcp_connector_metadata_maps(
     session: AsyncSession,
     search_space_id: int,
@@ -57,6 +58,7 @@ async def fetch_mcp_connector_metadata_maps(
 
 
 ## Helper functions for partitioning tools by connector agent
+
 
 def partition_mcp_tools_by_connector(
     tools: Sequence[BaseTool],
@@ -104,7 +106,9 @@ def partition_mcp_tools_by_connector(
 
     return dict(buckets)
 
+
 ## Helper functions for splitting tools by permissions
+
 
 def _get_mcp_tool_name(tool: BaseTool) -> str:
     meta: dict[str, Any] = getattr(tool, "metadata", None) or {}
@@ -139,6 +143,7 @@ def _split_tools_by_permissions(
 
 ## Main function to load MCP tools and split them by permissions for each connector agent
 
+
 async def load_mcp_tools_by_connector(
     session: AsyncSession,
     search_space_id: int,
@@ -148,9 +153,7 @@ async def load_mcp_tools_by_connector(
     Pass ``bypass_internal_hitl=True`` so the subagent's
     ``HumanInTheLoopMiddleware`` is the single HITL gate.
     """
-    flat = await load_mcp_tools(
-        session, search_space_id, bypass_internal_hitl=True
-    )
+    flat = await load_mcp_tools(session, search_space_id, bypass_internal_hitl=True)
     id_map, name_map = await fetch_mcp_connector_metadata_maps(session, search_space_id)
     buckets = partition_mcp_tools_by_connector(flat, id_map, name_map)
     return {

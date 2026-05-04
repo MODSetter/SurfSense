@@ -50,6 +50,7 @@ DEFAULT_AUTO_APPROVED_TOOLS: frozenset[str] = frozenset(
     {
         "create_gmail_draft",
         "update_gmail_draft",
+        "create_calendar_event",
         "create_notion_page",
         "create_confluence_page",
         "create_google_drive_file",

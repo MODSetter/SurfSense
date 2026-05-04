@@ -11,7 +11,9 @@ from .read_messages import create_read_discord_messages_tool
 from .send_message import create_send_discord_message_tool
 
 
-def load_tools(*, dependencies: dict[str, Any] | None = None, **kwargs: Any) -> ToolsPermissions:
+def load_tools(
+    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
+) -> ToolsPermissions:
     d = {**(dependencies or {}), **kwargs}
     common = {
         "db_session": d["db_session"],

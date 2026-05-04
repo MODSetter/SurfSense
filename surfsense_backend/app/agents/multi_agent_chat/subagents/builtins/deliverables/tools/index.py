@@ -13,7 +13,9 @@ from .resume import create_generate_resume_tool
 from .video_presentation import create_generate_video_presentation_tool
 
 
-def load_tools(*, dependencies: dict[str, Any] | None = None, **kwargs: Any) -> ToolsPermissions:
+def load_tools(
+    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
+) -> ToolsPermissions:
     resolved_dependencies = {**(dependencies or {}), **kwargs}
     podcast = create_generate_podcast_tool(
         search_space_id=resolved_dependencies["search_space_id"],

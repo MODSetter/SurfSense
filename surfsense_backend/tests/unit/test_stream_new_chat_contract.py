@@ -1,9 +1,21 @@
+import inspect
+import json
+import logging
+import re
+from pathlib import Path
+
 import pytest
 
+import app.tasks.chat.stream_new_chat as stream_new_chat_module
+from app.agents.new_chat.errors import BusyError
+from app.agents.new_chat.middleware.busy_mutex import request_cancel, reset_cancel
 from app.tasks.chat.stream_new_chat import (
     StreamResult,
+    _classify_stream_exception,
     _contract_enforcement_active,
     _evaluate_file_contract_outcome,
+    _extract_resolved_file_path,
+    _log_chat_stream_error,
     _tool_output_has_error,
 )
 
@@ -15,6 +27,39 @@ def test_tool_output_error_detection():
     assert _tool_output_has_error({"error": "boom"})
     assert _tool_output_has_error({"result": "Error: disk is full"})
     assert not _tool_output_has_error({"result": "Updated file /notes.md"})
+
+
+def test_extract_resolved_file_path_prefers_structured_path():
+    assert (
+        _extract_resolved_file_path(
+            tool_name="write_file",
+            tool_output={"status": "completed", "path": "/docs/note.md"},
+            tool_input=None,
+        )
+        == "/docs/note.md"
+    )
+
+
+def test_extract_resolved_file_path_falls_back_to_tool_input():
+    assert (
+        _extract_resolved_file_path(
+            tool_name="edit_file",
+            tool_output={"status": "completed", "result": "updated"},
+            tool_input={"file_path": "/docs/edited.md"},
+        )
+        == "/docs/edited.md"
+    )
+
+
+def test_extract_resolved_file_path_does_not_parse_result_text():
+    assert (
+        _extract_resolved_file_path(
+            tool_name="write_file",
+            tool_output={"result": "Updated file /docs/from-text.md"},
+            tool_input=None,
+        )
+        is None
+    )
 
 
 def test_file_write_contract_outcome_reasons():
@@ -45,3 +90,507 @@ def test_contract_enforcement_local_only():
 
     result.filesystem_mode = "cloud"
     assert not _contract_enforcement_active(result)
+
+
+def _extract_chat_stream_payload(record_message: str) -> dict:
+    prefix = "[chat_stream_error] "
+    assert record_message.startswith(prefix)
+    return json.loads(record_message[len(prefix) :])
+
+
+def test_unified_chat_stream_error_log_schema(caplog):
+    with caplog.at_level(logging.INFO, logger="app.tasks.chat.stream_new_chat"):
+        _log_chat_stream_error(
+            flow="new",
+            error_kind="server_error",
+            error_code="SERVER_ERROR",
+            severity="warn",
+            is_expected=False,
+            request_id="req-123",
+            thread_id=101,
+            search_space_id=202,
+            user_id="user-1",
+            message="Error during chat: boom",
+        )
+
+    record = next(r for r in caplog.records if "[chat_stream_error]" in r.message)
+    payload = _extract_chat_stream_payload(record.message)
+
+    required_keys = {
+        "event",
+        "flow",
+        "error_kind",
+        "error_code",
+        "severity",
+        "is_expected",
+        "request_id",
+        "thread_id",
+        "search_space_id",
+        "user_id",
+        "message",
+    }
+    assert required_keys.issubset(payload.keys())
+    assert payload["event"] == "chat_stream_error"
+    assert payload["flow"] == "new"
+    assert payload["error_code"] == "SERVER_ERROR"
+
+
+def test_premium_quota_uses_unified_chat_stream_log_shape(caplog):
+    with caplog.at_level(logging.INFO, logger="app.tasks.chat.stream_new_chat"):
+        _log_chat_stream_error(
+            flow="resume",
+            error_kind="premium_quota_exhausted",
+            error_code="PREMIUM_QUOTA_EXHAUSTED",
+            severity="info",
+            is_expected=True,
+            request_id="req-premium",
+            thread_id=303,
+            search_space_id=404,
+            user_id="user-2",
+            message="Buy more tokens to continue with this model, or switch to a free model",
+            extra={"auto_fallback": False},
+        )
+
+    record = next(r for r in caplog.records if "[chat_stream_error]" in r.message)
+    payload = _extract_chat_stream_payload(record.message)
+    assert payload["event"] == "chat_stream_error"
+    assert payload["error_kind"] == "premium_quota_exhausted"
+    assert payload["error_code"] == "PREMIUM_QUOTA_EXHAUSTED"
+    assert payload["flow"] == "resume"
+    assert payload["is_expected"] is True
+    assert payload["auto_fallback"] is False
+
+
+def test_stream_error_emission_keeps_machine_error_codes():
+    source = inspect.getsource(stream_new_chat_module)
+    format_error_calls = re.findall(r"format_error\(", source)
+    emitted_error_codes = set(re.findall(r'error_code="([A-Z_]+)"', source))
+
+    # All stream paths should route through one shared terminal error emitter.
+    assert len(format_error_calls) == 1
+    assert {
+        "PREMIUM_QUOTA_EXHAUSTED",
+        "SERVER_ERROR",
+    }.issubset(emitted_error_codes)
+    assert 'flow: Literal["new", "regenerate"] = "new"' in source
+    assert "_emit_stream_terminal_error" in source
+    assert "flow=flow" in source
+    assert 'flow="resume"' in source
+
+
+def test_stream_exception_classifies_rate_limited():
+    exc = Exception(
+        '{"error":{"type":"rate_limit_error","message":"Rate limited. Please try again later."}}'
+    )
+    kind, code, severity, is_expected, user_message, extra = _classify_stream_exception(
+        exc, flow_label="chat"
+    )
+    assert kind == "rate_limited"
+    assert code == "RATE_LIMITED"
+    assert severity == "warn"
+    assert is_expected is True
+    assert "temporarily rate-limited" in user_message
+    assert extra is None
+
+
+def test_stream_exception_classifies_openrouter_429_payload():
+    exc = Exception(
+        'OpenrouterException - {"error":{"message":"Provider returned error","code":429,'
+        '"metadata":{"raw":"foo is temporarily rate-limited upstream"}}}'
+    )
+    kind, code, severity, is_expected, user_message, extra = _classify_stream_exception(
+        exc, flow_label="chat"
+    )
+    assert kind == "rate_limited"
+    assert code == "RATE_LIMITED"
+    assert severity == "warn"
+    assert is_expected is True
+    assert "temporarily rate-limited" in user_message
+    assert extra is None
+
+
+@pytest.mark.asyncio
+async def test_preflight_swallows_non_rate_limit_errors_and_re_raises_429(monkeypatch):
+    """``_preflight_llm`` is best-effort.
+
+    - On rate-limit shaped exceptions (provider 429) it MUST re-raise so the
+      caller can drive the cooldown/repin branch.
+    - On any other transient failure it MUST swallow the error so the normal
+      stream path continues without surfacing preflight noise to the user.
+    """
+    from types import SimpleNamespace
+
+    from app.tasks.chat.stream_new_chat import _preflight_llm
+
+    class _RateLimitedError(Exception):
+        """Class-name carries 'RateLimit' so _is_provider_rate_limited triggers."""
+
+    rate_calls: list[dict] = []
+    other_calls: list[dict] = []
+
+    async def _fake_acompletion_429(**kwargs):
+        rate_calls.append(kwargs)
+        raise _RateLimitedError("simulated 429")
+
+    async def _fake_acompletion_other(**kwargs):
+        other_calls.append(kwargs)
+        raise RuntimeError("some unrelated transient failure")
+
+    fake_llm = SimpleNamespace(
+        model="openrouter/google/gemma-4-31b-it:free",
+        api_key="test",
+        api_base=None,
+    )
+
+    import litellm  # type: ignore[import-not-found]
+
+    monkeypatch.setattr(litellm, "acompletion", _fake_acompletion_429)
+    with pytest.raises(_RateLimitedError):
+        await _preflight_llm(fake_llm)
+    assert len(rate_calls) == 1
+    assert rate_calls[0]["max_tokens"] == 1
+    assert rate_calls[0]["stream"] is False
+
+    monkeypatch.setattr(litellm, "acompletion", _fake_acompletion_other)
+    # MUST NOT raise: non-rate-limit failures are swallowed.
+    await _preflight_llm(fake_llm)
+    assert len(other_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_preflight_skipped_for_auto_router_model():
+    """Router-mode ``model='auto'`` has no single deployment to ping; the
+    LiteLLM router itself owns per-deployment rate-limit accounting, so the
+    preflight helper must short-circuit instead of issuing a probe."""
+    from types import SimpleNamespace
+
+    from app.tasks.chat.stream_new_chat import _preflight_llm
+
+    fake_llm = SimpleNamespace(model="auto", api_key="x", api_base=None)
+    # Should return without raising or making any LiteLLM call.
+    await _preflight_llm(fake_llm)
+
+
+@pytest.mark.asyncio
+async def test_settle_speculative_agent_build_swallows_exceptions():
+    """``_settle_speculative_agent_build`` MUST always return cleanly so the
+    caller can safely re-touch the request-scoped session afterwards.
+
+    The helper guards the parallel preflight + agent-build path: when the
+    speculative build is being discarded (429 or non-429 preflight failure)
+    we await it solely to release any in-flight ``AsyncSession`` usage —
+    the build's outcome is irrelevant. Any exception (including
+    ``CancelledError``) leaking out would skip the caller's recovery flow
+    and re-introduce the very session-concurrency hazard the helper exists
+    to prevent.
+    """
+    import asyncio
+
+    from app.tasks.chat.stream_new_chat import _settle_speculative_agent_build
+
+    async def _raises() -> None:
+        raise RuntimeError("speculative build crashed")
+
+    async def _succeeds() -> str:
+        return "agent"
+
+    async def _slow() -> None:
+        await asyncio.sleep(0.05)
+
+    for coro in (_raises(), _succeeds(), _slow()):
+        task = asyncio.create_task(coro)
+        await _settle_speculative_agent_build(task)
+        assert task.done()
+
+
+@pytest.mark.asyncio
+async def test_settle_speculative_agent_build_handles_already_done_task():
+    """Done tasks (success or failure) must still be settled without raising."""
+    import asyncio
+
+    from app.tasks.chat.stream_new_chat import _settle_speculative_agent_build
+
+    async def _ok() -> str:
+        return "ok"
+
+    async def _bad() -> None:
+        raise ValueError("nope")
+
+    ok_task = asyncio.create_task(_ok())
+    bad_task = asyncio.create_task(_bad())
+    # Drive both to completion before settling.
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
+
+    await _settle_speculative_agent_build(ok_task)
+    await _settle_speculative_agent_build(bad_task)
+    assert ok_task.result() == "ok"
+    # ``bad_task`` exception was consumed by the settle helper; calling
+    # ``.exception()`` after the fact must still return the original error
+    # (the helper observes it but doesn't clear it).
+    assert isinstance(bad_task.exception(), ValueError)
+
+
+def test_stream_exception_classifies_thread_busy():
+    exc = BusyError(request_id="thread-123")
+    kind, code, severity, is_expected, user_message, extra = _classify_stream_exception(
+        exc, flow_label="chat"
+    )
+    assert kind == "thread_busy"
+    assert code == "THREAD_BUSY"
+    assert severity == "warn"
+    assert is_expected is True
+    assert "still finishing for this thread" in user_message
+    assert extra is None
+
+
+def test_stream_exception_classifies_thread_busy_from_message():
+    exc = Exception("Thread is busy with another request")
+    kind, code, severity, is_expected, user_message, extra = _classify_stream_exception(
+        exc, flow_label="chat"
+    )
+    assert kind == "thread_busy"
+    assert code == "THREAD_BUSY"
+    assert severity == "warn"
+    assert is_expected is True
+    assert "still finishing for this thread" in user_message
+    assert extra is None
+
+
+def test_stream_exception_classifies_turn_cancelling_when_cancel_requested():
+    thread_id = "thread-cancelling-1"
+    reset_cancel(thread_id)
+    request_cancel(thread_id)
+    exc = BusyError(request_id=thread_id)
+    kind, code, severity, is_expected, user_message, extra = _classify_stream_exception(
+        exc, flow_label="chat"
+    )
+    assert kind == "thread_busy"
+    assert code == "TURN_CANCELLING"
+    assert severity == "info"
+    assert is_expected is True
+    assert "stopping" in user_message
+    assert isinstance(extra, dict)
+    assert "retry_after_ms" in extra
+
+
+def test_premium_classification_is_error_code_driven():
+    classifier_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/lib/chat/chat-error-classifier.ts"
+    )
+    source = classifier_path.read_text(encoding="utf-8")
+
+    assert "PREMIUM_KEYWORDS" not in source
+    assert "RATE_LIMIT_KEYWORDS" not in source
+    assert "normalized.includes(" not in source
+    assert 'if (errorCode === "PREMIUM_QUOTA_EXHAUSTED") {' in source
+
+
+def test_stream_terminal_error_handler_has_pre_accept_soft_rollback_hook():
+    page_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/app/dashboard/[search_space_id]/new-chat/[[...chat_id]]/page.tsx"
+    )
+    source = page_path.read_text(encoding="utf-8")
+
+    assert "onPreAcceptFailure?: () => Promise<void>;" in source
+    assert "if (!accepted) {" in source
+    assert "await onPreAcceptFailure?.();" in source
+    assert "await onAcceptedStreamError?.();" in source
+    assert "setMessages((prev) => prev.filter((m) => m.id !== userMsgId));" in source
+    assert "setMessageDocumentsMap((prev) => {" in source
+
+
+def test_toast_only_pre_accept_policy_has_no_inline_failed_marker():
+    user_message_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/components/assistant-ui/user-message.tsx"
+    )
+    source = user_message_path.read_text(encoding="utf-8")
+
+    assert "Not sent. Edit and retry." not in source
+    assert "failed_pre_accept" not in source
+
+
+def test_network_send_failures_use_unified_retry_toast_message():
+    classifier_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/lib/chat/chat-error-classifier.ts"
+    )
+    classifier_source = classifier_path.read_text(encoding="utf-8")
+    request_errors_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/lib/chat/chat-request-errors.ts"
+    )
+    request_errors_source = request_errors_path.read_text(encoding="utf-8")
+
+    assert '"send_failed_pre_accept"' in classifier_source
+    assert 'errorCode === "SEND_FAILED_PRE_ACCEPT"' in classifier_source
+    assert 'errorCode === "TURN_CANCELLING"' in classifier_source
+    assert "if (withCode.code) return withCode.code;" in classifier_source
+    assert 'userMessage: "Message not sent. Please retry."' in classifier_source
+    assert 'userMessage: "Connection issue. Please try again."' in classifier_source
+    assert "const passthroughCodes = new Set([" in request_errors_source
+    assert '"PREMIUM_QUOTA_EXHAUSTED"' in request_errors_source
+    assert '"THREAD_BUSY"' in request_errors_source
+    assert '"TURN_CANCELLING"' in request_errors_source
+    assert '"AUTH_EXPIRED"' in request_errors_source
+    assert '"UNAUTHORIZED"' in request_errors_source
+    assert '"RATE_LIMITED"' in request_errors_source
+    assert '"NETWORK_ERROR"' in request_errors_source
+    assert '"STREAM_PARSE_ERROR"' in request_errors_source
+    assert '"TOOL_EXECUTION_ERROR"' in request_errors_source
+    assert '"PERSIST_MESSAGE_FAILED"' in request_errors_source
+    assert '"SERVER_ERROR"' in request_errors_source
+    assert "passthroughCodes.has(existingCode)" in request_errors_source
+    assert 'errorCode: "SEND_FAILED_PRE_ACCEPT"' in request_errors_source
+    assert 'errorCode: "NETWORK_ERROR"' not in request_errors_source
+    assert "Failed to start chat. Please try again." not in classifier_source
+
+
+def test_pre_post_accept_abort_contract_exists_for_new_resume_regenerate_flows():
+    page_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/app/dashboard/[search_space_id]/new-chat/[[...chat_id]]/page.tsx"
+    )
+    source = page_path.read_text(encoding="utf-8")
+
+    # Each flow tracks accepted boundary and passes it into shared terminal handling.
+    # The acceptance boundary is still meaningful post-refactor: it gates
+    # local-state cleanup (onPreAcceptFailure path) and lets the shared
+    # terminal handler distinguish pre-accept aborts from in-stream errors.
+    assert "let newAccepted = false;" in source
+    assert "let resumeAccepted = false;" in source
+    assert "let regenerateAccepted = false;" in source
+    assert "accepted: newAccepted," in source
+    assert "accepted: resumeAccepted," in source
+    assert "accepted: regenerateAccepted," in source
+
+    # NOTE: The FE-side persistence guards previously asserted here
+    # ("if (!resumeAccepted) return;", "if (!regenerateAccepted) return;",
+    # "if (newAccepted && !userPersisted) {") have been intentionally
+    # removed by the SSE-based message-id handshake refactor. Persistence
+    # is now server-authoritative: persist_user_turn / persist_assistant_shell
+    # run inside stream_new_chat / stream_resume_chat unconditionally and
+    # the FE consumes data-user-message-id / data-assistant-message-id
+    # SSE events to learn the canonical primary keys. There is therefore
+    # no FE call-site to guard, and the shared terminal handler relies
+    # purely on the `accepted` field above (forwarded to onAbort /
+    # onAcceptedStreamError) to drive UI cleanup. See
+    # tests/integration/chat/test_message_id_sse.py for the new
+    # cross-tier ID coherence guarantees.
+
+    # The TURN_CANCELLING / THREAD_BUSY retry plumbing is independent
+    # of the persistence refactor and must still exist on every
+    # start-stream fetch.
+    assert "const fetchWithTurnCancellingRetry = useCallback(" in source
+    assert "computeFallbackTurnCancellingRetryDelay" in source
+    assert 'withMeta.errorCode === "TURN_CANCELLING"' in source
+    assert 'withMeta.errorCode === "THREAD_BUSY"' in source
+    assert "await fetchWithTurnCancellingRetry(() =>" in source
+
+
+def test_cancel_active_turn_route_contract_exists():
+    routes_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_backend/app/routes/new_chat_routes.py"
+    )
+    source = routes_path.read_text(encoding="utf-8")
+
+    assert '@router.post(\n    "/threads/{thread_id}/cancel-active-turn",' in source
+    assert "response_model=CancelActiveTurnResponse" in source
+    assert 'status="cancelling",' in source
+    assert 'error_code="TURN_CANCELLING",' in source
+    assert "retry_after_ms=retry_after_ms if retry_after_ms > 0 else None," in source
+    assert "retry_after_at=" in source
+    assert 'status="idle",' in source
+    assert 'error_code="NO_ACTIVE_TURN",' in source
+
+
+def test_turn_status_route_contract_exists():
+    routes_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_backend/app/routes/new_chat_routes.py"
+    )
+    source = routes_path.read_text(encoding="utf-8")
+
+    assert '@router.get(\n    "/threads/{thread_id}/turn-status",' in source
+    assert "response_model=TurnStatusResponse" in source
+    assert "_build_turn_status_payload(thread_id)" in source
+    assert "Permission.CHATS_READ.value" in source
+    assert "_raise_if_thread_busy_for_start(" in source
+
+
+def test_turn_cancelling_retry_policy_contract_exists():
+    routes_path = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_backend/app/routes/new_chat_routes.py"
+    )
+    source = routes_path.read_text(encoding="utf-8")
+
+    assert "TURN_CANCELLING_INITIAL_DELAY_MS = 200" in source
+    assert "TURN_CANCELLING_BACKOFF_FACTOR = 2" in source
+    assert "TURN_CANCELLING_MAX_DELAY_MS = 1500" in source
+    assert "def _compute_turn_cancelling_retry_delay(" in source
+    assert "retry-after-ms" in source
+    assert '"Retry-After"' in source
+    assert '"errorCode": "TURN_CANCELLING"' in source
+
+
+def test_turn_status_sse_contract_exists():
+    stream_source = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_backend/app/tasks/chat/stream_new_chat.py"
+    ).read_text(encoding="utf-8")
+    state_source = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/lib/chat/streaming-state.ts"
+    ).read_text(encoding="utf-8")
+    pipeline_source = (
+        Path(__file__).resolve().parents[3]
+        / "surfsense_web/lib/chat/stream-pipeline.ts"
+    ).read_text(encoding="utf-8")
+
+    assert '"turn-status"' in stream_source
+    assert '"status": "busy"' in stream_source
+    assert '"status": "idle"' in stream_source
+    assert 'type: "data-turn-status"' in state_source
+    assert 'case "data-turn-status":' in pipeline_source
+    assert "end_turn(str(chat_id))" in stream_source
+
+
+def test_chat_deepagent_forwards_resolved_model_name_to_both_builders():
+    """Regression guard: both system-prompt builders in chat_deepagent.py
+    must receive ``model_name=_resolve_prompt_model_name(...)`` so the
+    provider-variant dispatch can render the right ``<provider_hints>``
+    block. Without this the prompt silently falls back to the empty
+    ``"default"`` variant — the original bug being fixed.
+
+    This test mirrors :func:`test_stream_error_emission_keeps_machine_error_codes`
+    in style: it inspects module source text + a regex to enforce the
+    call-site shape, not just the wrapper layer (the wrappers already
+    forward ``model_name`` correctly, so testing them would not catch
+    the actual missed plumbing).
+    """
+    import app.agents.new_chat.chat_deepagent as chat_deepagent_module
+
+    source = inspect.getsource(chat_deepagent_module)
+
+    # Helper itself must be defined.
+    assert "def _resolve_prompt_model_name(" in source
+
+    # Both builder calls must forward the resolved model name. Match
+    # across newlines + whitespace because the kwargs are split over
+    # multiple lines.
+    pattern = re.compile(
+        r"build_(?:surfsense|configurable)_system_prompt\([^)]*"
+        r"model_name=_resolve_prompt_model_name\(",
+        re.DOTALL,
+    )
+    matches = pattern.findall(source)
+    assert len(matches) == 2, (
+        "Expected both system-prompt builder call sites to forward "
+        "`model_name=_resolve_prompt_model_name(...)`, found "
+        f"{len(matches)}"
+    )

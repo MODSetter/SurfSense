@@ -3,6 +3,7 @@ import { chatSessionQueries, commentQueries, messageQueries } from "./chat";
 import { connectorQueries, documentQueries } from "./documents";
 import { folderQueries } from "./folders";
 import { notificationQueries } from "./inbox";
+import { userQueries } from "./user";
 
 export const queries = defineQueries({
 	notifications: notificationQueries,
@@ -12,4 +13,5 @@ export const queries = defineQueries({
 	messages: messageQueries,
 	comments: commentQueries,
 	chatSession: chatSessionQueries,
+	user: userQueries,
 });

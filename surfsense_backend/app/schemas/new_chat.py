@@ -39,6 +39,7 @@ class TokenUsageSummary(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
+    cost_micros: int = 0
     model_breakdown: dict | None = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -199,6 +200,21 @@ class NewChatUserImagePart(BaseModel):
         return to_data_url(self.media_type, self.data)
 
 
+class MentionedDocumentInfo(BaseModel):
+    """Display metadata for a single ``@``-mentioned document.
+
+    The full triple ``{id, title, document_type}`` is forwarded by the
+    frontend mention chip so the server can embed it in the persisted
+    user message ``ContentPart[]`` (single ``mentioned-documents`` part).
+    The history loader then renders the chips on reload without an extra
+    fetch — mirrors the pre-refactor frontend ``persistUserTurn`` shape.
+    """
+
+    id: int
+    title: str = Field(..., min_length=1, max_length=500)
+    document_type: str = Field(..., min_length=1, max_length=100)
+
+
 class NewChatRequest(BaseModel):
     """Request schema for the deep agent chat endpoint."""
 
@@ -211,6 +227,17 @@ class NewChatRequest(BaseModel):
     )
     mentioned_surfsense_doc_ids: list[int] | None = (
         None  # Optional SurfSense documentation IDs mentioned with @ in the chat
+    )
+    mentioned_documents: list[MentionedDocumentInfo] | None = Field(
+        default=None,
+        description=(
+            "Display metadata (id, title, document_type) for every "
+            "@-mentioned document. Persisted as a ``mentioned-documents`` "
+            "ContentPart on the user message so reload renders chips "
+            "without an extra fetch. Optional and additive — when None "
+            "the user message is persisted without a mentioned-documents "
+            "part."
+        ),
     )
     disabled_tools: list[str] | None = (
         None  # Optional list of tool names the user has disabled from the UI
@@ -263,6 +290,16 @@ class RegenerateRequest(BaseModel):
     )
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None
+    mentioned_documents: list[MentionedDocumentInfo] | None = Field(
+        default=None,
+        description=(
+            "Display metadata (id, title, document_type) for every "
+            "@-mentioned document on the edited user turn. Only used "
+            "when ``user_query`` is non-None (edit). Persisted as a "
+            "``mentioned-documents`` ContentPart on the new user "
+            "message. None means no chip metadata."
+        ),
+    )
     disabled_tools: list[str] | None = None
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
@@ -336,6 +373,34 @@ class ResumeRequest(BaseModel):
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
     local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
+    mentioned_documents: list[MentionedDocumentInfo] | None = Field(
+        default=None,
+        description=(
+            "Display metadata forwarded for symmetry with /new_chat and "
+            "/regenerate. Resume reuses the original interrupted user "
+            "turn so the server does not write a new user message. "
+            "Currently unused but accepted to keep request bodies "
+            "uniform across the three streaming entrypoints."
+        ),
+    )
+
+
+class CancelActiveTurnResponse(BaseModel):
+    """Response for canceling an active turn on a chat thread."""
+
+    status: Literal["cancelling", "idle"]
+    error_code: Literal["TURN_CANCELLING", "NO_ACTIVE_TURN"]
+    retry_after_ms: int | None = None
+    retry_after_at: int | None = None
+
+
+class TurnStatusResponse(BaseModel):
+    """Current turn execution status for a thread."""
+
+    status: Literal["idle", "busy", "cancelling"]
+    active_turn_id: str | None = None
+    retry_after_ms: int | None = None
+    retry_after_at: int | None = None
 
 
 # =============================================================================

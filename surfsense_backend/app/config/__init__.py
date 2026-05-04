@@ -47,11 +47,37 @@ def load_global_llm_configs():
             data = yaml.safe_load(f)
             configs = data.get("global_llm_configs", [])
 
+        # Lazy import keeps the `app.config` -> `app.services` edge one-way
+        # and matches the `provider_api_base` pattern used elsewhere.
+        from app.services.provider_capabilities import derive_supports_image_input
+
         seen_slugs: dict[str, int] = {}
         for cfg in configs:
             cfg.setdefault("billing_tier", "free")
             cfg.setdefault("anonymous_enabled", False)
             cfg.setdefault("seo_enabled", False)
+            # Capability flag: explicit YAML override always wins. When the
+            # operator has not annotated the model, defer to LiteLLM's
+            # authoritative model map (`supports_vision`) which already
+            # knows GPT-5.x / GPT-4o / Claude 3.x / Gemini 2.x are
+            # vision-capable. Unknown / unmapped models default-allow so
+            # we don't lock the user out of a freshly added third-party
+            # entry; the streaming-task safety net (driven by
+            # `is_known_text_only_chat_model`) is the only place a False
+            # actually blocks a request.
+            if "supports_image_input" not in cfg:
+                litellm_params = cfg.get("litellm_params") or {}
+                base_model = (
+                    litellm_params.get("base_model")
+                    if isinstance(litellm_params, dict)
+                    else None
+                )
+                cfg["supports_image_input"] = derive_supports_image_input(
+                    provider=cfg.get("provider"),
+                    model_name=cfg.get("model_name"),
+                    base_model=base_model,
+                    custom_provider=cfg.get("custom_provider"),
+                )
 
             if cfg.get("seo_enabled") and cfg.get("seo_slug"):
                 slug = cfg["seo_slug"]
@@ -62,6 +88,27 @@ def load_global_llm_configs():
                     )
                 else:
                     seen_slugs[slug] = cfg.get("id", 0)
+
+        # Stamp Auto (Fastest) ranking metadata. YAML configs are always
+        # Tier A — operator-curated, locked first when premium-eligible.
+        # The OpenRouter refresh tick later re-stamps health for any cfg
+        # whose provider == "OPENROUTER" via _enrich_health.
+        try:
+            from app.services.quality_score import static_score_yaml
+
+            for cfg in configs:
+                cfg["auto_pin_tier"] = "A"
+                static_q = static_score_yaml(cfg)
+                cfg["quality_score_static"] = static_q
+                cfg["quality_score"] = static_q
+                cfg["quality_score_health"] = None
+                # YAML cfgs whose provider is OPENROUTER are also subject
+                # to health gating against their own /endpoints data — a
+                # hand-picked dead OR model is still dead. _enrich_health
+                # re-stamps health_gated for them on the next refresh tick.
+                cfg["health_gated"] = False
+        except Exception as e:
+            print(f"Warning: Failed to score global LLM configs: {e}")
 
         return configs
     except Exception as e:
@@ -117,7 +164,11 @@ def load_global_image_gen_configs():
     try:
         with open(global_config_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
-            return data.get("global_image_generation_configs", [])
+            configs = data.get("global_image_generation_configs", []) or []
+            for cfg in configs:
+                if isinstance(cfg, dict):
+                    cfg.setdefault("billing_tier", "free")
+            return configs
     except Exception as e:
         print(f"Warning: Failed to load global image generation configs: {e}")
         return []
@@ -132,7 +183,11 @@ def load_global_vision_llm_configs():
     try:
         with open(global_config_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
-            return data.get("global_vision_llm_configs", [])
+            configs = data.get("global_vision_llm_configs", []) or []
+            for cfg in configs:
+                if isinstance(cfg, dict):
+                    cfg.setdefault("billing_tier", "free")
+            return configs
     except Exception as e:
         print(f"Warning: Failed to load global vision LLM configs: {e}")
         return []
@@ -194,6 +249,9 @@ def load_openrouter_integration_settings() -> dict | None:
     """
     Load OpenRouter integration settings from the YAML config.
 
+    Emits startup warnings for deprecated keys (``billing_tier``,
+    ``anonymous_enabled``) and seeds their replacements for back-compat.
+
     Returns:
         dict with settings if present and enabled, None otherwise
     """
@@ -206,9 +264,40 @@ def load_openrouter_integration_settings() -> dict | None:
         with open(global_config_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
             settings = data.get("openrouter_integration")
-            if settings and settings.get("enabled"):
-                return settings
-            return None
+            if not settings or not settings.get("enabled"):
+                return None
+
+            if "billing_tier" in settings:
+                print(
+                    "Warning: openrouter_integration.billing_tier is deprecated; "
+                    "tier is now derived per model from OpenRouter data "
+                    "(':free' suffix or zero pricing). Remove this key."
+                )
+
+            if "anonymous_enabled" in settings:
+                print(
+                    "Warning: openrouter_integration.anonymous_enabled is "
+                    "deprecated; use anonymous_enabled_paid and/or "
+                    "anonymous_enabled_free instead. Both new flags have been "
+                    "seeded from the legacy value for back-compat."
+                )
+                settings.setdefault(
+                    "anonymous_enabled_paid", settings["anonymous_enabled"]
+                )
+                settings.setdefault(
+                    "anonymous_enabled_free", settings["anonymous_enabled"]
+                )
+
+            # Image generation + vision LLM emission are opt-in (issue L).
+            # OpenRouter's catalogue contains hundreds of image / vision
+            # capable models; auto-injecting all of them into every
+            # deployment would explode the model selector and surprise
+            # operators upgrading from prior versions. Default to False so
+            # admins must explicitly turn them on.
+            settings.setdefault("image_generation_enabled", False)
+            settings.setdefault("vision_enabled", False)
+
+            return settings
     except Exception as e:
         print(f"Warning: Failed to load OpenRouter integration settings: {e}")
         return None
@@ -217,9 +306,14 @@ def load_openrouter_integration_settings() -> dict | None:
 def initialize_openrouter_integration():
     """
     If enabled, fetch all OpenRouter models and append them to
-    config.GLOBAL_LLM_CONFIGS as dynamic premium entries.
-    Should be called BEFORE initialize_llm_router() so the router
-    correctly excludes premium models from Auto mode.
+    config.GLOBAL_LLM_CONFIGS as dynamic entries. Each model's ``billing_tier``
+    is derived per-model from OpenRouter's API signals (``:free`` suffix or
+    zero pricing), so free OpenRouter models correctly skip premium quota.
+
+    Should be called BEFORE initialize_llm_router(). Dynamic entries are
+    tagged ``router_pool_eligible=False`` so the LiteLLM Router pool (used
+    by title-gen / sub-agent flows) remains scoped to curated YAML configs,
+    while user-facing Auto-mode thread pinning still considers them.
     """
     settings = load_openrouter_integration_settings()
     if not settings:
@@ -235,14 +329,68 @@ def initialize_openrouter_integration():
 
         if new_configs:
             config.GLOBAL_LLM_CONFIGS.extend(new_configs)
+            free_count = sum(1 for c in new_configs if c.get("billing_tier") == "free")
+            premium_count = sum(
+                1 for c in new_configs if c.get("billing_tier") == "premium"
+            )
             print(
                 f"Info: OpenRouter integration added {len(new_configs)} models "
-                f"(billing_tier={settings.get('billing_tier', 'premium')})"
+                f"(free={free_count}, premium={premium_count})"
             )
         else:
             print("Info: OpenRouter integration enabled but no models fetched")
+
+        # Image generation + vision LLM emissions are opt-in (issue L).
+        # Both reuse the catalogue already cached by ``service.initialize``
+        # so we don't make additional network calls here.
+        if settings.get("image_generation_enabled"):
+            try:
+                image_configs = service.get_image_generation_configs()
+                if image_configs:
+                    config.GLOBAL_IMAGE_GEN_CONFIGS.extend(image_configs)
+                    print(
+                        f"Info: OpenRouter integration added {len(image_configs)} "
+                        f"image-generation models"
+                    )
+            except Exception as e:
+                print(f"Warning: Failed to inject OpenRouter image-gen configs: {e}")
+
+        if settings.get("vision_enabled"):
+            try:
+                vision_configs = service.get_vision_llm_configs()
+                if vision_configs:
+                    config.GLOBAL_VISION_LLM_CONFIGS.extend(vision_configs)
+                    print(
+                        f"Info: OpenRouter integration added {len(vision_configs)} "
+                        f"vision LLM models"
+                    )
+            except Exception as e:
+                print(f"Warning: Failed to inject OpenRouter vision-LLM configs: {e}")
     except Exception as e:
         print(f"Warning: Failed to initialize OpenRouter integration: {e}")
+
+
+def initialize_pricing_registration():
+    """
+    Teach LiteLLM the per-token cost of every deployment in
+    ``config.GLOBAL_LLM_CONFIGS`` (OpenRouter dynamic models pulled
+    from the OpenRouter catalogue + any operator-declared YAML pricing).
+
+    Must run AFTER ``initialize_openrouter_integration()`` so the
+    OpenRouter catalogue is populated and BEFORE the first LLM call so
+    ``response_cost`` is available in ``TokenTrackingCallback``.
+
+    Failures are logged but never raised — startup must not be blocked
+    by a missing pricing entry; the worst-case is the model debits 0.
+    """
+    try:
+        from app.services.pricing_registration import (
+            register_pricing_from_global_configs,
+        )
+
+        register_pricing_from_global_configs()
+    except Exception as e:
+        print(f"Warning: Failed to register LiteLLM pricing: {e}")
 
 
 def initialize_llm_router():
@@ -389,13 +537,53 @@ class Config:
         os.getenv("STRIPE_RECONCILIATION_BATCH_SIZE", "100")
     )
 
-    # Premium token quota settings
-    PREMIUM_TOKEN_LIMIT = int(os.getenv("PREMIUM_TOKEN_LIMIT", "3000000"))
+    # Premium credit (micro-USD) quota settings.
+    #
+    # Storage unit is integer micro-USD (1_000_000 = $1.00). The legacy
+    # ``PREMIUM_TOKEN_LIMIT`` and ``STRIPE_TOKENS_PER_UNIT`` env vars are
+    # still honoured for one release as fall-back values — the prior
+    # $1-per-1M-tokens Stripe price means every existing value maps 1:1
+    # to micros, so operators upgrading without changing their .env still
+    # get correct behaviour. A startup deprecation warning fires below if
+    # they're set.
+    PREMIUM_CREDIT_MICROS_LIMIT = int(
+        os.getenv("PREMIUM_CREDIT_MICROS_LIMIT")
+        or os.getenv("PREMIUM_TOKEN_LIMIT", "5000000")
+    )
     STRIPE_PREMIUM_TOKEN_PRICE_ID = os.getenv("STRIPE_PREMIUM_TOKEN_PRICE_ID")
-    STRIPE_TOKENS_PER_UNIT = int(os.getenv("STRIPE_TOKENS_PER_UNIT", "1000000"))
+    STRIPE_CREDIT_MICROS_PER_UNIT = int(
+        os.getenv("STRIPE_CREDIT_MICROS_PER_UNIT")
+        or os.getenv("STRIPE_TOKENS_PER_UNIT", "1000000")
+    )
     STRIPE_TOKEN_BUYING_ENABLED = (
         os.getenv("STRIPE_TOKEN_BUYING_ENABLED", "FALSE").upper() == "TRUE"
     )
+
+    # Safety ceiling on the per-call premium reservation. ``stream_new_chat``
+    # estimates an upper-bound cost from ``litellm.get_model_info`` x the
+    # config's ``quota_reserve_tokens`` and clamps the result to this value
+    # so a misconfigured "$1000/M" model can't lock the user's whole balance
+    # on one call. Default $1.00 covers realistic worst-cases (Opus + 4K
+    # reserve_tokens ≈ $0.36) with headroom.
+    QUOTA_MAX_RESERVE_MICROS = int(os.getenv("QUOTA_MAX_RESERVE_MICROS", "1000000"))
+
+    if os.getenv("PREMIUM_TOKEN_LIMIT") and not os.getenv(
+        "PREMIUM_CREDIT_MICROS_LIMIT"
+    ):
+        print(
+            "Warning: PREMIUM_TOKEN_LIMIT is deprecated; rename to "
+            "PREMIUM_CREDIT_MICROS_LIMIT (1:1 numerical mapping under the "
+            "current Stripe price). The old key will be removed in a "
+            "future release."
+        )
+    if os.getenv("STRIPE_TOKENS_PER_UNIT") and not os.getenv(
+        "STRIPE_CREDIT_MICROS_PER_UNIT"
+    ):
+        print(
+            "Warning: STRIPE_TOKENS_PER_UNIT is deprecated; rename to "
+            "STRIPE_CREDIT_MICROS_PER_UNIT (1:1 numerical mapping). "
+            "The old key will be removed in a future release."
+        )
 
     # Anonymous / no-login mode settings
     NOLOGIN_MODE_ENABLED = os.getenv("NOLOGIN_MODE_ENABLED", "FALSE").upper() == "TRUE"
@@ -411,6 +599,35 @@ class Config:
 
     # Default quota reserve tokens when not specified per-model
     QUOTA_MAX_RESERVE_PER_CALL = int(os.getenv("QUOTA_MAX_RESERVE_PER_CALL", "8000"))
+
+    # Per-image reservation (in micro-USD) used by ``billable_call`` for the
+    # ``POST /image-generations`` endpoint when the global config does not
+    # override it. $0.05 covers realistic worst-cases for current OpenAI /
+    # OpenRouter image-gen pricing. Bypassed entirely for free configs.
+    QUOTA_DEFAULT_IMAGE_RESERVE_MICROS = int(
+        os.getenv("QUOTA_DEFAULT_IMAGE_RESERVE_MICROS", "50000")
+    )
+
+    # Per-podcast reservation (in micro-USD). One agent LLM call generating
+    # a transcript, typically 5k-20k completion tokens. $0.20 covers a long
+    # premium-model run. Tune via env.
+    QUOTA_DEFAULT_PODCAST_RESERVE_MICROS = int(
+        os.getenv("QUOTA_DEFAULT_PODCAST_RESERVE_MICROS", "200000")
+    )
+
+    # Per-video-presentation reservation (in micro-USD). Fan-out of N
+    # slide-scene generations (up to ``VIDEO_PRESENTATION_MAX_SLIDES=30``)
+    # plus refine retries; can produce many premium completions. $1.00
+    # covers worst-case. Tune via env.
+    #
+    # NOTE: this equals the existing ``QUOTA_MAX_RESERVE_MICROS`` default of
+    # 1_000_000. The override path in ``billable_call`` bypasses the
+    # per-call clamp in ``estimate_call_reserve_micros``, so this is the
+    # *actual* hold — raising it via env is fine but means a single video
+    # task can lock $1+ of credit.
+    QUOTA_DEFAULT_VIDEO_PRESENTATION_RESERVE_MICROS = int(
+        os.getenv("QUOTA_DEFAULT_VIDEO_PRESENTATION_RESERVE_MICROS", "1000000")
+    )
 
     # Abuse prevention: concurrent stream cap and CAPTCHA
     ANON_MAX_CONCURRENT_STREAMS = int(os.getenv("ANON_MAX_CONCURRENT_STREAMS", "2"))

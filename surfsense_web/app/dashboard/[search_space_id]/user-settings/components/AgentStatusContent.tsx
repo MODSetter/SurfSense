@@ -178,6 +178,19 @@ const FLAG_GROUPS: FlagGroup[] = [
 			},
 		],
 	},
+	{
+		id: "desktop",
+		title: "Desktop",
+		subtitle: "Desktop-only capabilities exposed by the backend deployment.",
+		flags: [
+			{
+				key: "enable_desktop_local_filesystem",
+				label: "Local filesystem",
+				description: "Allow Desktop chat sessions to operate directly on selected local folders.",
+				envVar: "ENABLE_DESKTOP_LOCAL_FILESYSTEM",
+			},
+		],
+	},
 ];
 
 function FlagRow({ def, value }: { def: FlagDef; value: boolean }) {

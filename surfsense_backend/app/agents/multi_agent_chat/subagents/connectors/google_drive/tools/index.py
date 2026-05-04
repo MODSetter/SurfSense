@@ -10,7 +10,9 @@ from .create_file import create_create_google_drive_file_tool
 from .trash_file import create_delete_google_drive_file_tool
 
 
-def load_tools(*, dependencies: dict[str, Any] | None = None, **kwargs: Any) -> ToolsPermissions:
+def load_tools(
+    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
+) -> ToolsPermissions:
     d = {**(dependencies or {}), **kwargs}
     common = {
         "db_session": d["db_session"],

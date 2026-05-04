@@ -31,6 +31,7 @@ from app.config import (
     initialize_image_gen_router,
     initialize_llm_router,
     initialize_openrouter_integration,
+    initialize_pricing_registration,
     initialize_vision_llm_router,
 )
 from app.db import User, create_db_and_tables, get_async_session
@@ -420,6 +421,135 @@ def _stop_openrouter_background_refresh() -> None:
         OpenRouterIntegrationService.get_instance().stop_background_refresh()
 
 
+async def _warm_agent_jit_caches() -> None:
+    """Pay the LangChain / LangGraph / Deepagents JIT cost at startup.
+
+    Why
+    ----
+    A cold ``create_agent`` + ``StateGraph.compile()`` + Pydantic schema
+    generation chain takes 1.5-2 seconds of pure CPU on first invocation
+    inside any Python process: the graph compiler builds reducers,
+    Pydantic v2 generates and JITs validator schemas, deepagents
+    eagerly compiles its general-purpose subagent, etc. Subsequent
+    compiles in the same process pay only ~50% of that cost (the lazy
+    JIT bits are cached in module-level dicts).
+
+    Doing one throwaway compile during ``lifespan`` startup pre-pays
+    that cost so the *first real request* doesn't. We do NOT prime
+    :mod:`agent_cache` because the cache key requires real
+    ``thread_id`` / ``user_id`` / ``search_space_id`` / etc. — the
+    throwaway agent is genuinely thrown away and immediately collected.
+
+    Safety
+    ------
+    * No DB access. We construct a stub LLM (no real keys), pass an
+      empty tools list, and pass ``checkpointer=None`` so we never
+      touch Postgres.
+    * Bounded by ``asyncio.wait_for`` so a hang here can never block
+      worker startup. On any failure, we log + swallow — the worst
+      case is the first real request pays the full cold cost (i.e.
+      pre-warmup behaviour).
+    """
+    import time as _time
+
+    logger = logging.getLogger(__name__)
+    t0 = _time.perf_counter()
+    try:
+        from langchain.agents import create_agent
+        from langchain.agents.middleware import (
+            ModelCallLimitMiddleware,
+            TodoListMiddleware,
+            ToolCallLimitMiddleware,
+        )
+        from langchain_core.language_models.fake_chat_models import (
+            FakeListChatModel,
+        )
+        from langchain_core.tools import tool
+
+        from app.agents.new_chat.context import SurfSenseContextSchema
+
+        # Minimal LLM stub. ``FakeListChatModel`` satisfies
+        # ``BaseChatModel`` without any network or auth — perfect for
+        # exercising the compile path without side effects.
+        stub_llm = FakeListChatModel(responses=["warmup-response"])
+
+        # Two trivial tools with arg + return schemas — exercises the
+        # Pydantic v2 schema JIT path. Without at least one tool the
+        # graph compile skips the tool-loop bytecode generation that
+        # accounts for ~30-50% of cold compile cost.
+        @tool
+        def _warmup_tool_a(query: str, limit: int = 5) -> str:
+            """Warmup tool A — never actually invoked."""
+            return query[:limit]
+
+        @tool
+        def _warmup_tool_b(name: str, value: float | None = None) -> dict[str, object]:
+            """Warmup tool B — never actually invoked."""
+            return {"name": name, "value": value}
+
+        # A handful of common middleware so the compile pre-pays the
+        # ``AgentMiddleware`` resolver path. These instances never run
+        # because the throwaway agent is immediately collected.
+        # ``SubAgentMiddleware`` is the single heaviest line in cold
+        # ``create_surfsense_deep_agent`` (1.5-2s of CPU per call to
+        # compile its general-purpose subagent's full inner graph),
+        # so we include it here to make sure that compile path is JIT'd.
+        warmup_middleware: list = [
+            TodoListMiddleware(),
+            ModelCallLimitMiddleware(
+                thread_limit=120, run_limit=80, exit_behavior="end"
+            ),
+            ToolCallLimitMiddleware(
+                thread_limit=300, run_limit=80, exit_behavior="continue"
+            ),
+        ]
+        try:
+            from deepagents import SubAgentMiddleware
+            from deepagents.backends import StateBackend
+            from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
+
+            gp_warmup_spec = {  # type: ignore[var-annotated]
+                **GENERAL_PURPOSE_SUBAGENT,
+                "model": stub_llm,
+                "tools": [_warmup_tool_a],
+                "middleware": [TodoListMiddleware()],
+            }
+            warmup_middleware.append(
+                SubAgentMiddleware(backend=StateBackend, subagents=[gp_warmup_spec])
+            )
+        except Exception:
+            # Deepagents missing/incompatible — middleware-only warmup
+            # still produces a useful (smaller) speedup.
+            logger.debug("[startup] SubAgentMiddleware warmup skipped", exc_info=True)
+
+        compiled = create_agent(
+            stub_llm,
+            tools=[_warmup_tool_a, _warmup_tool_b],
+            system_prompt="You are a warmup stub.",
+            middleware=warmup_middleware,
+            context_schema=SurfSenseContextSchema,
+            checkpointer=None,
+        )
+
+        # Touch the compiled graph's stream_channels / nodes so any
+        # remaining lazy schema work fires now instead of on first
+        # real invocation.
+        _ = list(getattr(compiled, "nodes", {}).keys())
+
+        del compiled
+        logger.info(
+            "[startup] Agent JIT warmup completed in %.3fs",
+            _time.perf_counter() - t0,
+        )
+    except Exception:
+        logger.warning(
+            "[startup] Agent JIT warmup failed in %.3fs (non-fatal — first "
+            "real request will pay the full compile cost)",
+            _time.perf_counter() - t0,
+            exc_info=True,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Tune GC: lower gen-2 threshold so long-lived garbage is collected
@@ -432,6 +562,7 @@ async def lifespan(app: FastAPI):
     await setup_checkpointer_tables()
     initialize_openrouter_integration()
     _start_openrouter_background_refresh()
+    initialize_pricing_registration()
     initialize_llm_router()
     initialize_image_gen_router()
     initialize_vision_llm_router()
@@ -443,6 +574,18 @@ async def lifespan(app: FastAPI):
             "Docs will be indexed on the next restart."
         )
 
+    # Phase 1.7 — JIT warmup. Bounded so a stuck warmup never delays
+    # worker readiness. ``shield`` so Uvicorn cancelling startup
+    # doesn't leave half-warmed Pydantic schemas in an inconsistent
+    # state.
+    try:
+        await asyncio.wait_for(asyncio.shield(_warm_agent_jit_caches()), timeout=20)
+    except (TimeoutError, Exception):  # pragma: no cover - defensive
+        logging.getLogger(__name__).warning(
+            "[startup] Agent JIT warmup hit timeout/error — skipping; "
+            "first real request will pay the full compile cost."
+        )
+
     log_system_snapshot("startup_complete")
 
     yield
@@ -452,6 +595,23 @@ async def lifespan(app: FastAPI):
 
 
 def registration_allowed():
+    """Master auth kill switch keyed on the REGISTRATION_ENABLED env var.
+
+    Despite the name, this dependency does NOT only gate registration. When
+    REGISTRATION_ENABLED is FALSE it intentionally blocks every auth surface
+    that could mint or refresh a session for an attacker:
+
+    * email/password ``POST /auth/register``
+    * email/password ``POST /auth/jwt/login``
+    * the Google OAuth router (``/auth/google/authorize`` and the shared
+      ``/auth/google/callback`` handles both new signups and login for
+      existing users, so flipping this off locks both)
+    * the bespoke ``/auth/google/authorize-redirect`` helper used by the UI
+
+    Use it as a temporary "freeze all new sessions" lever during incident
+    response. It is not a way to disable signup while keeping login working;
+    for that, override ``UserManager.oauth_callback`` instead.
+    """
     if not config.REGISTRATION_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Registration is disabled"
@@ -596,32 +756,45 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-app.include_router(
-    fastapi_users.get_auth_router(auth_backend),
-    prefix="/auth/jwt",
-    tags=["auth"],
-    dependencies=[Depends(rate_limit_login)],
-)
-app.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/auth",
-    tags=["auth"],
-    dependencies=[
-        Depends(rate_limit_register),
-        Depends(registration_allowed),  # blocks registration when disabled
-    ],
-)
-app.include_router(
-    fastapi_users.get_reset_password_router(),
-    prefix="/auth",
-    tags=["auth"],
-    dependencies=[Depends(rate_limit_password_reset)],
-)
-app.include_router(
-    fastapi_users.get_verify_router(UserRead),
-    prefix="/auth",
-    tags=["auth"],
-)
+# Password / email-based auth routers are only mounted when not running in
+# Google-OAuth-only mode. Mounting them in OAuth-only prod previously left
+# POST /auth/register reachable, which is the bypass that allowed bots to
+# create non-OAuth users in spite of AUTH_TYPE=GOOGLE.
+if config.AUTH_TYPE != "GOOGLE":
+    app.include_router(
+        fastapi_users.get_auth_router(auth_backend),
+        prefix="/auth/jwt",
+        tags=["auth"],
+        dependencies=[
+            Depends(rate_limit_login),
+            Depends(
+                registration_allowed
+            ),  # honour REGISTRATION_ENABLED kill switch on login too
+        ],
+    )
+    app.include_router(
+        fastapi_users.get_register_router(UserRead, UserCreate),
+        prefix="/auth",
+        tags=["auth"],
+        dependencies=[
+            Depends(rate_limit_register),
+            Depends(registration_allowed),
+        ],
+    )
+    app.include_router(
+        fastapi_users.get_reset_password_router(),
+        prefix="/auth",
+        tags=["auth"],
+        dependencies=[Depends(rate_limit_password_reset)],
+    )
+    app.include_router(
+        fastapi_users.get_verify_router(UserRead),
+        prefix="/auth",
+        tags=["auth"],
+    )
+
+# /users/me (read/update profile) is needed in every auth mode, so it stays
+# mounted unconditionally.
 app.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
     prefix="/users",
@@ -679,16 +852,25 @@ if config.AUTH_TYPE == "GOOGLE":
         ),
         prefix="/auth/google",
         tags=["auth"],
-        dependencies=[
-            Depends(registration_allowed)
-        ],  # blocks OAuth registration when disabled
+        # REGISTRATION_ENABLED is a master auth kill switch: when set to FALSE
+        # it blocks BOTH new OAuth signups AND login of existing OAuth users
+        # (the fastapi-users OAuth router shares one callback for create+login,
+        # so this dependency closes both paths together).
+        dependencies=[Depends(registration_allowed)],
     )
 
     # Add a redirect-based authorize endpoint for Firefox/Safari compatibility
     # This endpoint performs a server-side redirect instead of returning JSON
     # which fixes cross-site cookie issues where browsers don't send cookies
-    # set via cross-origin fetch requests on subsequent redirects
-    @app.get("/auth/google/authorize-redirect", tags=["auth"])
+    # set via cross-origin fetch requests on subsequent redirects.
+    # The registration_allowed dependency mirrors the OAuth router above so
+    # the kill switch fails fast here instead of bouncing users to Google
+    # only to 403 on the callback.
+    @app.get(
+        "/auth/google/authorize-redirect",
+        tags=["auth"],
+        dependencies=[Depends(registration_allowed)],
+    )
     async def google_authorize_redirect(
         request: Request,
     ):

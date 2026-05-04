@@ -112,10 +112,7 @@ def _permission_middleware(*, selected_tools: Sequence[BaseTool]) -> Any:
         Rule(permission=name, pattern="*", action="deny")
         for name in NON_PROVIDER_STATE_MUTATION_DENY
     )
-    rules.extend(
-        Rule(permission=name, pattern="*", action="ask")
-        for name in ask_tools
-    )
+    rules.extend(Rule(permission=name, pattern="*", action="ask") for name in ask_tools)
     return PermissionMiddleware(
         rulesets=[Ruleset(rules=rules, origin="subagent_linear_specialist")]
     )
@@ -163,4 +160,3 @@ def build_linear_specialist_subagent(
     if model is not None:
         spec["model"] = model
     return spec  # type: ignore[return-value]
-
