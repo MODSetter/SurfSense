@@ -595,6 +595,23 @@ async def lifespan(app: FastAPI):
 
 
 def registration_allowed():
+    """Master auth kill switch keyed on the REGISTRATION_ENABLED env var.
+
+    Despite the name, this dependency does NOT only gate registration. When
+    REGISTRATION_ENABLED is FALSE it intentionally blocks every auth surface
+    that could mint or refresh a session for an attacker:
+
+    * email/password ``POST /auth/register``
+    * email/password ``POST /auth/jwt/login``
+    * the Google OAuth router (``/auth/google/authorize`` and the shared
+      ``/auth/google/callback`` handles both new signups and login for
+      existing users, so flipping this off locks both)
+    * the bespoke ``/auth/google/authorize-redirect`` helper used by the UI
+
+    Use it as a temporary "freeze all new sessions" lever during incident
+    response. It is not a way to disable signup while keeping login working;
+    for that, override ``UserManager.oauth_callback`` instead.
+    """
     if not config.REGISTRATION_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Registration is disabled"
@@ -739,32 +756,45 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-app.include_router(
-    fastapi_users.get_auth_router(auth_backend),
-    prefix="/auth/jwt",
-    tags=["auth"],
-    dependencies=[Depends(rate_limit_login)],
-)
-app.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/auth",
-    tags=["auth"],
-    dependencies=[
-        Depends(rate_limit_register),
-        Depends(registration_allowed),  # blocks registration when disabled
-    ],
-)
-app.include_router(
-    fastapi_users.get_reset_password_router(),
-    prefix="/auth",
-    tags=["auth"],
-    dependencies=[Depends(rate_limit_password_reset)],
-)
-app.include_router(
-    fastapi_users.get_verify_router(UserRead),
-    prefix="/auth",
-    tags=["auth"],
-)
+# Password / email-based auth routers are only mounted when not running in
+# Google-OAuth-only mode. Mounting them in OAuth-only prod previously left
+# POST /auth/register reachable, which is the bypass that allowed bots to
+# create non-OAuth users in spite of AUTH_TYPE=GOOGLE.
+if config.AUTH_TYPE != "GOOGLE":
+    app.include_router(
+        fastapi_users.get_auth_router(auth_backend),
+        prefix="/auth/jwt",
+        tags=["auth"],
+        dependencies=[
+            Depends(rate_limit_login),
+            Depends(
+                registration_allowed
+            ),  # honour REGISTRATION_ENABLED kill switch on login too
+        ],
+    )
+    app.include_router(
+        fastapi_users.get_register_router(UserRead, UserCreate),
+        prefix="/auth",
+        tags=["auth"],
+        dependencies=[
+            Depends(rate_limit_register),
+            Depends(registration_allowed),
+        ],
+    )
+    app.include_router(
+        fastapi_users.get_reset_password_router(),
+        prefix="/auth",
+        tags=["auth"],
+        dependencies=[Depends(rate_limit_password_reset)],
+    )
+    app.include_router(
+        fastapi_users.get_verify_router(UserRead),
+        prefix="/auth",
+        tags=["auth"],
+    )
+
+# /users/me (read/update profile) is needed in every auth mode, so it stays
+# mounted unconditionally.
 app.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
     prefix="/users",
@@ -822,16 +852,25 @@ if config.AUTH_TYPE == "GOOGLE":
         ),
         prefix="/auth/google",
         tags=["auth"],
-        dependencies=[
-            Depends(registration_allowed)
-        ],  # blocks OAuth registration when disabled
+        # REGISTRATION_ENABLED is a master auth kill switch: when set to FALSE
+        # it blocks BOTH new OAuth signups AND login of existing OAuth users
+        # (the fastapi-users OAuth router shares one callback for create+login,
+        # so this dependency closes both paths together).
+        dependencies=[Depends(registration_allowed)],
     )
 
     # Add a redirect-based authorize endpoint for Firefox/Safari compatibility
     # This endpoint performs a server-side redirect instead of returning JSON
     # which fixes cross-site cookie issues where browsers don't send cookies
-    # set via cross-origin fetch requests on subsequent redirects
-    @app.get("/auth/google/authorize-redirect", tags=["auth"])
+    # set via cross-origin fetch requests on subsequent redirects.
+    # The registration_allowed dependency mirrors the OAuth router above so
+    # the kill switch fails fast here instead of bouncing users to Google
+    # only to 403 on the callback.
+    @app.get(
+        "/auth/google/authorize-redirect",
+        tags=["auth"],
+        dependencies=[Depends(registration_allowed)],
+    )
     async def google_authorize_redirect(
         request: Request,
     ):
