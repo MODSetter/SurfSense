@@ -10,6 +10,7 @@ It also provides utilities for creating ChatLiteLLM instances and
 managing prompt configurations.
 """
 
+import copy
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,6 +38,48 @@ from app.services.llm_router_service import (
     is_auto_mode,
 )
 
+# Keys we must echo back from ``AIMessage.additional_kwargs`` into the dict
+# sent to the provider on Turn 2. langchain-litellm's
+# ``_convert_message_to_dict`` only forwards ``function_call`` / ``tool_calls``
+# / ``name``; anything else (DeepSeek's ``reasoning_content``, etc.) is
+# silently dropped, which causes DeepSeek's thinking-mode requirement
+# ("the reasoning_content in the thinking mode must be passed back to the
+# API") to fail on every multi-turn request after a tool call.
+_REASONING_PASSTHROUGH_KWARGS: frozenset[str] = frozenset({"reasoning_content"})
+
+
+def _extract_reasoning_content_from_blocks(content: Any) -> str | None:
+    """Recover the reasoning string from a ``content`` list of blocks.
+
+    langchain-litellm's streaming path stores reasoning both in
+    ``additional_kwargs["reasoning_content"]`` and as a
+    ``{"type": "thinking", "thinking": "<text>"}`` block in ``content``
+    (see ``_inject_reasoning_content_into_content``). State persistence /
+    serialization can drop ``additional_kwargs``; the content blocks are
+    more durable. This helper rebuilds the reasoning string from those
+    blocks so the API echo (see :class:`SanitizedChatLiteLLM`) survives a
+    round-trip through LangGraph state.
+    """
+    if not isinstance(content, list):
+        return None
+    parts: list[str] = []
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        block_type = block.get("type")
+        if block_type == "thinking":
+            text = block.get("thinking")
+            if isinstance(text, str) and text:
+                parts.append(text)
+        elif block_type == "redacted_thinking":
+            # Redacted blocks contain opaque base64; surfacing them verbatim
+            # preserves DeepSeek's API contract without leaking content
+            # we can't render.
+            text = block.get("data")
+            if isinstance(text, str) and text:
+                parts.append(text)
+    return "".join(parts) if parts else None
+
 
 def _sanitize_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
     """Sanitize content on every message so it is safe for any provider.
@@ -48,23 +91,94 @@ def _sanitize_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
       convert ``""`` to ``[{"type":"text","text":""}]`` server-side then
       reject the blank text.  The OpenAI spec says ``content`` should be
       ``null`` when an assistant message only carries tool calls.
+
+    The input messages are not mutated. LangGraph state typically holds
+    the same ``BaseMessage`` instances we receive here; mutating
+    ``msg.content`` in place would corrupt state for any subsequent code
+    path (notably reasoning-content recovery on the next turn — see
+    :func:`_extract_reasoning_content_from_blocks`).
     """
+    sanitized: list[BaseMessage] = []
     for msg in messages:
-        if isinstance(msg.content, list):
-            msg.content = _sanitize_content(msg.content)
+        new_msg = copy.copy(msg)
+        new_content = msg.content
+        if isinstance(new_content, list):
+            new_content = _sanitize_content(new_content)
         if (
-            isinstance(msg, AIMessage)
-            and (not msg.content or msg.content == "")
+            isinstance(new_msg, AIMessage)
+            and (not new_content or new_content == "")
             and getattr(msg, "tool_calls", None)
         ):
-            msg.content = None  # type: ignore[assignment]
-    return messages
+            new_content = None  # type: ignore[assignment]
+        new_msg.content = new_content
+        sanitized.append(new_msg)
+    return sanitized
+
+
+def _attach_reasoning_passthrough(
+    original_messages: list[BaseMessage], message_dicts: list[dict[str, Any]]
+) -> None:
+    """Copy reasoning-passthrough fields from each AIMessage onto the dict
+    that langchain-litellm built for the provider request.
+
+    langchain-litellm's ``_convert_message_to_dict`` keeps only a fixed
+    set of ``additional_kwargs`` keys (``function_call`` / ``tool_calls``
+    / ``name``). Any reasoning field a provider requires us to echo on
+    Turn 2 (DeepSeek's ``reasoning_content`` is the canonical case) gets
+    silently dropped. This restores the field at the boundary —
+    provider-agnostic, no-op when the field is absent.
+
+    If ``additional_kwargs[<key>]`` is missing but the AIMessage's
+    ``content`` carries a ``thinking`` block (langchain-litellm's
+    streaming path stores reasoning in BOTH places — see
+    ``_inject_reasoning_content_into_content``), we recover it from
+    there. State persistence layers occasionally retain content blocks
+    while losing ``additional_kwargs``; this fallback keeps the echo
+    working across that gap.
+    """
+    if len(original_messages) != len(message_dicts):
+        return
+    for msg, msg_dict in zip(original_messages, message_dicts, strict=False):
+        if not isinstance(msg, AIMessage):
+            continue
+        extra = getattr(msg, "additional_kwargs", None) or {}
+        for key in _REASONING_PASSTHROUGH_KWARGS:
+            value = extra.get(key) if isinstance(extra, dict) else None
+            if not value and key == "reasoning_content":
+                value = _extract_reasoning_content_from_blocks(msg.content)
+            if value:
+                msg_dict[key] = value
 
 
 class SanitizedChatLiteLLM(ChatLiteLLM):
     """ChatLiteLLM subclass that strips provider-specific content blocks
     (e.g. ``thinking`` from reasoning models) and normalises bare strings
-    in content arrays before forwarding to the underlying provider."""
+    in content arrays before forwarding to the underlying provider.
+
+    Also restores ``reasoning_content`` (and any other key in
+    :data:`_REASONING_PASSTHROUGH_KWARGS`) onto outgoing message dicts
+    after langchain-litellm's ``_convert_message_to_dict`` drops it.
+    DeepSeek's thinking-mode contract — "The reasoning_content in the
+    thinking mode must be passed back to the API" — fails without this
+    on Turn 2 of any tool-calling conversation.
+    """
+
+    def _create_message_dicts(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        sanitized = _sanitize_messages(messages)
+        message_dicts, params = super()._create_message_dicts(sanitized, stop)
+        # Pass the ORIGINAL messages (not sanitized) to the reasoning
+        # passthrough — sanitization strips ``thinking`` blocks from
+        # ``content``, which is the fallback we rely on when
+        # ``additional_kwargs["reasoning_content"]`` is absent. The two
+        # lists have the same length (one ``message_dict`` per message)
+        # and the same order, so the zip in
+        # :func:`_attach_reasoning_passthrough` lines up.
+        _attach_reasoning_passthrough(messages, message_dicts)
+        return message_dicts, params
 
     def _generate(
         self,
@@ -73,6 +187,10 @@ class SanitizedChatLiteLLM(ChatLiteLLM):
         run_manager: CallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> ChatResult:
+        # ``_generate`` does not call ``_create_message_dicts`` directly in
+        # all langchain-litellm releases, so sanitize at the boundary too;
+        # passthrough still lands via the ``_create_message_dicts`` override
+        # invoked downstream.
         return super()._generate(
             _sanitize_messages(messages), stop, run_manager, **kwargs
         )
