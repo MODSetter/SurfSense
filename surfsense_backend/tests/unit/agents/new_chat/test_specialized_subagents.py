@@ -210,10 +210,16 @@ class TestConnectorNegotiatorSubagent:
 
 
 class TestBuildSpecializedSubagents:
-    def test_returns_three_specs(self) -> None:
+    def test_returns_five_specs(self) -> None:
         specs = build_specialized_subagents(tools=ALL_TOOLS)
         names = [s["name"] for s in specs]  # type: ignore[index]
-        assert names == ["explore", "report_writer", "connector_negotiator"]
+        assert names == [
+            "explore",
+            "report_writer",
+            "linear_specialist",
+            "slack_specialist",
+            "connector_negotiator",
+        ]
 
     def test_all_specs_have_unique_names(self) -> None:
         specs = build_specialized_subagents(tools=ALL_TOOLS)

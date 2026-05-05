@@ -754,6 +754,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
+    # Cache CORS preflight (OPTIONS) responses for 24h. Browsers clamp:
+    # Chrome/Edge cap at 7200s, Firefox honours up to 86400s. Setting the
+    # higher value lets each browser cache for as long as it allows. This
+    # eliminates an OPTIONS round-trip on every non-simple request from
+    # FRONTEND_URL to BACKEND_URL.
+    max_age=86400,
 )
 
 # Password / email-based auth routers are only mounted when not running in

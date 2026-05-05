@@ -250,24 +250,19 @@ class AgentFeatureFlags:
         )
 
 
-# Module-level cache. Read once at import time so the values are consistent
-# across the process lifetime. Use ``reload_for_tests`` to reset in tests.
-_FLAGS: AgentFeatureFlags | None = None
-
-
 def get_flags() -> AgentFeatureFlags:
-    """Return the resolved feature-flag state, caching on first call."""
-    global _FLAGS
-    if _FLAGS is None:
-        _FLAGS = AgentFeatureFlags.from_env()
-    return _FLAGS
+    """Return the resolved feature-flag state from the **current** process environment.
+
+    Intentionally **not** cached: ``load_dotenv`` and operator edits to env vars
+    must affect the next agent build without requiring a full process restart.
+    Cost is negligible (reads ``os.environ`` once per call).
+    """
+    return AgentFeatureFlags.from_env()
 
 
 def reload_for_tests() -> AgentFeatureFlags:
-    """Force a fresh read from env. Tests should call this after monkeypatching env."""
-    global _FLAGS
-    _FLAGS = AgentFeatureFlags.from_env()
-    return _FLAGS
+    """Compatibility helper for tests; equivalent to :func:`get_flags`."""
+    return AgentFeatureFlags.from_env()
 
 
 __all__ = [

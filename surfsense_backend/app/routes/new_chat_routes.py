@@ -2396,6 +2396,7 @@ async def resume_chat(
                 thread_visibility=thread.visibility,
                 filesystem_selection=filesystem_selection,
                 request_id=getattr(http_request.state, "request_id", "unknown"),
+                disabled_tools=request.disabled_tools,
             ),
             media_type="text/event-stream",
             headers={

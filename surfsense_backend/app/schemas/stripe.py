@@ -56,6 +56,26 @@ class StripeWebhookResponse(BaseModel):
     received: bool = True
 
 
+class FinalizeCheckoutResponse(BaseModel):
+    """Response from /stripe/finalize-checkout.
+
+    Returned by the success page so the UI can show the post-purchase
+    balance immediately, even when the Stripe webhook hasn't been
+    delivered yet. ``status`` mirrors the underlying purchase row
+    (``pending`` / ``completed`` / ``failed``); the FE polls this
+    endpoint until it sees ``completed`` or a final ``failed``.
+    """
+
+    purchase_type: str  # "page_packs" | "premium_tokens"
+    status: str  # PagePurchaseStatus / PremiumTokenPurchaseStatus value
+    pages_limit: int | None = None
+    pages_used: int | None = None
+    pages_granted: int | None = None
+    premium_credit_micros_limit: int | None = None
+    premium_credit_micros_used: int | None = None
+    premium_credit_micros_granted: int | None = None
+
+
 class CreateTokenCheckoutSessionRequest(BaseModel):
     """Request body for creating a premium token purchase checkout session."""
 

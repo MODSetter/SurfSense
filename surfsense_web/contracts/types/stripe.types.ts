@@ -73,6 +73,19 @@ export const getTokenPurchasesResponse = z.object({
 	purchases: z.array(tokenPurchase),
 });
 
+// Response from /stripe/finalize-checkout. Either page or token fields
+// are populated depending on purchase_type.
+export const finalizeCheckoutResponse = z.object({
+	purchase_type: z.enum(["page_packs", "premium_tokens"]),
+	status: pagePurchaseStatusEnum,
+	pages_limit: z.number().nullable().optional(),
+	pages_used: z.number().nullable().optional(),
+	pages_granted: z.number().nullable().optional(),
+	premium_credit_micros_limit: z.number().nullable().optional(),
+	premium_credit_micros_used: z.number().nullable().optional(),
+	premium_credit_micros_granted: z.number().nullable().optional(),
+});
+
 export type PagePurchaseStatus = z.infer<typeof pagePurchaseStatusEnum>;
 export type CreateCheckoutSessionRequest = z.infer<typeof createCheckoutSessionRequest>;
 export type CreateCheckoutSessionResponse = z.infer<typeof createCheckoutSessionResponse>;
@@ -85,3 +98,4 @@ export type TokenStripeStatusResponse = z.infer<typeof tokenStripeStatusResponse
 export type TokenPurchaseStatus = z.infer<typeof tokenPurchaseStatusEnum>;
 export type TokenPurchase = z.infer<typeof tokenPurchase>;
 export type GetTokenPurchasesResponse = z.infer<typeof getTokenPurchasesResponse>;
+export type FinalizeCheckoutResponse = z.infer<typeof finalizeCheckoutResponse>;

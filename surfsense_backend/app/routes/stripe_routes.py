@@ -26,6 +26,7 @@ from app.schemas.stripe import (
     CreateCheckoutSessionResponse,
     CreateTokenCheckoutSessionRequest,
     CreateTokenCheckoutSessionResponse,
+    FinalizeCheckoutResponse,
     PagePurchaseHistoryResponse,
     StripeStatusResponse,
     StripeWebhookResponse,
@@ -65,7 +66,15 @@ def _get_checkout_urls(search_space_id: int) -> tuple[str, str]:
         )
 
     base_url = config.NEXT_FRONTEND_URL.rstrip("/")
-    success_url = f"{base_url}/dashboard/{search_space_id}/purchase-success"
+    # Stripe substitutes ``{CHECKOUT_SESSION_ID}`` with the actual session id
+    # at redirect time. The frontend uses it to call /stripe/finalize-checkout
+    # which fulfils synchronously without waiting for the webhook — fixing the
+    # webhook-vs-redirect race where users land on /purchase-success before
+    # checkout.session.completed has been delivered.
+    success_url = (
+        f"{base_url}/dashboard/{search_space_id}/purchase-success"
+        f"?session_id={{CHECKOUT_SESSION_ID}}"
+    )
     cancel_url = f"{base_url}/dashboard/{search_space_id}/purchase-cancel"
     return success_url, cancel_url
 
@@ -88,10 +97,62 @@ def _normalize_optional_string(value: Any) -> str | None:
 
 
 def _get_metadata(checkout_session: Any) -> dict[str, str]:
-    metadata = getattr(checkout_session, "metadata", None) or {}
+    """Extract checkout session metadata as a plain ``str -> str`` dict.
+
+    In ``stripe>=15.0`` ``StripeObject`` is no longer a ``dict`` subclass
+    and exposes neither ``items()`` nor ``__iter__`` nor ``keys()``.
+    ``dict(obj)`` falls into the sequence protocol and raises
+    ``KeyError: 0``; ``obj.items()`` raises ``AttributeError``. The
+    supported way to materialize a ``StripeObject`` as a plain dict is
+    its ``to_dict()`` method (added in stripe-python 8.x, present in 15.x).
+    """
+    metadata = getattr(checkout_session, "metadata", None)
+    if metadata is None:
+        return {}
+
+    # 1. Plain dict (older SDKs that subclassed dict, JSON-decoded events
+    #    in tests, etc.).
     if isinstance(metadata, dict):
-        return {str(key): str(value) for key, value in metadata.items()}
-    return dict(metadata)
+        return {str(k): str(v) for k, v in metadata.items()}
+
+    # 2. Modern Stripe SDK: every ``StripeObject`` has ``to_dict()``.
+    #    ``recursive=False`` is correct because Stripe metadata values
+    #    are always primitive strings.
+    to_dict = getattr(metadata, "to_dict", None)
+    if callable(to_dict):
+        try:
+            d = to_dict(recursive=False)
+            if isinstance(d, dict):
+                return {str(k): str(v) for k, v in d.items()}
+        except Exception:
+            logger.exception(
+                "Stripe metadata.to_dict() failed for session %s",
+                getattr(checkout_session, "id", "?"),
+            )
+
+    # 3. Last-resort: read the SDK's private ``_data`` backing dict.
+    #    Stable across stripe-python 6.x -> 15.x.
+    inner = getattr(metadata, "_data", None)
+    if isinstance(inner, dict):
+        return {str(k): str(v) for k, v in inner.items()}
+
+    logger.warning(
+        "Could not extract metadata from checkout session %s (metadata type=%s)",
+        getattr(checkout_session, "id", "?"),
+        type(metadata).__name__,
+    )
+    return {}
+
+
+# Canonical purchase_type metadata values. ``premium_credit`` was emitted
+# by an earlier release of ``create_token_checkout_session`` so it's still
+# accepted on the read side for backward compat with in-flight sessions.
+_PURCHASE_TYPE_TOKEN_VALUES = frozenset({"premium_tokens", "premium_credit"})
+
+
+def _is_token_purchase(metadata: dict[str, str]) -> bool:
+    """Return True for premium-credit (a.k.a. premium_token) purchases."""
+    return metadata.get("purchase_type", "page_packs") in _PURCHASE_TYPE_TOKEN_VALUES
 
 
 async def _get_or_create_purchase_from_checkout_session(
@@ -439,43 +500,215 @@ async def stripe_webhook(
             detail="Invalid Stripe webhook signature.",
         ) from exc
 
-    if event.type in {
-        "checkout.session.completed",
-        "checkout.session.async_payment_succeeded",
-    }:
-        checkout_session = event.data.object
-        payment_status = getattr(checkout_session, "payment_status", None)
-
-        if event.type == "checkout.session.completed" and payment_status not in {
-            "paid",
-            "no_payment_required",
+    try:
+        if event.type in {
+            "checkout.session.completed",
+            "checkout.session.async_payment_succeeded",
         }:
-            logger.info(
-                "Received checkout.session.completed for unpaid session %s; waiting for async success.",
-                checkout_session.id,
-            )
-            return StripeWebhookResponse()
+            checkout_session = event.data.object
+            payment_status = getattr(checkout_session, "payment_status", None)
 
-        metadata = _get_metadata(checkout_session)
-        purchase_type = metadata.get("purchase_type", "page_packs")
-        if purchase_type == "premium_tokens":
-            return await _fulfill_completed_token_purchase(db_session, checkout_session)
-        return await _fulfill_completed_purchase(db_session, checkout_session)
+            if event.type == "checkout.session.completed" and payment_status not in {
+                "paid",
+                "no_payment_required",
+            }:
+                logger.info(
+                    "Received checkout.session.completed for unpaid session %s; waiting for async success.",
+                    checkout_session.id,
+                )
+                return StripeWebhookResponse()
 
-    if event.type in {
-        "checkout.session.async_payment_failed",
-        "checkout.session.expired",
-    }:
-        checkout_session = event.data.object
-        metadata = _get_metadata(checkout_session)
-        purchase_type = metadata.get("purchase_type", "page_packs")
-        if purchase_type == "premium_tokens":
-            return await _mark_token_purchase_failed(
-                db_session, str(checkout_session.id)
-            )
-        return await _mark_purchase_failed(db_session, str(checkout_session.id))
+            metadata = _get_metadata(checkout_session)
+            if _is_token_purchase(metadata):
+                return await _fulfill_completed_token_purchase(
+                    db_session, checkout_session
+                )
+            return await _fulfill_completed_purchase(db_session, checkout_session)
+
+        if event.type in {
+            "checkout.session.async_payment_failed",
+            "checkout.session.expired",
+        }:
+            checkout_session = event.data.object
+            metadata = _get_metadata(checkout_session)
+            if _is_token_purchase(metadata):
+                return await _mark_token_purchase_failed(
+                    db_session, str(checkout_session.id)
+                )
+            return await _mark_purchase_failed(db_session, str(checkout_session.id))
+    except Exception:
+        # Re-raise so FastAPI returns 500 and Stripe retries this delivery.
+        # Logging here gives us a structured trail with event id + type so
+        # future webhook bugs surface immediately in the logs without
+        # having to grep by request_id.
+        logger.exception(
+            "Stripe webhook handler failed for event id=%s type=%s — Stripe will retry",
+            getattr(event, "id", "?"),
+            getattr(event, "type", "?"),
+        )
+        raise
 
     return StripeWebhookResponse()
+
+
+@router.get("/finalize-checkout", response_model=FinalizeCheckoutResponse)
+async def finalize_checkout(
+    session_id: str,
+    user: User = Depends(current_active_user),
+    db_session: AsyncSession = Depends(get_async_session),
+) -> FinalizeCheckoutResponse:
+    """Synchronously fulfil a checkout session from the success page.
+
+    Solves the webhook-vs-redirect race: the user lands on
+    ``/dashboard/<id>/purchase-success?session_id=cs_...`` typically a
+    few hundred ms after paying, but Stripe's
+    ``checkout.session.completed`` webhook can take 5-30s+ to arrive.
+    Calling this endpoint on success-page mount fulfils the purchase
+    immediately by retrieving the session from Stripe's API and
+    invoking the same idempotent helpers the webhook uses.
+
+    Idempotency: if the webhook has already fulfilled this purchase
+    (status=COMPLETED), the helpers short-circuit and we just return
+    the latest balance. Concurrent webhook + finalize calls are safe
+    because both acquire ``SELECT ... FOR UPDATE`` on the purchase row.
+
+    Authorization: the session's ``client_reference_id`` must match the
+    authenticated user's id. This prevents a user from finalising
+    someone else's checkout session if they happen to know the id.
+    """
+    stripe_client = get_stripe_client()
+
+    try:
+        checkout_session = stripe_client.v1.checkout.sessions.retrieve(session_id)
+    except StripeError as exc:
+        logger.warning(
+            "finalize_checkout: stripe lookup failed for session=%s user=%s: %s",
+            session_id,
+            user.id,
+            exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Checkout session not found.",
+        ) from exc
+
+    # Authorization check: the user finalising must be the user who
+    # initiated the checkout. ``client_reference_id`` is set in
+    # ``create_checkout_session`` / ``create_token_checkout_session``.
+    client_reference_id = getattr(checkout_session, "client_reference_id", None)
+    if client_reference_id != str(user.id):
+        logger.warning(
+            "finalize_checkout: ownership mismatch session=%s client_ref=%s user=%s",
+            session_id,
+            client_reference_id,
+            user.id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This checkout session does not belong to you.",
+        )
+
+    metadata = _get_metadata(checkout_session)
+    is_token = _is_token_purchase(metadata)
+    payment_status = getattr(checkout_session, "payment_status", None)
+    session_status = getattr(checkout_session, "status", None)
+
+    # Defensive fallback: if metadata can't be read for any reason
+    # (extraction failure, manually-created session in Stripe dashboard,
+    # SDK upgrade breaking ``to_dict``, etc.) we'd otherwise route every
+    # purchase to the page_packs handler and get stuck. Resolve the
+    # purchase_type by checking which table actually has the row keyed
+    # by this Stripe session id.
+    if not metadata:
+        existing_token_purchase = (
+            await db_session.execute(
+                select(PremiumTokenPurchase.id).where(
+                    PremiumTokenPurchase.stripe_checkout_session_id
+                    == str(checkout_session.id)
+                )
+            )
+        ).scalar_one_or_none()
+        if existing_token_purchase is not None:
+            is_token = True
+        else:
+            existing_page_purchase = (
+                await db_session.execute(
+                    select(PagePurchase.id).where(
+                        PagePurchase.stripe_checkout_session_id
+                        == str(checkout_session.id)
+                    )
+                )
+            ).scalar_one_or_none()
+            if existing_page_purchase is None:
+                logger.error(
+                    "finalize_checkout: no purchase row in either table "
+                    "and metadata is empty for session=%s user=%s",
+                    session_id,
+                    user.id,
+                )
+                # Fall through; downstream path will short-circuit on
+                # missing-row + empty-metadata.
+        logger.info(
+            "finalize_checkout: recovered purchase_type=%s for session=%s "
+            "via DB fallback (metadata was empty)",
+            "premium_tokens" if is_token else "page_packs",
+            session_id,
+        )
+
+    is_paid = payment_status in {"paid", "no_payment_required"}
+    is_expired = session_status == "expired"
+
+    if is_paid:
+        if is_token:
+            await _fulfill_completed_token_purchase(db_session, checkout_session)
+        else:
+            await _fulfill_completed_purchase(db_session, checkout_session)
+    elif is_expired:
+        if is_token:
+            await _mark_token_purchase_failed(db_session, str(checkout_session.id))
+        else:
+            await _mark_purchase_failed(db_session, str(checkout_session.id))
+    # Otherwise (e.g. payment_status="unpaid", session_status="open"),
+    # leave the purchase row alone — frontend will keep polling and the
+    # webhook will eventually win the race.
+
+    # Refresh the user row so the response reflects any update applied
+    # by the fulfilment helpers in this same session.
+    await db_session.refresh(user)
+
+    if is_token:
+        purchase = (
+            await db_session.execute(
+                select(PremiumTokenPurchase).where(
+                    PremiumTokenPurchase.stripe_checkout_session_id
+                    == str(checkout_session.id)
+                )
+            )
+        ).scalar_one_or_none()
+        return FinalizeCheckoutResponse(
+            purchase_type="premium_tokens",
+            status=purchase.status.value if purchase else "pending",
+            premium_credit_micros_limit=user.premium_credit_micros_limit,
+            premium_credit_micros_used=user.premium_credit_micros_used,
+            premium_credit_micros_granted=(
+                purchase.credit_micros_granted if purchase else None
+            ),
+        )
+
+    purchase = (
+        await db_session.execute(
+            select(PagePurchase).where(
+                PagePurchase.stripe_checkout_session_id == str(checkout_session.id)
+            )
+        )
+    ).scalar_one_or_none()
+    return FinalizeCheckoutResponse(
+        purchase_type="page_packs",
+        status=purchase.status.value if purchase else "pending",
+        pages_limit=user.pages_limit,
+        pages_used=user.pages_used,
+        pages_granted=purchase.pages_granted if purchase else None,
+    )
 
 
 @router.get("/purchases", response_model=PagePurchaseHistoryResponse)
@@ -524,7 +757,11 @@ def _get_token_checkout_urls(search_space_id: int) -> tuple[str, str]:
             detail="NEXT_FRONTEND_URL is not configured.",
         )
     base_url = config.NEXT_FRONTEND_URL.rstrip("/")
-    success_url = f"{base_url}/dashboard/{search_space_id}/purchase-success"
+    # See ``_get_checkout_urls`` for why session_id is appended.
+    success_url = (
+        f"{base_url}/dashboard/{search_space_id}/purchase-success"
+        f"?session_id={{CHECKOUT_SESSION_ID}}"
+    )
     cancel_url = f"{base_url}/dashboard/{search_space_id}/purchase-cancel"
     return success_url, cancel_url
 
@@ -575,7 +812,11 @@ async def create_token_checkout_session(
                     "user_id": str(user.id),
                     "quantity": str(body.quantity),
                     "credit_micros_per_unit": str(config.STRIPE_CREDIT_MICROS_PER_UNIT),
-                    "purchase_type": "premium_credit",
+                    # Canonical value matched by ``_is_token_purchase``.
+                    # The legacy ``"premium_credit"`` is still accepted on
+                    # the read side for any in-flight sessions started
+                    # before this rename.
+                    "purchase_type": "premium_tokens",
                 },
             }
         )
