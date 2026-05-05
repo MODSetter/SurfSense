@@ -16,6 +16,7 @@ from app.agents.new_chat.llm_config import (
 from app.agents.new_chat.tools.update_memory import MEMORY_HARD_LIMIT, _save_memory
 from app.db import User, get_async_session
 from app.users import current_active_user
+from app.utils.content_utils import extract_text_content
 
 logger = logging.getLogger(__name__)
 
@@ -123,11 +124,7 @@ async def edit_user_memory(
             [HumanMessage(content=prompt)],
             config={"tags": ["surfsense:internal", "memory-edit"]},
         )
-        updated = (
-            response.content
-            if isinstance(response.content, str)
-            else str(response.content)
-        ).strip()
+        updated = extract_text_content(response.content).strip()
     except Exception as e:
         logger.exception("Memory edit LLM call failed: %s", e)
         raise HTTPException(status_code=500, detail="Memory edit failed.") from e
