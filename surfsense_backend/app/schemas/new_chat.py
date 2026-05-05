@@ -367,6 +367,9 @@ class ResumeDecision(BaseModel):
 class ResumeRequest(BaseModel):
     search_space_id: int
     decisions: list[ResumeDecision]
+    # Mirrors ``NewChatRequest.disabled_tools`` so the resumed run sees the
+    # same tool surface as the originating turn.
+    disabled_tools: list[str] | None = None
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
     local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None

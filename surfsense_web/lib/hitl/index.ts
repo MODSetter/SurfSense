@@ -1,3 +1,11 @@
+export {
+	type BundleSubmit,
+	type HitlBundleAPI,
+	HitlBundleProvider,
+	ToolCallIdProvider,
+	useHitlBundle,
+	useToolCallIdContext,
+} from "./bundle-context";
 export type {
 	HitlDecision,
 	InterruptActionRequest,

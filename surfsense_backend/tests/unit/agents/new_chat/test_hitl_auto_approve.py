@@ -27,6 +27,7 @@ class TestDefaultAutoApprovedToolsList:
         expected = {
             "create_gmail_draft",
             "update_gmail_draft",
+            "create_calendar_event",
             "create_notion_page",
             "create_confluence_page",
             "create_google_drive_file",
@@ -41,13 +42,12 @@ class TestDefaultAutoApprovedToolsList:
         assert isinstance(DEFAULT_AUTO_APPROVED_TOOLS, frozenset)
 
     def test_send_tools_are_not_auto_approved(self) -> None:
-        # External-broadcast tools must always prompt.
+        # External-broadcast / destructive tools must always prompt.
         for tool_name in (
             "send_gmail_email",
             "send_discord_message",
             "send_teams_message",
             "delete_notion_page",
-            "create_calendar_event",
             "delete_calendar_event",
         ):
             assert tool_name not in DEFAULT_AUTO_APPROVED_TOOLS, (

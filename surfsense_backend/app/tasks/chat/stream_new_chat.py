@@ -28,6 +28,9 @@ from langchain_core.messages import HumanMessage
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from app.agents.multi_agent_chat import (
+    create_surfsense_deep_agent as create_registry_deep_agent,
+)
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
 from app.agents.new_chat.context import SurfSenseContextSchema
@@ -82,6 +85,8 @@ from app.utils.user_message_multimodal import build_human_message_content
 
 _background_tasks: set[asyncio.Task] = set()
 _perf_log = get_perf_logger()
+logger = logging.getLogger(__name__)
+
 TURN_CANCELLING_INITIAL_DELAY_MS = 200
 TURN_CANCELLING_BACKOFF_FACTOR = 2
 TURN_CANCELLING_MAX_DELAY_MS = 1500
@@ -2438,6 +2443,10 @@ async def stream_new_chat(
     _premium_reserved_micros = 0
     _premium_request_id: str | None = None
 
+    # ``BusyError`` fires before the lock is acquired; the ``finally`` must
+    # not release the in-flight caller's lock.
+    _busy_error_raised = False
+
     _emit_stream_error = partial(
         _emit_stream_terminal_error,
         streaming_service=streaming_service,
@@ -2752,13 +2761,22 @@ async def stream_new_chat(
         )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
+        from app.config import config as _app_config
+
+        use_multi_agent = bool(_app_config.MULTI_AGENT_CHAT_ENABLED)
+
         _t0 = time.perf_counter()
+        agent_factory = (
+            create_registry_deep_agent
+            if use_multi_agent
+            else create_surfsense_deep_agent
+        )
         # Speculative agent build — runs in parallel with the preflight
         # task (if any). Built with the *current* ``llm`` / ``agent_config``;
         # if preflight reports 429 we will discard this future and rebuild
         # against the freshly pinned config below.
         agent_build_task = asyncio.create_task(
-            create_surfsense_deep_agent(
+            agent_factory(
                 llm=llm,
                 search_space_id=search_space_id,
                 db_session=session,
@@ -2862,7 +2880,7 @@ async def stream_new_chat(
                 )
                 # Rebuild against the new llm/agent_config. Sequential
                 # here because we no longer have anything to overlap with.
-                agent = await create_surfsense_deep_agent(
+                agent = await agent_factory(
                     llm=llm,
                     search_space_id=search_space_id,
                     db_session=session,
@@ -3634,6 +3652,12 @@ async def stream_new_chat(
         # Handle any errors
         import traceback
 
+        # ``BusyError`` fires before the agent acquires the lock; the
+        # cleanup path must skip lock release to avoid freeing the
+        # in-flight caller's lock. Classification is handled below.
+        if isinstance(e, BusyError):
+            _busy_error_raised = True
+
         (
             error_kind,
             error_code,
@@ -3807,6 +3831,16 @@ async def stream_new_chat(
                             chat_id, stream_result.sandbox_files
                         )
 
+        # ``aafter_agent`` doesn't fire on ``interrupt()`` or early bailout.
+        # Skip on ``BusyError`` (caller never acquired the lock).
+        if not _busy_error_raised:
+            with contextlib.suppress(Exception):
+                end_turn(str(chat_id))
+                _perf_log.info(
+                    "[stream_new_chat] end_turn cleanup (chat_id=%s)",
+                    chat_id,
+                )
+
         # Break circular refs held by the agent graph, tools, and LLM
         # wrappers so the GC can reclaim them in a single pass.
         agent = llm = connector_service = None
@@ -3833,6 +3867,7 @@ async def stream_resume_chat(
     thread_visibility: ChatVisibility | None = None,
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
+    disabled_tools: list[str] | None = None,
 ) -> AsyncGenerator[str, None]:
     streaming_service = VercelStreamingService()
     stream_result = StreamResult()
@@ -3851,10 +3886,12 @@ async def stream_resume_chat(
         fs_mode,
         fs_platform,
     )
-
     from app.services.token_tracking_service import start_turn
 
     accumulator = start_turn()
+
+    # Skip the finally release on ``BusyError`` (caller never acquired the lock).
+    _busy_error_raised = False
 
     _emit_stream_error = partial(
         _emit_stream_terminal_error,
@@ -4089,10 +4126,16 @@ async def stream_resume_chat(
         )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
+        from app.config import config as _app_config
 
         _t0 = time.perf_counter()
+        agent_factory = (
+            create_registry_deep_agent
+            if _app_config.MULTI_AGENT_CHAT_ENABLED
+            else create_surfsense_deep_agent
+        )
         agent_build_task = asyncio.create_task(
-            create_surfsense_deep_agent(
+            agent_factory(
                 llm=llm,
                 search_space_id=search_space_id,
                 db_session=session,
@@ -4104,6 +4147,7 @@ async def stream_resume_chat(
                 firecrawl_api_key=firecrawl_api_key,
                 thread_visibility=visibility,
                 filesystem_selection=filesystem_selection,
+                disabled_tools=disabled_tools,
             ),
             name="agent_build:stream_resume",
         )
@@ -4180,7 +4224,7 @@ async def stream_resume_chat(
                         "fallback_config_id": llm_config_id,
                     },
                 )
-                agent = await create_surfsense_deep_agent(
+                agent = await agent_factory(
                     llm=llm,
                     search_space_id=search_space_id,
                     db_session=session,
@@ -4192,6 +4236,7 @@ async def stream_resume_chat(
                     firecrawl_api_key=firecrawl_api_key,
                     thread_visibility=visibility,
                     filesystem_selection=filesystem_selection,
+                    disabled_tools=disabled_tools,
                 )
 
         if agent is None:
@@ -4217,6 +4262,9 @@ async def stream_resume_chat(
                 "thread_id": str(chat_id),
                 "request_id": request_id or "unknown",
                 "turn_id": stream_result.turn_id,
+                # Side-channel consumed by ``SurfSenseCheckpointedSubAgentMiddleware``
+                # to forward the resume into a subagent's pending ``interrupt()``.
+                "surfsense_resume_value": {"decisions": decisions},
             },
             # See ``stream_new_chat`` above for rationale: effectively
             # uncapped to mirror the agent default and OpenCode's
@@ -4487,6 +4535,12 @@ async def stream_resume_chat(
     except Exception as e:
         import traceback
 
+        # ``BusyError`` fires before the agent acquires the lock; the
+        # cleanup path must skip lock release to avoid freeing the
+        # in-flight caller's lock. Classification is handled below.
+        if isinstance(e, BusyError):
+            _busy_error_raised = True
+
         (
             error_kind,
             error_code,
@@ -4619,6 +4673,16 @@ async def stream_resume_chat(
                     turn_id=stream_result.turn_id,
                     content=content_payload,
                     accumulator=accumulator,
+                )
+
+        # Release the lock from the original interrupted turn or any
+        # re-interrupt/bailout. Skip on ``BusyError`` (lock not held here).
+        if not _busy_error_raised:
+            with contextlib.suppress(Exception):
+                end_turn(str(chat_id))
+                _perf_log.info(
+                    "[stream_resume] end_turn cleanup (chat_id=%s)",
+                    chat_id,
                 )
 
         agent = llm = connector_service = None
