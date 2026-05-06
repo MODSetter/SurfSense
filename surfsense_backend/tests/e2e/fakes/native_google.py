@@ -1,12 +1,13 @@
-"""Strict native Google Drive fakes for Playwright E2E.
+"""Strict native Google SDK fakes for Playwright E2E.
 
 This module patches the production Google OAuth and Drive SDK bindings used by
-the native ``GOOGLE_DRIVE_CONNECTOR`` happy path. It deliberately does not
-replace the whole Google package; unmodelled service methods fail loudly.
+the native Google connector happy paths. It deliberately does not replace the
+whole Google package; unmodelled service methods fail loudly.
 """
 
 from __future__ import annotations
 
+import base64
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -17,6 +18,7 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 from google.oauth2.credentials import Credentials
 
 _DRIVE_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "drive_files.json"
+_GMAIL_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gmail_messages.json"
 
 
 def _load_drive_fixture() -> dict[str, Any]:
@@ -27,14 +29,22 @@ def _load_drive_fixture() -> dict[str, Any]:
 _DRIVE_FIXTURE = _load_drive_fixture()
 
 
+def _load_gmail_fixture() -> dict[str, Any]:
+    with _GMAIL_FIXTURE_PATH.open() as f:
+        return json.load(f)
+
+
+_GMAIL_FIXTURE = _load_gmail_fixture()
+
+
 class _StrictFakeMixin:
     _component_name: str = "<unknown>"
 
     def __getattr__(self, name: str) -> Any:
         raise NotImplementedError(
-            f"E2E native Google Drive fake missing surface: "
+            f"E2E native Google fake missing surface: "
             f"{self._component_name}.{name!r}. Add it to "
-            f"surfsense_backend/tests/e2e/fakes/native_google_drive.py."
+            f"surfsense_backend/tests/e2e/fakes/native_google.py."
         )
 
 
@@ -149,7 +159,7 @@ class _FakeDriveFiles(_StrictFakeMixin):
         content = _DRIVE_FIXTURE.get("_file_contents", {}).get(file_id)
         if content is None:
             raise NotImplementedError(
-                f"E2E native Google Drive fake has no content for fileId={file_id!r}."
+                f"E2E native Google fake has no content for fileId={file_id!r}."
             )
         return _FakeMediaRequest(content.encode("utf-8"))
 
@@ -158,7 +168,7 @@ class _FakeDriveFiles(_StrictFakeMixin):
         content = _DRIVE_FIXTURE.get("_file_contents", {}).get(file_id)
         if content is None:
             raise NotImplementedError(
-                f"E2E native Google Drive fake has no export content for fileId={file_id!r}."
+                f"E2E native Google fake has no export content for fileId={file_id!r}."
             )
         return _FakeRequest(content.encode("utf-8"))
 
@@ -194,6 +204,46 @@ class _FakeGmailUsers(_StrictFakeMixin):
             raise NotImplementedError(f"Unexpected fake Gmail profile userId={user_id!r}")
         return _FakeRequest({"emailAddress": "native-drive-e2e@surfsense.example"})
 
+    def messages(self) -> _FakeGmailMessages:
+        return _FakeGmailMessages()
+
+
+class _FakeGmailMessages(_StrictFakeMixin):
+    _component_name = "gmail.messages"
+
+    def list(self, **kwargs: Any) -> _FakeRequest:
+        user_id = kwargs.get("userId")
+        if user_id != "me":
+            raise NotImplementedError(f"Unexpected fake Gmail list userId={user_id!r}")
+
+        max_results = int(kwargs.get("maxResults", 10) or 10)
+        messages = list(_GMAIL_FIXTURE.get("messages", []))[:max_results]
+        return _FakeRequest(
+            {
+                "messages": [
+                    {
+                        "id": message["id"],
+                        "threadId": message.get("threadId"),
+                    }
+                    for message in messages
+                ],
+                "resultSizeEstimate": len(messages),
+            }
+        )
+
+    def get(self, **kwargs: Any) -> _FakeRequest:
+        user_id = kwargs.get("userId")
+        if user_id != "me":
+            raise NotImplementedError(f"Unexpected fake Gmail get userId={user_id!r}")
+
+        message_id = kwargs.get("id")
+        detail = _GMAIL_FIXTURE.get("details", {}).get(message_id)
+        if detail is None:
+            raise NotImplementedError(
+                f"E2E native Gmail fake has no message detail for id={message_id!r}."
+            )
+        return _FakeRequest(_gmail_detail_to_native_message(detail))
+
 
 class _FakeGmailService(_StrictFakeMixin):
     _component_name = "gmail_service"
@@ -208,7 +258,7 @@ def _fake_build(service_name: str, version: str, **_: Any) -> Any:
     if service_name == "gmail" and version == "v1":
         return _FakeGmailService()
     raise NotImplementedError(
-        f"E2E native Google Drive fake cannot build {service_name!r} {version!r}."
+        f"E2E native Google fake cannot build {service_name!r} {version!r}."
     )
 
 
@@ -256,14 +306,40 @@ def _drive_get_metadata(file_id: str | None) -> dict[str, Any]:
             if entry.get("id") == file_id:
                 return dict(entry)
     raise NotImplementedError(
-        f"E2E native Google Drive fake has no metadata for fileId={file_id!r}."
+        f"E2E native Google fake has no metadata for fileId={file_id!r}."
     )
 
 
+def _gmail_detail_to_native_message(detail: dict[str, Any]) -> dict[str, Any]:
+    message_text = detail.get("messageText", "")
+    encoded_body = base64.urlsafe_b64encode(message_text.encode("utf-8")).decode("ascii")
+
+    return {
+        "id": detail.get("id"),
+        "threadId": detail.get("threadId"),
+        "labelIds": ["INBOX", "IMPORTANT"],
+        "snippet": message_text[:160],
+        "payload": {
+            "mimeType": "text/plain",
+            "headers": [
+                {"name": "Subject", "value": detail.get("subject", "No Subject")},
+                {"name": "From", "value": detail.get("from", "Unknown Sender")},
+                {"name": "To", "value": detail.get("to", "Unknown Recipient")},
+                {"name": "Date", "value": detail.get("date", "Unknown Date")},
+            ],
+            "body": {
+                "data": encoded_body,
+                "size": len(message_text),
+            },
+        },
+    }
+
+
 def install(active_patches: list[Any]) -> None:
-    """Patch production bindings to use native Google Drive fakes."""
+    """Patch production bindings to use native Google SDK fakes."""
     targets = [
         ("app.routes.google_drive_add_connector_route.Flow", _FakeFlow),
+        ("app.routes.google_gmail_add_connector_route.Flow", _FakeFlow),
         ("app.connectors.google_drive.client.build", _fake_build),
         ("app.connectors.google_gmail_connector.build", _fake_build),
         ("googleapiclient.http.MediaIoBaseDownload", _FakeMediaIoBaseDownload),

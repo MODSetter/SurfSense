@@ -66,7 +66,7 @@ from unittest.mock import patch  # noqa: E402
 from app.celery_app import celery_app  # noqa: E402
 from tests.e2e.fakes import (  # noqa: E402
     embeddings as _fake_embeddings,
-    native_google_drive as _fake_native_google_drive,
+    native_google as _fake_native_google,
 )
 from tests.e2e.fakes.chat_llm import (  # noqa: E402
     fake_create_chat_litellm_from_agent_config,
@@ -132,7 +132,7 @@ def _patch_llm_bindings() -> None:
 
 _patch_llm_bindings()
 _fake_embeddings.install(_active_patches)
-_fake_native_google_drive.install(_active_patches)
+_fake_native_google.install(_active_patches)
 
 
 # ---------------------------------------------------------------------------
