@@ -1,0 +1,64 @@
+{
+  "root": [
+    {
+      "id": "fake-folder-projects",
+      "name": "Projects",
+      "mimeType": "application/vnd.google-apps.folder",
+      "modifiedTime": "2025-01-15T10:00:00.000Z",
+      "createdTime": "2024-12-01T08:00:00.000Z"
+    },
+    {
+      "id": "fake-folder-archive",
+      "name": "Archive",
+      "mimeType": "application/vnd.google-apps.folder",
+      "modifiedTime": "2024-11-20T14:30:00.000Z",
+      "createdTime": "2024-09-10T12:00:00.000Z"
+    },
+    {
+      "id": "fake-file-readme",
+      "name": "README.md",
+      "mimeType": "text/markdown",
+      "modifiedTime": "2025-02-01T09:15:00.000Z",
+      "createdTime": "2025-01-30T16:20:00.000Z"
+    },
+    {
+      "id": "fake-file-canary",
+      "name": "e2e-canary.txt",
+      "mimeType": "text/plain",
+      "modifiedTime": "2025-02-10T11:00:00.000Z",
+      "createdTime": "2025-02-10T11:00:00.000Z"
+    },
+    {
+      "id": "fake-file-budget",
+      "name": "Q1-Budget.csv",
+      "mimeType": "text/csv",
+      "modifiedTime": "2025-01-25T13:45:00.000Z",
+      "createdTime": "2025-01-25T13:45:00.000Z"
+    }
+  ],
+  "fake-folder-projects": [
+    {
+      "id": "fake-file-roadmap",
+      "name": "2025-Roadmap.md",
+      "mimeType": "text/markdown",
+      "modifiedTime": "2025-02-12T08:30:00.000Z",
+      "createdTime": "2025-01-05T10:00:00.000Z"
+    }
+  ],
+  "fake-folder-archive": [
+    {
+      "id": "fake-file-old-notes",
+      "name": "old-meeting-notes.txt",
+      "mimeType": "text/plain",
+      "modifiedTime": "2024-08-15T15:00:00.000Z",
+      "createdTime": "2024-08-15T15:00:00.000Z"
+    }
+  ],
+  "_file_contents": {
+    "fake-file-readme": "# E2E Fake Drive\n\nThis README is served by the strict Composio fake. SURFSENSE_E2E_README_MARKER",
+    "fake-file-canary": "Canary token for E2E tests: SURFSENSE_E2E_CANARY_TOKEN_DRIVE_001\nThis file's content is asserted by indexing.spec.ts to confirm the indexing pipeline ran end-to-end.",
+    "fake-file-budget": "Quarter,Revenue,Expenses\nQ1,100000,75000\nSURFSENSE_E2E_BUDGET_MARKER,2025,test",
+    "fake-file-roadmap": "# 2025 Roadmap\n\n- E2E Drive indexing\n- Composio Gmail/Calendar SURFSENSE_E2E_ROADMAP_MARKER",
+    "fake-file-old-notes": "Old meeting notes archived in 2024. SURFSENSE_E2E_ARCHIVE_MARKER"
+  }
+}
