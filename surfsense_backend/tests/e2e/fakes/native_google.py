@@ -19,6 +19,7 @@ from google.oauth2.credentials import Credentials
 
 _DRIVE_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "drive_files.json"
 _GMAIL_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gmail_messages.json"
+_CALENDAR_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "calendar_events.json"
 
 
 def _load_drive_fixture() -> dict[str, Any]:
@@ -35,6 +36,14 @@ def _load_gmail_fixture() -> dict[str, Any]:
 
 
 _GMAIL_FIXTURE = _load_gmail_fixture()
+
+
+def _load_calendar_fixture() -> dict[str, Any]:
+    with _CALENDAR_FIXTURE_PATH.open() as f:
+        return json.load(f)
+
+
+_CALENDAR_FIXTURE = _load_calendar_fixture()
 
 
 class _StrictFakeMixin:
@@ -252,11 +261,48 @@ class _FakeGmailService(_StrictFakeMixin):
         return _FakeGmailUsers()
 
 
+class _FakeCalendarEvents(_StrictFakeMixin):
+    _component_name = "calendar.events"
+
+    def list(self, **kwargs: Any) -> _FakeRequest:
+        calendar_id = kwargs.get("calendarId")
+        if calendar_id != "primary":
+            raise NotImplementedError(
+                f"Unexpected fake Calendar events calendarId={calendar_id!r}"
+            )
+
+        max_results = int(kwargs.get("maxResults", 250) or 250)
+        time_min = kwargs.get("timeMin")
+        time_max = kwargs.get("timeMax")
+        items = [
+            event
+            for event in _CALENDAR_FIXTURE.get("items", [])
+            if _calendar_event_in_range(event, time_min, time_max)
+        ][:max_results]
+
+        return _FakeRequest(
+            {
+                "items": items,
+                "summary": "native-calendar-e2e@surfsense.example",
+                "timeZone": "UTC",
+            }
+        )
+
+
+class _FakeCalendarService(_StrictFakeMixin):
+    _component_name = "calendar_service"
+
+    def events(self) -> _FakeCalendarEvents:
+        return _FakeCalendarEvents()
+
+
 def _fake_build(service_name: str, version: str, **_: Any) -> Any:
     if service_name == "drive" and version == "v3":
         return _FakeDriveService()
     if service_name == "gmail" and version == "v1":
         return _FakeGmailService()
+    if service_name == "calendar" and version == "v3":
+        return _FakeCalendarService()
     raise NotImplementedError(
         f"E2E native Google fake cannot build {service_name!r} {version!r}."
     )
@@ -310,6 +356,38 @@ def _drive_get_metadata(file_id: str | None) -> dict[str, Any]:
     )
 
 
+def _parse_rfc3339(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    normalized = value.replace("Z", "+00:00")
+    return datetime.fromisoformat(normalized)
+
+
+def _calendar_event_start(event: dict[str, Any]) -> datetime | None:
+    start = event.get("start", {})
+    value = start.get("dateTime") or start.get("date")
+    parsed = _parse_rfc3339(value)
+    if parsed and parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
+
+
+def _calendar_event_in_range(
+    event: dict[str, Any], time_min: str | None, time_max: str | None
+) -> bool:
+    event_start = _calendar_event_start(event)
+    if event_start is None:
+        return True
+
+    parsed_min = _parse_rfc3339(time_min)
+    parsed_max = _parse_rfc3339(time_max)
+    if parsed_min and event_start < parsed_min:
+        return False
+    if parsed_max and event_start > parsed_max:
+        return False
+    return True
+
+
 def _gmail_detail_to_native_message(detail: dict[str, Any]) -> dict[str, Any]:
     message_text = detail.get("messageText", "")
     encoded_body = base64.urlsafe_b64encode(message_text.encode("utf-8")).decode("ascii")
@@ -340,8 +418,13 @@ def install(active_patches: list[Any]) -> None:
     targets = [
         ("app.routes.google_drive_add_connector_route.Flow", _FakeFlow),
         ("app.routes.google_gmail_add_connector_route.Flow", _FakeFlow),
+        ("app.routes.google_calendar_add_connector_route.Flow", _FakeFlow),
         ("app.connectors.google_drive.client.build", _fake_build),
         ("app.connectors.google_gmail_connector.build", _fake_build),
+        ("app.connectors.google_calendar_connector.build", _fake_build),
+        ("app.agents.new_chat.tools.google_calendar.create_event.build", _fake_build),
+        ("app.agents.new_chat.tools.google_calendar.update_event.build", _fake_build),
+        ("app.agents.new_chat.tools.google_calendar.delete_event.build", _fake_build),
         ("googleapiclient.http.MediaIoBaseDownload", _FakeMediaIoBaseDownload),
         ("app.connectors.google_drive.client._build_thread_http", lambda credentials: None),
     ]
