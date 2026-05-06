@@ -809,16 +809,7 @@ async def index_connector_content(
 
         from app.services.mcp_oauth.registry import LIVE_CONNECTOR_TYPES
 
-        indexable_live_connector_types = {
-            SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
-            SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
-            SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
-            SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
-        }
-        if (
-            connector.connector_type in LIVE_CONNECTOR_TYPES
-            and connector.connector_type not in indexable_live_connector_types
-        ):
+        if connector.connector_type in LIVE_CONNECTOR_TYPES:
             return {
                 "message": (
                     f"{connector.connector_type.value} uses real-time agent tools; "
