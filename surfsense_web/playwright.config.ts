@@ -19,7 +19,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${PORT}`;
 export default defineConfig({
 	testDir: "./tests",
 	timeout: 30_000,
-	expect: { timeout: 5_000 },
+	expect: { timeout: 15_000 },
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
@@ -53,10 +53,11 @@ export default defineConfig({
 	webServer: process.env.PLAYWRIGHT_NO_WEB_SERVER
 		? undefined
 		: {
-				command: "pnpm dev",
+				// Pin to webpack dev (Turbopack has caused stale-lock panics in E2E).
+				command: "pnpm exec next dev",
 				url: `http://localhost:${PORT}`,
 				reuseExistingServer: !process.env.CI,
-				timeout: 120_000,
+				timeout: 180_000,
 				env: {
 					NEXT_PUBLIC_FASTAPI_BACKEND_URL: `http://localhost:${BACKEND_PORT}`,
 					NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: "LOCAL",
