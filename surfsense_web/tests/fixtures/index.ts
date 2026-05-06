@@ -14,6 +14,8 @@
  *             └─ composioGmailWithChatTest — chatThread
  *         └─ composioCalendarFixtures — composioCalendarConnector
  *             └─ composioCalendarWithChatTest — chatThread
+ *         └─ nativeDriveFixtures — nativeDriveConnector
+ *             └─ nativeDriveWithChatTest — chatThread
  *
  * To add a new connector (Gmail, Slack, manual upload, etc.):
  *   1. Add a fixture file under `fixtures/connectors/<name>.fixture.ts`.
@@ -25,12 +27,14 @@ export { chatThreadFixtures } from "./chat-thread.fixture";
 export { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
 export { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 export { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
+export { nativeDriveFixtures } from "./connectors/native-drive.fixture";
 export { searchSpaceFixtures } from "./search-space.fixture";
 
 import { type ChatThreadFixtures, chatThreadFixtures } from "./chat-thread.fixture";
 import { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
 import { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 import { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
+import { nativeDriveFixtures } from "./connectors/native-drive.fixture";
 import { searchSpaceFixtures } from "./search-space.fixture";
 
 /** Default `test` for specs that just need auth + a clean search space. */
@@ -50,3 +54,8 @@ export const composioCalendarTest = composioCalendarFixtures;
 /** `test` for Calendar specs that also need a chat thread. */
 export const composioCalendarWithChatTest =
 	composioCalendarFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
+/** `test` for specs that also need a pre-connected native Google Drive connector. */
+export const nativeDriveTest = nativeDriveFixtures;
+/** `test` for native Drive specs that also need a chat thread. */
+export const nativeDriveWithChatTest =
+	nativeDriveFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
