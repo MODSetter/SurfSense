@@ -297,3 +297,46 @@ export async function runNativeGoogleGmailOAuth(
 
 	return { authUrl: auth_url, finalUrl: location, connector };
 }
+
+/**
+ * Drives the native Google Calendar OAuth flow programmatically.
+ *
+ * The E2E backend patches Google OAuth so the returned auth_url points
+ * straight back to the backend callback with a deterministic code/state.
+ */
+export async function runNativeGoogleCalendarOAuth(
+	request: APIRequestContext,
+	token: string,
+	searchSpaceId: number
+): Promise<{
+	authUrl: string;
+	finalUrl: string;
+	connector: ConnectorRow | null;
+}> {
+	const initiateResp = await request.get(
+		`${BACKEND_URL}/api/v1/auth/google/calendar/connector/add?space_id=${searchSpaceId}`,
+		{ headers: authHeaders(token) }
+	);
+	if (!initiateResp.ok()) {
+		throw new Error(
+			`native Google Calendar initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
+		);
+	}
+	const { auth_url } = (await initiateResp.json()) as { auth_url: string };
+	if (!auth_url) {
+		throw new Error("native Google Calendar initiate response missing auth_url");
+	}
+
+	const callbackResp = await request.get(auth_url, {
+		headers: authHeaders(token),
+		maxRedirects: 0,
+		failOnStatusCode: false,
+	});
+	const location = callbackResp.headers().location ?? auth_url;
+
+	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connector =
+		connectors.find((c) => c.connector_type === "GOOGLE_CALENDAR_CONNECTOR") ?? null;
+
+	return { authUrl: auth_url, finalUrl: location, connector };
+}
