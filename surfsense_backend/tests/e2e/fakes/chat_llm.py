@@ -16,6 +16,8 @@ DRIVE_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_DRIVE_001"
 GMAIL_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001"
 GMAIL_CANARY_SUBJECT = "E2E Canary Email"
 GMAIL_CANARY_MESSAGE_ID = "fake-msg-canary-001"
+CALENDAR_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001"
+CALENDAR_CANARY_SUMMARY = "E2E Canary Calendar Event"
 NO_RELEVANT_CONTENT_SENTINEL = "No relevant indexed content found."
 NO_RELEVANT_CONTENT_QUERY = "E2E_NO_RELEVANT_CONTENT_SMOKE"
 
@@ -77,10 +79,19 @@ class FakeChatLLM(BaseChatModel):
             return f"Gmail live tool content found: {GMAIL_CANARY_TOKEN}"
         if latest_tool_name == "search_gmail" and GMAIL_CANARY_MESSAGE_ID in latest_tool_text:
             return "Reading the matching Gmail message next."
+        if (
+            latest_tool_name == "search_calendar_events"
+            and CALENDAR_CANARY_TOKEN in latest_tool_text
+        ):
+            return f"Calendar live tool content found: {CALENDAR_CANARY_TOKEN}"
 
         wants_gmail = _contains_any(
             latest_human,
             ("gmail", "email", "message", GMAIL_CANARY_SUBJECT),
+        )
+        wants_calendar = _contains_any(
+            latest_human,
+            ("calendar", "event", "meeting", CALENDAR_CANARY_SUMMARY),
         )
         wants_drive = _contains_any(
             latest_human,
@@ -91,16 +102,23 @@ class FakeChatLLM(BaseChatModel):
             or GMAIL_CANARY_MESSAGE_ID in prompt_text
             or GMAIL_CANARY_TOKEN in prompt_text
         )
+        has_calendar_evidence = (
+            CALENDAR_CANARY_SUMMARY in prompt_text or CALENDAR_CANARY_TOKEN in prompt_text
+        )
         has_drive_evidence = (
             "e2e-canary.txt" in prompt_text
             or "fake-file-canary" in prompt_text
             or DRIVE_CANARY_TOKEN in prompt_text
         )
 
+        if wants_calendar and has_calendar_evidence:
+            return f"Calendar content found: {CALENDAR_CANARY_TOKEN}"
         if wants_gmail and has_gmail_evidence:
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
         if wants_drive and has_drive_evidence:
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
+        if has_calendar_evidence and not has_gmail_evidence and not has_drive_evidence:
+            return f"Calendar content found: {CALENDAR_CANARY_TOKEN}"
         if has_gmail_evidence and not has_drive_evidence:
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
         if has_drive_evidence and not has_gmail_evidence:
@@ -146,6 +164,25 @@ class FakeChatLLM(BaseChatModel):
                             "max_results": 5,
                         },
                         "id": "call_e2e_search_gmail",
+                    }
+                ],
+            )
+
+        if latest_tool is None and _contains_any(
+            latest_human,
+            ("calendar", "event", "meeting", CALENDAR_CANARY_SUMMARY),
+        ):
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "search_calendar_events",
+                        "args": {
+                            "start_date": "2026-05-07",
+                            "end_date": "2026-05-21",
+                            "max_results": 10,
+                        },
+                        "id": "call_e2e_search_calendar_events",
                     }
                 ],
             )

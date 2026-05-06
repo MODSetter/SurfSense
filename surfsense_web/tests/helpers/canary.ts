@@ -19,6 +19,7 @@ export const CANARY_TOKENS = {
 	driveRoadmap: "SURFSENSE_E2E_ROADMAP_MARKER",
 	driveArchive: "SURFSENSE_E2E_ARCHIVE_MARKER",
 	gmailCanary: "SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001",
+	calendarCanary: "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001",
 } as const;
 
 /**
@@ -62,6 +63,23 @@ export const FAKE_GMAIL_MESSAGES = {
 		subject: "E2E Planning Notes",
 		from: "planner@surfsense.example",
 		to: "e2e-fake@surfsense.example",
+	},
+} as const;
+
+/**
+ * Fake Calendar event IDs that match what the backend fake returns from
+ * GOOGLECALENDAR_EVENTS_LIST.
+ */
+export const FAKE_CALENDAR_EVENTS = {
+	canary: {
+		id: "fake-calendar-event-canary-001",
+		summary: "E2E Canary Calendar Event",
+		location: "SurfSense E2E Room",
+	},
+	planning: {
+		id: "fake-calendar-event-planning-001",
+		summary: "E2E Planning Sync",
+		location: "SurfSense Planning Room",
 	},
 } as const;
 

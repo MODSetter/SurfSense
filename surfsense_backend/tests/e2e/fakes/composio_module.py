@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 _DRIVE_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "drive_files.json"
 _GMAIL_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gmail_messages.json"
+_CALENDAR_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "calendar_events.json"
 _DRIVE_DOWNLOAD_DIR = Path("/tmp/surfsense-e2e-composio-downloads")
 
 
@@ -46,8 +47,15 @@ def _load_gmail_fixture() -> dict[str, Any]:
         return json.load(f)
 
 
+def _load_calendar_fixture() -> dict[str, Any]:
+    """Load the canned Calendar fixture once per process."""
+    with _CALENDAR_FIXTURE_PATH.open() as f:
+        return json.load(f)
+
+
 _DRIVE_FIXTURE = _load_drive_fixture()
 _GMAIL_FIXTURE = _load_gmail_fixture()
+_CALENDAR_FIXTURE = _load_calendar_fixture()
 
 
 def _get_scenario() -> str:
@@ -290,6 +298,17 @@ class _Tools(_StrictFakeMixin):
             return _gmail_fetch_emails(args)
         if slug == "GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID":
             return _gmail_fetch_message_by_message_id(args)
+        if slug == "GOOGLECALENDAR_EVENTS_LIST":
+            return _calendar_events_list(args)
+        if slug == "GOOGLECALENDAR_GET_CALENDAR":
+            return {
+                "data": {
+                    "id": "primary",
+                    "summary": "e2e-fake@surfsense.example",
+                    "primary": True,
+                    "timeZone": "UTC",
+                }
+            }
         if slug == "GOOGLECALENDAR_CALENDARS_LIST":
             return {
                 "data": {
@@ -460,6 +479,24 @@ def _gmail_fetch_message_by_message_id(args: dict[str, Any]) -> dict[str, Any]:
             f"surfsense_backend/tests/e2e/fakes/fixtures/gmail_messages.json."
         )
     return {"data": detail}
+
+
+# ---------------------------------------------------------------------------
+# Google Calendar tool handlers
+# ---------------------------------------------------------------------------
+
+
+def _calendar_events_list(args: dict[str, Any]) -> dict[str, Any]:
+    """Mimic GOOGLECALENDAR_EVENTS_LIST for live calendar chat tools."""
+    max_results = int(args.get("max_results", 250) or 250)
+    items = list(_CALENDAR_FIXTURE.get("items", []))[:max_results]
+    return {
+        "data": {
+            "items": items,
+            "summary": "e2e-fake@surfsense.example",
+            "timeZone": "UTC",
+        }
+    }
 
 
 # ---------------------------------------------------------------------------
