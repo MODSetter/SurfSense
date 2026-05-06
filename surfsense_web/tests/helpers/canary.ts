@@ -18,6 +18,7 @@ export const CANARY_TOKENS = {
 	driveBudget: "SURFSENSE_E2E_BUDGET_MARKER",
 	driveRoadmap: "SURFSENSE_E2E_ROADMAP_MARKER",
 	driveArchive: "SURFSENSE_E2E_ARCHIVE_MARKER",
+	gmailCanary: "SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001",
 } as const;
 
 /**
@@ -40,6 +41,27 @@ export const FAKE_DRIVE_FOLDERS = {
 		id: "fake-folder-archive",
 		name: "Archive",
 		mimeType: "application/vnd.google-apps.folder",
+	},
+} as const;
+
+/**
+ * Fake Gmail message IDs that match what the backend fake returns from
+ * GMAIL_FETCH_EMAILS / GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID.
+ */
+export const FAKE_GMAIL_MESSAGES = {
+	canary: {
+		id: "fake-msg-canary-001",
+		threadId: "fake-thread-canary-001",
+		subject: "E2E Canary Email",
+		from: "sender@surfsense.example",
+		to: "e2e-fake@surfsense.example",
+	},
+	planning: {
+		id: "fake-msg-planning-001",
+		threadId: "fake-thread-planning-001",
+		subject: "E2E Planning Notes",
+		from: "planner@surfsense.example",
+		to: "e2e-fake@surfsense.example",
 	},
 } as const;
 

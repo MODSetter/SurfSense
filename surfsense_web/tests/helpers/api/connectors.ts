@@ -128,6 +128,35 @@ export async function triggerIndex(
 	return { ok: true };
 }
 
+export async function triggerIndexByDateRange(
+	request: APIRequestContext,
+	token: string,
+	connectorId: number,
+	searchSpaceId: number,
+	options: { startDate?: string; endDate?: string } = {}
+): Promise<{ ok: true }> {
+	const params = new URLSearchParams({ search_space_id: String(searchSpaceId) });
+	if (options.startDate) params.set("start_date", options.startDate);
+	if (options.endDate) params.set("end_date", options.endDate);
+
+	const response = await request.post(
+		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?${params.toString()}`,
+		{ headers: authHeaders(token) }
+	);
+	if (!response.ok()) {
+		throw new Error(
+			`triggerIndexByDateRange(${connectorId}) failed (${response.status()}): ${await response.text()}`
+		);
+	}
+	const body = (await response.json()) as { indexing_started?: boolean; message?: string };
+	if (body.indexing_started === false) {
+		throw new Error(
+			`triggerIndexByDateRange(${connectorId}) did not start indexing: ${body.message ?? "no message"}`
+		);
+	}
+	return { ok: true };
+}
+
 /**
  * Drives the OAuth flow for a Composio toolkit programmatically.
  *
