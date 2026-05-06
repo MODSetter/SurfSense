@@ -29,17 +29,25 @@ logger = logging.getLogger(__name__)
 # Fixture loading
 # ---------------------------------------------------------------------------
 
-_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "drive_files.json"
+_DRIVE_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "drive_files.json"
+_GMAIL_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gmail_messages.json"
 _DRIVE_DOWNLOAD_DIR = Path("/tmp/surfsense-e2e-composio-downloads")
 
 
 def _load_drive_fixture() -> dict[str, Any]:
     """Load the canned Drive fixture once per process."""
-    with _FIXTURE_PATH.open() as f:
+    with _DRIVE_FIXTURE_PATH.open() as f:
+        return json.load(f)
+
+
+def _load_gmail_fixture() -> dict[str, Any]:
+    """Load the canned Gmail fixture once per process."""
+    with _GMAIL_FIXTURE_PATH.open() as f:
         return json.load(f)
 
 
 _DRIVE_FIXTURE = _load_drive_fixture()
+_GMAIL_FIXTURE = _load_gmail_fixture()
 
 
 def _get_scenario() -> str:
@@ -278,6 +286,10 @@ class _Tools(_StrictFakeMixin):
             return {"data": {"user": {"emailAddress": "e2e-fake@surfsense.example"}}}
         if slug == "GMAIL_GET_PROFILE":
             return {"data": {"emailAddress": "e2e-fake@surfsense.example"}}
+        if slug == "GMAIL_FETCH_EMAILS":
+            return _gmail_fetch_emails(args)
+        if slug == "GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID":
+            return _gmail_fetch_message_by_message_id(args)
         if slug == "GOOGLECALENDAR_CALENDARS_LIST":
             return {
                 "data": {
@@ -412,6 +424,42 @@ def _drive_get_metadata(args: dict[str, Any]) -> dict[str, Any]:
         f"E2E fake: no metadata fixture for file_id={file_id!r}. "
         f"Add it to drive_files.json."
     )
+
+
+# ---------------------------------------------------------------------------
+# Gmail tool handlers
+# ---------------------------------------------------------------------------
+
+
+def _gmail_fetch_emails(args: dict[str, Any]) -> dict[str, Any]:
+    """Mimic GMAIL_FETCH_EMAILS.
+
+    The production indexer uses this as a list page, then calls
+    GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID for the full body of each id.
+    """
+    del args
+    messages = list(_GMAIL_FIXTURE.get("messages", []))
+    return {
+        "data": {
+            "messages": messages,
+            "nextPageToken": None,
+            "resultSizeEstimate": len(messages),
+        }
+    }
+
+
+def _gmail_fetch_message_by_message_id(args: dict[str, Any]) -> dict[str, Any]:
+    """Mimic GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID."""
+    message_id = args.get("message_id", "")
+    details = _GMAIL_FIXTURE.get("details", {})
+    detail = details.get(message_id)
+    if detail is None:
+        raise NotImplementedError(
+            f"E2E Composio fake has no Gmail detail fixture for "
+            f"message_id={message_id!r}. Add it under 'details' in "
+            f"surfsense_backend/tests/e2e/fakes/fixtures/gmail_messages.json."
+        )
+    return {"data": detail}
 
 
 # ---------------------------------------------------------------------------
