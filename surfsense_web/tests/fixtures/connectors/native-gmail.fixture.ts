@@ -1,25 +1,25 @@
 import {
 	type ConnectorRow,
 	deleteConnector,
-	runNativeGoogleDriveOAuth,
+	runNativeGoogleGmailOAuth,
 } from "../../helpers/api/connectors";
 import { searchSpaceFixtures } from "../search-space.fixture";
 
-export type NativeDriveFixtures = {
+export type NativeGmailFixtures = {
 	/**
-	 * A pre-connected native Google Drive connector inside the fixture's
+	 * A pre-connected native Google Gmail connector inside the fixture's
 	 * `searchSpace`. OAuth uses E2E native Google fakes and is cleaned up
 	 * automatically after the test.
 	 */
-	nativeDriveConnector: ConnectorRow;
+	nativeGmailConnector: ConnectorRow;
 };
 
-export const nativeDriveFixtures = searchSpaceFixtures.extend<NativeDriveFixtures>({
-	nativeDriveConnector: async ({ request, apiToken, searchSpace }, use) => {
-		const { connector } = await runNativeGoogleDriveOAuth(request, apiToken, searchSpace.id);
+export const nativeGmailFixtures = searchSpaceFixtures.extend<NativeGmailFixtures>({
+	nativeGmailConnector: async ({ request, apiToken, searchSpace }, use) => {
+		const { connector } = await runNativeGoogleGmailOAuth(request, apiToken, searchSpace.id);
 		if (!connector) {
 			throw new Error(
-				"nativeDriveConnector fixture: OAuth completed but no GOOGLE_DRIVE_CONNECTOR was created. " +
+				"nativeGmailConnector fixture: OAuth completed but no GOOGLE_GMAIL_CONNECTOR was created. " +
 					"Check the backend log — the native Google fake likely rejected an unmodelled call."
 			);
 		}

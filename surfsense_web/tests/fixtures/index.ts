@@ -16,6 +16,8 @@
  *             └─ composioCalendarWithChatTest — chatThread
  *         └─ nativeDriveFixtures — nativeDriveConnector
  *             └─ nativeDriveWithChatTest — chatThread
+ *         └─ nativeGmailFixtures — nativeGmailConnector
+ *             └─ nativeGmailWithChatTest — chatThread
  *
  * To add a new connector (Gmail, Slack, manual upload, etc.):
  *   1. Add a fixture file under `fixtures/connectors/<name>.fixture.ts`.
@@ -28,6 +30,7 @@ export { composioCalendarFixtures } from "./connectors/composio-calendar.fixture
 export { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 export { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
 export { nativeDriveFixtures } from "./connectors/native-drive.fixture";
+export { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
 export { searchSpaceFixtures } from "./search-space.fixture";
 
 import { type ChatThreadFixtures, chatThreadFixtures } from "./chat-thread.fixture";
@@ -35,6 +38,7 @@ import { composioCalendarFixtures } from "./connectors/composio-calendar.fixture
 import { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 import { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
 import { nativeDriveFixtures } from "./connectors/native-drive.fixture";
+import { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
 import { searchSpaceFixtures } from "./search-space.fixture";
 
 /** Default `test` for specs that just need auth + a clean search space. */
@@ -59,3 +63,8 @@ export const nativeDriveTest = nativeDriveFixtures;
 /** `test` for native Drive specs that also need a chat thread. */
 export const nativeDriveWithChatTest =
 	nativeDriveFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
+/** `test` for specs that also need a pre-connected native Gmail connector. */
+export const nativeGmailTest = nativeGmailFixtures;
+/** `test` for native Gmail specs that also need a chat thread. */
+export const nativeGmailWithChatTest =
+	nativeGmailFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
