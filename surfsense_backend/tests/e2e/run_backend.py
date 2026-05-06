@@ -80,13 +80,17 @@ from unittest.mock import patch  # noqa: E402
 
 from app.app import app  # noqa: E402
 from tests.e2e.fakes import embeddings as _fake_embeddings  # noqa: E402
+from tests.e2e.fakes.chat_llm import (  # noqa: E402
+    fake_create_chat_litellm_from_agent_config,
+    fake_create_chat_litellm_from_config,
+)
 from tests.e2e.fakes.llm import fake_get_user_long_context_llm  # noqa: E402
 
 _active_patches: list = []
 
 
 def _patch_llm_bindings() -> None:
-    """Replace get_user_long_context_llm at every known binding site."""
+    """Replace LLM factories at every known binding site."""
     targets = [
         "app.services.llm_service.get_user_long_context_llm",
         "app.tasks.connector_indexers.google_drive_indexer.get_user_long_context_llm",
@@ -111,6 +115,33 @@ def _patch_llm_bindings() -> None:
                 exc,
             )
 
+    chat_targets = [
+        (
+            "app.agents.new_chat.llm_config.create_chat_litellm_from_agent_config",
+            fake_create_chat_litellm_from_agent_config,
+        ),
+        (
+            "app.agents.new_chat.llm_config.create_chat_litellm_from_config",
+            fake_create_chat_litellm_from_config,
+        ),
+        (
+            "app.tasks.chat.stream_new_chat.create_chat_litellm_from_agent_config",
+            fake_create_chat_litellm_from_agent_config,
+        ),
+        (
+            "app.tasks.chat.stream_new_chat.create_chat_litellm_from_config",
+            fake_create_chat_litellm_from_config,
+        ),
+    ]
+    for target, replacement in chat_targets:
+        try:
+            p = patch(target, replacement)
+            p.start()
+            _active_patches.append(p)
+            logger.info("[fake-chat-llm] patched %s", target)
+        except (ModuleNotFoundError, AttributeError) as exc:
+            logger.warning("[fake-chat-llm] could not patch %s: %s.", target, exc)
+
 
 _patch_llm_bindings()
 _fake_embeddings.install(_active_patches)
@@ -129,8 +160,9 @@ app.add_middleware(ScenarioMiddleware)
 # 6) Start uvicorn, mirroring main.py's behaviour.
 # ---------------------------------------------------------------------------
 
-import asyncio
-import uvicorn
+import asyncio  # noqa: E402
+
+import uvicorn  # noqa: E402
 
 
 def _main() -> None:

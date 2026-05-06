@@ -58,16 +58,17 @@ logger.warning(
 # 3) Import the production celery_app. All task modules load here.
 # ---------------------------------------------------------------------------
 
-from app.celery_app import celery_app  # noqa: E402
-
-
 # ---------------------------------------------------------------------------
 # 4) Patch LLM + embedding bindings inside the worker process.
 # ---------------------------------------------------------------------------
-
 from unittest.mock import patch  # noqa: E402
 
+from app.celery_app import celery_app  # noqa: E402
 from tests.e2e.fakes import embeddings as _fake_embeddings  # noqa: E402
+from tests.e2e.fakes.chat_llm import (  # noqa: E402
+    fake_create_chat_litellm_from_agent_config,
+    fake_create_chat_litellm_from_config,
+)
 from tests.e2e.fakes.llm import fake_get_user_long_context_llm  # noqa: E402
 
 _active_patches: list = []
@@ -90,6 +91,37 @@ def _patch_llm_bindings() -> None:
         except (ModuleNotFoundError, AttributeError) as exc:
             logger.warning(
                 "[fake-llm] could not patch %s in celery worker: %s.",
+                target,
+                exc,
+            )
+
+    chat_targets = [
+        (
+            "app.agents.new_chat.llm_config.create_chat_litellm_from_agent_config",
+            fake_create_chat_litellm_from_agent_config,
+        ),
+        (
+            "app.agents.new_chat.llm_config.create_chat_litellm_from_config",
+            fake_create_chat_litellm_from_config,
+        ),
+        (
+            "app.tasks.chat.stream_new_chat.create_chat_litellm_from_agent_config",
+            fake_create_chat_litellm_from_agent_config,
+        ),
+        (
+            "app.tasks.chat.stream_new_chat.create_chat_litellm_from_config",
+            fake_create_chat_litellm_from_config,
+        ),
+    ]
+    for target, replacement in chat_targets:
+        try:
+            p = patch(target, replacement)
+            p.start()
+            _active_patches.append(p)
+            logger.info("[fake-chat-llm] patched %s in celery worker", target)
+        except (ModuleNotFoundError, AttributeError) as exc:
+            logger.warning(
+                "[fake-chat-llm] could not patch %s in celery worker: %s.",
                 target,
                 exc,
             )
