@@ -1,6 +1,6 @@
 import { composioDriveTest as test, expect } from "../../../fixtures";
 import { listConnectors, triggerIndex, updateConnectorConfig } from "../../../helpers/api/connectors";
-import { listDocuments } from "../../../helpers/api/documents";
+import { getEditorContent, listDocuments } from "../../../helpers/api/documents";
 import { CANARY_TOKENS, FAKE_DRIVE_FILES } from "../../../helpers/canary";
 import { openConnectorPopup } from "../../../helpers/ui/connector-popup";
 import {
@@ -9,19 +9,11 @@ import {
 } from "../../../helpers/waits/indexing";
 
 /**
- * Composio Drive user journey.
+ * Proves the Drive wiring from OAuth fixture -> selection persistence ->
+ * indexing -> stored source_markdown -> editor-content retrieval.
  *
- * User expectation:
- *   "I connect Google Drive, choose the files/folders I care about,
- *    wait for indexing, and then my Drive content is available in SurfSense."
- *
- * The OAuth connection is handled by the composioDriveConnector fixture so
- * this test can focus on the user-visible expectation. The spec still touches
- * the browser (dashboard + connector dialog) and then uses API helpers for
- * selection/indexing to keep the expensive pipeline assertion deterministic.
- *
- * If this passes, the seam from Composio connection -> selection persistence ->
- * Celery indexing -> document storage is wired correctly.
+ * UI-driven file selection, chat retrieval, and LLM/embedding quality are
+ * covered by later phases or narrower tests.
  */
 test.describe("Composio Drive journey", () => {
 	test(
@@ -33,11 +25,9 @@ test.describe("Composio Drive journey", () => {
 				waitUntil: "domcontentloaded",
 			});
 			await openConnectorPopup(page);
-			await expect(
-				page
-					.getByRole("dialog", { name: "Manage Connectors" })
-					.getByText("Search your Drive files via Composio")
-			).toBeVisible();
+			const connectorDialog = page.getByRole("dialog", { name: "Manage Connectors" });
+			await expect(connectorDialog).toBeVisible();
+			await expect(connectorDialog.getByRole("button", { name: "Manage" })).toBeVisible();
 
 			await updateConnectorConfig(request, apiToken, composioDriveConnector.id, {
 				...composioDriveConnector.config,
@@ -89,13 +79,17 @@ test.describe("Composio Drive journey", () => {
 			const canaryDoc = docs.find((d) => d.title === FAKE_DRIVE_FILES.canary.name);
 
 			expect(canaryDoc, "canary document must exist after indexing").toBeDefined();
+			if (!canaryDoc) throw new Error("unreachable: canaryDoc asserted defined above");
 
-			const content = canaryDoc!.content ?? "";
+			// content holds the LLM summary; the raw file body lives in source_markdown.
+			// editor-content is the same endpoint the UI hits when opening a document.
+			const editor = await getEditorContent(request, apiToken, searchSpace.id, canaryDoc.id);
 			expect(
-				content,
-				`canary token ${CANARY_TOKENS.driveCanaryFile} should appear in Document.content; ` +
-					`got first 200 chars: ${content.slice(0, 200)}`
+				editor.source_markdown,
+				`canary token ${CANARY_TOKENS.driveCanaryFile} should appear in editor source_markdown; ` +
+					`got first 200 chars: ${editor.source_markdown.slice(0, 200)}`
 			).toContain(CANARY_TOKENS.driveCanaryFile);
+			expect(editor.chunk_count).toBeGreaterThan(0);
 
 			const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
 			const refreshed = refreshedConnectors.find((c) => c.id === composioDriveConnector.id);

@@ -38,3 +38,32 @@ export function isDocumentReady(doc: DocumentRow): boolean {
 		typeof doc.status === "string" ? doc.status : doc.status?.state;
 	return state === "ready" || state === "READY";
 }
+
+export type EditorContent = {
+	document_id: number;
+	title: string;
+	document_type: string;
+	source_markdown: string;
+	content_size_bytes: number;
+	chunk_count: number;
+	truncated: boolean;
+};
+
+// Same endpoint the UI hits when a user opens a document in the dashboard.
+export async function getEditorContent(
+	request: APIRequestContext,
+	token: string,
+	searchSpaceId: number,
+	documentId: number
+): Promise<EditorContent> {
+	const response = await request.get(
+		`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`,
+		{ headers: authHeaders(token) }
+	);
+	if (!response.ok()) {
+		throw new Error(
+			`getEditorContent failed (${response.status()}): ${await response.text()}`
+		);
+	}
+	return (await response.json()) as EditorContent;
+}

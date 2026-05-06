@@ -320,13 +320,52 @@ def _drive_list_files(args: dict[str, Any]) -> dict[str, Any]:
         except IndexError:
             folder_id = "root"
 
-    files = _DRIVE_FIXTURE.get(folder_id, [])
+    files = _filter_drive_files_for_query(q, _DRIVE_FIXTURE.get(folder_id, []))
     return {
         "data": {
-            "files": list(files),
+            "files": files,
             "nextPageToken": None,
         }
     }
+
+
+def _extract_quoted_value(q: str, anchor: str) -> str | None:
+    anchor_idx = q.find(anchor)
+    if anchor_idx == -1:
+        return None
+
+    after_anchor = q[anchor_idx + len(anchor) :]
+    first_quote_idx = after_anchor.find("'")
+    if first_quote_idx == -1:
+        return None
+
+    after_first_quote = after_anchor[first_quote_idx + 1 :]
+    second_quote_idx = after_first_quote.find("'")
+    if second_quote_idx == -1:
+        return None
+
+    return after_first_quote[:second_quote_idx]
+
+
+def _filter_drive_files_for_query(q: str, files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    filtered = list(files)
+
+    if "trashed = false" in q:
+        filtered = [entry for entry in filtered if entry.get("trashed") is not True]
+
+    excluded_mime_type = _extract_quoted_value(q, "mimeType !=")
+    if excluded_mime_type:
+        filtered = [
+            entry for entry in filtered if entry.get("mimeType") != excluded_mime_type
+        ]
+
+    included_mime_type = _extract_quoted_value(q, "mimeType =")
+    if included_mime_type:
+        filtered = [
+            entry for entry in filtered if entry.get("mimeType") == included_mime_type
+        ]
+
+    return filtered
 
 
 def _drive_download_file(args: dict[str, Any]) -> dict[str, Any]:

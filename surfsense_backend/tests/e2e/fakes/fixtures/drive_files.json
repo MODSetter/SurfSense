@@ -34,6 +34,21 @@
       "mimeType": "text/csv",
       "modifiedTime": "2025-01-25T13:45:00.000Z",
       "createdTime": "2025-01-25T13:45:00.000Z"
+    },
+    {
+      "id": "fake-shortcut-canary",
+      "name": "Shortcut to Canary",
+      "mimeType": "application/vnd.google-apps.shortcut",
+      "modifiedTime": "2025-02-10T12:00:00.000Z",
+      "createdTime": "2025-02-10T12:00:00.000Z"
+    },
+    {
+      "id": "fake-file-trashed",
+      "name": "trashed-e2e-note.txt",
+      "mimeType": "text/plain",
+      "modifiedTime": "2025-02-11T09:00:00.000Z",
+      "createdTime": "2025-02-11T09:00:00.000Z",
+      "trashed": true
     }
   ],
   "fake-folder-projects": [
