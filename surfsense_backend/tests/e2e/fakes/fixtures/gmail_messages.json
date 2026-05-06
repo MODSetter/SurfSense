@@ -19,7 +19,7 @@
       "from": "sender@surfsense.example",
       "to": "e2e-fake@surfsense.example",
       "date": "Mon, 10 Feb 2025 11:00:00 +0000",
-      "messageText": "This Gmail message body proves the Composio Gmail indexer fetched message details. SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001"
+      "messageText": "This Gmail message body proves the Composio Gmail live tool fetched message details. SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001"
     },
     "fake-msg-planning-001": {
       "id": "fake-msg-planning-001",
