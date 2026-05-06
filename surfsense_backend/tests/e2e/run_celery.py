@@ -83,7 +83,8 @@ def _patch_llm_bindings() -> None:
         "app.tasks.connector_indexers.google_drive_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.google_gmail_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.local_folder_indexer.get_user_long_context_llm",
-        "app.tasks.document_processors.file_processors.get_user_long_context_llm",
+        "app.tasks.document_processors._save.get_user_long_context_llm",
+        "app.tasks.document_processors.markdown_processor.get_user_long_context_llm",
     ]
     for target in targets:
         try:
