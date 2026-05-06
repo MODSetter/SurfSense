@@ -1,23 +1,19 @@
 import { expect, composioGmailWithChatTest as test } from "../../../fixtures";
 import { streamChatToCompletion } from "../../../helpers/api/chat";
-import {
-	listConnectors,
-	triggerIndexByDateRange,
-} from "../../../helpers/api/connectors";
-import { getEditorContent, listDocuments } from "../../../helpers/api/documents";
+import { listConnectors } from "../../../helpers/api/connectors";
+import { listDocuments } from "../../../helpers/api/documents";
 import { CANARY_TOKENS, FAKE_GMAIL_MESSAGES } from "../../../helpers/canary";
 import { openConnectorPopup } from "../../../helpers/ui/connector-popup";
-import { waitForDocumentByTitle, waitForIndexingComplete } from "../../../helpers/waits/indexing";
 
 /**
- * Proves the Gmail wiring from OAuth fixture -> date-range indexing ->
- * Gmail message markdown -> stored source_markdown -> chat.
+ * Proves the Gmail wiring from OAuth fixture -> live Gmail tools -> chat.
  *
- * Unlike Drive, Gmail has no file/folder selection config. The E2E
- * hits the same date-range index contract the production route uses.
+ * Gmail is a live connector: it should not index documents into the
+ * knowledge base. Chat should call Gmail tools against the connected
+ * Composio account when the user asks about email.
  */
 test.describe("Composio Gmail journey", () => {
-	test("user connects Gmail, indexes messages, and chats with the canary token", async ({
+	test("user connects Gmail and chats through live Gmail tools with the canary token", async ({
 		page,
 		request,
 		apiToken,
@@ -25,7 +21,7 @@ test.describe("Composio Gmail journey", () => {
 		composioGmailConnector,
 		chatThread,
 	}) => {
-		test.setTimeout(180_000); // worker cold-start + summarize + embed + chunk
+		test.setTimeout(90_000); // worker cold-start + live tool chat
 
 		await page.goto(`/dashboard/${searchSpace.id}/new-chat`, {
 			waitUntil: "domcontentloaded",
@@ -35,44 +31,8 @@ test.describe("Composio Gmail journey", () => {
 		await expect(connectorDialog).toBeVisible();
 		await expect(connectorDialog.getByRole("button", { name: "Manage" })).toBeVisible();
 
-		await triggerIndexByDateRange(request, apiToken, composioGmailConnector.id, searchSpace.id, {
-			startDate: "2025-01-01",
-			endDate: "2026-12-31",
-		});
-
-		await waitForIndexingComplete(request, apiToken, composioGmailConnector.id, searchSpace.id, {
-			timeoutMs: 150_000,
-			intervalMs: 1_500,
-			minDocuments: 1,
-		});
-
-		await waitForDocumentByTitle(
-			request,
-			apiToken,
-			searchSpace.id,
-			FAKE_GMAIL_MESSAGES.canary.subject,
-			{ timeoutMs: 30_000 }
-		);
-
-		const docs = await listDocuments(request, apiToken, searchSpace.id);
-		const canaryDoc = docs.find((d) => d.title === FAKE_GMAIL_MESSAGES.canary.subject);
-
-		expect(canaryDoc, "canary Gmail document must exist after indexing").toBeDefined();
-		if (!canaryDoc) throw new Error("unreachable: canaryDoc asserted defined above");
-
-		const editor = await getEditorContent(request, apiToken, searchSpace.id, canaryDoc.id);
-		expect(
-			editor.source_markdown,
-			`canary token ${CANARY_TOKENS.gmailCanary} should appear in editor source_markdown; ` +
-				`got first 200 chars: ${editor.source_markdown.slice(0, 200)}`
-		).toContain(CANARY_TOKENS.gmailCanary);
-		expect(editor.source_markdown).toContain(`**From:** ${FAKE_GMAIL_MESSAGES.canary.from}`);
-		expect(editor.source_markdown).toContain("## Message Content");
-		expect(editor.chunk_count).toBeGreaterThan(0);
-
-		const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
-		const refreshed = refreshedConnectors.find((c) => c.id === composioGmailConnector.id);
-		expect(refreshed?.last_indexed_at).not.toBeNull();
+		const beforeChatDocs = await listDocuments(request, apiToken, searchSpace.id);
+		expect(beforeChatDocs).toHaveLength(0);
 
 		const chat = await streamChatToCompletion(request, apiToken, {
 			searchSpaceId: searchSpace.id,
@@ -81,7 +41,18 @@ test.describe("Composio Gmail journey", () => {
 		});
 		expect(
 			chat.assistantText,
-			`chat agent should surface Gmail canary token after indexing; got: ${chat.assistantText.slice(0, 200)}`
+			`chat agent should surface Gmail canary token from live tools; got: ${chat.assistantText.slice(0, 200)}`
 		).toContain(CANARY_TOKENS.gmailCanary);
+
+		const eventText = JSON.stringify(chat.events);
+		expect(eventText).toContain("search_gmail");
+		expect(eventText).toContain("read_gmail_email");
+
+		const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
+		const refreshed = refreshedConnectors.find((c) => c.id === composioGmailConnector.id);
+		expect(refreshed?.last_indexed_at).toBeNull();
+
+		const afterChatDocs = await listDocuments(request, apiToken, searchSpace.id);
+		expect(afterChatDocs).toHaveLength(0);
 	});
 });
