@@ -22,6 +22,7 @@ export const CANARY_TOKENS = {
 	calendarCanary: "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001",
 	notionCanary: "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001",
 	linearCanary: "SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001",
+	jiraCanary: "SURFSENSE_E2E_CANARY_TOKEN_JIRA_001",
 } as const;
 
 /**
@@ -110,6 +111,20 @@ export const FAKE_LINEAR_ISSUES = {
 		title: "E2E Canary Linear Issue",
 		organizationName: "SurfSense E2E Linear Org",
 		organizationUrlKey: "surfsense-e2e",
+	},
+} as const;
+
+/**
+ * Fake Jira issue IDs that match what the backend MCP fake returns from
+ * searchJiraIssuesUsingJql.
+ */
+export const FAKE_JIRA_ISSUES = {
+	canary: {
+		id: "fake-jira-issue-canary-001",
+		key: "E2E-101",
+		summary: "E2E Canary Jira Issue",
+		cloudId: "fake-jira-cloud-001",
+		siteUrl: "https://surfsense-e2e.atlassian.net",
 	},
 } as const;
 
