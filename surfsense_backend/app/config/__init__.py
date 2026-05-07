@@ -490,12 +490,6 @@ class Config:
     ENABLE_DESKTOP_LOCAL_FILESYSTEM = (
         os.getenv("ENABLE_DESKTOP_LOCAL_FILESYSTEM", "FALSE").upper() == "TRUE"
     )
-    # Streaming entrypoint switch. Keep this at the route layer so orchestrator
-    # code stays free of legacy fallback branching.
-    ENABLE_CHAT_STREAM_ORCHESTRATOR = (
-        os.getenv("SURFSENSE_ENABLE_CHAT_STREAM_ORCHESTRATOR", "TRUE").upper()
-        == "TRUE"
-    )
 
     @classmethod
     def is_self_hosted(cls) -> bool:

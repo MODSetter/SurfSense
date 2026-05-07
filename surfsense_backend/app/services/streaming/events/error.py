@@ -1,4 +1,4 @@
-"""Single terminal error path the orchestrator must route through."""
+"""Single terminal error path chat streaming must route through."""
 
 from __future__ import annotations
 

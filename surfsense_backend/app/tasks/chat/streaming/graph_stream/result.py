@@ -1,4 +1,4 @@
-"""Output facts collected while streaming one orchestrated agent turn."""
+"""Mutable facts collected while relaying one agent stream (``stream_output``)."""
 
 from __future__ import annotations
 
@@ -26,4 +26,3 @@ class StreamingResult:
     commit_gate_reason: str = ""
     assistant_message_id: int | None = None
     content_builder: Any | None = field(default=None, repr=False)
-

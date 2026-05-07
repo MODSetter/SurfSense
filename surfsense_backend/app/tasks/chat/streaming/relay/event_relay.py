@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.services.streaming.emitter import EmitterRegistry
+from app.tasks.chat.streaming.graph_stream.result import StreamingResult
 from app.tasks.chat.streaming.handlers.chain_end import iter_chain_end_frames
 from app.tasks.chat.streaming.handlers.chat_model_stream import (
     iter_chat_model_stream_frames,
@@ -16,7 +17,6 @@ from app.tasks.chat.streaming.handlers.custom_event_dispatch import (
 )
 from app.tasks.chat.streaming.handlers.tool_end import iter_tool_end_frames
 from app.tasks.chat.streaming.handlers.tool_start import iter_tool_start_frames
-from app.tasks.chat.streaming.orchestration.output import StreamingResult
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 from app.tasks.chat.streaming.relay.thinking_step_completion import (
     complete_active_thinking_step,

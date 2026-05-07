@@ -1,4 +1,4 @@
-"""Behavior tests for orchestration event-stream execution."""
+"""Tests for ``stream_output`` (LangGraph events → SSE)."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from typing import Any
 
 import pytest
 
-from app.tasks.chat.streaming.orchestration import stream_output
-from app.tasks.chat.streaming.orchestration.output import StreamingResult
+from app.tasks.chat.streaming.graph_stream import stream_output
+from app.tasks.chat.streaming.graph_stream.result import StreamingResult
 
 pytestmark = pytest.mark.unit
 
@@ -88,6 +88,7 @@ async def test_stream_output_emits_text_lifecycle_and_updates_result() -> None:
 
 async def test_stream_output_passes_runtime_context_to_agent() -> None:
     service = _StreamingService()
+
     class _ContextAwareAgent:
         async def astream_events(self, input_data: Any, **kwargs: Any):
             del input_data

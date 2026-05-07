@@ -1,4 +1,4 @@
-"""Run LangGraph event streams through the  EventRelay."""
+"""Run LangGraph event streams through ``EventRelay``."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from app.agents.new_chat.feature_flags import get_flags
-from app.tasks.chat.streaming.orchestration.output import StreamingResult
+from app.tasks.chat.streaming.graph_stream.result import StreamingResult
 from app.tasks.chat.streaming.relay.event_relay import EventRelay
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 

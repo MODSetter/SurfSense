@@ -1,7 +1,7 @@
 """Pin Stage 1 extractions as faithful copies of the old helpers.
 
-The new orchestrator under ``app.tasks.chat.streaming`` is built in
-parallel with the production module ``app.tasks.chat.stream_new_chat``.
+Extractions under ``app.tasks.chat.streaming`` are compared to
+``app.tasks.chat.stream_new_chat`` helpers.
 For each Stage 1 extraction we assert the new function returns the same
 output as the old one for a representative input set. The moment the
 two diverge - intentionally or otherwise - this file fails loudly so

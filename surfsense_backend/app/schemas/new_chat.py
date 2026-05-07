@@ -380,7 +380,7 @@ class ResumeRequest(BaseModel):
             "/regenerate. Resume reuses the original interrupted user "
             "turn so the server does not write a new user message. "
             "Currently unused but accepted to keep request bodies "
-            "uniform across the three streaming entrypoints."
+            "uniform across new-message, regenerate, and resume stream routes."
         ),
     )
 
