@@ -5,7 +5,7 @@
   },
   "channel": {
     "id": "C_FAKE_SLACK_CANARY",
-    "name": "e2e-canary",
+    "name": "slack-e2e-canary",
     "purpose": "SurfSense E2E Slack canary channel"
   },
   "messages": [

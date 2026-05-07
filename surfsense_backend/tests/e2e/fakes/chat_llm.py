@@ -27,6 +27,8 @@ LINEAR_CANARY_TITLE = "E2E Canary Linear Issue"
 JIRA_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_JIRA_001"
 JIRA_CANARY_SUMMARY = "E2E Canary Jira Issue"
 JIRA_CANARY_KEY = "E2E-101"
+SLACK_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_SLACK_001"
+SLACK_CANARY_CHANNEL = "slack-e2e-canary"
 NO_RELEVANT_CONTENT_SENTINEL = "No relevant indexed content found."
 NO_RELEVANT_CONTENT_QUERY = "E2E_NO_RELEVANT_CONTENT_SMOKE"
 
@@ -111,6 +113,11 @@ class FakeChatLLM(BaseChatModel):
             and JIRA_CANARY_TOKEN in latest_tool_text
         ):
             return f"Jira live tool content found: {JIRA_CANARY_TOKEN}"
+        if (
+            latest_tool_name == "slack_search_channels"
+            and SLACK_CANARY_TOKEN in latest_tool_text
+        ):
+            return f"Slack live tool content found: {SLACK_CANARY_TOKEN}"
 
         wants_gmail = _contains_any(
             latest_human,
@@ -146,6 +153,10 @@ class FakeChatLLM(BaseChatModel):
                 "surfsense-e2e.atlassian.net",
                 "fake-jira-cloud-001",
             ),
+        )
+        wants_slack = _contains_any(
+            latest_human,
+            ("slack", SLACK_CANARY_TOKEN),
         )
         has_gmail_evidence = (
             GMAIL_CANARY_SUBJECT in prompt_text
@@ -183,7 +194,15 @@ class FakeChatLLM(BaseChatModel):
             or "fake-jira-cloud-001" in prompt_text
             or "surfsense-e2e.atlassian.net" in prompt_text
         )
+        has_slack_evidence = (
+            SLACK_CANARY_CHANNEL in prompt_text
+            or SLACK_CANARY_TOKEN in prompt_text
+            or "C_FAKE_SLACK_CANARY" in prompt_text
+            or "T_FAKE_SLACK_TEAM" in prompt_text
+        )
 
+        if wants_slack and has_slack_evidence:
+            return f"Slack content found: {SLACK_CANARY_TOKEN}"
         if wants_jira and has_jira_evidence:
             return f"Jira content found: {JIRA_CANARY_TOKEN}"
         if wants_linear and has_linear_evidence:
@@ -206,6 +225,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_calendar_evidence
             and not has_gmail_evidence
             and not has_drive_evidence
+            and not has_slack_evidence
         ):
             return f"Notion content found: {NOTION_CANARY_TOKEN}"
         if (
@@ -216,6 +236,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_calendar_evidence
             and not has_gmail_evidence
             and not has_drive_evidence
+            and not has_slack_evidence
         ):
             return f"Confluence content found: {CONFLUENCE_CANARY_TOKEN}"
         if (
@@ -226,6 +247,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_calendar_evidence
             and not has_gmail_evidence
             and not has_drive_evidence
+            and not has_slack_evidence
         ):
             return f"Jira content found: {JIRA_CANARY_TOKEN}"
         if (
@@ -236,6 +258,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_calendar_evidence
             and not has_gmail_evidence
             and not has_drive_evidence
+            and not has_slack_evidence
         ):
             return f"Linear content found: {LINEAR_CANARY_TOKEN}"
         if (
@@ -246,6 +269,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_notion_evidence
             and not has_gmail_evidence
             and not has_drive_evidence
+            and not has_slack_evidence
         ):
             return f"Calendar content found: {CALENDAR_CANARY_TOKEN}"
         if (
@@ -255,6 +279,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_linear_evidence
             and not has_notion_evidence
             and not has_drive_evidence
+            and not has_slack_evidence
         ):
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
         if (
@@ -264,8 +289,20 @@ class FakeChatLLM(BaseChatModel):
             and not has_linear_evidence
             and not has_notion_evidence
             and not has_gmail_evidence
+            and not has_slack_evidence
         ):
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
+        if (
+            has_slack_evidence
+            and not has_confluence_evidence
+            and not has_jira_evidence
+            and not has_linear_evidence
+            and not has_notion_evidence
+            and not has_calendar_evidence
+            and not has_gmail_evidence
+            and not has_drive_evidence
+        ):
+            return f"Slack content found: {SLACK_CANARY_TOKEN}"
         return NO_RELEVANT_CONTENT_SENTINEL
 
     def _tool_call_message_for(self, messages: list[BaseMessage]) -> AIMessage | None:
@@ -369,6 +406,21 @@ class FakeChatLLM(BaseChatModel):
                         "name": "list_issues",
                         "args": {"query": LINEAR_CANARY_TITLE, "limit": 5},
                         "id": "call_e2e_list_linear_issues",
+                    }
+                ],
+            )
+
+        if latest_tool is None and _contains_any(
+            latest_human,
+            ("slack", SLACK_CANARY_TOKEN),
+        ):
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "slack_search_channels",
+                        "args": {"query": SLACK_CANARY_CHANNEL, "limit": 5},
+                        "id": "call_e2e_search_slack_channels",
                     }
                 ],
             )

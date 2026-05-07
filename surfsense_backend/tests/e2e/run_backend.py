@@ -69,6 +69,8 @@ os.environ.setdefault(
     "NOTION_REDIRECT_URI",
     "http://localhost:8000/api/v1/auth/notion/connector/callback",
 )
+os.environ["SLACK_CLIENT_ID"] = "fake-slack-mcp-client-id"
+os.environ["SLACK_CLIENT_SECRET"] = "fake-slack-mcp-client-secret"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -104,6 +106,7 @@ from tests.e2e.fakes import (  # noqa: E402
     mcp_runtime as _fake_mcp_runtime,
     native_google as _fake_native_google,
     notion_module as _fake_notion_module,
+    slack_module as _fake_slack_module,
 )
 from tests.e2e.fakes.chat_llm import (  # noqa: E402
     fake_create_chat_litellm_from_agent_config,
@@ -181,6 +184,7 @@ _fake_linear_module.install(_active_patches)
 _fake_jira_module.install(_active_patches)
 _fake_mcp_runtime.install(_active_patches)
 _fake_mcp_oauth_runtime.install(_active_patches)
+_fake_slack_module.install(_active_patches)
 
 
 # ---------------------------------------------------------------------------
