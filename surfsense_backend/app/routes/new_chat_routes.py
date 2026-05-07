@@ -71,7 +71,15 @@ from app.schemas.new_chat import (
     TokenUsageSummary,
     TurnStatusResponse,
 )
-from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
+from app.tasks.chat.stream_new_chat import (
+    stream_new_chat as legacy_stream_new_chat,
+    stream_resume_chat as legacy_stream_resume_chat,
+)
+from app.tasks.chat.streaming.orchestrator import (
+    stream_chat,
+    stream_regenerate,
+    stream_resume,
+)
 from app.users import current_active_user
 from app.utils.perf import get_perf_logger
 from app.utils.rbac import check_permission
@@ -88,6 +96,10 @@ TURN_CANCELLING_BACKOFF_FACTOR = 2
 TURN_CANCELLING_MAX_DELAY_MS = 1500
 
 router = APIRouter()
+
+
+def _use_streaming_orchestrator() -> bool:
+    return config.ENABLE_CHAT_STREAM_ORCHESTRATOR
 
 
 def _resolve_filesystem_selection(
@@ -1770,7 +1782,11 @@ async def handle_new_chat(
         )
 
         return StreamingResponse(
-            stream_new_chat(
+            (
+                stream_chat
+                if _use_streaming_orchestrator()
+                else legacy_stream_new_chat
+            )(
                 user_query=request.user_query,
                 search_space_id=request.search_space_id,
                 chat_id=request.chat_id,
@@ -2255,7 +2271,12 @@ async def regenerate_response(
                 else None
             )
             try:
-                async for chunk in stream_new_chat(
+                regenerate_fn = (
+                    stream_regenerate
+                    if _use_streaming_orchestrator()
+                    else legacy_stream_new_chat
+                )
+                async for chunk in regenerate_fn(
                     user_query=str(user_query_to_use),
                     search_space_id=request.search_space_id,
                     chat_id=thread_id,
@@ -2387,7 +2408,11 @@ async def resume_chat(
         await session.close()
 
         return StreamingResponse(
-            stream_resume_chat(
+            (
+                stream_resume
+                if _use_streaming_orchestrator()
+                else legacy_stream_resume_chat
+            )(
                 chat_id=thread_id,
                 search_space_id=request.search_space_id,
                 decisions=decisions,
