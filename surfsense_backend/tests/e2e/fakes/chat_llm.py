@@ -18,6 +18,8 @@ GMAIL_CANARY_SUBJECT = "E2E Canary Email"
 GMAIL_CANARY_MESSAGE_ID = "fake-msg-canary-001"
 CALENDAR_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001"
 CALENDAR_CANARY_SUMMARY = "E2E Canary Calendar Event"
+NOTION_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001"
+NOTION_CANARY_TITLE = "E2E Canary Notion Page"
 NO_RELEVANT_CONTENT_SENTINEL = "No relevant indexed content found."
 NO_RELEVANT_CONTENT_QUERY = "E2E_NO_RELEVANT_CONTENT_SMOKE"
 
@@ -47,7 +49,9 @@ def _contains_any(text: str, needles: tuple[str, ...]) -> bool:
 
 
 def _latest_tool_message(messages: list[BaseMessage]) -> BaseMessage | None:
-    return next((message for message in reversed(messages) if message.type == "tool"), None)
+    return next(
+        (message for message in reversed(messages) if message.type == "tool"), None
+    )
 
 
 class FakeChatLLM(BaseChatModel):
@@ -75,9 +79,15 @@ class FakeChatLLM(BaseChatModel):
         latest_tool_name = getattr(latest_tool, "name", None)
         latest_tool_text = _content_to_text(latest_tool.content) if latest_tool else ""
 
-        if latest_tool_name == "read_gmail_email" and GMAIL_CANARY_TOKEN in latest_tool_text:
+        if (
+            latest_tool_name == "read_gmail_email"
+            and GMAIL_CANARY_TOKEN in latest_tool_text
+        ):
             return f"Gmail live tool content found: {GMAIL_CANARY_TOKEN}"
-        if latest_tool_name == "search_gmail" and GMAIL_CANARY_MESSAGE_ID in latest_tool_text:
+        if (
+            latest_tool_name == "search_gmail"
+            and GMAIL_CANARY_MESSAGE_ID in latest_tool_text
+        ):
             return "Reading the matching Gmail message next."
         if (
             latest_tool_name == "search_calendar_events"
@@ -97,31 +107,53 @@ class FakeChatLLM(BaseChatModel):
             latest_human,
             ("drive", "file", "e2e-canary.txt"),
         )
+        wants_notion = _contains_any(
+            latest_human,
+            ("notion", "page", NOTION_CANARY_TITLE),
+        )
         has_gmail_evidence = (
             GMAIL_CANARY_SUBJECT in prompt_text
             or GMAIL_CANARY_MESSAGE_ID in prompt_text
             or GMAIL_CANARY_TOKEN in prompt_text
         )
         has_calendar_evidence = (
-            CALENDAR_CANARY_SUMMARY in prompt_text or CALENDAR_CANARY_TOKEN in prompt_text
+            CALENDAR_CANARY_SUMMARY in prompt_text
+            or CALENDAR_CANARY_TOKEN in prompt_text
         )
         has_drive_evidence = (
             "e2e-canary.txt" in prompt_text
             or "fake-file-canary" in prompt_text
             or DRIVE_CANARY_TOKEN in prompt_text
         )
+        has_notion_evidence = (
+            NOTION_CANARY_TITLE in prompt_text or NOTION_CANARY_TOKEN in prompt_text
+        )
 
+        if wants_notion and has_notion_evidence:
+            return f"Notion content found: {NOTION_CANARY_TOKEN}"
         if wants_calendar and has_calendar_evidence:
             return f"Calendar content found: {CALENDAR_CANARY_TOKEN}"
         if wants_gmail and has_gmail_evidence:
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
         if wants_drive and has_drive_evidence:
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
-        if has_calendar_evidence and not has_gmail_evidence and not has_drive_evidence:
+        if (
+            has_notion_evidence
+            and not has_calendar_evidence
+            and not has_gmail_evidence
+            and not has_drive_evidence
+        ):
+            return f"Notion content found: {NOTION_CANARY_TOKEN}"
+        if (
+            has_calendar_evidence
+            and not has_notion_evidence
+            and not has_gmail_evidence
+            and not has_drive_evidence
+        ):
             return f"Calendar content found: {CALENDAR_CANARY_TOKEN}"
-        if has_gmail_evidence and not has_drive_evidence:
+        if has_gmail_evidence and not has_notion_evidence and not has_drive_evidence:
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
-        if has_drive_evidence and not has_gmail_evidence:
+        if has_drive_evidence and not has_notion_evidence and not has_gmail_evidence:
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
         return NO_RELEVANT_CONTENT_SENTINEL
 
@@ -138,7 +170,10 @@ class FakeChatLLM(BaseChatModel):
         latest_tool_name = getattr(latest_tool, "name", None)
         latest_tool_text = _content_to_text(latest_tool.content) if latest_tool else ""
 
-        if latest_tool_name == "search_gmail" and GMAIL_CANARY_MESSAGE_ID in latest_tool_text:
+        if (
+            latest_tool_name == "search_gmail"
+            and GMAIL_CANARY_MESSAGE_ID in latest_tool_text
+        ):
             return AIMessage(
                 content="",
                 tool_calls=[
@@ -233,7 +268,9 @@ class FakeChatLLM(BaseChatModel):
         )
 
 
-def fake_create_chat_litellm_from_agent_config(*args: Any, **kwargs: Any) -> FakeChatLLM:
+def fake_create_chat_litellm_from_agent_config(
+    *args: Any, **kwargs: Any
+) -> FakeChatLLM:
     del args, kwargs
     return FakeChatLLM()
 
