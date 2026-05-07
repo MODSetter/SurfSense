@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from app.tasks.chat.streaming.orchestration import stream_agent_events
-from app.tasks.chat.streaming.stream_result import StreamResult
+from app.tasks.chat.streaming.orchestration.output import StreamOutput
 
 pytestmark = pytest.mark.unit
 
@@ -64,7 +64,7 @@ async def test_stream_agent_events_emits_text_lifecycle_and_updates_result() -> 
             {"event": "on_chat_model_stream", "data": {"chunk": _Chunk(content=" world")}},
         ]
     )
-    result = StreamResult()
+    result = StreamOutput()
 
     frames = await _collect(
         stream_agent_events(
@@ -90,7 +90,7 @@ async def test_stream_agent_events_emits_text_lifecycle_and_updates_result() -> 
 async def test_stream_agent_events_passes_runtime_context_to_agent() -> None:
     service = _StreamingService()
     agent = _Agent([{"event": "on_chat_model_stream", "data": {"chunk": _Chunk("x")}}])
-    result = StreamResult()
+    result = StreamOutput()
 
     _ = await _collect(
         stream_agent_events(

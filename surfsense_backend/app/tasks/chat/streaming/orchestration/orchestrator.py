@@ -14,6 +14,9 @@ from typing import Any, Literal
 from app.agents.new_chat.filesystem_selection import FilesystemSelection
 from app.db import ChatVisibility
 from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
+from app.tasks.chat.streaming.orchestration.event_stream import stream_agent_events
+from app.tasks.chat.streaming.orchestration.input import StreamExecutionInput
+from app.tasks.chat.streaming.orchestration.output import StreamOutput
 
 
 async def stream_chat(
@@ -34,8 +37,38 @@ async def stream_chat(
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
     user_image_data_urls: list[str] | None = None,
+    orchestration_input: StreamExecutionInput | None = None,
 ) -> AsyncGenerator[str, None]:
     """Stream a new chat turn through the current production pipeline."""
+    if orchestration_input is not None:
+        result = StreamOutput(
+            request_id=request_id,
+            turn_id=f"{chat_id}:orchestrator",
+            filesystem_mode=(
+                filesystem_selection.mode.value if filesystem_selection else "cloud"
+            ),
+            client_platform=(
+                filesystem_selection.client_platform.value
+                if filesystem_selection
+                else "web"
+            ),
+        )
+        async for frame in stream_agent_events(
+            agent=orchestration_input.agent,
+            config=orchestration_input.config,
+            input_data=orchestration_input.input_data,
+            streaming_service=orchestration_input.streaming_service,
+            result=result,
+            step_prefix=orchestration_input.step_prefix,
+            initial_step_id=orchestration_input.initial_step_id,
+            initial_step_title=orchestration_input.initial_step_title,
+            initial_step_items=orchestration_input.initial_step_items,
+            content_builder=orchestration_input.content_builder,
+            runtime_context=orchestration_input.runtime_context,
+        ):
+            yield frame
+        return
+
     async for chunk in stream_new_chat(
         user_query=user_query,
         search_space_id=search_space_id,

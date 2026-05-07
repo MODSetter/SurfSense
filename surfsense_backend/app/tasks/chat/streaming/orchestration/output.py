@@ -1,4 +1,4 @@
-"""Mutable facts collected while streaming one agent turn."""
+"""Output facts collected while streaming one orchestrated agent turn."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 
 
 @dataclass
-class StreamResult:
+class StreamOutput:
     accumulated_text: str = ""
     is_interrupted: bool = False
     interrupt_value: dict[str, Any] | None = None
@@ -26,3 +26,7 @@ class StreamResult:
     commit_gate_reason: str = ""
     assistant_message_id: int | None = None
     content_builder: Any | None = field(default=None, repr=False)
+
+
+# Backwards-compatible alias while imports migrate.
+StreamResult = StreamOutput

@@ -16,11 +16,11 @@ from app.tasks.chat.streaming.handlers.custom_event_dispatch import (
 )
 from app.tasks.chat.streaming.handlers.tool_end import iter_tool_end_frames
 from app.tasks.chat.streaming.handlers.tool_start import iter_tool_start_frames
+from app.tasks.chat.streaming.orchestration.output import StreamOutput
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 from app.tasks.chat.streaming.relay.thinking_step_completion import (
     complete_active_thinking_step,
 )
-from app.tasks.chat.streaming.stream_result import StreamResult
 
 
 @dataclass
@@ -52,7 +52,7 @@ class EventRelay:
         events: AsyncIterator[dict[str, Any]],
         *,
         state: AgentEventRelayState,
-        result: StreamResult,
+        result: StreamOutput,
         step_prefix: str = "thinking",
         content_builder: Any | None = None,
         config: dict[str, Any] | None = None,

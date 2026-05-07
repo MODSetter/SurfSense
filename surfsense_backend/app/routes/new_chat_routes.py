@@ -75,7 +75,7 @@ from app.tasks.chat.stream_new_chat import (
     stream_new_chat as legacy_stream_new_chat,
     stream_resume_chat as legacy_stream_resume_chat,
 )
-from app.tasks.chat.streaming.orchestrator import (
+from app.tasks.chat.streaming.orchestration.orchestrator import (
     stream_chat,
     stream_regenerate,
     stream_resume,
