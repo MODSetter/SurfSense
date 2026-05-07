@@ -69,6 +69,12 @@ os.environ.setdefault(
     "NOTION_REDIRECT_URI",
     "http://localhost:8000/api/v1/auth/notion/connector/callback",
 )
+os.environ.setdefault("MICROSOFT_CLIENT_ID", "fake-microsoft-client-id")
+os.environ.setdefault("MICROSOFT_CLIENT_SECRET", "fake-microsoft-client-secret")
+os.environ.setdefault(
+    "ONEDRIVE_REDIRECT_URI",
+    "http://localhost:8000/api/v1/auth/onedrive/connector/callback",
+)
 os.environ["SLACK_CLIENT_ID"] = "fake-slack-mcp-client-id"
 os.environ["SLACK_CLIENT_SECRET"] = "fake-slack-mcp-client-secret"
 
@@ -106,6 +112,7 @@ from tests.e2e.fakes import (  # noqa: E402
     mcp_runtime as _fake_mcp_runtime,
     native_google as _fake_native_google,
     notion_module as _fake_notion_module,
+    onedrive_graph as _fake_onedrive_graph,
     slack_module as _fake_slack_module,
 )
 from tests.e2e.fakes.chat_llm import (  # noqa: E402
@@ -125,6 +132,7 @@ def _patch_llm_bindings() -> None:
         "app.tasks.connector_indexers.google_drive_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.google_gmail_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.notion_indexer.get_user_long_context_llm",
+        "app.tasks.connector_indexers.onedrive_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.local_folder_indexer.get_user_long_context_llm",
         "app.tasks.document_processors._save.get_user_long_context_llm",
         "app.tasks.document_processors.markdown_processor.get_user_long_context_llm",
@@ -179,6 +187,7 @@ _fake_embeddings.install(_active_patches)
 _fake_confluence_oauth.install(_active_patches)
 _fake_confluence_indexer.install(_active_patches)
 _fake_native_google.install(_active_patches)
+_fake_onedrive_graph.install(_active_patches)
 _fake_notion_module.install(_active_patches)
 _fake_linear_module.install(_active_patches)
 _fake_jira_module.install(_active_patches)
