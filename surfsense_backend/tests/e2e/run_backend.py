@@ -57,6 +57,12 @@ sys.modules["notion_client.errors"] = _fake_notion.errors
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv()
+os.environ.setdefault("ATLASSIAN_CLIENT_ID", "fake-atlassian-client-id")
+os.environ.setdefault("ATLASSIAN_CLIENT_SECRET", "fake-atlassian-client-secret")
+os.environ.setdefault(
+    "CONFLUENCE_REDIRECT_URI",
+    "http://localhost:8000/api/v1/auth/confluence/connector/callback",
+)
 os.environ.setdefault("NOTION_CLIENT_ID", "fake-notion-client-id")
 os.environ.setdefault("NOTION_CLIENT_SECRET", "fake-notion-client-secret")
 os.environ.setdefault(
@@ -89,6 +95,8 @@ from unittest.mock import patch  # noqa: E402
 
 from app.app import app  # noqa: E402
 from tests.e2e.fakes import (  # noqa: E402
+    confluence_indexer as _fake_confluence_indexer,
+    confluence_oauth as _fake_confluence_oauth,
     embeddings as _fake_embeddings,
     jira_module as _fake_jira_module,
     linear_module as _fake_linear_module,
@@ -110,6 +118,7 @@ def _patch_llm_bindings() -> None:
     """Replace LLM factories at every known binding site."""
     targets = [
         "app.services.llm_service.get_user_long_context_llm",
+        "app.tasks.connector_indexers.confluence_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.google_drive_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.google_gmail_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.notion_indexer.get_user_long_context_llm",
@@ -164,6 +173,8 @@ def _patch_llm_bindings() -> None:
 
 _patch_llm_bindings()
 _fake_embeddings.install(_active_patches)
+_fake_confluence_oauth.install(_active_patches)
+_fake_confluence_indexer.install(_active_patches)
 _fake_native_google.install(_active_patches)
 _fake_notion_module.install(_active_patches)
 _fake_linear_module.install(_active_patches)

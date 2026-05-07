@@ -139,6 +139,9 @@ class _FakeTokenResponse(_StrictFakeMixin):
 class _FakeHttpxAsyncClient(_StrictFakeMixin):
     _component_name = "httpx.AsyncClient"
 
+    def __init__(self, *args: Any, **kwargs: Any):
+        del args, kwargs
+
     async def __aenter__(self) -> _FakeHttpxAsyncClient:
         return self
 
@@ -183,12 +186,18 @@ class _FakeHttpxAsyncClient(_StrictFakeMixin):
         )
 
 
+class _FakeHttpxModule(_StrictFakeMixin):
+    _component_name = "httpx"
+
+    AsyncClient = _FakeHttpxAsyncClient
+
+
 def install(active_patches: list[Any]) -> None:
     """Patch production bindings that cannot be covered by sys.modules hijack."""
     targets = [
         (
-            "app.routes.notion_add_connector_route.httpx.AsyncClient",
-            _FakeHttpxAsyncClient,
+            "app.routes.notion_add_connector_route.httpx",
+            _FakeHttpxModule(),
         ),
     ]
     for target, replacement in targets:
