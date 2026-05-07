@@ -542,3 +542,58 @@ export async function runJiraOAuth(
 
 	return { authUrl: auth_url, finalUrl: location, connector };
 }
+
+/**
+ * Drives the Slack MCP OAuth flow programmatically.
+ *
+ * The E2E backend keeps SurfSense's generic MCP OAuth routes real and
+ * patches Slack's external discovery/token/MCP tool boundaries.
+ */
+export async function runSlackOAuth(
+	request: APIRequestContext,
+	token: string,
+	searchSpaceId: number
+): Promise<{
+	authUrl: string;
+	finalUrl: string;
+	connector: ConnectorRow | null;
+}> {
+	const initiateResp = await request.get(
+		`${BACKEND_URL}/api/v1/auth/mcp/slack/connector/add?space_id=${searchSpaceId}`,
+		{ headers: authHeaders(token) }
+	);
+	if (!initiateResp.ok()) {
+		throw new Error(
+			`Slack MCP initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
+		);
+	}
+	const { auth_url } = (await initiateResp.json()) as { auth_url: string };
+	if (!auth_url) {
+		throw new Error("Slack MCP initiate response missing auth_url");
+	}
+
+	const state = new URL(auth_url).searchParams.get("state");
+	if (!state) {
+		throw new Error(`Slack MCP auth_url missing state: ${auth_url}`);
+	}
+
+	const callbackResp = await request.get(
+		`${BACKEND_URL}/api/v1/auth/mcp/slack/connector/callback?code=fake-slack-oauth-code&state=${encodeURIComponent(state)}`,
+		{
+			headers: authHeaders(token),
+			maxRedirects: 0,
+			failOnStatusCode: false,
+		}
+	);
+	if (callbackResp.status() >= 400) {
+		throw new Error(
+			`Slack MCP callback failed (${callbackResp.status()}): ${await callbackResp.text()}`
+		);
+	}
+	const location = callbackResp.headers().location ?? auth_url;
+
+	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connector = connectors.find((c) => c.connector_type === "SLACK_CONNECTOR") ?? null;
+
+	return { authUrl: auth_url, finalUrl: location, connector };
+}

@@ -28,6 +28,8 @@
  *             └─ linearWithChatTest — chatThread
  *         └─ jiraFixtures — jiraConnector
  *             └─ jiraWithChatTest — chatThread
+ *         └─ slackFixtures — slackConnector
+ *             └─ slackWithChatTest — chatThread
  *
  * To add a new connector (Gmail, Slack, manual upload, etc.):
  *   1. Add a fixture file under `fixtures/connectors/<name>.fixture.ts`.
@@ -47,6 +49,7 @@ export { nativeDriveFixtures } from "./connectors/native-drive.fixture";
 export { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
 export { notionFixtures } from "./connectors/notion.fixture";
 export { searchSpaceFixtures } from "./search-space.fixture";
+export { slackFixtures } from "./connectors/slack.fixture";
 
 import { type ChatThreadFixtures, chatThreadFixtures } from "./chat-thread.fixture";
 import { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
@@ -60,6 +63,7 @@ import { nativeDriveFixtures } from "./connectors/native-drive.fixture";
 import { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
 import { notionFixtures } from "./connectors/notion.fixture";
 import { searchSpaceFixtures } from "./search-space.fixture";
+import { slackFixtures } from "./connectors/slack.fixture";
 
 /** Default `test` for specs that just need auth + a clean search space. */
 export const test = searchSpaceFixtures;
@@ -110,3 +114,7 @@ export const linearWithChatTest = linearFixtures.extend<ChatThreadFixtures>(chat
 export const jiraTest = jiraFixtures;
 /** `test` for Jira specs that also need a chat thread. */
 export const jiraWithChatTest = jiraFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
+/** `test` for specs that also need a pre-connected Slack connector. */
+export const slackTest = slackFixtures;
+/** `test` for Slack specs that also need a chat thread. */
+export const slackWithChatTest = slackFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);

@@ -24,6 +24,7 @@ export const CANARY_TOKENS = {
 	confluenceCanary: "SURFSENSE_E2E_CANARY_TOKEN_CONFLUENCE_001",
 	linearCanary: "SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001",
 	jiraCanary: "SURFSENSE_E2E_CANARY_TOKEN_JIRA_001",
+	slackCanary: "SURFSENSE_E2E_CANARY_TOKEN_SLACK_001",
 } as const;
 
 /**
@@ -140,6 +141,19 @@ export const FAKE_JIRA_ISSUES = {
 		summary: "E2E Canary Jira Issue",
 		cloudId: "fake-jira-cloud-001",
 		siteUrl: "https://surfsense-e2e.atlassian.net",
+	},
+} as const;
+
+/**
+ * Fake Slack channel IDs that match what the backend MCP fake returns from
+ * slack_search_channels.
+ */
+export const FAKE_SLACK_CHANNELS = {
+	canary: {
+		id: "C_FAKE_SLACK_CANARY",
+		name: "slack-e2e-canary",
+		teamId: "T_FAKE_SLACK_TEAM",
+		teamName: "SurfSense E2E Slack Workspace",
 	},
 } as const;
 
