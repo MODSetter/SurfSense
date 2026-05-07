@@ -22,6 +22,9 @@ NOTION_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001"
 NOTION_CANARY_TITLE = "E2E Canary Notion Page"
 LINEAR_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001"
 LINEAR_CANARY_TITLE = "E2E Canary Linear Issue"
+JIRA_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_JIRA_001"
+JIRA_CANARY_SUMMARY = "E2E Canary Jira Issue"
+JIRA_CANARY_KEY = "E2E-101"
 NO_RELEVANT_CONTENT_SENTINEL = "No relevant indexed content found."
 NO_RELEVANT_CONTENT_QUERY = "E2E_NO_RELEVANT_CONTENT_SMOKE"
 
@@ -101,6 +104,11 @@ class FakeChatLLM(BaseChatModel):
             and LINEAR_CANARY_TOKEN in latest_tool_text
         ):
             return f"Linear live tool content found: {LINEAR_CANARY_TOKEN}"
+        if (
+            latest_tool_name == "searchJiraIssuesUsingJql"
+            and JIRA_CANARY_TOKEN in latest_tool_text
+        ):
+            return f"Jira live tool content found: {JIRA_CANARY_TOKEN}"
 
         wants_gmail = _contains_any(
             latest_human,
@@ -121,6 +129,17 @@ class FakeChatLLM(BaseChatModel):
         wants_linear = _contains_any(
             latest_human,
             ("linear", "issue", LINEAR_CANARY_TITLE),
+        )
+        wants_jira = _contains_any(
+            latest_human,
+            (
+                "jira",
+                "atlassian",
+                JIRA_CANARY_SUMMARY,
+                JIRA_CANARY_KEY,
+                "surfsense-e2e.atlassian.net",
+                "fake-jira-cloud-001",
+            ),
         )
         has_gmail_evidence = (
             GMAIL_CANARY_SUBJECT in prompt_text
@@ -143,9 +162,18 @@ class FakeChatLLM(BaseChatModel):
             LINEAR_CANARY_TITLE in prompt_text
             or LINEAR_CANARY_TOKEN in prompt_text
             or "fake-linear-issue-canary-001" in prompt_text
-            or "E2E-101" in prompt_text
+        )
+        has_jira_evidence = (
+            JIRA_CANARY_SUMMARY in prompt_text
+            or JIRA_CANARY_TOKEN in prompt_text
+            or JIRA_CANARY_KEY in prompt_text
+            or "fake-jira-issue-canary-001" in prompt_text
+            or "fake-jira-cloud-001" in prompt_text
+            or "surfsense-e2e.atlassian.net" in prompt_text
         )
 
+        if wants_jira and has_jira_evidence:
+            return f"Jira content found: {JIRA_CANARY_TOKEN}"
         if wants_linear and has_linear_evidence:
             return f"Linear content found: {LINEAR_CANARY_TOKEN}"
         if wants_notion and has_notion_evidence:
@@ -158,6 +186,7 @@ class FakeChatLLM(BaseChatModel):
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
         if (
             has_notion_evidence
+            and not has_jira_evidence
             and not has_linear_evidence
             and not has_calendar_evidence
             and not has_gmail_evidence
@@ -165,7 +194,17 @@ class FakeChatLLM(BaseChatModel):
         ):
             return f"Notion content found: {NOTION_CANARY_TOKEN}"
         if (
+            has_jira_evidence
+            and not has_linear_evidence
+            and not has_notion_evidence
+            and not has_calendar_evidence
+            and not has_gmail_evidence
+            and not has_drive_evidence
+        ):
+            return f"Jira content found: {JIRA_CANARY_TOKEN}"
+        if (
             has_linear_evidence
+            and not has_jira_evidence
             and not has_notion_evidence
             and not has_calendar_evidence
             and not has_gmail_evidence
@@ -174,6 +213,7 @@ class FakeChatLLM(BaseChatModel):
             return f"Linear content found: {LINEAR_CANARY_TOKEN}"
         if (
             has_calendar_evidence
+            and not has_jira_evidence
             and not has_linear_evidence
             and not has_notion_evidence
             and not has_gmail_evidence
@@ -182,6 +222,7 @@ class FakeChatLLM(BaseChatModel):
             return f"Calendar content found: {CALENDAR_CANARY_TOKEN}"
         if (
             has_gmail_evidence
+            and not has_jira_evidence
             and not has_linear_evidence
             and not has_notion_evidence
             and not has_drive_evidence
@@ -189,6 +230,7 @@ class FakeChatLLM(BaseChatModel):
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
         if (
             has_drive_evidence
+            and not has_jira_evidence
             and not has_linear_evidence
             and not has_notion_evidence
             and not has_gmail_evidence
@@ -257,6 +299,31 @@ class FakeChatLLM(BaseChatModel):
                             "max_results": 10,
                         },
                         "id": "call_e2e_search_calendar_events",
+                    }
+                ],
+            )
+
+        if latest_tool is None and _contains_any(
+            latest_human,
+            (
+                "jira",
+                "atlassian",
+                JIRA_CANARY_SUMMARY,
+                JIRA_CANARY_KEY,
+                "surfsense-e2e.atlassian.net",
+                "fake-jira-cloud-001",
+            ),
+        ):
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "searchJiraIssuesUsingJql",
+                        "args": {
+                            "jql": f'summary ~ "{JIRA_CANARY_SUMMARY}"',
+                            "maxResults": 5,
+                        },
+                        "id": "call_e2e_search_jira_issues",
                     }
                 ],
             )
