@@ -1,4 +1,4 @@
-"""Behavior tests for streaming runtime helpers."""
+"""Behavior tests for streaming agent setup helpers."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from app.tasks.chat.streaming import runtime
+from app.tasks.chat.streaming import agent_setup
 
 pytestmark = pytest.mark.unit
 
@@ -29,7 +29,7 @@ async def test_preflight_llm_calls_litellm_when_model_present(
     )
 
     llm = types.SimpleNamespace(model="openai/test", api_key="k", api_base="b")
-    await runtime.preflight_llm(llm, is_provider_rate_limited=lambda _: False)
+    await agent_setup.preflight_llm(llm, is_provider_rate_limited=lambda _: False)
 
     assert calls["model"] == "openai/test"
     assert calls["max_tokens"] == 1
@@ -52,7 +52,7 @@ async def test_preflight_llm_rethrows_rate_limited(monkeypatch: pytest.MonkeyPat
     )
 
     with pytest.raises(_RateLimitedError):
-        await runtime.preflight_llm(
+        await agent_setup.preflight_llm(
             types.SimpleNamespace(model="openai/test"),
             is_provider_rate_limited=lambda exc: isinstance(exc, _RateLimitedError),
         )
@@ -74,7 +74,7 @@ async def test_preflight_llm_skips_probe_for_auto_model(
         types.SimpleNamespace(acompletion=_fake_acompletion),
     )
 
-    await runtime.preflight_llm(
+    await agent_setup.preflight_llm(
         types.SimpleNamespace(model="auto"),
         is_provider_rate_limited=lambda _: False,
     )
@@ -88,7 +88,7 @@ async def test_build_main_agent_for_thread_forwards_arguments() -> None:
         seen.update(kwargs)
         return "agent"
 
-    out = await runtime.build_main_agent_for_thread(
+    out = await agent_setup.build_main_agent_for_thread(
         _factory,
         llm="llm",
         search_space_id=1,
@@ -116,5 +116,5 @@ async def test_settle_speculative_agent_build_swallows_exceptions() -> None:
     import asyncio
 
     task = asyncio.create_task(_boom())
-    await runtime.settle_speculative_agent_build(task)
+    await agent_setup.settle_speculative_agent_build(task)
     assert task.done()

@@ -1,4 +1,4 @@
-"""Runtime setup helpers for orchestrated chat streaming."""
+"""Agent setup helpers for orchestrated chat streaming."""
 
 from __future__ import annotations
 
