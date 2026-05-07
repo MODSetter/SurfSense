@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from app.tasks.chat.streaming.orchestration import StreamingContext
+from app.tasks.chat.streaming.orchestration import orchestrator
 from app.tasks.chat.streaming.orchestration.orchestrator import (
     stream_chat,
     stream_regenerate,
@@ -136,5 +137,104 @@ async def test_stream_regenerate_uses_streaming_context_path() -> None:
     assert frames == [
         "text_start:text-1",
         "text_delta:text-1:g",
+        "text_end:text-1",
+    ]
+
+
+async def test_stream_chat_builds_streaming_context_when_not_provided() -> None:
+    service = _StreamingService()
+    agent = _Agent([{"event": "on_chat_model_stream", "data": {"chunk": _Chunk("b")}}])
+
+    async def _fake_builder(**kwargs: Any) -> StreamingContext:
+        del kwargs
+        return StreamingContext(
+            agent=agent,
+            config={"configurable": {"thread_id": "thread-b"}},
+            input_data={"messages": []},
+            streaming_service=service,
+        )
+
+    old = orchestrator.build_chat_streaming_context
+    orchestrator.build_chat_streaming_context = _fake_builder
+    try:
+        frames = await _collect(
+            stream_chat(
+                user_query="q",
+                search_space_id=1,
+                chat_id=3,
+            )
+        )
+    finally:
+        orchestrator.build_chat_streaming_context = old
+
+    assert frames == [
+        "text_start:text-1",
+        "text_delta:text-1:b",
+        "text_end:text-1",
+    ]
+
+
+async def test_stream_resume_builds_streaming_context_when_not_provided() -> None:
+    service = _StreamingService()
+    agent = _Agent([{"event": "on_chat_model_stream", "data": {"chunk": _Chunk("u")}}])
+
+    async def _fake_builder(**kwargs: Any) -> StreamingContext:
+        del kwargs
+        return StreamingContext(
+            agent=agent,
+            config={"configurable": {"thread_id": "thread-u"}},
+            input_data={"messages": []},
+            streaming_service=service,
+        )
+
+    old = orchestrator.build_resume_streaming_context
+    orchestrator.build_resume_streaming_context = _fake_builder
+    try:
+        frames = await _collect(
+            stream_resume(
+                chat_id=9,
+                search_space_id=1,
+                decisions=[],
+            )
+        )
+    finally:
+        orchestrator.build_resume_streaming_context = old
+
+    assert frames == [
+        "text_start:text-1",
+        "text_delta:text-1:u",
+        "text_end:text-1",
+    ]
+
+
+async def test_stream_regenerate_builds_streaming_context_when_not_provided() -> None:
+    service = _StreamingService()
+    agent = _Agent([{"event": "on_chat_model_stream", "data": {"chunk": _Chunk("x")}}])
+
+    async def _fake_builder(**kwargs: Any) -> StreamingContext:
+        del kwargs
+        return StreamingContext(
+            agent=agent,
+            config={"configurable": {"thread_id": "thread-x"}},
+            input_data={"messages": []},
+            streaming_service=service,
+        )
+
+    old = orchestrator.build_regenerate_streaming_context
+    orchestrator.build_regenerate_streaming_context = _fake_builder
+    try:
+        frames = await _collect(
+            stream_regenerate(
+                user_query="q",
+                search_space_id=1,
+                chat_id=2,
+            )
+        )
+    finally:
+        orchestrator.build_regenerate_streaming_context = old
+
+    assert frames == [
+        "text_start:text-1",
+        "text_delta:text-1:x",
         "text_end:text-1",
     ]

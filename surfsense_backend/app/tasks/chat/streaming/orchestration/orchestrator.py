@@ -9,6 +9,11 @@ from typing import Any, Literal
 from app.agents.new_chat.filesystem_selection import FilesystemSelection
 from app.db import ChatVisibility
 from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
+from app.tasks.chat.streaming.orchestration.streaming_context import (
+    build_chat_streaming_context,
+    build_regenerate_streaming_context,
+    build_resume_streaming_context,
+)
 from app.tasks.chat.streaming.orchestration.event_stream import stream_output
 from app.tasks.chat.streaming.orchestration.input import StreamingContext
 from app.tasks.chat.streaming.orchestration.output import StreamingResult
@@ -38,7 +43,7 @@ async def _stream_output_with_streaming_context(
 ) -> AsyncGenerator[str, None]:
     async for frame in stream_output(
         agent=streaming_context.agent,
-        config=streaming_context.config,    
+        config=streaming_context.config,
         input_data=streaming_context.input_data,
         streaming_service=streaming_context.streaming_service,
         result=result,
@@ -73,6 +78,24 @@ async def stream_chat(
     streaming_context: StreamingContext | None = None,
 ) -> AsyncGenerator[str, None]:
     """Stream a new chat turn through the current production pipeline."""
+    if streaming_context is None:
+        streaming_context = await build_chat_streaming_context(
+            user_query=user_query,
+            search_space_id=search_space_id,
+            chat_id=chat_id,
+            user_id=user_id,
+            llm_config_id=llm_config_id,
+            mentioned_document_ids=mentioned_document_ids,
+            mentioned_surfsense_doc_ids=mentioned_surfsense_doc_ids,
+            checkpoint_id=checkpoint_id,
+            needs_history_bootstrap=needs_history_bootstrap,
+            thread_visibility=thread_visibility,
+            current_user_display_name=current_user_display_name,
+            disabled_tools=disabled_tools,
+            filesystem_selection=filesystem_selection,
+            request_id=request_id,
+            user_image_data_urls=user_image_data_urls,
+        )
     if streaming_context is not None:
         result = _build_streaming_result(
             chat_id=chat_id,
@@ -122,6 +145,18 @@ async def stream_resume(
     streaming_context: StreamingContext | None = None,
 ) -> AsyncGenerator[str, None]:
     """Resume an interrupted chat turn through the current production pipeline."""
+    if streaming_context is None:
+        streaming_context = await build_resume_streaming_context(
+            chat_id=chat_id,
+            search_space_id=search_space_id,
+            decisions=decisions,
+            user_id=user_id,
+            llm_config_id=llm_config_id,
+            thread_visibility=thread_visibility,
+            filesystem_selection=filesystem_selection,
+            request_id=request_id,
+            disabled_tools=disabled_tools,
+        )
     if streaming_context is not None:
         result = _build_streaming_result(
             chat_id=chat_id,
@@ -172,6 +207,24 @@ async def stream_regenerate(
     streaming_context: StreamingContext | None = None,
 ) -> AsyncGenerator[str, None]:
     """Regenerate an assistant turn through the current production pipeline."""
+    if streaming_context is None:
+        streaming_context = await build_regenerate_streaming_context(
+            user_query=user_query,
+            search_space_id=search_space_id,
+            chat_id=chat_id,
+            user_id=user_id,
+            llm_config_id=llm_config_id,
+            mentioned_document_ids=mentioned_document_ids,
+            mentioned_surfsense_doc_ids=mentioned_surfsense_doc_ids,
+            checkpoint_id=checkpoint_id,
+            needs_history_bootstrap=needs_history_bootstrap,
+            thread_visibility=thread_visibility,
+            current_user_display_name=current_user_display_name,
+            disabled_tools=disabled_tools,
+            filesystem_selection=filesystem_selection,
+            request_id=request_id,
+            user_image_data_urls=user_image_data_urls,
+        )
     if streaming_context is not None:
         result = _build_streaming_result(
             chat_id=chat_id,
