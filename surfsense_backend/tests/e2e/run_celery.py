@@ -30,8 +30,11 @@ if _BACKEND_ROOT not in sys.path:
 # ---------------------------------------------------------------------------
 
 import tests.e2e.fakes.composio_module as _fake_composio  # noqa: E402
+import tests.e2e.fakes.notion_module as _fake_notion  # noqa: E402
 
 sys.modules["composio"] = _fake_composio
+sys.modules["notion_client"] = _fake_notion
+sys.modules["notion_client.errors"] = _fake_notion.errors
 
 
 # ---------------------------------------------------------------------------
@@ -41,6 +44,12 @@ sys.modules["composio"] = _fake_composio
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv()
+os.environ.setdefault("NOTION_CLIENT_ID", "fake-notion-client-id")
+os.environ.setdefault("NOTION_CLIENT_SECRET", "fake-notion-client-secret")
+os.environ.setdefault(
+    "NOTION_REDIRECT_URI",
+    "http://localhost:8000/api/v1/auth/notion/connector/callback",
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -67,6 +76,7 @@ from app.celery_app import celery_app  # noqa: E402
 from tests.e2e.fakes import (  # noqa: E402
     embeddings as _fake_embeddings,
     native_google as _fake_native_google,
+    notion_module as _fake_notion_module,
 )
 from tests.e2e.fakes.chat_llm import (  # noqa: E402
     fake_create_chat_litellm_from_agent_config,
@@ -82,6 +92,7 @@ def _patch_llm_bindings() -> None:
         "app.services.llm_service.get_user_long_context_llm",
         "app.tasks.connector_indexers.google_drive_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.google_gmail_indexer.get_user_long_context_llm",
+        "app.tasks.connector_indexers.notion_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.local_folder_indexer.get_user_long_context_llm",
         "app.tasks.document_processors._save.get_user_long_context_llm",
         "app.tasks.document_processors.markdown_processor.get_user_long_context_llm",
@@ -134,6 +145,7 @@ def _patch_llm_bindings() -> None:
 _patch_llm_bindings()
 _fake_embeddings.install(_active_patches)
 _fake_native_google.install(_active_patches)
+_fake_notion_module.install(_active_patches)
 
 
 # ---------------------------------------------------------------------------
