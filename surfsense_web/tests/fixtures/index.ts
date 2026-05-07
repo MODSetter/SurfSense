@@ -22,6 +22,8 @@
  *             └─ nativeCalendarWithChatTest — chatThread
  *         └─ notionFixtures — notionConnector
  *             └─ notionWithChatTest — chatThread
+ *         └─ linearFixtures — linearConnector
+ *             └─ linearWithChatTest — chatThread
  *
  * To add a new connector (Gmail, Slack, manual upload, etc.):
  *   1. Add a fixture file under `fixtures/connectors/<name>.fixture.ts`.
@@ -33,6 +35,7 @@ export { chatThreadFixtures } from "./chat-thread.fixture";
 export { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
 export { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 export { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
+export { linearFixtures } from "./connectors/linear.fixture";
 export { nativeCalendarFixtures } from "./connectors/native-calendar.fixture";
 export { nativeDriveFixtures } from "./connectors/native-drive.fixture";
 export { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
@@ -43,6 +46,7 @@ import { type ChatThreadFixtures, chatThreadFixtures } from "./chat-thread.fixtu
 import { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
 import { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 import { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
+import { linearFixtures } from "./connectors/linear.fixture";
 import { nativeCalendarFixtures } from "./connectors/native-calendar.fixture";
 import { nativeDriveFixtures } from "./connectors/native-drive.fixture";
 import { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
@@ -85,3 +89,7 @@ export const nativeCalendarWithChatTest =
 export const notionTest = notionFixtures;
 /** `test` for Notion specs that also need a chat thread. */
 export const notionWithChatTest = notionFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
+/** `test` for specs that also need a pre-connected Linear connector. */
+export const linearTest = linearFixtures;
+/** `test` for Linear specs that also need a chat thread. */
+export const linearWithChatTest = linearFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);

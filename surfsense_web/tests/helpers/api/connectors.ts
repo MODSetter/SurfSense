@@ -392,3 +392,53 @@ export async function runNotionOAuth(
 
 	return { authUrl: auth_url, finalUrl: location, connector };
 }
+
+/**
+ * Drives the Linear MCP OAuth flow programmatically.
+ *
+ * The E2E backend keeps SurfSense's generic MCP OAuth routes real and
+ * patches Linear's external discovery/DCR/token/MCP tool boundaries.
+ */
+export async function runLinearOAuth(
+	request: APIRequestContext,
+	token: string,
+	searchSpaceId: number
+): Promise<{
+	authUrl: string;
+	finalUrl: string;
+	connector: ConnectorRow | null;
+}> {
+	const initiateResp = await request.get(
+		`${BACKEND_URL}/api/v1/auth/mcp/linear/connector/add?space_id=${searchSpaceId}`,
+		{ headers: authHeaders(token) }
+	);
+	if (!initiateResp.ok()) {
+		throw new Error(
+			`Linear MCP initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
+		);
+	}
+	const { auth_url } = (await initiateResp.json()) as { auth_url: string };
+	if (!auth_url) {
+		throw new Error("Linear MCP initiate response missing auth_url");
+	}
+
+	const state = new URL(auth_url).searchParams.get("state");
+	if (!state) {
+		throw new Error(`Linear MCP auth_url missing state: ${auth_url}`);
+	}
+
+	const callbackResp = await request.get(
+		`${BACKEND_URL}/api/v1/auth/mcp/linear/connector/callback?code=fake-linear-oauth-code&state=${encodeURIComponent(state)}`,
+		{
+			headers: authHeaders(token),
+			maxRedirects: 0,
+			failOnStatusCode: false,
+		}
+	);
+	const location = callbackResp.headers().location ?? auth_url;
+
+	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connector = connectors.find((c) => c.connector_type === "LINEAR_CONNECTOR") ?? null;
+
+	return { authUrl: auth_url, finalUrl: location, connector };
+}
