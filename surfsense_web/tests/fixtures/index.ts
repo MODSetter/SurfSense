@@ -20,6 +20,8 @@
  *             └─ nativeGmailWithChatTest — chatThread
  *         └─ nativeCalendarFixtures — nativeCalendarConnector
  *             └─ nativeCalendarWithChatTest — chatThread
+ *         └─ notionFixtures — notionConnector
+ *             └─ notionWithChatTest — chatThread
  *
  * To add a new connector (Gmail, Slack, manual upload, etc.):
  *   1. Add a fixture file under `fixtures/connectors/<name>.fixture.ts`.
@@ -34,6 +36,7 @@ export { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
 export { nativeCalendarFixtures } from "./connectors/native-calendar.fixture";
 export { nativeDriveFixtures } from "./connectors/native-drive.fixture";
 export { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
+export { notionFixtures } from "./connectors/notion.fixture";
 export { searchSpaceFixtures } from "./search-space.fixture";
 
 import { type ChatThreadFixtures, chatThreadFixtures } from "./chat-thread.fixture";
@@ -43,6 +46,7 @@ import { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
 import { nativeCalendarFixtures } from "./connectors/native-calendar.fixture";
 import { nativeDriveFixtures } from "./connectors/native-drive.fixture";
 import { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
+import { notionFixtures } from "./connectors/notion.fixture";
 import { searchSpaceFixtures } from "./search-space.fixture";
 
 /** Default `test` for specs that just need auth + a clean search space. */
@@ -77,3 +81,7 @@ export const nativeCalendarTest = nativeCalendarFixtures;
 /** `test` for native Calendar specs that also need a chat thread. */
 export const nativeCalendarWithChatTest =
 	nativeCalendarFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
+/** `test` for specs that also need a pre-connected Notion connector. */
+export const notionTest = notionFixtures;
+/** `test` for Notion specs that also need a chat thread. */
+export const notionWithChatTest = notionFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);

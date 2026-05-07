@@ -340,3 +340,55 @@ export async function runNativeGoogleCalendarOAuth(
 
 	return { authUrl: auth_url, finalUrl: location, connector };
 }
+
+/**
+ * Drives the Notion OAuth flow programmatically.
+ *
+ * The E2E backend keeps SurfSense's OAuth add/callback routes real and
+ * patches only Notion's external token endpoint. Notion's authorization
+ * URL stays off-origin, so this helper extracts the signed state and calls
+ * the backend callback directly with the deterministic fake code.
+ */
+export async function runNotionOAuth(
+	request: APIRequestContext,
+	token: string,
+	searchSpaceId: number
+): Promise<{
+	authUrl: string;
+	finalUrl: string;
+	connector: ConnectorRow | null;
+}> {
+	const initiateResp = await request.get(
+		`${BACKEND_URL}/api/v1/auth/notion/connector/add?space_id=${searchSpaceId}`,
+		{ headers: authHeaders(token) }
+	);
+	if (!initiateResp.ok()) {
+		throw new Error(
+			`Notion initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
+		);
+	}
+	const { auth_url } = (await initiateResp.json()) as { auth_url: string };
+	if (!auth_url) {
+		throw new Error("Notion initiate response missing auth_url");
+	}
+
+	const state = new URL(auth_url).searchParams.get("state");
+	if (!state) {
+		throw new Error(`Notion auth_url missing state: ${auth_url}`);
+	}
+
+	const callbackResp = await request.get(
+		`${BACKEND_URL}/api/v1/auth/notion/connector/callback?code=fake-notion-oauth-code&state=${encodeURIComponent(state)}`,
+		{
+			headers: authHeaders(token),
+			maxRedirects: 0,
+			failOnStatusCode: false,
+		}
+	);
+	const location = callbackResp.headers().location ?? auth_url;
+
+	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connector = connectors.find((c) => c.connector_type === "NOTION_CONNECTOR") ?? null;
+
+	return { authUrl: auth_url, finalUrl: location, connector };
+}
