@@ -20,6 +20,8 @@ CALENDAR_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001"
 CALENDAR_CANARY_SUMMARY = "E2E Canary Calendar Event"
 NOTION_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001"
 NOTION_CANARY_TITLE = "E2E Canary Notion Page"
+LINEAR_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001"
+LINEAR_CANARY_TITLE = "E2E Canary Linear Issue"
 NO_RELEVANT_CONTENT_SENTINEL = "No relevant indexed content found."
 NO_RELEVANT_CONTENT_QUERY = "E2E_NO_RELEVANT_CONTENT_SMOKE"
 
@@ -94,6 +96,11 @@ class FakeChatLLM(BaseChatModel):
             and CALENDAR_CANARY_TOKEN in latest_tool_text
         ):
             return f"Calendar live tool content found: {CALENDAR_CANARY_TOKEN}"
+        if (
+            latest_tool_name == "list_issues"
+            and LINEAR_CANARY_TOKEN in latest_tool_text
+        ):
+            return f"Linear live tool content found: {LINEAR_CANARY_TOKEN}"
 
         wants_gmail = _contains_any(
             latest_human,
@@ -110,6 +117,10 @@ class FakeChatLLM(BaseChatModel):
         wants_notion = _contains_any(
             latest_human,
             ("notion", "page", NOTION_CANARY_TITLE),
+        )
+        wants_linear = _contains_any(
+            latest_human,
+            ("linear", "issue", LINEAR_CANARY_TITLE),
         )
         has_gmail_evidence = (
             GMAIL_CANARY_SUBJECT in prompt_text
@@ -128,7 +139,15 @@ class FakeChatLLM(BaseChatModel):
         has_notion_evidence = (
             NOTION_CANARY_TITLE in prompt_text or NOTION_CANARY_TOKEN in prompt_text
         )
+        has_linear_evidence = (
+            LINEAR_CANARY_TITLE in prompt_text
+            or LINEAR_CANARY_TOKEN in prompt_text
+            or "fake-linear-issue-canary-001" in prompt_text
+            or "E2E-101" in prompt_text
+        )
 
+        if wants_linear and has_linear_evidence:
+            return f"Linear content found: {LINEAR_CANARY_TOKEN}"
         if wants_notion and has_notion_evidence:
             return f"Notion content found: {NOTION_CANARY_TOKEN}"
         if wants_calendar and has_calendar_evidence:
@@ -139,21 +158,41 @@ class FakeChatLLM(BaseChatModel):
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
         if (
             has_notion_evidence
+            and not has_linear_evidence
             and not has_calendar_evidence
             and not has_gmail_evidence
             and not has_drive_evidence
         ):
             return f"Notion content found: {NOTION_CANARY_TOKEN}"
         if (
+            has_linear_evidence
+            and not has_notion_evidence
+            and not has_calendar_evidence
+            and not has_gmail_evidence
+            and not has_drive_evidence
+        ):
+            return f"Linear content found: {LINEAR_CANARY_TOKEN}"
+        if (
             has_calendar_evidence
+            and not has_linear_evidence
             and not has_notion_evidence
             and not has_gmail_evidence
             and not has_drive_evidence
         ):
             return f"Calendar content found: {CALENDAR_CANARY_TOKEN}"
-        if has_gmail_evidence and not has_notion_evidence and not has_drive_evidence:
+        if (
+            has_gmail_evidence
+            and not has_linear_evidence
+            and not has_notion_evidence
+            and not has_drive_evidence
+        ):
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
-        if has_drive_evidence and not has_notion_evidence and not has_gmail_evidence:
+        if (
+            has_drive_evidence
+            and not has_linear_evidence
+            and not has_notion_evidence
+            and not has_gmail_evidence
+        ):
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
         return NO_RELEVANT_CONTENT_SENTINEL
 
@@ -218,6 +257,21 @@ class FakeChatLLM(BaseChatModel):
                             "max_results": 10,
                         },
                         "id": "call_e2e_search_calendar_events",
+                    }
+                ],
+            )
+
+        if latest_tool is None and _contains_any(
+            latest_human,
+            ("linear", "issue", LINEAR_CANARY_TITLE),
+        ):
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "list_issues",
+                        "args": {"query": LINEAR_CANARY_TITLE, "limit": 5},
+                        "id": "call_e2e_list_linear_issues",
                     }
                 ],
             )
