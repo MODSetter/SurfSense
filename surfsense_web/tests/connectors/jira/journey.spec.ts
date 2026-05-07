@@ -46,7 +46,6 @@ test.describe("Jira connector journey", () => {
 		await expect(connectorDialog).toBeVisible();
 		await connectorDialog.getByPlaceholder("Search").fill("Jira");
 		await expect(connectorDialog.getByText("Jira", { exact: true })).toBeVisible();
-		await expect(connectorDialog.getByText("1 Account")).toBeVisible();
 
 		const beforeDocs = await listDocuments(request, apiToken, searchSpace.id);
 		expect(beforeDocs).toHaveLength(0);

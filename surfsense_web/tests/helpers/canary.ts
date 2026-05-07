@@ -21,6 +21,7 @@ export const CANARY_TOKENS = {
 	gmailCanary: "SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001",
 	calendarCanary: "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001",
 	notionCanary: "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001",
+	confluenceCanary: "SURFSENSE_E2E_CANARY_TOKEN_CONFLUENCE_001",
 	linearCanary: "SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001",
 	jiraCanary: "SURFSENSE_E2E_CANARY_TOKEN_JIRA_001",
 } as const;
@@ -97,6 +98,20 @@ export const FAKE_NOTION_PAGES = {
 		workspaceId: "fake-notion-workspace-001",
 		workspaceName: "SurfSense E2E Notion Workspace",
 		botId: "fake-notion-bot-001",
+	},
+} as const;
+
+/**
+ * Fake Confluence page IDs that match what the backend fake returns from
+ * ConfluenceHistoryConnector.get_pages_by_date_range.
+ */
+export const FAKE_CONFLUENCE_PAGES = {
+	canary: {
+		id: "fake-confluence-page-canary-001",
+		title: "E2E Canary Confluence Page",
+		spaceId: "fake-confluence-space-001",
+		cloudId: "fake-confluence-cloud-001",
+		baseUrl: "https://surfsense-e2e-confluence.atlassian.net",
 	},
 } as const;
 
