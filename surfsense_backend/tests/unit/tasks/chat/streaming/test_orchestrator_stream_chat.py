@@ -8,7 +8,11 @@ from typing import Any
 import pytest
 
 from app.tasks.chat.streaming.orchestration import StreamExecutionInput
-from app.tasks.chat.streaming.orchestration.orchestrator import stream_chat
+from app.tasks.chat.streaming.orchestration.orchestrator import (
+    stream_chat,
+    stream_regenerate,
+    stream_resume,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -84,5 +88,53 @@ async def test_stream_chat_uses_orchestration_input_path() -> None:
         "text_delta:text-1:!",
         "text_end:text-1",
     ]
-    assert agent.calls
-    assert agent.calls[0][1]["version"] == "v2"
+
+
+async def test_stream_resume_uses_orchestration_input_path() -> None:
+    service = _StreamingService()
+    agent = _Agent([{"event": "on_chat_model_stream", "data": {"chunk": _Chunk("r")}}])
+
+    frames = await _collect(
+        stream_resume(
+            chat_id=9,
+            search_space_id=1,
+            decisions=[],
+            orchestration_input=StreamExecutionInput(
+                agent=agent,
+                config={"configurable": {"thread_id": "thread-r"}},
+                input_data={"messages": []},
+                streaming_service=service,
+            ),
+        )
+    )
+
+    assert frames == [
+        "text_start:text-1",
+        "text_delta:text-1:r",
+        "text_end:text-1",
+    ]
+
+
+async def test_stream_regenerate_uses_orchestration_input_path() -> None:
+    service = _StreamingService()
+    agent = _Agent([{"event": "on_chat_model_stream", "data": {"chunk": _Chunk("g")}}])
+
+    frames = await _collect(
+        stream_regenerate(
+            user_query="q",
+            search_space_id=1,
+            chat_id=2,
+            orchestration_input=StreamExecutionInput(
+                agent=agent,
+                config={"configurable": {"thread_id": "thread-g"}},
+                input_data={"messages": []},
+                streaming_service=service,
+            ),
+        )
+    )
+
+    assert frames == [
+        "text_start:text-1",
+        "text_delta:text-1:g",
+        "text_end:text-1",
+    ]

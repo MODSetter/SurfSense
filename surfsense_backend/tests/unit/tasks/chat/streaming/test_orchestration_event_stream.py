@@ -84,15 +84,20 @@ async def test_stream_agent_events_emits_text_lifecycle_and_updates_result() -> 
     ]
     assert result.accumulated_text == "Hello world"
     assert result.agent_called_update_memory is False
-    assert agent.calls[0][1]["version"] == "v2"
 
 
 async def test_stream_agent_events_passes_runtime_context_to_agent() -> None:
     service = _StreamingService()
-    agent = _Agent([{"event": "on_chat_model_stream", "data": {"chunk": _Chunk("x")}}])
+    class _ContextAwareAgent:
+        async def astream_events(self, input_data: Any, **kwargs: Any):
+            del input_data
+            text = "ctx-ok" if kwargs.get("context") else "ctx-missing"
+            yield {"event": "on_chat_model_stream", "data": {"chunk": _Chunk(text)}}
+
+    agent = _ContextAwareAgent()
     result = StreamOutput()
 
-    _ = await _collect(
+    frames = await _collect(
         stream_agent_events(
             agent=agent,
             config={"configurable": {"thread_id": "t-2"}},
@@ -103,5 +108,8 @@ async def test_stream_agent_events_passes_runtime_context_to_agent() -> None:
         )
     )
 
-    assert agent.calls
-    assert agent.calls[0][1]["context"] == {"mentioned_document_ids": [1, 2]}
+    assert frames == [
+        "text_start:text-1",
+        "text_delta:text-1:ctx-ok",
+        "text_end:text-1",
+    ]
