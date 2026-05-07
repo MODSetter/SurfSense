@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import patch
+
+from tests.e2e.fakes import mcp_oauth_runtime, mcp_runtime
 
 _FIXTURE_PATH = Path(__file__).parent / "fixtures" / "linear_issues.json"
 
@@ -262,29 +263,43 @@ def _fake_streamablehttp_client(
     return _FakeStreamableHttpClient(url, headers=headers, **kwargs)
 
 
+async def _list_tools() -> SimpleNamespace:
+    return await _FakeClientSession(object(), object()).list_tools()
+
+
+async def _call_tool(tool_name: str, arguments: dict[str, Any]) -> SimpleNamespace:
+    return await _FakeClientSession(object(), object()).call_tool(
+        tool_name, arguments=arguments
+    )
+
+
 def install(active_patches: list[Any]) -> None:
-    """Patch production Linear MCP OAuth/tool boundaries."""
-    targets = [
-        (
-            "app.services.mcp_oauth.discovery.discover_oauth_metadata",
-            _fake_discover_oauth_metadata,
-        ),
-        ("app.services.mcp_oauth.discovery.register_client", _fake_register_client),
-        (
-            "app.services.mcp_oauth.discovery.exchange_code_for_tokens",
-            _fake_exchange_code_for_tokens,
-        ),
-        (
-            "app.services.mcp_oauth.discovery.refresh_access_token",
-            _fake_refresh_access_token,
-        ),
-        (
-            "app.agents.new_chat.tools.mcp_tool.streamablehttp_client",
-            _fake_streamablehttp_client,
-        ),
-        ("app.agents.new_chat.tools.mcp_tool.ClientSession", _FakeClientSession),
-    ]
-    for target, replacement in targets:
-        p = patch(target, replacement)
-        p.start()
-        active_patches.append(p)
+    """Register Linear MCP OAuth/tool handlers with the shared dispatchers."""
+    del active_patches
+    mcp_oauth_runtime.register_service(
+        mcp_url=_MCP_URL,
+        discovery_metadata={
+            "issuer": "https://mcp.linear.app",
+            "authorization_endpoint": _AUTHORIZATION_URL,
+            "token_endpoint": _TOKEN_URL,
+            "registration_endpoint": _REGISTRATION_URL,
+            "code_challenge_methods_supported": ["S256"],
+            "grant_types_supported": ["authorization_code", "refresh_token"],
+            "response_types_supported": ["code"],
+        },
+        client_id=_CLIENT_ID,
+        client_secret=_CLIENT_SECRET,
+        token_endpoint=_TOKEN_URL,
+        registration_endpoint=_REGISTRATION_URL,
+        oauth_code=_OAUTH_CODE,
+        access_token=_ACCESS_TOKEN,
+        refresh_token=_REFRESH_TOKEN,
+        scope="read write",
+        redirect_uri_substring="/api/v1/auth/mcp/linear/connector/callback",
+    )
+    mcp_runtime.register(
+        url=_MCP_URL,
+        expected_bearer=_ACCESS_TOKEN,
+        list_tools=_list_tools,
+        call_tool=_call_tool,
+    )

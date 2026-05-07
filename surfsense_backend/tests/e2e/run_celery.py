@@ -75,6 +75,10 @@ from unittest.mock import patch  # noqa: E402
 from app.celery_app import celery_app  # noqa: E402
 from tests.e2e.fakes import (  # noqa: E402
     embeddings as _fake_embeddings,
+    jira_module as _fake_jira_module,
+    linear_module as _fake_linear_module,
+    mcp_oauth_runtime as _fake_mcp_oauth_runtime,
+    mcp_runtime as _fake_mcp_runtime,
     native_google as _fake_native_google,
     notion_module as _fake_notion_module,
 )
@@ -146,6 +150,10 @@ _patch_llm_bindings()
 _fake_embeddings.install(_active_patches)
 _fake_native_google.install(_active_patches)
 _fake_notion_module.install(_active_patches)
+_fake_linear_module.install(_active_patches)
+_fake_jira_module.install(_active_patches)
+_fake_mcp_runtime.install(_active_patches)
+_fake_mcp_oauth_runtime.install(_active_patches)
 
 
 # ---------------------------------------------------------------------------
