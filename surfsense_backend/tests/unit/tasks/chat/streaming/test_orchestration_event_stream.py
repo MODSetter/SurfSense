@@ -7,8 +7,8 @@ from typing import Any
 
 import pytest
 
-from app.tasks.chat.streaming.orchestration import stream_agent_events
-from app.tasks.chat.streaming.orchestration.output import StreamOutput
+from app.tasks.chat.streaming.orchestration import stream_output
+from app.tasks.chat.streaming.orchestration.output import StreamingResult
 
 pytestmark = pytest.mark.unit
 
@@ -56,7 +56,7 @@ async def _collect(stream: Any) -> list[str]:
     return out
 
 
-async def test_stream_agent_events_emits_text_lifecycle_and_updates_result() -> None:
+async def test_stream_output_emits_text_lifecycle_and_updates_result() -> None:
     service = _StreamingService()
     agent = _Agent(
         [
@@ -64,10 +64,10 @@ async def test_stream_agent_events_emits_text_lifecycle_and_updates_result() -> 
             {"event": "on_chat_model_stream", "data": {"chunk": _Chunk(content=" world")}},
         ]
     )
-    result = StreamOutput()
+    result = StreamingResult()
 
     frames = await _collect(
-        stream_agent_events(
+        stream_output(
             agent=agent,
             config={"configurable": {"thread_id": "t-1"}},
             input_data={"messages": []},
@@ -86,7 +86,7 @@ async def test_stream_agent_events_emits_text_lifecycle_and_updates_result() -> 
     assert result.agent_called_update_memory is False
 
 
-async def test_stream_agent_events_passes_runtime_context_to_agent() -> None:
+async def test_stream_output_passes_runtime_context_to_agent() -> None:
     service = _StreamingService()
     class _ContextAwareAgent:
         async def astream_events(self, input_data: Any, **kwargs: Any):
@@ -95,10 +95,10 @@ async def test_stream_agent_events_passes_runtime_context_to_agent() -> None:
             yield {"event": "on_chat_model_stream", "data": {"chunk": _Chunk(text)}}
 
     agent = _ContextAwareAgent()
-    result = StreamOutput()
+    result = StreamingResult()
 
     frames = await _collect(
-        stream_agent_events(
+        stream_output(
             agent=agent,
             config={"configurable": {"thread_id": "t-2"}},
             input_data={"messages": []},

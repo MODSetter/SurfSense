@@ -7,8 +7,8 @@ from typing import Any
 
 
 @dataclass(frozen=True)
-class StreamExecutionInput:
-    """Container for dependencies required by ``stream_agent_events``."""
+class StreamingContext:
+    """Container for dependencies required by ``stream_output``."""
 
     agent: Any
     config: dict[str, Any]

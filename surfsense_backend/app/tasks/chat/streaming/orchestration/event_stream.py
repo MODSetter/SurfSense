@@ -6,18 +6,18 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from app.agents.new_chat.feature_flags import get_flags
-from app.tasks.chat.streaming.orchestration.output import StreamOutput
+from app.tasks.chat.streaming.orchestration.output import StreamingResult
 from app.tasks.chat.streaming.relay.event_relay import EventRelay
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 
 
-async def stream_agent_events(
+async def stream_output(
     *,
     agent: Any,
     config: dict[str, Any],
     input_data: Any,
     streaming_service: Any,
-    result: StreamOutput,
+    result: StreamingResult,
     step_prefix: str = "thinking",
     initial_step_id: str | None = None,
     initial_step_title: str = "",

@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from app.tasks.chat.streaming.orchestration import StreamExecutionInput
+from app.tasks.chat.streaming.orchestration import StreamingContext
 from app.tasks.chat.streaming.orchestration.orchestrator import (
     stream_chat,
     stream_regenerate,
@@ -60,7 +60,7 @@ async def _collect(stream: Any) -> list[str]:
     return out
 
 
-async def test_stream_chat_uses_orchestration_input_path() -> None:
+async def test_stream_chat_uses_streaming_context_path() -> None:
     service = _StreamingService()
     agent = _Agent(
         [
@@ -73,7 +73,7 @@ async def test_stream_chat_uses_orchestration_input_path() -> None:
             user_query="ignored-here",
             search_space_id=1,
             chat_id=77,
-            orchestration_input=StreamExecutionInput(
+            streaming_context=StreamingContext(
                 agent=agent,
                 config={"configurable": {"thread_id": "thread-1"}},
                 input_data={"messages": []},
@@ -90,7 +90,7 @@ async def test_stream_chat_uses_orchestration_input_path() -> None:
     ]
 
 
-async def test_stream_resume_uses_orchestration_input_path() -> None:
+async def test_stream_resume_uses_streaming_context_path() -> None:
     service = _StreamingService()
     agent = _Agent([{"event": "on_chat_model_stream", "data": {"chunk": _Chunk("r")}}])
 
@@ -99,7 +99,7 @@ async def test_stream_resume_uses_orchestration_input_path() -> None:
             chat_id=9,
             search_space_id=1,
             decisions=[],
-            orchestration_input=StreamExecutionInput(
+            streaming_context=StreamingContext(
                 agent=agent,
                 config={"configurable": {"thread_id": "thread-r"}},
                 input_data={"messages": []},
@@ -115,7 +115,7 @@ async def test_stream_resume_uses_orchestration_input_path() -> None:
     ]
 
 
-async def test_stream_regenerate_uses_orchestration_input_path() -> None:
+async def test_stream_regenerate_uses_streaming_context_path() -> None:
     service = _StreamingService()
     agent = _Agent([{"event": "on_chat_model_stream", "data": {"chunk": _Chunk("g")}}])
 
@@ -124,7 +124,7 @@ async def test_stream_regenerate_uses_orchestration_input_path() -> None:
             user_query="q",
             search_space_id=1,
             chat_id=2,
-            orchestration_input=StreamExecutionInput(
+            streaming_context=StreamingContext(
                 agent=agent,
                 config={"configurable": {"thread_id": "thread-g"}},
                 input_data={"messages": []},

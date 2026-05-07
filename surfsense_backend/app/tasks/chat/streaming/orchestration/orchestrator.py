@@ -1,9 +1,4 @@
 """Top-level chat streaming entrypoints.
-
-For now these orchestrator functions are thin compatibility wrappers around the
-current ``stream_new_chat`` / ``stream_resume_chat`` implementations. Routing
-calls through this module lets us cut over to the fully modular event relay in
-one place later without touching API routes again.
 """
 
 from __future__ import annotations
@@ -14,9 +9,47 @@ from typing import Any, Literal
 from app.agents.new_chat.filesystem_selection import FilesystemSelection
 from app.db import ChatVisibility
 from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
-from app.tasks.chat.streaming.orchestration.event_stream import stream_agent_events
-from app.tasks.chat.streaming.orchestration.input import StreamExecutionInput
-from app.tasks.chat.streaming.orchestration.output import StreamOutput
+from app.tasks.chat.streaming.orchestration.event_stream import stream_output
+from app.tasks.chat.streaming.orchestration.input import StreamingContext
+from app.tasks.chat.streaming.orchestration.output import StreamingResult
+
+
+def _build_streaming_result(
+    *,
+    chat_id: int,
+    request_id: str | None,
+    filesystem_selection: FilesystemSelection | None,
+    suffix: str,
+) -> StreamingResult:
+    return StreamingResult(
+        request_id=request_id,
+        turn_id=f"{chat_id}:{suffix}",
+        filesystem_mode=(filesystem_selection.mode.value if filesystem_selection else "cloud"),
+        client_platform=(
+            filesystem_selection.client_platform.value if filesystem_selection else "web"
+        ),
+    )
+
+
+async def _stream_output_with_streaming_context(
+    *,
+    streaming_context: StreamingContext,
+    result: StreamingResult,
+) -> AsyncGenerator[str, None]:
+    async for frame in stream_output(
+        agent=streaming_context.agent,
+        config=streaming_context.config,    
+        input_data=streaming_context.input_data,
+        streaming_service=streaming_context.streaming_service,
+        result=result,
+        step_prefix=streaming_context.step_prefix,
+        initial_step_id=streaming_context.initial_step_id,
+        initial_step_title=streaming_context.initial_step_title,
+        initial_step_items=streaming_context.initial_step_items,
+        content_builder=streaming_context.content_builder,
+        runtime_context=streaming_context.runtime_context,
+    ):
+        yield frame
 
 
 async def stream_chat(
@@ -37,34 +70,19 @@ async def stream_chat(
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
     user_image_data_urls: list[str] | None = None,
-    orchestration_input: StreamExecutionInput | None = None,
+    streaming_context: StreamingContext | None = None,
 ) -> AsyncGenerator[str, None]:
     """Stream a new chat turn through the current production pipeline."""
-    if orchestration_input is not None:
-        result = StreamOutput(
+    if streaming_context is not None:
+        result = _build_streaming_result(
+            chat_id=chat_id,
             request_id=request_id,
-            turn_id=f"{chat_id}:orchestrator",
-            filesystem_mode=(
-                filesystem_selection.mode.value if filesystem_selection else "cloud"
-            ),
-            client_platform=(
-                filesystem_selection.client_platform.value
-                if filesystem_selection
-                else "web"
-            ),
+            filesystem_selection=filesystem_selection,
+            suffix="orchestrator",
         )
-        async for frame in stream_agent_events(
-            agent=orchestration_input.agent,
-            config=orchestration_input.config,
-            input_data=orchestration_input.input_data,
-            streaming_service=orchestration_input.streaming_service,
+        async for frame in _stream_output_with_streaming_context(
+            streaming_context=streaming_context,
             result=result,
-            step_prefix=orchestration_input.step_prefix,
-            initial_step_id=orchestration_input.initial_step_id,
-            initial_step_title=orchestration_input.initial_step_title,
-            initial_step_items=orchestration_input.initial_step_items,
-            content_builder=orchestration_input.content_builder,
-            runtime_context=orchestration_input.runtime_context,
         ):
             yield frame
         return
@@ -101,34 +119,19 @@ async def stream_resume(
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
     disabled_tools: list[str] | None = None,
-    orchestration_input: StreamExecutionInput | None = None,
+    streaming_context: StreamingContext | None = None,
 ) -> AsyncGenerator[str, None]:
     """Resume an interrupted chat turn through the current production pipeline."""
-    if orchestration_input is not None:
-        result = StreamOutput(
+    if streaming_context is not None:
+        result = _build_streaming_result(
+            chat_id=chat_id,
             request_id=request_id,
-            turn_id=f"{chat_id}:orchestrator-resume",
-            filesystem_mode=(
-                filesystem_selection.mode.value if filesystem_selection else "cloud"
-            ),
-            client_platform=(
-                filesystem_selection.client_platform.value
-                if filesystem_selection
-                else "web"
-            ),
+            filesystem_selection=filesystem_selection,
+            suffix="orchestrator-resume",
         )
-        async for frame in stream_agent_events(
-            agent=orchestration_input.agent,
-            config=orchestration_input.config,
-            input_data=orchestration_input.input_data,
-            streaming_service=orchestration_input.streaming_service,
+        async for frame in _stream_output_with_streaming_context(
+            streaming_context=streaming_context,
             result=result,
-            step_prefix=orchestration_input.step_prefix,
-            initial_step_id=orchestration_input.initial_step_id,
-            initial_step_title=orchestration_input.initial_step_title,
-            initial_step_items=orchestration_input.initial_step_items,
-            content_builder=orchestration_input.content_builder,
-            runtime_context=orchestration_input.runtime_context,
         ):
             yield frame
         return
@@ -166,34 +169,19 @@ async def stream_regenerate(
     request_id: str | None = None,
     user_image_data_urls: list[str] | None = None,
     flow: Literal["new", "regenerate"] = "regenerate",
-    orchestration_input: StreamExecutionInput | None = None,
+    streaming_context: StreamingContext | None = None,
 ) -> AsyncGenerator[str, None]:
     """Regenerate an assistant turn through the current production pipeline."""
-    if orchestration_input is not None:
-        result = StreamOutput(
+    if streaming_context is not None:
+        result = _build_streaming_result(
+            chat_id=chat_id,
             request_id=request_id,
-            turn_id=f"{chat_id}:orchestrator-regenerate",
-            filesystem_mode=(
-                filesystem_selection.mode.value if filesystem_selection else "cloud"
-            ),
-            client_platform=(
-                filesystem_selection.client_platform.value
-                if filesystem_selection
-                else "web"
-            ),
+            filesystem_selection=filesystem_selection,
+            suffix="orchestrator-regenerate",
         )
-        async for frame in stream_agent_events(
-            agent=orchestration_input.agent,
-            config=orchestration_input.config,
-            input_data=orchestration_input.input_data,
-            streaming_service=orchestration_input.streaming_service,
+        async for frame in _stream_output_with_streaming_context(
+            streaming_context=streaming_context,
             result=result,
-            step_prefix=orchestration_input.step_prefix,
-            initial_step_id=orchestration_input.initial_step_id,
-            initial_step_title=orchestration_input.initial_step_title,
-            initial_step_items=orchestration_input.initial_step_items,
-            content_builder=orchestration_input.content_builder,
-            runtime_context=orchestration_input.runtime_context,
         ):
             yield frame
         return

@@ -7,7 +7,7 @@ from typing import Any
 
 
 @dataclass
-class StreamOutput:
+class StreamingResult:
     accumulated_text: str = ""
     is_interrupted: bool = False
     interrupt_value: dict[str, Any] | None = None
@@ -27,6 +27,3 @@ class StreamOutput:
     assistant_message_id: int | None = None
     content_builder: Any | None = field(default=None, repr=False)
 
-
-# Backwards-compatible alias while imports migrate.
-StreamResult = StreamOutput
