@@ -20,6 +20,8 @@ CALENDAR_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001"
 CALENDAR_CANARY_SUMMARY = "E2E Canary Calendar Event"
 NOTION_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001"
 NOTION_CANARY_TITLE = "E2E Canary Notion Page"
+CONFLUENCE_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_CONFLUENCE_001"
+CONFLUENCE_CANARY_TITLE = "E2E Canary Confluence Page"
 LINEAR_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001"
 LINEAR_CANARY_TITLE = "E2E Canary Linear Issue"
 JIRA_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_JIRA_001"
@@ -126,6 +128,10 @@ class FakeChatLLM(BaseChatModel):
             latest_human,
             ("notion", "page", NOTION_CANARY_TITLE),
         )
+        wants_confluence = _contains_any(
+            latest_human,
+            ("confluence", CONFLUENCE_CANARY_TITLE),
+        )
         wants_linear = _contains_any(
             latest_human,
             ("linear", "issue", LINEAR_CANARY_TITLE),
@@ -158,6 +164,12 @@ class FakeChatLLM(BaseChatModel):
         has_notion_evidence = (
             NOTION_CANARY_TITLE in prompt_text or NOTION_CANARY_TOKEN in prompt_text
         )
+        has_confluence_evidence = (
+            CONFLUENCE_CANARY_TITLE in prompt_text
+            or CONFLUENCE_CANARY_TOKEN in prompt_text
+            or "fake-confluence-page-canary-001" in prompt_text
+            or "fake-confluence-space-001" in prompt_text
+        )
         has_linear_evidence = (
             LINEAR_CANARY_TITLE in prompt_text
             or LINEAR_CANARY_TOKEN in prompt_text
@@ -176,6 +188,8 @@ class FakeChatLLM(BaseChatModel):
             return f"Jira content found: {JIRA_CANARY_TOKEN}"
         if wants_linear and has_linear_evidence:
             return f"Linear content found: {LINEAR_CANARY_TOKEN}"
+        if wants_confluence and has_confluence_evidence:
+            return f"Confluence content found: {CONFLUENCE_CANARY_TOKEN}"
         if wants_notion and has_notion_evidence:
             return f"Notion content found: {NOTION_CANARY_TOKEN}"
         if wants_calendar and has_calendar_evidence:
@@ -186,6 +200,7 @@ class FakeChatLLM(BaseChatModel):
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
         if (
             has_notion_evidence
+            and not has_confluence_evidence
             and not has_jira_evidence
             and not has_linear_evidence
             and not has_calendar_evidence
@@ -194,7 +209,18 @@ class FakeChatLLM(BaseChatModel):
         ):
             return f"Notion content found: {NOTION_CANARY_TOKEN}"
         if (
+            has_confluence_evidence
+            and not has_jira_evidence
+            and not has_linear_evidence
+            and not has_notion_evidence
+            and not has_calendar_evidence
+            and not has_gmail_evidence
+            and not has_drive_evidence
+        ):
+            return f"Confluence content found: {CONFLUENCE_CANARY_TOKEN}"
+        if (
             has_jira_evidence
+            and not has_confluence_evidence
             and not has_linear_evidence
             and not has_notion_evidence
             and not has_calendar_evidence
@@ -204,6 +230,7 @@ class FakeChatLLM(BaseChatModel):
             return f"Jira content found: {JIRA_CANARY_TOKEN}"
         if (
             has_linear_evidence
+            and not has_confluence_evidence
             and not has_jira_evidence
             and not has_notion_evidence
             and not has_calendar_evidence
@@ -213,6 +240,7 @@ class FakeChatLLM(BaseChatModel):
             return f"Linear content found: {LINEAR_CANARY_TOKEN}"
         if (
             has_calendar_evidence
+            and not has_confluence_evidence
             and not has_jira_evidence
             and not has_linear_evidence
             and not has_notion_evidence
@@ -222,6 +250,7 @@ class FakeChatLLM(BaseChatModel):
             return f"Calendar content found: {CALENDAR_CANARY_TOKEN}"
         if (
             has_gmail_evidence
+            and not has_confluence_evidence
             and not has_jira_evidence
             and not has_linear_evidence
             and not has_notion_evidence
@@ -230,6 +259,7 @@ class FakeChatLLM(BaseChatModel):
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
         if (
             has_drive_evidence
+            and not has_confluence_evidence
             and not has_jira_evidence
             and not has_linear_evidence
             and not has_notion_evidence
