@@ -20,6 +20,7 @@ export const CANARY_TOKENS = {
 	driveArchive: "SURFSENSE_E2E_ARCHIVE_MARKER",
 	gmailCanary: "SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001",
 	calendarCanary: "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001",
+	onedriveCanary: "SURFSENSE_E2E_CANARY_TOKEN_ONEDRIVE_001",
 	notionCanary: "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001",
 	confluenceCanary: "SURFSENSE_E2E_CANARY_TOKEN_CONFLUENCE_001",
 	linearCanary: "SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001",
@@ -47,6 +48,18 @@ export const FAKE_DRIVE_FOLDERS = {
 		id: "fake-folder-archive",
 		name: "Archive",
 		mimeType: "application/vnd.google-apps.folder",
+	},
+} as const;
+
+/**
+ * Fake OneDrive file IDs that match the Microsoft Graph-shaped backend
+ * fake in onedrive_files.json.
+ */
+export const FAKE_ONEDRIVE_FILES = {
+	canary: {
+		id: "fake-onedrive-canary",
+		name: "e2e-onedrive-canary.txt",
+		mimeType: "text/plain",
 	},
 } as const;
 

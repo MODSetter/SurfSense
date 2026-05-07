@@ -257,6 +257,62 @@ export async function runNativeGoogleDriveOAuth(
 }
 
 /**
+ * Drives the native Microsoft OneDrive OAuth flow programmatically.
+ *
+ * The OneDrive authorization URL is off-origin, so the helper extracts the
+ * signed state and calls the backend callback directly. The E2E backend fakes
+ * Microsoft's token and profile HTTP responses inside that callback.
+ */
+export async function runNativeOneDriveOAuth(
+	request: APIRequestContext,
+	token: string,
+	searchSpaceId: number
+): Promise<{
+	authUrl: string;
+	finalUrl: string;
+	connector: ConnectorRow | null;
+}> {
+	const initiateResp = await request.get(
+		`${BACKEND_URL}/api/v1/auth/onedrive/connector/add?space_id=${searchSpaceId}`,
+		{ headers: authHeaders(token) }
+	);
+	if (!initiateResp.ok()) {
+		throw new Error(
+			`native OneDrive initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
+		);
+	}
+	const { auth_url } = (await initiateResp.json()) as { auth_url: string };
+	if (!auth_url) {
+		throw new Error("native OneDrive initiate response missing auth_url");
+	}
+
+	const state = new URL(auth_url).searchParams.get("state");
+	if (!state) {
+		throw new Error(`native OneDrive auth_url missing state: ${auth_url}`);
+	}
+
+	const callbackResp = await request.get(
+		`${BACKEND_URL}/api/v1/auth/onedrive/connector/callback?code=fake-onedrive-oauth-code&state=${encodeURIComponent(state)}`,
+		{
+			headers: authHeaders(token),
+			maxRedirects: 0,
+			failOnStatusCode: false,
+		}
+	);
+	if (callbackResp.status() >= 400) {
+		throw new Error(
+			`native OneDrive callback failed (${callbackResp.status()}): ${await callbackResp.text()}`
+		);
+	}
+	const location = callbackResp.headers().location ?? auth_url;
+
+	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connector = connectors.find((c) => c.connector_type === "ONEDRIVE_CONNECTOR") ?? null;
+
+	return { authUrl: auth_url, finalUrl: location, connector };
+}
+
+/**
  * Drives the native Google Gmail OAuth flow programmatically.
  *
  * The E2E backend patches Google OAuth so the returned auth_url points

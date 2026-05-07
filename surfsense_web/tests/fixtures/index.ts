@@ -20,6 +20,8 @@
  *             └─ nativeGmailWithChatTest — chatThread
  *         └─ nativeCalendarFixtures — nativeCalendarConnector
  *             └─ nativeCalendarWithChatTest — chatThread
+ *         └─ nativeOneDriveFixtures — nativeOneDriveConnector
+ *             └─ nativeOneDriveWithChatTest — chatThread
  *         └─ notionFixtures — notionConnector
  *             └─ notionWithChatTest — chatThread
  *         └─ confluenceFixtures — confluenceConnector
@@ -47,6 +49,7 @@ export { linearFixtures } from "./connectors/linear.fixture";
 export { nativeCalendarFixtures } from "./connectors/native-calendar.fixture";
 export { nativeDriveFixtures } from "./connectors/native-drive.fixture";
 export { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
+export { nativeOneDriveFixtures } from "./connectors/native-onedrive.fixture";
 export { notionFixtures } from "./connectors/notion.fixture";
 export { searchSpaceFixtures } from "./search-space.fixture";
 export { slackFixtures } from "./connectors/slack.fixture";
@@ -61,6 +64,7 @@ import { linearFixtures } from "./connectors/linear.fixture";
 import { nativeCalendarFixtures } from "./connectors/native-calendar.fixture";
 import { nativeDriveFixtures } from "./connectors/native-drive.fixture";
 import { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
+import { nativeOneDriveFixtures } from "./connectors/native-onedrive.fixture";
 import { notionFixtures } from "./connectors/notion.fixture";
 import { searchSpaceFixtures } from "./search-space.fixture";
 import { slackFixtures } from "./connectors/slack.fixture";
@@ -97,6 +101,11 @@ export const nativeCalendarTest = nativeCalendarFixtures;
 /** `test` for native Calendar specs that also need a chat thread. */
 export const nativeCalendarWithChatTest =
 	nativeCalendarFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
+/** `test` for specs that also need a pre-connected native OneDrive connector. */
+export const nativeOneDriveTest = nativeOneDriveFixtures;
+/** `test` for native OneDrive specs that also need a chat thread. */
+export const nativeOneDriveWithChatTest =
+	nativeOneDriveFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
 /** `test` for specs that also need a pre-connected Notion connector. */
 export const notionTest = notionFixtures;
 /** `test` for Notion specs that also need a chat thread. */
