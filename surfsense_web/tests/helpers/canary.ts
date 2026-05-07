@@ -21,6 +21,7 @@ export const CANARY_TOKENS = {
 	gmailCanary: "SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001",
 	calendarCanary: "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001",
 	notionCanary: "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001",
+	linearCanary: "SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001",
 } as const;
 
 /**
@@ -95,6 +96,20 @@ export const FAKE_NOTION_PAGES = {
 		workspaceId: "fake-notion-workspace-001",
 		workspaceName: "SurfSense E2E Notion Workspace",
 		botId: "fake-notion-bot-001",
+	},
+} as const;
+
+/**
+ * Fake Linear issue IDs that match what the backend MCP fake returns from
+ * list_issues / get_issue.
+ */
+export const FAKE_LINEAR_ISSUES = {
+	canary: {
+		id: "fake-linear-issue-canary-001",
+		identifier: "E2E-101",
+		title: "E2E Canary Linear Issue",
+		organizationName: "SurfSense E2E Linear Org",
+		organizationUrlKey: "surfsense-e2e",
 	},
 } as const;
 
