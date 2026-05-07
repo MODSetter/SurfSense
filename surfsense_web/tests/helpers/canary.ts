@@ -20,6 +20,7 @@ export const CANARY_TOKENS = {
 	driveArchive: "SURFSENSE_E2E_ARCHIVE_MARKER",
 	gmailCanary: "SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001",
 	calendarCanary: "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001",
+	notionCanary: "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001",
 } as const;
 
 /**
@@ -80,6 +81,20 @@ export const FAKE_CALENDAR_EVENTS = {
 		id: "fake-calendar-event-planning-001",
 		summary: "E2E Planning Sync",
 		location: "SurfSense Planning Room",
+	},
+} as const;
+
+/**
+ * Fake Notion page IDs that match what the backend fake returns from
+ * notion_client.AsyncClient.search.
+ */
+export const FAKE_NOTION_PAGES = {
+	canary: {
+		id: "fake-notion-page-canary-001",
+		title: "E2E Canary Notion Page",
+		workspaceId: "fake-notion-workspace-001",
+		workspaceName: "SurfSense E2E Notion Workspace",
+		botId: "fake-notion-bot-001",
 	},
 } as const;
 
