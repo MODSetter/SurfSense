@@ -161,7 +161,7 @@ class TestToolHeavyTurn:
         _assert_jsonb_safe(snap)
 
     def test_tool_input_available_without_prior_start_creates_card(self):
-        # Legacy / parity_v2-OFF path: tool-input-available may be
+        # Late-registration: tool-input-available may be
         # emitted without a prior tool-input-start (no streamed
         # tool_call_chunks). The card should still be created.
         b = AssistantContentBuilder()
@@ -187,7 +187,7 @@ class TestToolHeavyTurn:
         assert part["result"] == {"matches": 3}
 
     def test_tool_input_start_idempotent_for_same_ui_id(self):
-        # parity_v2: tool-input-start can fire from BOTH the chunk
+        # tool-input-start can fire from BOTH the chunk
         # registration path AND the canonical ``on_tool_start`` path.
         # The second call must not create a duplicate part.
         b = AssistantContentBuilder()

@@ -7,8 +7,8 @@ import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { cn } from "@/lib/utils";
 
 /**
- * Renders the structured `reasoning` part emitted by the backend's
- * stream-parity v2 path (A1).
+ * Renders the structured `reasoning` part emitted by the backend stream
+ * (typed reasoning deltas from the chat model).
  *
  * Behaviour mirrors the existing `ThinkingStepsDisplay`:
  *   - collapsed by default;

@@ -85,8 +85,8 @@ class AssistantContentBuilder:
         self._current_text_idx: int = -1
         self._current_reasoning_idx: int = -1
         # ``ui_id``-keyed indexes for tool-call parts. ``ui_id`` is the
-        # synthetic ``call_<run_id>`` (legacy) or the LangChain
-        # ``tool_call.id`` (parity_v2) — same key the streaming layer
+        # synthetic ``call_<run_id>`` (chunk fallback) or the LangChain
+        # ``tool_call.id`` (indexed chunk path) — same key the streaming layer
         # threads through every ``tool-input-*`` / ``tool-output-*`` event.
         self._tool_call_idx_by_ui_id: dict[str, int] = {}
         # Live argsText accumulator (concatenated ``tool-input-delta`` chunks)
@@ -181,7 +181,7 @@ class AssistantContentBuilder:
         """Register a tool-call card. Args are filled in by later events."""
         if not ui_id:
             return
-        # Skip duplicate registration: parity_v2 may emit
+        # Skip duplicate registration: the stream may emit
         # ``tool-input-start`` from both ``on_chat_model_stream``
         # (when tool_call_chunks register a name) and ``on_tool_start``
         # (the canonical path). The FE de-dupes via ``toolCallIndices``;
@@ -243,7 +243,7 @@ class AssistantContentBuilder:
         pretty-printed JSON, sets the full ``args`` dict, and backfills
         ``langchainToolCallId`` if it wasn't known at ``tool-input-start`` time.
         Also creates the card if no prior ``tool-input-start`` registered it
-        (legacy parity_v2-OFF / late-registration paths).
+        (late-registration when no prior ``tool-input-start``).
         """
         if not ui_id:
             return

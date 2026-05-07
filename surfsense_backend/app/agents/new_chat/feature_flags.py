@@ -28,7 +28,6 @@ Defaults:
     SURFSENSE_ENABLE_PERMISSION=true
     SURFSENSE_ENABLE_DOOM_LOOP=true
     SURFSENSE_ENABLE_LLM_TOOL_SELECTOR=false  # adds a per-turn LLM call
-    SURFSENSE_ENABLE_STREAM_PARITY_V2=true
 
 Master kill-switch (overrides everything else):
 
@@ -87,15 +86,6 @@ class AgentFeatureFlags:
     # Snapshot / revert
     enable_action_log: bool = True
     enable_revert_route: bool = True
-
-    # Streaming parity v2 — opt in to LangChain's structured
-    # ``AIMessageChunk`` content (typed reasoning blocks, tool-input
-    # deltas) and propagate the real ``tool_call_id`` to the SSE layer.
-    # When OFF the ``stream_new_chat`` task falls back to the str-only
-    # text path and the synthetic ``call_<run_id>`` tool-call id (no
-    # ``langchainToolCallId`` propagation). Schema migrations 135/136
-    # ship unconditionally because they're forward-compatible.
-    enable_stream_parity_v2: bool = True
 
     # Plugins
     enable_plugin_loader: bool = False
@@ -169,7 +159,6 @@ class AgentFeatureFlags:
                 enable_kb_planner_runnable=False,
                 enable_action_log=False,
                 enable_revert_route=False,
-                enable_stream_parity_v2=False,
                 enable_plugin_loader=False,
                 enable_otel=False,
                 enable_agent_cache=False,
@@ -208,10 +197,6 @@ class AgentFeatureFlags:
             # Snapshot / revert
             enable_action_log=_env_bool("SURFSENSE_ENABLE_ACTION_LOG", True),
             enable_revert_route=_env_bool("SURFSENSE_ENABLE_REVERT_ROUTE", True),
-            # Streaming parity v2
-            enable_stream_parity_v2=_env_bool(
-                "SURFSENSE_ENABLE_STREAM_PARITY_V2", True
-            ),
             # Plugins
             enable_plugin_loader=_env_bool("SURFSENSE_ENABLE_PLUGIN_LOADER", False),
             # Observability

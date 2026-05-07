@@ -137,7 +137,7 @@ def test_complete_active_thinking_step_mirrors_closure_semantics() -> None:
 
 
 def test_agent_event_relay_state_factory_matches_counter_rule() -> None:
-    s0 = AgentEventRelayState.for_invocation(parity_v2=False)
+    s0 = AgentEventRelayState.for_invocation()
     assert s0.thinking_step_counter == 0
     assert s0.last_active_step_id is None
 
@@ -145,11 +145,9 @@ def test_agent_event_relay_state_factory_matches_counter_rule() -> None:
         initial_step_id="thinking-resume-1",
         initial_step_title="Inherited",
         initial_step_items=["Topic: X"],
-        parity_v2=True,
     )
     assert s1.thinking_step_counter == 1
     assert s1.last_active_step_id == "thinking-resume-1"
-    assert s1.parity_v2 is True
     assert s1.next_thinking_step_id("thinking") == "thinking-2"
 
 

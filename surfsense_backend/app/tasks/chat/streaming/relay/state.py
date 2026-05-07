@@ -22,7 +22,6 @@ class AgentEventRelayState:
     active_tool_depth: int = 0
     called_update_memory: bool = False
     current_reasoning_id: str | None = None
-    parity_v2: bool = False
     pending_tool_call_chunks: list[dict[str, Any]] = field(default_factory=list)
     lc_tool_call_id_by_run: dict[str, str] = field(default_factory=dict)
     file_path_by_run: dict[str, str] = field(default_factory=dict)
@@ -39,7 +38,6 @@ class AgentEventRelayState:
         initial_step_id: str | None = None,
         initial_step_title: str = "",
         initial_step_items: list[str] | None = None,
-        parity_v2: bool,
     ) -> AgentEventRelayState:
         counter = 1 if initial_step_id else 0
         return cls(
@@ -47,7 +45,6 @@ class AgentEventRelayState:
             last_active_step_id=initial_step_id,
             last_active_step_title=initial_step_title,
             last_active_step_items=list(initial_step_items or []),
-            parity_v2=parity_v2,
         )
 
     def next_thinking_step_id(self, step_prefix: str) -> str:

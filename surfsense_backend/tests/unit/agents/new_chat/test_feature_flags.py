@@ -31,7 +31,6 @@ def _clear_all(monkeypatch: pytest.MonkeyPatch) -> None:
         "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE",
         "SURFSENSE_ENABLE_ACTION_LOG",
         "SURFSENSE_ENABLE_REVERT_ROUTE",
-        "SURFSENSE_ENABLE_STREAM_PARITY_V2",
         "SURFSENSE_ENABLE_PLUGIN_LOADER",
         "SURFSENSE_ENABLE_OTEL",
         "SURFSENSE_ENABLE_AGENT_CACHE",
@@ -61,7 +60,6 @@ def test_defaults_match_shipped_agent_stack(monkeypatch: pytest.MonkeyPatch) -> 
     assert flags.enable_kb_planner_runnable is True
     assert flags.enable_action_log is True
     assert flags.enable_revert_route is True
-    assert flags.enable_stream_parity_v2 is True
     assert flags.enable_plugin_loader is False
     assert flags.enable_otel is False
     # Phase 2: agent cache is now default-on (the prerequisite tool
@@ -127,7 +125,6 @@ def test_each_flag_can_be_set_independently(monkeypatch: pytest.MonkeyPatch) -> 
         "enable_kb_planner_runnable": "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE",
         "enable_action_log": "SURFSENSE_ENABLE_ACTION_LOG",
         "enable_revert_route": "SURFSENSE_ENABLE_REVERT_ROUTE",
-        "enable_stream_parity_v2": "SURFSENSE_ENABLE_STREAM_PARITY_V2",
         "enable_plugin_loader": "SURFSENSE_ENABLE_PLUGIN_LOADER",
         "enable_otel": "SURFSENSE_ENABLE_OTEL",
     }

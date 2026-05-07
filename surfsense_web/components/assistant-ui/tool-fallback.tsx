@@ -48,13 +48,11 @@ import { cn } from "@/lib/utils";
  * stream, post-stream reversibility flip, and explicit revert clicks.
  *
  * Match key (in priority order):
- * 1. ``a.tool_call_id === toolCallId`` — direct hit in parity_v2 when
- *    the model streamed ``tool_call_chunks`` so the card's synthetic
- *    id IS the LangChain id.
- * 2. ``a.tool_call_id === langchainToolCallId`` — legacy mode (or
- *    parity_v2 with provider-side chunk emission) where the card's
- *    synthetic id is ``call_<run_id>`` and the LangChain id is
- *    backfilled onto the part by ``tool-output-available``.
+ * 1. ``a.tool_call_id === toolCallId`` — direct hit when the model
+ *    streamed ``tool_call_chunks`` so the card id matches the LangChain id.
+ * 2. ``a.tool_call_id === langchainToolCallId`` — synthetic card id is
+ *    ``call_<run_id>`` and the LangChain id is backfilled by
+ *    ``tool-output-available``.
  * 3. ``(chat_turn_id, tool_name, position-within-turn)`` — fallback
  *    for cards whose synthetic id is ``call_<run_id>`` AND whose
  *    ``langchainToolCallId`` never got backfilled (provider emitted
@@ -116,7 +114,7 @@ function ToolCardRevertButton({
 
 	const action = useMemo(() => {
 		// Tier 1 + 2: O(1) Map-backed direct id match. Covers
-		// ~all parity_v2 streams and any legacy stream that backfilled
+		// Indexed chunk streams and any stream that backfilled
 		// ``langchainToolCallId`` via ``tool-output-available``.
 		const direct = findByToolCallId(toolCallId) ?? findByToolCallId(langchainToolCallId);
 		if (direct) return direct;

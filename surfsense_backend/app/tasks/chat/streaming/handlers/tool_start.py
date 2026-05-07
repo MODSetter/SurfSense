@@ -77,12 +77,11 @@ def iter_tool_start_frames(
     yield emit_thinking_step_frame(**frame_kw)
 
     matched_meta: dict[str, str] | None = None
-    if state.parity_v2:
-        taken_ui_ids = set(state.ui_tool_call_id_by_run.values())
-        for meta in state.index_to_meta.values():
-            if meta["name"] == tool_name and meta["ui_id"] not in taken_ui_ids:
-                matched_meta = meta
-                break
+    taken_ui_ids = set(state.ui_tool_call_id_by_run.values())
+    for meta in state.index_to_meta.values():
+        if meta["name"] == tool_name and meta["ui_id"] not in taken_ui_ids:
+            matched_meta = meta
+            break
 
     tool_call_id: str
     langchain_tool_call_id: str | None = None
@@ -97,13 +96,12 @@ def iter_tool_start_frames(
             if run_id
             else streaming_service.generate_tool_call_id()
         )
-        if state.parity_v2:
-            langchain_tool_call_id = match_buffered_langchain_tool_call_id(
-                state.pending_tool_call_chunks,
-                tool_name,
-                run_id,
-                state.lc_tool_call_id_by_run,
-            )
+        langchain_tool_call_id = match_buffered_langchain_tool_call_id(
+            state.pending_tool_call_chunks,
+            tool_name,
+            run_id,
+            state.lc_tool_call_id_by_run,
+        )
         yield streaming_service.format_tool_input_start(
             tool_call_id,
             tool_name,

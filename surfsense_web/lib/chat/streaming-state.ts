@@ -421,9 +421,8 @@ export type SSEEvent =
 			/**
 			 * Live tool-call argument delta. Concatenated into
 			 * ``argsText`` on the matching ``tool-call`` content part
-			 * by ``appendToolInputDelta``. parity_v2 only — the legacy
-			 * code path emits ``tool-input-available`` without prior
-			 * deltas.
+			 * by ``appendToolInputDelta``. Some providers emit
+			 * ``tool-input-available`` without prior deltas.
 			 */
 			type: "tool-input-delta";
 			toolCallId: string;

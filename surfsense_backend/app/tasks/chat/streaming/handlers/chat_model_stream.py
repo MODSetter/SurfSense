@@ -33,7 +33,7 @@ def iter_chat_model_stream_frames(
     reasoning_delta = parts["reasoning"]
     text_delta = parts["text"]
 
-    if state.parity_v2 and reasoning_delta:
+    if reasoning_delta:
         if state.current_text_id is not None:
             yield streaming_service.format_text_end(state.current_text_id)
             if content_builder is not None:
@@ -100,7 +100,7 @@ def iter_chat_model_stream_frames(
         if content_builder is not None:
             content_builder.on_text_delta(state.current_text_id, text_delta)
 
-    if state.parity_v2 and parts["tool_call_chunks"]:
+    if parts["tool_call_chunks"]:
         for tcc in parts["tool_call_chunks"]:
             idx = tcc.get("index")
 

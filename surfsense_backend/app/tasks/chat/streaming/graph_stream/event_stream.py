@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 
-from app.agents.new_chat.feature_flags import get_flags
 from app.tasks.chat.streaming.graph_stream.result import StreamingResult
 from app.tasks.chat.streaming.relay.event_relay import EventRelay
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
@@ -30,7 +29,6 @@ async def stream_output(
         initial_step_id=initial_step_id,
         initial_step_title=initial_step_title,
         initial_step_items=initial_step_items,
-        parity_v2=bool(get_flags().enable_stream_parity_v2),
     )
 
     astream_kwargs: dict[str, Any] = {"config": config, "version": "v2"}
