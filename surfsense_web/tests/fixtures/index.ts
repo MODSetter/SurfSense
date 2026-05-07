@@ -22,6 +22,8 @@
  *             └─ nativeCalendarWithChatTest — chatThread
  *         └─ notionFixtures — notionConnector
  *             └─ notionWithChatTest — chatThread
+ *         └─ confluenceFixtures — confluenceConnector
+ *             └─ confluenceWithChatTest — chatThread
  *         └─ linearFixtures — linearConnector
  *             └─ linearWithChatTest — chatThread
  *         └─ jiraFixtures — jiraConnector
@@ -37,6 +39,7 @@ export { chatThreadFixtures } from "./chat-thread.fixture";
 export { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
 export { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 export { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
+export { confluenceFixtures } from "./connectors/confluence.fixture";
 export { jiraFixtures } from "./connectors/jira.fixture";
 export { linearFixtures } from "./connectors/linear.fixture";
 export { nativeCalendarFixtures } from "./connectors/native-calendar.fixture";
@@ -49,6 +52,7 @@ import { type ChatThreadFixtures, chatThreadFixtures } from "./chat-thread.fixtu
 import { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
 import { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 import { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
+import { confluenceFixtures } from "./connectors/confluence.fixture";
 import { jiraFixtures } from "./connectors/jira.fixture";
 import { linearFixtures } from "./connectors/linear.fixture";
 import { nativeCalendarFixtures } from "./connectors/native-calendar.fixture";
@@ -93,6 +97,11 @@ export const nativeCalendarWithChatTest =
 export const notionTest = notionFixtures;
 /** `test` for Notion specs that also need a chat thread. */
 export const notionWithChatTest = notionFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
+/** `test` for specs that also need a pre-connected Confluence connector. */
+export const confluenceTest = confluenceFixtures;
+/** `test` for Confluence specs that also need a chat thread. */
+export const confluenceWithChatTest =
+	confluenceFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
 /** `test` for specs that also need a pre-connected Linear connector. */
 export const linearTest = linearFixtures;
 /** `test` for Linear specs that also need a chat thread. */
