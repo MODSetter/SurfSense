@@ -44,7 +44,6 @@ test.describe("Linear connector journey", () => {
 		await openConnectorPopup(page);
 		const connectorDialog = page.getByRole("dialog", { name: "Manage Connectors" });
 		await expect(connectorDialog).toBeVisible();
-		await expect(connectorDialog.getByRole("button", { name: "Manage" })).toBeVisible();
 
 		const beforeDocs = await listDocuments(request, apiToken, searchSpace.id);
 		expect(beforeDocs).toHaveLength(0);

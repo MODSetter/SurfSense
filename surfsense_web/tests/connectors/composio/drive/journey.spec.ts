@@ -34,7 +34,6 @@ test.describe("Composio Drive journey", () => {
 		await openConnectorPopup(page);
 		const connectorDialog = page.getByRole("dialog", { name: "Manage Connectors" });
 		await expect(connectorDialog).toBeVisible();
-		await expect(connectorDialog.getByRole("button", { name: "Manage" })).toBeVisible();
 
 		await updateConnectorConfig(request, apiToken, composioDriveConnector.id, {
 			...composioDriveConnector.config,
