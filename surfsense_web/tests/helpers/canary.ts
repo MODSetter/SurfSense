@@ -28,6 +28,8 @@ export const CANARY_TOKENS = {
 	jiraCanary: "SURFSENSE_E2E_CANARY_TOKEN_JIRA_001",
 	slackCanary: "SURFSENSE_E2E_CANARY_TOKEN_SLACK_001",
 	clickupCanary: "SURFSENSE_E2E_CANARY_TOKEN_CLICKUP_001",
+	manualUploadMdCanary: "E2E-MANUAL-UPLOAD-MD-CANARY-7f3a",
+	manualUploadPdfCanary: "E2E-MANUAL-UPLOAD-PDF-CANARY-9d2b",
 } as const;
 
 /**
