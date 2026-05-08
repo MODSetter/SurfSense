@@ -456,6 +456,8 @@ class VercelStreamingService:
         title: str,
         status: str = "in_progress",
         items: list[str] | None = None,
+        *,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Format a thinking step for chain-of-thought display (SurfSense specific).
@@ -469,15 +471,15 @@ class VercelStreamingService:
         Returns:
             str: SSE formatted thinking step data part
         """
-        return self.format_data(
-            "thinking-step",
-            {
-                "id": step_id,
-                "title": title,
-                "status": status,
-                "items": items or [],
-            },
-        )
+        payload: dict[str, Any] = {
+            "id": step_id,
+            "title": title,
+            "status": status,
+            "items": items or [],
+        }
+        if metadata:
+            payload["metadata"] = metadata
+        return self.format_data("thinking-step", payload)
 
     def format_thread_title_update(self, thread_id: int, title: str) -> str:
         """
@@ -601,6 +603,7 @@ class VercelStreamingService:
         tool_name: str,
         *,
         langchain_tool_call_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Format the start of tool input streaming.
@@ -635,6 +638,8 @@ class VercelStreamingService:
         }
         if langchain_tool_call_id:
             payload["langchainToolCallId"] = langchain_tool_call_id
+        if metadata:
+            payload["metadata"] = metadata
         return self._format_sse(payload)
 
     def format_tool_input_delta(self, tool_call_id: str, input_text_delta: str) -> str:
@@ -666,6 +671,7 @@ class VercelStreamingService:
         input_data: dict[str, Any],
         *,
         langchain_tool_call_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Format the completion of tool input.
@@ -691,6 +697,8 @@ class VercelStreamingService:
         }
         if langchain_tool_call_id:
             payload["langchainToolCallId"] = langchain_tool_call_id
+        if metadata:
+            payload["metadata"] = metadata
         return self._format_sse(payload)
 
     def format_tool_output_available(
@@ -699,6 +707,7 @@ class VercelStreamingService:
         output: Any,
         *,
         langchain_tool_call_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Format tool execution output.
@@ -725,6 +734,8 @@ class VercelStreamingService:
         }
         if langchain_tool_call_id:
             payload["langchainToolCallId"] = langchain_tool_call_id
+        if metadata:
+            payload["metadata"] = metadata
         return self._format_sse(payload)
 
     # =========================================================================
