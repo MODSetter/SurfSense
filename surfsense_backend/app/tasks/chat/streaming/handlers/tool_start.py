@@ -99,20 +99,21 @@ def iter_tool_start_frames(
         )
 
     span_md = state.span_metadata_if_active()
+    tool_md = state.tool_activity_metadata(thinking_step_id=tool_step_id)
 
     if matched_meta is None:
         yield streaming_service.format_tool_input_start(
             tool_call_id,
             tool_name,
             langchain_tool_call_id=langchain_tool_call_id,
-            metadata=span_md,
+            metadata=tool_md,
         )
         if content_builder is not None:
             content_builder.on_tool_input_start(
                 tool_call_id,
                 tool_name,
                 langchain_tool_call_id,
-                metadata=span_md,
+                metadata=tool_md,
             )
 
     thinking = resolve_tool_start_thinking(tool_name, tool_input)
@@ -148,7 +149,7 @@ def iter_tool_start_frames(
         tool_name,
         _safe_input,
         langchain_tool_call_id=langchain_tool_call_id,
-        metadata=span_md,
+        metadata=tool_md,
     )
     if content_builder is not None:
         content_builder.on_tool_input_available(
@@ -156,5 +157,5 @@ def iter_tool_start_frames(
             tool_name,
             _safe_input,
             langchain_tool_call_id,
-            metadata=span_md,
+            metadata=tool_md,
         )
