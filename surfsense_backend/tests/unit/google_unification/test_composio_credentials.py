@@ -118,7 +118,7 @@ def test_get_access_token_raises_when_state_val_missing():
     fake_account.state = None
     service = _service_with_account(fake_account)
 
-    with pytest.raises(ValueError, match="No state.val.*missing-state-account"):
+    with pytest.raises(ValueError, match=r"No state\.val.*missing-state-account"):
         service.get_access_token("missing-state-account")
 
 
@@ -128,7 +128,7 @@ def test_get_access_token_raises_when_access_token_empty():
     fake_account.state.val.access_token = ""
     service = _service_with_account(fake_account)
 
-    with pytest.raises(ValueError, match="No access_token.*missing-token-account"):
+    with pytest.raises(ValueError, match=r"No access_token.*missing-token-account"):
         service.get_access_token("missing-token-account")
 
 
@@ -138,7 +138,7 @@ def test_get_access_token_raises_when_access_token_none():
     fake_account.state.val.access_token = None
     service = _service_with_account(fake_account)
 
-    with pytest.raises(ValueError, match="No access_token.*none-token-account"):
+    with pytest.raises(ValueError, match=r"No access_token.*none-token-account"):
         service.get_access_token("none-token-account")
 
 

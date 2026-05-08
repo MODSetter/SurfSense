@@ -41,9 +41,7 @@ _INDEXER_MODULE = "app.tasks.connector_indexers.google_drive_indexer"
 _GET_ACCESS_TOKEN = "app.services.composio_service.ComposioService.get_access_token"
 
 
-def _mock_drive_client(
-    *, list_files_return: tuple = ([], None, None)
-) -> MagicMock:
+def _mock_drive_client(*, list_files_return: tuple = ([], None, None)) -> MagicMock:
     """Duck-typed client mock whose ``list_files`` yields the supplied tuple.
 
     Returning an empty file list short-circuits the indexer's full-scan
