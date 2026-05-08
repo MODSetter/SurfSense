@@ -8,7 +8,13 @@ from typing import Any
 
 @dataclass
 class AgentEventRelayState:
-    """Tracks text, thinking steps, tool depth, and pending tool-call metadata."""
+    """Tracks text, thinking steps, tool depth, and pending tool-call metadata.
+
+    ``active_span_id`` groups steps/tools for one open ``task`` episode.
+    ``active_task_run_id`` is the LangGraph ``run_id`` of that ``task`` so we
+    only clear the span when that run ends (not when child tools end). Handlers
+    will set/clear these via ``task_span`` helpers in a later change.
+    """
 
     accumulated_text: str = ""
     current_text_id: str | None = None
@@ -30,6 +36,17 @@ class AgentEventRelayState:
     current_lc_tool_call_id: dict[str, str | None] = field(
         default_factory=lambda: {"value": None}
     )
+    # Open ``task`` delegation span (one id shared by nested activity); unset outside.
+    active_span_id: str | None = None
+    active_task_run_id: str | None = None
+    # Span id minted when a ``task`` tool_call_chunk registers (before ``on_tool_start``).
+    pending_task_span_by_lc: dict[str, str] = field(default_factory=dict)
+
+    def span_metadata_if_active(self) -> dict[str, Any] | None:
+        """``{"spanId": ...}`` when a span is active; ``None`` otherwise."""
+        if self.active_span_id:
+            return {"spanId": self.active_span_id}
+        return None
 
     @classmethod
     def for_invocation(
