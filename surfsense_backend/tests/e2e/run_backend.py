@@ -75,6 +75,12 @@ os.environ.setdefault(
     "ONEDRIVE_REDIRECT_URI",
     "http://localhost:8000/api/v1/auth/onedrive/connector/callback",
 )
+os.environ.setdefault("DROPBOX_APP_KEY", "fake-dropbox-app-key")
+os.environ.setdefault("DROPBOX_APP_SECRET", "fake-dropbox-app-secret")
+os.environ.setdefault(
+    "DROPBOX_REDIRECT_URI",
+    "http://localhost:8000/api/v1/auth/dropbox/connector/callback",
+)
 os.environ["SLACK_CLIENT_ID"] = "fake-slack-mcp-client-id"
 os.environ["SLACK_CLIENT_SECRET"] = "fake-slack-mcp-client-secret"
 
@@ -105,6 +111,7 @@ from app.app import app  # noqa: E402
 from tests.e2e.fakes import (  # noqa: E402
     confluence_indexer as _fake_confluence_indexer,
     confluence_oauth as _fake_confluence_oauth,
+    dropbox_api as _fake_dropbox_api,
     embeddings as _fake_embeddings,
     jira_module as _fake_jira_module,
     linear_module as _fake_linear_module,
@@ -133,6 +140,7 @@ def _patch_llm_bindings() -> None:
         "app.tasks.connector_indexers.google_gmail_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.notion_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.onedrive_indexer.get_user_long_context_llm",
+        "app.tasks.connector_indexers.dropbox_indexer.get_user_long_context_llm",
         "app.tasks.connector_indexers.local_folder_indexer.get_user_long_context_llm",
         "app.tasks.document_processors._save.get_user_long_context_llm",
         "app.tasks.document_processors.markdown_processor.get_user_long_context_llm",
@@ -188,6 +196,7 @@ _fake_confluence_oauth.install(_active_patches)
 _fake_confluence_indexer.install(_active_patches)
 _fake_native_google.install(_active_patches)
 _fake_onedrive_graph.install(_active_patches)
+_fake_dropbox_api.install(_active_patches)
 _fake_notion_module.install(_active_patches)
 _fake_linear_module.install(_active_patches)
 _fake_jira_module.install(_active_patches)

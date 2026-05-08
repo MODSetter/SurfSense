@@ -1,0 +1,19 @@
+{
+  "": [
+    {
+      ".tag": "file",
+      "id": "id:fake-dropbox-canary",
+      "name": "e2e-dropbox-canary.txt",
+      "path_lower": "/e2e-dropbox-canary.txt",
+      "path_display": "/e2e-dropbox-canary.txt",
+      "size": 152,
+      "is_downloadable": true,
+      "server_modified": "2026-05-08T00:00:00Z",
+      "client_modified": "2026-05-08T00:00:00Z",
+      "content_hash": "fake-dropbox-hash-001"
+    }
+  ],
+  "_file_contents": {
+    "/e2e-dropbox-canary.txt": "Canary token for Dropbox E2E tests: SURFSENSE_E2E_CANARY_TOKEN_DROPBOX_001\nThis file proves the Dropbox indexing pipeline ran end-to-end."
+  }
+}
