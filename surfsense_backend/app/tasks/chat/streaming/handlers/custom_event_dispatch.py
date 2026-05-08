@@ -33,6 +33,7 @@ def iter_custom_event_frames(
             last_active_step_items=state.last_active_step_items,
             streaming_service=streaming_service,
             content_builder=content_builder,
+            thinking_metadata=state.span_metadata_if_active(),
         )
         if frame:
             yield frame

@@ -15,6 +15,7 @@ def handle_report_progress(
     last_active_step_items: list[str],
     streaming_service: Any,
     content_builder: Any | None,
+    thinking_metadata: dict[str, Any] | None = None,
 ) -> tuple[str | None, list[str]]:
     """Update report step items; may emit one thinking SSE frame.
 
@@ -50,6 +51,7 @@ def handle_report_progress(
         title=last_active_step_title,
         status="in_progress",
         items=new_items,
+        metadata=thinking_metadata,
     )
     return frame, new_items
 
