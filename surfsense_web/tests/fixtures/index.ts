@@ -32,6 +32,8 @@
  *             └─ linearWithChatTest — chatThread
  *         └─ jiraFixtures — jiraConnector
  *             └─ jiraWithChatTest — chatThread
+ *         └─ clickupFixtures — clickupConnector
+ *             └─ clickupWithChatTest — chatThread
  *         └─ slackFixtures — slackConnector
  *             └─ slackWithChatTest — chatThread
  *
@@ -45,6 +47,7 @@ export { chatThreadFixtures } from "./chat-thread.fixture";
 export { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
 export { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 export { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
+export { clickupFixtures } from "./connectors/clickup.fixture";
 export { confluenceFixtures } from "./connectors/confluence.fixture";
 export { jiraFixtures } from "./connectors/jira.fixture";
 export { linearFixtures } from "./connectors/linear.fixture";
@@ -61,6 +64,7 @@ import { type ChatThreadFixtures, chatThreadFixtures } from "./chat-thread.fixtu
 import { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
 import { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 import { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
+import { clickupFixtures } from "./connectors/clickup.fixture";
 import { confluenceFixtures } from "./connectors/confluence.fixture";
 import { jiraFixtures } from "./connectors/jira.fixture";
 import { linearFixtures } from "./connectors/linear.fixture";
@@ -132,6 +136,10 @@ export const linearWithChatTest = linearFixtures.extend<ChatThreadFixtures>(chat
 export const jiraTest = jiraFixtures;
 /** `test` for Jira specs that also need a chat thread. */
 export const jiraWithChatTest = jiraFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
+/** `test` for specs that also need a pre-connected ClickUp connector. */
+export const clickupTest = clickupFixtures;
+/** `test` for ClickUp specs that also need a chat thread. */
+export const clickupWithChatTest = clickupFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
 /** `test` for specs that also need a pre-connected Slack connector. */
 export const slackTest = slackFixtures;
 /** `test` for Slack specs that also need a chat thread. */

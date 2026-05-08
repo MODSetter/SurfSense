@@ -27,6 +27,7 @@ export const CANARY_TOKENS = {
 	linearCanary: "SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001",
 	jiraCanary: "SURFSENSE_E2E_CANARY_TOKEN_JIRA_001",
 	slackCanary: "SURFSENSE_E2E_CANARY_TOKEN_SLACK_001",
+	clickupCanary: "SURFSENSE_E2E_CANARY_TOKEN_CLICKUP_001",
 } as const;
 
 /**
@@ -180,6 +181,19 @@ export const FAKE_SLACK_CHANNELS = {
 		name: "slack-e2e-canary",
 		teamId: "T_FAKE_SLACK_TEAM",
 		teamName: "SurfSense E2E Slack Workspace",
+	},
+} as const;
+
+/**
+ * Fake ClickUp task IDs that match what the backend MCP fake returns from
+ * clickup_search / clickup_get_task.
+ */
+export const FAKE_CLICKUP_TASKS = {
+	canary: {
+		id: "fake-clickup-task-canary-001",
+		name: "E2E Canary ClickUp Task",
+		workspaceId: "fake-clickup-workspace-001",
+		workspaceName: "SurfSense E2E ClickUp Workspace",
 	},
 } as const;
 
