@@ -31,6 +31,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { getToolDisplayName } from "@/contracts/enums/toolIcons";
 import { markActionRevertedInCache, useAgentActionsQuery } from "@/hooks/use-agent-actions-query";
 import { agentActionsApiService } from "@/lib/apis/agent-actions-api.service";
+import {
+	DELEGATION_SPAN_INDENT_CLASS,
+	shouldIndentToolCallForDelegationSpan,
+} from "@/lib/chat/delegation-span-indent";
 import { AppError } from "@/lib/error";
 import { isInterruptResult } from "@/lib/hitl";
 import { cn } from "@/lib/utils";
@@ -498,6 +502,24 @@ const DefaultToolFallbackInner: ToolCallMessagePartComponent = (props) => {
 		</Card>
 	);
 };
+
+/**
+ * Wrap any tool-call UI so cards under an active delegating ``task`` span indent.
+ * Applied to named tool components as well as ``ToolFallback`` — only ``ToolFallback``
+ * would miss delegated tools otherwise.
+ */
+export function withDelegationSpanIndent(
+	Component: ToolCallMessagePartComponent
+): ToolCallMessagePartComponent {
+	const Wrapped: ToolCallMessagePartComponent = (props) => {
+		const metadata = (props as { metadata?: Record<string, unknown> }).metadata;
+		const indent = shouldIndentToolCallForDelegationSpan(props.toolName, metadata);
+		const inner = <Component {...props} />;
+		return indent ? <div className={cn(DELEGATION_SPAN_INDENT_CLASS)}>{inner}</div> : inner;
+	};
+	Wrapped.displayName = `withDelegationSpanIndent(${Component.displayName ?? Component.name ?? "ToolUI"})`;
+	return Wrapped;
+}
 
 export const ToolFallback: ToolCallMessagePartComponent = (props) => {
 	if (isInterruptResult(props.result)) {

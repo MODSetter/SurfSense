@@ -4,6 +4,7 @@ import {
 	AuiIf,
 	ErrorPrimitive,
 	MessagePrimitive,
+	type ToolCallMessagePartComponent,
 	useAui,
 	useAuiState,
 } from "@assistant-ui/react";
@@ -36,7 +37,7 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
 import { RevertTurnButton } from "@/components/assistant-ui/revert-turn-button";
 import { useTokenUsage } from "@/components/assistant-ui/token-usage-context";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { ToolFallback, withDelegationSpanIndent } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
@@ -505,48 +506,55 @@ const MessageInfoDropdown: FC = () => {
 
 // Wrap each tool-ui card with ``withBundleStep`` so multi-card HITL bundles
 // page through them and stage decisions instead of firing one resume per card.
+// ``withDelegationSpanIndent`` wraps every entry (including Fallback) so delegated
+// subagent tools don't bypass span indentation via a named ``by_name`` UI.
+const bundleTool = (Component: ToolCallMessagePartComponent) =>
+	withBundleStep(withDelegationSpanIndent(Component));
+
+const NullToolUi: ToolCallMessagePartComponent = () => null;
+
 const TOOLS_BY_NAME = {
-	generate_report: withBundleStep(GenerateReportToolUI),
-	generate_resume: withBundleStep(GenerateResumeToolUI),
-	generate_podcast: withBundleStep(GeneratePodcastToolUI),
-	generate_video_presentation: withBundleStep(GenerateVideoPresentationToolUI),
-	display_image: withBundleStep(GenerateImageToolUI),
-	generate_image: withBundleStep(GenerateImageToolUI),
-	update_memory: withBundleStep(UpdateMemoryToolUI),
-	execute: withBundleStep(SandboxExecuteToolUI),
-	execute_code: withBundleStep(SandboxExecuteToolUI),
-	create_notion_page: withBundleStep(CreateNotionPageToolUI),
-	update_notion_page: withBundleStep(UpdateNotionPageToolUI),
-	delete_notion_page: withBundleStep(DeleteNotionPageToolUI),
-	create_linear_issue: withBundleStep(CreateLinearIssueToolUI),
-	update_linear_issue: withBundleStep(UpdateLinearIssueToolUI),
-	delete_linear_issue: withBundleStep(DeleteLinearIssueToolUI),
-	create_google_drive_file: withBundleStep(CreateGoogleDriveFileToolUI),
-	delete_google_drive_file: withBundleStep(DeleteGoogleDriveFileToolUI),
-	create_onedrive_file: withBundleStep(CreateOneDriveFileToolUI),
-	delete_onedrive_file: withBundleStep(DeleteOneDriveFileToolUI),
-	create_dropbox_file: withBundleStep(CreateDropboxFileToolUI),
-	delete_dropbox_file: withBundleStep(DeleteDropboxFileToolUI),
-	create_calendar_event: withBundleStep(CreateCalendarEventToolUI),
-	update_calendar_event: withBundleStep(UpdateCalendarEventToolUI),
-	delete_calendar_event: withBundleStep(DeleteCalendarEventToolUI),
-	create_gmail_draft: withBundleStep(CreateGmailDraftToolUI),
-	update_gmail_draft: withBundleStep(UpdateGmailDraftToolUI),
-	send_gmail_email: withBundleStep(SendGmailEmailToolUI),
-	trash_gmail_email: withBundleStep(TrashGmailEmailToolUI),
-	create_jira_issue: withBundleStep(CreateJiraIssueToolUI),
-	update_jira_issue: withBundleStep(UpdateJiraIssueToolUI),
-	delete_jira_issue: withBundleStep(DeleteJiraIssueToolUI),
-	create_confluence_page: withBundleStep(CreateConfluencePageToolUI),
-	update_confluence_page: withBundleStep(UpdateConfluencePageToolUI),
-	delete_confluence_page: withBundleStep(DeleteConfluencePageToolUI),
-	web_search: () => null,
-	link_preview: () => null,
-	multi_link_preview: () => null,
-	scrape_webpage: () => null,
+	generate_report: bundleTool(GenerateReportToolUI),
+	generate_resume: bundleTool(GenerateResumeToolUI),
+	generate_podcast: bundleTool(GeneratePodcastToolUI),
+	generate_video_presentation: bundleTool(GenerateVideoPresentationToolUI),
+	display_image: bundleTool(GenerateImageToolUI),
+	generate_image: bundleTool(GenerateImageToolUI),
+	update_memory: bundleTool(UpdateMemoryToolUI),
+	execute: bundleTool(SandboxExecuteToolUI),
+	execute_code: bundleTool(SandboxExecuteToolUI),
+	create_notion_page: bundleTool(CreateNotionPageToolUI),
+	update_notion_page: bundleTool(UpdateNotionPageToolUI),
+	delete_notion_page: bundleTool(DeleteNotionPageToolUI),
+	create_linear_issue: bundleTool(CreateLinearIssueToolUI),
+	update_linear_issue: bundleTool(UpdateLinearIssueToolUI),
+	delete_linear_issue: bundleTool(DeleteLinearIssueToolUI),
+	create_google_drive_file: bundleTool(CreateGoogleDriveFileToolUI),
+	delete_google_drive_file: bundleTool(DeleteGoogleDriveFileToolUI),
+	create_onedrive_file: bundleTool(CreateOneDriveFileToolUI),
+	delete_onedrive_file: bundleTool(DeleteOneDriveFileToolUI),
+	create_dropbox_file: bundleTool(CreateDropboxFileToolUI),
+	delete_dropbox_file: bundleTool(DeleteDropboxFileToolUI),
+	create_calendar_event: bundleTool(CreateCalendarEventToolUI),
+	update_calendar_event: bundleTool(UpdateCalendarEventToolUI),
+	delete_calendar_event: bundleTool(DeleteCalendarEventToolUI),
+	create_gmail_draft: bundleTool(CreateGmailDraftToolUI),
+	update_gmail_draft: bundleTool(UpdateGmailDraftToolUI),
+	send_gmail_email: bundleTool(SendGmailEmailToolUI),
+	trash_gmail_email: bundleTool(TrashGmailEmailToolUI),
+	create_jira_issue: bundleTool(CreateJiraIssueToolUI),
+	update_jira_issue: bundleTool(UpdateJiraIssueToolUI),
+	delete_jira_issue: bundleTool(DeleteJiraIssueToolUI),
+	create_confluence_page: bundleTool(CreateConfluencePageToolUI),
+	update_confluence_page: bundleTool(UpdateConfluencePageToolUI),
+	delete_confluence_page: bundleTool(DeleteConfluencePageToolUI),
+	web_search: NullToolUi,
+	link_preview: NullToolUi,
+	multi_link_preview: NullToolUi,
+	scrape_webpage: NullToolUi,
 } as const;
 
-const TOOLS_FALLBACK = withBundleStep(ToolFallback);
+const TOOLS_FALLBACK = bundleTool(ToolFallback);
 
 const AssistantMessageInner: FC = () => {
 	const isMobile = !useMediaQuery("(min-width: 768px)");
