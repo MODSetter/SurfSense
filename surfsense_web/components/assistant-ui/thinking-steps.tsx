@@ -1,7 +1,7 @@
 import { makeAssistantDataUI, useAuiState } from "@assistant-ui/react";
 import { ChevronRightIcon } from "lucide-react";
 import type { FC } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChainOfThoughtItem } from "@/components/prompt-kit/chain-of-thought";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { cn } from "@/lib/utils";
@@ -11,15 +11,170 @@ export interface ThinkingStep {
 	title: string;
 	items: string[];
 	status: "pending" | "in_progress" | "completed";
+	/**
+	 * Optional relay metadata forwarded from ``data-thinking-step`` SSE
+	 * (e.g. ``spanId`` set by ``AgentEventRelayState.span_metadata_if_active``).
+	 * Steps under an open delegating ``task`` carry ``metadata.spanId`` and are
+	 * grouped under the preceding parent (``task`` step) as indented children.
+	 */
+	metadata?: Record<string, unknown>;
 }
 
 /**
- * Chain of thought display component - single collapsible dropdown design
+ * Per-step info joined from the assistant message ``tool-call`` parts via
+ * the shared ``metadata.thinkingStepId`` correlation
+ * (set on the server in ``AgentEventRelayState.tool_activity_metadata``).
  */
-export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolean }> = ({
-	steps,
-	isThreadRunning = true,
-}) => {
+interface StepToolInfo {
+	toolName: string;
+	args: Record<string, unknown>;
+}
+
+export type ThinkingStepToolInfoMap = ReadonlyMap<string, StepToolInfo>;
+
+/**
+ * Build ``thinkingStepId → {toolName, args}`` from message content. Used to
+ *  - identify the opening ``task`` step (parent header, never indents) without
+ *    relying on the human-readable title;
+ *  - render the parent's display title from ``args.subagent_type`` instead of
+ *    the generic "Task" copy.
+ */
+export function buildThinkingStepToolInfo(
+	content: readonly unknown[] | undefined
+): ThinkingStepToolInfoMap {
+	const m = new Map<string, StepToolInfo>();
+	if (!content) return m;
+	for (const part of content) {
+		if (!part || typeof part !== "object") continue;
+		const o = part as {
+			type?: string;
+			toolName?: string;
+			args?: Record<string, unknown>;
+			metadata?: Record<string, unknown>;
+		};
+		if (o.type !== "tool-call" || !o.toolName) continue;
+		const tid = o.metadata?.thinkingStepId;
+		if (typeof tid === "string" && tid.trim().length > 0) {
+			m.set(tid, { toolName: o.toolName, args: o.args ?? {} });
+		}
+	}
+	return m;
+}
+
+function asNonEmptyString(v: unknown): string | undefined {
+	return typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined;
+}
+
+function titleCaseSubagent(raw: string): string {
+	// "notion" → "Notion", "doc_research" → "Doc Research".
+	return raw
+		.split(/[\s_-]+/)
+		.filter(Boolean)
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(" ");
+}
+
+/**
+ * Display title for a step. For the opening ``task`` step we substitute the
+ * subagent type from the matching tool-call args (e.g. ``"Notion"`` instead of
+ * the generic ``"Task"``). Falls back to the step's own title if the tool-call
+ * hasn't streamed in yet.
+ */
+function resolveDisplayTitle(step: ThinkingStep, info: StepToolInfo | undefined): string {
+	if (info?.toolName === "task") {
+		const subagent = asNonEmptyString(info.args?.subagent_type);
+		if (subagent) return titleCaseSubagent(subagent);
+	}
+	return step.title;
+}
+
+function isDelegatedChild(step: ThinkingStep, info: StepToolInfo | undefined): boolean {
+	const sid = asNonEmptyString(step.metadata?.spanId);
+	if (!sid) return false;
+	// The opening ``task`` step also carries ``spanId`` (it owns the span) but
+	// must render as the parent header. Prefer the joined ``toolName`` (set by
+	// ``buildThinkingStepToolInfo`` from ``tool-call.metadata.thinkingStepId``).
+	// Fall back to the title heuristic when no tool-call is matched — happens
+	// for messages persisted before ``thinkingStepId`` shipped, and briefly
+	// during streaming if the ``tool-input-start`` frame hasn't been processed
+	// yet for some reason.
+	if (info) return info.toolName !== "task";
+	return step.title !== "Task";
+}
+
+interface StepGroup {
+	parent: ThinkingStep;
+	children: ThinkingStep[];
+}
+
+/**
+ * Group consecutive delegated child steps under the preceding parent step.
+ * If the very first step is a child (no parent yet seen), it's promoted to a
+ * parent so it still renders — defensive only, real flows always start with a
+ * parent step.
+ */
+const EMPTY_STEP_TOOL_INFO: ThinkingStepToolInfoMap = new Map();
+
+function groupSteps(
+	steps: readonly ThinkingStep[],
+	stepToolInfo: ThinkingStepToolInfoMap
+): StepGroup[] {
+	const groups: StepGroup[] = [];
+	for (const step of steps) {
+		if (isDelegatedChild(step, stepToolInfo.get(step.id)) && groups.length > 0) {
+			groups[groups.length - 1].children.push(step);
+		} else {
+			groups.push({ parent: step, children: [] });
+		}
+	}
+	return groups;
+}
+
+const StepBody: FC<{
+	step: ThinkingStep;
+	status: "pending" | "in_progress" | "completed";
+	displayTitle: string;
+}> = ({ step, status, displayTitle }) => (
+	<div className="min-w-0">
+		<div
+			className={cn(
+				"text-sm leading-5",
+				status === "in_progress" && "text-foreground font-medium",
+				status === "completed" && "text-muted-foreground",
+				status === "pending" && "text-muted-foreground/60"
+			)}
+		>
+			{displayTitle}
+		</div>
+
+		{step.items && step.items.length > 0 && (
+			<div className="mt-1 space-y-0.5">
+				{step.items.map((item) => (
+					<ChainOfThoughtItem key={`${step.id}-${item}`} className="text-xs">
+						{item}
+					</ChainOfThoughtItem>
+				))}
+			</div>
+		)}
+	</div>
+);
+
+/**
+ * Chain of thought display component - single collapsible dropdown design.
+ *
+ * ``stepToolInfo`` joins each step (by ``thinkingStepId``) to its ``tool-call``
+ * part so we can:
+ *  - replace the generic ``"Task"`` title with the real subagent name
+ *    (``args.subagent_type``) on the parent header;
+ *  - decide parent-vs-child purely from the matched ``toolName`` instead of
+ *    relying on the displayed title.
+ */
+export const ThinkingStepsDisplay: FC<{
+	steps: ThinkingStep[];
+	isThreadRunning?: boolean;
+	stepToolInfo?: ThinkingStepToolInfoMap;
+}> = ({ steps, isThreadRunning = true, stepToolInfo }) => {
+	const toolInfo = stepToolInfo ?? EMPTY_STEP_TOOL_INFO;
 	const getEffectiveStatus = useCallback(
 		(step: ThinkingStep): "pending" | "in_progress" | "completed" => {
 			if (step.status === "in_progress" && !isThreadRunning) {
@@ -31,6 +186,9 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 	);
 
 	const inProgressStep = steps.find((s) => getEffectiveStatus(s) === "in_progress");
+	const inProgressDisplayTitle = inProgressStep
+		? resolveDisplayTitle(inProgressStep, toolInfo.get(inProgressStep.id))
+		: undefined;
 	const allCompleted =
 		steps.length > 0 &&
 		!isThreadRunning &&
@@ -49,14 +207,16 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 		}
 	}, [allCompleted, isProcessing]);
 
+	const groups = useMemo(() => groupSteps(steps, toolInfo), [steps, toolInfo]);
+
 	if (steps.length === 0) return null;
 
 	const getHeaderText = () => {
 		if (allCompleted) {
 			return "Reviewed";
 		}
-		if (inProgressStep) {
-			return inProgressStep.title;
+		if (inProgressDisplayTitle) {
+			return inProgressDisplayTitle;
 		}
 		if (isProcessing) {
 			return "Processing";
@@ -94,18 +254,26 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 				>
 					<div className="overflow-hidden">
 						<div className="mt-3 pl-1">
-							{steps.map((step, index) => {
-								const effectiveStatus = getEffectiveStatus(step);
-								const isLast = index === steps.length - 1;
+							{groups.map((group, groupIndex) => {
+								const isLastGroup = groupIndex === groups.length - 1;
+								const parentStatus = getEffectiveStatus(group.parent);
+								const parentInfo = toolInfo.get(group.parent.id);
+								const parentTitle = resolveDisplayTitle(group.parent, parentInfo);
+								const hasChildren = group.children.length > 0;
+								// Parent dots are connected by a vertical line that runs through
+								// any indented children (their column has no dot, so the line
+								// passes cleanly behind them) and overshoots by ~15px to reach
+								// the next group's dot center (top-[15px]).
+								const showParentLine = !isLastGroup;
 
 								return (
-									<div key={step.id} className="relative flex gap-3">
-										<div className="relative flex flex-col items-center w-2">
-											{!isLast && (
-												<div className="absolute left-1/2 top-[15px] -bottom-[7px] w-px -translate-x-1/2 bg-muted-foreground/30" />
+									<div key={group.parent.id} className="relative flex gap-3">
+										<div className="relative flex flex-col items-center w-2 self-stretch">
+											{showParentLine && (
+												<div className="absolute left-1/2 top-[15px] -bottom-[15px] w-px -translate-x-1/2 bg-muted-foreground/30" />
 											)}
 											<div className="relative z-10 mt-[7px] flex shrink-0 items-center justify-center">
-												{effectiveStatus === "in_progress" ? (
+												{parentStatus === "in_progress" ? (
 													<span className="relative flex size-2">
 														<span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/60" />
 														<span className="relative inline-flex size-2 rounded-full bg-primary" />
@@ -117,24 +285,25 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 										</div>
 
 										<div className="flex-1 min-w-0 pb-4">
-											<div
-												className={cn(
-													"text-sm leading-5",
-													effectiveStatus === "in_progress" && "text-foreground font-medium",
-													effectiveStatus === "completed" && "text-muted-foreground",
-													effectiveStatus === "pending" && "text-muted-foreground/60"
-												)}
-											>
-												{step.title}
-											</div>
+											<StepBody
+												step={group.parent}
+												status={parentStatus}
+												displayTitle={parentTitle}
+											/>
 
-											{step.items && step.items.length > 0 && (
-												<div className="mt-1 space-y-0.5">
-													{step.items.map((item) => (
-														<ChainOfThoughtItem key={`${step.id}-${item}`} className="text-xs">
-															{item}
-														</ChainOfThoughtItem>
-													))}
+											{hasChildren && (
+												<div className="mt-2 ml-3 space-y-2">
+													{group.children.map((child) => {
+														const childInfo = toolInfo.get(child.id);
+														return (
+															<StepBody
+																key={child.id}
+																step={child}
+																status={getEffectiveStatus(child)}
+																displayTitle={resolveDisplayTitle(child, childInfo)}
+															/>
+														);
+													})}
 												</div>
 											)}
 										</div>
@@ -158,13 +327,23 @@ function ThinkingStepsDataRenderer({ data }: { name: string; data: unknown }) {
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 	const isLastMessage = useAuiState(({ message }) => message?.isLast ?? false);
 	const isMessageStreaming = isThreadRunning && isLastMessage;
+	const content = useAuiState(({ message }) => message?.content);
+
+	const stepToolInfo = useMemo(
+		() => buildThinkingStepToolInfo(Array.isArray(content) ? content : undefined),
+		[content]
+	);
 
 	const steps = (data as { steps: ThinkingStep[] } | null)?.steps ?? [];
 	if (steps.length === 0) return null;
 
 	return (
 		<div className="mb-3 -mx-2 leading-normal">
-			<ThinkingStepsDisplay steps={steps} isThreadRunning={isMessageStreaming} />
+			<ThinkingStepsDisplay
+				steps={steps}
+				isThreadRunning={isMessageStreaming}
+				stepToolInfo={stepToolInfo}
+			/>
 		</div>
 	);
 }
