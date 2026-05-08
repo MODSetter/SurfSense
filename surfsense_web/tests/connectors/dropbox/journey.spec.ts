@@ -22,7 +22,7 @@ test.describe("Native Dropbox journey", () => {
 		nativeDropboxConnector,
 		chatThread,
 	}) => {
-		test.setTimeout(180_000); // worker cold-start + summarize + embed + chunk
+		test.setTimeout(240_000); // worker cold-start + Docling + summarize + embed + chunk
 
 		expect(nativeDropboxConnector.connector_type).toBe("DROPBOX_CONNECTOR");
 		expect(nativeDropboxConnector.is_indexable).toBe(true);
@@ -41,6 +41,11 @@ test.describe("Native Dropbox journey", () => {
 				id: FAKE_DROPBOX_FILES.canary.id,
 				name: FAKE_DROPBOX_FILES.canary.name,
 				mimeType: FAKE_DROPBOX_FILES.canary.mimeType,
+			},
+			{
+				id: FAKE_DROPBOX_FILES.pdf.id,
+				name: FAKE_DROPBOX_FILES.pdf.name,
+				mimeType: FAKE_DROPBOX_FILES.pdf.mimeType,
 			},
 		];
 		// Keep the shared Drive-style body shape. Dropbox currently defaults
@@ -64,9 +69,9 @@ test.describe("Native Dropbox journey", () => {
 		});
 
 		await waitForIndexingComplete(request, apiToken, nativeDropboxConnector.id, searchSpace.id, {
-			timeoutMs: 150_000,
+			timeoutMs: 240_000,
 			intervalMs: 1_500,
-			minDocuments: 1,
+			minDocuments: 2,
 		});
 
 		await waitForDocumentByTitle(
@@ -76,13 +81,20 @@ test.describe("Native Dropbox journey", () => {
 			FAKE_DROPBOX_FILES.canary.name,
 			{ timeoutMs: 30_000 }
 		);
+		await waitForDocumentByTitle(request, apiToken, searchSpace.id, FAKE_DROPBOX_FILES.pdf.name, {
+			timeoutMs: 60_000,
+		});
 
 		const docs = await listDocuments(request, apiToken, searchSpace.id);
 		const canaryDoc = docs.find((d) => d.title === FAKE_DROPBOX_FILES.canary.name);
+		const pdfDoc = docs.find((d) => d.title === FAKE_DROPBOX_FILES.pdf.name);
 
 		expect(canaryDoc, "Dropbox canary document must exist after indexing").toBeDefined();
 		if (!canaryDoc) throw new Error("unreachable: canaryDoc asserted defined above");
 		expect(canaryDoc.document_type).toBe("DROPBOX_FILE");
+		expect(pdfDoc, "Dropbox PDF document must exist after indexing").toBeDefined();
+		if (!pdfDoc) throw new Error("unreachable: pdfDoc asserted defined above");
+		expect(pdfDoc.document_type).toBe("DROPBOX_FILE");
 
 		const editor = await getEditorContent(request, apiToken, searchSpace.id, canaryDoc.id);
 		expect(
@@ -92,6 +104,15 @@ test.describe("Native Dropbox journey", () => {
 		).toContain(CANARY_TOKENS.dropboxCanary);
 		expect(editor.document_type).toBe("DROPBOX_FILE");
 		expect(editor.chunk_count).toBeGreaterThan(0);
+
+		const pdfEditor = await getEditorContent(request, apiToken, searchSpace.id, pdfDoc.id);
+		expect(
+			pdfEditor.source_markdown,
+			`PDF canary token ${CANARY_TOKENS.dropboxPdfCanary} should appear in editor source_markdown; ` +
+				`got first 200 chars: ${pdfEditor.source_markdown.slice(0, 200)}`
+		).toContain(CANARY_TOKENS.dropboxPdfCanary);
+		expect(pdfEditor.document_type).toBe("DROPBOX_FILE");
+		expect(pdfEditor.chunk_count).toBeGreaterThan(0);
 
 		const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
 		const refreshed = refreshedConnectors.find((c) => c.id === nativeDropboxConnector.id);
@@ -109,5 +130,16 @@ test.describe("Native Dropbox journey", () => {
 			"chat agent should surface Dropbox canary token after indexing; " +
 				`got: ${chat.assistantText.slice(0, 200)}`
 		).toContain(CANARY_TOKENS.dropboxCanary);
+
+		const pdfChat = await streamChatToCompletion(request, apiToken, {
+			searchSpaceId: searchSpace.id,
+			threadId: chatThread.id,
+			query: "What is in my e2e-dropbox-canary.pdf Dropbox file?",
+		});
+		expect(
+			pdfChat.assistantText,
+			"chat agent should surface Dropbox PDF canary token after indexing; " +
+				`got: ${pdfChat.assistantText.slice(0, 200)}`
+		).toContain(CANARY_TOKENS.dropboxPdfCanary);
 	});
 });

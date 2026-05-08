@@ -26,7 +26,7 @@ test.describe("Native Google Drive journey", () => {
 		nativeDriveConnector,
 		chatThread,
 	}) => {
-		test.setTimeout(180_000); // worker cold-start + summarize + embed + chunk
+		test.setTimeout(240_000); // worker cold-start + Docling + summarize + embed + chunk
 
 		expect(nativeDriveConnector.connector_type).toBe("GOOGLE_DRIVE_CONNECTOR");
 		expect(nativeDriveConnector.is_indexable).toBe(true);
@@ -45,6 +45,11 @@ test.describe("Native Google Drive journey", () => {
 				id: FAKE_DRIVE_FILES.canary.id,
 				name: FAKE_DRIVE_FILES.canary.name,
 				mimeType: FAKE_DRIVE_FILES.canary.mimeType,
+			},
+			{
+				id: FAKE_DRIVE_FILES.pdfNative.id,
+				name: FAKE_DRIVE_FILES.pdfNative.name,
+				mimeType: FAKE_DRIVE_FILES.pdfNative.mimeType,
 			},
 		];
 		const indexingOptions = {
@@ -66,21 +71,32 @@ test.describe("Native Google Drive journey", () => {
 		});
 
 		await waitForIndexingComplete(request, apiToken, nativeDriveConnector.id, searchSpace.id, {
-			timeoutMs: 150_000,
+			timeoutMs: 240_000,
 			intervalMs: 1_500,
-			minDocuments: 1,
+			minDocuments: 2,
 		});
 
 		await waitForDocumentByTitle(request, apiToken, searchSpace.id, FAKE_DRIVE_FILES.canary.name, {
 			timeoutMs: 30_000,
 		});
+		await waitForDocumentByTitle(
+			request,
+			apiToken,
+			searchSpace.id,
+			FAKE_DRIVE_FILES.pdfNative.name,
+			{ timeoutMs: 60_000 }
+		);
 
 		const docs = await listDocuments(request, apiToken, searchSpace.id);
 		const canaryDoc = docs.find((d) => d.title === FAKE_DRIVE_FILES.canary.name);
+		const pdfDoc = docs.find((d) => d.title === FAKE_DRIVE_FILES.pdfNative.name);
 
 		expect(canaryDoc, "native Drive canary document must exist after indexing").toBeDefined();
 		if (!canaryDoc) throw new Error("unreachable: canaryDoc asserted defined above");
 		expect(canaryDoc.document_type).toBe("GOOGLE_DRIVE_FILE");
+		expect(pdfDoc, "native Drive PDF document must exist after indexing").toBeDefined();
+		if (!pdfDoc) throw new Error("unreachable: pdfDoc asserted defined above");
+		expect(pdfDoc.document_type).toBe("GOOGLE_DRIVE_FILE");
 
 		const editor = await getEditorContent(request, apiToken, searchSpace.id, canaryDoc.id);
 		expect(
@@ -90,6 +106,15 @@ test.describe("Native Google Drive journey", () => {
 		).toContain(CANARY_TOKENS.driveCanaryFile);
 		expect(editor.document_type).toBe("GOOGLE_DRIVE_FILE");
 		expect(editor.chunk_count).toBeGreaterThan(0);
+
+		const pdfEditor = await getEditorContent(request, apiToken, searchSpace.id, pdfDoc.id);
+		expect(
+			pdfEditor.source_markdown,
+			`PDF canary token ${CANARY_TOKENS.drivePdfCanary} should appear in editor source_markdown; ` +
+				`got first 200 chars: ${pdfEditor.source_markdown.slice(0, 200)}`
+		).toContain(CANARY_TOKENS.drivePdfCanary);
+		expect(pdfEditor.document_type).toBe("GOOGLE_DRIVE_FILE");
+		expect(pdfEditor.chunk_count).toBeGreaterThan(0);
 
 		const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
 		const refreshed = refreshedConnectors.find((c) => c.id === nativeDriveConnector.id);
@@ -106,5 +131,15 @@ test.describe("Native Google Drive journey", () => {
 			chat.assistantText,
 			`chat agent should surface native Drive canary token after indexing; got: ${chat.assistantText.slice(0, 200)}`
 		).toContain(CANARY_TOKENS.driveCanaryFile);
+
+		const pdfChat = await streamChatToCompletion(request, apiToken, {
+			searchSpaceId: searchSpace.id,
+			threadId: chatThread.id,
+			query: "What is in my e2e-canary.pdf native Drive file?",
+		});
+		expect(
+			pdfChat.assistantText,
+			`chat agent should surface native Drive PDF canary token after indexing; got: ${pdfChat.assistantText.slice(0, 200)}`
+		).toContain(CANARY_TOKENS.drivePdfCanary);
 	});
 });

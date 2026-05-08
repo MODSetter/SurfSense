@@ -26,7 +26,7 @@ test.describe("Composio Drive journey", () => {
 		composioDriveConnector,
 		chatThread,
 	}) => {
-		test.setTimeout(180_000); // worker cold-start + summarize + embed + chunk
+		test.setTimeout(240_000); // worker cold-start + Docling + summarize + embed + chunk
 
 		await page.goto(`/dashboard/${searchSpace.id}/new-chat`, {
 			waitUntil: "domcontentloaded",
@@ -35,53 +35,63 @@ test.describe("Composio Drive journey", () => {
 		const connectorDialog = page.getByRole("dialog", { name: "Manage Connectors" });
 		await expect(connectorDialog).toBeVisible();
 
+		const selectedFiles = [
+			{
+				id: FAKE_DRIVE_FILES.canary.id,
+				name: FAKE_DRIVE_FILES.canary.name,
+				mimeType: FAKE_DRIVE_FILES.canary.mimeType,
+			},
+			{
+				id: FAKE_DRIVE_FILES.pdfComposio.id,
+				name: FAKE_DRIVE_FILES.pdfComposio.name,
+				mimeType: FAKE_DRIVE_FILES.pdfComposio.mimeType,
+			},
+		];
+		const indexingOptions = {
+			max_files_per_folder: 10,
+			incremental_sync: false,
+			include_subfolders: false,
+		};
+
 		await updateConnectorConfig(request, apiToken, composioDriveConnector.id, {
 			...composioDriveConnector.config,
 			selected_folders: [],
-			selected_files: [
-				{
-					id: FAKE_DRIVE_FILES.canary.id,
-					name: FAKE_DRIVE_FILES.canary.name,
-					mimeType: FAKE_DRIVE_FILES.canary.mimeType,
-				},
-			],
-			indexing_options: {
-				max_files_per_folder: 10,
-				incremental_sync: false,
-				include_subfolders: false,
-			},
+			selected_files: selectedFiles,
+			indexing_options: indexingOptions,
 		});
 
 		await triggerIndex(request, apiToken, composioDriveConnector.id, searchSpace.id, {
-			files: [
-				{
-					id: FAKE_DRIVE_FILES.canary.id,
-					name: FAKE_DRIVE_FILES.canary.name,
-					mimeType: FAKE_DRIVE_FILES.canary.mimeType,
-				},
-			],
-			indexing_options: {
-				max_files_per_folder: 10,
-				incremental_sync: false,
-				include_subfolders: false,
-			},
+			files: selectedFiles,
+			indexing_options: indexingOptions,
 		});
 
 		await waitForIndexingComplete(request, apiToken, composioDriveConnector.id, searchSpace.id, {
-			timeoutMs: 150_000,
+			timeoutMs: 240_000,
 			intervalMs: 1_500,
-			minDocuments: 1,
+			minDocuments: 2,
 		});
 
 		await waitForDocumentByTitle(request, apiToken, searchSpace.id, FAKE_DRIVE_FILES.canary.name, {
 			timeoutMs: 30_000,
 		});
+		await waitForDocumentByTitle(
+			request,
+			apiToken,
+			searchSpace.id,
+			FAKE_DRIVE_FILES.pdfComposio.name,
+			{ timeoutMs: 60_000 }
+		);
 
 		const docs = await listDocuments(request, apiToken, searchSpace.id);
 		const canaryDoc = docs.find((d) => d.title === FAKE_DRIVE_FILES.canary.name);
+		const pdfDoc = docs.find((d) => d.title === FAKE_DRIVE_FILES.pdfComposio.name);
 
 		expect(canaryDoc, "canary document must exist after indexing").toBeDefined();
 		if (!canaryDoc) throw new Error("unreachable: canaryDoc asserted defined above");
+		expect(canaryDoc.document_type).toBe("GOOGLE_DRIVE_FILE");
+		expect(pdfDoc, "Composio Drive PDF document must exist after indexing").toBeDefined();
+		if (!pdfDoc) throw new Error("unreachable: pdfDoc asserted defined above");
+		expect(pdfDoc.document_type).toBe("GOOGLE_DRIVE_FILE");
 
 		// content holds the LLM summary; the raw file body lives in source_markdown.
 		// editor-content is the same endpoint the UI hits when opening a document.
@@ -91,7 +101,17 @@ test.describe("Composio Drive journey", () => {
 			`canary token ${CANARY_TOKENS.driveCanaryFile} should appear in editor source_markdown; ` +
 				`got first 200 chars: ${editor.source_markdown.slice(0, 200)}`
 		).toContain(CANARY_TOKENS.driveCanaryFile);
+		expect(editor.document_type).toBe("GOOGLE_DRIVE_FILE");
 		expect(editor.chunk_count).toBeGreaterThan(0);
+
+		const pdfEditor = await getEditorContent(request, apiToken, searchSpace.id, pdfDoc.id);
+		expect(
+			pdfEditor.source_markdown,
+			`PDF canary token ${CANARY_TOKENS.composioDrivePdfCanary} should appear in editor source_markdown; ` +
+				`got first 200 chars: ${pdfEditor.source_markdown.slice(0, 200)}`
+		).toContain(CANARY_TOKENS.composioDrivePdfCanary);
+		expect(pdfEditor.document_type).toBe("GOOGLE_DRIVE_FILE");
+		expect(pdfEditor.chunk_count).toBeGreaterThan(0);
 
 		const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
 		const refreshed = refreshedConnectors.find((c) => c.id === composioDriveConnector.id);
@@ -106,5 +126,15 @@ test.describe("Composio Drive journey", () => {
 			chat.assistantText,
 			`chat agent should surface canary token after indexing; got: ${chat.assistantText.slice(0, 200)}`
 		).toContain(CANARY_TOKENS.driveCanaryFile);
+
+		const pdfChat = await streamChatToCompletion(request, apiToken, {
+			searchSpaceId: searchSpace.id,
+			threadId: chatThread.id,
+			query: "What is in my e2e-composio-canary.pdf Drive file?",
+		});
+		expect(
+			pdfChat.assistantText,
+			`chat agent should surface Composio Drive PDF canary token after indexing; got: ${pdfChat.assistantText.slice(0, 200)}`
+		).toContain(CANARY_TOKENS.composioDrivePdfCanary);
 	});
 });
