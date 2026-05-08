@@ -45,10 +45,10 @@
  */
 export { expect } from "@playwright/test";
 export { chatThreadFixtures } from "./chat-thread.fixture";
+export { clickupFixtures } from "./connectors/clickup.fixture";
 export { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
 export { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 export { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
-export { clickupFixtures } from "./connectors/clickup.fixture";
 export { confluenceFixtures } from "./connectors/confluence.fixture";
 export { jiraFixtures } from "./connectors/jira.fixture";
 export { linearFixtures } from "./connectors/linear.fixture";
@@ -62,10 +62,10 @@ export { slackFixtures } from "./connectors/slack.fixture";
 export { searchSpaceFixtures } from "./search-space.fixture";
 
 import { type ChatThreadFixtures, chatThreadFixtures } from "./chat-thread.fixture";
+import { clickupFixtures } from "./connectors/clickup.fixture";
 import { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
 import { composioDriveFixtures } from "./connectors/composio-drive.fixture";
 import { composioGmailFixtures } from "./connectors/composio-gmail.fixture";
-import { clickupFixtures } from "./connectors/clickup.fixture";
 import { confluenceFixtures } from "./connectors/confluence.fixture";
 import { jiraFixtures } from "./connectors/jira.fixture";
 import { linearFixtures } from "./connectors/linear.fixture";

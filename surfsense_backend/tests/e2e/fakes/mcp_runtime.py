@@ -64,9 +64,11 @@ class _FakeStreamableHttpClient(_StrictFakeMixin):
         self.handler = handler
 
     async def __aenter__(self) -> tuple[_FakeEndpoint, _FakeEndpoint, None]:
-        return _FakeEndpoint(self.url, self.handler), _FakeEndpoint(
-            self.url, self.handler
-        ), None
+        return (
+            _FakeEndpoint(self.url, self.handler),
+            _FakeEndpoint(self.url, self.handler),
+            None,
+        )
 
     async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
         del exc_type, exc, tb

@@ -92,8 +92,7 @@ async def _fake_discover_oauth_metadata(
         raise NotImplementedError(f"Unexpected MCP OAuth discovery url={mcp_url!r}")
     if origin_override != handler.expected_origin_override:
         raise ValueError(
-            f"Unexpected MCP OAuth origin_override for {mcp_url!r}: "
-            f"{origin_override!r}"
+            f"Unexpected MCP OAuth origin_override for {mcp_url!r}: {origin_override!r}"
         )
     return dict(handler.discovery_metadata)
 

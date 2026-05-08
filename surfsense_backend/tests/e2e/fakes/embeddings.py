@@ -37,9 +37,7 @@ def fake_embed_texts(texts: list[str]) -> list[np.ndarray]:
     if not texts:
         return []
     dim = _embedding_dim()
-    return [
-        np.full(shape=(dim,), fill_value=0.1, dtype=np.float32) for _ in texts
-    ]
+    return [np.full(shape=(dim,), fill_value=0.1, dtype=np.float32) for _ in texts]
 
 
 def install(patches: list[Any]) -> None:
@@ -60,7 +58,10 @@ def install(patches: list[Any]) -> None:
         ("app.indexing_pipeline.document_embedder.embed_text", fake_embed_text),
         ("app.indexing_pipeline.document_embedder.embed_texts", fake_embed_texts),
         # Pipeline service binding (the actual call site for indexing.index)
-        ("app.indexing_pipeline.indexing_pipeline_service.embed_texts", fake_embed_texts),
+        (
+            "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+            fake_embed_texts,
+        ),
     ]
     for target, replacement in targets:
         try:

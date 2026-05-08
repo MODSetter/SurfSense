@@ -34,7 +34,9 @@ test.describe("ClickUp connector journey", () => {
 			client_id: "fake-clickup-mcp-client-id",
 			token_endpoint: "https://mcp.clickup.com/token",
 		});
-		expect((clickupConnector.config.mcp_oauth as Record<string, unknown>).access_token).toBeTruthy();
+		expect(
+			(clickupConnector.config.mcp_oauth as Record<string, unknown>).access_token
+		).toBeTruthy();
 		expect(clickupConnector.config.access_token).toBeUndefined();
 		expect(clickupConnector.config.refresh_token).toBeUndefined();
 

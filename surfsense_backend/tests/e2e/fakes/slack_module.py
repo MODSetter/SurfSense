@@ -131,7 +131,7 @@ async def _fake_exchange_code_for_tokens(
     timeout: float = 30.0,
 ) -> dict[str, Any]:
     if token_endpoint != _TOKEN_URL:
-        return await mcp_oauth_runtime._fake_exchange_code_for_tokens(  # noqa: SLF001
+        return await mcp_oauth_runtime._fake_exchange_code_for_tokens(
             token_endpoint,
             code,
             redirect_uri,

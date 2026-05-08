@@ -141,9 +141,7 @@ class TestNormalizeDecision:
         assert _normalize_permission_decision(decision) == {"decision_type": "reject"}
 
     def test_lc_envelope_reject_with_message_carries_feedback(self) -> None:
-        decision = {
-            "decisions": [{"type": "reject", "message": "wrong recipient"}]
-        }
+        decision = {"decisions": [{"type": "reject", "message": "wrong recipient"}]}
         out = _normalize_permission_decision(decision)
         assert out == {"decision_type": "reject", "feedback": "wrong recipient"}
 

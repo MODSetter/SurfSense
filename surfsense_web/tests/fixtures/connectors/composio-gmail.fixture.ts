@@ -1,8 +1,4 @@
-import {
-	type ConnectorRow,
-	deleteConnector,
-	runComposioOAuth,
-} from "../../helpers/api/connectors";
+import { type ConnectorRow, deleteConnector, runComposioOAuth } from "../../helpers/api/connectors";
 import { searchSpaceFixtures } from "../search-space.fixture";
 
 export type ComposioGmailFixtures = {
@@ -16,12 +12,7 @@ export type ComposioGmailFixtures = {
 
 export const composioGmailFixtures = searchSpaceFixtures.extend<ComposioGmailFixtures>({
 	composioGmailConnector: async ({ request, apiToken, searchSpace }, use) => {
-		const { connector } = await runComposioOAuth(
-			request,
-			apiToken,
-			searchSpace.id,
-			"gmail"
-		);
+		const { connector } = await runComposioOAuth(request, apiToken, searchSpace.id, "gmail");
 		if (!connector) {
 			throw new Error(
 				"composioGmailConnector fixture: OAuth completed but no connector was created. " +

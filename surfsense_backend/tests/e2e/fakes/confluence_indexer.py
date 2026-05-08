@@ -31,7 +31,9 @@ class _FakeConfluenceHistoryConnector:
         include_comments: bool = False,
     ) -> tuple[list[dict[str, Any]], None]:
         if not start_date or not end_date:
-            raise ValueError("Confluence indexer fake expected start_date and end_date.")
+            raise ValueError(
+                "Confluence indexer fake expected start_date and end_date."
+            )
         del include_comments
         return _FIXTURE["pages"], None
 

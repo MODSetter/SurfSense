@@ -239,7 +239,9 @@ class _AuthConfigs(_StrictFakeMixin):
         # SDK lets you have multiple, but one is enough for E2E.
         return _AuthConfigsListResult(
             items=[
-                _AuthConfig(config_id="auth-config-googledrive", toolkit_slug="googledrive"),
+                _AuthConfig(
+                    config_id="auth-config-googledrive", toolkit_slug="googledrive"
+                ),
                 _AuthConfig(config_id="auth-config-gmail", toolkit_slug="gmail"),
                 _AuthConfig(
                     config_id="auth-config-googlecalendar",
@@ -289,7 +291,9 @@ class _Tools(_StrictFakeMixin):
         if slug == "GOOGLEDRIVE_GET_CHANGES_START_PAGE_TOKEN":
             return {"data": {"startPageToken": "fake-start-page-token-1"}}
         if slug == "GOOGLEDRIVE_LIST_CHANGES":
-            return {"data": {"changes": [], "newStartPageToken": "fake-start-page-token-1"}}
+            return {
+                "data": {"changes": [], "newStartPageToken": "fake-start-page-token-1"}
+            }
         if slug == "GOOGLEDRIVE_GET_ABOUT":
             # Used by ComposioService.get_connected_account_email for
             # googledrive. Returning a fake email lets the connector get a
@@ -381,7 +385,9 @@ def _extract_quoted_value(q: str, anchor: str) -> str | None:
     return after_first_quote[:second_quote_idx]
 
 
-def _filter_drive_files_for_query(q: str, files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _filter_drive_files_for_query(
+    q: str, files: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     filtered = list(files)
 
     if "trashed = false" in q:

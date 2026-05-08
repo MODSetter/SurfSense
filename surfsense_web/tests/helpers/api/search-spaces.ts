@@ -18,9 +18,7 @@ export async function createSearchSpace(
 		data: { name, description },
 	});
 	if (!response.ok()) {
-		throw new Error(
-			`createSearchSpace failed (${response.status()}): ${await response.text()}`
-		);
+		throw new Error(`createSearchSpace failed (${response.status()}): ${await response.text()}`);
 	}
 	return (await response.json()) as SearchSpaceRow;
 }

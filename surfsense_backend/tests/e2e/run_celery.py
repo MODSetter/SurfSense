@@ -77,9 +77,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("surfsense.e2e.celery")
-logger.warning(
-    "*** SURFSENSE E2E CELERY WORKER — fake Composio + LLM + embeddings ***"
-)
+logger.warning("*** SURFSENSE E2E CELERY WORKER — fake Composio + LLM + embeddings ***")
 
 
 # ---------------------------------------------------------------------------

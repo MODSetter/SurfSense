@@ -9,8 +9,7 @@ import type { APIRequestContext } from "@playwright/test";
  * is set up separately by tests/auth.setup.ts.
  */
 
-export const BACKEND_URL =
-	process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+export const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 
 const TEST_USER_EMAIL = process.env.PLAYWRIGHT_TEST_EMAIL || "test@surfsense.net";
 const TEST_USER_PASSWORD = process.env.PLAYWRIGHT_TEST_PASSWORD || "TestPassword123!";
@@ -43,10 +42,7 @@ export async function loginAsTestUser(request: APIRequestContext): Promise<strin
  * X-E2E-Scenario header that the test-only ScenarioMiddleware in
  * surfsense_backend/tests/e2e/run_backend.py reads to flip fake behavior.
  */
-export function authHeaders(
-	token: string,
-	extra?: Record<string, string>
-): Record<string, string> {
+export function authHeaders(token: string, extra?: Record<string, string>): Record<string, string> {
 	return {
 		Authorization: `Bearer ${token}`,
 		"Content-Type": "application/json",

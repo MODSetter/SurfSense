@@ -63,7 +63,9 @@ class _StrictFakeMixin:
 class _FakeFlow(_StrictFakeMixin):
     _component_name = "Flow"
 
-    def __init__(self, *, redirect_uri: str | None = None, scopes: list[str] | None = None):
+    def __init__(
+        self, *, redirect_uri: str | None = None, scopes: list[str] | None = None
+    ):
         self.redirect_uri = redirect_uri
         self.scopes = scopes or []
         self.code_verifier: str | None = None
@@ -88,9 +90,7 @@ class _FakeFlow(_StrictFakeMixin):
         query = parse_qs(parsed.query)
         query["code"] = ["fake-native-drive-oauth-code"]
         query["state"] = [state]
-        redirect = urlunparse(
-            parsed._replace(query=urlencode(query, doseq=True))
-        )
+        redirect = urlunparse(parsed._replace(query=urlencode(query, doseq=True)))
         return redirect, state
 
     def fetch_token(self, *, code: str, **_: Any) -> None:
@@ -213,7 +213,9 @@ class _FakeGmailUsers(_StrictFakeMixin):
     def getProfile(self, **kwargs: Any) -> _FakeRequest:  # noqa: N802
         user_id = kwargs.get("userId")
         if user_id != "me":
-            raise NotImplementedError(f"Unexpected fake Gmail profile userId={user_id!r}")
+            raise NotImplementedError(
+                f"Unexpected fake Gmail profile userId={user_id!r}"
+            )
         return _FakeRequest({"emailAddress": "native-drive-e2e@surfsense.example"})
 
     def messages(self) -> _FakeGmailMessages:
@@ -326,7 +328,9 @@ def _extract_quoted_value(q: str, anchor: str) -> str | None:
     return after_first_quote[:second_quote_idx]
 
 
-def _filter_drive_files_for_query(q: str, files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _filter_drive_files_for_query(
+    q: str, files: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     filtered = list(files)
 
     if "trashed = false" in q:
@@ -386,14 +390,14 @@ def _calendar_event_in_range(
     parsed_max = _parse_rfc3339(time_max)
     if parsed_min and event_start < parsed_min:
         return False
-    if parsed_max and event_start > parsed_max:
-        return False
-    return True
+    return not (parsed_max and event_start > parsed_max)
 
 
 def _gmail_detail_to_native_message(detail: dict[str, Any]) -> dict[str, Any]:
     message_text = detail.get("messageText", "")
-    encoded_body = base64.urlsafe_b64encode(message_text.encode("utf-8")).decode("ascii")
+    encoded_body = base64.urlsafe_b64encode(message_text.encode("utf-8")).decode(
+        "ascii"
+    )
 
     return {
         "id": detail.get("id"),
@@ -429,10 +433,12 @@ def install(active_patches: list[Any]) -> None:
         ("app.agents.new_chat.tools.google_calendar.update_event.build", _fake_build),
         ("app.agents.new_chat.tools.google_calendar.delete_event.build", _fake_build),
         ("googleapiclient.http.MediaIoBaseDownload", _FakeMediaIoBaseDownload),
-        ("app.connectors.google_drive.client._build_thread_http", lambda credentials: None),
+        (
+            "app.connectors.google_drive.client._build_thread_http",
+            lambda credentials: None,
+        ),
     ]
     for target, replacement in targets:
         p = patch(target, replacement)
         p.start()
         active_patches.append(p)
-

@@ -25,17 +25,14 @@ export async function listDocuments(
 		{ headers: authHeaders(token) }
 	);
 	if (!response.ok()) {
-		throw new Error(
-			`listDocuments failed (${response.status()}): ${await response.text()}`
-		);
+		throw new Error(`listDocuments failed (${response.status()}): ${await response.text()}`);
 	}
 	const body = (await response.json()) as Paginated<DocumentRow> | DocumentRow[];
 	return Array.isArray(body) ? body : (body.items ?? []);
 }
 
 export function isDocumentReady(doc: DocumentRow): boolean {
-	const state =
-		typeof doc.status === "string" ? doc.status : doc.status?.state;
+	const state = typeof doc.status === "string" ? doc.status : doc.status?.state;
 	return state === "ready" || state === "READY";
 }
 
@@ -61,9 +58,7 @@ export async function getEditorContent(
 		{ headers: authHeaders(token) }
 	);
 	if (!response.ok()) {
-		throw new Error(
-			`getEditorContent failed (${response.status()}): ${await response.text()}`
-		);
+		throw new Error(`getEditorContent failed (${response.status()}): ${await response.text()}`);
 	}
 	return (await response.json()) as EditorContent;
 }

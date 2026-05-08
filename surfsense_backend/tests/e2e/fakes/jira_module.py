@@ -85,18 +85,15 @@ async def _call_tool(
             raise ValueError(
                 f"Unexpected Jira getAccessibleAtlassianResources args: {arguments!r}"
             )
-        text = (
-            f"{site['name']}\n"
-            f"cloud_id: {site['cloud_id']}\n"
-            f"url: {site['url']}"
-        )
+        text = f"{site['name']}\ncloud_id: {site['cloud_id']}\nurl: {site['url']}"
         return SimpleNamespace(content=[SimpleNamespace(text=text)])
 
     if tool_name == "searchJiraIssuesUsingJql":
         jql = str(arguments.get("jql", ""))
-        if issue["summary"].lower() not in jql.lower() and issue[
-            "key"
-        ].lower() not in jql.lower():
+        if (
+            issue["summary"].lower() not in jql.lower()
+            and issue["key"].lower() not in jql.lower()
+        ):
             raise ValueError(f"Unexpected Jira JQL query: {jql!r}")
         text = _issue_text(issue)
         return SimpleNamespace(content=[SimpleNamespace(text=text)])

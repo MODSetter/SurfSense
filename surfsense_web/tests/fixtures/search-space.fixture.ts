@@ -1,11 +1,11 @@
 import { test as base } from "@playwright/test";
 import { loginAsTestUser } from "../helpers/api/auth";
-import { uniqueSearchSpaceName } from "../helpers/canary";
 import {
 	createSearchSpace,
 	deleteSearchSpace,
 	type SearchSpaceRow,
 } from "../helpers/api/search-spaces";
+import { uniqueSearchSpaceName } from "../helpers/canary";
 
 export type SearchSpaceFixtures = {
 	/**

@@ -16,11 +16,7 @@ export type NativeCalendarFixtures = {
 
 export const nativeCalendarFixtures = searchSpaceFixtures.extend<NativeCalendarFixtures>({
 	nativeCalendarConnector: async ({ request, apiToken, searchSpace }, use) => {
-		const { connector } = await runNativeGoogleCalendarOAuth(
-			request,
-			apiToken,
-			searchSpace.id
-		);
+		const { connector } = await runNativeGoogleCalendarOAuth(request, apiToken, searchSpace.id);
 		if (!connector) {
 			throw new Error(
 				"nativeCalendarConnector fixture: OAuth completed but no GOOGLE_CALENDAR_CONNECTOR was created. " +

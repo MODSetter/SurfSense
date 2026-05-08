@@ -1,8 +1,4 @@
-import {
-	type ConnectorRow,
-	deleteConnector,
-	runComposioOAuth,
-} from "../../helpers/api/connectors";
+import { type ConnectorRow, deleteConnector, runComposioOAuth } from "../../helpers/api/connectors";
 import { searchSpaceFixtures } from "../search-space.fixture";
 
 export type ComposioDriveFixtures = {
@@ -16,12 +12,7 @@ export type ComposioDriveFixtures = {
 
 export const composioDriveFixtures = searchSpaceFixtures.extend<ComposioDriveFixtures>({
 	composioDriveConnector: async ({ request, apiToken, searchSpace }, use) => {
-		const { connector } = await runComposioOAuth(
-			request,
-			apiToken,
-			searchSpace.id,
-			"googledrive"
-		);
+		const { connector } = await runComposioOAuth(request, apiToken, searchSpace.id, "googledrive");
 		if (!connector) {
 			throw new Error(
 				"composioDriveConnector fixture: OAuth completed but no connector was created. " +

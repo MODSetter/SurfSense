@@ -75,7 +75,9 @@ class _FakeHttpxAsyncClient(_StrictFakeMixin):
                     f"Unexpected fake Confluence OAuth code: {data.get('code')!r}"
                 )
             if not data.get("client_id") or not data.get("client_secret"):
-                raise ValueError("Confluence OAuth token exchange missing client creds.")
+                raise ValueError(
+                    "Confluence OAuth token exchange missing client creds."
+                )
             if "/api/v1/auth/confluence/connector/callback" not in str(
                 data.get("redirect_uri", "")
             ):

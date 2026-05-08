@@ -84,8 +84,16 @@ class _FakeOneDriveClient(_StrictFakeMixin):
         if delta_link:
             folder_key = delta_link.rsplit("/", 1)[-1].removesuffix("-delta")
         if folder_key not in _ONEDRIVE_FIXTURE:
-            return [], None, f"E2E OneDrive fake has no delta for folder={folder_key!r}."
-        return [], f"https://graph.microsoft.com/v1.0/fake-delta/{folder_key}-delta", None
+            return (
+                [],
+                None,
+                f"E2E OneDrive fake has no delta for folder={folder_key!r}.",
+            )
+        return (
+            [],
+            f"https://graph.microsoft.com/v1.0/fake-delta/{folder_key}-delta",
+            None,
+        )
 
 
 class _FakeAsyncClient(_StrictFakeMixin):
@@ -170,7 +178,10 @@ def install(active_patches: list[Any]) -> None:
     targets = [
         ("app.routes.onedrive_add_connector_route.httpx", _FakeHttpxModule()),
         ("app.routes.onedrive_add_connector_route.OneDriveClient", _FakeOneDriveClient),
-        ("app.tasks.connector_indexers.onedrive_indexer.OneDriveClient", _FakeOneDriveClient),
+        (
+            "app.tasks.connector_indexers.onedrive_indexer.OneDriveClient",
+            _FakeOneDriveClient,
+        ),
         ("app.connectors.onedrive.client.httpx", _FakeHttpxModule()),
     ]
     for target, replacement in targets:
