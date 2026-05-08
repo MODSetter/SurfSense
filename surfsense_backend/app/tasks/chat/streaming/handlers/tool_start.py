@@ -11,6 +11,7 @@ from app.tasks.chat.streaming.helpers.tool_call_matching import (
     match_buffered_langchain_tool_call_id,
 )
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
+from app.tasks.chat.streaming.relay.task_span import open_task_span
 from app.tasks.chat.streaming.relay.thinking_step_completion import (
     complete_active_thinking_step,
 )
@@ -46,6 +47,7 @@ def iter_tool_start_frames(
 
     if state.last_active_step_title != "Synthesizing response":
         comp, new_active = complete_active_thinking_step(
+            state=state,
             streaming_service=streaming_service,
             content_builder=content_builder,
             last_active_step_id=state.last_active_step_id,
@@ -61,20 +63,6 @@ def iter_tool_start_frames(
     tool_step_id = state.next_thinking_step_id(step_prefix)
     state.tool_step_ids[run_id] = tool_step_id
     state.last_active_step_id = tool_step_id
-
-    thinking = resolve_tool_start_thinking(tool_name, tool_input)
-    state.last_active_step_title = thinking.title
-    state.last_active_step_items = thinking.items
-    frame_kw: dict[str, Any] = {
-        "streaming_service": streaming_service,
-        "content_builder": content_builder,
-        "step_id": tool_step_id,
-        "title": thinking.title,
-        "status": "in_progress",
-    }
-    if thinking.include_items_on_frame:
-        frame_kw["items"] = thinking.items
-    yield emit_thinking_step_frame(**frame_kw)
 
     matched_meta: dict[str, str] | None = None
     taken_ui_ids = set(state.ui_tool_call_id_by_run.values())
@@ -102,15 +90,45 @@ def iter_tool_start_frames(
             run_id,
             state.lc_tool_call_id_by_run,
         )
+
+    if tool_name == "task":
+        open_task_span(
+            state,
+            run_id=run_id,
+            langchain_tool_call_id=langchain_tool_call_id,
+        )
+
+    span_md = state.span_metadata_if_active()
+
+    if matched_meta is None:
         yield streaming_service.format_tool_input_start(
             tool_call_id,
             tool_name,
             langchain_tool_call_id=langchain_tool_call_id,
+            metadata=span_md,
         )
         if content_builder is not None:
             content_builder.on_tool_input_start(
-                tool_call_id, tool_name, langchain_tool_call_id
+                tool_call_id,
+                tool_name,
+                langchain_tool_call_id,
+                metadata=span_md,
             )
+
+    thinking = resolve_tool_start_thinking(tool_name, tool_input)
+    state.last_active_step_title = thinking.title
+    state.last_active_step_items = thinking.items
+    frame_kw: dict[str, Any] = {
+        "streaming_service": streaming_service,
+        "content_builder": content_builder,
+        "step_id": tool_step_id,
+        "title": thinking.title,
+        "status": "in_progress",
+        "metadata": span_md,
+    }
+    if thinking.include_items_on_frame:
+        frame_kw["items"] = thinking.items
+    yield emit_thinking_step_frame(**frame_kw)
 
     if run_id:
         state.ui_tool_call_id_by_run[run_id] = tool_call_id
@@ -130,6 +148,7 @@ def iter_tool_start_frames(
         tool_name,
         _safe_input,
         langchain_tool_call_id=langchain_tool_call_id,
+        metadata=span_md,
     )
     if content_builder is not None:
         content_builder.on_tool_input_available(
@@ -137,4 +156,5 @@ def iter_tool_start_frames(
             tool_name,
             _safe_input,
             langchain_tool_call_id,
+            metadata=span_md,
         )
