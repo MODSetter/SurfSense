@@ -110,7 +110,9 @@ def iter_tool_end_frames(
         stream_result=result,
         langgraph_config=config,
         staged_workspace_file_path=staged_file_path,
-        tool_metadata=state.span_metadata_if_active(),
+        tool_metadata=state.tool_activity_metadata(
+            thinking_step_id=original_step_id,
+        ),
     )
     yield from iter_tool_completion_emission_frames(emission_ctx)
 

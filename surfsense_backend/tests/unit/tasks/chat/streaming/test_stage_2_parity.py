@@ -111,8 +111,10 @@ def test_complete_active_thinking_step_mirrors_closure_semantics() -> None:
     svc = MagicMock()
     svc.format_thinking_step.return_value = "done-frame"
     completed: set[str] = set()
+    relay_state = AgentEventRelayState.for_invocation()
 
     frame, new_id = complete_active_thinking_step(
+        state=relay_state,
         streaming_service=svc,
         content_builder=None,
         last_active_step_id="thinking-1",
@@ -125,6 +127,7 @@ def test_complete_active_thinking_step_mirrors_closure_semantics() -> None:
     assert "thinking-1" in completed
 
     frame2, id2 = complete_active_thinking_step(
+        state=relay_state,
         streaming_service=svc,
         content_builder=None,
         last_active_step_id="thinking-1",
