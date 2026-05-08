@@ -52,6 +52,12 @@ _MEANINGFUL_PART_TYPES: frozenset[str] = frozenset({"text", "reasoning", "tool-c
 
 
 def _merge_tool_part_metadata(part: dict[str, Any], metadata: dict[str, Any] | None) -> None:
+    """Shallow-merge ``metadata`` into ``part["metadata"]``; first key wins.
+
+    Used for tool-call linkage (``spanId``, ``thinkingStepId``, …): a later
+    event must not overwrite an existing key so chunk order vs ``on_tool_start``
+    stays stable.
+    """
     if not metadata:
         return
     md = part.setdefault("metadata", {})
@@ -70,6 +76,7 @@ class AssistantContentBuilder:
         | { type: "reasoning"; text: string }
         | { type: "tool-call"; toolCallId: str; toolName: str;
             args: dict; result?: any; argsText?: str; langchainToolCallId?: str;
+            metadata?: { spanId?: str; thinkingStepId?: str; ... };
             state?: "aborted" }
         | { type: "data-thinking-steps"; data: { steps: ThinkingStepData[] } }
         | { type: "data-step-separator"; data: { stepIndex: int } }
@@ -189,7 +196,11 @@ class AssistantContentBuilder:
         *,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        """Register a tool-call card. Args are filled in by later events."""
+        """Register a tool-call card. Args are filled in by later events.
+
+        Optional ``metadata`` (``spanId``, ``thinkingStepId``, …) is stored on the
+        part; duplicate ``tool-input-start`` calls merge with first-key-wins.
+        """
         if not ui_id:
             return
         # Skip duplicate registration: the stream may emit
