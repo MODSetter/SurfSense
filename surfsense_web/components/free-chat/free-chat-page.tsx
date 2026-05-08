@@ -228,7 +228,8 @@ export function FreeChatPage() {
 								parsed.toolName,
 								{},
 								false,
-								parsed.langchainToolCallId
+								parsed.langchainToolCallId,
+								parsed.metadata
 							);
 							forceFlush();
 							break;
@@ -245,6 +246,7 @@ export function FreeChatPage() {
 									args: parsed.input || {},
 									argsText: finalArgsText,
 									langchainToolCallId: parsed.langchainToolCallId,
+									metadata: parsed.metadata,
 								});
 							} else {
 								addToolCall(
@@ -254,7 +256,8 @@ export function FreeChatPage() {
 									parsed.toolName,
 									parsed.input || {},
 									false,
-									parsed.langchainToolCallId
+									parsed.langchainToolCallId,
+									parsed.metadata
 								);
 								updateToolCall(contentPartsState, parsed.toolCallId, {
 									argsText: finalArgsText,
@@ -268,6 +271,7 @@ export function FreeChatPage() {
 							updateToolCall(contentPartsState, parsed.toolCallId, {
 								result: parsed.output,
 								langchainToolCallId: parsed.langchainToolCallId,
+								metadata: parsed.metadata,
 							});
 							forceFlush();
 							break;
