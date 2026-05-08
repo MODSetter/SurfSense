@@ -7,6 +7,7 @@ from typing import Any
 
 from app.tasks.chat.streaming.helpers.chunk_parts import extract_chunk_parts
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
+from app.tasks.chat.streaming.relay.task_span import ensure_pending_task_span_for_lc
 from app.tasks.chat.streaming.relay.thinking_step_completion import (
     complete_active_thinking_step,
 )
@@ -41,6 +42,7 @@ def iter_chat_model_stream_frames(
             state.current_text_id = None
         if state.current_reasoning_id is None:
             comp, new_active = complete_active_thinking_step(
+                state=state,
                 streaming_service=streaming_service,
                 content_builder=content_builder,
                 last_active_step_id=state.last_active_step_id,
@@ -76,6 +78,7 @@ def iter_chat_model_stream_frames(
             state.current_reasoning_id = None
         if state.current_text_id is None:
             comp, new_active = complete_active_thinking_step(
+                state=state,
                 streaming_service=streaming_service,
                 content_builder=content_builder,
                 last_active_step_id=state.last_active_step_id,
@@ -109,6 +112,10 @@ def iter_chat_model_stream_frames(
                 name = tcc.get("name")
                 if lc_id and name:
                     ui_id = lc_id
+                    tool_input_metadata: dict[str, Any] | None = None
+                    if name == "task":
+                        sid = ensure_pending_task_span_for_lc(state, str(lc_id))
+                        tool_input_metadata = {"spanId": sid}
 
                     if state.current_text_id is not None:
                         yield streaming_service.format_text_end(state.current_text_id)
@@ -132,9 +139,12 @@ def iter_chat_model_stream_frames(
                         ui_id,
                         name,
                         langchain_tool_call_id=lc_id,
+                        metadata=tool_input_metadata,
                     )
                     if content_builder is not None:
-                        content_builder.on_tool_input_start(ui_id, name, lc_id)
+                        content_builder.on_tool_input_start(
+                            ui_id, name, lc_id, metadata=tool_input_metadata
+                        )
 
             meta = state.index_to_meta.get(idx) if idx is not None else None
             if meta:
