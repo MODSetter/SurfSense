@@ -20,6 +20,8 @@ CALENDAR_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001"
 CALENDAR_CANARY_SUMMARY = "E2E Canary Calendar Event"
 ONEDRIVE_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_ONEDRIVE_001"
 ONEDRIVE_CANARY_FILE = "e2e-onedrive-canary.txt"
+DROPBOX_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_DROPBOX_001"
+DROPBOX_CANARY_FILE = "e2e-dropbox-canary.txt"
 NOTION_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001"
 NOTION_CANARY_TITLE = "E2E Canary Notion Page"
 CONFLUENCE_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_CONFLUENCE_001"
@@ -137,6 +139,10 @@ class FakeChatLLM(BaseChatModel):
             latest_human,
             ("onedrive", ONEDRIVE_CANARY_FILE, ONEDRIVE_CANARY_TOKEN),
         )
+        wants_dropbox = _contains_any(
+            latest_human,
+            ("dropbox", DROPBOX_CANARY_FILE, DROPBOX_CANARY_TOKEN),
+        )
         wants_notion = _contains_any(
             latest_human,
             ("notion", "page", NOTION_CANARY_TITLE),
@@ -183,6 +189,11 @@ class FakeChatLLM(BaseChatModel):
             or "fake-onedrive-canary" in prompt_text
             or ONEDRIVE_CANARY_TOKEN in prompt_text
         )
+        has_dropbox_evidence = (
+            DROPBOX_CANARY_FILE in prompt_text
+            or "id:fake-dropbox-canary" in prompt_text
+            or DROPBOX_CANARY_TOKEN in prompt_text
+        )
         has_notion_evidence = (
             NOTION_CANARY_TITLE in prompt_text or NOTION_CANARY_TOKEN in prompt_text
         )
@@ -228,6 +239,8 @@ class FakeChatLLM(BaseChatModel):
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
         if wants_onedrive and has_onedrive_evidence:
             return f"OneDrive content found: {ONEDRIVE_CANARY_TOKEN}"
+        if wants_dropbox and has_dropbox_evidence:
+            return f"Dropbox content found: {DROPBOX_CANARY_TOKEN}"
         if wants_drive and has_drive_evidence:
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
         if (
@@ -239,6 +252,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_gmail_evidence
             and not has_drive_evidence
             and not has_onedrive_evidence
+            and not has_dropbox_evidence
             and not has_slack_evidence
         ):
             return f"Notion content found: {NOTION_CANARY_TOKEN}"
@@ -251,6 +265,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_gmail_evidence
             and not has_drive_evidence
             and not has_onedrive_evidence
+            and not has_dropbox_evidence
             and not has_slack_evidence
         ):
             return f"Confluence content found: {CONFLUENCE_CANARY_TOKEN}"
@@ -263,6 +278,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_gmail_evidence
             and not has_drive_evidence
             and not has_onedrive_evidence
+            and not has_dropbox_evidence
             and not has_slack_evidence
         ):
             return f"Jira content found: {JIRA_CANARY_TOKEN}"
@@ -275,6 +291,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_gmail_evidence
             and not has_drive_evidence
             and not has_onedrive_evidence
+            and not has_dropbox_evidence
             and not has_slack_evidence
         ):
             return f"Linear content found: {LINEAR_CANARY_TOKEN}"
@@ -287,6 +304,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_gmail_evidence
             and not has_drive_evidence
             and not has_onedrive_evidence
+            and not has_dropbox_evidence
             and not has_slack_evidence
         ):
             return f"Calendar content found: {CALENDAR_CANARY_TOKEN}"
@@ -298,6 +316,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_notion_evidence
             and not has_drive_evidence
             and not has_onedrive_evidence
+            and not has_dropbox_evidence
             and not has_slack_evidence
         ):
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
@@ -310,9 +329,23 @@ class FakeChatLLM(BaseChatModel):
             and not has_calendar_evidence
             and not has_gmail_evidence
             and not has_drive_evidence
+            and not has_dropbox_evidence
             and not has_slack_evidence
         ):
             return f"OneDrive content found: {ONEDRIVE_CANARY_TOKEN}"
+        if (
+            has_dropbox_evidence
+            and not has_confluence_evidence
+            and not has_jira_evidence
+            and not has_linear_evidence
+            and not has_notion_evidence
+            and not has_calendar_evidence
+            and not has_gmail_evidence
+            and not has_drive_evidence
+            and not has_onedrive_evidence
+            and not has_slack_evidence
+        ):
+            return f"Dropbox content found: {DROPBOX_CANARY_TOKEN}"
         if (
             has_drive_evidence
             and not has_confluence_evidence
@@ -321,6 +354,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_notion_evidence
             and not has_gmail_evidence
             and not has_onedrive_evidence
+            and not has_dropbox_evidence
             and not has_slack_evidence
         ):
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
@@ -334,6 +368,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_gmail_evidence
             and not has_drive_evidence
             and not has_onedrive_evidence
+            and not has_dropbox_evidence
         ):
             return f"Slack content found: {SLACK_CANARY_TOKEN}"
         return NO_RELEVANT_CONTENT_SENTINEL

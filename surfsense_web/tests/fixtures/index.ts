@@ -22,6 +22,8 @@
  *             └─ nativeCalendarWithChatTest — chatThread
  *         └─ nativeOneDriveFixtures — nativeOneDriveConnector
  *             └─ nativeOneDriveWithChatTest — chatThread
+ *         └─ nativeDropboxFixtures — nativeDropboxConnector
+ *             └─ nativeDropboxWithChatTest — chatThread
  *         └─ notionFixtures — notionConnector
  *             └─ notionWithChatTest — chatThread
  *         └─ confluenceFixtures — confluenceConnector
@@ -48,11 +50,12 @@ export { jiraFixtures } from "./connectors/jira.fixture";
 export { linearFixtures } from "./connectors/linear.fixture";
 export { nativeCalendarFixtures } from "./connectors/native-calendar.fixture";
 export { nativeDriveFixtures } from "./connectors/native-drive.fixture";
+export { nativeDropboxFixtures } from "./connectors/native-dropbox.fixture";
 export { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
 export { nativeOneDriveFixtures } from "./connectors/native-onedrive.fixture";
 export { notionFixtures } from "./connectors/notion.fixture";
-export { searchSpaceFixtures } from "./search-space.fixture";
 export { slackFixtures } from "./connectors/slack.fixture";
+export { searchSpaceFixtures } from "./search-space.fixture";
 
 import { type ChatThreadFixtures, chatThreadFixtures } from "./chat-thread.fixture";
 import { composioCalendarFixtures } from "./connectors/composio-calendar.fixture";
@@ -63,11 +66,12 @@ import { jiraFixtures } from "./connectors/jira.fixture";
 import { linearFixtures } from "./connectors/linear.fixture";
 import { nativeCalendarFixtures } from "./connectors/native-calendar.fixture";
 import { nativeDriveFixtures } from "./connectors/native-drive.fixture";
+import { nativeDropboxFixtures } from "./connectors/native-dropbox.fixture";
 import { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
 import { nativeOneDriveFixtures } from "./connectors/native-onedrive.fixture";
 import { notionFixtures } from "./connectors/notion.fixture";
-import { searchSpaceFixtures } from "./search-space.fixture";
 import { slackFixtures } from "./connectors/slack.fixture";
+import { searchSpaceFixtures } from "./search-space.fixture";
 
 /** Default `test` for specs that just need auth + a clean search space. */
 export const test = searchSpaceFixtures;
@@ -106,6 +110,11 @@ export const nativeOneDriveTest = nativeOneDriveFixtures;
 /** `test` for native OneDrive specs that also need a chat thread. */
 export const nativeOneDriveWithChatTest =
 	nativeOneDriveFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
+/** `test` for specs that also need a pre-connected native Dropbox connector. */
+export const nativeDropboxTest = nativeDropboxFixtures;
+/** `test` for native Dropbox specs that also need a chat thread. */
+export const nativeDropboxWithChatTest =
+	nativeDropboxFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
 /** `test` for specs that also need a pre-connected Notion connector. */
 export const notionTest = notionFixtures;
 /** `test` for Notion specs that also need a chat thread. */

@@ -21,6 +21,7 @@ export const CANARY_TOKENS = {
 	gmailCanary: "SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001",
 	calendarCanary: "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001",
 	onedriveCanary: "SURFSENSE_E2E_CANARY_TOKEN_ONEDRIVE_001",
+	dropboxCanary: "SURFSENSE_E2E_CANARY_TOKEN_DROPBOX_001",
 	notionCanary: "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001",
 	confluenceCanary: "SURFSENSE_E2E_CANARY_TOKEN_CONFLUENCE_001",
 	linearCanary: "SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001",
@@ -59,6 +60,18 @@ export const FAKE_ONEDRIVE_FILES = {
 	canary: {
 		id: "fake-onedrive-canary",
 		name: "e2e-onedrive-canary.txt",
+		mimeType: "text/plain",
+	},
+} as const;
+
+/**
+ * Fake Dropbox file paths that match the Dropbox-shaped backend fake in
+ * dropbox_files.json. Dropbox selected-file indexing accepts path_lower via id.
+ */
+export const FAKE_DROPBOX_FILES = {
+	canary: {
+		id: "/e2e-dropbox-canary.txt",
+		name: "e2e-dropbox-canary.txt",
 		mimeType: "text/plain",
 	},
 } as const;
