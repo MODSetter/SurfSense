@@ -5,6 +5,11 @@ export interface ThinkingStepData {
 	title: string;
 	status: "pending" | "in_progress" | "completed";
 	items: string[];
+	/**
+	 * Optional relay fields from ``data-thinking-step`` when present on the wire
+	 * (e.g. ``spanId``). Populated in a later slice; equality helpers ignore until wired.
+	 */
+	metadata?: Record<string, unknown>;
 }
 
 export type ContentPart =
@@ -42,6 +47,11 @@ export type ContentPart =
 			 * ``data-action-log`` events.
 			 */
 			langchainToolCallId?: string;
+			/**
+			 * Relay correlation from tool SSE (e.g. ``spanId``, ``thinkingStepId``).
+			 * Merged by ``mergeToolPartMetadata`` when events carry ``metadata``.
+			 */
+			metadata?: Record<string, unknown>;
 	  }
 	| {
 			type: "data-thinking-steps";
@@ -252,6 +262,23 @@ function _toolPasses(gate: ToolUIGate, toolName: string): boolean {
 	return gate === "all" || gate.has(toolName);
 }
 
+/**
+ * Shallow-merge relay ``metadata`` into a tool-call part (SSE → content part).
+ * Keys already set on ``into`` are left unchanged so chunk vs canonical tool
+ * events cannot reorder or overwrite ``spanId`` / ``thinkingStepId``.
+ * Matches server ``AssistantContentBuilder`` merge semantics.
+ */
+function mergeToolPartMetadata(
+	into: Record<string, unknown>,
+	incoming: Record<string, unknown> | undefined
+): void {
+	if (!incoming) return;
+	for (const [k, v] of Object.entries(incoming)) {
+		if (k === "__proto__" || k === "constructor") continue;
+		if (!(k in into)) into[k] = v;
+	}
+}
+
 export function addToolCall(
 	state: ContentPartsState,
 	toolsWithUI: ToolUIGate,
@@ -259,15 +286,19 @@ export function addToolCall(
 	toolName: string,
 	args: Record<string, unknown>,
 	force = false,
-	langchainToolCallId?: string
+	langchainToolCallId?: string,
+	metadata?: Record<string, unknown>
 ): void {
 	if (force || _toolPasses(toolsWithUI, toolName)) {
+		const relayMeta: Record<string, unknown> = {};
+		mergeToolPartMetadata(relayMeta, metadata);
 		state.contentParts.push({
 			type: "tool-call",
 			toolCallId,
 			toolName,
 			args,
 			...(langchainToolCallId ? { langchainToolCallId } : {}),
+			...(Object.keys(relayMeta).length > 0 ? { metadata: relayMeta } : {}),
 		});
 		state.toolCallIndices.set(toolCallId, state.contentParts.length - 1);
 		state.currentTextPartIndex = -1;
@@ -304,6 +335,7 @@ export function updateToolCall(
 		argsText?: string;
 		result?: unknown;
 		langchainToolCallId?: string;
+		metadata?: Record<string, unknown>;
 	}
 ): void {
 	const index = state.toolCallIndices.get(toolCallId);
@@ -322,6 +354,11 @@ export function updateToolCall(
 		// blow away a known good early one.
 		if (update.langchainToolCallId && !tc.langchainToolCallId) {
 			tc.langchainToolCallId = update.langchainToolCallId;
+		}
+		if (update.metadata && Object.keys(update.metadata).length > 0) {
+			const md = (tc.metadata ?? {}) as Record<string, unknown>;
+			mergeToolPartMetadata(md, update.metadata);
+			tc.metadata = md;
 		}
 	}
 }
@@ -416,6 +453,8 @@ export type SSEEvent =
 			toolName: string;
 			/** Authoritative LangChain ``tool_call.id``. Optional. */
 			langchainToolCallId?: string;
+			/** Optional JSON object from tool SSE (same keys as persisted tool-call metadata). */
+			metadata?: Record<string, unknown>;
 	  }
 	| {
 			/**
@@ -434,6 +473,7 @@ export type SSEEvent =
 			toolName: string;
 			input: Record<string, unknown>;
 			langchainToolCallId?: string;
+			metadata?: Record<string, unknown>;
 	  }
 	| {
 			type: "tool-output-available";
@@ -443,6 +483,7 @@ export type SSEEvent =
 			 * ``ToolMessage.tool_call_id`` at on_tool_end. Backfills cards
 			 * that didn't get the id at tool-input-start time. */
 			langchainToolCallId?: string;
+			metadata?: Record<string, unknown>;
 	  }
 	| { type: "data-thinking-step"; data: ThinkingStepData }
 	| { type: "data-thread-title-update"; data: { threadId: number; title: string } }
