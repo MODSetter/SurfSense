@@ -13,6 +13,7 @@ from app.tasks.chat.streaming.handlers.tools import (
 )
 from app.tasks.chat.streaming.helpers.tool_output import tool_output_has_error
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
+from app.tasks.chat.streaming.relay.task_span import clear_task_span_if_delegating_task_ended
 from app.tasks.chat.streaming.relay.thinking_step_sse import emit_thinking_step_frame
 
 
@@ -91,6 +92,7 @@ def iter_tool_end_frames(
         title=title,
         status="completed",
         items=completed_items,
+        metadata=state.span_metadata_if_active(),
     )
 
     state.just_finished_tool = True
@@ -108,5 +110,10 @@ def iter_tool_end_frames(
         stream_result=result,
         langgraph_config=config,
         staged_workspace_file_path=staged_file_path,
+        tool_metadata=state.span_metadata_if_active(),
     )
     yield from iter_tool_completion_emission_frames(emission_ctx)
+
+    clear_task_span_if_delegating_task_ended(
+        state, tool_name=tool_name, run_id=run_id
+    )

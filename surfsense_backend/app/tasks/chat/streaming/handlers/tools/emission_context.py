@@ -23,6 +23,7 @@ class ToolCompletionEmissionContext:
     stream_result: Any
     langgraph_config: dict[str, Any]
     staged_workspace_file_path: str | None
+    tool_metadata: dict[str, Any] | None = None
 
     def emit_tool_output_card(self, payload: Any) -> str:
         return emit_tool_output_available_frame(
@@ -31,4 +32,5 @@ class ToolCompletionEmissionContext:
             langchain_id_holder=self.langchain_tool_call_id_holder,
             call_id=self.tool_call_id,
             output=payload,
+            tool_metadata=self.tool_metadata,
         )
