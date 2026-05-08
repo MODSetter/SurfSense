@@ -36,6 +36,7 @@
  *             └─ clickupWithChatTest — chatThread
  *         └─ slackFixtures — slackConnector
  *             └─ slackWithChatTest — chatThread
+ *         └─ manualUploadWithChatTest — chatThread (no connector; uses base search space)
  *
  * To add a new connector (Gmail, Slack, manual upload, etc.):
  *   1. Add a fixture file under `fixtures/connectors/<name>.fixture.ts`.
@@ -144,3 +145,11 @@ export const clickupWithChatTest = clickupFixtures.extend<ChatThreadFixtures>(ch
 export const slackTest = slackFixtures;
 /** `test` for Slack specs that also need a chat thread. */
 export const slackWithChatTest = slackFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
+/**
+ * `test` for manual upload specs that also need a chat thread.
+ *
+ * Manual upload has no connector fixture — the user uploads files directly via
+ * the Documents-sidebar UI — so this composes chat onto the bare search-space.
+ */
+export const manualUploadWithChatTest =
+	searchSpaceFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);

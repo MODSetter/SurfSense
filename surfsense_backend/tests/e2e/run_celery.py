@@ -78,8 +78,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("surfsense.e2e.celery")
 logger.warning(
-    "*** SURFSENSE E2E CELERY WORKER — fake Composio + LLM + embeddings, "
-    "this MUST NOT be reachable in production. ***"
+    "*** SURFSENSE E2E CELERY WORKER — fake Composio + LLM + embeddings ***"
 )
 
 

@@ -44,6 +44,10 @@ SLACK_CANARY_CHANNEL = "slack-e2e-canary"
 CLICKUP_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_CLICKUP_001"
 CLICKUP_CANARY_TITLE = "E2E Canary ClickUp Task"
 CLICKUP_CANARY_TASK_ID = "fake-clickup-task-canary-001"
+MANUAL_UPLOAD_MD_CANARY_TOKEN = "E2E-MANUAL-UPLOAD-MD-CANARY-7f3a"
+MANUAL_UPLOAD_MD_CANARY_FILE = "canary.md"
+MANUAL_UPLOAD_PDF_CANARY_TOKEN = "E2E-MANUAL-UPLOAD-PDF-CANARY-9d2b"
+MANUAL_UPLOAD_PDF_CANARY_FILE = "canary.pdf"
 NO_RELEVANT_CONTENT_SENTINEL = "No relevant indexed content found."
 NO_RELEVANT_CONTENT_QUERY = "E2E_NO_RELEVANT_CONTENT_SMOKE"
 
@@ -208,6 +212,30 @@ class FakeChatLLM(BaseChatModel):
             latest_human,
             ("clickup", CLICKUP_CANARY_TITLE),
         )
+        wants_manual_upload = _contains_any(
+            latest_human,
+            (
+                "uploaded",
+                "manual upload",
+                MANUAL_UPLOAD_MD_CANARY_FILE,
+                MANUAL_UPLOAD_PDF_CANARY_FILE,
+                MANUAL_UPLOAD_MD_CANARY_TOKEN,
+                MANUAL_UPLOAD_PDF_CANARY_TOKEN,
+            ),
+        )
+        wants_manual_upload_pdf = wants_manual_upload and _contains_any(
+            latest_human,
+            ("pdf", MANUAL_UPLOAD_PDF_CANARY_FILE, MANUAL_UPLOAD_PDF_CANARY_TOKEN),
+        )
+        wants_manual_upload_md = wants_manual_upload and _contains_any(
+            latest_human,
+            (
+                "markdown",
+                ".md",
+                MANUAL_UPLOAD_MD_CANARY_FILE,
+                MANUAL_UPLOAD_MD_CANARY_TOKEN,
+            ),
+        )
         has_gmail_evidence = (
             GMAIL_CANARY_SUBJECT in prompt_text
             or GMAIL_CANARY_MESSAGE_ID in prompt_text
@@ -285,6 +313,14 @@ class FakeChatLLM(BaseChatModel):
             or CLICKUP_CANARY_TOKEN in prompt_text
             or CLICKUP_CANARY_TASK_ID in prompt_text
         )
+        has_manual_upload_md_evidence = (
+            MANUAL_UPLOAD_MD_CANARY_FILE in prompt_text
+            or MANUAL_UPLOAD_MD_CANARY_TOKEN in prompt_text
+        )
+        has_manual_upload_pdf_evidence = (
+            MANUAL_UPLOAD_PDF_CANARY_FILE in prompt_text
+            or MANUAL_UPLOAD_PDF_CANARY_TOKEN in prompt_text
+        )
 
         if wants_clickup and has_clickup_evidence:
             return f"ClickUp content found: {CLICKUP_CANARY_TOKEN}"
@@ -316,6 +352,10 @@ class FakeChatLLM(BaseChatModel):
             return f"Drive PDF content found: {COMPOSIO_DRIVE_PDF_CANARY_TOKEN}"
         if wants_drive and has_drive_evidence:
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
+        if wants_manual_upload_pdf and has_manual_upload_pdf_evidence:
+            return f"Manual upload PDF content found: {MANUAL_UPLOAD_PDF_CANARY_TOKEN}"
+        if wants_manual_upload_md and has_manual_upload_md_evidence:
+            return f"Manual upload MD content found: {MANUAL_UPLOAD_MD_CANARY_TOKEN}"
         if (
             has_notion_evidence
             and not has_confluence_evidence
@@ -468,6 +508,36 @@ class FakeChatLLM(BaseChatModel):
             and not has_slack_evidence
         ):
             return f"ClickUp content found: {CLICKUP_CANARY_TOKEN}"
+        if (
+            has_manual_upload_pdf_evidence
+            and not has_confluence_evidence
+            and not has_jira_evidence
+            and not has_linear_evidence
+            and not has_notion_evidence
+            and not has_calendar_evidence
+            and not has_gmail_evidence
+            and not has_drive_evidence
+            and not has_onedrive_evidence
+            and not has_dropbox_evidence
+            and not has_slack_evidence
+            and not has_clickup_evidence
+        ):
+            return f"Manual upload PDF content found: {MANUAL_UPLOAD_PDF_CANARY_TOKEN}"
+        if (
+            has_manual_upload_md_evidence
+            and not has_confluence_evidence
+            and not has_jira_evidence
+            and not has_linear_evidence
+            and not has_notion_evidence
+            and not has_calendar_evidence
+            and not has_gmail_evidence
+            and not has_drive_evidence
+            and not has_onedrive_evidence
+            and not has_dropbox_evidence
+            and not has_slack_evidence
+            and not has_clickup_evidence
+        ):
+            return f"Manual upload MD content found: {MANUAL_UPLOAD_MD_CANARY_TOKEN}"
         return NO_RELEVANT_CONTENT_SENTINEL
 
     def _tool_call_message_for(self, messages: list[BaseMessage]) -> AIMessage | None:

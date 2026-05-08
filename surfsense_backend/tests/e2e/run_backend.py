@@ -91,8 +91,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("surfsense.e2e.backend")
 logger.warning(
-    "*** SURFSENSE E2E BACKEND ENTRYPOINT — fake Composio + LLM + embeddings, "
-    "this MUST NOT be reachable in production. ***"
+    "*** SURFSENSE E2E BACKEND ENTRYPOINT — fake Composio + LLM + embeddings ***"
 )
 
 
