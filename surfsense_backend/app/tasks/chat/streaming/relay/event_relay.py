@@ -115,6 +115,7 @@ class EventRelay:
             state.current_text_id = None
 
         completion_event, new_active = complete_active_thinking_step(
+            state=state,
             streaming_service=self.streaming_service,
             content_builder=content_builder,
             last_active_step_id=state.last_active_step_id,

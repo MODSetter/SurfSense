@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from .state import AgentEventRelayState
 from .thinking_step_sse import emit_thinking_step_frame
 
 
 def complete_active_thinking_step(
     *,
+    state: AgentEventRelayState,
     streaming_service: Any,
     content_builder: Any | None,
     last_active_step_id: str | None,
@@ -26,6 +28,7 @@ def complete_active_thinking_step(
             title=last_active_step_title,
             status="completed",
             items=last_active_step_items if last_active_step_items else None,
+            metadata=state.span_metadata_if_active(),
         )
         return event, None
     return None, last_active_step_id

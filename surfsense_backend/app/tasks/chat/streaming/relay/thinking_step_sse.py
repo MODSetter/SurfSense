@@ -13,12 +13,16 @@ def emit_thinking_step_frame(
     title: str,
     status: str = "in_progress",
     items: list[str] | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> str:
     if content_builder is not None:
-        content_builder.on_thinking_step(step_id, title, status, items)
+        content_builder.on_thinking_step(
+            step_id, title, status, items, metadata=metadata
+        )
     return streaming_service.format_thinking_step(
         step_id=step_id,
         title=title,
         status=status,
         items=items,
+        metadata=metadata,
     )
