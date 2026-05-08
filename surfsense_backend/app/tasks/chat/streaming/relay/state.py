@@ -10,10 +10,16 @@ from typing import Any
 class AgentEventRelayState:
     """Tracks text, thinking steps, tool depth, and pending tool-call metadata.
 
-    ``active_span_id`` groups steps/tools for one open ``task`` episode.
-    ``active_task_run_id`` is the LangGraph ``run_id`` of that ``task`` so we
-    only clear the span when that run ends (not when child tools end). Handlers
-    will set/clear these via ``task_span`` helpers in a later change.
+    **Task span (`spanId`)** — ``active_span_id`` groups steps and tools for one
+    open delegating ``task`` episode. ``active_task_run_id`` is the LangGraph
+    ``run_id`` of that ``task`` so the span clears only when that run ends, not
+    when child tools end. Open/close uses ``relay.task_span`` helpers.
+
+    **Tool ↔ thinking link (`thinkingStepId`)** — Each tool run gets a thinking-row
+    id (``tool_step_ids[run_id]``, emitted as ``data-thinking-step`` ``data.id``).
+    ``tool_activity_metadata`` supplies ``metadata`` for ``tool-input-start`` /
+    ``tool-input-available`` (``handlers.tool_start``) and
+    ``tool-output-available`` (``handlers.tool_end``).
     """
 
     accumulated_text: str = ""
@@ -47,6 +53,29 @@ class AgentEventRelayState:
         if self.active_span_id:
             return {"spanId": self.active_span_id}
         return None
+
+    def tool_activity_metadata(
+        self, *, thinking_step_id: str | None
+    ) -> dict[str, Any] | None:
+        """Build ``metadata`` for tool SSE and ``tool-call`` persistence.
+
+        Contract (keys omitted when not applicable):
+
+        - ``spanId`` (str): present while a task-delegation span is active
+          (same value as ``span_metadata_if_active()``).
+        - ``thinkingStepId`` (str): equals the thinking-step row ``id`` for this
+          tool (``data-thinking-step`` payload ``data.id`` on the wire).
+
+        Returns ``None`` if neither applies. Whitespace-only
+        ``thinking_step_id`` is ignored.
+        """
+        out: dict[str, Any] = {}
+        if self.active_span_id:
+            out["spanId"] = self.active_span_id
+        tid = (thinking_step_id or "").strip()
+        if tid:
+            out["thinkingStepId"] = tid
+        return out if out else None
 
     @classmethod
     def for_invocation(
