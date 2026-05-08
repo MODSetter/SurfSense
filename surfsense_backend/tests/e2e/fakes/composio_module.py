@@ -22,6 +22,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from .binary_loader import _resolve_file_bytes
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,9 +31,10 @@ logger = logging.getLogger(__name__)
 # Fixture loading
 # ---------------------------------------------------------------------------
 
-_DRIVE_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "drive_files.json"
-_GMAIL_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gmail_messages.json"
-_CALENDAR_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "calendar_events.json"
+_FIXTURES_DIR = Path(__file__).parent / "fixtures"
+_DRIVE_FIXTURE_PATH = _FIXTURES_DIR / "drive_files.json"
+_GMAIL_FIXTURE_PATH = _FIXTURES_DIR / "gmail_messages.json"
+_CALENDAR_FIXTURE_PATH = _FIXTURES_DIR / "calendar_events.json"
 _DRIVE_DOWNLOAD_DIR = Path("/tmp/surfsense-e2e-composio-downloads")
 
 
@@ -408,7 +411,7 @@ def _drive_download_file(args: dict[str, Any]) -> dict[str, Any]:
     directory and returning the path.
     """
     file_id = args.get("file_id", "")
-    contents = _DRIVE_FIXTURE.get("_file_contents", {}).get(file_id)
+    contents = _resolve_file_bytes(_DRIVE_FIXTURE, file_id, _FIXTURES_DIR)
     if contents is None:
         # Unknown file id is a test bug, fail loudly.
         raise NotImplementedError(
@@ -418,12 +421,14 @@ def _drive_download_file(args: dict[str, Any]) -> dict[str, Any]:
         )
 
     _DRIVE_DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = _DRIVE_DOWNLOAD_DIR / f"{file_id}.txt"
-    out_path.write_text(contents, encoding="utf-8")
+    metadata = _drive_get_metadata({"file_id": file_id})["data"]
+    file_name = metadata.get("name") or f"{file_id}.txt"
+    out_path = _DRIVE_DOWNLOAD_DIR / file_name
+    out_path.write_bytes(contents)
     return {
         "data": {
             "file_path": str(out_path),
-            "file_name": f"{file_id}.txt",
+            "file_name": file_name,
             "size": len(contents),
         }
     }

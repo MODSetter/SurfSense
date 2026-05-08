@@ -15,7 +15,10 @@ from unittest.mock import patch
 
 import httpx
 
-_DROPBOX_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "dropbox_files.json"
+from .binary_loader import _resolve_file_bytes
+
+_FIXTURES_DIR = Path(__file__).parent / "fixtures"
+_DROPBOX_FIXTURE_PATH = _FIXTURES_DIR / "dropbox_files.json"
 
 
 def _load_dropbox_fixture() -> dict[str, Any]:
@@ -72,17 +75,17 @@ class _FakeDropboxClient(_StrictFakeMixin):
         return metadata, None
 
     async def download_file(self, path: str) -> tuple[bytes | None, str | None]:
-        content = _DROPBOX_FIXTURE.get("_file_contents", {}).get(path)
+        content = _resolve_file_bytes(_DROPBOX_FIXTURE, path, _FIXTURES_DIR)
         if content is None:
             return None, f"E2E Dropbox fake has no content for path={path!r}."
-        return content.encode("utf-8"), None
+        return content, None
 
     async def download_file_to_disk(self, path: str, dest_path: str) -> str | None:
-        content = _DROPBOX_FIXTURE.get("_file_contents", {}).get(path)
+        content = _resolve_file_bytes(_DROPBOX_FIXTURE, path, _FIXTURES_DIR)
         if content is None:
             return f"E2E Dropbox fake has no content for path={path!r}."
         with open(dest_path, "wb") as f:
-            f.write(content.encode("utf-8"))
+            f.write(content)
         return None
 
     async def get_current_account(self) -> tuple[dict[str, Any] | None, str | None]:

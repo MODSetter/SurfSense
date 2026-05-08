@@ -17,9 +17,12 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from google.oauth2.credentials import Credentials
 
-_DRIVE_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "drive_files.json"
-_GMAIL_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gmail_messages.json"
-_CALENDAR_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "calendar_events.json"
+from .binary_loader import _resolve_file_bytes
+
+_FIXTURES_DIR = Path(__file__).parent / "fixtures"
+_DRIVE_FIXTURE_PATH = _FIXTURES_DIR / "drive_files.json"
+_GMAIL_FIXTURE_PATH = _FIXTURES_DIR / "gmail_messages.json"
+_CALENDAR_FIXTURE_PATH = _FIXTURES_DIR / "calendar_events.json"
 
 
 def _load_drive_fixture() -> dict[str, Any]:
@@ -165,12 +168,12 @@ class _FakeDriveFiles(_StrictFakeMixin):
 
     def get_media(self, **kwargs: Any) -> _FakeMediaRequest:
         file_id = kwargs.get("fileId")
-        content = _DRIVE_FIXTURE.get("_file_contents", {}).get(file_id)
+        content = _resolve_file_bytes(_DRIVE_FIXTURE, file_id, _FIXTURES_DIR)
         if content is None:
             raise NotImplementedError(
                 f"E2E native Google fake has no content for fileId={file_id!r}."
             )
-        return _FakeMediaRequest(content.encode("utf-8"))
+        return _FakeMediaRequest(content)
 
     def export(self, **kwargs: Any) -> _FakeRequest:
         file_id = kwargs.get("fileId")

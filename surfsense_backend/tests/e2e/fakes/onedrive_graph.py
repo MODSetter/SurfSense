@@ -15,7 +15,10 @@ from unittest.mock import patch
 
 import httpx
 
-_ONEDRIVE_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "onedrive_files.json"
+from .binary_loader import _resolve_file_bytes
+
+_FIXTURES_DIR = Path(__file__).parent / "fixtures"
+_ONEDRIVE_FIXTURE_PATH = _FIXTURES_DIR / "onedrive_files.json"
 
 
 def _load_onedrive_fixture() -> dict[str, Any]:
@@ -61,17 +64,17 @@ class _FakeOneDriveClient(_StrictFakeMixin):
         return metadata, None
 
     async def download_file(self, item_id: str) -> tuple[bytes | None, str | None]:
-        content = _ONEDRIVE_FIXTURE.get("_file_contents", {}).get(item_id)
+        content = _resolve_file_bytes(_ONEDRIVE_FIXTURE, item_id, _FIXTURES_DIR)
         if content is None:
             return None, f"E2E OneDrive fake has no content for item_id={item_id!r}."
-        return content.encode("utf-8"), None
+        return content, None
 
     async def download_file_to_disk(self, item_id: str, dest_path: str) -> str | None:
-        content = _ONEDRIVE_FIXTURE.get("_file_contents", {}).get(item_id)
+        content = _resolve_file_bytes(_ONEDRIVE_FIXTURE, item_id, _FIXTURES_DIR)
         if content is None:
             return f"E2E OneDrive fake has no content for item_id={item_id!r}."
         with open(dest_path, "wb") as f:
-            f.write(content.encode("utf-8"))
+            f.write(content)
         return None
 
     async def get_delta(
