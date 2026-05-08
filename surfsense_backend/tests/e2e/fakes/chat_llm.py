@@ -33,6 +33,9 @@ JIRA_CANARY_SUMMARY = "E2E Canary Jira Issue"
 JIRA_CANARY_KEY = "E2E-101"
 SLACK_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_SLACK_001"
 SLACK_CANARY_CHANNEL = "slack-e2e-canary"
+CLICKUP_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_CLICKUP_001"
+CLICKUP_CANARY_TITLE = "E2E Canary ClickUp Task"
+CLICKUP_CANARY_TASK_ID = "fake-clickup-task-canary-001"
 NO_RELEVANT_CONTENT_SENTINEL = "No relevant indexed content found."
 NO_RELEVANT_CONTENT_QUERY = "E2E_NO_RELEVANT_CONTENT_SMOKE"
 
@@ -122,6 +125,11 @@ class FakeChatLLM(BaseChatModel):
             and SLACK_CANARY_TOKEN in latest_tool_text
         ):
             return f"Slack live tool content found: {SLACK_CANARY_TOKEN}"
+        if (
+            latest_tool_name in {"clickup_search", "clickup_get_task"}
+            and CLICKUP_CANARY_TOKEN in latest_tool_text
+        ):
+            return f"ClickUp live tool content found: {CLICKUP_CANARY_TOKEN}"
 
         wants_gmail = _contains_any(
             latest_human,
@@ -169,6 +177,10 @@ class FakeChatLLM(BaseChatModel):
         wants_slack = _contains_any(
             latest_human,
             ("slack", SLACK_CANARY_TOKEN),
+        )
+        wants_clickup = _contains_any(
+            latest_human,
+            ("clickup", CLICKUP_CANARY_TITLE),
         )
         has_gmail_evidence = (
             GMAIL_CANARY_SUBJECT in prompt_text
@@ -222,7 +234,14 @@ class FakeChatLLM(BaseChatModel):
             or "C_FAKE_SLACK_CANARY" in prompt_text
             or "T_FAKE_SLACK_TEAM" in prompt_text
         )
+        has_clickup_evidence = (
+            CLICKUP_CANARY_TITLE in prompt_text
+            or CLICKUP_CANARY_TOKEN in prompt_text
+            or CLICKUP_CANARY_TASK_ID in prompt_text
+        )
 
+        if wants_clickup and has_clickup_evidence:
+            return f"ClickUp content found: {CLICKUP_CANARY_TOKEN}"
         if wants_slack and has_slack_evidence:
             return f"Slack content found: {SLACK_CANARY_TOKEN}"
         if wants_jira and has_jira_evidence:
@@ -254,6 +273,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_onedrive_evidence
             and not has_dropbox_evidence
             and not has_slack_evidence
+            and not has_clickup_evidence
         ):
             return f"Notion content found: {NOTION_CANARY_TOKEN}"
         if (
@@ -267,6 +287,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_onedrive_evidence
             and not has_dropbox_evidence
             and not has_slack_evidence
+            and not has_clickup_evidence
         ):
             return f"Confluence content found: {CONFLUENCE_CANARY_TOKEN}"
         if (
@@ -280,6 +301,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_onedrive_evidence
             and not has_dropbox_evidence
             and not has_slack_evidence
+            and not has_clickup_evidence
         ):
             return f"Jira content found: {JIRA_CANARY_TOKEN}"
         if (
@@ -293,6 +315,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_onedrive_evidence
             and not has_dropbox_evidence
             and not has_slack_evidence
+            and not has_clickup_evidence
         ):
             return f"Linear content found: {LINEAR_CANARY_TOKEN}"
         if (
@@ -306,6 +329,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_onedrive_evidence
             and not has_dropbox_evidence
             and not has_slack_evidence
+            and not has_clickup_evidence
         ):
             return f"Calendar content found: {CALENDAR_CANARY_TOKEN}"
         if (
@@ -318,6 +342,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_onedrive_evidence
             and not has_dropbox_evidence
             and not has_slack_evidence
+            and not has_clickup_evidence
         ):
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
         if (
@@ -331,6 +356,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_drive_evidence
             and not has_dropbox_evidence
             and not has_slack_evidence
+            and not has_clickup_evidence
         ):
             return f"OneDrive content found: {ONEDRIVE_CANARY_TOKEN}"
         if (
@@ -344,6 +370,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_drive_evidence
             and not has_onedrive_evidence
             and not has_slack_evidence
+            and not has_clickup_evidence
         ):
             return f"Dropbox content found: {DROPBOX_CANARY_TOKEN}"
         if (
@@ -356,6 +383,7 @@ class FakeChatLLM(BaseChatModel):
             and not has_onedrive_evidence
             and not has_dropbox_evidence
             and not has_slack_evidence
+            and not has_clickup_evidence
         ):
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
         if (
@@ -369,8 +397,23 @@ class FakeChatLLM(BaseChatModel):
             and not has_drive_evidence
             and not has_onedrive_evidence
             and not has_dropbox_evidence
+            and not has_clickup_evidence
         ):
             return f"Slack content found: {SLACK_CANARY_TOKEN}"
+        if (
+            has_clickup_evidence
+            and not has_confluence_evidence
+            and not has_jira_evidence
+            and not has_linear_evidence
+            and not has_notion_evidence
+            and not has_calendar_evidence
+            and not has_gmail_evidence
+            and not has_drive_evidence
+            and not has_onedrive_evidence
+            and not has_dropbox_evidence
+            and not has_slack_evidence
+        ):
+            return f"ClickUp content found: {CLICKUP_CANARY_TOKEN}"
         return NO_RELEVANT_CONTENT_SENTINEL
 
     def _tool_call_message_for(self, messages: list[BaseMessage]) -> AIMessage | None:
@@ -489,6 +532,21 @@ class FakeChatLLM(BaseChatModel):
                         "name": "slack_search_channels",
                         "args": {"query": SLACK_CANARY_CHANNEL, "limit": 5},
                         "id": "call_e2e_search_slack_channels",
+                    }
+                ],
+            )
+
+        if latest_tool is None and _contains_any(
+            latest_human,
+            ("clickup", CLICKUP_CANARY_TITLE),
+        ):
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "clickup_search",
+                        "args": {"query": CLICKUP_CANARY_TITLE, "limit": 5},
+                        "id": "call_e2e_search_clickup_tasks",
                     }
                 ],
             )

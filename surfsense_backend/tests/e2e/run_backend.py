@@ -109,6 +109,7 @@ from unittest.mock import patch  # noqa: E402
 
 from app.app import app  # noqa: E402
 from tests.e2e.fakes import (  # noqa: E402
+    clickup_module as _fake_clickup_module,
     confluence_indexer as _fake_confluence_indexer,
     confluence_oauth as _fake_confluence_oauth,
     dropbox_api as _fake_dropbox_api,
@@ -200,6 +201,7 @@ _fake_dropbox_api.install(_active_patches)
 _fake_notion_module.install(_active_patches)
 _fake_linear_module.install(_active_patches)
 _fake_jira_module.install(_active_patches)
+_fake_clickup_module.install(_active_patches)
 _fake_mcp_runtime.install(_active_patches)
 _fake_mcp_oauth_runtime.install(_active_patches)
 _fake_slack_module.install(_active_patches)
