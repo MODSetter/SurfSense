@@ -13,6 +13,10 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
 DRIVE_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_DRIVE_001"
+DRIVE_PDF_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_DRIVE_PDF_001"
+DRIVE_PDF_CANARY_FILE = "e2e-canary.pdf"
+COMPOSIO_DRIVE_PDF_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_COMPOSIO_DRIVE_PDF_001"
+COMPOSIO_DRIVE_PDF_CANARY_FILE = "e2e-composio-canary.pdf"
 GMAIL_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001"
 GMAIL_CANARY_SUBJECT = "E2E Canary Email"
 GMAIL_CANARY_MESSAGE_ID = "fake-msg-canary-001"
@@ -20,8 +24,12 @@ CALENDAR_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001"
 CALENDAR_CANARY_SUMMARY = "E2E Canary Calendar Event"
 ONEDRIVE_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_ONEDRIVE_001"
 ONEDRIVE_CANARY_FILE = "e2e-onedrive-canary.txt"
+ONEDRIVE_PDF_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_ONEDRIVE_PDF_001"
+ONEDRIVE_PDF_CANARY_FILE = "e2e-onedrive-canary.pdf"
 DROPBOX_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_DROPBOX_001"
 DROPBOX_CANARY_FILE = "e2e-dropbox-canary.txt"
+DROPBOX_PDF_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_DROPBOX_PDF_001"
+DROPBOX_PDF_CANARY_FILE = "e2e-dropbox-canary.pdf"
 NOTION_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001"
 NOTION_CANARY_TITLE = "E2E Canary Notion Page"
 CONFLUENCE_CANARY_TOKEN = "SURFSENSE_E2E_CANARY_TOKEN_CONFLUENCE_001"
@@ -143,13 +151,31 @@ class FakeChatLLM(BaseChatModel):
             latest_human,
             ("drive", "file", "e2e-canary.txt"),
         )
+        wants_drive_pdf = _contains_any(
+            latest_human,
+            (
+                "drive pdf",
+                DRIVE_PDF_CANARY_FILE,
+                DRIVE_PDF_CANARY_TOKEN,
+                COMPOSIO_DRIVE_PDF_CANARY_FILE,
+                COMPOSIO_DRIVE_PDF_CANARY_TOKEN,
+            ),
+        ) or (wants_drive and "pdf" in latest_human.lower())
         wants_onedrive = _contains_any(
             latest_human,
             ("onedrive", ONEDRIVE_CANARY_FILE, ONEDRIVE_CANARY_TOKEN),
         )
+        wants_onedrive_pdf = wants_onedrive and _contains_any(
+            latest_human,
+            ("pdf", ONEDRIVE_PDF_CANARY_FILE, ONEDRIVE_PDF_CANARY_TOKEN),
+        )
         wants_dropbox = _contains_any(
             latest_human,
             ("dropbox", DROPBOX_CANARY_FILE, DROPBOX_CANARY_TOKEN),
+        )
+        wants_dropbox_pdf = wants_dropbox and _contains_any(
+            latest_human,
+            ("pdf", DROPBOX_PDF_CANARY_FILE, DROPBOX_PDF_CANARY_TOKEN),
         )
         wants_notion = _contains_any(
             latest_human,
@@ -196,15 +222,35 @@ class FakeChatLLM(BaseChatModel):
             or "fake-file-canary" in prompt_text
             or DRIVE_CANARY_TOKEN in prompt_text
         )
+        has_native_drive_pdf_evidence = (
+            DRIVE_PDF_CANARY_FILE in prompt_text
+            or "fake-file-pdf-native" in prompt_text
+            or DRIVE_PDF_CANARY_TOKEN in prompt_text
+        )
+        has_composio_drive_pdf_evidence = (
+            COMPOSIO_DRIVE_PDF_CANARY_FILE in prompt_text
+            or "fake-file-pdf-composio" in prompt_text
+            or COMPOSIO_DRIVE_PDF_CANARY_TOKEN in prompt_text
+        )
         has_onedrive_evidence = (
             ONEDRIVE_CANARY_FILE in prompt_text
             or "fake-onedrive-canary" in prompt_text
             or ONEDRIVE_CANARY_TOKEN in prompt_text
         )
+        has_onedrive_pdf_evidence = (
+            ONEDRIVE_PDF_CANARY_FILE in prompt_text
+            or "fake-onedrive-pdf-canary" in prompt_text
+            or ONEDRIVE_PDF_CANARY_TOKEN in prompt_text
+        )
         has_dropbox_evidence = (
             DROPBOX_CANARY_FILE in prompt_text
             or "id:fake-dropbox-canary" in prompt_text
             or DROPBOX_CANARY_TOKEN in prompt_text
+        )
+        has_dropbox_pdf_evidence = (
+            DROPBOX_PDF_CANARY_FILE in prompt_text
+            or "id:fake-dropbox-pdf-canary" in prompt_text
+            or DROPBOX_PDF_CANARY_TOKEN in prompt_text
         )
         has_notion_evidence = (
             NOTION_CANARY_TITLE in prompt_text or NOTION_CANARY_TOKEN in prompt_text
@@ -256,10 +302,18 @@ class FakeChatLLM(BaseChatModel):
             return f"Calendar content found: {CALENDAR_CANARY_TOKEN}"
         if wants_gmail and has_gmail_evidence:
             return f"Gmail content found: {GMAIL_CANARY_TOKEN}"
+        if wants_onedrive_pdf and has_onedrive_pdf_evidence:
+            return f"OneDrive PDF content found: {ONEDRIVE_PDF_CANARY_TOKEN}"
         if wants_onedrive and has_onedrive_evidence:
             return f"OneDrive content found: {ONEDRIVE_CANARY_TOKEN}"
+        if wants_dropbox_pdf and has_dropbox_pdf_evidence:
+            return f"Dropbox PDF content found: {DROPBOX_PDF_CANARY_TOKEN}"
         if wants_dropbox and has_dropbox_evidence:
             return f"Dropbox content found: {DROPBOX_CANARY_TOKEN}"
+        if wants_drive_pdf and has_native_drive_pdf_evidence:
+            return f"Drive PDF content found: {DRIVE_PDF_CANARY_TOKEN}"
+        if wants_drive_pdf and has_composio_drive_pdf_evidence:
+            return f"Drive PDF content found: {COMPOSIO_DRIVE_PDF_CANARY_TOKEN}"
         if wants_drive and has_drive_evidence:
             return f"Drive content found: {DRIVE_CANARY_TOKEN}"
         if (

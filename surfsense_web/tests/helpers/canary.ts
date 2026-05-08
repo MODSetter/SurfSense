@@ -14,6 +14,8 @@ import { randomUUID } from "node:crypto";
  */
 export const CANARY_TOKENS = {
 	driveCanaryFile: "SURFSENSE_E2E_CANARY_TOKEN_DRIVE_001",
+	drivePdfCanary: "SURFSENSE_E2E_CANARY_TOKEN_DRIVE_PDF_001",
+	composioDrivePdfCanary: "SURFSENSE_E2E_CANARY_TOKEN_COMPOSIO_DRIVE_PDF_001",
 	driveReadme: "SURFSENSE_E2E_README_MARKER",
 	driveBudget: "SURFSENSE_E2E_BUDGET_MARKER",
 	driveRoadmap: "SURFSENSE_E2E_ROADMAP_MARKER",
@@ -21,7 +23,9 @@ export const CANARY_TOKENS = {
 	gmailCanary: "SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001",
 	calendarCanary: "SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001",
 	onedriveCanary: "SURFSENSE_E2E_CANARY_TOKEN_ONEDRIVE_001",
+	onedrivePdfCanary: "SURFSENSE_E2E_CANARY_TOKEN_ONEDRIVE_PDF_001",
 	dropboxCanary: "SURFSENSE_E2E_CANARY_TOKEN_DROPBOX_001",
+	dropboxPdfCanary: "SURFSENSE_E2E_CANARY_TOKEN_DROPBOX_PDF_001",
 	notionCanary: "SURFSENSE_E2E_CANARY_TOKEN_NOTION_001",
 	confluenceCanary: "SURFSENSE_E2E_CANARY_TOKEN_CONFLUENCE_001",
 	linearCanary: "SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001",
@@ -38,6 +42,16 @@ export const CANARY_TOKENS = {
  */
 export const FAKE_DRIVE_FILES = {
 	canary: { id: "fake-file-canary", name: "e2e-canary.txt", mimeType: "text/plain" },
+	pdfNative: {
+		id: "fake-file-pdf-native",
+		name: "e2e-canary.pdf",
+		mimeType: "application/pdf",
+	},
+	pdfComposio: {
+		id: "fake-file-pdf-composio",
+		name: "e2e-composio-canary.pdf",
+		mimeType: "application/pdf",
+	},
 	readme: { id: "fake-file-readme", name: "README.md", mimeType: "text/markdown" },
 	budget: { id: "fake-file-budget", name: "Q1-Budget.csv", mimeType: "text/csv" },
 } as const;
@@ -65,6 +79,11 @@ export const FAKE_ONEDRIVE_FILES = {
 		name: "e2e-onedrive-canary.txt",
 		mimeType: "text/plain",
 	},
+	pdf: {
+		id: "fake-onedrive-pdf-canary",
+		name: "e2e-onedrive-canary.pdf",
+		mimeType: "application/pdf",
+	},
 } as const;
 
 /**
@@ -76,6 +95,11 @@ export const FAKE_DROPBOX_FILES = {
 		id: "/e2e-dropbox-canary.txt",
 		name: "e2e-dropbox-canary.txt",
 		mimeType: "text/plain",
+	},
+	pdf: {
+		id: "/e2e-dropbox-canary.pdf",
+		name: "e2e-dropbox-canary.pdf",
+		mimeType: "application/pdf",
 	},
 } as const;
 
