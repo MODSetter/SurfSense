@@ -79,8 +79,8 @@ export interface ContentPartsState {
 	 * the resume stream's first ``start-step`` fires
 	 * ``addStepSeparator`` while rehydrated OLD content already makes
 	 * ``hasContent`` true → a divider lands between OLD and NEW
-	 * content with no semantic value (OLD content is filtered by
-	 * ``buildTimeline`` + ``filterSupersededAbortedMessages``,
+	 * content with no semantic value (OLD content is folded by
+	 * ``buildTimeline`` + ``reconcileInterruptedAssistantMessages``,
 	 * persisted state carries no separator, so the line vanishes on
 	 * reload).
 	 */

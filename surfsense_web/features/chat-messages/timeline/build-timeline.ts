@@ -81,8 +81,8 @@ interface ToolCallSlim {
  * During the live-resume window the in-memory message holds BOTH the
  * OLD interrupt-frame parts AND the freshly-streamed resume parts in
  * a new ``task`` scope. Without this filter we'd render both until
- * the next reload (where ``filterSupersededAbortedMessages`` drops
- * the OLD row upstream).
+ * the next reload (where ``reconcileInterruptedAssistantMessages``
+ * folds the OLD row into the resume row upstream).
  *
  * A tool-call is "interrupt-affected" when it either carries
  * ``__interrupt__`` directly or sits in a span that contains one. An

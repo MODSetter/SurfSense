@@ -64,7 +64,10 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
-import { convertToThreadMessage, filterSupersededAbortedMessages } from "@/lib/chat/message-utils";
+import {
+	convertToThreadMessage,
+	reconcileInterruptedAssistantMessages,
+} from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
 	looksLikePodcastRequest,
@@ -395,7 +398,7 @@ export default function NewChatPage() {
 				const memberById = new Map(membersData?.map((m) => [m.user_id, m]) ?? []);
 				const prevById = new Map(prev.map((m) => [m.id, m]));
 
-				return filterSupersededAbortedMessages(syncedMessages).map((msg) => {
+				return reconcileInterruptedAssistantMessages(syncedMessages).map((msg) => {
 					const member = msg.author_id ? (memberById.get(msg.author_id) ?? null) : null;
 
 					// Preserve existing author info if member lookup fails (e.g., cloned chats)
@@ -622,9 +625,9 @@ export default function NewChatPage() {
 				setCurrentThread(threadData);
 
 				if (messagesResponse.messages && messagesResponse.messages.length > 0) {
-					const loadedMessages = filterSupersededAbortedMessages(messagesResponse.messages).map(
-						convertToThreadMessage
-					);
+					const loadedMessages = reconcileInterruptedAssistantMessages(
+						messagesResponse.messages
+					).map(convertToThreadMessage);
 					setMessages(loadedMessages);
 
 					for (const msg of messagesResponse.messages) {
