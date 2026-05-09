@@ -19,7 +19,7 @@ from app.db import (
     DocumentType,
 )
 from app.indexing_pipeline.connector_document import ConnectorDocument
-from app.indexing_pipeline.document_chunker import chunk_text
+from app.indexing_pipeline.document_chunker import chunk_text, chunk_text_hybrid
 from app.indexing_pipeline.document_embedder import embed_texts
 from app.indexing_pipeline.document_hashing import (
     compute_content_hash,
@@ -387,11 +387,19 @@ class IndexingPipelineService:
             )
 
             t_step = time.perf_counter()
-            chunk_texts = await asyncio.to_thread(
-                chunk_text,
-                connector_doc.source_markdown,
-                use_code_chunker=connector_doc.should_use_code_chunker,
-            )
+            if connector_doc.should_use_code_chunker:
+                chunk_texts = await asyncio.to_thread(
+                    chunk_text,
+                    connector_doc.source_markdown,
+                    use_code_chunker=True,
+                )
+            else:
+                # Use the table-aware hybrid chunker so Markdown tables are not
+                # split mid-row (see issue #1334).
+                chunk_texts = await asyncio.to_thread(
+                    chunk_text_hybrid,
+                    connector_doc.source_markdown,
+                )
 
             texts_to_embed = [content, *chunk_texts]
             embeddings = await asyncio.to_thread(embed_texts, texts_to_embed)

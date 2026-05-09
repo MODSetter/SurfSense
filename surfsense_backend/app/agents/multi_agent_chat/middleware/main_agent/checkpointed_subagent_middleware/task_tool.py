@@ -69,9 +69,16 @@ def build_task_tool_with_parent_config(
             raise ValueError(msg)
 
         state_update = {k: v for k, v in result.items() if k not in EXCLUDED_STATE_KEYS}
-        message_text = (
-            result["messages"][-1].text.rstrip() if result["messages"][-1].text else ""
-        )
+        messages = result["messages"]
+        if not messages:
+            msg = (
+                "CompiledSubAgent returned an empty 'messages' list. "
+                "Subagents must produce at least one message so the parent has "
+                "output to forward back to the user."
+            )
+            raise ValueError(msg)
+        last_text = getattr(messages[-1], "text", None) or ""
+        message_text = last_text.rstrip()
         return Command(
             update={
                 **state_update,

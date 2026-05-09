@@ -11,6 +11,9 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 
+from app.agents.multi_agent_chat.middleware import (
+    build_main_agent_deepagent_middleware,
+)
 from app.agents.multi_agent_chat.subagents.shared.permissions import (
     ToolsPermissions,
 )
@@ -18,8 +21,6 @@ from app.agents.new_chat.context import SurfSenseContextSchema
 from app.agents.new_chat.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.db import ChatVisibility
-
-from .middleware import build_main_agent_deepagent_middleware
 
 
 def build_compiled_agent_graph_sync(

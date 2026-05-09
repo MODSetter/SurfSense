@@ -179,59 +179,96 @@ def create_create_google_drive_file_tool(
                 f"Creating Google Drive file: name='{final_name}', type='{final_file_type}', connector={actual_connector_id}"
             )
 
-            pre_built_creds = None
+            async def _flag_auth_expired() -> None:
+                try:
+                    from sqlalchemy.orm.attributes import flag_modified
+
+                    _res = await db_session.execute(
+                        select(SearchSourceConnector).where(
+                            SearchSourceConnector.id == actual_connector_id
+                        )
+                    )
+                    _conn = _res.scalar_one_or_none()
+                    if _conn and not _conn.config.get("auth_expired"):
+                        _conn.config = {**_conn.config, "auth_expired": True}
+                        flag_modified(_conn, "config")
+                        await db_session.commit()
+                except Exception:
+                    logger.warning(
+                        "Failed to persist auth_expired for connector %s",
+                        actual_connector_id,
+                        exc_info=True,
+                    )
+
             if (
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
             ):
-                from app.utils.google_credentials import build_composio_credentials
-
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    pre_built_creds = build_composio_credentials(cca_id)
+                if not cca_id:
+                    return {
+                        "status": "error",
+                        "message": "Composio connected account ID not found for this Google Drive connector.",
+                    }
 
-            client = GoogleDriveClient(
-                session=db_session,
-                connector_id=actual_connector_id,
-                credentials=pre_built_creds,
-            )
-            try:
-                created = await client.create_file(
+                from app.services.composio_service import ComposioService
+
+                created, error = await ComposioService().create_drive_file_from_text(
+                    connected_account_id=cca_id,
+                    entity_id=f"surfsense_{user_id}",
                     name=final_name,
                     mime_type=mime_type,
-                    parent_folder_id=final_parent_folder_id,
                     content=final_content,
+                    parent_id=final_parent_folder_id,
                 )
-            except HttpError as http_err:
-                if http_err.resp.status == 403:
-                    logger.warning(
-                        f"Insufficient permissions for connector {actual_connector_id}: {http_err}"
-                    )
-                    try:
-                        from sqlalchemy.orm.attributes import flag_modified
 
-                        _res = await db_session.execute(
-                            select(SearchSourceConnector).where(
-                                SearchSourceConnector.id == actual_connector_id
-                            )
-                        )
-                        _conn = _res.scalar_one_or_none()
-                        if _conn and not _conn.config.get("auth_expired"):
-                            _conn.config = {**_conn.config, "auth_expired": True}
-                            flag_modified(_conn, "config")
-                            await db_session.commit()
-                    except Exception:
+                if error or not created:
+                    err_lower = (error or "").lower()
+                    if (
+                        "insufficient" in err_lower
+                        or "permission" in err_lower
+                        or "403" in err_lower
+                    ):
                         logger.warning(
-                            "Failed to persist auth_expired for connector %s",
-                            actual_connector_id,
-                            exc_info=True,
+                            f"Insufficient permissions for Composio Drive connector {actual_connector_id}: {error}"
                         )
+                        await _flag_auth_expired()
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": actual_connector_id,
+                            "message": "This Google Drive account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    logger.error(
+                        f"Composio Drive create_file failed for connector {actual_connector_id}: {error}"
+                    )
                     return {
-                        "status": "insufficient_permissions",
-                        "connector_id": actual_connector_id,
-                        "message": "This Google Drive account needs additional permissions. Please re-authenticate in connector settings.",
+                        "status": "error",
+                        "message": "Something went wrong while creating the file. Please try again.",
                     }
-                raise
+            else:
+                client = GoogleDriveClient(
+                    session=db_session,
+                    connector_id=actual_connector_id,
+                )
+                try:
+                    created = await client.create_file(
+                        name=final_name,
+                        mime_type=mime_type,
+                        parent_folder_id=final_parent_folder_id,
+                        content=final_content,
+                    )
+                except HttpError as http_err:
+                    if http_err.resp.status == 403:
+                        logger.warning(
+                            f"Insufficient permissions for connector {actual_connector_id}: {http_err}"
+                        )
+                        await _flag_auth_expired()
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": actual_connector_id,
+                            "message": "This Google Drive account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    raise
 
             logger.info(
                 f"Google Drive file created: id={created.get('id')}, name={created.get('name')}"

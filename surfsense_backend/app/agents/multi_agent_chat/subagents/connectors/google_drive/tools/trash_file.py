@@ -158,51 +158,84 @@ def create_delete_google_drive_file_tool(
                 f"Deleting Google Drive file: file_id='{final_file_id}', connector={final_connector_id}"
             )
 
-            pre_built_creds = None
+            async def _flag_auth_expired() -> None:
+                try:
+                    from sqlalchemy.orm.attributes import flag_modified
+
+                    if not connector.config.get("auth_expired"):
+                        connector.config = {
+                            **connector.config,
+                            "auth_expired": True,
+                        }
+                        flag_modified(connector, "config")
+                        await db_session.commit()
+                except Exception:
+                    logger.warning(
+                        "Failed to persist auth_expired for connector %s",
+                        connector.id,
+                        exc_info=True,
+                    )
+
             if (
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
             ):
-                from app.utils.google_credentials import build_composio_credentials
-
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    pre_built_creds = build_composio_credentials(cca_id)
-
-            client = GoogleDriveClient(
-                session=db_session,
-                connector_id=connector.id,
-                credentials=pre_built_creds,
-            )
-            try:
-                await client.trash_file(file_id=final_file_id)
-            except HttpError as http_err:
-                if http_err.resp.status == 403:
-                    logger.warning(
-                        f"Insufficient permissions for connector {connector.id}: {http_err}"
-                    )
-                    try:
-                        from sqlalchemy.orm.attributes import flag_modified
-
-                        if not connector.config.get("auth_expired"):
-                            connector.config = {
-                                **connector.config,
-                                "auth_expired": True,
-                            }
-                            flag_modified(connector, "config")
-                            await db_session.commit()
-                    except Exception:
-                        logger.warning(
-                            "Failed to persist auth_expired for connector %s",
-                            connector.id,
-                            exc_info=True,
-                        )
+                if not cca_id:
                     return {
-                        "status": "insufficient_permissions",
-                        "connector_id": connector.id,
-                        "message": "This Google Drive account needs additional permissions. Please re-authenticate in connector settings.",
+                        "status": "error",
+                        "message": "Composio connected account ID not found for this Google Drive connector.",
                     }
-                raise
+
+                from app.services.composio_service import ComposioService
+
+                error = await ComposioService().trash_drive_file(
+                    connected_account_id=cca_id,
+                    entity_id=f"surfsense_{user_id}",
+                    file_id=final_file_id,
+                )
+                if error:
+                    err_lower = error.lower()
+                    if (
+                        "insufficient" in err_lower
+                        or "permission" in err_lower
+                        or "403" in err_lower
+                    ):
+                        logger.warning(
+                            f"Insufficient permissions for Composio Drive connector {connector.id}: {error}"
+                        )
+                        await _flag_auth_expired()
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": connector.id,
+                            "message": "This Google Drive account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    logger.error(
+                        f"Composio Drive trash_file failed for connector {connector.id}: {error}"
+                    )
+                    return {
+                        "status": "error",
+                        "message": "Something went wrong while trashing the file. Please try again.",
+                    }
+            else:
+                client = GoogleDriveClient(
+                    session=db_session,
+                    connector_id=connector.id,
+                )
+                try:
+                    await client.trash_file(file_id=final_file_id)
+                except HttpError as http_err:
+                    if http_err.resp.status == 403:
+                        logger.warning(
+                            f"Insufficient permissions for connector {connector.id}: {http_err}"
+                        )
+                        await _flag_auth_expired()
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": connector.id,
+                            "message": "This Google Drive account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    raise
 
             logger.info(
                 f"Google Drive file deleted (moved to trash): file_id={final_file_id}"

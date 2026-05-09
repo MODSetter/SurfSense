@@ -162,16 +162,31 @@ def create_send_gmail_email_tool(
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
             ):
-                from app.utils.google_credentials import build_composio_credentials
-
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    creds = build_composio_credentials(cca_id)
-                else:
+                if not cca_id:
                     return {
                         "status": "error",
                         "message": "Composio connected account ID not found for this Gmail connector.",
                     }
+
+                from app.services.composio_service import ComposioService
+
+                (
+                    sent_message_id,
+                    sent_thread_id,
+                    error,
+                ) = await ComposioService().send_gmail_email(
+                    connected_account_id=cca_id,
+                    entity_id=f"surfsense_{user_id}",
+                    to=final_to,
+                    subject=final_subject,
+                    body=final_body,
+                    cc=final_cc,
+                    bcc=final_bcc,
+                )
+                if error:
+                    return {"status": "error", "message": error}
+                sent = {"id": sent_message_id, "threadId": sent_thread_id}
             else:
                 from google.oauth2.credentials import Credentials
 
@@ -209,61 +224,61 @@ def create_send_gmail_email_tool(
                     expiry=datetime.fromisoformat(exp) if exp else None,
                 )
 
-            from googleapiclient.discovery import build
+                from googleapiclient.discovery import build
 
-            gmail_service = build("gmail", "v1", credentials=creds)
+                gmail_service = build("gmail", "v1", credentials=creds)
 
-            message = MIMEText(final_body)
-            message["to"] = final_to
-            message["subject"] = final_subject
-            if final_cc:
-                message["cc"] = final_cc
-            if final_bcc:
-                message["bcc"] = final_bcc
-            raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+                message = MIMEText(final_body)
+                message["to"] = final_to
+                message["subject"] = final_subject
+                if final_cc:
+                    message["cc"] = final_cc
+                if final_bcc:
+                    message["bcc"] = final_bcc
+                raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
-            try:
-                sent = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: (
-                        gmail_service.users()
-                        .messages()
-                        .send(userId="me", body={"raw": raw})
-                        .execute()
-                    ),
-                )
-            except Exception as api_err:
-                from googleapiclient.errors import HttpError
-
-                if isinstance(api_err, HttpError) and api_err.resp.status == 403:
-                    logger.warning(
-                        f"Insufficient permissions for connector {actual_connector_id}: {api_err}"
+                try:
+                    sent = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: (
+                            gmail_service.users()
+                            .messages()
+                            .send(userId="me", body={"raw": raw})
+                            .execute()
+                        ),
                     )
-                    try:
-                        from sqlalchemy.orm.attributes import flag_modified
+                except Exception as api_err:
+                    from googleapiclient.errors import HttpError
 
-                        _res = await db_session.execute(
-                            select(SearchSourceConnector).where(
-                                SearchSourceConnector.id == actual_connector_id
-                            )
-                        )
-                        _conn = _res.scalar_one_or_none()
-                        if _conn and not _conn.config.get("auth_expired"):
-                            _conn.config = {**_conn.config, "auth_expired": True}
-                            flag_modified(_conn, "config")
-                            await db_session.commit()
-                    except Exception:
+                    if isinstance(api_err, HttpError) and api_err.resp.status == 403:
                         logger.warning(
-                            "Failed to persist auth_expired for connector %s",
-                            actual_connector_id,
-                            exc_info=True,
+                            f"Insufficient permissions for connector {actual_connector_id}: {api_err}"
                         )
-                    return {
-                        "status": "insufficient_permissions",
-                        "connector_id": actual_connector_id,
-                        "message": "This Gmail account needs additional permissions. Please re-authenticate in connector settings.",
-                    }
-                raise
+                        try:
+                            from sqlalchemy.orm.attributes import flag_modified
+
+                            _res = await db_session.execute(
+                                select(SearchSourceConnector).where(
+                                    SearchSourceConnector.id == actual_connector_id
+                                )
+                            )
+                            _conn = _res.scalar_one_or_none()
+                            if _conn and not _conn.config.get("auth_expired"):
+                                _conn.config = {**_conn.config, "auth_expired": True}
+                                flag_modified(_conn, "config")
+                                await db_session.commit()
+                        except Exception:
+                            logger.warning(
+                                "Failed to persist auth_expired for connector %s",
+                                actual_connector_id,
+                                exc_info=True,
+                            )
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": actual_connector_id,
+                            "message": "This Gmail account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    raise
 
             logger.info(
                 f"Gmail email sent: id={sent.get('id')}, threadId={sent.get('threadId')}"

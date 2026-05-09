@@ -46,6 +46,12 @@
       "sourceType": "github",
       "computedHash": "ddd61f32254be1303ce4b7be5d507c932de4af53489a0ebb1309bf61de99018c"
     },
+    "improve-codebase-architecture": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
+      "computedHash": "2da1d23b8f53cfe67f2e0b68924ab9f4ec400bb6480de097007eeaeb517d1722"
+    },
     "internal-linking-optimizer": {
       "source": "aaron-he-zhu/seo-geo-claude-skills",
       "sourceType": "github",
