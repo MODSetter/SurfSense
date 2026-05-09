@@ -37,11 +37,9 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
 import { RevertTurnButton } from "@/components/assistant-ui/revert-turn-button";
 import { useTokenUsage } from "@/components/assistant-ui/token-usage-context";
-import { ToolFallback, withDelegationSpanIndent } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
-import { withBundleStep } from "@/components/hitl-bundle-pager";
 import type { SerializableCitation } from "@/components/tool-ui/citation";
 import {
 	openSafeNavigationHref,
@@ -59,7 +57,6 @@ import { DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { withHitlInTimeline } from "@/lib/hitl";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 
@@ -102,146 +99,6 @@ const GenerateImageToolUI = dynamic(
 		import("@/components/tool-ui/generate-image").then((m) => ({ default: m.GenerateImageToolUI })),
 	{ ssr: false }
 );
-const UpdateMemoryToolUI = dynamic(
-	() => import("@/components/tool-ui/user-memory").then((m) => ({ default: m.UpdateMemoryToolUI })),
-	{ ssr: false }
-);
-const SandboxExecuteToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/sandbox-execute").then((m) => ({
-			default: m.SandboxExecuteToolUI,
-		})),
-	{ ssr: false }
-);
-const CreateNotionPageToolUI = dynamic(
-	() => import("@/components/tool-ui/notion").then((m) => ({ default: m.CreateNotionPageToolUI })),
-	{ ssr: false }
-);
-const UpdateNotionPageToolUI = dynamic(
-	() => import("@/components/tool-ui/notion").then((m) => ({ default: m.UpdateNotionPageToolUI })),
-	{ ssr: false }
-);
-const DeleteNotionPageToolUI = dynamic(
-	() => import("@/components/tool-ui/notion").then((m) => ({ default: m.DeleteNotionPageToolUI })),
-	{ ssr: false }
-);
-const CreateLinearIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/linear").then((m) => ({ default: m.CreateLinearIssueToolUI })),
-	{ ssr: false }
-);
-const UpdateLinearIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/linear").then((m) => ({ default: m.UpdateLinearIssueToolUI })),
-	{ ssr: false }
-);
-const DeleteLinearIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/linear").then((m) => ({ default: m.DeleteLinearIssueToolUI })),
-	{ ssr: false }
-);
-const CreateGoogleDriveFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/google-drive").then((m) => ({
-			default: m.CreateGoogleDriveFileToolUI,
-		})),
-	{ ssr: false }
-);
-const DeleteGoogleDriveFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/google-drive").then((m) => ({
-			default: m.DeleteGoogleDriveFileToolUI,
-		})),
-	{ ssr: false }
-);
-const CreateOneDriveFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/onedrive").then((m) => ({ default: m.CreateOneDriveFileToolUI })),
-	{ ssr: false }
-);
-const DeleteOneDriveFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/onedrive").then((m) => ({ default: m.DeleteOneDriveFileToolUI })),
-	{ ssr: false }
-);
-const CreateDropboxFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/dropbox").then((m) => ({ default: m.CreateDropboxFileToolUI })),
-	{ ssr: false }
-);
-const DeleteDropboxFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/dropbox").then((m) => ({ default: m.DeleteDropboxFileToolUI })),
-	{ ssr: false }
-);
-const CreateCalendarEventToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/google-calendar").then((m) => ({
-			default: m.CreateCalendarEventToolUI,
-		})),
-	{ ssr: false }
-);
-const UpdateCalendarEventToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/google-calendar").then((m) => ({
-			default: m.UpdateCalendarEventToolUI,
-		})),
-	{ ssr: false }
-);
-const DeleteCalendarEventToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/google-calendar").then((m) => ({
-			default: m.DeleteCalendarEventToolUI,
-		})),
-	{ ssr: false }
-);
-const CreateGmailDraftToolUI = dynamic(
-	() => import("@/components/tool-ui/gmail").then((m) => ({ default: m.CreateGmailDraftToolUI })),
-	{ ssr: false }
-);
-const UpdateGmailDraftToolUI = dynamic(
-	() => import("@/components/tool-ui/gmail").then((m) => ({ default: m.UpdateGmailDraftToolUI })),
-	{ ssr: false }
-);
-const SendGmailEmailToolUI = dynamic(
-	() => import("@/components/tool-ui/gmail").then((m) => ({ default: m.SendGmailEmailToolUI })),
-	{ ssr: false }
-);
-const TrashGmailEmailToolUI = dynamic(
-	() => import("@/components/tool-ui/gmail").then((m) => ({ default: m.TrashGmailEmailToolUI })),
-	{ ssr: false }
-);
-const CreateJiraIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/jira").then((m) => ({ default: m.CreateJiraIssueToolUI })),
-	{ ssr: false }
-);
-const UpdateJiraIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/jira").then((m) => ({ default: m.UpdateJiraIssueToolUI })),
-	{ ssr: false }
-);
-const DeleteJiraIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/jira").then((m) => ({ default: m.DeleteJiraIssueToolUI })),
-	{ ssr: false }
-);
-const CreateConfluencePageToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/confluence").then((m) => ({
-			default: m.CreateConfluencePageToolUI,
-		})),
-	{ ssr: false }
-);
-const UpdateConfluencePageToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/confluence").then((m) => ({
-			default: m.UpdateConfluencePageToolUI,
-		})),
-	{ ssr: false }
-);
-const DeleteConfluencePageToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/confluence").then((m) => ({
-			default: m.DeleteConfluencePageToolUI,
-		})),
-	{ ssr: false }
-);
-
 function extractDomain(url: string): string | undefined {
 	try {
 		return new URL(url).hostname.replace(/^www\./, "");
@@ -505,67 +362,26 @@ const MessageInfoDropdown: FC = () => {
 	);
 };
 
-// Wrap each tool-ui card with ``withBundleStep`` so multi-card HITL bundles
-// page through them and stage decisions instead of firing one resume per card.
-// ``withDelegationSpanIndent`` wraps every entry (including Fallback) so delegated
-// subagent tools don't bypass span indentation via a named ``by_name`` UI.
-// ``withHitlInTimeline`` is the OUTERMOST wrapper so a body render with an
-// interrupt result returns ``null`` immediately — no inner wrappers paint
-// — while a timeline render (under ``HitlRenderTargetProvider value="timeline"``
-// inside ``ThinkingStepsDisplay``) passes through to the real component.
-const bundleTool = (Component: ToolCallMessagePartComponent) =>
-	withHitlInTimeline(withBundleStep(withDelegationSpanIndent(Component)));
-
-const NullToolUi: ToolCallMessagePartComponent = () => null;
-
 /**
- * Tool-call UI registry. Exported so ``ThinkingStepsDisplay`` can mount
- * the SAME wrapped components inline under a step row when the card's
- * result is an HITL interrupt. The wrappers handle ``ToolCallIdProvider``
- * and bundle paging consistently across both render targets.
+ * Tools rendered in the message BODY — value-add deliverables only.
+ *
+ * Process tools (connector CRUD, sandbox execute, memory updates,
+ * etc.) are NOT here; they render in the timeline via the slice's
+ * tool registry (see ``features/chat-messages/timeline``). The body
+ * opts out of every other tool by registering ``NullBodyTool`` as the
+ * fallback — any tool name not in this map renders nothing in the
+ * body and is picked up by the timeline instead.
  */
-export const TOOLS_BY_NAME = {
-	generate_report: bundleTool(GenerateReportToolUI),
-	generate_resume: bundleTool(GenerateResumeToolUI),
-	generate_podcast: bundleTool(GeneratePodcastToolUI),
-	generate_video_presentation: bundleTool(GenerateVideoPresentationToolUI),
-	display_image: bundleTool(GenerateImageToolUI),
-	generate_image: bundleTool(GenerateImageToolUI),
-	update_memory: bundleTool(UpdateMemoryToolUI),
-	execute: bundleTool(SandboxExecuteToolUI),
-	execute_code: bundleTool(SandboxExecuteToolUI),
-	create_notion_page: bundleTool(CreateNotionPageToolUI),
-	update_notion_page: bundleTool(UpdateNotionPageToolUI),
-	delete_notion_page: bundleTool(DeleteNotionPageToolUI),
-	create_linear_issue: bundleTool(CreateLinearIssueToolUI),
-	update_linear_issue: bundleTool(UpdateLinearIssueToolUI),
-	delete_linear_issue: bundleTool(DeleteLinearIssueToolUI),
-	create_google_drive_file: bundleTool(CreateGoogleDriveFileToolUI),
-	delete_google_drive_file: bundleTool(DeleteGoogleDriveFileToolUI),
-	create_onedrive_file: bundleTool(CreateOneDriveFileToolUI),
-	delete_onedrive_file: bundleTool(DeleteOneDriveFileToolUI),
-	create_dropbox_file: bundleTool(CreateDropboxFileToolUI),
-	delete_dropbox_file: bundleTool(DeleteDropboxFileToolUI),
-	create_calendar_event: bundleTool(CreateCalendarEventToolUI),
-	update_calendar_event: bundleTool(UpdateCalendarEventToolUI),
-	delete_calendar_event: bundleTool(DeleteCalendarEventToolUI),
-	create_gmail_draft: bundleTool(CreateGmailDraftToolUI),
-	update_gmail_draft: bundleTool(UpdateGmailDraftToolUI),
-	send_gmail_email: bundleTool(SendGmailEmailToolUI),
-	trash_gmail_email: bundleTool(TrashGmailEmailToolUI),
-	create_jira_issue: bundleTool(CreateJiraIssueToolUI),
-	update_jira_issue: bundleTool(UpdateJiraIssueToolUI),
-	delete_jira_issue: bundleTool(DeleteJiraIssueToolUI),
-	create_confluence_page: bundleTool(CreateConfluencePageToolUI),
-	update_confluence_page: bundleTool(UpdateConfluencePageToolUI),
-	delete_confluence_page: bundleTool(DeleteConfluencePageToolUI),
-	web_search: NullToolUi,
-	link_preview: NullToolUi,
-	multi_link_preview: NullToolUi,
-	scrape_webpage: NullToolUi,
+const BODY_TOOLS = {
+	generate_report: GenerateReportToolUI,
+	generate_resume: GenerateResumeToolUI,
+	generate_podcast: GeneratePodcastToolUI,
+	generate_video_presentation: GenerateVideoPresentationToolUI,
+	display_image: GenerateImageToolUI,
+	generate_image: GenerateImageToolUI,
 } as const;
 
-export const TOOLS_FALLBACK = bundleTool(ToolFallback);
+const NullBodyTool: ToolCallMessagePartComponent = () => null;
 
 const AssistantMessageInner: FC = () => {
 	const isMobile = !useMediaQuery("(min-width: 768px)");
@@ -578,8 +394,8 @@ const AssistantMessageInner: FC = () => {
 						Text: MarkdownText,
 						Reasoning: ReasoningMessagePart,
 						tools: {
-							by_name: TOOLS_BY_NAME,
-							Fallback: TOOLS_FALLBACK,
+							by_name: BODY_TOOLS,
+							Fallback: NullBodyTool,
 						},
 					}}
 				/>
