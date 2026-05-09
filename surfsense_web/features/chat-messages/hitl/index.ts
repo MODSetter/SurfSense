@@ -1,13 +1,13 @@
-export { DoomLoopApproval, GenericHitlApproval, isDoomLoopInterrupt } from "./approval-cards";
 export {
-	type BundleSubmit,
-	type HitlBundleAPI,
-	HitlBundleProvider,
-	PagerChrome,
-	ToolCallIdProvider,
-	useHitlBundle,
-	useToolCallIdContext,
-} from "./bundle";
+	type HitlApprovalAPI,
+	HitlApprovalCard,
+	PendingInterruptProvider,
+	type PendingInterruptState,
+	type PendingInterruptValue,
+	useHitlApproval,
+	usePendingInterrupt,
+} from "./approval";
+export { DoomLoopApproval, GenericHitlApproval, isDoomLoopInterrupt } from "./approval-cards";
 export {
 	closeHitlEditPanelAtom,
 	type ExtraField,
@@ -18,13 +18,13 @@ export {
 	openHitlEditPanelAtom,
 } from "./edit-panel";
 export type {
-	HitlApprovalCard,
-	HitlApprovalCardProps,
 	HitlDecision,
 	HitlPhase,
 	InterruptActionRequest,
 	InterruptResult,
 	InterruptReviewConfig,
+	PerToolApprovalCard,
+	PerToolApprovalCardProps,
 } from "./types";
 export { isInterruptResult } from "./types";
 export { useHitlDecision } from "./use-hitl-decision";

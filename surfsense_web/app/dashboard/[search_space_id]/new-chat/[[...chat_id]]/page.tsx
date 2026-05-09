@@ -49,7 +49,7 @@ import {
 	type TokenUsageData,
 	TokenUsageProvider,
 } from "@/components/assistant-ui/token-usage-context";
-import { type BundleSubmit, HitlBundleProvider } from "@/features/chat-messages/hitl";
+import { type HitlDecision, PendingInterruptProvider } from "@/features/chat-messages/hitl";
 import { TimelineDataUI } from "@/features/chat-messages/timeline";
 import {
 	applyActionLogSse,
@@ -1738,57 +1738,6 @@ export default function NewChatPage() {
 		return () => window.removeEventListener("hitl-decision", handler);
 	}, [handleResume, pendingInterrupt]);
 
-	// Mirror staged bundle decisions onto the cards visually so prev/next nav
-	// reflects past choices instead of re-prompting. Submit's ``hitl-decision``
-	// handler still runs the actual resume.
-	useEffect(() => {
-		const handler = (e: Event) => {
-			const detail = (e as CustomEvent).detail as {
-				toolCallId: string;
-				decision: {
-					type: string;
-					message?: string;
-					edited_action?: { name: string; args: Record<string, unknown> };
-				};
-			};
-			if (!detail?.toolCallId || !detail?.decision || !pendingInterrupt) return;
-			setMessages((prev) =>
-				prev.map((m) => {
-					if (m.id !== pendingInterrupt.assistantMsgId) return m;
-					const parts = m.content as unknown as Array<Record<string, unknown>>;
-					const newContent = parts.map((part) => {
-						if (part.toolCallId !== detail.toolCallId) return part;
-						if (part.type !== "tool-call") return part;
-						if (typeof part.result !== "object" || part.result === null) return part;
-						if (!("__interrupt__" in (part.result as Record<string, unknown>))) return part;
-						const decided = detail.decision.type as "approve" | "reject" | "edit";
-						if (decided === "edit" && detail.decision.edited_action) {
-							return {
-								...part,
-								args: detail.decision.edited_action.args,
-								argsText: JSON.stringify(detail.decision.edited_action.args, null, 2),
-								result: {
-									...(part.result as Record<string, unknown>),
-									__decided__: decided,
-								},
-							};
-						}
-						return {
-							...part,
-							result: {
-								...(part.result as Record<string, unknown>),
-								__decided__: decided,
-							},
-						};
-					});
-					return { ...m, content: newContent as unknown as ThreadMessageLike["content"] };
-				})
-			);
-		};
-		window.addEventListener("hitl-stage", handler);
-		return () => window.removeEventListener("hitl-stage", handler);
-	}, [pendingInterrupt]);
-
 	// Convert message (pass through since already in correct format)
 	const convertMessage = useCallback(
 		(message: ThreadMessageLike): ThreadMessageLike => message,
@@ -2287,7 +2236,7 @@ export default function NewChatPage() {
 		[handleRegenerate, messages, agentActionItems]
 	);
 
-	const handleBundleSubmit = useCallback<BundleSubmit>((orderedDecisions) => {
+	const handleApprovalSubmit = useCallback((orderedDecisions: HitlDecision[]) => {
 		window.dispatchEvent(
 			new CustomEvent("hitl-decision", { detail: { decisions: orderedDecisions } })
 		);
@@ -2363,9 +2312,9 @@ export default function NewChatPage() {
 			<AssistantRuntimeProvider runtime={runtime}>
 				<TimelineDataUI />
 				<StepSeparatorDataUI />
-				<HitlBundleProvider
-					toolCallIds={pendingInterrupt?.bundleToolCallIds ?? null}
-					onSubmit={handleBundleSubmit}
+				<PendingInterruptProvider
+					pendingInterrupt={pendingInterrupt}
+					onSubmit={handleApprovalSubmit}
 				>
 					<div key={searchSpaceId} className="flex h-full overflow-hidden">
 						<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -2375,7 +2324,7 @@ export default function NewChatPage() {
 						<MobileEditorPanel />
 						<MobileHitlEditPanel />
 					</div>
-				</HitlBundleProvider>
+				</PendingInterruptProvider>
 				<EditMessageDialog
 					open={editDialogState !== null}
 					onOpenChange={(open) => {

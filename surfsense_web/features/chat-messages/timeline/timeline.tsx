@@ -4,7 +4,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { type FC, useEffect, useMemo, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { getToolDisplayName } from "@/contracts/enums/toolIcons";
-import { PagerChrome, useHitlBundle } from "@/features/chat-messages/hitl";
+import { HitlApprovalCard, usePendingInterrupt } from "@/features/chat-messages/hitl";
 import { cn } from "@/lib/utils";
 import { groupItems } from "./grouping";
 import { resolveItemTitle } from "./subagent-rename";
@@ -12,10 +12,9 @@ import { TimelineGroupRow } from "./timeline-group-row";
 import type { ItemStatus, TimelineItem } from "./types";
 
 /**
- * Override coarse status when the thread isn't running anymore: a
- * stale "running" must read as "completed" so the chrome stops
- * pulsing. Mirrors the legacy ``getEffectiveStatus`` from
- * ``thinking-steps.tsx``.
+ * Force a stale "running" to read as "completed" once the thread
+ * stops, so the chrome doesn't keep pulsing forever after a stream
+ * is aborted or disconnected.
  */
 function effectiveStatus(status: ItemStatus, isThreadRunning: boolean): ItemStatus {
 	if (status === "running" && !isThreadRunning) return "completed";
@@ -23,54 +22,23 @@ function effectiveStatus(status: ItemStatus, isThreadRunning: boolean): ItemStat
 }
 
 /**
- * True when a tool-call's result is an HITL interrupt the user has
- * NOT decided on yet. The backend marks the step as ``completed``
- * (the tool DID complete — it returned an interrupt as its result),
- * which would normally collapse the timeline. This predicate lets the
- * chrome treat "waiting on user" as still-in-progress.
- *
- * Decided interrupts (``__decided__`` set to "approve"/"reject"/
- * "edit") count as completed for chrome purposes — the resume stream
- * will take it from there.
- */
-function isPendingInterrupt(result: unknown): boolean {
-	if (typeof result !== "object" || result === null) return false;
-	const r = result as { __interrupt__?: unknown; __decided__?: unknown };
-	return r.__interrupt__ === true && r.__decided__ === undefined;
-}
-
-/**
- * The chain-of-thought timeline. The "process" surface in the
- * `body | timeline` split — owns chrome (collapsible header, tree
- * dots/lines, indent, group iteration) and dispatches to per-kind
- * items for the actual content.
- *
- * Rendering responsibilities (kept here, not on items):
- *  - Outer max-width container.
- *  - Collapsible header with state-aware label ("Reviewed" /
- *    "Processing" / current step title) and shimmer.
- *  - Open/close state derived from ``isThreadRunning`` + completion.
- *  - Status dot + vertical connector line per group (delegates the
- *    inner row to ``TimelineGroupRow``).
- *  - Mounting ``PagerChrome`` once at the bottom when the HITL bundle
- *    is active (multi-approval coordination — see
- *    ``hitl/bundle/bundle-context.tsx``).
- *
- * Pure consumption of ``TimelineItem[]`` — does NOT call
- * ``buildTimeline`` itself. The data-renderer adapter does that and
- * passes the items in.
+ * The "process" surface in the body | timeline split. Pure consumer
+ * of ``TimelineItem[]`` — owns the collapsible chrome and tree
+ * indent only. Pending HITL interrupts mount ``HitlApprovalCard`` at
+ * the bottom; the card owns its own decision/pager state.
  */
 export const Timeline: FC<{
 	items: readonly TimelineItem[];
 	isThreadRunning?: boolean;
 }> = ({ items, isThreadRunning = true }) => {
-	const bundle = useHitlBundle();
+	const pendingValue = usePendingInterrupt();
+	const pendingInterrupt = pendingValue?.pendingInterrupt ?? null;
+	const onSubmit = pendingValue?.onSubmit;
+	const hasPending = pendingInterrupt !== null;
 
-	// Apply the runtime ``isThreadRunning`` override to every item once,
-	// up-front, so downstream code (grouping, group rows, item headers,
-	// status dot, all children) sees the corrected coarse status without
-	// having to thread a callback through. ``buildTimeline`` stays pure;
-	// the override is purely a render-time concern that lives here.
+	// Apply the override here so downstream (grouping, headers, dots)
+	// sees the corrected status without threading a callback. Keeps
+	// ``buildTimeline`` pure.
 	const effectiveItems = useMemo<TimelineItem[]>(
 		() =>
 			items.map((it) => ({
@@ -89,29 +57,20 @@ export const Timeline: FC<{
 		[inProgressItem]
 	);
 
-	// Detect a tool-call that's parked on an HITL interrupt the user hasn't
-	// decided yet. Treated as "still in progress" by the chrome so the
-	// timeline doesn't auto-collapse on the user mid-decision (the LangGraph
-	// thread paused, but the agent's work is conceptually unfinished).
-	const pendingInterruptItem = useMemo(
-		() => effectiveItems.find((it) => it.kind === "tool-call" && isPendingInterrupt(it.result)),
-		[effectiveItems]
-	);
-	const pendingInterruptTitle = useMemo(
-		() =>
-			pendingInterruptItem ? resolveItemTitle(pendingInterruptItem, getToolDisplayName) : undefined,
-		[pendingInterruptItem]
-	);
-
-	const allCompleted = useMemo(
+	// "Settled" includes cancelled/errored, not just completed —
+	// rejecting an interrupt leaves items in ``cancelled`` and the
+	// timeline still needs to auto-collapse.
+	const allSettled = useMemo(
 		() =>
 			effectiveItems.length > 0 &&
 			!isThreadRunning &&
-			!pendingInterruptItem &&
-			effectiveItems.every((it) => it.status === "completed"),
-		[effectiveItems, isThreadRunning, pendingInterruptItem]
+			!hasPending &&
+			effectiveItems.every(
+				(it) => it.status === "completed" || it.status === "cancelled" || it.status === "error"
+			),
+		[effectiveItems, isThreadRunning, hasPending]
 	);
-	const isProcessing = (isThreadRunning || !!pendingInterruptItem) && !allCompleted;
+	const isProcessing = (isThreadRunning || hasPending) && !allSettled;
 
 	const [isOpen, setIsOpen] = useState(() => isProcessing);
 	useEffect(() => {
@@ -119,22 +78,19 @@ export const Timeline: FC<{
 			setIsOpen(true);
 			return;
 		}
-		if (allCompleted) {
+		if (allSettled) {
 			setIsOpen(false);
 		}
-	}, [allCompleted, isProcessing]);
+	}, [allSettled, isProcessing]);
 
 	const groups = useMemo(() => groupItems(effectiveItems), [effectiveItems]);
 
-	if (effectiveItems.length === 0) return null;
+	if (effectiveItems.length === 0 && !hasPending) return null;
 
 	const headerText = (() => {
-		if (allCompleted) return "Reviewed";
+		if (allSettled) return "Reviewed";
+		if (hasPending) return "Awaiting your decision";
 		if (inProgressTitle) return inProgressTitle;
-		// Pending HITL: prefer the tool's own name so the user knows WHICH
-		// approval is gating progress (e.g. "Update Notion page") rather
-		// than a generic "Awaiting approval" label.
-		if (pendingInterruptTitle) return pendingInterruptTitle;
 		if (isProcessing) return "Processing";
 		return "Reviewed";
 	})();
@@ -168,16 +124,22 @@ export const Timeline: FC<{
 				>
 					<div className="overflow-hidden">
 						<div className="mt-3 pl-1">
-							{groups.map((group, groupIndex) => (
-								<TimelineGroupRow
-									key={group.parent.id}
-									group={group}
-									parentStatus={group.parent.status}
-									showParentLine={groupIndex < groups.length - 1}
-								/>
-							))}
-
-							{bundle && <PagerChrome />}
+							{groups.map((group, idx) => {
+								const showLine = idx < groups.length - 1 || hasPending;
+								return (
+									<TimelineGroupRow
+										key={group.parent.id}
+										group={group}
+										parentStatus={group.parent.status}
+										showParentLine={showLine}
+									/>
+								);
+							})}
+							{pendingInterrupt && onSubmit && (
+								<div className="pl-5">
+									<HitlApprovalCard pendingInterrupt={pendingInterrupt} onSubmit={onSubmit} />
+								</div>
+							)}
 						</div>
 					</div>
 				</div>

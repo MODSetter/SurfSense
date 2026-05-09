@@ -1,33 +1,33 @@
 import type { TimelineGroup, TimelineItem } from "./types";
 
 /**
- * Group consecutive delegated child items under their parent.
+ * Group delegated child items under their owning ``task`` parent.
  *
- * The contract: the parent of a span is the FIRST item carrying that
- * ``spanId``. Subsequent items with the same ``spanId`` are children.
- * Items with no ``spanId`` are their own parent (no children).
+ * Backend invariant: ``metadata.spanId`` is set only while a ``task``
+ * tool is open, so every non-task item with ``spanId = X`` shares it
+ * with the ``task`` that owns the span. We promote that task to the
+ * group header.
  *
- * For ``task`` delegations specifically, the ``task`` tool-call IS the
- * span owner — its ``spanId`` is set on the call itself, and child
- * items emitted while the subagent is running carry the same ``spanId``.
- * The ``task`` item must therefore become the parent header, NOT a
- * child of itself. This is achieved by treating the FIRST occurrence
- * of any ``spanId`` as the parent; downstream items with the same
- * ``spanId`` are children.
- *
- * Defensive: if the very first item of a stream is a child of a span
- * we haven't seen the parent for yet, it's promoted to a parent so it
- * still renders. Real flows always emit the parent ``task`` first.
- *
- * Pure function. No React, no side effects. Trivially testable.
+ * The owner-missing branch defends against the live-resume window
+ * where the OLD ``task`` wrapper can be superseded while its
+ * children briefly survive — without it, grouping would promote
+ * the first orphan child to parent and visually nest its siblings
+ * under it.
  */
 export function groupItems(items: readonly TimelineItem[]): TimelineGroup[] {
+	const spanOwners = new Set<string>();
+	for (const item of items) {
+		if (item.kind === "tool-call" && item.toolName === "task" && item.spanId) {
+			spanOwners.add(item.spanId);
+		}
+	}
+
 	const groups: TimelineGroup[] = [];
 	const spanParent = new Map<string, TimelineGroup>();
 
 	for (const item of items) {
 		const sid = item.spanId;
-		if (!sid) {
+		if (!sid || !spanOwners.has(sid)) {
 			groups.push({ parent: item, children: [] });
 			continue;
 		}

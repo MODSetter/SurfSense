@@ -41,11 +41,19 @@ export interface HitlDecision {
 
 export type HitlPhase = "pending" | "processing" | "complete" | "rejected";
 
-export interface HitlApprovalCardProps {
+export interface PerToolApprovalCardProps {
 	toolName: string;
 	toolCallId: string;
 	args: Record<string, unknown>;
 	result: InterruptResult;
 }
 
-export type HitlApprovalCard = (props: HitlApprovalCardProps) => ReactNode;
+/**
+ * Type signature for per-tool fallback approval cards (e.g.
+ * ``GenericHitlApproval``, ``DoomLoopApproval``) mounted by
+ * ``FallbackToolBody`` for unregistered HITL tools.
+ *
+ * Distinct from ``HitlApprovalCard`` (the high-level multi/single
+ * chrome) — this is the per-tool body that the chrome wraps.
+ */
+export type PerToolApprovalCard = (props: PerToolApprovalCardProps) => ReactNode;

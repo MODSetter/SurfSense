@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getToolDisplayName } from "@/contracts/enums/toolIcons";
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
-import type { HitlApprovalCard, HitlDecision, InterruptResult } from "../types";
+import type { HitlDecision, InterruptResult, PerToolApprovalCard } from "../types";
 import { useHitlDecision } from "../use-hitl-decision";
 import { useHitlPhase } from "../use-hitl-phase";
 
@@ -248,7 +248,7 @@ function GenericApprovalCardView({
  * guard; this card receives a known ``InterruptResult`` and skips the
  * defensive runtime check.
  */
-export const GenericHitlApproval: HitlApprovalCard = ({ toolName, args, result }) => {
+export const GenericHitlApproval: PerToolApprovalCard = ({ toolName, args, result }) => {
 	const { dispatch } = useHitlDecision();
 	return (
 		<GenericApprovalCardView

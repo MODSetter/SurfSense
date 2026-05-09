@@ -56,7 +56,7 @@ export interface ReasoningItem extends BaseItem {
 export interface ToolCallItem extends BaseItem {
 	kind: "tool-call";
 	toolName: string;
-	/** The actual tool-call ID — used by HITL (bundle membership, ``ToolCallIdProvider``). */
+	/** The actual tool-call ID — passed to per-tool components (e.g. for the Revert button). */
 	toolCallId: string;
 	args: Record<string, unknown>;
 	argsText?: string;

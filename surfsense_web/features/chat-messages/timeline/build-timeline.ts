@@ -1,9 +1,9 @@
 import type { ItemStatus, ReasoningItem, TimelineItem, ToolCallItem } from "./types";
 
 /**
- * The thinking-step shape produced by the streaming pipeline (see
- * ``data-thinking-step`` SSE events). Kept structural here so this
- * builder doesn't depend on the legacy ``thinking-steps.tsx`` file.
+ * Structural shape of the relay's ``data-thinking-step`` payload.
+ * Declared here (not imported) so the builder stays free of the
+ * legacy ``thinking-steps.tsx`` dependency.
  */
 export interface ThinkingStepInput {
 	id: string;
@@ -13,12 +13,7 @@ export interface ThinkingStepInput {
 	metadata?: Record<string, unknown>;
 }
 
-/**
- * The minimum tool-call-part shape we read from message content. We
- * accept ``unknown[]`` and structurally narrow per part — the assistant-
- * ui content type has many shapes, but only ``tool-call`` parts matter
- * here.
- */
+/** Narrowed tool-call shape; the assistant-ui content type is wider. */
 interface ToolCallPart {
 	type: "tool-call";
 	toolCallId: string;
@@ -43,15 +38,101 @@ function asNonEmptyString(v: unknown): string | undefined {
 }
 
 /**
- * Derive coarse status for a tool-call from its result shape. Used
- * when the tool-call has no joined thinking step (orphan path).
+ * True iff THIS tool-call is the actual interrupt request (carries an
+ * ``action_requests[]``), not just a parent ``task`` wrapper that
+ * inherited the propagated ``__interrupt__`` flag. Pending requests
+ * are hidden so ``HitlApprovalCard`` owns the pending UX; the
+ * ``length > 0`` guard keeps parent task wrappers visible so their
+ * children stay indented under the delegation span.
+ */
+function isPendingHitlInterrupt(result: unknown): boolean {
+	if (typeof result !== "object" || result === null) return false;
+	const r = result as {
+		__interrupt__?: unknown;
+		__decided__?: unknown;
+		action_requests?: unknown;
+	};
+	return (
+		r.__interrupt__ === true &&
+		r.__decided__ === undefined &&
+		Array.isArray(r.action_requests) &&
+		r.action_requests.length > 0
+	);
+}
+
+/**
+ * Stable interrupt signal across pre/post decision: the resume flow
+ * spreads the original result and only adds ``__decided__``, so
+ * ``__interrupt__`` alone is the right key.
+ */
+function hasInterruptMarker(result: unknown): boolean {
+	if (typeof result !== "object" || result === null) return false;
+	return (result as { __interrupt__?: unknown }).__interrupt__ === true;
+}
+
+interface ToolCallSlim {
+	toolName: string;
+	toolCallId: string;
+	result?: unknown;
+	spanId?: string;
+}
+
+/**
+ * During the live-resume window the in-memory message holds BOTH the
+ * OLD interrupt-frame parts AND the freshly-streamed resume parts in
+ * a new ``task`` scope. Without this filter we'd render both until
+ * the next reload (where ``filterSupersededAbortedMessages`` drops
+ * the OLD row upstream).
  *
- * - HITL ``__decided__: "reject"``  → ``cancelled``
- * - Has any result                  → ``completed``
- * - No result yet                   → ``running``
- *
- * The per-tool component picks its own visual state from the result;
- * this is only the timeline chrome's coarse signal.
+ * A tool-call is "interrupt-affected" when it either carries
+ * ``__interrupt__`` directly or sits in a span that contains one. An
+ * affected call is superseded iff a later same-name call in a
+ * different scope exists. The conservative branch (no successor)
+ * preserves rejects that ended the run with no replacement.
+ */
+function collectSupersededToolCallIds(content: readonly unknown[]): Set<string> {
+	const slims: ToolCallSlim[] = [];
+	for (const part of content) {
+		if (!isToolCallPart(part)) continue;
+		slims.push({
+			toolName: part.toolName,
+			toolCallId: part.toolCallId,
+			result: part.result,
+			spanId: asNonEmptyString(part.metadata?.spanId),
+		});
+	}
+
+	const interruptedSpans = new Set<string>();
+	for (const tc of slims) {
+		if (!hasInterruptMarker(tc.result)) continue;
+		if (tc.spanId) interruptedSpans.add(tc.spanId);
+	}
+
+	const superseded = new Set<string>();
+	for (let i = 0; i < slims.length; i++) {
+		const tc = slims[i];
+		const inInterruptedSpan = tc.spanId !== undefined && interruptedSpans.has(tc.spanId);
+		const isDirectInterrupt = hasInterruptMarker(tc.result);
+		if (!inInterruptedSpan && !isDirectInterrupt) continue;
+
+		for (let j = i + 1; j < slims.length; j++) {
+			// Both-undefined counts as different scopes so standalone
+			// HITL tools (no delegation) get caught.
+			const sameSpan = tc.spanId !== undefined && slims[j].spanId === tc.spanId;
+			if (slims[j].toolName === tc.toolName && !sameSpan) {
+				superseded.add(tc.toolCallId);
+				break;
+			}
+		}
+	}
+
+	return superseded;
+}
+
+/**
+ * Coarse status for orphan tool-calls (no joined thinking step). The
+ * per-tool body picks its own visual state from ``result``; this
+ * only feeds the chrome dot/header.
  */
 function deriveToolCallStatus(result: unknown): ItemStatus {
 	if (!result) return "running";
@@ -68,119 +149,30 @@ function mapStepStatus(status: ThinkingStepInput["status"]): ItemStatus {
 }
 
 /**
- * True when a tool-call's result carries an HITL interrupt. Catches
- * both pre-decision (``__interrupt__: true``) and post-decision
- * (``__interrupt__: true, __decided__: …``) states — the resume
- * flow's decision-application spreads the original result and only
- * adds ``__decided__``, so ``__interrupt__`` alone is the stable
- * signal.
- */
-function isInterruptInResult(result: unknown): boolean {
-	if (typeof result !== "object" || result === null) return false;
-	return (result as { __interrupt__?: unknown }).__interrupt__ === true;
-}
-
-/**
- * Build the set of tool-call ids that have been superseded by the
- * resume stream's continuation.
- *
- * The challenge: during the live resume window, the in-memory message
- * holds BOTH the rehydrated interrupt-frame parts (the OLD ``task`` +
- * its inner ``update_notion_page`` whose result has ``__decided__``)
- * AND the freshly-streamed resume parts (a NEW ``task`` + a NEW
- * ``update_notion_page`` with the actual success result). We need to
- * drop the entire OLD delegation chain so only the NEW one renders.
- *
- * Two-stage detection:
- *
- * 1. **Identify "interrupted spans"** — any spanId that contains at
- *    least one tool-call whose ``result.__interrupt__`` is true. This
- *    captures both the inner decided tool and its outer ``task``
- *    wrapper (which itself has no result but shares the spanId).
- *    Without this the wrapper survives as an orphan parent — the
- *    stray "Notion" row we saw post-approve.
- *
- * 2. **Mark a tool-call as superseded** when (a) it sits in an
- *    interrupted span OR carries the interrupt marker directly, AND
- *    (b) a later tool-call with the same ``toolName`` in a DIFFERENT
- *    span exists. The "different span" guard prevents self-supersession
- *    within the same delegation episode.
- *
- * Mirrors the message-level rule in
- * ``filterSupersededAbortedMessages`` but at the part level — same
- * data-shape problem (interrupt frame + resume continuation cohabiting
- * one in-memory message) one level down.
- *
- * Conservative: an interrupted tool-call with NO later same-named
- * different-span successor stays (e.g. a reject that ended the run, a
- * never-resumed decision).
- */
-function collectSupersededToolCallIds(content: readonly unknown[]): Set<string> {
-	const toolCallParts: ToolCallPart[] = [];
-	for (const part of content) {
-		if (isToolCallPart(part)) toolCallParts.push(part);
-	}
-
-	const interruptedSpans = new Set<string>();
-	for (const part of toolCallParts) {
-		if (!isInterruptInResult(part.result)) continue;
-		const sid = asNonEmptyString(part.metadata?.spanId);
-		if (sid) interruptedSpans.add(sid);
-	}
-
-	const superseded = new Set<string>();
-	for (let i = 0; i < toolCallParts.length; i++) {
-		const part = toolCallParts[i];
-		const sid = asNonEmptyString(part.metadata?.spanId);
-		const inInterruptedSpan = sid !== undefined && interruptedSpans.has(sid);
-		const isDirectInterrupt = isInterruptInResult(part.result);
-		if (!inInterruptedSpan && !isDirectInterrupt) continue;
-
-		for (let j = i + 1; j < toolCallParts.length; j++) {
-			const jsid = asNonEmptyString(toolCallParts[j].metadata?.spanId);
-			// Both-undefined counts as "different scopes" so standalone
-			// HITL tools (no delegation, no spanId) get caught. Naive
-			// ``jsid !== sid`` misses them since ``undefined !==
-			// undefined`` is false.
-			const sameSpan = sid !== undefined && jsid === sid;
-			if (toolCallParts[j].toolName === part.toolName && !sameSpan) {
-				superseded.add(part.toolCallId);
-				break;
-			}
-		}
-	}
-
-	return superseded;
-}
-
-/**
- * Build the timeline's flat ``TimelineItem[]`` from thinking steps +
- * message content tool-calls.
- *
- * 1. Index tool-call parts by ``metadata.thinkingStepId`` (O(1) join).
- * 2. Walk thinking steps in order. Joined → ``ToolCallItem``;
- *    unjoined → ``ReasoningItem``.
- * 3. Append unjoined tool-calls as orphan ``ToolCallItem``s (legacy
- *    history pre-``thinkingStepId``).
- *
- * Pure: no React, no I/O. ``result`` is forwarded verbatim — per-tool
- * components own its discrimination. ``isThreadRunning`` lives in
- * ``timeline.tsx`` as a runtime override.
+ * Pure builder: thinking steps + message content → ``TimelineItem[]``.
+ * Joins tool-calls to thinking steps via ``metadata.thinkingStepId``,
+ * appends unjoined tool-calls as orphans, drops superseded
+ * interrupt-frame parts and pending HITL requests (those are owned
+ * by ``HitlApprovalCard``). ``result`` is forwarded verbatim so
+ * per-tool bodies can discriminate.
  */
 export function buildTimeline(
 	thinkingSteps: readonly ThinkingStepInput[],
 	content: readonly unknown[] | undefined
 ): TimelineItem[] {
 	const toolByStepId = new Map<string, ToolCallPart>();
+	const supersededStepIds = new Set<string>();
 	const consumedToolCallIds = new Set<string>();
-	const supersededToolCallIds = content
-		? collectSupersededToolCallIds(content)
-		: new Set<string>();
+	const superseded = content ? collectSupersededToolCallIds(content) : new Set<string>();
 
 	if (content) {
 		for (const part of content) {
 			if (!isToolCallPart(part)) continue;
 			const tid = asNonEmptyString(part.metadata?.thinkingStepId);
+			if (superseded.has(part.toolCallId)) {
+				if (tid) supersededStepIds.add(tid);
+				continue;
+			}
 			if (tid) toolByStepId.set(tid, part);
 		}
 	}
@@ -188,15 +180,14 @@ export function buildTimeline(
 	const items: TimelineItem[] = [];
 
 	for (const step of thinkingSteps) {
+		// Drop the step alongside its superseded tool-call, otherwise
+		// it'd render as an orphan reasoning row with the OLD title.
+		if (supersededStepIds.has(step.id)) continue;
+
 		const stepSpanId = asNonEmptyString(step.metadata?.spanId);
 		const joined = toolByStepId.get(step.id);
 
-		// Drop the step entirely when it joins a superseded tool-call:
-		// the resume stream has emitted a fresh same-named tool-call
-		// (with its own thinking step) that takes over the row.
-		// Without this, the timeline shows two "Notion → Update
-		// Notion page" groups during the live resume window.
-		if (joined && supersededToolCallIds.has(joined.toolCallId)) {
+		if (joined && isPendingHitlInterrupt(joined.result)) {
 			consumedToolCallIds.add(joined.toolCallId);
 			continue;
 		}
@@ -236,7 +227,8 @@ export function buildTimeline(
 		for (const part of content) {
 			if (!isToolCallPart(part)) continue;
 			if (consumedToolCallIds.has(part.toolCallId)) continue;
-			if (supersededToolCallIds.has(part.toolCallId)) continue;
+			if (superseded.has(part.toolCallId)) continue;
+			if (isPendingHitlInterrupt(part.result)) continue;
 			const orphan: ToolCallItem = {
 				kind: "tool-call",
 				id: part.toolCallId,

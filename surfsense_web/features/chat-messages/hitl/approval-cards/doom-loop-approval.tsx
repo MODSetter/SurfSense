@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import type { HitlApprovalCard, HitlDecision, InterruptResult } from "../types";
+import type { HitlDecision, InterruptResult, PerToolApprovalCard } from "../types";
 import { isInterruptResult } from "../types";
 import { useHitlDecision } from "../use-hitl-decision";
 import { useHitlPhase } from "../use-hitl-phase";
@@ -178,7 +178,7 @@ export function isDoomLoopInterrupt(result: unknown): boolean {
  * ``isDoomLoopInterrupt(result)`` is true. Caller is responsible for
  * the discrimination; this card receives a known ``InterruptResult``.
  */
-export const DoomLoopApproval: HitlApprovalCard = ({ toolName, args, result }) => {
+export const DoomLoopApproval: PerToolApprovalCard = ({ toolName, args, result }) => {
 	const { dispatch } = useHitlDecision();
 	return (
 		<DoomLoopCardView
