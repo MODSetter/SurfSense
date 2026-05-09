@@ -116,7 +116,7 @@ Test individual components in isolation using Playwright Component Testing.
 npm init playwright@latest -- --ct
 ```
 
-For comprehensive component testing patterns including mounting, props, events, slots, mocking, and framework-specific examples (React, Vue, Svelte), see **[component-testing.md](../testing-patterns/component-testing.md)**.
+For comprehensive component testing patterns including mounting, props, events, slots, mocking, and framework-specific examples, see **[component-testing.md](../testing-patterns/component-testing.md)**.
 
 ## API Tests
 

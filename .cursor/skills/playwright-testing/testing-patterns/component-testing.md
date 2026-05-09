@@ -17,15 +17,6 @@
 ```bash
 # React
 npm init playwright@latest -- --ct
-
-# Vue
-npm init playwright@latest -- --ct
-
-# Svelte
-npm init playwright@latest -- --ct
-
-# Solid
-npm init playwright@latest -- --ct
 ```
 
 ### Configuration
@@ -317,24 +308,6 @@ test("renders children", async ({ mount }) => {
 });
 ```
 
-### Testing Named Slots (Vue)
-
-```tsx
-// Vue component with slots
-test("renders named slots", async ({ mount }) => {
-  const component = await mount(Modal, {
-    slots: {
-      header: "<h2>Modal Title</h2>",
-      default: "<p>Modal content</p>",
-      footer: "<button>Close</button>",
-    },
-  });
-
-  await expect(component.getByRole("heading")).toHaveText("Modal Title");
-  await expect(component.getByRole("button")).toHaveText("Close");
-});
-```
-
 ### Testing Render Props
 
 ```tsx
@@ -446,41 +419,6 @@ test("uses context", async ({ mount }) => {
   );
 
   await expect(component).toContainText("Hello, Test");
-});
-```
-
-### Vue Testing
-
-```tsx
-import { test, expect } from "@playwright/experimental-ct-vue";
-import MyInput from "@/components/MyInput.vue";
-
-// With v-model
-test("v-model binding", async ({ mount }) => {
-  let modelValue = "";
-  const component = await mount(MyInput, {
-    props: {
-      modelValue,
-      "onUpdate:modelValue": (v: string) => (modelValue = v),
-    },
-  });
-
-  await component.locator("input").fill("test");
-  expect(modelValue).toBe("test");
-});
-```
-
-### Svelte Testing
-
-```tsx
-import { test, expect } from "@playwright/experimental-ct-svelte";
-import Counter from "./Counter.svelte";
-
-test("Svelte component", async ({ mount }) => {
-  const component = await mount(Counter, { props: { initialCount: 5 } });
-  await expect(component.getByTestId("count")).toHaveText("5");
-  await component.getByRole("button", { name: "+" }).click();
-  await expect(component.getByTestId("count")).toHaveText("6");
 });
 ```
 

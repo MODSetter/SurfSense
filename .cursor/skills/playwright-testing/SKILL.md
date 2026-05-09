@@ -224,8 +224,6 @@ What are you doing?
 │
 ├─ Framework-specific testing?
 │  ├─ React app → frameworks/react.md
-│  ├─ Angular app → frameworks/angular.md
-│  ├─ Vue/Nuxt app → frameworks/vue.md
 │  └─ Next.js app → frameworks/nextjs.md
 │
 ├─ Authentication testing?
