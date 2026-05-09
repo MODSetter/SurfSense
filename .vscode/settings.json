@@ -1,4 +1,9 @@
 {
 	"biome.configurationPath": "./surfsense_web/biome.json",
-	"deepscan.ignoreConfirmWarning": true
+	"deepscan.ignoreConfirmWarning": true,
+	"python.defaultInterpreterPath": "${workspaceFolder}/surfsense_backend/.venv/bin/python",
+	"basedpyright.analysis.extraPaths": [
+		"${workspaceFolder}/surfsense_backend"
+	],
+	"python-envs.pythonProjects": []
 }

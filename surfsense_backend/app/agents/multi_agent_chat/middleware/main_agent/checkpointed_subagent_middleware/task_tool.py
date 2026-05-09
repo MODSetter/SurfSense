@@ -20,6 +20,7 @@ from langgraph.types import Command
 
 from .config import (
     consume_surfsense_resume,
+    drain_parent_null_resume,
     has_surfsense_resume,
     subagent_invoke_config,
 )
@@ -157,6 +158,9 @@ def build_task_tool_with_parent_config(
                 )
             expected = hitlrequest_action_count(pending_value)
             resume_value = fan_out_decisions_to_match(resume_value, expected)
+            # Prevent the parent's resume payload from leaking into subagent
+            # interrupts via langgraph's parent_scratchpad fallback.
+            drain_parent_null_resume(runtime)
             result = subagent.invoke(
                 build_resume_command(resume_value, pending_id),
                 config=sub_config,
@@ -221,6 +225,9 @@ def build_task_tool_with_parent_config(
                 )
             expected = hitlrequest_action_count(pending_value)
             resume_value = fan_out_decisions_to_match(resume_value, expected)
+            # Prevent the parent's resume payload from leaking into subagent
+            # interrupts via langgraph's parent_scratchpad fallback.
+            drain_parent_null_resume(runtime)
             result = await subagent.ainvoke(
                 build_resume_command(resume_value, pending_id),
                 config=sub_config,

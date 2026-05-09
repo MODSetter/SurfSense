@@ -10,13 +10,13 @@ import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StepSeparatorDataUI } from "@/components/assistant-ui/step-separator";
-import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import {
 	createTokenUsageStore,
 	type TokenUsageData,
 	TokenUsageProvider,
 } from "@/components/assistant-ui/token-usage-context";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
+import { TimelineDataUI } from "@/features/chat-messages/timeline";
 import {
 	addStepSeparator,
 	addToolCall,
@@ -228,7 +228,8 @@ export function FreeChatPage() {
 								parsed.toolName,
 								{},
 								false,
-								parsed.langchainToolCallId
+								parsed.langchainToolCallId,
+								parsed.metadata
 							);
 							forceFlush();
 							break;
@@ -245,6 +246,7 @@ export function FreeChatPage() {
 									args: parsed.input || {},
 									argsText: finalArgsText,
 									langchainToolCallId: parsed.langchainToolCallId,
+									metadata: parsed.metadata,
 								});
 							} else {
 								addToolCall(
@@ -254,7 +256,8 @@ export function FreeChatPage() {
 									parsed.toolName,
 									parsed.input || {},
 									false,
-									parsed.langchainToolCallId
+									parsed.langchainToolCallId,
+									parsed.metadata
 								);
 								updateToolCall(contentPartsState, parsed.toolCallId, {
 									argsText: finalArgsText,
@@ -268,6 +271,7 @@ export function FreeChatPage() {
 							updateToolCall(contentPartsState, parsed.toolCallId, {
 								result: parsed.output,
 								langchainToolCallId: parsed.langchainToolCallId,
+								metadata: parsed.metadata,
 							});
 							forceFlush();
 							break;
@@ -469,7 +473,7 @@ export function FreeChatPage() {
 	return (
 		<TokenUsageProvider store={tokenUsageStore}>
 			<AssistantRuntimeProvider runtime={runtime}>
-				<ThinkingStepsDataUI />
+				<TimelineDataUI />
 				<StepSeparatorDataUI />
 				<div className="flex h-full flex-col overflow-hidden">
 					<div className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 px-4">

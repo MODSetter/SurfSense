@@ -456,6 +456,8 @@ class VercelStreamingService:
         title: str,
         status: str = "in_progress",
         items: list[str] | None = None,
+        *,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Format a thinking step for chain-of-thought display (SurfSense specific).
@@ -469,15 +471,15 @@ class VercelStreamingService:
         Returns:
             str: SSE formatted thinking step data part
         """
-        return self.format_data(
-            "thinking-step",
-            {
-                "id": step_id,
-                "title": title,
-                "status": status,
-                "items": items or [],
-            },
-        )
+        payload: dict[str, Any] = {
+            "id": step_id,
+            "title": title,
+            "status": status,
+            "items": items or [],
+        }
+        if metadata:
+            payload["metadata"] = metadata
+        return self.format_data("thinking-step", payload)
 
     def format_thread_title_update(self, thread_id: int, title: str) -> str:
         """
@@ -601,6 +603,7 @@ class VercelStreamingService:
         tool_name: str,
         *,
         langchain_tool_call_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Format the start of tool input streaming.
@@ -608,15 +611,14 @@ class VercelStreamingService:
         Args:
             tool_call_id: The unique tool call identifier. May be EITHER the
                 synthetic ``call_<run_id>`` id derived from LangGraph
-                ``run_id`` (legacy / ``SURFSENSE_ENABLE_STREAM_PARITY_V2``
-                OFF, or the unmatched-fallback path under parity_v2) OR
-                the authoritative LangChain ``tool_call.id`` (parity_v2
-                path: when the provider streams ``tool_call_chunks`` we
-                register the ``index`` and reuse the lc-id as the card
-                id so live ``tool-input-delta`` events can be routed
-                without a downstream join). Either way, the same id is
-                preserved across ``tool-input-start`` / ``-delta`` /
-                ``-available`` / ``tool-output-available`` for one call.
+                ``run_id`` (unmatched chunk fallback when no ``index`` was
+                registered) OR the authoritative LangChain ``tool_call.id``
+                (when the provider streams ``tool_call_chunks`` we register
+                the ``index`` and reuse the lc-id as the card id so live
+                ``tool-input-delta`` events route without a downstream join).
+                Either way, the same id is preserved across
+                ``tool-input-start`` / ``-delta`` / ``-available`` /
+                ``tool-output-available`` for one call.
             tool_name: The name of the tool being called.
             langchain_tool_call_id: Optional authoritative LangChain
                 ``tool_call.id``. When set, surfaces as
@@ -636,6 +638,8 @@ class VercelStreamingService:
         }
         if langchain_tool_call_id:
             payload["langchainToolCallId"] = langchain_tool_call_id
+        if metadata:
+            payload["metadata"] = metadata
         return self._format_sse(payload)
 
     def format_tool_input_delta(self, tool_call_id: str, input_text_delta: str) -> str:
@@ -667,6 +671,7 @@ class VercelStreamingService:
         input_data: dict[str, Any],
         *,
         langchain_tool_call_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Format the completion of tool input.
@@ -692,6 +697,8 @@ class VercelStreamingService:
         }
         if langchain_tool_call_id:
             payload["langchainToolCallId"] = langchain_tool_call_id
+        if metadata:
+            payload["metadata"] = metadata
         return self._format_sse(payload)
 
     def format_tool_output_available(
@@ -700,6 +707,7 @@ class VercelStreamingService:
         output: Any,
         *,
         langchain_tool_call_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Format tool execution output.
@@ -726,6 +734,8 @@ class VercelStreamingService:
         }
         if langchain_tool_call_id:
             payload["langchainToolCallId"] = langchain_tool_call_id
+        if metadata:
+            payload["metadata"] = metadata
         return self._format_sse(payload)
 
     # =========================================================================

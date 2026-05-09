@@ -71,7 +71,10 @@ from app.schemas.new_chat import (
     TokenUsageSummary,
     TurnStatusResponse,
 )
-from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
+from app.tasks.chat.stream_new_chat import (
+    stream_new_chat,
+    stream_resume_chat,
+)
 from app.users import current_active_user
 from app.utils.perf import get_perf_logger
 from app.utils.rbac import check_permission

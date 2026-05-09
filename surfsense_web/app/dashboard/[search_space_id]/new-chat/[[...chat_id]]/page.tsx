@@ -43,13 +43,14 @@ import {
 	type EditMessageDialogChoice,
 } from "@/components/assistant-ui/edit-message-dialog";
 import { StepSeparatorDataUI } from "@/components/assistant-ui/step-separator";
-import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
 	createTokenUsageStore,
 	type TokenUsageData,
 	TokenUsageProvider,
 } from "@/components/assistant-ui/token-usage-context";
+import { type HitlDecision, PendingInterruptProvider } from "@/features/chat-messages/hitl";
+import { TimelineDataUI } from "@/features/chat-messages/timeline";
 import {
 	applyActionLogSse,
 	applyActionLogUpdatedSse,
@@ -63,7 +64,10 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
-import { convertToThreadMessage } from "@/lib/chat/message-utils";
+import {
+	convertToThreadMessage,
+	reconcileInterruptedAssistantMessages,
+} from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
 	looksLikePodcastRequest,
@@ -107,7 +111,6 @@ import {
 	type NewChatUserImagePayload,
 } from "@/lib/chat/user-turn-api-parts";
 import { NotFoundError } from "@/lib/error";
-import { type BundleSubmit, HitlBundleProvider } from "@/lib/hitl";
 import {
 	trackChatBlocked,
 	trackChatCreated,
@@ -126,7 +129,7 @@ const MobileEditorPanel = dynamic(
 );
 const MobileHitlEditPanel = dynamic(
 	() =>
-		import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({
+		import("@/features/chat-messages/hitl").then((m) => ({
 			default: m.MobileHitlEditPanel,
 		})),
 	{ ssr: false }
@@ -395,7 +398,7 @@ export default function NewChatPage() {
 				const memberById = new Map(membersData?.map((m) => [m.user_id, m]) ?? []);
 				const prevById = new Map(prev.map((m) => [m.id, m]));
 
-				return syncedMessages.map((msg) => {
+				return reconcileInterruptedAssistantMessages(syncedMessages).map((msg) => {
 					const member = msg.author_id ? (memberById.get(msg.author_id) ?? null) : null;
 
 					// Preserve existing author info if member lookup fails (e.g., cloned chats)
@@ -622,7 +625,9 @@ export default function NewChatPage() {
 				setCurrentThread(threadData);
 
 				if (messagesResponse.messages && messagesResponse.messages.length > 0) {
-					const loadedMessages = messagesResponse.messages.map(convertToThreadMessage);
+					const loadedMessages = reconcileInterruptedAssistantMessages(
+						messagesResponse.messages
+					).map(convertToThreadMessage);
 					setMessages(loadedMessages);
 
 					for (const msg of messagesResponse.messages) {
@@ -1388,6 +1393,8 @@ export default function NewChatPage() {
 
 			const existingMsg = messages.find((m) => m.id === assistantMsgId);
 			if (existingMsg && Array.isArray(existingMsg.content)) {
+				// See ``ContentPartsState.suppressStepSeparators`` doc.
+				contentPartsState.suppressStepSeparators = true;
 				for (const part of existingMsg.content) {
 					if (typeof part === "object" && part !== null) {
 						const p = part as Record<string, unknown>;
@@ -1402,14 +1409,18 @@ export default function NewChatPage() {
 								toolName: String(p.toolName),
 								args: (p.args as Record<string, unknown>) ?? {},
 								result: p.result as unknown,
-								// Restore argsText so persisted pretty-printed
-								// JSON survives reloads (assistant-ui prefers
-								// supplied argsText over JSON.stringify(args)).
-								// langchainToolCallId restoration also fixes a
-								// pre-existing dropped-id bug on resume.
+								// argsText: assistant-ui prefers it over
+								// JSON.stringify(args), so restoring it keeps
+								// pretty-printed JSON across reloads.
 								...(typeof p.argsText === "string" ? { argsText: p.argsText } : {}),
 								...(typeof p.langchainToolCallId === "string"
 									? { langchainToolCallId: p.langchainToolCallId }
+									: {}),
+								// metadata: spanId / thinkingStepId drive the
+								// timeline's step↔tool join. Dropping these
+								// here orphans every rehydrated tool-call.
+								...(p.metadata && typeof p.metadata === "object"
+									? { metadata: p.metadata as Record<string, unknown> }
 									: {}),
 							});
 							contentPartsState.currentTextPartIndex = -1;
@@ -1729,57 +1740,6 @@ export default function NewChatPage() {
 		window.addEventListener("hitl-decision", handler);
 		return () => window.removeEventListener("hitl-decision", handler);
 	}, [handleResume, pendingInterrupt]);
-
-	// Mirror staged bundle decisions onto the cards visually so prev/next nav
-	// reflects past choices instead of re-prompting. Submit's ``hitl-decision``
-	// handler still runs the actual resume.
-	useEffect(() => {
-		const handler = (e: Event) => {
-			const detail = (e as CustomEvent).detail as {
-				toolCallId: string;
-				decision: {
-					type: string;
-					message?: string;
-					edited_action?: { name: string; args: Record<string, unknown> };
-				};
-			};
-			if (!detail?.toolCallId || !detail?.decision || !pendingInterrupt) return;
-			setMessages((prev) =>
-				prev.map((m) => {
-					if (m.id !== pendingInterrupt.assistantMsgId) return m;
-					const parts = m.content as unknown as Array<Record<string, unknown>>;
-					const newContent = parts.map((part) => {
-						if (part.toolCallId !== detail.toolCallId) return part;
-						if (part.type !== "tool-call") return part;
-						if (typeof part.result !== "object" || part.result === null) return part;
-						if (!("__interrupt__" in (part.result as Record<string, unknown>))) return part;
-						const decided = detail.decision.type as "approve" | "reject" | "edit";
-						if (decided === "edit" && detail.decision.edited_action) {
-							return {
-								...part,
-								args: detail.decision.edited_action.args,
-								argsText: JSON.stringify(detail.decision.edited_action.args, null, 2),
-								result: {
-									...(part.result as Record<string, unknown>),
-									__decided__: decided,
-								},
-							};
-						}
-						return {
-							...part,
-							result: {
-								...(part.result as Record<string, unknown>),
-								__decided__: decided,
-							},
-						};
-					});
-					return { ...m, content: newContent as unknown as ThreadMessageLike["content"] };
-				})
-			);
-		};
-		window.addEventListener("hitl-stage", handler);
-		return () => window.removeEventListener("hitl-stage", handler);
-	}, [pendingInterrupt]);
 
 	// Convert message (pass through since already in correct format)
 	const convertMessage = useCallback(
@@ -2279,7 +2239,7 @@ export default function NewChatPage() {
 		[handleRegenerate, messages, agentActionItems]
 	);
 
-	const handleBundleSubmit = useCallback<BundleSubmit>((orderedDecisions) => {
+	const handleApprovalSubmit = useCallback((orderedDecisions: HitlDecision[]) => {
 		window.dispatchEvent(
 			new CustomEvent("hitl-decision", { detail: { decisions: orderedDecisions } })
 		);
@@ -2353,11 +2313,11 @@ export default function NewChatPage() {
 	return (
 		<TokenUsageProvider store={tokenUsageStore}>
 			<AssistantRuntimeProvider runtime={runtime}>
-				<ThinkingStepsDataUI />
+				<TimelineDataUI />
 				<StepSeparatorDataUI />
-				<HitlBundleProvider
-					toolCallIds={pendingInterrupt?.bundleToolCallIds ?? null}
-					onSubmit={handleBundleSubmit}
+				<PendingInterruptProvider
+					pendingInterrupt={pendingInterrupt}
+					onSubmit={handleApprovalSubmit}
 				>
 					<div key={searchSpaceId} className="flex h-full overflow-hidden">
 						<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -2367,7 +2327,7 @@ export default function NewChatPage() {
 						<MobileEditorPanel />
 						<MobileHitlEditPanel />
 					</div>
-				</HitlBundleProvider>
+				</PendingInterruptProvider>
 				<EditMessageDialog
 					open={editDialogState !== null}
 					onOpenChange={(open) => {
