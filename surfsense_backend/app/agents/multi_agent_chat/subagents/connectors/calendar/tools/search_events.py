@@ -16,6 +16,14 @@ _CALENDAR_TYPES = [
 ]
 
 
+def _to_calendar_boundary(value: str, *, is_end: bool) -> str:
+    """Promote a bare YYYY-MM-DD to RFC3339 with a day-edge time, leave full datetimes alone."""
+    if "T" in value:
+        return value
+    time = "23:59:59" if is_end else "00:00:00"
+    return f"{value}T{time}Z"
+
+
 def create_search_calendar_events_tool(
     db_session: AsyncSession | None = None,
     search_space_id: int | None = None,
@@ -61,22 +69,47 @@ def create_search_calendar_events_tool(
                     "message": "No Google Calendar connector found. Please connect Google Calendar in your workspace settings.",
                 }
 
-            creds = _build_credentials(connector)
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+            ):
+                cca_id = connector.config.get("composio_connected_account_id")
+                if not cca_id:
+                    return {
+                        "status": "error",
+                        "message": "Composio connected account ID not found for this connector.",
+                    }
 
-            from app.connectors.google_calendar_connector import GoogleCalendarConnector
+                from app.services.composio_service import ComposioService
 
-            cal = GoogleCalendarConnector(
-                credentials=creds,
-                session=db_session,
-                user_id=user_id,
-                connector_id=connector.id,
-            )
+                events_raw, error = await ComposioService().get_calendar_events(
+                    connected_account_id=cca_id,
+                    entity_id=f"surfsense_{user_id}",
+                    time_min=_to_calendar_boundary(start_date, is_end=False),
+                    time_max=_to_calendar_boundary(end_date, is_end=True),
+                    max_results=max_results,
+                )
+                if not events_raw and not error:
+                    error = "No events found in the specified date range."
+            else:
+                creds = _build_credentials(connector)
 
-            events_raw, error = await cal.get_all_primary_calendar_events(
-                start_date=start_date,
-                end_date=end_date,
-                max_results=max_results,
-            )
+                from app.connectors.google_calendar_connector import (
+                    GoogleCalendarConnector,
+                )
+
+                cal = GoogleCalendarConnector(
+                    credentials=creds,
+                    session=db_session,
+                    user_id=user_id,
+                    connector_id=connector.id,
+                )
+
+                events_raw, error = await cal.get_all_primary_calendar_events(
+                    start_date=start_date,
+                    end_date=end_date,
+                    max_results=max_results,
+                )
 
             if error:
                 if (

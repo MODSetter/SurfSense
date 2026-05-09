@@ -47,7 +47,9 @@ def test_extract_text_content_ignores_thinking_blocks_and_keeps_markdown_text() 
     assert extract_text_content(content).strip() == markdown.strip()
 
 
-def test_extract_text_content_returns_empty_when_only_thinking_blocks_are_present() -> None:
+def test_extract_text_content_returns_empty_when_only_thinking_blocks_are_present() -> (
+    None
+):
     content = [
         {"type": "thinking", "thinking": "No durable fact."},
         {"type": "thinking", "thinking": "Return no update."},

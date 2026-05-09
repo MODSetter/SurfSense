@@ -1,6 +1,6 @@
 [project]
 name = "surf-new-backend"
-version = "0.0.22"
+version = "0.0.23"
 description = "SurfSense Backend"
 requires-python = ">=3.12"
 dependencies = [

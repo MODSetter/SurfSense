@@ -192,20 +192,62 @@ def create_update_calendar_event_tool(
                 f"Updating calendar event: event_id='{final_event_id}', connector={actual_connector_id}"
             )
 
+            has_changes = any(
+                v is not None
+                for v in (
+                    final_new_summary,
+                    final_new_start_datetime,
+                    final_new_end_datetime,
+                    final_new_description,
+                    final_new_location,
+                    final_new_attendees,
+                )
+            )
+            if not has_changes:
+                return {
+                    "status": "error",
+                    "message": "No changes specified. Please provide at least one field to update.",
+                }
+
             if (
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
             ):
-                from app.utils.google_credentials import build_composio_credentials
-
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    creds = build_composio_credentials(cca_id)
-                else:
+                if not cca_id:
                     return {
                         "status": "error",
                         "message": "Composio connected account ID not found for this connector.",
                     }
+
+                from app.services.composio_service import ComposioService
+
+                tz_for_composio: str | None = None
+                if final_new_start_datetime is not None and not _is_date_only(
+                    final_new_start_datetime
+                ):
+                    tz_for_composio = (
+                        context.get("timezone") if isinstance(context, dict) else None
+                    )
+
+                _, html_link, error = await ComposioService().update_calendar_event(
+                    connected_account_id=cca_id,
+                    entity_id=f"surfsense_{user_id}",
+                    event_id=final_event_id,
+                    summary=final_new_summary,
+                    start_time=final_new_start_datetime,
+                    end_time=final_new_end_datetime,
+                    timezone=tz_for_composio,
+                    description=final_new_description,
+                    location=final_new_location,
+                    attendees=final_new_attendees,
+                )
+                if error:
+                    return {"status": "error", "message": error}
+                updated = {"htmlLink": html_link}
+                logger.info(
+                    f"Calendar event updated via Composio: event_id={final_event_id}"
+                )
             else:
                 config_data = dict(connector.config)
 
@@ -235,81 +277,79 @@ def create_update_calendar_event_tool(
                     expiry=datetime.fromisoformat(exp) if exp else None,
                 )
 
-            service = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: build("calendar", "v3", credentials=creds)
-            )
-
-            update_body: dict[str, Any] = {}
-            if final_new_summary is not None:
-                update_body["summary"] = final_new_summary
-            if final_new_start_datetime is not None:
-                update_body["start"] = _build_time_body(
-                    final_new_start_datetime, context
+                service = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: build("calendar", "v3", credentials=creds)
                 )
-            if final_new_end_datetime is not None:
-                update_body["end"] = _build_time_body(final_new_end_datetime, context)
-            if final_new_description is not None:
-                update_body["description"] = final_new_description
-            if final_new_location is not None:
-                update_body["location"] = final_new_location
-            if final_new_attendees is not None:
-                update_body["attendees"] = [
-                    {"email": e.strip()} for e in final_new_attendees if e.strip()
-                ]
 
-            if not update_body:
-                return {
-                    "status": "error",
-                    "message": "No changes specified. Please provide at least one field to update.",
-                }
-
-            try:
-                updated = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: (
-                        service.events()
-                        .patch(
-                            calendarId="primary",
-                            eventId=final_event_id,
-                            body=update_body,
-                        )
-                        .execute()
-                    ),
-                )
-            except Exception as api_err:
-                from googleapiclient.errors import HttpError
-
-                if isinstance(api_err, HttpError) and api_err.resp.status == 403:
-                    logger.warning(
-                        f"Insufficient permissions for connector {actual_connector_id}: {api_err}"
+                update_body: dict[str, Any] = {}
+                if final_new_summary is not None:
+                    update_body["summary"] = final_new_summary
+                if final_new_start_datetime is not None:
+                    update_body["start"] = _build_time_body(
+                        final_new_start_datetime, context
                     )
-                    try:
-                        from sqlalchemy.orm.attributes import flag_modified
+                if final_new_end_datetime is not None:
+                    update_body["end"] = _build_time_body(
+                        final_new_end_datetime, context
+                    )
+                if final_new_description is not None:
+                    update_body["description"] = final_new_description
+                if final_new_location is not None:
+                    update_body["location"] = final_new_location
+                if final_new_attendees is not None:
+                    update_body["attendees"] = [
+                        {"email": e.strip()} for e in final_new_attendees if e.strip()
+                    ]
 
-                        _res = await db_session.execute(
-                            select(SearchSourceConnector).where(
-                                SearchSourceConnector.id == actual_connector_id
+                try:
+                    updated = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: (
+                            service.events()
+                            .patch(
+                                calendarId="primary",
+                                eventId=final_event_id,
+                                body=update_body,
                             )
-                        )
-                        _conn = _res.scalar_one_or_none()
-                        if _conn and not _conn.config.get("auth_expired"):
-                            _conn.config = {**_conn.config, "auth_expired": True}
-                            flag_modified(_conn, "config")
-                            await db_session.commit()
-                    except Exception:
-                        logger.warning(
-                            "Failed to persist auth_expired for connector %s",
-                            actual_connector_id,
-                            exc_info=True,
-                        )
-                    return {
-                        "status": "insufficient_permissions",
-                        "connector_id": actual_connector_id,
-                        "message": "This Google Calendar account needs additional permissions. Please re-authenticate in connector settings.",
-                    }
-                raise
+                            .execute()
+                        ),
+                    )
+                except Exception as api_err:
+                    from googleapiclient.errors import HttpError
 
-            logger.info(f"Calendar event updated: event_id={final_event_id}")
+                    if isinstance(api_err, HttpError) and api_err.resp.status == 403:
+                        logger.warning(
+                            f"Insufficient permissions for connector {actual_connector_id}: {api_err}"
+                        )
+                        try:
+                            from sqlalchemy.orm.attributes import flag_modified
+
+                            _res = await db_session.execute(
+                                select(SearchSourceConnector).where(
+                                    SearchSourceConnector.id == actual_connector_id
+                                )
+                            )
+                            _conn = _res.scalar_one_or_none()
+                            if _conn and not _conn.config.get("auth_expired"):
+                                _conn.config = {**_conn.config, "auth_expired": True}
+                                flag_modified(_conn, "config")
+                                await db_session.commit()
+                        except Exception:
+                            logger.warning(
+                                "Failed to persist auth_expired for connector %s",
+                                actual_connector_id,
+                                exc_info=True,
+                            )
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": actual_connector_id,
+                            "message": "This Google Calendar account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    raise
+
+                logger.info(
+                    f"Calendar event updated via Google API: event_id={final_event_id}"
+                )
 
             kb_message_suffix = ""
             if document_id is not None:

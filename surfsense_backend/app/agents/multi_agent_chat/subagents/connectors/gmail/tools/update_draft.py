@@ -192,16 +192,51 @@ def create_update_gmail_draft_tool(
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
             ):
-                from app.utils.google_credentials import build_composio_credentials
-
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    creds = build_composio_credentials(cca_id)
-                else:
+                if not cca_id:
                     return {
                         "status": "error",
                         "message": "Composio connected account ID not found for this Gmail connector.",
                     }
+
+                if not final_draft_id:
+                    return {
+                        "status": "error",
+                        "message": (
+                            "Could not find this draft in Gmail. "
+                            "It may have already been sent or deleted."
+                        ),
+                    }
+
+                from app.services.composio_service import ComposioService
+
+                (
+                    new_draft_id,
+                    new_message_id,
+                    error,
+                ) = await ComposioService().update_gmail_draft(
+                    connected_account_id=cca_id,
+                    entity_id=f"surfsense_{user_id}",
+                    draft_id=final_draft_id,
+                    to=final_to or None,
+                    subject=final_subject,
+                    body=final_body,
+                    cc=final_cc,
+                    bcc=final_bcc,
+                )
+                if error:
+                    if "not found" in error.lower() or "no longer" in error.lower():
+                        return {
+                            "status": "error",
+                            "message": "Draft no longer exists in Gmail. It may have been sent or deleted.",
+                        }
+                    return {"status": "error", "message": error}
+
+                updated = {
+                    "id": new_draft_id or final_draft_id,
+                    "message": {"id": new_message_id} if new_message_id else {},
+                }
+                logger.info(f"Gmail draft updated via Composio: id={updated.get('id')}")
             else:
                 from google.oauth2.credentials import Credentials
 
@@ -239,88 +274,90 @@ def create_update_gmail_draft_tool(
                     expiry=datetime.fromisoformat(exp) if exp else None,
                 )
 
-            from googleapiclient.discovery import build
+                from googleapiclient.discovery import build
 
-            gmail_service = build("gmail", "v1", credentials=creds)
+                gmail_service = build("gmail", "v1", credentials=creds)
 
-            # Resolve draft_id if not already available
-            if not final_draft_id:
-                logger.info(
-                    f"draft_id not in metadata, looking up via drafts.list for message_id={message_id}"
-                )
-                final_draft_id = await _find_draft_id_by_message(
-                    gmail_service, message_id
-                )
-
-            if not final_draft_id:
-                return {
-                    "status": "error",
-                    "message": (
-                        "Could not find this draft in Gmail. "
-                        "It may have already been sent or deleted."
-                    ),
-                }
-
-            message = MIMEText(final_body)
-            if final_to:
-                message["to"] = final_to
-            message["subject"] = final_subject
-            if final_cc:
-                message["cc"] = final_cc
-            if final_bcc:
-                message["bcc"] = final_bcc
-            raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-
-            try:
-                updated = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: (
-                        gmail_service.users()
-                        .drafts()
-                        .update(
-                            userId="me",
-                            id=final_draft_id,
-                            body={"message": {"raw": raw}},
-                        )
-                        .execute()
-                    ),
-                )
-            except Exception as api_err:
-                from googleapiclient.errors import HttpError
-
-                if isinstance(api_err, HttpError) and api_err.resp.status == 403:
-                    logger.warning(
-                        f"Insufficient permissions for connector {connector.id}: {api_err}"
+                # Resolve draft_id if not already available
+                if not final_draft_id:
+                    logger.info(
+                        f"draft_id not in metadata, looking up via drafts.list for message_id={message_id}"
                     )
-                    try:
-                        from sqlalchemy.orm.attributes import flag_modified
+                    final_draft_id = await _find_draft_id_by_message(
+                        gmail_service, message_id
+                    )
 
-                        if not connector.config.get("auth_expired"):
-                            connector.config = {
-                                **connector.config,
-                                "auth_expired": True,
-                            }
-                            flag_modified(connector, "config")
-                            await db_session.commit()
-                    except Exception:
-                        logger.warning(
-                            "Failed to persist auth_expired for connector %s",
-                            connector.id,
-                            exc_info=True,
-                        )
-                    return {
-                        "status": "insufficient_permissions",
-                        "connector_id": connector.id,
-                        "message": "This Gmail account needs additional permissions. Please re-authenticate in connector settings.",
-                    }
-                if isinstance(api_err, HttpError) and api_err.resp.status == 404:
+                if not final_draft_id:
                     return {
                         "status": "error",
-                        "message": "Draft no longer exists in Gmail. It may have been sent or deleted.",
+                        "message": (
+                            "Could not find this draft in Gmail. "
+                            "It may have already been sent or deleted."
+                        ),
                     }
-                raise
 
-            logger.info(f"Gmail draft updated: id={updated.get('id')}")
+                message = MIMEText(final_body)
+                if final_to:
+                    message["to"] = final_to
+                message["subject"] = final_subject
+                if final_cc:
+                    message["cc"] = final_cc
+                if final_bcc:
+                    message["bcc"] = final_bcc
+                raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+                try:
+                    updated = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: (
+                            gmail_service.users()
+                            .drafts()
+                            .update(
+                                userId="me",
+                                id=final_draft_id,
+                                body={"message": {"raw": raw}},
+                            )
+                            .execute()
+                        ),
+                    )
+                except Exception as api_err:
+                    from googleapiclient.errors import HttpError
+
+                    if isinstance(api_err, HttpError) and api_err.resp.status == 403:
+                        logger.warning(
+                            f"Insufficient permissions for connector {connector.id}: {api_err}"
+                        )
+                        try:
+                            from sqlalchemy.orm.attributes import flag_modified
+
+                            if not connector.config.get("auth_expired"):
+                                connector.config = {
+                                    **connector.config,
+                                    "auth_expired": True,
+                                }
+                                flag_modified(connector, "config")
+                                await db_session.commit()
+                        except Exception:
+                            logger.warning(
+                                "Failed to persist auth_expired for connector %s",
+                                connector.id,
+                                exc_info=True,
+                            )
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": connector.id,
+                            "message": "This Gmail account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    if isinstance(api_err, HttpError) and api_err.resp.status == 404:
+                        return {
+                            "status": "error",
+                            "message": "Draft no longer exists in Gmail. It may have been sent or deleted.",
+                        }
+                    raise
+
+                logger.info(
+                    f"Gmail draft updated via Google API: id={updated.get('id')}"
+                )
 
             kb_message_suffix = ""
             if document_id:

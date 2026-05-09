@@ -29,7 +29,6 @@ class RateLimitError(Exception):
 
 
 class _AlwaysFailingChatModel(BaseChatModel):
-
     @property
     def _llm_type(self) -> str:
         return "always-failing-test-model"

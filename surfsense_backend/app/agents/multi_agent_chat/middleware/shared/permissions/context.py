@@ -78,9 +78,7 @@ def build_permission_context(
                     Rule(permission=tool_def.name, pattern="*", action="deny")
                 )
         if synthesized:
-            rulesets.append(
-                Ruleset(rules=synthesized, origin="connector_synthesized")
-            )
+            rulesets.append(Ruleset(rules=synthesized, origin="connector_synthesized"))
 
     general_purpose_interrupt_on: dict[str, bool] = {
         rule.permission: True

@@ -67,9 +67,7 @@ class _RecordingChatModel(BaseChatModel):
     ) -> ChatResult:
         self.call_count += 1
         return ChatResult(
-            generations=[
-                ChatGeneration(message=AIMessage(content=self.response_text))
-            ]
+            generations=[ChatGeneration(message=AIMessage(content=self.response_text))]
         )
 
     async def _agenerate(

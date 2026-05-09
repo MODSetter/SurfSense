@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from typing import Any
 
 from langchain_core.tools import tool
@@ -14,57 +13,6 @@ _GMAIL_TYPES = [
     SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
     SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
 ]
-
-_token_encryption_cache: object | None = None
-
-
-def _get_token_encryption():
-    global _token_encryption_cache
-    if _token_encryption_cache is None:
-        from app.config import config
-        from app.utils.oauth_security import TokenEncryption
-
-        if not config.SECRET_KEY:
-            raise RuntimeError("SECRET_KEY not configured for token decryption.")
-        _token_encryption_cache = TokenEncryption(config.SECRET_KEY)
-    return _token_encryption_cache
-
-
-def _build_credentials(connector: SearchSourceConnector):
-    """Build Google OAuth Credentials from a connector's stored config.
-
-    Handles both native OAuth connectors (with encrypted tokens) and
-    Composio-backed connectors. Shared by Gmail and Calendar tools.
-    """
-    from app.utils.google_credentials import COMPOSIO_GOOGLE_CONNECTOR_TYPES
-
-    if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
-        from app.utils.google_credentials import build_composio_credentials
-
-        cca_id = connector.config.get("composio_connected_account_id")
-        if not cca_id:
-            raise ValueError("Composio connected account ID not found.")
-        return build_composio_credentials(cca_id)
-
-    from google.oauth2.credentials import Credentials
-
-    cfg = dict(connector.config)
-    if cfg.get("_token_encrypted"):
-        enc = _get_token_encryption()
-        for key in ("token", "refresh_token", "client_secret"):
-            if cfg.get(key):
-                cfg[key] = enc.decrypt_token(cfg[key])
-
-    exp = (cfg.get("expiry") or "").replace("Z", "")
-    return Credentials(
-        token=cfg.get("token"),
-        refresh_token=cfg.get("refresh_token"),
-        token_uri=cfg.get("token_uri"),
-        client_id=cfg.get("client_id"),
-        client_secret=cfg.get("client_secret"),
-        scopes=cfg.get("scopes", []),
-        expiry=datetime.fromisoformat(exp) if exp else None,
-    )
 
 
 def create_search_gmail_tool(
@@ -109,6 +57,50 @@ def create_search_gmail_tool(
                     "status": "error",
                     "message": "No Gmail connector found. Please connect Gmail in your workspace settings.",
                 }
+
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+            ):
+                cca_id = connector.config.get("composio_connected_account_id")
+                if not cca_id:
+                    return {
+                        "status": "error",
+                        "message": "Composio connected account ID not found for this Gmail connector.",
+                    }
+
+                from app.agents.new_chat.tools.gmail.search_emails import (
+                    _format_gmail_summary,
+                )
+                from app.services.composio_service import ComposioService
+
+                (
+                    messages,
+                    _next,
+                    _estimate,
+                    error,
+                ) = await ComposioService().get_gmail_messages(
+                    connected_account_id=cca_id,
+                    entity_id=f"surfsense_{user_id}",
+                    query=query,
+                    max_results=max_results,
+                )
+                if error:
+                    return {"status": "error", "message": error}
+
+                emails = [_format_gmail_summary(m) for m in messages]
+                if not emails:
+                    return {
+                        "status": "success",
+                        "emails": [],
+                        "total": 0,
+                        "message": "No emails found.",
+                    }
+                return {"status": "success", "emails": emails, "total": len(emails)}
+
+            from app.agents.new_chat.tools.gmail.search_emails import (
+                _build_credentials,
+            )
 
             creds = _build_credentials(connector)
 

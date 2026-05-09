@@ -130,7 +130,9 @@ async def create_multi_agent_chat_deep_agent(
 
     _t0 = time.perf_counter()
     try:
-        mcp_tools_by_agent = await load_mcp_tools_by_connector(db_session, search_space_id)
+        mcp_tools_by_agent = await load_mcp_tools_by_connector(
+            db_session, search_space_id
+        )
     except Exception as e:
         # Degrade to builtins-only rather than aborting the turn: a transient
         # DB or MCP-server hiccup should not deny the user a response.

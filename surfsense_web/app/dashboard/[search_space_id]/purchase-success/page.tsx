@@ -119,8 +119,7 @@ export default function PurchaseSuccessPage() {
 							"Stripe reported the checkout as failed or expired. Your card was not charged."}
 						{state.kind === "error" &&
 							"Don't worry — if your card was charged, your purchase will still apply within a minute or two."}
-						{state.kind === "no_session" &&
-							"Your purchase is being applied to your account."}
+						{state.kind === "no_session" && "Your purchase is being applied to your account."}
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-3 text-center">
@@ -134,7 +133,8 @@ export default function PurchaseSuccessPage() {
 					)}
 					{state.kind === "completed" && state.data.purchase_type === "premium_tokens" && (
 						<p className="text-sm text-muted-foreground">
-							New premium credit balance: {formatCredit(state.data.premium_credit_micros_limit ?? 0)}
+							New premium credit balance:{" "}
+							{formatCredit(state.data.premium_credit_micros_limit ?? 0)}
 						</p>
 					)}
 					{state.kind === "error" && (

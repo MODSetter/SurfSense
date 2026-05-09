@@ -11,6 +11,7 @@ import { EditorSaveContext } from "@/components/editor/editor-save-context";
 import { CitationKit, injectCitationNodes } from "@/components/editor/plugins/citation-kit";
 import { type EditorPreset, presetMap } from "@/components/editor/presets";
 import { escapeMdxExpressions } from "@/components/editor/utils/escape-mdx";
+import { safeDeserializeMarkdown } from "@/components/editor/utils/safe-deserialize";
 import { Editor, EditorContainer } from "@/components/ui/editor";
 import { preprocessCitationMarkdown } from "@/lib/citations/citation-parser";
 
@@ -169,15 +170,17 @@ export function PlateEditor({
 			: markdown
 				? (editor) => {
 						if (!enableCitations) {
-							return editor
-								.getApi(MarkdownPlugin)
-								.markdown.deserialize(escapeMdxExpressions(markdown));
+							return safeDeserializeMarkdown(
+								editor,
+								escapeMdxExpressions(markdown)
+							) as Value;
 						}
 						const { content: rewritten, urlMap } = preprocessCitationMarkdown(markdown);
-						const value = editor
-							.getApi(MarkdownPlugin)
-							.markdown.deserialize(escapeMdxExpressions(rewritten));
-						return injectCitationNodes(value as Descendant[], urlMap) as Value;
+						const value = safeDeserializeMarkdown(
+							editor,
+							escapeMdxExpressions(rewritten)
+						);
+						return injectCitationNodes(value, urlMap) as Value;
 					}
 				: undefined,
 	});
@@ -200,14 +203,13 @@ export function PlateEditor({
 			let newValue: Descendant[];
 			if (enableCitations) {
 				const { content: rewritten, urlMap } = preprocessCitationMarkdown(markdown);
-				const deserialized = editor
-					.getApi(MarkdownPlugin)
-					.markdown.deserialize(escapeMdxExpressions(rewritten)) as Descendant[];
+				const deserialized = safeDeserializeMarkdown(
+					editor,
+					escapeMdxExpressions(rewritten)
+				);
 				newValue = injectCitationNodes(deserialized, urlMap);
 			} else {
-				newValue = editor
-					.getApi(MarkdownPlugin)
-					.markdown.deserialize(escapeMdxExpressions(markdown)) as Descendant[];
+				newValue = safeDeserializeMarkdown(editor, escapeMdxExpressions(markdown));
 			}
 			editor.tf.reset();
 			editor.tf.setValue(newValue as Value);
