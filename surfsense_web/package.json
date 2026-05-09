@@ -18,7 +18,13 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
-		"format:fix": "npx @biomejs/biome check --fix"
+		"format:fix": "npx @biomejs/biome check --fix",
+		"test:e2e": "playwright test",
+		"test:e2e:ui": "playwright test --ui",
+		"test:e2e:headed": "playwright test --headed",
+		"test:e2e:debug": "playwright test --debug",
+		"test:e2e:report": "playwright show-report",
+		"test:e2e:install": "playwright install --with-deps chromium"
 	},
 	"dependencies": {
 		"@ai-sdk/react": "^1.2.12",
@@ -149,6 +155,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.4.6",
 		"@eslint/eslintrc": "^3.3.1",
+		"@playwright/test": "^1.59.1",
 		"@svgr/webpack": "^8.1.0",
 		"@tailwindcss/postcss": "^4.1.11",
 		"@tailwindcss/typography": "^0.5.16",

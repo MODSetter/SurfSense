@@ -1,0 +1,17 @@
+{
+  "organization": {
+    "name": "SurfSense E2E Linear Org",
+    "url_key": "surfsense-e2e"
+  },
+  "issues": [
+    {
+      "id": "fake-linear-issue-canary-001",
+      "identifier": "E2E-101",
+      "title": "E2E Canary Linear Issue",
+      "description": "This Linear issue proves the live MCP tool fetched issue details. SURFSENSE_E2E_CANARY_TOKEN_LINEAR_001",
+      "state": "Todo",
+      "assignee": "E2E Owner",
+      "team": "SurfSense E2E"
+    }
+  ]
+}

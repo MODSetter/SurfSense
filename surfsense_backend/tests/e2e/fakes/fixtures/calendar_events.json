@@ -1,0 +1,48 @@
+{
+  "items": [
+    {
+      "id": "fake-calendar-event-canary-001",
+      "status": "confirmed",
+      "summary": "E2E Canary Calendar Event",
+      "description": "This Calendar event proves the Composio Calendar live tool fetched event details. SURFSENSE_E2E_CANARY_TOKEN_CALENDAR_001",
+      "location": "SurfSense E2E Room",
+      "htmlLink": "https://calendar.google.com/calendar/event?eid=fake-calendar-event-canary-001",
+      "start": {
+        "dateTime": "2026-05-12T10:00:00Z",
+        "timeZone": "UTC"
+      },
+      "end": {
+        "dateTime": "2026-05-12T10:30:00Z",
+        "timeZone": "UTC"
+      },
+      "attendees": [
+        {
+          "email": "e2e-fake@surfsense.example",
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "id": "fake-calendar-event-planning-001",
+      "status": "confirmed",
+      "summary": "E2E Planning Sync",
+      "description": "Non-canary planning sync used to prove list responses can contain multiple events.",
+      "location": "SurfSense Planning Room",
+      "htmlLink": "https://calendar.google.com/calendar/event?eid=fake-calendar-event-planning-001",
+      "start": {
+        "dateTime": "2026-05-13T15:00:00Z",
+        "timeZone": "UTC"
+      },
+      "end": {
+        "dateTime": "2026-05-13T15:45:00Z",
+        "timeZone": "UTC"
+      },
+      "attendees": [
+        {
+          "email": "planner@surfsense.example",
+          "responseStatus": "needsAction"
+        }
+      ]
+    }
+  ]
+}

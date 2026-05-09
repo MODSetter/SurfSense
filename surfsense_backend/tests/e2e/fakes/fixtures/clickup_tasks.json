@@ -1,0 +1,13 @@
+{
+  "tasks": [
+    {
+      "id": "fake-clickup-task-canary-001",
+      "name": "E2E Canary ClickUp Task",
+      "list_name": "SurfSense E2E ClickUp List",
+      "workspace_id": "fake-clickup-workspace-001",
+      "workspace_name": "SurfSense E2E ClickUp Workspace",
+      "status": "open",
+      "description": "Canary task body containing SURFSENSE_E2E_CANARY_TOKEN_CLICKUP_001"
+    }
+  ]
+}
