@@ -73,6 +73,18 @@ export interface ContentPartsState {
 	currentTextPartIndex: number;
 	currentReasoningPartIndex: number;
 	toolCallIndices: Map<string, number>;
+	/**
+	 * Set by the resume flow's rehydration to suppress
+	 * ``data-step-separator`` for the rest of this turn. Without it,
+	 * the resume stream's first ``start-step`` fires
+	 * ``addStepSeparator`` while rehydrated OLD content already makes
+	 * ``hasContent`` true → a divider lands between OLD and NEW
+	 * content with no semantic value (OLD content is filtered by
+	 * ``buildTimeline`` + ``filterSupersededAbortedMessages``,
+	 * persisted state carries no separator, so the line vanishes on
+	 * reload).
+	 */
+	suppressStepSeparators?: boolean;
 }
 
 function areThinkingStepsEqual(current: ThinkingStepData[], next: ThinkingStepData[]): boolean {
@@ -234,7 +246,9 @@ export function addStepSeparator(state: ContentPartsState): void {
 	// non-step content (so the FIRST step of a turn doesn't
 	// generate a leading separator) and when the previous part isn't
 	// itself a separator (defensive against duplicate `start-step`
-	// events).
+	// events). Also skipped during a resume turn (see
+	// ``suppressStepSeparators`` on ``ContentPartsState``).
+	if (state.suppressStepSeparators) return;
 	const hasContent = state.contentParts.some(
 		(p) => p.type === "text" || p.type === "reasoning" || p.type === "tool-call"
 	);
