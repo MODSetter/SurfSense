@@ -68,6 +68,7 @@ function UseCaseCard({
 				<div
 					role="button"
 					tabIndex={0}
+					aria-label={`Expand ${title}`}
 					className="cursor-pointer overflow-hidden bg-neutral-50 p-2 dark:bg-neutral-950"
 					onClick={open}
 					onKeyDown={(e) => {
