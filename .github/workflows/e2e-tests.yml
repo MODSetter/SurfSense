@@ -1,0 +1,287 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'surfsense_web/**'
+      - 'surfsense_backend/**'
+      - '.github/workflows/e2e-tests.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    timeout-minutes: 45
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: surfsense_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d surfsense_e2e"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      # Required by Celery (broker + result backend) AND by the app's
+      # own Redis-backed features (heartbeats, podcast markers, anon
+      # quota). The previous workflow omitted this and indexing journeys
+      # silently hung.
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # ---- Backend ------------------------------------------------------
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense_e2e
+      CELERY_BROKER_URL: redis://localhost:6379/0
+      CELERY_RESULT_BACKEND: redis://localhost:6379/0
+      REDIS_APP_URL: redis://localhost:6379/0
+      SECRET_KEY: ci-test-secret-key-not-for-production
+      AUTH_TYPE: LOCAL
+      REGISTRATION_ENABLED: "TRUE"
+      ETL_SERVICE: DOCLING
+      EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      NEXT_FRONTEND_URL: http://localhost:3000
+
+      # ---- Composio sentinel -------------------------------------------
+      # Production code does `from composio import Composio` at import
+      # time. `tests/e2e/run_backend.py` and `run_celery.py` hijack
+      # sys.modules BEFORE that import resolves, so the real SDK is
+      # never loaded. This sentinel API key is defense layer 3 from
+      # surfsense_backend/tests/e2e/README.md: if the hijack ever
+      # silently breaks, any real Composio call will 401 loudly with
+      # this token instead of using a stray developer key.
+      COMPOSIO_API_KEY: e2e-deny-real-call-sentinel
+      COMPOSIO_ENABLED: "TRUE"
+
+      # ---- Frontend (read by `next dev` via playwright.config.ts) -----
+      NEXT_PUBLIC_FASTAPI_BACKEND_URL: http://localhost:8000
+      NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: LOCAL
+
+      # ---- Playwright --------------------------------------------------
+      PLAYWRIGHT_TEST_EMAIL: e2e-test@surfsense.net
+      PLAYWRIGHT_TEST_PASSWORD: E2eTestPassword123!
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      # =================================================================
+      # Backend: Python + uv + dependencies + migrations
+      # =================================================================
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Cache backend dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/uv
+            surfsense_backend/.venv
+          key: python-deps-${{ hashFiles('surfsense_backend/uv.lock') }}
+          restore-keys: |
+            python-deps-
+
+      - name: Cache HuggingFace models
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/huggingface
+          key: hf-models-${{ env.EMBEDDING_MODEL }}-${{ env.ETL_SERVICE }}
+
+      - name: Install backend dependencies
+        working-directory: surfsense_backend
+        run: uv sync
+
+      - name: Run database migrations
+        working-directory: surfsense_backend
+        run: uv run alembic upgrade head
+
+      # =================================================================
+      # Boot the E2E backend.
+      #
+      # CRITICAL: do NOT run `uvicorn main:app` here. Production code
+      # binds `from composio import Composio` (and friends) at import
+      # time. `tests/e2e/run_backend.py` is the test-only entrypoint
+      # that hijacks sys.modules before that import — without it, every
+      # connector journey would call the real SDK.
+      # See surfsense_backend/tests/e2e/README.md.
+      # =================================================================
+      - name: Start backend (E2E entrypoint with sys.modules hijack)
+        working-directory: surfsense_backend
+        run: |
+          uv run python tests/e2e/run_backend.py \
+            > backend.log 2>&1 &
+          echo $! > backend.pid
+
+      # Celery runs in its own interpreter, so the hijack from
+      # run_backend.py does NOT carry over. run_celery.py reapplies it
+      # before importing celery_app. Without this worker, indexing
+      # tasks queue but never execute and journey specs hang.
+      - name: Start Celery worker (E2E entrypoint)
+        working-directory: surfsense_backend
+        run: |
+          uv run python tests/e2e/run_celery.py \
+            > celery.log 2>&1 &
+          echo $! > celery.pid
+
+      - name: Wait for backend readiness
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8000/openapi.json > /dev/null; then
+              echo "Backend up after ${i} attempts"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Backend failed to start within 120s"
+          echo "===== backend.log (tail 200) ====="
+          tail -200 surfsense_backend/backend.log || true
+          echo "===== celery.log (tail 200) ====="
+          tail -200 surfsense_backend/celery.log || true
+          exit 1
+
+      - name: Wait for Celery worker readiness
+        working-directory: surfsense_backend
+        run: |
+          for i in $(seq 1 30); do
+            if uv run celery -A app.celery_app inspect ping --timeout 2 \
+                > /dev/null 2>&1; then
+              echo "Celery worker up after ${i} attempts"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Celery worker failed to start within 60s"
+          echo "===== celery.log (tail 200) ====="
+          tail -200 celery.log || true
+          exit 1
+
+      - name: Register E2E test user
+        run: |
+          # Idempotent: 200/201 = created, 400 = already exists (also OK)
+          STATUS=$(curl -s -o /tmp/register.json -w "%{http_code}" \
+            -X POST http://localhost:8000/auth/register \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"${PLAYWRIGHT_TEST_EMAIL}\",\"password\":\"${PLAYWRIGHT_TEST_PASSWORD}\"}")
+          echo "Register status: ${STATUS}"
+          cat /tmp/register.json
+          if [ "${STATUS}" != "200" ] && [ "${STATUS}" != "201" ] && [ "${STATUS}" != "400" ]; then
+            echo "::error::Failed to register test user (status ${STATUS})"
+            exit 1
+          fi
+
+      # =================================================================
+      # Frontend: Node + pnpm + Playwright
+      # =================================================================
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('surfsense_web/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
+      - name: Install web dependencies
+        working-directory: surfsense_web
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('surfsense_web/pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: surfsense_web
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        working-directory: surfsense_web
+        run: pnpm exec playwright install-deps chromium
+
+      # playwright.config.ts boots `pnpm exec next dev` automatically
+      # via webServer config (skipped when PLAYWRIGHT_NO_WEB_SERVER set).
+      - name: Run Playwright tests
+        working-directory: surfsense_web
+        run: pnpm test:e2e
+
+      # =================================================================
+      # Diagnostics
+      # =================================================================
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: surfsense_web/playwright-report/
+          retention-days: 14
+
+      - name: Upload Playwright traces / videos
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: surfsense_web/test-results/
+          retention-days: 14
+
+      - name: Upload backend + celery logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-celery-logs
+          path: |
+            surfsense_backend/backend.log
+            surfsense_backend/celery.log
+          retention-days: 7
+
+      - name: Stop backend + Celery worker
+        if: always()
+        working-directory: surfsense_backend
+        run: |
+          for f in backend.pid celery.pid; do
+            if [ -f "$f" ]; then
+              kill "$(cat $f)" 2>/dev/null || true
+            fi
+          done
