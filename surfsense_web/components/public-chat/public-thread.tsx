@@ -15,7 +15,6 @@ import { type FC, type ReactNode, useState } from "react";
 import { CitationMetadataProvider } from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
-import { ToolFallback, withDelegationSpanIndent } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
@@ -165,20 +164,14 @@ const PublicAssistantMessage: FC = () => {
 							Reasoning: ReasoningMessagePart,
 							tools: {
 								by_name: {
-									generate_podcast: withDelegationSpanIndent(GeneratePodcastToolUI),
-									generate_report: withDelegationSpanIndent(GenerateReportToolUI),
-									generate_resume: withDelegationSpanIndent(GenerateResumeToolUI),
-									generate_video_presentation: withDelegationSpanIndent(
-										GenerateVideoPresentationToolUI
-									),
-									display_image: withDelegationSpanIndent(GenerateImageToolUI),
-									generate_image: withDelegationSpanIndent(GenerateImageToolUI),
-									web_search: NullToolUi,
-									link_preview: NullToolUi,
-									multi_link_preview: NullToolUi,
-									scrape_webpage: NullToolUi,
+									generate_podcast: GeneratePodcastToolUI,
+									generate_report: GenerateReportToolUI,
+									generate_resume: GenerateResumeToolUI,
+									generate_video_presentation: GenerateVideoPresentationToolUI,
+									display_image: GenerateImageToolUI,
+									generate_image: GenerateImageToolUI,
 								},
-								Fallback: withDelegationSpanIndent(ToolFallback),
+								Fallback: NullToolUi,
 							},
 						}}
 					/>
