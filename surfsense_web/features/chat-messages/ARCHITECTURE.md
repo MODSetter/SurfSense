@@ -184,8 +184,10 @@ type TimelineToolComponent = (props: TimelineToolProps) => ReactNode;
 
 Notably absent (compared to `ToolCallMessagePartProps`):
 - `addResult`, `resume` — runtime-only, not needed; HITL decisions
-  flow through `useHitlDecision` (a hook) which talks to the runtime
-  directly.
+  flow through `useHitlDecision`, which either stages in the active
+  bundle (N≥2) or fires the `hitl-decision` window event the page
+  listens for (N=1). The hook reads `useToolCallIdContext()` to know
+  which call is dispatching.
 - The complex `status: ToolCallMessagePartState["status"]` object —
   replaced by our simple `ItemStatus` enum.
 
@@ -224,7 +226,81 @@ renders. Tool-call data IS in the message; the body just chooses not
 to render it.
 
 **Result:** zero dual placement. Zero suppression HOC. Zero
-render-target context. Zero coordination.
+render-target context. Zero pager HOC.
+
+---
+
+## 4a. Multi-approval coordination (the bundle + pager)
+
+When N HITL interrupts are pending in the same assistant turn (e.g. an
+agent fires multiple gated tool calls in parallel), the LangGraph
+runtime expects **one resume call with N decisions in order**. Per-card
+independent submission isn't possible without backend changes.
+
+The slice handles this with a single React state container,
+`HitlBundleProvider`, mounted once at the thread root by the page that
+owns the runtime (currently `app/dashboard/.../new-chat/page.tsx` and
+`components/free-chat/free-chat-page.tsx`):
+
+```tsx
+<HitlBundleProvider
+    toolCallIds={pendingInterrupt?.bundleToolCallIds ?? null}
+    onSubmit={handleBundleSubmit}            // page-owned: dispatches the actual resume
+>
+    {/* Thread + Timeline + approval cards mount inside */}
+</HitlBundleProvider>
+```
+
+Per-card flow:
+
+1. `tool-call-item.tsx` wraps each mounted tool component in
+   `<ToolCallIdProvider toolCallId={item.id}>` so `useHitlDecision`
+   knows which call is dispatching.
+2. The user clicks approve/edit/reject on a card.
+3. `useHitlDecision().dispatch([decision])` runs:
+    - **Bundle active (N≥2):** stages the decision under this card's
+      `toolCallId` and fires a `hitl-stage` event so the card's local
+      result mirror updates immediately (UX continuity — no re-prompt
+      if user navigates back via the pager).
+    - **No bundle (N=1):** dispatches the `hitl-decision` event
+      directly — single-decision fast path.
+4. When all N decisions are staged, the user clicks "Submit decisions"
+   on the pager chrome. `bundle.submit()` dispatches the `hitl-decision`
+   event with the full ordered array. The page's listener calls
+   `runtime.resume({ resume: orderedDecisions })` once.
+
+### Pager UX (kept, not deleted)
+
+When a bundle is active (N≥2), only ONE approval card is visible at a
+time — the current step. Other bundle members are hidden until the user
+navigates to them. A small pager chrome (prev/next + "Step X / N" +
+"Submit decisions" button) renders once at the end of the timeline.
+
+Where the responsibilities live:
+
+- **`tool-call-item.tsx`** (timeline) — checks `useHitlBundle()`. If
+  the item is in an active bundle but not the current step, returns
+  null. Otherwise wraps the per-tool component in `ToolCallIdProvider`
+  and mounts it.
+- **`timeline.tsx`** — renders `<PagerChrome />` once at the bottom,
+  conditional on `useHitlBundle()` being non-null.
+- **`hitl/bundle/pager-chrome.tsx`** — pure presentational component;
+  reads bundle state, renders nav + Submit. No knowledge of the timeline.
+
+This is **the only Provider in the slice.** It's a state container, not
+a behavior HOC: nothing wraps individual cards. The hide-if-not-current
+decision is made at the single mount point (`tool-call-item.tsx`), not
+distributed across N HOC wrappers.
+
+What was deleted vs kept here:
+
+- **Deleted:** `withBundleStep` HOC. Its two responsibilities (hide
+  non-current cards; render pager after current card) split into the
+  two correct places: `tool-call-item.tsx` and `timeline.tsx`
+  respectively. No HOC to compose.
+- **Kept (ported as-is to the slice):** `HitlBundleProvider`,
+  `useHitlBundle`, `ToolCallIdProvider`, `useToolCallIdContext`,
+  `BundleSubmit`, `HitlBundleAPI`, `PagerChrome`.
 
 ---
 
@@ -258,10 +334,14 @@ features/chat-messages/
 │   ├── data-renderer.tsx                    (assistant-ui adapter; exports TimelineDataUI)
 │   └── index.ts
 │
-├── hitl/                                    ← pure HITL primitives
+├── hitl/                                    ← HITL primitives + bundle state container
 │   ├── types.ts                             (InterruptResult, HitlPhase, HitlDecision, isInterruptResult)
-│   ├── use-hitl-decision.ts                 (hook: dispatch approve/edit/reject — used by every approval card)
-│   ├── use-hitl-phase.ts                    (hook: tracks pending → processing → approved/rejected/edited)
+│   ├── bundle/                              (the ONLY Provider in the slice — coordinates N→1 submission + pager UX)
+│   │   ├── bundle-context.tsx               (HitlBundleProvider, useHitlBundle, ToolCallIdProvider, useToolCallIdContext, BundleSubmit, HitlBundleAPI)
+│   │   ├── pager-chrome.tsx                 (prev/next/submit chrome — mounted once by timeline.tsx when bundle active)
+│   │   └── index.ts
+│   ├── use-hitl-decision.ts                 (hook: stages in bundle when N≥2, direct-dispatches when N=1; used by every approval card)
+│   ├── use-hitl-phase.ts                    (hook: tracks pending → processing → complete/rejected)
 │   ├── approval-cards/                      (the FALLBACK-mounted approval views; per-tool components import from here OR build their own)
 │   │   ├── generic-approval.tsx             (default approval UI — what FallbackToolBody mounts for interrupt results)
 │   │   ├── doom-loop-approval.tsx           (special-case approval UI + isDoomLoopInterrupt)
@@ -287,7 +367,8 @@ features/chat-messages/
 | `tool-cards/` slice | **Folded into `timeline/`** | Tool-call rendering happens in the timeline; the tool-registry is private to timeline. |
 | `bundleTool` composer | **Deleted** | Body opts out via `fallback: () => null`. No HOCs to compose. |
 | `withDelegationSpanIndent` HOC | **Deleted** | Tree indent is owned by the timeline's group renderer. |
-| `withBundleStep` + `HitlBundleProvider` | **Deleted** | Multi-approval is just N inline renderings; no coordination needed. |
+| `withBundleStep` HOC | **Deleted** | Two responsibilities split into the right places: hide-if-not-current → `tool-call-item.tsx`; render pager after current card → `timeline.tsx`. No HOC. |
+| `HitlBundleProvider` + `useHitlBundle` + `PagerChrome` | **Kept** (state container + presentational chrome, not HOCs) | Backend constraint: parallel interrupts need ONE ordered resume call. Provider collects N decisions, pager is the user's submit affordance. |
 | `withHitlInTimeline` + `HitlRenderTargetProvider` | **Deleted** | Tool cards never render in body; no dual-placement to suppress. |
 | `pickApprovalCard` central dispatcher | **Deleted** | Each tool component picks its own view via internal discrimination. The fallback has its OWN internal dispatcher (interrupt → generic-approval; doom-loop → doom-loop-approval). |
 | `getHitlToolComponent` registry | **Deleted** | The tool-registry is just a `Record<string, TimelineToolComponent>`; lookup is `TOOLS_BY_NAME[name]`. |
@@ -316,6 +397,10 @@ export { isInterruptResult };
 
 export { useHitlDecision };
 export { useHitlPhase };
+
+export { HitlBundleProvider, ToolCallIdProvider, useHitlBundle, useToolCallIdContext };
+export { PagerChrome };
+export type { BundleSubmit, HitlBundleAPI };
 
 export { GenericHitlApprovalToolUI };    // for tool-ui integrations that want to compose on top
 export { DoomLoopApprovalToolUI, isDoomLoopInterrupt };
@@ -384,14 +469,19 @@ Notable splits driven by SRP during the port:
 
 ## 8. Tested behaviors
 
-Unit tests live next to the file they cover (`*.test.ts(x)`).
+> **Status:** No test runner is set up in `surfsense_web` yet. The pure
+> functions below are *intended* to be unit-tested but tests are
+> deferred to **Phase D** (post-cutover follow-up: install vitest,
+> write the suites, update this section).
 
-- `timeline/build-timeline.test.ts` — content + thinkingSteps → correct items, correct kind, correct status, correct ordering. `result` preserved verbatim.
-- `timeline/grouping.test.ts` — items group correctly by spanId; first item with a spanId is the parent; orphaned children are promoted defensively.
-- `timeline/subagent-rename.test.ts` — `task` step's display title resolves to `args.subagent_type` (title-cased); falls back to "Task" when subagent type is missing.
+Planned tests once vitest is in:
+
+- `timeline/build-timeline.test.ts` — content + thinkingSteps → correct items, correct kind, correct status, correct ordering. `result` preserved verbatim. Orphan tool-calls (no `thinkingStepId`) appended at end.
+- `timeline/grouping.test.ts` — items group correctly by spanId; first item with a spanId is the parent; orphaned children become parents defensively.
+- `timeline/subagent-rename.test.ts` — `task` tool-call's display title resolves to `args.subagent_type` (title-cased); falls back to `getToolDisplayName("task")` when subagent type is missing.
 - `timeline/tool-registry/registry.test.ts` — `TOOLS_BY_NAME` includes every named tool; `FallbackToolBody` is returned for unknown names; the fallback dispatches correctly (interrupt → generic, doom-loop → doom-loop, otherwise → default fallback).
 - `timeline/tool-registry/adapt-props.test.ts` — `ToolCallItem` → `TimelineToolProps` mapping is lossless; status mapping is correct.
-- `hitl/use-hitl-phase.test.ts` — phase transitions through pending → processing → approved/rejected/edited correctly.
+- `hitl/use-hitl-phase.test.ts` — phase transitions through pending → processing → complete/rejected correctly.
 - `hitl/approval-cards/doom-loop-approval.test.tsx` — `isDoomLoopInterrupt` matches doom-loop-shape interrupts only.
 
 Smoke test after cutover:
@@ -434,7 +524,7 @@ functional throughout Phase A.
 |---|---|
 | `components/assistant-ui/assistant-message.tsx` | Replace `TOOLS_BY_NAME`/`TOOLS_FALLBACK` definitions with `BODY_TOOLS` (initially empty) + `tools={{ fallback: () => null }}`. Replace `ThinkingStepsDataUI` registration with `TimelineDataUI`. |
 | `components/public-chat/public-thread.tsx` | Same registry + data UI swap. |
-| `app/dashboard/.../new-chat/page.tsx` | Switch `ThinkingStepsDataUI` → `TimelineDataUI`. Drop `HitlBundleProvider` (no longer needed). |
+| `app/dashboard/.../new-chat/page.tsx` | Switch `ThinkingStepsDataUI` → `TimelineDataUI`. Switch `HitlBundleProvider` import from `@/lib/hitl` → `@/features/chat-messages/hitl` (keep the wrap; just new path). |
 | `components/free-chat/free-chat-page.tsx` | Switch `ThinkingStepsDataUI` → `TimelineDataUI`. |
 | `components/public-chat/public-chat-view.tsx` | Same. |
 | `components/layout/ui/right-panel/RightPanel.tsx` | Switch `HitlEditPanel` import to `@/features/chat-messages/hitl`. |
@@ -447,8 +537,8 @@ After cutover passes smoke tests:
 - `components/assistant-ui/thinking-steps.tsx`
 - `components/assistant-ui/tool-fallback.tsx`
 - `lib/chat/delegation-span-indent.ts`
-- `lib/hitl/` (entire folder)
-- `components/hitl-bundle-pager/` (entire folder)
+- `lib/hitl/` (entire folder — replaced by `features/chat-messages/hitl/{types.ts,bundle/,use-hitl-decision.ts}`)
+- `components/hitl-bundle-pager/` (entire folder — `PagerChrome` ported to `hitl/bundle/pager-chrome.tsx`; `withBundleStep` deleted, responsibilities split into `tool-call-item.tsx` + `timeline.tsx`)
 - `components/tool-ui/generic-hitl-approval.tsx`
 - `components/tool-ui/doom-loop-approval.tsx`
 - `components/hitl-edit-panel/` (entire folder)
