@@ -1,9 +1,15 @@
-import { makeAssistantDataUI, useAuiState } from "@assistant-ui/react";
+import {
+	makeAssistantDataUI,
+	type ToolCallMessagePartComponent,
+	useAuiState,
+} from "@assistant-ui/react";
 import { ChevronRightIcon } from "lucide-react";
 import type { FC } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { TOOLS_BY_NAME, TOOLS_FALLBACK } from "@/components/assistant-ui/assistant-message";
 import { ChainOfThoughtItem } from "@/components/prompt-kit/chain-of-thought";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { HitlRenderTargetProvider, isInterruptResult } from "@/lib/hitl";
 import { cn } from "@/lib/utils";
 
 export interface ThinkingStep {
@@ -24,20 +30,33 @@ export interface ThinkingStep {
  * Per-step info joined from the assistant message ``tool-call`` parts via
  * the shared ``metadata.thinkingStepId`` correlation
  * (set on the server in ``AgentEventRelayState.tool_activity_metadata``).
+ *
+ * Carries enough of the part to:
+ *  - identify the opening ``task`` step and substitute the subagent display
+ *    name on the parent header (uses ``toolName`` and ``args``);
+ *  - render the matching tool component inline under the step row when the
+ *    card's result is an HITL interrupt (uses ``toolCallId``, ``argsText``,
+ *    ``result``, ``langchainToolCallId``).
  */
 interface StepToolInfo {
+	toolCallId: string;
 	toolName: string;
 	args: Record<string, unknown>;
+	argsText?: string;
+	result?: unknown;
+	langchainToolCallId?: string;
 }
 
 export type ThinkingStepToolInfoMap = ReadonlyMap<string, StepToolInfo>;
 
 /**
- * Build ``thinkingStepId → {toolName, args}`` from message content. Used to
+ * Build ``thinkingStepId → StepToolInfo`` from message content. Used to
  *  - identify the opening ``task`` step (parent header, never indents) without
  *    relying on the human-readable title;
  *  - render the parent's display title from ``args.subagent_type`` instead of
- *    the generic "Task" copy.
+ *    the generic "Task" copy;
+ *  - mount the matching tool-call card inline under a step row when the
+ *    result is an HITL interrupt (see ``TimelineHitlCard``).
  */
 export function buildThinkingStepToolInfo(
 	content: readonly unknown[] | undefined
@@ -48,14 +67,25 @@ export function buildThinkingStepToolInfo(
 		if (!part || typeof part !== "object") continue;
 		const o = part as {
 			type?: string;
+			toolCallId?: string;
 			toolName?: string;
 			args?: Record<string, unknown>;
+			argsText?: string;
+			result?: unknown;
+			langchainToolCallId?: string;
 			metadata?: Record<string, unknown>;
 		};
-		if (o.type !== "tool-call" || !o.toolName) continue;
+		if (o.type !== "tool-call" || !o.toolName || !o.toolCallId) continue;
 		const tid = o.metadata?.thinkingStepId;
 		if (typeof tid === "string" && tid.trim().length > 0) {
-			m.set(tid, { toolName: o.toolName, args: o.args ?? {} });
+			m.set(tid, {
+				toolCallId: o.toolCallId,
+				toolName: o.toolName,
+				args: o.args ?? {},
+				argsText: o.argsText,
+				result: o.result,
+				langchainToolCallId: o.langchainToolCallId,
+			});
 		}
 	}
 	return m;
@@ -158,6 +188,47 @@ const StepBody: FC<{
 		)}
 	</div>
 );
+
+/**
+ * Mount the same tool-call UI used in the message body, but inside the
+ * chain-of-thought timeline. The body copy returns ``null`` (see
+ * ``withHitlInTimeline`` in ``lib/hitl/render-target``), so the card
+ * effectively moves from the body to the timeline for the lifetime of the
+ * interrupt (pending → processing → complete / rejected).
+ *
+ * ``metadata`` is intentionally omitted from the props we forward — the
+ * step row already provides any indentation it needs, so we don't want
+ * ``withDelegationSpanIndent`` to add a second indent + border on top.
+ *
+ * ``status`` is a placeholder (HITL UIs read only ``args`` + ``result``)
+ * so we don't need to mirror assistant-ui's runtime status object here.
+ */
+const TimelineHitlCard: FC<{ info: StepToolInfo }> = ({ info }) => {
+	const Comp =
+		(TOOLS_BY_NAME as Record<string, ToolCallMessagePartComponent | undefined>)[info.toolName] ??
+		TOOLS_FALLBACK;
+	const props = {
+		toolCallId: info.toolCallId,
+		toolName: info.toolName,
+		args: info.args,
+		argsText: info.argsText,
+		result: info.result,
+		langchainToolCallId: info.langchainToolCallId,
+		status: { type: "complete" } as const,
+	};
+	return (
+		<HitlRenderTargetProvider value="timeline">
+			{/* biome-ignore lint/suspicious/noExplicitAny: ToolCallMessagePartProps requires
+			    runtime-only fields (addResult, resume, MessagePartState) we don't have when
+			    re-rendering manually; HITL components only read args + result. */}
+			<Comp {...(props as any)} />
+		</HitlRenderTargetProvider>
+	);
+};
+
+function hitlInterruptInfo(info: StepToolInfo | undefined): StepToolInfo | undefined {
+	return info && isInterruptResult(info.result) ? info : undefined;
+}
 
 /**
  * Chain of thought display component - single collapsible dropdown design.
@@ -291,17 +362,25 @@ export const ThinkingStepsDisplay: FC<{
 												displayTitle={parentTitle}
 											/>
 
+											{(() => {
+												const hitl = hitlInterruptInfo(parentInfo);
+												return hitl ? <TimelineHitlCard info={hitl} /> : null;
+											})()}
+
 											{hasChildren && (
 												<div className="mt-2 ml-3 space-y-2">
 													{group.children.map((child) => {
 														const childInfo = toolInfo.get(child.id);
+														const childHitl = hitlInterruptInfo(childInfo);
 														return (
-															<StepBody
-																key={child.id}
-																step={child}
-																status={getEffectiveStatus(child)}
-																displayTitle={resolveDisplayTitle(child, childInfo)}
-															/>
+															<div key={child.id}>
+																<StepBody
+																	step={child}
+																	status={getEffectiveStatus(child)}
+																	displayTitle={resolveDisplayTitle(child, childInfo)}
+																/>
+																{childHitl && <TimelineHitlCard info={childHitl} />}
+															</div>
 														);
 													})}
 												</div>

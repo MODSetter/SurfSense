@@ -59,6 +59,7 @@ import { DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { withHitlInTimeline } from "@/lib/hitl";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 
@@ -508,12 +509,22 @@ const MessageInfoDropdown: FC = () => {
 // page through them and stage decisions instead of firing one resume per card.
 // ``withDelegationSpanIndent`` wraps every entry (including Fallback) so delegated
 // subagent tools don't bypass span indentation via a named ``by_name`` UI.
+// ``withHitlInTimeline`` is the OUTERMOST wrapper so a body render with an
+// interrupt result returns ``null`` immediately — no inner wrappers paint
+// — while a timeline render (under ``HitlRenderTargetProvider value="timeline"``
+// inside ``ThinkingStepsDisplay``) passes through to the real component.
 const bundleTool = (Component: ToolCallMessagePartComponent) =>
-	withBundleStep(withDelegationSpanIndent(Component));
+	withHitlInTimeline(withBundleStep(withDelegationSpanIndent(Component)));
 
 const NullToolUi: ToolCallMessagePartComponent = () => null;
 
-const TOOLS_BY_NAME = {
+/**
+ * Tool-call UI registry. Exported so ``ThinkingStepsDisplay`` can mount
+ * the SAME wrapped components inline under a step row when the card's
+ * result is an HITL interrupt. The wrappers handle ``ToolCallIdProvider``
+ * and bundle paging consistently across both render targets.
+ */
+export const TOOLS_BY_NAME = {
 	generate_report: bundleTool(GenerateReportToolUI),
 	generate_resume: bundleTool(GenerateResumeToolUI),
 	generate_podcast: bundleTool(GeneratePodcastToolUI),
@@ -554,7 +565,7 @@ const TOOLS_BY_NAME = {
 	scrape_webpage: NullToolUi,
 } as const;
 
-const TOOLS_FALLBACK = bundleTool(ToolFallback);
+export const TOOLS_FALLBACK = bundleTool(ToolFallback);
 
 const AssistantMessageInner: FC = () => {
 	const isMobile = !useMediaQuery("(min-width: 768px)");

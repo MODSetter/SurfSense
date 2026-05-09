@@ -6,6 +6,12 @@ export {
 	useHitlBundle,
 	useToolCallIdContext,
 } from "./bundle-context";
+export {
+	type HitlRenderTarget,
+	HitlRenderTargetProvider,
+	useHitlRenderTarget,
+	withHitlInTimeline,
+} from "./render-target";
 export type {
 	HitlDecision,
 	InterruptActionRequest,
