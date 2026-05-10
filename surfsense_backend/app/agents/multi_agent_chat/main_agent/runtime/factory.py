@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from collections.abc import Sequence
@@ -26,23 +25,24 @@ from app.agents.new_chat.feature_flags import AgentFeatureFlags, get_flags
 from app.agents.new_chat.filesystem_backends import build_backend_resolver
 from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.new_chat.llm_config import AgentConfig
+from app.agents.new_chat.prompt_caching import apply_litellm_prompt_caching
 from app.agents.new_chat.tools.invalid_tool import INVALID_TOOL_NAME, invalid_tool
 from app.agents.new_chat.tools.registry import build_tools_async
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
 
-from ..graph.compile_graph_sync import build_compiled_agent_graph_sync
 from ..system_prompt import build_main_agent_system_prompt
 from ..tools import (
     MAIN_AGENT_SURFSENSE_TOOL_NAMES,
     MAIN_AGENT_SURFSENSE_TOOL_NAMES_ORDERED,
 )
+from .agent_cache import build_agent_with_cache
 
 _perf_log = get_perf_logger()
 
 
-async def create_surfsense_deep_agent(
+async def create_multi_agent_chat_deep_agent(
     llm: BaseChatModel,
     search_space_id: int,
     db_session: AsyncSession,
@@ -62,6 +62,9 @@ async def create_surfsense_deep_agent(
 ):
     """Deep agent with SurfSense tools/middleware; registry route subagents behind ``task`` when enabled."""
     _t_agent_total = time.perf_counter()
+
+    apply_litellm_prompt_caching(llm, agent_config=agent_config, thread_id=thread_id)
+
     filesystem_selection = filesystem_selection or FilesystemSelection()
     backend_resolver = build_backend_resolver(
         filesystem_selection,
@@ -85,7 +88,18 @@ async def create_surfsense_deep_agent(
         )
 
     except Exception as e:
-        logging.warning("Failed to discover available connectors/document types: %s", e)
+        logging.warning(
+            "Connector/doc-type discovery failed; excluding connector subagents this turn: %s",
+            e,
+        )
+
+    # Fail closed: a None list short-circuits ``get_subagents_to_exclude`` to "exclude
+    # nothing", which would silently advertise every connector specialist on a flaky
+    # discovery call. Empty list excludes connector-gated subagents while keeping builtins.
+    if available_connectors is None:
+        available_connectors = []
+    if available_document_types is None:
+        available_document_types = []
     _perf_log.info(
         "[create_agent] Connector/doc-type discovery in %.3fs",
         time.perf_counter() - _t0,
@@ -115,7 +129,18 @@ async def create_surfsense_deep_agent(
     }
 
     _t0 = time.perf_counter()
-    mcp_tools_by_agent = await load_mcp_tools_by_connector(db_session, search_space_id)
+    try:
+        mcp_tools_by_agent = await load_mcp_tools_by_connector(
+            db_session, search_space_id
+        )
+    except Exception as e:
+        # Degrade to builtins-only rather than aborting the turn: a transient
+        # DB or MCP-server hiccup should not deny the user a response.
+        logging.warning(
+            "MCP tool discovery failed; subagents will run without MCP tools this turn: %s",
+            e,
+        )
+        mcp_tools_by_agent = {}
     _perf_log.info(
         "[create_agent] load_mcp_tools_by_connector in %.3fs (%d buckets)",
         time.perf_counter() - _t0,
@@ -195,9 +220,10 @@ async def create_surfsense_deep_agent(
 
     final_system_prompt = system_prompt + "\n\n" + BASE_AGENT_PROMPT
 
+    config_id = agent_config.config_id if agent_config is not None else None
+
     _t0 = time.perf_counter()
-    agent = await asyncio.to_thread(
-        build_compiled_agent_graph_sync,
+    agent = await build_agent_with_cache(
         llm=llm,
         tools=tools,
         final_system_prompt=final_system_prompt,
@@ -217,6 +243,7 @@ async def create_surfsense_deep_agent(
         subagent_dependencies=dependencies,
         mcp_tools_by_agent=mcp_tools_by_agent,
         disabled_tools=disabled_tools,
+        config_id=config_id,
     )
     _perf_log.info(
         "[create_agent] Middleware stack + graph compiled in %.3fs",

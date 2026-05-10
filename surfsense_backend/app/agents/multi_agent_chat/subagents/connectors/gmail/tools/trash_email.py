@@ -162,16 +162,22 @@ def create_trash_gmail_email_tool(
                 connector.connector_type
                 == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
             ):
-                from app.utils.google_credentials import build_composio_credentials
-
                 cca_id = connector.config.get("composio_connected_account_id")
-                if cca_id:
-                    creds = build_composio_credentials(cca_id)
-                else:
+                if not cca_id:
                     return {
                         "status": "error",
                         "message": "Composio connected account ID not found for this Gmail connector.",
                     }
+
+                from app.services.composio_service import ComposioService
+
+                error = await ComposioService().trash_gmail_message(
+                    connected_account_id=cca_id,
+                    entity_id=f"surfsense_{user_id}",
+                    message_id=final_message_id,
+                )
+                if error:
+                    return {"status": "error", "message": error}
             else:
                 from google.oauth2.credentials import Credentials
 
@@ -209,49 +215,49 @@ def create_trash_gmail_email_tool(
                     expiry=datetime.fromisoformat(exp) if exp else None,
                 )
 
-            from googleapiclient.discovery import build
+                from googleapiclient.discovery import build
 
-            gmail_service = build("gmail", "v1", credentials=creds)
+                gmail_service = build("gmail", "v1", credentials=creds)
 
-            try:
-                await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: (
-                        gmail_service.users()
-                        .messages()
-                        .trash(userId="me", id=final_message_id)
-                        .execute()
-                    ),
-                )
-            except Exception as api_err:
-                from googleapiclient.errors import HttpError
-
-                if isinstance(api_err, HttpError) and api_err.resp.status == 403:
-                    logger.warning(
-                        f"Insufficient permissions for connector {connector.id}: {api_err}"
+                try:
+                    await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: (
+                            gmail_service.users()
+                            .messages()
+                            .trash(userId="me", id=final_message_id)
+                            .execute()
+                        ),
                     )
-                    try:
-                        from sqlalchemy.orm.attributes import flag_modified
+                except Exception as api_err:
+                    from googleapiclient.errors import HttpError
 
-                        if not connector.config.get("auth_expired"):
-                            connector.config = {
-                                **connector.config,
-                                "auth_expired": True,
-                            }
-                            flag_modified(connector, "config")
-                            await db_session.commit()
-                    except Exception:
+                    if isinstance(api_err, HttpError) and api_err.resp.status == 403:
                         logger.warning(
-                            "Failed to persist auth_expired for connector %s",
-                            connector.id,
-                            exc_info=True,
+                            f"Insufficient permissions for connector {connector.id}: {api_err}"
                         )
-                    return {
-                        "status": "insufficient_permissions",
-                        "connector_id": connector.id,
-                        "message": "This Gmail account needs additional permissions. Please re-authenticate in connector settings.",
-                    }
-                raise
+                        try:
+                            from sqlalchemy.orm.attributes import flag_modified
+
+                            if not connector.config.get("auth_expired"):
+                                connector.config = {
+                                    **connector.config,
+                                    "auth_expired": True,
+                                }
+                                flag_modified(connector, "config")
+                                await db_session.commit()
+                        except Exception:
+                            logger.warning(
+                                "Failed to persist auth_expired for connector %s",
+                                connector.id,
+                                exc_info=True,
+                            )
+                        return {
+                            "status": "insufficient_permissions",
+                            "connector_id": connector.id,
+                            "message": "This Gmail account needs additional permissions. Please re-authenticate in connector settings.",
+                        }
+                    raise
 
             logger.info(f"Gmail email trashed: message_id={final_message_id}")
 

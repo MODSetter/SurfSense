@@ -5,6 +5,7 @@ import {
 	AuiIf,
 	MessagePrimitive,
 	ThreadPrimitive,
+	type ToolCallMessagePartComponent,
 	useAuiState,
 } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
@@ -14,7 +15,6 @@ import { type FC, type ReactNode, useState } from "react";
 import { CitationMetadataProvider } from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
@@ -28,6 +28,8 @@ const GenerateVideoPresentationToolUI = dynamic(
 		})),
 	{ ssr: false }
 );
+
+const NullToolUi: ToolCallMessagePartComponent = () => null;
 
 interface PublicThreadProps {
 	footer?: ReactNode;
@@ -168,12 +170,8 @@ const PublicAssistantMessage: FC = () => {
 									generate_video_presentation: GenerateVideoPresentationToolUI,
 									display_image: GenerateImageToolUI,
 									generate_image: GenerateImageToolUI,
-									web_search: () => null,
-									link_preview: () => null,
-									multi_link_preview: () => null,
-									scrape_webpage: () => null,
 								},
-								Fallback: ToolFallback,
+								Fallback: NullToolUi,
 							},
 						}}
 					/>

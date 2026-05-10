@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from .factory import create_surfsense_deep_agent
+from .factory import create_multi_agent_chat_deep_agent
 
-__all__ = ["create_surfsense_deep_agent"]
+__all__ = ["create_multi_agent_chat_deep_agent"]

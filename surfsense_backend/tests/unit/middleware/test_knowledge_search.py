@@ -202,6 +202,15 @@ class FakeBudgetLLM:
 
 
 class TestKnowledgeBaseSearchMiddlewarePlanner:
+    @pytest.fixture(autouse=True)
+    def _disable_planner_runnable(self, monkeypatch):
+        # ``FakeLLM`` is a duck-typed mock; ``create_agent`` (used when the
+        # planner Runnable path is enabled) calls ``.bind()`` on the LLM,
+        # which the mock does not implement. Pin the flag off so the
+        # planner falls through to the legacy ``self.llm.ainvoke`` path
+        # these tests assert against (``llm.calls[0]["config"]``).
+        monkeypatch.setenv("SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE", "false")
+
     def test_render_recent_conversation_prefers_latest_messages_under_budget(self):
         messages = [
             HumanMessage(content="old user context " * 40),

@@ -8,7 +8,7 @@ import {
 	useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import { useSetAtom } from "jotai";
-import { ExternalLinkIcon } from "lucide-react";
+import { ExternalLinkIcon, FileIcon, Folder as FolderIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -18,6 +18,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { ImagePreview, ImageRoot, ImageZoom } from "@/components/assistant-ui/image";
+import { MentionChip } from "@/components/assistant-ui/mention-chip";
 import "katex/dist/katex.min.css";
 import { toast } from "sonner";
 import { processChildrenWithCitations } from "@/components/citations/citation-renderer";
@@ -33,6 +34,7 @@ import {
 import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { type CitationUrlMap, preprocessCitationMarkdown } from "@/lib/citations/citation-parser";
+import { getVirtualPathDisplay } from "@/lib/chat/virtual-path-display";
 import { cn } from "@/lib/utils";
 
 function MarkdownCodeBlockSkeleton() {
@@ -219,59 +221,71 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 		? parsedSearchSpaceId
 		: undefined;
 
-	return (
-		<button
-			type="button"
-			className={cn(
-				"cursor-pointer font-mono text-[0.9em] font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary/80",
-				className
-			)}
-			onClick={(event) => {
-				event.preventDefault();
-				event.stopPropagation();
-				void (async () => {
-					if (electronAPI) {
-						let resolvedLocalPath = path;
-						if (electronAPI.getAgentFilesystemMounts) {
-							try {
-								const mounts = (await electronAPI.getAgentFilesystemMounts(
-									resolvedSearchSpaceId
-								)) as AgentFilesystemMount[];
-								resolvedLocalPath = normalizeLocalVirtualPathForEditor(path, mounts);
-							} catch {
-								// Fall back to the raw path if mount lookup fails.
-							}
-						}
-						openEditorPanel({
-							kind: "local_file",
-							localFilePath: resolvedLocalPath,
-							title: resolvedLocalPath.split("/").pop() || resolvedLocalPath,
-							searchSpaceId: resolvedSearchSpaceId,
-						});
-						return;
-					}
+	const { displayName, isFolder } = getVirtualPathDisplay(path);
+	const icon = isFolder ? (
+		<FolderIcon className="size-3.5" />
+	) : (
+		<FileIcon className="size-3.5" />
+	);
 
-					if (!resolvedSearchSpaceId || !path.startsWith("/documents/")) return;
-					try {
-						const doc = await documentsApiService.getDocumentByVirtualPath({
-							search_space_id: resolvedSearchSpaceId,
-							virtual_path: path,
-						});
-						openEditorPanel({
-							kind: "document",
-							documentId: doc.id,
-							searchSpaceId: resolvedSearchSpaceId,
-							title: doc.title,
-						});
-					} catch {
-						toast.error("Document not found in knowledge base.");
+	const handleClick = useCallback(
+		(event: React.MouseEvent<HTMLButtonElement>) => {
+			event.preventDefault();
+			event.stopPropagation();
+			void (async () => {
+				if (electronAPI) {
+					let resolvedLocalPath = path;
+					if (electronAPI.getAgentFilesystemMounts) {
+						try {
+							const mounts = (await electronAPI.getAgentFilesystemMounts(
+								resolvedSearchSpaceId
+							)) as AgentFilesystemMount[];
+							resolvedLocalPath = normalizeLocalVirtualPathForEditor(path, mounts);
+						} catch {
+							// Fall back to the raw path if mount lookup fails.
+						}
 					}
-				})();
-			}}
-			title="Open in editor panel"
-		>
-			{path}
-		</button>
+					openEditorPanel({
+						kind: "local_file",
+						localFilePath: resolvedLocalPath,
+						title: resolvedLocalPath.split("/").pop() || resolvedLocalPath,
+						searchSpaceId: resolvedSearchSpaceId,
+					});
+					return;
+				}
+
+				if (!resolvedSearchSpaceId || !path.startsWith("/documents/")) return;
+				try {
+					const doc = await documentsApiService.getDocumentByVirtualPath({
+						search_space_id: resolvedSearchSpaceId,
+						virtual_path: path,
+					});
+					openEditorPanel({
+						kind: "document",
+						documentId: doc.id,
+						searchSpaceId: resolvedSearchSpaceId,
+						title: doc.title,
+					});
+				} catch {
+					toast.error("Document not found in knowledge base.");
+				}
+			})();
+		},
+		[electronAPI, openEditorPanel, path, resolvedSearchSpaceId]
+	);
+
+	// Folders cannot open in the editor panel — keep them as visual chips.
+	const onClick = isFolder ? undefined : handleClick;
+
+	return (
+		<MentionChip
+			icon={icon}
+			label={displayName || path}
+			tooltip={path}
+			onClick={onClick}
+			ariaLabel={isFolder ? `Folder ${displayName}` : `Open ${displayName}`}
+			className={className}
+		/>
 	);
 }
 
