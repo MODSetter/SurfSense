@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
+import { setRedirectPath } from "@/lib/auth-utils";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { AmbientBackground } from "./AmbientBackground";
 import { GoogleLoginButton } from "./GoogleLoginButton";
@@ -33,7 +34,7 @@ function LoginContent() {
 		// Save returnUrl to localStorage so it persists through OAuth flows (e.g., Google)
 		// This is read by TokenHandler after successful authentication
 		if (returnUrl) {
-			localStorage.setItem("surfsense_redirect_path", decodeURIComponent(returnUrl));
+			setRedirectPath(decodeURIComponent(returnUrl));
 		}
 
 		// Show registration success message

@@ -60,10 +60,18 @@ export function handleUnauthorized(): void {
 		const currentPath = pathname + window.location.search + window.location.hash;
 		const excludedPaths = ["/auth", "/auth/callback", "/"];
 		if (!excludedPaths.includes(pathname)) {
-			localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
+			setRedirectPath(currentPath);
 		}
 		window.location.href = getLoginPath();
 	}
+}
+
+/**
+ * Stores the path to redirect to after successful authentication.
+ */
+export function setRedirectPath(path: string): void {
+	if (typeof window === "undefined") return;
+	localStorage.setItem(REDIRECT_PATH_KEY, path);
 }
 
 /**
@@ -230,7 +238,7 @@ export function redirectToLogin(): void {
 	// Don't save auth-related paths or home page
 	const excludedPaths = ["/auth", "/auth/callback", "/", "/login", "/register", "/desktop/login"];
 	if (!excludedPaths.includes(window.location.pathname)) {
-		localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
+		setRedirectPath(currentPath);
 	}
 
 	window.location.href = getLoginPath();
