@@ -8,11 +8,7 @@ export default function AuthCallbackPage() {
 	// TokenHandler uses useGlobalLoadingEffect to show the loading screen
 	return (
 		<Suspense fallback={null}>
-			<TokenHandler
-				redirectPath="/dashboard"
-				tokenParamName="token"
-				storageKey="surfsense_bearer_token"
-			/>
+			<TokenHandler redirectPath="/dashboard" tokenParamName="token" />
 		</Suspense>
 	);
 }
