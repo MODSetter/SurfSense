@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 import {
 	ArchiveIcon,
 	ChevronLeft,
@@ -47,6 +46,7 @@ import {
 	searchThreads,
 	updateThread,
 } from "@/lib/chat/thread-persistence";
+import { formatThreadTimestamp } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
@@ -392,8 +392,7 @@ export function AllSharedChatsSidebar({
 											</TooltipTrigger>
 											<TooltipContent side="bottom" align="start">
 												<p>
-													{t("updated") || "Updated"}:{" "}
-													{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
+													{t("updated") || "Updated"}: {formatThreadTimestamp(thread.updatedAt)}
 												</p>
 											</TooltipContent>
 										</Tooltip>
