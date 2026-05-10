@@ -473,10 +473,15 @@ def initialize_vision_llm_router():
 class Config:
     # Check if ffmpeg is installed
     if not is_ffmpeg_installed():
-        import static_ffmpeg
+        allow_static_ffmpeg = (
+            os.getenv("SURFSENSE_ALLOW_STATIC_FFMPEG_DOWNLOAD", "TRUE").upper() == "TRUE"
+        )
+        if allow_static_ffmpeg:
+            import static_ffmpeg
 
-        # ffmpeg installed on first call to add_paths(), threadsafe.
-        static_ffmpeg.add_paths()
+            # ffmpeg installed on first call to add_paths(), threadsafe.
+            static_ffmpeg.add_paths()
+
         # check if ffmpeg is installed again
         if not is_ffmpeg_installed():
             raise ValueError(

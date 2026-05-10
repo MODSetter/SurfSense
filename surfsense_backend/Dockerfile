@@ -31,6 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+RUN which ffmpeg && ffmpeg -version
+
 # Pandoc 3.x from GitHub Releases — apt ships 2.17 which has broken table rendering.
 # pypandoc_binary bundles pandoc on Windows/macOS; on Linux it picks up this binary.
 RUN ARCH=$(dpkg --print-architecture) && \
@@ -43,6 +45,7 @@ RUN pip install --upgrade certifi pip-system-certs
 
 ENV SSL_CERT_FILE=/usr/local/lib/python3.12/site-packages/certifi/cacert.pem
 ENV REQUESTS_CA_BUNDLE=/usr/local/lib/python3.12/site-packages/certifi/cacert.pem
+ENV SURFSENSE_ALLOW_STATIC_FFMPEG_DOWNLOAD=FALSE
 
 
 # ─── Stage 2: deps (Python deps frozen from uv.lock) ────────────────────────
@@ -82,7 +85,13 @@ RUN mkdir -p /root/.EasyOCR/model && \
     (unzip -o craft_mlt_25k.zip || true)
 
 # Pre-download Docling models
-RUN python -c "try:\n    from docling.document_converter import DocumentConverter\n    conv = DocumentConverter()\nexcept:\n    pass" || true
+RUN printf '%s\n' \
+    'try:' \
+    '    from docling.document_converter import DocumentConverter' \
+    '    DocumentConverter()' \
+    'except Exception:' \
+    '    pass' \
+    | python || true
 
 # Install Playwright browsers (the playwright python package itself is in deps)
 RUN playwright install chromium --with-deps
