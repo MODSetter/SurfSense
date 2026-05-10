@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   e2e:
-    name: Playwright E2E
+    name: Journey
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     timeout-minutes: 45
@@ -71,7 +71,7 @@ jobs:
       DROPBOX_APP_SECRET: fake-dropbox-app-secret
       DROPBOX_REDIRECT_URI: http://localhost:8000/api/v1/auth/dropbox/connector/callback
 
-      # NO_PROXY must keep huggingface — embedding + Docling models lazy-download
+      # NO_PROXY must keep huggingface, embedding + Docling models lazy-download
       # there on cold cache. Embedding fakes patch callsites, not the loader.
       HTTPS_PROXY: http://127.0.0.1:1
       HTTP_PROXY: http://127.0.0.1:1
@@ -240,7 +240,7 @@ jobs:
           path: surfsense_web/playwright-report/
           retention-days: 14
 
-      - name: Upload Playwright traces / videos
+      - name: Upload Playwright traces
         if: failure()
         uses: actions/upload-artifact@v7
         with:
