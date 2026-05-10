@@ -43,9 +43,7 @@ class EmitterRegistry:
         return main_emitter()
 
     def has_active_subagents(self) -> bool:
-        return any(
-            emitter.level == "subagent" for emitter in self._by_run_id.values()
-        )
+        return any(emitter.level == "subagent" for emitter in self._by_run_id.values())
 
     def clear(self) -> None:
         self._by_run_id.clear()

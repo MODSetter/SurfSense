@@ -118,12 +118,8 @@ def test_get_by_tool_call_id_matches_action_request_payload() -> None:
         tasks=(
             _Task(
                 interrupts=(
-                    _Interrupt(
-                        value=_hitl("a", tool_call_id="call_xxx"), id="int_a"
-                    ),
-                    _Interrupt(
-                        value=_hitl("b", tool_call_id="call_yyy"), id="int_b"
-                    ),
+                    _Interrupt(value=_hitl("a", tool_call_id="call_xxx"), id="int_a"),
+                    _Interrupt(value=_hitl("b", tool_call_id="call_yyy"), id="int_b"),
                 )
             ),
         )
@@ -146,9 +142,7 @@ def test_first_pending_interrupt_matches_legacy_first_wins_behaviour() -> None:
 
 def test_interrupt_without_id_falls_back_to_none() -> None:
     """Snapshots from older LangGraph versions may omit ``id`` — preserve that."""
-    state = _State(
-        tasks=(_Task(interrupts=(_Interrupt(value=_hitl("a"), id=None),)),)
-    )
+    state = _State(tasks=(_Task(interrupts=(_Interrupt(value=_hitl("a"), id=None),)),))
     pending = list_pending_interrupts(state)
     assert len(pending) == 1
     assert pending[0].interrupt_id is None

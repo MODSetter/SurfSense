@@ -26,9 +26,7 @@ def handle_report_progress(
         return None, last_active_step_items
 
     phase = data.get("phase", "")
-    topic_items = [
-        item for item in last_active_step_items if item.startswith("Topic:")
-    ]
+    topic_items = [item for item in last_active_step_items if item.startswith("Topic:")]
 
     if phase in ("revising_section", "adding_section"):
         plan_items = [
@@ -56,7 +54,9 @@ def handle_report_progress(
     return frame, new_items
 
 
-def handle_document_created(data: dict[str, Any], *, streaming_service: Any) -> str | None:
+def handle_document_created(
+    data: dict[str, Any], *, streaming_service: Any
+) -> str | None:
     if not data.get("id"):
         return None
     return streaming_service.format_data(

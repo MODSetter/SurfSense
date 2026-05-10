@@ -28,11 +28,7 @@ def iter_completion_emission_frames(
         xml,
     ):
         chunk_url, content = m.group(1).strip(), m.group(2).strip()
-        if (
-            chunk_url.startswith("http")
-            and chunk_url in citations
-            and content
-        ):
+        if chunk_url.startswith("http") and chunk_url in citations and content:
             citations[chunk_url]["snippet"] = (
                 content[:200] + "…" if len(content) > 200 else content
             )

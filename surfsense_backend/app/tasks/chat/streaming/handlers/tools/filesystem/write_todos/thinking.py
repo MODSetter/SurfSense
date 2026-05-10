@@ -20,15 +20,15 @@ def resolve_start_thinking(tool_name: str, tool_input: Any) -> ToolStartThinking
     return ToolStartThinking(
         title="Planning tasks",
         items=(
-            [f"{todo_count} task{'s' if todo_count != 1 else ''}"]
-            if todo_count
-            else []
+            [f"{todo_count} task{'s' if todo_count != 1 else ''}"] if todo_count else []
         ),
     )
 
 
 def resolve_completed_thinking(
-    tool_name: str, tool_output: Any, last_items: list[str],
+    tool_name: str,
+    tool_output: Any,
+    last_items: list[str],
 ) -> tuple[str, list[str]]:
     del tool_output, tool_name
     return ("Planning tasks", last_items)

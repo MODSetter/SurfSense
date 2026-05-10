@@ -84,9 +84,7 @@ class StreamingService:
     def format_step_finish(self, *, emitter: Emitter | None = None) -> str:
         return lifecycle.format_step_finish(emitter=emitter)
 
-    def format_text_start(
-        self, text_id: str, *, emitter: Emitter | None = None
-    ) -> str:
+    def format_text_start(self, text_id: str, *, emitter: Emitter | None = None) -> str:
         return text.format_text_start(text_id, emitter=emitter)
 
     def format_text_delta(
@@ -94,9 +92,7 @@ class StreamingService:
     ) -> str:
         return text.format_text_delta(text_id, delta, emitter=emitter)
 
-    def format_text_end(
-        self, text_id: str, *, emitter: Emitter | None = None
-    ) -> str:
+    def format_text_end(self, text_id: str, *, emitter: Emitter | None = None) -> str:
         return text.format_text_end(text_id, emitter=emitter)
 
     def format_reasoning_start(

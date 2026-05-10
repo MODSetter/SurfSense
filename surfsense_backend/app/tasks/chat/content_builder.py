@@ -51,7 +51,9 @@ logger = logging.getLogger(__name__)
 _MEANINGFUL_PART_TYPES: frozenset[str] = frozenset({"text", "reasoning", "tool-call"})
 
 
-def _merge_tool_part_metadata(part: dict[str, Any], metadata: dict[str, Any] | None) -> None:
+def _merge_tool_part_metadata(
+    part: dict[str, Any], metadata: dict[str, Any] | None
+) -> None:
     """Shallow-merge ``metadata`` into ``part["metadata"]``; first key wins.
 
     Used for tool-call linkage (``spanId``, ``thinkingStepId``, …): a later

@@ -7,9 +7,7 @@ from ..envelope import format_sse
 
 
 def format_text_start(text_id: str, *, emitter: Emitter | None = None) -> str:
-    return format_sse(
-        attach_emitted_by({"type": "text-start", "id": text_id}, emitter)
-    )
+    return format_sse(attach_emitted_by({"type": "text-start", "id": text_id}, emitter))
 
 
 def format_text_delta(
@@ -26,6 +24,4 @@ def format_text_delta(
 
 
 def format_text_end(text_id: str, *, emitter: Emitter | None = None) -> str:
-    return format_sse(
-        attach_emitted_by({"type": "text-end", "id": text_id}, emitter)
-    )
+    return format_sse(attach_emitted_by({"type": "text-end", "id": text_id}, emitter))

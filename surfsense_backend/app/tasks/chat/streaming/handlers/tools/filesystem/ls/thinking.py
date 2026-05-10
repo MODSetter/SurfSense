@@ -20,7 +20,9 @@ def resolve_start_thinking(tool_name: str, tool_input: Any) -> ToolStartThinking
 
 
 def resolve_completed_thinking(
-    tool_name: str, tool_output: Any, last_items: list[str],
+    tool_name: str,
+    tool_output: Any,
+    last_items: list[str],
 ) -> tuple[str, list[str]]:
     del tool_name
     if isinstance(tool_output, dict):
@@ -38,9 +40,7 @@ def resolve_completed_thinking(
                 paths = [str(p) for p in parsed]
         except (ValueError, SyntaxError):
             paths = [
-                line.strip()
-                for line in ls_output.strip().split("\n")
-                if line.strip()
+                line.strip() for line in ls_output.strip().split("\n") if line.strip()
             ]
         for p in paths:
             name = p.rstrip("/").split("/")[-1]

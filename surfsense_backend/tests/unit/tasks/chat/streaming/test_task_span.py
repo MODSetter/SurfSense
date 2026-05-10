@@ -37,7 +37,9 @@ def test_clear_ignored_for_non_task_tool() -> None:
 def test_clear_ignored_when_task_run_id_mismatches() -> None:
     state = AgentEventRelayState.for_invocation()
     open_task_span(state, run_id="run-open")
-    clear_task_span_if_delegating_task_ended(state, tool_name="task", run_id="run-other")
+    clear_task_span_if_delegating_task_ended(
+        state, tool_name="task", run_id="run-other"
+    )
     assert state.active_span_id is not None
     assert state.active_task_run_id == "run-open"
 

@@ -13,7 +13,9 @@ from app.tasks.chat.streaming.handlers.tools import (
 )
 from app.tasks.chat.streaming.helpers.tool_output import tool_output_has_error
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
-from app.tasks.chat.streaming.relay.task_span import clear_task_span_if_delegating_task_ended
+from app.tasks.chat.streaming.relay.task_span import (
+    clear_task_span_if_delegating_task_ended,
+)
 from app.tasks.chat.streaming.relay.thinking_step_sse import emit_thinking_step_frame
 
 
@@ -32,9 +34,7 @@ def iter_tool_end_frames(
     run_id = event.get("run_id", "")
     tool_name = event.get("name", "unknown_tool")
     raw_output = event.get("data", {}).get("output", "")
-    staged_file_path = (
-        state.file_path_by_run.pop(run_id, None) if run_id else None
-    )
+    staged_file_path = state.file_path_by_run.pop(run_id, None) if run_id else None
 
     if tool_name == "update_memory":
         state.called_update_memory = True
@@ -116,6 +116,4 @@ def iter_tool_end_frames(
     )
     yield from iter_tool_completion_emission_frames(emission_ctx)
 
-    clear_task_span_if_delegating_task_ended(
-        state, tool_name=tool_name, run_id=run_id
-    )
+    clear_task_span_if_delegating_task_ended(state, tool_name=tool_name, run_id=run_id)
