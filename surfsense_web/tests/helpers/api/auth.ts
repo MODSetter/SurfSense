@@ -11,8 +11,8 @@ import type { APIRequestContext } from "@playwright/test";
 
 export const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 
-const TEST_USER_EMAIL = process.env.PLAYWRIGHT_TEST_EMAIL || "test@surfsense.net";
-const TEST_USER_PASSWORD = process.env.PLAYWRIGHT_TEST_PASSWORD || "TestPassword123!";
+const TEST_USER_EMAIL = process.env.PLAYWRIGHT_TEST_EMAIL || "e2e-test@surfsense.net";
+const TEST_USER_PASSWORD = process.env.PLAYWRIGHT_TEST_PASSWORD || "E2eTestPassword123!";
 
 export async function loginAsTestUser(request: APIRequestContext): Promise<string> {
 	const response = await request.post(`${BACKEND_URL}/auth/jwt/login`, {

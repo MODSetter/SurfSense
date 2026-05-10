@@ -57,6 +57,29 @@ sys.modules["notion_client.errors"] = _fake_notion.errors
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv()
+
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense",
+)
+os.environ.setdefault("CELERY_BROKER_URL", "redis://localhost:6379/0")
+os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+os.environ.setdefault("REDIS_APP_URL", "redis://localhost:6379/0")
+os.environ.setdefault("CELERY_TASK_DEFAULT_QUEUE", "surfsense")
+os.environ.setdefault("SECRET_KEY", "local-e2e-secret-not-for-production")
+os.environ.setdefault("AUTH_TYPE", "LOCAL")
+os.environ.setdefault("REGISTRATION_ENABLED", "TRUE")
+os.environ.setdefault("ETL_SERVICE", "DOCLING")
+os.environ.setdefault("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+os.environ.setdefault("NEXT_FRONTEND_URL", "http://localhost:3000")
+
+# Sentinel keys — fakes never read them; turns leaked real calls into 401s.
+os.environ.setdefault("COMPOSIO_API_KEY", "local-deny-real-call-sentinel")
+os.environ.setdefault("COMPOSIO_ENABLED", "TRUE")
+os.environ.setdefault("OPENAI_API_KEY", "local-deny-real-call-sentinel")
+os.environ.setdefault("ANTHROPIC_API_KEY", "local-deny-real-call-sentinel")
+os.environ.setdefault("LITELLM_API_KEY", "local-deny-real-call-sentinel")
+
 os.environ.setdefault("ATLASSIAN_CLIENT_ID", "fake-atlassian-client-id")
 os.environ.setdefault("ATLASSIAN_CLIENT_SECRET", "fake-atlassian-client-secret")
 os.environ.setdefault(

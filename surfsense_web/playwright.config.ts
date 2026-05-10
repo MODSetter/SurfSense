@@ -4,6 +4,11 @@ const PORT = process.env.PORT || "3000";
 const BACKEND_PORT = process.env.BACKEND_PORT || "8000";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${PORT}`;
 
+process.env.PLAYWRIGHT_TEST_EMAIL ??= "e2e-test@surfsense.net";
+process.env.PLAYWRIGHT_TEST_PASSWORD ??= "E2eTestPassword123!";
+process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ??= `http://localhost:${BACKEND_PORT}`;
+process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE ??= "LOCAL";
+
 /**
  * Playwright configuration for SurfSense web E2E tests.
  *
@@ -60,9 +65,13 @@ export default defineConfig({
 				url: `http://localhost:${PORT}`,
 				reuseExistingServer: !process.env.CI,
 				timeout: process.env.CI ? 300_000 : 180_000,
+				stdout: "pipe",
+      			stderr: "pipe",
 				env: {
-					NEXT_PUBLIC_FASTAPI_BACKEND_URL: `http://localhost:${BACKEND_PORT}`,
-					NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: "LOCAL",
+					NEXT_PUBLIC_FASTAPI_BACKEND_URL:
+						process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL,
+					NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE:
+						process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE,
 				},
 			},
 });

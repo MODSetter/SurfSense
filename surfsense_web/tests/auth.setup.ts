@@ -10,15 +10,14 @@ import { expect, test as setup } from "@playwright/test";
  *   POST /auth/jwt/login  ->  { access_token }
  *   localStorage.setItem("surfsense_bearer_token", access_token)
  *
- * Requires a seeded test user in the dev/test DB. Configure via env:
- *   PLAYWRIGHT_TEST_EMAIL, PLAYWRIGHT_TEST_PASSWORD
- *   NEXT_PUBLIC_FASTAPI_BACKEND_URL  (defaults to http://localhost:8000)
+ * Requires a seeded test user in the dev/test DB. Defaults match the
+ * docker/docker-compose.e2e.yml local stack and can be overridden via env.
  */
 
 const authFile = path.join(__dirname, "..", "playwright", ".auth", "user.json");
 
-const TEST_USER_EMAIL = process.env.PLAYWRIGHT_TEST_EMAIL || "test@surfsense.net";
-const TEST_USER_PASSWORD = process.env.PLAYWRIGHT_TEST_PASSWORD || "TestPassword123!";
+const TEST_USER_EMAIL = process.env.PLAYWRIGHT_TEST_EMAIL || "e2e-test@surfsense.net";
+const TEST_USER_PASSWORD = process.env.PLAYWRIGHT_TEST_PASSWORD || "E2eTestPassword123!";
 const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 const STORAGE_KEY = "surfsense_bearer_token";
 
