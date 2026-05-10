@@ -1,16 +1,9 @@
 # =============================================================================
 # SurfSense Backend — Multi-stage Dockerfile
 # =============================================================================
-# Stages:
-#   base       — system deps + Pandoc 3.x
-#   deps       — Python deps frozen from uv.lock (no dev deps)
-#   models     — pre-baked offline assets (EasyOCR, Docling, Playwright)
-#   e2e        — adds tests/ via additional_contexts, swaps entrypoint
-#   production — production runtime (LAST stage = default `docker build` target)
-#
-# IMPORTANT: `production` MUST remain the last stage. .github/workflows/docker-build.yml
-# builds without `target:` and BuildKit defaults to the last stage. Reordering will
-# silently break ghcr.io/modsetter/surfsense-backend.
+# Graph: base → deps → models → {e2e, production}
+#   e2e        — tests/ via additional_contexts (docker-compose.e2e.yml)
+#   production — published ghcr.io image (docker-build.yml pins target)
 # =============================================================================
 
 # ─── Stage 1: base (system deps, Pandoc, certificates) ──────────────────────
@@ -143,10 +136,8 @@ EXPOSE 8000-8001
 CMD ["/app/scripts/docker/entrypoint.e2e.sh"]
 
 
-# ─── Stage 5: production (LAST stage — default `docker build` target) ───────
-# Behavior is byte-identical to the previous single-stage Dockerfile.
-# .github/workflows/docker-build.yml builds without `target:` and BuildKit
-# defaults to the last stage, so this MUST stay last.
+# ─── Stage 5: production (published ghcr.io image) ──────────────────────────
+# CI pins `target: production`; also the default for `docker build` / dev compose.
 FROM models AS production
 
 # Copy source code (tests/ excluded by .dockerignore — production never ships tests).
