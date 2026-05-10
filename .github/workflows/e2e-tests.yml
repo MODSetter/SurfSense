@@ -35,10 +35,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      # Required by Celery (broker + result backend) AND by the app's
-      # own Redis-backed features (heartbeats, podcast markers, anon
-      # quota). The previous workflow omitted this and indexing journeys
-      # silently hung.
       redis:
         image: redis:8-alpine
         ports:
@@ -50,7 +46,6 @@ jobs:
           --health-retries 5
 
     env:
-      # ---- Backend ------------------------------------------------------
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense_e2e
       CELERY_BROKER_URL: redis://localhost:6379/0
       CELERY_RESULT_BACKEND: redis://localhost:6379/0
@@ -62,22 +57,29 @@ jobs:
       EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
       NEXT_FRONTEND_URL: http://localhost:3000
 
-      # ---- Composio sentinel -------------------------------------------
-      # Production code does `from composio import Composio` at import
-      # time. `tests/e2e/run_backend.py` and `run_celery.py` hijack
-      # sys.modules BEFORE that import resolves, so the real SDK is
-      # never loaded. This sentinel API key is defense layer 3 from
-      # surfsense_backend/tests/e2e/README.md: if the hijack ever
-      # silently breaks, any real Composio call will 401 loudly with
-      # this token instead of using a stray developer key.
+      # Sentinel keys — fakes never read them; turns leaked real calls into 401s.
       COMPOSIO_API_KEY: e2e-deny-real-call-sentinel
       COMPOSIO_ENABLED: "TRUE"
+      OPENAI_API_KEY: e2e-deny-real-call-sentinel
+      ANTHROPIC_API_KEY: e2e-deny-real-call-sentinel
+      LITELLM_API_KEY: e2e-deny-real-call-sentinel
 
-      # ---- Frontend (read by `next dev` via playwright.config.ts) -----
+      MICROSOFT_CLIENT_ID: fake-microsoft-client-id
+      MICROSOFT_CLIENT_SECRET: fake-microsoft-client-secret
+      ONEDRIVE_REDIRECT_URI: http://localhost:8000/api/v1/auth/onedrive/connector/callback
+      DROPBOX_APP_KEY: fake-dropbox-app-key
+      DROPBOX_APP_SECRET: fake-dropbox-app-secret
+      DROPBOX_REDIRECT_URI: http://localhost:8000/api/v1/auth/dropbox/connector/callback
+
+      # NO_PROXY must keep huggingface — embedding + Docling models lazy-download
+      # there on cold cache. Embedding fakes patch callsites, not the loader.
+      HTTPS_PROXY: http://127.0.0.1:1
+      HTTP_PROXY: http://127.0.0.1:1
+      NO_PROXY: localhost,127.0.0.1,0.0.0.0,huggingface.co,*.huggingface.co,*.hf.co,cdn-lfs.huggingface.co
+
       NEXT_PUBLIC_FASTAPI_BACKEND_URL: http://localhost:8000
       NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: LOCAL
 
-      # ---- Playwright --------------------------------------------------
       PLAYWRIGHT_TEST_EMAIL: e2e-test@surfsense.net
       PLAYWRIGHT_TEST_PASSWORD: E2eTestPassword123!
 
@@ -85,9 +87,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      # =================================================================
-      # Backend: Python + uv + dependencies + migrations
-      # =================================================================
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -120,16 +119,9 @@ jobs:
         working-directory: surfsense_backend
         run: uv run alembic upgrade head
 
-      # =================================================================
-      # Boot the E2E backend.
-      #
-      # CRITICAL: do NOT run `uvicorn main:app` here. Production code
-      # binds `from composio import Composio` (and friends) at import
-      # time. `tests/e2e/run_backend.py` is the test-only entrypoint
-      # that hijacks sys.modules before that import — without it, every
-      # connector journey would call the real SDK.
-      # See surfsense_backend/tests/e2e/README.md.
-      # =================================================================
+      # Do NOT replace with `uvicorn main:app`. run_backend.py hijacks
+      # sys.modules["composio"] before app import; production binds it
+      # at import time so plain uvicorn would call the real SDK.
       - name: Start backend (E2E entrypoint with sys.modules hijack)
         working-directory: surfsense_backend
         run: |
@@ -137,10 +129,8 @@ jobs:
             > backend.log 2>&1 &
           echo $! > backend.pid
 
-      # Celery runs in its own interpreter, so the hijack from
-      # run_backend.py does NOT carry over. run_celery.py reapplies it
-      # before importing celery_app. Without this worker, indexing
-      # tasks queue but never execute and journey specs hang.
+      # Worker runs in a separate interpreter, so the hijack must be
+      # reapplied here. Without it, indexing tasks queue but never run.
       - name: Start Celery worker (E2E entrypoint)
         working-directory: surfsense_backend
         run: |
@@ -182,7 +172,7 @@ jobs:
 
       - name: Register E2E test user
         run: |
-          # Idempotent: 200/201 = created, 400 = already exists (also OK)
+          # 200/201 = created, 400 = already exists (idempotent across reruns).
           STATUS=$(curl -s -o /tmp/register.json -w "%{http_code}" \
             -X POST http://localhost:8000/auth/register \
             -H "Content-Type: application/json" \
@@ -194,9 +184,6 @@ jobs:
             exit 1
           fi
 
-      # =================================================================
-      # Frontend: Node + pnpm + Playwright
-      # =================================================================
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -241,15 +228,10 @@ jobs:
         working-directory: surfsense_web
         run: pnpm exec playwright install-deps chromium
 
-      # playwright.config.ts boots `pnpm exec next dev` automatically
-      # via webServer config (skipped when PLAYWRIGHT_NO_WEB_SERVER set).
       - name: Run Playwright tests
         working-directory: surfsense_web
         run: pnpm test:e2e
 
-      # =================================================================
-      # Diagnostics
-      # =================================================================
       - name: Upload Playwright HTML report
         if: always()
         uses: actions/upload-artifact@v7
