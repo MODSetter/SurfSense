@@ -21,20 +21,9 @@ jobs:
     if: github.event.pull_request.draft == false
     timeout-minutes: 45
 
+    # Postgres runs as a step (not a service) so we can pass `-c wal_level=logical`,
+    # required for migration 117's zero-cache publications.
     services:
-      postgres:
-        image: pgvector/pgvector:pg17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: surfsense_e2e
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d surfsense_e2e"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
       redis:
         image: redis:8-alpine
         ports:
@@ -81,6 +70,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      # Started early so it warms up while Python deps install.
+      - name: Start Postgres
+        run: |
+          docker run -d \
+            --name surfsense_postgres \
+            -p 5432:5432 \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_DB=surfsense_e2e \
+            pgvector/pgvector:pg17 \
+            postgres \
+              -c wal_level=logical \
+              -c max_wal_senders=10 \
+              -c max_replication_slots=10
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -109,6 +113,19 @@ jobs:
         working-directory: surfsense_backend
         run: uv sync
 
+      - name: Wait for Postgres readiness
+        run: |
+          for i in $(seq 1 30); do
+            if docker exec surfsense_postgres pg_isready -U postgres -d surfsense_e2e > /dev/null 2>&1; then
+              echo "Postgres ready after ${i} attempts"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Postgres failed to become ready within 60s"
+          docker logs surfsense_postgres --tail 100
+          exit 1
+
       - name: Run database migrations
         working-directory: surfsense_backend
         run: uv run alembic upgrade head
@@ -127,9 +144,7 @@ jobs:
             > backend.log 2>&1 &
           echo $! > backend.pid
 
-      # Worker runs in a separate interpreter, so the hijack must be
-      # reapplied here. Without it, indexing tasks queue but never run.
-      # Same proxy-scoping rationale as the backend step above.
+      # Worker is a separate interpreter, so the composio hijack must be reapplied.
       - name: Start Celery worker (E2E entrypoint)
         working-directory: surfsense_backend
         env:
@@ -270,3 +285,7 @@ jobs:
               kill "$(cat $f)" 2>/dev/null || true
             fi
           done
+
+      - name: Stop Postgres
+        if: always()
+        run: docker rm -f surfsense_postgres 2>/dev/null || true
