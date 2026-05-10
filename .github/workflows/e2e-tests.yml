@@ -71,12 +71,6 @@ jobs:
       DROPBOX_APP_SECRET: fake-dropbox-app-secret
       DROPBOX_REDIRECT_URI: http://localhost:8000/api/v1/auth/dropbox/connector/callback
 
-      # NO_PROXY must keep huggingface, embedding + Docling models lazy-download
-      # there on cold cache. Embedding fakes patch callsites, not the loader.
-      HTTPS_PROXY: http://127.0.0.1:1
-      HTTP_PROXY: http://127.0.0.1:1
-      NO_PROXY: localhost,127.0.0.1,0.0.0.0,huggingface.co,*.huggingface.co,*.hf.co,cdn-lfs.huggingface.co
-
       NEXT_PUBLIC_FASTAPI_BACKEND_URL: http://localhost:8000
       NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: LOCAL
 
@@ -124,6 +118,10 @@ jobs:
       # at import time so plain uvicorn would call the real SDK.
       - name: Start backend (E2E entrypoint with sys.modules hijack)
         working-directory: surfsense_backend
+        env:
+          HTTPS_PROXY: http://127.0.0.1:1
+          HTTP_PROXY: http://127.0.0.1:1
+          NO_PROXY: localhost,127.0.0.1,0.0.0.0,huggingface.co,*.huggingface.co,*.hf.co,cdn-lfs.huggingface.co
         run: |
           uv run python tests/e2e/run_backend.py \
             > backend.log 2>&1 &
@@ -131,8 +129,13 @@ jobs:
 
       # Worker runs in a separate interpreter, so the hijack must be
       # reapplied here. Without it, indexing tasks queue but never run.
+      # Same proxy-scoping rationale as the backend step above.
       - name: Start Celery worker (E2E entrypoint)
         working-directory: surfsense_backend
+        env:
+          HTTPS_PROXY: http://127.0.0.1:1
+          HTTP_PROXY: http://127.0.0.1:1
+          NO_PROXY: localhost,127.0.0.1,0.0.0.0,huggingface.co,*.huggingface.co,*.hf.co,cdn-lfs.huggingface.co
         run: |
           uv run python tests/e2e/run_celery.py \
             > celery.log 2>&1 &
