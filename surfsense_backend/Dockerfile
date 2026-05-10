@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     unzip \
     gnupg2 \
+    ffmpeg \
     espeak-ng \
     libsndfile1 \
     libgl1 \
