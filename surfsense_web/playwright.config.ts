@@ -53,11 +53,13 @@ export default defineConfig({
 	webServer: process.env.PLAYWRIGHT_NO_WEB_SERVER
 		? undefined
 		: {
-				// Pin to webpack dev (Turbopack has caused stale-lock panics in E2E).
-				command: "pnpm exec next dev",
+				// Local stays on webpack dev (Turbopack caused stale-lock panics in E2E).
+				command: process.env.CI
+					? "pnpm build && pnpm start"
+					: "pnpm exec next dev",
 				url: `http://localhost:${PORT}`,
 				reuseExistingServer: !process.env.CI,
-				timeout: 180_000,
+				timeout: process.env.CI ? 300_000 : 180_000,
 				env: {
 					NEXT_PUBLIC_FASTAPI_BACKEND_URL: `http://localhost:${BACKEND_PORT}`,
 					NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: "LOCAL",

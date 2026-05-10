@@ -21,8 +21,7 @@ jobs:
     if: github.event.pull_request.draft == false
     timeout-minutes: 45
 
-    # Postgres runs as a step (not a service) so we can pass `-c wal_level=logical`,
-    # required for migration 117's zero-cache publications.
+    # Postgres runs as a step (not a service)
     services:
       redis:
         image: redis:8-alpine
@@ -246,9 +245,17 @@ jobs:
         working-directory: surfsense_web
         run: pnpm exec playwright install-deps chromium
 
+      - name: Cache Next.js build
+        uses: actions/cache@v5
+        with:
+          path: surfsense_web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('surfsense_web/pnpm-lock.yaml') }}-${{ hashFiles('surfsense_web/**/*.{js,jsx,ts,tsx}') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('surfsense_web/pnpm-lock.yaml') }}-
+
       - name: Run Playwright tests
         working-directory: surfsense_web
-        run: pnpm test:e2e
+        run: pnpm test:e2e:prod
 
       - name: Upload Playwright HTML report
         if: always()
