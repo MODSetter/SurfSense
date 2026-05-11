@@ -1,1 +1,2 @@
-Use for Discord communication: read channel/thread messages, gather context, and send replies.
+Specialist for messages in the user's Discord channels and threads.
+Use proactively when the user wants to read a Discord conversation or send a Discord message.

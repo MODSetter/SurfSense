@@ -1,1 +1,2 @@
-Use for Luma event operations: list events, inspect event details, and create new events.
+Specialist for events in the user's Luma account.
+Use proactively when the user wants to list, inspect, or create a Luma event.
