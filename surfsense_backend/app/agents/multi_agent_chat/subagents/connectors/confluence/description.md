@@ -1,2 +1,2 @@
-Specialist for pages and spaces in the user's Confluence wiki.
-Use proactively when the user wants to find, read, create, or change a Confluence page.
+Specialist for pages in the user's Confluence wiki.
+Use proactively when the user wants to create, change, or remove a Confluence page.
