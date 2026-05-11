@@ -19,6 +19,9 @@ from app.agents.multi_agent_chat.subagents import (
 from app.agents.multi_agent_chat.subagents.builtins.general_purpose.agent import (
     build_subagent as build_general_purpose_subagent,
 )
+from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.agent import (
+    build_subagent as build_knowledge_base_subagent,
+)
 from app.agents.multi_agent_chat.subagents.shared.permissions import ToolsPermissions
 from app.agents.new_chat.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.filesystem_selection import FilesystemMode
@@ -45,6 +48,7 @@ from .shared.anthropic_cache import build_anthropic_cache_mw
 from .shared.compaction import build_compaction_mw
 from .shared.file_intent import build_file_intent_mw
 from .shared.filesystem import build_filesystem_mw
+from .shared.kb_context_projection import build_kb_context_projection_mw
 from .shared.memory import build_memory_mw
 from .shared.patch_tool_calls import build_patch_tool_calls_mw
 from .shared.permissions import (
@@ -106,6 +110,21 @@ def build_main_agent_deepagent_middleware(
         memory_mw=memory_mw,
     )
 
+    # Cloud-only: KB filesystem operations are delegated to a specialist subagent.
+    # Desktop mode keeps FS on the main agent (see kb_main_strip).
+    knowledge_base_subagent: SubAgent | None = None
+    if filesystem_mode == FilesystemMode.CLOUD:
+        knowledge_base_subagent = build_knowledge_base_subagent(
+            llm=llm,
+            backend_resolver=backend_resolver,
+            filesystem_mode=filesystem_mode,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            thread_id=thread_id,
+            permissions=permissions,
+            resilience=resilience,
+        )
+
     subagents_registry: list[SubAgent] = []
     try:
         subagent_extras = build_subagent_extras(
@@ -132,7 +151,10 @@ def build_main_agent_deepagent_middleware(
         )
         subagents_registry = []
 
-    subagents: list[SubAgent] = [general_purpose_subagent, *subagents_registry]
+    subagents: list[SubAgent] = [general_purpose_subagent]
+    if knowledge_base_subagent is not None:
+        subagents.append(knowledge_base_subagent)
+    subagents.extend(subagents_registry)
 
     stack: list[Any] = [
         build_busy_mutex_mw(flags),
@@ -155,6 +177,7 @@ def build_main_agent_deepagent_middleware(
             available_document_types=available_document_types,
             mentioned_document_ids=mentioned_document_ids,
         ),
+        build_kb_context_projection_mw(),
         build_file_intent_mw(llm),
         build_filesystem_mw(
             backend_resolver=backend_resolver,

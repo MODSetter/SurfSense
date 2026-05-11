@@ -1,52 +1,117 @@
 """`knowledge_base` route: ``SubAgent`` spec for the SurfSense KB specialist.
 
 The KB subagent owns the `/documents/` workspace: reading, writing, editing,
-searching, and organising user documents.
+searching, and organising user documents. It shares the orchestrator's
+``workspace_tree_text`` and ``kb_priority`` via state and re-emits them as
+SystemMessages through the projection middleware (no extra DB / LLM calls).
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any
+from typing import Any, cast
 
 from deepagents import SubAgent
+from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
+from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
 from langchain_core.language_models import BaseChatModel
 
+from app.agents.multi_agent_chat.middleware.shared.anthropic_cache import (
+    build_anthropic_cache_mw,
+)
+from app.agents.multi_agent_chat.middleware.shared.compaction import (
+    build_compaction_mw,
+)
+from app.agents.multi_agent_chat.middleware.shared.filesystem import (
+    build_filesystem_mw,
+)
+from app.agents.multi_agent_chat.middleware.shared.kb_context_projection import (
+    build_kb_context_projection_mw,
+)
+from app.agents.multi_agent_chat.middleware.shared.patch_tool_calls import (
+    build_patch_tool_calls_mw,
+)
+from app.agents.multi_agent_chat.middleware.shared.permissions import (
+    PermissionContext,
+)
+from app.agents.multi_agent_chat.middleware.shared.resilience import (
+    ResilienceBundle,
+)
+from app.agents.multi_agent_chat.middleware.shared.todos import build_todos_mw
 from app.agents.multi_agent_chat.subagents.shared.md_file_reader import (
     read_md_file,
 )
-from app.agents.multi_agent_chat.subagents.shared.subagent_builder import (
-    pack_subagent,
-)
+from app.agents.new_chat.filesystem_selection import FilesystemMode
+
+from .tools.index import destructive_fs_interrupt_on
 
 NAME = "knowledge_base"
 
 
 def build_subagent(
     *,
-    dependencies: dict[str, Any],
-    model: BaseChatModel | None = None,
-    extra_middleware: Sequence[Any] | None = None,
-    **_: Any,
+    llm: BaseChatModel,
+    backend_resolver: Any,
+    filesystem_mode: FilesystemMode,
+    search_space_id: int,
+    user_id: str | None,
+    thread_id: int | None,
+    permissions: PermissionContext,
+    resilience: ResilienceBundle,
 ) -> SubAgent:
-    """Build the knowledge-base subagent spec.
-
-    The FS toolset and SurfSense filesystem middleware land in a follow-up
-    commit (``kb_middleware``); at this stage ``tools`` is intentionally
-    empty so the spec is structurally valid but inert.
-    """
-    del dependencies  # plumbed for symmetry; no per-route tools at this stage.
+    """Deny + resilience inserts encapsulated here so the orchestrator never mutates the list."""
     description = read_md_file(__package__, "description").strip()
     if not description:
         description = (
             "Handles knowledge-base reads, writes, edits, and organisation."
         )
     system_prompt = read_md_file(__package__, "system_prompt").strip()
-    return pack_subagent(
-        name=NAME,
-        description=description,
-        system_prompt=system_prompt,
-        tools=[],
-        model=model,
-        extra_middleware=extra_middleware,
-    )
+
+    middleware: list[Any] = [
+        build_todos_mw(),
+        build_kb_context_projection_mw(),
+        build_filesystem_mw(
+            backend_resolver=backend_resolver,
+            filesystem_mode=filesystem_mode,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            thread_id=thread_id,
+        ),
+        build_compaction_mw(llm),
+        build_patch_tool_calls_mw(),
+        build_anthropic_cache_mw(),
+    ]
+
+    if permissions.subagent_deny_mw is not None:
+        patch_idx = next(
+            (
+                i
+                for i, m in enumerate(middleware)
+                if isinstance(m, PatchToolCallsMiddleware)
+            ),
+            len(middleware),
+        )
+        middleware.insert(patch_idx, permissions.subagent_deny_mw)
+
+    resilience_mws = resilience.as_list()
+    if resilience_mws:
+        cache_idx = next(
+            (
+                i
+                for i, m in enumerate(middleware)
+                if isinstance(m, AnthropicPromptCachingMiddleware)
+            ),
+            len(middleware),
+        )
+        for offset, mw in enumerate(resilience_mws):
+            middleware.insert(cache_idx + offset, mw)
+
+    spec: dict[str, Any] = {
+        "name": NAME,
+        "description": description,
+        "system_prompt": system_prompt,
+        "model": llm,
+        "tools": [],
+        "middleware": middleware,
+        "interrupt_on": destructive_fs_interrupt_on(),
+    }
+    return cast(SubAgent, spec)

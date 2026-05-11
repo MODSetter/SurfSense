@@ -105,12 +105,14 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         llm: BaseChatModel | None = None,
         max_entries: int = MAX_TREE_ENTRIES,
         max_tokens: int = MAX_TREE_TOKENS,
+        inject_system_message: bool = True, # For backwards compatibility
     ) -> None:
         self.search_space_id = search_space_id
         self.filesystem_mode = filesystem_mode
         self.llm = llm
         self.max_entries = max_entries
         self.max_tokens = max_tokens
+        self.inject_system_message = inject_system_message
         self._cache: dict[tuple[int, int, bool], str] = {}
 
     async def abefore_agent(  # type: ignore[override]
@@ -132,10 +134,13 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         else:
             tree_msg = await self._render_kb_tree(state)
 
-        messages = list(state.get("messages") or [])
-        insert_at = max(len(messages) - 1, 0)
-        messages.insert(insert_at, SystemMessage(content=tree_msg))
-        update["messages"] = messages
+        update["workspace_tree_text"] = tree_msg
+
+        if self.inject_system_message:
+            messages = list(state.get("messages") or [])
+            insert_at = max(len(messages) - 1, 0)
+            messages.insert(insert_at, SystemMessage(content=tree_msg))
+            update["messages"] = messages
         return update
 
     def before_agent(  # type: ignore[override]
