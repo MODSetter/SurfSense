@@ -109,6 +109,8 @@ services:
     environment:
       <<: *backend-env
       SERVICE_ROLE: api
+    volumes:
+      - shared_temp:/shared_tmp
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -147,6 +149,8 @@ services:
     environment:
       <<: *backend-env
       SERVICE_ROLE: worker
+    volumes:
+      - shared_temp:/shared_tmp
     depends_on:
       backend: { condition: service_healthy }
     healthcheck:
@@ -172,3 +176,6 @@ networks:
   # redis stay off this network entirely.
   ingress:
     driver: bridge
+
+volumes:
+  shared_temp:

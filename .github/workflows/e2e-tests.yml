@@ -130,7 +130,7 @@ jobs:
 
       # ─── Failure diagnostics ───────────────────────────────────────────
       - name: Dump backend stack logs on failure
-        if: failure()
+        if: ${{ failure() || cancelled() }}
         run: |
           mkdir -p ./compose-logs
           docker compose -f docker/docker-compose.e2e.yml logs --no-color --timestamps \
@@ -160,7 +160,7 @@ jobs:
           retention-days: 14
 
       - name: Upload backend stack logs
-        if: failure()
+        if: ${{ failure() || cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: backend-stack-logs
