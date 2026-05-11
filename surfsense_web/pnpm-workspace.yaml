@@ -1,0 +1,11 @@
+packages:
+  - "."
+onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - "@rocicorp/zero-sqlite3"
+  - "@swc/core"
+  - core-js
+  - esbuild
+  - protobufjs
+  - sharp
+  - unrs-resolver
