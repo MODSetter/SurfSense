@@ -10,6 +10,12 @@ TOOLS_PERMISSIONS: ToolsPermissions = {
     "allow": [
         {"name": "clickup_search"},
         {"name": "clickup_get_task"},
+        {"name": "clickup_get_workspace_hierarchy"},
+        {"name": "clickup_get_list"},
+        {"name": "clickup_find_member_by_name"},
     ],
-    "ask": [],
+    "ask": [
+        {"name": "clickup_create_task"},
+        {"name": "clickup_update_task"},
+    ],
 }
