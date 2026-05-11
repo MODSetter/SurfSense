@@ -20,6 +20,16 @@
 #   The values below only need to pass
 #   auto_model_pin_service._is_usable_global_config()
 #   which requires id / model_name / provider / api_key all truthy.
+#
+# Why TWO entries (premium + free):
+#   auto_model_pin_service.resolve_or_get_pinned_llm_config_id() splits
+#   candidates by billing_tier based on _is_premium_eligible(user):
+#     premium_eligible == True  -> keeps only tier=="premium" configs
+#     premium_eligible == False -> keeps only tier!="premium" configs
+#   A single-tier fixture would fail one of the two branches with
+#   "Auto mode could not find an eligible LLM config for this user and
+#   quota state". Shipping one of each guarantees every quota state
+#   resolves to a viable pin in E2E.
 
 router_settings:
   routing_strategy: "simple-shuffle"
@@ -29,17 +39,33 @@ router_settings:
 
 global_llm_configs:
   - id: 1001
-    name: "E2E Fake Auto Model"
-    billing_tier: "free"
+    name: "E2E Fake Auto Model (premium)"
+    billing_tier: "premium"
     anonymous_enabled: false
     seo_enabled: false
     quality_score: 1.0
     provider: "OPENAI"
-    model_name: "fake-e2e-model"
+    model_name: "fake-e2e-model-premium"
     api_key: "fake-e2e-api-key-not-for-production"
     supports_image_input: false
     quota_reserve_tokens: 1024
     rpm: 1000
     tpm: 100000
     litellm_params:
-      model: "openai/fake-e2e-model"
+      model: "openai/fake-e2e-model-premium"
+
+  - id: 1002
+    name: "E2E Fake Auto Model (free)"
+    billing_tier: "free"
+    anonymous_enabled: false
+    seo_enabled: false
+    quality_score: 1.0
+    provider: "OPENAI"
+    model_name: "fake-e2e-model-free"
+    api_key: "fake-e2e-api-key-not-for-production"
+    supports_image_input: false
+    quota_reserve_tokens: 1024
+    rpm: 1000
+    tpm: 100000
+    litellm_params:
+      model: "openai/fake-e2e-model-free"
