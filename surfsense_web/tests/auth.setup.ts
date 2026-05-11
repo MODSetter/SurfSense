@@ -1,46 +1,21 @@
 import path from "node:path";
 import { expect, test as setup } from "@playwright/test";
+import { acquireTestToken } from "./helpers/api/auth";
 
 /**
- * One-time authentication setup. Logs in via the FastAPI backend directly
- * (skipping the UI) and persists the resulting localStorage token so every
- * test in the chromium project starts already authenticated.
- *
- * Mirrors the real auth flow in `lib/apis/auth-api.service.ts`:
- *   POST /auth/jwt/login  ->  { access_token }
- *   localStorage.setItem("surfsense_bearer_token", access_token)
- *
- * Requires a seeded test user in the dev/test DB. Defaults match the
- * docker/docker-compose.e2e.yml local stack and can be overridden via env.
+ * One-time authentication setup. Acquires a bearer token for the seeded
+ * e2e user (rate-limit-free /__e2e__/auth/token first, /auth/jwt/login
+ * fallback) and persists it via localStorage so every test in the
+ * chromium project starts already authenticated.
  */
 
 const authFile = path.join(__dirname, "..", "playwright", ".auth", "user.json");
 
-const TEST_USER_EMAIL = process.env.PLAYWRIGHT_TEST_EMAIL || "e2e-test@surfsense.net";
-const TEST_USER_PASSWORD = process.env.PLAYWRIGHT_TEST_PASSWORD || "E2eTestPassword123!";
-const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 const STORAGE_KEY = "surfsense_bearer_token";
 
 setup("authenticate", async ({ page, request }) => {
-	const response = await request.post(`${BACKEND_URL}/auth/jwt/login`, {
-		form: {
-			username: TEST_USER_EMAIL,
-			password: TEST_USER_PASSWORD,
-			grant_type: "password",
-		},
-		headers: { "Content-Type": "application/x-www-form-urlencoded" },
-	});
-
-	expect(
-		response.ok(),
-		`Login to ${BACKEND_URL}/auth/jwt/login failed (${response.status()}). ` +
-			`Check that the backend is running and that PLAYWRIGHT_TEST_EMAIL ` +
-			`(${TEST_USER_EMAIL}) is seeded with PLAYWRIGHT_TEST_PASSWORD. ` +
-			`Body: ${await response.text()}`
-	).toBeTruthy();
-
-	const { access_token } = (await response.json()) as { access_token: string };
-	expect(access_token, "Backend response missing access_token").toBeTruthy();
+	const access_token = await acquireTestToken(request);
+	expect(access_token, "Failed to acquire e2e bearer token").toBeTruthy();
 
 	await page.addInitScript(
 		({ key, token }) => {

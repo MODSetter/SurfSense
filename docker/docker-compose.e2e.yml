@@ -56,6 +56,8 @@ x-backend-env: &backend-env
   NO_PROXY: localhost,127.0.0.1,0.0.0.0,db,redis,host.docker.internal
   HF_HUB_OFFLINE: "1"
   TRANSFORMERS_OFFLINE: "1"
+  # Test-only token-mint endpoint secret (see tests/e2e/run_backend.py).
+  E2E_MINT_SECRET: e2e-mint-secret-not-for-production
 
 services:
   db:

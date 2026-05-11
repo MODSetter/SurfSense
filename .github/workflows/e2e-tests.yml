@@ -30,6 +30,9 @@ jobs:
       # spawns `pnpm build && pnpm start` in CI; these get baked into the build.
       NEXT_PUBLIC_FASTAPI_BACKEND_URL: http://localhost:8000
       NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: LOCAL
+      # Shared secret for the test-only POST /__e2e__/auth/token endpoint.
+      # Must match docker-compose.e2e.yml's backend env (x-backend-env).
+      E2E_MINT_SECRET: e2e-mint-secret-not-for-production
 
     steps:
       - uses: actions/checkout@v6
@@ -64,6 +67,11 @@ jobs:
             echo "::error::Failed to register test user (status ${STATUS})"
             exit 1
           fi
+
+          # Flush auth rate-limit counters so Playwright starts clean.
+          docker compose -f docker/docker-compose.e2e.yml exec -T redis \
+            sh -c "redis-cli --scan --pattern 'surfsense:auth_rate_limit:*' \
+              | xargs -r redis-cli DEL" || true
 
       # ─── Frontend (host-side) ──────────────────────────────────────────
       # Playwright's webServer block in playwright.config.ts spawns
