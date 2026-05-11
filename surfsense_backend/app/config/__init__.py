@@ -474,7 +474,8 @@ class Config:
     # Check if ffmpeg is installed
     if not is_ffmpeg_installed():
         allow_static_ffmpeg = (
-            os.getenv("SURFSENSE_ALLOW_STATIC_FFMPEG_DOWNLOAD", "TRUE").upper() == "TRUE"
+            os.getenv("SURFSENSE_ALLOW_STATIC_FFMPEG_DOWNLOAD", "TRUE").upper()
+            == "TRUE"
         )
         if allow_static_ffmpeg:
             import static_ffmpeg

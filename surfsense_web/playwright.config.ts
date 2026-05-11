@@ -59,19 +59,15 @@ export default defineConfig({
 		? undefined
 		: {
 				// Local stays on webpack dev (Turbopack caused stale-lock panics in E2E).
-				command: process.env.CI
-					? "pnpm build && pnpm start"
-					: "pnpm exec next dev",
+				command: process.env.CI ? "pnpm build && pnpm start" : "pnpm exec next dev",
 				url: `http://localhost:${PORT}`,
 				reuseExistingServer: !process.env.CI,
 				timeout: process.env.CI ? 300_000 : 180_000,
 				stdout: "pipe",
-      			stderr: "pipe",
+				stderr: "pipe",
 				env: {
-					NEXT_PUBLIC_FASTAPI_BACKEND_URL:
-						process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL,
-					NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE:
-						process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE,
+					NEXT_PUBLIC_FASTAPI_BACKEND_URL: process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL,
+					NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE,
 				},
 			},
 });

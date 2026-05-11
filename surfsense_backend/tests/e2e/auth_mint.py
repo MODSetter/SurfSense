@@ -36,9 +36,7 @@ class MintResponse(BaseModel):
 
 
 def _expected_secret() -> str:
-    return os.environ.get(
-        "E2E_MINT_SECRET", "local-e2e-mint-secret-not-for-production"
-    )
+    return os.environ.get("E2E_MINT_SECRET", "local-e2e-mint-secret-not-for-production")
 
 
 router = APIRouter(prefix="/__e2e__", tags=["__e2e__"])

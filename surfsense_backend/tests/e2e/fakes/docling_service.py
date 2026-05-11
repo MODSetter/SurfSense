@@ -92,7 +92,9 @@ async def fake_process_document(
         # Empty fallback so the indexing pipeline does not error out on
         # an unexpected payload. A failing canary assertion is a much
         # clearer failure mode than a hard parser exception.
-        content = f"# {display_name}\n\n(empty docling fake — no text-show operators found)\n"
+        content = (
+            f"# {display_name}\n\n(empty docling fake — no text-show operators found)\n"
+        )
 
     logger.info(
         "[fake-docling] returning %d chars for %s",

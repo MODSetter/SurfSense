@@ -13,8 +13,7 @@ export const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http:
 
 const TEST_USER_EMAIL = process.env.PLAYWRIGHT_TEST_EMAIL || "e2e-test@surfsense.net";
 const TEST_USER_PASSWORD = process.env.PLAYWRIGHT_TEST_PASSWORD || "E2eTestPassword123!";
-const E2E_MINT_SECRET =
-	process.env.E2E_MINT_SECRET || "local-e2e-mint-secret-not-for-production";
+const E2E_MINT_SECRET = process.env.E2E_MINT_SECRET || "local-e2e-mint-secret-not-for-production";
 
 /**
  * Mints a JWT for the seeded e2e user via the test-only endpoint mounted

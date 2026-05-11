@@ -164,9 +164,7 @@ def _install_synthetic_global_llm_config() -> None:
     import shutil
 
     src = os.path.join(_THIS_DIR, "fixtures", "global_llm_config.yaml")
-    dst = os.path.join(
-        _BACKEND_ROOT, "app", "config", "global_llm_config.yaml"
-    )
+    dst = os.path.join(_BACKEND_ROOT, "app", "config", "global_llm_config.yaml")
 
     if not os.path.exists(src):
         raise RuntimeError(
