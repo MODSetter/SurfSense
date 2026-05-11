@@ -1,2 +1,2 @@
-Specialist for files and folders in the user's OneDrive.
-Use proactively when the user wants to browse, read, create, change, or remove a OneDrive file.
+Specialist for files in the user's OneDrive.
+Use proactively when the user wants to create or remove a OneDrive file.
