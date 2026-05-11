@@ -164,7 +164,7 @@ services:
         condition: service_started
 
   # flower:
-  #   build: ../surfsense_backend
+  #   build: *backend-build
   #   ports:
   #     - "${FLOWER_PORT:-5555}:5555"
   #   env_file:

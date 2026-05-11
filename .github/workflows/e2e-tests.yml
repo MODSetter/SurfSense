@@ -73,8 +73,6 @@ jobs:
           node-version: '20'
 
       - uses: pnpm/action-setup@v6
-        with:
-          version: 10
 
       - name: Get pnpm store directory
         id: pnpm-cache
