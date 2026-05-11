@@ -19,7 +19,8 @@ wait_for_db() {
     # depends_on/healthchecks already gate on db readiness, this is just
     # belt-and-suspenders so a slow first connection doesn't race migrations.
     for i in {1..60}; do
-        if python -c "from app.db import engine; import asyncio; asyncio.run(engine.dispose())" 2>/dev/null; then
+        echo "[e2e-entrypoint] db check attempt ${i}/60"
+        if python -c "from app.db import engine; import asyncio; asyncio.run(engine.dispose())"; then
             echo "[e2e-entrypoint] db reachable after ${i} attempts"
             return 0
         fi

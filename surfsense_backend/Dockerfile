@@ -93,6 +93,9 @@ RUN printf '%s\n' \
     '    pass' \
     | python || true
 
+ARG EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+RUN python -c "from chonkie import AutoEmbeddings; AutoEmbeddings.get_embeddings('${EMBEDDING_MODEL}')"
+
 # Install Playwright browsers (the playwright python package itself is in deps)
 RUN playwright install chromium --with-deps
 
@@ -104,6 +107,7 @@ RUN mkdir -p /shared_tmp
 ENV PYTHONPATH=/app
 ENV UVICORN_LOOP=asyncio
 ENV TMPDIR=/shared_tmp
+ENV PYTHONUNBUFFERED=1
 
 # Tune glibc malloc to return freed memory to the OS more aggressively.
 # Without these, Python's gc.collect() frees objects but the underlying

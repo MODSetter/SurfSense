@@ -54,6 +54,8 @@ x-backend-env: &backend-env
   HTTPS_PROXY: http://127.0.0.1:1
   HTTP_PROXY: http://127.0.0.1:1
   NO_PROXY: localhost,127.0.0.1,0.0.0.0,db,redis,host.docker.internal
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
 
 services:
   db:
@@ -95,6 +97,8 @@ services:
         # tests/ is excluded from the main context by .dockerignore;
         # the e2e stage's `COPY --from=tests-source` pulls it in here.
         tests-source: ../surfsense_backend/tests
+      args:
+        EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
       cache_from:
         - type=gha,scope=surfsense-e2e-backend
       cache_to:
