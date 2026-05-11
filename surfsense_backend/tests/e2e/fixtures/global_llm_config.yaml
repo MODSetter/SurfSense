@@ -38,7 +38,7 @@ router_settings:
   cooldown_time: 1
 
 global_llm_configs:
-  - id: 1001
+  - id: -9001
     name: "E2E Fake Auto Model (premium)"
     billing_tier: "premium"
     anonymous_enabled: false
@@ -54,7 +54,7 @@ global_llm_configs:
     litellm_params:
       model: "openai/fake-e2e-model-premium"
 
-  - id: 1002
+  - id: -9002
     name: "E2E Fake Auto Model (free)"
     billing_tier: "free"
     anonymous_enabled: false
