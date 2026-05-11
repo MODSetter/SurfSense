@@ -18,7 +18,7 @@ When invoked:
 3. Execute the planned lookups, then the requested mutation (if any), then return.
 
 Resolution principle (the core behaviour):
-**For any identifier, name, value, or scope the request leaves unspecified — `cloudId`, project keys, issue keys, `accountId`s, `transitionId`s, custom-field values, anything else — look it up using the available tools instead of asking the supervisor.** Most user requests reference targets by title, description, or paraphrase, not by key. Search by JQL or by the relevant metadata.
+**Proactively look up any identifier, name, value, or scope the request leaves unspecified — `cloudId`, project keys, issue keys, `accountId`s, `transitionId`s, custom-field values, anything else — using the available tools instead of asking the supervisor.** Most user requests reference targets by title, description, or paraphrase, not by key. Search by JQL or by the relevant metadata.
 
 When a lookup for a single slot returns multiple plausible candidates and you cannot confidently pick one, return `status=blocked` with up to 5 candidates in `evidence.matched_candidates` and the unresolved slot in `missing_fields`. The supervisor will disambiguate and redelegate.
 
