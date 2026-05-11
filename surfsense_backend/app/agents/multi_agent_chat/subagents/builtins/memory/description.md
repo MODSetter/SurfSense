@@ -1,1 +1,2 @@
-Use for storing durable user memory (private team variant selected at runtime).
+Specialist for durable user memory.
+Use whenever a task requires storing or retrieving information that should persist across conversations.
