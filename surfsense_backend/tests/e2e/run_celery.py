@@ -91,6 +91,20 @@ os.environ.setdefault(
     "DROPBOX_REDIRECT_URI",
     "http://localhost:8000/api/v1/auth/dropbox/connector/callback",
 )
+# Native Google OAuth — fake Flow in tests.e2e.fakes.native_google raises
+# "Fake Google Flow requires redirect_uri." when these are empty.
+os.environ.setdefault(
+    "GOOGLE_DRIVE_REDIRECT_URI",
+    "http://localhost:8000/api/v1/auth/google/drive/connector/callback",
+)
+os.environ.setdefault(
+    "GOOGLE_GMAIL_REDIRECT_URI",
+    "http://localhost:8000/api/v1/auth/google/gmail/connector/callback",
+)
+os.environ.setdefault(
+    "GOOGLE_CALENDAR_REDIRECT_URI",
+    "http://localhost:8000/api/v1/auth/google/calendar/connector/callback",
+)
 os.environ["SLACK_CLIENT_ID"] = "fake-slack-mcp-client-id"
 os.environ["SLACK_CLIENT_SECRET"] = "fake-slack-mcp-client-secret"
 
@@ -101,6 +115,40 @@ logging.basicConfig(
 )
 logger = logging.getLogger("surfsense.e2e.celery")
 logger.warning("*** SURFSENSE E2E CELERY WORKER — fake Composio + LLM + embeddings ***")
+
+
+# ---------------------------------------------------------------------------
+# 2.5) Materialise the synthetic global_llm_config.yaml so the worker's
+#      view of app.config.GLOBAL_LLM_CONFIGS matches the API container.
+#      Must run BEFORE the production celery_app import below, which
+#      transitively imports app.config. Install-only-if-missing so a
+#      developer's local config (with real API keys) is preserved.
+# ---------------------------------------------------------------------------
+import shutil as _shutil  # noqa: E402
+
+_e2e_llm_cfg_src = os.path.join(_THIS_DIR, "fixtures", "global_llm_config.yaml")
+_e2e_llm_cfg_dst = os.path.join(
+    _BACKEND_ROOT, "app", "config", "global_llm_config.yaml"
+)
+if not os.path.exists(_e2e_llm_cfg_src):
+    raise RuntimeError(
+        f"E2E synthetic global LLM config fixture missing at {_e2e_llm_cfg_src!r}. "
+        f"Restore tests/e2e/fixtures/global_llm_config.yaml from VCS."
+    )
+if os.path.exists(_e2e_llm_cfg_dst):
+    logger.info(
+        "[e2e-global-llm-config] %s already exists; leaving it alone "
+        "(local dev config preserved)",
+        _e2e_llm_cfg_dst,
+    )
+else:
+    os.makedirs(os.path.dirname(_e2e_llm_cfg_dst), exist_ok=True)
+    _shutil.copyfile(_e2e_llm_cfg_src, _e2e_llm_cfg_dst)
+    logger.info(
+        "[e2e-global-llm-config] installed %s -> %s",
+        _e2e_llm_cfg_src,
+        _e2e_llm_cfg_dst,
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,45 @@
+# Synthetic Global LLM configuration for E2E ONLY.
+#
+# Why this file exists:
+#   surfsense_backend/app/config/global_llm_config.yaml is gitignored
+#   (operators ship real API keys there). In CI that file does not exist,
+#   so app.config.load_global_llm_configs() returns [], every chat-stream
+#   test fails fast with "No usable global LLM configs are available for
+#   Auto mode" raised by auto_model_pin_service._global_candidates().
+#
+# What this file does:
+#   tests/e2e/run_backend.py and tests/e2e/run_celery.py copy this file
+#   to app/config/global_llm_config.yaml at startup, BEFORE app.config
+#   is imported. The copy lives only inside the E2E Docker container.
+#
+# Why a fake api_key is safe:
+#   tests.e2e.fakes.chat_llm patches
+#     app.tasks.chat.stream_new_chat.create_chat_litellm_from_agent_config
+#     app.tasks.chat.stream_new_chat.create_chat_litellm_from_config
+#   so the resolved auto-pin id is never sent to a real LLM provider.
+#   The values below only need to pass
+#   auto_model_pin_service._is_usable_global_config()
+#   which requires id / model_name / provider / api_key all truthy.
+
+router_settings:
+  routing_strategy: "simple-shuffle"
+  num_retries: 0
+  allowed_fails: 1
+  cooldown_time: 1
+
+global_llm_configs:
+  - id: 1001
+    name: "E2E Fake Auto Model"
+    billing_tier: "free"
+    anonymous_enabled: false
+    seo_enabled: false
+    quality_score: 1.0
+    provider: "OPENAI"
+    model_name: "fake-e2e-model"
+    api_key: "fake-e2e-api-key-not-for-production"
+    supports_image_input: false
+    quota_reserve_tokens: 1024
+    rpm: 1000
+    tpm: 100000
+    litellm_params:
+      model: "openai/fake-e2e-model"

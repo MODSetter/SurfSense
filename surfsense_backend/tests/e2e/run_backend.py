@@ -120,8 +120,72 @@ def _load_dotenv_and_set_env_defaults() -> None:
         "DROPBOX_REDIRECT_URI",
         "http://localhost:8000/api/v1/auth/dropbox/connector/callback",
     )
+    # Native Google OAuth — fake Flow in tests.e2e.fakes.native_google
+    # raises "Fake Google Flow requires redirect_uri." if these are empty,
+    # so connector/add routes return 500 in CI where no .env supplies them.
+    os.environ.setdefault(
+        "GOOGLE_DRIVE_REDIRECT_URI",
+        "http://localhost:8000/api/v1/auth/google/drive/connector/callback",
+    )
+    os.environ.setdefault(
+        "GOOGLE_GMAIL_REDIRECT_URI",
+        "http://localhost:8000/api/v1/auth/google/gmail/connector/callback",
+    )
+    os.environ.setdefault(
+        "GOOGLE_CALENDAR_REDIRECT_URI",
+        "http://localhost:8000/api/v1/auth/google/calendar/connector/callback",
+    )
     os.environ["SLACK_CLIENT_ID"] = "fake-slack-mcp-client-id"
     os.environ["SLACK_CLIENT_SECRET"] = "fake-slack-mcp-client-secret"
+
+
+def _install_synthetic_global_llm_config() -> None:
+    """Materialise a fake ``app/config/global_llm_config.yaml`` for E2E.
+
+    The real file is gitignored (production operators ship their own with
+    real API keys), so a fresh CI checkout has no YAML at the path
+    ``app.config.load_global_llm_configs()`` reads. With an empty
+    ``GLOBAL_LLM_CONFIGS`` list, ``auto_model_pin_service`` raises
+    ``"No usable global LLM configs are available for Auto mode"`` on
+    every chat-stream request.
+
+    We copy the synthetic fixture from ``tests/e2e/fixtures/`` into the
+    production-expected location BEFORE ``_import_production_app()`` so
+    ``app.config`` picks it up on import. Production code is untouched —
+    this is purely a test-time scaffold.
+
+    Only installs when the destination is missing. A developer running
+    the E2E entrypoint locally keeps their real ``global_llm_config.yaml``
+    intact (the patched ``create_chat_litellm_from_*`` factories make the
+    actual model values irrelevant either way).
+
+    MUST run before _import_production_app().
+    """
+    import shutil
+
+    src = os.path.join(_THIS_DIR, "fixtures", "global_llm_config.yaml")
+    dst = os.path.join(
+        _BACKEND_ROOT, "app", "config", "global_llm_config.yaml"
+    )
+
+    if not os.path.exists(src):
+        raise RuntimeError(
+            f"E2E synthetic global LLM config fixture missing at {src!r}. "
+            f"This file is checked into tests/e2e/fixtures/ — if it has gone "
+            f"missing, restore it from VCS before running the E2E entrypoint."
+        )
+
+    if os.path.exists(dst):
+        logger.info(
+            "[e2e-global-llm-config] %s already exists; leaving it alone "
+            "(local dev config preserved)",
+            dst,
+        )
+        return
+
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    shutil.copyfile(src, dst)
+    logger.info("[e2e-global-llm-config] installed %s -> %s", src, dst)
 
 
 def _import_production_app():
@@ -259,10 +323,12 @@ def _bootstrap():
       1) Hijack composio + notion_client in sys.modules.
       2) Load .env + set env defaults (app.config reads env on import).
       3) Configure logging.
-      4) Import production app (which transitively imports the now-faked
-         external SDKs and reads the env defaults).
-      5) Patch LLM / embedding bindings at every consumer site.
-      6) Mount test-only middleware + /__e2e__ routes onto the app.
+      4) Materialise the synthetic global_llm_config.yaml so Auto-mode
+         pin resolution finds at least one usable candidate.
+      5) Import production app (which transitively imports the now-faked
+         external SDKs and reads the env defaults + YAML).
+      6) Patch LLM / embedding bindings at every consumer site.
+      7) Mount test-only middleware + /__e2e__ routes onto the app.
     """
     _hijack_external_sdks()
     _load_dotenv_and_set_env_defaults()
@@ -276,6 +342,7 @@ def _bootstrap():
         "*** SURFSENSE E2E BACKEND ENTRYPOINT — fake Composio + LLM + embeddings ***"
     )
 
+    _install_synthetic_global_llm_config()
     production_app = _import_production_app()
     _patch_llm_bindings()
     _install_runtime_fakes()
