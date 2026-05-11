@@ -40,7 +40,6 @@ from .main_agent.noop_injection import build_noop_injection_mw
 from .main_agent.otel import build_otel_mw
 from .main_agent.plugins import build_plugin_middlewares
 from .main_agent.repair import build_repair_mw
-from .main_agent.selector import build_selector_mw
 from .main_agent.skills import build_skills_mw
 from .shared.anthropic_cache import build_anthropic_cache_mw
 from .shared.compaction import build_compaction_mw
@@ -180,7 +179,6 @@ def build_main_agent_deepagent_middleware(
             backend=StateBackend,
             subagents=subagents,
         ),
-        build_selector_mw(flags=flags, tools=tools),
         resilience.model_call_limit,
         resilience.tool_call_limit,
         build_context_editing_mw(
