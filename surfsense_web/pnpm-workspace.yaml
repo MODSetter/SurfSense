@@ -1,11 +1,9 @@
-packages:
-  - "."
-onlyBuiltDependencies:
-  - "@parcel/watcher"
-  - "@rocicorp/zero-sqlite3"
-  - "@swc/core"
-  - core-js
-  - esbuild
-  - protobufjs
-  - sharp
-  - unrs-resolver
+allowBuilds:
+  "@parcel/watcher": true
+  "@rocicorp/zero-sqlite3": true
+  "@swc/core": true
+  core-js: true
+  esbuild: true
+  protobufjs: true
+  sharp: true
+  unrs-resolver: true
