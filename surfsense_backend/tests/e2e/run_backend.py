@@ -209,6 +209,7 @@ def _install_runtime_fakes() -> None:
         clickup_module as _fake_clickup_module,
         confluence_indexer as _fake_confluence_indexer,
         confluence_oauth as _fake_confluence_oauth,
+        docling_service as _fake_docling_service,
         dropbox_api as _fake_dropbox_api,
         embeddings as _fake_embeddings,
         jira_module as _fake_jira_module,
@@ -222,6 +223,7 @@ def _install_runtime_fakes() -> None:
     )
 
     _fake_embeddings.install(_active_patches)
+    _fake_docling_service.install(_active_patches)
     _fake_confluence_oauth.install(_active_patches)
     _fake_confluence_indexer.install(_active_patches)
     _fake_native_google.install(_active_patches)
