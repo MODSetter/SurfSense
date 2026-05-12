@@ -21,7 +21,6 @@ def build_registry_subagents_section(
         "\n<registry_subagents>\n"
         "These specialists are registered for **task** (routes without a matching connector are omitted).\n"
         f"{bullets}\n"
-        "The runtime may also offer a general-purpose **task** helper with your tools in a separate context.\n"
         "Pick the specialist by **name**. Put full instructions in the task prompt; they do not see this thread.\n"
         "</registry_subagents>\n"
     )

@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import Any, cast
 
 from deepagents import SubAgent
-from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
 from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
 from langchain_core.language_models import BaseChatModel
 
@@ -29,9 +28,6 @@ from app.agents.multi_agent_chat.middleware.shared.kb_context_projection import 
 )
 from app.agents.multi_agent_chat.middleware.shared.patch_tool_calls import (
     build_patch_tool_calls_mw,
-)
-from app.agents.multi_agent_chat.middleware.shared.permissions import (
-    PermissionContext,
 )
 from app.agents.multi_agent_chat.middleware.shared.resilience import (
     ResilienceBundle,
@@ -55,10 +51,9 @@ def build_subagent(
     search_space_id: int,
     user_id: str | None,
     thread_id: int | None,
-    permissions: PermissionContext,
     resilience: ResilienceBundle,
 ) -> SubAgent:
-    """Deny + resilience inserts encapsulated here so the orchestrator never mutates the list."""
+    """Resilience inserts encapsulated here so the orchestrator never mutates the list."""
     description = read_md_file(__package__, "description").strip()
     if not description:
         description = (
@@ -85,17 +80,6 @@ def build_subagent(
         build_patch_tool_calls_mw(),
         build_anthropic_cache_mw(),
     ]
-
-    if permissions.subagent_deny_mw is not None:
-        patch_idx = next(
-            (
-                i
-                for i, m in enumerate(middleware)
-                if isinstance(m, PatchToolCallsMiddleware)
-            ),
-            len(middleware),
-        )
-        middleware.insert(patch_idx, permissions.subagent_deny_mw)
 
     resilience_mws = resilience.as_list()
     if resilience_mws:

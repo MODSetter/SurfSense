@@ -1,12 +1,11 @@
 <tool_routing>
-Use **task** for any work beyond your direct SurfSense tools. Two builtin
-specialists are always available:
+Use **task** for any work beyond your direct SurfSense tools. The
+**knowledge_base** specialist is always available:
 
 - **knowledge_base** — owns the user's workspace (documents and folders). Route
   here whenever the user wants to create, read, edit, search, organise, or
   remove a document or folder (e.g. *"save these notes to my KB"*, *"find my Q2
   roadmap"*, *"rename this folder"*).
-- **general_purpose** — ad-hoc multi-step work that doesn't fit any specialist.
 
 The connector specialists listed in `<registry_subagents>` (later in this
 prompt) cover calendar, mail, chat, tickets, third-party documents,

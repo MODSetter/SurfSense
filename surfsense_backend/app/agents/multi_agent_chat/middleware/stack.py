@@ -23,9 +23,6 @@ from app.agents.multi_agent_chat.subagents import (
     build_subagents,
     get_subagents_to_exclude,
 )
-from app.agents.multi_agent_chat.subagents.builtins.general_purpose.agent import (
-    build_subagent as build_general_purpose_subagent,
-)
 from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.agent import (
     build_subagent as build_knowledge_base_subagent,
 )
@@ -56,10 +53,6 @@ from .shared.compaction import build_compaction_mw
 from .shared.kb_context_projection import build_kb_context_projection_mw
 from .shared.memory import build_memory_mw
 from .shared.patch_tool_calls import build_patch_tool_calls_mw
-from .shared.permissions import (
-    build_full_permission_mw,
-    build_permission_context,
-)
 from .shared.resilience import build_resilience_bundle
 from .shared.todos import build_todos_mw
 from .subagent.extras import build_subagent_extras
@@ -87,32 +80,12 @@ def build_main_agent_deepagent_middleware(
     disabled_tools: list[str] | None = None,
 ) -> list[Any]:
     """Ordered middleware for ``create_agent`` (None entries already stripped)."""
-    permissions = build_permission_context(
-        flags=flags,
-        filesystem_mode=filesystem_mode,
-        tools=tools,
-        available_connectors=available_connectors,
-    )
     resilience = build_resilience_bundle(flags)
 
-    # Single instance threaded into both the main-agent stack and the general-purpose subagent.
     memory_mw = build_memory_mw(
         user_id=user_id,
         search_space_id=search_space_id,
         visibility=visibility,
-    )
-
-    general_purpose_subagent = build_general_purpose_subagent(
-        llm=llm,
-        tools=tools,
-        backend_resolver=backend_resolver,
-        filesystem_mode=filesystem_mode,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        thread_id=thread_id,
-        permissions=permissions,
-        resilience=resilience,
-        memory_mw=memory_mw,
     )
 
     knowledge_base_subagent = build_knowledge_base_subagent(
@@ -122,14 +95,12 @@ def build_main_agent_deepagent_middleware(
         search_space_id=search_space_id,
         user_id=user_id,
         thread_id=thread_id,
-        permissions=permissions,
         resilience=resilience,
     )
 
     subagents_registry: list[SubAgent] = []
     try:
         subagent_extras = build_subagent_extras(
-            permissions=permissions,
             resilience=resilience,
         )
         subagents_registry = build_subagents(
@@ -145,15 +116,14 @@ def build_main_agent_deepagent_middleware(
             [s["name"] for s in subagents_registry],
         )
     except Exception:
-        # Degrade to general-purpose-only rather than aborting the turn:
+        # Degrade to KB-only rather than aborting the turn:
         # one bad subagent dep should not deny the user a response.
         logging.exception(
-            "Subagents registry build failed; falling back to general-purpose only"
+            "Subagents registry build failed; falling back to knowledge_base only"
         )
         subagents_registry = []
 
     subagents: list[SubAgent] = [
-        general_purpose_subagent,
         knowledge_base_subagent,
         *subagents_registry,
     ]
@@ -209,7 +179,6 @@ def build_main_agent_deepagent_middleware(
         resilience.retry,
         resilience.fallback,
         build_repair_mw(flags=flags, tools=tools),
-        build_full_permission_mw(permissions.rulesets),
         build_doom_loop_mw(flags),
         build_action_log_mw(
             flags=flags,
