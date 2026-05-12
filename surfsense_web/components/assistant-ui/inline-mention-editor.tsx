@@ -1,6 +1,6 @@
 "use client";
 
-import { Folder as FolderIcon } from "lucide-react";
+import { Folder as FolderIcon, X as XIcon } from "lucide-react";
 import type { PlateElementProps } from "platejs/react";
 import {
 	createPlatePlugin,
@@ -9,7 +9,16 @@ import {
 	PlateContent,
 	usePlateEditor,
 } from "platejs/react";
-import { type FC, forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from "react";
+import {
+	createContext,
+	type FC,
+	forwardRef,
+	useCallback,
+	useContext,
+	useImperativeHandle,
+	useMemo,
+	useRef,
+} from "react";
 import { FOLDER_MENTION_DOCUMENT_TYPE } from "@/atoms/chat/mentioned-documents.atom";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
@@ -107,12 +116,24 @@ type ComposerValue = ComposerParagraph[];
 
 const MENTION_TYPE = "mention";
 const MENTION_CHIP_CLASSNAME =
-	"inline-flex h-5 items-center gap-1 mx-0.5 rounded bg-primary/10 px-1 text-xs font-bold text-primary/60 select-none align-middle leading-none";
+	"group inline-flex h-5 items-center gap-1 mx-0.5 rounded bg-primary/10 px-1 text-xs font-bold text-primary/60 select-none align-middle leading-none";
 const MENTION_CHIP_ICON_CLASSNAME = "flex items-center text-muted-foreground leading-none";
 const MENTION_CHIP_TITLE_CLASSNAME = "max-w-[120px] truncate leading-none";
 const COMPOSER_TEXT_METRICS_CLASSNAME = "text-sm leading-6";
 
 const EMPTY_VALUE: ComposerValue = [{ type: "p", children: [{ text: "" }] }];
+
+/**
+ * Internal seam that lets ``MentionElement`` (a Plate render component
+ * with no React props beyond ``element``) reach the editor's chip-removal
+ * function. Mirrors the Backspace path in ``handleKeyDown`` so the X
+ * button delegates to the exact same combined call site — no extra
+ * state, no atom coupling leaking into the chip.
+ */
+type MentionEditorContextValue = {
+	removeChip: (docId: number, docType: string | undefined) => void;
+};
+const MentionEditorContext = createContext<MentionEditorContextValue | null>(null);
 
 const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 	attributes,
@@ -127,16 +148,36 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 				: "text-amber-700";
 
 	const isFolder = element.kind === "folder";
+	const ctx = useContext(MentionEditorContext);
 
 	return (
 		<span {...attributes} className="inline-flex align-middle">
 			<span contentEditable={false} className={`${MENTION_CHIP_CLASSNAME} cursor-default`}>
 				<span className={MENTION_CHIP_ICON_CLASSNAME}>
-					{isFolder ? (
-						<FolderIcon className="h-3 w-3" />
-					) : (
-						getConnectorIcon(element.document_type ?? "UNKNOWN", "h-3 w-3")
-					)}
+					<span className="relative flex h-3 w-3 items-center justify-center">
+						<span className="flex items-center justify-center transition-opacity group-hover:opacity-0">
+							{isFolder ? (
+								<FolderIcon className="h-3 w-3" />
+							) : (
+								getConnectorIcon(element.document_type ?? "UNKNOWN", "h-3 w-3")
+							)}
+						</span>
+						{ctx ? (
+							<button
+								type="button"
+								aria-label={`Remove mention ${element.title}`}
+								title={`Remove ${element.title}`}
+								onMouseDown={(e) => e.preventDefault()}
+								onClick={(e) => {
+									e.stopPropagation();
+									ctx.removeChip(element.id, element.document_type);
+								}}
+								className="absolute inset-0 flex items-center justify-center rounded-sm opacity-0 transition-opacity hover:text-primary focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100"
+							>
+								<XIcon className="h-3 w-3" />
+							</button>
+						) : null}
+					</span>
 				</span>
 				<span className={MENTION_CHIP_TITLE_CLASSNAME} title={element.title}>
 					{element.title}
@@ -464,6 +505,18 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			[getCurrentValue, setValue]
 		);
 
+		// Combined "remove chip end-to-end" used by both the Backspace
+		// keybinding and the in-chip X button. Keeping these two surfaces
+		// pinned to a single helper guarantees they can never diverge —
+		// e.g. one path forgetting to notify the parent atom.
+		const removeChip = useCallback(
+			(docId: number, docType: string | undefined) => {
+				removeDocumentChip(docId, docType);
+				onDocumentRemove?.(docId, docType);
+			},
+			[onDocumentRemove, removeDocumentChip]
+		);
+
 		const setDocumentChipStatus = useCallback(
 			(
 				docId: number,
@@ -568,10 +621,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				if (!isMentionNode(prev)) return;
 
 				e.preventDefault();
-				removeDocumentChip(prev.id, prev.document_type);
-				onDocumentRemove?.(prev.id, prev.document_type);
+				removeChip(prev.id, prev.document_type);
 			},
-			[editor.selection, getCurrentValue, onDocumentRemove, onKeyDown, onSubmit, removeDocumentChip]
+			[editor.selection, getCurrentValue, onKeyDown, onSubmit, removeChip]
 		);
 
 		const editableProps = useMemo(
@@ -588,26 +640,33 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			[editor, handleKeyDown, placeholder]
 		);
 
+		const mentionEditorContextValue = useMemo<MentionEditorContextValue>(
+			() => ({ removeChip }),
+			[removeChip]
+		);
+
 		return (
 			<div className="relative w-full">
-				<Plate
-					editor={editor}
-					onChange={({ value }) => {
-						emitState(value as ComposerValue);
-					}}
-				>
-					<PlateContent
-						ref={editableRef}
-						readOnly={disabled}
-						{...editableProps}
-						className={cn(
-							"min-h-[24px] max-h-32 overflow-y-auto outline-none whitespace-pre-wrap wrap-break-word",
-							COMPOSER_TEXT_METRICS_CLASSNAME,
-							disabled && "opacity-50 cursor-not-allowed",
-							className
-						)}
-					/>
-				</Plate>
+				<MentionEditorContext.Provider value={mentionEditorContextValue}>
+					<Plate
+						editor={editor}
+						onChange={({ value }) => {
+							emitState(value as ComposerValue);
+						}}
+					>
+						<PlateContent
+							ref={editableRef}
+							readOnly={disabled}
+							{...editableProps}
+							className={cn(
+								"min-h-[24px] max-h-32 overflow-y-auto outline-none whitespace-pre-wrap wrap-break-word",
+								COMPOSER_TEXT_METRICS_CLASSNAME,
+								disabled && "opacity-50 cursor-not-allowed",
+								className
+							)}
+						/>
+					</Plate>
+				</MentionEditorContext.Provider>
 			</div>
 		);
 	}
