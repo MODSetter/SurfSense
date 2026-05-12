@@ -23,9 +23,6 @@ from app.agents.multi_agent_chat.subagents import (
     build_subagents,
     get_subagents_to_exclude,
 )
-from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.agent import (
-    build_subagent as build_knowledge_base_subagent,
-)
 from app.agents.multi_agent_chat.subagents.shared.permissions import ToolsPermissions
 from app.agents.new_chat.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.filesystem_selection import FilesystemMode
@@ -36,6 +33,9 @@ from .main_agent.anonymous_doc import build_anonymous_doc_mw
 from .main_agent.busy_mutex import build_busy_mutex_mw
 from .main_agent.checkpointed_subagent_middleware import (
     SurfSenseCheckpointedSubAgentMiddleware,
+)
+from .main_agent.checkpointed_subagent_middleware.task_description import (
+    TASK_TOOL_DESCRIPTION,
 )
 from .main_agent.context_editing import build_context_editing_mw
 from .main_agent.dedup_hitl import build_dedup_hitl_mw
@@ -53,9 +53,9 @@ from .shared.compaction import build_compaction_mw
 from .shared.kb_context_projection import build_kb_context_projection_mw
 from .shared.memory import build_memory_mw
 from .shared.patch_tool_calls import build_patch_tool_calls_mw
-from .shared.resilience import build_resilience_bundle
+from .shared.resilience import build_resilience_middlewares
 from .shared.todos import build_todos_mw
-from .subagent.extras import build_subagent_extras
+from .subagent.middleware_stack import build_subagent_middleware_stack
 
 
 def build_main_agent_deepagent_middleware(
@@ -80,7 +80,7 @@ def build_main_agent_deepagent_middleware(
     disabled_tools: list[str] | None = None,
 ) -> list[Any]:
     """Ordered middleware for ``create_agent`` (None entries already stripped)."""
-    resilience = build_resilience_bundle(flags)
+    resilience = build_resilience_middlewares(flags)
 
     memory_mw = build_memory_mw(
         user_id=user_id,
@@ -88,45 +88,21 @@ def build_main_agent_deepagent_middleware(
         visibility=visibility,
     )
 
-    knowledge_base_subagent = build_knowledge_base_subagent(
-        llm=llm,
-        backend_resolver=backend_resolver,
-        filesystem_mode=filesystem_mode,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        thread_id=thread_id,
-        resilience=resilience,
+    subagent_dependencies = {
+        **subagent_dependencies,
+        "backend_resolver": backend_resolver,
+        "filesystem_mode": filesystem_mode,
+    }
+
+    subagents: list[SubAgent] = build_subagents(
+        dependencies=subagent_dependencies,
+        model=llm,
+        middleware_stack=build_subagent_middleware_stack(resilience=resilience),
+        mcp_tools_by_agent=mcp_tools_by_agent or {},
+        exclude=get_subagents_to_exclude(available_connectors),
+        disabled_tools=disabled_tools,
     )
-
-    subagents_registry: list[SubAgent] = []
-    try:
-        subagent_extras = build_subagent_extras(
-            resilience=resilience,
-        )
-        subagents_registry = build_subagents(
-            dependencies=subagent_dependencies,
-            model=llm,
-            extra_middleware=subagent_extras,
-            mcp_tools_by_agent=mcp_tools_by_agent or {},
-            exclude=get_subagents_to_exclude(available_connectors),
-            disabled_tools=disabled_tools,
-        )
-        logging.debug(
-            "Subagents registry: %s",
-            [s["name"] for s in subagents_registry],
-        )
-    except Exception:
-        # Degrade to KB-only rather than aborting the turn:
-        # one bad subagent dep should not deny the user a response.
-        logging.exception(
-            "Subagents registry build failed; falling back to knowledge_base only"
-        )
-        subagents_registry = []
-
-    subagents: list[SubAgent] = [
-        knowledge_base_subagent,
-        *subagents_registry,
-    ]
+    logging.debug("Subagents registry: %s", [s["name"] for s in subagents])
 
     stack: list[Any] = [
         build_busy_mutex_mw(flags),
@@ -165,6 +141,8 @@ def build_main_agent_deepagent_middleware(
             checkpointer=checkpointer,
             backend=StateBackend,
             subagents=subagents,
+            system_prompt=None,
+            task_description=TASK_TOOL_DESCRIPTION,
         ),
         resilience.model_call_limit,
         resilience.tool_call_limit,

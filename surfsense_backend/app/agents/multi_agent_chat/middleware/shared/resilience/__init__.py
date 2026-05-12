@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from .bundle import ResilienceBundle, build_resilience_bundle
+from .bundle import ResilienceMiddlewares, build_resilience_middlewares
 
-__all__ = ["ResilienceBundle", "build_resilience_bundle"]
+__all__ = ["ResilienceMiddlewares", "build_resilience_middlewares"]

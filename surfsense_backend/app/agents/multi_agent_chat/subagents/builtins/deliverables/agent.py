@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any
 
 from deepagents import SubAgent
@@ -29,7 +28,7 @@ def build_subagent(
     *,
     dependencies: dict[str, Any],
     model: BaseChatModel | None = None,
-    extra_middleware: Sequence[Any] | None = None,
+    middleware_stack: dict[str, Any] | None = None,
     extra_tools_bucket: ToolsPermissions | None = None,
 ) -> SubAgent:
     buckets = load_tools(dependencies=dependencies)
@@ -51,5 +50,5 @@ def build_subagent(
         tools=tools,
         interrupt_on=interrupt_on,
         model=model,
-        extra_middleware=extra_middleware,
+        middleware_stack=middleware_stack,
     )

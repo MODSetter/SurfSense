@@ -1,8 +1,7 @@
 """Compose the ``<tools>`` block from per-tool vertical-slice folders.
 
 Each tool lives in ``prompts/tools/<name>/`` with ``description.md`` and an
-inline-rendered ``example.md``. Visibility variants (currently only
-``update_memory``) live in ``prompts/tools/<name>/{private,team}/``.
+``example.md``. Visibility variants live in ``{private,team}/`` subfolders.
 """
 
 from __future__ import annotations
@@ -31,6 +30,8 @@ def build_tools_instruction_block(
     enabled_tool_names: set[str] | None,
     disabled_tool_names: set[str] | None,
 ) -> str:
+    """Render ``<tools>``. ``task`` is always included: at least ``deliverables``
+    and ``knowledge_base`` are always in ``<specialists>`` (see constants)."""
     variant = "team" if visibility == ChatVisibility.SEARCH_SPACE else "private"
 
     parts: list[str] = ["\n<tools>\n"]
@@ -50,6 +51,14 @@ def build_tools_instruction_block(
         if example:
             parts.append("\n" + example + "\n")
         parts.append("\n")
+
+    task_description = read_prompt_md("tools/task/description.md")
+    task_example = read_prompt_md("tools/task/example.md")
+    if task_description:
+        parts.append(task_description + "\n")
+    if task_example:
+        parts.append("\n" + task_example + "\n")
+    parts.append("\n")
 
     known_disabled = (
         set(disabled_tool_names) & set(MAIN_AGENT_SURFSENSE_TOOL_NAMES_ORDERED)

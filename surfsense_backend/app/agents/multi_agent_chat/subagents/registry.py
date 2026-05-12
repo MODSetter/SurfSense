@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any, Protocol
 
 from deepagents import SubAgent
@@ -13,6 +12,9 @@ from app.agents.multi_agent_chat.constants import (
 )
 from app.agents.multi_agent_chat.subagents.builtins.deliverables.agent import (
     build_subagent as build_deliverables_subagent,
+)
+from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.agent import (
+    build_subagent as build_knowledge_base_subagent,
 )
 from app.agents.multi_agent_chat.subagents.builtins.memory.agent import (
     build_subagent as build_memory_subagent,
@@ -79,7 +81,7 @@ class SubagentBuilder(Protocol):
         *,
         dependencies: dict[str, Any],
         model: BaseChatModel | None = None,
-        extra_middleware: Sequence[Any] | None = None,
+        middleware_stack: dict[str, Any] | None = None,
         extra_tools_bucket: ToolsPermissions | None = None,
     ) -> SubAgent: ...
 
@@ -95,6 +97,7 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "gmail": build_gmail_subagent,
     "google_drive": build_google_drive_subagent,
     "jira": build_jira_subagent,
+    "knowledge_base": build_knowledge_base_subagent,
     "linear": build_linear_subagent,
     "luma": build_luma_subagent,
     "memory": build_memory_subagent,
@@ -169,7 +172,7 @@ def build_subagents(
     *,
     dependencies: dict[str, Any],
     model: BaseChatModel | None = None,
-    extra_middleware: Sequence[Any] | None = None,
+    middleware_stack: dict[str, Any] | None = None,
     mcp_tools_by_agent: dict[str, ToolsPermissions] | None = None,
     exclude: list[str] | None = None,
     disabled_tools: list[str] | None = None,
@@ -188,7 +191,7 @@ def build_subagents(
         spec = builder(
             dependencies=dependencies,
             model=model,
-            extra_middleware=extra_middleware,
+            middleware_stack=middleware_stack,
             extra_tools_bucket=mcp.get(name),
         )
         _filter_disabled_tools_in_place(spec, disabled_names)
