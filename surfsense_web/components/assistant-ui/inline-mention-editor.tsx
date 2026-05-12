@@ -1,6 +1,7 @@
 "use client";
 
 import { Folder as FolderIcon, X as XIcon } from "lucide-react";
+import type { NodeEntry, TElement } from "platejs";
 import type { PlateElementProps } from "platejs/react";
 import {
 	createPlatePlugin,
@@ -56,10 +57,7 @@ export interface InlineMentionEditorRef {
 	setText: (text: string) => void;
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
-	insertMentionChip: (
-		mention: MentionChipInput,
-		options?: { removeTriggerText?: boolean }
-	) => void;
+	insertMentionChip: (mention: MentionChipInput, options?: { removeTriggerText?: boolean }) => void;
 	/**
 	 * @deprecated Use ``insertMentionChip``. Kept for one transition
 	 * cycle so we don't break ad-hoc callers; prefer the new name.
@@ -338,17 +336,21 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			value: initialText ? toValueFromText(initialText) : EMPTY_VALUE,
 		});
 
+		// Move the caret to the end of the document and focus the editor.
+		// Routes through Plate's transforms so ``editor.selection`` and
+		// the DOM selection stay in sync — bypassing Plate (via raw
+		// ``window.getSelection``) was the prior implementation and is
+		// what made the caret disappear after every ``setValue``-based
+		// mutation. Falls back to DOM focus if Plate's API throws (e.g.
+		// during a transient unmount race).
 		const focusAtEnd = useCallback(() => {
-			const el = editableRef.current;
-			if (!el) return;
-			el.focus();
-			const selection = window.getSelection();
-			const range = document.createRange();
-			range.selectNodeContents(el);
-			range.collapse(false);
-			selection?.removeAllRanges();
-			selection?.addRange(range);
-		}, []);
+			try {
+				editor.tf.select(editor.api.end([]));
+				editor.tf.focus();
+			} catch {
+				editableRef.current?.focus();
+			}
+		}, [editor]);
 
 		const getCurrentValue = useCallback(
 			() => (editor.children as ComposerValue) ?? EMPTY_VALUE,
@@ -396,17 +398,30 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			[editor, emitState]
 		);
 
+		// Insert a mention chip at the current caret. Uses Plate
+		// transforms so Slate keeps the editor selection valid through
+		// the edit.
+		//
+		// Critical detail: the chip is a void inline element. Inserting
+		// it on its own with ``{ select: true }`` would land the caret
+		// inside the void's empty ``children: [{ text: "" }]`` — a point
+		// the browser can't render a caret on, which is what made the
+		// cursor disappear or jump to the wrong side of the chip after
+		// insertion. Inserting ``[mentionNode, { text: " " }]`` as a
+		// single array means the *last* inserted node is a text node, so
+		// ``{ select: true }`` resolves to that text node's end (offset
+		// 1, after the trailing space) — a real, renderable text point.
+		// The whole sequence stays inside ``withoutNormalizing`` so the
+		// optional trigger-text delete and the chip insert show up as a
+		// single undo step.
 		const insertMentionChip = useCallback(
 			(mention: MentionChipInput, options?: { removeTriggerText?: boolean }) => {
 				if (typeof mention.id !== "number" || typeof mention.title !== "string") return;
 
 				const removeTriggerText = options?.removeTriggerText ?? true;
-				const current = getCurrentValue();
-				const selection = editor.selection;
 				const kind: MentionKind = mention.kind ?? "doc";
 				const document_type =
-					mention.document_type ??
-					(kind === "folder" ? FOLDER_MENTION_DOCUMENT_TYPE : undefined);
+					mention.document_type ?? (kind === "folder" ? FOLDER_MENTION_DOCUMENT_TYPE : undefined);
 				const mentionNode: MentionElementNode = {
 					type: MENTION_TYPE,
 					id: mention.id,
@@ -416,60 +431,49 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					children: [{ text: "" }],
 				};
 
-				const cursorCtx = getCursorTextContext(current, selection);
-				if (!cursorCtx) {
-					const lastBlock = current[current.length - 1] ?? { type: "p", children: [{ text: "" }] };
-					const appended: ComposerValue = [
-						...current.slice(0, -1),
-						{
-							...lastBlock,
-							children: [...lastBlock.children, mentionNode, { text: " " }],
-						},
-					];
-					setValue(appended);
-					requestAnimationFrame(focusAtEnd);
-					return;
-				}
+				editor.tf.withoutNormalizing(() => {
+					const selection = editor.selection;
 
-				const block = current[cursorCtx.blockIndex];
-				const currentChild = getTextNode(block.children[cursorCtx.childIndex]);
-				if (!currentChild) {
-					const children = [...block.children];
-					children.splice(cursorCtx.childIndex + 1, 0, mentionNode, { text: " " });
-					const next = [...current];
-					next[cursorCtx.blockIndex] = { ...block, children };
-					setValue(next as ComposerValue);
-					requestAnimationFrame(focusAtEnd);
-					return;
-				}
-
-				const text = currentChild.text;
-				let removeStart = cursorCtx.cursor;
-				if (removeTriggerText) {
-					for (let i = cursorCtx.cursor - 1; i >= 0; i--) {
-						if (text[i] === "@") {
-							removeStart = i;
-							break;
+					// No active editor selection — typically because focus
+					// moved to a picker/dropdown. Snap the caret to the end
+					// of the document so the chip appends cleanly instead
+					// of disappearing into a dead range.
+					if (!selection) {
+						editor.tf.select(editor.api.end([]));
+					} else if (removeTriggerText) {
+						// Delete the in-progress "@query" text so the chip
+						// stands in for it. Mirrors the old splice but lets
+						// Slate keep selection sane through the edit.
+						const cursorCtx = getCursorTextContext(getCurrentValue(), selection);
+						if (cursorCtx) {
+							const text = cursorCtx.text;
+							let triggerIndex = -1;
+							for (let i = cursorCtx.cursor - 1; i >= 0; i--) {
+								if (text[i] === "@") {
+									triggerIndex = i;
+									break;
+								}
+								if (text[i] === " " || text[i] === "\n") break;
+							}
+							if (triggerIndex >= 0 && triggerIndex < cursorCtx.cursor) {
+								const path = [cursorCtx.blockIndex, cursorCtx.childIndex];
+								editor.tf.delete({
+									at: {
+										anchor: { path, offset: triggerIndex },
+										focus: { path, offset: cursorCtx.cursor },
+									},
+								});
+							}
 						}
-						if (text[i] === " " || text[i] === "\n") break;
 					}
-				}
 
-				const before = text.slice(0, removeStart);
-				const after = text.slice(cursorCtx.cursor);
-				const replacement: ComposerNode[] = [];
-				if (before.length > 0) replacement.push({ text: before });
-				replacement.push(mentionNode);
-				replacement.push({ text: ` ${after}` });
-
-				const children = [...block.children];
-				children.splice(cursorCtx.childIndex, 1, ...replacement);
-				const next = [...current];
-				next[cursorCtx.blockIndex] = { ...block, children };
-				setValue(next as ComposerValue);
-				requestAnimationFrame(focusAtEnd);
+					editor.tf.insertNodes([mentionNode, { text: " " }] as unknown as TElement[], {
+						select: true,
+					});
+				});
+				editor.tf.focus();
 			},
-			[editor.selection, focusAtEnd, getCurrentValue, setValue]
+			[editor, getCurrentValue]
 		);
 
 		// Backwards-compatible shim — pre-folder callers pass a doc-only
@@ -485,24 +489,34 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			[insertMentionChip]
 		);
 
+		// Remove the chip(s) matching the given (id, document_type) pair.
+		// Goes through ``tf.removeNodes`` so Slate keeps the surrounding
+		// selection valid — the previous ``setValue``-based filter wiped
+		// selection on every removal, which is why the caret vanished
+		// when the X button was clicked. Iterates descending so removing
+		// one entry doesn't invalidate the path of subsequent matches.
+		// In practice chips are deduped by ``getMentionDocKey`` so this
+		// loop runs at most once; the descending iteration is defense
+		// against any future divergence.
 		const removeDocumentChip = useCallback(
 			(docId: number, docType?: string) => {
-				const current = getCurrentValue();
-				let changed = false;
-				const next = current.map((block) => {
-					const children = block.children.filter((node) => {
-						if (!isMentionNode(node)) return true;
-						const match =
-							node.id === docId && (node.document_type ?? "UNKNOWN") === (docType ?? "UNKNOWN");
-						if (match) changed = true;
-						return !match;
-					});
-					return { ...block, children: children.length ? children : [{ text: "" }] };
+				const match = (n: unknown) => {
+					if (!n || typeof n !== "object" || !("type" in n)) return false;
+					const node = n as MentionElementNode;
+					if (node.type !== MENTION_TYPE) return false;
+					if (node.id !== docId) return false;
+					return (node.document_type ?? "UNKNOWN") === (docType ?? "UNKNOWN");
+				};
+
+				const entries = Array.from(editor.api.nodes({ at: [], match })) as NodeEntry[];
+				if (entries.length === 0) return;
+				editor.tf.withoutNormalizing(() => {
+					for (const [, path] of entries.reverse()) {
+						editor.tf.removeNodes({ at: path });
+					}
 				});
-				if (!changed) return;
-				setValue(next as ComposerValue);
 			},
-			[getCurrentValue, setValue]
+			[editor]
 		);
 
 		// Combined "remove chip end-to-end" used by both the Backspace
@@ -517,6 +531,11 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			[onDocumentRemove, removeDocumentChip]
 		);
 
+		// Update the streaming status on a chip in place. ``tf.setNodes``
+		// merges the partial props onto every node matching the
+		// predicate without rebuilding the document, so the user's
+		// selection stays put — important because status transitions
+		// arrive as backend events while the user may be mid-typing.
 		const setDocumentChipStatus = useCallback(
 			(
 				docId: number,
@@ -524,31 +543,33 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				statusLabel: string | null,
 				statusKind: MentionStatusKind = "pending"
 			) => {
-				const current = getCurrentValue();
-				let changed = false;
-				const next = current.map((block) => ({
-					...block,
-					children: block.children.map((node) => {
-						if (!isMentionNode(node)) return node;
-						const sameType = (node.document_type ?? "UNKNOWN") === (docType ?? "UNKNOWN");
-						if (node.id !== docId || !sameType) return node;
-						changed = true;
-						return {
-							...node,
-							statusLabel,
-							statusKind: statusLabel ? statusKind : undefined,
-						};
-					}),
-				}));
-				if (!changed) return;
-				setValue(next as ComposerValue);
+				const match = (n: unknown) => {
+					if (!n || typeof n !== "object" || !("type" in n)) return false;
+					const node = n as MentionElementNode;
+					if (node.type !== MENTION_TYPE) return false;
+					if (node.id !== docId) return false;
+					return (node.document_type ?? "UNKNOWN") === (docType ?? "UNKNOWN");
+				};
+
+				editor.tf.setNodes(
+					{
+						statusLabel,
+						statusKind: statusLabel ? statusKind : undefined,
+					} as Partial<TElement>,
+					{ at: [], match }
+				);
 			},
-			[getCurrentValue, setValue]
+			[editor]
 		);
 
 		const clear = useCallback(() => {
 			setValue(EMPTY_VALUE);
-		}, [setValue]);
+			// ``tf.setValue`` (inside ``setValue``) wipes the editor's
+			// selection — without this, after the user presses Enter to
+			// submit, the composer is left with no caret and they would
+			// have to click before typing again.
+			requestAnimationFrame(focusAtEnd);
+		}, [focusAtEnd, setValue]);
 
 		const setText = useCallback(
 			(text: string) => {
@@ -567,7 +588,22 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		useImperativeHandle(
 			ref,
 			() => ({
-				focus: () => editableRef.current?.focus(),
+				// If we already have a Plate selection (user was typing
+				// before focus left), preserve it — just refocus. If we
+				// don't (first mount, or focus was lost without a
+				// surviving selection), seed a selection at end-of-doc
+				// so the contentEditable shows a caret instead of an
+				// invisible focus ring.
+				focus: () => {
+					try {
+						if (!editor.selection) {
+							editor.tf.select(editor.api.end([]));
+						}
+						editor.tf.focus();
+					} catch {
+						editableRef.current?.focus();
+					}
+				},
 				clear,
 				setText,
 				getText,
@@ -579,6 +615,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			}),
 			[
 				clear,
+				editor,
 				getMentionedDocs,
 				getText,
 				insertMentionChip,

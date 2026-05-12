@@ -62,6 +62,7 @@ import { useDocumentUploadDialog } from "@/components/assistant-ui/document-uplo
 import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
+	type MentionedDocument,
 } from "@/components/assistant-ui/inline-mention-editor";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
@@ -384,7 +385,10 @@ const Composer: FC = () => {
 	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
 	const aui = useAui();
-	const hasAutoFocusedRef = useRef(false);
+	// Gate the always-focused composer behaviour to desktop. On mobile,
+	// programmatic focus pops the soft keyboard, which would be jarring
+	// whenever a picker closes or the user navigates between threads.
+	const isDesktop = useMediaQuery("(min-width: 640px)");
 
 	const electronAPI = useElectronAPI();
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
@@ -437,16 +441,24 @@ const Composer: FC = () => {
 	);
 	useBatchCommentsPreload(assistantDbMessageIds);
 
-	// Auto-focus editor on new chat page after mount
+	// Always-focused composer (Claude-style). Runs as a reactive
+	// invariant: whenever the composer is mounted and no transient
+	// picker has taken over keyboard input, the editor should be the
+	// focused element. This naturally restores focus after pickers
+	// close, after the user switches threads, and on first mount —
+	// replacing the previous one-shot ``hasAutoFocusedRef`` gate that
+	// only worked on the welcome screen.
+	//
+	// Gated on ``isDesktop`` so we don't repeatedly summon the mobile
+	// soft keyboard whenever any of the deps change. ``threadId`` is
+	// read so the effect re-fires when the user switches between two
+	// non-empty threads (where the Composer instance is reused).
 	useEffect(() => {
-		if (isThreadEmpty && !hasAutoFocusedRef.current && editorRef.current) {
-			const timeoutId = setTimeout(() => {
-				editorRef.current?.focus();
-				hasAutoFocusedRef.current = true;
-			}, 100);
-			return () => clearTimeout(timeoutId);
-		}
-	}, [isThreadEmpty]);
+		if (!isDesktop) return;
+		if (showDocumentPopover || showPromptPicker) return;
+		void threadId;
+		editorRef.current?.focus();
+	}, [isDesktop, showDocumentPopover, showPromptPicker, threadId]);
 
 	// Close document picker when a slide-out panel (inbox, shared/private chats) opens
 	useEffect(() => {
@@ -458,12 +470,45 @@ const Composer: FC = () => {
 		return () => window.removeEventListener(SLIDEOUT_PANEL_OPENED_EVENT, handler);
 	}, []);
 
-	// Sync editor text with assistant-ui composer runtime
+	// Sync editor text with the assistant-ui composer runtime and
+	// reconcile the chip atom from the editor's reported docs.
+	//
+	// The editor is the source of truth for which chips exist on
+	// screen. Reconciling here covers every deletion path Plate can
+	// produce (the explicit Backspace handler, the X-button,
+	// Cmd+Backspace, range-select+Delete, cut, paste-over) without
+	// needing per-keybinding plumbing. Without this, paths that bypass
+	// ``onDocumentRemove`` left the atom carrying stale entries that
+	// the picker would re-emit via ``initialSelectedDocuments`` and
+	// resurface as chips on the next selection.
+	//
+	// The setter returns ``prev`` when the chip set is unchanged so
+	// pure-text keystrokes don't churn the atom (Jotai compares by
+	// reference for store change notifications).
 	const handleEditorChange = useCallback(
-		(text: string) => {
+		(text: string, docs: MentionedDocument[]) => {
 			aui.composer().setText(text);
+			setMentionedDocuments((prev) => {
+				if (prev.length === docs.length) {
+					const editorKeys = new Set(docs.map((d) => getMentionDocKey(d)));
+					if (prev.every((d) => editorKeys.has(getMentionDocKey(d)))) {
+						return prev;
+					}
+				}
+				return docs.map<MentionedDocumentInfo>((d) => ({
+					id: d.id,
+					title: d.title,
+					// ``MentionedDocument.document_type`` is optional but
+					// the atom shape requires a string. ``"UNKNOWN"`` is
+					// the same sentinel ``getMentionDocKey`` and the
+					// editor's match predicates already use, so the key
+					// is stable across the round trip.
+					document_type: d.document_type ?? "UNKNOWN",
+					kind: d.kind,
+				}));
+			});
 		},
-		[aui]
+		[aui, setMentionedDocuments]
 	);
 
 	// Open document picker when @ mention is triggered
@@ -621,27 +666,26 @@ const Composer: FC = () => {
 		[setMentionedDocuments]
 	);
 
-	const handleDocumentsMention = useCallback(
-		(mentions: MentionedDocumentInfo[]) => {
-			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
-			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
+	const handleDocumentsMention = useCallback((mentions: MentionedDocumentInfo[]) => {
+		const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
+		const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
-			for (const mention of mentions) {
-				const key = getMentionDocKey(mention);
-				if (editorDocKeys.has(key)) continue;
-				editorRef.current?.insertMentionChip(mention);
-			}
+		for (const mention of mentions) {
+			const key = getMentionDocKey(mention);
+			if (editorDocKeys.has(key)) continue;
+			editorRef.current?.insertMentionChip(mention);
+			// Track within the loop so duplicates in the same batch
+			// (defensive — the picker shouldn't produce them today)
+			// can't slip through as double-inserted chips.
+			editorDocKeys.add(key);
+		}
 
-			setMentionedDocuments((prev) => {
-				const existingKeySet = new Set(prev.map((d) => getMentionDocKey(d)));
-				const uniqueNew = mentions.filter((m) => !existingKeySet.has(getMentionDocKey(m)));
-				return [...prev, ...uniqueNew];
-			});
-
-			setMentionQuery("");
-		},
-		[setMentionedDocuments]
-	);
+		// Atom is reconciled by the editor's ``onChange`` after each
+		// ``insertMentionChip`` (see ``handleEditorChange``); writing
+		// here would be a second, divergent write path — exactly the
+		// shape that let stale entries resurface in the past.
+		setMentionQuery("");
+	}, []);
 
 	useEffect(() => {
 		const editor = editorRef.current;
