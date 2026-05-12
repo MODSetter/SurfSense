@@ -21,6 +21,7 @@ export const createImageGenConfigMutationAtom = atomWithMutation((get) => {
 
 	return {
 		mutationKey: ["image-gen-configs", "create"],
+		meta: { suppressGlobalErrorToast: true },
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: CreateImageGenConfigRequest) => {
 			return imageGenConfigApiService.createConfig(request);
@@ -45,6 +46,7 @@ export const updateImageGenConfigMutationAtom = atomWithMutation((get) => {
 
 	return {
 		mutationKey: ["image-gen-configs", "update"],
+		meta: { suppressGlobalErrorToast: true },
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: UpdateImageGenConfigRequest) => {
 			return imageGenConfigApiService.updateConfig(request);
@@ -72,6 +74,7 @@ export const deleteImageGenConfigMutationAtom = atomWithMutation((get) => {
 
 	return {
 		mutationKey: ["image-gen-configs", "delete"],
+		meta: { suppressGlobalErrorToast: true },
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: { id: number; name: string }) => {
 			return imageGenConfigApiService.deleteConfig(request.id);

@@ -14,6 +14,7 @@ import { queryClient } from "@/lib/query-client/client";
 
 export const updateMemberMutationAtom = atomWithMutation(() => {
 	return {
+		meta: { suppressGlobalErrorToast: true },
 		mutationFn: async (request: UpdateMembershipRequest) => {
 			return membersApiService.updateMember(request);
 		},
@@ -31,6 +32,7 @@ export const updateMemberMutationAtom = atomWithMutation(() => {
 
 export const deleteMemberMutationAtom = atomWithMutation(() => {
 	return {
+		meta: { suppressGlobalErrorToast: true },
 		mutationFn: async (request: DeleteMembershipRequest) => {
 			return membersApiService.deleteMember(request);
 		},
@@ -48,6 +50,7 @@ export const deleteMemberMutationAtom = atomWithMutation(() => {
 
 export const leaveSearchSpaceMutationAtom = atomWithMutation(() => {
 	return {
+		meta: { suppressGlobalErrorToast: true },
 		mutationFn: async (request: LeaveSearchSpaceRequest) => {
 			return membersApiService.leaveSearchSpace(request);
 		},
