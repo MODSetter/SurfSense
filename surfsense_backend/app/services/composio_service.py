@@ -183,13 +183,12 @@ class ComposioService:
                     f"in your Composio dashboard at https://app.composio.dev"
                 )
 
-            # Initiate the connection using Composio SDK with auth_config_id
-            # allow_multiple=True allows creating multiple connections per user (e.g., different Google accounts)
-            connection_request = self.client.connected_accounts.initiate(
+            # Composio managed OAuth now uses connected_accounts.link() (v3).
+            # initiate() is deprecated for managed auth configs and returns 400.
+            connection_request = self.client.connected_accounts.link(
                 user_id=user_id,
                 auth_config_id=auth_config_id,
                 callback_url=redirect_uri,
-                allow_multiple=True,
             )
 
             logger.info(

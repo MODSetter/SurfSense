@@ -1,0 +1,246 @@
+# =============================================================================
+# SurfSense — Production Docker Compose
+# Docs: https://docs.surfsense.com/docs/docker-installation
+# =============================================================================
+# Usage:
+#   1. Copy .env.example to .env and edit the required values
+#   2. docker compose up -d
+# =============================================================================
+
+name: surfsense
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    environment:
+      POSTGRES_USER: ${DB_USER:-surfsense}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-surfsense}
+      POSTGRES_DB: ${DB_NAME:-surfsense}
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-surfsense} -d ${DB_NAME:-surfsense}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  searxng:
+    image: searxng/searxng:2026.3.13-3c1f68c59
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-surfsense-searxng-secret}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
+    ports:
+      - "${BACKEND_PORT:-8929}:8000"
+    volumes:
+      - shared_temp:/shared_tmp
+      - ../surfsense_backend/app/config/global_llm_config.yaml:/app/app/config/global_llm_config.yaml:ro
+      - ../surfsense_backend/app/tasks/celery_tasks/document_tasks.py:/app/app/tasks/celery_tasks/document_tasks.py:ro
+      - ../surfsense_backend/app/services/docling_service.py:/app/app/services/docling_service.py:ro
+      - ../surfsense_backend/app/services/composio_service.py:/app/app/services/composio_service.py:ro
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
+      CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_APP_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_TASK_DEFAULT_QUEUE: surfsense
+      PYTHONPATH: /app
+      UVICORN_LOOP: asyncio
+      UNSTRUCTURED_HAS_PATCHED_LOOP: "1"
+      NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3929}}
+      SEARXNG_DEFAULT_HOST: ${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
+      # Daytona Sandbox – uncomment and set credentials to enable cloud code execution
+      # DAYTONA_SANDBOX_ENABLED: "TRUE"
+      # DAYTONA_API_KEY: ${DAYTONA_API_KEY:-}
+      # DAYTONA_API_URL: ${DAYTONA_API_URL:-https://app.daytona.io/api}
+      # DAYTONA_TARGET: ${DAYTONA_TARGET:-us}
+      SERVICE_ROLE: api
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      searxng:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 30
+      start_period: 200s
+
+  celery_worker:
+    image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
+    volumes:
+      - shared_temp:/shared_tmp
+      - ../surfsense_backend/app/config/global_llm_config.yaml:/app/app/config/global_llm_config.yaml:ro
+      - ../surfsense_backend/app/tasks/celery_tasks/document_tasks.py:/app/app/tasks/celery_tasks/document_tasks.py:ro
+      - ../surfsense_backend/app/services/docling_service.py:/app/app/services/docling_service.py:ro
+      - ../surfsense_backend/app/services/composio_service.py:/app/app/services/composio_service.py:ro
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
+      CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_APP_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_TASK_DEFAULT_QUEUE: surfsense
+      PYTHONPATH: /app
+      SEARXNG_DEFAULT_HOST: ${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
+      SERVICE_ROLE: worker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    restart: unless-stopped
+
+  celery_beat:
+    image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
+    volumes:
+      - ../surfsense_backend/app/config/global_llm_config.yaml:/app/app/config/global_llm_config.yaml:ro
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
+      CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_TASK_DEFAULT_QUEUE: surfsense
+      PYTHONPATH: /app
+      SERVICE_ROLE: beat
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      celery_worker:
+        condition: service_started
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    restart: unless-stopped
+
+  # flower:
+  #   image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
+  #   ports:
+  #     - "${FLOWER_PORT:-5555}:5555"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
+  #     CELERY_RESULT_BACKEND: ${REDIS_URL:-redis://redis:6379/0}
+  #     PYTHONPATH: /app
+  #   command: celery -A app.celery_app flower --port=5555
+  #   depends_on:
+  #     - redis
+  #     - celery_worker
+  #   restart: unless-stopped
+
+  zero-cache:
+    image: rocicorp/zero:0.26.2
+    ports:
+      - "${ZERO_CACHE_PORT:-5929}:4848"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      ZERO_UPSTREAM_DB: ${ZERO_UPSTREAM_DB:-postgresql://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
+      ZERO_CVR_DB: ${ZERO_CVR_DB:-postgresql://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
+      ZERO_CHANGE_DB: ${ZERO_CHANGE_DB:-postgresql://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
+      ZERO_REPLICA_FILE: /data/zero.db
+      ZERO_ADMIN_PASSWORD: ${ZERO_ADMIN_PASSWORD:-surfsense-zero-admin}
+      ZERO_APP_PUBLICATIONS: ${ZERO_APP_PUBLICATIONS:-zero_publication}
+      ZERO_NUM_SYNC_WORKERS: ${ZERO_NUM_SYNC_WORKERS:-4}
+      ZERO_UPSTREAM_MAX_CONNS: ${ZERO_UPSTREAM_MAX_CONNS:-20}
+      ZERO_CVR_MAX_CONNS: ${ZERO_CVR_MAX_CONNS:-30}
+      ZERO_QUERY_URL: ${ZERO_QUERY_URL:-http://frontend:3000/api/zero/query}
+      ZERO_MUTATE_URL: ${ZERO_MUTATE_URL:-http://frontend:3000/api/zero/mutate}
+    volumes:
+      - zero_cache_data:/data
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4848/keepalive"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    image: ghcr.io/modsetter/surfsense-web:${SURFSENSE_VERSION:-latest}
+    environment:
+      NEXT_PUBLIC_FASTAPI_BACKEND_URL: ${NEXT_PUBLIC_FASTAPI_BACKEND_URL:-http://localhost:${BACKEND_PORT:-8929}}
+      NEXT_PUBLIC_ZERO_CACHE_URL: ${NEXT_PUBLIC_ZERO_CACHE_URL:-http://localhost:${ZERO_CACHE_PORT:-5929}}
+      NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${AUTH_TYPE:-LOCAL}
+      NEXT_PUBLIC_ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
+      NEXT_PUBLIC_DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
+      FASTAPI_BACKEND_INTERNAL_URL: ${FASTAPI_BACKEND_INTERNAL_URL:-http://backend:8000}
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    depends_on:
+      backend:
+        condition: service_healthy
+      zero-cache:
+        condition: service_healthy
+    restart: unless-stopped
+
+  gateway:
+    image: nginx:1.27-alpine
+    ports:
+      - "${FRONTEND_PORT:-3929}:80"
+    volumes:
+      - ./nginx-surfsense.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
+      zero-cache:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: surfsense-postgres
+  redis_data:
+    name: surfsense-redis
+  shared_temp:
+    name: surfsense-shared-temp
+  zero_cache_data:
+    name: surfsense-zero-cache
