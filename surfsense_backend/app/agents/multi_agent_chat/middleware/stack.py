@@ -110,20 +110,16 @@ def build_main_agent_deepagent_middleware(
         memory_mw=memory_mw,
     )
 
-    # Cloud-only: KB filesystem operations are delegated to a specialist subagent.
-    # Desktop mode keeps FS on the main agent (see kb_main_strip).
-    knowledge_base_subagent: SubAgent | None = None
-    if filesystem_mode == FilesystemMode.CLOUD:
-        knowledge_base_subagent = build_knowledge_base_subagent(
-            llm=llm,
-            backend_resolver=backend_resolver,
-            filesystem_mode=filesystem_mode,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            thread_id=thread_id,
-            permissions=permissions,
-            resilience=resilience,
-        )
+    knowledge_base_subagent = build_knowledge_base_subagent(
+        llm=llm,
+        backend_resolver=backend_resolver,
+        filesystem_mode=filesystem_mode,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        thread_id=thread_id,
+        permissions=permissions,
+        resilience=resilience,
+    )
 
     subagents_registry: list[SubAgent] = []
     try:
@@ -151,10 +147,11 @@ def build_main_agent_deepagent_middleware(
         )
         subagents_registry = []
 
-    subagents: list[SubAgent] = [general_purpose_subagent]
-    if knowledge_base_subagent is not None:
-        subagents.append(knowledge_base_subagent)
-    subagents.extend(subagents_registry)
+    subagents: list[SubAgent] = [
+        general_purpose_subagent,
+        knowledge_base_subagent,
+        *subagents_registry,
+    ]
 
     stack: list[Any] = [
         build_busy_mutex_mw(flags),

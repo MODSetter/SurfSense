@@ -64,7 +64,12 @@ def build_subagent(
         description = (
             "Handles knowledge-base reads, writes, edits, and organisation."
         )
-    system_prompt = read_md_file(__package__, "system_prompt").strip()
+    prompt_stem = (
+        "system_prompt_cloud"
+        if filesystem_mode == FilesystemMode.CLOUD
+        else "system_prompt_desktop"
+    )
+    system_prompt = read_md_file(__package__, prompt_stem).strip()
 
     middleware: list[Any] = [
         build_todos_mw(),
