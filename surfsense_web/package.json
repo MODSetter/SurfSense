@@ -2,6 +2,7 @@
 	"name": "surfsense_web",
 	"version": "0.0.23",
 	"private": true,
+	"packageManager": "pnpm@10.26.0",
 	"description": "SurfSense Frontend",
 	"scripts": {
 		"dev": "next dev --turbopack",
