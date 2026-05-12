@@ -1,4 +1,11 @@
-"""Main-agent middleware list assembly: one line per slot."""
+"""Main-agent middleware list assembly: one line per slot.
+
+The main agent is a pure router — filesystem reads/writes are owned by the
+``knowledge_base`` subagent and delegated via the ``task`` tool. The stack
+here only renders KB context (workspace tree + priority docs), projects it
+into system messages, and commits any subagent-side staged writes at end of
+turn (cloud mode).
+"""
 
 from __future__ import annotations
 
@@ -46,8 +53,6 @@ from .main_agent.repair import build_repair_mw
 from .main_agent.skills import build_skills_mw
 from .shared.anthropic_cache import build_anthropic_cache_mw
 from .shared.compaction import build_compaction_mw
-from .shared.file_intent import build_file_intent_mw
-from .shared.filesystem import build_filesystem_mw
 from .shared.kb_context_projection import build_kb_context_projection_mw
 from .shared.memory import build_memory_mw
 from .shared.patch_tool_calls import build_patch_tool_calls_mw
@@ -175,14 +180,6 @@ def build_main_agent_deepagent_middleware(
             mentioned_document_ids=mentioned_document_ids,
         ),
         build_kb_context_projection_mw(),
-        build_file_intent_mw(llm),
-        build_filesystem_mw(
-            backend_resolver=backend_resolver,
-            filesystem_mode=filesystem_mode,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            thread_id=thread_id,
-        ),
         build_kb_persistence_mw(
             filesystem_mode=filesystem_mode,
             search_space_id=search_space_id,
