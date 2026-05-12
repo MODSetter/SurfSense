@@ -1212,17 +1212,19 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				</div>
 			)}
 			<div className="flex items-center gap-2">
-				<TooltipIconButton
-					tooltip="Capture screen"
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="size-8 rounded-full"
-					aria-label="Capture screen"
-					onClick={() => void handleScreenCapture()}
-				>
-					<Camera className="size-4" />
-				</TooltipIconButton>
+				{isDesktop && (
+					<TooltipIconButton
+						tooltip="Capture screen"
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="size-8 rounded-full"
+						aria-label="Capture screen"
+						onClick={() => void handleScreenCapture()}
+					>
+						<Camera className="size-4" />
+					</TooltipIconButton>
+				)}
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
