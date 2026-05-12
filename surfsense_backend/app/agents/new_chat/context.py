@@ -46,6 +46,10 @@ class SurfSenseContextSchema:
             Read by ``KnowledgePriorityMiddleware`` to seed its priority
             list. Stays out of the compiled-agent cache key — that's the
             whole point of putting it here.
+        mentioned_folder_ids: KB folders the user @-mentioned this turn
+            (cloud filesystem mode). Surfaced as ``[USER-MENTIONED]``
+            entries in ``<priority_documents>`` so the agent prioritises
+            walking those folders with ``ls`` / ``find_documents``.
         file_operation_contract: One-shot file operation contract emitted
             by ``FileIntentMiddleware`` for the upcoming turn.
         turn_id / request_id: Correlation IDs surfaced by the streaming
@@ -59,6 +63,7 @@ class SurfSenseContextSchema:
 
     search_space_id: int | None = None
     mentioned_document_ids: list[int] = field(default_factory=list)
+    mentioned_folder_ids: list[int] = field(default_factory=list)
     file_operation_contract: FileOperationContractState | None = None
     turn_id: str | None = None
     request_id: str | None = None

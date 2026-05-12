@@ -37,9 +37,7 @@ def test_custom_interrupt_primitive_is_converted_to_canonical_shape() -> None:
         "context": {"reason": "destructive"},
     }
     out = normalize_interrupt_payload(raw)
-    assert out["action_requests"] == [
-        {"name": "send_email", "args": {"to": "a@b"}}
-    ]
+    assert out["action_requests"] == [{"name": "send_email", "args": {"to": "a@b"}}]
     assert out["review_configs"] == [
         {
             "action_name": "send_email",

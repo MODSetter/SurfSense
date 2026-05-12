@@ -24,7 +24,10 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
-import { mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
+import {
+	makeFolderMention,
+	mentionedDocumentsAtom,
+} from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
@@ -881,7 +884,7 @@ function AuthenticatedDocumentsSidebarBase({
 
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
-			const key = getMentionDocKey(doc);
+			const key = getMentionDocKey({ ...doc, kind: "doc" });
 			if (isMentioned) {
 				setSidebarDocs((prev) => prev.filter((d) => getMentionDocKey(d) !== key));
 			} else {
@@ -889,7 +892,12 @@ function AuthenticatedDocumentsSidebarBase({
 					if (prev.some((d) => getMentionDocKey(d) === key)) return prev;
 					return [
 						...prev,
-						{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
+						{
+							id: doc.id,
+							title: doc.title,
+							document_type: doc.document_type as DocumentTypeEnum,
+							kind: "doc",
+						},
 					];
 				});
 			}
@@ -899,40 +907,29 @@ function AuthenticatedDocumentsSidebarBase({
 
 	const handleToggleFolderSelect = useCallback(
 		(folderId: number, selectAll: boolean) => {
-			function collectSubtreeDocs(parentId: number): DocumentNodeDoc[] {
-				const directDocs = (treeDocuments ?? []).filter(
-					(d) =>
-						d.folderId === parentId &&
-						d.status?.state !== "pending" &&
-						d.status?.state !== "processing" &&
-						d.status?.state !== "failed"
-				);
-				const childFolders = foldersByParent[String(parentId)] ?? [];
-				const descendantDocs = childFolders.flatMap((cf) => collectSubtreeDocs(cf.id));
-				return [...directDocs, ...descendantDocs];
-			}
-
-			const subtreeDocs = collectSubtreeDocs(folderId);
-			if (subtreeDocs.length === 0) return;
+			// One folder click = one folder-mention chip. The agent
+			// resolves the chip to its virtual path
+			// (``/documents/MyFolder/``) and walks it itself with
+			// ``ls`` / ``find_documents``. We deliberately don't
+			// fan out to per-doc chips anymore — the previous
+			// behaviour created N chips for one click and dropped
+			// nested folders entirely once selected, which the
+			// agent had no way to recover.
+			const folder = treeFolders.find((f) => f.id === folderId);
+			if (!folder) return;
+			const chip = makeFolderMention({ id: folder.id, name: folder.name });
+			const chipKey = getMentionDocKey(chip);
 
 			if (selectAll) {
 				setSidebarDocs((prev) => {
-					const existingDocKeys = new Set(prev.map((d) => getMentionDocKey(d)));
-					const newDocs = subtreeDocs
-						.filter((d) => !existingDocKeys.has(getMentionDocKey(d)))
-						.map((d) => ({
-							id: d.id,
-							title: d.title,
-							document_type: d.document_type as DocumentTypeEnum,
-						}));
-					return newDocs.length > 0 ? [...prev, ...newDocs] : prev;
+					const exists = prev.some((d) => getMentionDocKey(d) === chipKey);
+					return exists ? prev : [...prev, chip];
 				});
 			} else {
-				const keysToRemove = new Set(subtreeDocs.map((d) => getMentionDocKey(d)));
-				setSidebarDocs((prev) => prev.filter((d) => !keysToRemove.has(getMentionDocKey(d))));
+				setSidebarDocs((prev) => prev.filter((d) => getMentionDocKey(d) !== chipKey));
 			}
 		},
-		[treeDocuments, foldersByParent, setSidebarDocs]
+		[treeFolders, setSidebarDocs]
 	);
 
 	const searchFilteredDocuments = useMemo(() => {
@@ -1604,7 +1601,7 @@ function AnonymousDocumentsSidebar({
 
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
-			const key = getMentionDocKey(doc);
+			const key = getMentionDocKey({ ...doc, kind: "doc" });
 			if (isMentioned) {
 				setSidebarDocs((prev) => prev.filter((d) => getMentionDocKey(d) !== key));
 			} else {
@@ -1612,7 +1609,12 @@ function AnonymousDocumentsSidebar({
 					if (prev.some((d) => getMentionDocKey(d) === key)) return prev;
 					return [
 						...prev,
-						{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
+						{
+							id: doc.id,
+							title: doc.title,
+							document_type: doc.document_type as DocumentTypeEnum,
+							kind: "doc",
+						},
 					];
 				});
 			}

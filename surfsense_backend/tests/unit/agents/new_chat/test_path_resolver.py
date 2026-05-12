@@ -196,3 +196,50 @@ class TestVirtualPathToDoc:
         )
         assert document is target_doc
         assert session.execute.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_resolves_double_extension_for_uploaded_pdf(self):
+        # Regression: the agent renders every KB document under
+        # ``/documents/`` with a trailing ``.xml`` (via ``safe_filename``),
+        # so an uploaded PDF whose DB title is ``2025-W2.pdf`` shows up as
+        # ``/documents/2025-W2.pdf.xml`` in answers. Clicking that path
+        # must round-trip back to the row even though the title itself
+        # does NOT end in ``.xml``.
+        target_doc = SimpleNamespace(id=99, title="2025-W2.pdf", folder_id=None)
+
+        session = MagicMock()
+        session.execute = AsyncMock(
+            side_effect=[
+                _result_from_one(None),
+                _result_from_scalars([target_doc]),
+            ]
+        )
+
+        document = await virtual_path_to_doc(
+            session,
+            search_space_id=5,
+            virtual_path=f"{DOCUMENTS_ROOT}/2025-W2.pdf.xml",
+        )
+        assert document is target_doc
+
+    @pytest.mark.asyncio
+    async def test_resolves_path_without_xml_suffix(self):
+        # The user (or a hand-edited link) may pass the title-only form
+        # ``/documents/2025-W2.pdf``. The resolver must still find the row
+        # by literal title equality.
+        target_doc = SimpleNamespace(id=99, title="2025-W2.pdf", folder_id=None)
+
+        session = MagicMock()
+        session.execute = AsyncMock(
+            side_effect=[
+                _result_from_one(None),
+                _result_from_scalars([target_doc]),
+            ]
+        )
+
+        document = await virtual_path_to_doc(
+            session,
+            search_space_id=5,
+            virtual_path=f"{DOCUMENTS_ROOT}/2025-W2.pdf",
+        )
+        assert document is target_doc

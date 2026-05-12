@@ -15,7 +15,9 @@ def resolve_start_thinking(tool_name: str, tool_input: Any) -> ToolStartThinking
 
 
 def resolve_completed_thinking(
-    tool_name: str, tool_output: Any, last_items: list[str],
+    tool_name: str,
+    tool_output: Any,
+    last_items: list[str],
 ) -> tuple[str, list[str]]:
     return default_thinking.resolve_completed_thinking(
         tool_name, tool_output, last_items

@@ -9,7 +9,6 @@ import { trackLoginSuccess } from "@/lib/posthog/events";
 interface TokenHandlerProps {
 	redirectPath?: string; // Default path to redirect after storing token (if no saved path)
 	tokenParamName?: string; // Name of the URL parameter containing the token
-	storageKey?: string; // Key to use when storing in localStorage (kept for backwards compatibility)
 }
 
 /**
@@ -19,12 +18,10 @@ interface TokenHandlerProps {
  *
  * @param redirectPath - Default path to redirect after storing token (default: '/dashboard')
  * @param tokenParamName - Name of the URL parameter containing the token (default: 'token')
- * @param storageKey - Key to use when storing in localStorage (default: 'surfsense_bearer_token')
  */
 const TokenHandler = ({
 	redirectPath = "/dashboard",
 	tokenParamName = "token",
-	storageKey = "surfsense_bearer_token",
 }: TokenHandlerProps) => {
 	// Always show loading for this component - spinner animation won't reset
 	useGlobalLoadingEffect(true);
@@ -45,7 +42,6 @@ const TokenHandler = ({
 					}
 					sessionStorage.removeItem("login_success_tracked");
 
-					localStorage.setItem(storageKey, token);
 					setBearerToken(token);
 
 					if (refreshToken) {
@@ -78,7 +74,7 @@ const TokenHandler = ({
 		};
 
 		run();
-	}, [tokenParamName, storageKey, redirectPath]);
+	}, [tokenParamName, redirectPath]);
 
 	// Return null - the global provider handles the loading UI
 	return null;

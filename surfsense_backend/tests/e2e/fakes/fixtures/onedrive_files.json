@@ -1,0 +1,82 @@
+{
+	"root": [
+		{
+			"id": "fake-onedrive-folder-projects",
+			"name": "Projects",
+			"size": 0,
+			"folder": {
+				"childCount": 1
+			},
+			"parentReference": {
+				"id": "root",
+				"path": "/drive/root:"
+			},
+			"createdDateTime": "2025-02-01T08:00:00Z",
+			"lastModifiedDateTime": "2025-02-10T10:00:00Z",
+			"webUrl": "https://onedrive.example/fake/projects"
+		},
+		{
+			"id": "fake-onedrive-canary",
+			"name": "e2e-onedrive-canary.txt",
+			"size": 164,
+			"file": {
+				"mimeType": "text/plain",
+				"hashes": {
+					"quickXorHash": "fake-onedrive-canary-qxh"
+				}
+			},
+			"parentReference": {
+				"id": "root",
+				"path": "/drive/root:"
+			},
+			"createdDateTime": "2025-02-10T11:00:00Z",
+			"lastModifiedDateTime": "2025-02-10T11:00:00Z",
+			"webUrl": "https://onedrive.example/fake/e2e-onedrive-canary.txt"
+		},
+		{
+			"id": "fake-onedrive-pdf-canary",
+			"name": "e2e-onedrive-canary.pdf",
+			"size": 730,
+			"file": {
+				"mimeType": "application/pdf",
+				"hashes": {
+					"quickXorHash": "fake-onedrive-pdf-canary-qxh"
+				}
+			},
+			"parentReference": {
+				"id": "root",
+				"path": "/drive/root:"
+			},
+			"createdDateTime": "2025-02-10T11:05:00Z",
+			"lastModifiedDateTime": "2025-02-10T11:05:00Z",
+			"webUrl": "https://onedrive.example/fake/e2e-onedrive-canary.pdf"
+		}
+	],
+	"fake-onedrive-folder-projects": [
+		{
+			"id": "fake-onedrive-roadmap",
+			"name": "OneDrive Roadmap.md",
+			"size": 82,
+			"file": {
+				"mimeType": "text/markdown",
+				"hashes": {
+					"quickXorHash": "fake-onedrive-roadmap-qxh"
+				}
+			},
+			"parentReference": {
+				"id": "fake-onedrive-folder-projects",
+				"path": "/drive/root:/Projects"
+			},
+			"createdDateTime": "2025-02-11T08:00:00Z",
+			"lastModifiedDateTime": "2025-02-12T08:30:00Z",
+			"webUrl": "https://onedrive.example/fake/projects/onedrive-roadmap.md"
+		}
+	],
+	"_file_contents": {
+		"fake-onedrive-canary": "Canary token for OneDrive E2E tests: SURFSENSE_E2E_CANARY_TOKEN_ONEDRIVE_001\nThis file proves the OneDrive indexing pipeline ran end-to-end.",
+		"fake-onedrive-roadmap": "# OneDrive Roadmap\n\n- E2E OneDrive indexing\n- Deterministic Graph fake"
+	},
+	"_file_binary_paths": {
+		"fake-onedrive-pdf-canary": "binary/onedrive-canary.pdf"
+	}
+}

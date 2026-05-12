@@ -158,9 +158,7 @@ def _classify_cases() -> list[Exception]:
     """Inputs that the FE depends on being mapped to specific error codes."""
     return [
         Exception("totally generic error"),
-        Exception(
-            '{"error":{"type":"rate_limit_error","message":"slow down"}}'
-        ),
+        Exception('{"error":{"type":"rate_limit_error","message":"slow down"}}'),
         Exception(
             'OpenrouterException - {"error":{"message":"Provider returned error",'
             '"code":429}}'
@@ -220,7 +218,7 @@ class _FakeStreamingService:
         self.calls.append(
             {"message": message, "error_code": error_code, "extra": extra}
         )
-        return f"data: {{\"type\":\"error\",\"errorText\":\"{message}\"}}\n\n"
+        return f'data: {{"type":"error","errorText":"{message}"}}\n\n'
 
 
 def test_emit_stream_terminal_error_matches_old_output_and_logs(caplog) -> None:

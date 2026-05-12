@@ -43,6 +43,7 @@ from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
     extract_and_save_team_memory,
 )
+from app.agents.new_chat.mention_resolver import resolve_mentions, substitute_in_text
 from app.agents.new_chat.middleware.busy_mutex import (
     end_turn,
     get_cancel_state,
@@ -929,6 +930,7 @@ async def stream_new_chat(
     llm_config_id: int = -1,
     mentioned_document_ids: list[int] | None = None,
     mentioned_surfsense_doc_ids: list[int] | None = None,
+    mentioned_folder_ids: list[int] | None = None,
     mentioned_documents: list[dict[str, Any]] | None = None,
     checkpoint_id: str | None = None,
     needs_history_bootstrap: bool = False,
@@ -958,6 +960,7 @@ async def stream_new_chat(
         needs_history_bootstrap: If True, load message history from DB (for cloned chats)
         mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
         mentioned_surfsense_doc_ids: Optional list of SurfSense doc IDs mentioned with @ in the chat
+        mentioned_folder_ids: Optional list of knowledge-base folder IDs mentioned with @ (cloud mode)
         checkpoint_id: Optional checkpoint ID to rewind/fork from (for edit/reload operations)
 
     Yields:
@@ -1502,6 +1505,53 @@ async def stream_new_chat(
         )
         recent_reports = list(recent_reports_result.scalars().all())
 
+        # Resolve @-mention chips to canonical virtual paths and rewrite
+        # the user-typed text so the LLM sees ``\`/documents/...\``` instead
+        # of bare ``@title``. The persisted user-message text keeps
+        # ``@title`` so chip rendering on reload is unchanged — see
+        # ``persistence._build_user_content``.
+        #
+        # Cloud mode only: local-folder mode keeps the legacy
+        # ``@title`` text path; mention support there is a follow-up
+        # task because the path scheme (mount-rooted) and the picker
+        # UI both need separate work.
+        accepted_folder_ids: list[int] = []
+        if fs_mode == FilesystemMode.CLOUD.value and (
+            mentioned_document_ids
+            or mentioned_surfsense_doc_ids
+            or mentioned_folder_ids
+            or mentioned_documents
+        ):
+            from app.schemas.new_chat import (
+                MentionedDocumentInfo as _MentionedDocumentInfo,
+            )
+
+            chip_objs: list[_MentionedDocumentInfo] | None = None
+            if mentioned_documents:
+                chip_objs = []
+                for raw in mentioned_documents:
+                    if isinstance(raw, _MentionedDocumentInfo):
+                        chip_objs.append(raw)
+                        continue
+                    try:
+                        chip_objs.append(_MentionedDocumentInfo.model_validate(raw))
+                    except Exception:
+                        logger.debug(
+                            "stream_new_chat: dropping malformed mention chip %r",
+                            raw,
+                        )
+
+            resolved = await resolve_mentions(
+                session,
+                search_space_id=search_space_id,
+                mentioned_documents=chip_objs,
+                mentioned_document_ids=mentioned_document_ids,
+                mentioned_surfsense_doc_ids=mentioned_surfsense_doc_ids,
+                mentioned_folder_ids=mentioned_folder_ids,
+            )
+            user_query = substitute_in_text(user_query, resolved.token_to_path)
+            accepted_folder_ids = resolved.mentioned_folder_ids
+
         # Format the user query with context (SurfSense docs + reports only)
         final_query = user_query
         context_parts = []
@@ -1901,6 +1951,9 @@ async def stream_new_chat(
         runtime_context = SurfSenseContextSchema(
             search_space_id=search_space_id,
             mentioned_document_ids=list(mentioned_document_ids or []),
+            mentioned_folder_ids=list(
+                accepted_folder_ids or mentioned_folder_ids or []
+            ),
             request_id=request_id,
             turn_id=stream_result.turn_id,
         )

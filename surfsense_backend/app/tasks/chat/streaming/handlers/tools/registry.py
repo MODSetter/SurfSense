@@ -58,14 +58,18 @@ def _emission_module(tool_name: str) -> str:
 
 def _import_thinking(tool_name: str):
     try:
-        return importlib.import_module(f"{_BASE}.{_thinking_module(tool_name)}.thinking")
+        return importlib.import_module(
+            f"{_BASE}.{_thinking_module(tool_name)}.thinking"
+        )
     except ModuleNotFoundError:
         return importlib.import_module(f"{_BASE}.default.thinking")
 
 
 def _import_emission(tool_name: str):
     try:
-        return importlib.import_module(f"{_BASE}.{_emission_module(tool_name)}.emission")
+        return importlib.import_module(
+            f"{_BASE}.{_emission_module(tool_name)}.emission"
+        )
     except ModuleNotFoundError:
         return importlib.import_module(f"{_BASE}.default.emission")
 

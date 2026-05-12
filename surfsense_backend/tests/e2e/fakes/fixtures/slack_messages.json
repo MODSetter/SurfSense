@@ -1,0 +1,18 @@
+{
+  "team": {
+    "id": "T_FAKE_SLACK_TEAM",
+    "name": "SurfSense E2E Slack Workspace"
+  },
+  "channel": {
+    "id": "C_FAKE_SLACK_CANARY",
+    "name": "slack-e2e-canary",
+    "purpose": "SurfSense E2E Slack canary channel"
+  },
+  "messages": [
+    {
+      "ts": "1715000000.000100",
+      "user": "U_FAKE_SLACK_USER",
+      "text": "This Slack message proves the live MCP tool fetched channel content. SURFSENSE_E2E_CANARY_TOKEN_SLACK_001"
+    }
+  ]
+}

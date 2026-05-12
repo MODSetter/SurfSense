@@ -54,6 +54,7 @@ from app.db import (
     NATIVE_TO_LEGACY_DOCTYPE,
     Chunk,
     Document,
+    Folder,
     shielded_async_session,
 )
 from app.retriever.chunks_hybrid_search import ChucksHybridSearchRetriever
@@ -836,6 +837,22 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             mention_ids = list(self.mentioned_document_ids)
             self.mentioned_document_ids = []
 
+        # Folder mentions live alongside doc mentions on the runtime
+        # context. They never feed hybrid search (folders aren't
+        # embedded) — they're surfaced purely as ``[USER-MENTIONED]``
+        # priority entries so the agent walks the folder with ``ls`` /
+        # ``find_documents`` instead of ignoring it. Cloud filesystem
+        # mode only.
+        folder_mention_ids: list[int] = []
+        if (
+            ctx is not None
+            and getattr(self, "filesystem_mode", FilesystemMode.CLOUD)
+            == FilesystemMode.CLOUD
+        ):
+            ctx_folders = getattr(ctx, "mentioned_folder_ids", None)
+            if ctx_folders:
+                folder_mention_ids = list(ctx_folders)
+
         mentioned_results: list[dict[str, Any]] = []
         if mention_ids:
             mentioned_results = await fetch_mentioned_documents(
@@ -880,12 +897,17 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         priority, matched_chunk_ids = await self._materialize_priority(merged)
 
+        if folder_mention_ids:
+            folder_entries = await self._materialize_folder_priority(folder_mention_ids)
+            priority = folder_entries + priority
+
         _perf_log.info(
-            "[kb_priority] completed in %.3fs query=%r priority=%d mentioned=%d",
+            "[kb_priority] completed in %.3fs query=%r priority=%d mentioned=%d folders=%d",
             asyncio.get_event_loop().time() - t0,
             user_text[:80],
             len(priority),
             len(mentioned_results),
+            len(folder_mention_ids),
         )
 
         update: dict[str, Any] = {
@@ -898,6 +920,58 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             new_messages.insert(insert_at, _render_priority_message(priority))
             update["messages"] = new_messages
         return update
+
+    async def _materialize_folder_priority(
+        self, folder_ids: list[int]
+    ) -> list[dict[str, Any]]:
+        """Resolve user-mentioned folder ids to ``<priority_documents>`` entries.
+
+        Each entry uses the canonical ``/documents/Folder/Sub/`` virtual
+        path (matching ``KnowledgeTreeMiddleware`` and the agent's
+        ``ls`` adapter) and is flagged ``mentioned=True`` so the
+        rendered line carries ``[USER-MENTIONED]``. ``score`` is left
+        ``None`` so the renderer prints ``n/a`` — folders aren't
+        ranked, the agent decides which children to read.
+        """
+        if not folder_ids:
+            return []
+        async with shielded_async_session() as session:
+            index: PathIndex = await build_path_index(session, self.search_space_id)
+            folder_rows = await session.execute(
+                select(Folder.id, Folder.name).where(
+                    Folder.search_space_id == self.search_space_id,
+                    Folder.id.in_(folder_ids),
+                )
+            )
+            folder_titles: dict[int, str] = {
+                row.id: row.name for row in folder_rows.all()
+            }
+
+        entries: list[dict[str, Any]] = []
+        seen: set[int] = set()
+        for folder_id in folder_ids:
+            if folder_id in seen:
+                continue
+            seen.add(folder_id)
+            base = index.folder_paths.get(folder_id)
+            if base is None:
+                logger.debug(
+                    "kb_priority: dropping folder id=%s (missing from path index)",
+                    folder_id,
+                )
+                continue
+            path = base if base.endswith("/") else f"{base}/"
+            entries.append(
+                {
+                    "path": path,
+                    "score": None,
+                    "document_id": None,
+                    "folder_id": folder_id,
+                    "title": folder_titles.get(folder_id, ""),
+                    "mentioned": True,
+                }
+            )
+        return entries
 
     async def _materialize_priority(
         self, merged: list[dict[str, Any]]

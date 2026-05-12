@@ -240,9 +240,7 @@ class TestToolHeavyTurn:
 class TestToolCallSpanMetadata:
     def test_input_available_merges_new_metadata_keys_after_start(self):
         b = AssistantContentBuilder()
-        b.on_tool_input_start(
-            "call_t", "task", "lc_t", metadata={"spanId": "spn_1"}
-        )
+        b.on_tool_input_start("call_t", "task", "lc_t", metadata={"spanId": "spn_1"})
         b.on_tool_input_available(
             "call_t",
             "task",
@@ -257,9 +255,7 @@ class TestToolCallSpanMetadata:
 
     def test_input_available_does_not_overwrite_existing_metadata_keys(self):
         b = AssistantContentBuilder()
-        b.on_tool_input_start(
-            "call_t", "task", "lc_t", metadata={"spanId": "spn_keep"}
-        )
+        b.on_tool_input_start("call_t", "task", "lc_t", metadata={"spanId": "spn_keep"})
         b.on_tool_input_available(
             "call_t", "task", {}, "lc_t", metadata={"spanId": "spn_other"}
         )

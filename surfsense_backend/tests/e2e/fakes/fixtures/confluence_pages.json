@@ -1,0 +1,33 @@
+{
+  "site": {
+    "cloud_id": "fake-confluence-cloud-001",
+    "name": "SurfSense E2E Confluence",
+    "url": "https://surfsense-e2e-confluence.atlassian.net"
+  },
+  "pages": [
+    {
+      "id": "fake-confluence-page-canary-001",
+      "title": "E2E Canary Confluence Page",
+      "spaceId": "fake-confluence-space-001",
+      "body": {
+        "storage": {
+          "value": "<h1>E2E Canary Confluence Page</h1><p>This page proves Confluence OAuth indexing works end-to-end. SURFSENSE_E2E_CANARY_TOKEN_CONFLUENCE_001</p>"
+        }
+      },
+      "comments": [
+        {
+          "id": "fake-confluence-comment-canary-001",
+          "body": {
+            "storage": {
+              "value": "<p>Confluence comment content is included in indexed markdown.</p>"
+            }
+          },
+          "version": {
+            "authorId": "fake-confluence-user-001",
+            "createdAt": "2026-05-08T00:00:00.000Z"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -60,8 +60,14 @@ async def test_stream_output_emits_text_lifecycle_and_updates_result() -> None:
     service = _StreamingService()
     agent = _Agent(
         [
-            {"event": "on_chat_model_stream", "data": {"chunk": _Chunk(content="Hello")}},
-            {"event": "on_chat_model_stream", "data": {"chunk": _Chunk(content=" world")}},
+            {
+                "event": "on_chat_model_stream",
+                "data": {"chunk": _Chunk(content="Hello")},
+            },
+            {
+                "event": "on_chat_model_stream",
+                "data": {"chunk": _Chunk(content=" world")},
+            },
         ]
     )
     result = StreamingResult()

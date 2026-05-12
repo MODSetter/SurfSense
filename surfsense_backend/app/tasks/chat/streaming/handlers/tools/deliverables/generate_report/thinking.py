@@ -29,7 +29,9 @@ def resolve_start_thinking(tool_name: str, tool_input: Any) -> ToolStartThinking
 
 
 def resolve_completed_thinking(
-    tool_name: str, tool_output: Any, last_items: list[str],
+    tool_name: str,
+    tool_output: Any,
+    last_items: list[str],
 ) -> tuple[str, list[str]]:
     del tool_name
     items = last_items
@@ -44,9 +46,7 @@ def resolve_completed_thinking(
         else "Report"
     )
     word_count = (
-        tool_output.get("word_count", 0)
-        if isinstance(tool_output, dict)
-        else 0
+        tool_output.get("word_count", 0) if isinstance(tool_output, dict) else 0
     )
     is_revision = (
         tool_output.get("is_revision", False)

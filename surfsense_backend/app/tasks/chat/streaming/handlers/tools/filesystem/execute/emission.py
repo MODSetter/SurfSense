@@ -24,9 +24,7 @@ def iter_completion_emission_frames(
         output_text = om.group(1) if om else ""
     thread_id_str = ctx.langgraph_config.get("configurable", {}).get("thread_id", "")
 
-    for sf_match in re.finditer(
-        r"^SANDBOX_FILE:\s*(.+)$", output_text, re.MULTILINE
-    ):
+    for sf_match in re.finditer(r"^SANDBOX_FILE:\s*(.+)$", output_text, re.MULTILINE):
         fpath = sf_match.group(1).strip()
         if fpath and fpath not in ctx.stream_result.sandbox_files:
             ctx.stream_result.sandbox_files.append(fpath)

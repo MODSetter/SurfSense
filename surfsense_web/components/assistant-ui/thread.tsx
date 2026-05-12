@@ -36,7 +36,10 @@ import {
 } from "@/atoms/agent-tools/agent-tools.atoms";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
-import { mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
+import {
+	type MentionedDocumentInfo,
+	mentionedDocumentsAtom,
+} from "@/atoms/chat/mentioned-documents.atom";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import {
 	clearPremiumAlertForThreadAtom,
@@ -87,7 +90,6 @@ import {
 	getToolDisplayName,
 	getToolIcon,
 } from "@/contracts/enums/toolIcons";
-import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -377,9 +379,7 @@ const Composer: FC = () => {
 	const [mentionQuery, setMentionQuery] = useState("");
 	const [actionQuery, setActionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
-	const prevMentionedDocsRef = useRef<
-		Map<string, Pick<Document, "id" | "title" | "document_type">>
-	>(new Map());
+	const prevMentionedDocsRef = useRef<Map<string, MentionedDocumentInfo>>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
@@ -622,20 +622,20 @@ const Composer: FC = () => {
 	);
 
 	const handleDocumentsMention = useCallback(
-		(documents: Pick<Document, "id" | "title" | "document_type">[]) => {
+		(mentions: MentionedDocumentInfo[]) => {
 			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
 			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
-			for (const doc of documents) {
-				const key = getMentionDocKey(doc);
+			for (const mention of mentions) {
+				const key = getMentionDocKey(mention);
 				if (editorDocKeys.has(key)) continue;
-				editorRef.current?.insertDocumentChip(doc);
+				editorRef.current?.insertMentionChip(mention);
 			}
 
 			setMentionedDocuments((prev) => {
 				const existingKeySet = new Set(prev.map((d) => getMentionDocKey(d)));
-				const uniqueNewDocs = documents.filter((doc) => !existingKeySet.has(getMentionDocKey(doc)));
-				return [...prev, ...uniqueNewDocs];
+				const uniqueNew = mentions.filter((m) => !existingKeySet.has(getMentionDocKey(m)));
+				return [...prev, ...uniqueNew];
 			});
 
 			setMentionQuery("");
@@ -657,7 +657,7 @@ const Composer: FC = () => {
 
 		for (const [key, doc] of nextDocsMap) {
 			if (prevDocsMap.has(key) || editorKeys.has(key)) continue;
-			editor.insertDocumentChip(doc, { removeTriggerText: false });
+			editor.insertMentionChip(doc, { removeTriggerText: false });
 		}
 
 		for (const [key, doc] of prevDocsMap) {

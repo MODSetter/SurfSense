@@ -1,0 +1,15 @@
+{
+  "site": {
+    "cloud_id": "fake-jira-cloud-001",
+    "name": "SurfSense E2E Atlassian",
+    "url": "https://surfsense-e2e.atlassian.net"
+  },
+  "issues": [
+    {
+      "id": "fake-jira-issue-canary-001",
+      "key": "E2E-101",
+      "summary": "E2E Canary Jira Issue",
+      "description": "This Jira issue proves live MCP tool calls work end-to-end. SURFSENSE_E2E_CANARY_TOKEN_JIRA_001"
+    }
+  ]
+}
