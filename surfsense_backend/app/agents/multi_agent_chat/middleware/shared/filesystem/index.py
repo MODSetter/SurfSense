@@ -1,11 +1,12 @@
-"""SurfSense filesystem tools/middleware."""
+"""Public composition factory for the filesystem middleware."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from app.agents.new_chat.filesystem_selection import FilesystemMode
-from app.agents.new_chat.middleware import SurfSenseFilesystemMiddleware
+
+from .middleware import SurfSenseFilesystemMiddleware
 
 
 def build_filesystem_mw(
