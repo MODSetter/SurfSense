@@ -42,7 +42,7 @@ export interface PlateEditorProps {
 	editorVariant?: "default" | "demo" | "fullWidth" | "none";
 	/** Additional className for the container */
 	className?: string;
-	/** Save callback. When provided, ⌘+S / Ctrl+S shortcut is registered and save button appears. */
+	/** Save callback. When provided, ⌘+Shift+S / Ctrl+Shift+S shortcut is registered (avoiding the browser's ⌘+S / Ctrl+S "Save Page As" conflict) and a save button appears in the toolbar. */
 	onSave?: () => void;
 	/** Whether there are unsaved changes */
 	hasUnsavedChanges?: boolean;
