@@ -5,6 +5,8 @@ import {
 	type CreateTokenCheckoutSessionResponse,
 	createCheckoutSessionResponse,
 	createTokenCheckoutSessionResponse,
+	type FinalizeCheckoutResponse,
+	finalizeCheckoutResponse,
 	type GetPagePurchasesResponse,
 	type GetTokenPurchasesResponse,
 	getPagePurchasesResponse,
@@ -53,6 +55,20 @@ class StripeApiService {
 
 	getTokenPurchases = async (): Promise<GetTokenPurchasesResponse> => {
 		return baseApiService.get("/api/v1/stripe/token-purchases", getTokenPurchasesResponse);
+	};
+
+	/**
+	 * Synchronously fulfil a checkout session from the success page.
+	 *
+	 * Solves the race where the user lands on /purchase-success before
+	 * Stripe's checkout.session.completed webhook arrives. Idempotent —
+	 * safe to call concurrently with the webhook.
+	 */
+	finalizeCheckout = async (sessionId: string): Promise<FinalizeCheckoutResponse> => {
+		return baseApiService.get(
+			`/api/v1/stripe/finalize-checkout?session_id=${encodeURIComponent(sessionId)}`,
+			finalizeCheckoutResponse
+		);
 	};
 }
 

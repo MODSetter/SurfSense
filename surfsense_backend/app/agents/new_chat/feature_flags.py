@@ -28,7 +28,6 @@ Defaults:
     SURFSENSE_ENABLE_PERMISSION=true
     SURFSENSE_ENABLE_DOOM_LOOP=true
     SURFSENSE_ENABLE_LLM_TOOL_SELECTOR=false  # adds a per-turn LLM call
-    SURFSENSE_ENABLE_STREAM_PARITY_V2=true
 
 Master kill-switch (overrides everything else):
 
@@ -87,15 +86,6 @@ class AgentFeatureFlags:
     # Snapshot / revert
     enable_action_log: bool = True
     enable_revert_route: bool = True
-
-    # Streaming parity v2 — opt in to LangChain's structured
-    # ``AIMessageChunk`` content (typed reasoning blocks, tool-input
-    # deltas) and propagate the real ``tool_call_id`` to the SSE layer.
-    # When OFF the ``stream_new_chat`` task falls back to the str-only
-    # text path and the synthetic ``call_<run_id>`` tool-call id (no
-    # ``langchainToolCallId`` propagation). Schema migrations 135/136
-    # ship unconditionally because they're forward-compatible.
-    enable_stream_parity_v2: bool = True
 
     # Plugins
     enable_plugin_loader: bool = False
@@ -169,7 +159,6 @@ class AgentFeatureFlags:
                 enable_kb_planner_runnable=False,
                 enable_action_log=False,
                 enable_revert_route=False,
-                enable_stream_parity_v2=False,
                 enable_plugin_loader=False,
                 enable_otel=False,
                 enable_agent_cache=False,
@@ -208,10 +197,6 @@ class AgentFeatureFlags:
             # Snapshot / revert
             enable_action_log=_env_bool("SURFSENSE_ENABLE_ACTION_LOG", True),
             enable_revert_route=_env_bool("SURFSENSE_ENABLE_REVERT_ROUTE", True),
-            # Streaming parity v2
-            enable_stream_parity_v2=_env_bool(
-                "SURFSENSE_ENABLE_STREAM_PARITY_V2", True
-            ),
             # Plugins
             enable_plugin_loader=_env_bool("SURFSENSE_ENABLE_PLUGIN_LOADER", False),
             # Observability
@@ -250,24 +235,19 @@ class AgentFeatureFlags:
         )
 
 
-# Module-level cache. Read once at import time so the values are consistent
-# across the process lifetime. Use ``reload_for_tests`` to reset in tests.
-_FLAGS: AgentFeatureFlags | None = None
-
-
 def get_flags() -> AgentFeatureFlags:
-    """Return the resolved feature-flag state, caching on first call."""
-    global _FLAGS
-    if _FLAGS is None:
-        _FLAGS = AgentFeatureFlags.from_env()
-    return _FLAGS
+    """Return the resolved feature-flag state from the **current** process environment.
+
+    Intentionally **not** cached: ``load_dotenv`` and operator edits to env vars
+    must affect the next agent build without requiring a full process restart.
+    Cost is negligible (reads ``os.environ`` once per call).
+    """
+    return AgentFeatureFlags.from_env()
 
 
 def reload_for_tests() -> AgentFeatureFlags:
-    """Force a fresh read from env. Tests should call this after monkeypatching env."""
-    global _FLAGS
-    _FLAGS = AgentFeatureFlags.from_env()
-    return _FLAGS
+    """Compatibility helper for tests; equivalent to :func:`get_flags`."""
+    return AgentFeatureFlags.from_env()
 
 
 __all__ = [

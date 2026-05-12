@@ -4,13 +4,16 @@ import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pencil } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
-import { useHitlPhase } from "@/hooks/use-hitl-phase";
-import type { HitlDecision, InterruptResult } from "@/lib/hitl";
-import { isInterruptResult, useHitlDecision } from "@/lib/hitl";
+import type { HitlDecision, InterruptResult } from "@/features/chat-messages/hitl";
+import {
+	isInterruptResult,
+	openHitlEditPanelAtom,
+	useHitlDecision,
+	useHitlPhase,
+} from "@/features/chat-messages/hitl";
 
 type UpdateConfluencePageInterruptContext = {
 	account?: {

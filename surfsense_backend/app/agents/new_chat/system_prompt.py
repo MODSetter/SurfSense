@@ -26,6 +26,9 @@ from .prompts.composer import (
     detect_provider_variant,
 )
 
+# Optional routing fragments under ``prompts/routing/`` (see composer).
+_DEFAULT_CONNECTOR_ROUTING: tuple[str, ...] = ("linear", "slack")
+
 # Public re-exports for backwards compatibility (some legacy code reads the
 # raw default-instructions text directly).
 SURFSENSE_SYSTEM_INSTRUCTIONS_TEMPLATE = (
@@ -63,6 +66,7 @@ def build_surfsense_system_prompt(
         mcp_connector_tools=mcp_connector_tools,
         citations_enabled=True,
         model_name=model_name,
+        connector_routing=_DEFAULT_CONNECTOR_ROUTING,
     )
 
 
@@ -93,6 +97,7 @@ def build_configurable_system_prompt(
         use_default_system_instructions=use_default_system_instructions,
         citations_enabled=citations_enabled,
         model_name=model_name,
+        connector_routing=_DEFAULT_CONNECTOR_ROUTING,
     )
 
 

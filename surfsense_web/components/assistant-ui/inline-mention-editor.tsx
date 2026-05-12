@@ -1,5 +1,6 @@
 "use client";
 
+import { Folder as FolderIcon } from "lucide-react";
 import type { PlateElementProps } from "platejs/react";
 import {
 	createPlatePlugin,
@@ -9,16 +10,36 @@ import {
 	usePlateEditor,
 } from "platejs/react";
 import { type FC, forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from "react";
+import { FOLDER_MENTION_DOCUMENT_TYPE } from "@/atoms/chat/mentioned-documents.atom";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { cn } from "@/lib/utils";
 
+export type MentionKind = "doc" | "folder";
+
 export interface MentionedDocument {
 	id: number;
 	title: string;
 	document_type?: string;
+	kind: MentionKind;
 }
+
+/**
+ * Input shape for inserting a chip. ``kind`` defaults to ``"doc"``
+ * when omitted so legacy callers don't have to thread the
+ * discriminator. Folder callers pass ``kind: "folder"`` and the
+ * folder ``id`` and ``title``; ``document_type`` defaults to
+ * ``FOLDER_MENTION_DOCUMENT_TYPE`` inside ``insertMentionChip`` so the
+ * dedup key (`kind:document_type:id`) never collides with a doc chip
+ * that happens to share an id.
+ */
+export type MentionChipInput = {
+	id: number;
+	title: string;
+	document_type?: string;
+	kind?: MentionKind;
+};
 
 export interface InlineMentionEditorRef {
 	focus: () => void;
@@ -26,6 +47,14 @@ export interface InlineMentionEditorRef {
 	setText: (text: string) => void;
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
+	insertMentionChip: (
+		mention: MentionChipInput,
+		options?: { removeTriggerText?: boolean }
+	) => void;
+	/**
+	 * @deprecated Use ``insertMentionChip``. Kept for one transition
+	 * cycle so we don't break ad-hoc callers; prefer the new name.
+	 */
 	insertDocumentChip: (
 		doc: Pick<Document, "id" | "title" | "document_type">,
 		options?: { removeTriggerText?: boolean }
@@ -61,6 +90,13 @@ type MentionElementNode = {
 	id: number;
 	title: string;
 	document_type?: string;
+	/**
+	 * Discriminator added so a folder chip and a doc chip with the
+	 * same id round-trip cleanly through ``getMentionedDocuments``
+	 * and the persisted ``mentioned-documents`` content part.
+	 * Defaults to ``"doc"`` for nodes that predate this field.
+	 */
+	kind?: MentionKind;
 	statusLabel?: string | null;
 	statusKind?: MentionStatusKind;
 	children: [{ text: "" }];
@@ -90,11 +126,17 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 				? "text-emerald-700"
 				: "text-amber-700";
 
+	const isFolder = element.kind === "folder";
+
 	return (
 		<span {...attributes} className="inline-flex align-middle">
 			<span contentEditable={false} className={`${MENTION_CHIP_CLASSNAME} cursor-default`}>
 				<span className={MENTION_CHIP_ICON_CLASSNAME}>
-					{getConnectorIcon(element.document_type ?? "UNKNOWN", "h-3 w-3")}
+					{isFolder ? (
+						<FolderIcon className="h-3 w-3" />
+					) : (
+						getConnectorIcon(element.document_type ?? "UNKNOWN", "h-3 w-3")
+					)}
 				</span>
 				<span className={MENTION_CHIP_TITLE_CLASSNAME} title={element.title}>
 					{element.title}
@@ -153,10 +195,12 @@ function getMentionedDocuments(value: ComposerValue): MentionedDocument[] {
 	for (const block of value) {
 		for (const node of block.children) {
 			if (!isMentionNode(node)) continue;
+			const kind: MentionKind = node.kind ?? "doc";
 			const doc: MentionedDocument = {
 				id: node.id,
 				title: node.title,
 				document_type: node.document_type,
+				kind,
 			};
 			map.set(getMentionDocKey(doc), doc);
 		}
@@ -311,21 +355,23 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			[editor, emitState]
 		);
 
-		const insertDocumentChip = useCallback(
-			(
-				doc: Pick<Document, "id" | "title" | "document_type">,
-				options?: { removeTriggerText?: boolean }
-			) => {
-				if (typeof doc.id !== "number" || typeof doc.title !== "string") return;
+		const insertMentionChip = useCallback(
+			(mention: MentionChipInput, options?: { removeTriggerText?: boolean }) => {
+				if (typeof mention.id !== "number" || typeof mention.title !== "string") return;
 
 				const removeTriggerText = options?.removeTriggerText ?? true;
 				const current = getCurrentValue();
 				const selection = editor.selection;
+				const kind: MentionKind = mention.kind ?? "doc";
+				const document_type =
+					mention.document_type ??
+					(kind === "folder" ? FOLDER_MENTION_DOCUMENT_TYPE : undefined);
 				const mentionNode: MentionElementNode = {
 					type: MENTION_TYPE,
-					id: doc.id,
-					title: doc.title,
-					document_type: doc.document_type,
+					id: mention.id,
+					title: mention.title,
+					document_type,
+					kind,
 					children: [{ text: "" }],
 				};
 
@@ -383,6 +429,19 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				requestAnimationFrame(focusAtEnd);
 			},
 			[editor.selection, focusAtEnd, getCurrentValue, setValue]
+		);
+
+		// Backwards-compatible shim — pre-folder callers pass a doc-only
+		// payload; we route them through ``insertMentionChip`` with
+		// ``kind: "doc"``.
+		const insertDocumentChip = useCallback(
+			(
+				doc: Pick<Document, "id" | "title" | "document_type">,
+				options?: { removeTriggerText?: boolean }
+			) => {
+				insertMentionChip({ ...doc, kind: "doc" }, options);
+			},
+			[insertMentionChip]
 		);
 
 		const removeDocumentChip = useCallback(
@@ -460,6 +519,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				setText,
 				getText,
 				getMentionedDocuments: getMentionedDocs,
+				insertMentionChip,
 				insertDocumentChip,
 				removeDocumentChip,
 				setDocumentChipStatus,
@@ -468,6 +528,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				clear,
 				getMentionedDocs,
 				getText,
+				insertMentionChip,
 				insertDocumentChip,
 				removeDocumentChip,
 				setDocumentChipStatus,

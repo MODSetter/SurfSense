@@ -675,6 +675,23 @@ class NewChatMessage(BaseModel, TimestampMixin):
 
     __tablename__ = "new_chat_messages"
 
+    # Partial unique index on (thread_id, turn_id, role) where turn_id IS NOT NULL.
+    # Mirrors alembic migration 141. Lets the streaming agent and the
+    # legacy frontend appendMessage call coexist idempotently — the second
+    # writer trips the unique and recovers without creating a duplicate row.
+    # Partial so legacy NULL turn_id rows and clone/snapshot inserts in
+    # app/services/public_chat_service.py (which omit turn_id) are unaffected.
+    __table_args__ = (
+        Index(
+            "uq_new_chat_messages_thread_turn_role",
+            "thread_id",
+            "turn_id",
+            "role",
+            unique=True,
+            postgresql_where=text("turn_id IS NOT NULL"),
+        ),
+    )
+
     role = Column(SQLAlchemyEnum(NewChatMessageRole), nullable=False)
     # Content stored as JSONB to support rich content (text, tool calls, etc.)
     content = Column(JSONB, nullable=False)
@@ -727,6 +744,22 @@ class TokenUsage(BaseModel, TimestampMixin):
     """
 
     __tablename__ = "token_usage"
+
+    # Partial unique index on (message_id) where message_id IS NOT NULL.
+    # Mirrors alembic migration 142. Lets the streaming agent's
+    # ``finalize_assistant_turn`` and the legacy frontend ``append_message``
+    # recovery branch both use ``INSERT ... ON CONFLICT DO NOTHING`` without
+    # racing on a SELECT-then-INSERT window. Partial so non-chat usage rows
+    # (indexing, image generation, podcasts) — which keep ``message_id`` NULL
+    # because there is no per-message anchor — are unaffected.
+    __table_args__ = (
+        Index(
+            "uq_token_usage_message_id",
+            "message_id",
+            unique=True,
+            postgresql_where=text("message_id IS NOT NULL"),
+        ),
+    )
 
     prompt_tokens = Column(Integer, nullable=False, default=0)
     completion_tokens = Column(Integer, nullable=False, default=0)

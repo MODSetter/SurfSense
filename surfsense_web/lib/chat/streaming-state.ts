@@ -5,6 +5,11 @@ export interface ThinkingStepData {
 	title: string;
 	status: "pending" | "in_progress" | "completed";
 	items: string[];
+	/**
+	 * Optional relay fields from ``data-thinking-step`` when present on the wire
+	 * (e.g. ``spanId``). Populated in a later slice; equality helpers ignore until wired.
+	 */
+	metadata?: Record<string, unknown>;
 }
 
 export type ContentPart =
@@ -42,6 +47,11 @@ export type ContentPart =
 			 * ``data-action-log`` events.
 			 */
 			langchainToolCallId?: string;
+			/**
+			 * Relay correlation from tool SSE (e.g. ``spanId``, ``thinkingStepId``).
+			 * Merged by ``mergeToolPartMetadata`` when events carry ``metadata``.
+			 */
+			metadata?: Record<string, unknown>;
 	  }
 	| {
 			type: "data-thinking-steps";
@@ -63,6 +73,18 @@ export interface ContentPartsState {
 	currentTextPartIndex: number;
 	currentReasoningPartIndex: number;
 	toolCallIndices: Map<string, number>;
+	/**
+	 * Set by the resume flow's rehydration to suppress
+	 * ``data-step-separator`` for the rest of this turn. Without it,
+	 * the resume stream's first ``start-step`` fires
+	 * ``addStepSeparator`` while rehydrated OLD content already makes
+	 * ``hasContent`` true → a divider lands between OLD and NEW
+	 * content with no semantic value (OLD content is folded by
+	 * ``buildTimeline`` + ``reconcileInterruptedAssistantMessages``,
+	 * persisted state carries no separator, so the line vanishes on
+	 * reload).
+	 */
+	suppressStepSeparators?: boolean;
 }
 
 function areThinkingStepsEqual(current: ThinkingStepData[], next: ThinkingStepData[]): boolean {
@@ -224,7 +246,9 @@ export function addStepSeparator(state: ContentPartsState): void {
 	// non-step content (so the FIRST step of a turn doesn't
 	// generate a leading separator) and when the previous part isn't
 	// itself a separator (defensive against duplicate `start-step`
-	// events).
+	// events). Also skipped during a resume turn (see
+	// ``suppressStepSeparators`` on ``ContentPartsState``).
+	if (state.suppressStepSeparators) return;
 	const hasContent = state.contentParts.some(
 		(p) => p.type === "text" || p.type === "reasoning" || p.type === "tool-call"
 	);
@@ -252,6 +276,23 @@ function _toolPasses(gate: ToolUIGate, toolName: string): boolean {
 	return gate === "all" || gate.has(toolName);
 }
 
+/**
+ * Shallow-merge relay ``metadata`` into a tool-call part (SSE → content part).
+ * Keys already set on ``into`` are left unchanged so chunk vs canonical tool
+ * events cannot reorder or overwrite ``spanId`` / ``thinkingStepId``.
+ * Matches server ``AssistantContentBuilder`` merge semantics.
+ */
+function mergeToolPartMetadata(
+	into: Record<string, unknown>,
+	incoming: Record<string, unknown> | undefined
+): void {
+	if (!incoming) return;
+	for (const [k, v] of Object.entries(incoming)) {
+		if (k === "__proto__" || k === "constructor") continue;
+		if (!(k in into)) into[k] = v;
+	}
+}
+
 export function addToolCall(
 	state: ContentPartsState,
 	toolsWithUI: ToolUIGate,
@@ -259,15 +300,19 @@ export function addToolCall(
 	toolName: string,
 	args: Record<string, unknown>,
 	force = false,
-	langchainToolCallId?: string
+	langchainToolCallId?: string,
+	metadata?: Record<string, unknown>
 ): void {
 	if (force || _toolPasses(toolsWithUI, toolName)) {
+		const relayMeta: Record<string, unknown> = {};
+		mergeToolPartMetadata(relayMeta, metadata);
 		state.contentParts.push({
 			type: "tool-call",
 			toolCallId,
 			toolName,
 			args,
 			...(langchainToolCallId ? { langchainToolCallId } : {}),
+			...(Object.keys(relayMeta).length > 0 ? { metadata: relayMeta } : {}),
 		});
 		state.toolCallIndices.set(toolCallId, state.contentParts.length - 1);
 		state.currentTextPartIndex = -1;
@@ -304,6 +349,7 @@ export function updateToolCall(
 		argsText?: string;
 		result?: unknown;
 		langchainToolCallId?: string;
+		metadata?: Record<string, unknown>;
 	}
 ): void {
 	const index = state.toolCallIndices.get(toolCallId);
@@ -322,6 +368,11 @@ export function updateToolCall(
 		// blow away a known good early one.
 		if (update.langchainToolCallId && !tc.langchainToolCallId) {
 			tc.langchainToolCallId = update.langchainToolCallId;
+		}
+		if (update.metadata && Object.keys(update.metadata).length > 0) {
+			const md = (tc.metadata ?? {}) as Record<string, unknown>;
+			mergeToolPartMetadata(md, update.metadata);
+			tc.metadata = md;
 		}
 	}
 }
@@ -416,14 +467,15 @@ export type SSEEvent =
 			toolName: string;
 			/** Authoritative LangChain ``tool_call.id``. Optional. */
 			langchainToolCallId?: string;
+			/** Optional JSON object from tool SSE (same keys as persisted tool-call metadata). */
+			metadata?: Record<string, unknown>;
 	  }
 	| {
 			/**
 			 * Live tool-call argument delta. Concatenated into
 			 * ``argsText`` on the matching ``tool-call`` content part
-			 * by ``appendToolInputDelta``. parity_v2 only — the legacy
-			 * code path emits ``tool-input-available`` without prior
-			 * deltas.
+			 * by ``appendToolInputDelta``. Some providers emit
+			 * ``tool-input-available`` without prior deltas.
 			 */
 			type: "tool-input-delta";
 			toolCallId: string;
@@ -435,6 +487,7 @@ export type SSEEvent =
 			toolName: string;
 			input: Record<string, unknown>;
 			langchainToolCallId?: string;
+			metadata?: Record<string, unknown>;
 	  }
 	| {
 			type: "tool-output-available";
@@ -444,6 +497,7 @@ export type SSEEvent =
 			 * ``ToolMessage.tool_call_id`` at on_tool_end. Backfills cards
 			 * that didn't get the id at tool-input-start time. */
 			langchainToolCallId?: string;
+			metadata?: Record<string, unknown>;
 	  }
 	| { type: "data-thinking-step"; data: ThinkingStepData }
 	| { type: "data-thread-title-update"; data: { threadId: number; title: string } }
@@ -486,6 +540,37 @@ export type SSEEvent =
 			 */
 			type: "data-turn-info";
 			data: { chat_turn_id: string };
+	  }
+	| {
+			/**
+			 * Emitted by ``stream_new_chat`` AFTER ``data-turn-info`` /
+			 * ``data-turn-status`` and BEFORE any LLM streaming events,
+			 * once ``persist_user_turn`` has resolved the canonical
+			 * ``new_chat_messages.id`` for the user-side row of the
+			 * current turn. The frontend renames its optimistic
+			 * ``msg-user-XXX`` placeholder id to ``msg-{message_id}``
+			 * so DB-id-gated UI (comments, edit-from-this-message)
+			 * unlocks immediately. Not emitted by ``stream_resume_chat``
+			 * (resume reuses the original turn's user message).
+			 */
+			type: "data-user-message-id";
+			data: { message_id: number; turn_id: string };
+	  }
+	| {
+			/**
+			 * Emitted by ``stream_new_chat`` AND ``stream_resume_chat``
+			 * AFTER ``data-turn-info`` / ``data-turn-status`` and BEFORE
+			 * any LLM streaming events, once ``persist_assistant_shell``
+			 * has resolved the canonical ``new_chat_messages.id`` for
+			 * the assistant-side row of the current turn. The frontend
+			 * renames its optimistic ``msg-assistant-XXX`` placeholder
+			 * id, migrates the local ``tokenUsageStore`` and
+			 * ``pendingInterrupt`` references, and binds the running
+			 * mutable ``assistantMsgId`` closure variable to the
+			 * canonical id for the rest of the stream.
+			 */
+			type: "data-assistant-message-id";
+			data: { message_id: number; turn_id: string };
 	  }
 	| {
 			/**

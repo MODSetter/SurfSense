@@ -22,6 +22,12 @@ from typing import TYPE_CHECKING, Any
 
 from app.agents.new_chat.middleware.skills_backends import default_skills_sources
 from app.agents.new_chat.permissions import Rule, Ruleset
+from app.agents.new_chat.subagents.providers.linear import (
+    build_linear_specialist_subagent,
+)
+from app.agents.new_chat.subagents.providers.slack import (
+    build_slack_specialist_subagent,
+)
 
 if TYPE_CHECKING:
     from deepagents import SubAgent
@@ -419,6 +425,12 @@ def build_specialized_subagents(
             tools=tools, model=model, extra_middleware=extra_middleware
         ),
         build_report_writer_subagent(
+            tools=tools, model=model, extra_middleware=extra_middleware
+        ),
+        build_linear_specialist_subagent(
+            tools=tools, model=model, extra_middleware=extra_middleware
+        ),
+        build_slack_specialist_subagent(
             tools=tools, model=model, extra_middleware=extra_middleware
         ),
         build_connector_negotiator_subagent(

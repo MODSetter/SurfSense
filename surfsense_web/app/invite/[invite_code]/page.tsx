@@ -31,7 +31,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import type { AcceptInviteResponse } from "@/contracts/types/invites.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
-import { getBearerToken } from "@/lib/auth-utils";
+import { getBearerToken, setRedirectPath } from "@/lib/auth-utils";
 import {
 	trackSearchSpaceInviteAccepted,
 	trackSearchSpaceInviteDeclined,
@@ -125,7 +125,7 @@ export default function InviteAcceptPage() {
 		// Store the invite code to redirect back after login
 		localStorage.setItem("pending_invite_code", inviteCode);
 		// Save the current invite page URL so we can return after authentication
-		localStorage.setItem("surfsense_redirect_path", `/invite/${inviteCode}`);
+		setRedirectPath(`/invite/${inviteCode}`);
 		// Redirect to login (we manually set the path above since invite pages need special handling)
 		window.location.href = "/login";
 	};

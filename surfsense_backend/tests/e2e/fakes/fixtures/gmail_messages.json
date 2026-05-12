@@ -1,0 +1,34 @@
+{
+  "messages": [
+    {
+      "id": "fake-msg-canary-001",
+      "threadId": "fake-thread-canary-001",
+      "snippet": "E2E canary email body is loaded through the Gmail detail endpoint."
+    },
+    {
+      "id": "fake-msg-planning-001",
+      "threadId": "fake-thread-planning-001",
+      "snippet": "Planning email used to keep Gmail fixtures representative."
+    }
+  ],
+  "details": {
+    "fake-msg-canary-001": {
+      "id": "fake-msg-canary-001",
+      "threadId": "fake-thread-canary-001",
+      "subject": "E2E Canary Email",
+      "from": "sender@surfsense.example",
+      "to": "e2e-fake@surfsense.example",
+      "date": "Mon, 10 Feb 2025 11:00:00 +0000",
+      "messageText": "This Gmail message body proves the Composio Gmail live tool fetched message details. SURFSENSE_E2E_CANARY_TOKEN_GMAIL_001"
+    },
+    "fake-msg-planning-001": {
+      "id": "fake-msg-planning-001",
+      "threadId": "fake-thread-planning-001",
+      "subject": "E2E Planning Notes",
+      "from": "planner@surfsense.example",
+      "to": "e2e-fake@surfsense.example",
+      "date": "Tue, 11 Feb 2025 09:30:00 +0000",
+      "messageText": "Planning notes for a non-canary Gmail fixture."
+    }
+  }
+}

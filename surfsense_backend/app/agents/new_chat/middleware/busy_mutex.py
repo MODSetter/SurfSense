@@ -134,6 +134,23 @@ class _ThreadLockManager:
             lock.release()
         self.reset(thread_id)
 
+    def release(self, thread_id: str) -> bool:
+        """Force-release the per-thread lock; safety-net for turns that end before ``__end__``.
+
+        ``BusyMutexMiddleware.aafter_agent`` only releases on graph completion, so
+        an ``interrupt()`` pause or an early streaming bail-out would otherwise
+        leak the lock and block the next request with :class:`BusyError`. Returns
+        ``True`` when a held lock was released, ``False`` otherwise.
+        """
+        lock = self._locks.get(thread_id)
+        if lock is None or not lock.locked():
+            return False
+        try:
+            lock.release()
+        except RuntimeError:
+            return False
+        return True
+
 
 # Module-level singleton — process-local but reused across all agent
 # instances built in this process. Subagents created in nested

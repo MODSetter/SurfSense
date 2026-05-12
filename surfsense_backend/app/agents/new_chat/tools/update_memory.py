@@ -27,6 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import SearchSpace, User, async_session_maker
+from app.utils.content_utils import extract_text_content
 
 logger = logging.getLogger(__name__)
 
@@ -188,12 +189,11 @@ async def _forced_rewrite(content: str, llm: Any) -> str | None:
             [HumanMessage(content=prompt)],
             config={"tags": ["surfsense:internal"]},
         )
-        text = (
-            response.content
-            if isinstance(response.content, str)
-            else str(response.content)
-        )
-        return text.strip()
+        text = extract_text_content(response.content).strip()
+        if not text:
+            logger.warning("Forced rewrite returned empty text; aborting rewrite")
+            return None
+        return text
     except Exception:
         logger.exception("Forced rewrite LLM call failed")
         return None
@@ -235,6 +235,16 @@ async def _save_memory(
     label : str
         Human label for log messages (e.g. "user memory", "team memory").
     """
+    if not isinstance(updated_memory, str):
+        logger.warning(
+            "Refusing non-string memory payload (type=%s)",
+            type(updated_memory).__name__,
+        )
+        return {
+            "status": "error",
+            "message": "Internal error: memory payload must be a string.",
+        }
+
     content = updated_memory
 
     # --- forced rewrite if over the hard limit ---

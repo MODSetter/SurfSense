@@ -130,6 +130,79 @@ def test_registry_propagates_dedup_key_to_tool_metadata() -> None:
     assert sample == "plan"
 
 
+def test_full_args_dedup_keeps_distinct_calls_sharing_a_field() -> None:
+    """Regression: MCP tools (e.g. ``createJiraIssue``) used to dedup on
+    the schema's first required field, which is often the workspace /
+    cloudId — so 3 distinct issues in the same workspace collapsed to 1.
+
+    With :func:`dedup_key_full_args` only fully identical arg dicts dedup.
+    """
+    from app.agents.new_chat.middleware.dedup_tool_calls import dedup_key_full_args
+
+    tool = _make_tool("createJiraIssue", dedup_key=dedup_key_full_args)
+    mw = DedupHITLToolCallsMiddleware(agent_tools=[tool])
+    state = {
+        "messages": [
+            _msg(
+                {
+                    "name": "createJiraIssue",
+                    "args": {
+                        "cloudId": "ws.atlassian.net",
+                        "projectKey": "PROJ",
+                        "summary": "Fix login bug",
+                    },
+                    "id": "1",
+                },
+                {
+                    "name": "createJiraIssue",
+                    "args": {
+                        "cloudId": "ws.atlassian.net",
+                        "projectKey": "PROJ",
+                        "summary": "Add dark mode",
+                    },
+                    "id": "2",
+                },
+                {
+                    "name": "createJiraIssue",
+                    "args": {
+                        "cloudId": "ws.atlassian.net",
+                        "projectKey": "PROJ",
+                        "summary": "Improve perf",
+                    },
+                    "id": "3",
+                },
+            )
+        ]
+    }
+    out = mw.after_model(state, _Runtime())
+    assert out is None  # nothing dropped — all three differ in summary
+
+
+def test_full_args_dedup_drops_only_exact_duplicates() -> None:
+    from app.agents.new_chat.middleware.dedup_tool_calls import dedup_key_full_args
+
+    tool = _make_tool("createJiraIssue", dedup_key=dedup_key_full_args)
+    mw = DedupHITLToolCallsMiddleware(agent_tools=[tool])
+    args = {"cloudId": "ws.atlassian.net", "summary": "Fix bug"}
+    state = {
+        "messages": [
+            _msg(
+                {"name": "createJiraIssue", "args": args, "id": "1"},
+                {"name": "createJiraIssue", "args": dict(args), "id": "2"},
+                {
+                    "name": "createJiraIssue",
+                    "args": {**args, "summary": "Different"},
+                    "id": "3",
+                },
+            )
+        ]
+    }
+    out = mw.after_model(state, _Runtime())
+    assert out is not None
+    new_calls = out["messages"][0].tool_calls
+    assert {c["id"] for c in new_calls} == {"1", "3"}
+
+
 def test_unknown_tool_passes_through() -> None:
     mw = DedupHITLToolCallsMiddleware(agent_tools=None)
     state = {

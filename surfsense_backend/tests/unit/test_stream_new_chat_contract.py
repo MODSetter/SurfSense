@@ -457,6 +457,9 @@ def test_pre_post_accept_abort_contract_exists_for_new_resume_regenerate_flows()
     source = page_path.read_text(encoding="utf-8")
 
     # Each flow tracks accepted boundary and passes it into shared terminal handling.
+    # The acceptance boundary is still meaningful post-refactor: it gates
+    # local-state cleanup (onPreAcceptFailure path) and lets the shared
+    # terminal handler distinguish pre-accept aborts from in-stream errors.
     assert "let newAccepted = false;" in source
     assert "let resumeAccepted = false;" in source
     assert "let regenerateAccepted = false;" in source
@@ -464,12 +467,23 @@ def test_pre_post_accept_abort_contract_exists_for_new_resume_regenerate_flows()
     assert "accepted: resumeAccepted," in source
     assert "accepted: regenerateAccepted," in source
 
-    # Pre-accept abort in resume/regenerate exits without persistence.
-    assert "if (!resumeAccepted) return;" in source
-    assert "if (!regenerateAccepted) return;" in source
+    # NOTE: The FE-side persistence guards previously asserted here
+    # ("if (!resumeAccepted) return;", "if (!regenerateAccepted) return;",
+    # "if (newAccepted && !userPersisted) {") have been intentionally
+    # removed by the SSE-based message-id handshake refactor. Persistence
+    # is now server-authoritative: persist_user_turn / persist_assistant_shell
+    # run inside stream_new_chat / stream_resume_chat unconditionally and
+    # the FE consumes data-user-message-id / data-assistant-message-id
+    # SSE events to learn the canonical primary keys. There is therefore
+    # no FE call-site to guard, and the shared terminal handler relies
+    # purely on the `accepted` field above (forwarded to onAbort /
+    # onAcceptedStreamError) to drive UI cleanup. See
+    # tests/integration/chat/test_message_id_sse.py for the new
+    # cross-tier ID coherence guarantees.
 
-    # New flow persists only when accepted and not already persisted.
-    assert "if (newAccepted && !userPersisted) {" in source
+    # The TURN_CANCELLING / THREAD_BUSY retry plumbing is independent
+    # of the persistence refactor and must still exist on every
+    # start-stream fetch.
     assert "const fetchWithTurnCancellingRetry = useCallback(" in source
     assert "computeFallbackTurnCancellingRetryDelay" in source
     assert 'withMeta.errorCode === "TURN_CANCELLING"' in source

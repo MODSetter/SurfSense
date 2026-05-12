@@ -5,12 +5,16 @@ import {
 	useAuiState,
 	useMessagePartText,
 } from "@assistant-ui/react";
-import { useAtomValue } from "jotai";
-import { CheckIcon, CopyIcon, Pencil } from "lucide-react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { CheckIcon, CopyIcon, Folder as FolderIcon, Pencil } from "lucide-react";
 import Image from "next/image";
-import { type FC, useState } from "react";
+import { useParams } from "next/navigation";
+import { type FC, useCallback, useState } from "react";
+import { toast } from "sonner";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
+import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { MentionChip } from "@/components/assistant-ui/mention-chip";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -61,27 +65,61 @@ const UserTextPart: FC = () => {
 	const text = (part as { text?: string }).text ?? "";
 	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const mentionedDocs = (messageId ? messageDocumentsMap[messageId] : undefined) ?? [];
+	const openEditorPanel = useSetAtom(openEditorPanelAtom);
+	const params = useParams();
+	const searchSpaceIdParam = params?.search_space_id;
+	const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
+		? Number(searchSpaceIdParam[0])
+		: Number(searchSpaceIdParam);
+	const resolvedSearchSpaceId = Number.isFinite(parsedSearchSpaceId)
+		? parsedSearchSpaceId
+		: undefined;
+
+	const handleOpenDoc = useCallback(
+		(docId: number, title: string) => {
+			if (!resolvedSearchSpaceId) {
+				toast.error("Cannot open document outside a search space.");
+				return;
+			}
+			openEditorPanel({
+				kind: "document",
+				documentId: docId,
+				searchSpaceId: resolvedSearchSpaceId,
+				title,
+			});
+		},
+		[openEditorPanel, resolvedSearchSpaceId]
+	);
 
 	const segments = parseMentionSegments(text, mentionedDocs);
 
 	return (
-		<p style={{ whiteSpace: "pre-line" }} className="break-words">
-			{segments.map((segment) =>
-				segment.type === "text" ? (
-					<span key={`txt-${segment.start}`}>{segment.value}</span>
+		<p style={{ whiteSpace: "pre-line" }} className="wrap-break-word">
+			{segments.map((segment) => {
+				if (segment.type === "text") {
+					return <span key={`txt-${segment.start}`}>{segment.value}</span>;
+				}
+				const isFolder = segment.doc.kind === "folder";
+				const icon = isFolder ? (
+					<FolderIcon className="size-3.5" />
 				) : (
-					<span
+					getConnectorIcon(segment.doc.document_type ?? "UNKNOWN", "size-3.5")
+				);
+				return (
+					<MentionChip
 						key={`mention-${getMentionDocKey(segment.doc)}-${segment.start}`}
-						className="inline-flex items-center gap-1 mx-0.5 px-1 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary/60 select-none align-middle leading-none"
-						title={segment.doc.title}
-					>
-						<span className="flex items-center text-muted-foreground">
-							{getConnectorIcon(segment.doc.document_type ?? "UNKNOWN", "h-3 w-3")}
-						</span>
-						<span className="max-w-[120px] truncate">{segment.doc.title}</span>
-					</span>
-				)
-			)}
+						icon={icon}
+						label={segment.doc.title}
+						tooltip={isFolder ? `Folder: ${segment.doc.title}` : segment.doc.title}
+						onClick={
+							isFolder
+								? undefined
+								: () => handleOpenDoc(segment.doc.id, segment.doc.title)
+						}
+						className="mx-0.5"
+					/>
+				);
+			})}
 		</p>
 	);
 };

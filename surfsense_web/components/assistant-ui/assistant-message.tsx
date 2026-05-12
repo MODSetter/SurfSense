@@ -4,6 +4,7 @@ import {
 	AuiIf,
 	ErrorPrimitive,
 	MessagePrimitive,
+	type ToolCallMessagePartComponent,
 	useAui,
 	useAuiState,
 } from "@assistant-ui/react";
@@ -36,7 +37,6 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
 import { RevertTurnButton } from "@/components/assistant-ui/revert-turn-button";
 import { useTokenUsage } from "@/components/assistant-ui/token-usage-context";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
@@ -99,146 +99,6 @@ const GenerateImageToolUI = dynamic(
 		import("@/components/tool-ui/generate-image").then((m) => ({ default: m.GenerateImageToolUI })),
 	{ ssr: false }
 );
-const UpdateMemoryToolUI = dynamic(
-	() => import("@/components/tool-ui/user-memory").then((m) => ({ default: m.UpdateMemoryToolUI })),
-	{ ssr: false }
-);
-const SandboxExecuteToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/sandbox-execute").then((m) => ({
-			default: m.SandboxExecuteToolUI,
-		})),
-	{ ssr: false }
-);
-const CreateNotionPageToolUI = dynamic(
-	() => import("@/components/tool-ui/notion").then((m) => ({ default: m.CreateNotionPageToolUI })),
-	{ ssr: false }
-);
-const UpdateNotionPageToolUI = dynamic(
-	() => import("@/components/tool-ui/notion").then((m) => ({ default: m.UpdateNotionPageToolUI })),
-	{ ssr: false }
-);
-const DeleteNotionPageToolUI = dynamic(
-	() => import("@/components/tool-ui/notion").then((m) => ({ default: m.DeleteNotionPageToolUI })),
-	{ ssr: false }
-);
-const CreateLinearIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/linear").then((m) => ({ default: m.CreateLinearIssueToolUI })),
-	{ ssr: false }
-);
-const UpdateLinearIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/linear").then((m) => ({ default: m.UpdateLinearIssueToolUI })),
-	{ ssr: false }
-);
-const DeleteLinearIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/linear").then((m) => ({ default: m.DeleteLinearIssueToolUI })),
-	{ ssr: false }
-);
-const CreateGoogleDriveFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/google-drive").then((m) => ({
-			default: m.CreateGoogleDriveFileToolUI,
-		})),
-	{ ssr: false }
-);
-const DeleteGoogleDriveFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/google-drive").then((m) => ({
-			default: m.DeleteGoogleDriveFileToolUI,
-		})),
-	{ ssr: false }
-);
-const CreateOneDriveFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/onedrive").then((m) => ({ default: m.CreateOneDriveFileToolUI })),
-	{ ssr: false }
-);
-const DeleteOneDriveFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/onedrive").then((m) => ({ default: m.DeleteOneDriveFileToolUI })),
-	{ ssr: false }
-);
-const CreateDropboxFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/dropbox").then((m) => ({ default: m.CreateDropboxFileToolUI })),
-	{ ssr: false }
-);
-const DeleteDropboxFileToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/dropbox").then((m) => ({ default: m.DeleteDropboxFileToolUI })),
-	{ ssr: false }
-);
-const CreateCalendarEventToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/google-calendar").then((m) => ({
-			default: m.CreateCalendarEventToolUI,
-		})),
-	{ ssr: false }
-);
-const UpdateCalendarEventToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/google-calendar").then((m) => ({
-			default: m.UpdateCalendarEventToolUI,
-		})),
-	{ ssr: false }
-);
-const DeleteCalendarEventToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/google-calendar").then((m) => ({
-			default: m.DeleteCalendarEventToolUI,
-		})),
-	{ ssr: false }
-);
-const CreateGmailDraftToolUI = dynamic(
-	() => import("@/components/tool-ui/gmail").then((m) => ({ default: m.CreateGmailDraftToolUI })),
-	{ ssr: false }
-);
-const UpdateGmailDraftToolUI = dynamic(
-	() => import("@/components/tool-ui/gmail").then((m) => ({ default: m.UpdateGmailDraftToolUI })),
-	{ ssr: false }
-);
-const SendGmailEmailToolUI = dynamic(
-	() => import("@/components/tool-ui/gmail").then((m) => ({ default: m.SendGmailEmailToolUI })),
-	{ ssr: false }
-);
-const TrashGmailEmailToolUI = dynamic(
-	() => import("@/components/tool-ui/gmail").then((m) => ({ default: m.TrashGmailEmailToolUI })),
-	{ ssr: false }
-);
-const CreateJiraIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/jira").then((m) => ({ default: m.CreateJiraIssueToolUI })),
-	{ ssr: false }
-);
-const UpdateJiraIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/jira").then((m) => ({ default: m.UpdateJiraIssueToolUI })),
-	{ ssr: false }
-);
-const DeleteJiraIssueToolUI = dynamic(
-	() => import("@/components/tool-ui/jira").then((m) => ({ default: m.DeleteJiraIssueToolUI })),
-	{ ssr: false }
-);
-const CreateConfluencePageToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/confluence").then((m) => ({
-			default: m.CreateConfluencePageToolUI,
-		})),
-	{ ssr: false }
-);
-const UpdateConfluencePageToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/confluence").then((m) => ({
-			default: m.UpdateConfluencePageToolUI,
-		})),
-	{ ssr: false }
-);
-const DeleteConfluencePageToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/confluence").then((m) => ({
-			default: m.DeleteConfluencePageToolUI,
-		})),
-	{ ssr: false }
-);
-
 function extractDomain(url: string): string | undefined {
 	try {
 		return new URL(url).hostname.replace(/^www\./, "");
@@ -502,6 +362,27 @@ const MessageInfoDropdown: FC = () => {
 	);
 };
 
+/**
+ * Tools rendered in the message BODY — value-add deliverables only.
+ *
+ * Process tools (connector CRUD, sandbox execute, memory updates,
+ * etc.) are NOT here; they render in the timeline via the slice's
+ * tool registry (see ``features/chat-messages/timeline``). The body
+ * opts out of every other tool by registering ``NullBodyTool`` as the
+ * fallback — any tool name not in this map renders nothing in the
+ * body and is picked up by the timeline instead.
+ */
+const BODY_TOOLS = {
+	generate_report: GenerateReportToolUI,
+	generate_resume: GenerateResumeToolUI,
+	generate_podcast: GeneratePodcastToolUI,
+	generate_video_presentation: GenerateVideoPresentationToolUI,
+	display_image: GenerateImageToolUI,
+	generate_image: GenerateImageToolUI,
+} as const;
+
+const NullBodyTool: ToolCallMessagePartComponent = () => null;
+
 const AssistantMessageInner: FC = () => {
 	const isMobile = !useMediaQuery("(min-width: 768px)");
 
@@ -513,47 +394,8 @@ const AssistantMessageInner: FC = () => {
 						Text: MarkdownText,
 						Reasoning: ReasoningMessagePart,
 						tools: {
-							by_name: {
-								generate_report: GenerateReportToolUI,
-								generate_resume: GenerateResumeToolUI,
-								generate_podcast: GeneratePodcastToolUI,
-								generate_video_presentation: GenerateVideoPresentationToolUI,
-								display_image: GenerateImageToolUI,
-								generate_image: GenerateImageToolUI,
-								update_memory: UpdateMemoryToolUI,
-								execute: SandboxExecuteToolUI,
-								execute_code: SandboxExecuteToolUI,
-								create_notion_page: CreateNotionPageToolUI,
-								update_notion_page: UpdateNotionPageToolUI,
-								delete_notion_page: DeleteNotionPageToolUI,
-								create_linear_issue: CreateLinearIssueToolUI,
-								update_linear_issue: UpdateLinearIssueToolUI,
-								delete_linear_issue: DeleteLinearIssueToolUI,
-								create_google_drive_file: CreateGoogleDriveFileToolUI,
-								delete_google_drive_file: DeleteGoogleDriveFileToolUI,
-								create_onedrive_file: CreateOneDriveFileToolUI,
-								delete_onedrive_file: DeleteOneDriveFileToolUI,
-								create_dropbox_file: CreateDropboxFileToolUI,
-								delete_dropbox_file: DeleteDropboxFileToolUI,
-								create_calendar_event: CreateCalendarEventToolUI,
-								update_calendar_event: UpdateCalendarEventToolUI,
-								delete_calendar_event: DeleteCalendarEventToolUI,
-								create_gmail_draft: CreateGmailDraftToolUI,
-								update_gmail_draft: UpdateGmailDraftToolUI,
-								send_gmail_email: SendGmailEmailToolUI,
-								trash_gmail_email: TrashGmailEmailToolUI,
-								create_jira_issue: CreateJiraIssueToolUI,
-								update_jira_issue: UpdateJiraIssueToolUI,
-								delete_jira_issue: DeleteJiraIssueToolUI,
-								create_confluence_page: CreateConfluencePageToolUI,
-								update_confluence_page: UpdateConfluencePageToolUI,
-								delete_confluence_page: DeleteConfluencePageToolUI,
-								web_search: () => null,
-								link_preview: () => null,
-								multi_link_preview: () => null,
-								scrape_webpage: () => null,
-							},
-							Fallback: ToolFallback,
+							by_name: BODY_TOOLS,
+							Fallback: NullBodyTool,
 						},
 					}}
 				/>

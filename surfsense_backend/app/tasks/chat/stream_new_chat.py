@@ -9,13 +9,11 @@ Supports loading LLM configurations from:
 - NewLLMConfig database table (positive IDs for user-created configs with prompt settings)
 """
 
-import ast
 import asyncio
 import contextlib
 import gc
 import json
 import logging
-import re
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
@@ -25,15 +23,14 @@ from uuid import UUID
 
 import anyio
 from langchain_core.messages import HumanMessage
-from sqlalchemy import func
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
 from app.agents.new_chat.context import SurfSenseContextSchema
 from app.agents.new_chat.errors import BusyError
-from app.agents.new_chat.feature_flags import get_flags
 from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.new_chat.llm_config import (
     AgentConfig,
@@ -46,6 +43,7 @@ from app.agents.new_chat.memory_extraction import (
     extract_and_save_memory,
     extract_and_save_team_memory,
 )
+from app.agents.new_chat.mention_resolver import resolve_mentions, substitute_in_text
 from app.agents.new_chat.middleware.busy_mutex import (
     end_turn,
     get_cancel_state,
@@ -77,12 +75,15 @@ from app.services.chat_session_state_service import (
 )
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
+from app.tasks.chat.streaming.graph_stream.event_stream import stream_output
 from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
 from app.utils.user_message_multimodal import build_human_message_content
 
 _background_tasks: set[asyncio.Task] = set()
 _perf_log = get_perf_logger()
+logger = logging.getLogger(__name__)
+
 TURN_CANCELLING_INITIAL_DELAY_MS = 200
 TURN_CANCELLING_BACKOFF_FACTOR = 2
 TURN_CANCELLING_MAX_DELAY_MS = 1500
@@ -314,6 +315,19 @@ class StreamResult:
     verification_succeeded: bool = False
     commit_gate_passed: bool = True
     commit_gate_reason: str = ""
+    # Pre-allocated assistant ``new_chat_messages.id`` for this turn,
+    # captured by ``persist_assistant_shell`` right after the user row is
+    # persisted. ``None`` for the legacy / anonymous code paths that don't
+    # opt in to server-side ``ContentPart[]`` projection.
+    assistant_message_id: int | None = None
+    # In-memory mirror of the FE's assistant-ui ``ContentPartsState``,
+    # populated by the lifecycle methods called from ``_stream_agent_events``
+    # at each ``streaming_service.format_*`` yield site. Snapshot in the
+    # streaming ``finally`` to produce the rich JSONB persisted by
+    # ``finalize_assistant_turn``. ``repr=False`` keeps the
+    # log-on-error path (``StreamResult`` is logged in some error
+    # branches) from dumping a potentially-large parts list.
+    content_builder: Any | None = field(default=None, repr=False)
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -560,6 +574,43 @@ async def _preflight_llm(llm: Any) -> None:
         )
 
 
+async def _build_main_agent_for_thread(
+    agent_factory: Any,
+    *,
+    llm: Any,
+    search_space_id: int,
+    db_session: Any,
+    connector_service: ConnectorService,
+    checkpointer: Any,
+    user_id: str | None,
+    thread_id: int | None,
+    agent_config: AgentConfig | None,
+    firecrawl_api_key: str | None,
+    thread_visibility: ChatVisibility | None,
+    filesystem_selection: FilesystemSelection | None,
+    disabled_tools: list[str] | None = None,
+    mentioned_document_ids: list[int] | None = None,
+) -> Any:
+    """Single (re)build path so the agent factory cannot drift across
+    initial build, preflight repin, and mid-stream 429 recovery for one
+    ``thread_id``: a graph swap mid-turn would corrupt checkpointer state."""
+    return await agent_factory(
+        llm=llm,
+        search_space_id=search_space_id,
+        db_session=db_session,
+        connector_service=connector_service,
+        checkpointer=checkpointer,
+        user_id=user_id,
+        thread_id=thread_id,
+        agent_config=agent_config,
+        firecrawl_api_key=firecrawl_api_key,
+        thread_visibility=thread_visibility,
+        filesystem_selection=filesystem_selection,
+        disabled_tools=disabled_tools,
+        mentioned_document_ids=mentioned_document_ids,
+    )
+
+
 async def _settle_speculative_agent_build(task: asyncio.Task[Any]) -> None:
     """Wait for a discarded speculative agent build to release shared state.
 
@@ -677,9 +728,9 @@ def _legacy_match_lc_id(
 ) -> str | None:
     """Best-effort match a buffered ``tool_call_chunk`` to a tool name.
 
-    Pure extract of the legacy in-line match used at ``on_tool_start`` for
-    parity_v2-OFF and unmatched (chunk path didn't register an index for
-    this call) tools. Pops the next id-bearing chunk whose ``name``
+    Pure extract of the in-line match used at ``on_tool_start`` when the
+    chunk path didn't register an index for this call. Pops the next
+    id-bearing chunk whose ``name``
     matches ``tool_name`` (or any id-bearing chunk as a fallback) and
     returns its id. Mutates ``pending_tool_call_chunks`` and
     ``lc_tool_call_id_by_run`` in place.
@@ -721,6 +772,7 @@ async def _stream_agent_events(
     fallback_commit_filesystem_mode: FilesystemMode = FilesystemMode.CLOUD,
     fallback_commit_thread_id: int | None = None,
     runtime_context: Any = None,
+    content_builder: Any | None = None,
 ) -> AsyncGenerator[str, None]:
     """Shared async generator that streams and formats astream_events from the agent.
 
@@ -737,1432 +789,35 @@ async def _stream_agent_events(
         initial_step_id: If set, the helper inherits an already-active thinking step.
         initial_step_title: Title of the inherited thinking step.
         initial_step_items: Items of the inherited thinking step.
+        content_builder: Optional ``AssistantContentBuilder``. When set, every
+            ``streaming_service.format_*`` yield site also drives the matching
+            builder lifecycle method (``on_text_*``, ``on_reasoning_*``,
+            ``on_tool_*``, ``on_thinking_step``, ``on_step_separator``) so the
+            in-memory ``ContentPart[]`` projection stays in lockstep with what
+            the FE renders live. Pure in-memory accumulation — no DB I/O —
+            consumed by the streaming ``finally`` to produce the rich JSONB
+            persisted via ``finalize_assistant_turn``. ``None`` (the default)
+            is used by the anonymous / legacy code paths and is a no-op.
 
     Yields:
         SSE-formatted strings for each event.
     """
-    accumulated_text = ""
-    current_text_id: str | None = None
-    thinking_step_counter = 1 if initial_step_id else 0
-    tool_step_ids: dict[str, str] = {}
-    completed_step_ids: set[str] = set()
-    last_active_step_id: str | None = initial_step_id
-    last_active_step_title: str = initial_step_title
-    last_active_step_items: list[str] = initial_step_items or []
-    just_finished_tool: bool = False
-    active_tool_depth: int = 0  # Track nesting: >0 means we're inside a tool
-    called_update_memory: bool = False
+    async for sse in stream_output(
+        agent=agent,
+        config=config,
+        input_data=input_data,
+        streaming_service=streaming_service,
+        result=result,
+        step_prefix=step_prefix,
+        initial_step_id=initial_step_id,
+        initial_step_title=initial_step_title,
+        initial_step_items=initial_step_items,
+        content_builder=content_builder,
+        runtime_context=runtime_context,
+    ):
+        yield sse
 
-    # Reasoning-block streaming. We open a reasoning block on the
-    # first reasoning delta of a step, append deltas as they arrive, and
-    # close it when text starts (the model has switched to writing its
-    # answer) or ``on_chat_model_end`` fires for the model node. Reuses
-    # the same Vercel format-helpers as text-start/delta/end.
-    current_reasoning_id: str | None = None
-
-    # Streaming-parity v2 feature flag. When OFF we keep the legacy
-    # shape: str-only content, no reasoning blocks, no
-    # ``langchainToolCallId`` propagation. The schema migrations
-    # (135 / 136) ship unconditionally because they're forward-compatible.
-    parity_v2 = bool(get_flags().enable_stream_parity_v2)
-
-    # Best-effort attach of LangChain ``tool_call_id`` to the synthetic
-    # ``call_<run_id>`` card id we already emit. We accumulate
-    # ``tool_call_chunks`` from ``on_chat_model_stream``, key them by
-    # name, and pop the next unconsumed entry at ``on_tool_start``. The
-    # authoritative id is later filled in at ``on_tool_end`` from
-    # ``ToolMessage.tool_call_id``. Under parity_v2 we ALSO short-circuit
-    # this list for chunks that already registered into ``index_to_meta``
-    # below — so this list is reserved for the parity_v2-OFF / unmatched
-    # fallback path only and never re-pops a chunk we already streamed.
-    pending_tool_call_chunks: list[dict[str, Any]] = []
-    lc_tool_call_id_by_run: dict[str, str] = {}
-    file_path_by_run: dict[str, str] = {}
-
-    # parity_v2 only: live tool-call argument streaming. ``index_to_meta``
-    # is keyed by the chunk's ``index`` field — LangChain
-    # ``ToolCallChunk``s for the same call share an index but only the
-    # first chunk carries id+name (subsequent ones are id=None,
-    # name=None, args="<delta>"). We register an index when both id and
-    # name are observed on a chunk (per ToolCallChunk semantics they
-    # arrive together on the first chunk), then route every later chunk
-    # at that index to the same ``ui_id`` as a ``tool-input-delta``.
-    # ``ui_tool_call_id_by_run`` maps LangGraph ``run_id`` to the
-    # ``ui_id`` used for that call's ``tool-input-start`` so the matching
-    # ``tool-output-available`` (emitted from ``on_tool_end``) lands on
-    # the same card.
-    index_to_meta: dict[int, dict[str, str]] = {}
-    ui_tool_call_id_by_run: dict[str, str] = {}
-
-    # Per-tool-end mutable cache for the LangChain tool_call_id resolved
-    # at ``on_tool_end``. ``_emit_tool_output`` reads this so every
-    # ``format_tool_output_available`` call automatically carries the
-    # authoritative id without duplicating the kwarg at every call site.
-    current_lc_tool_call_id: dict[str, str | None] = {"value": None}
-
-    def _emit_tool_output(call_id: str, output: Any) -> str:
-        return streaming_service.format_tool_output_available(
-            call_id,
-            output,
-            langchain_tool_call_id=current_lc_tool_call_id["value"],
-        )
-
-    def next_thinking_step_id() -> str:
-        nonlocal thinking_step_counter
-        thinking_step_counter += 1
-        return f"{step_prefix}-{thinking_step_counter}"
-
-    def complete_current_step() -> str | None:
-        nonlocal last_active_step_id
-        if last_active_step_id and last_active_step_id not in completed_step_ids:
-            completed_step_ids.add(last_active_step_id)
-            event = streaming_service.format_thinking_step(
-                step_id=last_active_step_id,
-                title=last_active_step_title,
-                status="completed",
-                items=last_active_step_items if last_active_step_items else None,
-            )
-            last_active_step_id = None
-            return event
-        return None
-
-    # Per-invocation runtime context (Phase 1.5). When supplied,
-    # ``KnowledgePriorityMiddleware`` reads ``mentioned_document_ids``
-    # from ``runtime.context`` instead of its constructor closure — the
-    # prerequisite that lets the compiled-agent cache (Phase 1) reuse a
-    # single graph across turns. Astream_events_kwargs stays empty when
-    # callers leave ``runtime_context`` as ``None`` to preserve the
-    # legacy code path bit-for-bit.
-    astream_kwargs: dict[str, Any] = {"config": config, "version": "v2"}
-    if runtime_context is not None:
-        astream_kwargs["context"] = runtime_context
-
-    async for event in agent.astream_events(input_data, **astream_kwargs):
-        event_type = event.get("event", "")
-
-        if event_type == "on_chat_model_stream":
-            if active_tool_depth > 0:
-                continue  # Suppress inner-tool LLM tokens from leaking into chat
-            if "surfsense:internal" in event.get("tags", []):
-                continue  # Suppress middleware-internal LLM tokens (e.g. KB search classification)
-            chunk = event.get("data", {}).get("chunk")
-            if not chunk:
-                continue
-            parts = _extract_chunk_parts(chunk)
-
-            reasoning_delta = parts["reasoning"]
-            text_delta = parts["text"]
-
-            # Reasoning streaming. Open a reasoning block on first
-            # delta; append every subsequent delta until text begins.
-            # When text starts we close the reasoning block first so the
-            # frontend sees the natural hand-off. Gated behind the
-            # parity-v2 flag so legacy deployments keep today's shape.
-            if parity_v2 and reasoning_delta:
-                if current_text_id is not None:
-                    yield streaming_service.format_text_end(current_text_id)
-                    current_text_id = None
-                if current_reasoning_id is None:
-                    completion_event = complete_current_step()
-                    if completion_event:
-                        yield completion_event
-                    if just_finished_tool:
-                        last_active_step_id = None
-                        last_active_step_title = ""
-                        last_active_step_items = []
-                        just_finished_tool = False
-                    current_reasoning_id = streaming_service.generate_reasoning_id()
-                    yield streaming_service.format_reasoning_start(current_reasoning_id)
-                yield streaming_service.format_reasoning_delta(
-                    current_reasoning_id, reasoning_delta
-                )
-
-            if text_delta:
-                if current_reasoning_id is not None:
-                    yield streaming_service.format_reasoning_end(current_reasoning_id)
-                    current_reasoning_id = None
-                if current_text_id is None:
-                    completion_event = complete_current_step()
-                    if completion_event:
-                        yield completion_event
-                    if just_finished_tool:
-                        last_active_step_id = None
-                        last_active_step_title = ""
-                        last_active_step_items = []
-                        just_finished_tool = False
-                    current_text_id = streaming_service.generate_text_id()
-                    yield streaming_service.format_text_start(current_text_id)
-                yield streaming_service.format_text_delta(current_text_id, text_delta)
-                accumulated_text += text_delta
-
-            # Live tool-call argument streaming. Runs AFTER text/reasoning
-            # processing so chunks containing both stay in their natural
-            # wire order (text → text-end → tool-input-start). Active
-            # text/reasoning are closed inside the registration branch
-            # before ``tool-input-start`` so the frontend sees a clean
-            # part boundary even when providers interleave.
-            if parity_v2 and parts["tool_call_chunks"]:
-                for tcc in parts["tool_call_chunks"]:
-                    idx = tcc.get("index")
-
-                    # Register this index when we first see id+name
-                    # TOGETHER. Per LangChain ToolCallChunk semantics the
-                    # first chunk for a tool call carries both fields
-                    # together; later chunks have id=None, name=None and
-                    # only ``args``. Requiring BOTH keeps wire
-                    # ``tool-input-start`` always carrying a real
-                    # toolName (assistant-ui's typed tool-part dispatch
-                    # keys off it).
-                    if idx is not None and idx not in index_to_meta:
-                        lc_id = tcc.get("id")
-                        name = tcc.get("name")
-                        if lc_id and name:
-                            ui_id = lc_id
-
-                            # Close active text/reasoning so wire
-                            # ordering stays clean even on providers
-                            # that interleave text and tool-call chunks
-                            # within the same stream window.
-                            if current_text_id is not None:
-                                yield streaming_service.format_text_end(current_text_id)
-                                current_text_id = None
-                            if current_reasoning_id is not None:
-                                yield streaming_service.format_reasoning_end(
-                                    current_reasoning_id
-                                )
-                                current_reasoning_id = None
-
-                            index_to_meta[idx] = {
-                                "ui_id": ui_id,
-                                "lc_id": lc_id,
-                                "name": name,
-                            }
-                            yield streaming_service.format_tool_input_start(
-                                ui_id,
-                                name,
-                                langchain_tool_call_id=lc_id,
-                            )
-
-                    # Emit args delta for any chunk at a registered
-                    # index (including idless continuations). Once an
-                    # index is owned by ``index_to_meta`` we DO NOT
-                    # append to ``pending_tool_call_chunks`` — that list
-                    # is reserved for the parity_v2-OFF / unmatched
-                    # fallback path so it never re-pops chunks already
-                    # consumed here (skip-append).
-                    meta = index_to_meta.get(idx) if idx is not None else None
-                    if meta:
-                        args_chunk = tcc.get("args") or ""
-                        if args_chunk:
-                            yield streaming_service.format_tool_input_delta(
-                                meta["ui_id"], args_chunk
-                            )
-                    else:
-                        pending_tool_call_chunks.append(tcc)
-
-        elif event_type == "on_tool_start":
-            active_tool_depth += 1
-            tool_name = event.get("name", "unknown_tool")
-            run_id = event.get("run_id", "")
-            tool_input = event.get("data", {}).get("input", {})
-            if tool_name in ("write_file", "edit_file"):
-                result.write_attempted = True
-                if isinstance(tool_input, dict):
-                    file_path = tool_input.get("file_path")
-                    if isinstance(file_path, str) and file_path.strip() and run_id:
-                        file_path_by_run[run_id] = file_path.strip()
-
-            if current_text_id is not None:
-                yield streaming_service.format_text_end(current_text_id)
-                current_text_id = None
-
-            if last_active_step_title != "Synthesizing response":
-                completion_event = complete_current_step()
-                if completion_event:
-                    yield completion_event
-
-            just_finished_tool = False
-            tool_step_id = next_thinking_step_id()
-            tool_step_ids[run_id] = tool_step_id
-            last_active_step_id = tool_step_id
-
-            if tool_name == "ls":
-                ls_path = (
-                    tool_input.get("path", "/")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                last_active_step_title = "Listing files"
-                last_active_step_items = [ls_path]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Listing files",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "read_file":
-                fp = (
-                    tool_input.get("file_path", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                display_fp = fp if len(fp) <= 80 else "…" + fp[-77:]
-                last_active_step_title = "Reading file"
-                last_active_step_items = [display_fp]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Reading file",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "write_file":
-                fp = (
-                    tool_input.get("file_path", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                display_fp = fp if len(fp) <= 80 else "…" + fp[-77:]
-                last_active_step_title = "Writing file"
-                last_active_step_items = [display_fp]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Writing file",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "edit_file":
-                fp = (
-                    tool_input.get("file_path", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                display_fp = fp if len(fp) <= 80 else "…" + fp[-77:]
-                last_active_step_title = "Editing file"
-                last_active_step_items = [display_fp]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Editing file",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "glob":
-                pat = (
-                    tool_input.get("pattern", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                base_path = (
-                    tool_input.get("path", "/") if isinstance(tool_input, dict) else "/"
-                )
-                last_active_step_title = "Searching files"
-                last_active_step_items = [f"{pat} in {base_path}"]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Searching files",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "grep":
-                pat = (
-                    tool_input.get("pattern", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                grep_path = (
-                    tool_input.get("path", "") if isinstance(tool_input, dict) else ""
-                )
-                display_pat = pat[:60] + ("…" if len(pat) > 60 else "")
-                last_active_step_title = "Searching content"
-                last_active_step_items = [
-                    f'"{display_pat}"' + (f" in {grep_path}" if grep_path else "")
-                ]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Searching content",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "rm":
-                rm_path = (
-                    tool_input.get("path", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                display_path = rm_path if len(rm_path) <= 80 else "…" + rm_path[-77:]
-                last_active_step_title = "Deleting file"
-                last_active_step_items = [display_path] if display_path else []
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Deleting file",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "rmdir":
-                rmdir_path = (
-                    tool_input.get("path", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                display_path = (
-                    rmdir_path if len(rmdir_path) <= 80 else "…" + rmdir_path[-77:]
-                )
-                last_active_step_title = "Deleting folder"
-                last_active_step_items = [display_path] if display_path else []
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Deleting folder",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "mkdir":
-                mkdir_path = (
-                    tool_input.get("path", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                display_path = (
-                    mkdir_path if len(mkdir_path) <= 80 else "…" + mkdir_path[-77:]
-                )
-                last_active_step_title = "Creating folder"
-                last_active_step_items = [display_path] if display_path else []
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Creating folder",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "move_file":
-                src = (
-                    tool_input.get("source_path", "")
-                    if isinstance(tool_input, dict)
-                    else ""
-                )
-                dst = (
-                    tool_input.get("destination_path", "")
-                    if isinstance(tool_input, dict)
-                    else ""
-                )
-                display_src = src if len(src) <= 60 else "…" + src[-57:]
-                display_dst = dst if len(dst) <= 60 else "…" + dst[-57:]
-                last_active_step_title = "Moving file"
-                last_active_step_items = (
-                    [f"{display_src} → {display_dst}"] if src or dst else []
-                )
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Moving file",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "write_todos":
-                todos = (
-                    tool_input.get("todos", []) if isinstance(tool_input, dict) else []
-                )
-                todo_count = len(todos) if isinstance(todos, list) else 0
-                last_active_step_title = "Planning tasks"
-                last_active_step_items = (
-                    [f"{todo_count} task{'s' if todo_count != 1 else ''}"]
-                    if todo_count
-                    else []
-                )
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Planning tasks",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "save_document":
-                doc_title = (
-                    tool_input.get("title", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                display_title = doc_title[:60] + ("…" if len(doc_title) > 60 else "")
-                last_active_step_title = "Saving document"
-                last_active_step_items = [display_title]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Saving document",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "generate_image":
-                prompt = (
-                    tool_input.get("prompt", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                last_active_step_title = "Generating image"
-                last_active_step_items = [
-                    f"Prompt: {prompt[:80]}{'...' if len(prompt) > 80 else ''}"
-                ]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Generating image",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "scrape_webpage":
-                url = (
-                    tool_input.get("url", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                last_active_step_title = "Scraping webpage"
-                last_active_step_items = [
-                    f"URL: {url[:80]}{'...' if len(url) > 80 else ''}"
-                ]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Scraping webpage",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "generate_podcast":
-                podcast_title = (
-                    tool_input.get("podcast_title", "SurfSense Podcast")
-                    if isinstance(tool_input, dict)
-                    else "SurfSense Podcast"
-                )
-                content_len = len(
-                    tool_input.get("source_content", "")
-                    if isinstance(tool_input, dict)
-                    else ""
-                )
-                last_active_step_title = "Generating podcast"
-                last_active_step_items = [
-                    f"Title: {podcast_title}",
-                    f"Content: {content_len:,} characters",
-                    "Preparing audio generation...",
-                ]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Generating podcast",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "generate_report":
-                report_topic = (
-                    tool_input.get("topic", "Report")
-                    if isinstance(tool_input, dict)
-                    else "Report"
-                )
-                is_revision = bool(
-                    isinstance(tool_input, dict) and tool_input.get("parent_report_id")
-                )
-                step_title = "Revising report" if is_revision else "Generating report"
-                last_active_step_title = step_title
-                last_active_step_items = [
-                    f"Topic: {report_topic}",
-                    "Analyzing source content...",
-                ]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title=step_title,
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            elif tool_name in ("execute", "execute_code"):
-                cmd = (
-                    tool_input.get("command", "")
-                    if isinstance(tool_input, dict)
-                    else str(tool_input)
-                )
-                display_cmd = cmd[:80] + ("…" if len(cmd) > 80 else "")
-                last_active_step_title = "Running command"
-                last_active_step_items = [f"$ {display_cmd}"]
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title="Running command",
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-            else:
-                # Fallback for tools without a curated thinking-step title
-                # (typically connector tools, MCP-registered tools, or
-                # newly added tools that haven't been wired up here yet).
-                # Render the snake_cased name as a sentence-cased phrase
-                # so non-technical users see e.g. "Send gmail email"
-                # rather than the raw identifier "send_gmail_email".
-                last_active_step_title = (
-                    tool_name.replace("_", " ").strip().capitalize() or tool_name
-                )
-                last_active_step_items = []
-                yield streaming_service.format_thinking_step(
-                    step_id=tool_step_id,
-                    title=last_active_step_title,
-                    status="in_progress",
-                )
-
-            # Resolve the card identity. If the chunk-emission loop
-            # already registered an ``index`` for this tool call (parity_v2
-            # path), reuse the same ui_id so the card sees:
-            # tool-input-start → deltas… → tool-input-available →
-            # tool-output-available all keyed by lc_id. Otherwise fall
-            # back to the synthetic ``call_<run_id>`` id and the legacy
-            # best-effort match against ``pending_tool_call_chunks``.
-            matched_meta: dict[str, str] | None = None
-            if parity_v2:
-                # FIFO over indices 0,1,2…; first unassigned same-name
-                # match wins. Handles parallel same-name calls (e.g. two
-                # write_file calls) deterministically as long as the
-                # model interleaves on_tool_start in the same order it
-                # streamed the args.
-                taken_ui_ids = set(ui_tool_call_id_by_run.values())
-                for meta in index_to_meta.values():
-                    if meta["name"] == tool_name and meta["ui_id"] not in taken_ui_ids:
-                        matched_meta = meta
-                        break
-
-            tool_call_id: str
-            langchain_tool_call_id: str | None = None
-            if matched_meta is not None:
-                tool_call_id = matched_meta["ui_id"]
-                langchain_tool_call_id = matched_meta["lc_id"]
-                # ``tool-input-start`` already fired during chunk
-                # emission — skip the duplicate. No pruning is needed
-                # because the chunk-emission loop intentionally never
-                # appends registered-index chunks to
-                # ``pending_tool_call_chunks`` (skip-append).
-                if run_id:
-                    lc_tool_call_id_by_run[run_id] = matched_meta["lc_id"]
-            else:
-                tool_call_id = (
-                    f"call_{run_id[:32]}"
-                    if run_id
-                    else streaming_service.generate_tool_call_id()
-                )
-                # Legacy fallback: parity_v2 OFF, or parity_v2 ON but the
-                # provider didn't stream tool_call_chunks for this call
-                # (no index registered). Run the existing best-effort
-                # match BEFORE emitting start so we still attach an
-                # authoritative ``langchainToolCallId`` when possible.
-                if parity_v2:
-                    langchain_tool_call_id = _legacy_match_lc_id(
-                        pending_tool_call_chunks,
-                        tool_name,
-                        run_id,
-                        lc_tool_call_id_by_run,
-                    )
-                yield streaming_service.format_tool_input_start(
-                    tool_call_id,
-                    tool_name,
-                    langchain_tool_call_id=langchain_tool_call_id,
-                )
-
-            if run_id:
-                ui_tool_call_id_by_run[run_id] = tool_call_id
-
-            # Sanitize tool_input: strip runtime-injected non-serializable
-            # values (e.g. LangChain ToolRuntime) before sending over SSE.
-            if isinstance(tool_input, dict):
-                _safe_input: dict[str, Any] = {}
-                for _k, _v in tool_input.items():
-                    try:
-                        json.dumps(_v)
-                        _safe_input[_k] = _v
-                    except (TypeError, ValueError, OverflowError):
-                        pass
-            else:
-                _safe_input = {"input": tool_input}
-            yield streaming_service.format_tool_input_available(
-                tool_call_id,
-                tool_name,
-                _safe_input,
-                langchain_tool_call_id=langchain_tool_call_id,
-            )
-
-        elif event_type == "on_tool_end":
-            active_tool_depth = max(0, active_tool_depth - 1)
-            run_id = event.get("run_id", "")
-            tool_name = event.get("name", "unknown_tool")
-            raw_output = event.get("data", {}).get("output", "")
-            staged_file_path = file_path_by_run.pop(run_id, None) if run_id else None
-
-            if tool_name == "update_memory":
-                called_update_memory = True
-
-            if hasattr(raw_output, "content"):
-                content = raw_output.content
-                if isinstance(content, str):
-                    try:
-                        tool_output = json.loads(content)
-                    except (json.JSONDecodeError, TypeError):
-                        tool_output = {"result": content}
-                elif isinstance(content, dict):
-                    tool_output = content
-                else:
-                    tool_output = {"result": str(content)}
-            elif isinstance(raw_output, dict):
-                tool_output = raw_output
-            else:
-                tool_output = {"result": str(raw_output) if raw_output else "completed"}
-
-            if tool_name in ("write_file", "edit_file"):
-                if _tool_output_has_error(tool_output):
-                    # Keep successful evidence if a previous write/edit in this turn succeeded.
-                    pass
-                else:
-                    result.write_succeeded = True
-                    result.verification_succeeded = True
-
-            # Look up the SAME card id used at on_tool_start (either the
-            # parity_v2 lc-id-derived ui_id or the legacy synthetic
-            # ``call_<run_id>``) so the output event always lands on the
-            # same card as start/delta/available. Fallback preserves the
-            # legacy synthetic shape for parity_v2-OFF / unknown-run paths.
-            tool_call_id = ui_tool_call_id_by_run.get(
-                run_id,
-                f"call_{run_id[:32]}" if run_id else "call_unknown",
-            )
-            original_step_id = tool_step_ids.get(
-                run_id, f"{step_prefix}-unknown-{run_id[:8]}"
-            )
-            completed_step_ids.add(original_step_id)
-
-            # Authoritative LangChain tool_call_id from the returned
-            # ``ToolMessage``. Falls back to whatever we matched
-            # at ``on_tool_start`` time (kept in ``lc_tool_call_id_by_run``)
-            # if the output isn't a ToolMessage. The value is stored in
-            # ``current_lc_tool_call_id`` so ``_emit_tool_output``
-            # picks it up for every output emit below.
-            #
-            # Emitted in BOTH parity_v2 and legacy modes: the chat tool
-            # card needs the LangChain id to match against the
-            # ``data-action-log`` SSE event (keyed by ``lc_tool_call_id``)
-            # so the inline Revert button can light up. Reading
-            # ``raw_output.tool_call_id`` is a cheap, non-mutating attribute
-            # access that is safe regardless of feature-flag state.
-            current_lc_tool_call_id["value"] = None
-            authoritative = getattr(raw_output, "tool_call_id", None)
-            if isinstance(authoritative, str) and authoritative:
-                current_lc_tool_call_id["value"] = authoritative
-                if run_id:
-                    lc_tool_call_id_by_run[run_id] = authoritative
-            elif run_id and run_id in lc_tool_call_id_by_run:
-                current_lc_tool_call_id["value"] = lc_tool_call_id_by_run[run_id]
-
-            if tool_name == "read_file":
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Reading file",
-                    status="completed",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "write_file":
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Writing file",
-                    status="completed",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "edit_file":
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Editing file",
-                    status="completed",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "glob":
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Searching files",
-                    status="completed",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "grep":
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Searching content",
-                    status="completed",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "rm":
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Deleting file",
-                    status="completed",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "rmdir":
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Deleting folder",
-                    status="completed",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "mkdir":
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Creating folder",
-                    status="completed",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "move_file":
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Moving file",
-                    status="completed",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "write_todos":
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Planning tasks",
-                    status="completed",
-                    items=last_active_step_items,
-                )
-            elif tool_name == "save_document":
-                result_str = (
-                    tool_output.get("result", "")
-                    if isinstance(tool_output, dict)
-                    else str(tool_output)
-                )
-                is_error = "Error" in result_str
-                completed_items = [
-                    *last_active_step_items,
-                    result_str[:80] if is_error else "Saved to knowledge base",
-                ]
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Saving document",
-                    status="completed",
-                    items=completed_items,
-                )
-            elif tool_name == "generate_image":
-                if isinstance(tool_output, dict) and not tool_output.get("error"):
-                    completed_items = [
-                        *last_active_step_items,
-                        "Image generated successfully",
-                    ]
-                else:
-                    error_msg = (
-                        tool_output.get("error", "Generation failed")
-                        if isinstance(tool_output, dict)
-                        else "Generation failed"
-                    )
-                    completed_items = [*last_active_step_items, f"Error: {error_msg}"]
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Generating image",
-                    status="completed",
-                    items=completed_items,
-                )
-            elif tool_name == "scrape_webpage":
-                if isinstance(tool_output, dict):
-                    title = tool_output.get("title", "Webpage")
-                    word_count = tool_output.get("word_count", 0)
-                    has_error = "error" in tool_output
-                    if has_error:
-                        completed_items = [
-                            *last_active_step_items,
-                            f"Error: {tool_output.get('error', 'Failed to scrape')[:50]}",
-                        ]
-                    else:
-                        completed_items = [
-                            *last_active_step_items,
-                            f"Title: {title[:50]}{'...' if len(title) > 50 else ''}",
-                            f"Extracted: {word_count:,} words",
-                        ]
-                else:
-                    completed_items = [*last_active_step_items, "Content extracted"]
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Scraping webpage",
-                    status="completed",
-                    items=completed_items,
-                )
-            elif tool_name == "generate_podcast":
-                podcast_status = (
-                    tool_output.get("status", "unknown")
-                    if isinstance(tool_output, dict)
-                    else "unknown"
-                )
-                podcast_title = (
-                    tool_output.get("title", "Podcast")
-                    if isinstance(tool_output, dict)
-                    else "Podcast"
-                )
-                if podcast_status in ("pending", "generating", "processing"):
-                    completed_items = [
-                        f"Title: {podcast_title}",
-                        "Podcast generation started",
-                        "Processing in background...",
-                    ]
-                elif podcast_status == "already_generating":
-                    completed_items = [
-                        f"Title: {podcast_title}",
-                        "Podcast already in progress",
-                        "Please wait for it to complete",
-                    ]
-                elif podcast_status in ("failed", "error"):
-                    error_msg = (
-                        tool_output.get("error", "Unknown error")
-                        if isinstance(tool_output, dict)
-                        else "Unknown error"
-                    )
-                    completed_items = [
-                        f"Title: {podcast_title}",
-                        f"Error: {error_msg[:50]}",
-                    ]
-                elif podcast_status in ("ready", "success"):
-                    completed_items = [
-                        f"Title: {podcast_title}",
-                        "Podcast ready",
-                    ]
-                else:
-                    completed_items = last_active_step_items
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Generating podcast",
-                    status="completed",
-                    items=completed_items,
-                )
-            elif tool_name == "generate_video_presentation":
-                vp_status = (
-                    tool_output.get("status", "unknown")
-                    if isinstance(tool_output, dict)
-                    else "unknown"
-                )
-                vp_title = (
-                    tool_output.get("title", "Presentation")
-                    if isinstance(tool_output, dict)
-                    else "Presentation"
-                )
-                if vp_status in ("pending", "generating"):
-                    completed_items = [
-                        f"Title: {vp_title}",
-                        "Presentation generation started",
-                        "Processing in background...",
-                    ]
-                elif vp_status == "failed":
-                    error_msg = (
-                        tool_output.get("error", "Unknown error")
-                        if isinstance(tool_output, dict)
-                        else "Unknown error"
-                    )
-                    completed_items = [
-                        f"Title: {vp_title}",
-                        f"Error: {error_msg[:50]}",
-                    ]
-                else:
-                    completed_items = last_active_step_items
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Generating video presentation",
-                    status="completed",
-                    items=completed_items,
-                )
-            elif tool_name == "generate_report":
-                report_status = (
-                    tool_output.get("status", "unknown")
-                    if isinstance(tool_output, dict)
-                    else "unknown"
-                )
-                report_title = (
-                    tool_output.get("title", "Report")
-                    if isinstance(tool_output, dict)
-                    else "Report"
-                )
-                word_count = (
-                    tool_output.get("word_count", 0)
-                    if isinstance(tool_output, dict)
-                    else 0
-                )
-                is_revision = (
-                    tool_output.get("is_revision", False)
-                    if isinstance(tool_output, dict)
-                    else False
-                )
-                step_title = "Revising report" if is_revision else "Generating report"
-
-                if report_status == "ready":
-                    completed_items = [
-                        f"Topic: {report_title}",
-                        f"{word_count:,} words",
-                        "Report ready",
-                    ]
-                elif report_status == "failed":
-                    error_msg = (
-                        tool_output.get("error", "Unknown error")
-                        if isinstance(tool_output, dict)
-                        else "Unknown error"
-                    )
-                    completed_items = [
-                        f"Topic: {report_title}",
-                        f"Error: {error_msg[:50]}",
-                    ]
-                else:
-                    completed_items = last_active_step_items
-
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title=step_title,
-                    status="completed",
-                    items=completed_items,
-                )
-            elif tool_name in ("execute", "execute_code"):
-                raw_text = (
-                    tool_output.get("result", "")
-                    if isinstance(tool_output, dict)
-                    else str(tool_output)
-                )
-                m = re.match(r"^Exit code:\s*(\d+)", raw_text)
-                exit_code_val = int(m.group(1)) if m else None
-                if exit_code_val is not None and exit_code_val == 0:
-                    completed_items = [
-                        *last_active_step_items,
-                        "Completed successfully",
-                    ]
-                elif exit_code_val is not None:
-                    completed_items = [
-                        *last_active_step_items,
-                        f"Exit code: {exit_code_val}",
-                    ]
-                else:
-                    completed_items = [*last_active_step_items, "Finished"]
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Running command",
-                    status="completed",
-                    items=completed_items,
-                )
-            elif tool_name == "ls":
-                if isinstance(tool_output, dict):
-                    ls_output = tool_output.get("result", "")
-                elif isinstance(tool_output, str):
-                    ls_output = tool_output
-                else:
-                    ls_output = str(tool_output) if tool_output else ""
-                file_names: list[str] = []
-                if ls_output:
-                    paths: list[str] = []
-                    try:
-                        parsed = ast.literal_eval(ls_output)
-                        if isinstance(parsed, list):
-                            paths = [str(p) for p in parsed]
-                    except (ValueError, SyntaxError):
-                        paths = [
-                            line.strip()
-                            for line in ls_output.strip().split("\n")
-                            if line.strip()
-                        ]
-                    for p in paths:
-                        name = p.rstrip("/").split("/")[-1]
-                        if name and len(name) <= 40:
-                            file_names.append(name)
-                        elif name:
-                            file_names.append(name[:37] + "...")
-                if file_names:
-                    if len(file_names) <= 5:
-                        completed_items = [f"[{name}]" for name in file_names]
-                    else:
-                        completed_items = [f"[{name}]" for name in file_names[:4]]
-                        completed_items.append(f"(+{len(file_names) - 4} more)")
-                else:
-                    completed_items = ["No files found"]
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title="Listing files",
-                    status="completed",
-                    items=completed_items,
-                )
-            else:
-                # Fallback completion title — see the matching in-progress
-                # branch above for the wording rationale.
-                fallback_title = (
-                    tool_name.replace("_", " ").strip().capitalize() or tool_name
-                )
-                yield streaming_service.format_thinking_step(
-                    step_id=original_step_id,
-                    title=fallback_title,
-                    status="completed",
-                    items=last_active_step_items,
-                )
-
-            just_finished_tool = True
-            last_active_step_id = None
-            last_active_step_title = ""
-            last_active_step_items = []
-
-            if tool_name == "generate_podcast":
-                yield _emit_tool_output(
-                    tool_call_id,
-                    tool_output
-                    if isinstance(tool_output, dict)
-                    else {"result": tool_output},
-                )
-                if isinstance(tool_output, dict) and tool_output.get("status") in (
-                    "pending",
-                    "generating",
-                    "processing",
-                ):
-                    yield streaming_service.format_terminal_info(
-                        f"Podcast queued: {tool_output.get('title', 'Podcast')}",
-                        "success",
-                    )
-                elif isinstance(tool_output, dict) and tool_output.get("status") in (
-                    "ready",
-                    "success",
-                ):
-                    yield streaming_service.format_terminal_info(
-                        f"Podcast generated successfully: {tool_output.get('title', 'Podcast')}",
-                        "success",
-                    )
-                elif isinstance(tool_output, dict) and tool_output.get("status") in (
-                    "failed",
-                    "error",
-                ):
-                    error_msg = tool_output.get("error", "Unknown error")
-                    yield streaming_service.format_terminal_info(
-                        f"Podcast generation failed: {error_msg}",
-                        "error",
-                    )
-            elif tool_name == "generate_video_presentation":
-                yield _emit_tool_output(
-                    tool_call_id,
-                    tool_output
-                    if isinstance(tool_output, dict)
-                    else {"result": tool_output},
-                )
-                if (
-                    isinstance(tool_output, dict)
-                    and tool_output.get("status") == "pending"
-                ):
-                    yield streaming_service.format_terminal_info(
-                        f"Video presentation queued: {tool_output.get('title', 'Presentation')}",
-                        "success",
-                    )
-                elif (
-                    isinstance(tool_output, dict)
-                    and tool_output.get("status") == "failed"
-                ):
-                    error_msg = (
-                        tool_output.get("error", "Unknown error")
-                        if isinstance(tool_output, dict)
-                        else "Unknown error"
-                    )
-                    yield streaming_service.format_terminal_info(
-                        f"Presentation generation failed: {error_msg}",
-                        "error",
-                    )
-            elif tool_name == "generate_image":
-                yield _emit_tool_output(
-                    tool_call_id,
-                    tool_output
-                    if isinstance(tool_output, dict)
-                    else {"result": tool_output},
-                )
-                if isinstance(tool_output, dict):
-                    if tool_output.get("error"):
-                        yield streaming_service.format_terminal_info(
-                            f"Image generation failed: {tool_output['error'][:60]}",
-                            "error",
-                        )
-                    else:
-                        yield streaming_service.format_terminal_info(
-                            "Image generated successfully",
-                            "success",
-                        )
-            elif tool_name == "scrape_webpage":
-                if isinstance(tool_output, dict):
-                    display_output = {
-                        k: v for k, v in tool_output.items() if k != "content"
-                    }
-                    if "content" in tool_output:
-                        content = tool_output.get("content", "")
-                        display_output["content_preview"] = (
-                            content[:500] + "..." if len(content) > 500 else content
-                        )
-                    yield _emit_tool_output(
-                        tool_call_id,
-                        display_output,
-                    )
-                else:
-                    yield _emit_tool_output(
-                        tool_call_id,
-                        {"result": tool_output},
-                    )
-                if isinstance(tool_output, dict) and "error" not in tool_output:
-                    title = tool_output.get("title", "Webpage")
-                    word_count = tool_output.get("word_count", 0)
-                    yield streaming_service.format_terminal_info(
-                        f"Scraped: {title[:40]}{'...' if len(title) > 40 else ''} ({word_count:,} words)",
-                        "success",
-                    )
-                else:
-                    error_msg = (
-                        tool_output.get("error", "Failed to scrape")
-                        if isinstance(tool_output, dict)
-                        else "Failed to scrape"
-                    )
-                    yield streaming_service.format_terminal_info(
-                        f"Scrape failed: {error_msg}",
-                        "error",
-                    )
-            elif tool_name in ("write_file", "edit_file"):
-                resolved_path = _extract_resolved_file_path(
-                    tool_name=tool_name,
-                    tool_output=tool_output,
-                    tool_input={"file_path": staged_file_path}
-                    if staged_file_path
-                    else None,
-                )
-                result_text = _tool_output_to_text(tool_output)
-                if _tool_output_has_error(tool_output):
-                    yield _emit_tool_output(
-                        tool_call_id,
-                        {
-                            "status": "error",
-                            "error": result_text,
-                            "path": resolved_path,
-                        },
-                    )
-                else:
-                    yield _emit_tool_output(
-                        tool_call_id,
-                        {
-                            "status": "completed",
-                            "path": resolved_path,
-                            "result": result_text,
-                        },
-                    )
-            elif tool_name == "generate_report":
-                # Stream the full report result so frontend can render the ReportCard
-                yield _emit_tool_output(
-                    tool_call_id,
-                    tool_output
-                    if isinstance(tool_output, dict)
-                    else {"result": tool_output},
-                )
-                # Send appropriate terminal message based on status
-                if (
-                    isinstance(tool_output, dict)
-                    and tool_output.get("status") == "ready"
-                ):
-                    word_count = tool_output.get("word_count", 0)
-                    yield streaming_service.format_terminal_info(
-                        f"Report generated: {tool_output.get('title', 'Report')} ({word_count:,} words)",
-                        "success",
-                    )
-                else:
-                    error_msg = (
-                        tool_output.get("error", "Unknown error")
-                        if isinstance(tool_output, dict)
-                        else "Unknown error"
-                    )
-                    yield streaming_service.format_terminal_info(
-                        f"Report generation failed: {error_msg}",
-                        "error",
-                    )
-            elif tool_name == "generate_resume":
-                yield _emit_tool_output(
-                    tool_call_id,
-                    tool_output
-                    if isinstance(tool_output, dict)
-                    else {"result": tool_output},
-                )
-                if (
-                    isinstance(tool_output, dict)
-                    and tool_output.get("status") == "ready"
-                ):
-                    yield streaming_service.format_terminal_info(
-                        f"Resume generated: {tool_output.get('title', 'Resume')}",
-                        "success",
-                    )
-                else:
-                    error_msg = (
-                        tool_output.get("error", "Unknown error")
-                        if isinstance(tool_output, dict)
-                        else "Unknown error"
-                    )
-                    yield streaming_service.format_terminal_info(
-                        f"Resume generation failed: {error_msg}",
-                        "error",
-                    )
-            elif tool_name in (
-                "create_notion_page",
-                "update_notion_page",
-                "delete_notion_page",
-                "create_linear_issue",
-                "update_linear_issue",
-                "delete_linear_issue",
-                "create_google_drive_file",
-                "delete_google_drive_file",
-                "create_onedrive_file",
-                "delete_onedrive_file",
-                "create_dropbox_file",
-                "delete_dropbox_file",
-                "create_gmail_draft",
-                "update_gmail_draft",
-                "send_gmail_email",
-                "trash_gmail_email",
-                "create_calendar_event",
-                "update_calendar_event",
-                "delete_calendar_event",
-                "create_jira_issue",
-                "update_jira_issue",
-                "delete_jira_issue",
-                "create_confluence_page",
-                "update_confluence_page",
-                "delete_confluence_page",
-            ):
-                yield _emit_tool_output(
-                    tool_call_id,
-                    tool_output
-                    if isinstance(tool_output, dict)
-                    else {"result": tool_output},
-                )
-            elif tool_name in ("execute", "execute_code"):
-                raw_text = (
-                    tool_output.get("result", "")
-                    if isinstance(tool_output, dict)
-                    else str(tool_output)
-                )
-                exit_code: int | None = None
-                output_text = raw_text
-                m = re.match(r"^Exit code:\s*(\d+)", raw_text)
-                if m:
-                    exit_code = int(m.group(1))
-                    om = re.search(r"\nOutput:\n([\s\S]*)", raw_text)
-                    output_text = om.group(1) if om else ""
-                thread_id_str = config.get("configurable", {}).get("thread_id", "")
-
-                for sf_match in re.finditer(
-                    r"^SANDBOX_FILE:\s*(.+)$", output_text, re.MULTILINE
-                ):
-                    fpath = sf_match.group(1).strip()
-                    if fpath and fpath not in result.sandbox_files:
-                        result.sandbox_files.append(fpath)
-
-                yield _emit_tool_output(
-                    tool_call_id,
-                    {
-                        "exit_code": exit_code,
-                        "output": output_text,
-                        "thread_id": thread_id_str,
-                    },
-                )
-            elif tool_name == "web_search":
-                xml = (
-                    tool_output.get("result", str(tool_output))
-                    if isinstance(tool_output, dict)
-                    else str(tool_output)
-                )
-                citations: dict[str, dict[str, str]] = {}
-                for m in re.finditer(
-                    r"<title><!\[CDATA\[(.*?)\]\]></title>\s*<url><!\[CDATA\[(.*?)\]\]></url>",
-                    xml,
-                ):
-                    title, url = m.group(1).strip(), m.group(2).strip()
-                    if url.startswith("http") and url not in citations:
-                        citations[url] = {"title": title}
-                for m in re.finditer(
-                    r"<chunk\s+id='([^']*)'><!\[CDATA\[([\s\S]*?)\]\]></chunk>",
-                    xml,
-                ):
-                    chunk_url, content = m.group(1).strip(), m.group(2).strip()
-                    if (
-                        chunk_url.startswith("http")
-                        and chunk_url in citations
-                        and content
-                    ):
-                        citations[chunk_url]["snippet"] = (
-                            content[:200] + "…" if len(content) > 200 else content
-                        )
-                yield _emit_tool_output(
-                    tool_call_id,
-                    {"status": "completed", "citations": citations},
-                )
-            else:
-                yield _emit_tool_output(
-                    tool_call_id,
-                    {"status": "completed", "result_length": len(str(tool_output))},
-                )
-                yield streaming_service.format_terminal_info(
-                    f"Tool {tool_name} completed", "success"
-                )
-
-        elif event_type == "on_custom_event" and event.get("name") == "report_progress":
-            # Live progress updates from inside the generate_report tool
-            data = event.get("data", {})
-            message = data.get("message", "")
-            if message and last_active_step_id:
-                phase = data.get("phase", "")
-                # Always keep the "Topic: ..." line
-                topic_items = [
-                    item for item in last_active_step_items if item.startswith("Topic:")
-                ]
-
-                if phase in ("revising_section", "adding_section"):
-                    # During section-level ops: keep plan summary + show current op
-                    plan_items = [
-                        item
-                        for item in last_active_step_items
-                        if item.startswith("Topic:")
-                        or item.startswith("Modifying ")
-                        or item.startswith("Adding ")
-                        or item.startswith("Removing ")
-                    ]
-                    # Only keep plan_items that don't end with "..." (not progress lines)
-                    plan_items = [
-                        item for item in plan_items if not item.endswith("...")
-                    ]
-                    last_active_step_items = [*plan_items, message]
-                else:
-                    # Phase transitions: replace everything after topic
-                    last_active_step_items = [*topic_items, message]
-
-                yield streaming_service.format_thinking_step(
-                    step_id=last_active_step_id,
-                    title=last_active_step_title,
-                    status="in_progress",
-                    items=last_active_step_items,
-                )
-
-        elif (
-            event_type == "on_custom_event" and event.get("name") == "document_created"
-        ):
-            data = event.get("data", {})
-            if data.get("id"):
-                yield streaming_service.format_data(
-                    "documents-updated",
-                    {
-                        "action": "created",
-                        "document": data,
-                    },
-                )
-
-        elif event_type == "on_custom_event" and event.get("name") == "action_log":
-            # Surface a freshly committed AgentActionLog row so the chat
-            # tool card can render its Revert button immediately.
-            data = event.get("data", {})
-            if data.get("id") is not None:
-                yield streaming_service.format_data("action-log", data)
-
-        elif (
-            event_type == "on_custom_event"
-            and event.get("name") == "action_log_updated"
-        ):
-            # Reversibility flipped in kb_persistence after the SAVEPOINT
-            # for a destructive op (rm/rmdir/move/edit/write) committed.
-            # Frontend uses this to flip the card's Revert
-            # button on without re-fetching the actions list.
-            data = event.get("data", {})
-            if data.get("id") is not None:
-                yield streaming_service.format_data("action-log-updated", data)
-
-        elif event_type in ("on_chain_end", "on_agent_end"):
-            if current_text_id is not None:
-                yield streaming_service.format_text_end(current_text_id)
-                current_text_id = None
-
-    if current_text_id is not None:
-        yield streaming_service.format_text_end(current_text_id)
-
-    completion_event = complete_current_step()
-    if completion_event:
-        yield completion_event
+    accumulated_text = result.accumulated_text
 
     state = await agent.aget_state(config)
     state_values = getattr(state, "values", {}) or {}
@@ -2243,8 +898,14 @@ async def _stream_agent_events(
             )
             gate_text_id = streaming_service.generate_text_id()
             yield streaming_service.format_text_start(gate_text_id)
+            if content_builder is not None:
+                content_builder.on_text_start(gate_text_id)
             yield streaming_service.format_text_delta(gate_text_id, gate_notice)
+            if content_builder is not None:
+                content_builder.on_text_delta(gate_text_id, gate_notice)
             yield streaming_service.format_text_end(gate_text_id)
+            if content_builder is not None:
+                content_builder.on_text_end(gate_text_id)
             yield streaming_service.format_terminal_info(gate_notice, "error")
             accumulated_text = gate_notice
     else:
@@ -2252,7 +913,6 @@ async def _stream_agent_events(
         result.commit_gate_reason = ""
 
     result.accumulated_text = accumulated_text
-    result.agent_called_update_memory = called_update_memory
     _log_file_contract("turn_outcome", result)
 
     interrupt_value = _first_interrupt_value(state)
@@ -2270,6 +930,8 @@ async def stream_new_chat(
     llm_config_id: int = -1,
     mentioned_document_ids: list[int] | None = None,
     mentioned_surfsense_doc_ids: list[int] | None = None,
+    mentioned_folder_ids: list[int] | None = None,
+    mentioned_documents: list[dict[str, Any]] | None = None,
     checkpoint_id: str | None = None,
     needs_history_bootstrap: bool = False,
     thread_visibility: ChatVisibility | None = None,
@@ -2298,6 +960,7 @@ async def stream_new_chat(
         needs_history_bootstrap: If True, load message history from DB (for cloned chats)
         mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
         mentioned_surfsense_doc_ids: Optional list of SurfSense doc IDs mentioned with @ in the chat
+        mentioned_folder_ids: Optional list of knowledge-base folder IDs mentioned with @ (cloud mode)
         checkpoint_id: Optional checkpoint ID to rewind/fork from (for edit/reload operations)
 
     Yields:
@@ -2331,6 +994,10 @@ async def stream_new_chat(
     # and finalize-debit the actual provider cost reported by LiteLLM.
     _premium_reserved_micros = 0
     _premium_request_id: str | None = None
+
+    # ``BusyError`` fires before the lock is acquired; the ``finally`` must
+    # not release the in-flight caller's lock.
+    _busy_error_raised = False
 
     _emit_stream_error = partial(
         _emit_stream_terminal_error,
@@ -2646,13 +1313,23 @@ async def stream_new_chat(
         )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
+        from app.config import config as _app_config
+
+        use_multi_agent = bool(_app_config.MULTI_AGENT_CHAT_ENABLED)
+
         _t0 = time.perf_counter()
+        agent_factory = (
+            create_multi_agent_chat_deep_agent
+            if use_multi_agent
+            else create_surfsense_deep_agent
+        )
         # Speculative agent build — runs in parallel with the preflight
         # task (if any). Built with the *current* ``llm`` / ``agent_config``;
         # if preflight reports 429 we will discard this future and rebuild
         # against the freshly pinned config below.
         agent_build_task = asyncio.create_task(
-            create_surfsense_deep_agent(
+            _build_main_agent_for_thread(
+                agent_factory,
                 llm=llm,
                 search_space_id=search_space_id,
                 db_session=session,
@@ -2663,9 +1340,9 @@ async def stream_new_chat(
                 agent_config=agent_config,
                 firecrawl_api_key=firecrawl_api_key,
                 thread_visibility=visibility,
+                filesystem_selection=filesystem_selection,
                 disabled_tools=disabled_tools,
                 mentioned_document_ids=mentioned_document_ids,
-                filesystem_selection=filesystem_selection,
             ),
             name="agent_build:stream_new_chat",
         )
@@ -2756,7 +1433,7 @@ async def stream_new_chat(
                 )
                 # Rebuild against the new llm/agent_config. Sequential
                 # here because we no longer have anything to overlap with.
-                agent = await create_surfsense_deep_agent(
+                agent = await agent_factory(
                     llm=llm,
                     search_space_id=search_space_id,
                     db_session=session,
@@ -2827,6 +1504,53 @@ async def stream_new_chat(
             .limit(3)
         )
         recent_reports = list(recent_reports_result.scalars().all())
+
+        # Resolve @-mention chips to canonical virtual paths and rewrite
+        # the user-typed text so the LLM sees ``\`/documents/...\``` instead
+        # of bare ``@title``. The persisted user-message text keeps
+        # ``@title`` so chip rendering on reload is unchanged — see
+        # ``persistence._build_user_content``.
+        #
+        # Cloud mode only: local-folder mode keeps the legacy
+        # ``@title`` text path; mention support there is a follow-up
+        # task because the path scheme (mount-rooted) and the picker
+        # UI both need separate work.
+        accepted_folder_ids: list[int] = []
+        if fs_mode == FilesystemMode.CLOUD.value and (
+            mentioned_document_ids
+            or mentioned_surfsense_doc_ids
+            or mentioned_folder_ids
+            or mentioned_documents
+        ):
+            from app.schemas.new_chat import (
+                MentionedDocumentInfo as _MentionedDocumentInfo,
+            )
+
+            chip_objs: list[_MentionedDocumentInfo] | None = None
+            if mentioned_documents:
+                chip_objs = []
+                for raw in mentioned_documents:
+                    if isinstance(raw, _MentionedDocumentInfo):
+                        chip_objs.append(raw)
+                        continue
+                    try:
+                        chip_objs.append(_MentionedDocumentInfo.model_validate(raw))
+                    except Exception:
+                        logger.debug(
+                            "stream_new_chat: dropping malformed mention chip %r",
+                            raw,
+                        )
+
+            resolved = await resolve_mentions(
+                session,
+                search_space_id=search_space_id,
+                mentioned_documents=chip_objs,
+                mentioned_document_ids=mentioned_document_ids,
+                mentioned_surfsense_doc_ids=mentioned_surfsense_doc_ids,
+                mentioned_folder_ids=mentioned_folder_ids,
+            )
+            user_query = substitute_in_text(user_query, resolved.token_to_path)
+            accepted_folder_ids = resolved.mentioned_folder_ids
 
         # Format the user query with context (SurfSense docs + reports only)
         final_query = user_query
@@ -2949,6 +1673,96 @@ async def stream_new_chat(
         )
         yield streaming_service.format_data("turn-status", {"status": "busy"})
 
+        # Persist the user-side row for this turn before any expensive
+        # work runs. Closes the "ghost-thread" abuse vector
+        # (authenticated client hits POST /new_chat then never calls
+        # /messages — empty new_chat_messages, free LLM completion).
+        # Idempotent against the unique index in migration 141 so the
+        # legacy frontend appendMessage call is a no-op on the second
+        # writer. Hard failure aborts the turn so we never produce a
+        # title or assistant row that isn't anchored to a persisted
+        # user message.
+        from app.tasks.chat.content_builder import AssistantContentBuilder
+        from app.tasks.chat.persistence import (
+            persist_assistant_shell,
+            persist_user_turn,
+        )
+
+        user_message_id = await persist_user_turn(
+            chat_id=chat_id,
+            user_id=user_id,
+            turn_id=stream_result.turn_id,
+            user_query=user_query,
+            user_image_data_urls=user_image_data_urls,
+            mentioned_documents=mentioned_documents,
+        )
+        if user_message_id is None:
+            yield _emit_stream_error(
+                message=(
+                    "We couldn't save your message. Please try again in a moment."
+                ),
+                error_kind="server_error",
+                error_code="MESSAGE_PERSIST_FAILED",
+            )
+            yield streaming_service.format_data("turn-status", {"status": "idle"})
+            yield streaming_service.format_finish_step()
+            yield streaming_service.format_finish()
+            yield streaming_service.format_done()
+            return
+
+        # Emit canonical user message id BEFORE any LLM streaming so the
+        # FE can rename its optimistic ``msg-user-XXX`` placeholder to
+        # ``msg-{user_message_id}`` and unlock features gated on a real
+        # DB id (comments, edit-from-this-message). See B4 in
+        # ``sse-based_message_id_handshake`` plan.
+        yield streaming_service.format_data(
+            "user-message-id",
+            {"message_id": user_message_id, "turn_id": stream_result.turn_id},
+        )
+
+        # Pre-write the assistant row for this turn so we have a stable
+        # ``message_id`` to anchor mid-stream metadata (token_usage,
+        # future agent_action_log.message_id correlation) and a
+        # write-once UPDATE target at finalize time. Idempotent against
+        # the (thread_id, turn_id, ASSISTANT) partial unique index from
+        # migration 141 — if the legacy frontend appendMessage races
+        # this, we recover the existing row's id.
+        assistant_message_id = await persist_assistant_shell(
+            chat_id=chat_id,
+            user_id=user_id,
+            turn_id=stream_result.turn_id,
+        )
+        if assistant_message_id is None:
+            # Genuine DB failure — abort the turn rather than stream
+            # into a void. The user row is already persisted so the
+            # legacy "ghost-thread" gate isn't reopened.
+            yield _emit_stream_error(
+                message=(
+                    "We couldn't initialize the assistant message. Please try again."
+                ),
+                error_kind="server_error",
+                error_code="MESSAGE_PERSIST_FAILED",
+            )
+            yield streaming_service.format_data("turn-status", {"status": "idle"})
+            yield streaming_service.format_finish_step()
+            yield streaming_service.format_finish()
+            yield streaming_service.format_done()
+            return
+
+        # Emit canonical assistant message id BEFORE any LLM streaming
+        # so the FE can rename its optimistic ``msg-assistant-XXX``
+        # placeholder to ``msg-{assistant_message_id}`` and bind
+        # ``tokenUsageStore`` / ``pendingInterrupt`` to the real id
+        # immediately. See B4 in ``sse-based_message_id_handshake``
+        # plan.
+        yield streaming_service.format_data(
+            "assistant-message-id",
+            {"message_id": assistant_message_id, "turn_id": stream_result.turn_id},
+        )
+
+        stream_result.assistant_message_id = assistant_message_id
+        stream_result.content_builder = AssistantContentBuilder()
+
         # Initial thinking step - analyzing the request
         if mentioned_surfsense_docs:
             initial_title = "Analyzing referenced content"
@@ -2981,6 +1795,15 @@ async def stream_new_chat(
         initial_items = [f"{action_verb}: {' '.join(processing_parts)}"]
         initial_step_id = "thinking-1"
 
+        # Drive the builder for this initial thinking step too — the
+        # ``_emit_thinking_step`` helper lives inside ``_stream_agent_events``
+        # so it isn't in scope here, but the FE folds this step into
+        # the same singleton ``data-thinking-steps`` part as everything
+        # the agent stream emits later. Mirror that fold server-side.
+        if stream_result.content_builder is not None:
+            stream_result.content_builder.on_thinking_step(
+                initial_step_id, initial_title, "in_progress", initial_items
+            )
         yield streaming_service.format_thinking_step(
             step_id=initial_step_id,
             title=initial_title,
@@ -2997,16 +1820,34 @@ async def stream_new_chat(
         # Check if this is the first assistant response so we can generate
         # a title in parallel with the agent stream (better UX than waiting
         # until after the full response).
-        assistant_count_result = await session.execute(
-            select(func.count(NewChatMessage.id)).filter(
+        # Use a LIMIT 1 EXISTS-style probe rather than COUNT(*) because
+        # this is now a hot path executed on every turn, and COUNT scales
+        # with thread length (server-side persistence can grow rows
+        # quickly under power users).
+        #
+        # IMPORTANT: ``persist_assistant_shell`` above (line ~3112) already
+        # inserted THIS turn's assistant row. We must therefore exclude
+        # it from the probe — otherwise the gate fires on every turn
+        # except the very first, and title generation never runs for new
+        # threads. Excluding by primary key (``id != assistant_message_id``)
+        # is bulletproof regardless of ``turn_id`` shape (legacy NULLs,
+        # resume turns, etc.).
+        first_assistant_probe = await session.execute(
+            select(NewChatMessage.id)
+            .filter(
                 NewChatMessage.thread_id == chat_id,
                 NewChatMessage.role == "assistant",
+                NewChatMessage.id != assistant_message_id,
             )
+            .limit(1)
         )
-        is_first_response = (assistant_count_result.scalar() or 0) == 0
+        is_first_response = first_assistant_probe.scalars().first() is None
 
         title_task: asyncio.Task[tuple[str | None, dict | None]] | None = None
-        if is_first_response:
+        # Gate title generation on a persisted user message so a stream
+        # that fails before persistence (we abort above) can never leave
+        # behind a thread with a generated title and no anchoring rows.
+        if is_first_response and user_message_id is not None:
 
             async def _generate_title() -> tuple[str | None, dict | None]:
                 """Generate a short title via litellm.acompletion.
@@ -3110,6 +1951,9 @@ async def stream_new_chat(
         runtime_context = SurfSenseContextSchema(
             search_space_id=search_space_id,
             mentioned_document_ids=list(mentioned_document_ids or []),
+            mentioned_folder_ids=list(
+                accepted_folder_ids or mentioned_folder_ids or []
+            ),
             request_id=request_id,
             turn_id=stream_result.turn_id,
         )
@@ -3138,6 +1982,7 @@ async def stream_new_chat(
                     ),
                     fallback_commit_thread_id=chat_id,
                     runtime_context=runtime_context,
+                    content_builder=stream_result.content_builder,
                 ):
                     if not _first_event_logged:
                         _perf_log.info(
@@ -3224,7 +2069,8 @@ async def stream_new_chat(
                 title_task = None
 
                 _t0 = time.perf_counter()
-                agent = await create_surfsense_deep_agent(
+                agent = await _build_main_agent_for_thread(
+                    agent_factory,
                     llm=llm,
                     search_space_id=search_space_id,
                     db_session=session,
@@ -3235,9 +2081,9 @@ async def stream_new_chat(
                     agent_config=agent_config,
                     firecrawl_api_key=firecrawl_api_key,
                     thread_visibility=visibility,
+                    filesystem_selection=filesystem_selection,
                     disabled_tools=disabled_tools,
                     mentioned_document_ids=mentioned_document_ids,
-                    filesystem_selection=filesystem_selection,
                 )
                 _perf_log.info(
                     "[stream_new_chat] Runtime rate-limit recovery repinned "
@@ -3410,6 +2256,12 @@ async def stream_new_chat(
         # Handle any errors
         import traceback
 
+        # ``BusyError`` fires before the agent acquires the lock; the
+        # cleanup path must skip lock release to avoid freeing the
+        # in-flight caller's lock. Classification is handled below.
+        if isinstance(e, BusyError):
+            _busy_error_raised = True
+
         (
             error_kind,
             error_code,
@@ -3493,6 +2345,81 @@ async def stream_new_chat(
             with contextlib.suppress(Exception):
                 await session.close()
 
+            # Server-side assistant-message + token_usage finalization.
+            # Runs after the main session has been closed (uses its own
+            # shielded session) so we don't fight the same DB connection.
+            # Idempotent against the legacy frontend appendMessage:
+            #  * the assistant row was already INSERTed by
+            #    ``persist_assistant_shell`` above, so this just UPDATEs
+            #    it with the rich ContentPart[] from the builder.
+            #  * token_usage uses INSERT ... ON CONFLICT DO NOTHING
+            #    against migration 142's partial unique index, so a
+            #    racing append_message recovery branch can never
+            #    double-write.
+            # ``mark_interrupted`` closes any open text/reasoning blocks
+            # and flips running tool-calls (no result) to state=aborted
+            # so the persisted JSONB reflects a coherent end-state even
+            # on client disconnect.
+            # Never raises (best-effort, logs only).
+            if (
+                stream_result
+                and stream_result.turn_id
+                and stream_result.assistant_message_id
+            ):
+                from app.tasks.chat.persistence import finalize_assistant_turn
+
+                builder_stats: dict[str, int] | None = None
+                if stream_result.content_builder is not None:
+                    stream_result.content_builder.mark_interrupted()
+                    # Snapshot stats BEFORE deepcopy in ``snapshot()`` so
+                    # the perf log records the actual finalised payload
+                    # (post-mark_interrupted), not the live-mutating
+                    # builder state.
+                    builder_stats = stream_result.content_builder.stats()
+                    content_payload = stream_result.content_builder.snapshot()
+                else:
+                    # Defensive fallback — we always set the builder
+                    # alongside ``assistant_message_id`` above, so this
+                    # branch only fires if a future refactor ever
+                    # decouples them. Persist whatever accumulated
+                    # text we captured so the row at least renders.
+                    content_payload = [
+                        {
+                            "type": "text",
+                            "text": stream_result.accumulated_text or "",
+                        }
+                    ]
+
+                if builder_stats is not None:
+                    _perf_log.info(
+                        "[stream_new_chat] finalize_payload chat_id=%s "
+                        "message_id=%s parts=%d bytes=%d text=%d "
+                        "reasoning=%d tool_calls=%d "
+                        "tool_calls_completed=%d tool_calls_aborted=%d "
+                        "thinking_step_parts=%d step_separators=%d",
+                        chat_id,
+                        stream_result.assistant_message_id,
+                        builder_stats["parts"],
+                        builder_stats["bytes"],
+                        builder_stats["text"],
+                        builder_stats["reasoning"],
+                        builder_stats["tool_calls"],
+                        builder_stats["tool_calls_completed"],
+                        builder_stats["tool_calls_aborted"],
+                        builder_stats["thinking_step_parts"],
+                        builder_stats["step_separators"],
+                    )
+
+                await finalize_assistant_turn(
+                    message_id=stream_result.assistant_message_id,
+                    chat_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    turn_id=stream_result.turn_id,
+                    content=content_payload,
+                    accumulator=accumulator,
+                )
+
         # Persist any sandbox-produced files to local storage so they
         # remain downloadable after the Daytona sandbox auto-deletes.
         if stream_result and stream_result.sandbox_files:
@@ -3507,6 +2434,16 @@ async def stream_new_chat(
                         await persist_and_delete_sandbox(
                             chat_id, stream_result.sandbox_files
                         )
+
+        # ``aafter_agent`` doesn't fire on ``interrupt()`` or early bailout.
+        # Skip on ``BusyError`` (caller never acquired the lock).
+        if not _busy_error_raised:
+            with contextlib.suppress(Exception):
+                end_turn(str(chat_id))
+                _perf_log.info(
+                    "[stream_new_chat] end_turn cleanup (chat_id=%s)",
+                    chat_id,
+                )
 
         # Break circular refs held by the agent graph, tools, and LLM
         # wrappers so the GC can reclaim them in a single pass.
@@ -3534,6 +2471,7 @@ async def stream_resume_chat(
     thread_visibility: ChatVisibility | None = None,
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
+    disabled_tools: list[str] | None = None,
 ) -> AsyncGenerator[str, None]:
     streaming_service = VercelStreamingService()
     stream_result = StreamResult()
@@ -3552,10 +2490,12 @@ async def stream_resume_chat(
         fs_mode,
         fs_platform,
     )
-
     from app.services.token_tracking_service import start_turn
 
     accumulator = start_turn()
+
+    # Skip the finally release on ``BusyError`` (caller never acquired the lock).
+    _busy_error_raised = False
 
     _emit_stream_error = partial(
         _emit_stream_terminal_error,
@@ -3790,10 +2730,17 @@ async def stream_resume_chat(
         )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
+        from app.config import config as _app_config
 
         _t0 = time.perf_counter()
+        agent_factory = (
+            create_multi_agent_chat_deep_agent
+            if _app_config.MULTI_AGENT_CHAT_ENABLED
+            else create_surfsense_deep_agent
+        )
         agent_build_task = asyncio.create_task(
-            create_surfsense_deep_agent(
+            _build_main_agent_for_thread(
+                agent_factory,
                 llm=llm,
                 search_space_id=search_space_id,
                 db_session=session,
@@ -3805,6 +2752,7 @@ async def stream_resume_chat(
                 firecrawl_api_key=firecrawl_api_key,
                 thread_visibility=visibility,
                 filesystem_selection=filesystem_selection,
+                disabled_tools=disabled_tools,
             ),
             name="agent_build:stream_resume",
         )
@@ -3881,7 +2829,8 @@ async def stream_resume_chat(
                         "fallback_config_id": llm_config_id,
                     },
                 )
-                agent = await create_surfsense_deep_agent(
+                agent = await _build_main_agent_for_thread(
+                    agent_factory,
                     llm=llm,
                     search_space_id=search_space_id,
                     db_session=session,
@@ -3893,6 +2842,7 @@ async def stream_resume_chat(
                     firecrawl_api_key=firecrawl_api_key,
                     thread_visibility=visibility,
                     filesystem_selection=filesystem_selection,
+                    disabled_tools=disabled_tools,
                 )
 
         if agent is None:
@@ -3918,6 +2868,9 @@ async def stream_resume_chat(
                 "thread_id": str(chat_id),
                 "request_id": request_id or "unknown",
                 "turn_id": stream_result.turn_id,
+                # Side-channel consumed by ``SurfSenseCheckpointedSubAgentMiddleware``
+                # to forward the resume into a subagent's pending ``interrupt()``.
+                "surfsense_resume_value": {"decisions": decisions},
             },
             # See ``stream_new_chat`` above for rationale: effectively
             # uncapped to mirror the agent default and OpenCode's
@@ -3936,6 +2889,50 @@ async def stream_resume_chat(
             {"chat_turn_id": stream_result.turn_id},
         )
         yield streaming_service.format_data("turn-status", {"status": "busy"})
+
+        # Pre-write a fresh assistant row for this resume turn. The
+        # original (interrupted) ``stream_new_chat`` invocation already
+        # persisted its own assistant row anchored to a different
+        # ``turn_id``; resume allocates a new ``turn_id`` (above) so we
+        # need a separate row keyed on the same ``(thread_id, turn_id,
+        # ASSISTANT)`` invariant. Idempotent against migration 141's
+        # partial unique index — recovers existing id on retry.
+        from app.tasks.chat.content_builder import AssistantContentBuilder
+        from app.tasks.chat.persistence import persist_assistant_shell
+
+        assistant_message_id = await persist_assistant_shell(
+            chat_id=chat_id,
+            user_id=user_id,
+            turn_id=stream_result.turn_id,
+        )
+        if assistant_message_id is None:
+            yield _emit_stream_error(
+                message=(
+                    "We couldn't initialize the assistant message. Please try again."
+                ),
+                error_kind="server_error",
+                error_code="MESSAGE_PERSIST_FAILED",
+            )
+            yield streaming_service.format_data("turn-status", {"status": "idle"})
+            yield streaming_service.format_finish_step()
+            yield streaming_service.format_finish()
+            yield streaming_service.format_done()
+            return
+
+        # Emit canonical assistant message id BEFORE any LLM streaming
+        # so the FE can rename ``pendingInterrupt.assistantMsgId`` to
+        # ``msg-{assistant_message_id}`` immediately. Resume does NOT
+        # emit ``data-user-message-id`` because the user row is from
+        # the original interrupted turn (different ``turn_id``) and is
+        # never re-persisted here. See B5 in the
+        # ``sse-based_message_id_handshake`` plan.
+        yield streaming_service.format_data(
+            "assistant-message-id",
+            {"message_id": assistant_message_id, "turn_id": stream_result.turn_id},
+        )
+
+        stream_result.assistant_message_id = assistant_message_id
+        stream_result.content_builder = AssistantContentBuilder()
 
         # Resume path doesn't carry new ``mentioned_document_ids`` —
         # those are seeded in the original turn. We still pass a
@@ -3968,6 +2965,7 @@ async def stream_resume_chat(
                     ),
                     fallback_commit_thread_id=chat_id,
                     runtime_context=runtime_context,
+                    content_builder=stream_result.content_builder,
                 ):
                     if not _first_event_logged:
                         _perf_log.info(
@@ -4017,7 +3015,8 @@ async def stream_resume_chat(
                     raise stream_exc
 
                 _t0 = time.perf_counter()
-                agent = await create_surfsense_deep_agent(
+                agent = await _build_main_agent_for_thread(
+                    agent_factory,
                     llm=llm,
                     search_space_id=search_space_id,
                     db_session=session,
@@ -4029,6 +3028,7 @@ async def stream_resume_chat(
                     firecrawl_api_key=firecrawl_api_key,
                     thread_visibility=visibility,
                     filesystem_selection=filesystem_selection,
+                    disabled_tools=disabled_tools,
                 )
                 _perf_log.info(
                     "[stream_resume] Runtime rate-limit recovery repinned "
@@ -4143,6 +3143,12 @@ async def stream_resume_chat(
     except Exception as e:
         import traceback
 
+        # ``BusyError`` fires before the agent acquires the lock; the
+        # cleanup path must skip lock release to avoid freeing the
+        # in-flight caller's lock. Classification is handled below.
+        if isinstance(e, BusyError):
+            _busy_error_raised = True
+
         (
             error_kind,
             error_code,
@@ -4218,6 +3224,74 @@ async def stream_resume_chat(
 
             with contextlib.suppress(Exception):
                 await session.close()
+
+            # Server-side assistant-message + token_usage finalization for
+            # the resume flow. The original user message was persisted by
+            # the original (interrupted) ``stream_new_chat`` invocation;
+            # the resume's own ``persist_assistant_shell`` write lives at
+            # the new ``turn_id`` above. This finalize updates that row
+            # with the rich ContentPart[] from the builder and writes
+            # token_usage idempotently via migration 142's partial
+            # unique index. Best-effort, never raises.
+            if (
+                stream_result
+                and stream_result.turn_id
+                and stream_result.assistant_message_id
+            ):
+                from app.tasks.chat.persistence import finalize_assistant_turn
+
+                builder_stats: dict[str, int] | None = None
+                if stream_result.content_builder is not None:
+                    stream_result.content_builder.mark_interrupted()
+                    builder_stats = stream_result.content_builder.stats()
+                    content_payload = stream_result.content_builder.snapshot()
+                else:
+                    content_payload = [
+                        {
+                            "type": "text",
+                            "text": stream_result.accumulated_text or "",
+                        }
+                    ]
+
+                if builder_stats is not None:
+                    _perf_log.info(
+                        "[stream_resume] finalize_payload chat_id=%s "
+                        "message_id=%s parts=%d bytes=%d text=%d "
+                        "reasoning=%d tool_calls=%d "
+                        "tool_calls_completed=%d tool_calls_aborted=%d "
+                        "thinking_step_parts=%d step_separators=%d",
+                        chat_id,
+                        stream_result.assistant_message_id,
+                        builder_stats["parts"],
+                        builder_stats["bytes"],
+                        builder_stats["text"],
+                        builder_stats["reasoning"],
+                        builder_stats["tool_calls"],
+                        builder_stats["tool_calls_completed"],
+                        builder_stats["tool_calls_aborted"],
+                        builder_stats["thinking_step_parts"],
+                        builder_stats["step_separators"],
+                    )
+
+                await finalize_assistant_turn(
+                    message_id=stream_result.assistant_message_id,
+                    chat_id=chat_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    turn_id=stream_result.turn_id,
+                    content=content_payload,
+                    accumulator=accumulator,
+                )
+
+        # Release the lock from the original interrupted turn or any
+        # re-interrupt/bailout. Skip on ``BusyError`` (lock not held here).
+        if not _busy_error_raised:
+            with contextlib.suppress(Exception):
+                end_turn(str(chat_id))
+                _perf_log.info(
+                    "[stream_resume] end_turn cleanup (chat_id=%s)",
+                    chat_id,
+                )
 
         agent = llm = connector_service = None
         stream_result = None
