@@ -32,6 +32,16 @@ Skipping the zero-cache stop will deadlock at the ACCESS EXCLUSIVE LOCK on
 "user". Skipping the data-volume reset will leave IndexedDB clients seeing
 column-not-found errors from a stale catalog snapshot.
 
+DO NOT COPY THIS PATTERN. The ``DROP PUBLICATION`` + ``CREATE
+PUBLICATION`` dance below is the pre-#1355 anti-pattern: on Zero >=
+1.0 it does not reliably wake the zero-cache change-streamer and can
+leave the replica pinned to a stale snapshot. This file is
+grandfathered in because it has already shipped to users; new
+publication mutations MUST use the ``COMMENT ON PUBLICATION`` bookend
+pattern wrapping an ``ALTER PUBLICATION ... SET TABLE`` -- copy the
+``upgrade()`` function from migration
+``143_force_zero_publication_resync.py`` as your starting template.
+
 Revision ID: 140
 Revises: 139
 """

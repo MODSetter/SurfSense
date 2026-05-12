@@ -17,6 +17,16 @@ IMPORTANT — before AND after running this migration:
   3. Delete / reset the zero-cache data volume
   4. Restart zero-cache  (it will do a fresh initial sync)
 
+DO NOT COPY THIS PATTERN. The ``DROP PUBLICATION`` + ``CREATE
+PUBLICATION`` dance below is the pre-#1355 anti-pattern: on Zero >=
+1.0 it does not reliably wake the zero-cache change-streamer and can
+leave the replica pinned to a stale snapshot. This file is
+grandfathered in because it has already shipped to users; new
+publication mutations MUST use the ``COMMENT ON PUBLICATION`` bookend
+pattern wrapping an ``ALTER PUBLICATION ... SET TABLE`` -- copy the
+``upgrade()`` function from migration
+``143_force_zero_publication_resync.py`` as your starting template.
+
 Revision ID: 117
 Revises: 116
 """
