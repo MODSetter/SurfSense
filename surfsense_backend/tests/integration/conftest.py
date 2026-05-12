@@ -1,3 +1,5 @@
+import importlib
+import sys
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
@@ -7,17 +9,27 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.config import config as app_config
-from app.db import (
-    Base,
-    DocumentType,
-    SearchSourceConnector,
-    SearchSourceConnectorType,
-    SearchSpace,
-    User,
-)
-from app.indexing_pipeline.connector_document import ConnectorDocument
-from tests.conftest import TEST_DATABASE_URL
+# Hijack `composio` before any `from app.*` import; the `from composio import
+# Composio` in app.services.composio_service binds once at first import.
+from tests.e2e.fakes import composio_module as _fake_composio
+
+sys.modules["composio"] = _fake_composio
+
+app_config = importlib.import_module("app.config").config
+app_db = importlib.import_module("app.db")
+Base = app_db.Base
+DocumentType = app_db.DocumentType
+SearchSourceConnector = app_db.SearchSourceConnector
+SearchSourceConnectorType = app_db.SearchSourceConnectorType
+SearchSpace = app_db.SearchSpace
+User = app_db.User
+ConnectorDocument = importlib.import_module(
+    "app.indexing_pipeline.connector_document"
+).ConnectorDocument
+create_default_roles_and_membership = importlib.import_module(
+    "app.routes.search_spaces_routes"
+).create_default_roles_and_membership
+TEST_DATABASE_URL = importlib.import_module("tests.conftest").TEST_DATABASE_URL
 
 _EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 
@@ -104,6 +116,9 @@ async def db_search_space(db_session: AsyncSession, db_user: User) -> SearchSpac
         user_id=db_user.id,
     )
     db_session.add(space)
+    await db_session.flush()
+    # Mirror POST /searchspaces so routes guarded by check_permission find a membership.
+    await create_default_roles_and_membership(db_session, space.id, db_user.id)
     await db_session.flush()
     return space
 
