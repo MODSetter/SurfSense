@@ -28,6 +28,7 @@ from ..tools import (
 )
 from ..tools.glob.description import select_description as glob_description
 from ..tools.grep.description import select_description as grep_description
+from .read_only_policy import READ_ONLY_TOOL_NAMES
 
 
 class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
@@ -44,12 +45,16 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         created_by_id: str | None = None,
         thread_id: int | str | None = None,
         tool_token_limit_before_evict: int | None = 20000,
+        read_only: bool = False,
     ) -> None:
         self._filesystem_mode = filesystem_mode
         self._search_space_id = search_space_id
         self._created_by_id = created_by_id
         self._thread_id = thread_id
-        self._sandbox_available = is_sandbox_enabled() and thread_id is not None
+        self._read_only = read_only
+        self._sandbox_available = (
+            is_sandbox_enabled() and thread_id is not None and not read_only
+        )
 
         system_prompt = build_system_prompt(
             filesystem_mode,
@@ -71,6 +76,9 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         self.tools.append(create_list_tree_tool(self))
         if self._sandbox_available:
             self.tools.append(create_execute_code_tool(self))
+
+        if read_only:
+            self.tools = [t for t in self.tools if t.name in READ_ONLY_TOOL_NAMES]
 
     # ----------------------------------------- base-class tool overrides
 

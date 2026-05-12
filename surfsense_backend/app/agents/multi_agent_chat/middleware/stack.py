@@ -15,6 +15,7 @@ from typing import Any
 
 from deepagents import SubAgent
 from deepagents.backends import StateBackend
+from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
@@ -22,6 +23,13 @@ from langgraph.types import Checkpointer
 from app.agents.multi_agent_chat.subagents import (
     build_subagents,
     get_subagents_to_exclude,
+)
+from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.agent import (
+    READONLY_NAME as KB_READONLY_NAME,
+    build_readonly_subagent as build_kb_readonly_subagent,
+)
+from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.ask_knowledge_base_tool import (
+    build_ask_knowledge_base_tool,
 )
 from app.agents.multi_agent_chat.subagents.shared.permissions import ToolsPermissions
 from app.agents.new_chat.feature_flags import AgentFeatureFlags
@@ -93,14 +101,31 @@ def build_main_agent_deepagent_middleware(
         "backend_resolver": backend_resolver,
         "filesystem_mode": filesystem_mode,
     }
+    shared_subagent_middleware = build_subagent_middleware_stack(resilience=resilience)
+
+    kb_readonly_spec = build_kb_readonly_subagent(
+        dependencies=subagent_dependencies,
+        model=llm,
+        middleware_stack=shared_subagent_middleware,
+    )
+    kb_readonly_runnable = create_agent(
+        llm,
+        system_prompt=kb_readonly_spec["system_prompt"],
+        tools=kb_readonly_spec["tools"],
+        middleware=kb_readonly_spec["middleware"],
+        name=KB_READONLY_NAME,
+        checkpointer=checkpointer,
+    )
+    ask_kb_tool = build_ask_knowledge_base_tool(kb_readonly_runnable)
 
     subagents: list[SubAgent] = build_subagents(
         dependencies=subagent_dependencies,
         model=llm,
-        middleware_stack=build_subagent_middleware_stack(resilience=resilience),
+        middleware_stack=shared_subagent_middleware,
         mcp_tools_by_agent=mcp_tools_by_agent or {},
         exclude=get_subagents_to_exclude(available_connectors),
         disabled_tools=disabled_tools,
+        ask_kb_tool=ask_kb_tool,
     )
     logging.debug("Subagents registry: %s", [s["name"] for s in subagents])
 
