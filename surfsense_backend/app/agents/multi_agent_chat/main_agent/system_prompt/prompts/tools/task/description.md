@@ -11,9 +11,5 @@
       thread, so include all context and constraints, plus what you need
       back. The specialist will respond in its own format — don't dictate
       one.
-  - Rules:
-    - One `task` call per turn. Bundle related work for the same specialist
-      into one invocation; the parent graph cannot coordinate human
-      approvals across parallel subagents.
-    - Don't claim to already know what a specialist's source contains;
-      invoke it and use what it returns.
+  - Routing rules (when to call, how often, how to scope) live in
+    `<routing>`.

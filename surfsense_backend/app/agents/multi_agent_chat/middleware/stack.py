@@ -132,7 +132,7 @@ def build_main_agent_deepagent_middleware(
     stack: list[Any] = [
         build_busy_mutex_mw(flags),
         build_otel_mw(flags),
-        build_todos_mw(),
+        build_todos_mw(system_prompt=""),
         memory_mw,
         build_anonymous_doc_mw(
             filesystem_mode=filesystem_mode, anon_session_id=anon_session_id
