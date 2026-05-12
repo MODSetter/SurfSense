@@ -49,7 +49,7 @@ from app.agents.new_chat.permissions import Ruleset
 
 from ..deny import build_deny_message
 from ..interrupt.edit import merge_edited_args
-from ..interrupt import request_permission_decision
+from ..interrupt.request import request_permission_decision
 from ..pattern_resolver import PatternResolver
 from ..runtime_promote import persist_always
 from .evaluation import evaluate_tool_call
