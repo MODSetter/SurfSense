@@ -2829,6 +2829,7 @@ async def stream_resume_chat(
         from langgraph.types import Command
 
         from app.agents.multi_agent_chat.middleware.main_agent.checkpointed_subagent_middleware.resume_routing import (
+            build_lg_resume_map,
             collect_pending_tool_calls,
             slice_decisions_by_tool_call,
         )
@@ -2847,6 +2848,10 @@ async def stream_resume_chat(
             len(pending),
         )
         routed_resume_value = slice_decisions_by_tool_call(decisions, pending)
+        # Langgraph rejects scalar ``Command(resume=...)`` when multiple
+        # interrupts are pending (parallel HITL); the mapped form works
+        # for the single-pause case too, so we always use it.
+        lg_resume_map = build_lg_resume_map(parent_state, routed_resume_value)
 
         config = {
             "configurable": {
@@ -2938,7 +2943,7 @@ async def stream_resume_chat(
                 async for sse in _stream_agent_events(
                     agent=agent,
                     config=config,
-                    input_data=Command(resume={"decisions": decisions}),
+                    input_data=Command(resume=lg_resume_map),
                     streaming_service=streaming_service,
                     result=stream_result,
                     step_prefix="thinking-resume",
