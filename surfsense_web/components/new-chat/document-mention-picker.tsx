@@ -502,7 +502,7 @@ export const DocumentMentionPicker = forwardRef<
 											className={cn(
 												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors rounded-md",
 												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-												isHighlighted && "bg-accent"
+												isHighlighted && "bg-accent text-accent-foreground"
 											)}
 										>
 											<span className="shrink-0 text-muted-foreground text-sm">
@@ -559,7 +559,7 @@ export const DocumentMentionPicker = forwardRef<
 											className={cn(
 												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors rounded-md",
 												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-												isHighlighted && "bg-accent"
+												isHighlighted && "bg-accent text-accent-foreground"
 											)}
 										>
 											<span className="shrink-0 text-muted-foreground text-sm">
@@ -613,7 +613,7 @@ export const DocumentMentionPicker = forwardRef<
 											className={cn(
 												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors rounded-md",
 												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-												isHighlighted && "bg-accent"
+												isHighlighted && "bg-accent text-accent-foreground"
 											)}
 										>
 											<span className="shrink-0 text-muted-foreground text-sm">

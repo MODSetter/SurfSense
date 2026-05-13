@@ -261,9 +261,9 @@ export function DriveFolderTree({
 				<div
 					className={cn(
 						"flex items-center group gap-1 sm:gap-2 h-auto py-1 sm:py-2 px-1 sm:px-2 rounded-md",
-						isFolder && "hover:bg-accent cursor-pointer",
+						isFolder && "hover:bg-accent hover:text-accent-foreground cursor-pointer",
 						!isFolder && "cursor-default opacity-60",
-						isSelected && "bg-accent/50"
+						isSelected && "bg-accent text-accent-foreground"
 					)}
 				>
 					{isFolder ? (

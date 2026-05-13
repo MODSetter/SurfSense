@@ -190,10 +190,10 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									key={option.value}
 									onClick={() => handleVisibilityChange(option.value)}
 									className={cn(
-										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
-										"hover:bg-accent/40 cursor-pointer",
+										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors",
+										"hover:bg-accent hover:text-accent-foreground cursor-pointer",
 										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-										isSelected && "bg-primary/6 dark:bg-primary/8"
+										isSelected && "bg-accent text-accent-foreground"
 									)}
 								>
 									<div
@@ -239,8 +239,8 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									onClick={handleCreatePublicLink}
 									disabled={isCreatingSnapshot}
 									className={cn(
-										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
-										"hover:bg-accent/40 cursor-pointer",
+										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors",
+										"hover:bg-accent hover:text-accent-foreground cursor-pointer",
 										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
 										"disabled:opacity-50 disabled:cursor-not-allowed"
 									)}

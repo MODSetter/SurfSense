@@ -198,7 +198,7 @@ export function TabBar({
 								className={cn(
 									"group relative flex h-full items-center px-3 w-[180px] min-h-0 overflow-hidden text-[13px] font-medium rounded-md transition-colors duration-150 shrink-0",
 									isActive
-										? "bg-muted text-foreground"
+										? "bg-accent text-accent-foreground"
 										: "bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 								)}
 							>
@@ -210,9 +210,7 @@ export function TabBar({
 									className={cn(
 										"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center rounded-r-md pl-8 pr-2 opacity-0 transition-opacity duration-150",
 										"group-hover:opacity-100 group-focus-within:opacity-100",
-										isActive
-											? "bg-gradient-to-l from-muted from-60% to-transparent"
-											: "bg-gradient-to-l from-accent from-60% to-transparent"
+										"bg-gradient-to-l from-accent from-60% to-transparent"
 									)}
 								>
 									{/* biome-ignore lint/a11y/useSemanticElements: cannot nest button inside button */}

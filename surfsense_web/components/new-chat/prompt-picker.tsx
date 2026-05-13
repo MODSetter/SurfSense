@@ -161,7 +161,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 								onMouseEnter={() => setHighlightedIndex(index)}
 								className={cn(
 									"w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors rounded-md cursor-pointer",
-									index === highlightedIndex && "bg-accent"
+									index === highlightedIndex && "bg-accent text-accent-foreground"
 								)}
 							>
 								<span className="shrink-0 text-muted-foreground">
@@ -183,7 +183,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 							className={cn(
 								"w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors rounded-md cursor-pointer text-muted-foreground",
 								highlightedIndex === createPromptIndex
-									? "bg-accent text-foreground"
+									? "bg-accent text-accent-foreground"
 									: "hover:text-accent-foreground hover:bg-accent"
 							)}
 						>

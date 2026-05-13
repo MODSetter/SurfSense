@@ -67,7 +67,6 @@ const ACCEPT_EXTENSIONS = Array.from(ANON_ALLOWED_EXTENSIONS).join(",");
 export const FreeComposer: FC = () => {
 	const aui = useAui();
 	const isRunning = useAuiState(({ thread }) => thread.isRunning);
-	const isEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const { gate } = useLoginGate();
 	const anonMode = useAnonymousMode();
 	const [text, setText] = useState("");
@@ -191,7 +190,7 @@ export const FreeComposer: FC = () => {
 								onClick={handleUploadClick}
 								className={cn(
 									"flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors",
-									"text-muted-foreground hover:text-foreground hover:bg-accent/50",
+									"text-muted-foreground hover:text-accent-foreground hover:bg-accent",
 									hasUploadedDoc && "text-primary"
 								)}
 							>
@@ -212,7 +211,7 @@ export const FreeComposer: FC = () => {
 						<TooltipTrigger asChild>
 							<label
 								htmlFor="free-web-search-toggle"
-								className="flex items-center gap-1.5 cursor-pointer select-none rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+								className="flex items-center gap-1.5 cursor-pointer select-none rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-accent-foreground hover:bg-accent transition-colors"
 							>
 								<Globe className="size-3.5" />
 								<span className="hidden sm:inline">Web</span>
