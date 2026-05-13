@@ -1428,7 +1428,7 @@ export function ModelSelector({
 		<Popover open={open} onOpenChange={handleOpenChange}>
 			<PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
 			<PopoverContent
-				className="w-[300px] md:w-[380px] p-0 rounded-lg shadow-lg overflow-hidden bg-muted border-border/60 dark:border dark:border-neutral-700 select-none"
+				className="w-[300px] md:w-[380px] p-0 rounded-lg shadow-lg overflow-hidden select-none"
 				align="start"
 				sideOffset={8}
 				onCloseAutoFocus={(e) => e.preventDefault()}

@@ -202,7 +202,7 @@ export function LLMConfigForm({
 											<SelectValue placeholder="Select a provider" />
 										</SelectTrigger>
 									</FormControl>
-									<SelectContent className="max-h-[300px] bg-muted dark:border-neutral-700">
+									<SelectContent className="max-h-[300px]">
 										{LLM_PROVIDERS.map((provider) => (
 											<SelectItem
 												key={provider.value}
@@ -260,10 +260,7 @@ export function LLMConfigForm({
 											</Button>
 										</FormControl>
 									</PopoverTrigger>
-									<PopoverContent
-										className="w-full p-0 bg-muted dark:border-neutral-700"
-										align="start"
-									>
+									<PopoverContent className="w-full p-0" align="start">
 										<Command shouldFilter={false} className="bg-transparent">
 											<CommandInput
 												placeholder={selectedProvider?.example || "Search model name"}

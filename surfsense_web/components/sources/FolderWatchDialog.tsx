@@ -164,7 +164,7 @@ export function FolderWatchDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-md select-none p-0 gap-0 overflow-hidden bg-muted dark:bg-muted border border-border [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-foreground/10">
+			<DialogContent className="sm:max-w-md select-none p-0 gap-0 overflow-hidden [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-foreground/10">
 				<DialogHeader className="px-4 sm:px-6 pt-5 sm:pt-6 pb-3">
 					<DialogTitle className="text-lg sm:text-xl font-semibold tracking-tight">
 						Watch Local Folder

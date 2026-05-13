@@ -428,7 +428,7 @@ export const DocumentMentionPicker = forwardRef<
 
 	return (
 		<div
-			className="shadow-2xl rounded-lg border border-border dark:border-white/5 overflow-hidden bg-popover dark:bg-neutral-900 flex flex-col w-[280px] sm:w-[320px] select-none"
+			className="shadow-2xl rounded-lg overflow-hidden bg-popover text-popover-foreground flex flex-col w-[280px] sm:w-[320px] select-none"
 			onKeyDown={handleKeyDown}
 			role="listbox"
 			tabIndex={-1}

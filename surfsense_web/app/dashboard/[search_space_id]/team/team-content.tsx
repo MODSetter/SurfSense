@@ -493,7 +493,7 @@ function MemberRow({
 						<DropdownMenuContent
 							align="end"
 							onCloseAutoFocus={(e) => e.preventDefault()}
-							className="min-w-[120px] dark:bg-neutral-900 dark:border dark:border-white/5"
+							className="min-w-[120px]"
 						>
 							{canManageRoles &&
 								roles

@@ -173,7 +173,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				</PopoverTrigger>
 
 				<PopoverContent
-					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg bg-muted border-border/60 dark:border dark:border-neutral-700 select-none"
+					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg select-none"
 					align="end"
 					sideOffset={8}
 					onCloseAutoFocus={(e) => e.preventDefault()}

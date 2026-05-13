@@ -122,7 +122,7 @@ export function FreeModelSelector({ className }: { className?: string }) {
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent
-				className="w-[320px] p-0 rounded-lg shadow-lg overflow-hidden bg-white border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
+				className="w-[320px] p-0 rounded-lg shadow-lg overflow-hidden select-none"
 				align="start"
 				sideOffset={8}
 				onCloseAutoFocus={(e) => e.preventDefault()}

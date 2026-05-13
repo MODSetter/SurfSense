@@ -178,10 +178,6 @@ function TourTooltip({
 	const isLastStep = stepIndex === totalSteps - 1;
 	const isFirstStep = stepIndex === 0;
 
-	const bgColor = isDarkMode ? "#27272a" : "#ffffff";
-	const textColor = isDarkMode ? "#ffffff" : "#18181b";
-	const mutedTextColor = isDarkMode ? "#a1a1aa" : "#71717a";
-
 	// Calculate pointer line position
 	const getPointerStyles = (): React.CSSProperties => {
 		const lineLength = 16;
@@ -224,68 +220,27 @@ function TourTooltip({
 	};
 
 	const renderPointer = () => {
-		const lineColor = isDarkMode ? "#27272a" : "#ffffff";
-
 		if (position.pointerPosition === "left") {
 			return (
 				<div style={getPointerStyles()}>
-					<div
-						style={{
-							width: 6,
-							height: 6,
-							borderRadius: "50%",
-							backgroundColor: lineColor,
-						}}
-					/>
-					<div
-						style={{
-							width: 16,
-							height: 2,
-							backgroundColor: lineColor,
-						}}
-					/>
+					<div className="size-1.5 rounded-full bg-main-panel" />
+					<div className="h-0.5 w-4 bg-main-panel" />
 				</div>
 			);
 		}
 		if (position.pointerPosition === "right") {
 			return (
 				<div style={getPointerStyles()}>
-					<div
-						style={{
-							width: 16,
-							height: 2,
-							backgroundColor: lineColor,
-						}}
-					/>
-					<div
-						style={{
-							width: 6,
-							height: 6,
-							borderRadius: "50%",
-							backgroundColor: lineColor,
-						}}
-					/>
+					<div className="h-0.5 w-4 bg-main-panel" />
+					<div className="size-1.5 rounded-full bg-main-panel" />
 				</div>
 			);
 		}
 		if (position.pointerPosition === "top") {
 			return (
 				<div style={getPointerStyles()}>
-					<div
-						style={{
-							width: 6,
-							height: 6,
-							borderRadius: "50%",
-							backgroundColor: lineColor,
-						}}
-					/>
-					<div
-						style={{
-							width: 2,
-							height: 16,
-							backgroundColor: lineColor,
-						}}
-					/>
+					<div className="size-1.5 rounded-full bg-main-panel" />
+					<div className="h-4 w-0.5 bg-main-panel" />
 				</div>
 			);
 		}
@@ -338,10 +293,8 @@ function TourTooltip({
 			{renderPointer()}
 
 			<div
-				className="relative rounded-lg p-4"
+				className="relative rounded-lg bg-main-panel p-4 text-foreground"
 				style={{
-					backgroundColor: bgColor,
-					color: textColor,
 					boxShadow: isDarkMode
 						? "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
 						: "0 25px 50px -12px rgba(0, 0, 0, 0.15)",
@@ -355,12 +308,10 @@ function TourTooltip({
 					}}
 					onAnimationEnd={onAnimationEnd}
 				>
-					<h3 id="tour-title" className="text-sm font-semibold mb-1.5" style={{ color: textColor }}>
+					<h3 id="tour-title" className="mb-1.5 text-sm font-semibold">
 						{step.title}
 					</h3>
-					<p className="text-sm leading-relaxed" style={{ color: mutedTextColor }}>
-						{step.content}
-					</p>
+					<p className="text-sm leading-relaxed text-muted-foreground">{step.content}</p>
 				</div>
 
 				{/* Footer */}
@@ -377,8 +328,7 @@ function TourTooltip({
 									e.stopPropagation();
 									onPrev();
 								}}
-								className="text-sm font-medium transition-opacity hover:opacity-80"
-								style={{ color: mutedTextColor }}
+								className="text-sm font-medium text-muted-foreground transition-opacity hover:opacity-80"
 							>
 								Back
 							</button>
@@ -390,8 +340,7 @@ function TourTooltip({
 									e.stopPropagation();
 									onSkip();
 								}}
-								className="text-sm font-medium transition-opacity hover:opacity-80"
-								style={{ color: mutedTextColor }}
+								className="text-sm font-medium text-muted-foreground transition-opacity hover:opacity-80"
 							>
 								Skip
 							</button>
@@ -402,8 +351,7 @@ function TourTooltip({
 								e.stopPropagation();
 								onNext();
 							}}
-							className="text-sm font-medium transition-opacity hover:opacity-80"
-							style={{ color: textColor }}
+							className="text-sm font-medium text-foreground transition-opacity hover:opacity-80"
 						>
 							{isLastStep ? "Done" : "Next"}
 						</button>

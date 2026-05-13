@@ -29,7 +29,7 @@ export function isVersionableType(documentType: string) {
 }
 
 const DIALOG_CLASSES =
-	"select-none max-w-[900px] w-[95vw] md:w-[90vw] h-[90vh] md:h-[80vh] max-h-[640px] flex flex-col md:flex-row p-0 gap-0 overflow-hidden [--card:var(--background)] dark:[--card:oklch(0.205_0_0)] dark:[--background:oklch(0.205_0_0)]";
+	"select-none max-w-[900px] w-[95vw] md:w-[90vw] h-[90vh] md:h-[80vh] max-h-[640px] flex flex-col md:flex-row p-0 gap-0 overflow-hidden [--card:var(--popover)]";
 
 export function VersionHistoryButton({ documentId, documentType }: VersionHistoryProps) {
 	if (!isVersionableType(documentType)) return null;

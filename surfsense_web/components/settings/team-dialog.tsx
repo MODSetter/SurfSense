@@ -17,7 +17,7 @@ export function TeamDialog({ searchSpaceId }: TeamDialogProps) {
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogContent
-				className="select-none max-w-[900px] w-[95vw] md:w-[90vw] h-[90vh] md:h-[80vh] max-h-[640px] flex flex-col p-0 gap-0 overflow-hidden [--card:var(--background)] dark:[--card:oklch(0.205_0_0)] dark:[--background:oklch(0.205_0_0)]"
+				className="select-none max-w-[900px] w-[95vw] md:w-[90vw] h-[90vh] md:h-[80vh] max-h-[640px] flex flex-col p-0 gap-0 overflow-hidden [--card:var(--popover)]"
 				onOpenAutoFocus={(e) => e.preventDefault()}
 			>
 				<DialogTitle className="sr-only">{t("manage_members")}</DialogTitle>

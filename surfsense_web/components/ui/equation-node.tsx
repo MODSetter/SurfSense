@@ -151,7 +151,7 @@ export function InlineEquationElement({ children, ...props }: PlateElementProps<
 
 			{isEditing && (
 				<span
-					className="absolute z-50 mt-1 rounded-md border bg-popover p-2 shadow-md"
+					className="absolute z-50 mt-1 rounded-md bg-popover p-2 shadow-md"
 					contentEditable={false}
 				>
 					<textarea

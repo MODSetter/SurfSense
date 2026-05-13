@@ -76,7 +76,7 @@ export default function InferenceParamsEditor({ params, setParams }: InferencePa
 						<SelectTrigger id="param-key" className="w-full">
 							<SelectValue placeholder="Select parameter" />
 						</SelectTrigger>
-						<SelectContent className="bg-muted dark:border-neutral-700">
+						<SelectContent>
 							{PARAM_KEYS.map((key) => (
 								<SelectItem key={key} value={key}>
 									{key}

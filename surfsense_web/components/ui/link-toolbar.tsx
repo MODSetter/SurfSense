@@ -26,7 +26,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 const popoverVariants = cva(
-	"z-50 w-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-hidden"
+	"z-50 w-auto rounded-md bg-popover p-1 text-popover-foreground shadow-md outline-hidden"
 );
 
 const inputVariants = cva(

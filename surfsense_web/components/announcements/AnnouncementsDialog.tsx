@@ -22,7 +22,7 @@ export function AnnouncementsDialog() {
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogContent className="select-none max-w-[900px] w-[95vw] md:w-[90vw] h-[90vh] md:h-[80vh] max-h-[640px] flex flex-col p-0 gap-0 overflow-hidden [--card:var(--background)] dark:[--card:oklch(0.205_0_0)] dark:[--background:oklch(0.205_0_0)]">
+			<DialogContent className="select-none max-w-[900px] w-[95vw] md:w-[90vw] h-[90vh] md:h-[80vh] max-h-[640px] flex flex-col p-0 gap-0 overflow-hidden [--card:var(--popover)]">
 				<DialogTitle className="sr-only">What's New</DialogTitle>
 
 				<div className="flex flex-1 flex-col overflow-hidden min-w-0">

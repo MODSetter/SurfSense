@@ -112,7 +112,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 	);
 
 	return (
-		<div className="shadow-2xl rounded-lg border border-border dark:border-white/5 overflow-hidden bg-popover dark:bg-neutral-900 flex flex-col w-[280px] sm:w-[320px] select-none">
+		<div className="shadow-2xl rounded-lg overflow-hidden bg-popover text-popover-foreground flex flex-col w-[280px] sm:w-[320px] select-none">
 			<div ref={scrollContainerRef} className="max-h-[180px] sm:max-h-[280px] overflow-y-auto">
 				{isLoading ? (
 					<div className="py-1 px-2">
