@@ -2863,14 +2863,35 @@ async def stream_resume_chat(
 
         from langgraph.types import Command
 
+        from app.agents.multi_agent_chat.middleware.main_agent.checkpointed_subagent_middleware.resume_routing import (
+            collect_pending_tool_calls,
+            slice_decisions_by_tool_call,
+        )
+
+        # Each pending interrupt is stamped with its originating ``tool_call_id``
+        # (see ``checkpointed_subagent_middleware.propagation``) so we can route
+        # a flat ``decisions`` list back to the right paused subagent.
+        parent_state = await agent.aget_state(
+            {"configurable": {"thread_id": str(chat_id)}}
+        )
+        pending = collect_pending_tool_calls(parent_state)
+        _perf_log.info(
+            "[hitl_route] resume_entry chat_id=%s decisions=%d pending_subagents=%d",
+            chat_id,
+            len(decisions),
+            len(pending),
+        )
+        routed_resume_value = slice_decisions_by_tool_call(decisions, pending)
+
         config = {
             "configurable": {
                 "thread_id": str(chat_id),
                 "request_id": request_id or "unknown",
                 "turn_id": stream_result.turn_id,
-                # Side-channel consumed by ``SurfSenseCheckpointedSubAgentMiddleware``
-                # to forward the resume into a subagent's pending ``interrupt()``.
-                "surfsense_resume_value": {"decisions": decisions},
+                # Per-``tool_call_id`` resume slices read by
+                # ``SurfSenseCheckpointedSubAgentMiddleware``. Parallel
+                # siblings each pop their own entry, so they never race.
+                "surfsense_resume_value": routed_resume_value,
             },
             # See ``stream_new_chat`` above for rationale: effectively
             # uncapped to mirror the agent default and OpenCode's
