@@ -108,7 +108,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	return (
 		<div className="flex flex-col h-full">
 			{/* Header */}
-			<div className="px-6 sm:px-12 pt-8 sm:pt-10 pb-1 sm:pb-4 border-b border-border/50 bg-muted">
+			<div className="px-6 sm:px-12 pt-8 sm:pt-10 pb-1 sm:pb-4 bg-popover">
 				{/* Back button */}
 				<button
 					type="button"

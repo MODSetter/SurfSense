@@ -246,11 +246,11 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 				</div>
 				{/* Top fade shadow - appears when scrolled */}
 				{isScrolled && (
-					<div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-muted/50 to-transparent pointer-events-none z-10" />
+					<div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-popover to-transparent pointer-events-none z-10" />
 				)}
 				{/* Bottom fade shadow - appears when there's more content */}
 				{hasMoreContent && (
-					<div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-muted/50 to-transparent pointer-events-none z-10" />
+					<div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-popover to-transparent pointer-events-none z-10" />
 				)}
 			</div>
 

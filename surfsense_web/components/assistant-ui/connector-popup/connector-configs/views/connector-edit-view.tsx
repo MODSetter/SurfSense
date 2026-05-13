@@ -368,16 +368,16 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 				</div>
 				{/* Top fade shadow - appears when scrolled */}
 				{isScrolled && (
-					<div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-muted/50 to-transparent pointer-events-none z-10" />
+					<div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-popover to-transparent pointer-events-none z-10" />
 				)}
 				{/* Bottom fade shadow - appears when there's more content */}
 				{hasMoreContent && (
-					<div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-muted/50 to-transparent pointer-events-none z-10" />
+					<div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-popover to-transparent pointer-events-none z-10" />
 				)}
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 px-6 sm:px-12 py-6 sm:py-6 bg-muted border-t border-border">
+			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 px-6 sm:px-12 py-6 sm:py-6 bg-popover">
 				{showDisconnectConfirm ? (
 					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
 						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">

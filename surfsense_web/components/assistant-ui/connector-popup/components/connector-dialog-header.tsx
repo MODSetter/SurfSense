@@ -25,7 +25,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 		<div
 			className={cn(
 				"flex-shrink-0 px-4 sm:px-12 pt-5 sm:pt-10 transition-shadow duration-200 relative z-10",
-				isScrolled && "shadow-xl bg-muted/50 backdrop-blur-md"
+				isScrolled && "bg-popover shadow-xl"
 			)}
 		>
 			<DialogHeader>

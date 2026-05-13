@@ -38,7 +38,6 @@ import {
 	folderWatchDialogOpenAtom,
 	folderWatchInitialFolderAtom,
 } from "@/atoms/folder-sync/folder-sync.atoms";
-import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
@@ -199,7 +198,6 @@ function AuthenticatedDocumentsSidebarBase({
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
-	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
 	const { data: connectors } = useAtomValue(connectorsAtom);
@@ -1024,17 +1022,13 @@ function AuthenticatedDocumentsSidebarBase({
 
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && open) {
-				if (isMobile) {
-					onOpenChange(false);
-				} else {
-					setRightPanelCollapsed(true);
-				}
+			if (e.key === "Escape" && open && isMobile) {
+				onOpenChange(false);
 			}
 		};
 		document.addEventListener("keydown", handleEscape);
 		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange, isMobile, setRightPanelCollapsed]);
+	}, [open, onOpenChange, isMobile]);
 
 	const showFilesystemTabs =
 		!isMobile && !!electronAPI && !!filesystemSettings && localFilesystemEnabled;
@@ -1585,7 +1579,6 @@ function AnonymousDocumentsSidebar({
 	const t = useTranslations("documents");
 	const tSidebar = useTranslations("sidebar");
 	const isMobile = !useMediaQuery("(min-width: 640px)");
-	const setRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
 	const anonMode = useAnonymousMode();
 	const { gate } = useLoginGate();
 
@@ -1697,17 +1690,13 @@ function AnonymousDocumentsSidebar({
 
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && open) {
-				if (isMobile) {
-					onOpenChange(false);
-				} else {
-					setRightPanelCollapsed(true);
-				}
+			if (e.key === "Escape" && open && isMobile) {
+				onOpenChange(false);
 			}
 		};
 		document.addEventListener("keydown", handleEscape);
 		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange, isMobile, setRightPanelCollapsed]);
+	}, [open, onOpenChange, isMobile]);
 
 	const documentsContent = (
 		<>

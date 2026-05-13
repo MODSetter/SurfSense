@@ -3,7 +3,7 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { PanelRight } from "lucide-react";
 import dynamic from "next/dynamic";
-import { startTransition, useEffect } from "react";
+import { startTransition, useEffect, type MouseEvent } from "react";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { citationPanelAtom, closeCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
@@ -53,6 +53,10 @@ interface RightPanelProps {
 	};
 }
 
+function isKeyboardClick(event: MouseEvent) {
+	return event.detail === 0;
+}
+
 function CollapseButton({ onClick }: { onClick: () => void }) {
 	return (
 		<Tooltip>
@@ -60,7 +64,11 @@ function CollapseButton({ onClick }: { onClick: () => void }) {
 				<Button
 					variant="ghost"
 					size="icon"
-					onClick={onClick}
+					tabIndex={-1}
+					onClick={(event) => {
+						if (isKeyboardClick(event)) return;
+						onClick();
+					}}
 					className="h-8 w-8 shrink-0 text-muted-foreground hover:text-muted-foreground hover:bg-accent"
 				>
 					<PanelRight className="h-4 w-4" />
@@ -101,7 +109,11 @@ export function RightPanelExpandButton() {
 					<Button
 						variant="ghost"
 						size="icon"
-						onClick={() => startTransition(() => setCollapsed(false))}
+						tabIndex={-1}
+						onClick={(event) => {
+							if (isKeyboardClick(event)) return;
+							startTransition(() => setCollapsed(false));
+						}}
 						className="h-8 w-8 shrink-0 -m-0.5 text-muted-foreground hover:text-muted-foreground hover:bg-accent"
 					>
 						<PanelRight className="h-4 w-4" />
