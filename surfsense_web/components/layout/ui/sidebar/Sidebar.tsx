@@ -31,6 +31,21 @@ function ChatListItemSkeleton() {
 	);
 }
 
+function CollapsedInboxIcon({ item }: { item: NavItem }) {
+	const Icon = item.icon;
+
+	return (
+		<span className="relative flex h-3.5 w-3.5 items-center justify-center">
+			<Icon className="h-3.5 w-3.5" />
+			{typeof item.badge === "string" ? (
+				<span className="absolute right-0 top-0 flex min-w-3.5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-medium leading-3 text-destructive-foreground">
+					{item.badge}
+				</span>
+			) : null}
+		</span>
+	);
+}
+
 interface SidebarProps {
 	searchSpace: SearchSpace | null;
 	isCollapsed?: boolean;
@@ -164,6 +179,8 @@ export function Sidebar({
 						isCollapsed={isCollapsed}
 						isActive={inboxItem.isActive}
 						badge={inboxItem.badge}
+						collapsedIconNode={<CollapsedInboxIcon item={inboxItem} />}
+						tooltipContent={isCollapsed ? inboxItem.title : undefined}
 						buttonProps={
 							{
 								"data-joyride": "inbox-sidebar",
