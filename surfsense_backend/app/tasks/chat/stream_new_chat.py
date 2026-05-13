@@ -92,6 +92,21 @@ TURN_CANCELLING_BACKOFF_FACTOR = 2
 TURN_CANCELLING_MAX_DELAY_MS = 1500
 
 
+def _resume_step_prefix(turn_id: str) -> str:
+    """Build the per-turn ``step_prefix`` for a resume invocation.
+
+    Each ``_stream_agent_events`` call constructs a fresh
+    :class:`AgentEventRelayState` with ``thinking_step_counter=0``, so two
+    consecutive resume turns would otherwise both emit ``thinking-resume-1``,
+    ``-2`` etc. The frontend rehydrates ``currentThinkingSteps`` from the
+    immediate prior assistant message at the start of every resume — if the
+    new stream's IDs collide with the seeded ones, React renders sibling
+    Timeline rows with the same key. Salting with ``turn_id`` guarantees
+    disjoint IDs across resumes within one thread.
+    """
+    return f"thinking-resume-{turn_id}"
+
+
 def _compute_turn_cancelling_retry_delay(attempt: int) -> int:
     if attempt < 1:
         attempt = 1
@@ -2946,7 +2961,7 @@ async def stream_resume_chat(
                     input_data=Command(resume=lg_resume_map),
                     streaming_service=streaming_service,
                     result=stream_result,
-                    step_prefix="thinking-resume",
+                    step_prefix=_resume_step_prefix(stream_result.turn_id),
                     fallback_commit_search_space_id=search_space_id,
                     fallback_commit_created_by_id=user_id,
                     fallback_commit_filesystem_mode=(
