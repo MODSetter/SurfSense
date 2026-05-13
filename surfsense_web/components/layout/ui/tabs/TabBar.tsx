@@ -2,7 +2,7 @@
 
 import { useAtomValue, useSetAtom } from "jotai";
 import { Plus, X } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
 	activeTabIdAtom,
 	closeTabAtom,
@@ -45,6 +45,21 @@ export function TabBar({
 	const switchTab = useSetAtom(switchTabAtom);
 	const closeTab = useSetAtom(closeTabAtom);
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const [hoveredTabIndex, setHoveredTabIndex] = useState<number | null>(null);
+	const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTabId);
+
+	const shouldHideSeparator = useCallback(
+		(separatorIndex: number) => {
+			// separatorIndex sits between tabs[separatorIndex - 1] and tabs[separatorIndex].
+			return (
+				hoveredTabIndex === separatorIndex - 1 ||
+				hoveredTabIndex === separatorIndex ||
+				activeTabIndex === separatorIndex - 1 ||
+				activeTabIndex === separatorIndex
+			);
+		},
+		[hoveredTabIndex, activeTabIndex]
+	);
 
 	const handleTabClick = useCallback(
 		(tab: Tab) => {
@@ -98,7 +113,19 @@ export function TabBar({
 
 		const onWheel = (e: WheelEvent) => {
 			if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-			el.scrollLeft += e.deltaY > 0 ? 50 : -50;
+
+			const delta =
+				e.deltaMode === WheelEvent.DOM_DELTA_LINE
+					? e.deltaY * 16
+					: e.deltaMode === WheelEvent.DOM_DELTA_PAGE
+						? e.deltaY * el.clientWidth
+						: e.deltaY;
+			const maxScrollLeft = el.scrollWidth - el.clientWidth;
+			const nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, el.scrollLeft + delta));
+
+			if (nextScrollLeft === el.scrollLeft) return;
+
+			el.scrollLeft = nextScrollLeft;
 			e.preventDefault();
 		};
 
@@ -146,54 +173,66 @@ export function TabBar({
 			{leftActions ? <div className="flex items-center gap-0.5 shrink-0">{leftActions}</div> : null}
 			<div
 				ref={scrollRef}
-				className="flex h-8 items-center flex-1 gap-3 pl-2 overflow-x-auto overflow-y-hidden scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-0"
+				className="flex h-8 items-center flex-1 gap-0 pl-2 overflow-x-auto overflow-y-hidden scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-0"
 			>
-				{tabs.map((tab) => {
+				{tabs.map((tab, index) => {
 					const isActive = tab.id === activeTabId;
 
 					return (
-						<button
-							key={tab.id}
-							type="button"
-							data-tab-id={tab.id}
-							onClick={() => handleTabClick(tab)}
-							className={cn(
-								"group relative flex h-full items-center px-3 w-[180px] min-h-0 overflow-hidden text-[13px] font-medium rounded-md transition-colors duration-150 shrink-0",
-								isActive
-									? "bg-muted text-foreground"
-									: "bg-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-							)}
-						>
-							<span className="block min-w-0 flex-1 whitespace-nowrap overflow-hidden text-left">
-								{tab.title}
-							</span>
-							{/* Hover-only gradient + close overlay (sidebar pattern) — keeps pill width fixed and avoids ellipsis shift. */}
-							<div
+						<Fragment key={tab.id}>
+							{index > 0 ? (
+								<div
+									aria-hidden="true"
+									className={cn(
+										"mx-1.5 h-4 w-px shrink-0 bg-muted-foreground/20 transition-opacity duration-150 dark:bg-muted-foreground/25",
+										shouldHideSeparator(index) && "opacity-0"
+									)}
+								/>
+							) : null}
+							<button
+								type="button"
+								data-tab-id={tab.id}
+								onClick={() => handleTabClick(tab)}
+								onMouseEnter={() => setHoveredTabIndex(index)}
+								onMouseLeave={() => setHoveredTabIndex(null)}
 								className={cn(
-									"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center rounded-r-md pl-8 pr-2 opacity-0 transition-opacity duration-150",
-									"group-hover:opacity-100 group-focus-within:opacity-100",
+									"group relative flex h-full items-center px-3 w-[180px] min-h-0 overflow-hidden text-[13px] font-medium rounded-md transition-colors duration-150 shrink-0",
 									isActive
-										? "bg-gradient-to-l from-muted from-60% to-transparent"
-										: "bg-gradient-to-l from-muted from-60% to-transparent"
+										? "bg-muted text-foreground"
+										: "bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 								)}
 							>
-								{/* biome-ignore lint/a11y/useSemanticElements: cannot nest button inside button */}
-								<span
-									role="button"
-									tabIndex={0}
-									onClick={(e) => handleTabClose(e, tab.id)}
-									onKeyDown={(e) => {
-										if (e.key === "Enter" || e.key === " ") {
-											e.preventDefault();
-											handleTabClose(e as unknown as React.MouseEvent, tab.id);
-										}
-									}}
-									className="pointer-events-auto rounded-full p-0.5 transition-colors hover:bg-muted-foreground/15"
-								>
-									<X className="size-3" />
+								<span className="block min-w-0 flex-1 whitespace-nowrap overflow-hidden text-left">
+									{tab.title}
 								</span>
-							</div>
-						</button>
+								{/* Hover-only gradient + close overlay (sidebar pattern) — keeps pill width fixed and avoids ellipsis shift. */}
+								<div
+									className={cn(
+										"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center rounded-r-md pl-8 pr-2 opacity-0 transition-opacity duration-150",
+										"group-hover:opacity-100 group-focus-within:opacity-100",
+										isActive
+											? "bg-gradient-to-l from-muted from-60% to-transparent"
+											: "bg-gradient-to-l from-accent from-60% to-transparent"
+									)}
+								>
+									{/* biome-ignore lint/a11y/useSemanticElements: cannot nest button inside button */}
+									<span
+										role="button"
+										tabIndex={0}
+										onClick={(e) => handleTabClose(e, tab.id)}
+										onKeyDown={(e) => {
+											if (e.key === "Enter" || e.key === " ") {
+												e.preventDefault();
+												handleTabClose(e as unknown as React.MouseEvent, tab.id);
+											}
+										}}
+										className="pointer-events-auto rounded-full p-0.5 transition-colors hover:bg-accent hover:text-accent-foreground"
+									>
+										<X className="size-3" />
+									</span>
+								</div>
+							</button>
+						</Fragment>
 					);
 				})}
 				{onNewChat && (
@@ -201,7 +240,7 @@ export function TabBar({
 						className={cn(
 							// Solid bg + soft left-fade so tabs scrolling underneath the
 							// + button get visually masked into the bar's background.
-							"sticky right-0 z-10 flex h-full shrink-0 items-center bg-panel pl-3 pr-1",
+							"sticky right-0 z-10 ml-3 flex h-full shrink-0 items-center bg-panel pl-3 pr-1",
 							"before:content-[''] before:absolute before:inset-y-0 before:-left-4 before:w-4 before:pointer-events-none",
 							"before:bg-gradient-to-r before:from-transparent before:to-panel"
 						)}
@@ -209,7 +248,7 @@ export function TabBar({
 						<button
 							type="button"
 							onClick={onNewChat}
-							className="flex h-8 w-8 items-center justify-center shrink-0 rounded-md text-muted-foreground transition-all duration-150 hover:text-muted-foreground hover:bg-muted/40"
+							className="flex h-8 w-8 items-center justify-center shrink-0 rounded-md text-muted-foreground transition-all duration-150 hover:bg-accent hover:text-accent-foreground"
 							title="New Chat"
 						>
 							<Plus className="size-4" />
