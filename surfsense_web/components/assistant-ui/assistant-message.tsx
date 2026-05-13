@@ -328,7 +328,7 @@ const MessageInfoDropdown: FC = () => {
 								return (
 									<ActionBarMorePrimitive.Item
 										key={model}
-										className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
+										className="focus:bg-accent focus:text-accent-foreground relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
 										onSelect={(e) => e.preventDefault()}
 									>
 										<span className="flex items-center gap-1.5 text-xs font-medium">
@@ -344,7 +344,7 @@ const MessageInfoDropdown: FC = () => {
 							})
 						) : (
 							<ActionBarMorePrimitive.Item
-								className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
+								className="focus:bg-accent focus:text-accent-foreground relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
 								onSelect={(e) => e.preventDefault()}
 							>
 								<span className="text-xs text-muted-foreground">

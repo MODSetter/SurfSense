@@ -97,7 +97,7 @@ function SelectItem({
 		<SelectPrimitive.Item
 			data-slot="select-item"
 			className={cn(
-				"focus:bg-accent focus:text-accent-foreground dark:focus:bg-neutral-700 hover:bg-accent dark:hover:bg-neutral-700 [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm outline-hidden select-none transition-all data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2 data-[highlighted]:bg-accent dark:data-[highlighted]:bg-neutral-700",
+				"focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm outline-hidden select-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2 data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground",
 				className
 			)}
 			{...props}
@@ -121,7 +121,7 @@ function SelectSeparator({
 	return (
 		<SelectPrimitive.Separator
 			data-slot="select-separator"
-			className={cn("bg-border dark:bg-neutral-700 pointer-events-none -mx-1 my-1 h-px", className)}
+			className={cn("bg-border pointer-events-none -mx-1 my-1 h-px", className)}
 			{...props}
 		/>
 	);
