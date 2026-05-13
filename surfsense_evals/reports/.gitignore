@@ -1,0 +1,4 @@
+*
+!.gitignore
+!medical/
+!medical/sample_summary.md

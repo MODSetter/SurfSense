@@ -1,0 +1,29 @@
+# Python bytecode + caches
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Editable-install / build artifacts
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Virtual envs (uv venv default + common alternates)
+.venv/
+venv/
+env/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local secrets — keep `.env.example` tracked, never the real `.env`.
+.env
+.env.local
+.env.*.local
+!.env.example
