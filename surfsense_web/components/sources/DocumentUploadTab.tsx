@@ -457,7 +457,7 @@ export function DocumentUploadTab({
 						<Button
 							variant="ghost"
 							size="sm"
-							className={`text-xs gap-1 bg-neutral-700/50 hover:bg-neutral-600/50 ${sizeClass} ${widthClass}`}
+							className={`text-xs gap-1 bg-neutral-700/50 hover:bg-accent hover:text-accent-foreground ${sizeClass} ${widthClass}`}
 						>
 							Browse
 							<ChevronDown className="h-3 w-3 opacity-60" />
@@ -487,7 +487,7 @@ export function DocumentUploadTab({
 					<Button
 						variant="ghost"
 						size="sm"
-						className={`text-xs gap-1 bg-neutral-700/50 hover:bg-neutral-600/50 ${sizeClass} ${widthClass}`}
+						className={`text-xs gap-1 bg-neutral-700/50 hover:bg-accent hover:text-accent-foreground ${sizeClass} ${widthClass}`}
 					>
 						Browse
 						<ChevronDown className="h-3 w-3 opacity-60" />
@@ -539,7 +539,7 @@ export function DocumentUploadTab({
 					) : (
 						<button
 							type="button"
-							className="w-full text-xs h-8 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors"
+							className="w-full text-xs h-8 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-muted-foreground/30 text-muted-foreground hover:text-accent-foreground hover:border-foreground/50 transition-colors"
 							onClick={() => fileInputRef.current?.click()}
 						>
 							Add more files
@@ -636,7 +636,7 @@ export function DocumentUploadTab({
 						<Button
 							variant="ghost"
 							size="sm"
-							className="h-7 text-xs text-muted-foreground hover:text-foreground"
+							className="h-7 text-xs text-muted-foreground hover:text-accent-foreground"
 							onClick={() => {
 								setFiles([]);
 								setFolderUpload(null);
@@ -671,7 +671,7 @@ export function DocumentUploadTab({
 							: files.map((entry) => (
 									<div
 										key={entry.id}
-										className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-slate-400/5 dark:hover:bg-white/5 group"
+										className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-accent hover:text-accent-foreground group"
 									>
 										<span className="text-[10px] font-medium uppercase leading-none bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
 											{entry.file.name.split(".").pop() || "?"}

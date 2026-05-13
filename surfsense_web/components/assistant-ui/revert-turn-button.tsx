@@ -129,7 +129,7 @@ export function RevertTurnButton({ chatTurnId }: RevertTurnButtonProps) {
 					<Button
 						size="sm"
 						variant="ghost"
-						className="text-muted-foreground hover:text-foreground gap-1.5"
+						className="text-muted-foreground hover:text-accent-foreground gap-1.5"
 						onClick={(e) => {
 							e.stopPropagation();
 							setConfirmOpen(true);

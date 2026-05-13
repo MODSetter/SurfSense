@@ -219,7 +219,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 				<button
 					type="button"
 					onClick={onBack}
-					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-accent-foreground mb-6 w-fit"
 				>
 					<ArrowLeft className="size-4" />
 					Back to connectors
@@ -259,7 +259,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 									tag: {
 										body: "h-7 relative bg-background border border-input hover:bg-background rounded-md font-medium text-xs ps-2 pe-7 flex",
 										closeButton:
-											"absolute -inset-y-px -end-px p-0 rounded-e-lg flex size-7 transition-colors outline-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 text-muted-foreground/80 hover:text-foreground",
+											"absolute -inset-y-px -end-px p-0 rounded-e-lg flex size-7 transition-colors outline-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 text-muted-foreground/80 hover:text-accent-foreground",
 									},
 								}}
 								activeTagIndex={activeTagIndex}

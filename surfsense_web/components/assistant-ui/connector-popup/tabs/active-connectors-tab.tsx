@@ -185,7 +185,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												"relative flex items-center gap-4 p-4 rounded-xl transition-all",
 												isAnyIndexing
 													? "bg-primary/5 border-0"
-													: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
+													: "bg-slate-400/5 dark:bg-white/5 hover:bg-accent hover:text-accent-foreground border border-border"
 											)}
 										>
 											<div
@@ -222,7 +222,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 											<Button
 												variant="secondary"
 												size="sm"
-												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-accent hover:text-accent-foreground border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground shrink-0"
 												onClick={handleManageClick}
 											>
 												Manage
@@ -247,7 +247,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												"flex items-center gap-4 p-4 rounded-xl transition-all",
 												isIndexing
 													? "bg-primary/5 border-0"
-													: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
+													: "bg-slate-400/5 dark:bg-white/5 hover:bg-accent hover:text-accent-foreground border border-border"
 											)}
 										>
 											<div
@@ -280,7 +280,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 											<Button
 												variant="secondary"
 												size="sm"
-												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-accent hover:text-accent-foreground border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground shrink-0"
 												onClick={onManage ? () => onManage(connector) : undefined}
 											>
 												Manage
@@ -302,7 +302,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 								{standaloneDocuments.map((doc) => (
 									<div
 										key={doc.type}
-										className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 transition-all"
+										className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-slate-400/5 dark:bg-white/5 hover:bg-accent hover:text-accent-foreground transition-all"
 									>
 										<div className="flex items-center justify-center">
 											{getConnectorIcon(doc.type, "size-3.5")}

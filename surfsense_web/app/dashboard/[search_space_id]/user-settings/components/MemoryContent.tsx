@@ -222,7 +222,7 @@ export function MemoryContent() {
 								onClick={handleEdit}
 								disabled={editing || !editQuery.trim()}
 								className={`h-11 w-11 shrink-0 rounded-full ${
-									editing ? "" : "bg-muted-foreground/15 hover:bg-muted-foreground/20"
+									editing ? "" : "bg-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
 								}`}
 							>
 								{editing ? (

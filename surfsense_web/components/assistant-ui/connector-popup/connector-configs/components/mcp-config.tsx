@@ -215,7 +215,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							onClick={handleTestConnection}
 							disabled={isTesting}
 							variant="secondary"
-							className="w-full h-8 text-[13px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
+							className="w-full h-8 text-[13px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-accent hover:text-accent-foreground border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground"
 						>
 							{isTesting ? (
 								<>

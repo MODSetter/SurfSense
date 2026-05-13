@@ -191,7 +191,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 									<button
 										type="button"
 										onClick={() => handleRemoveFolder(folder.id)}
-										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										className="shrink-0 p-0.5 hover:bg-accent hover:text-accent-foreground rounded transition-colors"
 										aria-label={`Remove ${folder.name}`}
 									>
 										<X className="size-3.5" />
@@ -209,7 +209,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 									<button
 										type="button"
 										onClick={() => handleRemoveFile(file.id)}
-										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										className="shrink-0 p-0.5 hover:bg-accent hover:text-accent-foreground rounded transition-colors"
 										aria-label={`Remove ${file.name}`}
 									>
 										<X className="size-3.5" />
@@ -225,7 +225,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 					variant="outline"
 					onClick={openPicker}
 					disabled={pickerLoading || isAuthExpired}
-					className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
+					className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-accent hover:text-accent-foreground text-xs sm:text-sm h-8 sm:h-9"
 				>
 					{pickerLoading && <Spinner size="xs" className="mr-1.5" />}
 					{totalSelected > 0 ? "Change Selection" : "Select from Google Drive"}

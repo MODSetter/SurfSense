@@ -9,7 +9,7 @@ const ChatScrollToBottom: FC = () => (
 	<ThreadPrimitive.ScrollToBottom asChild>
 		<TooltipIconButton
 			tooltip="Scroll to bottom"
-			className="aui-thread-scroll-to-bottom -top-12 absolute z-10 self-center rounded-full border-0 bg-muted p-4 text-foreground hover:bg-muted/80 disabled:invisible"
+			className="aui-thread-scroll-to-bottom -top-12 absolute z-10 self-center rounded-full border-0 bg-muted p-4 text-foreground hover:bg-accent hover:text-accent-foreground disabled:invisible"
 		>
 			<ArrowDownIcon />
 		</TooltipIconButton>

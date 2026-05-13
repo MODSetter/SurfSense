@@ -69,7 +69,7 @@ function CollapseButton({ onClick }: { onClick: () => void }) {
 						if (isKeyboardClick(event)) return;
 						onClick();
 					}}
-					className="h-8 w-8 shrink-0 text-muted-foreground hover:text-muted-foreground hover:bg-accent"
+					className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 				>
 					<PanelRight className="h-4 w-4" />
 					<span className="sr-only">Collapse panel</span>
@@ -114,7 +114,7 @@ export function RightPanelExpandButton() {
 							if (isKeyboardClick(event)) return;
 							startTransition(() => setCollapsed(false));
 						}}
-						className="h-8 w-8 shrink-0 -m-0.5 text-muted-foreground hover:text-muted-foreground hover:bg-accent"
+						className="h-8 w-8 shrink-0 -m-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 					>
 						<PanelRight className="h-4 w-4" />
 						<span className="sr-only">Expand panel</span>

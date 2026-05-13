@@ -79,7 +79,7 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfig
 						variant="ghost"
 						size="sm"
 						onClick={() => setShowApiKey((prev) => !prev)}
-						className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+						className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs text-muted-foreground hover:text-accent-foreground"
 					>
 						{showApiKey ? "Hide" : "Show"}
 					</Button>

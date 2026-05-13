@@ -180,7 +180,7 @@ export const DropboxConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCha
 									<button
 										type="button"
 										onClick={() => handleRemoveFolder(folder.id)}
-										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										className="shrink-0 p-0.5 hover:bg-accent hover:text-accent-foreground rounded transition-colors"
 										aria-label={`Remove ${folder.name}`}
 									>
 										<X className="size-3.5" />
@@ -198,7 +198,7 @@ export const DropboxConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCha
 									<button
 										type="button"
 										onClick={() => handleRemoveFile(file.id)}
-										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										className="shrink-0 p-0.5 hover:bg-accent hover:text-accent-foreground rounded transition-colors"
 										aria-label={`Remove ${file.name}`}
 									>
 										<X className="size-3.5" />
@@ -220,7 +220,7 @@ export const DropboxConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCha
 						<button
 							type="button"
 							onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
-							className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+							className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-accent-foreground transition-colors w-fit"
 						>
 							Change Selection
 							{isFolderTreeOpen ? (

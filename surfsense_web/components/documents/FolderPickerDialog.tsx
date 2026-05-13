@@ -92,7 +92,7 @@ export function FolderPickerDialog({
 					className={cn(
 						"flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors",
 						isSelected && "bg-accent text-accent-foreground",
-						!isSelected && !isDisabled && "hover:bg-accent/50",
+						!isSelected && !isDisabled && "hover:bg-accent hover:text-accent-foreground",
 						isDisabled && "cursor-not-allowed opacity-40"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 8}px` }}
@@ -148,7 +148,7 @@ export function FolderPickerDialog({
 						className={cn(
 							"flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors",
 							selectedId === null && "bg-accent text-accent-foreground",
-							selectedId !== null && "hover:bg-accent/50"
+							selectedId !== null && "hover:bg-accent hover:text-accent-foreground"
 						)}
 						onClick={() => setSelectedId(null)}
 					>

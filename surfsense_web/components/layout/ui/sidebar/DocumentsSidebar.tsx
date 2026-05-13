@@ -1043,7 +1043,7 @@ function AuthenticatedDocumentsSidebarBase({
 	const cloudContent = (
 		<>
 			{/* Connected tools strip */}
-			<div className="shrink-0 mx-4 mt-6 mb-2.5 flex select-none items-center gap-2 rounded-lg border-0 bg-muted transition-colors hover:bg-muted/80">
+			<div className="shrink-0 mx-4 mt-6 mb-2.5 flex select-none items-center gap-2 rounded-lg border-0 bg-muted transition-colors hover:bg-accent hover:text-accent-foreground">
 				<button
 					type="button"
 					onClick={() => setConnectorDialogOpen(true)}
@@ -1114,7 +1114,7 @@ function AuthenticatedDocumentsSidebarBase({
 				<button
 					type="button"
 					onClick={handleWatchLocalFolder}
-					className="shrink-0 mx-4 mb-2.5 flex select-none items-center gap-2 rounded-lg border-0 bg-muted px-3 py-1.5 transition-colors hover:bg-muted/80"
+					className="shrink-0 mx-4 mb-2.5 flex select-none items-center gap-2 rounded-lg border-0 bg-muted px-3 py-1.5 transition-colors hover:bg-accent hover:text-accent-foreground"
 				>
 					<FolderClock className="size-4 shrink-0 text-muted-foreground" />
 					<span className="truncate text-xs text-muted-foreground">Watch local folder</span>
@@ -1229,10 +1229,10 @@ function AuthenticatedDocumentsSidebarBase({
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-8 w-8 rounded-full"
+								className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
 								onClick={() => onOpenChange(false)}
 							>
-								<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+								<ChevronLeft className="h-4 w-4" />
 								<span className="sr-only">{tSidebar("close") || "Close"}</span>
 							</Button>
 						)}
@@ -1272,7 +1272,7 @@ function AuthenticatedDocumentsSidebarBase({
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-8 w-8 rounded-full"
+										className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
 										onClick={() => {
 											if (isDocked) {
 												onDockedChange(false);
@@ -1283,9 +1283,9 @@ function AuthenticatedDocumentsSidebarBase({
 										}}
 									>
 										{isDocked ? (
-											<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+											<ChevronLeft className="h-4 w-4" />
 										) : (
-											<ChevronRight className="h-4 w-4 text-muted-foreground" />
+											<ChevronRight className="h-4 w-4" />
 										)}
 										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
 									</Button>
@@ -1720,10 +1720,10 @@ function AnonymousDocumentsSidebar({
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-8 w-8 rounded-full"
+								className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
 								onClick={() => onOpenChange(false)}
 							>
-								<X className="h-4 w-4 text-muted-foreground" />
+								<X className="h-4 w-4" />
 								<span className="sr-only">{tSidebar("close") || "Close"}</span>
 							</Button>
 						)}
@@ -1733,7 +1733,7 @@ function AnonymousDocumentsSidebar({
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-8 w-8 rounded-full"
+										className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
 										onClick={() => {
 											if (isDocked) {
 												onDockedChange(false);
@@ -1744,9 +1744,9 @@ function AnonymousDocumentsSidebar({
 										}}
 									>
 										{isDocked ? (
-											<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+											<ChevronLeft className="h-4 w-4" />
 										) : (
-											<ChevronRight className="h-4 w-4 text-muted-foreground" />
+											<ChevronRight className="h-4 w-4" />
 										)}
 										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
 									</Button>
@@ -1762,7 +1762,7 @@ function AnonymousDocumentsSidebar({
 			</div>
 
 			{/* Connectors strip (gated) */}
-			<div className="shrink-0 mx-4 mt-6 mb-2.5 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
+			<div className="shrink-0 mx-4 mt-6 mb-2.5 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-accent hover:text-accent-foreground">
 				<button
 					type="button"
 					onClick={() => gate("connect your data sources")}

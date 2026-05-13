@@ -183,7 +183,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 						type="submit"
 						variant="outline"
 						disabled={!hasChanges || saving}
-						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+						className="gap-2 bg-white text-black hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-black"
 					>
 						{saving ? <Spinner size="sm" /> : null}
 						{saving ? "Saving" : "Save Instructions"}

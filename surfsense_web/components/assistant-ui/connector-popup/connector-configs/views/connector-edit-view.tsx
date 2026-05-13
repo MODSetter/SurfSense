@@ -209,7 +209,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 				<button
 					type="button"
 					onClick={onBack}
-					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-accent-foreground mb-6 w-fit"
 				>
 					<ArrowLeft className="size-4" />
 					Back to connectors
@@ -239,7 +239,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							size="sm"
 							onClick={handleQuickIndex}
 							disabled={isQuickIndexing || isIndexing || isSaving || isDisconnecting}
-							className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
+							className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-accent hover:text-accent-foreground border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
 						>
 							{isQuickIndexing || isIndexing ? (
 								<>

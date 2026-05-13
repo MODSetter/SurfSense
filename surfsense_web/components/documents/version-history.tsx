@@ -185,7 +185,7 @@ function VersionHistoryPanel({ documentId }: { documentId: number }) {
 									"flex items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:outline-none w-full",
 									selectedVersion === v.version_number
 										? "bg-accent text-accent-foreground"
-										: "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+										: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 								)}
 							>
 								<div className="flex-1 min-w-0 space-y-0.5">

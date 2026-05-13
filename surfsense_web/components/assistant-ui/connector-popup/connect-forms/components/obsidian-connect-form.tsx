@@ -123,7 +123,7 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 									variant="ghost"
 									size="icon"
 									onClick={copyToClipboard}
-									className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+									className="size-7 shrink-0 text-muted-foreground hover:text-accent-foreground"
 									aria-label={copied ? "Copied" : "Copy API key"}
 								>
 									{copied ? (

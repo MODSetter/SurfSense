@@ -257,10 +257,10 @@ export function AllSharedChatsSidebarContent({
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-8 w-8 rounded-full"
+							className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
 							onClick={() => onOpenChange(false)}
 						>
-							<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+							<ChevronLeft className="h-4 w-4" />
 							<span className="sr-only">{t("close") || "Close"}</span>
 						</Button>
 					)}

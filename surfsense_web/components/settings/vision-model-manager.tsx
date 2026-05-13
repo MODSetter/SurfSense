@@ -137,7 +137,7 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 					<Button
 						variant="outline"
 						onClick={openNewDialog}
-						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+						className="gap-2 bg-white text-black hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-black"
 					>
 						Add Vision Model
 					</Button>
@@ -367,7 +367,7 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 																				variant="ghost"
 																				size="icon"
 																				onClick={() => openEditDialog(config)}
-																				className="h-6 w-6 text-muted-foreground hover:text-foreground"
+																				className="h-6 w-6 text-muted-foreground hover:text-accent-foreground"
 																			>
 																				<Pencil className="h-3 w-3" />
 																			</Button>

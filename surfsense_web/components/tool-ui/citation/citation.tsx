@@ -138,7 +138,7 @@ export function Citation(props: CitationProps) {
 							"inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1",
 							"bg-muted/60 text-sm outline-none",
 							"transition-colors duration-150",
-							"hover:bg-muted",
+							"hover:bg-accent hover:text-accent-foreground",
 							"focus-visible:ring-ring focus-visible:ring-2",
 							className
 						)}
@@ -157,7 +157,7 @@ export function Citation(props: CitationProps) {
 					onCloseAutoFocus={(e) => e.preventDefault()}
 					onClick={handleClick}
 				>
-					<div className="hover:bg-muted/50 flex flex-col gap-2 p-3 transition-colors">
+					<div className="hover:bg-accent hover:text-accent-foreground flex flex-col gap-2 p-3 transition-colors">
 						<div className="flex items-start gap-2">
 							{iconElement}
 							<span className="text-muted-foreground text-xs">{domain}</span>

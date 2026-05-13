@@ -150,7 +150,7 @@ export function ThreadList({ searchSpaceId, currentThreadId, className }: Thread
 						"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
 						!showArchived
 							? "border-b-2 border-primary text-primary"
-							: "text-muted-foreground hover:text-foreground"
+							: "text-muted-foreground hover:text-accent-foreground"
 					)}
 				>
 					Active ({state.threads.length})
@@ -162,7 +162,7 @@ export function ThreadList({ searchSpaceId, currentThreadId, className }: Thread
 						"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
 						showArchived
 							? "border-b-2 border-primary text-primary"
-							: "text-muted-foreground hover:text-foreground"
+							: "text-muted-foreground hover:text-accent-foreground"
 					)}
 				>
 					Archived ({state.archivedThreads.length})
@@ -234,7 +234,7 @@ const ThreadListItemComponent = memo(function ThreadListItemComponent({
 			type="button"
 			className={cn(
 				"group flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors cursor-pointer text-left",
-				isActive ? "bg-accent text-accent-foreground" : "hover:bg-muted/50"
+				isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
 			)}
 			onClick={onClick}
 		>

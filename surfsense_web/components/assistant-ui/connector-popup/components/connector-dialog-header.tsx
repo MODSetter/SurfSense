@@ -69,7 +69,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 							autoComplete="off"
 							placeholder="Search"
 							className={cn(
-								"w-full bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 focus:bg-slate-400/10 dark:focus:bg-white/10 border border-border rounded-xl pl-9 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50",
+								"w-full bg-slate-400/5 dark:bg-white/5 hover:bg-accent hover:text-accent-foreground focus:bg-slate-400/10 dark:focus:bg-white/10 border border-border rounded-xl pl-9 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50",
 								searchQuery ? "pr-9" : "pr-4"
 							)}
 							value={searchQuery}

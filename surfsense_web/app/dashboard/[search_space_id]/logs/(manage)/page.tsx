@@ -739,7 +739,7 @@ function LogsFilters({
 					</div>
 					{Boolean(filterInput) && (
 						<Button
-							className="absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 hover:text-foreground"
+							className="absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 hover:text-accent-foreground"
 							variant="ghost"
 							size="icon"
 							onClick={() => {
@@ -1045,7 +1045,7 @@ function LogsTable({
 										}}
 										exit={{ opacity: 0, y: -10 }}
 										className={cn(
-											"border-b transition-colors hover:bg-muted/50",
+											"border-b transition-colors hover:bg-accent hover:text-accent-foreground",
 											row.getIsSelected() ? "bg-muted/50" : ""
 										)}
 									>

@@ -26,7 +26,7 @@ export function SidebarCollapseButton({
 			variant="ghost"
 			size="icon"
 			onClick={onToggle}
-			className="h-8 w-8 shrink-0 text-muted-foreground hover:text-muted-foreground hover:bg-accent"
+			className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 		>
 			<PanelLeft className="h-4 w-4" />
 			<span className="sr-only">{isCollapsed ? t("expand_sidebar") : t("collapse_sidebar")}</span>

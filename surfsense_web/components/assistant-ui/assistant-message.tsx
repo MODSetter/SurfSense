@@ -151,7 +151,7 @@ const MobileCitationDrawer: FC = () => {
 					"isolate inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2",
 					"bg-muted/40 outline-none",
 					"transition-colors duration-150",
-					"hover:bg-muted/70",
+					"hover:bg-accent hover:text-accent-foreground",
 					"focus-visible:ring-ring focus-visible:ring-2"
 				)}
 			>
@@ -208,7 +208,7 @@ const MobileCitationDrawer: FC = () => {
 								key={citation.id}
 								type="button"
 								onClick={() => handleNavigate(citation)}
-								className="group flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+								className="group flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-muted focus-visible:outline-none"
 							>
 								{citation.favicon ? (
 									// biome-ignore lint/performance/noImgElement: external favicon from arbitrary domain
@@ -526,7 +526,7 @@ export const AssistantMessage: FC = () => {
 							? "bg-primary/10 text-primary"
 							: hasComments
 								? "text-primary hover:bg-primary/10"
-								: "text-muted-foreground hover:text-foreground hover:bg-muted"
+								: "text-muted-foreground hover:text-accent-foreground hover:bg-accent hover:text-accent-foreground"
 					)}
 				>
 					<MessageCircleReply className={cn("size-3.5", hasComments && "fill-current")} />

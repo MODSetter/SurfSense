@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils";
  * (typed reasoning deltas from the chat model).
  *
  * Behaviour mirrors the existing `ThinkingStepsDisplay`:
- *   - collapsed by default;
- *   - auto-expanded while the part is still `running`;
- *   - auto-collapsed once status flips to `complete`.
+ *  - collapsed by default;
+ *  - auto-expanded while the part is still `running`;
+ *  - auto-collapsed once status flips to `complete`.
  *
  * The component is registered via the `Reasoning` slot on
  * `MessagePrimitive.Parts` in `assistant-message.tsx` so it lives at the
@@ -50,7 +50,7 @@ export const ReasoningMessagePart: ReasoningMessagePartComponent = ({ text, stat
 					onClick={() => setIsOpen((prev) => !prev)}
 					className={cn(
 						"flex w-full items-center gap-1.5 text-left text-sm transition-colors",
-						"text-muted-foreground hover:text-foreground"
+						"text-muted-foreground hover:text-accent-foreground"
 					)}
 				>
 					{isRunning ? (

@@ -52,7 +52,7 @@ export function ApiKeyContent() {
 										variant="ghost"
 										size="icon"
 										onClick={copyToClipboard}
-										className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+										className="h-6 w-6 shrink-0 text-muted-foreground hover:text-accent-foreground"
 									>
 										{copied ? (
 											<Check className="h-3 w-3 text-green-500" />
@@ -86,7 +86,7 @@ export function ApiKeyContent() {
 									variant="ghost"
 									size="icon"
 									onClick={copyUsageToClipboard}
-									className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+									className="h-6 w-6 shrink-0 text-muted-foreground hover:text-accent-foreground"
 								>
 									{copiedUsage ? (
 										<Check className="h-3 w-3 text-green-500" />

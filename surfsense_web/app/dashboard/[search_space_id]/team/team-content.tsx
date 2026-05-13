@@ -454,7 +454,7 @@ function MemberRow({
 	const showActions = !member.is_owner && (canManageRoles || canRemove);
 
 	return (
-		<TableRow className="border-b border-border/40 transition-colors hover:bg-muted/30">
+		<TableRow className="border-b border-border/40 transition-colors hover:bg-accent hover:text-accent-foreground">
 			<TableCell className="w-[45%] py-2.5 px-4 md:px-6 max-w-0 border-r border-border/40">
 				<div className="flex items-center gap-3">
 					<Avatar className="size-10 shrink-0">
@@ -484,7 +484,7 @@ function MemberRow({
 						<DropdownMenuTrigger asChild>
 							<button
 								type="button"
-								className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+								className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-foreground transition-colors"
 							>
 								{roleName}
 								<ChevronDown className="h-4 w-4" />

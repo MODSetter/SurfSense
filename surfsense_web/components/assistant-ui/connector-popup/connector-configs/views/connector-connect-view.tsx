@@ -93,7 +93,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 				<button
 					type="button"
 					onClick={onBack}
-					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-accent-foreground mb-6 w-fit"
 				>
 					<ArrowLeft className="size-4" />
 					Back to connectors

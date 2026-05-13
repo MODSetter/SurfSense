@@ -412,7 +412,7 @@ export function LocalFilesystemBrowser({
 					<button
 						type="button"
 						onClick={() => toggleFolder(folder.key)}
-						className="flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm transition-colors hover:bg-muted/60"
+						className="flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
 						style={{ paddingInlineStart: `${depth * 12 + 8}px` }}
 						draggable={false}
 					>
@@ -440,7 +440,7 @@ export function LocalFilesystemBrowser({
 												: undefined
 										}
 										className={`flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm transition-colors ${
-											isOpenable ? "hover:bg-muted/60" : "cursor-not-allowed opacity-60"
+											isOpenable ? "hover:bg-accent hover:text-accent-foreground" : "cursor-not-allowed opacity-60"
 										}`}
 										style={{ paddingInlineStart: `${(depth + 1) * 12 + 22}px` }}
 										title={

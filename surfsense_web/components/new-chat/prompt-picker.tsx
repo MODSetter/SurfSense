@@ -184,7 +184,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 								"w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors rounded-md cursor-pointer text-muted-foreground",
 								highlightedIndex === createPromptIndex
 									? "bg-accent text-foreground"
-									: "hover:text-foreground hover:bg-accent/50"
+									: "hover:text-accent-foreground hover:bg-accent"
 							)}
 						>
 							<span className="shrink-0">

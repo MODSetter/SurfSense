@@ -29,7 +29,7 @@ export function MemberMentionItem({
 			type="button"
 			className={cn(
 				"flex w-full items-center gap-3 px-3 py-2 text-left transition-colors",
-				isHighlighted ? "bg-primary/15 text-accent-foreground" : "hover:bg-accent/50"
+				isHighlighted ? "bg-primary/15 text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
 			)}
 			onClick={() => onSelect(member)}
 			onMouseEnter={onMouseEnter}

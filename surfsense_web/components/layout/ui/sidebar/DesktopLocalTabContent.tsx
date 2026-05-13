@@ -65,13 +65,13 @@ export function DesktopLocalTabContent({
 	return (
 		<div className="flex min-h-0 flex-1 flex-col select-none">
 			<div className="mx-4 mt-4 mb-3">
-				<div className="flex h-7 w-full items-stretch rounded-lg border-0 bg-muted text-[11px] text-muted-foreground hover:bg-muted/80">
+				<div className="flex h-7 w-full items-stretch rounded-lg border-0 bg-muted text-[11px] text-muted-foreground hover:bg-accent hover:text-accent-foreground">
 					{localRootPaths.length > 0 ? (
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<button
 									type="button"
-									className="min-w-0 flex-1 flex items-center gap-1 rounded-l-lg px-2 text-left transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+									className="min-w-0 flex-1 flex items-center gap-1 rounded-l-lg px-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
 									title={localRootPaths.join("\n")}
 									aria-label="Manage selected folders"
 								>
@@ -100,7 +100,7 @@ export function DesktopLocalTabContent({
 										</span>
 										<button
 											type="button"
-											className="inline-flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+											className="inline-flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:text-accent-foreground"
 											onClick={(event) => {
 												event.stopPropagation();
 												void onRemoveFilesystemRoot(rootPath);
@@ -142,7 +142,7 @@ export function DesktopLocalTabContent({
 								<span className="inline-flex">
 									<button
 										type="button"
-										className="flex w-8 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
+										className="flex w-8 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
 										onClick={() => {
 											void onPickFilesystemRoot();
 										}}
@@ -169,7 +169,7 @@ export function DesktopLocalTabContent({
 					</div>
 					<Input
 						ref={localSearchInputRef}
-						className="peer h-8 w-full pl-8 pr-8 text-sm bg-sidebar border-border/60 select-none focus:select-text"
+						className="peer h-8 w-full border-0 bg-muted pl-8 pr-8 text-sm shadow-none select-none focus:select-text"
 						value={localSearch}
 						onChange={(e) => setLocalSearch(e.target.value)}
 						placeholder="Search local files"
@@ -179,7 +179,7 @@ export function DesktopLocalTabContent({
 					{Boolean(localSearch) && (
 						<button
 							type="button"
-							className="absolute inset-y-0 right-0 flex h-full w-8 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors"
+							className="absolute inset-y-0 right-0 flex h-full w-8 items-center justify-center rounded-r-md text-muted-foreground hover:text-accent-foreground transition-colors"
 							aria-label="Clear local search"
 							onClick={() => {
 								setLocalSearch("");

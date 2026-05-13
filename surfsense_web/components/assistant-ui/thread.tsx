@@ -163,7 +163,7 @@ const PremiumQuotaPinnedAlert: FC = () => {
 				</div>
 				<button
 					type="button"
-					className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+					className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-accent-foreground"
 					aria-label="Dismiss premium quota alert"
 					onClick={() => clearPremiumAlertForThread(currentThreadId)}
 				>
@@ -304,10 +304,10 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 				<button
 					type="button"
 					onClick={handleDismiss}
-					className="shrink-0 ml-0.5 p-1.5 -mr-1 text-muted-foreground/40 hover:text-foreground transition-colors cursor-pointer"
+					className="shrink-0 ml-0.5 p-1.5 -mr-1 text-muted-foreground/40 hover:text-accent-foreground transition-colors cursor-pointer"
 					aria-label="Dismiss"
 				>
-					<X className="size-3.5 text-muted-foreground" />
+					<X className="size-3.5" />
 				</button>
 			</div>
 		</div>
@@ -329,7 +329,7 @@ const PendingScreenImageStrip: FC = () => {
 					<button
 						type="button"
 						onClick={() => setUrls((prev) => prev.filter((_, i) => i !== index))}
-						className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition-opacity hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
+						className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition-opacity hover:text-accent-foreground sm:opacity-0 sm:group-hover:opacity-100"
 						aria-label="Remove screenshot"
 					>
 						<X className="size-3" />
@@ -355,7 +355,7 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 					<button
 						type="button"
 						onClick={() => setExpanded((v) => !v)}
-						className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+						className="flex items-center text-muted-foreground hover:text-accent-foreground transition-colors"
 					>
 						{expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
 					</button>
@@ -363,7 +363,7 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 				<button
 					type="button"
 					onClick={onDismiss}
-					className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+					className="flex items-center text-muted-foreground hover:text-accent-foreground transition-colors"
 				>
 					<X className="size-3.5" />
 				</button>
@@ -890,7 +890,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								<Button
 									variant="ghost"
 									size="icon"
-									className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
+									className="size-[34px] rounded-full p-1 font-semibold text-xs dark:border-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
 									aria-label="More actions"
 									data-joyride="connector-icon"
 								>
@@ -941,7 +941,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 													return (
 														<div
 															key={tool.name}
-															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
+															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
 														>
 															<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
 															<span className="flex-1 min-w-0 text-sm font-medium truncate">
@@ -972,7 +972,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 													return (
 														<div
 															key={group.label}
-															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
+															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
 														>
 															{iconInfo ? (
 																<Image
@@ -1032,7 +1032,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								disableTooltip={toolsPopoverOpen}
 								variant="ghost"
 								size="icon"
-								className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
+								className="size-[34px] rounded-full p-1 font-semibold text-xs dark:border-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
 								aria-label="Manage tools"
 								data-joyride="connector-icon"
 							>
@@ -1066,7 +1066,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 												const isDisabled = disabledToolsSet.has(tool.name);
 												const ToolIcon = getToolIcon(tool.name);
 												const row = (
-													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-muted-foreground/10 transition-colors">
+													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-accent hover:text-accent-foreground transition-colors">
 														<ToolIcon className="size-3 sm:size-3.5 shrink-0 text-muted-foreground" />
 														<span className="flex-1 min-w-0 text-[11px] sm:text-xs font-medium truncate">
 															{formatToolName(tool.name)}
@@ -1103,7 +1103,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 												const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
 												const groupDef = TOOL_GROUPS.find((g) => g.label === group.label);
 												const row = (
-													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-muted-foreground/10 transition-colors">
+													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-accent hover:text-accent-foreground transition-colors">
 														{iconInfo ? (
 															<Image
 																src={iconInfo.src}
@@ -1182,7 +1182,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							"rounded-full transition-[background-color,border-color,color] flex items-center gap-1 px-2 py-1 border h-8 select-none",
 							isWebSearchEnabled
 								? "bg-sky-500/15 border-sky-500/60 text-sky-500"
-								: "bg-transparent border-transparent text-muted-foreground hover:text-foreground"
+								: "bg-transparent border-transparent text-muted-foreground hover:text-accent-foreground"
 						)}
 					>
 						<motion.div

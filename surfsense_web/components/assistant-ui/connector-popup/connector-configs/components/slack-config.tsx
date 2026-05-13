@@ -104,7 +104,7 @@ export const SlackConfig: FC<SlackConfigProps> = ({ connector }) => {
 							size="sm"
 							onClick={fetchChannels}
 							disabled={isLoading}
-							className="h-7 px-2.5 text-[11px] bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20"
+							className="h-7 px-2.5 text-[11px] bg-slate-400/10 dark:bg-white/10 hover:bg-accent hover:text-accent-foreground border-slate-400/20 dark:border-white/20"
 						>
 							<RefreshCw className={cn("mr-1.5 size-3", isLoading && "animate-spin")} />
 							Refresh
@@ -178,7 +178,7 @@ interface ChannelPillProps {
 
 const ChannelPill: FC<ChannelPillProps> = ({ channel }) => {
 	return (
-		<div className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 transition-colors">
+		<div className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-slate-400/10 dark:bg-white/10 hover:bg-accent hover:text-accent-foreground transition-colors">
 			{channel.is_private ? (
 				<Lock className="size-2.5 text-muted-foreground" />
 			) : (

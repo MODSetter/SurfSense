@@ -128,7 +128,7 @@ export default function InferenceParamsEditor({ params, setParams }: InferencePa
 						</thead>
 						<tbody className="divide-y divide-gray-200 bg-black dark:bg-black">
 							{Object.entries(params).map(([key, val]) => (
-								<tr key={key} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+								<tr key={key} className="hover:bg-accent hover:text-accent-foreground transition-colors">
 									<td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{key}</td>
 									<td className="px-4 py-3 text-gray-700 dark:text-gray-300">{val.toString()}</td>
 									<td className="px-4 py-3">

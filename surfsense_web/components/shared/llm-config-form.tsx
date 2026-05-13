@@ -409,7 +409,7 @@ export function LLMConfigForm({
 							<CollapsibleTrigger asChild>
 								<button
 									type="button"
-									className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+									className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-accent-foreground transition-colors"
 								>
 									<span>Advanced Parameters</span>
 									<ChevronDown
@@ -447,7 +447,7 @@ export function LLMConfigForm({
 					<CollapsibleTrigger asChild>
 						<button
 							type="button"
-							className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+							className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-accent-foreground transition-colors"
 						>
 							<span>System Instructions</span>
 							<ChevronDown
@@ -475,7 +475,7 @@ export function LLMConfigForm({
 												onClick={() =>
 													field.onChange(defaultInstructions.default_system_instructions)
 												}
-												className="h-7 text-[10px] sm:text-xs text-muted-foreground hover:text-foreground"
+												className="h-7 text-[10px] sm:text-xs text-muted-foreground hover:text-accent-foreground"
 											>
 												Reset to Default
 											</Button>

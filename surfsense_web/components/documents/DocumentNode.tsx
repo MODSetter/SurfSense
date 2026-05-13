@@ -144,7 +144,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 					tabIndex={0}
 					ref={attachRef}
 					className={cn(
-						"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none text-left",
+						"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer select-none text-left",
 						isMentioned && "bg-accent/30",
 						isDragging && "opacity-40"
 					)}

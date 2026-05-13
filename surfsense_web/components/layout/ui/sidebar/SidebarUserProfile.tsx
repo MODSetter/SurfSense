@@ -270,7 +270,7 @@ export function SidebarUserProfile({
 													onClick={() => handleThemeChange(themeOption.value)}
 													className={cn(
 														"mb-1 last:mb-0 transition-all",
-														"hover:bg-accent/50",
+														"hover:bg-accent hover:text-accent-foreground",
 														isSelected && "text-primary"
 													)}
 												>
@@ -300,7 +300,7 @@ export function SidebarUserProfile({
 												onClick={() => handleLanguageChange(language.code)}
 												className={cn(
 													"mb-1 last:mb-0 transition-all",
-													"hover:bg-accent/50",
+													"hover:bg-accent hover:text-accent-foreground",
 													isSelected && "text-primary"
 												)}
 											>
@@ -436,7 +436,7 @@ export function SidebarUserProfile({
 												onClick={() => handleThemeChange(themeOption.value)}
 												className={cn(
 													"mb-1 last:mb-0 transition-all",
-													"hover:bg-accent/50",
+													"hover:bg-accent hover:text-accent-foreground",
 													isSelected && "text-primary"
 												)}
 											>
@@ -466,7 +466,7 @@ export function SidebarUserProfile({
 											onClick={() => handleLanguageChange(language.code)}
 											className={cn(
 												"mb-1 last:mb-0 transition-all",
-												"hover:bg-accent/50",
+												"hover:bg-accent hover:text-accent-foreground",
 												isSelected && "text-primary"
 											)}
 										>

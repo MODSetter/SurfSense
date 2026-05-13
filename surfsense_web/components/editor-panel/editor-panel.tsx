@@ -456,9 +456,9 @@ export function EditorPanelContent({
 								variant="ghost"
 								size="icon"
 								onClick={onClose}
-								className="h-8 w-8 rounded-full shrink-0"
+								className="h-8 w-8 rounded-full shrink-0 text-muted-foreground hover:text-accent-foreground"
 							>
-								<XIcon className="h-4 w-4 text-muted-foreground" />
+								<XIcon className="h-4 w-4" />
 								<span className="sr-only">Close editor panel</span>
 							</Button>
 						</div>

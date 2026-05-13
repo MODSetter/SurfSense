@@ -260,7 +260,7 @@ export const FolderNode = React.memo(function FolderNode({
 					role="button"
 					tabIndex={0}
 					className={cn(
-						"group relative flex h-8 items-center gap-1 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none",
+						"group relative flex h-8 items-center gap-1 rounded-md px-1 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer select-none",
 						isExpanded && "font-medium",
 						isDragging && "opacity-40",
 						isOver && canDrop && dropZone === "middle" && "bg-accent ring-1 ring-primary/40",

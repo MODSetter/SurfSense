@@ -415,7 +415,7 @@ function RolesContent({
 					<Button
 						variant="outline"
 						onClick={() => setShowCreateRole(true)}
-						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+						className="gap-2 bg-white text-black hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-black"
 					>
 						Create Custom Role
 					</Button>
@@ -467,7 +467,7 @@ function RolesContent({
 								role="button"
 								tabIndex={0}
 								aria-expanded={isExpanded}
-								className="flex items-center gap-4 p-4 transition-colors hover:bg-muted/30 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								className="flex items-center gap-4 p-4 transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 								onClick={() => setExpandedRoleId(isExpanded ? null : role.id)}
 								onKeyDown={(e) => {
 									if (e.key === "Enter" || e.key === " ") {
@@ -697,7 +697,7 @@ function PermissionsEditor({
 								role="button"
 								tabIndex={0}
 								aria-expanded={isExpanded}
-								className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/40 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								className="flex items-center justify-between px-3 py-2.5 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 								onClick={() => toggleCategoryExpanded(category)}
 								onKeyDown={(e) => {
 									if (e.key === "Enter" || e.key === " ") {
@@ -742,7 +742,7 @@ function PermissionsEditor({
 													key={perm.value}
 													className={cn(
 														"flex items-center justify-between gap-3 px-2.5 py-2 rounded-md transition-colors",
-														isSelected ? "bg-muted/60 hover:bg-muted/80" : "hover:bg-muted/40"
+														isSelected ? "bg-muted/60 hover:bg-accent hover:text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
 													)}
 												>
 													<button
@@ -876,7 +876,7 @@ function CreateRoleDialog({
 										type="button"
 										onClick={() => applyPreset(key as keyof typeof ROLE_PRESETS)}
 										className={cn(
-											"p-3 rounded-lg border transition-colors hover:bg-muted/40",
+											"p-3 rounded-lg border transition-colors hover:bg-accent hover:text-accent-foreground",
 											"flex items-center justify-center text-center sm:block sm:text-left",
 											selectedPermissions.length > 0 &&
 												preset.permissions.every((p) => selectedPermissions.includes(p))

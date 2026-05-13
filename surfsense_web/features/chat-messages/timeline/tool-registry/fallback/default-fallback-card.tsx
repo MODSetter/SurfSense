@@ -95,7 +95,7 @@ export const DefaultFallbackCard: TimelineToolComponent = ({
 					setIsExpanded(next);
 				}}
 			>
-				<div className="flex items-stretch transition-colors hover:bg-muted/50">
+				<div className="flex items-stretch transition-colors hover:bg-accent hover:text-accent-foreground">
 					<CollapsibleTrigger asChild>
 						<button
 							type="button"

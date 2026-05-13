@@ -53,7 +53,7 @@ export default function Loading() {
 
 				{/* Table Rows */}
 				{[...Array(6)].map((_, i) => (
-					<div key={i} className="border-b px-4 py-3 flex items-center gap-4 hover:bg-muted/50">
+					<div key={i} className="border-b px-4 py-3 flex items-center gap-4 hover:bg-accent hover:text-accent-foreground">
 						<Skeleton className="h-4 w-4" />
 						<Skeleton className="h-6 w-12 rounded-full" />
 						<Skeleton className="h-6 w-16 rounded-full" />

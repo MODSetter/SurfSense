@@ -119,7 +119,7 @@ export function MorePagesContent() {
 										disabled={task.completed || completeMutation.isPending}
 										onClick={() => handleTaskClick(task)}
 										asChild={!task.completed}
-										className="text-muted-foreground hover:text-foreground"
+										className="text-muted-foreground hover:text-accent-foreground"
 									>
 										{task.completed ? (
 											<span>Done</span>

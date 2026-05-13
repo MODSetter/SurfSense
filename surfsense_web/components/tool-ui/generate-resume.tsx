@@ -284,7 +284,7 @@ function ResumeCard({
 			<button
 				type="button"
 				onClick={handleOpen}
-				className="w-full text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none cursor-pointer select-none"
+				className="w-full text-left transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:outline-none cursor-pointer select-none"
 			>
 				<div className="px-5 pt-5 pb-4">
 					<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>

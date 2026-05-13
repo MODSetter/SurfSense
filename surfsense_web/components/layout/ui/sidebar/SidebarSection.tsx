@@ -40,7 +40,7 @@ export function SidebarSection({
 			)}
 		>
 			<div className="flex items-center group/section shrink-0 px-2 py-1">
-				<CollapsibleTrigger className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors min-w-0">
+				<CollapsibleTrigger className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-accent-foreground transition-colors min-w-0">
 					<span className="truncate">{title}</span>
 					<ChevronRight
 						className={cn(

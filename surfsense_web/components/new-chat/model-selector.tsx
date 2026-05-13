@@ -857,7 +857,7 @@ export function ModelSelector({
 							type="button"
 							aria-label="Scroll providers up"
 							onClick={() => scrollProviderSidebar("backward")}
-							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-foreground hover:bg-accent/60 transition-colors"
+							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-accent-foreground hover:bg-accent transition-colors"
 						>
 							<ChevronUp className="size-3" />
 						</button>
@@ -923,7 +923,7 @@ export function ModelSelector({
 												isActive
 													? "bg-primary/10 text-primary"
 													: isConfigured
-														? "hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+														? "hover:bg-accent text-muted-foreground hover:text-accent-foreground"
 														: "opacity-50 hover:opacity-80 hover:bg-accent/40 text-muted-foreground"
 											)}
 										>
@@ -958,7 +958,7 @@ export function ModelSelector({
 							type="button"
 							aria-label="Scroll providers down"
 							onClick={() => scrollProviderSidebar("forward")}
-							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-foreground hover:bg-accent/60 transition-colors"
+							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-accent-foreground hover:bg-accent transition-colors"
 						>
 							<ChevronDown className="size-3" />
 						</button>
@@ -1118,7 +1118,7 @@ export function ModelSelector({
 						<Button
 							variant="ghost"
 							size="icon"
-							className="size-7 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+							className="size-7 rounded-md hover:bg-accent hover:text-accent-foreground opacity-0 group-hover:opacity-100 transition-opacity"
 							onClick={(e) => handleEditItem(e, item)}
 						>
 							<Pencil className="size-3.5 text-muted-foreground" />
@@ -1179,7 +1179,7 @@ export function ModelSelector({
 									"flex items-center justify-center gap-1.5 text-sm font-medium transition-all duration-200 border-b-[1.5px]",
 									activeTab === value
 										? "border-foreground dark:border-white text-foreground"
-										: "border-transparent text-muted-foreground hover:text-foreground/70"
+										: "border-transparent text-muted-foreground hover:text-accent-foreground"
 								)}
 							>
 								<Icon className="size-3.5" />
@@ -1322,7 +1322,7 @@ export function ModelSelector({
 								<Button
 									variant="ghost"
 									size="sm"
-									className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/[0.06]"
+									className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent hover:text-accent-foreground "
 									onClick={() => {
 										setOpen(false);
 										addHandler(selectedProvider !== "all" ? selectedProvider : undefined);
@@ -1347,7 +1347,7 @@ export function ModelSelector({
 			role="combobox"
 			aria-expanded={open}
 			className={cn(
-				"h-8 gap-2 px-3 text-sm bg-muted hover:bg-muted/80 border-0 select-none",
+				"h-8 gap-2 px-3 text-sm bg-muted hover:bg-accent hover:text-accent-foreground border-0 select-none",
 				className
 			)}
 		>

@@ -92,7 +92,7 @@ export function CommentThread({
 							<Button
 								variant="ghost"
 								size="sm"
-								className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+								className="h-6 px-2 text-xs text-muted-foreground hover:text-accent-foreground"
 								onClick={() => setIsRepliesExpanded((prev) => !prev)}
 							>
 								{isRepliesExpanded ? (

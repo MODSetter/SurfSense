@@ -176,7 +176,7 @@ function OverflowIndicator({ citations, count, variant, onNavigate }: OverflowIn
 							"inline-flex items-center gap-1 rounded-md px-2 py-1",
 							"bg-muted/60 text-sm tabular-nums",
 							"transition-colors duration-150",
-							"hover:bg-muted",
+							"hover:bg-accent hover:text-accent-foreground",
 							"focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
 						)}
 					>
@@ -209,7 +209,7 @@ function OverflowIndicator({ citations, count, variant, onNavigate }: OverflowIn
 						"flex items-center justify-center rounded-xl px-4 py-3",
 						"border-border bg-card border border-dashed",
 						"transition-colors duration-150",
-						"hover:border-foreground/25 hover:bg-muted/50",
+						"hover:border-foreground/25 hover:bg-accent hover:text-accent-foreground",
 						"focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 					)}
 				>
@@ -242,7 +242,7 @@ function OverflowItem({ citation, onClick }: OverflowItemProps) {
 		<button
 			type="button"
 			onClick={onClick}
-			className="group hover:bg-muted focus-visible:bg-muted flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors focus-visible:outline-none"
+			className="group hover:bg-accent hover:text-accent-foreground focus-visible:bg-muted flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors focus-visible:outline-none"
 		>
 			{citation.favicon ? (
 				<NextImage
@@ -313,7 +313,7 @@ function StackedCitations({ id, citations, className, onNavigate }: StackedCitat
 							"isolate inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2",
 							"bg-muted/40 outline-none",
 							"transition-colors duration-150",
-							"hover:bg-muted/70",
+							"hover:bg-accent hover:text-accent-foreground",
 							"focus-visible:ring-ring focus-visible:ring-2",
 							className
 						)}

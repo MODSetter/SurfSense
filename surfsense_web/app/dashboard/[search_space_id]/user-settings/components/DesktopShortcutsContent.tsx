@@ -90,7 +90,7 @@ function HotkeyRow({
 					<Button
 						variant="ghost"
 						size="icon"
-						className="size-7 text-muted-foreground hover:text-foreground"
+						className="size-7 text-muted-foreground hover:text-accent-foreground"
 						onClick={onReset}
 						title="Reset to default"
 					>
@@ -111,7 +111,7 @@ function HotkeyRow({
 					}
 				>
 					{recording ? (
-						<span className="px-2 text-[9px] text-primary whitespace-nowrap">Press hotkeys...</span>
+						<span className="px-2 text-[9px] text-primary whitespace-nowrap">Press hotkeys</span>
 					) : (
 						<ShortcutKbd keys={displayKeys} className="ml-0 px-1.5 text-foreground/85" />
 					)}

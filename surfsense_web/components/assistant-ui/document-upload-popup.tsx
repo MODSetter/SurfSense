@@ -133,7 +133,7 @@ const DocumentUploadPopupContent: FC<{
 				onPointerDownOutside={(e) => e.preventDefault()}
 				onInteractOutside={(e) => e.preventDefault()}
 				onEscapeKeyDown={(e) => e.preventDefault()}
-				className="select-none max-w-2xl w-[95vw] sm:w-[640px] h-[min(440px,75dvh)] sm:h-[min(520px,80vh)] flex flex-col p-0 gap-0 overflow-hidden ring-0 [&>button]:right-3 sm:[&>button]:right-6 [&>button]:top-5 sm:[&>button]:top-8 [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-foreground/10 [&>button]:z-[100] [&>button>svg]:size-4 sm:[&>button>svg]:size-5"
+				className="select-none max-w-2xl w-[95vw] sm:w-[640px] h-[min(440px,75dvh)] sm:h-[min(520px,80vh)] flex flex-col p-0 gap-0 overflow-hidden ring-0 [&>button]:right-3 sm:[&>button]:right-6 [&>button]:top-5 sm:[&>button]:top-8 [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-accent [&>button]:hover:text-accent-foreground [&>button]:z-[100] [&>button>svg]:size-4 sm:[&>button>svg]:size-5"
 			>
 				<div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
 					<DialogHeader className="sticky top-0 z-20 bg-popover px-4 sm:px-6 pt-6 sm:pt-8 pb-10">

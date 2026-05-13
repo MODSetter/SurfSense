@@ -113,7 +113,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 				<button
 					type="button"
 					onClick={onBack}
-					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-accent-foreground mb-6 w-fit"
 				>
 					<ArrowLeft className="size-4" />
 					Back to connectors
@@ -143,7 +143,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 							"flex items-center justify-center gap-1.5 h-8 px-3 rounded-md border-2 border-dashed text-xs sm:text-sm transition-all duration-200 shrink-0 w-full sm:w-auto",
 							!isEnabled
 								? "border-border/30 opacity-50 cursor-not-allowed"
-								: "border-slate-400/20 dark:border-white/20 hover:bg-primary/5",
+								: "border-slate-400/20 dark:border-white/20 hover:bg-accent hover:text-accent-foreground",
 							isConnecting && "opacity-50 cursor-not-allowed"
 						)}
 					>
@@ -198,7 +198,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 										"flex items-center gap-4 p-4 rounded-xl transition-all",
 										isIndexing
 											? "bg-primary/5 border-0"
-											: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
+											: "bg-slate-400/5 dark:bg-white/5 hover:bg-accent hover:text-accent-foreground border border-border"
 									)}
 								>
 									<div
@@ -289,7 +289,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 										<Button
 											variant="secondary"
 											size="sm"
-											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-accent hover:text-accent-foreground border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground shrink-0"
 											onClick={() => onManage(connector)}
 										>
 											Manage

@@ -292,7 +292,7 @@ export function PromptsContent() {
 									title={prompt.is_public ? "Make private" : "Share with community"}
 									onClick={() => handleTogglePublic(prompt)}
 									disabled={togglingPublicIds.has(prompt.id)}
-									className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:pointer-events-none"
+									className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-accent-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:pointer-events-none"
 								>
 									{togglingPublicIds.has(prompt.id) ? (
 										<Spinner className="size-3.5" />
