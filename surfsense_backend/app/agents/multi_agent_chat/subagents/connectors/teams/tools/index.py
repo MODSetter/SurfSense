@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
+from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
+    self_gated_tool_permission_row,
+)
+from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
     ToolsPermissions,
 )
 
@@ -25,8 +28,8 @@ def load_tools(
     send = create_send_teams_message_tool(**common)
     return {
         "allow": [
-            {"name": getattr(list_ch, "name", "") or "", "tool": list_ch},
-            {"name": getattr(read_msg, "name", "") or "", "tool": read_msg},
+            self_gated_tool_permission_row(list_ch),
+            self_gated_tool_permission_row(read_msg),
         ],
-        "ask": [{"name": getattr(send, "name", "") or "", "tool": send}],
+        "ask": [self_gated_tool_permission_row(send)],
     }

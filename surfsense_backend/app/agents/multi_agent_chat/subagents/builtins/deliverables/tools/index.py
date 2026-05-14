@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
+from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
+    self_gated_tool_permission_row,
+)
+from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
     ToolsPermissions,
 )
 
@@ -44,11 +47,11 @@ def load_tools(
     )
     return {
         "allow": [
-            {"name": getattr(podcast, "name", "") or "", "tool": podcast},
-            {"name": getattr(video, "name", "") or "", "tool": video},
-            {"name": getattr(report, "name", "") or "", "tool": report},
-            {"name": getattr(resume, "name", "") or "", "tool": resume},
-            {"name": getattr(image, "name", "") or "", "tool": image},
+            self_gated_tool_permission_row(podcast),
+            self_gated_tool_permission_row(video),
+            self_gated_tool_permission_row(report),
+            self_gated_tool_permission_row(resume),
+            self_gated_tool_permission_row(image),
         ],
         "ask": [],
     }

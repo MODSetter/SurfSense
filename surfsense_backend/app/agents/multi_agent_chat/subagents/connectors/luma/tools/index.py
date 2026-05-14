@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
+from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
+    self_gated_tool_permission_row,
+)
+from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
     ToolsPermissions,
 )
 
@@ -25,8 +28,8 @@ def load_tools(
     create = create_create_luma_event_tool(**common)
     return {
         "allow": [
-            {"name": getattr(list_ev, "name", "") or "", "tool": list_ev},
-            {"name": getattr(read_ev, "name", "") or "", "tool": read_ev},
+            self_gated_tool_permission_row(list_ev),
+            self_gated_tool_permission_row(read_ev),
         ],
-        "ask": [{"name": getattr(create, "name", "") or "", "tool": create}],
+        "ask": [self_gated_tool_permission_row(create)],
     }

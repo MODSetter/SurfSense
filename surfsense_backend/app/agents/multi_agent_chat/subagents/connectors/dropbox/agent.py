@@ -7,16 +7,18 @@ from typing import Any
 from deepagents import SubAgent
 from langchain_core.language_models import BaseChatModel
 
+from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.middleware_gated import (
+    middleware_gated_interrupt_on,
+)
 from app.agents.multi_agent_chat.subagents.shared.md_file_reader import (
     read_md_file,
 )
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
-    ToolsPermissions,
-    merge_tools_permissions,
-    middleware_gated_interrupt_on,
-)
 from app.agents.multi_agent_chat.subagents.shared.subagent_builder import (
     pack_subagent,
+)
+from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
+    ToolsPermissions,
+    merge_tools_permissions,
 )
 
 from .tools.index import load_tools

@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
+from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
+    self_gated_tool_permission_row,
+)
+from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
     ToolsPermissions,
 )
 from app.db import ChatVisibility
@@ -21,7 +24,7 @@ def load_tools(
             llm=resolved_dependencies.get("llm"),
         )
         return {
-            "allow": [{"name": getattr(mem, "name", "") or "", "tool": mem}],
+            "allow": [self_gated_tool_permission_row(mem)],
             "ask": [],
         }
     mem = create_update_memory_tool(
@@ -29,4 +32,4 @@ def load_tools(
         db_session=resolved_dependencies["db_session"],
         llm=resolved_dependencies.get("llm"),
     )
-    return {"allow": [{"name": getattr(mem, "name", "") or "", "tool": mem}], "ask": []}
+    return {"allow": [self_gated_tool_permission_row(mem)], "ask": []}

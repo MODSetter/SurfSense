@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
+from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
+    self_gated_tool_permission_row,
+)
+from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
     ToolsPermissions,
 )
 
@@ -31,13 +34,13 @@ def load_tools(
     updraft = create_update_gmail_draft_tool(**common)
     return {
         "allow": [
-            {"name": getattr(search, "name", "") or "", "tool": search},
-            {"name": getattr(read, "name", "") or "", "tool": read},
+            self_gated_tool_permission_row(search),
+            self_gated_tool_permission_row(read),
         ],
         "ask": [
-            {"name": getattr(draft, "name", "") or "", "tool": draft},
-            {"name": getattr(send, "name", "") or "", "tool": send},
-            {"name": getattr(trash, "name", "") or "", "tool": trash},
-            {"name": getattr(updraft, "name", "") or "", "tool": updraft},
+            self_gated_tool_permission_row(draft),
+            self_gated_tool_permission_row(send),
+            self_gated_tool_permission_row(trash),
+            self_gated_tool_permission_row(updraft),
         ],
     }
