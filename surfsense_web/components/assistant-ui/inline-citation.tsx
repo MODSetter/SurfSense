@@ -5,12 +5,11 @@ import { useSetAtom } from "jotai";
 import { ExternalLink, FileText } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { FC } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { openCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { useCitationMetadata } from "@/components/assistant-ui/citation-metadata-context";
 import { Citation } from "@/components/tool-ui/citation";
+import { CitationHoverPopover } from "@/components/tool-ui/citation/citation-hover-popover";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
@@ -30,8 +29,6 @@ interface InlineCitationProps {
 	chunkId: number;
 	isDocsChunk?: boolean;
 }
-
-const POPOVER_HOVER_CLOSE_DELAY_MS = 150;
 
 /**
  * Inline citation badge for knowledge-base chunks (numeric chunk IDs) and
@@ -91,108 +88,80 @@ const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 };
 
 const SurfsenseDocCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
-	const [open, setOpen] = useState(false);
-	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	return (
+		<CitationHoverPopover
+			id={`doc-${chunkId}`}
+			contentClassName="w-96 max-w-[calc(100vw-2rem)] p-0"
+			align="start"
+			trigger={(hoverProps) => (
+				<Button
+					type="button"
+					variant="ghost"
+					className="ml-0.5 h-5 min-w-5 cursor-pointer gap-0.5 rounded-md bg-primary/10 px-1.5 text-[11px] font-medium text-primary align-baseline shadow-sm transition-colors hover:bg-primary/15 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
+					aria-label={`Show Surfsense documentation chunk ${chunkId}`}
+					title="Surfsense documentation"
+					{...hoverProps}
+				>
+					<FileText className="size-3" />
+					doc
+				</Button>
+			)}
+		>
+			<SurfsenseDocPreview chunkId={chunkId} />
+		</CitationHoverPopover>
+	);
+};
 
-	const cancelClose = useCallback(() => {
-		if (closeTimerRef.current) {
-			clearTimeout(closeTimerRef.current);
-			closeTimerRef.current = null;
-		}
-	}, []);
-
-	const scheduleClose = useCallback(() => {
-		cancelClose();
-		closeTimerRef.current = setTimeout(() => {
-			setOpen(false);
-			closeTimerRef.current = null;
-		}, POPOVER_HOVER_CLOSE_DELAY_MS);
-	}, [cancelClose]);
-
-	useEffect(() => () => cancelClose(), [cancelClose]);
-
+const SurfsenseDocPreview: FC<{ chunkId: number }> = ({ chunkId }) => {
 	const { data, isLoading, error } = useQuery({
 		queryKey: cacheKeys.documents.byChunk(`doc-${chunkId}`),
 		queryFn: () => documentsApiService.getSurfsenseDocByChunk(chunkId),
-		enabled: open,
 		staleTime: 5 * 60 * 1000,
 	});
 
 	const citedChunk = data?.chunks.find((c) => c.id === chunkId) ?? data?.chunks[0];
 
 	return (
-		<Popover open={open} onOpenChange={setOpen}>
-			<PopoverTrigger asChild>
-				<Button
-					type="button"
-					variant="ghost"
-					onClick={() => setOpen((prev) => !prev)}
-					onMouseEnter={() => {
-						cancelClose();
-						setOpen(true);
-					}}
-					onMouseLeave={scheduleClose}
-					onFocus={() => {
-						cancelClose();
-						setOpen(true);
-					}}
-					onBlur={scheduleClose}
-					className="ml-0.5 h-5 min-w-5 cursor-pointer gap-0.5 rounded-md bg-primary/10 px-1.5 text-[11px] font-medium text-primary align-baseline shadow-sm transition-colors hover:bg-primary/15 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
-					aria-label={`Show Surfsense documentation chunk ${chunkId}`}
-					title="Surfsense documentation"
-				>
-					<FileText className="size-3" />
-					doc
-				</Button>
-			</PopoverTrigger>
-			<PopoverContent
-				className="w-96 max-w-[calc(100vw-2rem)] p-0"
-				align="start"
-				sideOffset={6}
-				onMouseEnter={cancelClose}
-				onMouseLeave={scheduleClose}
-				onOpenAutoFocus={(e) => e.preventDefault()}
-			>
-				<div className="flex items-center justify-between gap-2 border-b px-3 py-2">
-					<div className="min-w-0">
-						<p className="truncate text-sm font-medium">
-							{data?.title ?? "Surfsense documentation"}
-						</p>
-						<p className="text-[11px] text-muted-foreground">Chunk #{chunkId}</p>
+		<>
+			<div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+				<div className="min-w-0">
+					<p className="truncate text-sm font-medium">
+						{data?.title ?? "Surfsense documentation"}
+					</p>
+					<p className="text-[11px] text-muted-foreground">Chunk #{chunkId}</p>
+				</div>
+				{data?.source && (
+					<a
+						href={data.source}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10"
+					>
+						<ExternalLink className="size-3" />
+						Open
+					</a>
+				)}
+			</div>
+			<div className="max-h-72 overflow-auto px-3 py-2 text-sm">
+				{isLoading && (
+					<div className="flex items-center gap-2 py-4 text-muted-foreground">
+						<Spinner size="xs" />
+						<span className="text-xs">Loading…</span>
 					</div>
-					{data?.source && (
-						<a
-							href={data.source}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10"
-						>
-							<ExternalLink className="size-3" />
-							Open
-						</a>
-					)}
-				</div>
-				<div className="max-h-72 overflow-auto px-3 py-2 text-sm">
-					{isLoading && (
-						<div className="flex items-center gap-2 py-4 text-muted-foreground">
-							<Spinner size="xs" />
-							<span className="text-xs">Loading…</span>
-						</div>
-					)}
-					{error && (
-						<p className="py-4 text-xs text-destructive">
-							{error instanceof Error ? error.message : "Failed to load chunk"}
-						</p>
-					)}
-					{!isLoading && !error && citedChunk?.content && (
-						<MarkdownViewer content={citedChunk.content} maxLength={1500} enableCitations />
-					)}
-					{!isLoading && !error && !citedChunk?.content && (
-						<p className="py-4 text-xs text-muted-foreground">No content available.</p>
-					)}
-				</div>
-			</PopoverContent>
-		</Popover>
+				)}
+				{error && (
+					<p className="py-4 text-xs text-destructive">
+						{error instanceof Error ? error.message : "Failed to load chunk"}
+					</p>
+				)}
+				{!isLoading && !error && citedChunk?.content && (
+					<MarkdownViewer content={citedChunk.content} maxLength={1500} enableCitations />
+				)}
+				{!isLoading && !error && !citedChunk?.content && (
+					<p className="py-4 text-xs text-muted-foreground">No content available.</p>
+				)}
+			</div>
+		</>
 	);
 };
 
