@@ -17,6 +17,7 @@ import {
 	FOLDER_MENTION_DOCUMENT_TYPE,
 	type MentionedDocumentInfo,
 } from "@/atoms/chat/mentioned-documents.atom";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
@@ -484,7 +485,7 @@ export const DocumentMentionPicker = forwardRef<
 									const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
 
 									return (
-										<button
+										<Button
 											key={docKey}
 											ref={(el) => {
 												if (el && selectableIndex >= 0) {
@@ -492,6 +493,7 @@ export const DocumentMentionPicker = forwardRef<
 												}
 											}}
 											type="button"
+											variant="ghost"
 											onClick={() => !isAlreadySelected && handleSelectMention(mention)}
 											onMouseEnter={() => {
 												if (!isAlreadySelected && selectableIndex >= 0) {
@@ -500,7 +502,7 @@ export const DocumentMentionPicker = forwardRef<
 											}}
 											disabled={isAlreadySelected}
 											className={cn(
-												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors rounded-md",
+												"h-auto w-full justify-start gap-2 px-3 py-2 text-left transition-colors",
 												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
 												isHighlighted && "bg-accent text-accent-foreground"
 											)}
@@ -511,7 +513,7 @@ export const DocumentMentionPicker = forwardRef<
 											<span className="flex-1 text-sm truncate" title={doc.title}>
 												{doc.title}
 											</span>
-										</button>
+										</Button>
 									);
 								})}
 							</>
@@ -541,7 +543,7 @@ export const DocumentMentionPicker = forwardRef<
 									const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
 
 									return (
-										<button
+										<Button
 											key={docKey}
 											ref={(el) => {
 												if (el && selectableIndex >= 0) {
@@ -549,6 +551,7 @@ export const DocumentMentionPicker = forwardRef<
 												}
 											}}
 											type="button"
+											variant="ghost"
 											onClick={() => !isAlreadySelected && handleSelectMention(mention)}
 											onMouseEnter={() => {
 												if (!isAlreadySelected && selectableIndex >= 0) {
@@ -557,7 +560,7 @@ export const DocumentMentionPicker = forwardRef<
 											}}
 											disabled={isAlreadySelected}
 											className={cn(
-												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors rounded-md",
+												"h-auto w-full justify-start gap-2 px-3 py-2 text-left transition-colors",
 												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
 												isHighlighted && "bg-accent text-accent-foreground"
 											)}
@@ -568,7 +571,7 @@ export const DocumentMentionPicker = forwardRef<
 											<span className="flex-1 text-sm truncate" title={doc.title}>
 												{doc.title}
 											</span>
-										</button>
+										</Button>
 									);
 								})}
 							</>
@@ -595,7 +598,7 @@ export const DocumentMentionPicker = forwardRef<
 									const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
 
 									return (
-										<button
+										<Button
 											key={folderKey}
 											ref={(el) => {
 												if (el && selectableIndex >= 0) {
@@ -603,6 +606,7 @@ export const DocumentMentionPicker = forwardRef<
 												}
 											}}
 											type="button"
+											variant="ghost"
 											onClick={() => !isAlreadySelected && handleSelectMention(folder)}
 											onMouseEnter={() => {
 												if (!isAlreadySelected && selectableIndex >= 0) {
@@ -611,7 +615,7 @@ export const DocumentMentionPicker = forwardRef<
 											}}
 											disabled={isAlreadySelected}
 											className={cn(
-												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors rounded-md",
+												"h-auto w-full justify-start gap-2 px-3 py-2 text-left transition-colors",
 												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
 												isHighlighted && "bg-accent text-accent-foreground"
 											)}
@@ -622,7 +626,7 @@ export const DocumentMentionPicker = forwardRef<
 											<span className="flex-1 text-sm truncate" title={folder.title}>
 												{folder.title}
 											</span>
-										</button>
+										</Button>
 									);
 								})}
 							</>

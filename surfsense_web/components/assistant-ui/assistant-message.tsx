@@ -144,11 +144,12 @@ const MobileCitationDrawer: FC = () => {
 
 	return (
 		<>
-			<button
+			<Button
 				type="button"
+				variant="ghost"
 				onClick={() => setOpen(true)}
 				className={cn(
-					"isolate inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2",
+					"isolate h-auto cursor-pointer gap-2 rounded-lg px-3 py-2",
 					"bg-muted/40 outline-none",
 					"transition-colors duration-150",
 					"hover:bg-accent hover:text-accent-foreground",
@@ -194,7 +195,7 @@ const MobileCitationDrawer: FC = () => {
 				<span className="text-muted-foreground text-sm tabular-nums">
 					{citations.length} source{citations.length !== 1 && "s"}
 				</span>
-			</button>
+			</Button>
 
 			<Drawer open={open} onOpenChange={setOpen}>
 				<DrawerContent className="max-h-[85vh] flex flex-col">
@@ -204,11 +205,12 @@ const MobileCitationDrawer: FC = () => {
 					</DrawerHeader>
 					<div className="overflow-y-auto flex-1 min-h-0 px-1 pb-6">
 						{citations.map((citation) => (
-							<button
+							<Button
 								key={citation.id}
 								type="button"
+								variant="ghost"
 								onClick={() => handleNavigate(citation)}
-								className="group flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-muted focus-visible:outline-none"
+								className="group h-auto w-full justify-start gap-2.5 px-3 py-2.5 text-left hover:bg-accent hover:text-accent-foreground focus-visible:bg-muted"
 							>
 								{citation.favicon ? (
 									// biome-ignore lint/performance/noImgElement: external favicon from arbitrary domain
@@ -230,7 +232,7 @@ const MobileCitationDrawer: FC = () => {
 									<p className="text-muted-foreground truncate text-xs">{citation.domain}</p>
 								</div>
 								<ExternalLink className="text-muted-foreground size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
-							</button>
+							</Button>
 						))}
 					</div>
 				</DrawerContent>
@@ -506,9 +508,10 @@ export const AssistantMessage: FC = () => {
 		>
 			{/* Fixed trigger slot prevents any vertical reflow when visibility changes */}
 			<div className="mr-2 mb-1 flex h-7 justify-end">
-				<button
+				<Button
 					ref={isDesktop ? commentTriggerRef : undefined}
 					type="button"
+					variant="ghost"
 					onClick={
 						showCommentTrigger
 							? isDesktop
@@ -519,7 +522,7 @@ export const AssistantMessage: FC = () => {
 					aria-hidden={!showCommentTrigger}
 					tabIndex={showCommentTrigger ? 0 : -1}
 					className={cn(
-						"flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
+						"h-auto gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
 						"opacity-0 pointer-events-none",
 						showCommentTrigger && "opacity-100 pointer-events-auto",
 						isDesktop && isInlineOpen
@@ -537,7 +540,7 @@ export const AssistantMessage: FC = () => {
 					) : (
 						<span>Add comment</span>
 					)}
-				</button>
+				</Button>
 			</div>
 
 			{/* Desktop floating comment panel — overlays on top of chat content */}

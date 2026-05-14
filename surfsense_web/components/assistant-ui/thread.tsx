@@ -161,14 +161,16 @@ const PremiumQuotaPinnedAlert: FC = () => {
 				<div className="min-w-0 flex-1">
 					<p className="text-sm">{alert.message}</p>
 				</div>
-				<button
+				<Button
 					type="button"
-					className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-accent-foreground"
+					variant="ghost"
+					size="icon"
+					className="size-6 text-muted-foreground hover:bg-transparent hover:text-accent-foreground"
 					aria-label="Dismiss premium quota alert"
 					onClick={() => clearPremiumAlertForThread(currentThreadId)}
 				>
 					<X className="size-4" />
-				</button>
+				</Button>
 			</div>
 		</div>
 	);
@@ -280,9 +282,11 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 	return (
 		<div className="border-t border-border/50">
 			<div className="flex w-full items-center gap-2.5 px-4 py-2.5">
-				<button
+				<Button
 					type="button"
-					className="flex flex-1 items-center gap-2.5 text-left cursor-pointer select-none"
+					variant="ghost"
+					size="sm"
+					className="h-auto flex-1 justify-start gap-2.5 px-0 py-0 text-left cursor-pointer select-none hover:bg-transparent"
 					onClick={() => setConnectorDialogOpen(true)}
 				>
 					<Unplug className="size-4 text-muted-foreground shrink-0" />
@@ -300,15 +304,17 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 							</Avatar>
 						))}
 					</AvatarGroup>
-				</button>
-				<button
+				</Button>
+				<Button
 					type="button"
 					onClick={handleDismiss}
-					className="shrink-0 ml-0.5 p-1.5 -mr-1 text-muted-foreground/40 hover:text-accent-foreground transition-colors cursor-pointer"
+					variant="ghost"
+					size="icon"
+					className="size-auto shrink-0 ml-0.5 -mr-1 p-1.5 text-muted-foreground/40 hover:bg-transparent hover:text-accent-foreground cursor-pointer"
 					aria-label="Dismiss"
 				>
 					<X className="size-3.5" />
-				</button>
+				</Button>
 			</div>
 		</div>
 	);
@@ -326,14 +332,16 @@ const PendingScreenImageStrip: FC = () => {
 				>
 					{/* biome-ignore lint/performance/noImgElement: data URL thumbnails from capture */}
 					<img src={url} alt="" className="size-full object-cover" draggable={false} />
-					<button
+					<Button
 						type="button"
 						onClick={() => setUrls((prev) => prev.filter((_, i) => i !== index))}
-						className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition-opacity hover:text-accent-foreground sm:opacity-0 sm:group-hover:opacity-100"
+						variant="ghost"
+						size="icon"
+						className="absolute right-0.5 top-0.5 size-5 rounded-full bg-background/90 text-muted-foreground shadow-sm transition-opacity hover:bg-background/90 hover:text-accent-foreground sm:opacity-0 sm:group-hover:opacity-100"
 						aria-label="Remove screenshot"
 					>
 						<X className="size-3" />
-					</button>
+					</Button>
 				</div>
 			))}
 		</div>
@@ -352,21 +360,25 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 				<span className="text-xs font-medium text-muted-foreground">From clipboard</span>
 				<div className="flex-1" />
 				{isLong && (
-					<button
+					<Button
 						type="button"
 						onClick={() => setExpanded((v) => !v)}
-						className="flex items-center text-muted-foreground hover:text-accent-foreground transition-colors"
+						variant="ghost"
+						size="icon"
+						className="size-5 text-muted-foreground hover:bg-transparent hover:text-accent-foreground"
 					>
 						{expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-					</button>
+					</Button>
 				)}
-				<button
+				<Button
 					type="button"
 					onClick={onDismiss}
-					className="flex items-center text-muted-foreground hover:text-accent-foreground transition-colors"
+					variant="ghost"
+					size="icon"
+					className="size-5 text-muted-foreground hover:bg-transparent hover:text-accent-foreground"
 				>
 					<X className="size-3.5" />
-				</button>
+				</Button>
 			</div>
 			<div className="px-3 pb-2">
 				<p className="text-xs text-foreground/80 whitespace-pre-wrap wrap-break-word leading-relaxed">
@@ -1173,13 +1185,15 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 					</Popover>
 				)}
 				{hasWebSearchTool && (
-					<button
+					<Button
 						type="button"
+						variant="ghost"
+						size="sm"
 						aria-label={isWebSearchEnabled ? "Disable web search" : "Enable web search"}
 						aria-pressed={isWebSearchEnabled}
 						onClick={() => toggleTool("web_search")}
 						className={cn(
-							"rounded-full transition-[background-color,border-color,color] flex items-center gap-1 px-2 py-1 border h-8 select-none",
+							"rounded-full transition-[background-color,border-color,color] flex items-center gap-1 px-2 py-1 border h-8 select-none hover:bg-transparent",
 							isWebSearchEnabled
 								? "bg-sky-500/15 border-sky-500/60 text-sky-500"
 								: "bg-transparent border-transparent text-muted-foreground hover:text-accent-foreground"
@@ -1212,7 +1226,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								</motion.span>
 							)}
 						</AnimatePresence>
-					</button>
+					</Button>
 				)}
 			</div>
 			{!hasModelConfigured && (

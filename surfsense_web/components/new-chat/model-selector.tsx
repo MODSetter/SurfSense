@@ -853,14 +853,15 @@ export function ModelSelector({
 								: "opacity-100 translate-y-0 pointer-events-auto"
 						)}
 					>
-						<button
+						<Button
 							type="button"
+							variant="ghost"
 							aria-label="Scroll providers up"
 							onClick={() => scrollProviderSidebar("backward")}
-							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-accent-foreground hover:bg-accent transition-colors"
+							className="h-4 w-4 rounded-sm p-0 text-muted-foreground/90 hover:bg-accent hover:text-accent-foreground"
 						>
 							<ChevronUp className="size-3" />
-						</button>
+						</Button>
 					</div>
 				)}
 				{isMobile && (
@@ -913,12 +914,13 @@ export function ModelSelector({
 									))}
 								<Tooltip>
 									<TooltipTrigger asChild>
-										<button
+										<Button
 											type="button"
+											variant="ghost"
 											onClick={() => setSelectedProvider(provider)}
 											tabIndex={-1}
 											className={cn(
-												"relative flex items-center justify-center rounded-md transition-all duration-150",
+												"relative h-auto rounded-md transition-all duration-150",
 												isMobile ? "p-2 shrink-0" : "p-1.5 w-full",
 												isActive
 													? "bg-primary/10 text-primary"
@@ -934,7 +936,7 @@ export function ModelSelector({
 													className: "size-4",
 												})
 											)}
-										</button>
+										</Button>
 									</TooltipTrigger>
 									<TooltipContent side={isMobile ? "bottom" : "right"}>
 										{isAll ? "All Models" : formatProviderName(provider)}
@@ -954,14 +956,15 @@ export function ModelSelector({
 								: "opacity-100 translate-y-0 pointer-events-auto"
 						)}
 					>
-						<button
+						<Button
 							type="button"
+							variant="ghost"
 							aria-label="Scroll providers down"
 							onClick={() => scrollProviderSidebar("forward")}
-							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-accent-foreground hover:bg-accent transition-colors"
+							className="h-4 w-4 rounded-sm p-0 text-muted-foreground/90 hover:bg-accent hover:text-accent-foreground"
 						>
 							<ChevronDown className="size-3" />
-						</button>
+						</Button>
 					</div>
 				)}
 				{isMobile && (
@@ -1175,13 +1178,14 @@ export function ModelSelector({
 								},
 							] as const
 						).map(({ value, icon: Icon, label }) => (
-							<button
+							<Button
 								key={value}
 								type="button"
+								variant="ghost"
 								// onClick={() => setActiveTab(value)}
 								onClick={() => handleTabChange(value)}
 								className={cn(
-									"flex items-center justify-center gap-1.5 text-sm font-medium transition-all duration-200 border-b-[1.5px]",
+									"h-auto rounded-none px-0 py-0 gap-1.5 text-sm font-medium transition-all duration-200 border-b-[1.5px] hover:bg-transparent",
 									activeTab === value
 										? "border-foreground dark:border-white text-foreground"
 										: "border-transparent text-muted-foreground hover:text-accent-foreground"
@@ -1189,7 +1193,7 @@ export function ModelSelector({
 							>
 								<Icon className="size-3.5" />
 								{label}
-							</button>
+							</Button>
 						))}
 					</div>
 				</div>

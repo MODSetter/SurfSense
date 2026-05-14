@@ -6,6 +6,7 @@ import type { TEquationElement } from "platejs";
 import { PlateElement, type PlateElementProps, useSelected } from "platejs/react";
 import * as React from "react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function EquationElement({ children, ...props }: PlateElementProps<TEquationElement>) {
@@ -74,20 +75,23 @@ export function EquationElement({ children, ...props }: PlateElementProps<TEquat
 						{...inputProps}
 					/>
 					<div className="mt-1 flex justify-end gap-1">
-						<button
-							className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent"
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-auto px-2 py-1 text-xs text-muted-foreground"
 							onClick={onDismiss}
 							type="button"
 						>
 							Cancel
-						</button>
-						<button
-							className="rounded bg-primary px-2 py-1 text-xs text-primary-foreground hover:bg-primary/90"
+						</Button>
+						<Button
+							size="sm"
+							className="h-auto px-2 py-1 text-xs"
 							onClick={onSubmit}
 							type="button"
 						>
 							Done
-						</button>
+						</Button>
 					</div>
 				</div>
 			)}
@@ -162,20 +166,23 @@ export function InlineEquationElement({ children, ...props }: PlateElementProps<
 						{...inputProps}
 					/>
 					<span className="mt-1 flex justify-end gap-1">
-						<button
-							className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent"
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-auto px-2 py-0.5 text-xs text-muted-foreground"
 							onClick={onDismiss}
 							type="button"
 						>
 							Cancel
-						</button>
-						<button
-							className="rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground hover:bg-primary/90"
+						</Button>
+						<Button
+							size="sm"
+							className="h-auto px-2 py-0.5 text-xs"
 							onClick={onSubmit}
 							type="button"
 						>
 							Done
-						</button>
+						</Button>
 					</span>
 				</span>
 			)}
