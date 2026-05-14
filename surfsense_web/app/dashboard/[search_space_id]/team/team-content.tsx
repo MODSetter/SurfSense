@@ -482,13 +482,15 @@ function MemberRow({
 				{showActions ? (
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<button
+							<Button
 								type="button"
-								className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-foreground transition-colors"
+								variant="ghost"
+								size="sm"
+								className="h-auto gap-1.5 px-0 py-0 text-sm text-muted-foreground hover:bg-transparent hover:text-accent-foreground"
 							>
 								{roleName}
 								<ChevronDown className="h-4 w-4" />
-							</button>
+							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent
 							align="end"

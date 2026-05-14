@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AgentFeatureFlags } from "@/lib/apis/agent-flags-api.service";
@@ -246,14 +247,16 @@ export function AgentStatusContent() {
 				<AlertTitle>Failed to load agent status</AlertTitle>
 				<AlertDescription className="flex items-center gap-2">
 					{error instanceof Error ? error.message : "Unknown error."}
-					<button
+					<Button
 						type="button"
+						variant="outline"
+						size="sm"
 						onClick={() => refetch()}
-						className="ml-auto inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs hover:bg-background"
+						className="ml-auto h-auto gap-1 px-2 py-0.5 text-xs hover:bg-background"
 					>
 						<RotateCcw className="size-3" />
 						Retry
-					</button>
+					</Button>
 				</AlertDescription>
 			</Alert>
 		);

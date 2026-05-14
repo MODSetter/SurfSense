@@ -9,9 +9,9 @@ import {
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuLabel,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -65,29 +65,30 @@ export function DesktopLocalTabContent({
 	return (
 		<div className="flex min-h-0 flex-1 flex-col select-none">
 			<div className="mx-4 mt-4 mb-3">
-				<div className="flex h-7 w-full items-stretch rounded-lg border-0 bg-muted text-[11px] text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+				<div className="flex h-7 w-full items-stretch rounded-lg border-0 bg-muted text-[11px] text-muted-foreground">
 					{localRootPaths.length > 0 ? (
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
-								<button
+								<Button
 									type="button"
-									className="min-w-0 flex-1 flex items-center gap-1 rounded-l-lg px-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+									variant="ghost"
+									size="sm"
+									className="min-w-0 flex-1 h-full justify-start gap-1 px-2 text-left text-[11px] text-muted-foreground"
 									title={localRootPaths.join("\n")}
 									aria-label="Manage selected folders"
 								>
-									<Folder className="size-3 shrink-0 text-muted-foreground" />
+									<Folder className="size-3 shrink-0" />
 									<span className="truncate">
 										{localRootPaths.length === 1
 											? "1 folder selected"
 											: `${localRootPaths.length} folders selected`}
 									</span>
-								</button>
+								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="start" className="w-56 select-none p-0.5">
 								<DropdownMenuLabel className="px-1.5 pt-1.5 pb-0.5 text-xs font-medium text-muted-foreground">
 									Selected folders
 								</DropdownMenuLabel>
-								<DropdownMenuSeparator className="mx-1 my-0.5" />
 								{localRootPaths.map((rootPath) => (
 									<DropdownMenuItem
 										key={rootPath}
@@ -98,9 +99,11 @@ export function DesktopLocalTabContent({
 										<span className="min-w-0 flex-1 truncate">
 											{getFolderDisplayName(rootPath)}
 										</span>
-										<button
+										<Button
 											type="button"
-											className="inline-flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:text-accent-foreground"
+											variant="ghost"
+											size="icon"
+											className="size-5 text-muted-foreground hover:text-accent-foreground"
 											onClick={(event) => {
 												event.stopPropagation();
 												void onRemoveFilesystemRoot(rootPath);
@@ -108,10 +111,9 @@ export function DesktopLocalTabContent({
 											aria-label={`Remove ${getFolderDisplayName(rootPath)}`}
 										>
 											<X className="size-3" />
-										</button>
+										</Button>
 									</DropdownMenuItem>
 								))}
-								<DropdownMenuSeparator className="mx-1 my-0.5" />
 								<DropdownMenuItem
 									variant="destructive"
 									className="h-8 px-1.5 text-xs text-destructive focus:text-destructive"
@@ -125,10 +127,10 @@ export function DesktopLocalTabContent({
 						</DropdownMenu>
 					) : (
 						<div
-							className="min-w-0 flex-1 flex items-center gap-1 px-2"
+							className="min-w-0 flex-1 flex items-center gap-1 px-2 transition-colors hover:bg-accent hover:text-accent-foreground"
 							title="No local folders selected"
 						>
-							<Folder className="size-3 shrink-0 text-muted-foreground" />
+							<Folder className="size-3 shrink-0" />
 							<span className="truncate">No local folders selected</span>
 						</div>
 					)}
@@ -140,9 +142,11 @@ export function DesktopLocalTabContent({
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<span className="inline-flex">
-									<button
+									<Button
 										type="button"
-										className="flex w-8 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
+										variant="ghost"
+										size="icon"
+										className="h-full w-8 text-muted-foreground hover:text-accent-foreground"
 										onClick={() => {
 											void onPickFilesystemRoot();
 										}}
@@ -150,7 +154,7 @@ export function DesktopLocalTabContent({
 										aria-label="Add folder"
 									>
 										<FolderPlus className="size-3.5" />
-									</button>
+									</Button>
 								</span>
 							</TooltipTrigger>
 							<TooltipContent side="top" className="text-xs">
@@ -177,9 +181,11 @@ export function DesktopLocalTabContent({
 						aria-label="Search local files"
 					/>
 					{Boolean(localSearch) && (
-						<button
+						<Button
 							type="button"
-							className="absolute inset-y-0 right-0 flex h-full w-8 items-center justify-center rounded-r-md text-muted-foreground hover:text-accent-foreground transition-colors"
+							variant="ghost"
+							size="icon"
+							className="absolute inset-y-0 right-0 h-full w-8 text-muted-foreground hover:text-accent-foreground"
 							aria-label="Clear local search"
 							onClick={() => {
 								setLocalSearch("");
@@ -187,7 +193,7 @@ export function DesktopLocalTabContent({
 							}}
 						>
 							<X size={13} strokeWidth={2} aria-hidden="true" />
-						</button>
+						</Button>
 					)}
 				</div>
 			</div>

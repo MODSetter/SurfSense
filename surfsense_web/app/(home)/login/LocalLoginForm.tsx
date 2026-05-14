@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
 import { AUTH_TYPE } from "@/lib/env-config";
@@ -120,11 +121,13 @@ export function LocalLoginForm() {
 									<p className="text-sm font-semibold mb-1">{error.title}</p>
 									<p className="text-sm text-destructive">{error.message}</p>
 								</div>
-								<button
+								<Button
+									variant="ghost"
+									size="icon"
 									onClick={() => {
 										setError({ title: null, message: null });
 									}}
-									className="flex-shrink-0 text-destructive hover:text-destructive/90 transition-colors"
+									className="size-6 flex-shrink-0 text-destructive hover:bg-transparent hover:text-destructive/90"
 									aria-label="Dismiss error"
 									type="button"
 								>
@@ -143,7 +146,7 @@ export function LocalLoginForm() {
 										<line x1="18" y1="6" x2="6" y2="18" />
 										<line x1="6" y1="6" x2="18" y2="18" />
 									</svg>
-								</button>
+								</Button>
 							</div>
 						</motion.div>
 					)}
@@ -191,21 +194,23 @@ export function LocalLoginForm() {
 							}`}
 							disabled={isLoggingIn}
 						/>
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="icon"
 							onClick={() => setShowPassword((prev) => !prev)}
-							className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+							className="absolute inset-y-0 right-0 h-full w-10 text-muted-foreground hover:bg-transparent hover:text-foreground"
 							aria-label={showPassword ? t("hide_password") : t("show_password")}
 						>
 							{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-						</button>
+						</Button>
 					</div>
 				</div>
 
-				<button
+				<Button
 					type="submit"
 					disabled={isLoggingIn}
-					className="relative w-full rounded-md bg-primary px-4 py-1.5 md:py-2 text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
+					className="relative h-auto w-full px-4 py-1.5 text-sm md:py-2 md:text-base"
 				>
 					<span className={isLoggingIn ? "invisible" : ""}>{t("sign_in")}</span>
 					{isLoggingIn && (
@@ -213,7 +218,7 @@ export function LocalLoginForm() {
 							<Spinner size="sm" className="text-primary-foreground" />
 						</span>
 					)}
-				</button>
+				</Button>
 			</form>
 
 			{authType === "LOCAL" && (

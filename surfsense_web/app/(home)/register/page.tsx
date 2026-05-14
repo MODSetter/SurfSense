@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { type ExternalToast, toast } from "sonner";
 import { registerMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Logo } from "@/components/Logo";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { getBearerToken } from "@/lib/auth-utils";
@@ -199,11 +200,13 @@ export default function RegisterPage() {
 											<p className="text-sm font-semibold mb-1">{error.title}</p>
 											<p className="text-sm text-red-700 dark:text-red-300">{error.message}</p>
 										</div>
-										<button
+										<Button
+											variant="ghost"
+											size="icon"
 											onClick={() => {
 												setError({ title: null, message: null });
 											}}
-											className="flex-shrink-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 transition-colors"
+											className="size-6 flex-shrink-0 text-red-500 hover:bg-transparent hover:text-red-700 dark:text-red-400 dark:hover:text-red-200"
 											aria-label="Dismiss error"
 											type="button"
 										>
@@ -222,7 +225,7 @@ export default function RegisterPage() {
 												<line x1="18" y1="6" x2="6" y2="18" />
 												<line x1="6" y1="6" x2="18" y2="18" />
 											</svg>
-										</button>
+										</Button>
 									</div>
 								</motion.div>
 							)}
@@ -295,18 +298,18 @@ export default function RegisterPage() {
 							/>
 						</div>
 
-						<button
+						<Button
 							type="submit"
 							disabled={isRegistering}
-							className="relative w-full rounded-md bg-primary px-4 py-1.5 md:py-2 text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
+							className="relative h-auto w-full px-4 py-1.5 text-sm md:py-2 md:text-base"
 						>
 							<span className={isRegistering ? "invisible" : ""}>{t("register")}</span>
 							{isRegistering && (
 								<span className="absolute inset-0 flex items-center justify-center gap-2">
-									<Spinner size="sm" className="text-white" />
+									<Spinner size="sm" className="text-primary-foreground" />
 								</span>
 							)}
-						</button>
+						</Button>
 					</form>
 
 					<div className="mt-4 text-center text-sm">

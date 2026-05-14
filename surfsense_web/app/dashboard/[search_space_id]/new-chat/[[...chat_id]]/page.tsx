@@ -44,6 +44,7 @@ import {
 } from "@/components/assistant-ui/edit-message-dialog";
 import { StepSeparatorDataUI } from "@/components/assistant-ui/step-separator";
 import { Thread } from "@/components/assistant-ui/thread";
+import { Button } from "@/components/ui/button";
 import {
 	createTokenUsageStore,
 	type TokenUsageData,
@@ -76,8 +77,6 @@ import {
 import { createStreamFlushHelpers } from "@/lib/chat/stream-flush";
 import {
 	consumeSseEvents,
-	hasPersistableContent,
-	markInterruptsCompleted,
 	processSharedStreamEvent,
 } from "@/lib/chat/stream-pipeline";
 import {
@@ -88,7 +87,6 @@ import {
 } from "@/lib/chat/stream-side-effects";
 import {
 	addToolCall,
-	buildContentForPersistence,
 	buildContentForUI,
 	type ContentPartsState,
 	type FrameBatchedUpdater,
@@ -1718,8 +1716,19 @@ export default function NewChatPage() {
 			}
 
 			const byTcId = new Map<string, (typeof incoming)[number]>();
-			for (let i = 0; i < tcIds.length; i++) byTcId.set(tcIds[i], incoming[i]);
-			const submittedDecisions = tcIds.map((id) => byTcId.get(id)!);
+			const submittedDecisions: typeof incoming = [];
+			for (let i = 0; i < tcIds.length; i++) {
+				const tcId = tcIds[i];
+				const decision = incoming[i];
+				if (tcId === undefined || decision === undefined) {
+					toast.error(
+						`Cannot resume: ${incoming.length} decision(s) submitted for ${N} pending actions.`
+					);
+					return;
+				}
+				byTcId.set(tcId, decision);
+				submittedDecisions.push(decision);
+			}
 
 			setMessages((prev) =>
 				prev.map((m) => {
@@ -2341,16 +2350,15 @@ export default function NewChatPage() {
 		return (
 			<div className="flex h-full flex-col items-center justify-center gap-4">
 				<div className="text-destructive">Failed to load chat</div>
-				<button
+				<Button
 					type="button"
 					onClick={() => {
 						setIsInitializing(true);
 						initializeThread();
 					}}
-					className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
 				>
 					Try Again
-				</button>
+				</Button>
 			</div>
 		);
 	}

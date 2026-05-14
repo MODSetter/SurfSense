@@ -1043,82 +1043,84 @@ function AuthenticatedDocumentsSidebarBase({
 	const cloudContent = (
 		<>
 			{/* Connected tools strip */}
-			<div className="shrink-0 mx-4 mt-6 mb-2.5 flex select-none items-center gap-2 rounded-lg border-0 bg-muted transition-colors hover:bg-accent hover:text-accent-foreground">
-				<button
-					type="button"
-					onClick={() => setConnectorDialogOpen(true)}
-					className="flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 text-left"
-				>
-					<Unplug className="size-4 shrink-0 text-muted-foreground" />
-					<span className="truncate text-xs text-muted-foreground">
-						{connectorCount > 0 ? "Manage connectors" : "Connect your connectors"}
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				onClick={() => setConnectorDialogOpen(true)}
+				className="shrink-0 mx-4 mt-6 mb-2.5 h-auto select-none justify-start gap-2 bg-muted px-3 py-1.5 text-xs text-muted-foreground"
+			>
+				<Unplug className="size-4 shrink-0" />
+				<span className="truncate">
+					{connectorCount > 0 ? "Manage connectors" : "Connect your connectors"}
+				</span>
+				{connectorCount > 0 && (
+					<span className="shrink-0 rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+						{connectorCount}
 					</span>
-					{connectorCount > 0 && (
-						<span className="shrink-0 rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-							{connectorCount}
-						</span>
-					)}
-					<AvatarGroup className="ml-auto shrink-0">
-						{connectorCount > 0 && connectors
-							? connectors.slice(0, isMobile ? 5 : 9).map((connector, i) => {
+				)}
+				<AvatarGroup className="ml-auto shrink-0">
+					{connectorCount > 0 && connectors
+						? connectors.slice(0, isMobile ? 5 : 9).map((connector, i) => {
+								const avatar = (
+									<Avatar
+										key={connector.id}
+										className="size-6"
+										style={{ zIndex: Math.max(9 - i, 1) }}
+									>
+										<AvatarFallback className="bg-muted text-[10px] text-muted-foreground">
+											{getConnectorIcon(connector.connector_type, "size-3.5")}
+										</AvatarFallback>
+									</Avatar>
+								);
+								if (isMobile) return avatar;
+								return (
+									<Tooltip key={connector.id}>
+										<TooltipTrigger asChild>{avatar}</TooltipTrigger>
+										<TooltipContent side="top" className="text-xs">
+											{connector.name}
+										</TooltipContent>
+									</Tooltip>
+								);
+							})
+						: (isMobile ? SHOWCASE_CONNECTORS.slice(0, 5) : SHOWCASE_CONNECTORS).map(
+								({ type, label }, i) => {
 									const avatar = (
 										<Avatar
-											key={connector.id}
+											key={type}
 											className="size-6"
-											style={{ zIndex: Math.max(9 - i, 1) }}
+											style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
 										>
-											<AvatarFallback className="bg-muted text-[10px]">
-												{getConnectorIcon(connector.connector_type, "size-3.5")}
+											<AvatarFallback className="bg-muted text-[10px] text-muted-foreground">
+												{getConnectorIcon(type, "size-3.5")}
 											</AvatarFallback>
 										</Avatar>
 									);
 									if (isMobile) return avatar;
 									return (
-										<Tooltip key={connector.id}>
+										<Tooltip key={type}>
 											<TooltipTrigger asChild>{avatar}</TooltipTrigger>
 											<TooltipContent side="top" className="text-xs">
-												{connector.name}
+												{label}
 											</TooltipContent>
 										</Tooltip>
 									);
-								})
-							: (isMobile ? SHOWCASE_CONNECTORS.slice(0, 5) : SHOWCASE_CONNECTORS).map(
-									({ type, label }, i) => {
-										const avatar = (
-											<Avatar
-												key={type}
-												className="size-6"
-												style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
-											>
-												<AvatarFallback className="bg-muted text-[10px]">
-													{getConnectorIcon(type, "size-3.5")}
-												</AvatarFallback>
-											</Avatar>
-										);
-										if (isMobile) return avatar;
-										return (
-											<Tooltip key={type}>
-												<TooltipTrigger asChild>{avatar}</TooltipTrigger>
-												<TooltipContent side="top" className="text-xs">
-													{label}
-												</TooltipContent>
-											</Tooltip>
-										);
-									}
-								)}
-					</AvatarGroup>
-				</button>
-			</div>
+								}
+							)}
+				</AvatarGroup>
+			</Button>
 
 			{isElectron && (
-				<button
+				<Button
 					type="button"
+					variant="ghost"
+					size="sm"
 					onClick={handleWatchLocalFolder}
-					className="shrink-0 mx-4 mb-2.5 flex select-none items-center gap-2 rounded-lg border-0 bg-muted px-3 py-1.5 transition-colors hover:bg-accent hover:text-accent-foreground"
+					className="shrink-0 mx-4 mb-2.5 h-auto select-none justify-start gap-2 bg-muted px-3 py-1.5 text-xs text-muted-foreground"
 				>
-					<FolderClock className="size-4 shrink-0 text-muted-foreground" />
-					<span className="truncate text-xs text-muted-foreground">Watch local folder</span>
-				</button>
+					<FolderClock className="size-4 shrink-0" />
+					<span className="truncate">Watch local folder</span>
+				</Button>
 			)}
 
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
@@ -1139,15 +1141,17 @@ function AuthenticatedDocumentsSidebarBase({
 				<div className="relative flex-1 min-h-0 overflow-auto">
 					{deletableSelectedIds.length > 0 && (
 						<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
-							<button
+							<Button
 								type="button"
+								variant="destructive"
+								size="sm"
 								onClick={() => setBulkDeleteConfirmOpen(true)}
-								className="pointer-events-auto flex items-center gap-1.5 px-3 py-1 rounded-md bg-destructive text-destructive-foreground shadow-lg text-xs font-medium hover:bg-destructive/90 transition-colors"
+								className="pointer-events-auto h-auto gap-1.5 px-3 py-1 text-xs shadow-lg"
 							>
 								<Trash2 size={12} />
 								Delete {deletableSelectedIds.length}{" "}
 								{deletableSelectedIds.length === 1 ? "item" : "items"}
-							</button>
+							</Button>
 						</div>
 					)}
 
@@ -1762,42 +1766,42 @@ function AnonymousDocumentsSidebar({
 			</div>
 
 			{/* Connectors strip (gated) */}
-			<div className="shrink-0 mx-4 mt-6 mb-2.5 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-accent hover:text-accent-foreground">
-				<button
-					type="button"
-					onClick={() => gate("connect your data sources")}
-					className="flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 text-left"
-				>
-					<Unplug className="size-4 shrink-0 text-muted-foreground" />
-					<span className="truncate text-xs text-muted-foreground">Connect your connectors</span>
-					<AvatarGroup className="ml-auto shrink-0">
-						{(isMobile ? SHOWCASE_CONNECTORS.slice(0, 5) : SHOWCASE_CONNECTORS).map(
-							({ type, label }, i) => {
-								const avatar = (
-									<Avatar
-										key={type}
-										className="size-6"
-										style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
-									>
-										<AvatarFallback className="bg-muted text-[10px]">
-											{getConnectorIcon(type, "size-3.5")}
-										</AvatarFallback>
-									</Avatar>
-								);
-								if (isMobile) return avatar;
-								return (
-									<Tooltip key={type}>
-										<TooltipTrigger asChild>{avatar}</TooltipTrigger>
-										<TooltipContent side="top" className="text-xs">
-											{label}
-										</TooltipContent>
-									</Tooltip>
-								);
-							}
-						)}
-					</AvatarGroup>
-				</button>
-			</div>
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				onClick={() => gate("connect your data sources")}
+				className="shrink-0 mx-4 mt-6 mb-2.5 h-auto select-none justify-start gap-2 border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground"
+			>
+				<Unplug className="size-4 shrink-0" />
+				<span className="truncate">Connect your connectors</span>
+				<AvatarGroup className="ml-auto shrink-0">
+					{(isMobile ? SHOWCASE_CONNECTORS.slice(0, 5) : SHOWCASE_CONNECTORS).map(
+						({ type, label }, i) => {
+							const avatar = (
+								<Avatar
+									key={type}
+									className="size-6"
+									style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
+								>
+									<AvatarFallback className="bg-muted text-[10px] text-muted-foreground">
+										{getConnectorIcon(type, "size-3.5")}
+									</AvatarFallback>
+								</Avatar>
+							);
+							if (isMobile) return avatar;
+							return (
+								<Tooltip key={type}>
+									<TooltipTrigger asChild>{avatar}</TooltipTrigger>
+									<TooltipContent side="top" className="text-xs">
+										{label}
+									</TooltipContent>
+								</Tooltip>
+							);
+						}
+					)}
+				</AvatarGroup>
+			</Button>
 
 			{/* Filters & upload */}
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
@@ -1849,18 +1853,19 @@ function AnonymousDocumentsSidebar({
 
 					{!hasDoc && (
 						<div className="px-4 py-8 text-center">
-							<button
+							<Button
 								type="button"
+								variant="ghost"
 								onClick={handleAnonUploadClick}
 								disabled={isUploading}
-								className="relative flex w-full items-center justify-center rounded-lg border-2 border-dashed border-primary/30 px-4 py-6 text-sm text-primary transition-colors hover:border-primary/60 hover:bg-primary/5 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+								className="relative h-auto w-full border-2 border-dashed border-primary/30 px-4 py-6 text-sm text-primary hover:border-primary/60 hover:bg-primary/5 hover:text-primary cursor-pointer"
 							>
 								<span className={`flex items-center gap-2 ${isUploading ? "opacity-0" : ""}`}>
 									<Upload className="size-4" />
 									Upload a document
 								</span>
 								{isUploading && <Spinner size="sm" className="absolute" />}
-							</button>
+							</Button>
 							<p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
 								Text, code, CSV, and HTML files only. Create an account for PDFs, images, and 30+
 								connectors.

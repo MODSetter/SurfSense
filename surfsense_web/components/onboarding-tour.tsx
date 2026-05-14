@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
 import { fetchThreads } from "@/lib/chat/thread-persistence";
@@ -322,39 +323,45 @@ function TourTooltip({
 					{/* Navigation buttons */}
 					<div className="flex items-center gap-3">
 						{!isFirstStep && (
-							<button
+							<Button
 								type="button"
+								variant="ghost"
+								size="sm"
 								onClick={(e) => {
 									e.stopPropagation();
 									onPrev();
 								}}
-								className="text-sm font-medium text-muted-foreground transition-opacity hover:opacity-80"
+								className="h-auto px-0 py-0 text-sm text-muted-foreground hover:bg-transparent hover:text-muted-foreground hover:opacity-80"
 							>
 								Back
-							</button>
+							</Button>
 						)}
 						{isFirstStep && (
-							<button
+							<Button
 								type="button"
+								variant="ghost"
+								size="sm"
 								onClick={(e) => {
 									e.stopPropagation();
 									onSkip();
 								}}
-								className="text-sm font-medium text-muted-foreground transition-opacity hover:opacity-80"
+								className="h-auto px-0 py-0 text-sm text-muted-foreground hover:bg-transparent hover:text-muted-foreground hover:opacity-80"
 							>
 								Skip
-							</button>
+							</Button>
 						)}
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="sm"
 							onClick={(e) => {
 								e.stopPropagation();
 								onNext();
 							}}
-							className="text-sm font-medium text-foreground transition-opacity hover:opacity-80"
+							className="h-auto px-0 py-0 text-sm text-foreground hover:bg-transparent hover:text-foreground hover:opacity-80"
 						>
 							{isLastStep ? "Done" : "Next"}
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
@@ -714,9 +721,10 @@ export function OnboardingTour() {
 			`}</style>
 			<div className="fixed inset-0 z-[99995]">
 				{/* Clickable backdrop to close */}
-				<button
+				<Button
 					type="button"
-					className="fixed inset-0 w-full h-full bg-transparent border-0 cursor-default"
+					variant="ghost"
+					className="fixed inset-0 h-full w-full rounded-none border-0 bg-transparent p-0 hover:bg-transparent cursor-default"
 					onClick={handleOverlayClick}
 					aria-label="Close tour"
 				/>

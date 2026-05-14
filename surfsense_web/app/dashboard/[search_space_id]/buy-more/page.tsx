@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { BuyPagesContent } from "@/components/settings/buy-pages-content";
 import { BuyTokensContent } from "@/components/settings/buy-tokens-content";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -26,19 +27,21 @@ export default function BuyMorePage() {
 			>
 				<div className="flex items-center justify-center rounded-lg border bg-muted/30 p-1">
 					{TABS.map((tab) => (
-						<button
+						<Button
 							key={tab.id}
 							type="button"
+							variant="ghost"
+							size="sm"
 							onClick={() => setActiveTab(tab.id)}
 							className={cn(
-								"flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+								"h-auto flex-1 px-3 py-1.5 text-sm",
 								activeTab === tab.id
 									? "bg-background text-foreground shadow-sm"
 									: "text-muted-foreground hover:text-accent-foreground"
 							)}
 						>
 							{tab.label}
-						</button>
+						</Button>
 					))}
 				</div>
 
