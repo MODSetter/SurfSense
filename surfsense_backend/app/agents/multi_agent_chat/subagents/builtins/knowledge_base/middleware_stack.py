@@ -1,8 +1,7 @@
 """Middleware list shared by the full and read-only knowledge_base compiles.
 
 The KB-owned :class:`PermissionMiddleware` slot is what enforces
-"ask before destructive FS op" for KB tools — replacing the legacy
-``interrupt_on`` kwarg that used to live on the subagent spec.
+"ask before destructive FS op" for KB tools.
 """
 
 from __future__ import annotations
@@ -47,7 +46,7 @@ def build_kb_middleware(
     ``ruleset`` is the KB-owned permission ruleset (typically the
     destructive-FS ask rules). When provided, a dedicated
     :class:`PermissionMiddleware` is appended so KB enforces approval at
-    the rule layer instead of the legacy ``interrupt_on`` kwarg.
+    the rule layer.
     """
     mws = middleware_stack or {}
     filesystem_mode: FilesystemMode = dependencies["filesystem_mode"]

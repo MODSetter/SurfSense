@@ -2,8 +2,7 @@
 
 KB owns its destructive-FS approval ruleset (:data:`KB_RULESET`); rules
 are layered into KB's :class:`PermissionMiddleware` (built inside
-``build_kb_middleware``). The legacy ``interrupt_on`` kwarg is gone — one
-emitter, one wire format, one source of truth.
+``build_kb_middleware``). One emitter, one wire format, one source of truth.
 """
 
 from __future__ import annotations
@@ -12,9 +11,9 @@ from typing import Any, cast
 
 from deepagents import SubAgent
 from langchain_core.language_models import BaseChatModel
+from langchain_core.tools import BaseTool
 
 from app.agents.multi_agent_chat.subagents.shared.spec import SurfSenseSubagentSpec
-from app.agents.multi_agent_chat.subagents.shared.tool_kinds import ToolsPermissions
 from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.agents.new_chat.permissions import Rule, Ruleset
 
@@ -38,9 +37,9 @@ def build_subagent(
     dependencies: dict[str, Any],
     model: BaseChatModel | None = None,
     middleware_stack: dict[str, Any] | None = None,
-    extra_tools_bucket: ToolsPermissions | None = None,
+    mcp_tools: list[BaseTool] | None = None,
 ) -> SurfSenseSubagentSpec:
-    del extra_tools_bucket
+    del mcp_tools
     llm = model if model is not None else dependencies["llm"]
     filesystem_mode: FilesystemMode = dependencies["filesystem_mode"]
     spec = cast(
