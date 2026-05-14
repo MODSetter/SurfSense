@@ -1,13 +1,15 @@
+"""``gmail`` native tools and (empty) permission ruleset.
+
+Tools self-gate via :func:`request_approval` in their bodies.
+"""
+
 from __future__ import annotations
 
 from typing import Any
 
-from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
-    self_gated_tool_permission_row,
-)
-from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
-    ToolsPermissions,
-)
+from langchain_core.tools import BaseTool
+
+from app.agents.new_chat.permissions import Ruleset
 
 from .create_draft import create_create_gmail_draft_tool
 from .read_email import create_read_gmail_email_tool
@@ -16,31 +18,25 @@ from .send_email import create_send_gmail_email_tool
 from .trash_email import create_trash_gmail_email_tool
 from .update_draft import create_update_gmail_draft_tool
 
+NAME = "gmail"
+
+RULESET = Ruleset(origin=NAME, rules=[])
+
 
 def load_tools(
     *, dependencies: dict[str, Any] | None = None, **kwargs: Any
-) -> ToolsPermissions:
+) -> list[BaseTool]:
     d = {**(dependencies or {}), **kwargs}
     common = {
         "db_session": d["db_session"],
         "search_space_id": d["search_space_id"],
         "user_id": d["user_id"],
     }
-    search = create_search_gmail_tool(**common)
-    read = create_read_gmail_email_tool(**common)
-    draft = create_create_gmail_draft_tool(**common)
-    send = create_send_gmail_email_tool(**common)
-    trash = create_trash_gmail_email_tool(**common)
-    updraft = create_update_gmail_draft_tool(**common)
-    return {
-        "allow": [
-            self_gated_tool_permission_row(search),
-            self_gated_tool_permission_row(read),
-        ],
-        "ask": [
-            self_gated_tool_permission_row(draft),
-            self_gated_tool_permission_row(send),
-            self_gated_tool_permission_row(trash),
-            self_gated_tool_permission_row(updraft),
-        ],
-    }
+    return [
+        create_search_gmail_tool(**common),
+        create_read_gmail_email_tool(**common),
+        create_create_gmail_draft_tool(**common),
+        create_send_gmail_email_tool(**common),
+        create_trash_gmail_email_tool(**common),
+        create_update_gmail_draft_tool(**common),
+    ]

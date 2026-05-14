@@ -1,26 +1,20 @@
+"""``clickup`` permission ruleset (rules over MCP tool names)."""
+
 from __future__ import annotations
 
-from typing import Any
+from app.agents.new_chat.permissions import Rule, Ruleset
 
-from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
-    ToolsPermissions,
+NAME = "clickup"
+
+RULESET = Ruleset(
+    origin=NAME,
+    rules=[
+        Rule(permission="clickup_search", pattern="*", action="allow"),
+        Rule(permission="clickup_get_task", pattern="*", action="allow"),
+        Rule(permission="clickup_get_workspace_hierarchy", pattern="*", action="allow"),
+        Rule(permission="clickup_get_list", pattern="*", action="allow"),
+        Rule(permission="clickup_find_member_by_name", pattern="*", action="allow"),
+        Rule(permission="clickup_create_task", pattern="*", action="ask"),
+        Rule(permission="clickup_update_task", pattern="*", action="ask"),
+    ],
 )
-
-
-def load_tools(
-    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
-) -> ToolsPermissions:
-    _ = {**(dependencies or {}), **kwargs}
-    return {
-        "allow": [
-            {"name": "clickup_search"},
-            {"name": "clickup_get_task"},
-            {"name": "clickup_get_workspace_hierarchy"},
-            {"name": "clickup_get_list"},
-            {"name": "clickup_find_member_by_name"},
-        ],
-        "ask": [
-            {"name": "clickup_create_task"},
-            {"name": "clickup_update_task"},
-        ],
-    }
