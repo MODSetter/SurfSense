@@ -735,7 +735,7 @@ const Composer: FC = () => {
 					/>
 				</div>
 			)}
-			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
+			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-3xl border-input bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-shadow dark:shadow-black/10">
 				<PendingScreenImageStrip />
 				{clipboardInitialText && (
 					<ClipboardChip
@@ -900,7 +900,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 
 	return (
-		<div className="aui-composer-action-wrapper relative mx-3 mb-2 flex items-center justify-between">
+		<div className="aui-composer-action-wrapper relative mx-3 mb-3 flex items-center justify-between">
 			<div className="flex items-center gap-1">
 				{!isDesktop ? (
 					<>
