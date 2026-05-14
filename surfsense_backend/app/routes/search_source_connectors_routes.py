@@ -3071,6 +3071,37 @@ class MCPTrustToolRequest(BaseModel):
     tool_name: str
 
 
+async def _ensure_mcp_connector_for_user(
+    session: AsyncSession, *, user_id, connector_id: int
+) -> int:
+    """Verify ``connector_id`` is an MCP-backed connector owned by ``user_id``.
+
+    The trust-list feature is intentionally MCP-only; native connectors
+    (Gmail, Calendar, Notion, ...) do not have a "trust this tool" UI.
+    The JSONB ``has_key("server_config")`` filter is the same MCP marker
+    used elsewhere in this module.
+
+    Returns the connector's ``search_space_id`` (needed downstream for
+    MCP tool cache invalidation). Raises ``HTTPException(404)`` when the
+    connector does not exist, is not owned by the user, or is not
+    MCP-backed.
+    """
+    from sqlalchemy import cast
+    from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+
+    result = await session.execute(
+        select(SearchSourceConnector.search_space_id).where(
+            SearchSourceConnector.id == connector_id,
+            SearchSourceConnector.user_id == user_id,
+            cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),
+        )
+    )
+    search_space_id = result.scalar_one_or_none()
+    if search_space_id is None:
+        raise HTTPException(status_code=404, detail="MCP connector not found")
+    return search_space_id
+
+
 @router.post("/connectors/mcp/{connector_id}/trust-tool")
 async def trust_mcp_tool(
     connector_id: int,
@@ -3080,45 +3111,32 @@ async def trust_mcp_tool(
 ):
     """Add a tool to the MCP connector's trusted (always-allow) list.
 
-    Once trusted, the tool executes without HITL approval on subsequent calls.
-    Works for both generic MCP_CONNECTOR and OAuth-backed MCP connectors
-    (LINEAR_CONNECTOR, JIRA_CONNECTOR, etc.) by checking for ``server_config``.
+    Once trusted, the tool executes without HITL approval on subsequent
+    calls. Works for both generic ``MCP_CONNECTOR`` and OAuth-backed MCP
+    connectors (``LINEAR_CONNECTOR``, ``JIRA_CONNECTOR``, ...) — the
+    storage primitive is the same JSON list under ``config.trusted_tools``.
     """
+    from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+    from app.services.user_tool_allowlist import add_user_trust
+
     try:
-        from sqlalchemy import cast
-        from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
-
-        result = await session.execute(
-            select(SearchSourceConnector).filter(
-                SearchSourceConnector.id == connector_id,
-                SearchSourceConnector.user_id == user.id,
-                cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),
-            )
+        search_space_id = await _ensure_mcp_connector_for_user(
+            session, user_id=user.id, connector_id=connector_id
         )
-        connector = result.scalars().first()
-        if not connector:
-            raise HTTPException(status_code=404, detail="MCP connector not found")
-
-        config = dict(connector.config or {})
-        trusted: list[str] = list(config.get("trusted_tools", []))
-        if body.tool_name not in trusted:
-            trusted.append(body.tool_name)
-        config["trusted_tools"] = trusted
-        connector.config = config
-
-        from sqlalchemy.orm.attributes import flag_modified
-
-        flag_modified(connector, "config")
+        trusted = await add_user_trust(
+            session,
+            user_id=user.id,
+            connector_id=connector_id,
+            tool_name=body.tool_name,
+        )
         await session.commit()
-
-        from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
-
-        invalidate_mcp_tools_cache(connector.search_space_id)
-
+        invalidate_mcp_tools_cache(search_space_id)
         return {"status": "ok", "trusted_tools": trusted}
 
     except HTTPException:
         raise
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail="MCP connector not found") from e
     except Exception as e:
         logger.error(f"Failed to trust MCP tool: {e!s}", exc_info=True)
         await session.rollback()
@@ -3137,43 +3155,28 @@ async def untrust_mcp_tool(
     """Remove a tool from the MCP connector's trusted list.
 
     The tool will require HITL approval again on subsequent calls.
-    Works for both generic MCP_CONNECTOR and OAuth-backed MCP connectors.
     """
+    from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+    from app.services.user_tool_allowlist import remove_user_trust
+
     try:
-        from sqlalchemy import cast
-        from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
-
-        result = await session.execute(
-            select(SearchSourceConnector).filter(
-                SearchSourceConnector.id == connector_id,
-                SearchSourceConnector.user_id == user.id,
-                cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),
-            )
+        search_space_id = await _ensure_mcp_connector_for_user(
+            session, user_id=user.id, connector_id=connector_id
         )
-        connector = result.scalars().first()
-        if not connector:
-            raise HTTPException(status_code=404, detail="MCP connector not found")
-
-        config = dict(connector.config or {})
-        trusted: list[str] = list(config.get("trusted_tools", []))
-        if body.tool_name in trusted:
-            trusted.remove(body.tool_name)
-        config["trusted_tools"] = trusted
-        connector.config = config
-
-        from sqlalchemy.orm.attributes import flag_modified
-
-        flag_modified(connector, "config")
+        trusted = await remove_user_trust(
+            session,
+            user_id=user.id,
+            connector_id=connector_id,
+            tool_name=body.tool_name,
+        )
         await session.commit()
-
-        from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
-
-        invalidate_mcp_tools_cache(connector.search_space_id)
-
+        invalidate_mcp_tools_cache(search_space_id)
         return {"status": "ok", "trusted_tools": trusted}
 
     except HTTPException:
         raise
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail="MCP connector not found") from e
     except Exception as e:
         logger.error(f"Failed to untrust MCP tool: {e!s}", exc_info=True)
         await session.rollback()
