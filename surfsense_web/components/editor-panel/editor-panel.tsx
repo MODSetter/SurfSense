@@ -463,7 +463,7 @@ export function EditorPanelContent({
 							</Button>
 						</div>
 					</div>
-					<div className="flex h-10 items-center justify-between gap-2 border-b px-4">
+					<div className="grid h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
 						<div className="min-w-0 flex flex-1 items-center gap-2">
 							<p className="truncate text-sm text-muted-foreground">{displayTitle}</p>
 						</div>

@@ -8,6 +8,7 @@ import type { FC } from "react";
 import { useState } from "react";
 import { openCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { useCitationMetadata } from "@/components/assistant-ui/citation-metadata-context";
+import { CitationPanelContent } from "@/components/citation-panel/citation-panel";
 import { Citation } from "@/components/tool-ui/citation";
 import { CitationHoverPopover } from "@/components/tool-ui/citation/citation-hover-popover";
 import { Button } from "@/components/ui/button";
@@ -80,19 +81,45 @@ export const InlineCitation: FC<InlineCitationProps> = ({ chunkId, isDocsChunk =
 };
 
 const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
+	const isTouchLike = useMediaQuery("(hover: none), (pointer: coarse)");
 	const openCitationPanel = useSetAtom(openCitationPanelAtom);
+	const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+
+	const handleClick = () => {
+		if (isTouchLike) {
+			setMobilePreviewOpen(true);
+			return;
+		}
+		openCitationPanel({ chunkId });
+	};
 
 	return (
-		<Button
-			type="button"
-			variant="ghost"
-			onClick={() => openCitationPanel({ chunkId })}
-			className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-md bg-popover px-1.5 text-[11px] font-medium text-popover-foreground/80 align-baseline"
-			title={`View source chunk #${chunkId}`}
-			aria-label={`View cited chunk ${chunkId}`}
-		>
-			{chunkId}
-		</Button>
+		<>
+			<Button
+				type="button"
+				variant="ghost"
+				onClick={handleClick}
+				className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-md bg-popover px-1.5 text-[11px] font-medium text-popover-foreground/80 align-baseline"
+				title={`View source chunk #${chunkId}`}
+				aria-label={`View cited chunk ${chunkId}`}
+			>
+				{chunkId}
+			</Button>
+			<Drawer open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen} shouldScaleBackground={false}>
+				<DrawerContent
+					className="h-[85vh] max-h-[85vh] z-80 overflow-hidden"
+					overlayClassName="z-80"
+				>
+					<DrawerHandle />
+					<DrawerHeader className="pb-0">
+						<DrawerTitle>Citation</DrawerTitle>
+					</DrawerHeader>
+					<div className="min-h-0 flex-1 flex flex-col overflow-hidden">
+						<CitationPanelContent chunkId={chunkId} showHeader={false} />
+					</div>
+				</DrawerContent>
+			</Drawer>
+		</>
 	);
 };
 
@@ -131,7 +158,7 @@ const SurfsenseDocCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 			</CitationHoverPopover>
 			<Drawer open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen} shouldScaleBackground={false}>
 				<DrawerContent
-					className="max-h-[85vh] z-80 bg-popover text-popover-foreground"
+					className="max-h-[85vh] z-80"
 					overlayClassName="z-80"
 				>
 					<DrawerHandle />
