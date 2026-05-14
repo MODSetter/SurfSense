@@ -35,6 +35,7 @@ import { useLocaleContext } from "@/contexts/LocaleContext";
 import { usePlatform } from "@/hooks/use-platform";
 import { GITHUB_RELEASES_URL, usePrimaryDownload } from "@/lib/desktop-download-utils";
 import { APP_VERSION } from "@/lib/env-config";
+import { trackDesktopDownloadClicked } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import type { User } from "../../types/layout.types";
 
@@ -180,6 +181,7 @@ export function SidebarUserProfile({
 	const initials = getInitials(user.email);
 	const displayName = user.name || user.email.split("@")[0];
 	const downloadUrl = primary?.url ?? GITHUB_RELEASES_URL;
+	const downloadLabel = t("download_for_os", { os });
 
 	const handleLanguageChange = (newLocale: "en" | "es" | "pt" | "hi" | "zh") => {
 		setLocale(newLocale);
@@ -203,6 +205,24 @@ export function SidebarUserProfile({
 	if (isCollapsed) {
 		return (
 			<div className="border-t px-1.5 py-2">
+				<Button
+					asChild
+					variant="ghost"
+					size="icon"
+					className="mx-auto mb-2 h-9 w-9 rounded-md bg-muted hover:bg-accent"
+				>
+					<a
+						href={downloadUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						aria-label={downloadLabel}
+						onClick={() =>
+							trackDesktopDownloadClicked({ os, placement: "sidebar_collapsed" })
+						}
+					>
+						<Download className="h-4 w-4" strokeWidth={2.5} />
+					</a>
+				</Button>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button
@@ -343,7 +363,7 @@ export function SidebarUserProfile({
 							<DropdownMenuItem asChild className="font-medium">
 								<a href={downloadUrl} target="_blank" rel="noopener noreferrer">
 									<Download className="h-4 w-4" strokeWidth={2.5} />
-									{t("download_for_os", { os })}
+									{downloadLabel}
 								</a>
 							</DropdownMenuItem>
 						)}
@@ -367,6 +387,21 @@ export function SidebarUserProfile({
 	// Expanded view
 	return (
 		<div className="border-t">
+			<Button
+				asChild
+				variant="ghost"
+				className="mx-2 mt-2 mb-1 h-10 w-[calc(100%-1rem)] justify-start gap-2 rounded-md bg-muted px-3 text-sm font-semibold hover:bg-accent"
+			>
+				<a
+					href={downloadUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					onClick={() => trackDesktopDownloadClicked({ os, placement: "sidebar_expanded" })}
+				>
+					<Download className="h-4 w-4" strokeWidth={2.5} />
+					{downloadLabel}
+				</a>
+			</Button>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button
@@ -510,7 +545,7 @@ export function SidebarUserProfile({
 						<DropdownMenuItem asChild className="font-medium">
 							<a href={downloadUrl} target="_blank" rel="noopener noreferrer">
 								<Download className="h-4 w-4" strokeWidth={2.5} />
-								{t("download_for_os", { os })}
+								{downloadLabel}
 							</a>
 						</DropdownMenuItem>
 					)}
