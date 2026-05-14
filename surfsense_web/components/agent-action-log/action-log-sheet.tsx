@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue } from "jotai";
-import { Activity, RefreshCcw } from "lucide-react";
+import { RefreshCcw, Workflow, } from "lucide-react";
 import { useCallback } from "react";
 import { actionLogSheetAtom } from "@/atoms/agent/action-log-sheet.atom";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
@@ -36,7 +36,7 @@ function DisabledState() {
 	return (
 		<div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 pb-12 text-center">
 			<div className="flex size-12 items-center justify-center rounded-full border border-popover-border bg-muted/40">
-				<Activity className="size-5 text-muted-foreground" strokeWidth={1.75} />
+				<Workflow className="size-5 text-muted-foreground" strokeWidth={1.75} />
 			</div>
 			<div className="flex max-w-[280px] flex-col gap-1.5">
 				<p className="text-sm font-semibold tracking-tight">Action log is disabled</p>

@@ -7,7 +7,6 @@ import {
 	Dot,
 	File as FileIcon,
 	FolderOpen,
-	Upload,
 	X,
 	Zap,
 } from "lucide-react";
@@ -537,7 +536,9 @@ export function DocumentUploadTab({
 			<div className="sm:hidden">
 				{hasContent ? (
 					isElectron ? (
-						<div className="w-full">{renderBrowseButton({ compact: true, fullWidth: true })}</div>
+						<div className="flex w-full justify-center">
+							{renderBrowseButton({ compact: true })}
+						</div>
 					) : (
 						<Button
 							type="button"
@@ -552,7 +553,6 @@ export function DocumentUploadTab({
 					<div className="flex w-full flex-col items-center gap-4 bg-transparent px-4 py-12 select-none">
 						{isElectron ? (
 							<div className="flex w-full flex-col items-center gap-4">
-								<Upload className="h-10 w-10 text-muted-foreground" />
 								<div className="text-center space-y-1.5">
 									<p className="text-base font-medium">{t("select_files_or_folder")}</p>
 									<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
@@ -565,7 +565,6 @@ export function DocumentUploadTab({
 								className="h-auto w-full flex-col gap-4 whitespace-normal bg-transparent p-0 text-foreground hover:bg-transparent hover:text-foreground"
 								onClick={() => fileInputRef.current?.click()}
 							>
-								<Upload className="h-10 w-10 text-muted-foreground" />
 								<div className="text-center space-y-1.5">
 									<p className="text-base font-medium">{t("tap_select_files_or_folder")}</p>
 									<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
@@ -573,11 +572,11 @@ export function DocumentUploadTab({
 							</Button>
 						)}
 						<fieldset
-							className="w-full mt-1 border-none p-0 m-0"
+							className="mt-1 flex w-full justify-center border-none p-0 m-0"
 							onClick={(e) => e.stopPropagation()}
 							onKeyDown={(e) => e.stopPropagation()}
 						>
-							{renderBrowseButton({ fullWidth: true })}
+							{renderBrowseButton()}
 						</fieldset>
 					</div>
 				)}
@@ -590,7 +589,6 @@ export function DocumentUploadTab({
 			>
 				{hasContent ? (
 					<div className="flex items-center gap-3">
-						<Upload className="h-4 w-4 text-muted-foreground shrink-0" />
 						<span className="text-xs text-muted-foreground flex-1 truncate">
 							{isDragActive ? t("drop_files") : t("drag_drop_more")}
 						</span>
@@ -600,12 +598,10 @@ export function DocumentUploadTab({
 					<div className="relative">
 						{isDragActive && (
 							<div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-								<Upload className="h-8 w-8 text-primary" />
 								<p className="text-sm font-medium text-primary">{t("drop_files")}</p>
 							</div>
 						)}
 						<div className={`flex flex-col items-center gap-2 ${isDragActive ? "invisible" : ""}`}>
-							<Upload className="h-8 w-8 text-muted-foreground" />
 							<p className="text-sm font-medium">{t("drag_drop")}</p>
 							<p className="text-xs text-muted-foreground">{t("file_size_limit")}</p>
 							<div className="mt-1">{renderBrowseButton()}</div>

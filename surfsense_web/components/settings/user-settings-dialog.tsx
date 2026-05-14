@@ -2,7 +2,6 @@
 
 import { useAtom } from "jotai";
 import {
-	Activity,
 	Brain,
 	CircleUser,
 	Globe,
@@ -12,6 +11,7 @@ import {
 	ReceiptText,
 	ShieldCheck,
 	Sparkles,
+	Workflow,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
@@ -127,7 +127,7 @@ export function UserSettingsDialog() {
 			{
 				value: "agent-status",
 				label: "Agent Status",
-				icon: <Activity className="h-4 w-4" />,
+				icon: <Workflow className="h-4 w-4" />,
 			},
 			{
 				value: "purchases",

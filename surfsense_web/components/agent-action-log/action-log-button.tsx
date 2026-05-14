@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { Activity } from "lucide-react";
+import { Workflow } from "lucide-react";
 import { useCallback } from "react";
 import { openActionLogSheetAtom } from "@/atoms/agent/action-log-sheet.atom";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
@@ -41,7 +41,7 @@ export function ActionLogButton({ threadId }: ActionLogButtonProps) {
 					aria-label="Open agent action log"
 					onClick={handleClick}
 				>
-					<Activity className="size-4" />
+					<Workflow className="size-4 text-muted-foreground" />
 				</Button>
 			</TooltipTrigger>
 			<TooltipContent>Agent actions</TooltipContent>
