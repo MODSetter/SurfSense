@@ -330,8 +330,15 @@ const PendingScreenImageStrip: FC = () => {
 					key={url}
 					className="group relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-border/50 bg-muted"
 				>
-					{/* biome-ignore lint/performance/noImgElement: data URL thumbnails from capture */}
-					<img src={url} alt="" className="size-full object-cover" draggable={false} />
+					<Image
+						src={url}
+						alt="Pending screenshot preview"
+						fill
+						sizes="56px"
+						className="object-cover"
+						draggable={false}
+						unoptimized
+					/>
 					<Button
 						type="button"
 						onClick={() => setUrls((prev) => prev.filter((_, i) => i !== index))}

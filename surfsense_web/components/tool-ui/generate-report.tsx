@@ -9,6 +9,7 @@ import { z } from "zod";
 import { openReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 
@@ -215,10 +216,11 @@ function ReportCard({
 		<div
 			className={`my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300 ${isActive ? "ring-1 ring-primary/50" : ""}`}
 		>
-			<button
+			<Button
+				variant="ghost"
 				type="button"
 				onClick={handleOpen}
-				className="w-full text-left transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:outline-none cursor-pointer"
+				className="h-auto w-full flex-col items-stretch justify-start gap-0 rounded-2xl p-0 text-left font-normal whitespace-normal transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:outline-none cursor-pointer"
 			>
 				<div className="px-5 pt-5 pb-4 select-none">
 					<p className="text-sm font-semibold text-foreground line-clamp-2">
@@ -262,7 +264,7 @@ function ReportCard({
 						<p className="text-sm text-muted-foreground italic">No content available</p>
 					)}
 				</div>
-			</button>
+			</Button>
 		</div>
 	);
 }

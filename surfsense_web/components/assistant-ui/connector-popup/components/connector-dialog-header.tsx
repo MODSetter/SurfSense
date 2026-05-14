@@ -2,6 +2,7 @@
 
 import { Search, X } from "lucide-react";
 import type { FC } from "react";
+import { Button } from "@/components/ui/button";
 import { DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -76,14 +77,16 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 							onChange={(e) => onSearchChange(e.target.value)}
 						/>
 						{searchQuery && (
-							<button
+							<Button
+								variant="ghost"
+								size="icon"
 								type="button"
 								onClick={() => onSearchChange("")}
-								className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground hover:text-accent-foreground transition-colors"
+								className="absolute right-1.5 top-1/2 size-7 -translate-y-1/2 text-muted-foreground transition-colors hover:bg-transparent hover:text-accent-foreground"
 								aria-label="Clear search"
 							>
-								<X className="size-4" />
-							</button>
+								<X data-icon="inline-start" />
+							</Button>
 						)}
 					</div>
 				</div>

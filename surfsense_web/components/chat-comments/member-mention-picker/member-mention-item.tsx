@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { MemberMentionItemProps } from "./types";
 
@@ -25,10 +26,11 @@ export function MemberMentionItem({
 	const displayName = member.displayName || member.email.split("@")[0];
 
 	return (
-		<button
+		<Button
+			variant="ghost"
 			type="button"
 			className={cn(
-				"flex w-full items-center gap-3 px-3 py-2 text-left transition-colors",
+				"h-auto w-full justify-start gap-3 rounded-none px-3 py-2 text-left transition-colors",
 				isHighlighted ? "bg-primary/15 text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
 			)}
 			onClick={() => onSelect(member)}
@@ -44,6 +46,6 @@ export function MemberMentionItem({
 				<span className="truncate text-sm font-medium">{displayName}</span>
 				<span className="truncate text-xs text-muted-foreground">{member.email}</span>
 			</div>
-		</button>
+		</Button>
 	);
 }

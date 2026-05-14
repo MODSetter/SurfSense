@@ -3,6 +3,7 @@
 import { ChevronRightIcon } from "lucide-react";
 import { type FC, useEffect, useMemo, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { Button } from "@/components/ui/button";
 import { getToolDisplayName } from "@/contracts/enums/toolIcons";
 import { HitlApprovalCard, usePendingInterrupt } from "@/features/chat-messages/hitl";
 import { cn } from "@/lib/utils";
@@ -98,11 +99,12 @@ export const Timeline: FC<{
 	return (
 		<div className="mx-auto w-full max-w-(--thread-max-width) px-2 py-2">
 			<div className="rounded-lg">
-				<button
+				<Button
+					variant="ghost"
 					type="button"
 					onClick={() => setIsOpen((prev) => !prev)}
 					className={cn(
-						"flex w-full items-center gap-1.5 text-left text-sm transition-colors",
+						"h-auto w-full justify-start gap-1.5 p-0 text-left text-sm font-normal transition-colors hover:bg-transparent",
 						"text-muted-foreground hover:text-accent-foreground"
 					)}
 				>
@@ -112,9 +114,10 @@ export const Timeline: FC<{
 						<span>{headerText}</span>
 					)}
 					<ChevronRightIcon
-						className={cn("size-4 transition-transform duration-200", isOpen && "rotate-90")}
+						data-icon="inline-end"
+						className={cn("transition-transform duration-200", isOpen && "rotate-90")}
 					/>
-				</button>
+				</Button>
 
 				<div
 					className={cn(

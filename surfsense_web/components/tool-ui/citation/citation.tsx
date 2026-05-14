@@ -3,6 +3,7 @@
 import { ExternalLink, Globe } from "lucide-react";
 import NextImage from "next/image";
 import * as React from "react";
+import { Button } from "@/components/ui/button";
 import { openSafeNavigationHref, sanitizeHref } from "../shared/media";
 import { cn, Popover, PopoverContent, PopoverTrigger } from "./_adapter";
 import type { CitationVariant, SerializableCitation } from "./schema";
@@ -126,7 +127,8 @@ export function Citation(props: CitationProps) {
 		return (
 			<Popover open={open}>
 				<PopoverTrigger asChild>
-					<button
+					<Button
+						variant="ghost"
 						type="button"
 						aria-label={title}
 						data-tool-ui-id={id}
@@ -135,7 +137,7 @@ export function Citation(props: CitationProps) {
 						onMouseEnter={handleMouseEnter}
 						onMouseLeave={handleMouseLeave}
 						className={cn(
-							"inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1",
+							"h-auto cursor-pointer gap-1.5 rounded-md px-2 py-1",
 							"bg-muted/60 text-sm outline-none",
 							"transition-colors duration-150",
 							"hover:bg-accent hover:text-accent-foreground",
@@ -145,7 +147,7 @@ export function Citation(props: CitationProps) {
 					>
 						{iconElement}
 						<span className="text-muted-foreground">{domain}</span>
-					</button>
+					</Button>
 				</PopoverTrigger>
 				<PopoverContent
 					side="top"

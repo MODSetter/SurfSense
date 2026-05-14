@@ -194,13 +194,14 @@ export function FolderWatchDialog({
 							</Button>
 						</div>
 					) : (
-						<button
+						<Button
+							variant="ghost"
 							type="button"
 							onClick={handleSelectFolder}
-							className="flex flex-1 w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 text-sm text-muted-foreground transition-colors hover:border-foreground/50 hover:text-accent-foreground"
+							className="h-auto flex-1 w-full gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-transparent text-sm text-muted-foreground transition-colors hover:border-foreground/50 hover:bg-transparent hover:text-accent-foreground"
 						>
 							Browse for a folder
-						</button>
+						</Button>
 					)}
 
 					{selectedFolder && (

@@ -128,14 +128,15 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 			>
 				{/* Back button - only show if not from OAuth */}
 				{!isFromOAuth && (
-					<button
+					<Button
+						variant="ghost"
 						type="button"
 						onClick={onSkip}
-						className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-accent-foreground mb-6 w-fit"
+						className="mb-6 h-auto w-fit justify-start gap-2 px-0 py-0 text-xs text-muted-foreground hover:bg-transparent hover:text-accent-foreground sm:text-sm"
 					>
-						<ArrowLeft className="size-4" />
+						<ArrowLeft data-icon="inline-start" />
 						Back to connectors
-					</button>
+					</Button>
 				)}
 
 				{/* Success header */}

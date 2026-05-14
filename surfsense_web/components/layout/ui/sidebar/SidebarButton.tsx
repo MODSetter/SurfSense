@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +23,7 @@ interface SidebarButtonProps {
 }
 
 const baseClassName = cn(
-	"group/sidebar-button relative flex h-9 items-center rounded-md mx-2 px-2 text-sm text-left",
+	"group/sidebar-button relative h-9 justify-start gap-0 rounded-md mx-2 px-2 text-sm text-left",
 	"transition-colors hover:bg-accent hover:text-accent-foreground",
 	"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 );
@@ -49,7 +50,8 @@ export function SidebarButton({
 		: (expandedIconNode ?? <Icon className="h-3.5 w-3.5 shrink-0" />);
 
 	const button = (
-		<button
+		<Button
+			variant="ghost"
 			type="button"
 			onClick={onClick}
 			aria-label={isCollapsed ? label : undefined}
@@ -100,7 +102,7 @@ export function SidebarButton({
 			)}
 
 			<span className="sr-only">{label}</span>
-		</button>
+		</Button>
 	);
 
 	const renderTooltip = isCollapsed || !!tooltipContent;

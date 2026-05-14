@@ -1,6 +1,7 @@
 "use client";
 
 import type { MouseEventHandler, ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -60,13 +61,14 @@ export function MentionChip({
 	const isInteractive = Boolean(onClick) && !disabled;
 
 	const chip = (
-		<button
+		<Button
+			variant="ghost"
 			type="button"
 			onClick={onClick}
 			disabled={disabled}
 			aria-label={ariaLabel ?? label}
 			className={cn(
-				"inline-flex max-w-[220px] items-center gap-1.5 rounded-md border bg-background px-2 py-0.5 align-middle text-xs font-medium text-foreground leading-5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				"h-auto max-w-[220px] justify-start gap-1.5 rounded-md border bg-background px-2 py-0.5 align-middle text-xs leading-5 text-foreground shadow-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
 				isInteractive
 					? "cursor-pointer hover:bg-accent hover:text-accent-foreground"
 					: "cursor-default",
@@ -76,7 +78,7 @@ export function MentionChip({
 		>
 			<span className="inline-flex shrink-0 text-muted-foreground">{icon}</span>
 			<span className="truncate">{label}</span>
-		</button>
+		</Button>
 	);
 
 	if (!tooltip) return chip;
