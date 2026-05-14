@@ -24,6 +24,7 @@ from app.schemas.surfsense_docs import (
     SurfsenseDocsDocumentWithChunksRead,
 )
 from app.users import current_active_user
+from app.utils.surfsense_docs import surfsense_docs_public_url
 
 router = APIRouter()
 
@@ -76,6 +77,7 @@ async def get_surfsense_doc_by_chunk_id(
             id=document.id,
             title=document.title,
             source=document.source,
+            public_url=surfsense_docs_public_url(document.source),
             content=document.content,
             chunks=[
                 SurfsenseDocsChunkRead(id=c.id, content=c.content)
@@ -146,6 +148,7 @@ async def list_surfsense_docs(
                 id=doc.id,
                 title=doc.title,
                 source=doc.source,
+                public_url=surfsense_docs_public_url(doc.source),
                 content=doc.content,
                 created_at=doc.created_at,
                 updated_at=doc.updated_at,

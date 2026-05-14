@@ -130,9 +130,9 @@ const SurfsenseDocPreview: FC<{ chunkId: number }> = ({ chunkId }) => {
 					</p>
 					<p className="text-[11px] text-muted-foreground">Chunk #{chunkId}</p>
 				</div>
-				{data?.source && (
+				{data?.public_url && (
 					<a
-						href={data.source}
+						href={data.public_url}
 						target="_blank"
 						rel="noopener noreferrer"
 						className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10"
