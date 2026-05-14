@@ -33,20 +33,46 @@ from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.agents.new_chat.permissions import Ruleset
 
 
+def _kb_user_allowlist(
+    dependencies: dict[str, Any], subagent_name: str
+) -> Ruleset | None:
+    """Return the user's persisted allow-rules for ``subagent_name`` if any.
+
+    KB does not currently expose an "Always Allow" UI surface (the FE
+    button is MCP-only today), but the wiring is symmetrical with the
+    connector subagents so that adding KB trust later is a one-line
+    backend change.
+    """
+    by_subagent = dependencies.get("user_allowlist_by_subagent") or {}
+    user_allowlist = by_subagent.get(subagent_name)
+    if isinstance(user_allowlist, Ruleset) and user_allowlist.rules:
+        return user_allowlist
+    return None
+
+
 def build_kb_middleware(
     *,
     llm: BaseChatModel,
     dependencies: dict[str, Any],
     middleware_stack: dict[str, Any] | None,
     read_only: bool,
+    subagent_name: str,
     ruleset: Ruleset | None = None,
 ) -> list[Any]:
     """Compose the KB subagent's middleware list.
 
-    ``ruleset`` is the KB-owned permission ruleset (typically the
-    destructive-FS ask rules). When provided, a dedicated
-    :class:`PermissionMiddleware` is appended so KB enforces approval at
-    the rule layer.
+    Args:
+        subagent_name: Identity of the subagent being built (e.g.
+            ``"knowledge_base"``, ``"knowledge_base_readonly"``). Used to
+            look up the user's persistent allow-list bucket in
+            ``dependencies["user_allowlist_by_subagent"]``.
+        ruleset: The KB-owned permission ruleset (typically the
+            destructive-FS ``ask`` rules). When provided, a dedicated
+            :class:`PermissionMiddleware` is appended so KB enforces
+            approval at the rule layer. The user's persistent allow-list
+            for ``subagent_name`` is layered after ``ruleset`` so user
+            ``allow`` rules override coded ``ask`` rules via
+            last-match-wins.
     """
     mws = middleware_stack or {}
     filesystem_mode: FilesystemMode = dependencies["filesystem_mode"]
@@ -61,11 +87,13 @@ def build_kb_middleware(
         )
         if m is not None
     ]
-    permission_mw = (
-        build_permission_mw(flags=flags, extra_rulesets=[ruleset])
-        if (ruleset is not None and flags is not None)
-        else None
-    )
+    permission_mw = None
+    if ruleset is not None and flags is not None:
+        rulesets: list[Ruleset] = [ruleset]
+        user_allowlist = _kb_user_allowlist(dependencies, subagent_name)
+        if user_allowlist is not None:
+            rulesets.append(user_allowlist)
+        permission_mw = build_permission_mw(flags=flags, subagent_rulesets=rulesets)
     return [
         mws["todos"],
         build_kb_context_projection_mw(),

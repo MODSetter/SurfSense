@@ -1,9 +1,10 @@
 """Regression: subagent-owned rulesets layer cleanly into ``PermissionMiddleware``.
 
 The KB unification swap (legacy ``interrupt_on`` map → KB-owned ``Ruleset``
-threaded through ``build_permission_mw(extra_rulesets=...)``) must produce
-*exactly one* interrupt per destructive FS call, in LC HITL shape, even
-when ``enable_permission`` is False — destructive ops always ask.
+threaded through ``build_permission_mw(subagent_rulesets=...)``) must
+produce *exactly one* interrupt per destructive FS call, in LC HITL
+shape, even when ``enable_permission`` is False — destructive ops always
+ask.
 
 We exercise the production factory and a real ``PermissionMiddleware`` on a
 real ``StateGraph`` so the test catches regressions in factory gating,
@@ -54,7 +55,7 @@ class _State(TypedDict, total=False):
 def _build_graph_with_permission_middleware(
     *,
     flags: AgentFeatureFlags,
-    extra_rulesets: list[Ruleset] | None,
+    subagent_rulesets: list[Ruleset] | None,
     checkpointer: InMemorySaver,
 ):
     """Compile a one-node graph that emits a tool call for ``rm`` and
@@ -64,7 +65,7 @@ def _build_graph_with_permission_middleware(
     ``after_model`` hook intercepts and (if a rule says ``ask``) raises
     a ``GraphInterrupt`` carrying the LC HITL payload.
     """
-    pm = build_permission_mw(flags=flags, extra_rulesets=extra_rulesets)
+    pm = build_permission_mw(flags=flags, subagent_rulesets=subagent_rulesets)
 
     def node(_state: _State) -> dict[str, Any]:
         msg = AIMessage(
@@ -108,10 +109,10 @@ async def test_kb_ruleset_raises_one_lc_hitl_ask_for_rm_even_when_permission_fla
     checkpointer = InMemorySaver()
     graph, pm = _build_graph_with_permission_middleware(
         flags=flags,
-        extra_rulesets=[_kb_style_ruleset()],
+        subagent_rulesets=[_kb_style_ruleset()],
         checkpointer=checkpointer,
     )
-    assert pm is not None, "extras must force the middleware on"
+    assert pm is not None, "subagent rulesets must force the middleware on"
 
     config = {"configurable": {"thread_id": "kb-cloud-rm"}}
     await graph.ainvoke({"messages": [HumanMessage(content="seed")]}, config)
@@ -136,7 +137,7 @@ async def test_kb_ruleset_resume_with_approve_lets_rm_through():
     checkpointer = InMemorySaver()
     graph, _ = _build_graph_with_permission_middleware(
         flags=flags,
-        extra_rulesets=[_kb_style_ruleset()],
+        subagent_rulesets=[_kb_style_ruleset()],
         checkpointer=checkpointer,
     )
     config = {"configurable": {"thread_id": "kb-cloud-rm-approve"}}
@@ -158,12 +159,12 @@ async def test_kb_ruleset_resume_with_approve_lets_rm_through():
 
 
 @pytest.mark.asyncio
-async def test_no_extras_with_permission_off_skips_middleware_entirely():
-    """No extras + permission off → factory returns ``None`` (no engine).
+async def test_no_subagent_rulesets_with_permission_off_skips_middleware_entirely():
+    """No subagent rulesets + permission off → factory returns ``None`` (no engine).
 
     The legacy gating is preserved when no caller asks for rules: nothing
     runs, nothing pauses.
     """
     flags = AgentFeatureFlags(enable_permission=False)
-    pm = build_permission_mw(flags=flags, extra_rulesets=None)
+    pm = build_permission_mw(flags=flags, subagent_rulesets=None)
     assert pm is None

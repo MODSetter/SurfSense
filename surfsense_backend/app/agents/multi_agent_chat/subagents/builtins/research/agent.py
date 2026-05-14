@@ -33,7 +33,7 @@ def build_subagent(
         system_prompt=system_prompt,
         tools=tools,
         ruleset=RULESET,
-        flags=dependencies["flags"],
+        dependencies=dependencies,
         model=model,
         middleware_stack=middleware_stack,
     )
