@@ -9,9 +9,9 @@ matching OpenCode's ``permission/index.ts`` evaluation order):
    needs to *deny* what the user has explicitly forbidden; the default
    ``ask`` fallback would otherwise double-prompt every safe read-only
    call.
-2. ``extra_rulesets`` — caller-supplied rulesets. The KB subagent contributes
-   its destructive-FS ``ask`` rules here; connectors will follow once
-   they migrate off ``interrupt_on``.
+2. ``extra_rulesets`` — caller-supplied rulesets. Each subagent
+   contributes its own (KB: destructive-FS ``ask`` rules; connectors:
+   per-tool ``allow``/``ask``).
 
 Connector deny synthesis from ``new_chat._synthesize_connector_deny_rules``
 is intentionally NOT replicated: the multi-agent orchestrator already

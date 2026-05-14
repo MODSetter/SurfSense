@@ -22,6 +22,8 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from app.agents.multi_agent_chat.subagents.shared.subagent_builder import (
     pack_subagent,
 )
+from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.new_chat.permissions import Ruleset
 
 
 class RateLimitError(Exception):
@@ -73,14 +75,17 @@ async def test_subagent_recovers_when_primary_llm_fails():
         responses=[AIMessage(content="recovered via fallback")]
     )
 
-    spec = pack_subagent(
+    result = pack_subagent(
         name="resilience_test",
         description="test subagent",
         system_prompt="be helpful",
         tools=[],
+        ruleset=Ruleset(origin="resilience_test", rules=[]),
+        flags=AgentFeatureFlags(),
         model=primary,
         middleware_stack={"fallback": ModelFallbackMiddleware(fallback)},
     )
+    spec = result.spec
 
     agent = create_agent(
         model=spec["model"],

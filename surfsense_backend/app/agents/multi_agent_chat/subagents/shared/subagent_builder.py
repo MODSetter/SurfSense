@@ -9,7 +9,12 @@ from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 
-from app.agents.new_chat.middleware import DedupHITLToolCallsMiddleware
+from app.agents.multi_agent_chat.middleware.shared.permissions import (
+    build_permission_mw,
+)
+from app.agents.multi_agent_chat.subagents.shared.spec import SurfSenseSubagentSpec
+from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.new_chat.permissions import Ruleset
 
 
 def pack_subagent(
@@ -18,27 +23,35 @@ def pack_subagent(
     description: str,
     system_prompt: str,
     tools: list[BaseTool],
+    ruleset: Ruleset,
+    flags: AgentFeatureFlags,
     model: BaseChatModel | None = None,
     middleware_stack: dict[str, Any] | None = None,
-    interrupt_on: dict[str, bool] | None = None,
-) -> SubAgent:
-    """Pack the route-local pieces passed in into one sub-agent spec.
+) -> SurfSenseSubagentSpec:
+    """Pack the route-local pieces into one sub-agent spec + its Ruleset.
 
-    ``middleware_stack`` is the shared subagent middleware stack (see
-    ``build_subagent_middleware_stack``). Every non-``None`` value is
-    prepended to this subagent's middleware list in insertion order.
+    Tool gating is uniformly performed by a per-subagent
+    :class:`PermissionMiddleware` built from the subagent's own
+    ``ruleset`` (layered on top of the SurfSense defaults). The shared
+    ``permission`` slot from ``middleware_stack`` is dropped so each
+    subagent owns its own rule surface.
     """
     if not system_prompt.strip():
         msg = f"Subagent {name!r}: system_prompt is empty"
         raise ValueError(msg)
 
-    prepended = [m for m in (middleware_stack or {}).values() if m is not None]
-    middleware: list[Any] = [
-        *prepended,
-        PatchToolCallsMiddleware(),
-        DedupHITLToolCallsMiddleware(agent_tools=tools),
-    ]
-    spec: dict[str, Any] = {
+    per_subagent_perm = build_permission_mw(flags=flags, extra_rulesets=[ruleset])
+    prepended: list[Any] = []
+    for slot, mw in (middleware_stack or {}).items():
+        if mw is None:
+            continue
+        if slot == "permission":
+            continue
+        prepended.append(mw)
+    if per_subagent_perm is not None:
+        prepended.append(per_subagent_perm)
+    middleware: list[Any] = [*prepended, PatchToolCallsMiddleware()]
+    spec_dict: dict[str, Any] = {
         "name": name,
         "description": description,
         "system_prompt": system_prompt,
@@ -46,7 +59,5 @@ def pack_subagent(
         "middleware": middleware,
     }
     if model is not None:
-        spec["model"] = model
-    if interrupt_on:
-        spec["interrupt_on"] = interrupt_on
-    return cast(SubAgent, spec)
+        spec_dict["model"] = model
+    return SurfSenseSubagentSpec(spec=cast(SubAgent, spec_dict), ruleset=ruleset)
