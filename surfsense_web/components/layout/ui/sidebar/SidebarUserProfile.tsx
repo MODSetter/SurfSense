@@ -29,6 +29,7 @@ import {
 	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useLocaleContext } from "@/contexts/LocaleContext";
 import { usePlatform } from "@/hooks/use-platform";
@@ -204,11 +205,12 @@ export function SidebarUserProfile({
 			<div className="border-t px-1.5 py-2">
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
-						<button
+						<Button
 							type="button"
+							variant="ghost"
 							className={cn(
-								"mx-auto flex h-9 w-9 items-center justify-center rounded-full",
-								"transition-opacity hover:opacity-90",
+								"mx-auto h-9 w-9 rounded-full p-0",
+								"transition-opacity hover:bg-transparent hover:opacity-90",
 								"focus:outline-none focus-visible:outline-none",
 								"data-[state=open]:opacity-90"
 							)}
@@ -220,7 +222,7 @@ export function SidebarUserProfile({
 								size="md"
 							/>
 							<span className="sr-only">{displayName}</span>
-						</button>
+						</Button>
 					</DropdownMenuTrigger>
 
 					<DropdownMenuContent className="w-48" side="right" align="end" sideOffset={8}>
@@ -367,10 +369,11 @@ export function SidebarUserProfile({
 		<div className="border-t">
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
-					<button
+					<Button
 						type="button"
+						variant="ghost"
 						className={cn(
-							"flex w-full items-center gap-2 px-2 py-3 text-left",
+							"h-auto w-full justify-start gap-2 rounded-none px-2 py-3 text-left",
 							"hover:bg-accent transition-colors",
 							"focus:outline-none focus-visible:outline-none",
 							"data-[state=open]:bg-transparent"
@@ -386,7 +389,7 @@ export function SidebarUserProfile({
 
 						{/* Chevron icon */}
 						<ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
-					</button>
+					</Button>
 				</DropdownMenuTrigger>
 
 				<DropdownMenuContent className="w-48" side="top" align="center" sideOffset={4}>

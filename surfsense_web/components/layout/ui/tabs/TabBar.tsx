@@ -10,6 +10,7 @@ import {
 	type Tab,
 	tabsAtom,
 } from "@/atoms/tabs/tabs.atom";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface TabBarProps {
@@ -189,22 +190,25 @@ export function TabBar({
 									)}
 								/>
 							) : null}
-							<button
-								type="button"
+							<div
 								data-tab-id={tab.id}
-								onClick={() => handleTabClick(tab)}
-								onMouseEnter={() => setHoveredTabIndex(index)}
-								onMouseLeave={() => setHoveredTabIndex(null)}
-								className={cn(
-									"group relative flex h-full items-center px-3 w-[180px] min-h-0 overflow-hidden text-[13px] font-medium rounded-md transition-colors duration-150 shrink-0",
-									isActive
-										? "bg-accent text-accent-foreground"
-										: "bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-								)}
+								className="group relative h-full w-[180px] shrink-0"
 							>
-								<span className="block min-w-0 flex-1 whitespace-nowrap overflow-hidden text-left">
-									{tab.title}
-								</span>
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => handleTabClick(tab)}
+									onMouseEnter={() => setHoveredTabIndex(index)}
+									onMouseLeave={() => setHoveredTabIndex(null)}
+									className={cn(
+										"h-full w-full justify-start overflow-hidden px-3 text-left text-[13px] font-medium transition-colors duration-150",
+										isActive
+											? "bg-accent text-accent-foreground"
+											: "bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground group-hover:bg-accent group-hover:text-accent-foreground group-focus-within:bg-accent group-focus-within:text-accent-foreground"
+									)}
+								>
+									<span className="block min-w-0 flex-1 truncate text-left">{tab.title}</span>
+								</Button>
 								{/* Hover-only gradient + close overlay (sidebar pattern) — keeps pill width fixed and avoids ellipsis shift. */}
 								<div
 									className={cn(
@@ -213,23 +217,19 @@ export function TabBar({
 										"bg-gradient-to-l from-accent from-60% to-transparent"
 									)}
 								>
-									{/* biome-ignore lint/a11y/useSemanticElements: cannot nest button inside button */}
-									<span
-										role="button"
-										tabIndex={0}
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
 										onClick={(e) => handleTabClose(e, tab.id)}
-										onKeyDown={(e) => {
-											if (e.key === "Enter" || e.key === " ") {
-												e.preventDefault();
-												handleTabClose(e as unknown as React.MouseEvent, tab.id);
-											}
-										}}
-										className="pointer-events-auto rounded-full p-0.5 transition-colors hover:bg-accent hover:text-accent-foreground"
+										onMouseEnter={() => setHoveredTabIndex(index)}
+										onMouseLeave={() => setHoveredTabIndex(null)}
+										className="pointer-events-auto size-4 rounded-full p-0.5 hover:bg-accent hover:text-accent-foreground"
 									>
-										<X className="size-3" />
-									</span>
+										<X data-icon="inline-start" />
+									</Button>
 								</div>
-							</button>
+							</div>
 						</Fragment>
 					);
 				})}
@@ -243,14 +243,16 @@ export function TabBar({
 							"before:bg-gradient-to-r before:from-transparent before:to-panel"
 						)}
 					>
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="icon"
 							onClick={onNewChat}
-							className="flex h-8 w-8 items-center justify-center shrink-0 rounded-md text-muted-foreground transition-all duration-150 hover:bg-accent hover:text-accent-foreground"
+							className="size-8 shrink-0 text-muted-foreground transition-all duration-150 hover:bg-accent hover:text-accent-foreground"
 							title="New Chat"
 						>
-							<Plus className="size-4" />
-						</button>
+							<Plus data-icon="inline-start" />
+						</Button>
 					</div>
 				)}
 			</div>

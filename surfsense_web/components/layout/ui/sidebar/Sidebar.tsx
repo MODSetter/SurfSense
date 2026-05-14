@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsAnonymous } from "@/contexts/anonymous-mode";
@@ -204,13 +205,14 @@ export function Sidebar({
 						alwaysShowAction={!disableTooltips && isSharedChatsPanelOpen}
 						action={
 							onViewAllSharedChats ? (
-								<button
+								<Button
 									type="button"
+									variant="ghost"
 									onClick={onViewAllSharedChats}
-									className="text-xs font-medium text-muted-foreground/60 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+									className="h-auto cursor-pointer whitespace-nowrap bg-transparent p-0 text-xs font-medium text-muted-foreground/60 transition-colors hover:bg-transparent hover:text-muted-foreground"
 								>
 									{!disableTooltips && isSharedChatsPanelOpen ? t("hide") : t("show_all")}
-								</button>
+								</Button>
 							) : undefined
 						}
 					>
@@ -260,13 +262,14 @@ export function Sidebar({
 						alwaysShowAction={!disableTooltips && isPrivateChatsPanelOpen}
 						action={
 							onViewAllPrivateChats ? (
-								<button
+								<Button
 									type="button"
+									variant="ghost"
 									onClick={onViewAllPrivateChats}
-									className="text-xs font-medium text-muted-foreground/60 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+									className="h-auto cursor-pointer whitespace-nowrap bg-transparent p-0 text-xs font-medium text-muted-foreground/60 transition-colors hover:bg-transparent hover:text-muted-foreground"
 								>
 									{!disableTooltips && isPrivateChatsPanelOpen ? t("hide") : t("show_all")}
-								</button>
+								</Button>
 							) : undefined
 						}
 					>

@@ -143,18 +143,20 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 			{hasPublicSnapshots && (
 				<Tooltip>
 					<TooltipTrigger asChild>
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="icon"
 							onClick={() =>
 								setSearchSpaceSettingsDialog({
 									open: true,
 									initialTab: "public-links",
 								})
 							}
-							className="flex items-center justify-center h-8 w-8 rounded-md bg-muted/50 hover:bg-accent hover:text-accent-foreground transition-colors"
+							className="size-8 bg-muted/50 hover:bg-accent hover:text-accent-foreground"
 						>
-							<Earth className="h-4 w-4 text-muted-foreground" />
-						</button>
+							<Earth data-icon="inline-start" className="text-muted-foreground" />
+						</Button>
 					</TooltipTrigger>
 					<TooltipContent>Manage public links</TooltipContent>
 				</Tooltip>
@@ -185,14 +187,13 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							const Icon = option.icon;
 
 							return (
-								<button
+								<Button
 									type="button"
+									variant="ghost"
 									key={option.value}
 									onClick={() => handleVisibilityChange(option.value)}
 									className={cn(
-										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors",
-										"hover:bg-accent hover:text-accent-foreground cursor-pointer",
-										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+										"h-auto w-full justify-start gap-2.5 whitespace-normal px-2.5 py-2 font-normal",
 										isSelected && "bg-accent text-accent-foreground"
 									)}
 								>
@@ -204,7 +205,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									>
 										<Icon
 											className={cn(
-												"size-4 block",
+												"block",
 												isSelected ? "text-primary dark:text-white" : "text-muted-foreground"
 											)}
 										/>
@@ -224,7 +225,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 											{option.description}
 										</p>
 									</div>
-								</button>
+								</Button>
 							);
 						})}
 
@@ -234,19 +235,18 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 								<div className="border-t border-popover-border my-1" />
 
 								{/* Public Link Option */}
-								<button
+								<Button
 									type="button"
+									variant="ghost"
 									onClick={handleCreatePublicLink}
 									disabled={isCreatingSnapshot}
 									className={cn(
-										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors",
-										"hover:bg-accent hover:text-accent-foreground cursor-pointer",
-										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-										"disabled:opacity-50 disabled:cursor-not-allowed"
+										"h-auto w-full justify-start gap-2.5 whitespace-normal px-2.5 py-2 font-normal",
+										"disabled:cursor-not-allowed"
 									)}
 								>
 									<div className="size-7 rounded-md shrink-0 grid place-items-center bg-muted dark:bg-white/5">
-										<Earth className="size-4 block text-muted-foreground" />
+										<Earth className="block text-muted-foreground" />
 									</div>
 									<div className="flex-1 text-left min-w-0">
 										<div className="flex items-center gap-1.5">
@@ -258,7 +258,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 											Creates a shareable snapshot of this chat
 										</p>
 									</div>
-								</button>
+								</Button>
 							</>
 						)}
 					</div>

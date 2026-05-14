@@ -22,7 +22,7 @@ import {
 } from "platejs/react";
 import * as React from "react";
 
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 const popoverVariants = cva(
@@ -116,13 +116,9 @@ export function LinkFloatingToolbar({ state }: { state?: LinkFloatingToolbarStat
 		input
 	) : (
 		<div className="box-content flex items-center">
-			<button
-				className={buttonVariants({ size: "sm", variant: "ghost" })}
-				type="button"
-				{...editButtonProps}
-			>
+			<Button size="sm" variant="ghost" type="button" {...editButtonProps}>
 				Edit link
-			</button>
+			</Button>
 
 			<Separator orientation="vertical" />
 
@@ -130,16 +126,9 @@ export function LinkFloatingToolbar({ state }: { state?: LinkFloatingToolbarStat
 
 			<Separator orientation="vertical" />
 
-			<button
-				className={buttonVariants({
-					size: "sm",
-					variant: "ghost",
-				})}
-				type="button"
-				{...unlinkButtonProps}
-			>
+			<Button size="sm" variant="ghost" type="button" {...unlinkButtonProps}>
 				<Unlink width={18} />
-			</button>
+			</Button>
 		</div>
 	);
 
@@ -158,29 +147,22 @@ export function LinkFloatingToolbar({ state }: { state?: LinkFloatingToolbarStat
 
 function LinkOpenButton() {
 	const editor = useEditorRef();
-	const selection = useEditorSelection();
+	useEditorSelection();
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: selection triggers recalculation of link attributes
-	const attributes = React.useMemo(() => {
-		const entry = editor.api.node<TLinkElement>({
-			match: { type: editor.getType(KEYS.link) },
-		});
-		if (!entry) {
-			return {};
-		}
-		const [element] = entry;
-		return getLinkAttributes(editor, element);
-	}, [editor, selection]);
+	const entry = editor.api.node<TLinkElement>({
+		match: { type: editor.getType(KEYS.link) },
+	});
+	const attributes = entry ? getLinkAttributes(editor, entry[0]) : {};
+	const href = typeof attributes.href === "string" ? attributes.href : undefined;
 
 	return (
-		// biome-ignore lint/a11y/noStaticElementInteractions: <a> with spread attributes has dynamic href
-		// biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-label needed for icon-only link
-		<a
-			{...attributes}
-			className={buttonVariants({
-				size: "sm",
-				variant: "ghost",
-			})}
+		<Button
+			size="sm"
+			variant="ghost"
+			type="button"
+			onClick={() => {
+				if (href) window.open(href, "_blank", "noopener,noreferrer");
+			}}
 			onMouseOver={(e) => {
 				e.stopPropagation();
 			}}
@@ -188,10 +170,9 @@ function LinkOpenButton() {
 				e.stopPropagation();
 			}}
 			aria-label="Open link in a new tab"
-			target="_blank"
-			rel="noopener noreferrer"
+			disabled={!href}
 		>
 			<ExternalLink width={18} />
-		</a>
+		</Button>
 	);
 }

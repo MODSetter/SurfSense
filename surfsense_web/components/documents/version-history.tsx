@@ -177,12 +177,13 @@ function VersionHistoryPanel({ documentId }: { documentId: number }) {
 				<div className="flex-1 overflow-y-auto p-2">
 					<div className="flex flex-col gap-0.5">
 						{versions.map((v) => (
-							<button
+							<Button
 								key={v.version_number}
 								type="button"
+								variant="ghost"
 								onClick={() => handleSelectVersion(v.version_number)}
 								className={cn(
-									"flex items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:outline-none w-full",
+									"h-auto w-full justify-start gap-2 rounded-lg px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:outline-none",
 									selectedVersion === v.version_number
 										? "bg-accent text-accent-foreground"
 										: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -197,7 +198,7 @@ function VersionHistoryPanel({ documentId }: { documentId: number }) {
 									{v.title && <p className="text-xs text-muted-foreground truncate">{v.title}</p>}
 								</div>
 								<ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-50" />
-							</button>
+							</Button>
 						))}
 					</div>
 				</div>

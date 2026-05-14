@@ -96,13 +96,14 @@ export function CommunityPromptsContent() {
 									{prompt.prompt}
 								</p>
 								{prompt.prompt.length > 100 && (
-									<button
+									<Button
 										type="button"
+										variant="link"
 										onClick={() => setExpandedId(expandedId === prompt.id ? null : prompt.id)}
-										className="mt-1 text-[11px] text-primary hover:underline cursor-pointer"
+										className="mt-1 h-auto cursor-pointer px-0 py-0 text-[11px] text-primary"
 									>
 										{expandedId === prompt.id ? "See less" : "See more"}
-									</button>
+									</Button>
 								)}
 							</div>
 							<Button

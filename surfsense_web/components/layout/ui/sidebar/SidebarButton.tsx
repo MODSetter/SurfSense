@@ -12,18 +12,12 @@ interface SidebarButtonProps {
 	isCollapsed?: boolean;
 	isActive?: boolean;
 	badge?: React.ReactNode;
-	/** Overlay in the top-right corner of the collapsed icon (e.g. status badge) */
 	collapsedOverlay?: React.ReactNode;
-	/** Custom icon node for collapsed mode — overrides the default <Icon> rendering */
 	collapsedIconNode?: React.ReactNode;
-	/** Custom icon node for expanded mode — overrides the default <Icon> rendering */
 	expandedIconNode?: React.ReactNode;
-	/** Optional inline trailing content shown in expanded mode */
 	trailingContent?: React.ReactNode;
-	/** Optional tooltip content that replaces the default label tooltip */
 	tooltipContent?: React.ReactNode;
 	className?: string;
-	/** Extra attributes spread onto the inner <button> (e.g. data-joyride) */
 	buttonProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
 }
 

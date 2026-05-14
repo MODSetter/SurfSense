@@ -7,6 +7,7 @@ import { SignInButton } from "@/components/auth/sign-in-button";
 import { NavbarGitHubStars } from "@/components/homepage/github-stars-badge";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -99,7 +100,7 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: DesktopNavPro
 						onMouseEnter={() => setHovered(idx)}
 						onMouseLeave={() => setHovered(null)}
 						className="relative px-4 py-2 text-neutral-600 dark:text-neutral-300"
-						key={`link=${idx}`}
+						key={navItem.link}
 						href={navItem.link}
 					>
 						{hovered === idx && (
@@ -179,10 +180,12 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 					<Logo className="h-8 w-8 rounded-md" disableLink />
 					<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
 				</Link>
-				<button
+				<Button
 					type="button"
+					variant="ghost"
+					size="icon"
 					onClick={() => setOpen((prev) => !prev)}
-					className="relative z-50 flex items-center justify-center p-2 -mr-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
+					className="relative z-50 -mr-2 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 touch-manipulation"
 					aria-label={open ? "Close menu" : "Open menu"}
 				>
 					{open ? (
@@ -190,7 +193,7 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 					) : (
 						<IconMenu2 className="h-6 w-6 text-black dark:text-white" />
 					)}
-				</button>
+				</Button>
 			</div>
 
 			<AnimatePresence>
@@ -202,9 +205,9 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 						transition={{ duration: 0.2, ease: "easeOut" }}
 						className="absolute inset-x-0 top-full mt-1 z-20 flex w-full flex-col items-start justify-start gap-4 rounded-xl bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl px-4 py-6 dark:bg-neutral-950/90 dark:border-neutral-800/50"
 					>
-						{navItems.map((navItem: NavItem, idx: number) => (
+						{navItems.map((navItem: NavItem) => (
 							<Link
-								key={`link=${idx}`}
+								key={navItem.link}
 								href={navItem.link}
 								className="relative text-neutral-600 dark:text-neutral-300"
 							>

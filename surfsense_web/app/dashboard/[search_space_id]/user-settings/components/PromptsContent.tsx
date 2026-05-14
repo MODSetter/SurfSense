@@ -277,22 +277,25 @@ export function PromptsContent() {
 									{prompt.prompt}
 								</p>
 								{prompt.prompt.length > 100 && (
-									<button
+									<Button
 										type="button"
+										variant="link"
 										onClick={() => setExpandedId(expandedId === prompt.id ? null : prompt.id)}
-										className="mt-1 text-[11px] text-primary hover:underline cursor-pointer"
+										className="mt-1 h-auto cursor-pointer px-0 py-0 text-[11px] text-primary"
 									>
 										{expandedId === prompt.id ? "See less" : "See more"}
-									</button>
+									</Button>
 								)}
 							</div>
 							<div className="hidden group-hover:flex items-center gap-1 shrink-0">
-								<button
+								<Button
 									type="button"
+									variant="ghost"
+									size="icon"
 									title={prompt.is_public ? "Make private" : "Share with community"}
 									onClick={() => handleTogglePublic(prompt)}
 									disabled={togglingPublicIds.has(prompt.id)}
-									className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-accent-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:pointer-events-none"
+									className="size-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 								>
 									{togglingPublicIds.has(prompt.id) ? (
 										<Spinner className="size-3.5" />
@@ -301,7 +304,7 @@ export function PromptsContent() {
 									) : (
 										<Globe className="size-3.5" />
 									)}
-								</button>
+								</Button>
 								<Button
 									variant="ghost"
 									size="icon"

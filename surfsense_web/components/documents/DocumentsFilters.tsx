@@ -241,9 +241,11 @@ export function DocumentsFilters({
 						aria-label={t("filter_placeholder")}
 					/>
 					{Boolean(searchValue) && (
-						<button
+						<Button
 							type="button"
-							className="absolute right-1 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+							variant="ghost"
+							size="icon"
+							className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 							aria-label="Clear filter"
 							onClick={() => {
 								onSearch("");
@@ -251,7 +253,7 @@ export function DocumentsFilters({
 							}}
 						>
 							<X size={14} strokeWidth={2} aria-hidden="true" />
-						</button>
+						</Button>
 					)}
 				</div>
 

@@ -3,6 +3,7 @@
 import { Settings, Trash2, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -120,11 +121,13 @@ export function SearchSpaceAvatar({
 	);
 
 	const avatarButton = (
-		<button
+		<Button
 			type="button"
+			variant="ghost"
+			size="icon"
 			onClick={onClick}
 			className={cn(
-				"relative flex items-center justify-center rounded-lg font-semibold text-white transition-all select-none",
+				"relative rounded-lg font-semibold text-white transition-all select-none",
 				"hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 				sizeClasses,
 				isActive && "ring-2 ring-primary ring-offset-1 ring-offset-background"
@@ -144,7 +147,7 @@ export function SearchSpaceAvatar({
 					<Users className={cn(size === "sm" ? "h-2 w-2" : "h-2.5 w-2.5")} />
 				</span>
 			)}
-		</button>
+		</Button>
 	);
 
 	const menuItems = (

@@ -74,10 +74,11 @@ export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogIt
 				isAlreadyReverted && "opacity-70"
 			)}
 		>
-			<button
+			<Button
 				type="button"
+				variant="ghost"
 				onClick={() => setIsExpanded((v) => !v)}
-				className="flex w-full items-start gap-3 p-3 text-left hover:bg-accent hover:text-accent-foreground"
+				className="h-auto w-full items-start justify-start gap-3 p-3 text-left hover:bg-accent hover:text-accent-foreground"
 				aria-expanded={isExpanded}
 			>
 				<div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
@@ -119,7 +120,7 @@ export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogIt
 						isExpanded && "rotate-90"
 					)}
 				/>
-			</button>
+			</Button>
 
 			{isExpanded && (
 				<div className="flex flex-col gap-3 border-t bg-muted/20 p-3">

@@ -115,13 +115,15 @@ function buildFolderTree(entries: FolderEntry[]): FolderTreeNode[] {
 
 function flattenTree(
 	nodes: FolderTreeNode[],
-	depth = 0
-): { name: string; isFolder: boolean; depth: number; size?: number }[] {
-	const items: { name: string; isFolder: boolean; depth: number; size?: number }[] = [];
+	depth = 0,
+	parentPath = ""
+): { name: string; isFolder: boolean; depth: number; path: string; size?: number }[] {
+	const items: { name: string; isFolder: boolean; depth: number; path: string; size?: number }[] = [];
 	for (const node of nodes) {
-		items.push({ name: node.name, isFolder: node.isFolder, depth, size: node.size });
+		const path = parentPath ? `${parentPath}/${node.name}` : node.name;
+		items.push({ name: node.name, isFolder: node.isFolder, depth, path, size: node.size });
 		if (node.isFolder && node.children.length > 0) {
-			items.push(...flattenTree(node.children, depth + 1));
+			items.push(...flattenTree(node.children, depth + 1, path));
 		}
 	}
 	return items;
@@ -537,37 +539,39 @@ export function DocumentUploadTab({
 					isElectron ? (
 						<div className="w-full">{renderBrowseButton({ compact: true, fullWidth: true })}</div>
 					) : (
-						<button
+						<Button
 							type="button"
-							className="w-full text-xs h-8 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-muted-foreground/30 text-muted-foreground hover:text-accent-foreground hover:border-foreground/50 transition-colors"
+							variant="ghost"
+							className="h-8 w-full gap-1.5 rounded-md border border-dashed border-muted-foreground/30 px-0 text-xs text-muted-foreground transition-colors hover:border-foreground/50 hover:bg-transparent hover:text-accent-foreground"
 							onClick={() => fileInputRef.current?.click()}
 						>
 							Add more files
-						</button>
+						</Button>
 					)
 				) : (
-					// biome-ignore lint/a11y/useSemanticElements: cannot use <button> here because the contents include nested interactive elements (renderBrowseButton renders a Button), which would be invalid HTML.
-					<div
-						role="button"
-						tabIndex={0}
-						className="flex flex-col items-center gap-4 py-12 px-4 cursor-pointer w-full bg-transparent outline-none select-none"
-						onClick={() => {
-							if (!isElectron) fileInputRef.current?.click();
-						}}
-						onKeyDown={(e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								if (!isElectron) fileInputRef.current?.click();
-							}
-						}}
-					>
-						<Upload className="h-10 w-10 text-muted-foreground" />
-						<div className="text-center space-y-1.5">
-							<p className="text-base font-medium">
-								{isElectron ? t("select_files_or_folder") : t("tap_select_files_or_folder")}
-							</p>
-							<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
-						</div>
+					<div className="flex w-full flex-col items-center gap-4 bg-transparent px-4 py-12 select-none">
+						{isElectron ? (
+							<div className="flex w-full flex-col items-center gap-4">
+								<Upload className="h-10 w-10 text-muted-foreground" />
+								<div className="text-center space-y-1.5">
+									<p className="text-base font-medium">{t("select_files_or_folder")}</p>
+									<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
+								</div>
+							</div>
+						) : (
+							<Button
+								type="button"
+								variant="ghost"
+								className="h-auto w-full flex-col gap-4 whitespace-normal bg-transparent p-0 text-foreground hover:bg-transparent hover:text-foreground"
+								onClick={() => fileInputRef.current?.click()}
+							>
+								<Upload className="h-10 w-10 text-muted-foreground" />
+								<div className="text-center space-y-1.5">
+									<p className="text-base font-medium">{t("tap_select_files_or_folder")}</p>
+									<p className="text-sm text-muted-foreground">{t("file_size_limit")}</p>
+								</div>
+							</Button>
+						)}
 						<fieldset
 							className="w-full mt-1 border-none p-0 m-0"
 							onClick={(e) => e.stopPropagation()}
@@ -649,9 +653,9 @@ export function DocumentUploadTab({
 
 					<div className="max-h-[160px] sm:max-h-[200px] overflow-y-auto -mx-1">
 						{folderUpload
-							? folderTreeItems.map((item, i) => (
+							? folderTreeItems.map((item) => (
 									<div
-										key={`${item.depth}-${i}-${item.name}`}
+										key={item.path}
 										className="flex items-center gap-1.5 py-0.5 px-2"
 										style={{ paddingLeft: `${item.depth * 16 + 8}px` }}
 									>
@@ -726,10 +730,11 @@ export function DocumentUploadTab({
 					<div className="space-y-1.5">
 						<p className="font-medium text-sm px-1">{t("processing_mode")}</p>
 						<div className="grid grid-cols-2 gap-2">
-							<button
+							<Button
 								type="button"
 								onClick={() => setProcessingMode("basic")}
-								className={`flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors ${
+								variant="ghost"
+								className={`h-auto w-full items-start justify-start whitespace-normal rounded-lg border p-3 text-left transition-colors hover:bg-transparent hover:text-foreground ${
 									processingMode === "basic"
 										? "border-primary bg-primary/5"
 										: "border-border hover:border-muted-foreground/50"
@@ -742,11 +747,12 @@ export function DocumentUploadTab({
 									<p className="font-medium text-sm">{t("basic_mode")}</p>
 									<p className="text-xs text-muted-foreground">{t("basic_mode_desc")}</p>
 								</div>
-							</button>
-							<button
+							</Button>
+							<Button
 								type="button"
 								onClick={() => setProcessingMode("premium")}
-								className={`flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors ${
+								variant="ghost"
+								className={`h-auto w-full items-start justify-start whitespace-normal rounded-lg border p-3 text-left transition-colors hover:bg-transparent hover:text-foreground ${
 									processingMode === "premium"
 										? "border-amber-500 bg-amber-500/5"
 										: "border-border hover:border-muted-foreground/50"
@@ -759,7 +765,7 @@ export function DocumentUploadTab({
 									<p className="font-medium text-sm">{t("premium_mode")}</p>
 									<p className="text-xs text-muted-foreground">{t("premium_mode_desc")}</p>
 								</div>
-							</button>
+							</Button>
 						</div>
 					</div>
 

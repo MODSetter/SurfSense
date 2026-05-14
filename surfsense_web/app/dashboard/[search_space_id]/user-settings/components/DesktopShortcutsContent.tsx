@@ -97,17 +97,18 @@ function HotkeyRow({
 						<RotateCcw className="size-3" />
 					</Button>
 				)}
-				<button
+				<Button
 					ref={inputRef}
 					type="button"
+					variant="ghost"
 					title={recording ? "Press shortcut keys" : "Click to edit shortcut"}
 					onClick={() => setRecording(true)}
 					onKeyDown={handleKeyDown}
 					onBlur={() => setRecording(false)}
 					className={
 						recording
-							? "flex h-7 items-center rounded-md border border-transparent bg-primary/5 outline-none ring-0 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
-							: "flex h-7 cursor-pointer items-center rounded-md border border-transparent bg-transparent outline-none ring-0 transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+							? "h-7 border border-transparent bg-primary/5 px-0 outline-none ring-0 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+							: "h-7 cursor-pointer border border-transparent bg-transparent px-0 outline-none ring-0 transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:outline-none focus-visible:ring-0"
 					}
 				>
 					{recording ? (
@@ -115,7 +116,7 @@ function HotkeyRow({
 					) : (
 						<ShortcutKbd keys={displayKeys} className="ml-0 px-1.5 text-foreground/85" />
 					)}
-				</button>
+				</Button>
 			</div>
 		</div>
 	);
