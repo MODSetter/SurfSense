@@ -2,6 +2,7 @@
 
 import type { ComponentProps, HTMLAttributes, ReactElement, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { Popover, PopoverContent, PopoverTrigger } from "./_adapter";
 
 type PopoverContentProps = ComponentProps<typeof PopoverContent>;
@@ -113,6 +114,7 @@ export function CitationHoverPopover({
 	sideOffset = 6,
 	onContentClick,
 }: CitationHoverPopoverProps) {
+	const isTouchLike = useMediaQuery("(hover: none), (pointer: coarse)");
 	const { open, scheduleOpen, scheduleClose, handleOpenChange } = useCitationHoverState(id);
 	const hoverProps = {
 		onPointerEnter: scheduleOpen,
@@ -120,6 +122,10 @@ export function CitationHoverPopover({
 		onFocus: scheduleOpen,
 		onBlur: scheduleClose,
 	} satisfies CitationHoverTriggerProps;
+
+	if (isTouchLike) {
+		return trigger({});
+	}
 
 	return (
 		<Popover open={open} onOpenChange={handleOpenChange}>

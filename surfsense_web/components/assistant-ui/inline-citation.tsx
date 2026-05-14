@@ -5,13 +5,22 @@ import { useSetAtom } from "jotai";
 import { ExternalLink, FileText } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { FC } from "react";
+import { useState } from "react";
 import { openCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { useCitationMetadata } from "@/components/assistant-ui/citation-metadata-context";
 import { Citation } from "@/components/tool-ui/citation";
 import { CitationHoverPopover } from "@/components/tool-ui/citation/citation-hover-popover";
 import { Button } from "@/components/ui/button";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerHeader,
+	DrawerTitle,
+} from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
@@ -51,7 +60,7 @@ export const InlineCitation: FC<InlineCitationProps> = ({ chunkId, isDocsChunk =
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<span
-						className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-md bg-primary/10 px-1.5 text-[11px] font-medium text-primary align-baseline shadow-sm"
+						className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-md bg-popover px-1.5 text-[11px] font-medium text-popover-foreground/80 align-baseline"
 						role="note"
 					>
 						<FileText className="size-3" />
@@ -78,7 +87,7 @@ const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 			type="button"
 			variant="ghost"
 			onClick={() => openCitationPanel({ chunkId })}
-			className="ml-0.5 h-5 min-w-5 cursor-pointer rounded-md bg-muted/60 px-1.5 text-[11px] font-medium text-muted-foreground align-baseline shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
+			className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-md bg-popover px-1.5 text-[11px] font-medium text-popover-foreground/80 align-baseline"
 			title={`View source chunk #${chunkId}`}
 			aria-label={`View cited chunk ${chunkId}`}
 		>
@@ -88,36 +97,77 @@ const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 };
 
 const SurfsenseDocCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
+	const isTouchLike = useMediaQuery("(hover: none), (pointer: coarse)");
+	const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+	const docQuery = useSurfsenseDocPreviewQuery(chunkId, mobilePreviewOpen);
+
+	const handleMobileClick = () => {
+		setMobilePreviewOpen(true);
+	};
+
 	return (
-		<CitationHoverPopover
-			id={`doc-${chunkId}`}
-			contentClassName="w-96 max-w-[calc(100vw-2rem)] p-0"
-			align="start"
-			trigger={(hoverProps) => (
-				<Button
-					type="button"
-					variant="ghost"
-					className="ml-0.5 h-5 min-w-5 cursor-pointer gap-0.5 rounded-md bg-primary/10 px-1.5 text-[11px] font-medium text-primary align-baseline shadow-sm transition-colors hover:bg-primary/15 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
-					aria-label={`Show Surfsense documentation chunk ${chunkId}`}
-					title="Surfsense documentation"
-					{...hoverProps}
+		<>
+			<CitationHoverPopover
+				id={`doc-${chunkId}`}
+				contentClassName="w-96 max-w-[calc(100vw-2rem)] p-0"
+				align="start"
+				trigger={(hoverProps) => (
+					<Button
+						type="button"
+						variant="ghost"
+						size={null}
+						onClick={isTouchLike ? handleMobileClick : undefined}
+						className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-md bg-popover px-1.5 text-[11px] font-medium text-popover-foreground/80 align-baseline"
+						aria-label={`Show Surfsense documentation chunk ${chunkId}`}
+						title="Surfsense documentation"
+						{...hoverProps}
+					>
+						<FileText className="size-3" />
+						doc
+					</Button>
+				)}
+			>
+				<SurfsenseDocPreview chunkId={chunkId} />
+			</CitationHoverPopover>
+			<Drawer open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen} shouldScaleBackground={false}>
+				<DrawerContent
+					className="max-h-[85vh] z-80 bg-popover text-popover-foreground"
+					overlayClassName="z-80"
 				>
-					<FileText className="size-3" />
-					doc
-				</Button>
-			)}
-		>
-			<SurfsenseDocPreview chunkId={chunkId} />
-		</CitationHoverPopover>
+					<DrawerHandle />
+					<DrawerHeader className="pb-0">
+						<DrawerTitle>Surfsense documentation</DrawerTitle>
+					</DrawerHeader>
+					<SurfsenseDocPreviewContent chunkId={chunkId} query={docQuery} contentClassName="max-h-[60vh]" />
+				</DrawerContent>
+			</Drawer>
+		</>
 	);
 };
 
-const SurfsenseDocPreview: FC<{ chunkId: number }> = ({ chunkId }) => {
-	const { data, isLoading, error } = useQuery({
+function useSurfsenseDocPreviewQuery(chunkId: number, enabled = true) {
+	return useQuery({
 		queryKey: cacheKeys.documents.byChunk(`doc-${chunkId}`),
 		queryFn: () => documentsApiService.getSurfsenseDocByChunk(chunkId),
 		staleTime: 5 * 60 * 1000,
+		enabled,
 	});
+}
+
+type SurfsenseDocPreviewQuery = ReturnType<typeof useSurfsenseDocPreviewQuery>;
+
+const SurfsenseDocPreview: FC<{ chunkId: number }> = ({ chunkId }) => {
+	const query = useSurfsenseDocPreviewQuery(chunkId);
+
+	return <SurfsenseDocPreviewContent chunkId={chunkId} query={query} />;
+};
+
+const SurfsenseDocPreviewContent: FC<{
+	chunkId: number;
+	query: SurfsenseDocPreviewQuery;
+	contentClassName?: string;
+}> = ({ chunkId, query, contentClassName = "max-h-72" }) => {
+	const { data, isLoading, error } = query;
 
 	const citedChunk = data?.chunks.find((c) => c.id === chunkId) ?? data?.chunks[0];
 
@@ -142,7 +192,7 @@ const SurfsenseDocPreview: FC<{ chunkId: number }> = ({ chunkId }) => {
 					</a>
 				)}
 			</div>
-			<div className="max-h-72 overflow-auto px-3 py-2 text-sm">
+			<div className={`${contentClassName} overflow-auto px-3 py-2 text-sm`}>
 				{isLoading && (
 					<div className="flex items-center gap-2 py-4 text-muted-foreground">
 						<Spinner size="xs" />

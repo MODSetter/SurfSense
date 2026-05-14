@@ -95,7 +95,7 @@ export function Citation(props: CitationProps) {
 		return (
 			<CitationHoverPopover
 				id={id}
-				contentClassName="w-72 cursor-pointer p-0"
+				contentClassName="w-72 cursor-pointer overflow-hidden p-0"
 				onContentClick={handleClick}
 				trigger={(hoverProps) => (
 					<Button
@@ -107,20 +107,16 @@ export function Citation(props: CitationProps) {
 						onClick={handleClick}
 						{...hoverProps}
 						className={cn(
-							"h-auto cursor-pointer gap-1.5 rounded-md px-2 py-1",
-							"bg-muted/60 text-sm outline-none",
-							"transition-colors duration-150",
-							"hover:bg-accent hover:text-accent-foreground",
-							"focus-visible:ring-ring focus-visible:ring-2",
+							"ml-0.5 inline-flex h-5 min-w-5 cursor-pointer items-center justify-center gap-1.5 rounded-md bg-popover px-1.5 text-[11px] font-medium text-popover-foreground/80 align-baseline",
 							className
 						)}
 					>
 						{iconElement}
-						<span className="text-muted-foreground">{domain}</span>
+						<span>{domain}</span>
 					</Button>
 				)}
 			>
-				<div className="hover:bg-accent hover:text-accent-foreground flex flex-col gap-2 p-3 transition-colors">
+				<div className="flex flex-col gap-2 p-3">
 					<div className="flex items-start gap-2">
 						{iconElement}
 						<span className="text-muted-foreground text-xs">{domain}</span>

@@ -50,14 +50,6 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 
 	const totalChunks = data?.total_chunks ?? data?.chunks.length ?? 0;
 	const startIndex = data?.chunk_start_index ?? 0;
-	const citedIndexInWindow = data
-		? Math.max(
-				0,
-				data.chunks.findIndex((c) => c.id === chunkId)
-			)
-		: 0;
-	const shownAbove = citedIndexInWindow;
-	const shownBelow = data ? Math.max(0, data.chunks.length - 1 - citedIndexInWindow) : 0;
 	const hasMoreAbove = startIndex > 0;
 	const hasMoreBelow = data ? startIndex + data.chunks.length < totalChunks : false;
 
@@ -117,18 +109,16 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 							{data?.title ?? (isLoading ? "Loading…" : `Chunk #${chunkId}`)}
 						</p>
 					</div>
-					<div className="flex items-center gap-2 shrink-0 text-[11px] text-muted-foreground">
-						<span>Chunk #{chunkId}</span>
-						{totalChunks > 0 && <span>· {totalChunks} chunks</span>}
+					<div className="flex items-center gap-1 shrink-0 text-[11px] text-muted-foreground">
+						{totalChunks > 0 && <span>{totalChunks} chunks</span>}
 					</div>
 				</div>
 			</div>
 
 			<div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-5 py-4">
 				{isLoading && (
-					<div className="flex items-center gap-2 py-8 text-muted-foreground">
-						<Spinner size="sm" />
-						<span className="text-sm">Loading citation…</span>
+					<div className="flex min-h-full items-center justify-center text-muted-foreground">
+						<Spinner size="md" />
 					</div>
 				)}
 
@@ -163,14 +153,14 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 											<span
 												className={
 													isCited
-														? "text-[11px] font-semibold text-primary"
+														? "text-[11px] text-muted-foreground"
 														: "text-[11px] font-medium text-muted-foreground"
 												}
 											>
-												{isCited ? "Cited chunk" : `Chunk #${chunk.id}`}
+												Chunk #{chunk.id}
 											</span>
 											{isCited && (
-												<span className="text-[11px] text-muted-foreground">#{chunk.id}</span>
+												<span className="text-[11px] font-semibold text-primary">Cited chunk</span>
 											)}
 										</div>
 										<div className="text-sm">
@@ -191,10 +181,7 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 			</div>
 
 			{!isLoading && !error && data && (
-				<div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3">
-					<div className="text-[11px] text-muted-foreground">
-						Showing {shownAbove} above · cited · {shownBelow} below
-					</div>
+				<div className="shrink-0 flex flex-wrap items-center justify-end gap-2 border-t px-4 py-3">
 					<div className="flex items-center gap-2">
 						{(hasMoreAbove || hasMoreBelow) && !expanded && (
 							<Button
