@@ -18,10 +18,12 @@ from app.agents.multi_agent_chat.constants import (
 from app.agents.multi_agent_chat.subagents.mcp_tools.permissions import (
     TOOLS_PERMISSIONS_BY_AGENT,
 )
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
+from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.middleware_gated import (
+    middleware_gated_tool_permission_row,
+)
+from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
     ToolPermissionItem,
     ToolsPermissions,
-    mcp_tool_permission_row,
 )
 from app.agents.new_chat.tools.mcp_tool import load_mcp_tools
 from app.db import SearchSourceConnector
@@ -129,15 +131,15 @@ def _split_tools_by_permissions(
     for t in tools:
         meta: dict[str, Any] = getattr(t, "metadata", None) or {}
         if meta.get("hitl") is False:
-            allow.append(mcp_tool_permission_row(t))
+            allow.append(middleware_gated_tool_permission_row(t))
             continue
         key = _get_mcp_tool_name(t)
         if key in allow_names:
-            allow.append(mcp_tool_permission_row(t))
+            allow.append(middleware_gated_tool_permission_row(t))
         elif key in ask_names:
-            ask.append(mcp_tool_permission_row(t))
+            ask.append(middleware_gated_tool_permission_row(t))
         else:
-            ask.append(mcp_tool_permission_row(t))
+            ask.append(middleware_gated_tool_permission_row(t))
     return {"allow": allow, "ask": ask}
 
 

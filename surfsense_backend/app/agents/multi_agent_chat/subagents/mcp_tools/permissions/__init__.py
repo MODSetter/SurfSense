@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
+from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
     ToolsPermissions,
 )
 
