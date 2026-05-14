@@ -1,7 +1,7 @@
 """``knowledge_base`` route: full and read-only ``SurfSenseSubagentSpec`` builders.
 
-KB owns the destructive-FS approval policy: rules live in :data:`KB_RULESET`
-and are layered into KB's :class:`PermissionMiddleware` (built inside
+KB owns its destructive-FS approval ruleset (:data:`KB_RULESET`); rules
+are layered into KB's :class:`PermissionMiddleware` (built inside
 ``build_kb_middleware``). The legacy ``interrupt_on`` kwarg is gone — one
 emitter, one wire format, one source of truth.
 """

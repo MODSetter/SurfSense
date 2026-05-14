@@ -31,7 +31,7 @@ class ToolPermissionItem(TypedDict):
     """One allow/ask row.
 
     ``name`` is always set; ``tool`` is present when a bound BaseTool exists
-    (absent for name-only MCP policy rows). ``kind`` defaults to
+    (absent for name-only MCP allow/ask rows). ``kind`` defaults to
     ``self_gated`` when absent so existing connector factories keep working
     without explicit tagging.
     """

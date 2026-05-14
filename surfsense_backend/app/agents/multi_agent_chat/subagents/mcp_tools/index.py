@@ -1,4 +1,4 @@
-"""Discover MCP tools, bucket by connector agent, apply allow/ask from policy."""
+"""Discover MCP tools, bucket by connector agent, apply each subagent's allow/ask permissions."""
 
 from __future__ import annotations
 
@@ -15,8 +15,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.multi_agent_chat.constants import (
     CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS,
 )
-from app.agents.multi_agent_chat.subagents.mcp_tools.permissions import (
-    TOOLS_PERMISSIONS_BY_AGENT,
+from app.agents.multi_agent_chat.subagents.connectors.airtable.tools.index import (
+    load_tools as _airtable_permissions,
+)
+from app.agents.multi_agent_chat.subagents.connectors.clickup.tools.index import (
+    load_tools as _clickup_permissions,
+)
+from app.agents.multi_agent_chat.subagents.connectors.jira.tools.index import (
+    load_tools as _jira_permissions,
+)
+from app.agents.multi_agent_chat.subagents.connectors.linear.tools.index import (
+    load_tools as _linear_permissions,
+)
+from app.agents.multi_agent_chat.subagents.connectors.slack.tools.index import (
+    load_tools as _slack_permissions,
 )
 from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.middleware_gated import (
     middleware_gated_tool_permission_row,
@@ -29,6 +41,15 @@ from app.agents.new_chat.tools.mcp_tool import load_mcp_tools
 from app.db import SearchSourceConnector
 
 logger = logging.getLogger(__name__)
+
+
+_MCP_PERMISSIONS_BY_AGENT: dict[str, ToolsPermissions] = {
+    "airtable": _airtable_permissions(),
+    "clickup": _clickup_permissions(),
+    "jira": _jira_permissions(),
+    "linear": _linear_permissions(),
+    "slack": _slack_permissions(),
+}
 
 
 ## Helper functions for fetching connector metadata maps
@@ -150,7 +171,7 @@ async def load_mcp_tools_by_connector(
     session: AsyncSession,
     search_space_id: int,
 ) -> dict[str, ToolsPermissions]:
-    """Load MCP tools and split rows using ``TOOLS_PERMISSIONS_BY_AGENT`` name sets.
+    """Load MCP tools and split rows per subagent's own allow/ask permissions.
 
     Pass ``bypass_internal_hitl=True`` so the subagent's
     ``HumanInTheLoopMiddleware`` is the single HITL gate.
@@ -161,7 +182,7 @@ async def load_mcp_tools_by_connector(
     return {
         agent: _split_tools_by_permissions(
             tools,
-            TOOLS_PERMISSIONS_BY_AGENT.get(agent, {"allow": [], "ask": []}),
+            _MCP_PERMISSIONS_BY_AGENT.get(agent, {"allow": [], "ask": []}),
         )
         for agent, tools in buckets.items()
     }

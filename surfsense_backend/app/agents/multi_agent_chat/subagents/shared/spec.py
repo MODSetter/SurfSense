@@ -1,5 +1,4 @@
-"""SurfSense's subagent contribution: deepagents spec + permission policy.
-"""
+"""SurfSense's subagent contribution: deepagents spec + permission ruleset."""
 
 from __future__ import annotations
 
@@ -19,7 +18,7 @@ class SurfSenseSubagentSpec:
             only fields ``deepagents.SubAgent`` recognises.
         ruleset: Permission rules this subagent contributes. The orchestrator
             layers them into the subagent's :class:`PermissionMiddleware`,
-            so each subagent owns its own policy without aliasing the
+            so each subagent owns its own ruleset without aliasing the
             shared rule engine.
     """
 

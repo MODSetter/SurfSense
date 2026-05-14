@@ -1,1 +1,1 @@
-"""Route-local tool policy for the ``knowledge_base`` subagent."""
+"""Route-local tool permissions for the ``knowledge_base`` subagent."""

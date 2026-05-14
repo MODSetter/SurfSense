@@ -9,7 +9,7 @@ matching OpenCode's ``permission/index.ts`` evaluation order):
    needs to *deny* what the user has explicitly forbidden; the default
    ``ask`` fallback would otherwise double-prompt every safe read-only
    call.
-2. ``extra_rulesets`` — caller-supplied policies. The KB subagent contributes
+2. ``extra_rulesets`` — caller-supplied rulesets. The KB subagent contributes
    its destructive-FS ``ask`` rules here; connectors will follow once
    they migrate off ``interrupt_on``.
 
@@ -44,7 +44,7 @@ def build_permission_mw(
         flags: Feature toggles. ``enable_permission`` switches the engine on;
             ``disable_new_agent_stack`` overrides everything for safety.
         extra_rulesets: Caller-supplied rulesets layered after the defaults.
-            Subagents pass their own policy here so each subagent owns its
+            Subagents pass their own ruleset here so each subagent owns its
             rules without aliasing a shared engine. Presence of any extra
             ruleset forces the middleware on regardless of
             ``enable_permission`` — an explicit ``ask`` rule always asks.

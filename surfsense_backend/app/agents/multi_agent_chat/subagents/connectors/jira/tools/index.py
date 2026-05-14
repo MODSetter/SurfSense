@@ -11,4 +11,20 @@ def load_tools(
     *, dependencies: dict[str, Any] | None = None, **kwargs: Any
 ) -> ToolsPermissions:
     _ = {**(dependencies or {}), **kwargs}
-    return {"allow": [], "ask": []}
+    return {
+        "allow": [
+            {"name": "getAccessibleAtlassianResources"},
+            {"name": "getVisibleJiraProjects"},
+            {"name": "searchJiraIssuesUsingJql"},
+            {"name": "getJiraIssue"},
+            {"name": "getJiraProjectIssueTypesMetadata"},
+            {"name": "getJiraIssueTypeMetaWithFields"},
+            {"name": "getTransitionsForJiraIssue"},
+            {"name": "lookupJiraAccountId"},
+        ],
+        "ask": [
+            {"name": "createJiraIssue"},
+            {"name": "editJiraIssue"},
+            {"name": "transitionJiraIssue"},
+        ],
+    }

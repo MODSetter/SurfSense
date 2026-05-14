@@ -1,4 +1,4 @@
-"""Route-local FS tool policy.
+"""Route-local FS tool permissions.
 
 The KB subagent's actual ``BaseTool`` instances are provided at runtime by
 ``SurfSenseFilesystemMiddleware`` (mounted in ``agent.py``). This module

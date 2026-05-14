@@ -44,7 +44,7 @@ def build_kb_middleware(
 ) -> list[Any]:
     """Compose the KB subagent's middleware list.
 
-    ``ruleset`` is the KB-owned permission policy (typically the
+    ``ruleset`` is the KB-owned permission ruleset (typically the
     destructive-FS ask rules). When provided, a dedicated
     :class:`PermissionMiddleware` is appended so KB enforces approval at
     the rule layer instead of the legacy ``interrupt_on`` kwarg.
