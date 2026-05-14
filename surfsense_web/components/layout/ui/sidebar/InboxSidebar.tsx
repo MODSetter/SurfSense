@@ -561,7 +561,10 @@ export function InboxSidebarContent({
 									onOpenChange={setFilterDrawerOpen}
 									shouldScaleBackground={false}
 								>
-									<DrawerContent className="max-h-[70vh] z-80" overlayClassName="z-80">
+									<DrawerContent
+										className="max-h-[70vh] z-80 bg-popover text-popover-foreground"
+										overlayClassName="z-80"
+									>
 										<DrawerHandle />
 										<DrawerHeader className="px-4 pb-3 pt-2">
 											<DrawerTitle className="flex items-center gap-2 text-base font-semibold">

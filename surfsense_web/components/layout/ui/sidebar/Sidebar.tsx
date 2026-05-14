@@ -134,11 +134,16 @@ export function Sidebar({
 	const t = useTranslations("sidebar");
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
 
-	// Inbox is rendered explicitly right below New Chat. Pull it out of the
-	// nav items list so it doesn't also appear in the bottom NavSection.
+	// Inbox and Documents are rendered explicitly right below New Chat. Pull
+	// them out of the nav items list so they don't also appear in the bottom
+	// NavSection. Documents is only present in navItems on mobile.
 	const inboxItem = useMemo(() => navItems.find((item) => item.url === "#inbox"), [navItems]);
+	const documentsItem = useMemo(
+		() => navItems.find((item) => item.url === "#documents"),
+		[navItems]
+	);
 	const footerNavItems = useMemo(
-		() => navItems.filter((item) => item.url !== "#inbox"),
+		() => navItems.filter((item) => item.url !== "#inbox" && item.url !== "#documents"),
 		[navItems]
 	);
 
@@ -200,6 +205,16 @@ export function Sidebar({
 								"data-joyride": "inbox-sidebar",
 							} as React.ButtonHTMLAttributes<HTMLButtonElement>
 						}
+					/>
+				)}
+				{documentsItem && (
+					<SidebarButton
+						icon={documentsItem.icon}
+						label={documentsItem.title}
+						onClick={() => onNavItemClick?.(documentsItem)}
+						isCollapsed={isCollapsed}
+						isActive={documentsItem.isActive}
+						tooltipContent={isCollapsed ? documentsItem.title : undefined}
 					/>
 				)}
 			</div>

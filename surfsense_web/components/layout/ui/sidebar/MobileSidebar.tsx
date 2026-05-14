@@ -108,11 +108,11 @@ export function MobileSidebar({
 
 	return (
 		<Sheet open={isOpen} onOpenChange={onOpenChange}>
-			<SheetContent side="left" className="w-[340px] p-0 flex flex-row gap-0 [&>button]:hidden">
+			<SheetContent side="left" className="w-[340px] p-0 flex flex-row gap-0 bg-panel [&>button]:hidden">
 				<SheetTitle className="sr-only">Navigation</SheetTitle>
 
 				{/* Vertical Search Spaces Rail - left side */}
-				<div className="flex h-full w-14 shrink-0 flex-col items-center bg-muted/40 border-r">
+				<div className="flex h-full w-14 shrink-0 flex-col items-center border-r bg-rail">
 					<ScrollArea className="w-full flex-1">
 						<div className="flex flex-col items-center gap-2 px-1.5 py-3">
 							{searchSpaces.map((space) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { Inbox, SquareLibrary } from "lucide-react";
+import { Inbox, LibraryBig } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
@@ -69,7 +69,7 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 						? {
 								title: "Documents",
 								url: "#documents",
-								icon: SquareLibrary,
+								icon: LibraryBig,
 								isActive: false,
 							}
 						: null,

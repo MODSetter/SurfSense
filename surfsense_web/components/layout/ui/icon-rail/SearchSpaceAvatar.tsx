@@ -128,9 +128,9 @@ export function SearchSpaceAvatar({
 			onClick={onClick}
 			className={cn(
 				"relative rounded-lg font-semibold text-white transition-all select-none",
-				"hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+				"hover:text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 				sizeClasses,
-				isActive && "ring-2 ring-primary ring-offset-1 ring-offset-background"
+				isActive && "ring-2 ring-primary ring-offset-1 ring-offset-rail"
 			)}
 			style={{ backgroundColor: bgColor }}
 		>
@@ -139,12 +139,12 @@ export function SearchSpaceAvatar({
 			{isShared && (
 				<span
 					className={cn(
-						"absolute -top-1 -right-1 flex items-center justify-center rounded-full bg-blue-500 text-white shadow-sm",
+						"absolute -top-1 -right-1 flex items-center justify-center rounded-full bg-gray-800 text-white shadow-sm",
 						size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4"
 					)}
 					title={tCommon("shared")}
 				>
-					<Users className={cn(size === "sm" ? "h-2 w-2" : "h-2.5 w-2.5")} />
+					<Users className={cn(size === "sm" ? "size-2" : "size-2.5")} />
 				</span>
 			)}
 		</Button>

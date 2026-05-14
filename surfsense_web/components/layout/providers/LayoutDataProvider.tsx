@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { AlertTriangle, Inbox, SquareLibrary } from "lucide-react";
+import { AlertTriangle, Inbox, LibraryBig } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -361,7 +361,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						? {
 								title: "Documents",
 								url: "#documents",
-								icon: SquareLibrary,
+								icon: LibraryBig,
 								isActive: isDocumentsSidebarOpen,
 							}
 						: null,
