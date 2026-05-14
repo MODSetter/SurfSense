@@ -14,7 +14,7 @@ from langgraph.types import Checkpointer
 from app.agents.multi_agent_chat.middleware.stack import (
     build_main_agent_deepagent_middleware,
 )
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
+from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
     ToolsPermissions,
 )
 from app.agents.new_chat.context import SurfSenseContextSchema

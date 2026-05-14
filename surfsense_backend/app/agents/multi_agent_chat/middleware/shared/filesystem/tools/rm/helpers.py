@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 async def cloud_rm(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
     validated: str,
 ) -> Command | str:
@@ -31,8 +31,7 @@ async def cloud_rm(
         return f"Error: refusing to rm '{validated}'."
     if not validated.startswith(DOCUMENTS_ROOT + "/"):
         return (
-            "Error: cloud rm must target a path under /documents/ "
-            f"(got '{validated}')."
+            f"Error: cloud rm must target a path under /documents/ (got '{validated}')."
         )
 
     anon = runtime.state.get("kb_anon_doc") or {}
@@ -41,14 +40,10 @@ async def cloud_rm(
 
     staged_dirs = list(runtime.state.get("staged_dirs") or [])
     if validated in staged_dirs:
-        return (
-            f"Error: '{validated}' is a directory. Use rmdir for "
-            "empty directories."
-        )
+        return f"Error: '{validated}' is a directory. Use rmdir for empty directories."
     pending_dir_deletes = list(runtime.state.get("pending_dir_deletes") or [])
     if any(
-        isinstance(d, dict) and d.get("path") == validated
-        for d in pending_dir_deletes
+        isinstance(d, dict) and d.get("path") == validated for d in pending_dir_deletes
     ):
         return f"Error: '{validated}' is already queued for rmdir."
 
@@ -57,14 +52,11 @@ async def cloud_rm(
         children = await backend.als_info(validated)
         if children:
             return (
-                f"Error: '{validated}' is a directory. Use rmdir for "
-                "empty directories."
+                f"Error: '{validated}' is a directory. Use rmdir for empty directories."
             )
 
     pending_deletes = list(runtime.state.get("pending_deletes") or [])
-    if any(
-        isinstance(d, dict) and d.get("path") == validated for d in pending_deletes
-    ):
+    if any(isinstance(d, dict) and d.get("path") == validated for d in pending_deletes):
         return f"'{validated}' is already queued for deletion."
 
     files_state = runtime.state.get("files") or {}
@@ -93,8 +85,7 @@ async def cloud_rm(
         "messages": [
             ToolMessage(
                 content=(
-                    f"Staged delete of '{validated}' (will commit at "
-                    "end of turn)."
+                    f"Staged delete of '{validated}' (will commit at end of turn)."
                 ),
                 tool_call_id=runtime.tool_call_id,
             )
@@ -114,7 +105,7 @@ async def cloud_rm(
 
 
 async def desktop_rm(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
     validated: str,
 ) -> Command | str:

@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from ...middleware import SurfSenseFilesystemMiddleware
 
 
-def create_write_file_tool(mw: "SurfSenseFilesystemMiddleware") -> BaseTool:
+def create_write_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
     description = select_description(mw._filesystem_mode)
 
     async def async_write_file(
@@ -73,9 +73,7 @@ def create_write_file_tool(mw: "SurfSenseFilesystemMiddleware") -> BaseTool:
         content: Annotated[str, "Text content to write to the file."],
         runtime: ToolRuntime[None, SurfSenseFilesystemState],
     ) -> Command | str:
-        return run_async_blocking(
-            async_write_file(file_path, content, runtime)
-        )
+        return run_async_blocking(async_write_file(file_path, content, runtime))
 
     return StructuredTool.from_function(
         name="write_file",

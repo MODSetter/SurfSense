@@ -61,9 +61,7 @@ def slice_decisions_by_tool_call(
     routed: dict[str, dict[str, Any]] = {}
     cursor = 0
     for tool_call_id, action_count in pending_list:
-        routed[tool_call_id] = {
-            "decisions": decisions[cursor : cursor + action_count]
-        }
+        routed[tool_call_id] = {"decisions": decisions[cursor : cursor + action_count]}
         cursor += action_count
     return routed
 

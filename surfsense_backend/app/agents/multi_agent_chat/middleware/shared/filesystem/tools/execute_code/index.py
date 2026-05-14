@@ -17,13 +17,11 @@ if TYPE_CHECKING:
     from ...middleware import SurfSenseFilesystemMiddleware
 
 
-def create_execute_code_tool(mw: "SurfSenseFilesystemMiddleware") -> BaseTool:
+def create_execute_code_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
     description = select_description(mw._filesystem_mode)
 
     def sync_execute_code(
-        command: Annotated[
-            str, "Python code to execute. Use print() to see output."
-        ],
+        command: Annotated[str, "Python code to execute. Use print() to see output."],
         runtime: ToolRuntime[None, SurfSenseFilesystemState],
         timeout: Annotated[
             int | None,
@@ -35,14 +33,10 @@ def create_execute_code_tool(mw: "SurfSenseFilesystemMiddleware") -> BaseTool:
                 return f"Error: timeout must be non-negative, got {timeout}."
             if timeout > MAX_EXECUTE_TIMEOUT:
                 return f"Error: timeout {timeout}s exceeds maximum ({MAX_EXECUTE_TIMEOUT}s)."
-        return run_async_blocking(
-            execute_in_sandbox(mw, command, runtime, timeout)
-        )
+        return run_async_blocking(execute_in_sandbox(mw, command, runtime, timeout))
 
     async def async_execute_code(
-        command: Annotated[
-            str, "Python code to execute. Use print() to see output."
-        ],
+        command: Annotated[str, "Python code to execute. Use print() to see output."],
         runtime: ToolRuntime[None, SurfSenseFilesystemState],
         timeout: Annotated[
             int | None,
