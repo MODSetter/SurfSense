@@ -24,7 +24,7 @@ from app.agents.new_chat.permissions import (
     evaluate_many,
 )
 
-from ..pattern_resolver import PatternResolver, default_pattern_resolver
+from .pattern_resolver import PatternResolver, default_pattern_resolver
 
 logger = logging.getLogger(__name__)
 

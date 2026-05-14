@@ -5,10 +5,10 @@ LangChain's :class:`HumanInTheLoopMiddleware` only supports a static
 allow/deny/ask, no glob patterns, no per-space/per-thread overrides, and
 no auto-deny synthesis.
 
-This middleware layers OpenCode's wildcard-ruleset model on top of
-SurfSense's ``interrupt({type, action, context})`` payload shape (see
-:mod:`app.agents.new_chat.tools.hitl`) so the frontend keeps working
-unchanged.
+This middleware layers OpenCode's wildcard-ruleset model on top of the
+unified langchain HITL wire format (see :mod:`hitl_wire`), so it sits
+beside ``HumanInTheLoopMiddleware`` and self-gated approvals on a single
+parallel-HITL routing layer in ``task_tool`` + ``resume_routing``.
 
 Per-tool-call flow inside :meth:`_process`:
 
@@ -47,13 +47,13 @@ from langgraph.runtime import Runtime
 from app.agents.new_chat.errors import CorrectedError, RejectedError
 from app.agents.new_chat.permissions import Ruleset
 
+from ..ask.edit import merge_edited_args
+from ..ask.request import request_permission_decision
 from ..deny import build_deny_message
-from ..interrupt.edit import merge_edited_args
-from ..interrupt.request import request_permission_decision
-from ..pattern_resolver import PatternResolver
-from ..runtime_promote import persist_always
 from .evaluation import evaluate_tool_call
+from .pattern_resolver import PatternResolver
 from .ruleset_view import all_rulesets
+from .runtime_promote import persist_always
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,12 @@
-"""Request a permission decision from the user (side-effectful entry point).
+"""Side-effectful entry point: pause the graph and return the permission decision.
 
-Wraps :func:`langgraph.types.interrupt` with the OTel spans that the
-SurfSense dashboard expects, then normalises the resume value through
-:func:`decision.normalize_permission_decision`.
+Wraps :func:`langgraph.types.interrupt` with the OTel spans the SurfSense
+dashboard expects, then projects the resume value through
+:func:`normalize_permission_decision` so the middleware downstream only
+sees the canonical permission-domain shape.
 
-When ``emit_interrupt`` is ``False`` the call short-circuits to
-``reject``; this is used by non-interactive deployments where ``ask`` must
-not block.
+When ``emit_interrupt`` is ``False`` the call short-circuits to ``reject``;
+this is used by non-interactive deployments where ``ask`` must not block.
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ from langgraph.types import interrupt
 from app.agents.new_chat.permissions import Rule
 from app.observability import otel as ot
 
-from ..decision import normalize_permission_decision
-from .payload import build_permission_ask_payload
+from .decision import normalize_permission_decision
+from .payload import PERMISSION_ASK_INTERRUPT_TYPE, build_permission_ask_payload
 
 
 def request_permission_decision(
@@ -30,6 +30,7 @@ def request_permission_decision(
     rules: list[Rule],
     emit_interrupt: bool,
 ) -> dict[str, Any]:
+    """Pause for an ``ask`` decision; return the canonical permission decision dict."""
     if not emit_interrupt:
         return {"decision_type": "reject"}
 
@@ -43,7 +44,7 @@ def request_permission_decision(
             pattern=patterns[0] if patterns else None,
             extra={"permission.patterns": list(patterns)},
         ),
-        ot.interrupt_span(interrupt_type="permission_ask"),
+        ot.interrupt_span(interrupt_type=PERMISSION_ASK_INTERRUPT_TYPE),
     ):
         decision = interrupt(payload)
     return normalize_permission_decision(decision)
