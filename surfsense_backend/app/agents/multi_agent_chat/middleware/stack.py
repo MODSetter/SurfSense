@@ -31,7 +31,7 @@ from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.agent import 
 from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.ask_knowledge_base_tool import (
     build_ask_knowledge_base_tool,
 )
-from app.agents.multi_agent_chat.subagents.shared.permissions import ToolsPermissions
+from app.agents.multi_agent_chat.subagents.shared.tool_kinds import ToolsPermissions
 from app.agents.new_chat.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.db import ChatVisibility
@@ -61,6 +61,7 @@ from .shared.compaction import build_compaction_mw
 from .shared.kb_context_projection import build_kb_context_projection_mw
 from .shared.memory import build_memory_mw
 from .shared.patch_tool_calls import build_patch_tool_calls_mw
+from .shared.permissions import build_permission_mw
 from .shared.resilience import build_resilience_middlewares
 from .shared.todos import build_todos_mw
 from .subagent.middleware_stack import build_subagent_middleware_stack
@@ -100,14 +101,19 @@ def build_main_agent_deepagent_middleware(
         **subagent_dependencies,
         "backend_resolver": backend_resolver,
         "filesystem_mode": filesystem_mode,
+        "flags": flags,
     }
-    shared_subagent_middleware = build_subagent_middleware_stack(resilience=resilience)
+    shared_subagent_middleware = build_subagent_middleware_stack(
+        resilience=resilience,
+        flags=flags,
+    )
 
-    kb_readonly_spec = build_kb_readonly_subagent(
+    kb_readonly = build_kb_readonly_subagent(
         dependencies=subagent_dependencies,
         model=llm,
         middleware_stack=shared_subagent_middleware,
     )
+    kb_readonly_spec = kb_readonly.spec
     kb_readonly_runnable = create_agent(
         llm,
         system_prompt=kb_readonly_spec["system_prompt"],
@@ -182,6 +188,7 @@ def build_main_agent_deepagent_middleware(
         resilience.retry,
         resilience.fallback,
         build_repair_mw(flags=flags, tools=tools),
+        build_permission_mw(flags=flags),
         build_doom_loop_mw(flags),
         build_action_log_mw(
             flags=flags,

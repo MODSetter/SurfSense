@@ -71,7 +71,8 @@ from app.agents.multi_agent_chat.subagents.connectors.teams.agent import (
 from app.agents.multi_agent_chat.subagents.shared.md_file_reader import (
     read_md_file,
 )
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
+from app.agents.multi_agent_chat.subagents.shared.spec import SurfSenseSubagentSpec
+from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
     ToolsPermissions,
 )
 
@@ -84,7 +85,19 @@ class SubagentBuilder(Protocol):
         model: BaseChatModel | None = None,
         middleware_stack: dict[str, Any] | None = None,
         extra_tools_bucket: ToolsPermissions | None = None,
-    ) -> SubAgent: ...
+    ) -> SubAgent | SurfSenseSubagentSpec: ...
+
+
+def _unwrap_spec(result: SubAgent | SurfSenseSubagentSpec) -> SubAgent:
+    """Project a builder's return value down to the deepagents-shaped dict.
+
+    Transitional helper while subagents migrate to ``SurfSenseSubagentSpec``.
+    Once every builder returns the new container, this becomes a single
+    ``return result.spec``.
+    """
+    if isinstance(result, SurfSenseSubagentSpec):
+        return result.spec
+    return result
 
 
 SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
@@ -203,11 +216,13 @@ def build_subagents(
         if name in excluded:
             continue
         builder = SUBAGENT_BUILDERS_BY_NAME[name]
-        spec = builder(
-            dependencies=dependencies,
-            model=model,
-            middleware_stack=middleware_stack,
-            extra_tools_bucket=mcp.get(name),
+        spec = _unwrap_spec(
+            builder(
+                dependencies=dependencies,
+                model=model,
+                middleware_stack=middleware_stack,
+                extra_tools_bucket=mcp.get(name),
+            )
         )
         _filter_disabled_tools_in_place(spec, disabled_names)
         if ask_kb_tool is not None:
