@@ -372,7 +372,7 @@ test("mock iframe response", async ({ page }) => {
         <html>
           <body>
             <h1>Mocked Widget</h1>
-            <button>Mocked Button</button>
+            <p>Mocked widget content</p>
           </body>
         </html>
       `,
