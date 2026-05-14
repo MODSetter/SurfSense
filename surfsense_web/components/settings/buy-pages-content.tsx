@@ -72,44 +72,49 @@ export function BuyPagesContent() {
 			<div className="space-y-3">
 				{/* Stepper */}
 				<div className="flex items-center justify-center gap-3">
-					<button
+					<Button
 						type="button"
+						variant="outline"
+						size="icon"
 						onClick={() => setQuantity((q) => Math.max(1, q - 1))}
 						disabled={quantity <= 1 || purchaseMutation.isPending}
-						className="flex h-8 w-8 items-center justify-center rounded-md border transition-colors hover:bg-muted disabled:opacity-40"
+						className="size-8 shadow-none transition-colors hover:bg-muted disabled:opacity-40"
 					>
 						<Minus className="h-3.5 w-3.5" />
-					</button>
+					</Button>
 					<span className="min-w-28 text-center text-lg font-semibold tabular-nums">
 						{totalPages.toLocaleString()}
 					</span>
-					<button
+					<Button
 						type="button"
+						variant="outline"
+						size="icon"
 						onClick={() => setQuantity((q) => Math.min(100, q + 1))}
 						disabled={quantity >= 100 || purchaseMutation.isPending}
-						className="flex h-8 w-8 items-center justify-center rounded-md border transition-colors hover:bg-muted disabled:opacity-40"
+						className="size-8 shadow-none transition-colors hover:bg-muted disabled:opacity-40"
 					>
 						<Plus className="h-3.5 w-3.5" />
-					</button>
+					</Button>
 				</div>
 
 				{/* Quick-pick presets */}
 				<div className="flex flex-wrap justify-center gap-1.5">
 					{PRESET_MULTIPLIERS.map((m) => (
-						<button
+						<Button
 							key={m}
 							type="button"
+							variant="ghost"
 							onClick={() => setQuantity(m)}
 							disabled={purchaseMutation.isPending}
 							className={cn(
-								"rounded-md border px-2.5 py-1 text-xs font-medium tabular-nums transition-colors disabled:opacity-60",
+								"h-auto rounded-md border px-2.5 py-1 text-xs font-medium tabular-nums transition-colors hover:text-foreground disabled:opacity-60",
 								quantity === m
 									? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
 									: "border-border hover:border-emerald-500/40 hover:bg-muted/40"
 							)}
 						>
 							{(m * PAGE_PACK_SIZE).toLocaleString()}
-						</button>
+						</Button>
 					))}
 				</div>
 

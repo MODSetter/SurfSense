@@ -110,14 +110,15 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 			{/* Header */}
 			<div className="px-6 sm:px-12 pt-8 sm:pt-10 pb-1 sm:pb-4 bg-popover">
 				{/* Back button */}
-				<button
+				<Button
 					type="button"
+					variant="ghost"
 					onClick={onBack}
-					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-accent-foreground mb-6 w-fit"
+					className="mb-6 h-auto w-fit gap-2 px-0 py-0 text-xs font-normal text-muted-foreground hover:bg-transparent hover:text-accent-foreground sm:text-sm"
 				>
 					<ArrowLeft className="size-4" />
 					Back to connectors
-				</button>
+				</Button>
 
 				{/* Connector header */}
 				<div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
@@ -135,12 +136,13 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 						</div>
 					</div>
 					{/* Add Account Button with dashed border */}
-					<button
+					<Button
 						type="button"
+						variant="ghost"
 						onClick={onAddAccount}
 						disabled={isConnecting || !isEnabled}
 						className={cn(
-							"flex items-center justify-center gap-1.5 h-8 px-3 rounded-md border-2 border-dashed text-xs sm:text-sm transition-all duration-200 shrink-0 w-full sm:w-auto",
+							"h-8 w-full shrink-0 gap-1.5 rounded-md border-2 border-dashed px-3 text-xs transition-all duration-200 sm:w-auto sm:text-sm",
 							!isEnabled
 								? "border-border/30 opacity-50 cursor-not-allowed"
 								: "border-slate-400/20 dark:border-white/20 hover:bg-accent hover:text-accent-foreground",
@@ -155,7 +157,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 							)}
 						</div>
 						<span className="text-xs sm:text-sm font-medium">{buttonText}</span>
-					</button>
+					</Button>
 				</div>
 			</div>
 

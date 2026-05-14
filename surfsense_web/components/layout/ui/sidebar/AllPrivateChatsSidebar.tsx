@@ -348,8 +348,9 @@ export function AllPrivateChatsSidebarContent({
 							return (
 								<div key={thread.id} className="group/item relative w-full">
 									{isMobile ? (
-										<button
+										<Button
 											type="button"
+											variant="ghost"
 											onClick={() => {
 												if (wasLongPress()) return;
 												handleThreadClick(thread.id);
@@ -362,7 +363,7 @@ export function AllPrivateChatsSidebarContent({
 											onTouchMove={longPressHandlers.onTouchMove}
 											disabled={isBusy}
 											className={cn(
-												"flex w-full items-center gap-2 overflow-hidden rounded-md px-2 py-1.5 text-sm text-left",
+												"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
 												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 												isActive && "bg-accent text-accent-foreground",
@@ -370,16 +371,17 @@ export function AllPrivateChatsSidebarContent({
 											)}
 										>
 											<span className="truncate">{thread.title || "New Chat"}</span>
-										</button>
+										</Button>
 									) : (
 										<Tooltip delayDuration={600}>
 											<TooltipTrigger asChild>
-												<button
+												<Button
 													type="button"
+													variant="ghost"
 													onClick={() => handleThreadClick(thread.id)}
 													disabled={isBusy}
 													className={cn(
-														"flex w-full items-center gap-2 overflow-hidden rounded-md px-2 py-1.5 text-sm text-left",
+														"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
 														"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 														"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 														isActive && "bg-accent text-accent-foreground",
@@ -387,7 +389,7 @@ export function AllPrivateChatsSidebarContent({
 													)}
 												>
 													<span className="truncate">{thread.title || "New Chat"}</span>
-												</button>
+												</Button>
 											</TooltipTrigger>
 											<TooltipContent side="bottom" align="start">
 												<p>

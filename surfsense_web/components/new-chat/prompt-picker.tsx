@@ -15,6 +15,7 @@ import {
 
 import { promptsAtom } from "@/atoms/prompts/prompts-query.atoms";
 import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -150,17 +151,18 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 							Saved Prompts
 						</div>
 						{filtered.map((action, index) => (
-							<button
+							<Button
 								key={action.id}
 								ref={(el) => {
 									if (el) itemRefs.current.set(index, el);
 									else itemRefs.current.delete(index);
 								}}
 								type="button"
+								variant="ghost"
 								onClick={() => handleSelect(index)}
 								onMouseEnter={() => setHighlightedIndex(index)}
 								className={cn(
-									"w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors rounded-md cursor-pointer",
+									"h-auto w-full justify-start gap-2 rounded-md px-3 py-2 text-left text-sm font-normal transition-colors",
 									index === highlightedIndex && "bg-accent text-accent-foreground"
 								)}
 							>
@@ -168,20 +170,21 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 									<Zap className="size-4" />
 								</span>
 								<span className="flex-1 text-sm truncate">{action.name}</span>
-							</button>
+							</Button>
 						))}
 
 						<div className="mx-2 my-1 border-t border-popover-border" />
-						<button
+						<Button
 							ref={(el) => {
 								if (el) itemRefs.current.set(createPromptIndex, el);
 								else itemRefs.current.delete(createPromptIndex);
 							}}
 							type="button"
+							variant="ghost"
 							onClick={() => handleSelect(createPromptIndex)}
 							onMouseEnter={() => setHighlightedIndex(createPromptIndex)}
 							className={cn(
-								"w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors rounded-md cursor-pointer text-muted-foreground",
+								"h-auto w-full justify-start gap-2 rounded-md px-3 py-2 text-left text-sm font-normal text-muted-foreground transition-colors",
 								highlightedIndex === createPromptIndex
 									? "bg-accent text-accent-foreground"
 									: "hover:text-accent-foreground hover:bg-accent"
@@ -191,7 +194,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 								<Plus className="size-4" />
 							</span>
 							<span>Create prompt</span>
-						</button>
+						</Button>
 					</div>
 				)}
 			</div>

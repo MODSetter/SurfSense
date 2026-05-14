@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { openCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { useCitationMetadata } from "@/components/assistant-ui/citation-metadata-context";
 import { Citation } from "@/components/tool-ui/citation";
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -76,15 +77,16 @@ const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 	const openCitationPanel = useSetAtom(openCitationPanelAtom);
 
 	return (
-		<button
+		<Button
 			type="button"
+			variant="ghost"
 			onClick={() => openCitationPanel({ chunkId })}
-			className="ml-0.5 inline-flex h-5 min-w-5 cursor-pointer items-center justify-center rounded-md bg-muted/60 px-1.5 text-[11px] font-medium text-muted-foreground align-baseline shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
+			className="ml-0.5 h-5 min-w-5 cursor-pointer rounded-md bg-muted/60 px-1.5 text-[11px] font-medium text-muted-foreground align-baseline shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
 			title={`View source chunk #${chunkId}`}
 			aria-label={`View cited chunk ${chunkId}`}
 		>
 			{chunkId}
-		</button>
+		</Button>
 	);
 };
 
@@ -121,8 +123,9 @@ const SurfsenseDocCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
-				<button
+				<Button
 					type="button"
+					variant="ghost"
 					onClick={() => setOpen((prev) => !prev)}
 					onMouseEnter={() => {
 						cancelClose();
@@ -134,13 +137,13 @@ const SurfsenseDocCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 						setOpen(true);
 					}}
 					onBlur={scheduleClose}
-					className="ml-0.5 inline-flex h-5 min-w-5 cursor-pointer items-center justify-center gap-0.5 rounded-md bg-primary/10 px-1.5 text-[11px] font-medium text-primary align-baseline shadow-sm transition-colors hover:bg-primary/15 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
+					className="ml-0.5 h-5 min-w-5 cursor-pointer gap-0.5 rounded-md bg-primary/10 px-1.5 text-[11px] font-medium text-primary align-baseline shadow-sm transition-colors hover:bg-primary/15 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
 					aria-label={`Show Surfsense documentation chunk ${chunkId}`}
 					title="Surfsense documentation"
 				>
 					<FileText className="size-3" />
 					doc
-				</button>
+				</Button>
 			</PopoverTrigger>
 			<PopoverContent
 				className="w-96 max-w-[calc(100vw-2rem)] p-0"

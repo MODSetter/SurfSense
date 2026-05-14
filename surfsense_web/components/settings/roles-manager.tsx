@@ -462,47 +462,44 @@ function RolesContent({
 
 					return (
 						<div key={role.id} className="rounded-lg border border-border/60 overflow-hidden">
-							{/* biome-ignore lint/a11y/useSemanticElements: row contains nested interactive elements (DropdownMenu); using a <button> would produce invalid nested-button markup */}
 							<div
-								role="button"
-								tabIndex={0}
-								aria-expanded={isExpanded}
-								className="flex items-center gap-4 p-4 transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								onClick={() => setExpandedRoleId(isExpanded ? null : role.id)}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" || e.key === " ") {
-										e.preventDefault();
-										setExpandedRoleId(isExpanded ? null : role.id);
-									}
-								}}
+								className="group/role-header flex items-center gap-4 p-4 transition-colors hover:bg-accent hover:text-accent-foreground focus-within:bg-accent focus-within:text-accent-foreground"
 							>
-								<div className="flex-1 min-w-0 text-left">
-									<div className="flex items-center gap-2">
-										<span className="font-medium text-sm">{role.name}</span>
-										{role.is_system_role && (
-											<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-												System
-											</span>
-										)}
-										{role.is_default && (
-											<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-												Default
-											</span>
+								<Button
+									type="button"
+									variant="ghost"
+									aria-expanded={isExpanded}
+									className="h-auto min-w-0 flex-1 justify-start gap-4 p-0 text-left font-normal hover:bg-transparent hover:text-inherit focus-visible:ring-0"
+									onClick={() => setExpandedRoleId(isExpanded ? null : role.id)}
+								>
+									<div className="flex-1 min-w-0 text-left">
+										<div className="flex items-center gap-2">
+											<span className="font-medium text-sm">{role.name}</span>
+											{role.is_system_role && (
+												<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+													System
+												</span>
+											)}
+											{role.is_default && (
+												<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+													Default
+												</span>
+											)}
+										</div>
+										{role.description && (
+											<p className="text-xs text-muted-foreground mt-0.5 truncate">
+												{role.description}
+											</p>
 										)}
 									</div>
-									{role.description && (
-										<p className="text-xs text-muted-foreground mt-0.5 truncate">
-											{role.description}
-										</p>
-									)}
-								</div>
 
-								<div className="shrink-0">
-									<PermissionsBadge permissions={role.permissions} />
-								</div>
+									<div className="shrink-0">
+										<PermissionsBadge permissions={role.permissions} />
+									</div>
+								</Button>
 
 								{!role.is_system_role && (
-									<div className="shrink-0" role="none" onClick={(e) => e.stopPropagation()}>
+									<div className="shrink-0">
 										<DropdownMenu>
 											<DropdownMenuTrigger asChild>
 												<Button variant="ghost" size="icon" className="h-8 w-8">
@@ -552,14 +549,22 @@ function RolesContent({
 									</div>
 								)}
 
-								<div className="shrink-0 p-1">
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									aria-label={isExpanded ? `Collapse ${role.name}` : `Expand ${role.name}`}
+									aria-expanded={isExpanded}
+									className="size-6 shrink-0 p-1 hover:bg-transparent hover:text-inherit focus-visible:ring-0"
+									onClick={() => setExpandedRoleId(isExpanded ? null : role.id)}
+								>
 									<ChevronRight
 										className={cn(
 											"h-4 w-4 text-muted-foreground transition-transform duration-200",
 											isExpanded && "rotate-90"
 										)}
 									/>
-								</div>
+								</Button>
 							</div>
 
 							{isExpanded && (
@@ -692,40 +697,44 @@ function PermissionsEditor({
 
 					return (
 						<div key={category} className="rounded-lg border border-border/60 overflow-hidden">
-							{/* biome-ignore lint/a11y/useSemanticElements: row contains a nested interactive Checkbox; using a <button> would produce invalid nested-button markup */}
 							<div
-								role="button"
-								tabIndex={0}
-								aria-expanded={isExpanded}
-								className="flex items-center justify-between px-3 py-2.5 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								onClick={() => toggleCategoryExpanded(category)}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" || e.key === " ") {
-										e.preventDefault();
-										toggleCategoryExpanded(category);
-									}
-								}}
+								className="group/category-header flex items-center justify-between px-3 py-2.5 transition-colors hover:bg-accent hover:text-accent-foreground focus-within:bg-accent focus-within:text-accent-foreground"
 							>
-								<div className="flex-1 flex items-center gap-2.5">
+								<Button
+									type="button"
+									variant="ghost"
+									aria-expanded={isExpanded}
+									className="h-auto min-w-0 flex-1 justify-start gap-2.5 p-0 text-left font-normal hover:bg-transparent hover:text-inherit focus-visible:ring-0"
+									onClick={() => toggleCategoryExpanded(category)}
+								>
 									<IconComponent className="h-4 w-4 text-muted-foreground shrink-0" />
 									<span className="font-medium text-sm">{config.label}</span>
 									<span className="text-[11px] text-muted-foreground tabular-nums">
 										{stats.selected}/{stats.total}
 									</span>
-								</div>
+								</Button>
 								<div className="flex items-center gap-2">
 									<Checkbox
 										checked={stats.allSelected}
-										onClick={(e) => e.stopPropagation()}
 										onCheckedChange={() => onToggleCategory(category)}
 										aria-label={`Select all ${config.label} permissions`}
 									/>
-									<ChevronRight
-										className={cn(
-											"h-4 w-4 text-muted-foreground transition-transform duration-200",
-											isExpanded && "rotate-90"
-										)}
-									/>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										aria-label={isExpanded ? `Collapse ${config.label}` : `Expand ${config.label}`}
+										aria-expanded={isExpanded}
+										className="size-6 p-1 hover:bg-transparent hover:text-inherit focus-visible:ring-0"
+										onClick={() => toggleCategoryExpanded(category)}
+									>
+										<ChevronRight
+											className={cn(
+												"h-4 w-4 text-muted-foreground transition-transform duration-200",
+												isExpanded && "rotate-90"
+											)}
+										/>
+									</Button>
 								</div>
 							</div>
 
@@ -745,16 +754,19 @@ function PermissionsEditor({
 														isSelected ? "bg-muted/60 hover:bg-accent hover:text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
 													)}
 												>
-													<button
+													<Button
 														type="button"
-														className="flex-1 min-w-0 text-left cursor-pointer focus:outline-none focus-visible:outline-none"
+														variant="ghost"
+														className="h-auto flex-1 min-w-0 justify-start p-0 text-left font-normal hover:bg-transparent hover:text-inherit focus-visible:ring-0"
 														onClick={() => onTogglePermission(perm.value)}
 													>
-														<span className="text-sm font-medium">{actionLabel}</span>
-														<p className="text-xs text-muted-foreground truncate">
-															{perm.description}
-														</p>
-													</button>
+														<span className="min-w-0">
+															<span className="block text-sm font-medium">{actionLabel}</span>
+															<span className="block text-xs text-muted-foreground truncate">
+																{perm.description}
+															</span>
+														</span>
+													</Button>
 													<Checkbox
 														checked={isSelected}
 														onCheckedChange={() => onTogglePermission(perm.value)}
@@ -871,12 +883,13 @@ function CreateRoleDialog({
 							<Label className="text-sm font-medium">Start from a template</Label>
 							<div className="grid grid-cols-3 gap-2">
 								{Object.entries(ROLE_PRESETS).map(([key, preset]) => (
-									<button
+									<Button
 										key={key}
 										type="button"
+										variant="outline"
 										onClick={() => applyPreset(key as keyof typeof ROLE_PRESETS)}
 										className={cn(
-											"p-3 rounded-lg border transition-colors hover:bg-accent hover:text-accent-foreground",
+											"h-auto p-3 whitespace-normal transition-colors hover:bg-accent hover:text-accent-foreground",
 											"flex items-center justify-center text-center sm:block sm:text-left",
 											selectedPermissions.length > 0 &&
 												preset.permissions.every((p) => selectedPermissions.includes(p))
@@ -888,7 +901,7 @@ function CreateRoleDialog({
 										<p className="hidden sm:block text-xs text-muted-foreground mt-0.5 line-clamp-2">
 											{preset.description}
 										</p>
-									</button>
+									</Button>
 								))}
 							</div>
 						</div>

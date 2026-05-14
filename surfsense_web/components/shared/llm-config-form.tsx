@@ -407,9 +407,10 @@ export function LLMConfigForm({
 						<Separator />
 						<Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
 							<CollapsibleTrigger asChild>
-								<button
+								<Button
 									type="button"
-									className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-accent-foreground transition-colors"
+									variant="ghost"
+									className="h-auto w-full justify-between px-0 py-2 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-accent-foreground sm:text-sm"
 								>
 									<span>Advanced Parameters</span>
 									<ChevronDown
@@ -418,7 +419,7 @@ export function LLMConfigForm({
 											advancedOpen && "rotate-180"
 										)}
 									/>
-								</button>
+								</Button>
 							</CollapsibleTrigger>
 							<CollapsibleContent className="space-y-4 pt-2">
 								<FormField
@@ -445,9 +446,10 @@ export function LLMConfigForm({
 				<Separator />
 				<Collapsible open={systemInstructionsOpen} onOpenChange={setSystemInstructionsOpen}>
 					<CollapsibleTrigger asChild>
-						<button
+						<Button
 							type="button"
-							className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-accent-foreground transition-colors"
+							variant="ghost"
+							className="h-auto w-full justify-between px-0 py-2 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-accent-foreground sm:text-sm"
 						>
 							<span>System Instructions</span>
 							<ChevronDown
@@ -456,7 +458,7 @@ export function LLMConfigForm({
 									systemInstructionsOpen && "rotate-180"
 								)}
 							/>
-						</button>
+						</Button>
 					</CollapsibleTrigger>
 					<CollapsibleContent className="space-y-4 pt-2">
 						{/* System Instructions */}

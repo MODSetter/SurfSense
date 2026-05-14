@@ -2,6 +2,7 @@
 
 import type * as React from "react";
 import { useCallback, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -55,12 +56,13 @@ export function SettingsDialog({
 				<nav className="hidden md:flex w-[220px] shrink-0 flex-col border-r border-border p-3 pt-6">
 					<div className="flex flex-col gap-0.5">
 						{navItems.map((item) => (
-							<button
+							<Button
 								key={item.value}
 								type="button"
+								variant="ghost"
 								onClick={() => onItemChange(item.value)}
 								className={cn(
-									"flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left focus:outline-none focus-visible:outline-none",
+									"h-auto justify-start gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:outline-none",
 									activeItem === item.value
 										? "bg-accent text-accent-foreground"
 										: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -68,7 +70,7 @@ export function SettingsDialog({
 							>
 								{item.icon}
 								{item.label}
-							</button>
+							</Button>
 						))}
 					</div>
 				</nav>
@@ -88,13 +90,14 @@ export function SettingsDialog({
 					>
 						<div className="flex gap-1 px-4 pb-2">
 							{navItems.map((item) => (
-								<button
+								<Button
 									key={item.value}
 									ref={activeItem === item.value ? activeRef : undefined}
 									type="button"
+									variant="ghost"
 									onClick={() => handleItemChange(item.value)}
 									className={cn(
-										"flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors shrink-0 focus:outline-none focus-visible:outline-none",
+										"h-auto shrink-0 gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:outline-none",
 										activeItem === item.value
 											? "bg-accent text-accent-foreground"
 											: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -102,7 +105,7 @@ export function SettingsDialog({
 								>
 									{item.icon}
 									{item.label}
-								</button>
+								</Button>
 							))}
 						</div>
 					</div>

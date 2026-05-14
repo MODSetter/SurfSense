@@ -3,9 +3,11 @@
 import { ChevronDown, ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_EXCLUDE_PATTERNS } from "@/components/sources/FolderWatchDialog";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { cn } from "@/lib/utils";
 
 interface LocalFilesystemBrowserProps {
 	rootPaths: string[];
@@ -409,10 +411,11 @@ export function LocalFilesystemBrowser({
 			const files = [...folder.files].sort((a, b) => a.relativePath.localeCompare(b.relativePath));
 			return (
 				<div key={folder.key} className="select-none">
-					<button
+					<Button
 						type="button"
+						variant="ghost"
 						onClick={() => toggleFolder(folder.key)}
-						className="flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+						className="h-8 w-full justify-start gap-1.5 px-2 text-left text-sm font-normal hover:bg-accent hover:text-accent-foreground"
 						style={{ paddingInlineStart: `${depth * 12 + 8}px` }}
 						draggable={false}
 					>
@@ -423,7 +426,7 @@ export function LocalFilesystemBrowser({
 						)}
 						<FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />
 						<span className="truncate">{folder.name}</span>
-					</button>
+					</Button>
 					{isExpanded && (
 						<>
 							{childFolders.map((childFolder) => renderFolder(childFolder, depth + 1, mount))}
@@ -431,17 +434,21 @@ export function LocalFilesystemBrowser({
 								const extension = getNormalizedExtension(file.relativePath);
 								const isOpenable = openableExtensions.has(extension);
 								return (
-									<button
+									<Button
 										key={file.fullPath}
 										type="button"
+										variant="ghost"
 										onClick={
 											isOpenable
 												? () => onOpenFile(toMountedVirtualPath(mount, file.relativePath))
 												: undefined
 										}
-										className={`flex h-8 w-full items-center gap-1.5 rounded-md px-2 text-left text-sm transition-colors ${
-											isOpenable ? "hover:bg-accent hover:text-accent-foreground" : "cursor-not-allowed opacity-60"
-										}`}
+										className={cn(
+											"h-8 w-full justify-start gap-1.5 px-2 text-left text-sm font-normal",
+											isOpenable
+												? "hover:bg-accent hover:text-accent-foreground"
+												: "cursor-not-allowed opacity-60"
+										)}
 										style={{ paddingInlineStart: `${(depth + 1) * 12 + 22}px` }}
 										title={
 											isOpenable
@@ -453,7 +460,7 @@ export function LocalFilesystemBrowser({
 									>
 										<FileText className="size-3.5 shrink-0 text-muted-foreground" />
 										<span className="truncate">{getFileName(file.relativePath)}</span>
-									</button>
+									</Button>
 								);
 							})}
 						</>
