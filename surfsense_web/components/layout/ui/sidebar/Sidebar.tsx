@@ -23,11 +23,24 @@ import { SidebarHeader } from "./SidebarHeader";
 import { SidebarSection } from "./SidebarSection";
 import { SidebarUserProfile } from "./SidebarUserProfile";
 
-function ChatListItemSkeleton() {
+const CHAT_LIST_SKELETON_WIDTHS = ["w-[78%]", "w-[64%]", "w-[86%]", "w-[58%]", "w-[72%]"];
+
+function ChatListItemSkeleton({ widthClass }: { widthClass: string }) {
 	return (
-		<div className="flex w-full items-center gap-2 rounded-md p-2">
-			<Skeleton className="h-4 w-4 shrink-0 rounded" />
-			<Skeleton className="h-4 w-full max-w-[180px]" />
+		<div className="group/item relative w-full">
+			<div className="flex h-[32px] w-full items-center rounded-md px-2 py-1.5">
+				<Skeleton className={cn("h-4 rounded", widthClass)} />
+			</div>
+		</div>
+	);
+}
+
+function ChatListSkeletonRows() {
+	return (
+		<div className="flex flex-col gap-0.5">
+			{CHAT_LIST_SKELETON_WIDTHS.map((widthClass) => (
+				<ChatListItemSkeleton key={widthClass} widthClass={widthClass} />
+			))}
 		</div>
 	);
 }
@@ -217,13 +230,7 @@ export function Sidebar({
 						}
 					>
 						{isLoadingChats ? (
-							<div className="flex flex-col gap-0.5">
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-							</div>
+							<ChatListSkeletonRows />
 						) : sharedChats.length > 0 ? (
 							<div className="relative min-h-0 flex-1">
 								<div
@@ -250,7 +257,7 @@ export function Sidebar({
 								)}
 							</div>
 						) : (
-							<p className="px-2 py-1 text-sm text-muted-foreground">{t("no_shared_chats")}</p>
+							<p className="px-2 py-1 text-sm text-muted-foreground/60">{t("no_shared_chats")}</p>
 						)}
 					</SidebarSection>
 
@@ -274,13 +281,7 @@ export function Sidebar({
 						}
 					>
 						{isLoadingChats ? (
-							<div className="flex flex-col gap-0.5">
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-							</div>
+							<ChatListSkeletonRows />
 						) : chats.length > 0 ? (
 							<div className="relative flex-1 min-h-0">
 								<div
@@ -307,7 +308,7 @@ export function Sidebar({
 								)}
 							</div>
 						) : (
-							<p className="px-2 py-1 text-sm text-muted-foreground">{t("no_chats")}</p>
+							<p className="px-2 py-1 text-sm text-muted-foreground/60">{t("no_chats")}</p>
 						)}
 					</SidebarSection>
 				</div>
