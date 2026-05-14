@@ -133,7 +133,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-muted border-t border-border">
+			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-popover">
 				<Button
 					variant="ghost"
 					onClick={onBack}

@@ -8,7 +8,6 @@ import { actionLogSheetAtom } from "@/atoms/agent/action-log-sheet.atom";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
 	Sheet,
 	SheetContent,
@@ -22,15 +21,11 @@ import { ActionLogItem } from "./action-log-item";
 
 function EmptyState() {
 	return (
-		<div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-			<div className="flex size-12 items-center justify-center rounded-full bg-muted">
-				<Activity className="size-5 text-muted-foreground" />
-			</div>
-			<div className="flex flex-col gap-1">
-				<p className="text-sm font-medium">No actions logged yet</p>
-				<p className="text-xs text-muted-foreground">
-					Once the agent calls a tool in this thread, it will show up here. From the log you can
-					inspect arguments and revert reversible actions.
+		<div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 pb-12 text-center">
+			<div className="flex max-w-[260px] flex-col gap-1.5">
+				<p className="text-sm font-semibold tracking-tight">No actions logged yet</p>
+				<p className="text-xs leading-relaxed text-muted-foreground">
+				A complete audit trail of every tool the agent uses in this thread will appear here
 				</p>
 			</div>
 		</div>
@@ -39,15 +34,15 @@ function EmptyState() {
 
 function DisabledState() {
 	return (
-		<div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-			<div className="flex size-12 items-center justify-center rounded-full bg-muted">
-				<Activity className="size-5 text-muted-foreground" />
+		<div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 pb-12 text-center">
+			<div className="flex size-12 items-center justify-center rounded-full border border-popover-border bg-muted/40">
+				<Activity className="size-5 text-muted-foreground" strokeWidth={1.75} />
 			</div>
-			<div className="flex flex-col gap-1">
-				<p className="text-sm font-medium">Action log is disabled</p>
-				<p className="text-xs text-muted-foreground">
-					This deployment hasn't enabled the agent action log. An admin can flip
-					<code className="ml-1 rounded bg-muted px-1 text-[10px]">
+			<div className="flex max-w-[280px] flex-col gap-1.5">
+				<p className="text-sm font-semibold tracking-tight">Action log is disabled</p>
+				<p className="text-xs leading-relaxed text-muted-foreground">
+					This deployment hasn't enabled the agent action log. An admin can enable{" "}
+					<code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-foreground">
 						SURFSENSE_ENABLE_ACTION_LOG
 					</code>
 					.
@@ -75,7 +70,6 @@ export function ActionLogSheet() {
 
 	const { data: flags } = useAtomValue(agentFlagsAtom);
 	const actionLogEnabled = !!flags?.enable_action_log && !flags?.disable_new_agent_stack;
-	const revertEnabled = !!flags?.enable_revert_route && !flags?.disable_new_agent_stack;
 
 	const threadId = state.threadId;
 
@@ -94,39 +88,32 @@ export function ActionLogSheet() {
 		<Sheet open={state.open} onOpenChange={(open) => setState((s) => ({ ...s, open }))}>
 			<SheetContent
 				side="right"
-				className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+				className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md select-none"
 			>
-				<SheetHeader className="shrink-0 border-b px-4 py-4">
-					<div className="flex items-center justify-between gap-2">
-						<div className="flex items-center gap-2">
-							<Activity className="size-4 text-muted-foreground" />
-							<SheetTitle className="text-base font-semibold">Agent actions</SheetTitle>
-							{data?.total !== undefined && data.total > 0 && (
-								<Badge variant="secondary" className="text-[10px]">
-									{data.total}
-								</Badge>
-							)}
-						</div>
-						<Button
-							size="sm"
-							variant="ghost"
-							onClick={() => refetch()}
-							disabled={isFetching || !actionLogEnabled}
-							className="size-8 p-0"
-							aria-label="Refresh action log"
-						>
-							<RefreshCcw className={isFetching ? "size-3.5 animate-spin" : "size-3.5"} />
-						</Button>
+				<SheetHeader className="shrink-0 px-4 py-4">
+					<div className="flex items-center gap-2 pr-24">
+						<SheetTitle className="text-base font-semibold">Agent actions</SheetTitle>
+						{data?.total !== undefined && data.total > 0 && (
+							<Badge variant="secondary" className="text-[10px]">
+								{data.total}
+							</Badge>
+						)}
 					</div>
-					<SheetDescription className="text-xs text-muted-foreground">
+					<SheetDescription className="sr-only">
 						Audit trail of every tool call the agent made in this thread.
-						{revertEnabled
-							? " Reversible actions can be undone in place."
-							: " Reverts are read-only on this deployment."}
 					</SheetDescription>
 				</SheetHeader>
 
-				<Separator />
+				<Button
+					size="sm"
+					variant="ghost"
+					onClick={() => refetch()}
+					disabled={isFetching || !actionLogEnabled}
+					className="absolute right-14 top-4 size-8 rounded-full p-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+					aria-label="Refresh action log"
+				>
+					<RefreshCcw className={isFetching ? "size-3.5 animate-spin" : "size-3.5"} />
+				</Button>
 
 				<div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin">
 					{!actionLogEnabled ? (

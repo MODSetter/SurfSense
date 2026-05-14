@@ -255,7 +255,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex items-center justify-end px-6 sm:px-12 py-6 bg-muted">
+			<div className="flex-shrink-0 flex items-center justify-end px-6 sm:px-12 py-6 bg-popover">
 				{isLive ? (
 					<Button onClick={onSkip} className="text-xs sm:text-sm">
 						Done

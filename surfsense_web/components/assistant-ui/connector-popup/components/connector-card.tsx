@@ -145,7 +145,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				size="sm"
 				variant={isConnected ? "secondary" : "default"}
 				className={cn(
-					"relative h-8 text-[11px] px-3 rounded-lg shrink-0 font-medium items-center justify-center",
+					"relative h-8 text-[11px] px-3 shrink-0 font-medium items-center justify-center",
 					isConnected &&
 						"bg-white text-slate-700 hover:bg-accent hover:text-accent-foreground border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground",
 					!isConnected && "shadow-xs"

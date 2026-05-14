@@ -337,8 +337,7 @@ export function ToolbarMenuGroup({
 			<DropdownMenuSeparator
 				className={cn(
 					"hidden",
-					"mb-0 mx-2 shrink-0 peer-has-[[role=menuitem]]/menu-group:block peer-has-[[role=menuitemradio]]/menu-group:block peer-has-[[role=option]]/menu-group:block",
-					"dark:bg-neutral-700"
+					"mb-0 mx-2 shrink-0 peer-has-[[role=menuitem]]/menu-group:block peer-has-[[role=menuitemradio]]/menu-group:block peer-has-[[role=option]]/menu-group:block"
 				)}
 			/>
 

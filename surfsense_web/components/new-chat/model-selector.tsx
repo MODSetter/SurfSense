@@ -840,8 +840,8 @@ export function ModelSelector({
 		return (
 			<div
 				className={cn(
-					"shrink-0 border-border/50 flex relative",
-					isMobile ? "flex-row items-center border-b border-border/40" : "flex-col w-10 border-r"
+					"shrink-0 border-popover-border flex relative",
+					isMobile ? "flex-row items-center border-b" : "flex-col w-10 border-r"
 				)}
 			>
 				{!isMobile && (
@@ -907,9 +907,9 @@ export function ModelSelector({
 							<Fragment key={provider}>
 								{showSeparator &&
 									(isMobile ? (
-										<div className="w-px h-5 bg-border/60 shrink-0 self-center mx-0.5" />
+										<div className="w-px h-5 bg-popover-border shrink-0 self-center mx-0.5" />
 									) : (
-										<div className="h-px w-5 bg-border/60 mx-auto my-0.5" />
+										<div className="h-px w-5 bg-popover-border mx-auto my-0.5" />
 									))}
 								<Tooltip>
 									<TooltipTrigger asChild>
@@ -1125,7 +1125,11 @@ export function ModelSelector({
 							<Pencil className="size-3.5 text-muted-foreground" />
 						</Button>
 					)}
-					{isSelected && <Check className="size-4 text-primary shrink-0" />}
+					{isSelected && (
+						<div className="size-7 grid place-items-center shrink-0">
+							<Check className="size-4" />
+						</div>
+					)}
 				</div>
 			</div>
 		);
@@ -1150,7 +1154,7 @@ export function ModelSelector({
 		return (
 			<div className="flex flex-col w-full overflow-hidden">
 				{/* Tab header */}
-				<div className="border-b border-border/50">
+				<div className="border-b border-popover-border">
 					<div className="w-full grid grid-cols-3 h-11">
 						{(
 							[
@@ -1303,7 +1307,7 @@ export function ModelSelector({
 										</>
 									)}
 									{globalItems.length > 0 && userItems.length > 0 && (
-										<div className="my-1.5 mx-4 h-px bg-border/60" />
+										<div className="my-1.5 mx-4 h-px bg-popover-border" />
 									)}
 									{userItems.length > 0 && (
 										<>

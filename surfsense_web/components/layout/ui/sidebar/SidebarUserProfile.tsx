@@ -234,7 +234,7 @@ export function SidebarUserProfile({
 							</div>
 						</DropdownMenuLabel>
 
-						<DropdownMenuSeparator className="dark:bg-neutral-700" />
+						<DropdownMenuSeparator />
 
 						<DropdownMenuItem onClick={onUserSettings}>
 							<UserCog className="h-4 w-4" />
@@ -329,7 +329,7 @@ export function SidebarUserProfile({
 											</a>
 										</DropdownMenuItem>
 									))}
-									<DropdownMenuSeparator className="dark:bg-neutral-700" />
+									<DropdownMenuSeparator />
 									<p className="select-none px-2 py-1.5 text-xs text-muted-foreground/50">
 										v{APP_VERSION}
 									</p>
@@ -346,7 +346,7 @@ export function SidebarUserProfile({
 							</DropdownMenuItem>
 						)}
 
-						<DropdownMenuSeparator className="dark:bg-neutral-700" />
+						<DropdownMenuSeparator />
 
 						<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
 							{isLoggingOut ? (
@@ -400,7 +400,7 @@ export function SidebarUserProfile({
 						</div>
 					</DropdownMenuLabel>
 
-					<DropdownMenuSeparator className="dark:bg-neutral-700" />
+					<DropdownMenuSeparator />
 
 					<DropdownMenuItem onClick={onUserSettings}>
 						<UserCog className="h-4 w-4" />
@@ -495,7 +495,7 @@ export function SidebarUserProfile({
 										</a>
 									</DropdownMenuItem>
 								))}
-								<DropdownMenuSeparator className="dark:bg-neutral-700" />
+								<DropdownMenuSeparator />
 								<p className="select-none px-2 py-1.5 text-xs text-muted-foreground/50">
 									v{APP_VERSION}
 								</p>
@@ -512,7 +512,7 @@ export function SidebarUserProfile({
 						</DropdownMenuItem>
 					)}
 
-					<DropdownMenuSeparator className="dark:bg-neutral-700" />
+					<DropdownMenuSeparator />
 
 					<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
 						{isLoggingOut ? <Spinner size="sm" className="mr-2" /> : <LogOut className="h-4 w-4" />}

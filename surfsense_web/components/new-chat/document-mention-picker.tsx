@@ -521,7 +521,7 @@ export const DocumentMentionPicker = forwardRef<
 						{userDocsList.length > 0 && (
 							<>
 								{surfsenseDocsList.length > 0 && (
-									<div className="mx-2 my-4 border-t border-border dark:border-white/5" />
+									<div className="mx-2 my-4 border-t border-popover-border" />
 								)}
 								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
 									Your Documents
@@ -581,7 +581,7 @@ export const DocumentMentionPicker = forwardRef<
 						{folderMentions.length > 0 && (
 							<>
 								{(surfsenseDocsList.length > 0 || userDocsList.length > 0) && (
-									<div className="mx-2 my-4 border-t border-border dark:border-white/5" />
+									<div className="mx-2 my-4 border-t border-popover-border" />
 								)}
 								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
 									Folders

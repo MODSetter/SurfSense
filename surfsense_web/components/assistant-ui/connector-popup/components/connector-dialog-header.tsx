@@ -37,7 +37,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 				</DialogDescription>
 			</DialogHeader>
 
-			<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-4 sm:gap-8 mt-4 sm:mt-8 border-b border-border/80 dark:border-white/5">
+			<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-4 sm:gap-8 mt-4 sm:mt-8 border-b border-popover-border">
 				<TabsList className="bg-transparent p-0 gap-4 sm:gap-8 h-auto w-full sm:w-auto justify-center sm:justify-start">
 					<TabsTrigger
 						value="all"
@@ -63,7 +63,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 
 				<div className="w-full sm:w-72 sm:pb-1">
 					<div className="relative">
-						<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-500 dark:text-gray-500" />
+						<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
 						<input
 							type="text"
 							autoComplete="off"
@@ -79,7 +79,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 							<button
 								type="button"
 								onClick={() => onSearchChange("")}
-								className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+								className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground hover:text-accent-foreground transition-colors"
 								aria-label="Clear search"
 							>
 								<X className="size-4" />

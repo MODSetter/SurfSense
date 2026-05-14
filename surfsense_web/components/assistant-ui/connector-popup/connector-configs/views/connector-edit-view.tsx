@@ -382,8 +382,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
 						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">
 							{isLive
-								? "Your agent will lose access to this service."
-								: "This will remove all indexed data."}
+								? "Your agent will lose access to this service"
+								: "This will remove all indexed data"}
 						</span>
 						<div className="flex items-center gap-2 sm:gap-3">
 							<Button

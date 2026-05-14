@@ -171,7 +171,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 							</button>
 						))}
 
-						<div className="mx-2 my-1 border-t border-border dark:border-white/5" />
+						<div className="mx-2 my-1 border-t border-popover-border" />
 						<button
 							ref={(el) => {
 								if (el) itemRefs.current.set(createPromptIndex, el);

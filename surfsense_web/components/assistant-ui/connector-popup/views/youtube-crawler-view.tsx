@@ -323,7 +323,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-muted border-t border-border">
+			<div className="shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-popover">
 				<Button
 					variant="ghost"
 					onClick={onBack}

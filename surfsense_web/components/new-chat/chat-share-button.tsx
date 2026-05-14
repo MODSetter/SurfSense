@@ -231,7 +231,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 						{canCreatePublicLink && (
 							<>
 								{/* Divider */}
-								<div className="border-t border-border dark:border-white/5 my-1" />
+								<div className="border-t border-popover-border my-1" />
 
 								{/* Public Link Option */}
 								<button

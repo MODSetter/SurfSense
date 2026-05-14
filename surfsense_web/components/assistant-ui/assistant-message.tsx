@@ -320,7 +320,7 @@ const MessageInfoDropdown: FC = () => {
 				)}
 				{hasUsage && (
 					<>
-						<ActionBarMorePrimitive.Separator className="bg-border mx-2 my-1 h-px" />
+						<ActionBarMorePrimitive.Separator className="bg-popover-border mx-2 my-1 h-px" />
 						{models.length > 0 ? (
 							models.map(([model, counts]) => {
 								const { name, icon } = resolveModel(model);

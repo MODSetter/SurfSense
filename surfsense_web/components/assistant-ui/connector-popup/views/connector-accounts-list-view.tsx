@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { ArrowLeft, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, Server } from "lucide-react";
 import { type FC, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -231,7 +231,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 									{isAuthExpired ? (
 										<Button
 											size="sm"
-											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
+											className="h-8 text-[11px] px-3 font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
 											onClick={() => handleReauth(connector)}
 											disabled={reauthingId === connector.id}
 										>
@@ -246,7 +246,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 												<Button
 													variant="destructive"
 													size="sm"
-													className="h-8 text-[11px] px-3 rounded-lg font-medium shadow-xs"
+													className="h-8 text-[11px] px-3 font-medium shadow-xs"
 													onClick={async () => {
 														setDisconnectingId(connector.id);
 														setConfirmDisconnectId(null);
@@ -267,7 +267,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 												<Button
 													variant="ghost"
 													size="sm"
-													className="h-8 text-[11px] px-2 rounded-lg"
+													className="h-8 text-[11px] px-2"
 													onClick={() => setConfirmDisconnectId(null)}
 													disabled={disconnectingId === connector.id}
 												>
@@ -275,21 +275,20 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 												</Button>
 											</div>
 										) : (
-											<Button
-												variant="secondary"
-												size="sm"
-												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-red-50 hover:text-red-700 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-red-950 dark:hover:text-red-400 shrink-0"
-												onClick={() => setConfirmDisconnectId(connector.id)}
-											>
-												<Trash2 className="size-3.5" />
-												Disconnect
-											</Button>
+										<Button
+											variant="destructive"
+											size="sm"
+											className="h-8 text-[11px] px-3 font-medium shrink-0"
+											onClick={() => setConfirmDisconnectId(connector.id)}
+										>
+											Disconnect
+										</Button>
 										)
 									) : (
 										<Button
 											variant="secondary"
 											size="sm"
-											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-accent hover:text-accent-foreground border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground shrink-0"
+											className="h-8 text-[11px] px-3 font-medium bg-white text-slate-700 hover:bg-accent hover:text-accent-foreground border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground shrink-0"
 											onClick={() => onManage(connector)}
 										>
 											Manage
