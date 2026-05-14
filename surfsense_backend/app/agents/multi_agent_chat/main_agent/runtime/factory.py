@@ -141,7 +141,7 @@ async def create_multi_agent_chat_deep_agent(
         )
         mcp_tools_by_agent = {}
     _perf_log.info(
-        "[create_agent] load_mcp_tools_by_connector in %.3fs (%d buckets)",
+        "[create_agent] load_mcp_tools_by_connector in %.3fs (%d agents)",
         time.perf_counter() - _t0,
         len(mcp_tools_by_agent),
     )

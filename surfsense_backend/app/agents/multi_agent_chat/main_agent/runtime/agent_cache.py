@@ -10,7 +10,6 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 
-from app.agents.multi_agent_chat.subagents.shared.tool_kinds import ToolsPermissions
 from app.agents.new_chat.agent_cache import (
     flags_signature,
     get_cache,
@@ -25,14 +24,12 @@ from app.db import ChatVisibility
 from ..graph.compile_graph_sync import build_compiled_agent_graph_sync
 
 
-def mcp_signature(mcp_tools_by_agent: dict[str, ToolsPermissions]) -> str:
+def mcp_signature(mcp_tools_by_agent: dict[str, list[BaseTool]]) -> str:
     """Hash the per-agent MCP tool surface so a change rotates the cache key."""
     rows = []
     for agent_name in sorted(mcp_tools_by_agent.keys()):
-        perms = mcp_tools_by_agent[agent_name]
-        allow_names = sorted(item.get("name", "") for item in perms.get("allow", []))
-        ask_names = sorted(item.get("name", "") for item in perms.get("ask", []))
-        rows.append((agent_name, allow_names, ask_names))
+        names = sorted(getattr(t, "name", "") or "" for t in mcp_tools_by_agent[agent_name])
+        rows.append((agent_name, names))
     return stable_hash(rows)
 
 
@@ -55,7 +52,7 @@ async def build_agent_with_cache(
     flags: AgentFeatureFlags,
     checkpointer: Checkpointer,
     subagent_dependencies: dict[str, Any],
-    mcp_tools_by_agent: dict[str, ToolsPermissions],
+    mcp_tools_by_agent: dict[str, list[BaseTool]],
     disabled_tools: list[str] | None,
     config_id: str | None,
 ) -> Any:

@@ -72,9 +72,6 @@ from app.agents.multi_agent_chat.subagents.shared.md_file_reader import (
     read_md_file,
 )
 from app.agents.multi_agent_chat.subagents.shared.spec import SurfSenseSubagentSpec
-from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
-    ToolsPermissions,
-)
 
 
 class SubagentBuilder(Protocol):
@@ -84,20 +81,8 @@ class SubagentBuilder(Protocol):
         dependencies: dict[str, Any],
         model: BaseChatModel | None = None,
         middleware_stack: dict[str, Any] | None = None,
-        extra_tools_bucket: ToolsPermissions | None = None,
-    ) -> SubAgent | SurfSenseSubagentSpec: ...
-
-
-def _unwrap_spec(result: SubAgent | SurfSenseSubagentSpec) -> SubAgent:
-    """Project a builder's return value down to the deepagents-shaped dict.
-
-    Transitional helper while subagents migrate to ``SurfSenseSubagentSpec``.
-    Once every builder returns the new container, this becomes a single
-    ``return result.spec``.
-    """
-    if isinstance(result, SurfSenseSubagentSpec):
-        return result.spec
-    return result
+        mcp_tools: list[BaseTool] | None = None,
+    ) -> SurfSenseSubagentSpec: ...
 
 
 SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
@@ -167,7 +152,7 @@ def _filter_disabled_tools_in_place(
     spec: SubAgent,
     disabled_names: frozenset[str],
 ) -> None:
-    """Drop UI-disabled tools from ``spec["tools"]`` and ``spec["interrupt_on"]``."""
+    """Drop UI-disabled tools from ``spec["tools"]``."""
     if not disabled_names:
         return
     tools = spec.get("tools")  # type: ignore[typeddict-item]
@@ -175,11 +160,6 @@ def _filter_disabled_tools_in_place(
         spec["tools"] = [  # type: ignore[typeddict-unknown-key]
             t for t in tools if getattr(t, "name", None) not in disabled_names
         ]
-    interrupt_on = spec.get("interrupt_on")  # type: ignore[typeddict-item]
-    if isinstance(interrupt_on, dict):
-        spec["interrupt_on"] = {  # type: ignore[typeddict-unknown-key]
-            k: v for k, v in interrupt_on.items() if k not in disabled_names
-        }
 
 
 def _inject_ask_kb_tool_in_place(spec: SubAgent, ask_kb_tool: BaseTool) -> None:
@@ -200,7 +180,7 @@ def build_subagents(
     dependencies: dict[str, Any],
     model: BaseChatModel | None = None,
     middleware_stack: dict[str, Any] | None = None,
-    mcp_tools_by_agent: dict[str, ToolsPermissions] | None = None,
+    mcp_tools_by_agent: dict[str, list[BaseTool]] | None = None,
     exclude: list[str] | None = None,
     disabled_tools: list[str] | None = None,
     ask_kb_tool: BaseTool | None = None,
@@ -216,14 +196,13 @@ def build_subagents(
         if name in excluded:
             continue
         builder = SUBAGENT_BUILDERS_BY_NAME[name]
-        spec = _unwrap_spec(
-            builder(
-                dependencies=dependencies,
-                model=model,
-                middleware_stack=middleware_stack,
-                extra_tools_bucket=mcp.get(name),
-            )
+        result = builder(
+            dependencies=dependencies,
+            model=model,
+            middleware_stack=middleware_stack,
+            mcp_tools=mcp.get(name),
         )
+        spec = result.spec
         _filter_disabled_tools_in_place(spec, disabled_names)
         if ask_kb_tool is not None:
             _inject_ask_kb_tool_in_place(spec, ask_kb_tool)

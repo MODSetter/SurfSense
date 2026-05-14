@@ -31,7 +31,6 @@ from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.agent import 
 from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.ask_knowledge_base_tool import (
     build_ask_knowledge_base_tool,
 )
-from app.agents.multi_agent_chat.subagents.shared.tool_kinds import ToolsPermissions
 from app.agents.new_chat.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.db import ChatVisibility
@@ -85,7 +84,7 @@ def build_main_agent_deepagent_middleware(
     flags: AgentFeatureFlags,
     subagent_dependencies: dict[str, Any],
     checkpointer: Checkpointer,
-    mcp_tools_by_agent: dict[str, ToolsPermissions] | None = None,
+    mcp_tools_by_agent: dict[str, list[BaseTool]] | None = None,
     disabled_tools: list[str] | None = None,
 ) -> list[Any]:
     """Ordered middleware for ``create_agent`` (None entries already stripped)."""

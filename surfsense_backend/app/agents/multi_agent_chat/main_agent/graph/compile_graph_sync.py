@@ -14,9 +14,6 @@ from langgraph.types import Checkpointer
 from app.agents.multi_agent_chat.middleware.stack import (
     build_main_agent_deepagent_middleware,
 )
-from app.agents.multi_agent_chat.subagents.shared.tool_kinds import (
-    ToolsPermissions,
-)
 from app.agents.new_chat.context import SurfSenseContextSchema
 from app.agents.new_chat.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.filesystem_selection import FilesystemMode
@@ -42,7 +39,7 @@ def build_compiled_agent_graph_sync(
     flags: AgentFeatureFlags,
     checkpointer: Checkpointer,
     subagent_dependencies: dict[str, Any],
-    mcp_tools_by_agent: dict[str, ToolsPermissions] | None = None,
+    mcp_tools_by_agent: dict[str, list[BaseTool]] | None = None,
     disabled_tools: list[str] | None = None,
 ):
     """Sync compile: middleware + ``create_agent`` (run via ``asyncio.to_thread``)."""

@@ -1,4 +1,4 @@
-"""Load MCP tools, partition by connector agent, apply each subagent's allow/ask permissions."""
+"""Load MCP tools and partition them by connector agent."""
 
 from __future__ import annotations
 
