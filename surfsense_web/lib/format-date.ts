@@ -22,3 +22,11 @@ export function formatRelativeDate(dateString: string): string {
 	if (daysAgo < 7) return `${daysAgo}d ago`;
 	return format(date, "MMM d, yyyy");
 }
+
+/**
+ * Format a thread's last-updated timestamp for the chats sidebars.
+ * Example: "Mar 23, 2026 at 4:30 PM"
+ */
+export function formatThreadTimestamp(dateString: string): string {
+	return format(new Date(dateString), "MMM d, yyyy 'at' h:mm a");
+}

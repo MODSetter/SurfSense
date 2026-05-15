@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { formatThreadTimestamp } from "@/lib/format-date";
 import { useSetAtom } from "jotai";
 import {
 	ArchiveIcon,
@@ -389,7 +389,7 @@ export function AllSharedChatsSidebarContent({
 											<TooltipContent side="bottom" align="start">
 												<p>
 													{t("updated") || "Updated"}:{" "}
-													{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
+													{formatThreadTimestamp(thread.updatedAt)}
 												</p>
 											</TooltipContent>
 										</Tooltip>
