@@ -42,6 +42,7 @@ from langchain.agents.middleware.types import (
     ContextT,
 )
 from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.tools import BaseTool
 from langgraph.runtime import Runtime
 
 from app.agents.new_chat.errors import CorrectedError, RejectedError
@@ -72,6 +73,9 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             same agent instance so newly-allowed rules apply downstream.
         always_emit_interrupt_payload: Set ``False`` to make ``ask``
             collapse to ``deny`` (for non-interactive deployments).
+        tools_by_name: Map from tool name to :class:`BaseTool`, used to
+            decorate ``ask`` interrupts with the tool's description and
+            MCP metadata for the FE card.
     """
 
     tools = ()
@@ -83,6 +87,7 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         pattern_resolvers: dict[str, PatternResolver] | None = None,
         runtime_ruleset: Ruleset | None = None,
         always_emit_interrupt_payload: bool = True,
+        tools_by_name: dict[str, BaseTool] | None = None,
     ) -> None:
         super().__init__()
         self._static_rulesets: list[Ruleset] = list(rulesets or [])
@@ -93,6 +98,7 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             origin="runtime_approved"
         )
         self._emit_interrupt = always_emit_interrupt_payload
+        self._tools_by_name: dict[str, BaseTool] = dict(tools_by_name or {})
 
     def _process(
         self,
@@ -142,6 +148,7 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                     patterns=patterns,
                     rules=rules,
                     emit_interrupt=self._emit_interrupt,
+                    tool=self._tools_by_name.get(name),
                 )
                 kind = str(decision.get("decision_type") or "reject").lower()
                 edited_args = decision.get("edited_args")

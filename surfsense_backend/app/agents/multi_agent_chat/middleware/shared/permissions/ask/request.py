@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from langchain_core.tools import BaseTool
 from langgraph.types import interrupt
 
 from app.agents.new_chat.permissions import Rule
@@ -29,13 +30,18 @@ def request_permission_decision(
     patterns: list[str],
     rules: list[Rule],
     emit_interrupt: bool,
+    tool: BaseTool | None = None,
 ) -> dict[str, Any]:
     """Pause for an ``ask`` decision; return the canonical permission decision dict."""
     if not emit_interrupt:
         return {"decision_type": "reject"}
 
     payload = build_permission_ask_payload(
-        tool_name=tool_name, args=args, patterns=patterns, rules=rules
+        tool_name=tool_name,
+        args=args,
+        patterns=patterns,
+        rules=rules,
+        tool=tool,
     )
 
     with (

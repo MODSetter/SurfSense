@@ -23,6 +23,10 @@ redundant here.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+from langchain_core.tools import BaseTool
+
 from app.agents.new_chat.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.permissions import Rule, Ruleset
 
@@ -38,6 +42,7 @@ def build_permission_mw(
     *,
     flags: AgentFeatureFlags,
     subagent_rulesets: list[Ruleset] | None = None,
+    tools: Sequence[BaseTool] | None = None,
 ) -> PermissionMiddleware | None:
     """Return a configured :class:`PermissionMiddleware` or ``None`` when no work is needed.
 
@@ -51,6 +56,8 @@ def build_permission_mw(
             aliasing a shared engine. Presence of any subagent ruleset
             forces the middleware on regardless of ``enable_permission`` —
             an explicit ``ask`` rule always asks.
+        tools: Subagent tools used to decorate ``ask`` interrupts with
+            FE-card metadata (description, MCP connector). Optional.
 
     Returns:
         ``None`` when the engine has no rules to enforce
@@ -65,7 +72,8 @@ def build_permission_mw(
     rulesets: list[Ruleset] = [_SURFSENSE_DEFAULTS]
     if subagent_rulesets:
         rulesets.extend(subagent_rulesets)
-    return PermissionMiddleware(rulesets=rulesets)
+    tools_by_name = {t.name: t for t in (tools or [])}
+    return PermissionMiddleware(rulesets=rulesets, tools_by_name=tools_by_name)
 
 
 __all__ = ["build_permission_mw"]

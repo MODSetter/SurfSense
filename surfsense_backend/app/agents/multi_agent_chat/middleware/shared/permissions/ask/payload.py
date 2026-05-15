@@ -1,19 +1,10 @@
-"""Build the permission-ask interrupt payload (LC HITL wire + SurfSense context).
-
-The FE's PermissionCard renders from:
-
-- Standard langchain fields (``action_requests``, ``review_configs``) — drive
-  the action chrome and the parallel-HITL routing layer (``task_tool``,
-  ``resume_routing``) that batches concurrent approvals.
-- ``interrupt_type="permission_ask"`` — selects the permission card variant.
-- ``context.patterns`` / ``context.rules`` — explain *why* the ask fired.
-- ``context.always`` — the patterns the user can promote to a permanent
-  allow rule with a single ``"always"`` reply.
-"""
+"""Build the permission-ask interrupt payload (LC HITL wire + SurfSense context)."""
 
 from __future__ import annotations
 
 from typing import Any
+
+from langchain_core.tools import BaseTool
 
 from app.agents.multi_agent_chat.subagents.shared.hitl.wire import (
     LC_DECISION_APPROVE,
@@ -26,8 +17,6 @@ from app.agents.new_chat.permissions import Rule
 
 PERMISSION_ASK_INTERRUPT_TYPE = "permission_ask"
 
-# The full palette a permission card may surface: approve once, edit-then-
-# approve, reject, or "always" to promote the matched pattern.
 _PERMISSION_ASK_DECISIONS: list[str] = [
     LC_DECISION_APPROVE,
     LC_DECISION_REJECT,
@@ -36,36 +25,45 @@ _PERMISSION_ASK_DECISIONS: list[str] = [
 ]
 
 
+def _card_fields_from_tool(tool: BaseTool | None) -> dict[str, Any]:
+    """Project the FE card's tool-scoped fields out of a BaseTool."""
+    if tool is None:
+        return {}
+    metadata = getattr(tool, "metadata", None) or {}
+    fields: dict[str, Any] = {}
+    connector_id = metadata.get("mcp_connector_id")
+    if connector_id is not None:
+        fields["mcp_connector_id"] = connector_id
+    connector_name = metadata.get("mcp_connector_name")
+    if connector_name:
+        fields["mcp_server"] = connector_name
+    if tool.description:
+        fields["tool_description"] = tool.description
+    return fields
+
+
 def build_permission_ask_payload(
     *,
     tool_name: str,
     args: dict[str, Any],
     patterns: list[str],
     rules: list[Rule],
+    tool: BaseTool | None = None,
 ) -> dict[str, Any]:
     """Build the permission-ask interrupt payload.
 
-    Args:
-        tool_name: The tool whose call is being reviewed.
-        args: The tool call arguments shown in the card.
-        patterns: Wildcard patterns the call matched (drives ``always``).
-        rules: Matched ruleset entries surfaced for explainability.
-
-    Returns:
-        A dict suitable for ``langgraph.types.interrupt(...)`` carrying both
-        the LC HITL standard fields and SurfSense-specific context.
+    ``tool`` carries the FE card's tool-scoped fields (description, MCP
+    connector). When omitted the card still renders, just without the
+    "Always Allow against this connected account" surface.
     """
     context: dict[str, Any] = {
         "patterns": patterns,
         "rules": [
-            {
-                "permission": r.permission,
-                "pattern": r.pattern,
-                "action": r.action,
-            }
+            {"permission": r.permission, "pattern": r.pattern, "action": r.action}
             for r in rules
         ],
         "always": patterns,
+        **_card_fields_from_tool(tool),
     }
     return build_lc_hitl_payload(
         tool_name=tool_name,

@@ -74,7 +74,7 @@ def pack_subagent(
     if user_allowlist is not None:
         subagent_rulesets.append(user_allowlist)
     per_subagent_perm = build_permission_mw(
-        flags=flags, subagent_rulesets=subagent_rulesets
+        flags=flags, subagent_rulesets=subagent_rulesets, tools=tools
     )
 
     prepended: list[Any] = []
