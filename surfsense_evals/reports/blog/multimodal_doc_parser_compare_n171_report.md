@@ -286,7 +286,7 @@ The experiment included:
 2. **Preprocessing cost** for parser-based arms.
 3. **SurfSense preprocessing cost** for the agentic arm.
 
-The preprocessing tariff used:
+The preprocessing tariff used (source: [`runner.py:74-77`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/runner.py#L74-L77), with per-arm mapping at [`runner.py:89-101`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/runner.py#L89-L101) and the `$/Q` overlay at [`runner.py:725-747`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/runner.py#L725-L747)):
 
 | Mode | Cost |
 |---|---:|
@@ -366,7 +366,7 @@ For each ordered pair `(i, j)`, with the post-retry rows:
 - under H0, `b ~ Binomial(b + c, 0.5)`,
 - two-sided p-value: `P(X ≤ min(b, c)) + P(X ≥ max(b, c))` computed exactly.
 
-(Script: `scripts/compute_blog_extras.py`. Pure stdlib `math.comb`, no scipy.)
+(Implementation: [`compute_blog_extras.py:80-99`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/compute_blog_extras.py#L80-L99) for the exact-binomial p-value, [`compute_blog_extras.py:102-141`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/compute_blog_extras.py#L102-L141) for the pairwise table builder. Pure stdlib `math.comb`, no scipy.)
 
 **Pairwise McNemar table (post-retry, sorted by p-value):**
 
@@ -602,7 +602,7 @@ If the model were rejecting requests for being too long, max-OK could not exceed
 SurfSense reported `0 failures / 171 questions` to the eval harness. This is the most important operational result, but it is worth being precise about *why*, because the mechanism is partly architectural rather than purely "better RAG":
 
 1. **The harness call goes to `http://localhost:8000`, not over public internet.** All transport-class failures that hammered the LC arms (TLS renegotiation, intermediate proxy resets, OpenRouter gateway 502s) are simply not reachable over a loopback HTTP connection. SurfSense was not "asked to survive" the same network path the LC arms had to survive.
-2. **The backend retries internal LLM calls.** SurfSense's `/api/v1/new_chat` wraps every internal LLM hop in `RetryAfterMiddleware` (exponential backoff on 5xx, SSL errors, rate limits). Failures the LC arms surfaced as fatal would have been silently retried inside SurfSense and never reached the harness.
+2. **The backend retries internal LLM calls.** SurfSense's `/api/v1/new_chat` wraps every internal LLM hop in `RetryAfterMiddleware` (exponential backoff on 5xx, SSL errors, rate limits — see [`retry_after.py:113-179`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_backend/app/agents/new_chat/middleware/retry_after.py#L113-L179) for the backoff calculation and retry-decision logic). Failures the LC arms surfaced as fatal would have been silently retried inside SurfSense and never reached the harness.
 3. **SurfSense's outbound prompt is small.** The retrieval pipeline produces prompts in the 5–15K token range, not 100–500KB Markdown blobs, so even if SurfSense's calls *were* over public TLS, they would land in the size class where transient transport errors are far rarer.
 
 In other words, "0 failures" is the joint result of three things — agentic retrieval bounding the payload, a robust internal retry layer, and a localhost call shape — and not a claim that the underlying model never erred on SurfSense's behalf.
@@ -634,7 +634,7 @@ The failure distribution shows two different classes of problems:
 
 ### 9.4 Retry experiment: are these failures transient or intrinsic?
 
-To pressure-test the transport-layer hypothesis directly, we re-ran *only* the 37 failed `(arm, qid)` pairs through the same providers, with up to 5 attempts each, exponential backoff (base 1 s, max 30 s, jitter), and concurrency 2. The eval harness was not touched — same prompts, same cached PDFs, same cached parser markdown — only the request was retried. SurfSense was not retried (it had 0 failures and would otherwise have required spinning the backend back up).
+To pressure-test the transport-layer hypothesis directly, we re-ran *only* the 37 failed `(arm, qid)` pairs through the same providers, with up to 5 attempts each, exponential backoff (base 1 s, max 30 s, jitter), and concurrency 2. The eval harness was not touched — same prompts, same cached PDFs, same cached parser markdown — only the request was retried. SurfSense was not retried (it had 0 failures and would otherwise have required spinning the backend back up). Failure detection (any row with `error` set OR empty `raw_text`) is at [`retry_failed_questions.py:99-111`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/retry_failed_questions.py#L99-L111); the per-row retry loop is at [`retry_failed_questions.py:260-304`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/retry_failed_questions.py#L260-L304).
 
 **Result (37 retries):**
 
@@ -1147,6 +1147,123 @@ The claims in this report come with the following caveats. We list them so a rea
 8. **Grader is deterministic, not LLM-judged.** The MMLongBench-Doc paper itself uses a GPT-4 judge. We chose deterministic grading for reproducibility (two researchers running this harness will get the exact same number) and simpler downstream stats. An LLM-judge mode is implemented (`--judge gpt5`) but was not used here. If you switch to LLM judging, all arms shift up by roughly the same amount; the *ordering* should be stable but the absolute accuracy values are not directly comparable.
 9. **Retry experiment is not blind to its purpose.** The retry policy (5 attempts, exponential backoff, jitter, concurrency 2) was chosen *after* seeing the failure modes. We are not claiming this is the optimal policy across arms — only that with this policy, all LC failures recover and a clean residue of intrinsic native_pdf failures remains.
 10. **No statistical test was run for cost differences.** All cost numbers are point estimates from a single run; we do not report cost CIs because the variance comes from token-count variability per question and is well-modeled by the input-token distributions in §7.4 if a reader wants to construct a CI themselves.
+
+### 14.4 Code citations index
+
+Every technical claim in this report is reproducible from the code in this repository. The table below maps each claim to its exact source-of-truth file and line range, pinned to commit [`9bcd5016`](https://github.com/MODSetter/SurfSense/commit/9bcd5016) so the line numbers stay valid even if the files change later.
+
+#### Eval harness — arm definitions
+
+| Claim / construct | File@lines |
+|---|---|
+| `NativePdfArm` — attaches the PDF as an OpenRouter file part | [`core/arms/native_pdf.py:21-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/core/arms/native_pdf.py#L21) |
+| `BareLlmArm` — chat-completion with no retrieval (used for the four LC arms) | [`core/arms/bare_llm.py:22-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/core/arms/bare_llm.py#L22) |
+| `SurfSenseArm` — `/api/v1/new_chat` SSE consumer | [`core/arms/surfsense.py:30-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/core/arms/surfsense.py#L30) |
+| `OpenRouterChatProvider` — bare chat-completion HTTP client | [`core/providers/openrouter_chat.py:40-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/core/providers/openrouter_chat.py#L40) |
+| `OpenRouterPdfProvider` — file-parser-plugin chat-completion client | [`core/providers/openrouter_pdf.py:72-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/core/providers/openrouter_pdf.py#L72) |
+
+#### Eval harness — parser SDK callers (LC arms)
+
+| Claim / construct | File@lines |
+|---|---|
+| Azure DI mode→model map (`basic`→`prebuilt-read`, `premium`→`prebuilt-layout`) | [`core/parsers/azure_di.py:33-35`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/core/parsers/azure_di.py#L33-L35) |
+| LlamaCloud mode→mode map (`basic`→`parse_page_with_llm`, `premium`→`parse_page_with_agent`) | [`core/parsers/llamacloud.py:32-34`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/core/parsers/llamacloud.py#L32-L34) |
+| `pypdf`-based page count (used for the per-page tariff calculation) | [`core/parsers/pdf_pages.py`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/core/parsers/pdf_pages.py) |
+
+#### Eval harness — parser_compare benchmark
+
+| Claim / construct | File@lines |
+|---|---|
+| `ParserCompareBenchmark` (six-arm runner, prompt construction, raw.jsonl writer) | [`suites/multimodal_doc/parser_compare/runner.py:231-576`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/runner.py#L231-L576) |
+| Prompt: `build_native_pdf_prompt` (PDF attached separately) | [`parser_compare/prompt.py:69-76`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/prompt.py#L69-L76) |
+| Prompt: `build_long_context_prompt` (full Markdown stuffed inline) | [`parser_compare/prompt.py:92-113`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/prompt.py#L92-L113) |
+| Prompt: `build_surfsense_prompt` (chunks injected by the agent) | [`parser_compare/prompt.py:79-89`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/prompt.py#L79-L89) |
+| Pre-extraction manifest builder (cached parser outputs) | [`parser_compare/ingest.py`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/ingest.py) |
+
+#### Cost model
+
+| Claim / construct | File@lines |
+|---|---|
+| `PREPROCESS_USD_PER_PAGE` constant (`basic = 0.001`, `premium = 0.010`) | [`runner.py:74-77`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/runner.py#L74-L77) |
+| Per-arm tier mapping (`_LC_ARM_MODE`) | [`runner.py:89-94`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/runner.py#L89-L94) |
+| `SURFSENSE_INGEST_MODE = "premium"` (basis for charging SurfSense the premium tariff) | [`runner.py:96-101`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/runner.py#L96-L101) |
+| Cost overlay (`preprocess_cost_total`, `total_cost_per_q` computation) | [`runner.py:725-747`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/parser_compare/runner.py#L725-L747) |
+
+#### Grader (deterministic, format-aware — §14.1)
+
+| Claim / construct | File@lines |
+|---|---|
+| `GradeResult` dataclass (`correct`, `f1`, `method`, normalised pred/gold) | [`mmlongbench/grader.py:40-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/mmlongbench/grader.py#L40) |
+| `_grade_str` (lowercase + strip + exact match) | [`mmlongbench/grader.py:89-104`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/mmlongbench/grader.py#L89-L104) |
+| `_grade_int` (regex extract first int, equality) | [`mmlongbench/grader.py:106-120`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/mmlongbench/grader.py#L106-L120) |
+| `_grade_float` (1% relative tolerance, 0.01 absolute floor) | [`mmlongbench/grader.py:122-139`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/mmlongbench/grader.py#L122-L139) |
+| `_grade_list` (set equality + token-level F1) | [`mmlongbench/grader.py:141-157`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/mmlongbench/grader.py#L141-L157) |
+| `_grade_none` ("Not answerable" handling) | [`mmlongbench/grader.py:159-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/mmlongbench/grader.py#L159) |
+| Public `grade()` dispatcher | [`mmlongbench/grader.py:224-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/suites/multimodal_doc/mmlongbench/grader.py#L224) |
+
+#### Statistical methodology (§14.2)
+
+| Claim / construct | File@lines |
+|---|---|
+| `wilson_ci()` — Wilson 95% CI for a single proportion | [`core/metrics/mc_accuracy.py:49-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/core/metrics/mc_accuracy.py#L49) |
+| `accuracy_with_wilson_ci()` — full per-arm accuracy + CI struct | [`core/metrics/mc_accuracy.py:73-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/src/surfsense_evals/core/metrics/mc_accuracy.py#L73) |
+| McNemar exact-binomial p-value (§7.3) | [`compute_blog_extras.py:80-99`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/compute_blog_extras.py#L80-L99) |
+| McNemar pairwise table builder | [`compute_blog_extras.py:102-141`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/compute_blog_extras.py#L102-L141) |
+| Latency distribution helpers (§7.4) | [`compute_blog_extras.py:186-213`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/compute_blog_extras.py#L186-L213) |
+| Token distribution helpers (§7.4) | [`compute_blog_extras.py:216-250`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/compute_blog_extras.py#L216-L250) |
+| Per-PDF accuracy heterogeneity (§7.5) | [`compute_blog_extras.py:149-183`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/compute_blog_extras.py#L149-L183) |
+
+#### Retry experiment (§9.4 / §9.5)
+
+| Claim / construct | File@lines |
+|---|---|
+| Failure-row detection (error set OR empty `raw_text`) | [`retry_failed_questions.py:99-111`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/retry_failed_questions.py#L99-L111) |
+| Per-row retry loop (5 attempts, exponential backoff w/ jitter) | [`retry_failed_questions.py:260-304`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/retry_failed_questions.py#L260-L304) |
+| Bounded-concurrency runner | [`retry_failed_questions.py:307-315`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/retry_failed_questions.py#L307-L315) |
+| Post-retry merge + recompute (§9.5 final accuracy table) | [`compute_post_retry_accuracy.py`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/compute_post_retry_accuracy.py) |
+| Context-overflow hypothesis test (§9.2) | [`test_context_overflow_hypothesis.py`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/scripts/test_context_overflow_hypothesis.py) |
+
+#### SurfSense backend (§9.2 — what "0 failures" actually measures)
+
+| Claim / construct | File@lines |
+|---|---|
+| `_exponential_delay()` — backoff with optional ±25% jitter | [`retry_after.py:113-128`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_backend/app/agents/new_chat/middleware/retry_after.py#L113-L128) |
+| `RetryAfterMiddleware` — wraps every internal LLM hop | [`retry_after.py:131-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_backend/app/agents/new_chat/middleware/retry_after.py#L131) |
+| `_should_retry()` — retryable-error classification | [`retry_after.py:171-…`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_backend/app/agents/new_chat/middleware/retry_after.py#L171) |
+| ETL routing — Azure DI preferred over LlamaCloud for compatible types | [`etl_pipeline_service.py:233-251`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_backend/app/etl_pipeline/etl_pipeline_service.py#L233-L251) |
+
+#### Run artifacts (the verifiable numbers source)
+
+These are the *outputs* the report cites — every accuracy / cost / latency number can be re-derived by running the analysis scripts on these JSONL files.
+
+| Artifact | Relative path | Contents |
+|---|---|---|
+| Raw run | [`raw.jsonl`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/data/multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/raw.jsonl) | 1 026 rows = 6 arms × 171 questions; one row per `(arm, qid)` with the original ArmResult + grader verdict |
+| Retry log | [`raw_retries.jsonl`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/data/multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/raw_retries.jsonl) | 37 rows; per-row attempt timeline + final outcome |
+| Retry summary | [`raw_retries_summary.json`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/data/multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/raw_retries_summary.json) | per-arm tried / recovered / still-failed counts |
+| Post-retry merged | [`raw_post_retry.jsonl`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/data/multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/raw_post_retry.jsonl) | 1 026 rows; recovered retries replace originals; basis for §9.5 final accuracy + §7.3 McNemar |
+| Per-arm aggregates | [`run_artifact.json`](https://github.com/MODSetter/SurfSense/blob/9bcd5016/surfsense_evals/data/multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/run_artifact.json) | the raw run's per-arm summary metrics + per-PDF correctness map |
+
+#### Reproducing every number in §1, §7, §8, §9
+
+```bash
+# 1) Sanity: load the artifacts that ship with the repo.
+ls surfsense_evals/data/multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/
+
+# 2) Recompute the post-retry headline accuracy (§1, §9.5).
+python surfsense_evals/scripts/compute_post_retry_accuracy.py \
+  --run-id 2026-05-14T00-53-19Z
+
+# 3) Recompute McNemar pairwise + latency / token / per-PDF distributions
+#    (§7.3, §7.4, §7.5).
+python surfsense_evals/scripts/compute_blog_extras.py \
+  --run-id 2026-05-14T00-53-19Z
+
+# 4) Re-run the context-overflow hypothesis test (§9.2).
+python surfsense_evals/scripts/test_context_overflow_hypothesis.py
+```
+
+To re-run the experiment end-to-end (slow: needs a backend + celery + ~3 hr ingest + ~2 hr LC arms), use the commands in §14.
 
 ---
 
