@@ -97,9 +97,7 @@ export const mentionedDocumentIdsAtom = atom((get) => {
 		surfsense_doc_ids: docs
 			.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
 			.map((doc) => doc.id),
-		document_ids: docs
-			.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
-			.map((doc) => doc.id),
+		document_ids: docs.filter((doc) => doc.document_type !== "SURFSENSE_DOCS").map((doc) => doc.id),
 		folder_ids: folders.map((f) => f.id),
 	};
 });

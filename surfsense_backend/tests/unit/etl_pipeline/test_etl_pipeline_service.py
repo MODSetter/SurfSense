@@ -742,6 +742,372 @@ async def test_extract_image_falls_back_to_document_without_vision_llm(
 
 
 # ---------------------------------------------------------------------------
+# Document path with vision LLM: per-image descriptions are appended
+# ---------------------------------------------------------------------------
+
+
+def _fake_extraction_result(*descriptions):
+    from app.etl_pipeline.picture_describer import (
+        PictureDescription,
+        PictureExtractionResult,
+    )
+
+    return PictureExtractionResult(
+        descriptions=[
+            PictureDescription(
+                page_number=d["page"],
+                ordinal_in_page=d.get("ordinal", 0),
+                name=d["name"],
+                sha256=d.get("sha", "deadbeef"),
+                description=d["desc"],
+            )
+            for d in descriptions
+        ]
+    )
+
+
+async def test_extract_pdf_with_vision_llm_inlines_image_blocks(tmp_path, mocker):
+    """A PDF with an `<!-- image -->` placeholder + caption gets the
+    block spliced inline (no orphaned ``## Image Content`` section).
+
+    This is the headline scenario for the medxpertqa benchmark: the
+    image content lives in the same chunk as the surrounding case text
+    so retrieval pulls the question, image, and answer options together.
+    """
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content")
+
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    fake_docling = mocker.AsyncMock()
+    fake_docling.process_document.return_value = {
+        "content": (
+            "# MedXpertQA-MM MM-130\n\n"
+            "## Clinical case\n\nA 44-year-old man...\n\n"
+            "<!-- image -->\nImage: MM-130-a.jpeg\n\n"
+            "## Answer choices\n\nA) ...\n"
+        )
+    }
+    mocker.patch(
+        "app.services.docling_service.create_docling_service",
+        return_value=fake_docling,
+    )
+
+    extraction = _fake_extraction_result(
+        {
+            "page": 1,
+            "name": "Im0",
+            "desc": "Axial CT showing a large cystic mass.",
+        }
+    )
+    mocker.patch(
+        "app.etl_pipeline.picture_describer.describe_pictures",
+        new=mocker.AsyncMock(return_value=extraction),
+    )
+
+    fake_llm = mocker.MagicMock()
+    result = await EtlPipelineService(vision_llm=fake_llm).extract(
+        EtlRequest(file_path=str(pdf_file), filename="report.pdf")
+    )
+
+    md = result.markdown_content
+    # The placeholder + caption are gone, replaced by a horizontal-
+    # rule-delimited section with the captioned filename.
+    assert "<!-- image -->" not in md
+    assert "Image: MM-130-a.jpeg" not in md
+    assert "**Embedded image:** `MM-130-a.jpeg`" in md
+    assert "**Visual description:**" in md
+    assert "Axial CT showing a large cystic mass." in md
+    # No OCR section -- our fake_extraction_result has no ocr_text,
+    # and the format omits the section when there's no text to show.
+    assert "**OCR text:**" not in md
+    # No raw HTML / XML tags or blockquote wrapping leak.
+    assert "<image" not in md
+    assert "> **Embedded image:**" not in md
+    # No appended section -- everything went inline.
+    assert "## Image Content" not in md
+    # Surrounding case text + answer options are preserved.
+    assert "A 44-year-old man..." in md
+    assert "## Answer choices" in md
+    assert "A) ..." in md
+
+
+async def test_extract_pdf_with_vision_llm_appends_when_no_marker(tmp_path, mocker):
+    """When parser markdown has no image markers, descriptions get appended.
+
+    This is the fallback path for parsers that drop image placeholders
+    entirely. The image content still ends up in the markdown -- just
+    in a clearly-labeled section rather than inline.
+    """
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content")
+
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    fake_docling = mocker.AsyncMock()
+    fake_docling.process_document.return_value = {
+        "content": "# Parsed PDF text\n\nNo image markers anywhere.\n"
+    }
+    mocker.patch(
+        "app.services.docling_service.create_docling_service",
+        return_value=fake_docling,
+    )
+
+    extraction = _fake_extraction_result(
+        {"page": 1, "name": "Im0", "desc": "An image description."}
+    )
+    mocker.patch(
+        "app.etl_pipeline.picture_describer.describe_pictures",
+        new=mocker.AsyncMock(return_value=extraction),
+    )
+
+    fake_llm = mocker.MagicMock()
+    result = await EtlPipelineService(vision_llm=fake_llm).extract(
+        EtlRequest(file_path=str(pdf_file), filename="report.pdf")
+    )
+
+    md = result.markdown_content
+    assert "# Parsed PDF text" in md
+    assert "## Image Content (vision-LLM extracted)" in md
+    assert "**Embedded image:** `Im0`" in md
+    assert "An image description." in md
+
+
+async def test_extract_pdf_without_vision_llm_skips_picture_descriptions(
+    tmp_path, mocker
+):
+    """No vision LLM -> parser markdown returned as-is."""
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content")
+
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    fake_docling = mocker.AsyncMock()
+    fake_docling.process_document.return_value = {"content": "# Parsed PDF text"}
+    mocker.patch(
+        "app.services.docling_service.create_docling_service",
+        return_value=fake_docling,
+    )
+
+    describe_mock = mocker.patch(
+        "app.etl_pipeline.picture_describer.describe_pictures",
+        new=mocker.AsyncMock(),
+    )
+
+    result = await EtlPipelineService().extract(
+        EtlRequest(file_path=str(pdf_file), filename="report.pdf")
+    )
+
+    assert result.markdown_content == "# Parsed PDF text"
+    assert "<image" not in result.markdown_content
+    describe_mock.assert_not_called()
+
+
+async def test_extract_pdf_with_vision_llm_swallows_describe_failure(
+    tmp_path, mocker
+):
+    """A pypdf or vision LLM blow-up never fails the document upload."""
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content")
+
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    fake_docling = mocker.AsyncMock()
+    fake_docling.process_document.return_value = {"content": "# Parsed PDF text"}
+    mocker.patch(
+        "app.services.docling_service.create_docling_service",
+        return_value=fake_docling,
+    )
+
+    mocker.patch(
+        "app.etl_pipeline.picture_describer.describe_pictures",
+        new=mocker.AsyncMock(side_effect=RuntimeError("pypdf exploded")),
+    )
+
+    fake_llm = mocker.MagicMock()
+    result = await EtlPipelineService(vision_llm=fake_llm).extract(
+        EtlRequest(file_path=str(pdf_file), filename="report.pdf")
+    )
+
+    assert result.markdown_content == "# Parsed PDF text"
+    assert result.etl_service == "DOCLING"
+
+
+async def test_extract_pdf_with_vision_llm_no_images_returns_parser_text(
+    tmp_path, mocker
+):
+    """Vision-LLM-enabled PDF with zero extracted images is unchanged."""
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content")
+
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    fake_docling = mocker.AsyncMock()
+    fake_docling.process_document.return_value = {"content": "# Just text, no images"}
+    mocker.patch(
+        "app.services.docling_service.create_docling_service",
+        return_value=fake_docling,
+    )
+
+    empty = _fake_extraction_result()
+    mocker.patch(
+        "app.etl_pipeline.picture_describer.describe_pictures",
+        new=mocker.AsyncMock(return_value=empty),
+    )
+
+    fake_llm = mocker.MagicMock()
+    result = await EtlPipelineService(vision_llm=fake_llm).extract(
+        EtlRequest(file_path=str(pdf_file), filename="report.pdf")
+    )
+
+    assert result.markdown_content == "# Just text, no images"
+    assert "<image" not in result.markdown_content
+
+
+# ---------------------------------------------------------------------------
+# Per-image OCR runner: wiring + behaviour
+#
+# When extracting a PDF with a vision LLM, the ETL service must ALSO
+# pass an ``ocr_runner`` to picture_describer. The runner is a closure
+# that re-feeds each extracted image through a vision-LLM-less
+# EtlPipelineService -- i.e. the same OCR engine that handles
+# standalone image uploads (Docling/Azure DI/LlamaCloud) gets a crack
+# at each embedded image, with the text attached to the inline block.
+# ---------------------------------------------------------------------------
+
+
+async def test_extract_pdf_passes_ocr_runner_to_describe_pictures(
+    tmp_path, mocker
+):
+    """The ETL service must wire an ocr_runner kwarg to describe_pictures."""
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content")
+
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    fake_docling = mocker.AsyncMock()
+    fake_docling.process_document.return_value = {"content": "# Parsed PDF text"}
+    mocker.patch(
+        "app.services.docling_service.create_docling_service",
+        return_value=fake_docling,
+    )
+
+    describe_mock = mocker.patch(
+        "app.etl_pipeline.picture_describer.describe_pictures",
+        new=mocker.AsyncMock(return_value=_fake_extraction_result()),
+    )
+
+    fake_llm = mocker.MagicMock()
+    await EtlPipelineService(vision_llm=fake_llm).extract(
+        EtlRequest(file_path=str(pdf_file), filename="report.pdf")
+    )
+
+    describe_mock.assert_awaited_once()
+    _, kwargs = describe_mock.await_args
+    assert "ocr_runner" in kwargs
+    assert callable(kwargs["ocr_runner"])
+
+
+async def test_extract_pdf_ocr_runner_invokes_document_parser_on_image(
+    tmp_path, mocker
+):
+    """The OCR runner closure should re-extract each image via the parser.
+
+    We capture the runner that the ETL service passes to
+    describe_pictures, invoke it with a fake image path, and assert
+    that Docling was called with that image. This proves the closure
+    is wired to a vision-LLM-less sub-pipeline (otherwise it would
+    recurse into the vision LLM and never hit the OCR engine).
+    """
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content")
+    image_file = tmp_path / "Im0.png"
+    image_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
+
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    fake_docling = mocker.AsyncMock()
+    fake_docling.process_document.return_value = {
+        "content": "Slice 24 / 60   L   R"
+    }
+    mocker.patch(
+        "app.services.docling_service.create_docling_service",
+        return_value=fake_docling,
+    )
+
+    captured: dict = {}
+
+    async def capture_runner(*args, **kwargs):
+        captured["runner"] = kwargs["ocr_runner"]
+        return _fake_extraction_result()
+
+    mocker.patch(
+        "app.etl_pipeline.picture_describer.describe_pictures",
+        new=capture_runner,
+    )
+
+    fake_llm = mocker.MagicMock()
+    await EtlPipelineService(vision_llm=fake_llm).extract(
+        EtlRequest(file_path=str(pdf_file), filename="report.pdf")
+    )
+
+    runner = captured["runner"]
+    ocr_text = await runner(str(image_file), "Im0.png")
+
+    assert ocr_text == "Slice 24 / 60   L   R"
+    # Docling was invoked twice in total: once for the PDF, once for
+    # the image we re-fed via the runner.
+    assert fake_docling.process_document.await_count == 2
+
+
+async def test_extract_pdf_ocr_runner_returns_empty_on_unsupported_image(
+    tmp_path, mocker
+):
+    """Unsupported image format → runner returns empty string, doesn't raise.
+
+    Common case: a PDF embeds a JPEG2000 or CCITT-TIFF image that
+    Docling can't load. We don't want an unsupported format on ONE
+    embedded image to spoil the whole PDF extraction; the runner
+    should swallow the EtlUnsupportedFileError and return "" so the
+    image gets a description but no OCR tag.
+    """
+    pdf_file = tmp_path / "report.pdf"
+    pdf_file.write_bytes(b"%PDF-1.4 fake content")
+    weird_image = tmp_path / "Im0.jp2"  # JPEG2000, unlikely to be supported
+    weird_image.write_bytes(b"\x00\x00\x00\x0CjP" + b"\x00" * 50)
+
+    mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
+
+    fake_docling = mocker.AsyncMock()
+    fake_docling.process_document.return_value = {"content": "# Parsed PDF text"}
+    mocker.patch(
+        "app.services.docling_service.create_docling_service",
+        return_value=fake_docling,
+    )
+
+    captured: dict = {}
+
+    async def capture_runner(*args, **kwargs):
+        captured["runner"] = kwargs["ocr_runner"]
+        return _fake_extraction_result()
+
+    mocker.patch(
+        "app.etl_pipeline.picture_describer.describe_pictures",
+        new=capture_runner,
+    )
+
+    fake_llm = mocker.MagicMock()
+    await EtlPipelineService(vision_llm=fake_llm).extract(
+        EtlRequest(file_path=str(pdf_file), filename="report.pdf")
+    )
+
+    runner = captured["runner"]
+    ocr_text = await runner(str(weird_image), "Im0.jp2")
+
+    assert ocr_text == ""
+
+
+# ---------------------------------------------------------------------------
 # Processing Mode enum tests
 # ---------------------------------------------------------------------------
 

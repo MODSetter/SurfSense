@@ -170,16 +170,10 @@ export function PlateEditor({
 			: markdown
 				? (editor) => {
 						if (!enableCitations) {
-							return safeDeserializeMarkdown(
-								editor,
-								escapeMdxExpressions(markdown)
-							) as Value;
+							return safeDeserializeMarkdown(editor, escapeMdxExpressions(markdown)) as Value;
 						}
 						const { content: rewritten, urlMap } = preprocessCitationMarkdown(markdown);
-						const value = safeDeserializeMarkdown(
-							editor,
-							escapeMdxExpressions(rewritten)
-						);
+						const value = safeDeserializeMarkdown(editor, escapeMdxExpressions(rewritten));
 						return injectCitationNodes(value, urlMap) as Value;
 					}
 				: undefined,
@@ -203,10 +197,7 @@ export function PlateEditor({
 			let newValue: Descendant[];
 			if (enableCitations) {
 				const { content: rewritten, urlMap } = preprocessCitationMarkdown(markdown);
-				const deserialized = safeDeserializeMarkdown(
-					editor,
-					escapeMdxExpressions(rewritten)
-				);
+				const deserialized = safeDeserializeMarkdown(editor, escapeMdxExpressions(rewritten));
 				newValue = injectCitationNodes(deserialized, urlMap);
 			} else {
 				newValue = safeDeserializeMarkdown(editor, escapeMdxExpressions(markdown));

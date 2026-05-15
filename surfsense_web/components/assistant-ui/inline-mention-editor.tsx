@@ -47,10 +47,7 @@ export interface InlineMentionEditorRef {
 	setText: (text: string) => void;
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
-	insertMentionChip: (
-		mention: MentionChipInput,
-		options?: { removeTriggerText?: boolean }
-	) => void;
+	insertMentionChip: (mention: MentionChipInput, options?: { removeTriggerText?: boolean }) => void;
 	/**
 	 * @deprecated Use ``insertMentionChip``. Kept for one transition
 	 * cycle so we don't break ad-hoc callers; prefer the new name.
@@ -364,8 +361,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				const selection = editor.selection;
 				const kind: MentionKind = mention.kind ?? "doc";
 				const document_type =
-					mention.document_type ??
-					(kind === "folder" ? FOLDER_MENTION_DOCUMENT_TYPE : undefined);
+					mention.document_type ?? (kind === "folder" ? FOLDER_MENTION_DOCUMENT_TYPE : undefined);
 				const mentionNode: MentionElementNode = {
 					type: MENTION_TYPE,
 					id: mention.id,

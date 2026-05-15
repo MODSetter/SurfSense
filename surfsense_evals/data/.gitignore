@@ -1,0 +1,22 @@
+# Default: don't track anything under data/ (large benchmarks, PDFs,
+# extracted markdown, ingestion caches, per-run artifacts can balloon).
+*
+
+# Always keep this gitignore file
+!.gitignore
+
+# Whitelist the artifacts the n=171 multimodal_doc / parser_compare blog
+# report (`reports/blog/multimodal_doc_parser_compare_n171_report.md`)
+# cites by path. These are the verifiable numbers source for the report.
+#
+# Path components have to be unblocked one level at a time because git
+# does not look into a directory whose parent is ignored.
+!multimodal_doc/
+!multimodal_doc/runs/
+!multimodal_doc/runs/2026-05-14T00-53-19Z/
+!multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/
+!multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/raw.jsonl
+!multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/raw_retries.jsonl
+!multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/raw_retries_summary.json
+!multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/raw_post_retry.jsonl
+!multimodal_doc/runs/2026-05-14T00-53-19Z/parser_compare/run_artifact.json
