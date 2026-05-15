@@ -27,6 +27,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "137"
@@ -39,6 +41,11 @@ _INDEX_NAME = "ux_agent_action_log_reverse_of"
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    indexes = {i["name"] for i in sa.inspect(bind).get_indexes("agent_action_log")}
+    if _INDEX_NAME in indexes:
+        return
+
     # Defensively de-dup any pre-existing double-revert rows before
     # adding the unique index. Keeps the OLDEST row (smallest id) and
     # NULLs out the duplicates' ``reverse_of`` so they survive as audit

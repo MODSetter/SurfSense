@@ -49,10 +49,7 @@ export function safeDeserializeMarkdown(
 		return api.deserialize(markdown, { remarkPlugins: STRICT_PLUGINS }) as Descendant[];
 	} catch (mdxError) {
 		if (process.env.NODE_ENV !== "production") {
-			console.warn(
-				"[plate-editor] MDX parse failed, retrying without remark-mdx:",
-				mdxError
-			);
+			console.warn("[plate-editor] MDX parse failed, retrying without remark-mdx:", mdxError);
 		}
 		try {
 			return api.deserialize(markdown, { remarkPlugins: LENIENT_PLUGINS }) as Descendant[];

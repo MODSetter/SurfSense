@@ -1,5 +1,7 @@
+import fs from "node:fs";
+import path from "node:path";
 import { test as base } from "@playwright/test";
-import { loginAsTestUser } from "../helpers/api/auth";
+import { acquireTestToken } from "../helpers/api/auth";
 import {
 	createSearchSpace,
 	deleteSearchSpace,
@@ -20,12 +22,45 @@ export type SearchSpaceFixtures = {
 	searchSpace: SearchSpaceRow;
 };
 
+const STORAGE_KEY = "surfsense_bearer_token";
+
+// Reuse the token written by tests/auth.setup.ts; on cache miss we
+// mint a fresh one via /__e2e__/auth/token (rate-limit-free).
+const AUTH_STATE_PATH = path.join(__dirname, "..", "..", "playwright", ".auth", "user.json");
+
+function loadCachedBearerToken(): string | null {
+	try {
+		const raw = fs.readFileSync(AUTH_STATE_PATH, "utf8");
+		const parsed = JSON.parse(raw) as {
+			origins?: Array<{
+				origin?: string;
+				localStorage?: Array<{ name?: string; value?: string }>;
+			}>;
+		};
+		for (const origin of parsed.origins ?? []) {
+			for (const entry of origin.localStorage ?? []) {
+				if (entry.name === STORAGE_KEY && entry.value) {
+					return entry.value;
+				}
+			}
+		}
+	} catch {
+		// Fall back to a fresh login.
+	}
+	return null;
+}
+
 export const searchSpaceFixtures = base.extend<SearchSpaceFixtures, { apiTokenWorker: string }>({
 	apiTokenWorker: [
 		async ({ playwright }, use) => {
+			const cached = loadCachedBearerToken();
+			if (cached) {
+				await use(cached);
+				return;
+			}
 			const ctx = await playwright.request.newContext();
 			try {
-				const token = await loginAsTestUser(ctx);
+				const token = await acquireTestToken(ctx);
 				await use(token);
 			} finally {
 				await ctx.dispose();

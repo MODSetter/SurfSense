@@ -107,14 +107,14 @@ test.describe("Manual file upload journey", () => {
 		});
 	});
 
-	test("user uploads a PDF (DOCUMENT branch via real Docling)", async ({
+	test("user uploads a PDF (DOCUMENT branch)", async ({
 		page,
 		request,
 		apiToken,
 		searchSpace,
 		chatThread,
 	}) => {
-		test.setTimeout(240_000); // Docling cold-start can take 30-60s on first invocation.
+		test.setTimeout(180_000);
 
 		await uploadAndAssert({
 			page,

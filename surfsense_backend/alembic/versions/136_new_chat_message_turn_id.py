@@ -36,15 +36,22 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "new_chat_messages",
-        sa.Column("turn_id", sa.String(length=64), nullable=True),
-    )
-    op.create_index(
-        "ix_new_chat_messages_turn_id",
-        "new_chat_messages",
-        ["turn_id"],
-    )
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = {c["name"] for c in inspector.get_columns("new_chat_messages")}
+    indexes = {i["name"] for i in inspector.get_indexes("new_chat_messages")}
+
+    if "turn_id" not in columns:
+        op.add_column(
+            "new_chat_messages",
+            sa.Column("turn_id", sa.String(length=64), nullable=True),
+        )
+    if "ix_new_chat_messages_turn_id" not in indexes:
+        op.create_index(
+            "ix_new_chat_messages_turn_id",
+            "new_chat_messages",
+            ["turn_id"],
+        )
 
 
 def downgrade() -> None:

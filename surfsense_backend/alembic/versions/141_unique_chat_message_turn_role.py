@@ -53,6 +53,11 @@ TABLE_NAME = "new_chat_messages"
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    indexes = {i["name"] for i in sa.inspect(bind).get_indexes(TABLE_NAME)}
+    if INDEX_NAME in indexes:
+        return
+
     op.create_index(
         INDEX_NAME,
         TABLE_NAME,

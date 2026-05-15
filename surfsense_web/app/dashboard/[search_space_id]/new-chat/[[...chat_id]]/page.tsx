@@ -208,7 +208,10 @@ const MentionedDocumentInfoSchema = z.object({
 	id: z.number(),
 	title: z.string(),
 	document_type: z.string(),
-	kind: z.union([z.literal("doc"), z.literal("folder")]).optional().default("doc"),
+	kind: z
+		.union([z.literal("doc"), z.literal("folder")])
+		.optional()
+		.default("doc"),
 });
 
 const MentionedDocumentsPartSchema = z.object({
@@ -1029,9 +1032,7 @@ export default function NewChatPage() {
 							mentioned_surfsense_doc_ids: hasSurfsenseDocIds
 								? mentionedDocumentIds.surfsense_doc_ids
 								: undefined,
-							mentioned_folder_ids: hasFolderIds
-								? mentionedDocumentIds.folder_ids
-								: undefined,
+							mentioned_folder_ids: hasFolderIds ? mentionedDocumentIds.folder_ids : undefined,
 							// Full mention metadata (docs + folders, with
 							// ``kind`` discriminator) so the BE can embed a
 							// ``mentioned-documents`` ContentPart on the
@@ -1900,12 +1901,10 @@ export default function NewChatPage() {
 					filesystem_mode: selection.filesystem_mode,
 					client_platform: selection.client_platform,
 					local_filesystem_mounts: selection.local_filesystem_mounts,
-					mentioned_document_ids:
-						regenerateDocIds.length > 0 ? regenerateDocIds : undefined,
+					mentioned_document_ids: regenerateDocIds.length > 0 ? regenerateDocIds : undefined,
 					mentioned_surfsense_doc_ids:
 						regenerateSurfsenseDocIds.length > 0 ? regenerateSurfsenseDocIds : undefined,
-					mentioned_folder_ids:
-						regenerateFolderIds.length > 0 ? regenerateFolderIds : undefined,
+					mentioned_folder_ids: regenerateFolderIds.length > 0 ? regenerateFolderIds : undefined,
 					// Full mention metadata for the regenerate-specific
 					// source list. Only meaningful for edit (the BE only
 					// re-persists a user row when ``user_query`` is set);

@@ -1,0 +1,174 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'surfsense_web/**'
+      - 'surfsense_backend/**'
+      - 'docker/docker-compose.e2e.yml'
+      - '.github/workflows/e2e-tests.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Journey
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    timeout-minutes: 30
+
+    env:
+      # Test user that the backend creates via /auth/register before Playwright runs.
+      PLAYWRIGHT_TEST_EMAIL: e2e-test@surfsense.net
+      PLAYWRIGHT_TEST_PASSWORD: E2eTestPassword123!
+      # Frontend env: Playwright's webServer (surfsense_web/playwright.config.ts)
+      # spawns `pnpm build && pnpm start` in CI; these get baked into the build.
+      NEXT_PUBLIC_FASTAPI_BACKEND_URL: http://localhost:8000
+      NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: LOCAL
+      # Shared secret for the test-only POST /__e2e__/auth/token endpoint.
+      # Must match docker-compose.e2e.yml's backend env (x-backend-env).
+      E2E_MINT_SECRET: e2e-mint-secret-not-for-production
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # ─── Backend stack ─────────────────────────────────────────────────
+      # Builds the e2e image (multi-stage, deps cached via GHA), brings up
+      # db + redis + backend + celery_worker, blocks until every healthcheck
+      # is green. No `uv` invocation on the runner; no PID files; no curl
+      # polling loops; readiness is gated by Docker healthchecks.
+      - name: Build & start backend stack
+        run: |
+          docker compose -f docker/docker-compose.e2e.yml \
+            up -d --build --wait --wait-timeout 300
+
+      - name: Show backend stack status
+        if: always()
+        run: docker compose -f docker/docker-compose.e2e.yml ps
+
+      - name: Register E2E test user
+        run: |
+          # 200/201 = created, 400 = already exists (idempotent across reruns).
+          STATUS=$(curl -s -o /tmp/register.json -w "%{http_code}" \
+            -X POST http://localhost:8000/auth/register \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"${PLAYWRIGHT_TEST_EMAIL}\",\"password\":\"${PLAYWRIGHT_TEST_PASSWORD}\"}")
+          echo "Register status: ${STATUS}"
+          cat /tmp/register.json
+          if [ "${STATUS}" != "200" ] && [ "${STATUS}" != "201" ] && [ "${STATUS}" != "400" ]; then
+            echo "::error::Failed to register test user (status ${STATUS})"
+            exit 1
+          fi
+
+          # Flush auth rate-limit counters so Playwright starts clean.
+          docker compose -f docker/docker-compose.e2e.yml exec -T redis \
+            sh -c "redis-cli --scan --pattern 'surfsense:auth_rate_limit:*' \
+              | xargs -r redis-cli DEL" || true
+
+      # ─── Frontend (host-side) ──────────────────────────────────────────
+      # Playwright's webServer block in playwright.config.ts spawns
+      # `pnpm build && pnpm start` in CI mode and waits for :3000.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - uses: pnpm/action-setup@v6
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('surfsense_web/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: Install web dependencies
+        working-directory: surfsense_web
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('surfsense_web/pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: surfsense_web
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        working-directory: surfsense_web
+        run: pnpm exec playwright install-deps chromium
+
+      - name: Cache Next.js build
+        uses: actions/cache@v5
+        with:
+          path: surfsense_web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('surfsense_web/pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('surfsense_web/pnpm-lock.yaml') }}-
+            nextjs-${{ runner.os }}-
+
+      # ─── Tests ─────────────────────────────────────────────────────────
+      - name: Run Playwright tests
+        working-directory: surfsense_web
+        run: pnpm test:e2e:prod
+
+      # ─── Failure diagnostics ───────────────────────────────────────────
+      - name: Dump backend stack logs on failure
+        if: ${{ failure() || cancelled() }}
+        run: |
+          mkdir -p ./compose-logs
+          docker compose -f docker/docker-compose.e2e.yml logs --no-color --timestamps \
+            > ./compose-logs/all-services.log 2>&1 || true
+          for svc in db redis backend celery_worker; do
+            docker compose -f docker/docker-compose.e2e.yml logs --no-color --timestamps "$svc" \
+              > "./compose-logs/${svc}.log" 2>&1 || true
+          done
+          docker compose -f docker/docker-compose.e2e.yml ps \
+            > ./compose-logs/ps.txt 2>&1 || true
+
+      # ─── Artifacts ─────────────────────────────────────────────────────
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: surfsense_web/playwright-report/
+          retention-days: 14
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: surfsense_web/test-results/
+          retention-days: 14
+
+      - name: Upload backend stack logs
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-stack-logs
+          path: ./compose-logs/
+          retention-days: 7
+
+      # ─── Teardown ──────────────────────────────────────────────────────
+      - name: Tear down backend stack
+        if: always()
+        run: docker compose -f docker/docker-compose.e2e.yml down -v --remove-orphans
