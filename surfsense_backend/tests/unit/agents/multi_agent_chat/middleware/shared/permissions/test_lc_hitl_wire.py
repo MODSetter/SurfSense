@@ -64,8 +64,12 @@ async def test_permission_ask_payload_uses_lc_hitl_shape():
     ], f"REGRESSION: permission ask reverted to legacy shape; got {value!r}"
     review = value.get("review_configs")
     assert isinstance(review, list) and len(review) == 1
-    # ``approve_always`` must be in the palette so the FE can render the promote button.
-    assert "approve_always" in review[0]["allowed_decisions"]
+    palette = review[0]["allowed_decisions"]
+    # Native tool (no ``tool=`` argument): the palette must include the
+    # once/reject/edit triad. ``approve_always`` is gated on MCP-ness and
+    # therefore *omitted* here — palette content per tool kind is
+    # exercised in ``test_permission_ask_mcp_context``.
+    assert "approve" in palette and "reject" in palette and "edit" in palette
     assert value.get("interrupt_type") == "permission_ask"
     # SurfSense context rides through verbatim for FE explainability.
     assert value["context"]["patterns"] == ["rm/*"]

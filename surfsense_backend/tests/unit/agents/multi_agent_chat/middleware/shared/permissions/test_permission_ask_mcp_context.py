@@ -81,6 +81,53 @@ def test_payload_omits_tool_fields_when_tool_is_none():
     assert "tool_description" not in ctx
 
 
+def test_palette_includes_approve_always_for_mcp_tool():
+    """Saving to the connector's trusted-tools list is only possible for MCP tools."""
+    tool = _make_mcp_tool(
+        name="linear_create_issue", connector_id=42, connector_name="Linear"
+    )
+    palette = build_permission_ask_payload(
+        tool_name=tool.name,
+        args={},
+        patterns=[tool.name],
+        rules=[_ask_rule(tool.name)],
+        tool=tool,
+    )["review_configs"][0]["allowed_decisions"]
+    assert "approve_always" in palette
+
+
+def test_palette_excludes_approve_always_for_native_tool():
+    """Native tools have no place to persist trust, so don't offer the button."""
+    native = StructuredTool(
+        name="rm",
+        description="Remove a file.",
+        coroutine=_noop,
+        args_schema=_NoArgs,
+        metadata={"hitl": True},
+    )
+    palette = build_permission_ask_payload(
+        tool_name=native.name,
+        args={"path": "/tmp/x"},
+        patterns=[native.name],
+        rules=[_ask_rule(native.name)],
+        tool=native,
+    )["review_configs"][0]["allowed_decisions"]
+    assert "approve_always" not in palette
+    assert palette == ["approve", "reject", "edit"]
+
+
+def test_palette_excludes_approve_always_when_tool_is_none():
+    """Without a tool object the middleware can't tell — fall back to the safe triad."""
+    palette = build_permission_ask_payload(
+        tool_name="rm",
+        args={"path": "/tmp/x"},
+        patterns=["rm"],
+        rules=[_ask_rule("rm")],
+        tool=None,
+    )["review_configs"][0]["allowed_decisions"]
+    assert palette == ["approve", "reject", "edit"]
+
+
 def test_payload_omits_falsy_mcp_metadata_fields():
     tool = StructuredTool(
         name="anon_tool",

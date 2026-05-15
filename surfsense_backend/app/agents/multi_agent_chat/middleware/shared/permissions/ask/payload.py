@@ -17,12 +17,19 @@ from app.agents.new_chat.permissions import Rule
 
 PERMISSION_ASK_INTERRUPT_TYPE = "permission_ask"
 
-_PERMISSION_ASK_DECISIONS: list[str] = [
+_BASE_PERMISSION_ASK_DECISIONS: list[str] = [
     LC_DECISION_APPROVE,
     LC_DECISION_REJECT,
     LC_DECISION_EDIT,
-    SURFSENSE_DECISION_APPROVE_ALWAYS,
 ]
+
+
+def _is_mcp_tool(tool: BaseTool | None) -> bool:
+    """An MCP tool advertises a connector id in its langchain metadata."""
+    if tool is None:
+        return False
+    metadata = getattr(tool, "metadata", None) or {}
+    return metadata.get("mcp_connector_id") is not None
 
 
 def _card_fields_from_tool(tool: BaseTool | None) -> dict[str, Any]:
@@ -52,10 +59,15 @@ def build_permission_ask_payload(
 ) -> dict[str, Any]:
     """Build the permission-ask interrupt payload.
 
-    ``tool`` carries the FE card's tool-scoped fields (description, MCP
-    connector). When omitted the card still renders, just without the
-    "Always Allow against this connected account" surface.
+    ``approve_always`` is added to the palette only for MCP tools, since that
+    is the only case where the user's choice can persist beyond the current
+    agent instance (saved to the connector's trusted-tools list). Native
+    tools fall back to the once/reject/edit triad.
     """
+    allowed_decisions = list(_BASE_PERMISSION_ASK_DECISIONS)
+    if _is_mcp_tool(tool):
+        allowed_decisions.append(SURFSENSE_DECISION_APPROVE_ALWAYS)
+
     context: dict[str, Any] = {
         "patterns": patterns,
         "rules": [
@@ -68,7 +80,7 @@ def build_permission_ask_payload(
     return build_lc_hitl_payload(
         tool_name=tool_name,
         args=args,
-        allowed_decisions=_PERMISSION_ASK_DECISIONS,
+        allowed_decisions=allowed_decisions,
         interrupt_type=PERMISSION_ASK_INTERRUPT_TYPE,
         context=context,
     )
