@@ -411,6 +411,13 @@ class ConnectorsApiService {
 			`/api/v1/obsidian/stats?vault_id=${encodeURIComponent(vaultId)}`
 		);
 	};
+
+	/** Revoke a previously-trusted MCP tool so the next call asks again. */
+	untrustMCPTool = async (connectorId: number, toolName: string): Promise<void> => {
+		await baseApiService.post(`/api/v1/connectors/mcp/${connectorId}/untrust-tool`, undefined, {
+			body: { tool_name: toolName },
+		});
+	};
 }
 
 export interface ObsidianStats {
