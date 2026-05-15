@@ -28,8 +28,8 @@ class ParsedLcDecision:
 
     Attributes:
         decision_type: Lower-cased decision identifier — ``"approve"``,
-            ``"reject"``, ``"edit"``, ``"always"``, or any custom value the
-            FE may emit. Callers map this to their own domain semantics.
+            ``"reject"``, ``"edit"``, ``"approve_always"``, or any custom value
+            the FE may emit. Callers map this to their own domain semantics.
         edited_args: Populated only on ``"edit"`` replies that actually carry
             args; ``None`` otherwise so callers can use truthiness directly.
         message: Free-form user feedback (typically attached to ``"reject"``).
@@ -48,9 +48,9 @@ def parse_lc_envelope(envelope: Any) -> ParsedLcDecision:
 
     - ``{"decisions": [{"type": "approve" | "reject" | "edit", ...}]}`` — the
       langchain HITL standard envelope.
-    - A bare scalar string (``"once"``, ``"always"``, ``"reject"``) — used by
-      the legacy SurfSense permission wire. We tolerate it so the parser can
-      sit behind both call sites without a second adapter.
+    - A bare scalar string (``"once"``, ``"approve_always"``, ``"reject"``) —
+      used by the legacy SurfSense permission wire. We tolerate it so the
+      parser can sit behind both call sites without a second adapter.
 
     Edit args are read from the standard ``edited_action.args`` first, then
     fall back to a flat ``args`` field for legacy compatibility — both shapes

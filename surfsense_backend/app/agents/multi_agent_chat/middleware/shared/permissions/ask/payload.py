@@ -10,7 +10,7 @@ from app.agents.multi_agent_chat.subagents.shared.hitl.wire import (
     LC_DECISION_APPROVE,
     LC_DECISION_EDIT,
     LC_DECISION_REJECT,
-    SURFSENSE_DECISION_ALWAYS,
+    SURFSENSE_DECISION_APPROVE_ALWAYS,
     build_lc_hitl_payload,
 )
 from app.agents.new_chat.permissions import Rule
@@ -21,7 +21,7 @@ _PERMISSION_ASK_DECISIONS: list[str] = [
     LC_DECISION_APPROVE,
     LC_DECISION_REJECT,
     LC_DECISION_EDIT,
-    SURFSENSE_DECISION_ALWAYS,
+    SURFSENSE_DECISION_APPROVE_ALWAYS,
 ]
 
 

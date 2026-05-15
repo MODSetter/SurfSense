@@ -225,7 +225,7 @@ async def test_parallel_self_gated_and_middleware_gated_route_and_resume_cleanly
 
     # Resume order: same order the SSE stream would emit (interrupts list).
     decision_self = {"type": "approve"}
-    decision_mw = {"type": "always"}
+    decision_mw = {"type": "approve_always"}
     flat_decisions = [
         # Match `pending` order.
         decision_self if pending[0][0] == tcid_self else decision_mw,
@@ -268,5 +268,5 @@ async def test_parallel_self_gated_and_middleware_gated_route_and_resume_cleanly
     assert self_payloads[0]["decision_type"] == "approve"
     assert self_payloads[0]["rejected"] is False
 
-    # Middleware-gated always → canonical permission shape with always.
-    assert mw_payloads[0]["decision"] == {"decision_type": "always"}
+    # Middleware-gated approve_always → canonical permission shape unchanged.
+    assert mw_payloads[0]["decision"] == {"decision_type": "approve_always"}

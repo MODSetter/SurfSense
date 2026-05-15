@@ -22,7 +22,7 @@ from app.agents.multi_agent_chat.subagents.shared.hitl.wire import (
     LC_DECISION_APPROVE,
     LC_DECISION_EDIT,
     LC_DECISION_REJECT,
-    SURFSENSE_DECISION_ALWAYS,
+    SURFSENSE_DECISION_APPROVE_ALWAYS,
     build_lc_hitl_payload,
     parse_lc_envelope,
 )
@@ -83,7 +83,7 @@ class TestBuildLcHitlPayload:
             allowed_decisions=[
                 LC_DECISION_APPROVE,
                 LC_DECISION_REJECT,
-                SURFSENSE_DECISION_ALWAYS,
+                SURFSENSE_DECISION_APPROVE_ALWAYS,
             ],
             interrupt_type="permission_ask",
             context=ctx,
@@ -111,7 +111,7 @@ class TestParseLcEnvelope:
         assert parsed.message is None
 
     def test_bare_scalar_string_passes_through_lowercased(self):
-        assert parse_lc_envelope("ALWAYS").decision_type == "always"
+        assert parse_lc_envelope("APPROVE_ALWAYS").decision_type == "approve_always"
         assert parse_lc_envelope("once").decision_type == "once"
 
     def test_non_dict_non_string_collapses_to_reject(self):

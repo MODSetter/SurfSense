@@ -1,4 +1,4 @@
-"""``always`` decisions for MCP tools are saved via the trusted-tool saver."""
+"""``approve_always`` decisions for MCP tools are saved via the trusted-tool saver."""
 
 from __future__ import annotations
 
@@ -90,7 +90,7 @@ def _build_graph(pm, tool_name: str):
 
 
 @pytest.mark.asyncio
-async def test_always_decision_saves_mcp_tool_via_callback():
+async def test_approve_always_decision_saves_mcp_tool_via_callback():
     saved: list[tuple[int, str]] = []
 
     async def trusted_tool_saver(connector_id: int, tool_name: str) -> None:
@@ -106,9 +106,11 @@ async def test_always_decision_saves_mcp_tool_via_callback():
     assert pm is not None
 
     graph = _build_graph(pm, tool.name)
-    config = {"configurable": {"thread_id": "always-mcp"}}
+    config = {"configurable": {"thread_id": "approve-always-mcp"}}
     await graph.ainvoke({"messages": [HumanMessage(content="seed")]}, config)
-    await graph.ainvoke(Command(resume={"decisions": [{"type": "always"}]}), config)
+    await graph.ainvoke(
+        Command(resume={"decisions": [{"type": "approve_always"}]}), config
+    )
 
     assert saved == [(7, "linear_create_issue")]
 
@@ -138,7 +140,7 @@ async def test_once_decision_does_not_save():
 
 
 @pytest.mark.asyncio
-async def test_always_decision_for_native_tool_skips_save():
+async def test_approve_always_decision_for_native_tool_skips_save():
     """Native tools have no ``mcp_connector_id`` so there is nowhere to persist trust."""
     saved: list[tuple[int, str]] = []
 
@@ -155,15 +157,17 @@ async def test_always_decision_for_native_tool_skips_save():
     assert pm is not None
 
     graph = _build_graph(pm, tool.name)
-    config = {"configurable": {"thread_id": "always-native"}}
+    config = {"configurable": {"thread_id": "approve-always-native"}}
     await graph.ainvoke({"messages": [HumanMessage(content="seed")]}, config)
-    await graph.ainvoke(Command(resume={"decisions": [{"type": "always"}]}), config)
+    await graph.ainvoke(
+        Command(resume={"decisions": [{"type": "approve_always"}]}), config
+    )
 
     assert saved == []
 
 
 @pytest.mark.asyncio
-async def test_always_decision_with_no_saver_callback_is_a_noop():
+async def test_approve_always_decision_with_no_saver_callback_is_a_noop():
     """Anonymous turns build the middleware without a ``trusted_tool_saver``; must not crash."""
     tool = _make_mcp_tool(name="linear_create_issue", connector_id=7)
     pm = build_permission_mw(
@@ -175,6 +179,8 @@ async def test_always_decision_with_no_saver_callback_is_a_noop():
     assert pm is not None
 
     graph = _build_graph(pm, tool.name)
-    config = {"configurable": {"thread_id": "anon-always"}}
+    config = {"configurable": {"thread_id": "anon-approve-always"}}
     await graph.ainvoke({"messages": [HumanMessage(content="seed")]}, config)
-    await graph.ainvoke(Command(resume={"decisions": [{"type": "always"}]}), config)
+    await graph.ainvoke(
+        Command(resume={"decisions": [{"type": "approve_always"}]}), config
+    )

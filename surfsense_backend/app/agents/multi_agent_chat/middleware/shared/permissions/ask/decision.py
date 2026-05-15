@@ -1,11 +1,12 @@
 """Translate the unified langchain HITL envelope into permission-domain semantics.
 
 ``PermissionMiddleware`` works with the canonical shape
-``{decision_type: "once" | "always" | "reject", feedback?: str, edited_args?: dict}``.
+``{decision_type: "once" | "approve_always" | "reject", feedback?: str, edited_args?: dict}``.
 The wire envelope arriving from langgraph already lives in the LC HITL shape
 (parsed once in :mod:`hitl_wire.decision`); this module performs the small
-domain mapping (``approve|edit`` → ``once``, ``always`` → ``always``,
-anything else → ``reject``) without re-implementing the envelope walk.
+domain mapping (``approve|edit`` → ``once``, ``approve_always`` →
+``approve_always``, anything else → ``reject``) without re-implementing the
+envelope walk.
 
 Failing closed: any unrecognised decision becomes ``reject`` (with a warning)
 so the middleware never proceeds on ambiguous input.
@@ -20,7 +21,7 @@ from app.agents.multi_agent_chat.subagents.shared.hitl.wire import (
     LC_DECISION_APPROVE,
     LC_DECISION_EDIT,
     LC_DECISION_REJECT,
-    SURFSENSE_DECISION_ALWAYS,
+    SURFSENSE_DECISION_APPROVE_ALWAYS,
     parse_lc_envelope,
 )
 
@@ -28,15 +29,15 @@ logger = logging.getLogger(__name__)
 
 
 # ``approve`` and ``edit`` both mean "let this call go through this once". The
-# legacy SurfSense bare-scalar values (``once`` / ``always`` / ``reject``)
+# legacy SurfSense bare-scalar values (``once`` / ``approve_always`` / ``reject``)
 # pass through unchanged so historical resume payloads still work.
 _LC_TO_PERMISSION: dict[str, str] = {
     LC_DECISION_APPROVE: "once",
     LC_DECISION_EDIT: "once",
-    SURFSENSE_DECISION_ALWAYS: "always",
+    SURFSENSE_DECISION_APPROVE_ALWAYS: "approve_always",
     LC_DECISION_REJECT: "reject",
     "once": "once",
-    "always": "always",
+    "approve_always": "approve_always",
     "reject": "reject",
 }
 
@@ -49,7 +50,7 @@ def normalize_permission_decision(envelope: Any) -> dict[str, Any]:
             bare scalar string, or a pre-canonical dict).
 
     Returns:
-        ``{"decision_type": "once"|"always"|"reject"}`` plus optional
+        ``{"decision_type": "once"|"approve_always"|"reject"}`` plus optional
         ``feedback`` (``reject`` with a user message) and ``edited_args``
         (``edit`` reply with non-empty arg overrides).
     """

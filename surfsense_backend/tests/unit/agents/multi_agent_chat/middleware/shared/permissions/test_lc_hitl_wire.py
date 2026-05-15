@@ -64,8 +64,8 @@ async def test_permission_ask_payload_uses_lc_hitl_shape():
     ], f"REGRESSION: permission ask reverted to legacy shape; got {value!r}"
     review = value.get("review_configs")
     assert isinstance(review, list) and len(review) == 1
-    # ``always`` must be in the palette so the FE can render the promote button.
-    assert "always" in review[0]["allowed_decisions"]
+    # ``approve_always`` must be in the palette so the FE can render the promote button.
+    assert "approve_always" in review[0]["allowed_decisions"]
     assert value.get("interrupt_type") == "permission_ask"
     # SurfSense context rides through verbatim for FE explainability.
     assert value["context"]["patterns"] == ["rm/*"]
@@ -88,18 +88,18 @@ async def test_resume_with_approve_envelope_returns_once_decision():
 
 
 @pytest.mark.asyncio
-async def test_resume_with_always_envelope_projects_to_always():
-    """``always`` reply must project unchanged so the middleware can promote the rule."""
+async def test_resume_with_approve_always_envelope_projects_unchanged():
+    """``approve_always`` reply must project unchanged so the middleware can promote the rule."""
     checkpointer = InMemorySaver()
     graph = _build_graph_calling_request_permission_decision(checkpointer)
-    config = {"configurable": {"thread_id": "perm-always"}}
+    config = {"configurable": {"thread_id": "perm-approve-always"}}
     await graph.ainvoke({"messages": [HumanMessage(content="seed")]}, config)
 
     await graph.ainvoke(
-        Command(resume={"decisions": [{"type": "always"}]}), config
+        Command(resume={"decisions": [{"type": "approve_always"}]}), config
     )
     final = await graph.aget_state(config)
-    assert final.values.get("final_decision") == {"decision_type": "always"}
+    assert final.values.get("final_decision") == {"decision_type": "approve_always"}
 
 
 @pytest.mark.asyncio

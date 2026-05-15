@@ -11,7 +11,7 @@ from .payload import (
     LC_DECISION_APPROVE,
     LC_DECISION_EDIT,
     LC_DECISION_REJECT,
-    SURFSENSE_DECISION_ALWAYS,
+    SURFSENSE_DECISION_APPROVE_ALWAYS,
     build_lc_hitl_payload,
 )
 
@@ -19,7 +19,7 @@ __all__ = [
     "LC_DECISION_APPROVE",
     "LC_DECISION_EDIT",
     "LC_DECISION_REJECT",
-    "SURFSENSE_DECISION_ALWAYS",
+    "SURFSENSE_DECISION_APPROVE_ALWAYS",
     "ParsedLcDecision",
     "build_lc_hitl_payload",
     "parse_lc_envelope",

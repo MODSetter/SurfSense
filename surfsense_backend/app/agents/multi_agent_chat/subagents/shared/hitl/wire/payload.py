@@ -17,10 +17,11 @@ LC_DECISION_APPROVE = "approve"
 LC_DECISION_REJECT = "reject"
 LC_DECISION_EDIT = "edit"
 
-# ``always`` is a SurfSense extension surfaced by ``PermissionMiddleware`` so a
-# single click can promote the matched pattern to a runtime allow rule. The FE
-# renders an extra button when it appears in ``allowed_decisions``.
-SURFSENSE_DECISION_ALWAYS = "always"
+# ``approve_always`` is a SurfSense extension surfaced by ``PermissionMiddleware``
+# so a single click can promote the matched pattern to a runtime allow rule and
+# (for MCP tools) save it to the user's trusted-tools list. The FE renders an
+# extra button when it appears in ``allowed_decisions``.
+SURFSENSE_DECISION_APPROVE_ALWAYS = "approve_always"
 
 
 def build_lc_hitl_payload(
@@ -41,8 +42,8 @@ def build_lc_hitl_payload(
             an empty dict so the FE always has a stable shape to render.
         allowed_decisions: Subset of
             ``[LC_DECISION_APPROVE, LC_DECISION_REJECT, LC_DECISION_EDIT,
-            SURFSENSE_DECISION_ALWAYS]``. Other values are passed through but
-            the FE may not render a control for them.
+            SURFSENSE_DECISION_APPROVE_ALWAYS]``. Other values are passed through
+            but the FE may not render a control for them.
         interrupt_type: SurfSense card discriminator (``"gmail_email_send"``,
             ``"permission_ask"``, etc.); the FE keys off this to mount the
             right card.
@@ -80,6 +81,6 @@ __all__ = [
     "LC_DECISION_APPROVE",
     "LC_DECISION_EDIT",
     "LC_DECISION_REJECT",
-    "SURFSENSE_DECISION_ALWAYS",
+    "SURFSENSE_DECISION_APPROVE_ALWAYS",
     "build_lc_hitl_payload",
 ]

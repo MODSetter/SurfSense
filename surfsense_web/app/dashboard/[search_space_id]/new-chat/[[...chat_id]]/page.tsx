@@ -1508,7 +1508,7 @@ export default function NewChatPage() {
 					if (!d) continue;
 					if (typeof part.result !== "object" || part.result === null) continue;
 					if (!("__interrupt__" in (part.result as Record<string, unknown>))) continue;
-					const decided = d.type as "approve" | "reject" | "edit";
+					const decided = d.type;
 					if (decided === "edit" && d.edited_action) {
 						const mergedArgs = { ...part.args, ...d.edited_action.args };
 						part.args = mergedArgs;
@@ -1778,7 +1778,7 @@ export default function NewChatPage() {
 						if (!d || part.type !== "tool-call") return part;
 						if (typeof part.result !== "object" || part.result === null) return part;
 						if (!("__interrupt__" in (part.result as Record<string, unknown>))) return part;
-						const decided = d.type as "approve" | "reject" | "edit";
+						const decided = d.type;
 						if (decided === "edit" && d.edited_action) {
 							return {
 								...part,

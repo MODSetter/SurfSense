@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class _AlwaysPromotion:
-    """A pending request to save an ``always`` decision to the user's trust list."""
+    """A pending request to save an ``approve_always`` decision to the user's trust list."""
 
     connector_id: int
     tool_name: str
@@ -59,15 +59,15 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             to wildcard patterns. Tools without an entry use the bare
             tool name as the only pattern.
         runtime_ruleset: Mutable :class:`Ruleset` extended in-place when
-            the user replies ``"always"``. Reused across calls in the
-            same agent instance so newly-allowed rules apply downstream.
+            the user replies ``"approve_always"``. Reused across calls in
+            the same agent instance so newly-allowed rules apply downstream.
         always_emit_interrupt_payload: Set ``False`` to make ``ask``
             collapse to ``deny`` (for non-interactive deployments).
         tools_by_name: Map from tool name to :class:`BaseTool`, used to
             decorate ``ask`` interrupts with the tool's description and
             MCP metadata for the FE card.
-        trusted_tool_saver: Async callback invoked on ``always`` decisions
-            for MCP tools (those whose ``metadata`` carries an
+        trusted_tool_saver: Async callback invoked on ``approve_always``
+            decisions for MCP tools (those whose ``metadata`` carries an
             ``mcp_connector_id``). Without it the promotion only lives
             in-memory for the current agent instance.
     """
@@ -104,8 +104,9 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         """Pure decision pass: returns ``(state_update, pending_promotions)``.
 
         Side effects performed here are in-memory only (rule promotion
-        into ``runtime_ruleset``). DB writes for ``always`` decisions
-        are queued as ``_AlwaysPromotion`` and flushed by the async hook.
+        into ``runtime_ruleset``). DB writes for ``approve_always``
+        decisions are queued as ``_AlwaysPromotion`` and flushed by the
+        async hook.
         """
         del runtime
         messages = state.get("messages") or []
@@ -155,7 +156,7 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 )
                 kind = str(decision.get("decision_type") or "reject").lower()
                 edited_args = decision.get("edited_args")
-                if kind in ("once", "always"):
+                if kind in ("once", "approve_always"):
                     final_call = (
                         merge_edited_args(call, edited_args)
                         if isinstance(edited_args, dict) and edited_args
@@ -163,7 +164,7 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                     )
                     if final_call is not call:
                         any_change = True
-                    if kind == "always":
+                    if kind == "approve_always":
                         persist_always(self._runtime_ruleset, name, patterns)
                         promotion = self._build_always_promotion(name)
                         if promotion is not None:
