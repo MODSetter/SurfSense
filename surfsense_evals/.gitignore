@@ -27,3 +27,9 @@ htmlcov/
 .env.local
 .env.*.local
 !.env.example
+
+# Run / debug logs — keep ephemeral, structured artifacts in
+# `data/.../<run_id>/` are the citation surface, not these.
+*.log
+logs_*.txt
+retry_run.log

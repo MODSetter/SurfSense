@@ -1,4 +1,13 @@
+# Default: don't track auto-generated `summary.md` / `summary.json` from
+# every benchmark run — those are derivative of `data/.../runs/<id>/`.
 *
 !.gitignore
+
+# Hand-curated sample report kept as a reference for the medical suite.
 !medical/
 !medical/sample_summary.md
+
+# Hand-curated blog-ready writeups (one per experiment) — these *are*
+# the public citation surface and must travel with the repo.
+!blog/
+!blog/*.md

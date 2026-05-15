@@ -189,18 +189,6 @@ class CragBenchmark:
     headline: bool = True
     description: str = _DESCRIPTION
 
-    # Subclasses (e.g. Task 3) override these without re-implementing run().
-    doc_map_filename: str = "crag_doc_map.jsonl"
-    # 0 = use ALL pages in the long-context arm. Task 3 defaults to 5
-    # so the long-context arm models the realistic "stuff the top-5
-    # search results into the prompt" baseline rather than blowing
-    # past the 128k-token context window with all 50 pages.
-    default_long_context_top_n: int = 0
-    pages_per_question_label: str = "5 pages"
-    ingest_hint: str = (
-        "`python -m surfsense_evals ingest research crag --n-questions 200`"
-    )
-
     def add_run_args(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
             "--n", dest="sample_n", type=int, default=None,
@@ -229,15 +217,6 @@ class CragBenchmark:
         parser.add_argument(
             "--per-page-char-cap", dest="per_page_char_cap", type=int, default=12_000,
             help="Long-context arm: max chars per page before truncation (default 12k).",
-        )
-        parser.add_argument(
-            "--long-context-top-n-pages", dest="long_context_top_n_pages",
-            type=int, default=self.default_long_context_top_n,
-            help=(
-                "Long-context arm: keep only the first N pages from the "
-                "question's candidate list (0 = use all). Task 3 defaults "
-                "to 5 (the realistic 'naive RAG' top-K baseline)."
-            ),
         )
         parser.add_argument(
             "--skip-bare", dest="skip_bare", action="store_true",
@@ -317,11 +296,6 @@ class CragBenchmark:
         concurrency = int(opts.get("concurrency") or 4)
         max_output_tokens = int(opts.get("max_output_tokens") or 512)
         per_page_char_cap = int(opts.get("per_page_char_cap") or 12_000)
-        long_context_top_n_pages = int(
-            opts.get("long_context_top_n_pages")
-            if opts.get("long_context_top_n_pages") is not None
-            else self.default_long_context_top_n
-        )
         skip_bare = bool(opts.get("skip_bare"))
         skip_long_context = bool(opts.get("skip_long_context"))
         skip_surfsense = bool(opts.get("skip_surfsense"))
@@ -331,11 +305,11 @@ class CragBenchmark:
         judge_concurrency = int(opts.get("judge_concurrency") or 4)
 
         bench_dir = ctx.benchmark_data_dir()
-        map_path = ctx.maps_dir() / self.doc_map_filename
+        map_path = ctx.maps_dir() / "crag_doc_map.jsonl"
         if not map_path.exists():
             raise RuntimeError(
-                f"{self.name} not ingested for this suite. Run "
-                f"{self.ingest_hint} first."
+                "CRAG not ingested for this suite. Run "
+                "`python -m surfsense_evals ingest research crag --n-questions 200` first."
             )
 
         rows, ingest_settings = _load_doc_map(map_path)
@@ -407,13 +381,7 @@ class CragBenchmark:
         async def _long_context_one(q: CragRunnerQuestion) -> ArmResult:
             assert long_context_arm is not None
             return await long_context_arm.answer(
-                _make_long_context_request(
-                    q,
-                    bench_dir,
-                    max_output_tokens,
-                    per_page_char_cap,
-                    top_n_pages=long_context_top_n_pages,
-                )
+                _make_long_context_request(q, bench_dir, max_output_tokens, per_page_char_cap)
             )
 
         async def _surf_one(q: CragRunnerQuestion) -> ArmResult:
@@ -503,8 +471,6 @@ class CragBenchmark:
                 "agent_llm_id": ctx.agent_llm_id,
                 "ingest_settings": ingest_settings,
                 "per_page_char_cap": per_page_char_cap,
-                "long_context_top_n_pages": long_context_top_n_pages,
-                "pages_per_question_label": self.pages_per_question_label,
                 "max_output_tokens": max_output_tokens,
                 "arms_active": {
                     "bare_llm": bare_arm is not None,
@@ -565,29 +531,18 @@ class CragBenchmark:
         if not active.get("long_context", True):
             body_lines.append("- Long-context arm: SKIPPED.")
         else:
-            top_n = int(extra.get("long_context_top_n_pages") or 0)
-            page_phrase = (
-                f"top-{top_n} of {extra.get('pages_per_question_label') or 'pages'}"
-                if top_n > 0
-                else f"all of {extra.get('pages_per_question_label') or 'pages'}"
-            )
             body_lines.append(
                 f"- Long-context arm (`{extra.get('native_arm_model') or '?'}`, "
-                f"{page_phrase} stuffed into prompt; per-page cap "
+                f"all 5 pages stuffed into prompt; per-page cap "
                 f"{extra.get('per_page_char_cap', 12_000):,} chars):"
             )
             body_lines.append(_arm_summary_lines(lc, indent="  "))
         if not active.get("surfsense", True):
             body_lines.append("- SurfSense arm: SKIPPED.")
         else:
-            scope_phrase = (
-                "whole SearchSpace"
-                if extra.get("no_mention_scope")
-                else f"per-question {extra.get('pages_per_question_label') or 'pages'}"
-            )
             body_lines.append(
                 f"- SurfSense arm (`{extra.get('provider_model', '?')}`, retrieval over "
-                f"{scope_phrase}):"
+                f"{'whole SearchSpace' if extra.get('no_mention_scope') else 'per-question 5 pages'}):"
             )
             body_lines.append(_arm_summary_lines(surf, indent="  "))
 
@@ -673,17 +628,9 @@ def _make_long_context_request(
     bench_dir: Path,
     max_tokens: int,
     per_page_char_cap: int,
-    *,
-    top_n_pages: int = 0,
 ) -> ArmRequest:
-    # The CRAG search_results list is already ranked top-K from the
-    # original web search at query_time; slicing the prefix is the
-    # honest "naive RAG: take the top-K results" baseline.
-    page_iter = q.page_filenames
-    if top_n_pages and top_n_pages > 0:
-        page_iter = page_iter[:top_n_pages]
     contexts: list[tuple[str, str]] = []
-    for fn in page_iter:
+    for fn in q.page_filenames:
         text = read_page_markdown(bench_dir, fn) or ""
         if not text.strip():
             continue
@@ -993,61 +940,4 @@ def _fmt(value: Any, ndigits: int) -> str:
         return "?"
 
 
-_TASK3_DESCRIPTION = (
-    "CRAG Task 3 (Meta KDD Cup 2024) — same 3 arms but the corpus per "
-    "question now has **50 candidate web pages** (vs 5 in Tasks 1 & 2). "
-    "The long-context arm uses only the top-5 (the realistic naive-RAG "
-    "baseline); SurfSense retrieves over all 50, where its rerank "
-    "becomes the actual contribution."
-)
-
-
-class CragTask3Benchmark(CragBenchmark):
-    """3-arm CRAG runner over Task 3 (50 pages per question).
-
-    Reuses the entire Task 1/2 runtime (grader, prompt, metrics,
-    reporting) — the only deltas are: the doc map filename, the
-    long-context arm's default page cap (5 instead of all 50), and
-    the ingest entrypoint (4-part archive instead of single bz2).
-    """
-
-    name: str = "crag_t3"
-    description: str = _TASK3_DESCRIPTION
-    doc_map_filename: str = "crag_t3_doc_map.jsonl"
-    default_long_context_top_n: int = 5
-    pages_per_question_label: str = "50 pages"
-    ingest_hint: str = (
-        "`python -m surfsense_evals ingest research crag_t3 --n-questions 50` "
-        "(after `python scripts/download_crag_task3.py`)"
-    )
-
-    async def ingest(self, ctx: RunContext, **opts: Any) -> None:
-        # Local import: keep dataset_task3's lazy-streaming module out
-        # of the import graph until someone actually wants Task 3.
-        from .ingest_task3 import run_ingest_task3
-
-        settings = IngestSettings.merge(_DEFAULT_INGEST_SETTINGS, opts)
-        await run_ingest_task3(
-            ctx,
-            n_questions=opts.get("n_questions"),
-            upload_batch_size=int(opts.get("upload_batch_size") or 16),
-            skip_upload=bool(opts.get("skip_upload", False)),
-            overwrite_extract=bool(opts.get("overwrite_extract", False)),
-            settings=settings,
-            sample_seed=int(opts.get("sample_seed") or 17),
-            parse_cap=opts.get("parse_cap"),
-        )
-
-    def add_run_args(self, parser: argparse.ArgumentParser) -> None:
-        super().add_run_args(parser)
-        parser.add_argument(
-            "--parse-cap", dest="parse_cap", type=int, default=None,
-            help=(
-                "(ingest only) Hard cap on rows parsed from the streaming "
-                "Task 3 archive before stratified sampling. Default: "
-                "max(2000, 10 * n_questions). Lower = less decompression."
-            ),
-        )
-
-
-__all__ = ["CragBenchmark", "CragRunnerQuestion", "CragTask3Benchmark"]
+__all__ = ["CragBenchmark", "CragRunnerQuestion"]

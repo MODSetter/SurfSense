@@ -1,22 +1,10 @@
 """CRAG — Comprehensive RAG Benchmark (Yang et al., Meta, KDD Cup 2024).
 
-Source: https://github.com/facebookresearch/CRAG  (Tasks 1, 2, and 3)
+Source: https://github.com/facebookresearch/CRAG (Tasks 1 & 2)
 Paper:  https://arxiv.org/abs/2406.04744
 
-This package registers two siblings:
-
-* ``crag``    — Tasks 1 & 2: 5 candidate pages per question.
-* ``crag_t3`` — Task 3:       50 candidate pages per question. The
-  long-context arm is capped to the top-5 (the realistic "naive
-  RAG = pick top-K results" baseline); SurfSense retrieves over
-  all 50, where its rerank becomes the entire contribution.
-
-Both share the grader, prompt, runner, and report code; only the
-ingest path differs (single bz2 vs 4-part tar.bz2 streamed).
-
 CRAG ships ~2,706 factual QA pairs, each paired with **5 full HTML
-pages** retrieved as the top-5 of a real web search at ``query_time``
-(50 in Task 3).
+pages** retrieved as the top-5 of a real web search at ``query_time``.
 The benchmark spans 5 domains (finance, music, movie, sports, open)
 and 8 question types (simple, comparison, aggregation, set, multi-hop,
 post-processing, false_premise, simple_w_condition) — heads/torsos/
@@ -51,7 +39,6 @@ relative to refusals.
 from __future__ import annotations
 
 from ....core import registry as _registry
-from .runner import CragBenchmark, CragTask3Benchmark
+from .runner import CragBenchmark
 
 _registry.register(CragBenchmark())
-_registry.register(CragTask3Benchmark())

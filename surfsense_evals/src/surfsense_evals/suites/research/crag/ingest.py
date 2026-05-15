@@ -436,12 +436,4 @@ async def _retry_upload_idempotent(  # noqa: D401 - hidden helper
     return {}
 
 
-__all__ = [
-    "_IngestStats",
-    "_materialise_pages",
-    "_page_filename",
-    "_resolve_question_doc_ids",
-    "_upload_pages",
-    "read_page_markdown",
-    "run_ingest",
-]
+__all__ = ["read_page_markdown", "run_ingest"]
