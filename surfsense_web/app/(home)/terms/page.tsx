@@ -4,7 +4,7 @@ export const metadata: Metadata = {
 	title: "Terms of Service | SurfSense",
 	description: "Terms of Service for SurfSense application",
 	alternates: {
-		canonical: "https://surfsense.com/terms",
+		canonical: "https://www.surfsense.com/terms",
 	},
 };
 

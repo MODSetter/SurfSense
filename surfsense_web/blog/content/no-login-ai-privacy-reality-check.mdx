@@ -40,7 +40,7 @@ The promise of the search query "AI without login" is simple: someone wants to c
 
 Whatever the reason, the answer in 2026 is mostly: **yes, you can do this**, but the options are scattered across product pages, browser features, and a long tail of wrapper sites that look identical. This guide is the cleanest map we could draw, organised so a casual user gets value in the first three minutes and a developer or privacy-conscious reader can keep going deeper.
 
-We're going to cite primary sources for everything that touches privacy or product behavior, so you can verify (and so the article ages well as the products change). The two cluster posts that go deeper into [Claude specifically](/blog/use-claude-without-login-2026) and into [a tested comparison of 12 free AI chats](/blog/tested-no-login-ai-chats-2026) will sit alongside this one when they're ready.
+We're going to cite primary sources for everything that touches privacy or product behavior, so you can verify (and so the article ages well as the products change).
 
 ## Where to use each major AI model without an account
 
@@ -70,9 +70,9 @@ Anthropic does require an account on `claude.ai` itself, but the picture is much
 
 **Path 3: Brave Leo (no account, browser-side).** Install the [Brave browser](https://brave.com), open the sidebar, click the Leo icon, pick Claude Haiku from the model dropdown. No signup. Brave doesn't collect identifiers tied to you ([per their docs](https://brave.com/leo/)). The trade-off is that you have to use Brave as your browser, and you're limited to Haiku on the free tier (Sonnet and Opus require Brave Leo Premium at $14.99/month).
 
-**Path 4: Multi-model aggregator pages.** These wrap the Anthropic API and serve Claude responses without an account on Anthropic. The pick we'd recommend (with the obvious disclosure that we made it) is **[SurfSense /free](/free)**: it lists Claude alongside ChatGPT, Gemini, DeepSeek, Mistral, and Llama in one chat UI, the source code is open on [GitHub](https://github.com/MODSetter/SurfSense) so the privacy and quota behavior is verifiable, and the 500K free token quota is shared across any model you pick (so you can spend the budget on Claude if that's what you came for). The closed-source alternatives ([HIX.AI](https://hix.ai/claude), [EaseMate](https://www.easemate.ai/ai-chat/ask-claude), [Eye2.ai](https://eye2.ai), [NoteGPT](https://notegpt.io/ai-models/claude-sonnet-4-5)) work too, but quality and message limits vary widely; we [tested 12 of these](/blog/tested-no-login-ai-chats-2026) in a separate post.
+**Path 4: Multi-model aggregator pages.** These wrap the Anthropic API and serve Claude responses without an account on Anthropic. The pick we'd recommend (with the obvious disclosure that we made it) is **[SurfSense /free](/free)**: it lists Claude alongside ChatGPT, Gemini, DeepSeek, Mistral, and Llama in one chat UI, the source code is open on [GitHub](https://github.com/MODSetter/SurfSense) so the privacy and quota behavior is verifiable, and the 500K free token quota is shared across any model you pick (so you can spend the budget on Claude if that's what you came for). The closed-source alternatives ([HIX.AI](https://hix.ai/claude), [EaseMate](https://www.easemate.ai/ai-chat/ask-claude), [Eye2.ai](https://eye2.ai), [NoteGPT](https://notegpt.io/ai-models/claude-sonnet-4-5)) work too, but quality and message limits vary widely.
 
-For the developer-specific paths (Claude Code with Bedrock or Vertex AI authentication, the Claude for Open Source program, the `/passes` Guest Pass system), see our [Claude-specific deep dive](/blog/use-claude-without-login-2026).
+For the developer-specific paths (Claude Code with Bedrock or Vertex AI authentication, the Claude for Open Source program), see Anthropic's [Claude Code authentication docs](https://code.claude.com/docs/en/authentication).
 
 ### Gemini, the awkward one
 
@@ -242,7 +242,7 @@ Yes. Open `chatgpt.com` in a private tab and you'll get guest mode automatically
 
 ### Can I use Claude without an account?
 
-Not on `claude.ai` itself, which still requires signup. The closest no-account paths are [Duck.ai](https://duck.ai) (Claude Haiku 4.5, free, anonymised), [Brave Leo](https://brave.com/leo/) (Claude Haiku in the Brave browser sidebar), and aggregator pages like our open-source [SurfSense /free](/free), which lists Claude among the models you can pick with no Anthropic account and a 500K free token budget shared across the whole page. For more, see our [Claude-specific guide](/blog/use-claude-without-login-2026).
+Not on `claude.ai` itself, which still requires signup. The closest no-account paths are [Duck.ai](https://duck.ai) (Claude Haiku 4.5, free, anonymised), [Brave Leo](https://brave.com/leo/) (Claude Haiku in the Brave browser sidebar), and aggregator pages like our open-source [SurfSense /free](/free), which lists Claude among the models you can pick with no Anthropic account and a 500K free token budget shared across the whole page.
 
 ### Can I use Gemini without a Google account?
 

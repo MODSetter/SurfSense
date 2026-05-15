@@ -16,8 +16,8 @@ export function OrganizationJsonLd() {
 				"@context": "https://schema.org",
 				"@type": "Organization",
 				name: "SurfSense",
-				url: "https://surfsense.com",
-				logo: "https://surfsense.com/logo.png",
+				url: "https://www.surfsense.com",
+				logo: "https://www.surfsense.com/logo.png",
 				description:
 					"Open source NotebookLM alternative for teams with no data limits. Use ChatGPT, Claude AI, and any AI model for free.",
 				sameAs: ["https://github.com/MODSetter/SurfSense", "https://discord.gg/Cg2M4GUJ"],
@@ -38,14 +38,14 @@ export function WebSiteJsonLd() {
 				"@context": "https://schema.org",
 				"@type": "WebSite",
 				name: "SurfSense",
-				url: "https://surfsense.com",
+				url: "https://www.surfsense.com",
 				description:
 					"Open source NotebookLM alternative for teams with no data limits. Free ChatGPT, Claude AI, and any AI model.",
 				potentialAction: {
 					"@type": "SearchAction",
 					target: {
 						"@type": "EntryPoint",
-						urlTemplate: "https://surfsense.com/docs?search={search_term_string}",
+						urlTemplate: "https://www.surfsense.com/docs?search={search_term_string}",
 					},
 					"query-input": "required name=search_term_string",
 				},
@@ -71,7 +71,7 @@ export function SoftwareApplicationJsonLd() {
 				},
 				description:
 					"Open source NotebookLM alternative with free access to ChatGPT, Claude AI, and any model. Connect Slack, Google Drive, Notion, Confluence, GitHub, and dozens more data sources.",
-				url: "https://surfsense.com",
+				url: "https://www.surfsense.com",
 				downloadUrl: "https://github.com/MODSetter/SurfSense/releases",
 				featureList: [
 					"Free access to ChatGPT, Claude AI, and any AI model",
@@ -95,6 +95,7 @@ export function ArticleJsonLd({
 	description,
 	url,
 	datePublished,
+	dateModified,
 	author,
 	image,
 }: {
@@ -102,6 +103,7 @@ export function ArticleJsonLd({
 	description: string;
 	url: string;
 	datePublished: string;
+	dateModified?: string;
 	author: string;
 	image?: string;
 }) {
@@ -114,6 +116,7 @@ export function ArticleJsonLd({
 				description,
 				url,
 				datePublished,
+				...(dateModified ? { dateModified } : {}),
 				author: {
 					"@type": "Organization",
 					name: author,
@@ -123,10 +126,10 @@ export function ArticleJsonLd({
 					name: "SurfSense",
 					logo: {
 						"@type": "ImageObject",
-						url: "https://surfsense.com/logo.png",
+						url: "https://www.surfsense.com/logo.png",
 					},
 				},
-				image: image || "https://surfsense.com/og-image.png",
+				image: image || "https://www.surfsense.com/og-image.png",
 				mainEntityOfPage: {
 					"@type": "WebPage",
 					"@id": url,

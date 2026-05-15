@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 	title: "Blog | SurfSense - AI Search & Knowledge Management",
 	description: "Product updates, tutorials, and tips from the SurfSense team.",
 	alternates: {
-		canonical: "https://surfsense.com/blog",
+		canonical: "https://www.surfsense.com/blog",
 	},
 };
 

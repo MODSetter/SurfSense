@@ -4,7 +4,8 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { blog } from "@/.source/server";
 import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
-import { ArticleJsonLd } from "@/components/seo/json-ld";
+import { ArticleJsonLd, FAQJsonLd } from "@/components/seo/json-ld";
+import { extractFaqFromBlogPost } from "@/lib/blog-faq";
 import { formatDate } from "@/lib/utils";
 import { getMDXComponents } from "@/mdx-components";
 
@@ -21,6 +22,8 @@ interface BlogData {
 	author?: string;
 	authorAvatar?: string;
 	tags?: string[];
+	// Populated by Fumadocs when `lastModifiedTime: "git"` is set in source.config.ts.
+	lastModified?: Date;
 	body: React.ComponentType<{
 		components?: Record<string, React.ComponentType>;
 	}>;
@@ -50,7 +53,7 @@ export async function generateMetadata(props: {
 		title: `${page.data.title} | SurfSense Blog`,
 		description: page.data.description,
 		alternates: {
-			canonical: `https://surfsense.com/blog/${slug}`,
+			canonical: `https://www.surfsense.com/blog/${slug}`,
 		},
 		openGraph: {
 			title: page.data.title,
@@ -78,17 +81,23 @@ export default async function BlogPostPage(props: { params: Promise<{ slug: stri
 
 	const MDX = page.data.body;
 	const date = new Date(page.data.date);
+	const dateModified = page.data.lastModified
+		? new Date(page.data.lastModified).toISOString()
+		: undefined;
+	const faqEntries = await extractFaqFromBlogPost(slug);
 
 	return (
 		<div className="min-h-screen relative pt-20">
 			<ArticleJsonLd
 				title={page.data.title}
 				description={page.data.description}
-				url={`https://surfsense.com/blog/${slug}`}
+				url={`https://www.surfsense.com/blog/${slug}`}
 				datePublished={page.data.date}
+				dateModified={dateModified}
 				author={page.data.author ?? "SurfSense Team"}
-				image={page.data.image ? `https://surfsense.com${page.data.image}` : undefined}
+				image={page.data.image ? `https://www.surfsense.com${page.data.image}` : undefined}
 			/>
+			{faqEntries.length > 0 && <FAQJsonLd questions={faqEntries} />}
 			<div className="max-w-3xl mx-auto px-6 lg:px-10 pt-10 pb-20">
 				<BreadcrumbNav
 					items={[
