@@ -1,14 +1,21 @@
+"""``airtable`` permission ruleset (rules over MCP tool names)."""
+
 from __future__ import annotations
 
-from typing import Any
+from app.agents.new_chat.permissions import Rule, Ruleset
 
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
-    ToolsPermissions,
+NAME = "airtable"
+
+RULESET = Ruleset(
+    origin=NAME,
+    rules=[
+        Rule(permission="list_bases", pattern="*", action="allow"),
+        Rule(permission="search_bases", pattern="*", action="allow"),
+        Rule(permission="list_tables_for_base", pattern="*", action="allow"),
+        Rule(permission="get_table_schema", pattern="*", action="allow"),
+        Rule(permission="list_records_for_table", pattern="*", action="allow"),
+        Rule(permission="search_records", pattern="*", action="allow"),
+        Rule(permission="create_records_for_table", pattern="*", action="ask"),
+        Rule(permission="update_records_for_table", pattern="*", action="ask"),
+    ],
 )
-
-
-def load_tools(
-    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
-) -> ToolsPermissions:
-    _ = {**(dependencies or {}), **kwargs}
-    return {"allow": [], "ask": []}

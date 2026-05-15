@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from ...middleware import SurfSenseFilesystemMiddleware
 
 
-def create_mkdir_tool(mw: "SurfSenseFilesystemMiddleware") -> BaseTool:
+def create_mkdir_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
     description = select_description(mw._filesystem_mode)
 
     async def async_mkdir(

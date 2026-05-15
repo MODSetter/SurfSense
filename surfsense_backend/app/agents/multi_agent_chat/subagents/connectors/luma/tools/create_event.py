@@ -5,7 +5,9 @@ import httpx
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.new_chat.tools.hitl import request_approval
+from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
+    request_approval,
+)
 
 from ._auth import LUMA_API, get_api_key, get_luma_connector, luma_headers
 

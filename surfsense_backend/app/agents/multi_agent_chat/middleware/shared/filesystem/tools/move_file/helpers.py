@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 async def cloud_move_file(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
     source: str,
     dest: str,
@@ -39,8 +39,7 @@ async def cloud_move_file(
         )
     if not source.startswith(DOCUMENTS_ROOT + "/"):
         return (
-            "Error: cloud move_file source must be under /documents/ (got "
-            f"'{source}')."
+            f"Error: cloud move_file source must be under /documents/ (got '{source}')."
         )
     if not dest.startswith(DOCUMENTS_ROOT + "/"):
         return (
@@ -89,9 +88,7 @@ async def cloud_move_file(
         ],
         "messages": [
             ToolMessage(
-                content=(
-                    f"Moved '{source}' to '{dest}' (will commit at end of turn)."
-                ),
+                content=(f"Moved '{source}' to '{dest}' (will commit at end of turn)."),
                 tool_call_id=runtime.tool_call_id,
             )
         ],

@@ -49,7 +49,7 @@ def build_main_agent_system_prompt(
     custom_system_instructions: str | None = None,
     use_default_system_instructions: bool = True,
     citations_enabled: bool = True,
-    model_name: str | None = None,  # noqa: ARG001 — kept for caller compatibility
+    model_name: str | None = None,
 ) -> str:
     resolved_today = (today or datetime.now(UTC)).astimezone(UTC).date().isoformat()
     visibility = thread_visibility or ChatVisibility.PRIVATE
@@ -62,7 +62,9 @@ def build_main_agent_system_prompt(
 
     if custom_system_instructions and custom_system_instructions.strip():
         parts.append(
-            "\n" + custom_system_instructions.format(resolved_today=resolved_today) + "\n"
+            "\n"
+            + custom_system_instructions.format(resolved_today=resolved_today)
+            + "\n"
         )
 
     if use_default_system_instructions:

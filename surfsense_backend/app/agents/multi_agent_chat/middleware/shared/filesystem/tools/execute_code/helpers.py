@@ -36,7 +36,7 @@ def wrap_as_python(code: str) -> str:
 
 
 async def execute_in_sandbox(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     command: str,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
     timeout: int | None,
@@ -59,14 +59,12 @@ async def execute_in_sandbox(
         try:
             return await _try_sandbox_execute(mw, command, runtime, timeout)
         except Exception:
-            logger.exception(
-                "Sandbox retry also failed for thread %s", mw._thread_id
-            )
+            logger.exception("Sandbox retry also failed for thread %s", mw._thread_id)
             return "Error: Code execution is temporarily unavailable. Please try again."
 
 
 async def _try_sandbox_execute(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     command: str,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
     timeout: int | None,

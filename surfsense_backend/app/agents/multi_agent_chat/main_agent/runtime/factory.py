@@ -29,6 +29,10 @@ from app.agents.new_chat.tools.invalid_tool import INVALID_TOOL_NAME, invalid_to
 from app.agents.new_chat.tools.registry import build_tools_async
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
+from app.services.user_tool_allowlist import (
+    fetch_user_allowlist_rulesets,
+    make_trusted_tool_saver,
+)
 from app.utils.perf import get_perf_logger
 
 from ..system_prompt import build_main_agent_system_prompt
@@ -141,10 +145,48 @@ async def create_multi_agent_chat_deep_agent(
         )
         mcp_tools_by_agent = {}
     _perf_log.info(
-        "[create_agent] load_mcp_tools_by_connector in %.3fs (%d buckets)",
+        "[create_agent] load_mcp_tools_by_connector in %.3fs (%d agents)",
         time.perf_counter() - _t0,
         len(mcp_tools_by_agent),
     )
+
+    # User-scoped allow-list ("Always Allow" persisted to
+    # ``SearchSourceConnector.config.trusted_tools``). Layered last in each
+    # subagent's PermissionMiddleware so user ``allow`` overrides coded
+    # ``ask`` via last-match-wins. Anonymous turns and read failures both
+    # degrade to "no user rules" rather than blocking the turn.
+    user_allowlist_by_subagent: dict[str, Any] = {}
+    trusted_tool_saver = None
+    if user_id:
+        try:
+            import uuid as _uuid
+
+            user_uuid = _uuid.UUID(user_id)
+        except (TypeError, ValueError):
+            user_uuid = None
+
+        if user_uuid is not None:
+            _t0 = time.perf_counter()
+            try:
+                user_allowlist_by_subagent = await fetch_user_allowlist_rulesets(
+                    db_session,
+                    user_id=user_uuid,
+                    search_space_id=search_space_id,
+                )
+            except Exception as e:
+                logging.warning(
+                    "User allow-list fetch failed; subagents will run without user trust rules this turn: %s",
+                    e,
+                )
+                user_allowlist_by_subagent = {}
+            _perf_log.info(
+                "[create_agent] fetch_user_allowlist_rulesets in %.3fs (%d subagents have rules)",
+                time.perf_counter() - _t0,
+                len(user_allowlist_by_subagent),
+            )
+            trusted_tool_saver = make_trusted_tool_saver(user_uuid)
+    dependencies["user_allowlist_by_subagent"] = user_allowlist_by_subagent
+    dependencies["trusted_tool_saver"] = trusted_tool_saver
 
     modified_disabled_tools = list(disabled_tools) if disabled_tools else []
 
