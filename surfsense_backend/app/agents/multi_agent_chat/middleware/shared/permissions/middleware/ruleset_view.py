@@ -3,8 +3,8 @@
 Static rulesets come from the agent factory (defaults, space-scoped,
 thread-scoped, etc.). The runtime ruleset is the in-memory one that
 :func:`runtime_promote.persist_always` extends when the user replies
-``"always"``. Evaluators always see them merged in this order so newly-
-promoted rules apply to subsequent calls.
+``"approve_always"``. Evaluators always see them merged in this order so
+newly-promoted rules apply to subsequent calls.
 """
 
 from __future__ import annotations

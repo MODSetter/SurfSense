@@ -7,12 +7,12 @@ export interface InterruptActionRequest {
 
 export interface InterruptReviewConfig {
 	action_name: string;
-	allowed_decisions: Array<"approve" | "edit" | "reject">;
+	allowed_decisions: Array<"approve" | "edit" | "reject" | "approve_always">;
 }
 
 export interface InterruptResult<C extends Record<string, unknown> = Record<string, unknown>> {
 	__interrupt__: true;
-	__decided__?: "approve" | "reject" | "edit";
+	__decided__?: "approve" | "reject" | "edit" | "approve_always";
 	__completed__?: boolean;
 	action_requests: InterruptActionRequest[];
 	review_configs: InterruptReviewConfig[];
@@ -31,7 +31,7 @@ export function isInterruptResult(result: unknown): result is InterruptResult {
 }
 
 export interface HitlDecision {
-	type: "approve" | "reject" | "edit";
+	type: "approve" | "reject" | "edit" | "approve_always";
 	message?: string;
 	edited_action?: {
 		name: string;

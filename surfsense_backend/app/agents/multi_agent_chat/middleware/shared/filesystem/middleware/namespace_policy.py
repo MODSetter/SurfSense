@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 def check_cloud_write_namespace(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     path: str,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
 ) -> str | None:

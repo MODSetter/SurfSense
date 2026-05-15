@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from ...middleware import SurfSenseFilesystemMiddleware
 
 
-def create_move_file_tool(mw: "SurfSenseFilesystemMiddleware") -> BaseTool:
+def create_move_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
     description = select_description(mw._filesystem_mode)
 
     async def async_move_file(
@@ -85,9 +85,7 @@ def create_move_file_tool(mw: "SurfSenseFilesystemMiddleware") -> BaseTool:
         ] = False,
     ) -> Command | str:
         return run_async_blocking(
-            async_move_file(
-                source_path, destination_path, runtime, overwrite=overwrite
-            )
+            async_move_file(source_path, destination_path, runtime, overwrite=overwrite)
         )
 
     return StructuredTool.from_function(

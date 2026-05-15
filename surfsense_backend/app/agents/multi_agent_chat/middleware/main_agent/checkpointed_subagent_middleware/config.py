@@ -21,7 +21,17 @@ _LANGGRAPH_SCRATCHPAD_KEY = "__pregel_scratchpad"
 
 
 def subagent_invoke_config(runtime: ToolRuntime) -> dict[str, Any]:
-    """RunnableConfig for the nested invoke; raises ``recursion_limit`` to the parent's budget."""
+    """RunnableConfig for the nested invoke; raises ``recursion_limit`` and isolates ``thread_id``.
+
+    Each parallel subagent invocation lands in its own checkpoint slot keyed
+    by an extended ``thread_id`` of the form ``{parent_thread}::task:{tool_call_id}``.
+    The same call across the resume cycle keeps reading from the same snapshot
+    (``tool_call_id`` is stable per LLM-emitted call).
+
+    We namespace via ``thread_id`` rather than ``checkpoint_ns`` because
+    langgraph's ``aget_state`` interprets a non-empty ``checkpoint_ns`` as a
+    subgraph path and raises ``ValueError("Subgraph X not found")``.
+    """
     merged: dict[str, Any] = dict(runtime.config) if runtime.config else {}
     current_limit = merged.get("recursion_limit")
     try:
@@ -30,43 +40,68 @@ def subagent_invoke_config(runtime: ToolRuntime) -> dict[str, Any]:
         current_int = 0
     if current_int < DEFAULT_SUBAGENT_RECURSION_LIMIT:
         merged["recursion_limit"] = DEFAULT_SUBAGENT_RECURSION_LIMIT
+
+    configurable: dict[str, Any] = dict(merged.get("configurable") or {})
+    parent_thread_id = configurable.get("thread_id")
+    per_call_suffix = f"task:{runtime.tool_call_id}"
+    configurable["thread_id"] = (
+        f"{parent_thread_id}::{per_call_suffix}"
+        if parent_thread_id
+        else per_call_suffix
+    )
+    merged["configurable"] = configurable
     return merged
 
 
 def consume_surfsense_resume(runtime: ToolRuntime) -> Any:
-    """Pop the resume payload; siblings share ``configurable`` by reference."""
+    """Pop the resume payload for *this* call's ``tool_call_id``.
+
+    The configurable holds ``surfsense_resume_value: dict[tool_call_id, payload]``
+    so parallel sibling subagents (each with their own ``tool_call_id``) read
+    only their own decision and never race on a shared scalar.
+    """
     cfg = runtime.config or {}
     configurable = cfg.get("configurable") if isinstance(cfg, dict) else None
     if not isinstance(configurable, dict):
         return None
-    return configurable.pop("surfsense_resume_value", None)
+    by_tcid = configurable.get("surfsense_resume_value")
+    if not isinstance(by_tcid, dict):
+        return None
+    payload = by_tcid.pop(runtime.tool_call_id, None)
+    if not by_tcid:
+        configurable.pop("surfsense_resume_value", None)
+    return payload
 
 
 def has_surfsense_resume(runtime: ToolRuntime) -> bool:
-    """True iff a resume payload is queued on this runtime (non-destructive)."""
+    """True iff a resume payload for this call's ``tool_call_id`` is queued (non-destructive)."""
     cfg = runtime.config or {}
     configurable = cfg.get("configurable") if isinstance(cfg, dict) else None
     if not isinstance(configurable, dict):
         return False
-    return "surfsense_resume_value" in configurable
+    by_tcid = configurable.get("surfsense_resume_value")
+    if not isinstance(by_tcid, dict):
+        return False
+    return runtime.tool_call_id in by_tcid
 
 
 def drain_parent_null_resume(runtime: ToolRuntime) -> None:
     """Consume the parent's lingering ``NULL_TASK_ID/RESUME`` write before delegating.
 
     ``stream_resume_chat`` wakes the main agent with
-    ``Command(resume={"decisions": [...]})`` so the propagated
-    ``_lg_interrupt(...)`` can return. langgraph stores that payload as the
-    parent task's ``null_resume`` pending write, which only gets consumed
-    *after* ``subagent.[a]invoke`` returns (when the post-call propagation
-    re-fires). While the subagent is mid-execution, any *new* ``interrupt()``
-    inside it (e.g. a follow-up tool call after a mixed approve/reject) walks
-    ``subagent_scratchpad → parent_scratchpad.get_null_resume`` and picks up
-    the parent's still-live decisions — mismatching against a different number
-    of hanging tool calls and crashing ``HumanInTheLoopMiddleware``.
+    ``Command(resume={tool_call_id: {"decisions": [...]}})`` so the previously
+    propagated parent-level interrupt can return. langgraph stores that
+    payload as the parent task's ``null_resume`` pending write. The ``task``
+    tool then forwards this turn's slice into the subagent via its own
+    ``Command(resume=...)``. While the subagent is mid-execution, any *new*
+    ``interrupt()`` inside it (e.g. a follow-up tool call after a mixed
+    approve/reject) walks ``subagent_scratchpad → parent_scratchpad.get_null_resume``
+    and picks up the parent's still-live decisions — mismatching against a
+    different number of hanging tool calls and crashing
+    ``HumanInTheLoopMiddleware``.
 
     Draining the write here closes that cross-graph leak so subagent
-    interrupts pause cleanly and re-propagate as a fresh approval card.
+    interrupts pause cleanly and bubble back up as a fresh approval card.
     """
     cfg = runtime.config or {}
     configurable = cfg.get("configurable") if isinstance(cfg, dict) else None

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from ...middleware import SurfSenseFilesystemMiddleware
 
 
-def create_read_file_tool(mw: "SurfSenseFilesystemMiddleware") -> BaseTool:
+def create_read_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
     description = select_description(mw._filesystem_mode)
 
     async def async_read_file(
@@ -90,9 +90,7 @@ def create_read_file_tool(mw: "SurfSenseFilesystemMiddleware") -> BaseTool:
             "Maximum number of lines to read.",
         ] = 100,
     ) -> Command | str:
-        return run_async_blocking(
-            async_read_file(file_path, runtime, offset, limit)
-        )
+        return run_async_blocking(async_read_file(file_path, runtime, offset, limit))
 
     return StructuredTool.from_function(
         name="read_file",

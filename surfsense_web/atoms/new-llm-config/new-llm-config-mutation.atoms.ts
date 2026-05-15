@@ -23,6 +23,7 @@ export const createNewLLMConfigMutationAtom = atomWithMutation((get) => {
 
 	return {
 		mutationKey: ["new-llm-configs", "create"],
+		meta: { suppressGlobalErrorToast: true },
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: CreateNewLLMConfigRequest) => {
 			return newLLMConfigApiService.createConfig(request);
@@ -47,6 +48,7 @@ export const updateNewLLMConfigMutationAtom = atomWithMutation((get) => {
 
 	return {
 		mutationKey: ["new-llm-configs", "update"],
+		meta: { suppressGlobalErrorToast: true },
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: UpdateNewLLMConfigRequest) => {
 			return newLLMConfigApiService.updateConfig(request);
@@ -74,6 +76,7 @@ export const deleteNewLLMConfigMutationAtom = atomWithMutation((get) => {
 
 	return {
 		mutationKey: ["new-llm-configs", "delete"],
+		meta: { suppressGlobalErrorToast: true },
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: DeleteNewLLMConfigRequest & { name: string }) => {
 			return newLLMConfigApiService.deleteConfig({ id: request.id });
@@ -105,6 +108,7 @@ export const updateLLMPreferencesMutationAtom = atomWithMutation((get) => {
 
 	return {
 		mutationKey: ["llm-preferences", "update"],
+		meta: { suppressGlobalErrorToast: true },
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: UpdateLLMPreferencesRequest) => {
 			return newLLMConfigApiService.updateLLMPreferences(request);

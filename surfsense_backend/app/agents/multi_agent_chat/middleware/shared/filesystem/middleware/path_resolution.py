@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 def current_cwd(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
 ) -> str:
     cwd = runtime.state.get("cwd") if hasattr(runtime, "state") else None
@@ -35,7 +35,7 @@ def current_cwd(
 
 
 def get_contract_suggested_path(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
 ) -> str:
     """Read the planner's suggested write path; otherwise default to ``notes.md``."""
@@ -47,7 +47,7 @@ def get_contract_suggested_path(
 
 
 def resolve_relative(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     path: str,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
 ) -> str:
@@ -63,7 +63,7 @@ def resolve_relative(
 
 
 def resolve_write_target_path(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     file_path: str,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
 ) -> str:
@@ -77,7 +77,7 @@ def resolve_write_target_path(
 
 
 def resolve_move_target_path(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     file_path: str,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
 ) -> str:
@@ -91,7 +91,7 @@ def resolve_move_target_path(
 
 
 def resolve_list_target_path(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     path: str,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
 ) -> str:
@@ -105,7 +105,7 @@ def resolve_list_target_path(
 
 
 def normalize_local_mount_path(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     candidate: str,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
 ) -> str:

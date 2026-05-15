@@ -3,8 +3,10 @@
 import { createContext, type ReactNode, useContext } from "react";
 import type { HitlDecision } from "../types";
 
-/** Snapshot of one in-flight HITL interrupt; ``null`` when nothing is pending. */
+/** One in-flight HITL interrupt (one paused subagent). */
 export interface PendingInterruptState {
+	/** Stable id keyed by the parent ``tool_call_id`` stamped on the interrupt. */
+	interruptId: string;
 	threadId: number;
 	assistantMsgId: string;
 	interruptData: Record<string, unknown>;
@@ -12,8 +14,19 @@ export interface PendingInterruptState {
 }
 
 export interface PendingInterruptValue {
-	pendingInterrupt: PendingInterruptState | null;
-	onSubmit: (decisions: HitlDecision[]) => void;
+	/**
+	 * Every paused subagent for the current turn, in the order the SSE stream
+	 * delivered them — which matches ``state.interrupts`` traversal on the
+	 * backend, which is the order ``slice_decisions_by_tool_call`` consumes.
+	 */
+	pendingInterrupts: PendingInterruptState[];
+	/**
+	 * Stage one card's decisions. The orchestrator (page-level) batches across
+	 * cards and dispatches the resume only once every pending interrupt has
+	 * submitted, so the backend slicer sees a single concatenated decisions
+	 * list whose total matches the parent state's pending action count.
+	 */
+	onSubmit: (interruptId: string, decisions: HitlDecision[]) => void;
 }
 
 const PendingInterruptContext = createContext<PendingInterruptValue | null>(null);
@@ -24,16 +37,16 @@ const PendingInterruptContext = createContext<PendingInterruptValue | null>(null
  * page root.
  */
 export function PendingInterruptProvider({
-	pendingInterrupt,
+	pendingInterrupts,
 	onSubmit,
 	children,
 }: {
-	pendingInterrupt: PendingInterruptState | null;
-	onSubmit: (decisions: HitlDecision[]) => void;
+	pendingInterrupts: PendingInterruptState[];
+	onSubmit: (interruptId: string, decisions: HitlDecision[]) => void;
 	children: ReactNode;
 }) {
 	return (
-		<PendingInterruptContext.Provider value={{ pendingInterrupt, onSubmit }}>
+		<PendingInterruptContext.Provider value={{ pendingInterrupts, onSubmit }}>
 			{children}
 		</PendingInterruptContext.Provider>
 	);

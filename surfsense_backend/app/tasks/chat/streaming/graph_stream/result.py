@@ -10,7 +10,6 @@ from typing import Any
 class StreamingResult:
     accumulated_text: str = ""
     is_interrupted: bool = False
-    interrupt_value: dict[str, Any] | None = None
     sandbox_files: list[str] = field(default_factory=list)
     agent_called_update_memory: bool = False
     request_id: str | None = None

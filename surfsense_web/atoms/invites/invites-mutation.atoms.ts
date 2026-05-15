@@ -14,6 +14,7 @@ import { queryClient } from "@/lib/query-client/client";
  * Mutation atom for creating an invite
  */
 export const createInviteMutationAtom = atomWithMutation(() => ({
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (request: CreateInviteRequest) => {
 		return invitesApiService.createInvite(request);
 	},
@@ -33,6 +34,7 @@ export const createInviteMutationAtom = atomWithMutation(() => ({
  * Mutation atom for updating an invite
  */
 export const updateInviteMutationAtom = atomWithMutation(() => ({
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (request: UpdateInviteRequest) => {
 		return invitesApiService.updateInvite(request);
 	},
@@ -52,6 +54,7 @@ export const updateInviteMutationAtom = atomWithMutation(() => ({
  * Mutation atom for deleting an invite
  */
 export const deleteInviteMutationAtom = atomWithMutation(() => ({
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (request: DeleteInviteRequest) => {
 		return invitesApiService.deleteInvite(request);
 	},
@@ -71,6 +74,7 @@ export const deleteInviteMutationAtom = atomWithMutation(() => ({
  * Mutation atom for accepting an invite
  */
 export const acceptInviteMutationAtom = atomWithMutation(() => ({
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (request: AcceptInviteRequest) => {
 		return invitesApiService.acceptInvite(request);
 	},

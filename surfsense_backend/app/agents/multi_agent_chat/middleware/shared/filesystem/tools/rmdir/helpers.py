@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 async def cloud_rmdir(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
     validated: str,
 ) -> Command | str:
@@ -49,8 +49,7 @@ async def cloud_rmdir(
     staged_dirs = list(runtime.state.get("staged_dirs") or [])
     pending_dir_deletes = list(runtime.state.get("pending_dir_deletes") or [])
     if any(
-        isinstance(d, dict) and d.get("path") == validated
-        for d in pending_dir_deletes
+        isinstance(d, dict) and d.get("path") == validated for d in pending_dir_deletes
     ):
         return f"'{validated}' is already queued for deletion."
 
@@ -61,11 +60,7 @@ async def cloud_rmdir(
     if isinstance(backend, KBPostgresBackend):
         children = list(await backend.als_info(validated))
 
-    if (
-        isinstance(backend, KBPostgresBackend)
-        and not children
-        and not exists_in_staged
-    ):
+    if isinstance(backend, KBPostgresBackend) and not children and not exists_in_staged:
         loaded = await backend._load_file_data(validated)
         if loaded is not None:
             return f"Error: '{validated}' is a file. Use rm to delete files."
@@ -79,9 +74,7 @@ async def cloud_rmdir(
             return f"Error: directory '{validated}' not found."
 
     if children:
-        return (
-            f"Error: directory '{validated}' is not empty. Remove contents first."
-        )
+        return f"Error: directory '{validated}' is not empty. Remove contents first."
 
     if exists_in_staged:
         rest = [d for d in staged_dirs if d != validated]
@@ -109,8 +102,7 @@ async def cloud_rmdir(
             "messages": [
                 ToolMessage(
                     content=(
-                        f"Staged rmdir of '{validated}' (will commit "
-                        "at end of turn)."
+                        f"Staged rmdir of '{validated}' (will commit at end of turn)."
                     ),
                     tool_call_id=runtime.tool_call_id,
                 )
@@ -120,7 +112,7 @@ async def cloud_rmdir(
 
 
 async def desktop_rmdir(
-    mw: "SurfSenseFilesystemMiddleware",
+    mw: SurfSenseFilesystemMiddleware,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
     validated: str,
 ) -> Command | str:

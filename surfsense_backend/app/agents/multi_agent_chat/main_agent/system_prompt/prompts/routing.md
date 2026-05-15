@@ -23,15 +23,21 @@ Use `task` for anything beyond the direct tools above. See
 `<specialists>` for the live roster.
 
 Rules for `task`:
-- **One specialist per `task` call.** A single `task` invocation must
-  describe work that one specialist can do end-to-end. Never bundle work
-  for two specialists into one task prompt — the specialist you route to
-  will silently drop the other half.
-- **One `task` call per turn.** If the user's request spans multiple
-  specialists, handle them one at a time across consecutive turns: invoke
-  the first this turn, return, then invoke the next on your next turn (no
-  user input required between). Use `write_todos` to keep the plan alive
-  across those turns.
+- **One specialist per `task` call.** A single `task` invocation targets
+  exactly one specialist; that specialist only has tools for its own
+  domain, so any work outside that domain in the same prompt won't run.
+- **Parallelise independent specialist work.** When a turn needs multiple
+  `task` calls whose work doesn't depend on each other's results (e.g.
+  "create a ClickUp ticket AND a Linear ticket"), emit them as parallel
+  `task` calls. Two `task` calls are independent when:
+    - Neither's prompt references the other's output, and
+    - They target different specialists, OR the same specialist with
+      non-overlapping scopes (e.g. reading two unrelated paths).
+- **Serialise dependent work across turns.** If one specialist's output
+  must inform another's input (e.g. "find the roadmap in my KB, then
+  email it to Maya"), invoke them on consecutive turns — first finishes,
+  then you call the second with the first's result baked into its prompt.
+  Use `write_todos` to keep the plan alive across those turns.
 - Within a single specialist, bundle every related step into the same task
   prompt (read + write + summary go together).
 - Put the **full instructions inside the task prompt** — the specialist
@@ -66,19 +72,25 @@ user: "Find my Q2 roadmap and summarise the milestones."
 
 <example>
 user: "Create a ClickUp ticket and a Linear ticket for the new feature flag."
-→ This turn:
+→ Independent work — call both specialists in parallel:
     write_todos([
       {content: "Create ClickUp ticket for feature flag rollout", status: "in_progress"},
-      {content: "Create Linear ticket for feature flag rollout",  status: "pending"},
+      {content: "Create Linear ticket for feature flag rollout",  status: "in_progress"},
     ])
     task(clickup, "Create a ClickUp ticket titled 'Feature flag rollout'
       in the default list. Description: <…>. Tell me the ticket URL.")
-→ Next turn:
-    write_todos([
-      {content: "Create ClickUp ticket for feature flag rollout", status: "completed"},
-      {content: "Create Linear ticket for feature flag rollout",  status: "in_progress"},
-    ])
     task(linear, "Create a Linear ticket titled 'Feature flag rollout'
       in the default team. Description: <…>. Tell me the ticket URL.")
+</example>
+
+<example>
+user: "Find my Q2 roadmap doc in the KB and email a summary to Maya."
+→ The email body depends on the doc's contents — serialise across turns.
+  This turn:
+    task(knowledge_base, "Find the Q2 roadmap document under /documents
+      and return its full text plus a 3-bullet summary.")
+  Next turn (with the returned summary in hand):
+    task(gmail, "Send an email to Maya with subject 'Q2 roadmap summary'
+      and the following body: <summary returned by knowledge_base>.")
 </example>
 </routing>

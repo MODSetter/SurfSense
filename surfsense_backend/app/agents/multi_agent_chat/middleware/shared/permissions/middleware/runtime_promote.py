@@ -1,4 +1,4 @@
-"""Promote an ``"always"`` reply into in-memory allow rules.
+"""Promote an ``"approve_always"`` reply into in-memory allow rules.
 
 Subsequent calls within the same agent instance match these new rules and
 proceed without prompting. Durable persistence (to ``agent_permission_rules``)
