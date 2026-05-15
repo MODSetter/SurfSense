@@ -274,7 +274,7 @@ function formatTurnCost(micros: number): string {
 	return "$0";
 }
 
-const MessageInfoDropdown: FC = () => {
+const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ chatTurnId }) => {
 	const messageId = useAuiState(({ message }) => message?.id);
 	const createdAt = useAuiState(({ message }) => message?.createdAt);
 	const usage = useTokenUsage(messageId);
@@ -359,6 +359,7 @@ const MessageInfoDropdown: FC = () => {
 						)}
 					</>
 				)}
+				<RevertTurnButton chatTurnId={chatTurnId} variant="menu-item" />
 			</ActionBarMorePrimitive.Content>
 		</ActionBarMorePrimitive.Root>
 	);
@@ -623,10 +624,7 @@ const AssistantActionBar: FC = () => {
 					<ClipboardPaste />
 				</TooltipIconButton>
 			)}
-			<MessageInfoDropdown />
-			<div className="ml-auto">
-				<RevertTurnButton chatTurnId={chatTurnId} />
-			</div>
+			<MessageInfoDropdown chatTurnId={chatTurnId} />
 		</ActionBarPrimitive.Root>
 	);
 };

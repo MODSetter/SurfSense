@@ -15,6 +15,7 @@
  * with their messages.
  */
 
+import { ActionBarMorePrimitive } from "@assistant-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { CheckIcon, RotateCcw, XCircleIcon } from "lucide-react";
@@ -47,9 +48,10 @@ import { cn } from "@/lib/utils";
 
 interface RevertTurnButtonProps {
 	chatTurnId: string | null | undefined;
+	variant?: "button" | "menu-item";
 }
 
-export function RevertTurnButton({ chatTurnId }: RevertTurnButtonProps) {
+export function RevertTurnButton({ chatTurnId, variant = "button" }: RevertTurnButtonProps) {
 	const session = useAtomValue(chatSessionStateAtom);
 	const threadId = session?.threadId ?? null;
 	const queryClient = useQueryClient();
@@ -125,23 +127,39 @@ export function RevertTurnButton({ chatTurnId }: RevertTurnButtonProps) {
 	return (
 		<>
 			<AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-				<AlertDialogTrigger asChild>
-					<Button
-						size="sm"
-						variant="ghost"
-						className="text-muted-foreground hover:text-accent-foreground gap-1.5"
-						onClick={(e) => {
-							e.stopPropagation();
+				{variant === "menu-item" ? (
+					<ActionBarMorePrimitive.Item
+						className="focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
+						onSelect={(e) => {
+							e.preventDefault();
 							setConfirmOpen(true);
 						}}
 					>
 						<RotateCcw className="size-3.5" />
 						<span>Revert turn</span>
-						<span className="text-xs tabular-nums opacity-70">
+						<span className="ml-auto text-xs tabular-nums opacity-70">
 							{reversibleCount}/{totalCount}
 						</span>
-					</Button>
-				</AlertDialogTrigger>
+					</ActionBarMorePrimitive.Item>
+				) : (
+					<AlertDialogTrigger asChild>
+						<Button
+							size="sm"
+							variant="ghost"
+							className="text-muted-foreground hover:text-accent-foreground gap-1.5"
+							onClick={(e) => {
+								e.stopPropagation();
+								setConfirmOpen(true);
+							}}
+						>
+							<RotateCcw className="size-3.5" />
+							<span>Revert turn</span>
+							<span className="text-xs tabular-nums opacity-70">
+								{reversibleCount}/{totalCount}
+							</span>
+						</Button>
+					</AlertDialogTrigger>
+				)}
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>Revert this turn?</AlertDialogTitle>
