@@ -29,6 +29,7 @@ from langchain_core.tools import BaseTool
 
 from app.agents.new_chat.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.permissions import Rule, Ruleset
+from app.services.user_tool_allowlist import TrustedToolSaver
 
 from .core import PermissionMiddleware
 
@@ -43,6 +44,7 @@ def build_permission_mw(
     flags: AgentFeatureFlags,
     subagent_rulesets: list[Ruleset] | None = None,
     tools: Sequence[BaseTool] | None = None,
+    trusted_tool_saver: TrustedToolSaver | None = None,
 ) -> PermissionMiddleware | None:
     """Return a configured :class:`PermissionMiddleware` or ``None`` when no work is needed.
 
@@ -58,6 +60,9 @@ def build_permission_mw(
             an explicit ``ask`` rule always asks.
         tools: Subagent tools used to decorate ``ask`` interrupts with
             FE-card metadata (description, MCP connector). Optional.
+        trusted_tool_saver: Async callback invoked when an MCP tool's
+            ``always`` decision lands; persists the user's preference to
+            ``connector.config['trusted_tools']``. Optional.
 
     Returns:
         ``None`` when the engine has no rules to enforce
@@ -73,7 +78,11 @@ def build_permission_mw(
     if subagent_rulesets:
         rulesets.extend(subagent_rulesets)
     tools_by_name = {t.name: t for t in (tools or [])}
-    return PermissionMiddleware(rulesets=rulesets, tools_by_name=tools_by_name)
+    return PermissionMiddleware(
+        rulesets=rulesets,
+        tools_by_name=tools_by_name,
+        trusted_tool_saver=trusted_tool_saver,
+    )
 
 
 __all__ = ["build_permission_mw"]

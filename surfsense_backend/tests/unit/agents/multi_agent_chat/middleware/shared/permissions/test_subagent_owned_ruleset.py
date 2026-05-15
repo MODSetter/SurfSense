@@ -84,9 +84,7 @@ def _build_graph_with_permission_middleware(
     def after_node(state: _State) -> dict[str, Any] | None:
         if pm is None:
             return None
-        # PermissionMiddleware._process ignores runtime; the test never relies
-        # on the runtime context, so passing None keeps the harness lean.
-        return pm._process(state, None)  # type: ignore[arg-type]
+        return pm.after_model(state, None)  # type: ignore[arg-type]
 
     g = StateGraph(_State)
     g.add_node("emit", node)

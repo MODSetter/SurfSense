@@ -93,7 +93,11 @@ def build_kb_middleware(
         user_allowlist = _kb_user_allowlist(dependencies, subagent_name)
         if user_allowlist is not None:
             rulesets.append(user_allowlist)
-        permission_mw = build_permission_mw(flags=flags, subagent_rulesets=rulesets)
+        permission_mw = build_permission_mw(
+            flags=flags,
+            subagent_rulesets=rulesets,
+            trusted_tool_saver=dependencies.get("trusted_tool_saver"),
+        )
     return [
         mws["todos"],
         build_kb_context_projection_mw(),

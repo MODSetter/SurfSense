@@ -1,33 +1,16 @@
-"""User-scoped tool allow-list backed by ``SearchSourceConnector.config``.
+"""User-scoped trusted-tools list backed by ``SearchSourceConnector.config``.
 
-Stores the user's "always allow" preferences as a list of tool names under
-``connector.config['trusted_tools']``. Storage is per
-``(user_id, search_space_id, connector_id)`` — i.e. tied to a specific
-connected account inside a specific workspace, exactly what the UI cares
-about.
-
-Callers split into two roles:
-
-- **Writers** — the ``/connectors/.../trust-tool`` and ``/untrust-tool``
-  HTTP routes, and the chat resume handler when it processes a
-  ``{type: "always"}`` decision. Both call
-  :func:`add_user_trust` / :func:`remove_user_trust`. The FE button is
-  the upstream UI trigger but it talks to the routes, never to this
-  module directly.
-- **Reader** — the subagent compile path, which calls
-  :func:`fetch_user_allowlist_rulesets` and layers the result after the
-  subagent's coded ruleset. User ``allow`` rules then override coded
-  ``ask`` via the rule engine's last-match-wins evaluation.
-
-Coded ``deny`` rules are intentionally **not** overridable by this
-allow-list — only ``ask`` can be promoted to ``allow``. The rule engine
-enforces this naturally because user rules only ever emit ``allow``.
+Storage is per ``(user_id, search_space_id, connector_id)`` under
+``connector.config['trusted_tools']``. The list only ever encodes
+``allow`` decisions; coded ``deny`` rules cannot be overridden here.
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections import defaultdict
+from collections.abc import Awaitable, Callable
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,9 +20,13 @@ from app.agents.multi_agent_chat.constants import (
     CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS,
 )
 from app.agents.new_chat.permissions import Rule, Ruleset
-from app.db import SearchSourceConnector
+from app.db import SearchSourceConnector, async_session_maker
+
+logger = logging.getLogger(__name__)
 
 _TRUSTED_TOOLS_KEY = "trusted_tools"
+
+TrustedToolSaver = Callable[[int, str], Awaitable[None]]
 
 
 async def _load_owned_connector(
@@ -48,11 +35,7 @@ async def _load_owned_connector(
     user_id: uuid.UUID,
     connector_id: int,
 ) -> SearchSourceConnector | None:
-    """Return a connector iff it belongs to ``user_id``, else ``None``.
-
-    Ownership scoping is mandatory: the trust list mutates user-private
-    data, callers must never write across user boundaries.
-    """
+    """Return the connector iff owned by ``user_id``, else ``None``."""
     result = await session.execute(
         select(SearchSourceConnector).where(
             SearchSourceConnector.id == connector_id,
@@ -84,11 +67,7 @@ async def add_user_trust(
     connector_id: int,
     tool_name: str,
 ) -> list[str]:
-    """Append ``tool_name`` to the connector's trusted list (idempotent).
-
-    Returns the updated trusted-tools list. Raises ``LookupError`` when
-    the connector does not exist or is not owned by ``user_id``.
-    """
+    """Append ``tool_name`` to the connector's trusted list; raise ``LookupError`` if not owned."""
     connector = await _load_owned_connector(
         session, user_id=user_id, connector_id=connector_id
     )
@@ -112,11 +91,7 @@ async def remove_user_trust(
     connector_id: int,
     tool_name: str,
 ) -> list[str]:
-    """Remove ``tool_name`` from the connector's trusted list (idempotent).
-
-    Returns the updated trusted-tools list. Raises ``LookupError`` when
-    the connector does not exist or is not owned by ``user_id``.
-    """
+    """Remove ``tool_name`` from the connector's trusted list; raise ``LookupError`` if not owned."""
     connector = await _load_owned_connector(
         session, user_id=user_id, connector_id=connector_id
     )
@@ -139,20 +114,10 @@ async def fetch_user_allowlist_rulesets(
     user_id: uuid.UUID,
     search_space_id: int,
 ) -> dict[str, Ruleset]:
-    """Project the user's trusted-tool lists into per-subagent rulesets.
+    """Project the user's trusted tools into per-subagent ``allow`` rulesets.
 
-    Walks every connector the user owns in this workspace, maps each
-    ``connector_type`` to its consuming subagent via
-    :data:`CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS`, and emits one
-    ``Rule(permission=tool_name, pattern="*", action="allow")`` per
-    trusted entry. Rules from different connector accounts feeding the
-    same subagent (e.g. two Linear workspaces) are merged into one
-    ruleset; duplicates are harmless under last-match-wins.
-
-    Connectors whose type is not mapped (search APIs, Github, etc.) and
-    connectors with empty trust lists contribute nothing. Subagents
-    with no trusted tools are absent from the returned dict — callers
-    should treat ``missing == empty``.
+    Subagents with no trusted tools are absent from the result —
+    callers must treat ``missing == empty``.
     """
     result = await session.execute(
         select(
@@ -189,8 +154,35 @@ async def fetch_user_allowlist_rulesets(
     }
 
 
+def make_trusted_tool_saver(user_id: uuid.UUID) -> TrustedToolSaver:
+    """Bind ``user_id`` into a saver closure; failures are logged, never raised."""
+
+    async def trusted_tool_saver(connector_id: int, tool_name: str) -> None:
+        try:
+            async with async_session_maker() as session:
+                await add_user_trust(
+                    session,
+                    user_id=user_id,
+                    connector_id=connector_id,
+                    tool_name=tool_name,
+                )
+                await session.commit()
+        except LookupError as exc:
+            logger.warning("trusted-tool save skipped: %s", exc)
+        except Exception:
+            logger.exception(
+                "trusted-tool save failed for connector=%s tool=%s",
+                connector_id,
+                tool_name,
+            )
+
+    return trusted_tool_saver
+
+
 __all__ = [
+    "TrustedToolSaver",
     "add_user_trust",
     "fetch_user_allowlist_rulesets",
+    "make_trusted_tool_saver",
     "remove_user_trust",
 ]

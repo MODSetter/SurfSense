@@ -128,7 +128,7 @@ def _emit_tool_call(tool_name: str, args: dict[str, Any], call_id: str):
 
 def _compile_graph_with(pm, tool_name: str, args: dict[str, Any], call_id: str):
     def after(state: _State) -> dict[str, Any] | None:
-        return pm._process(state, None)  # type: ignore[arg-type]
+        return pm.after_model(state, None)  # type: ignore[arg-type]
 
     g = StateGraph(_State)
     g.add_node("emit", _emit_tool_call(tool_name, args, call_id))
