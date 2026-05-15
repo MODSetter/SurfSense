@@ -1,12 +1,16 @@
-"""Permission rulesets fanned out to parent / general-purpose / subagent stacks."""
+"""Pattern-based allow/deny/ask middleware with HITL fallback.
 
-from __future__ import annotations
+Public surface: :class:`PermissionMiddleware` plus
+:func:`normalize_permission_decision` for the streaming layer and the
+:data:`PatternResolver` type for callers that register per-tool resolvers.
+"""
 
-from .context import PermissionContext, build_permission_context
-from .middleware import build_full_permission_mw
+from .decision import normalize_permission_decision
+from .middleware import PermissionMiddleware
+from .pattern_resolver import PatternResolver
 
 __all__ = [
-    "PermissionContext",
-    "build_full_permission_mw",
-    "build_permission_context",
+    "PatternResolver",
+    "PermissionMiddleware",
+    "normalize_permission_decision",
 ]

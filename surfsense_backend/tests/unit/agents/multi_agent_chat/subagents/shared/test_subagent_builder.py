@@ -1,4 +1,4 @@
-"""Subagent resilience contract: ``extra_middleware`` reaches the agent chain."""
+"""Subagent resilience contract: ``middleware_stack`` reaches the agent chain."""
 
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ class _AlwaysFailingChatModel(BaseChatModel):
 
 @pytest.mark.asyncio
 async def test_subagent_recovers_when_primary_llm_fails():
-    """Fallback in ``extra_middleware`` must finish the turn when primary raises."""
+    """Fallback in ``middleware_stack`` must finish the turn when primary raises."""
     primary = _AlwaysFailingChatModel()
     fallback = FakeMessagesListChatModel(
         responses=[AIMessage(content="recovered via fallback")]
@@ -79,7 +79,7 @@ async def test_subagent_recovers_when_primary_llm_fails():
         system_prompt="be helpful",
         tools=[],
         model=primary,
-        extra_middleware=[ModelFallbackMiddleware(fallback)],
+        middleware_stack={"fallback": ModelFallbackMiddleware(fallback)},
     )
 
     agent = create_agent(

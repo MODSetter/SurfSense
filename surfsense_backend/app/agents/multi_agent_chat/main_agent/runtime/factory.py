@@ -7,7 +7,6 @@ import time
 from collections.abc import Sequence
 from typing import Any
 
-from deepagents.graph import BASE_AGENT_PROMPT
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
@@ -218,7 +217,7 @@ async def create_multi_agent_chat_deep_agent(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0
     )
 
-    final_system_prompt = system_prompt + "\n\n" + BASE_AGENT_PROMPT
+    final_system_prompt = system_prompt
 
     config_id = agent_config.config_id if agent_config is not None else None
 

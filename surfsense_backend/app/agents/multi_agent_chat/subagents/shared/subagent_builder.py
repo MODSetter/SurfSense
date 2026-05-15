@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any, cast
 
 from deepagents import SubAgent
@@ -20,16 +19,22 @@ def pack_subagent(
     system_prompt: str,
     tools: list[BaseTool],
     model: BaseChatModel | None = None,
-    extra_middleware: Sequence[Any] | None = None,
+    middleware_stack: dict[str, Any] | None = None,
     interrupt_on: dict[str, bool] | None = None,
 ) -> SubAgent:
-    """Pack the route-local pieces passed in into one sub-agent spec."""
+    """Pack the route-local pieces passed in into one sub-agent spec.
+
+    ``middleware_stack`` is the shared subagent middleware stack (see
+    ``build_subagent_middleware_stack``). Every non-``None`` value is
+    prepended to this subagent's middleware list in insertion order.
+    """
     if not system_prompt.strip():
         msg = f"Subagent {name!r}: system_prompt is empty"
         raise ValueError(msg)
 
+    prepended = [m for m in (middleware_stack or {}).values() if m is not None]
     middleware: list[Any] = [
-        *(extra_middleware or []),
+        *prepended,
         PatchToolCallsMiddleware(),
         DedupHITLToolCallsMiddleware(agent_tools=tools),
     ]

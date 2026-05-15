@@ -20,4 +20,5 @@ def build_knowledge_tree_mw(
         search_space_id=search_space_id,
         filesystem_mode=filesystem_mode,
         llm=llm,
+        inject_system_message=False,
     )
