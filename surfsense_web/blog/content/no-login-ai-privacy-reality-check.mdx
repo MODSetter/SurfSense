@@ -1,0 +1,289 @@
+---
+title: "How to Use Claude, ChatGPT, and Gemini Without Signing Up: A Plain-English 2026 Guide"
+description: "Where to use Claude, ChatGPT, Gemini, and other top AI models without making an account. Honest 2026 guide for casual users and developers, covering message caps, what each tool limits, and the privacy reality behind 'no login required'."
+date: "2026-05-15"
+image: "/images/blog/no-login-ai-privacy-reality-check/placeholder-01-no-login-vs-no-tracking-hero.png"
+author: "SurfSense Team"
+authorAvatar: "/logo.png"
+tags:
+  - "AI Without Login"
+  - "Free AI Chat"
+  - "ChatGPT Without Account"
+  - "Claude Without Login"
+  - "Gemini Without Login"
+  - "Claude Incognito"
+  - "Duck.ai"
+  - "Brave Leo"
+  - "Self-Hosted AI"
+featured: false
+---
+
+> **TL;DR for skimmers**
+>
+> You don't need an account to use the best AI models in 2026. Here's the brand-by-brand answer:
+>
+> - **Want ChatGPT?** Open `chatgpt.com` in a fresh tab. Guest mode works, no signup, but the message cap is tight.
+> - **Want Claude?** `claude.ai` itself still wants an account, but Anthropic [shipped incognito mode on April 9, 2026](https://support.claude.com/en/articles/12260368-using-incognito-chats). For zero-account Claude, use [Duck.ai](https://duck.ai) (Claude Haiku 4.5, anonymized) or [Brave Leo](https://brave.com/leo/) inside the Brave browser.
+> - **Want Gemini?** Google requires a Google account on `gemini.google.com`. The closest no-signup path is an open-source aggregator like our own [SurfSense /free](/free), which lists Gemini among its model options without a Google sign-in.
+> - **Want all of them in one place?** Our open-source [SurfSense /free](/free) lets you pick from ChatGPT, Claude, Gemini, DeepSeek, Mistral, Llama, and a rotating list of other models with no account, and you get 500,000 free tokens to spend across any of them. [Duck.ai](https://duck.ai) and [Brave Leo](https://brave.com/leo/) are strong privacy-first alternatives.
+> - **Care about privacy too?** Most "no login" pages still log your IP and prompt content. The exceptions are Brave Leo, Duck.ai, and self-hosted models. Skip to [the privacy honest-talk](#the-privacy-honest-talk-no-login-is-not-the-same-as-anonymous) if that's the part you came for.
+
+<img
+  src="/images/blog/no-login-ai-privacy-reality-check/placeholder-01-no-login-vs-no-tracking-hero.png"
+  alt="Side-by-side illustration of a browser with a 'No login required' badge and the same browser with hidden IP, fingerprint, and prompt-log data being inspected, showing that no login is not the same as no tracking."
+  width={1920}
+  height={1080}
+  style={{ width: '100%', height: 'auto', borderRadius: '12px' }}
+/>
+
+The promise of the search query "AI without login" is simple: someone wants to chat with a top model without making an account. Maybe they're trying it out for the first time. Maybe they don't want another email in their inbox. Maybe they care about privacy. Maybe they're recommending an AI to a class, a parent, or a coworker who isn't going to deal with a signup wall.
+
+Whatever the reason, the answer in 2026 is mostly: **yes, you can do this**, but the options are scattered across product pages, browser features, and a long tail of wrapper sites that look identical. This guide is the cleanest map we could draw, organised so a casual user gets value in the first three minutes and a developer or privacy-conscious reader can keep going deeper.
+
+We're going to cite primary sources for everything that touches privacy or product behavior, so you can verify (and so the article ages well as the products change). The two cluster posts that go deeper into [Claude specifically](/blog/use-claude-without-login-2026) and into [a tested comparison of 12 free AI chats](/blog/tested-no-login-ai-chats-2026) will sit alongside this one when they're ready.
+
+## Where to use each major AI model without an account
+
+Let's go brand by brand. For each one, what works, what the cap looks like, and where to go.
+
+### ChatGPT, with no OpenAI account
+
+The shortest answer: open [chatgpt.com](https://chatgpt.com) in a private/incognito tab. ChatGPT's guest mode lets you send a few prompts and get GPT-5-class output without making an account. There's no specific page to go to; the site detects you're not logged in and gives you a guest experience automatically.
+
+**What it gives you:** the same headline GPT-5 model that paying users start with, for short queries. The interface is the standard ChatGPT UI without the sidebar or chat history panel.
+
+**What it doesn't give you:** file uploads, the Code Interpreter, conversation history (refresh the page and your chat is gone), and no advanced features like custom GPTs or memory.
+
+**The catch:** the guest cap is around 10 messages per 5-hour rolling window on the headline GPT-5-class model ([per OpenAI's current behavior](https://www.smashingapps.com/how-to-use-chatgpt-without-creating-an-account/)). After that you're auto-downgraded to the lighter GPT-5 Mini variant with no hard limit, not blocked by a hard "please sign up" wall. So you can keep going indefinitely on the smaller model, you just can't keep using the headline one.
+
+If GPT-5 quality on a no-signup page matters more than going through OpenAI specifically, [Bing Copilot](https://copilot.microsoft.com) at `copilot.microsoft.com` runs on a GPT-5-class backend, also works without a Microsoft account, and tends to have a more generous cap because Microsoft monetises through Bing search instead of subscriptions.
+
+You can also use **[SurfSense /free](/free)** (full disclosure: this is our own open-source aggregator) which lists ChatGPT among its no-signup models. You get 500,000 free tokens to spend across any model on the page, which is meaningfully more than what guest mode gives you before the signup wall. The source code is on [GitHub](https://github.com/MODSetter/SurfSense) so the privacy and quota behavior is auditable, not just promised.
+
+### Claude, with as little friction as possible
+
+Anthropic does require an account on `claude.ai` itself, but the picture is much better than it was a year ago. There are now four legitimate paths to using Claude without going through the full signup-and-stay-logged-in experience.
+
+**Path 1: Anthropic's incognito mode (existing account required).** Launched April 9, 2026, available on every Claude plan from Free to Enterprise. Click the ghost icon in the upper-right when starting a new chat. The interface gets a black border and an "Incognito chat" label. The conversation is not saved to your chat history, not used by Claude's memory feature, and not used for training. Source: [Anthropic Help Center](https://support.claude.com/en/articles/12260368-using-incognito-chats). This is the right answer if you already have a Claude account and want a temporary, no-trace conversation.
+
+**Path 2: Duck.ai (no account at all).** [duck.ai](https://duck.ai) is DuckDuckGo's chat product. Pick "Claude 4.5 Haiku" from the model dropdown and start chatting. No signup, no email. DuckDuckGo proxies your request through their own servers, so Anthropic never sees your IP. We'll cover the full privacy mechanics [below](#the-privacy-honest-talk-no-login-is-not-the-same-as-anonymous). Per-session cap exists but there's no persistent quota.
+
+**Path 3: Brave Leo (no account, browser-side).** Install the [Brave browser](https://brave.com), open the sidebar, click the Leo icon, pick Claude Haiku from the model dropdown. No signup. Brave doesn't collect identifiers tied to you ([per their docs](https://brave.com/leo/)). The trade-off is that you have to use Brave as your browser, and you're limited to Haiku on the free tier (Sonnet and Opus require Brave Leo Premium at $14.99/month).
+
+**Path 4: Multi-model aggregator pages.** These wrap the Anthropic API and serve Claude responses without an account on Anthropic. The pick we'd recommend (with the obvious disclosure that we made it) is **[SurfSense /free](/free)**: it lists Claude alongside ChatGPT, Gemini, DeepSeek, Mistral, and Llama in one chat UI, the source code is open on [GitHub](https://github.com/MODSetter/SurfSense) so the privacy and quota behavior is verifiable, and the 500K free token quota is shared across any model you pick (so you can spend the budget on Claude if that's what you came for). The closed-source alternatives ([HIX.AI](https://hix.ai/claude), [EaseMate](https://www.easemate.ai/ai-chat/ask-claude), [Eye2.ai](https://eye2.ai), [NoteGPT](https://notegpt.io/ai-models/claude-sonnet-4-5)) work too, but quality and message limits vary widely; we [tested 12 of these](/blog/tested-no-login-ai-chats-2026) in a separate post.
+
+For the developer-specific paths (Claude Code with Bedrock or Vertex AI authentication, the Claude for Open Source program, the `/passes` Guest Pass system), see our [Claude-specific deep dive](/blog/use-claude-without-login-2026).
+
+### Gemini, the awkward one
+
+Google requires a Google account on `gemini.google.com` and there is no first-party guest mode. If you don't already use a Google account, this is the model with the most signup friction.
+
+The realistic options:
+
+- **Sign in with a throwaway Google account.** Imperfect but functional, and Google's free tier on Gemini is genuinely good (15 GB of Drive storage, deep web research, native voice).
+- **Use an aggregator that wraps Gemini.** **[SurfSense /free](/free)** (disclosure: ours, open source on [GitHub](https://github.com/MODSetter/SurfSense)) lists Gemini among its model options and forwards requests to Google's API behind the scenes, so the user-facing chat works with no Google sign-in and no Google identity tied to your prompts. Quality matches the underlying Gemini API tier we pay for. Other wrapper pages do the same thing but few publish their privacy or quota behavior; ours is auditable in source, and the 500K-token quota is shared across any model on the page (not just Gemini).
+- **Pick a different model.** If "I want long-context plus web search without signing in" is the actual need, Brave Leo with Claude Haiku, Bing Copilot, or Perplexity (more on that below) are no-signup substitutes for the most common Gemini use cases.
+
+### Multiple models in one tab
+
+If you want to compare answers from Claude, GPT, Gemini, and others without juggling four browser tabs and four signup walls, three products do this without an account:
+
+- **[SurfSense /free](/free)** (disclosure: ours, open source on [GitHub](https://github.com/MODSetter/SurfSense)) gives you a rotating list of models from OpenAI, Anthropic, Google, DeepSeek, Mistral, and Meta in one chat UI, no account, with **500,000 free tokens shared across any model** on the page (meaningfully more than the per-session caps you'll hit on Duck.ai or Brave Leo before they make you wait). The model lineup updates as new models ship, and the wrapper-layer code is on GitHub so the no-account session, the no-database-storage claim, and the quota behavior are all auditable. Trade-off: when you hit the 500K, you either sign up ($5 free credit, then $1 per $1 of model cost) or self-host.
+- **[Duck.ai](https://duck.ai)** has Claude 4.5 Haiku, Llama 4 Scout, Mistral Small 3 24B, GPT-4o mini, GPT-5 mini, and gpt-oss-120b on the free tier. The big win is genuine IP anonymisation; the trade-off is that everything is the cheaper tier of each model.
+- **[Brave Leo](https://brave.com/leo/)** has Claude Haiku, Llama 3.1 8B, Mixtral, and Qwen 3 14B in the Brave browser sidebar. Best privacy story of the three, but you have to use Brave as your browser.
+
+### Honourable mentions
+
+- **Perplexity** at [perplexity.ai](https://www.perplexity.ai) lets you do search-flavored AI lookups without an account. The interface is built around citations, which is great for fact-finding and not great for chat-style writing or code.
+- **DeepAI** at [deepai.org/chat](https://deepai.org/chat) and **HotBot AI** are older standalone chat products. They work, the model quality is below the frontier, and the privacy story is unremarkable.
+- **HIX.AI, EaseMate, NoteGPT, TalkAI, ChatBot Chat App** are wrapper sites that all do roughly the same thing: front a paid model API and serve it for free without an account. Use them if convenience is the only goal, with the caveat that none of them publicly commit to not retaining your prompts (more on that below).
+
+## What you give up by not making an account
+
+There's a real tradeoff between "skip the signup" and "have a good account experience". For most casual use it's worth it. For some workflows it isn't.
+
+Things you lose without an account:
+
+- **Saved chat history.** Most no-signup paths don't persist your conversation. Refresh the page and it's gone. (Brave Leo is an exception: it stores chat history locally on your device, so it survives between sessions but never leaves your machine. Duck.ai does the same with its "Recent Chats" feature.)
+- **File uploads, in most cases.** ChatGPT guest mode and Claude incognito do not let you attach a PDF or image. Duck.ai and Brave Leo are limited too. Aggregators vary.
+- **Tighter message limits.** ChatGPT guest mode caps fast. Claude on `claude.ai` lets account holders send 30-50 messages per 5-hour rolling window; guest paths are usually tighter.
+- **Cross-device continuity.** No signup means no syncing your conversations from laptop to phone.
+- **Power features.** No memory, no custom instructions, no Code Interpreter, no Anthropic Projects, no Gemini Workspace integrations.
+
+Things you gain:
+
+- **No marketing emails.** You're not on a list. You won't get the "you haven't tried our new feature!" emails or the retargeting ads that follow you around the web.
+- **No persistent identity.** The provider sees a session, not a user. Your prompts aren't tied to your purchase history, your YouTube viewing habits, or any other product the provider runs.
+- **No risk of accidental cross-account leakage.** A coworker who borrows your laptop sees a fresh chat, not your private history.
+
+For a quick prompt or a one-off question, the gains usually win. For sustained work, expect to either tolerate the limits or eventually sign up.
+
+## The privacy honest-talk: "no login" is not the same as "anonymous"
+
+Here's the part that surprises most readers, and the one most listicles dodge: skipping the signup does not make your AI usage anonymous. It removes one identifier (your account) but leaves several others in place. Whether that matters depends entirely on what you're pasting into the chat box.
+
+The honest categorisation of no-signup AI looks like this.
+
+<img
+  src="/images/blog/no-login-ai-privacy-reality-check/placeholder-02-three-tier-pyramid.png"
+  alt="A 3-tier pyramid showing: bottom tier 'genuinely anonymized' with Brave Leo, Duck.ai, and self-hosted Ollama; middle tier 'no account but provider logs' with chatgpt.com guest, Claude incognito, and Bing Copilot; top tier 'wrapper sites that also log you' with HIX, EaseMate, NoteGPT examples."
+  width={1920}
+  height={1080}
+  style={{ width: '100%', height: 'auto', borderRadius: '12px' }}
+/>
+
+**Anonymised tools** (the smallest group). The provider commits to not logging your IP and not retaining your prompts. There are essentially three options today:
+
+- **Brave Leo.** Per [Brave's product page](https://brave.com/leo/): "We do not collect identifiers that can be linked to you (such as IP Address), and no personal data is retained." Translation: the model provider that powers Leo (Anthropic, Mistral, Meta) sees the prompt content but not your IP.
+- **Duck.ai.** Per [DuckDuckGo's documentation](https://duckduckgo.com/duckduckgo-help-pages/duckai/): DuckDuckGo "anonymizes" your request by stripping your IP and replacing it with their own before forwarding to the underlying model. They don't store prompts, don't train on your data, and your "Recent Chats" are stored locally on your device.
+- **Self-hosted open-weights models.** Llama 3.3, Qwen 2.5, Mistral Large, DeepSeek R1 running locally on your laptop via [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai). The model never leaves your machine. The only entity that sees your data is you. The "How to" is in [the section below](#for-developers-and-the-privacy-serious-self-host-in-5-minutes).
+
+**Account-free first-party tools.** No signup required, but the provider running the model still sees your IP, your prompt text, and your session metadata. The standard examples:
+
+- **`chatgpt.com` guest mode** is OpenAI logging your prompts directly. Their privacy policy applies. PCMag's [ChatGPT Tracks More Than You Think](https://www.pcmag.com/explainers/chatgpt-tracks-more-than-you-think-how-to-lock-down-your-privacy) is a good summary of what this looks like.
+- **Claude incognito mode** is Anthropic logging your prompts, with the specific feature carve-out that incognito chats aren't saved to your visible history, aren't used by Claude's memory, and aren't used for training. **The important caveat**: per [Anthropic's docs](https://support.claude.com/en/articles/12260368-using-incognito-chats), incognito chats "are retained for either 30 days (default), or longer in accordance with your organization's custom data retention setting (available for Enterprise plans)." Not in your history, not actually deleted either.
+- **Bing Copilot** is Microsoft logging your prompts. Standard Microsoft privacy policy applies.
+
+**Wrapper sites** that don't require an account but ALSO log you on top of the underlying provider's logging. Most of the "free Claude!" and "free GPT!" pages from the search results are in this group. They serve a real model, but they're a server in the middle that has its own logs, and most of them don't publicly commit to not retaining your prompts. Convenient. Not private.
+
+When you're evaluating any "free [Brand] without login" page, the question to ask is: *does their privacy page explicitly say they don't store prompts and don't pass identifying information to the model provider?* If the answer is just "no signup required!" with nothing about logging, you're in the wrapper category.
+
+**Open-source wrappers** are a half-step better than the closed ones, and worth calling out as a separate category. Our own [SurfSense /free](/free) is in this bucket: the source code that handles your prompt is on [GitHub](https://github.com/MODSetter/SurfSense), so the claims about anonymous sessions, no persistent identity, and no prompt retention are auditable rather than promised. That doesn't make it equivalent to Brave Leo or Duck.ai (the model provider behind /free still receives the prompt content), but it does mean you can verify the wrapper layer doesn't add its own logging on top. If you're going to use a wrapper anyway, prefer one whose code you can read.
+
+### What every public AI provider logs (with citations)
+
+This is the reference table the wrapper sites don't include. Sources are linked in each cell that needs one.
+
+<img
+  src="/images/blog/no-login-ai-privacy-reality-check/placeholder-03-what-providers-log-conceptual.png"
+  alt="A comparison illustration showing two flows: a 'standard no-login AI' lane where data flows past IP, prompt, and session logging stages into a tall stack of provider logs; and an 'anonymized AI' lane where a shield strips the IP before the data reaches a tiny single-sheet record."
+  width={1920}
+  height={1080}
+  style={{ width: '100%', height: 'auto', borderRadius: '12px' }}
+/>
+
+| Service | IP logged | Prompt content logged | Used for training | Retention |
+|---|---|---|---|---|
+| ChatGPT (guest, no login) | Yes | Yes | OpenAI may use guest prompts for service improvement | Per OpenAI privacy policy |
+| Claude (logged-in, normal) | Yes | Yes | No on Free/Pro/Max per [Anthropic privacy center](https://privacy.claude.com); stricter on Team/Enterprise | Per account settings |
+| Claude (incognito) | Yes | Yes (but not in your history) | No, per [Anthropic docs](https://support.claude.com/en/articles/12260368-using-incognito-chats) | 30 days default, longer for Enterprise |
+| Gemini (Google account) | Yes | Yes | Per Google account settings | Per Google account settings |
+| Bing Copilot (no account) | Yes | Yes | Per Microsoft privacy policy | Per Microsoft privacy policy |
+| Brave Leo | **No** ("no identifiers linkable to you" per [brave.com/leo](https://brave.com/leo/)) | Forwarded to model, not retained by Brave | No, per Brave docs | None per Brave docs |
+| Duck.ai | **No** (DuckDuckGo strips IP before forwarding) | Forwarded to model, not retained by DuckDuckGo | No, per [DuckDuckGo docs](https://duckduckgo.com/duckduckgo-help-pages/duckai/) | Local-only chat history |
+| Self-hosted Ollama | n/a (local only) | n/a (local only) | n/a | None unless you save it |
+| Wrapper sites (HIX, EaseMate, NoteGPT, etc.) | Yes (by wrapper) + downstream provider | Yes (by both wrapper and provider) | Depends on wrapper TOS | Depends on wrapper TOS |
+
+A few takeaways from the table that the existing search results never make explicit:
+
+- **Brave Leo and Duck.ai are the only mainstream products that publicly commit to not logging your IP.** They achieve this with a server-side proxy (DuckDuckGo) or a privacy-first browser pipeline (Brave). The model provider never sees your real IP; it sees the proxy's.
+- **Claude's incognito mode is honest about its limits.** It's still retained for 30 days. That's a thoughtful safety design, not an anonymity promise.
+- **Wrapper sites add a layer of logging on top of the model provider's logging.** That's strictly worse for privacy than going to the model provider's first-party guest mode, even if it removes the account requirement.
+
+## Pick the right tool for what you're actually doing
+
+The right tool depends on what you're pasting into the chat box. Three rough buckets cover almost every reader.
+
+<img
+  src="/images/blog/no-login-ai-privacy-reality-check/placeholder-04-decision-tree-by-use-case.png"
+  alt="A decision tree showing which no-login AI tool to pick based on what you are pasting: casual content can use any tool, sensitive code or customer data needs anonymized tools or self-hosting, and regulated data needs enterprise contracts or self-hosting only."
+  width={1920}
+  height={1080}
+  style={{ width: '100%', height: 'auto', borderRadius: '12px' }}
+/>
+
+### If you're a casual user with non-sensitive prompts
+
+Homework explanations, recipe ideas, brainstorming, drafts of emails, quick summaries of public articles, code from public GitHub repos. Your prompt isn't interesting to anyone with subpoena power. Privacy isn't really the constraint; convenience and model quality are.
+
+**What to use:** anything in this guide. Pick by which model you want.
+
+- For ChatGPT-like answers, `chatgpt.com` guest mode or Bing Copilot.
+- For Claude, [Duck.ai](https://duck.ai) (Haiku, anonymised) or an aggregator like [SurfSense /free](/free) which lists Claude among its model options.
+- For multi-model comparison in one tab, [SurfSense /free](/free) or [Duck.ai](https://duck.ai).
+
+### If you work with code, internal docs, or customer data
+
+Code that includes API keys, internal class names, or business logic; documents your employer hasn't published; conversations that involve customer details. The IP and the prompt content matter here.
+
+**What to use:** the anonymised category only. Brave Leo, Duck.ai, or a self-hosted model. If you must use a first-party guest mode, redact ruthlessly before pasting. Avoid wrapper sites for this kind of prompt.
+
+### If you're handling regulated or contractually sensitive data
+
+PHI under HIPAA, attorney-client privileged matter, financial data under SOX or GLBA, EU personal data under GDPR, anything covered by an NDA. The legal exposure is severe and the answer is not a free chat product.
+
+**What to use:** self-host an open-weights model on hardware you control, or use an enterprise contract with a BAA / DPA in place (Anthropic Enterprise, OpenAI Enterprise, Google Cloud Vertex AI). Public free chat is not an acceptable channel here, regardless of whether it asks for a login.
+
+## For developers and the privacy-serious: self-host in 5 minutes
+
+This section is for technical readers. If you're a casual user, you can skip it; the answers above are enough.
+
+Self-hosting an open-weights model is the only path where "private" means private in the strict sense. Your prompt content never leaves your machine. There is no provider, no logging, no retention, no training-on-your-data risk. And it's much easier than it used to be.
+
+1. Install [Ollama](https://ollama.com) (one-click installer for macOS, Windows, Linux).
+2. Open a terminal and run:
+   ```bash
+   ollama run llama3.3:8b
+   ```
+3. The first run downloads the model (about 5 GB). Subsequent runs start instantly.
+4. Type a prompt at the `>>>` prompt. You're chatting with a local model.
+
+Quality is genuinely competitive for most casual use. Llama 3.3 8B handles writing, summarisation, and general Q&A well. For better quality, swap to `qwen2.5:14b` or `mistral-small:24b` if you have 16+ GB of RAM. For coding-specific work, `deepseek-coder-v2` is the current open-weights leader.
+
+If you want a graphical interface instead of a terminal, install [LM Studio](https://lmstudio.ai). For a hosted-but-self-controlled experience, the open-source SurfSense stack on the [GitHub repo](https://github.com/MODSetter/SurfSense) gives you the same chat UI with the same model options, running on your own servers.
+
+For the deeper performance trade-offs between local and frontier models on real document Q&A, our [agentic RAG vs long-context LLMs benchmark](/blog/agentic-rag-vs-long-context-llms-benchmark) has the numbers.
+
+## FAQ
+
+### Can I use ChatGPT without an account?
+
+Yes. Open `chatgpt.com` in a private tab and you'll get guest mode automatically. You get around 10 messages on the headline GPT-5-class model per 5-hour rolling window, after which you're auto-switched to a lighter GPT-5 Mini variant with no hard limit (not blocked by a hard signup wall). No file uploads, no chat history, no Code Interpreter, but for short queries the model quality is the same as the paid first-tier experience.
+
+### Can I use Claude without an account?
+
+Not on `claude.ai` itself, which still requires signup. The closest no-account paths are [Duck.ai](https://duck.ai) (Claude Haiku 4.5, free, anonymised), [Brave Leo](https://brave.com/leo/) (Claude Haiku in the Brave browser sidebar), and aggregator pages like our open-source [SurfSense /free](/free), which lists Claude among the models you can pick with no Anthropic account and a 500K free token budget shared across the whole page. For more, see our [Claude-specific guide](/blog/use-claude-without-login-2026).
+
+### Can I use Gemini without a Google account?
+
+Not on Google's own product pages. Aggregator sites like our open-source [SurfSense /free](/free) include Gemini among the models you can pick and forward requests to the Gemini API behind the scenes, so the user-facing chat works without a Google sign-in. If you specifically want what Gemini is best at (long-context, web research, Workspace integration), there isn't a perfect Google-free substitute, though Brave Leo with Claude Haiku and Perplexity cover most use cases.
+
+### What is Claude incognito mode?
+
+A feature [Anthropic launched on April 9, 2026](https://support.claude.com/en/articles/12260368-using-incognito-chats), available on every Claude plan from Free to Enterprise. Click the ghost icon when starting a new chat. The conversation isn't saved to your history, isn't pulled into Claude's memory, and isn't used for training. It still requires an existing Claude account, and the conversation is retained for 30 days for safety. Useful if you have a Claude account and want a temporary one-off chat.
+
+### Is using AI without an account actually private?
+
+Not by itself. "No login" removes one identifier (your account), but the model provider still sees your IP and the content of your prompt. For actual anonymity, use Brave Leo, Duck.ai, or a self-hosted open-weights model. The privacy section above explains the categories in detail.
+
+### Does ChatGPT guest mode keep my data private?
+
+Less than logged-in mode, but not by much. OpenAI still logs your IP and prompt content. Logged-out users have fewer opt-out controls than logged-in free-tier users. If your prompt is something you'd be uncomfortable seeing on someone else's screen, treat ChatGPT guest mode as recorded.
+
+### What's the most private AI chatbot in 2026?
+
+A self-hosted open-weights model running locally via Ollama or LM Studio. Among hosted options, Brave Leo and Duck.ai are the two that publicly commit to not logging your IP and not retaining your prompts.
+
+### Are wrapper sites that say "free Claude" or "free GPT" safe?
+
+They're convenient, not private. Most "free [Brand] without login" pages are servers that wrap the underlying API and serve responses for free. They don't ask you to sign up, but they're a third party in the middle that has their own logs, on top of the model provider's logs. Use them for casual prompts you'd be fine with showing up in someone else's database.
+
+### What's the difference between Duck.ai and a regular ChatGPT wrapper?
+
+Duck.ai is the only mainstream chat product that publicly documents an end-to-end anonymisation model: DuckDuckGo proxies your request, strips your IP, doesn't retain prompts, and doesn't train on your data. Standard wrapper sites do none of these things. They're just "no signup form".
+
+### Is Brave Leo really free with no login?
+
+Yes. Per [Brave's documentation](https://brave.com/leo/), no account or signup is required for the free tier, and Brave doesn't collect identifiers tied to you. The free tier includes Claude Haiku, Llama 3.1 8B, Mixtral, and Qwen 3 14B. Premium ($14.99/month) adds Claude Sonnet 4 and DeepSeek R1.
+
+### How can a developer avoid the browser login flow entirely?
+
+For Anthropic specifically: configure Claude Code to authenticate via Amazon Bedrock, Google Vertex AI, or Microsoft Foundry per the [Claude Code authentication docs](https://code.claude.com/docs/en/authentication). No browser login required, IAM-only auth. For OpenAI and Google, the standard answer is API keys with cloud-provider IAM and IP allow-listing. For full local control, the [self-hosting section](#for-developers-and-the-privacy-serious-self-host-in-5-minutes) covers Ollama and LM Studio.
+
+## The bottom line
+
+The question "can I use a top AI model without an account" has a much better answer in 2026 than it did a year ago. Anthropic added incognito mode, Duck.ai added free Claude Haiku with real anonymisation, Brave Leo grew into a credible browser-side option, and the multi-model aggregators got cheaper to run.
+
+If you just want to chat: pick the brand you want, use the path from the relevant section above, and be done. If you care about privacy: stick to Brave Leo, Duck.ai, or a self-hosted model, and remember that "no signup" alone doesn't make a tool anonymous. If you're handling sensitive or regulated data: don't use a free chat product at all, use an enterprise contract or run the model yourself.
+
+And if you want a single no-account chat hub that lets you pick from ChatGPT, Claude, Gemini, DeepSeek, Mistral, Llama, and a rotating list of others under one URL with the wrapper-layer code open on [GitHub](https://github.com/MODSetter/SurfSense), that's exactly what we built **[SurfSense /free](/free)** for. The pitch: 500,000 free tokens shared across any model on the page, no account, anonymous sessions not stored in any database, and the model lineup updates whenever new models ship. It's not the right answer for every reader (if you need IP anonymisation specifically, Brave Leo or Duck.ai is still the better fit), but it is a genuine, honest pick, and we'd rather list it confidently than pretend we don't make it. Whichever you choose, the goal of this guide was to give you the honest map first.

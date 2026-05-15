@@ -1,3 +1,6 @@
+packages:
+  - "."
+
 allowBuilds:
   "@parcel/watcher": true
   "@rocicorp/zero-sqlite3": true
