@@ -35,9 +35,7 @@ function SearchIcon({ className }: { className?: string }) {
 }
 
 export function BlogWithSearchMagazine({ blogs }: { blogs: BlogEntry[] }) {
-	const featured = blogs[0];
-
-	if (!featured) {
+	if (blogs.length === 0) {
 		return (
 			<div className="relative overflow-hidden bg-neutral-50 px-4 md:px-8 dark:bg-neutral-950">
 				<Container className="relative pt-12 pb-24 md:pt-20">
@@ -46,6 +44,17 @@ export function BlogWithSearchMagazine({ blogs }: { blogs: BlogEntry[] }) {
 			</div>
 		);
 	}
+
+	// `blogs` arrives pre-sorted from the server: explicitly featured posts
+	// first (ordered by `featured_order` asc, then date desc), then the rest
+	// by date desc. If nothing is explicitly featured, fall back to treating
+	// the newest post as the cover so the layout never feels empty up top.
+	// `MagazineSearchGrid` re-filters using `heroSlugs` so the hero/featured
+	// posts never duplicate into the archive grid.
+	const explicitlyFeatured = blogs.filter((b) => b.featured);
+	const heroBlogs = explicitlyFeatured.length > 0 ? explicitlyFeatured : blogs.slice(0, 1);
+	const heroSlugs = new Set(heroBlogs.map((b) => b.slug));
+	const [coverStory, ...secondaryFeatured] = heroBlogs;
 
 	return (
 		<div className="relative overflow-hidden bg-neutral-50 px-4 pt-20 md:px-8 dark:bg-neutral-950">
@@ -57,11 +66,33 @@ export function BlogWithSearchMagazine({ blogs }: { blogs: BlogEntry[] }) {
 					</h1>
 				</header>
 
-				<MagazineFeatured blog={featured} />
+				<MagazineFeatured blog={coverStory} />
 
-				<MagazineSearchGrid blogs={blogs} featuredSlug={featured.slug} />
+				{secondaryFeatured.length > 0 ? <MoreFeatured blogs={secondaryFeatured} /> : null}
+
+				<MagazineSearchGrid blogs={blogs} excludedSlugs={heroSlugs} />
 			</Container>
 		</div>
+	);
+}
+
+function MoreFeatured({ blogs }: { blogs: BlogEntry[] }) {
+	return (
+		<section aria-labelledby="more-featured-heading" className="mb-14">
+			<h2
+				id="more-featured-heading"
+				className="mb-6 font-serif text-2xl font-medium text-neutral-900 dark:text-neutral-100"
+			>
+				More featured
+			</h2>
+			<ul className="grid gap-6 sm:grid-cols-2">
+				{blogs.map((blog) => (
+					<li key={blog.slug}>
+						<MagazineCard blog={blog} />
+					</li>
+				))}
+			</ul>
+		</section>
 	);
 }
 
@@ -112,10 +143,11 @@ function MagazineFeatured({ blog }: { blog: BlogEntry }) {
 
 function MagazineSearchGrid({
 	blogs: allBlogs,
-	featuredSlug,
+	excludedSlugs,
 }: {
 	blogs: BlogEntry[];
-	featuredSlug: string;
+	/** Slugs already shown above the archive (cover story + "More featured"). */
+	excludedSlugs: Set<string>;
 }) {
 	const [search, setSearch] = useState("");
 
@@ -128,12 +160,15 @@ function MagazineSearchGrid({
 	);
 
 	const gridItems = useMemo(() => {
+		// When the reader is searching, surface every match (including
+		// featured posts they may be looking for); otherwise hide the posts
+		// that are already rendered as featured above the archive.
 		const results = search.trim() ? searcher.search(search) : allBlogs;
 		if (search.trim()) {
 			return results;
 		}
-		return results.filter((b) => b.slug !== featuredSlug);
-	}, [search, searcher, allBlogs, featuredSlug]);
+		return results.filter((b) => !excludedSlugs.has(b.slug));
+	}, [search, searcher, allBlogs, excludedSlugs]);
 
 	return (
 		<section aria-labelledby="archive-heading">

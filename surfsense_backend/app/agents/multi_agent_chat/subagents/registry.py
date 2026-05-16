@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any, Protocol
 
 from deepagents import SubAgent
 from langchain_core.language_models import BaseChatModel
+from langchain_core.tools import BaseTool
 
 from app.agents.multi_agent_chat.constants import (
     SUBAGENT_TO_REQUIRED_CONNECTOR_MAP,
 )
 from app.agents.multi_agent_chat.subagents.builtins.deliverables.agent import (
     build_subagent as build_deliverables_subagent,
+)
+from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.agent import (
+    build_subagent as build_knowledge_base_subagent,
 )
 from app.agents.multi_agent_chat.subagents.builtins.memory.agent import (
     build_subagent as build_memory_subagent,
@@ -68,9 +71,7 @@ from app.agents.multi_agent_chat.subagents.connectors.teams.agent import (
 from app.agents.multi_agent_chat.subagents.shared.md_file_reader import (
     read_md_file,
 )
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
-    ToolsPermissions,
-)
+from app.agents.multi_agent_chat.subagents.shared.spec import SurfSenseSubagentSpec
 
 
 class SubagentBuilder(Protocol):
@@ -79,9 +80,9 @@ class SubagentBuilder(Protocol):
         *,
         dependencies: dict[str, Any],
         model: BaseChatModel | None = None,
-        extra_middleware: Sequence[Any] | None = None,
-        extra_tools_bucket: ToolsPermissions | None = None,
-    ) -> SubAgent: ...
+        middleware_stack: dict[str, Any] | None = None,
+        mcp_tools: list[BaseTool] | None = None,
+    ) -> SurfSenseSubagentSpec: ...
 
 
 SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
@@ -95,6 +96,7 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "gmail": build_gmail_subagent,
     "google_drive": build_google_drive_subagent,
     "jira": build_jira_subagent,
+    "knowledge_base": build_knowledge_base_subagent,
     "linear": build_linear_subagent,
     "luma": build_luma_subagent,
     "memory": build_memory_subagent,
@@ -150,7 +152,7 @@ def _filter_disabled_tools_in_place(
     spec: SubAgent,
     disabled_names: frozenset[str],
 ) -> None:
-    """Drop UI-disabled tools from ``spec["tools"]`` and ``spec["interrupt_on"]``."""
+    """Drop UI-disabled tools from ``spec["tools"]``."""
     if not disabled_names:
         return
     tools = spec.get("tools")  # type: ignore[typeddict-item]
@@ -158,21 +160,30 @@ def _filter_disabled_tools_in_place(
         spec["tools"] = [  # type: ignore[typeddict-unknown-key]
             t for t in tools if getattr(t, "name", None) not in disabled_names
         ]
-    interrupt_on = spec.get("interrupt_on")  # type: ignore[typeddict-item]
-    if isinstance(interrupt_on, dict):
-        spec["interrupt_on"] = {  # type: ignore[typeddict-unknown-key]
-            k: v for k, v in interrupt_on.items() if k not in disabled_names
-        }
+
+
+def _inject_ask_kb_tool_in_place(spec: SubAgent, ask_kb_tool: BaseTool) -> None:
+    """Append ``ask_knowledge_base`` to every non-KB spec (skips a self-call)."""
+    if spec["name"] == "knowledge_base":
+        return
+    tools = spec.get("tools")  # type: ignore[typeddict-item]
+    if not isinstance(tools, list):
+        spec["tools"] = [ask_kb_tool]  # type: ignore[typeddict-unknown-key]
+        return
+    if any(getattr(t, "name", None) == ask_kb_tool.name for t in tools):
+        return
+    tools.append(ask_kb_tool)
 
 
 def build_subagents(
     *,
     dependencies: dict[str, Any],
     model: BaseChatModel | None = None,
-    extra_middleware: Sequence[Any] | None = None,
-    mcp_tools_by_agent: dict[str, ToolsPermissions] | None = None,
+    middleware_stack: dict[str, Any] | None = None,
+    mcp_tools_by_agent: dict[str, list[BaseTool]] | None = None,
     exclude: list[str] | None = None,
     disabled_tools: list[str] | None = None,
+    ask_kb_tool: BaseTool | None = None,
 ) -> list[SubAgent]:
     """Build registry subagents; skip memory/research; skip names in exclude."""
     mcp = mcp_tools_by_agent or {}
@@ -185,12 +196,15 @@ def build_subagents(
         if name in excluded:
             continue
         builder = SUBAGENT_BUILDERS_BY_NAME[name]
-        spec = builder(
+        result = builder(
             dependencies=dependencies,
             model=model,
-            extra_middleware=extra_middleware,
-            extra_tools_bucket=mcp.get(name),
+            middleware_stack=middleware_stack,
+            mcp_tools=mcp.get(name),
         )
+        spec = result.spec
         _filter_disabled_tools_in_place(spec, disabled_names)
+        if ask_kb_tool is not None:
+            _inject_ask_kb_tool_in_place(spec, ask_kb_tool)
         specs.append(spec)
     return specs

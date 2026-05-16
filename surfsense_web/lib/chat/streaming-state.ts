@@ -565,7 +565,7 @@ export type SSEEvent =
 			 * the assistant-side row of the current turn. The frontend
 			 * renames its optimistic ``msg-assistant-XXX`` placeholder
 			 * id, migrates the local ``tokenUsageStore`` and
-			 * ``pendingInterrupt`` references, and binds the running
+			 * ``pendingInterrupts`` entries, and binds the running
 			 * mutable ``assistantMsgId`` closure variable to the
 			 * canonical id for the rest of the stream.
 			 */

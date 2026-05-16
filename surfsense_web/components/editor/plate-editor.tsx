@@ -42,7 +42,7 @@ export interface PlateEditorProps {
 	editorVariant?: "default" | "demo" | "fullWidth" | "none";
 	/** Additional className for the container */
 	className?: string;
-	/** Save callback. When provided, ⌘+S / Ctrl+S shortcut is registered and save button appears. */
+	/** Save callback. When provided, ⌘+Shift+S / Ctrl+Shift+S shortcut is registered (avoiding the browser's ⌘+S / Ctrl+S "Save Page As" conflict) and a save button appears in the toolbar. */
 	onSave?: () => void;
 	/** Whether there are unsaved changes */
 	hasUnsavedChanges?: boolean;
@@ -170,16 +170,10 @@ export function PlateEditor({
 			: markdown
 				? (editor) => {
 						if (!enableCitations) {
-							return safeDeserializeMarkdown(
-								editor,
-								escapeMdxExpressions(markdown)
-							) as Value;
+							return safeDeserializeMarkdown(editor, escapeMdxExpressions(markdown)) as Value;
 						}
 						const { content: rewritten, urlMap } = preprocessCitationMarkdown(markdown);
-						const value = safeDeserializeMarkdown(
-							editor,
-							escapeMdxExpressions(rewritten)
-						);
+						const value = safeDeserializeMarkdown(editor, escapeMdxExpressions(rewritten));
 						return injectCitationNodes(value, urlMap) as Value;
 					}
 				: undefined,
@@ -203,10 +197,7 @@ export function PlateEditor({
 			let newValue: Descendant[];
 			if (enableCitations) {
 				const { content: rewritten, urlMap } = preprocessCitationMarkdown(markdown);
-				const deserialized = safeDeserializeMarkdown(
-					editor,
-					escapeMdxExpressions(rewritten)
-				);
+				const deserialized = safeDeserializeMarkdown(editor, escapeMdxExpressions(rewritten));
 				newValue = injectCitationNodes(deserialized, urlMap);
 			} else {
 				newValue = safeDeserializeMarkdown(editor, escapeMdxExpressions(markdown));

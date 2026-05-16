@@ -23,7 +23,9 @@ from .tool_call_limit import build_tool_call_limit_mw
 
 
 @dataclass(frozen=True)
-class ResilienceBundle:
+class ResilienceMiddlewares:
+    """The four resilience middleware instances, any of which may be ``None`` when disabled by flags."""
+
     retry: RetryAfterMiddleware | None
     fallback: ScopedModelFallbackMiddleware | None
     model_call_limit: ModelCallLimitMiddleware | None
@@ -42,8 +44,8 @@ class ResilienceBundle:
         ]
 
 
-def build_resilience_bundle(flags: AgentFeatureFlags) -> ResilienceBundle:
-    return ResilienceBundle(
+def build_resilience_middlewares(flags: AgentFeatureFlags) -> ResilienceMiddlewares:
+    return ResilienceMiddlewares(
         retry=build_retry_mw(flags),
         fallback=build_fallback_mw(flags),
         model_call_limit=build_model_call_limit_mw(flags),

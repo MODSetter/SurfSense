@@ -1,0 +1,1022 @@
+{
+  "benchmark": "parser_compare",
+  "extra": {
+    "active_arms": [
+      "native_pdf",
+      "azure_basic_lc",
+      "azure_premium_lc",
+      "llamacloud_basic_lc",
+      "llamacloud_premium_lc",
+      "surfsense_agentic"
+    ],
+    "agent_llm_id": -5138454,
+    "concurrency": 2,
+    "llm_model": "anthropic/claude-sonnet-4.5",
+    "n_pdfs": 30,
+    "n_questions": 171,
+    "no_mentions": false,
+    "pdf_engine": "native",
+    "preprocess_tariff": {
+      "basic_per_1k_pages": 1.0,
+      "premium_per_1k_pages": 10.0
+    },
+    "provider_model": "anthropic/claude-sonnet-4.5",
+    "scenario": "head-to-head",
+    "vision_provider_model": "anthropic/claude-sonnet-4.5"
+  },
+  "metrics": {
+    "n_questions": 171,
+    "n_unique_pdfs": 30,
+    "per_arm": {
+      "azure_basic_lc": {
+        "accuracy": 0.543859649122807,
+        "ci_high": 0.6167298584106974,
+        "ci_low": 0.46906215053943956,
+        "f1_mean": 0.5655925434323409,
+        "input_tokens_mean": 31882.88888888889,
+        "latency_ms_median": 7094,
+        "latency_ms_p95": 11984,
+        "llm_cost_per_q": 0.09939822807017544,
+        "n": 171,
+        "n_correct": 93,
+        "n_total": 171,
+        "output_tokens_mean": 249.97076023391813,
+        "preprocess_cost_per_q": 0.006771929824561403,
+        "preprocess_cost_total": 1.158,
+        "preprocess_label": "basic tier ($/basic/page = $0.0010)",
+        "preprocess_per_page_usd": 0.001,
+        "total_cost_per_q": 0.10617015789473684
+      },
+      "azure_premium_lc": {
+        "accuracy": 0.5672514619883041,
+        "ci_high": 0.6392285382926538,
+        "ci_low": 0.4923192087642231,
+        "f1_mean": 0.5956074243139755,
+        "input_tokens_mean": 39786.783625731,
+        "latency_ms_median": 6858,
+        "latency_ms_p95": 11608,
+        "llm_cost_per_q": 0.13734295321637427,
+        "n": 171,
+        "n_correct": 97,
+        "n_total": 171,
+        "output_tokens_mean": 223.39766081871346,
+        "preprocess_cost_per_q": 0.06771929824561404,
+        "preprocess_cost_total": 11.58,
+        "preprocess_label": "premium tier ($/premium/page = $0.0100)",
+        "preprocess_per_page_usd": 0.01,
+        "total_cost_per_q": 0.2050622514619883
+      },
+      "llamacloud_basic_lc": {
+        "accuracy": 0.5029239766081871,
+        "ci_high": 0.5769717486785515,
+        "ci_low": 0.42874771858479094,
+        "f1_mean": 0.5323894603029942,
+        "input_tokens_mean": 31493.333333333332,
+        "latency_ms_median": 7125,
+        "latency_ms_p95": 11922,
+        "llm_cost_per_q": 0.09812833333333335,
+        "n": 171,
+        "n_correct": 86,
+        "n_total": 171,
+        "output_tokens_mean": 243.22222222222223,
+        "preprocess_cost_per_q": 0.006771929824561403,
+        "preprocess_cost_total": 1.158,
+        "preprocess_label": "basic tier ($/basic/page = $0.0010)",
+        "preprocess_per_page_usd": 0.001,
+        "total_cost_per_q": 0.10490026315789475
+      },
+      "llamacloud_premium_lc": {
+        "accuracy": 0.5847953216374269,
+        "ci_high": 0.6559957259750998,
+        "ci_low": 0.5098688246618316,
+        "f1_mean": 0.6109434348065313,
+        "input_tokens_mean": 39130.666666666664,
+        "latency_ms_median": 6844,
+        "latency_ms_p95": 12656,
+        "llm_cost_per_q": 0.12080787719298246,
+        "n": 171,
+        "n_correct": 100,
+        "n_total": 171,
+        "output_tokens_mean": 227.7251461988304,
+        "preprocess_cost_per_q": 0.06771929824561404,
+        "preprocess_cost_total": 11.58,
+        "preprocess_label": "premium tier ($/premium/page = $0.0100)",
+        "preprocess_per_page_usd": 0.01,
+        "total_cost_per_q": 0.18852717543859648
+      },
+      "native_pdf": {
+        "accuracy": 0.47953216374269003,
+        "ci_high": 0.5540343616319661,
+        "ci_low": 0.40592936752463654,
+        "f1_mean": 0.5040888253091556,
+        "input_tokens_mean": 65772.61988304094,
+        "latency_ms_median": 29484,
+        "latency_ms_p95": 60530,
+        "llm_cost_per_q": 0.25520109356725146,
+        "n": 171,
+        "n_correct": 82,
+        "n_total": 171,
+        "output_tokens_mean": 209.09941520467837,
+        "preprocess_cost_per_q": 0.0,
+        "preprocess_cost_total": 0.0,
+        "preprocess_label": "n/a (PDF attached natively)",
+        "preprocess_per_page_usd": 0.0,
+        "total_cost_per_q": 0.25520109356725146
+      },
+      "surfsense_agentic": {
+        "accuracy": 0.5321637426900585,
+        "ci_high": 0.6054202002109953,
+        "ci_low": 0.4574939396857719,
+        "f1_mean": 0.5430214722229827,
+        "input_tokens_mean": 0.0,
+        "latency_ms_median": 52827,
+        "latency_ms_p95": 164109,
+        "llm_cost_per_q": 0.0,
+        "n": 171,
+        "n_correct": 91,
+        "n_total": 171,
+        "output_tokens_mean": 0.0,
+        "preprocess_cost_per_q": 0.06771929824561404,
+        "preprocess_cost_total": 11.58,
+        "preprocess_label": "premium tier (ingested by SurfSense at processing_mode=premium + vision_llm=on)",
+        "preprocess_per_page_usd": 0.01,
+        "total_cost_per_q": 0.06771929824561404
+      }
+    },
+    "per_pdf": {
+      "05-03-18-political-release.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 17
+      },
+      "0b85477387a9d0cc33fca0f4becaa0e5.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 0.888888888888889
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 0.888888888888889
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.7272727272727273
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 0.888888888888889
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 0.888888888888889
+          },
+          "surfsense_agentic": {
+            "correct": false,
+            "f1": 0.28571428571428575
+          }
+        },
+        "pages": 16
+      },
+      "0e94b4197b10096b1f4c699701570fbf.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 15
+      },
+      "11-21-16-Updated-Post-Election-Release.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.6666666666666666
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.6666666666666666
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 45
+      },
+      "12-15-15-ISIS-and-terrorism-release-final.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 28
+      },
+      "2005.12872v3.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 26
+      },
+      "2021-Apple-Catalog.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "azure_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": false,
+            "f1": 0.0
+          }
+        },
+        "pages": 55
+      },
+      "2023.acl-long.386.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "azure_premium_lc": {
+            "correct": false,
+            "f1": 0.5
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.5
+          },
+          "surfsense_agentic": {
+            "correct": false,
+            "f1": 0.5
+          }
+        },
+        "pages": 24
+      },
+      "2023.findings-emnlp.248.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 19
+      },
+      "2024.ug.eprospectus.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.8
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 27
+      },
+      "2210.02442v1.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "azure_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": false,
+            "f1": 0.0
+          }
+        },
+        "pages": 24
+      },
+      "2303.05039v2.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 9
+      },
+      "2303.08559v2.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 30
+      },
+      "2305.13186v3.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.5
+          },
+          "azure_premium_lc": {
+            "correct": false,
+            "f1": 0.5
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": false,
+            "f1": 0.0
+          }
+        },
+        "pages": 27
+      },
+      "2305.14160v4.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 16
+      },
+      "2306.05425v1.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "azure_premium_lc": {
+            "correct": false,
+            "f1": 0.3333333333333333
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.4
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.4
+          },
+          "surfsense_agentic": {
+            "correct": false,
+            "f1": 0.0
+          }
+        },
+        "pages": 22
+      },
+      "2307.09288v2.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": false,
+            "f1": 0.0
+          }
+        },
+        "pages": 77
+      },
+      "2309.17421v2.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "azure_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 166
+      },
+      "2310.05634v2.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.28571428571428575
+          },
+          "azure_premium_lc": {
+            "correct": false,
+            "f1": 0.5
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.6
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": false,
+            "f1": 0.0
+          }
+        },
+        "pages": 24
+      },
+      "2310.07609v1.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 10
+      },
+      "2310.09158v1.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 23
+      },
+      "2311.16502v3.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 117
+      },
+      "2312.04350v3.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 28
+      },
+      "2312.09390v1.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.11764705882352941
+          },
+          "azure_premium_lc": {
+            "correct": false,
+            "f1": 0.25
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.2222222222222222
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.16666666666666666
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.11764705882352941
+          },
+          "surfsense_agentic": {
+            "correct": false,
+            "f1": 0.16666666666666666
+          }
+        },
+        "pages": 49
+      },
+      "2312.10997v5.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 21
+      },
+      "2401.18059v1.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": false,
+            "f1": 0.28571428571428575
+          },
+          "azure_premium_lc": {
+            "correct": false,
+            "f1": 0.3333333333333333
+          },
+          "llamacloud_basic_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.4
+          },
+          "surfsense_agentic": {
+            "correct": false,
+            "f1": 0.0
+          }
+        },
+        "pages": 23
+      },
+      "2405.09818v1.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": false,
+            "f1": 0.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 27
+      },
+      "3276a5b991c49cf5f9a4af0f7d6fce67.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 0.6666666666666666
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 0.6666666666666666
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 0.6666666666666666
+          }
+        },
+        "pages": 16
+      },
+      "379f44022bb27aa53efd5d322c7b57bf.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 17
+      },
+      "3M_2018_10K.pdf": {
+        "arms": {
+          "azure_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "azure_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_basic_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "llamacloud_premium_lc": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "native_pdf": {
+            "correct": true,
+            "f1": 1.0
+          },
+          "surfsense_agentic": {
+            "correct": true,
+            "f1": 1.0
+          }
+        },
+        "pages": 160
+      }
+    },
+    "total_pages_in_scope": 1158
+  },
+  "raw_path": "raw.jsonl",
+  "suite": "multimodal_doc"
+}

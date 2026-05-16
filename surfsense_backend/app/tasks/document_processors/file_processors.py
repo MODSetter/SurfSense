@@ -123,10 +123,6 @@ async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | No
     """Extract content from a non-document file (plaintext/direct_convert/audio/image) via the unified ETL pipeline."""
     from app.etl_pipeline.etl_document import EtlRequest
     from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
-    from app.etl_pipeline.file_classifier import (
-        FileCategory,
-        classify_file as etl_classify,
-    )
 
     await _notify(ctx, "parsing", "Processing file")
     await ctx.task_logger.log_task_progress(
@@ -135,8 +131,12 @@ async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | No
         {"processing_stage": "extracting"},
     )
 
+    # Fetch the vision LLM whenever the operator opts in. The ETL
+    # pipeline decides what to do with it: image files run through the
+    # vision LLM directly; document files (PDFs) get per-image
+    # descriptions appended via picture_describer.
     vision_llm = None
-    if ctx.use_vision_llm and etl_classify(ctx.filename) == FileCategory.IMAGE:
+    if ctx.use_vision_llm:
         from app.services.llm_service import get_vision_llm
 
         vision_llm = await get_vision_llm(ctx.session, ctx.search_space_id)
@@ -230,7 +230,16 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
 
     await _notify(ctx, "parsing", "Extracting content")
 
-    etl_result = await EtlPipelineService().extract(
+    # Document files (PDF, docx, etc.) get vision LLM treatment too:
+    # the ETL pipeline appends a per-image description section when
+    # vision_llm is provided. See picture_describer.describe_pictures.
+    vision_llm = None
+    if ctx.use_vision_llm:
+        from app.services.llm_service import get_vision_llm
+
+        vision_llm = await get_vision_llm(ctx.session, ctx.search_space_id)
+
+    etl_result = await EtlPipelineService(vision_llm=vision_llm).extract(
         EtlRequest(
             file_path=ctx.file_path,
             filename=ctx.filename,
@@ -418,8 +427,12 @@ async def _extract_file_content(
         billable_pages = estimated_pages * mode.page_multiplier
         await page_limit_service.check_page_limit(user_id, billable_pages)
 
+    # Vision LLM is provided to the ETL pipeline for any file category
+    # when the operator opts in. Image files run through it directly;
+    # document files (PDFs) get per-image descriptions appended via
+    # picture_describer.
     vision_llm = None
-    if use_vision_llm and category == FileCategory.IMAGE:
+    if use_vision_llm:
         from app.services.llm_service import get_vision_llm
 
         vision_llm = await get_vision_llm(session, search_space_id)

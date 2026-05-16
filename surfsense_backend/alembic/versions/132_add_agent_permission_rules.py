@@ -26,6 +26,10 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    if sa.inspect(bind).has_table("agent_permission_rules"):
+        return
+
     op.create_table(
         "agent_permission_rules",
         sa.Column("id", sa.Integer(), primary_key=True, index=True),

@@ -33,8 +33,8 @@ import {
 } from "@/components/ui/table";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { type CitationUrlMap, preprocessCitationMarkdown } from "@/lib/citations/citation-parser";
 import { getVirtualPathDisplay } from "@/lib/chat/virtual-path-display";
+import { type CitationUrlMap, preprocessCitationMarkdown } from "@/lib/citations/citation-parser";
 import { cn } from "@/lib/utils";
 
 function MarkdownCodeBlockSkeleton() {
@@ -222,11 +222,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 		: undefined;
 
 	const { displayName, isFolder } = getVirtualPathDisplay(path);
-	const icon = isFolder ? (
-		<FolderIcon className="size-3.5" />
-	) : (
-		<FileIcon className="size-3.5" />
-	);
+	const icon = isFolder ? <FolderIcon className="size-3.5" /> : <FileIcon className="size-3.5" />;
 
 	const handleClick = useCallback(
 		(event: React.MouseEvent<HTMLButtonElement>) => {
