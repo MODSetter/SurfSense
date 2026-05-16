@@ -160,6 +160,10 @@ def patched_chunk_text(monkeypatch) -> MagicMock:
         "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
         mock,
     )
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.chunk_text_hybrid",
+        mock,
+    )
     return mock
 
 
