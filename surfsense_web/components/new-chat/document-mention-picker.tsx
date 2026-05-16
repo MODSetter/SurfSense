@@ -1,6 +1,8 @@
 "use client";
 
+import { useQuery as useZeroQuery } from "@rocicorp/zero/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Folder as FolderIcon } from "lucide-react";
 import {
 	forwardRef,
 	useCallback,
@@ -11,11 +13,17 @@ import {
 	useRef,
 	useState,
 } from "react";
+import {
+	FOLDER_MENTION_DOCUMENT_TYPE,
+	type MentionedDocumentInfo,
+} from "@/atoms/chat/mentioned-documents.atom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { cn } from "@/lib/utils";
+import { queries } from "@/zero/queries";
 
 export interface DocumentMentionPickerRef {
 	selectHighlighted: () => void;
@@ -25,9 +33,9 @@ export interface DocumentMentionPickerRef {
 
 interface DocumentMentionPickerProps {
 	searchSpaceId: number;
-	onSelectionChange: (documents: Pick<Document, "id" | "title" | "document_type">[]) => void;
+	onSelectionChange: (mentions: MentionedDocumentInfo[]) => void;
 	onDone: () => void;
-	initialSelectedDocuments?: Pick<Document, "id" | "title" | "document_type">[];
+	initialSelectedDocuments?: MentionedDocumentInfo[];
 	externalSearch?: string;
 }
 
@@ -88,6 +96,11 @@ export const DocumentMentionPicker = forwardRef<
 	const [currentPage, setCurrentPage] = useState(0);
 	const [hasMore, setHasMore] = useState(false);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+	// Folders for this search space — pulled from Zero so the picker
+	// stays consistent with the documents sidebar (same source of
+	// truth, automatic updates on rename/delete).
+	const [zeroFolders] = useZeroQuery(queries.folders.bySpace({ searchSpaceId }));
 
 	/**
 	 * Search Strategy:
@@ -267,21 +280,48 @@ export const DocumentMentionPicker = forwardRef<
 		[actualDocuments]
 	);
 
-	// Track selected documents with composite key (document_type:id) to prevent cross-type ID collisions
+	// Folder mention candidates filtered by the current search term.
+	// Single-char and server-search both use the same client filter
+	// — folder counts in a workspace are tiny compared to docs, so we
+	// don't need a paged endpoint. Empty search shows all folders.
+	const folderMentions: MentionedDocumentInfo[] = useMemo(() => {
+		const all = (zeroFolders ?? []).map((f) => ({
+			id: f.id,
+			title: f.name,
+			document_type: FOLDER_MENTION_DOCUMENT_TYPE,
+			kind: "folder" as const,
+		}));
+		if (!shouldSearch) return all;
+		const needle = (isSingleCharSearch ? deferredSearch : debouncedSearch).trim().toLowerCase();
+		if (!needle) return all;
+		return all.filter((f) => f.title.toLowerCase().includes(needle));
+	}, [zeroFolders, debouncedSearch, deferredSearch, isSingleCharSearch, shouldSearch]);
+
+	// Doc-shape entries reuse their ``document_type`` discriminator;
+	// folder entries lift the existing kind-aware key so the same
+	// matchers used by the chip atom apply unchanged.
 	const selectedKeys = useMemo(
-		() => new Set(initialSelectedDocuments.map((d) => `${d.document_type}:${d.id}`)),
+		() => new Set(initialSelectedDocuments.map((d) => getMentionDocKey(d))),
 		[initialSelectedDocuments]
 	);
 
-	// Exclude already-selected documents from keyboard navigation
-	const selectableDocuments = useMemo(
-		() => actualDocuments.filter((doc) => !selectedKeys.has(`${doc.document_type}:${doc.id}`)),
-		[actualDocuments, selectedKeys]
-	);
+	// Combined navigation order: SurfSense docs -> User docs -> Folders.
+	// Mirrors the on-screen ordering so keyboard arrows match what the
+	// user sees.
+	const selectableMentions = useMemo<MentionedDocumentInfo[]>(() => {
+		const docs: MentionedDocumentInfo[] = actualDocuments.map((doc) => ({
+			id: doc.id,
+			title: doc.title,
+			document_type: doc.document_type,
+			kind: "doc" as const,
+		}));
+		const ordered = [...docs, ...folderMentions];
+		return ordered.filter((m) => !selectedKeys.has(getMentionDocKey(m)));
+	}, [actualDocuments, folderMentions, selectedKeys]);
 
-	const handleSelectDocument = useCallback(
-		(doc: Pick<Document, "id" | "title" | "document_type">) => {
-			onSelectionChange([...initialSelectedDocuments, doc]);
+	const handleSelectMention = useCallback(
+		(mention: MentionedDocumentInfo) => {
+			onSelectionChange([...initialSelectedDocuments, mention]);
 			onDone();
 		},
 		[initialSelectedDocuments, onSelectionChange, onDone]
@@ -338,42 +378,42 @@ export const DocumentMentionPicker = forwardRef<
 		ref,
 		() => ({
 			selectHighlighted: () => {
-				if (selectableDocuments[highlightedIndex]) {
-					handleSelectDocument(selectableDocuments[highlightedIndex]);
+				if (selectableMentions[highlightedIndex]) {
+					handleSelectMention(selectableMentions[highlightedIndex]);
 				}
 			},
 			moveUp: () => {
 				shouldScrollRef.current = true;
-				setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableDocuments.length - 1));
+				setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableMentions.length - 1));
 			},
 			moveDown: () => {
 				shouldScrollRef.current = true;
-				setHighlightedIndex((prev) => (prev < selectableDocuments.length - 1 ? prev + 1 : 0));
+				setHighlightedIndex((prev) => (prev < selectableMentions.length - 1 ? prev + 1 : 0));
 			},
 		}),
-		[selectableDocuments, highlightedIndex, handleSelectDocument]
+		[selectableMentions, highlightedIndex, handleSelectMention]
 	);
 
 	// Keyboard navigation handler for arrow keys, Enter, and Escape
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
-			if (selectableDocuments.length === 0) return;
+			if (selectableMentions.length === 0) return;
 
 			switch (e.key) {
 				case "ArrowDown":
 					e.preventDefault();
 					shouldScrollRef.current = true;
-					setHighlightedIndex((prev) => (prev < selectableDocuments.length - 1 ? prev + 1 : 0));
+					setHighlightedIndex((prev) => (prev < selectableMentions.length - 1 ? prev + 1 : 0));
 					break;
 				case "ArrowUp":
 					e.preventDefault();
 					shouldScrollRef.current = true;
-					setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableDocuments.length - 1));
+					setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableMentions.length - 1));
 					break;
 				case "Enter":
 					e.preventDefault();
-					if (selectableDocuments[highlightedIndex]) {
-						handleSelectDocument(selectableDocuments[highlightedIndex]);
+					if (selectableMentions[highlightedIndex]) {
+						handleSelectMention(selectableMentions[highlightedIndex]);
 					}
 					break;
 				case "Escape":
@@ -382,7 +422,7 @@ export const DocumentMentionPicker = forwardRef<
 					break;
 			}
 		},
-		[selectableDocuments, highlightedIndex, handleSelectDocument, onDone]
+		[selectableMentions, highlightedIndex, handleSelectMention, onDone]
 	);
 
 	return (
@@ -420,7 +460,7 @@ export const DocumentMentionPicker = forwardRef<
 							</div>
 						))}
 					</div>
-				) : actualDocuments.length > 0 ? (
+				) : actualDocuments.length > 0 || folderMentions.length > 0 ? (
 					<div className="py-1 px-2">
 						{/* SurfSense Documentation */}
 						{surfsenseDocsList.length > 0 && (
@@ -429,10 +469,16 @@ export const DocumentMentionPicker = forwardRef<
 									SurfSense Docs
 								</div>
 								{surfsenseDocsList.map((doc) => {
-									const docKey = `${doc.document_type}:${doc.id}`;
+									const mention: MentionedDocumentInfo = {
+										id: doc.id,
+										title: doc.title,
+										document_type: doc.document_type,
+										kind: "doc",
+									};
+									const docKey = getMentionDocKey(mention);
 									const isAlreadySelected = selectedKeys.has(docKey);
-									const selectableIndex = selectableDocuments.findIndex(
-										(d) => d.document_type === doc.document_type && d.id === doc.id
+									const selectableIndex = selectableMentions.findIndex(
+										(m) => getMentionDocKey(m) === docKey
 									);
 									const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
 
@@ -445,7 +491,7 @@ export const DocumentMentionPicker = forwardRef<
 												}
 											}}
 											type="button"
-											onClick={() => !isAlreadySelected && handleSelectDocument(doc)}
+											onClick={() => !isAlreadySelected && handleSelectMention(mention)}
 											onMouseEnter={() => {
 												if (!isAlreadySelected && selectableIndex >= 0) {
 													setHighlightedIndex(selectableIndex);
@@ -480,10 +526,16 @@ export const DocumentMentionPicker = forwardRef<
 									Your Documents
 								</div>
 								{userDocsList.map((doc) => {
-									const docKey = `${doc.document_type}:${doc.id}`;
+									const mention: MentionedDocumentInfo = {
+										id: doc.id,
+										title: doc.title,
+										document_type: doc.document_type,
+										kind: "doc",
+									};
+									const docKey = getMentionDocKey(mention);
 									const isAlreadySelected = selectedKeys.has(docKey);
-									const selectableIndex = selectableDocuments.findIndex(
-										(d) => d.document_type === doc.document_type && d.id === doc.id
+									const selectableIndex = selectableMentions.findIndex(
+										(m) => getMentionDocKey(m) === docKey
 									);
 									const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
 
@@ -496,7 +548,7 @@ export const DocumentMentionPicker = forwardRef<
 												}
 											}}
 											type="button"
-											onClick={() => !isAlreadySelected && handleSelectDocument(doc)}
+											onClick={() => !isAlreadySelected && handleSelectMention(mention)}
 											onMouseEnter={() => {
 												if (!isAlreadySelected && selectableIndex >= 0) {
 													setHighlightedIndex(selectableIndex);
@@ -514,6 +566,58 @@ export const DocumentMentionPicker = forwardRef<
 											</span>
 											<span className="flex-1 text-sm truncate" title={doc.title}>
 												{doc.title}
+											</span>
+										</button>
+									);
+								})}
+							</>
+						)}
+
+						{/* Folders — single source of truth is Zero (same store
+						    that powers the documents sidebar). Selecting a
+						    folder inserts a folder chip whose path the agent
+						    can walk with ``ls`` / ``find_documents``. */}
+						{folderMentions.length > 0 && (
+							<>
+								{(surfsenseDocsList.length > 0 || userDocsList.length > 0) && (
+									<div className="mx-2 my-4 border-t border-border dark:border-white/5" />
+								)}
+								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">Folders</div>
+								{folderMentions.map((folder) => {
+									const folderKey = getMentionDocKey(folder);
+									const isAlreadySelected = selectedKeys.has(folderKey);
+									const selectableIndex = selectableMentions.findIndex(
+										(m) => getMentionDocKey(m) === folderKey
+									);
+									const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
+
+									return (
+										<button
+											key={folderKey}
+											ref={(el) => {
+												if (el && selectableIndex >= 0) {
+													itemRefs.current.set(selectableIndex, el);
+												}
+											}}
+											type="button"
+											onClick={() => !isAlreadySelected && handleSelectMention(folder)}
+											onMouseEnter={() => {
+												if (!isAlreadySelected && selectableIndex >= 0) {
+													setHighlightedIndex(selectableIndex);
+												}
+											}}
+											disabled={isAlreadySelected}
+											className={cn(
+												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors rounded-md",
+												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+												isHighlighted && "bg-accent"
+											)}
+										>
+											<span className="shrink-0 text-muted-foreground text-sm">
+												<FolderIcon className="h-4 w-4" />
+											</span>
+											<span className="flex-1 text-sm truncate" title={folder.title}>
+												{folder.title}
 											</span>
 										</button>
 									);

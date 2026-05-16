@@ -6,7 +6,9 @@ from typing import Any
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.new_chat.tools.hitl import request_approval
+from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
+    request_approval,
+)
 from app.services.gmail import GmailToolMetadataService
 
 logger = logging.getLogger(__name__)

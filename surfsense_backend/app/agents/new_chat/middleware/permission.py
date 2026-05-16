@@ -23,7 +23,7 @@ Operation:
    SurfSense shape and LangChain HITL ``{"decisions": [{"type": ...}]}``
    replies are accepted via :func:`_normalize_permission_decision`.
    - ``once``: proceed.
-   - ``always``: also persist allow rules for ``request.always`` patterns.
+   - ``approve_always``: also persist allow rules for ``request.always`` patterns.
    - ``reject`` w/o feedback: raise :class:`RejectedError`.
    - ``reject`` w/  feedback: raise :class:`CorrectedError`.
 5. On ``allow``: proceed unchanged.
@@ -90,6 +90,7 @@ _LC_TYPE_TO_PERMISSION_DECISION: dict[str, str] = {
     "approve": "once",
     "reject": "reject",
     "edit": "once",
+    "approve_always": "approve_always",
 }
 
 
@@ -130,7 +131,7 @@ def _normalize_permission_decision(decision: Any) -> dict[str, Any]:
     mapped = _LC_TYPE_TO_PERMISSION_DECISION.get(raw_type)
     if mapped is None:
         # Tolerate legacy values arriving without ``decision_type`` wrapping.
-        if raw_type in {"once", "always", "reject"}:
+        if raw_type in {"once", "approve_always", "reject"}:
             mapped = raw_type
         else:
             logger.warning(
@@ -162,8 +163,8 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             of patterns to evaluate. When a tool isn't listed, the bare
             tool name is used as the only pattern.
         runtime_ruleset: Mutable :class:`Ruleset` that the middleware
-            extends in-place when the user replies ``"always"`` to an
-            ask interrupt. Reused across all calls in the same agent
+            extends in-place when the user replies ``"approve_always"`` to
+            an ask interrupt. Reused across all calls in the same agent
             instance so newly-allowed rules apply to subsequent calls.
         always_emit_interrupt_payload: If True, every ask uses the
             SurfSense interrupt wire format (default). Set False to
@@ -268,7 +269,7 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                     for r in rules
                 ],
                 # Rules of thumb for the frontend: surface the patterns
-                # the user can promote to "always" with a single reply.
+                # the user can promote to "approve_always" with a single reply.
                 "always": patterns,
             },
         }
@@ -287,12 +288,12 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         return _normalize_permission_decision(decision)
 
     def _persist_always(self, tool_name: str, patterns: list[str]) -> None:
-        """Promote ``always`` reply into runtime allow rules.
+        """Promote ``approve_always`` reply into runtime allow rules.
 
         Persistence to ``agent_permission_rules`` is done by the
         streaming layer (``stream_new_chat``) once it observes the
-        ``always`` reply — the middleware just keeps an in-memory
-        copy so subsequent calls in the same stream see the rule.
+        ``approve_always`` reply — the middleware just keeps an
+        in-memory copy so subsequent calls in the same stream see the rule.
         """
         for pattern in patterns:
             self._runtime_ruleset.rules.append(
@@ -377,7 +378,7 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 kind = str(decision.get("decision_type") or "reject").lower()
                 if kind == "once":
                     kept_calls.append(call)
-                elif kind == "always":
+                elif kind == "approve_always":
                     self._persist_always(name, patterns)
                     kept_calls.append(call)
                 elif kind == "reject":

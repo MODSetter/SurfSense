@@ -18,6 +18,7 @@ export const createVisionLLMConfigMutationAtom = atomWithMutation((get) => {
 
 	return {
 		mutationKey: ["vision-llm-configs", "create"],
+		meta: { suppressGlobalErrorToast: true },
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: CreateVisionLLMConfigRequest) => {
 			return visionLLMConfigApiService.createConfig(request);
@@ -39,6 +40,7 @@ export const updateVisionLLMConfigMutationAtom = atomWithMutation((get) => {
 
 	return {
 		mutationKey: ["vision-llm-configs", "update"],
+		meta: { suppressGlobalErrorToast: true },
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: UpdateVisionLLMConfigRequest) => {
 			return visionLLMConfigApiService.updateConfig(request);
@@ -63,6 +65,7 @@ export const deleteVisionLLMConfigMutationAtom = atomWithMutation((get) => {
 
 	return {
 		mutationKey: ["vision-llm-configs", "delete"],
+		meta: { suppressGlobalErrorToast: true },
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: { id: number; name: string }) => {
 			return visionLLMConfigApiService.deleteConfig(request.id);

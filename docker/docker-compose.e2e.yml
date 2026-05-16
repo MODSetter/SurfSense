@@ -1,0 +1,181 @@
+# =============================================================================
+# SurfSense — E2E Docker Compose stack
+# =============================================================================
+# Hermetic backend stack for Playwright E2E tests:
+#   - db / redis on an internal-only network (no internet egress)
+#   - backend (FastAPI) joins the internal network AND a separate ingress
+#     bridge so the host runner can reach :8000
+#   - celery_worker on the internal network only — zero egress surface
+#
+# The backend image is built from surfsense_backend/Dockerfile target=e2e,
+# which adds tests/ via the `tests-source` additional context (tests/ is
+# excluded from the main context by .dockerignore so production never ships
+# test fakes). See surfsense_backend/Dockerfile for stage layout.
+#
+# Usage from repo root:
+#   docker compose -f docker/docker-compose.e2e.yml up -d --build --wait
+#   curl -X POST http://localhost:8000/auth/register ...
+#   ( run Playwright on host, pointing at localhost:8000 + localhost:3000 )
+#   docker compose -f docker/docker-compose.e2e.yml down -v
+# =============================================================================
+
+name: surfsense-e2e
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/surfsense_e2e
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/0
+  REDIS_APP_URL: redis://redis:6379/0
+  CELERY_TASK_DEFAULT_QUEUE: surfsense
+  SECRET_KEY: ci-test-secret-key-not-for-production
+  AUTH_TYPE: LOCAL
+  REGISTRATION_ENABLED: "TRUE"
+  ETL_SERVICE: DOCLING
+  EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+  NEXT_FRONTEND_URL: http://host.docker.internal:3000
+  # Sentinel keys — fakes never read them; turns leaked real calls into 401s.
+  COMPOSIO_API_KEY: e2e-deny-real-call-sentinel
+  COMPOSIO_ENABLED: "TRUE"
+  OPENAI_API_KEY: e2e-deny-real-call-sentinel
+  ANTHROPIC_API_KEY: e2e-deny-real-call-sentinel
+  LITELLM_API_KEY: e2e-deny-real-call-sentinel
+  MICROSOFT_CLIENT_ID: fake-microsoft-client-id
+  MICROSOFT_CLIENT_SECRET: fake-microsoft-client-secret
+  ONEDRIVE_REDIRECT_URI: http://localhost:8000/api/v1/auth/onedrive/connector/callback
+  DROPBOX_APP_KEY: fake-dropbox-app-key
+  DROPBOX_APP_SECRET: fake-dropbox-app-secret
+  DROPBOX_REDIRECT_URI: http://localhost:8000/api/v1/auth/dropbox/connector/callback
+  # Defense-in-depth: even though L3 egress is denied for the worker via
+  # `internal: true`, the backend still has a route via `ingress`. Setting
+  # HTTPS_PROXY to an unreachable port turns any leaked Python outbound HTTP
+  # call into a fast Connection refused. UNLIKE the old runner-shell setup,
+  # this proxy is set on the container env and `uv` is never invoked here,
+  # so there is no interaction with uv's implicit-sync behaviour.
+  HTTPS_PROXY: http://127.0.0.1:1
+  HTTP_PROXY: http://127.0.0.1:1
+  NO_PROXY: localhost,127.0.0.1,0.0.0.0,db,redis,host.docker.internal
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+  # Test-only token-mint endpoint secret (see tests/e2e/run_backend.py).
+  E2E_MINT_SECRET: e2e-mint-secret-not-for-production
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    command: >
+      postgres
+        -c wal_level=logical
+        -c max_wal_senders=10
+        -c max_replication_slots=10
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: surfsense_e2e
+    # Ephemeral storage — every CI run gets a clean DB, no volume cleanup needed.
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d surfsense_e2e"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [internal]
+
+  redis:
+    image: redis:8-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [internal]
+
+  backend:
+    build:
+      context: ../surfsense_backend
+      dockerfile: Dockerfile
+      target: e2e
+      additional_contexts:
+        # tests/ is excluded from the main context by .dockerignore;
+        # the e2e stage's `COPY --from=tests-source` pulls it in here.
+        tests-source: ../surfsense_backend/tests
+      args:
+        EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      cache_from:
+        - type=gha,scope=surfsense-e2e-backend
+      cache_to:
+        - type=gha,mode=max,scope=surfsense-e2e-backend
+    image: surfsense-e2e-backend:local
+    environment:
+      <<: *backend-env
+      SERVICE_ROLE: api
+    volumes:
+      - shared_temp:/shared_tmp
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      # Use Python (already in the image) instead of curl/wget to avoid
+      # depending on either tool being installed in the runtime layers.
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import sys, urllib.request
+          try:
+              r = urllib.request.urlopen("http://localhost:8000/openapi.json", timeout=2)
+              sys.exit(0 if r.status == 200 else 1)
+          except Exception:
+              sys.exit(1)
+      interval: 3s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+    networks:
+      - internal      # to reach db/redis
+      - ingress       # so host can reach :8000
+
+  celery_worker:
+    image: surfsense-e2e-backend:local
+    pull_policy: never
+    # No build: section — reuses the image built by the `backend` service.
+    # Compose v2 builds shared images exactly once across services that
+    # reference the same `image:` tag.
+    environment:
+      <<: *backend-env
+      SERVICE_ROLE: worker
+    volumes:
+      - shared_temp:/shared_tmp
+    depends_on:
+      backend: { condition: service_healthy }
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "celery -A app.celery_app inspect ping --timeout 2 | grep -q pong"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [internal]
+
+networks:
+  # Internal network: containers attached only to this network have NO route
+  # to the host or the internet. This is the L3 deny-egress mechanism that
+  # replaces the fragile HTTPS_PROXY-on-the-runner approach.
+  internal:
+    driver: bridge
+    internal: true
+
+  # Regular bridge network. Only the `backend` service joins it, solely so
+  # the host can reach :8000 via the published port. celery_worker / db /
+  # redis stay off this network entirely.
+  ingress:
+    driver: bridge
+
+volumes:
+  shared_temp:

@@ -176,34 +176,25 @@ export function FolderTreeView({
 	}, [folders, docsByFolder, foldersByParent, effectiveActiveTypes, searchQuery]);
 
 	const folderSelectionStates = useMemo(() => {
+		// One folder = one chip. The checkbox now reflects whether the
+		// folder itself is mentioned, not whether every nested doc is —
+		// that reverses the old subtree-fanout semantics in
+		// ``DocumentsSidebar.handleToggleFolderSelect``. We keep the
+		// ``"all" | "some" | "none"`` tri-state on the type so the
+		// existing ``FolderNode`` UI (which renders an indeterminate
+		// glyph for ``"some"``) stays compatible, but only ``"all"``
+		// and ``"none"`` are used in practice.
 		const states: Record<number, FolderSelectionState> = {};
-		const isSelectable = (d: DocumentNodeDoc) =>
-			d.status?.state !== "pending" && d.status?.state !== "processing";
-
-		function compute(folderId: number): { selected: number; total: number } {
-			const directDocs = (docsByFolder[folderId] ?? []).filter(isSelectable);
-			let selected = directDocs.filter((d) => mentionedDocKeys.has(getMentionDocKey(d))).length;
-			let total = directDocs.length;
-
-			for (const child of foldersByParent[folderId] ?? []) {
-				const sub = compute(child.id);
-				selected += sub.selected;
-				total += sub.total;
-			}
-
-			if (total === 0) states[folderId] = "none";
-			else if (selected === total) states[folderId] = "all";
-			else if (selected > 0) states[folderId] = "some";
-			else states[folderId] = "none";
-
-			return { selected, total };
-		}
-
 		for (const f of folders) {
-			if (states[f.id] === undefined) compute(f.id);
+			const folderMentionKey = getMentionDocKey({
+				id: f.id,
+				document_type: "FOLDER",
+				kind: "folder",
+			});
+			states[f.id] = mentionedDocKeys.has(folderMentionKey) ? "all" : "none";
 		}
 		return states;
-	}, [folders, docsByFolder, foldersByParent, mentionedDocKeys]);
+	}, [folders, mentionedDocKeys]);
 
 	const folderMap = useMemo(() => {
 		const map: Record<number, FolderDisplay> = {};

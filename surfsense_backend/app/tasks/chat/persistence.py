@@ -109,17 +109,18 @@ def _build_user_content(
         [{"type": "text", "text": "..."},
          {"type": "image", "image": "data:..."},
          {"type": "mentioned-documents", "documents": [{"id": int,
-            "title": str, "document_type": str}, ...]}]
+            "title": str, "document_type": str, "kind": "doc" | "folder"},
+            ...]}]
 
     The companion reader is
     ``app.utils.user_message_multimodal.split_persisted_user_content_parts``
     which expects exactly this shape — keep them in sync.
 
-    ``mentioned_documents``: optional list of ``{id, title, document_type}``
-    dicts. When non-empty (and a ``mentioned-documents`` part is not already
-    in some other input shape), a single ``{"type": "mentioned-documents",
-    "documents": [...]}`` part is appended. Mirrors the FE injection at
-    ``page.tsx:281-286`` (``persistUserTurn``).
+    ``mentioned_documents``: optional list of mention chip dicts. Each
+    dict may include a ``kind`` discriminator (``"doc"`` or ``"folder"``)
+    so the persisted ContentPart round-trips folder chips on reload.
+    When ``kind`` is missing we default to ``"doc"`` so legacy clients
+    that haven't migrated to the union schema still persist correctly.
     """
     parts: list[dict[str, Any]] = [{"type": "text", "text": user_query or ""}]
     for url in user_image_data_urls or ():
@@ -135,11 +136,14 @@ def _build_user_content(
             document_type = doc.get("document_type")
             if doc_id is None or title is None or document_type is None:
                 continue
+            kind_raw = doc.get("kind", "doc")
+            kind = kind_raw if kind_raw in ("doc", "folder") else "doc"
             normalized.append(
                 {
                     "id": doc_id,
                     "title": str(title),
                     "document_type": str(document_type),
+                    "kind": kind,
                 }
             )
         if normalized:

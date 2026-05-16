@@ -12,7 +12,6 @@ from deepagents.middleware.subagents import (
     SubAgentMiddleware,
 )
 from langchain.agents import create_agent
-from langchain.agents.middleware import HumanInTheLoopMiddleware
 from langchain.chat_models import init_chat_model
 from langgraph.types import Checkpointer
 
@@ -80,10 +79,6 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
                 model = init_chat_model(model)
 
             middleware: list[Any] = list(spec.get("middleware", []))
-
-            interrupt_on = spec.get("interrupt_on")
-            if interrupt_on:
-                middleware.append(HumanInTheLoopMiddleware(interrupt_on=interrupt_on))
 
             specs.append(
                 {

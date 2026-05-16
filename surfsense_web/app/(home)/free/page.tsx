@@ -64,13 +64,13 @@ export const metadata: Metadata = {
 		"notebooklm alternative",
 	],
 	alternates: {
-		canonical: "https://surfsense.com/free",
+		canonical: "https://www.surfsense.com/free",
 	},
 	openGraph: {
 		title: "Free AI Chat, No Login Required | SurfSense",
 		description:
 			"Use ChatGPT free online without login. Chat with GPT-4, Claude AI, Gemini and 100+ AI models. Open source NotebookLM alternative.",
-		url: "https://surfsense.com/free",
+		url: "https://www.surfsense.com/free",
 		siteName: "SurfSense",
 		type: "website",
 		images: [
@@ -164,8 +164,8 @@ export default async function FreeHubPage() {
 					name: "ChatGPT Free Online Without Login - SurfSense",
 					description:
 						"Use ChatGPT, Claude AI, Gemini and more AI models free online without login or sign-up. Open source NotebookLM alternative with no login required.",
-					url: "https://surfsense.com/free",
-					isPartOf: { "@type": "WebSite", name: "SurfSense", url: "https://surfsense.com" },
+					url: "https://www.surfsense.com/free",
+					isPartOf: { "@type": "WebSite", name: "SurfSense", url: "https://www.surfsense.com" },
 					mainEntity: {
 						"@type": "ItemList",
 						numberOfItems: seoModels.length,
@@ -173,7 +173,7 @@ export default async function FreeHubPage() {
 							"@type": "ListItem",
 							position: i + 1,
 							name: m.name,
-							url: `https://surfsense.com/free/${m.seo_slug}`,
+							url: `https://www.surfsense.com/free/${m.seo_slug}`,
 						})),
 					},
 				}}

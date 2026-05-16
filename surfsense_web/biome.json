@@ -7,7 +7,19 @@
 	},
 	"files": {
 		"ignoreUnknown": true,
-		"includes": ["**", "!!node_modules", "!!.git", "!!.next", "!!dist", "!!build", "!!coverage"],
+		"includes": [
+			"**",
+			"!!node_modules",
+			"!!.git",
+			"!!.next",
+			"!!dist",
+			"!!build",
+			"!!coverage",
+			"!!test-results",
+			"!!playwright-report",
+			"!!blob-report",
+			"!!playwright/.auth"
+		],
 		"maxSize": 1048576
 	},
 	"formatter": {

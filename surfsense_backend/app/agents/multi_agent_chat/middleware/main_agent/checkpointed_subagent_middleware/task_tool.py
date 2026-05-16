@@ -9,25 +9,24 @@ re-raises any new pending interrupt back to the parent.
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, NoReturn
 
 from deepagents.middleware.subagents import TASK_TOOL_DESCRIPTION
 from langchain.tools import BaseTool, ToolRuntime
 from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
-from langgraph.types import Command
+from langgraph.errors import GraphInterrupt
+from langgraph.types import Command, Interrupt
 
 from .config import (
     consume_surfsense_resume,
+    drain_parent_null_resume,
     has_surfsense_resume,
     subagent_invoke_config,
 )
 from .constants import EXCLUDED_STATE_KEYS
-from .propagation import (
-    amaybe_propagate_subagent_interrupt,
-    maybe_propagate_subagent_interrupt,
-)
+from .propagation import wrap_with_tool_call_id
 from .resume import (
     build_resume_command,
     fan_out_decisions_to_match,
@@ -36,6 +35,31 @@ from .resume import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _reraise_stamped_subagent_interrupt(
+    gi: GraphInterrupt, tool_call_id: str
+) -> NoReturn:
+    """Stamp ``tool_call_id`` onto each pending interrupt value and re-raise.
+
+    See :mod:`...propagation` for why this stamp is required for resume routing.
+    Chained via ``from gi`` so tracebacks point at the subagent's original
+    ``interrupt(...)`` site.
+    """
+    interrupts = gi.args[0] if gi.args else ()
+    stamped = tuple(
+        Interrupt(
+            value=wrap_with_tool_call_id(i.value, tool_call_id),
+            id=i.id,
+        )
+        for i in interrupts
+    )
+    logger.info(
+        "[hitl_route] stamped %d subagent interrupt(s) with tool_call_id=%s",
+        len(stamped),
+        tool_call_id,
+    )
+    raise GraphInterrupt(stamped) from gi
 
 
 def build_task_tool_with_parent_config(
@@ -157,13 +181,21 @@ def build_task_tool_with_parent_config(
                 )
             expected = hitlrequest_action_count(pending_value)
             resume_value = fan_out_decisions_to_match(resume_value, expected)
-            result = subagent.invoke(
-                build_resume_command(resume_value, pending_id),
-                config=sub_config,
-            )
+            # Prevent the parent's resume payload from leaking into subagent
+            # interrupts via langgraph's parent_scratchpad fallback.
+            drain_parent_null_resume(runtime)
+            try:
+                result = subagent.invoke(
+                    build_resume_command(resume_value, pending_id),
+                    config=sub_config,
+                )
+            except GraphInterrupt as gi:
+                _reraise_stamped_subagent_interrupt(gi, runtime.tool_call_id)
         else:
-            result = subagent.invoke(subagent_state, config=sub_config)
-        maybe_propagate_subagent_interrupt(subagent, sub_config, subagent_type)
+            try:
+                result = subagent.invoke(subagent_state, config=sub_config)
+            except GraphInterrupt as gi:
+                _reraise_stamped_subagent_interrupt(gi, runtime.tool_call_id)
         return _return_command_with_state_update(result, runtime.tool_call_id)
 
     async def atask(
@@ -177,6 +209,11 @@ def build_task_tool_with_parent_config(
         ],
         runtime: ToolRuntime,
     ) -> str | Command:
+        logger.info(
+            "[hitl_route] atask ENTRY: subagent_type=%r tool_call_id=%s",
+            subagent_type,
+            runtime.tool_call_id,
+        )
         if subagent_type not in subagent_graphs:
             allowed_types = ", ".join([f"`{k}`" for k in subagent_graphs])
             return (
@@ -221,13 +258,21 @@ def build_task_tool_with_parent_config(
                 )
             expected = hitlrequest_action_count(pending_value)
             resume_value = fan_out_decisions_to_match(resume_value, expected)
-            result = await subagent.ainvoke(
-                build_resume_command(resume_value, pending_id),
-                config=sub_config,
-            )
+            # Prevent the parent's resume payload from leaking into subagent
+            # interrupts via langgraph's parent_scratchpad fallback.
+            drain_parent_null_resume(runtime)
+            try:
+                result = await subagent.ainvoke(
+                    build_resume_command(resume_value, pending_id),
+                    config=sub_config,
+                )
+            except GraphInterrupt as gi:
+                _reraise_stamped_subagent_interrupt(gi, runtime.tool_call_id)
         else:
-            result = await subagent.ainvoke(subagent_state, config=sub_config)
-        await amaybe_propagate_subagent_interrupt(subagent, sub_config, subagent_type)
+            try:
+                result = await subagent.ainvoke(subagent_state, config=sub_config)
+            except GraphInterrupt as gi:
+                _reraise_stamped_subagent_interrupt(gi, runtime.tool_call_id)
         return _return_command_with_state_update(result, runtime.tool_call_id)
 
     return StructuredTool.from_function(

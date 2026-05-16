@@ -21,7 +21,7 @@
     "email": "rohan@surfsense.com"
   },
   "license": "MIT",
-  "packageManager": "pnpm@10.24.0",
+  "packageManager": "pnpm@10.26.0",
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
     "@types/node": "^25.5.0",

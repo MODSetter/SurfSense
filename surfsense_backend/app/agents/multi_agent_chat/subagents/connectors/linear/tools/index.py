@@ -1,34 +1,31 @@
+"""``linear`` permission ruleset (rules over MCP tool names)."""
+
 from __future__ import annotations
 
-from typing import Any
+from app.agents.new_chat.permissions import Rule, Ruleset
 
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
-    ToolsPermissions,
+NAME = "linear"
+
+RULESET = Ruleset(
+    origin=NAME,
+    rules=[
+        Rule(permission="list_issues", pattern="*", action="allow"),
+        Rule(permission="get_issue", pattern="*", action="allow"),
+        Rule(permission="list_my_issues", pattern="*", action="allow"),
+        Rule(permission="list_issue_statuses", pattern="*", action="allow"),
+        Rule(permission="list_issue_labels", pattern="*", action="allow"),
+        Rule(permission="list_comments", pattern="*", action="allow"),
+        Rule(permission="list_users", pattern="*", action="allow"),
+        Rule(permission="get_user", pattern="*", action="allow"),
+        Rule(permission="list_teams", pattern="*", action="allow"),
+        Rule(permission="get_team", pattern="*", action="allow"),
+        Rule(permission="list_projects", pattern="*", action="allow"),
+        Rule(permission="get_project", pattern="*", action="allow"),
+        Rule(permission="list_project_labels", pattern="*", action="allow"),
+        Rule(permission="list_cycles", pattern="*", action="allow"),
+        Rule(permission="list_documents", pattern="*", action="allow"),
+        Rule(permission="get_document", pattern="*", action="allow"),
+        Rule(permission="search_documentation", pattern="*", action="allow"),
+        Rule(permission="save_issue", pattern="*", action="ask"),
+    ],
 )
-
-from .create_issue import create_create_linear_issue_tool
-from .delete_issue import create_delete_linear_issue_tool
-from .update_issue import create_update_linear_issue_tool
-
-
-def load_tools(
-    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
-) -> ToolsPermissions:
-    d = {**(dependencies or {}), **kwargs}
-    common = {
-        "db_session": d["db_session"],
-        "search_space_id": d["search_space_id"],
-        "user_id": d["user_id"],
-        "connector_id": d.get("connector_id"),
-    }
-    create = create_create_linear_issue_tool(**common)
-    update = create_update_linear_issue_tool(**common)
-    delete = create_delete_linear_issue_tool(**common)
-    return {
-        "allow": [],
-        "ask": [
-            {"name": getattr(create, "name", "") or "", "tool": create},
-            {"name": getattr(update, "name", "") or "", "tool": update},
-            {"name": getattr(delete, "name", "") or "", "tool": delete},
-        ],
-    }

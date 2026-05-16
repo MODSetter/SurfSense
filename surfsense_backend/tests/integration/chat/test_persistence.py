@@ -367,18 +367,26 @@ class TestPersistUserTurn:
         db_thread,
         patched_shielded_session,
     ):
-        """The full ``{id, title, document_type}`` triple forwarded by
-        the FE must round-trip into a single ``mentioned-documents``
-        ContentPart on the persisted user message — the history loader
-        renders the chips on reload from this part directly.
+        """The full ``{id, title, document_type, kind}`` chip metadata
+        forwarded by the FE must round-trip into a single
+        ``mentioned-documents`` ContentPart on the persisted user
+        message — the history loader renders the chips on reload from
+        this part directly. Folder chips ride alongside doc chips so
+        the FE can render mixed mention bars without a second fetch.
         """
         thread_id = db_thread.id
         user_id_str = str(db_user.id)
         turn_id = f"{thread_id}:8200"
 
         mentioned = [
-            {"id": 11, "title": "Alpha", "document_type": "GENERAL"},
-            {"id": 22, "title": "Beta", "document_type": "GENERAL"},
+            {"id": 11, "title": "Alpha", "document_type": "GENERAL", "kind": "doc"},
+            {"id": 22, "title": "Beta", "document_type": "GENERAL", "kind": "doc"},
+            {
+                "id": 33,
+                "title": "Reports",
+                "document_type": "FOLDER",
+                "kind": "folder",
+            },
         ]
         msg_id = await persist_user_turn(
             chat_id=thread_id,
@@ -397,8 +405,61 @@ class TestPersistUserTurn:
         assert row.content[1] == {
             "type": "mentioned-documents",
             "documents": [
-                {"id": 11, "title": "Alpha", "document_type": "GENERAL"},
-                {"id": 22, "title": "Beta", "document_type": "GENERAL"},
+                {"id": 11, "title": "Alpha", "document_type": "GENERAL", "kind": "doc"},
+                {"id": 22, "title": "Beta", "document_type": "GENERAL", "kind": "doc"},
+                {
+                    "id": 33,
+                    "title": "Reports",
+                    "document_type": "FOLDER",
+                    "kind": "folder",
+                },
+            ],
+        }
+
+    async def test_legacy_chip_without_kind_defaults_to_doc(
+        self,
+        db_session,
+        db_user,
+        db_thread,
+        patched_shielded_session,
+    ):
+        """Pre-folder clients send chips without ``kind``. The persistence
+        layer defaults them to ``"doc"`` so the round-trip stays
+        consistent on reload — the FE schema's optional default
+        produces the same value, but persisting it explicitly keeps
+        the DB row self-describing.
+        """
+        thread_id = db_thread.id
+        user_id_str = str(db_user.id)
+        turn_id = f"{thread_id}:8201"
+
+        mentioned = [
+            {"id": 77, "title": "Legacy", "document_type": "GENERAL"},
+        ]
+        msg_id = await persist_user_turn(
+            chat_id=thread_id,
+            user_id=user_id_str,
+            turn_id=turn_id,
+            user_query="hi",
+            mentioned_documents=mentioned,
+        )
+        assert isinstance(msg_id, int)
+
+        row = await db_session.get(NewChatMessage, msg_id)
+        assert row is not None
+        assert isinstance(row.content, list)
+        mentioned_part = next(
+            p for p in row.content if p.get("type") == "mentioned-documents"
+        )
+        assert mentioned_part == {
+            "type": "mentioned-documents",
+            "documents": [
+                {
+                    "id": 77,
+                    "title": "Legacy",
+                    "document_type": "GENERAL",
+                    "kind": "doc",
+                },
             ],
         }
 

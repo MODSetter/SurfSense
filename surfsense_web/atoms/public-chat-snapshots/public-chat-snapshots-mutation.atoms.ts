@@ -10,6 +10,7 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 
 export const createPublicChatSnapshotMutationAtom = atomWithMutation(() => ({
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (request: PublicChatSnapshotCreateRequest) => {
 		return chatThreadsApiService.createPublicChatSnapshot(request);
 	},
@@ -37,6 +38,7 @@ export const createPublicChatSnapshotMutationAtom = atomWithMutation(() => ({
 }));
 
 export const deletePublicChatSnapshotMutationAtom = atomWithMutation(() => ({
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (request: PublicChatSnapshotDeleteRequest) => {
 		return chatThreadsApiService.deletePublicChatSnapshot(request);
 	},

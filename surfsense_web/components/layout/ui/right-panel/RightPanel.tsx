@@ -4,7 +4,6 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { PanelRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import { startTransition, useEffect } from "react";
-import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { citationPanelAtom, closeCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
@@ -12,6 +11,7 @@ import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-pan
 import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right-panel.atom";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/features/chat-messages/hitl";
 import { DocumentsSidebar } from "../sidebar";
 
 const EditorPanelContent = dynamic(
@@ -32,7 +32,7 @@ const CitationPanelContent = dynamic(
 
 const HitlEditPanelContent = dynamic(
 	() =>
-		import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({
+		import("@/features/chat-messages/hitl").then((m) => ({
 			default: m.HitlEditPanelContent,
 		})),
 	{ ssr: false, loading: () => null }

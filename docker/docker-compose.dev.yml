@@ -10,6 +10,11 @@
 
 name: surfsense-dev
 
+x-backend-build: &backend-build
+  context: ../surfsense_backend
+  args:
+    EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+
 services:
   db:
     image: pgvector/pgvector:pg17
@@ -69,7 +74,7 @@ services:
       retries: 5
 
   backend:
-    build: ../surfsense_backend
+    build: *backend-build
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -114,7 +119,7 @@ services:
       start_period: 200s
 
   celery_worker:
-    build: ../surfsense_backend
+    build: *backend-build
     volumes:
       - ../surfsense_backend/app:/app/app
       - shared_temp:/shared_tmp
@@ -140,7 +145,7 @@ services:
         condition: service_healthy
 
   celery_beat:
-    build: ../surfsense_backend
+    build: *backend-build
     env_file:
       - ../surfsense_backend/.env
     environment:
@@ -159,7 +164,7 @@ services:
         condition: service_started
 
   # flower:
-  #   build: ../surfsense_backend
+  #   build: *backend-build
   #   ports:
   #     - "${FLOWER_PORT:-5555}:5555"
   #   env_file:

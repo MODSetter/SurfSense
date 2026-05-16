@@ -5,12 +5,12 @@ export const metadata: Metadata = {
 	title: "Announcements | SurfSense",
 	description: "Latest product updates, feature releases, and news from SurfSense.",
 	alternates: {
-		canonical: "https://surfsense.com/announcements",
+		canonical: "https://www.surfsense.com/announcements",
 	},
 	openGraph: {
 		title: "Announcements | SurfSense",
 		description: "Latest product updates, feature releases, and news from SurfSense.",
-		url: "https://surfsense.com/announcements",
+		url: "https://www.surfsense.com/announcements",
 		type: "website",
 	},
 	twitter: {

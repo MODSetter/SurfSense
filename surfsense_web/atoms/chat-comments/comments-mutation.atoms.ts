@@ -11,6 +11,7 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 
 export const createCommentMutationAtom = atomWithMutation(() => ({
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (request: CreateCommentRequest) => {
 		return chatCommentsApiService.createComment(request);
 	},
@@ -26,6 +27,7 @@ export const createCommentMutationAtom = atomWithMutation(() => ({
 }));
 
 export const createReplyMutationAtom = atomWithMutation(() => ({
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (request: CreateReplyRequest & { message_id: number }) => {
 		return chatCommentsApiService.createReply(request);
 	},
@@ -41,6 +43,7 @@ export const createReplyMutationAtom = atomWithMutation(() => ({
 }));
 
 export const updateCommentMutationAtom = atomWithMutation(() => ({
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (request: UpdateCommentRequest & { message_id: number }) => {
 		return chatCommentsApiService.updateComment(request);
 	},
@@ -56,6 +59,7 @@ export const updateCommentMutationAtom = atomWithMutation(() => ({
 }));
 
 export const deleteCommentMutationAtom = atomWithMutation(() => ({
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (request: DeleteCommentRequest & { message_id: number }) => {
 		return chatCommentsApiService.deleteComment(request);
 	},

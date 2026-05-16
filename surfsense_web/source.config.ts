@@ -25,6 +25,12 @@ export const blog = defineDocs({
 			author: z.string().default("SurfSense Team"),
 			authorAvatar: z.string().optional(),
 			tags: z.array(z.string()).optional(),
+			// Pin this post into the featured section above the archive grid.
+			// Multiple posts can be featured at once; ordering within the
+			// featured section follows `featured_order` ascending and falls
+			// back to `date` descending.
+			featured: z.boolean().optional().default(false),
+			featured_order: z.number().optional(),
 		}),
 	},
 });

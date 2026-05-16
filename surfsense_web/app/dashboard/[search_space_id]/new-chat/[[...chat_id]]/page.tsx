@@ -43,13 +43,18 @@ import {
 	type EditMessageDialogChoice,
 } from "@/components/assistant-ui/edit-message-dialog";
 import { StepSeparatorDataUI } from "@/components/assistant-ui/step-separator";
-import { ThinkingStepsDataUI } from "@/components/assistant-ui/thinking-steps";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
 	createTokenUsageStore,
 	type TokenUsageData,
 	TokenUsageProvider,
 } from "@/components/assistant-ui/token-usage-context";
+import {
+	type HitlDecision,
+	PendingInterruptProvider,
+	type PendingInterruptState,
+} from "@/features/chat-messages/hitl";
+import { TimelineDataUI } from "@/features/chat-messages/timeline";
 import {
 	applyActionLogSse,
 	applyActionLogUpdatedSse,
@@ -63,7 +68,10 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
-import { convertToThreadMessage } from "@/lib/chat/message-utils";
+import {
+	convertToThreadMessage,
+	reconcileInterruptedAssistantMessages,
+} from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
 	looksLikePodcastRequest,
@@ -107,7 +115,6 @@ import {
 	type NewChatUserImagePayload,
 } from "@/lib/chat/user-turn-api-parts";
 import { NotFoundError } from "@/lib/error";
-import { type BundleSubmit, HitlBundleProvider } from "@/lib/hitl";
 import {
 	trackChatBlocked,
 	trackChatCreated,
@@ -126,7 +133,7 @@ const MobileEditorPanel = dynamic(
 );
 const MobileHitlEditPanel = dynamic(
 	() =>
-		import("@/components/hitl-edit-panel/hitl-edit-panel").then((m) => ({
+		import("@/features/chat-messages/hitl").then((m) => ({
 			default: m.MobileHitlEditPanel,
 		})),
 	{ ssr: false }
@@ -196,12 +203,19 @@ function pairBundleToolCallIds(
 }
 
 /**
- * Zod schema for mentioned document info (for type-safe parsing)
+ * Zod schema for mentioned document info (for type-safe parsing).
+ *
+ * ``kind`` defaults to ``"doc"`` so messages persisted before folder
+ * mentions existed deserialise unchanged.
  */
 const MentionedDocumentInfoSchema = z.object({
 	id: z.number(),
 	title: z.string(),
 	document_type: z.string(),
+	kind: z
+		.union([z.literal("doc"), z.literal("folder")])
+		.optional()
+		.default("doc"),
 });
 
 const MentionedDocumentsPartSchema = z.object({
@@ -262,12 +276,16 @@ export default function NewChatPage() {
 	const [tokenUsageStore] = useState(() => createTokenUsageStore());
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const recentCancelRequestedAtRef = useRef(0);
-	const [pendingInterrupt, setPendingInterrupt] = useState<{
-		threadId: number;
-		assistantMsgId: string;
-		interruptData: Record<string, unknown>;
-		bundleToolCallIds: string[];
-	} | null>(null);
+	// One entry per paused subagent, in receipt order (which matches the
+	// backend's ``state.interrupts`` traversal — and therefore the order
+	// ``slice_decisions_by_tool_call`` consumes on resume). Cleared on submit
+	// or on a fresh user turn.
+	const [pendingInterrupts, setPendingInterrupts] = useState<PendingInterruptState[]>([]);
+	// Per-card staged decisions held until every pending card has submitted,
+	// at which point we batch them into one ``hitl-decision`` event in the
+	// same order as ``pendingInterrupts``. Using a ref because partial
+	// progress should not re-render the page.
+	const stagedDecisionsByInterruptIdRef = useRef<Map<string, HitlDecision[]>>(new Map());
 	const toolsWithUI = TOOLS_WITH_UI_ALL;
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 
@@ -395,7 +413,7 @@ export default function NewChatPage() {
 				const memberById = new Map(membersData?.map((m) => [m.user_id, m]) ?? []);
 				const prevById = new Map(prev.map((m) => [m.id, m]));
 
-				return syncedMessages.map((msg) => {
+				return reconcileInterruptedAssistantMessages(syncedMessages).map((msg) => {
 					const member = msg.author_id ? (memberById.get(msg.author_id) ?? null) : null;
 
 					// Preserve existing author info if member lookup fails (e.g., cloned chats)
@@ -622,7 +640,9 @@ export default function NewChatPage() {
 				setCurrentThread(threadData);
 
 				if (messagesResponse.messages && messagesResponse.messages.length > 0) {
-					const loadedMessages = messagesResponse.messages.map(convertToThreadMessage);
+					const loadedMessages = reconcileInterruptedAssistantMessages(
+						messagesResponse.messages
+					).map(convertToThreadMessage);
 					setMessages(loadedMessages);
 
 					for (const msg of messagesResponse.messages) {
@@ -908,18 +928,29 @@ export default function NewChatPage() {
 				hasAttachments: userImages.length > 0,
 				hasMentionedDocuments:
 					mentionedDocumentIds.surfsense_doc_ids.length > 0 ||
-					mentionedDocumentIds.document_ids.length > 0,
+					mentionedDocumentIds.document_ids.length > 0 ||
+					mentionedDocumentIds.folder_ids.length > 0,
 				messageLength: userQuery.length,
 			});
 
-			// Collect unique mentioned docs for display & persistence
+			// Collect unique mention chips for display & persistence.
+			// Dedup key is ``kind:document_type:id`` so a folder and a
+			// doc with the same integer id never collapse into one
+			// entry. The ``kind`` field is forwarded to the backend
+			// so the persisted ``mentioned-documents`` content part
+			// can render the correct chip type on reload.
 			const allMentionedDocs: MentionedDocumentInfo[] = [];
 			const seenDocKeys = new Set<string>();
 			for (const doc of mentionedDocuments) {
-				const key = `${doc.document_type}:${doc.id}`;
+				const key = `${doc.kind}:${doc.document_type}:${doc.id}`;
 				if (seenDocKeys.has(key)) continue;
 				seenDocKeys.add(key);
-				allMentionedDocs.push({ id: doc.id, title: doc.title, document_type: doc.document_type });
+				allMentionedDocs.push({
+					id: doc.id,
+					title: doc.title,
+					document_type: doc.document_type,
+					kind: doc.kind,
+				});
 			}
 
 			if (allMentionedDocs.length > 0) {
@@ -981,9 +1012,10 @@ export default function NewChatPage() {
 				// Get mentioned document IDs for context (separate fields for backend)
 				const hasDocumentIds = mentionedDocumentIds.document_ids.length > 0;
 				const hasSurfsenseDocIds = mentionedDocumentIds.surfsense_doc_ids.length > 0;
+				const hasFolderIds = mentionedDocumentIds.folder_ids.length > 0;
 
 				// Clear mentioned documents after capturing them
-				if (hasDocumentIds || hasSurfsenseDocIds) {
+				if (hasDocumentIds || hasSurfsenseDocIds || hasFolderIds) {
 					setMentionedDocuments([]);
 				}
 
@@ -1008,7 +1040,9 @@ export default function NewChatPage() {
 							mentioned_surfsense_doc_ids: hasSurfsenseDocIds
 								? mentionedDocumentIds.surfsense_doc_ids
 								: undefined,
-							// Full mention metadata so the BE can embed a
+							mentioned_folder_ids: hasFolderIds ? mentionedDocumentIds.folder_ids : undefined,
+							// Full mention metadata (docs + folders, with
+							// ``kind`` discriminator) so the BE can embed a
 							// ``mentioned-documents`` ContentPart on the
 							// persisted user message (replaces the old FE-side
 							// injection in ``persistUserTurn``).
@@ -1018,6 +1052,7 @@ export default function NewChatPage() {
 											id: d.id,
 											title: d.title,
 											document_type: d.document_type,
+											kind: d.kind,
 										}))
 									: undefined,
 							disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
@@ -1167,12 +1202,24 @@ export default function NewChatPage() {
 								)
 							);
 							if (currentThreadId) {
-								setPendingInterrupt({
-									threadId: currentThreadId,
-									assistantMsgId,
-									interruptData,
-									bundleToolCallIds,
-								});
+								// ``tool_call_id`` is stamped on the backend by
+								// ``checkpointed_subagent_middleware``. Without it we
+								// can't address the paused subagent on resume — skip
+								// rather than fabricate a synthetic key.
+								const interruptId = String(interruptData.tool_call_id ?? "");
+								if (interruptId) {
+									const incoming: PendingInterruptState = {
+										interruptId,
+										threadId: currentThreadId,
+										assistantMsgId,
+										interruptData,
+										bundleToolCallIds,
+									};
+									setPendingInterrupts((prev) => {
+										const without = prev.filter((p) => p.interruptId !== interruptId);
+										return [...without, incoming];
+									});
+								}
 							}
 							break;
 						}
@@ -1248,7 +1295,7 @@ export default function NewChatPage() {
 							// by ``persist_assistant_shell``. Rename the optimistic
 							// id, migrate ``tokenUsageStore`` so any pending
 							// ``data-token-usage`` payload binds to the new id,
-							// remap any in-flight ``pendingInterrupt`` reference,
+							// remap any in-flight ``pendingInterrupts`` entries,
 							// and reassign the closure variable so the in-stream
 							// flush callback (line ~1074) keeps writing to the
 							// renamed message.
@@ -1264,10 +1311,12 @@ export default function NewChatPage() {
 										: m
 								)
 							);
-							setPendingInterrupt((prev) =>
-								prev && prev.assistantMsgId === oldAssistantMsgId
-									? { ...prev, assistantMsgId: newAssistantMsgId }
-									: prev
+							setPendingInterrupts((prev) =>
+								prev.map((p) =>
+									p.assistantMsgId === oldAssistantMsgId
+										? { ...p, assistantMsgId: newAssistantMsgId }
+										: p
+								)
 							);
 							assistantMsgId = newAssistantMsgId;
 							break;
@@ -1354,14 +1403,23 @@ export default function NewChatPage() {
 				edited_action?: { name: string; args: Record<string, unknown> };
 			}>
 		) => {
-			if (!pendingInterrupt) return;
-			const { threadId: resumeThreadId } = pendingInterrupt;
+			if (pendingInterrupts.length === 0) return;
+			// All cards in this turn share the same threadId/assistantMsgId
+			// (they're siblings of one parent agent step), so reading from
+			// the first entry is safe.
+			const resumeThreadId = pendingInterrupts[0].threadId;
 			// Destructured separately as ``let`` so the SSE
 			// ``data-assistant-message-id`` handler (resume always
 			// allocates a fresh server-side row) can rename it to
 			// the canonical ``msg-{db_id}`` mid-stream.
-			let assistantMsgId = pendingInterrupt.assistantMsgId;
-			setPendingInterrupt(null);
+			let assistantMsgId = pendingInterrupts[0].assistantMsgId;
+			// Concatenate every card's tool-call ids in pendingInterrupts order;
+			// this matches the ``decisions`` ordering produced by
+			// ``handleApprovalSubmit`` and the backend slicer's traversal of
+			// ``state.interrupts``.
+			const allBundleToolCallIds = pendingInterrupts.flatMap((p) => p.bundleToolCallIds);
+			setPendingInterrupts([]);
+			stagedDecisionsByInterruptIdRef.current.clear();
 			setIsRunning(true);
 
 			const token = getBearerToken();
@@ -1388,6 +1446,8 @@ export default function NewChatPage() {
 
 			const existingMsg = messages.find((m) => m.id === assistantMsgId);
 			if (existingMsg && Array.isArray(existingMsg.content)) {
+				// See ``ContentPartsState.suppressStepSeparators`` doc.
+				contentPartsState.suppressStepSeparators = true;
 				for (const part of existingMsg.content) {
 					if (typeof part === "object" && part !== null) {
 						const p = part as Record<string, unknown>;
@@ -1402,14 +1462,18 @@ export default function NewChatPage() {
 								toolName: String(p.toolName),
 								args: (p.args as Record<string, unknown>) ?? {},
 								result: p.result as unknown,
-								// Restore argsText so persisted pretty-printed
-								// JSON survives reloads (assistant-ui prefers
-								// supplied argsText over JSON.stringify(args)).
-								// langchainToolCallId restoration also fixes a
-								// pre-existing dropped-id bug on resume.
+								// argsText: assistant-ui prefers it over
+								// JSON.stringify(args), so restoring it keeps
+								// pretty-printed JSON across reloads.
 								...(typeof p.argsText === "string" ? { argsText: p.argsText } : {}),
 								...(typeof p.langchainToolCallId === "string"
 									? { langchainToolCallId: p.langchainToolCallId }
+									: {}),
+								// metadata: spanId / thinkingStepId drive the
+								// timeline's step↔tool join. Dropping these
+								// here orphans every rehydrated tool-call.
+								...(p.metadata && typeof p.metadata === "object"
+									? { metadata: p.metadata as Record<string, unknown> }
 									: {}),
 							});
 							contentPartsState.currentTextPartIndex = -1;
@@ -1432,7 +1496,7 @@ export default function NewChatPage() {
 			// collapse onto ``decisions[0]``. Cards outside the bundle are
 			// untouched. Mirrors the host ``hitl-decision`` handler.
 			const decisionByTcId = new Map<string, (typeof decisions)[number]>();
-			const tcIds = pendingInterrupt.bundleToolCallIds;
+			const tcIds = allBundleToolCallIds;
 			if (decisions.length === tcIds.length) {
 				for (let i = 0; i < tcIds.length; i++) decisionByTcId.set(tcIds[i], decisions[i]);
 			}
@@ -1444,7 +1508,7 @@ export default function NewChatPage() {
 					if (!d) continue;
 					if (typeof part.result !== "object" || part.result === null) continue;
 					if (!("__interrupt__" in (part.result as Record<string, unknown>))) continue;
-					const decided = d.type as "approve" | "reject" | "edit";
+					const decided = d.type;
 					if (decided === "edit" && d.edited_action) {
 						const mergedArgs = { ...part.args, ...d.edited_action.args };
 						part.args = mergedArgs;
@@ -1564,12 +1628,22 @@ export default function NewChatPage() {
 										: m
 								)
 							);
-							setPendingInterrupt({
-								threadId: resumeThreadId,
-								assistantMsgId,
-								interruptData,
-								bundleToolCallIds,
-							});
+							{
+								const interruptId = String(interruptData.tool_call_id ?? "");
+								if (interruptId) {
+									const incoming: PendingInterruptState = {
+										interruptId,
+										threadId: resumeThreadId,
+										assistantMsgId,
+										interruptData,
+										bundleToolCallIds,
+									};
+									setPendingInterrupts((prev) => {
+										const without = prev.filter((p) => p.interruptId !== interruptId);
+										return [...without, incoming];
+									});
+								}
+							}
 							break;
 						}
 
@@ -1647,7 +1721,7 @@ export default function NewChatPage() {
 			}
 		},
 		[
-			pendingInterrupt,
+			pendingInterrupts,
 			messages,
 			searchSpaceId,
 			localFilesystemEnabled,
@@ -1668,17 +1742,19 @@ export default function NewChatPage() {
 					edited_action?: { name: string; args: Record<string, unknown> };
 				}>;
 			};
-			if (!detail?.decisions || !pendingInterrupt) return;
+			if (!detail?.decisions || pendingInterrupts.length === 0) return;
 			const incoming = detail.decisions;
 			if (incoming.length === 0) return;
-			const tcIds = pendingInterrupt.bundleToolCallIds;
+			// Concatenated tool-call ids across every pending card, in the
+			// order ``handleApprovalSubmit`` produced ``incoming``.
+			const tcIds = pendingInterrupts.flatMap((p) => p.bundleToolCallIds);
 			const N = tcIds.length;
 
-			// Bundles must submit exactly one decision per action_request.
-			// Refuse rather than silently broadcast a single decision across
-			// the bundle (would mis-apply rejects/edits and diverge from
-			// what handleResume sends to /resume).
-			if (N > 1 && incoming.length !== N) {
+			// Refuse rather than silently broadcast or drop. The orchestrator
+			// only fires ``hitl-decision`` once every pending card has
+			// submitted, so a count mismatch indicates a contract drift
+			// (and would later make the backend slicer raise).
+			if (incoming.length !== N) {
 				toast.error(
 					`Cannot resume: ${incoming.length} decision(s) submitted for ${N} pending actions.`
 				);
@@ -1689,9 +1765,12 @@ export default function NewChatPage() {
 			for (let i = 0; i < tcIds.length; i++) byTcId.set(tcIds[i], incoming[i]);
 			const submittedDecisions = tcIds.map((id) => byTcId.get(id)!);
 
+			// All pending cards belong to the same assistant message, so a
+			// single content-update pass suffices.
+			const targetAssistantMsgId = pendingInterrupts[0].assistantMsgId;
 			setMessages((prev) =>
 				prev.map((m) => {
-					if (m.id !== pendingInterrupt.assistantMsgId) return m;
+					if (m.id !== targetAssistantMsgId) return m;
 					const parts = m.content as unknown as Array<Record<string, unknown>>;
 					const newContent = parts.map((part) => {
 						const tcId = part.toolCallId as string | undefined;
@@ -1699,7 +1778,7 @@ export default function NewChatPage() {
 						if (!d || part.type !== "tool-call") return part;
 						if (typeof part.result !== "object" || part.result === null) return part;
 						if (!("__interrupt__" in (part.result as Record<string, unknown>))) return part;
-						const decided = d.type as "approve" | "reject" | "edit";
+						const decided = d.type;
 						if (decided === "edit" && d.edited_action) {
 							return {
 								...part,
@@ -1728,58 +1807,7 @@ export default function NewChatPage() {
 		};
 		window.addEventListener("hitl-decision", handler);
 		return () => window.removeEventListener("hitl-decision", handler);
-	}, [handleResume, pendingInterrupt]);
-
-	// Mirror staged bundle decisions onto the cards visually so prev/next nav
-	// reflects past choices instead of re-prompting. Submit's ``hitl-decision``
-	// handler still runs the actual resume.
-	useEffect(() => {
-		const handler = (e: Event) => {
-			const detail = (e as CustomEvent).detail as {
-				toolCallId: string;
-				decision: {
-					type: string;
-					message?: string;
-					edited_action?: { name: string; args: Record<string, unknown> };
-				};
-			};
-			if (!detail?.toolCallId || !detail?.decision || !pendingInterrupt) return;
-			setMessages((prev) =>
-				prev.map((m) => {
-					if (m.id !== pendingInterrupt.assistantMsgId) return m;
-					const parts = m.content as unknown as Array<Record<string, unknown>>;
-					const newContent = parts.map((part) => {
-						if (part.toolCallId !== detail.toolCallId) return part;
-						if (part.type !== "tool-call") return part;
-						if (typeof part.result !== "object" || part.result === null) return part;
-						if (!("__interrupt__" in (part.result as Record<string, unknown>))) return part;
-						const decided = detail.decision.type as "approve" | "reject" | "edit";
-						if (decided === "edit" && detail.decision.edited_action) {
-							return {
-								...part,
-								args: detail.decision.edited_action.args,
-								argsText: JSON.stringify(detail.decision.edited_action.args, null, 2),
-								result: {
-									...(part.result as Record<string, unknown>),
-									__decided__: decided,
-								},
-							};
-						}
-						return {
-							...part,
-							result: {
-								...(part.result as Record<string, unknown>),
-								__decided__: decided,
-							},
-						};
-					});
-					return { ...m, content: newContent as unknown as ThreadMessageLike["content"] };
-				})
-			);
-		};
-		window.addEventListener("hitl-stage", handler);
-		return () => window.removeEventListener("hitl-stage", handler);
-	}, [pendingInterrupt]);
+	}, [handleResume, pendingInterrupts]);
 
 	// Convert message (pass through since already in correct format)
 	const convertMessage = useCallback(
@@ -1895,6 +1923,23 @@ export default function NewChatPage() {
 				const selection = await getAgentFilesystemSelection(searchSpaceId, {
 					localFilesystemEnabled,
 				});
+				// Partition the source mentions back into doc/surfsense_doc/folder
+				// id buckets so the regenerate route can pass them to
+				// ``stream_new_chat`` and the priority middleware sees the
+				// same ``[USER-MENTIONED]`` priority entries the original
+				// turn did. Without this partition the regenerate flow
+				// silently dropped the agent's mention awareness — same
+				// architectural bug we fixed on the new-chat path.
+				const regenerateSurfsenseDocIds = sourceMentionedDocs
+					.filter((d) => d.kind === "doc" && d.document_type === "SURFSENSE_DOCS")
+					.map((d) => d.id);
+				const regenerateDocIds = sourceMentionedDocs
+					.filter((d) => d.kind === "doc" && d.document_type !== "SURFSENSE_DOCS")
+					.map((d) => d.id);
+				const regenerateFolderIds = sourceMentionedDocs
+					.filter((d) => d.kind === "folder")
+					.map((d) => d.id);
+
 				const requestBody: Record<string, unknown> = {
 					search_space_id: searchSpaceId,
 					user_query: newUserQuery,
@@ -1902,6 +1947,10 @@ export default function NewChatPage() {
 					filesystem_mode: selection.filesystem_mode,
 					client_platform: selection.client_platform,
 					local_filesystem_mounts: selection.local_filesystem_mounts,
+					mentioned_document_ids: regenerateDocIds.length > 0 ? regenerateDocIds : undefined,
+					mentioned_surfsense_doc_ids:
+						regenerateSurfsenseDocIds.length > 0 ? regenerateSurfsenseDocIds : undefined,
+					mentioned_folder_ids: regenerateFolderIds.length > 0 ? regenerateFolderIds : undefined,
 					// Full mention metadata for the regenerate-specific
 					// source list. Only meaningful for edit (the BE only
 					// re-persists a user row when ``user_query`` is set);
@@ -1912,6 +1961,7 @@ export default function NewChatPage() {
 									id: d.id,
 									title: d.title,
 									document_type: d.document_type,
+									kind: d.kind,
 								}))
 							: undefined,
 				};
@@ -2279,11 +2329,32 @@ export default function NewChatPage() {
 		[handleRegenerate, messages, agentActionItems]
 	);
 
-	const handleBundleSubmit = useCallback<BundleSubmit>((orderedDecisions) => {
-		window.dispatchEvent(
-			new CustomEvent("hitl-decision", { detail: { decisions: orderedDecisions } })
-		);
-	}, []);
+	const handleApprovalSubmit = useCallback(
+		(interruptId: string, decisions: HitlDecision[]) => {
+			// Stage this card's decisions; only fire the resume once every
+			// pending card in the current turn has submitted, so the
+			// backend slicer sees a single concatenated decisions list
+			// whose total matches the parent state's pending action count.
+			stagedDecisionsByInterruptIdRef.current.set(interruptId, decisions);
+			if (stagedDecisionsByInterruptIdRef.current.size < pendingInterrupts.length) {
+				return;
+			}
+			const ordered: HitlDecision[] = [];
+			for (const pi of pendingInterrupts) {
+				const staged = stagedDecisionsByInterruptIdRef.current.get(pi.interruptId);
+				if (!staged) {
+					// Defensive: a missing entry means the staging map and
+					// the pending list disagreed for one cycle. Bail rather
+					// than dispatch a count-mismatched batch.
+					return;
+				}
+				ordered.push(...staged);
+			}
+			stagedDecisionsByInterruptIdRef.current.clear();
+			window.dispatchEvent(new CustomEvent("hitl-decision", { detail: { decisions: ordered } }));
+		},
+		[pendingInterrupts]
+	);
 
 	const handleEditDialogChoice = useCallback(
 		async (choice: EditMessageDialogChoice) => {
@@ -2353,11 +2424,11 @@ export default function NewChatPage() {
 	return (
 		<TokenUsageProvider store={tokenUsageStore}>
 			<AssistantRuntimeProvider runtime={runtime}>
-				<ThinkingStepsDataUI />
+				<TimelineDataUI />
 				<StepSeparatorDataUI />
-				<HitlBundleProvider
-					toolCallIds={pendingInterrupt?.bundleToolCallIds ?? null}
-					onSubmit={handleBundleSubmit}
+				<PendingInterruptProvider
+					pendingInterrupts={pendingInterrupts}
+					onSubmit={handleApprovalSubmit}
 				>
 					<div key={searchSpaceId} className="flex h-full overflow-hidden">
 						<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -2367,7 +2438,7 @@ export default function NewChatPage() {
 						<MobileEditorPanel />
 						<MobileHitlEditPanel />
 					</div>
-				</HitlBundleProvider>
+				</PendingInterruptProvider>
 				<EditMessageDialog
 					open={editDialogState !== null}
 					onOpenChange={(open) => {

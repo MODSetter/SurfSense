@@ -11,6 +11,7 @@ import { queryClient } from "@/lib/query-client/client";
 
 export const createPromptMutationAtom = atomWithMutation(() => ({
 	mutationKey: ["prompts", "create"],
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (request: PromptCreateRequest) => {
 		return promptsApiService.create(request);
 	},
@@ -25,6 +26,7 @@ export const createPromptMutationAtom = atomWithMutation(() => ({
 
 export const updatePromptMutationAtom = atomWithMutation(() => ({
 	mutationKey: ["prompts", "update"],
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async ({ id, ...data }: PromptUpdateRequest & { id: number }) => {
 		return promptsApiService.update(id, data);
 	},
@@ -39,6 +41,7 @@ export const updatePromptMutationAtom = atomWithMutation(() => ({
 
 export const deletePromptMutationAtom = atomWithMutation(() => ({
 	mutationKey: ["prompts", "delete"],
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (id: number) => {
 		return promptsApiService.delete(id);
 	},
@@ -57,6 +60,7 @@ export const deletePromptMutationAtom = atomWithMutation(() => ({
 
 export const copyPromptMutationAtom = atomWithMutation(() => ({
 	mutationKey: ["prompts", "copy"],
+	meta: { suppressGlobalErrorToast: true },
 	mutationFn: async (promptId: number) => {
 		return promptsApiService.copy(promptId);
 	},

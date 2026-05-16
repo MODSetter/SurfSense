@@ -71,7 +71,10 @@ from app.schemas.new_chat import (
     TokenUsageSummary,
     TurnStatusResponse,
 )
-from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
+from app.tasks.chat.stream_new_chat import (
+    stream_new_chat,
+    stream_resume_chat,
+)
 from app.users import current_active_user
 from app.utils.perf import get_perf_logger
 from app.utils.rbac import check_permission
@@ -1778,6 +1781,7 @@ async def handle_new_chat(
                 llm_config_id=llm_config_id,
                 mentioned_document_ids=request.mentioned_document_ids,
                 mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
+                mentioned_folder_ids=request.mentioned_folder_ids,
                 mentioned_documents=mentioned_documents_payload,
                 needs_history_bootstrap=thread.needs_history_bootstrap,
                 thread_visibility=thread.visibility,
@@ -2263,6 +2267,7 @@ async def regenerate_response(
                     llm_config_id=llm_config_id,
                     mentioned_document_ids=request.mentioned_document_ids,
                     mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
+                    mentioned_folder_ids=request.mentioned_folder_ids,
                     mentioned_documents=mentioned_documents_payload,
                     checkpoint_id=target_checkpoint_id,
                     needs_history_bootstrap=thread.needs_history_bootstrap,

@@ -112,7 +112,8 @@ export function processSharedStreamEvent(
 				parsed.toolName,
 				{},
 				false,
-				parsed.langchainToolCallId
+				parsed.langchainToolCallId,
+				parsed.metadata
 			);
 			forceFlush();
 			return true;
@@ -131,6 +132,7 @@ export function processSharedStreamEvent(
 					args: parsed.input || {},
 					argsText: finalArgsText,
 					langchainToolCallId: parsed.langchainToolCallId,
+					metadata: parsed.metadata,
 				});
 			} else {
 				addToolCall(
@@ -140,7 +142,8 @@ export function processSharedStreamEvent(
 					parsed.toolName,
 					parsed.input || {},
 					false,
-					parsed.langchainToolCallId
+					parsed.langchainToolCallId,
+					parsed.metadata
 				);
 				// addToolCall doesn't accept argsText today; backfill via
 				// updateToolCall so the new card renders pretty-printed JSON.
@@ -156,6 +159,7 @@ export function processSharedStreamEvent(
 			updateToolCall(contentPartsState, parsed.toolCallId, {
 				result: parsed.output,
 				langchainToolCallId: parsed.langchainToolCallId,
+				metadata: parsed.metadata,
 			});
 			markInterruptsCompleted(contentParts);
 			context.onToolOutputAvailable?.(parsed, { contentPartsState, toolCallIndices });

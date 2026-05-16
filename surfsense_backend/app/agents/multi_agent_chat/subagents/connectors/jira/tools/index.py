@@ -1,34 +1,26 @@
+"""``jira`` permission ruleset (rules over MCP tool names)."""
+
 from __future__ import annotations
 
-from typing import Any
+from app.agents.new_chat.permissions import Rule, Ruleset
 
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
-    ToolsPermissions,
+NAME = "jira"
+
+RULESET = Ruleset(
+    origin=NAME,
+    rules=[
+        Rule(permission="getAccessibleAtlassianResources", pattern="*", action="allow"),
+        Rule(permission="getVisibleJiraProjects", pattern="*", action="allow"),
+        Rule(permission="searchJiraIssuesUsingJql", pattern="*", action="allow"),
+        Rule(permission="getJiraIssue", pattern="*", action="allow"),
+        Rule(
+            permission="getJiraProjectIssueTypesMetadata", pattern="*", action="allow"
+        ),
+        Rule(permission="getJiraIssueTypeMetaWithFields", pattern="*", action="allow"),
+        Rule(permission="getTransitionsForJiraIssue", pattern="*", action="allow"),
+        Rule(permission="lookupJiraAccountId", pattern="*", action="allow"),
+        Rule(permission="createJiraIssue", pattern="*", action="ask"),
+        Rule(permission="editJiraIssue", pattern="*", action="ask"),
+        Rule(permission="transitionJiraIssue", pattern="*", action="ask"),
+    ],
 )
-
-from .create_issue import create_create_jira_issue_tool
-from .delete_issue import create_delete_jira_issue_tool
-from .update_issue import create_update_jira_issue_tool
-
-
-def load_tools(
-    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
-) -> ToolsPermissions:
-    d = {**(dependencies or {}), **kwargs}
-    common = {
-        "db_session": d["db_session"],
-        "search_space_id": d["search_space_id"],
-        "user_id": d["user_id"],
-        "connector_id": d.get("connector_id"),
-    }
-    create = create_create_jira_issue_tool(**common)
-    update = create_update_jira_issue_tool(**common)
-    delete = create_delete_jira_issue_tool(**common)
-    return {
-        "allow": [],
-        "ask": [
-            {"name": getattr(create, "name", "") or "", "tool": create},
-            {"name": getattr(update, "name", "") or "", "tool": update},
-            {"name": getattr(delete, "name", "") or "", "tool": delete},
-        ],
-    }

@@ -37,7 +37,7 @@ def _make_orm_doc(connector_doc, doc_id):
 async def test_index_calls_embed_and_chunk_via_to_thread(
     pipeline, make_connector_document, monkeypatch
 ):
-    """index() runs embed_texts and chunk_text via asyncio.to_thread, not blocking the loop."""
+    """index() runs embed_texts and the chunker via asyncio.to_thread, not blocking the loop."""
     to_thread_calls = []
     original_to_thread = asyncio.to_thread
 
@@ -56,6 +56,12 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
     monkeypatch.setattr(
         "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
         mock_chunk,
+    )
+    mock_chunk_hybrid = MagicMock(return_value=["chunk1"])
+    mock_chunk_hybrid.__name__ = "chunk_text_hybrid"
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.chunk_text_hybrid",
+        mock_chunk_hybrid,
     )
     mock_embed = MagicMock(
         side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]
@@ -77,7 +83,10 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
 
     await pipeline.index(document, connector_doc, llm=MagicMock())
 
-    assert "chunk_text" in to_thread_calls
+    # Non-code documents now route through the table-aware hybrid chunker
+    # (see commit 2f3a33c9). Either chunker entry point satisfies the
+    # "chunking runs off the event loop" contract this test guards.
+    assert {"chunk_text", "chunk_text_hybrid"} & set(to_thread_calls)
     assert "embed_texts" in to_thread_calls
 
 

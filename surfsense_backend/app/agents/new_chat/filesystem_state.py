@@ -17,6 +17,7 @@ extra fields needed to implement Postgres-backed virtual filesystem semantics:
 * ``kb_matched_chunk_ids`` — internal hand-off for matched-chunk highlighting.
 * ``kb_anon_doc`` — Redis-loaded anonymous document (if any).
 * ``tree_version`` — bumped by persistence; invalidates the tree render cache.
+* ``workspace_tree_text`` — pre-rendered ``<workspace_tree>`` body for the turn.
 
 Tools mutate these fields ONLY via ``Command(update=...)`` returns; the
 reducers in :mod:`app.agents.new_chat.state_reducers` handle merging.
@@ -167,6 +168,9 @@ class SurfSenseFilesystemState(FilesystemState):
 
     tree_version: NotRequired[Annotated[int, _replace_reducer]]
     """Monotonically increasing counter; bumped when commits change the KB tree."""
+
+    workspace_tree_text: NotRequired[Annotated[str, _replace_reducer]]
+    """Pre-rendered ``<workspace_tree>`` body; shared with subagents to skip re-render."""
 
 
 __all__ = [

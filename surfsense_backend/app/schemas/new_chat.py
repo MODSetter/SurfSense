@@ -201,18 +201,34 @@ class NewChatUserImagePart(BaseModel):
 
 
 class MentionedDocumentInfo(BaseModel):
-    """Display metadata for a single ``@``-mentioned document.
+    """Display metadata for a single ``@``-mention chip.
 
-    The full triple ``{id, title, document_type}`` is forwarded by the
-    frontend mention chip so the server can embed it in the persisted
-    user message ``ContentPart[]`` (single ``mentioned-documents`` part).
-    The history loader then renders the chips on reload without an extra
+    Carries either a knowledge-base document or a knowledge-base folder
+    (discriminated by ``kind``). The full triple
+    ``{id, title, document_type}`` is forwarded by the frontend mention
+    chip so the server can embed it in the persisted user message
+    ``ContentPart[]`` (single ``mentioned-documents`` part). The
+    history loader then renders the chips on reload without an extra
     fetch — mirrors the pre-refactor frontend ``persistUserTurn`` shape.
+
+    ``kind`` defaults to ``"doc"`` so legacy clients and persisted rows
+    that predate folder mentions deserialise unchanged.
     """
 
     id: int
     title: str = Field(..., min_length=1, max_length=500)
     document_type: str = Field(..., min_length=1, max_length=100)
+    kind: Literal["doc", "folder"] = Field(
+        default="doc",
+        description=(
+            "Discriminator for the chip's referent: ``doc`` is a "
+            "knowledge-base ``Document`` row, ``folder`` is a "
+            "knowledge-base ``Folder`` row. Folders carry the sentinel "
+            "``document_type='FOLDER'`` to keep the frontend dedup key "
+            "``(kind:document_type:id)`` from colliding doc and folder "
+            "ids that happen to share an integer value."
+        ),
+    )
 
 
 class NewChatRequest(BaseModel):
@@ -228,15 +244,26 @@ class NewChatRequest(BaseModel):
     mentioned_surfsense_doc_ids: list[int] | None = (
         None  # Optional SurfSense documentation IDs mentioned with @ in the chat
     )
+    mentioned_folder_ids: list[int] | None = Field(
+        default=None,
+        description=(
+            "Optional knowledge-base folder IDs the user mentioned with "
+            "@. Resolved to virtual paths (``/documents/.../``) by "
+            "``mention_resolver`` and surfaced to the agent via "
+            "(a) backtick-wrapped substitution in ``user_query`` and "
+            "(b) a ``[USER-MENTIONED]`` entry in ``<priority_documents>``. "
+            "The agent's ``ls`` tool can then walk the folder itself."
+        ),
+    )
     mentioned_documents: list[MentionedDocumentInfo] | None = Field(
         default=None,
         description=(
-            "Display metadata (id, title, document_type) for every "
-            "@-mentioned document. Persisted as a ``mentioned-documents`` "
-            "ContentPart on the user message so reload renders chips "
-            "without an extra fetch. Optional and additive — when None "
-            "the user message is persisted without a mentioned-documents "
-            "part."
+            "Display metadata (id, title, document_type, kind) for every "
+            "@-mention chip — both documents and folders. Persisted as a "
+            "``mentioned-documents`` ContentPart on the user message so "
+            "reload renders chips without an extra fetch. Optional and "
+            "additive — when None the user message is persisted without "
+            "a mentioned-documents part."
         ),
     )
     disabled_tools: list[str] | None = (
@@ -290,14 +317,22 @@ class RegenerateRequest(BaseModel):
     )
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None
+    mentioned_folder_ids: list[int] | None = Field(
+        default=None,
+        description=(
+            "Optional knowledge-base folder IDs the user mentioned with "
+            "@ on the edited user turn. Only used when ``user_query`` is "
+            "non-None (edit). Mirrors ``NewChatRequest.mentioned_folder_ids``."
+        ),
+    )
     mentioned_documents: list[MentionedDocumentInfo] | None = Field(
         default=None,
         description=(
-            "Display metadata (id, title, document_type) for every "
-            "@-mentioned document on the edited user turn. Only used "
-            "when ``user_query`` is non-None (edit). Persisted as a "
-            "``mentioned-documents`` ContentPart on the new user "
-            "message. None means no chip metadata."
+            "Display metadata (id, title, document_type, kind) for every "
+            "@-mention chip on the edited user turn — both documents and "
+            "folders. Only used when ``user_query`` is non-None (edit). "
+            "Persisted as a ``mentioned-documents`` ContentPart on the "
+            "new user message. None means no chip metadata."
         ),
     )
     disabled_tools: list[str] | None = None
@@ -360,7 +395,7 @@ class AgentToolInfo(BaseModel):
 
 
 class ResumeDecision(BaseModel):
-    type: Literal["approve", "edit", "reject"]
+    type: Literal["approve", "edit", "reject", "approve_always"]
     edited_action: dict[str, Any] | None = None
 
 
@@ -373,6 +408,16 @@ class ResumeRequest(BaseModel):
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
     local_filesystem_mounts: list[LocalFilesystemMountPayload] | None = None
+    mentioned_folder_ids: list[int] | None = Field(
+        default=None,
+        description=(
+            "Forwarded for symmetry with /new_chat and /regenerate. "
+            "Resume reuses the original interrupted user turn so this "
+            "field is informational only — the originating turn's "
+            "folder mentions already shaped the priority hints baked "
+            "into the agent's checkpoint."
+        ),
+    )
     mentioned_documents: list[MentionedDocumentInfo] | None = Field(
         default=None,
         description=(
@@ -380,7 +425,7 @@ class ResumeRequest(BaseModel):
             "/regenerate. Resume reuses the original interrupted user "
             "turn so the server does not write a new user message. "
             "Currently unused but accepted to keep request bodies "
-            "uniform across the three streaming entrypoints."
+            "uniform across new-message, regenerate, and resume stream routes."
         ),
     )
 

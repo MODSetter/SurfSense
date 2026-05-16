@@ -124,7 +124,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			handleStartEdit,
 			handleSaveConnector,
 			handleDisconnectConnector,
-			handleDisconnectFromList,
 			handleBackFromEdit,
 			handleBackFromConnect,
 			handleBackFromYouTube,
@@ -233,9 +232,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							indexingConnectorIds={indexingConnectorIds}
 							onBack={handleBackFromMCPList}
 							onManage={handleStartEdit}
-							onDisconnect={(connector) =>
-								handleDisconnectFromList(connector, () => refreshConnectors())
-							}
 							onAddAccount={handleAddNewMCPFromList}
 							addButtonText="Add New MCP Server"
 						/>
@@ -247,9 +243,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							indexingConnectorIds={indexingConnectorIds}
 							onBack={handleBackFromAccountsList}
 							onManage={handleStartEdit}
-							onDisconnect={(connector) =>
-								handleDisconnectFromList(connector, () => refreshConnectors())
-							}
 							onAddAccount={() => {
 								// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
 								const oauthConnector =

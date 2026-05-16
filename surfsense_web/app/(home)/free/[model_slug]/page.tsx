@@ -81,7 +81,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 	const title = buildSeoTitle(model);
 	const description = buildSeoDescription(model);
-	const canonicalUrl = `https://surfsense.com/free/${model.seo_slug}`;
+	const canonicalUrl = `https://www.surfsense.com/free/${model.seo_slug}`;
 	const modelNameLower = model.name.toLowerCase();
 
 	return {
@@ -161,7 +161,7 @@ export default async function FreeModelPage({ params }: PageProps) {
 					"@type": "WebApplication",
 					name: `${model.name} Free Chat Without Login - SurfSense`,
 					description,
-					url: `https://surfsense.com/free/${model.seo_slug}`,
+					url: `https://www.surfsense.com/free/${model.seo_slug}`,
 					applicationCategory: "ChatApplication",
 					operatingSystem: "Web",
 					offers: {
@@ -173,12 +173,12 @@ export default async function FreeModelPage({ params }: PageProps) {
 					provider: {
 						"@type": "Organization",
 						name: "SurfSense",
-						url: "https://surfsense.com",
+						url: "https://www.surfsense.com",
 					},
 					isPartOf: {
 						"@type": "WebSite",
 						name: "SurfSense",
-						url: "https://surfsense.com",
+						url: "https://www.surfsense.com",
 					},
 				}}
 			/>

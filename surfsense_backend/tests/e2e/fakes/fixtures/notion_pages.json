@@ -1,0 +1,64 @@
+{
+  "pages": [
+    {
+      "object": "page",
+      "id": "fake-notion-page-canary-001",
+      "created_time": "2026-05-07T00:00:00.000Z",
+      "last_edited_time": "2026-05-07T00:00:00.000Z",
+      "url": "https://notion.so/fake-notion-page-canary-001",
+      "properties": {
+        "Name": {
+          "id": "title",
+          "type": "title",
+          "title": [
+            {
+              "type": "text",
+              "plain_text": "E2E Canary Notion Page",
+              "text": {
+                "content": "E2E Canary Notion Page"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "blocks": {
+    "fake-notion-page-canary-001": [
+      {
+        "object": "block",
+        "id": "fake-notion-block-heading-001",
+        "type": "heading_2",
+        "has_children": false,
+        "heading_2": {
+          "rich_text": [
+            {
+              "type": "text",
+              "plain_text": "E2E Notion Canary",
+              "text": {
+                "content": "E2E Notion Canary"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "object": "block",
+        "id": "fake-notion-block-body-001",
+        "type": "paragraph",
+        "has_children": false,
+        "paragraph": {
+          "rich_text": [
+            {
+              "type": "text",
+              "plain_text": "This Notion page proves the indexed connector fetched Notion blocks through OAuth credentials. SURFSENSE_E2E_CANARY_TOKEN_NOTION_001",
+              "text": {
+                "content": "This Notion page proves the indexed connector fetched Notion blocks through OAuth credentials. SURFSENSE_E2E_CANARY_TOKEN_NOTION_001"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
