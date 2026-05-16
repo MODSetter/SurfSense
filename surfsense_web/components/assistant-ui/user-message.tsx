@@ -111,11 +111,7 @@ const UserTextPart: FC = () => {
 						icon={icon}
 						label={segment.doc.title}
 						tooltip={isFolder ? `Folder: ${segment.doc.title}` : segment.doc.title}
-						onClick={
-							isFolder
-								? undefined
-								: () => handleOpenDoc(segment.doc.id, segment.doc.title)
-						}
+						onClick={isFolder ? undefined : () => handleOpenDoc(segment.doc.id, segment.doc.title)}
 						className="mx-0.5"
 					/>
 				);

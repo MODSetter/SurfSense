@@ -29,6 +29,21 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+
+    if inspector.has_table("document_revisions") and inspector.has_table(
+        "folder_revisions"
+    ):
+        return
+
+    if not inspector.has_table("document_revisions"):
+        _create_document_revisions()
+    if not inspector.has_table("folder_revisions"):
+        _create_folder_revisions()
+
+
+def _create_document_revisions() -> None:
     op.create_table(
         "document_revisions",
         sa.Column("id", sa.Integer(), primary_key=True, index=True),
@@ -74,6 +89,8 @@ def upgrade() -> None:
         ),
     )
 
+
+def _create_folder_revisions() -> None:
     op.create_table(
         "folder_revisions",
         sa.Column("id", sa.Integer(), primary_key=True, index=True),

@@ -106,9 +106,9 @@ class TestAsk:
         # No new rule persisted
         assert mw._runtime_ruleset.rules == []
 
-    def test_always_persists_runtime_rule(self) -> None:
+    def test_approve_always_persists_runtime_rule(self) -> None:
         mw = PermissionMiddleware(rulesets=[])
-        mw._raise_interrupt = lambda **kw: {"decision_type": "always"}  # type: ignore[assignment]
+        mw._raise_interrupt = lambda **kw: {"decision_type": "approve_always"}  # type: ignore[assignment]
         state = {"messages": [_msg({"name": "send_email", "args": {}, "id": "1"})]}
         out = mw.after_model(state, _FakeRuntime())
         assert out is None  # call kept

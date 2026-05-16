@@ -50,29 +50,39 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "agent_action_log",
-        sa.Column("tool_call_id", sa.String(length=64), nullable=True),
-    )
-    op.add_column(
-        "agent_action_log",
-        sa.Column("chat_turn_id", sa.String(length=64), nullable=True),
-    )
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = {c["name"] for c in inspector.get_columns("agent_action_log")}
+    indexes = {i["name"] for i in inspector.get_indexes("agent_action_log")}
 
-    op.create_index(
-        "ix_agent_action_log_tool_call_id",
-        "agent_action_log",
-        ["tool_call_id"],
-    )
-    op.create_index(
-        "ix_agent_action_log_chat_turn_id",
-        "agent_action_log",
-        ["chat_turn_id"],
-    )
+    if "tool_call_id" not in columns:
+        op.add_column(
+            "agent_action_log",
+            sa.Column("tool_call_id", sa.String(length=64), nullable=True),
+        )
+    if "chat_turn_id" not in columns:
+        op.add_column(
+            "agent_action_log",
+            sa.Column("chat_turn_id", sa.String(length=64), nullable=True),
+        )
 
-    op.execute(
-        "UPDATE agent_action_log SET tool_call_id = turn_id WHERE tool_call_id IS NULL"
-    )
+    if "ix_agent_action_log_tool_call_id" not in indexes:
+        op.create_index(
+            "ix_agent_action_log_tool_call_id",
+            "agent_action_log",
+            ["tool_call_id"],
+        )
+    if "ix_agent_action_log_chat_turn_id" not in indexes:
+        op.create_index(
+            "ix_agent_action_log_chat_turn_id",
+            "agent_action_log",
+            ["chat_turn_id"],
+        )
+
+    if "turn_id" in columns:
+        op.execute(
+            "UPDATE agent_action_log SET tool_call_id = turn_id WHERE tool_call_id IS NULL"
+        )
 
 
 def downgrade() -> None:

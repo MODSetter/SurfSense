@@ -1,12 +1,11 @@
-"""Permission rulesets fanned out to parent / general-purpose / subagent stacks."""
+"""Pattern-based allow/deny/ask middleware with HITL fallback (vertical slice).
 
-from __future__ import annotations
+Public surface (one entry point only — every other symbol is an internal of
+the rule engine and stays inside ``middleware/``, ``ask/``, or ``deny.py``):
 
-from .context import PermissionContext, build_permission_context
-from .middleware import build_full_permission_mw
+- :func:`build_permission_mw` — construction recipe shared by every stack.
+"""
 
-__all__ = [
-    "PermissionContext",
-    "build_full_permission_mw",
-    "build_permission_context",
-]
+from .middleware.factory import build_permission_mw
+
+__all__ = ["build_permission_mw"]

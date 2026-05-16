@@ -17,6 +17,6 @@ export default function robots(): MetadataRoute.Robots {
 				],
 			},
 		],
-		sitemap: "https://surfsense.com/sitemap.xml",
+		sitemap: "https://www.surfsense.com/sitemap.xml",
 	};
 }

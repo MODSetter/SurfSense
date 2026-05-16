@@ -1,1 +1,2 @@
-Use for Dropbox file storage tasks: browse folders, read files, and manage Dropbox file content.
+Specialist for files in the user's Dropbox.
+Use proactively when the user wants to create or remove a Dropbox file.

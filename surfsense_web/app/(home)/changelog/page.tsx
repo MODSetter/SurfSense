@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 	title: "Changelog | SurfSense",
 	description: "See what's new in SurfSense. Latest updates, features, and improvements.",
 	alternates: {
-		canonical: "https://surfsense.com/changelog",
+		canonical: "https://www.surfsense.com/changelog",
 	},
 };
 

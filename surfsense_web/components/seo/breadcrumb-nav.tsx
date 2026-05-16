@@ -15,7 +15,7 @@ interface BreadcrumbNavProps {
 export function BreadcrumbNav({ items, className }: BreadcrumbNavProps) {
 	const jsonLdItems = items.map((item) => ({
 		name: item.name,
-		url: `https://surfsense.com${item.href}`,
+		url: `https://www.surfsense.com${item.href}`,
 	}));
 
 	return (

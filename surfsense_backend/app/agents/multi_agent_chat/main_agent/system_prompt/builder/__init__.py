@@ -1,4 +1,4 @@
-"""Assemble the main-agent system prompt from ``markdown/*.md`` fragments."""
+"""Assemble the main-agent system prompt from ``prompts/`` fragments."""
 
 from __future__ import annotations
 

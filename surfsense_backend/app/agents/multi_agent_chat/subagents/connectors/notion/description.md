@@ -1,1 +1,2 @@
-Use for Notion workspace pages: create pages, update page content, and delete pages.
+Specialist for pages in the user's Notion workspace.
+Use proactively when the user wants to create, change, archive, or remove a Notion page.

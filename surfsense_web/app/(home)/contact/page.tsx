@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 	description:
 		"Get in touch with the SurfSense team for enterprise AI search, knowledge management, or partnership inquiries.",
 	alternates: {
-		canonical: "https://surfsense.com/contact",
+		canonical: "https://www.surfsense.com/contact",
 	},
 };
 

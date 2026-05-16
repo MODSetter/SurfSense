@@ -4,7 +4,7 @@ export const metadata: Metadata = {
 	title: "Privacy Policy | SurfSense",
 	description: "Privacy Policy for SurfSense application",
 	alternates: {
-		canonical: "https://surfsense.com/privacy",
+		canonical: "https://www.surfsense.com/privacy",
 	},
 };
 

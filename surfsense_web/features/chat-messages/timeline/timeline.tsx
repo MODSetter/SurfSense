@@ -33,9 +33,9 @@ export const Timeline: FC<{
 	isThreadRunning?: boolean;
 }> = ({ items, isThreadRunning = true }) => {
 	const pendingValue = usePendingInterrupt();
-	const pendingInterrupt = pendingValue?.pendingInterrupt ?? null;
+	const pendingInterrupts = pendingValue?.pendingInterrupts ?? [];
 	const onSubmit = pendingValue?.onSubmit;
-	const hasPending = pendingInterrupt !== null;
+	const hasPending = pendingInterrupts.length > 0;
 
 	// Apply the override here so downstream (grouping, headers, dots)
 	// sees the corrected status without threading a callback. Keeps
@@ -138,9 +138,15 @@ export const Timeline: FC<{
 									/>
 								);
 							})}
-							{pendingInterrupt && onSubmit && (
-								<div className="pl-5">
-									<HitlApprovalCard pendingInterrupt={pendingInterrupt} onSubmit={onSubmit} />
+							{hasPending && onSubmit && (
+								<div className="pl-5 space-y-3">
+									{pendingInterrupts.map((pi) => (
+										<HitlApprovalCard
+											key={pi.interruptId}
+											pendingInterrupt={pi}
+											onSubmit={(decisions) => onSubmit(pi.interruptId, decisions)}
+										/>
+									))}
 								</div>
 							)}
 						</div>

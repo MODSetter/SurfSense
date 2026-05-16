@@ -58,7 +58,7 @@ const THEMES = [
 ];
 
 const LEARN_MORE_LINKS = [
-	{ key: "documentation" as const, href: "https://surfsense.com/docs" },
+	{ key: "documentation" as const, href: "https://www.surfsense.com/docs" },
 	{ key: "github" as const, href: "https://github.com/MODSetter/SurfSense" },
 ];
 

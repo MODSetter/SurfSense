@@ -1,55 +1,17 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
+import type { LogFilters } from "@/contracts/types/log.types";
 import { logsApiService } from "@/lib/apis/logs-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
-export type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
-export type LogStatus = "IN_PROGRESS" | "SUCCESS" | "FAILED";
-
-export interface Log {
-	id: number;
-	level: LogLevel;
-	status: LogStatus;
-	message: string;
-	source?: string;
-	log_metadata?: Record<string, unknown>;
-	created_at: string;
-	search_space_id: number;
-}
-
-export interface LogFilters {
-	search_space_id?: number;
-	level?: LogLevel;
-	status?: LogStatus;
-	source?: string;
-	start_date?: string;
-	end_date?: string;
-}
-
-export interface LogSummary {
-	total_logs: number;
-	time_window_hours: number;
-	by_status: Record<string, number>;
-	by_level: Record<string, number>;
-	by_source: Record<string, number>;
-	active_tasks: Array<{
-		id: number;
-		task_name: string;
-		message: string;
-		started_at: string;
-		source?: string;
-		document_id?: number;
-	}>;
-	recent_failures: Array<{
-		id: number;
-		task_name: string;
-		message: string;
-		failed_at: string;
-		source?: string;
-		error_details?: string;
-	}>;
-}
+export type {
+	Log,
+	LogFilters,
+	LogLevel,
+	LogStatus,
+	LogSummary,
+} from "@/contracts/types/log.types";
 
 export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 	const filtersKey = JSON.stringify(filters);

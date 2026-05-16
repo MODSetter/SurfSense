@@ -1,14 +1,19 @@
+"""``slack`` permission ruleset (rules over MCP tool names)."""
+
 from __future__ import annotations
 
-from typing import Any
+from app.agents.new_chat.permissions import Rule, Ruleset
 
-from app.agents.multi_agent_chat.subagents.shared.permissions import (
-    ToolsPermissions,
+NAME = "slack"
+
+RULESET = Ruleset(
+    origin=NAME,
+    rules=[
+        Rule(permission="slack_search_channels", pattern="*", action="allow"),
+        Rule(permission="slack_search_messages", pattern="*", action="allow"),
+        Rule(permission="slack_search_users", pattern="*", action="allow"),
+        Rule(permission="slack_read_channel", pattern="*", action="allow"),
+        Rule(permission="slack_read_thread", pattern="*", action="allow"),
+        Rule(permission="slack_send_message", pattern="*", action="ask"),
+    ],
 )
-
-
-def load_tools(
-    *, dependencies: dict[str, Any] | None = None, **kwargs: Any
-) -> ToolsPermissions:
-    _ = {**(dependencies or {}), **kwargs}
-    return {"allow": [], "ask": []}

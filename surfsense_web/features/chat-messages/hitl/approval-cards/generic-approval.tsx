@@ -2,13 +2,11 @@
 
 import { CornerDownLeftIcon, Pencil } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getToolDisplayName } from "@/contracts/enums/toolIcons";
-import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import type { HitlDecision, InterruptResult, PerToolApprovalCard } from "../types";
 import { useHitlDecision } from "../use-hitl-decision";
 import { useHitlPhase } from "../use-hitl-phase";
@@ -81,12 +79,11 @@ function GenericApprovalCardView({
 
 	const mcpServer = interruptData.context?.mcp_server as string | undefined;
 	const toolDescription = interruptData.context?.tool_description as string | undefined;
-	const mcpConnectorId = interruptData.context?.mcp_connector_id as number | undefined;
-	const isMCPTool = mcpConnectorId != null;
 
 	const reviewConfig = interruptData.review_configs?.[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
+	const canApproveAlways = allowedDecisions.includes("approve_always");
 
 	const hasChanged = useMemo(() => {
 		return JSON.stringify(editedParams) !== JSON.stringify(args);
@@ -113,16 +110,11 @@ function GenericApprovalCardView({
 		editedParams,
 	]);
 
-	const handleAlwaysAllow = useCallback(() => {
-		if (phase !== "pending" || !isMCPTool) return;
+	const handleApproveAlways = useCallback(() => {
+		if (phase !== "pending" || !canApproveAlways) return;
 		setProcessing();
-		onDecision({ type: "approve" });
-		connectorsApiService.trustMCPTool(mcpConnectorId, toolName).catch(() => {
-			toast.error(
-				"Failed to save 'Always Allow' preference. The tool will still require approval next time."
-			);
-		});
-	}, [phase, setProcessing, onDecision, isMCPTool, mcpConnectorId, toolName]);
+		onDecision({ type: "approve_always" });
+	}, [phase, setProcessing, onDecision, canApproveAlways]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -214,8 +206,8 @@ function GenericApprovalCardView({
 								<CornerDownLeftIcon className="size-3 opacity-60" />
 							</Button>
 						)}
-						{isMCPTool && (
-							<Button size="sm" className="rounded-lg" onClick={handleAlwaysAllow}>
+						{canApproveAlways && (
+							<Button size="sm" className="rounded-lg" onClick={handleApproveAlways}>
 								Always Allow
 							</Button>
 						)}

@@ -1,0 +1,63 @@
+[project]
+name = "surfsense-evals"
+version = "0.1.0"
+description = "Domain-agnostic evaluation harness for SurfSense (medical RAG suite ships first; legal/finance/code suites slot in under suites/)."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "SurfSense" }]
+
+dependencies = [
+    "httpx>=0.27.0",
+    "httpx-sse>=0.4.0",
+    "datasets>=2.21.0",
+    "huggingface_hub>=0.24.0",
+    "reportlab>=4.0.0",
+    "Pillow>=10.0.0",
+    "pyarrow>=15.0.0",
+    "pydantic>=2.6.0",
+    "tqdm>=4.66.0",
+    "numpy>=1.26.0",
+    "scikit-learn>=1.4.0",
+    "scipy>=1.12.0",
+    "python-dotenv>=1.0.0",
+    "rich>=13.7.0",
+    "trafilatura>=1.12.0",
+    "pypdf>=5.1.0",
+    "azure-ai-documentintelligence>=1.0.2",
+    "llama-cloud-services>=0.6.25",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "respx>=0.21.0",
+    "ruff>=0.5.0",
+]
+
+[project.scripts]
+surfsense-evals = "surfsense_evals.core.cli:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["surfsense_evals*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "integration: opt-in tests that hit a live SurfSense instance (run with `-m integration`)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC"]
+ignore = ["E501"]

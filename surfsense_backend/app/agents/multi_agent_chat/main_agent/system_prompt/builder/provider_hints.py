@@ -1,4 +1,4 @@
-"""Provider-specific style hints from ``markdown/providers/`` (main agent only)."""
+"""Provider-specific style hints from ``prompts/providers/`` (main agent only)."""
 
 from __future__ import annotations
 

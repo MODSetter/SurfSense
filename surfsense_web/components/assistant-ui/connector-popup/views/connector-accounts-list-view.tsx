@@ -277,14 +277,14 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 												</Button>
 											</div>
 										) : (
-										<Button
-											variant="destructive"
-											size="sm"
-											className="h-8 text-[11px] px-3 font-medium shrink-0"
-											onClick={() => setConfirmDisconnectId(connector.id)}
-										>
-											Disconnect
-										</Button>
+											<Button
+												variant="destructive"
+												size="sm"
+												className="h-8 text-[11px] px-3 font-medium shrink-0"
+												onClick={() => setConfirmDisconnectId(connector.id)}
+											>
+												Disconnect
+											</Button>
 										)
 									) : (
 										<Button

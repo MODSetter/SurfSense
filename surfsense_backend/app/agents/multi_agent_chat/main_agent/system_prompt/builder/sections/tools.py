@@ -1,4 +1,4 @@
-"""Main-agent ``<tools>`` block (memory + research builtins only; see ``main_agent.tools``)."""
+"""Main-agent ``<tools>`` block (memory + research builtins + ``task``)."""
 
 from __future__ import annotations
 

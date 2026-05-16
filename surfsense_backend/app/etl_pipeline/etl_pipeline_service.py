@@ -134,11 +134,89 @@ class EtlPipelineService:
         else:
             raise EtlServiceUnavailableError(f"Unknown ETL_SERVICE: {etl_service}")
 
+        # When the operator opts into vision-LLM at ingest, walk the
+        # original file's embedded images and append a structured
+        # "Image Content" section. The parser's own OCR (Docling
+        # do_ocr=True, Azure DI prebuilt-read, etc.) handles text-in-
+        # image; this side handles the *visual* description which the
+        # parsers all drop today.
+        content = await self._maybe_append_picture_descriptions(request, content)
+
         return EtlResult(
             markdown_content=content,
             etl_service=etl_service,
             content_type="document",
         )
+
+    async def _maybe_append_picture_descriptions(
+        self, request: EtlRequest, markdown: str
+    ) -> str:
+        if self._vision_llm is None:
+            return markdown
+
+        from app.etl_pipeline.picture_describer import (
+            describe_pictures,
+            merge_descriptions_into_markdown,
+        )
+
+        # Per-image OCR runner: re-feed each extracted image through
+        # the ETL pipeline *as a standalone image* (no vision LLM, so
+        # the IMAGE branch falls through to the document parser, which
+        # OCRs the image with the configured backend -- Docling /
+        # Azure DI / LlamaCloud). This gives us per-image OCR text
+        # attached to the inline image block, in addition to the
+        # page-level OCR that the parser already merges into the main
+        # markdown stream. The fresh sub-service gets vision_llm=None
+        # so this call cannot recurse back into picture_describer.
+        async def _ocr_image(image_path: str, image_name: str) -> str:
+            try:
+                sub = EtlPipelineService(vision_llm=None)
+                ocr_result = await sub.extract(
+                    EtlRequest(file_path=image_path, filename=image_name)
+                )
+            except (
+                EtlUnsupportedFileError,
+                EtlServiceUnavailableError,
+            ) as exc:
+                # Common case: the configured ETL service can't OCR
+                # this image format (or no service is configured at
+                # all). Don't spam warnings -- just no OCR for it.
+                logging.debug("Skipping per-image OCR for %s: %s", image_name, exc)
+                return ""
+            return ocr_result.markdown_content
+
+        try:
+            result = await describe_pictures(
+                request.file_path,
+                request.filename,
+                self._vision_llm,
+                ocr_runner=_ocr_image,
+            )
+        except Exception:
+            # Picture description is additive; never let it fail an
+            # otherwise-successful document extraction.
+            logging.warning(
+                "Picture description failed for %s, returning parser output unchanged",
+                request.filename,
+                exc_info=True,
+            )
+            return markdown
+
+        if not result.descriptions:
+            return markdown
+
+        merged = merge_descriptions_into_markdown(markdown, result)
+        logging.info(
+            "Vision LLM described %d image(s) in %s "
+            "(skipped: %d small / %d large / %d duplicate, %d failed)",
+            len(result.descriptions),
+            request.filename,
+            result.skipped_too_small,
+            result.skipped_too_large,
+            result.skipped_duplicate,
+            result.failed,
+        )
+        return merged
 
     async def _extract_with_llamacloud(self, request: EtlRequest) -> str:
         """Try Azure Document Intelligence first (when configured) then LlamaCloud.

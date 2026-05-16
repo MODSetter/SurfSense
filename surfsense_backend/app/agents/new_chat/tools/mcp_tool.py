@@ -229,6 +229,7 @@ async def _create_mcp_tool_from_definition_stdio(
             "mcp_input_schema": input_schema,
             "mcp_transport": "stdio",
             "mcp_connector_name": connector_name or None,
+            "mcp_connector_id": connector_id,
             "mcp_is_generic": True,
             "hitl": True,
             # Full-args hash: shared identifiers (cloudId, workspaceId, …)

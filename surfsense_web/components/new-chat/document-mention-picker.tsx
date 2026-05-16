@@ -302,8 +302,7 @@ export const DocumentMentionPicker = forwardRef<
 	// folder entries lift the existing kind-aware key so the same
 	// matchers used by the chip atom apply unchanged.
 	const selectedKeys = useMemo(
-		() =>
-			new Set(initialSelectedDocuments.map((d) => getMentionDocKey(d))),
+		() => new Set(initialSelectedDocuments.map((d) => getMentionDocKey(d))),
 		[initialSelectedDocuments]
 	);
 
@@ -586,9 +585,7 @@ export const DocumentMentionPicker = forwardRef<
 								{(surfsenseDocsList.length > 0 || userDocsList.length > 0) && (
 									<div className="mx-2 my-4 border-t border-popover-border" />
 								)}
-								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
-									Folders
-								</div>
+								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">Folders</div>
 								{folderMentions.map((folder) => {
 									const folderKey = getMentionDocKey(folder);
 									const isAlreadySelected = selectedKeys.has(folderKey);
