@@ -1,6 +1,7 @@
-"""``<tools>`` + ``<tool_call_examples>`` from ``system_prompt/markdown/{tools,examples}/``.
+"""Compose the ``<tools>`` block from per-tool vertical-slice folders.
 
-Only documents tools the main agent actually binds — not full ``new_chat``.
+Each tool lives in ``prompts/tools/<name>/`` with ``description.md`` and an
+``example.md``. Visibility variants live in ``{private,team}/`` subfolders.
 """
 
 from __future__ import annotations
@@ -13,16 +14,10 @@ from .load_md import read_prompt_md
 _MEMORY_VARIANT_TOOLS: frozenset[str] = frozenset({"update_memory"})
 
 
-def _tool_fragment_path(tool_name: str, variant: str) -> str:
+def _tool_fragment(tool_name: str, variant: str, leaf: str) -> str:
     if tool_name in _MEMORY_VARIANT_TOOLS:
-        return f"tools/{tool_name}_{variant}.md"
-    return f"tools/{tool_name}.md"
-
-
-def _example_fragment_path(tool_name: str, variant: str) -> str:
-    if tool_name in _MEMORY_VARIANT_TOOLS:
-        return f"examples/{tool_name}_{variant}.md"
-    return f"examples/{tool_name}.md"
+        return read_prompt_md(f"tools/{tool_name}/{variant}/{leaf}")
+    return read_prompt_md(f"tools/{tool_name}/{leaf}")
 
 
 def _format_tool_label(tool_name: str) -> str:
@@ -35,26 +30,35 @@ def build_tools_instruction_block(
     enabled_tool_names: set[str] | None,
     disabled_tool_names: set[str] | None,
 ) -> str:
+    """Render ``<tools>``. ``task`` is always included: at least ``deliverables``
+    and ``knowledge_base`` are always in ``<specialists>`` (see constants)."""
     variant = "team" if visibility == ChatVisibility.SEARCH_SPACE else "private"
 
-    parts: list[str] = []
-    preamble = read_prompt_md("tools/_preamble.md")
-    if preamble:
-        parts.append(preamble + "\n")
-
-    examples: list[str] = []
+    parts: list[str] = ["\n<tools>\n"]
 
     for tool_name in MAIN_AGENT_SURFSENSE_TOOL_NAMES_ORDERED:
         if enabled_tool_names is not None and tool_name not in enabled_tool_names:
             continue
 
-        instruction = read_prompt_md(_tool_fragment_path(tool_name, variant))
-        if instruction:
-            parts.append(instruction + "\n")
+        description = _tool_fragment(tool_name, variant, "description.md")
+        example = _tool_fragment(tool_name, variant, "example.md")
 
-        example = read_prompt_md(_example_fragment_path(tool_name, variant))
+        if not description and not example:
+            continue
+
+        if description:
+            parts.append(description + "\n")
         if example:
-            examples.append(example + "\n")
+            parts.append("\n" + example + "\n")
+        parts.append("\n")
+
+    task_description = read_prompt_md("tools/task/description.md")
+    task_example = read_prompt_md("tools/task/example.md")
+    if task_description:
+        parts.append(task_description + "\n")
+    if task_example:
+        parts.append("\n" + task_example + "\n")
+    parts.append("\n")
 
     known_disabled = (
         set(disabled_tool_names) & set(MAIN_AGENT_SURFSENSE_TOOL_NAMES_ORDERED)
@@ -68,19 +72,13 @@ def build_tools_instruction_block(
             if n in known_disabled
         )
         parts.append(
-            "\n"
-            "DISABLED TOOLS (by user, main-agent scope):\n"
-            f"These SurfSense tools were disabled on the main agent for this session: {disabled_list}.\n"
-            "You do NOT have access to them and MUST NOT claim you can use them.\n"
-            "If the user still needs that capability, delegate with **task** if a subagent covers it,\n"
-            "otherwise explain it is disabled on the main agent for this session.\n"
+            "<disabled_tools>\n"
+            f"Disabled for this session: {disabled_list}.\n"
+            "Don't claim you can use them. If the user needs that capability,\n"
+            "delegate with `task` when a specialist covers it; otherwise say\n"
+            "the tool is disabled.\n"
+            "</disabled_tools>\n"
         )
 
-    parts.append("\n</tools>\n")
-
-    if examples:
-        parts.append("<tool_call_examples>")
-        parts.extend(examples)
-        parts.append("</tool_call_examples>\n")
-
+    parts.append("</tools>\n")
     return "".join(parts)

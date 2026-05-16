@@ -24,4 +24,5 @@ def build_knowledge_priority_mw(
         available_connectors=available_connectors,
         available_document_types=available_document_types,
         mentioned_document_ids=mentioned_document_ids,
+        inject_system_message=False,
     )

@@ -395,7 +395,7 @@ class AgentToolInfo(BaseModel):
 
 
 class ResumeDecision(BaseModel):
-    type: Literal["approve", "edit", "reject"]
+    type: Literal["approve", "edit", "reject", "approve_always"]
     edited_action: dict[str, Any] | None = None
 
 

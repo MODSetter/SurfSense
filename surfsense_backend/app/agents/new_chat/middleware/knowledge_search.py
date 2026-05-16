@@ -585,6 +585,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         available_document_types: list[str] | None = None,
         top_k: int = 10,
         mentioned_document_ids: list[int] | None = None,
+        inject_system_message: bool = True,  # For backwards compatibility
     ) -> None:
         self.llm = llm
         self.search_space_id = search_space_id
@@ -593,6 +594,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         self.available_document_types = available_document_types
         self.top_k = top_k
         self.mentioned_document_ids = mentioned_document_ids or []
+        self.inject_system_message = inject_system_message
         # Build the kb-planner private Runnable ONCE here so we don't pay
         # the ``create_agent`` compile cost (50-200ms) on every turn.
         # Disabled by default behind ``enable_kb_planner_runnable``; when
@@ -773,14 +775,16 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 "mentioned": True,
             }
         ]
-        new_messages = list(state.get("messages") or [])
-        insert_at = max(len(new_messages) - 1, 0)
-        new_messages.insert(insert_at, _render_priority_message(priority))
-        return {
+        update: dict[str, Any] = {
             "kb_priority": priority,
             "kb_matched_chunk_ids": {},
-            "messages": new_messages,
         }
+        if self.inject_system_message:
+            new_messages = list(state.get("messages") or [])
+            insert_at = max(len(new_messages) - 1, 0)
+            new_messages.insert(insert_at, _render_priority_message(priority))
+            update["messages"] = new_messages
+        return update
 
     async def _authenticated_priority(
         self,
@@ -897,10 +901,6 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             folder_entries = await self._materialize_folder_priority(folder_mention_ids)
             priority = folder_entries + priority
 
-        new_messages = list(messages)
-        insert_at = max(len(new_messages) - 1, 0)
-        new_messages.insert(insert_at, _render_priority_message(priority))
-
         _perf_log.info(
             "[kb_priority] completed in %.3fs query=%r priority=%d mentioned=%d folders=%d",
             asyncio.get_event_loop().time() - t0,
@@ -910,11 +910,16 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             len(folder_mention_ids),
         )
 
-        return {
+        update: dict[str, Any] = {
             "kb_priority": priority,
             "kb_matched_chunk_ids": matched_chunk_ids,
-            "messages": new_messages,
         }
+        if self.inject_system_message:
+            new_messages = list(messages)
+            insert_at = max(len(new_messages) - 1, 0)
+            new_messages.insert(insert_at, _render_priority_message(priority))
+            update["messages"] = new_messages
+        return update
 
     async def _materialize_folder_priority(
         self, folder_ids: list[int]

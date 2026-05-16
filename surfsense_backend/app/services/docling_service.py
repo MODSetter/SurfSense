@@ -77,10 +77,16 @@ class DoclingService:
             # Create pipeline options with version-safe attribute checking
             pipeline_options = PdfPipelineOptions()
 
-            # Disable OCR (user request)
+            # Enable OCR so text-in-image (chart axes, ECG annotations,
+            # lab tables embedded as images, scanned pages, etc.) is
+            # lifted into the main markdown stream. This pairs with the
+            # vision-LLM picture-description pass downstream — OCR
+            # captures literal text; vision LLM captures the visual
+            # content. Together they give a faithful representation of
+            # PDFs that mix text and images.
             if hasattr(pipeline_options, "do_ocr"):
-                pipeline_options.do_ocr = False
-                logger.info("⚠️ OCR disabled by user request")
+                pipeline_options.do_ocr = True
+                logger.info("✅ OCR enabled for embedded text-in-image extraction")
             else:
                 logger.warning("⚠️ OCR attribute not available in this Docling version")
 

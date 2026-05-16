@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { ArrowLeft, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, Server } from "lucide-react";
 import { type FC, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -24,7 +24,6 @@ interface ConnectorAccountsListViewProps {
 	indexingConnectorIds: Set<number>;
 	onBack: () => void;
 	onManage: (connector: SearchSourceConnector) => void;
-	onDisconnect?: (connector: SearchSourceConnector) => Promise<void> | void;
 	onAddAccount: () => void;
 	isConnecting?: boolean;
 	addButtonText?: string;
@@ -37,15 +36,12 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	indexingConnectorIds,
 	onBack,
 	onManage,
-	onDisconnect,
 	onAddAccount,
 	isConnecting = false,
 	addButtonText,
 }) => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const [reauthingId, setReauthingId] = useState<number | null>(null);
-	const [confirmDisconnectId, setConfirmDisconnectId] = useState<number | null>(null);
-	const [disconnectingId, setDisconnectingId] = useState<number | null>(null);
 
 	// Get connector status
 	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
@@ -240,51 +236,6 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 											/>
 											Re-authenticate
 										</Button>
-									) : isLive && onDisconnect ? (
-										confirmDisconnectId === connector.id ? (
-											<div className="flex items-center gap-1.5 shrink-0">
-												<Button
-													variant="destructive"
-													size="sm"
-													className="h-8 text-[11px] px-3 rounded-lg font-medium shadow-xs"
-													onClick={async () => {
-														setDisconnectingId(connector.id);
-														setConfirmDisconnectId(null);
-														try {
-															await onDisconnect(connector);
-														} finally {
-															setDisconnectingId(null);
-														}
-													}}
-													disabled={disconnectingId === connector.id}
-												>
-													{disconnectingId === connector.id ? (
-														<RefreshCw className="size-3.5 animate-spin" />
-													) : (
-														"Confirm"
-													)}
-												</Button>
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-8 text-[11px] px-2 rounded-lg"
-													onClick={() => setConfirmDisconnectId(null)}
-													disabled={disconnectingId === connector.id}
-												>
-													Cancel
-												</Button>
-											</div>
-										) : (
-											<Button
-												variant="secondary"
-												size="sm"
-												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-red-50 hover:text-red-700 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-red-950 dark:hover:text-red-400 shrink-0"
-												onClick={() => setConfirmDisconnectId(connector.id)}
-											>
-												<Trash2 className="size-3.5" />
-												Disconnect
-											</Button>
-										)
 									) : (
 										<Button
 											variant="secondary"

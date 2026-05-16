@@ -1,1 +1,2 @@
-Use for Confluence knowledge pages: search/read existing pages, create new pages, and update page content.
+Specialist for pages in the user's Confluence wiki.
+Use proactively when the user wants to create, change, or remove a Confluence page.

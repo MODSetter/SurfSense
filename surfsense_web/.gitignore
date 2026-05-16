@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/playwright/.auth/
+/playwright-report/
+/test-results/
+/blob-report/
 
 # next.js
 /.next/
@@ -49,4 +53,3 @@ next-env.d.ts
 /.source/
 
 .pnpm-store/
-

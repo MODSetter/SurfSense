@@ -50,7 +50,7 @@ export async function generateMetadata(props: { params: Promise<{ slug?: string[
 		title: `${page.data.title} | SurfSense Docs`,
 		description: page.data.description,
 		alternates: {
-			canonical: `https://surfsense.com/docs${slugPath ? `/${slugPath}` : ""}`,
+			canonical: `https://www.surfsense.com/docs${slugPath ? `/${slugPath}` : ""}`,
 		},
 		openGraph: {
 			title: `${page.data.title} | SurfSense Docs`,

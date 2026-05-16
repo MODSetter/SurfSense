@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 	description:
 		"Explore SurfSense plans and pricing. Start free with 500 pages & $5 in premium credits. Use ChatGPT, Claude AI, and premium AI models. Pay as you go at provider cost.",
 	alternates: {
-		canonical: "https://surfsense.com/pricing",
+		canonical: "https://www.surfsense.com/pricing",
 	},
 };
 

@@ -1,0 +1,100 @@
+{
+  "config": {
+    "base_delay": 1.0,
+    "concurrency": 2,
+    "llm_model": "anthropic/claude-sonnet-4.5",
+    "max_attempts": 5,
+    "max_delay": 30.0,
+    "max_output_tokens": 512,
+    "pdf_engine": "native"
+  },
+  "elapsed_s": 1373.6,
+  "n_failed_rows_input": 37,
+  "n_retried": 37,
+  "per_arm": {
+    "azure_basic_lc": {
+      "attempts_distribution": [
+        1
+      ],
+      "recovered": 1,
+      "recovery_rate": 1.0,
+      "still_failed": 0,
+      "tried": 1
+    },
+    "azure_premium_lc": {
+      "attempts_distribution": [
+        1,
+        1,
+        1
+      ],
+      "recovered": 3,
+      "recovery_rate": 1.0,
+      "still_failed": 0,
+      "tried": 3
+    },
+    "llamacloud_basic_lc": {
+      "attempts_distribution": [
+        1,
+        1
+      ],
+      "recovered": 2,
+      "recovery_rate": 1.0,
+      "still_failed": 0,
+      "tried": 2
+    },
+    "llamacloud_premium_lc": {
+      "attempts_distribution": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "recovered": 4,
+      "recovery_rate": 1.0,
+      "still_failed": 0,
+      "tried": 4
+    },
+    "native_pdf": {
+      "attempts_distribution": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5
+      ],
+      "recovered": 15,
+      "recovery_rate": 0.5555555555555556,
+      "still_failed": 12,
+      "tried": 27
+    }
+  },
+  "raw_retries_path": "data\\multimodal_doc\\runs\\2026-05-14T00-53-19Z\\parser_compare\\raw_retries.jsonl",
+  "run_id": "2026-05-14T00-53-19Z",
+  "totals": {
+    "recovered": 25,
+    "still_failed": 12,
+    "tried": 37
+  }
+}

@@ -2,6 +2,7 @@
 	"name": "surfsense_web",
 	"version": "0.0.23",
 	"private": true,
+	"packageManager": "pnpm@10.26.0",
 	"description": "SurfSense Frontend",
 	"scripts": {
 		"dev": "next dev --turbopack",
@@ -20,6 +21,7 @@
 		"db:studio": "drizzle-kit studio",
 		"format:fix": "npx @biomejs/biome check --fix",
 		"test:e2e": "playwright test",
+		"test:e2e:prod": "cross-env CI=1 playwright test",
 		"test:e2e:ui": "playwright test --ui",
 		"test:e2e:headed": "playwright test --headed",
 		"test:e2e:debug": "playwright test --debug",

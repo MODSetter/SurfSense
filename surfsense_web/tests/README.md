@@ -5,29 +5,6 @@ Celery + Postgres + Redis). Designed to scale from one connector
 (Composio Drive in Phase 1) to every connector + manual file upload
 without rewriting the harness.
 
-## Layout
-
-```
-tests/
-├── auth.setup.ts                    # one-time login, persists localStorage
-├── smoke/                           # tracer-bullet tests (dashboard renders)
-├── connectors/
-│   └── composio/
-│       └── drive/                   # Composio Google Drive — Phase 1
-│           └── journey.spec.ts      # connect -> select -> index -> canary assertion
-├── fixtures/                        # test.extend() fixtures
-│   ├── index.ts                     # named `test` exports per spec category
-│   ├── search-space.fixture.ts      # apiToken + per-test search space
-│   └── connectors/
-│       └── composio-drive.fixture.ts
-├── helpers/                         # reusable building blocks
-│   ├── api/                         # backend HTTP helpers
-│   ├── ui/                          # page-object selectors
-│   ├── waits/                       # deterministic polling
-│   └── canary.ts                    # canary tokens + fixed Drive file ids
-└── README.md                        # this file
-```
-
 ## How the deterministic harness works
 
 There are **three layers of defense** against accidental real-world
@@ -47,26 +24,90 @@ calls. None of them touch production code.
 
 ## Running locally
 
+The recommended flow runs only Postgres and Redis in Docker, and the backend
++ Celery worker on the host. The E2E entrypoints `setdefault` every backend
+variable they need, so no `.env` file is required on a fresh checkout.
+
+### One-time setup
+
+From `surfsense_web/`:
+
 ```bash
-# 1. Bring up Postgres + Redis (Docker compose, supabase, whatever you use)
-docker compose up -d postgres redis
-
-# 2. Backend with E2E entrypoint (note: NOT `uv run main.py`)
-cd surfsense_backend
-uv run alembic upgrade head
-uv run python tests/e2e/run_backend.py &
-
-# 3. Celery worker with the same entrypoint pattern
-uv run python tests/e2e/run_celery.py &
-
-# 4. Run Playwright tests (auto-starts `pnpm dev` via webServer config)
-cd ../surfsense_web
-pnpm test:e2e
+pnpm install
+pnpm exec playwright install --with-deps chromium
 ```
 
-For CI behavior in one go: `pnpm test:e2e:headless`.
+### Each run
 
-To debug the Drive journey: `pnpm test:e2e -- connectors/composio/drive/journey.spec.ts --headed`.
+**1. Bring up Postgres + Redis** from the repo root:
+
+```bash
+docker compose -f docker/docker-compose.deps-only.yml up -d db redis
+```
+
+**2. Start the backend** in `surfsense_backend/`, terminal A:
+
+```bash
+uv sync
+uv run alembic upgrade head
+uv run python tests/e2e/run_backend.py
+```
+
+**3. Start the Celery worker** in `surfsense_backend/`, terminal B:
+
+```bash
+uv run python tests/e2e/run_celery.py
+```
+
+**4. Register the Playwright user**:
+
+```bash
+curl -X POST http://localhost:8000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"e2e-test@surfsense.net","password":"E2eTestPassword123!"}'
+```
+
+**5. Run Playwright** from `surfsense_web/`, terminal C:
+
+```bash
+pnpm test:e2e             # dev server (fast iteration)
+pnpm test:e2e:headed      # show the browser
+pnpm test:e2e:ui          # Playwright UI mode
+pnpm test:e2e:debug       # Playwright Inspector
+pnpm test:e2e:prod        # build + start (matches CI exactly)
+pnpm test:e2e:report      # open the last HTML report
+```
+
+`playwright.config.ts` and the backend run scripts share defaults, so the
+above works without exporting any env vars. Override
+`PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD`, or
+`NEXT_PUBLIC_FASTAPI_BACKEND_URL` only when pointing tests at a different
+stack.
+
+To debug a single journey:
+
+```bash
+pnpm test:e2e:headed connectors/composio/drive/journey.spec.ts
+```
+
+### Hermetic alternative (matches CI)
+
+To reproduce the CI environment exactly: backend and Celery in containers
+with L3 egress denied, replace steps 1–3 with:
+
+```bash
+docker compose -f docker/docker-compose.e2e.yml up -d --build --wait
+```
+
+Then run steps 4 (curl register) and 5 (`pnpm test:e2e:prod`) as above. Tear
+down with:
+
+```bash
+docker compose -f docker/docker-compose.e2e.yml down -v --remove-orphans
+```
+
+This builds the ~9 GB e2e backend image, so the deps-only flow is faster for
+day-to-day work.
 
 ## Adding a new connector
 

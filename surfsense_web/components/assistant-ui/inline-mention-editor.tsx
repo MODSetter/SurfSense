@@ -54,7 +54,10 @@ export interface InlineMentionEditorRef {
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
 	insertMentionChip: (mention: MentionChipInput, options?: { removeTriggerText?: boolean }) => void;
-	/** @deprecated Use ``insertMentionChip``. */
+	/**
+	 * @deprecated Use ``insertMentionChip``. Kept for one transition
+	 * cycle so we don't break ad-hoc callers; prefer the new name.
+	 */
 	insertDocumentChip: (
 		doc: Pick<Document, "id" | "title" | "document_type">,
 		options?: { removeTriggerText?: boolean }

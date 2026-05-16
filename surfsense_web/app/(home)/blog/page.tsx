@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 	title: "Blog | SurfSense - AI Search & Knowledge Management",
 	description: "Product updates, tutorials, and tips from the SurfSense team.",
 	alternates: {
-		canonical: "https://surfsense.com/blog",
+		canonical: "https://www.surfsense.com/blog",
 	},
 };
 
@@ -25,6 +25,8 @@ export interface BlogEntry {
 	image: string;
 	author: string;
 	authorAvatar: string;
+	featured: boolean;
+	featuredOrder?: number;
 }
 
 export default async function BlogPage() {
@@ -38,6 +40,8 @@ export default async function BlogPage() {
 			image?: string;
 			author?: string;
 			authorAvatar?: string;
+			featured?: boolean;
+			featured_order?: number;
 		};
 	}>;
 
@@ -51,8 +55,20 @@ export default async function BlogPage() {
 			image: page.data.image ?? "/og-image.png",
 			author: page.data.author ?? "SurfSense Team",
 			authorAvatar: page.data.authorAvatar ?? "/logo.png",
+			featured: page.data.featured ?? false,
+			featuredOrder: page.data.featured_order,
 		}))
-		.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+		.sort((a, b) => {
+			// Featured first; then by `featured_order` asc within featured;
+			// then by `date` desc as the universal tie-breaker.
+			if (a.featured !== b.featured) return a.featured ? -1 : 1;
+			if (a.featured && b.featured) {
+				const aOrder = a.featuredOrder ?? Number.POSITIVE_INFINITY;
+				const bOrder = b.featuredOrder ?? Number.POSITIVE_INFINITY;
+				if (aOrder !== bOrder) return aOrder - bOrder;
+			}
+			return new Date(b.date).getTime() - new Date(a.date).getTime();
+		});
 
 	return <BlogWithSearchMagazine blogs={blogs} />;
 }

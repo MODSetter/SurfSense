@@ -1,1 +1,3 @@
-Use for calendar planning and scheduling: check availability, read event details, create events, and update events.
+Specialist for events on the user's calendar.
+Use proactively when the user wants to check availability, create, modify, reschedule, or remove a calendar event.
+Meeting invitations that reserve a time slot belong here.

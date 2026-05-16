@@ -23,7 +23,6 @@ from app.tasks.chat.stream_new_chat import (
     _emit_stream_terminal_error as old_emit_terminal_error,
     _extract_chunk_parts as old_extract_chunk_parts,
     _extract_resolved_file_path as old_extract_resolved_file_path,
-    _first_interrupt_value as old_first_interrupt_value,
     _tool_output_has_error as old_tool_output_has_error,
     _tool_output_to_text as old_tool_output_to_text,
 )
@@ -35,9 +34,6 @@ from app.tasks.chat.streaming.errors.emitter import (
 )
 from app.tasks.chat.streaming.helpers.chunk_parts import (
     extract_chunk_parts as new_extract_chunk_parts,
-)
-from app.tasks.chat.streaming.helpers.interrupt_inspector import (
-    first_interrupt_value as new_first_interrupt_value,
 )
 from app.tasks.chat.streaming.helpers.tool_output import (
     extract_resolved_file_path as new_extract_resolved_file_path,
@@ -103,52 +99,6 @@ _CHUNK_CASES: list[Any] = [
 @pytest.mark.parametrize("chunk", _CHUNK_CASES)
 def test_extract_chunk_parts_matches_old_implementation(chunk: Any) -> None:
     assert new_extract_chunk_parts(chunk) == old_extract_chunk_parts(chunk)
-
-
-# ---------------------------------------------------------- interrupt inspector
-
-
-@dataclass
-class _Interrupt:
-    value: dict[str, Any]
-
-
-@dataclass
-class _Task:
-    interrupts: tuple[Any, ...] = ()
-
-
-@dataclass
-class _State:
-    tasks: tuple[Any, ...] = ()
-    interrupts: tuple[Any, ...] = ()
-
-
-_INTERRUPT_CASES: list[Any] = [
-    _State(),
-    _State(tasks=(_Task(interrupts=(_Interrupt(value={"name": "send"}),)),)),
-    # Multiple tasks: must return the FIRST one in iteration order.
-    _State(
-        tasks=(
-            _Task(interrupts=(_Interrupt(value={"name": "first"}),)),
-            _Task(interrupts=(_Interrupt(value={"name": "second"}),)),
-        )
-    ),
-    # Empty task interrupts -> falls back to root state.interrupts.
-    _State(
-        tasks=(_Task(interrupts=()),),
-        interrupts=(_Interrupt(value={"name": "root"}),),
-    ),
-    # Interrupts as plain dicts (not wrapper objects).
-    _State(interrupts=({"value": {"name": "dict_root"}},)),
-    # A defective task whose `.interrupts` raises - must be tolerated.
-    _State(tasks=(object(),)),
-]
-
-
-@pytest.mark.parametrize("state", _INTERRUPT_CASES)
-def test_first_interrupt_value_matches_old_implementation(state: Any) -> None:
-    assert new_first_interrupt_value(state) == old_first_interrupt_value(state)
 
 
 # ----------------------------------------------------------- error classifier
