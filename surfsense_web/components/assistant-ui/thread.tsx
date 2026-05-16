@@ -23,7 +23,6 @@ import {
 	Wrench,
 	X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -117,7 +116,7 @@ const ThreadContent: FC = () => {
 		<ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
 			style={{
-				["--thread-max-width" as string]: "44rem",
+				["--thread-max-width" as string]: "42rem",
 			}}
 		>
 			<ChatViewport
@@ -240,7 +239,7 @@ const ThreadWelcome: FC = () => {
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
 			{/* Greeting positioned above the composer */}
 			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center">
-				<h1 className="aui-thread-welcome-message-inner text-3xl md:text-5xl select-none">
+				<h1 className="aui-thread-welcome-message-inner text-3xl md:text-[2.625rem] select-none">
 					{greeting}
 				</h1>
 			</div>
@@ -892,11 +891,11 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								<Button
 									variant="ghost"
 									size="icon"
-									className="size-[34px] rounded-full p-1 font-semibold text-xs dark:border-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
+									className="size-9 rounded-full p-1 font-semibold text-xs text-muted-foreground dark:border-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
 									aria-label="More actions"
 									data-joyride="connector-icon"
 								>
-									<Plus className="size-4" />
+									<Plus className="size-5" />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent side="bottom" align="start" sideOffset={8}>
@@ -908,6 +907,22 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									<Upload className="size-4" />
 									Upload Files
 								</DropdownMenuItem>
+								{hasWebSearchTool && (
+									<DropdownMenuItem
+										onSelect={(event) => {
+											event.preventDefault();
+											toggleTool("web_search");
+										}}
+									>
+										<Globe className="size-4" />
+										<span className="flex-1">Web Search</span>
+										<Switch
+											checked={isWebSearchEnabled}
+											tabIndex={-1}
+											className="pointer-events-none h-4 w-7 shrink-0 border [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3"
+										/>
+									</DropdownMenuItem>
+								)}
 								<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
 									<Unplug className="size-4" />
 									Manage Connectors
@@ -1031,14 +1046,20 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								disableTooltip={toolsPopoverOpen}
 								variant="ghost"
 								size="icon"
-								className="size-[34px] rounded-full p-1 font-semibold text-xs dark:border-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
+								className="size-9 rounded-full p-1 font-semibold text-xs text-muted-foreground dark:border-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
 								aria-label="More actions"
 								data-joyride="connector-icon"
 							>
-								<Plus className="size-4" />
+								<Plus className="size-5" />
 							</TooltipIconButton>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent className="w-48" side="bottom" align="start" sideOffset={8}>
+						<DropdownMenuContent
+							className="w-48"
+							side="bottom"
+							align="start"
+							sideOffset={8}
+							onCloseAutoFocus={(event) => event.preventDefault()}
+						>
 							<DropdownMenuItem onSelect={() => openUploadDialog()}>
 								<Upload className="h-4 w-4" />
 								Upload Files
@@ -1047,6 +1068,26 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								<Camera className="h-4 w-4" />
 								Take a screenshot
 							</DropdownMenuItem>
+							{hasWebSearchTool && (
+								<DropdownMenuItem
+									onSelect={(event) => {
+										event.preventDefault();
+										toggleTool("web_search");
+									}}
+									className={cn(
+										"hover:bg-accent hover:text-accent-foreground",
+										isWebSearchEnabled && "text-primary"
+									)}
+								>
+									<Globe className="h-4 w-4" />
+									<span className="flex-1 min-w-0 truncate">Web Search</span>
+									<Switch
+										checked={isWebSearchEnabled}
+										tabIndex={-1}
+										className="pointer-events-none h-4 w-7 shrink-0 border [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3"
+									/>
+								</DropdownMenuItem>
+							)}
 							<DropdownMenuSub open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
 								<DropdownMenuSubTrigger>
 									<Settings2 className="h-4 w-4" />
@@ -1161,50 +1202,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						</DropdownMenuContent>
 					</DropdownMenu>
 				)}
-				{hasWebSearchTool && (
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						aria-label={isWebSearchEnabled ? "Disable web search" : "Enable web search"}
-						aria-pressed={isWebSearchEnabled}
-						onClick={() => toggleTool("web_search")}
-						className={cn(
-							"rounded-full transition-[background-color,border-color,color] flex items-center gap-1 px-2 py-1 border h-8 select-none hover:bg-transparent",
-							isWebSearchEnabled
-								? "bg-sky-500/15 border-sky-500/60 text-sky-500"
-								: "bg-transparent border-transparent text-muted-foreground hover:text-accent-foreground"
-						)}
-					>
-						<motion.div
-							animate={{
-								rotate: isWebSearchEnabled ? 360 : 0,
-								scale: isWebSearchEnabled ? 1.1 : 1,
-							}}
-							whileHover={{
-								rotate: isWebSearchEnabled ? 360 : 15,
-								scale: 1.1,
-								transition: { type: "spring", stiffness: 300, damping: 10 },
-							}}
-							transition={{ type: "spring", stiffness: 260, damping: 25 }}
-						>
-							<Globe className="size-4" />
-						</motion.div>
-						<AnimatePresence>
-							{isWebSearchEnabled && (
-								<motion.span
-									initial={{ width: 0, opacity: 0 }}
-									animate={{ width: "auto", opacity: 1 }}
-									exit={{ width: 0, opacity: 0 }}
-									transition={{ duration: 0.2 }}
-									className="text-xs overflow-hidden whitespace-nowrap"
-								>
-									Search
-								</motion.span>
-							)}
-						</AnimatePresence>
-					</Button>
-				)}
 			</div>
 			{!hasModelConfigured && (
 				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
@@ -1230,13 +1227,13 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							variant="default"
 							size="icon"
 							className={cn(
-								"aui-composer-send size-8 rounded-full",
+								"aui-composer-send size-9 rounded-full",
 								isSendDisabled && "cursor-not-allowed opacity-50"
 							)}
 							aria-label="Send message"
 							disabled={isSendDisabled}
 						>
-							<ArrowUpIcon className="aui-composer-send-icon size-4" />
+							<ArrowUpIcon className="aui-composer-send-icon size-5" />
 						</TooltipIconButton>
 					</ComposerPrimitive.Send>
 				</AuiIf>
@@ -1247,10 +1244,10 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							type="button"
 							variant="default"
 							size="icon"
-							className="aui-composer-cancel size-8 rounded-full"
+							className="aui-composer-cancel size-9 rounded-full"
 							aria-label="Stop generating"
 						>
-							<SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
+							<SquareIcon className="aui-composer-cancel-icon size-3.5 fill-current" />
 						</Button>
 					</ComposerPrimitive.Cancel>
 				</AuiIf>

@@ -5,7 +5,7 @@ export default function Loading() {
 		<div
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
 			style={{
-				["--thread-max-width" as string]: "44rem",
+				["--thread-max-width" as string]: "42rem",
 			}}
 		>
 			<div
