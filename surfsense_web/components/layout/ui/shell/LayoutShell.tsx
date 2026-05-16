@@ -31,6 +31,7 @@ import {
 } from "../sidebar";
 import { SidebarSlideOutPanel } from "../sidebar/SidebarSlideOutPanel";
 import { TabBar } from "../tabs/TabBar";
+import { WorkspacePanel } from "./WorkspacePanel";
 
 const DocumentTabContent = dynamic(
 	() => import("../tabs/DocumentTabContent").then((m) => ({ default: m.DocumentTabContent })),
@@ -98,6 +99,7 @@ interface LayoutShellProps {
 	setTheme?: (theme: "light" | "dark" | "system") => void;
 	defaultCollapsed?: boolean;
 	isChatPage?: boolean;
+	useWorkspacePanel?: boolean;
 	children: React.ReactNode;
 	className?: string;
 	// Unified slide-out panel state
@@ -166,6 +168,10 @@ function MainContentPanel({
 	);
 }
 
+function DesktopWorkspaceRegion({ children }: { children: React.ReactNode }) {
+	return <div className="flex h-full min-w-0 flex-1 -mr-2">{children}</div>;
+}
+
 export function LayoutShell({
 	searchSpaces,
 	activeSearchSpaceId,
@@ -198,6 +204,7 @@ export function LayoutShell({
 	setTheme,
 	defaultCollapsed = false,
 	isChatPage = false,
+	useWorkspacePanel = false,
 	children,
 	className,
 	activeSlideoutPanel = null,
@@ -287,9 +294,13 @@ export function LayoutShell({
 							isLoadingChats={isLoadingChats}
 						/>
 
-						<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
-							{children}
-						</main>
+						{useWorkspacePanel ? (
+							<WorkspacePanel>{children}</WorkspacePanel>
+						) : (
+							<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+								{children}
+							</main>
+						)}
 
 						{/* Mobile unified slide-out panel */}
 						<SidebarSlideOutPanel
@@ -506,26 +517,32 @@ export function LayoutShell({
 						</SidebarSlideOutPanel>
 					</div>
 
-					{/* Main content panel */}
-					<MainContentPanel
-						isChatPage={isChatPage}
-						onTabSwitch={onTabSwitch}
-						onNewChat={onNewChat}
-					>
-						{children}
-					</MainContentPanel>
+					<DesktopWorkspaceRegion>
+						{useWorkspacePanel ? (
+							<WorkspacePanel>{children}</WorkspacePanel>
+						) : (
+							<>
+								{/* Main content panel */}
+								<MainContentPanel
+									isChatPage={isChatPage}
+									onTabSwitch={onTabSwitch}
+									onNewChat={onNewChat}
+								>
+									{children}
+								</MainContentPanel>
 
-					{/* Right panel — tabbed Sources/Report (desktop only) */}
-					{documentsPanel && (
-						<div className="-ml-2 -mr-2">
-							<RightPanel
-								documentsPanel={{
-									open: documentsPanel.open,
-									onOpenChange: documentsPanel.onOpenChange,
-								}}
-							/>
-						</div>
-					)}
+								{/* Right panel — tabbed Sources/Report (desktop only) */}
+								{documentsPanel ? (
+									<RightPanel
+										documentsPanel={{
+											open: documentsPanel.open,
+											onOpenChange: documentsPanel.onOpenChange,
+										}}
+									/>
+								) : null}
+							</>
+						)}
+					</DesktopWorkspaceRegion>
 				</div>
 			</TooltipProvider>
 		</SidebarProvider>

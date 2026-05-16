@@ -136,7 +136,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
 	const [isDocumentsDocked, setIsDocumentsDocked] = useState(true);
-	const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useAtom(rightPanelCollapsedAtom);
+	const setIsRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
 
 	// Open documents sidebar by default on desktop (docked mode)
 	const documentsInitialized = useRef(false);
@@ -668,6 +668,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Detect if we're on the chat page (needs overflow-hidden for chat's own scroll)
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
+	const useWorkspacePanel =
+		pathname?.endsWith("/buy-more") === true || pathname?.endsWith("/more-pages") === true;
 
 	return (
 		<>
@@ -705,6 +707,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				theme={theme}
 				setTheme={setTheme}
 				isChatPage={isChatPage}
+				useWorkspacePanel={useWorkspacePanel}
 				isLoadingChats={isLoadingThreads}
 				activeSlideoutPanel={activeSlideoutPanel}
 				onSlideoutPanelChange={setActiveSlideoutPanel}
