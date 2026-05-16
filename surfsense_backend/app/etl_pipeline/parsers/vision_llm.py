@@ -96,9 +96,7 @@ async def parse_with_vision_llm(file_path: str, filename: str, llm) -> str:
     return await _invoke_vision(llm, _PROMPT, data_url, filename)
 
 
-async def parse_image_for_description(
-    file_path: str, filename: str, llm
-) -> str:
+async def parse_image_for_description(file_path: str, filename: str, llm) -> str:
     """Visual-description-only call for per-image-in-PDF use.
 
     Used by ``picture_describer`` when an image is embedded inside a

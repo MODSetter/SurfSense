@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatThreadTimestamp } from "@/lib/format-date";
 import { useSetAtom } from "jotai";
 import {
 	ArchiveIcon,
@@ -49,6 +48,7 @@ import {
 	searchThreads,
 	updateThread,
 } from "@/lib/chat/thread-persistence";
+import { formatThreadTimestamp } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
@@ -388,8 +388,7 @@ export function AllSharedChatsSidebarContent({
 											</TooltipTrigger>
 											<TooltipContent side="bottom" align="start">
 												<p>
-													{t("updated") || "Updated"}:{" "}
-													{formatThreadTimestamp(thread.updatedAt)}
+													{t("updated") || "Updated"}: {formatThreadTimestamp(thread.updatedAt)}
 												</p>
 											</TooltipContent>
 										</Tooltip>

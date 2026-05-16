@@ -330,11 +330,17 @@ def test_inject_handles_multiple_images_in_order():
     result = PictureExtractionResult(
         descriptions=[
             PictureDescription(
-                page_number=1, ordinal_in_page=0, name="Im0", sha256="aa",
+                page_number=1,
+                ordinal_in_page=0,
+                name="Im0",
+                sha256="aa",
                 description="Desc A",
             ),
             PictureDescription(
-                page_number=2, ordinal_in_page=0, name="Im1", sha256="bb",
+                page_number=2,
+                ordinal_in_page=0,
+                name="Im1",
+                sha256="bb",
                 description="Desc B",
             ),
         ]
@@ -511,9 +517,7 @@ async def test_describe_pictures_calls_ocr_runner_per_image(tmp_path, mocker):
     assert by_name == {"Im0.jpeg": "OCR text A", "Im1.png": "OCR text B"}
 
 
-async def test_describe_pictures_runs_vision_and_ocr_in_parallel(
-    tmp_path, mocker
-):
+async def test_describe_pictures_runs_vision_and_ocr_in_parallel(tmp_path, mocker):
     """Vision LLM and OCR run concurrently per image, not sequentially.
 
     We verify this by recording call timestamps: if both finish within
@@ -656,9 +660,7 @@ async def test_describe_pictures_vision_failure_with_ocr_runner_skips_image(
     assert result.failed == 1
 
 
-async def test_describe_pictures_no_ocr_runner_keeps_ocr_text_none(
-    tmp_path, mocker
-):
+async def test_describe_pictures_no_ocr_runner_keeps_ocr_text_none(tmp_path, mocker):
     """Backward compat: omitting ocr_runner produces description-only blocks."""
     pdf_file = tmp_path / "report.pdf"
     pdf_file.write_bytes(b"%PDF-1.4 fake")
@@ -824,11 +826,17 @@ def test_inject_handles_multiple_figures_in_document_order():
     result = PictureExtractionResult(
         descriptions=[
             PictureDescription(
-                page_number=1, ordinal_in_page=0, name="Im0", sha256="aa",
+                page_number=1,
+                ordinal_in_page=0,
+                name="Im0",
+                sha256="aa",
                 description="Description of chart A.",
             ),
             PictureDescription(
-                page_number=2, ordinal_in_page=0, name="Im1", sha256="bb",
+                page_number=2,
+                ordinal_in_page=0,
+                name="Im1",
+                sha256="bb",
                 description="Description of chart B.",
             ),
         ]
@@ -842,9 +850,7 @@ def test_inject_handles_multiple_figures_in_document_order():
     assert out.count("</figure>") == 2
     assert "Description of chart A." in out
     assert "Description of chart B." in out
-    assert out.index("Description of chart A.") < out.index(
-        "Description of chart B."
-    )
+    assert out.index("Description of chart A.") < out.index("Description of chart B.")
     # Each description appears AFTER its corresponding </figure>.
     first_close = out.index("</figure>")
     assert first_close < out.index("Description of chart A.")
@@ -856,7 +862,7 @@ def test_inject_figures_with_attributes_and_nested_tags():
     """``<figure>`` with attributes and nested tags is matched and preserved."""
     markdown = (
         '<figure id="fig-3" class="chart">\n'
-        '<figcaption>Source: Pew Research</figcaption>\n'
+        "<figcaption>Source: Pew Research</figcaption>\n"
         "<table><tr><td>Republican</td><td>57</td></tr></table>\n"
         "</figure>\n"
     )
@@ -899,8 +905,7 @@ def test_inject_figures_more_descriptions_than_figures_returns_remaining():
 def test_inject_figures_more_figures_than_descriptions_leaves_extras_untouched():
     """Two figures, one description -> first figure enriched, second left raw."""
     markdown = (
-        "<figure>\nfigure 1 content\n</figure>\n"
-        "<figure>\nfigure 2 content\n</figure>\n"
+        "<figure>\nfigure 1 content\n</figure>\n<figure>\nfigure 2 content\n</figure>\n"
     )
     result = PictureExtractionResult(
         descriptions=[_desc(name="Im0", description="Only description.")]

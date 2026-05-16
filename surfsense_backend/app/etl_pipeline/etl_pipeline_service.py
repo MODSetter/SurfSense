@@ -181,9 +181,7 @@ class EtlPipelineService:
                 # Common case: the configured ETL service can't OCR
                 # this image format (or no service is configured at
                 # all). Don't spam warnings -- just no OCR for it.
-                logging.debug(
-                    "Skipping per-image OCR for %s: %s", image_name, exc
-                )
+                logging.debug("Skipping per-image OCR for %s: %s", image_name, exc)
                 return ""
             return ocr_result.markdown_content
 

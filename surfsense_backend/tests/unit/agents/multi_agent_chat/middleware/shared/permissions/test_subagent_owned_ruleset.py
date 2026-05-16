@@ -141,9 +141,7 @@ async def test_kb_ruleset_resume_with_approve_lets_rm_through():
     config = {"configurable": {"thread_id": "kb-cloud-rm-approve"}}
     await graph.ainvoke({"messages": [HumanMessage(content="seed")]}, config)
 
-    await graph.ainvoke(
-        Command(resume={"decisions": [{"type": "approve"}]}), config
-    )
+    await graph.ainvoke(Command(resume={"decisions": [{"type": "approve"}]}), config)
     final = await graph.aget_state(config)
     assert final.next == (), "graph must complete after approve"
     last_ai = next(

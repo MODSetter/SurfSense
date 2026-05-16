@@ -100,7 +100,9 @@ class TestBuildLcHitlPayload:
             interrupt_type="x",
         )
         decisions.append(LC_DECISION_REJECT)
-        assert payload["review_configs"][0]["allowed_decisions"] == [LC_DECISION_APPROVE]
+        assert payload["review_configs"][0]["allowed_decisions"] == [
+            LC_DECISION_APPROVE
+        ]
 
 
 class TestParseLcEnvelope:

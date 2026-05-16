@@ -70,7 +70,9 @@ def _tool_start(*, name: str, run_id: str) -> dict[str, Any]:
     }
 
 
-async def _drain_step_ids(events: list[dict[str, Any]], *, step_prefix: str) -> set[str]:
+async def _drain_step_ids(
+    events: list[dict[str, Any]], *, step_prefix: str
+) -> set[str]:
     """Run ``_stream_agent_events`` once and return every emitted thinking-step ID."""
     agent = _FakeAgent(events)
     service = VercelStreamingService()

@@ -362,9 +362,7 @@ async def test_full_resume_routing_glue_for_two_paused_subagents():
         SimpleNamespace(
             id="i-approver",
             value={
-                "action_requests": [
-                    {"name": "approve", "args": {}, "description": ""}
-                ],
+                "action_requests": [{"name": "approve", "args": {}, "description": ""}],
                 "review_configs": [{}],
                 "tool_call_id": "tcid-approver",
             },
@@ -403,8 +401,6 @@ async def test_full_resume_routing_glue_for_two_paused_subagents():
 
     received_a = ast.literal_eval(result_a.update["decision_text"])
     assert received_a == {"decisions": flat_decisions[0:3]}
-    assert result_b.update["decision_text"] == repr(
-        {"decisions": flat_decisions[3:4]}
-    )
+    assert result_b.update["decision_text"] == repr({"decisions": flat_decisions[3:4]})
 
     assert "surfsense_resume_value" not in parent_config["configurable"]

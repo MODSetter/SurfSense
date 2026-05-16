@@ -585,7 +585,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         available_document_types: list[str] | None = None,
         top_k: int = 10,
         mentioned_document_ids: list[int] | None = None,
-        inject_system_message: bool = True, # For backwards compatibility
+        inject_system_message: bool = True,  # For backwards compatibility
     ) -> None:
         self.llm = llm
         self.search_space_id = search_space_id

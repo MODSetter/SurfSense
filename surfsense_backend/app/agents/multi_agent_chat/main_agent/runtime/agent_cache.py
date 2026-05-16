@@ -28,7 +28,9 @@ def mcp_signature(mcp_tools_by_agent: dict[str, list[BaseTool]]) -> str:
     """Hash the per-agent MCP tool surface so a change rotates the cache key."""
     rows = []
     for agent_name in sorted(mcp_tools_by_agent.keys()):
-        names = sorted(getattr(t, "name", "") or "" for t in mcp_tools_by_agent[agent_name])
+        names = sorted(
+            getattr(t, "name", "") or "" for t in mcp_tools_by_agent[agent_name]
+        )
         rows.append((agent_name, names))
     return stable_hash(rows)
 

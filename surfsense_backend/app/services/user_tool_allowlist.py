@@ -72,9 +72,7 @@ async def add_user_trust(
         session, user_id=user_id, connector_id=connector_id
     )
     if connector is None:
-        raise LookupError(
-            f"connector {connector_id} not found for user {user_id}"
-        )
+        raise LookupError(f"connector {connector_id} not found for user {user_id}")
 
     trusted = _read_trusted(connector)
     if tool_name not in trusted:
@@ -96,9 +94,7 @@ async def remove_user_trust(
         session, user_id=user_id, connector_id=connector_id
     )
     if connector is None:
-        raise LookupError(
-            f"connector {connector_id} not found for user {user_id}"
-        )
+        raise LookupError(f"connector {connector_id} not found for user {user_id}")
 
     trusted = _read_trusted(connector)
     if tool_name in trusted:

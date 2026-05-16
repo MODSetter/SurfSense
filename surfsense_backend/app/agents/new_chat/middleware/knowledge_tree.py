@@ -105,7 +105,7 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         llm: BaseChatModel | None = None,
         max_entries: int = MAX_TREE_ENTRIES,
         max_tokens: int = MAX_TREE_TOKENS,
-        inject_system_message: bool = True, # For backwards compatibility
+        inject_system_message: bool = True,  # For backwards compatibility
     ) -> None:
         self.search_space_id = search_space_id
         self.filesystem_mode = filesystem_mode

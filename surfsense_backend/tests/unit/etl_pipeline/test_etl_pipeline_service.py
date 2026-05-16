@@ -903,9 +903,7 @@ async def test_extract_pdf_without_vision_llm_skips_picture_descriptions(
     describe_mock.assert_not_called()
 
 
-async def test_extract_pdf_with_vision_llm_swallows_describe_failure(
-    tmp_path, mocker
-):
+async def test_extract_pdf_with_vision_llm_swallows_describe_failure(tmp_path, mocker):
     """A pypdf or vision LLM blow-up never fails the document upload."""
     pdf_file = tmp_path / "report.pdf"
     pdf_file.write_bytes(b"%PDF-1.4 fake content")
@@ -976,9 +974,7 @@ async def test_extract_pdf_with_vision_llm_no_images_returns_parser_text(
 # ---------------------------------------------------------------------------
 
 
-async def test_extract_pdf_passes_ocr_runner_to_describe_pictures(
-    tmp_path, mocker
-):
+async def test_extract_pdf_passes_ocr_runner_to_describe_pictures(tmp_path, mocker):
     """The ETL service must wire an ocr_runner kwarg to describe_pictures."""
     pdf_file = tmp_path / "report.pdf"
     pdf_file.write_bytes(b"%PDF-1.4 fake content")
@@ -1027,9 +1023,7 @@ async def test_extract_pdf_ocr_runner_invokes_document_parser_on_image(
     mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
 
     fake_docling = mocker.AsyncMock()
-    fake_docling.process_document.return_value = {
-        "content": "Slice 24 / 60   L   R"
-    }
+    fake_docling.process_document.return_value = {"content": "Slice 24 / 60   L   R"}
     mocker.patch(
         "app.services.docling_service.create_docling_service",
         return_value=fake_docling,
@@ -1074,7 +1068,7 @@ async def test_extract_pdf_ocr_runner_returns_empty_on_unsupported_image(
     pdf_file = tmp_path / "report.pdf"
     pdf_file.write_bytes(b"%PDF-1.4 fake content")
     weird_image = tmp_path / "Im0.jp2"  # JPEG2000, unlikely to be supported
-    weird_image.write_bytes(b"\x00\x00\x00\x0CjP" + b"\x00" * 50)
+    weird_image.write_bytes(b"\x00\x00\x00\x0cjP" + b"\x00" * 50)
 
     mocker.patch("app.config.config.ETL_SERVICE", "DOCLING")
 

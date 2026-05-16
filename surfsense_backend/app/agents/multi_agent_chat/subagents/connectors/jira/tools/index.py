@@ -13,7 +13,9 @@ RULESET = Ruleset(
         Rule(permission="getVisibleJiraProjects", pattern="*", action="allow"),
         Rule(permission="searchJiraIssuesUsingJql", pattern="*", action="allow"),
         Rule(permission="getJiraIssue", pattern="*", action="allow"),
-        Rule(permission="getJiraProjectIssueTypesMetadata", pattern="*", action="allow"),
+        Rule(
+            permission="getJiraProjectIssueTypesMetadata", pattern="*", action="allow"
+        ),
         Rule(permission="getJiraIssueTypeMetaWithFields", pattern="*", action="allow"),
         Rule(permission="getTransitionsForJiraIssue", pattern="*", action="allow"),
         Rule(permission="lookupJiraAccountId", pattern="*", action="allow"),

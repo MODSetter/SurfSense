@@ -23,6 +23,7 @@ Why a separate pin:
 
 from __future__ import annotations
 
+import contextlib
 import json
 from typing import Annotated
 
@@ -191,10 +192,8 @@ async def test_all_reject_decisions_route_to_each_subagent_with_messages_intact(
     for msg in final_state.values.get("messages", []) or []:
         content = getattr(msg, "content", None)
         if isinstance(content, str):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 payloads.append(json.loads(content))
-            except json.JSONDecodeError:
-                pass
 
     expected_a = {"decisions": [a_reject_0, a_reject_1]}
     expected_b = {"decisions": [b_reject_0]}

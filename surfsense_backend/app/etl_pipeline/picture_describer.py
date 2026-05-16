@@ -99,12 +99,12 @@ class PictureDescription:
       when no OCR was requested or OCR found no text.
     """
 
-    page_number: int                # 1-indexed
-    ordinal_in_page: int            # 0-indexed within the page
-    name: str                       # name pypdf assigned (e.g. "Im0")
-    sha256: str                     # hash of the raw image bytes
-    description: str                # visual description (markdown)
-    ocr_text: str | None = None     # OCR text from the ETL service, if any
+    page_number: int  # 1-indexed
+    ordinal_in_page: int  # 0-indexed within the page
+    name: str  # name pypdf assigned (e.g. "Im0")
+    sha256: str  # hash of the raw image bytes
+    description: str  # visual description (markdown)
+    ocr_text: str | None = None  # OCR text from the ETL service, if any
 
 
 @dataclass
@@ -478,7 +478,7 @@ def _replace_one_match(
     name = captured_name or desc.name
     block = _format_image_block(name, desc.description, desc.ocr_text)
 
-    new_markdown = markdown[: match.start()] + block + markdown[match.end():]
+    new_markdown = markdown[: match.start()] + block + markdown[match.end() :]
     return new_markdown, desc_idx + 1
 
 
@@ -521,7 +521,7 @@ def _splice_after_figures(
         match = matches[i]
         desc = descriptions[desc_idx + i]
         block = _format_image_block(desc.name, desc.description, desc.ocr_text)
-        out = out[: match.end()] + block + out[match.end():]
+        out = out[: match.end()] + block + out[match.end() :]
 
     return out, desc_idx + n_to_splice
 
@@ -583,9 +583,7 @@ def inject_descriptions_inline(
         )
         if desc_idx > before_idx:
             continue
-        out, desc_idx = _replace_one_match(
-            out, _CAPTION_ONLY, descriptions, desc_idx
-        )
+        out, desc_idx = _replace_one_match(out, _CAPTION_ONLY, descriptions, desc_idx)
         if desc_idx > before_idx:
             continue
         # No more positions to splice into.
@@ -612,9 +610,7 @@ def render_appended_section(
 
     parts: list[str] = ["", heading, ""]
     for desc in descriptions:
-        parts.append(
-            _format_image_block(desc.name, desc.description, desc.ocr_text)
-        )
+        parts.append(_format_image_block(desc.name, desc.description, desc.ocr_text))
         parts.append("")
 
     if skip_notes is not None:

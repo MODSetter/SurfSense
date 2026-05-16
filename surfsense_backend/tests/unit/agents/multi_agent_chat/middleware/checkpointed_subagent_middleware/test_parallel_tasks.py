@@ -121,7 +121,11 @@ async def test_two_parallel_atasks_same_subagent_type_different_tool_call_ids():
     shared_subagent = _build_success_subagent("ok")
     task_tool = build_task_tool_with_parent_config(
         [
-            {"name": "approver", "description": "shared approver", "runnable": shared_subagent},
+            {
+                "name": "approver",
+                "description": "shared approver",
+                "runnable": shared_subagent,
+            },
         ]
     )
 
@@ -163,7 +167,10 @@ async def test_two_parallel_atasks_same_subagent_type_different_tool_call_ids():
     state_parent = await shared_subagent.aget_state(
         {"configurable": {"thread_id": "shared-subagent-thread"}}
     )
-    assert state_parent.values == {} or state_parent.values.get("messages") in (None, [])
+    assert state_parent.values == {} or state_parent.values.get("messages") in (
+        None,
+        [],
+    )
 
 
 @pytest.mark.asyncio
@@ -181,8 +188,16 @@ async def test_one_atask_failure_does_not_corrupt_sibling_atask():
     surviving_subagent = _build_success_subagent("still here")
     task_tool = build_task_tool_with_parent_config(
         [
-            {"name": "broken", "description": "always fails", "runnable": failing_subagent},
-            {"name": "healthy", "description": "always succeeds", "runnable": surviving_subagent},
+            {
+                "name": "broken",
+                "description": "always fails",
+                "runnable": failing_subagent,
+            },
+            {
+                "name": "healthy",
+                "description": "always succeeds",
+                "runnable": surviving_subagent,
+            },
         ]
     )
 

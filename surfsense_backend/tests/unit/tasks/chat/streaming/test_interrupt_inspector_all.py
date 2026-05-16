@@ -151,8 +151,7 @@ async def test_preserves_state_interrupts_traversal_order():
     state_order = [
         i.value["tool_call_id"]
         for i in state.interrupts
-        if isinstance(getattr(i, "value", None), dict)
-        and "tool_call_id" in i.value
+        if isinstance(getattr(i, "value", None), dict) and "tool_call_id" in i.value
     ]
 
     assert inspector_order == state_order, (

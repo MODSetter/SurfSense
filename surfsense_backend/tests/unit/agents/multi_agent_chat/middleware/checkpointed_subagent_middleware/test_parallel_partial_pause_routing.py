@@ -33,6 +33,7 @@ exploratory probe before this test was authored.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from typing import Annotated
 
@@ -243,10 +244,8 @@ async def test_partial_pause_routes_only_to_paused_branch_without_rerunning_comp
     for msg in final.values.get("messages", []) or []:
         content = getattr(msg, "content", None)
         if isinstance(content, str):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 payloads.append(json.loads(content))
-            except json.JSONDecodeError:
-                pass
 
     assert {"decisions": [{"type": "approve"}]} in payloads, (
         f"REGRESSION: sub-B did not receive its single approve on resume; "

@@ -23,6 +23,7 @@ silently pass such a bug because the slices would coincide.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from typing import Annotated
 
@@ -81,9 +82,7 @@ def _build_pausing_subagent(checkpointer: InMemorySaver, *, action_count: int):
                 "review_configs": [{} for _ in range(action_count)],
             }
         )
-        return {
-            "messages": [AIMessage(content=json.dumps(decision, sort_keys=True))]
-        }
+        return {"messages": [AIMessage(content=json.dumps(decision, sort_keys=True))]}
 
     g = StateGraph(_SubState)
     g.add_node("approve", approve_node)
@@ -202,7 +201,9 @@ async def test_parallel_resume_with_per_interrupt_id_keying_completes_both_subag
     await parent.ainvoke({"messages": [HumanMessage(content="seed")]}, config)
 
     paused_state = await parent.aget_state(config)
-    assert len(paused_state.interrupts) == 2, "fixture broken: expected 2 paused subagents"
+    assert len(paused_state.interrupts) == 2, (
+        "fixture broken: expected 2 paused subagents"
+    )
 
     pending = collect_pending_tool_calls(paused_state)
     assert dict(pending) == {tcid_a: 2, tcid_b: 3}, (
@@ -243,10 +244,8 @@ async def test_parallel_resume_with_per_interrupt_id_keying_completes_both_subag
     for msg in final_state.values.get("messages", []) or []:
         content = getattr(msg, "content", None)
         if isinstance(content, str):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 payloads.append(json.loads(content))
-            except json.JSONDecodeError:
-                pass
 
     expected_a = {"decisions": [a_d0, a_d1]}
     expected_b = {"decisions": [b_d0, b_d1, b_d2]}

@@ -84,9 +84,7 @@ async def test_resume_with_approve_envelope_returns_once_decision():
     config = {"configurable": {"thread_id": "perm-once"}}
     await graph.ainvoke({"messages": [HumanMessage(content="seed")]}, config)
 
-    await graph.ainvoke(
-        Command(resume={"decisions": [{"type": "approve"}]}), config
-    )
+    await graph.ainvoke(Command(resume={"decisions": [{"type": "approve"}]}), config)
     final = await graph.aget_state(config)
     assert final.values.get("final_decision") == {"decision_type": "once"}
 
@@ -116,9 +114,7 @@ async def test_resume_with_reject_and_feedback_carries_feedback_through():
 
     await graph.ainvoke(
         Command(
-            resume={
-                "decisions": [{"type": "reject", "feedback": "use the trash bin"}]
-            }
+            resume={"decisions": [{"type": "reject", "feedback": "use the trash bin"}]}
         ),
         config,
     )

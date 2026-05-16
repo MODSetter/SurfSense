@@ -68,9 +68,7 @@ export function BlogWithSearchMagazine({ blogs }: { blogs: BlogEntry[] }) {
 
 				<MagazineFeatured blog={coverStory} />
 
-				{secondaryFeatured.length > 0 ? (
-					<MoreFeatured blogs={secondaryFeatured} />
-				) : null}
+				{secondaryFeatured.length > 0 ? <MoreFeatured blogs={secondaryFeatured} /> : null}
 
 				<MagazineSearchGrid blogs={blogs} excludedSlugs={heroSlugs} />
 			</Container>

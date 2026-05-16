@@ -21,6 +21,7 @@ their per-slice payload.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from typing import Annotated
 
@@ -151,7 +152,11 @@ def _parent_dispatching_one_of_each(
         return [
             Send(
                 "call_task",
-                {"tcid": tcid_self, "desc": "approve email", "subtype": "self-gated-agent"},
+                {
+                    "tcid": tcid_self,
+                    "desc": "approve email",
+                    "subtype": "self-gated-agent",
+                },
             ),
             Send(
                 "call_task",
@@ -250,10 +255,8 @@ async def test_parallel_self_gated_and_middleware_gated_route_and_resume_cleanly
     for msg in final.values.get("messages", []) or []:
         content = getattr(msg, "content", None)
         if isinstance(content, str):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 payloads.append(json.loads(content))
-            except json.JSONDecodeError:
-                pass
 
     self_payloads = [p for p in payloads if p.get("kind") == "self_gated"]
     mw_payloads = [p for p in payloads if p.get("kind") == "middleware_gated"]

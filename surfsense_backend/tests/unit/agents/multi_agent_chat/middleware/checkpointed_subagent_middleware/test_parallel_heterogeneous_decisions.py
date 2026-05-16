@@ -26,6 +26,7 @@ This module pins:
 
 from __future__ import annotations
 
+import contextlib
 import json
 from typing import Annotated
 
@@ -227,10 +228,8 @@ async def test_heterogeneous_decisions_route_to_correct_subagents_with_metadata_
     for msg in final_state.values.get("messages", []) or []:
         content = getattr(msg, "content", None)
         if isinstance(content, str):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 payloads.append(json.loads(content))
-            except json.JSONDecodeError:
-                pass
 
     expected_a = {"decisions": [a_approve, a_reject]}
     expected_b = {"decisions": [b_edit, b_approve, b_reject]}
