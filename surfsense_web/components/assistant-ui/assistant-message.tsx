@@ -24,6 +24,8 @@ import dynamic from "next/dynamic";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
+import { tryGetHostname } from "@/lib/url";
+
 import {
 	globalNewLLMConfigsAtom,
 	newLLMConfigsAtom,
@@ -99,20 +101,12 @@ const GenerateImageToolUI = dynamic(
 		import("@/components/tool-ui/generate-image").then((m) => ({ default: m.GenerateImageToolUI })),
 	{ ssr: false }
 );
-function extractDomain(url: string): string | undefined {
-	try {
-		return new URL(url).hostname.replace(/^www\./, "");
-	} catch {
-		return undefined;
-	}
-}
-
 function useCitationsFromMetadata(): SerializableCitation[] {
 	const allCitations = useAllCitationMetadata();
 	return useMemo(() => {
 		const result: SerializableCitation[] = [];
 		for (const [url, meta] of allCitations) {
-			const domain = extractDomain(url);
+			const domain = tryGetHostname(url);
 			result.push({
 				id: `url-cite-${url}`,
 				href: url,
