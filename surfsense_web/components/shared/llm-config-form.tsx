@@ -404,7 +404,7 @@ export function LLMConfigForm({
 				{/* Advanced Parameters */}
 				{showAdvanced && (
 					<>
-						<Separator />
+						<Separator className="bg-popover-border" />
 						<Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
 							<CollapsibleTrigger asChild>
 								<Button
@@ -443,7 +443,7 @@ export function LLMConfigForm({
 				)}
 
 				{/* System Instructions & Citations Section */}
-				<Separator />
+				<Separator className="bg-popover-border" />
 				<Collapsible open={systemInstructionsOpen} onOpenChange={setSystemInstructionsOpen}>
 					<CollapsibleTrigger asChild>
 						<Button

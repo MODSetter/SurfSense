@@ -133,9 +133,11 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({
 				)}
 
 				{error && (
-					<p className="py-8 text-sm text-destructive">
-						{error instanceof Error ? error.message : "Failed to load citation"}
-					</p>
+					<div className="flex min-h-full items-center justify-center text-center">
+						<p className="text-sm text-destructive">
+							{error instanceof Error ? error.message : "Failed to load citation"}
+						</p>
+					</div>
 				)}
 
 				{!isLoading && !error && data && (
