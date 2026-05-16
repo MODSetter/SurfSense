@@ -7,7 +7,7 @@ mocked at their system boundaries.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
@@ -25,6 +25,7 @@ pytestmark = pytest.mark.integration
 
 _COMPOSIO_ACCOUNT_ID = "composio-calendar-test-789"
 _INDEXER_MODULE = "app.tasks.connector_indexers.google_calendar_indexer"
+_GET_ACCESS_TOKEN = "app.services.composio_service.ComposioService.get_access_token"
 
 
 @pytest_asyncio.fixture
@@ -69,31 +70,28 @@ async def native_calendar(async_engine):
     await cleanup_space(async_engine, data["search_space_id"])
 
 
+@patch(_GET_ACCESS_TOKEN)
 @patch(f"{_INDEXER_MODULE}.TaskLoggingService")
 @patch(f"{_INDEXER_MODULE}.GoogleCalendarConnector")
-@patch(f"{_INDEXER_MODULE}.build_composio_credentials")
-async def test_composio_calendar_uses_composio_credentials(
-    mock_build_creds,
+@patch(f"{_INDEXER_MODULE}.ComposioService")
+async def test_composio_calendar_uses_composio_service(
+    mock_composio_service_cls,
     mock_cal_cls,
     mock_tl_cls,
+    mock_get_access_token,
     async_engine,
     composio_calendar,
 ):
-    """Calendar indexer calls build_composio_credentials for a Composio connector."""
+    """Calendar indexer uses Composio tools directly for a Composio connector."""
     from app.tasks.connector_indexers.google_calendar_indexer import (
         index_google_calendar_events,
     )
 
     data = composio_calendar
-    mock_creds = MagicMock(name="composio-creds")
-    mock_build_creds.return_value = mock_creds
+    mock_composio_service = MagicMock()
+    mock_composio_service.get_calendar_events = AsyncMock(return_value=([], None))
+    mock_composio_service_cls.return_value = mock_composio_service
     mock_tl_cls.return_value = mock_task_logger()
-
-    mock_cal_instance = MagicMock()
-    mock_cal_instance.get_all_primary_calendar_events = AsyncMock(
-        return_value=([], None)
-    )
-    mock_cal_cls.return_value = mock_cal_instance
 
     maker = make_session_factory(async_engine)
     async with maker() as session:
@@ -104,17 +102,25 @@ async def test_composio_calendar_uses_composio_credentials(
             user_id=data["user_id"],
         )
 
-    mock_build_creds.assert_called_once_with(_COMPOSIO_ACCOUNT_ID)
-    mock_cal_cls.assert_called_once()
-    _, kwargs = mock_cal_cls.call_args
-    assert kwargs.get("credentials") is mock_creds
+    mock_composio_service_cls.assert_called_once()
+    mock_composio_service.get_calendar_events.assert_called_once_with(
+        connected_account_id=_COMPOSIO_ACCOUNT_ID,
+        entity_id=f"surfsense_{data['user_id']}",
+        time_min=ANY,
+        time_max=ANY,
+        max_results=250,
+    )
+    mock_cal_cls.assert_not_called()
+    mock_get_access_token.assert_not_called()
 
 
+@patch(_GET_ACCESS_TOKEN)
 @patch(f"{_INDEXER_MODULE}.TaskLoggingService")
-@patch(f"{_INDEXER_MODULE}.build_composio_credentials")
+@patch(f"{_INDEXER_MODULE}.ComposioService")
 async def test_composio_calendar_without_account_id_returns_error(
-    mock_build_creds,
+    mock_composio_service_cls,
     mock_tl_cls,
+    mock_get_access_token,
     async_engine,
     composio_calendar_no_id,
 ):
@@ -138,20 +144,23 @@ async def test_composio_calendar_without_account_id_returns_error(
     assert count == 0
     assert error is not None
     assert "composio" in error.lower()
-    mock_build_creds.assert_not_called()
+    mock_composio_service_cls.assert_not_called()
+    mock_get_access_token.assert_not_called()
 
 
+@patch(_GET_ACCESS_TOKEN)
 @patch(f"{_INDEXER_MODULE}.TaskLoggingService")
+@patch(f"{_INDEXER_MODULE}.ComposioService")
 @patch(f"{_INDEXER_MODULE}.GoogleCalendarConnector")
-@patch(f"{_INDEXER_MODULE}.build_composio_credentials")
-async def test_native_calendar_does_not_use_composio_credentials(
-    mock_build_creds,
+async def test_native_calendar_uses_google_calendar_connector(
     mock_cal_cls,
+    mock_composio_service_cls,
     mock_tl_cls,
+    mock_get_access_token,
     async_engine,
     native_calendar,
 ):
-    """Calendar indexer does NOT call build_composio_credentials for a native connector."""
+    """Native Calendar connector uses GoogleCalendarConnector with no Composio path."""
     from app.tasks.connector_indexers.google_calendar_indexer import (
         index_google_calendar_events,
     )
@@ -174,4 +183,6 @@ async def test_native_calendar_does_not_use_composio_credentials(
             user_id=data["user_id"],
         )
 
-    mock_build_creds.assert_not_called()
+    mock_cal_cls.assert_called_once()
+    mock_composio_service_cls.assert_not_called()
+    mock_get_access_token.assert_not_called()
