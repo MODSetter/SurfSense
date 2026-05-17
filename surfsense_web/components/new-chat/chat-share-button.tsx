@@ -3,13 +3,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Earth, User, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { createPublicChatSnapshotMutationAtom } from "@/atoms/public-chat-snapshots/public-chat-snapshots-mutation.atoms";
-import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -49,8 +49,8 @@ const visibilityOptions: {
 
 export function ChatShareButton({ thread, onVisibilityChange, className }: ChatShareButtonProps) {
 	const queryClient = useQueryClient();
+	const router = useRouter();
 	const [open, setOpen] = useState(false);
-	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 
 	// Use Jotai atom for visibility (single source of truth)
 	const currentThreadState = useAtomValue(currentThreadAtom);
@@ -148,10 +148,9 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							variant="ghost"
 							size="icon"
 							onClick={() =>
-								setSearchSpaceSettingsDialog({
-									open: true,
-									initialTab: "public-links",
-								})
+								router.push(
+									`/dashboard/${thread.search_space_id}/search-space-settings?tab=public-links`
+								)
 							}
 							className="size-8 bg-muted/50 hover:bg-accent hover:text-accent-foreground"
 						>

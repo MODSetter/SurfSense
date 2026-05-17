@@ -11,19 +11,14 @@ import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
+import { announcementsDialogAtom, teamDialogAtom } from "@/atoms/layout/dialogs.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import {
-	announcementsDialogAtom,
-	searchSpaceSettingsDialogAtom,
-	teamDialogAtom,
-} from "@/atoms/settings/settings-dialog.atoms";
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog";
 import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
-import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
 import { TeamDialog } from "@/components/settings/team-dialog";
 import {
 	AlertDialog,
@@ -380,7 +375,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsCreateSearchSpaceDialogOpen(true);
 	}, []);
 
-	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 	const setTeamDialogOpen = useSetAtom(teamDialogAtom);
 	const setAnnouncementsDialog = useSetAtom(announcementsDialogAtom);
 
@@ -393,10 +387,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [setAnnouncementsDialog]);
 
 	const handleSearchSpaceSettings = useCallback(
-		(_space: SearchSpace) => {
-			setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
+		(space: SearchSpace) => {
+			router.push(`/dashboard/${space.id}/search-space-settings`);
 		},
-		[setSearchSpaceSettingsDialog]
+		[router]
 	);
 
 	const handleSearchSpaceDeleteClick = useCallback((space: SearchSpace) => {
@@ -568,8 +562,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	);
 
 	const handleSettings = useCallback(() => {
-		setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
-	}, [setSearchSpaceSettingsDialog]);
+		router.push(`/dashboard/${searchSpaceId}/search-space-settings`);
+	}, [router, searchSpaceId]);
 
 	const handleManageMembers = useCallback(() => {
 		setTeamDialogOpen(true);
@@ -666,10 +660,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	// Detect if we're on the chat page (needs overflow-hidden for chat's own scroll)
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
 	const isUserSettingsPage = pathname?.endsWith("/user-settings") === true;
+	const isSearchSpaceSettingsPage = pathname?.endsWith("/search-space-settings") === true;
 	const useWorkspacePanel =
 		pathname?.endsWith("/buy-more") === true ||
 		pathname?.endsWith("/more-pages") === true ||
-		isUserSettingsPage;
+		isUserSettingsPage ||
+		isSearchSpaceSettingsPage;
 
 	return (
 		<>
@@ -709,9 +705,13 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				isChatPage={isChatPage}
 				useWorkspacePanel={useWorkspacePanel}
 				workspacePanelViewportClassName={
-					isUserSettingsPage ? "items-start justify-center px-6 py-8 md:px-10 md:py-10" : undefined
+					isUserSettingsPage || isSearchSpaceSettingsPage
+						? "items-start justify-center px-6 py-8 md:px-10 md:py-10"
+						: undefined
 				}
-				workspacePanelContentClassName={isUserSettingsPage ? "max-w-5xl" : undefined}
+				workspacePanelContentClassName={
+					isUserSettingsPage || isSearchSpaceSettingsPage ? "max-w-5xl" : undefined
+				}
 				isLoadingChats={isLoadingThreads}
 				activeSlideoutPanel={activeSlideoutPanel}
 				onSlideoutPanelChange={setActiveSlideoutPanel}
@@ -891,7 +891,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				onOpenChange={setIsCreateSearchSpaceDialogOpen}
 			/>
 
-			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
 			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
 			<AnnouncementsDialog />
 

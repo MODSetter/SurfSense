@@ -1,7 +1,8 @@
 "use client";
 
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import { AlertTriangle, Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
@@ -10,7 +11,6 @@ import {
 	llmPreferencesAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -44,8 +44,8 @@ interface ConnectorIndicatorProps {
 
 export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, ConnectorIndicatorProps>(
 	(_props, ref) => {
+		const router = useRouter();
 		const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-		const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 		const { data: preferences = {}, isFetching: preferencesLoading } =
 			useAtomValue(llmPreferencesAtom);
 		const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
@@ -397,10 +397,9 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 														variant="outline"
 														onClick={() => {
 															handleOpenChange(false);
-															setSearchSpaceSettingsDialog({
-																open: true,
-																initialTab: "models",
-															});
+															router.push(
+																`/dashboard/${searchSpaceId}/search-space-settings?tab=models`
+															);
 														}}
 													>
 														<Settings className="mr-2 h-4 w-4" />

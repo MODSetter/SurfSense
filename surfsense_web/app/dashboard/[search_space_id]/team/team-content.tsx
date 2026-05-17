@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import {
 	Calendar,
 	Check,
@@ -20,6 +20,7 @@ import {
 	UserPlus,
 	Users,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -31,7 +32,6 @@ import {
 	updateMemberMutationAtom,
 } from "@/atoms/members/members-mutation.atoms";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
-import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -346,6 +346,7 @@ export function TeamContent({ searchSpaceId }: TeamContentProps) {
 						{owners.map((member) => (
 							<MemberRow
 								key={`member-${member.id}`}
+								searchSpaceId={searchSpaceId}
 								member={member}
 								roles={roles}
 								canManageRoles={canManageRoles}
@@ -357,6 +358,7 @@ export function TeamContent({ searchSpaceId }: TeamContentProps) {
 						{paginatedMembers.map((member) => (
 							<MemberRow
 								key={`member-${member.id}`}
+								searchSpaceId={searchSpaceId}
 								member={member}
 								roles={roles}
 								canManageRoles={canManageRoles}
@@ -433,6 +435,7 @@ export function TeamContent({ searchSpaceId }: TeamContentProps) {
 }
 
 function MemberRow({
+	searchSpaceId,
 	member,
 	roles,
 	canManageRoles,
@@ -440,6 +443,7 @@ function MemberRow({
 	onUpdateRole,
 	onRemoveMember,
 }: {
+	searchSpaceId: number;
 	member: Membership;
 	roles: Role[];
 	canManageRoles: boolean;
@@ -447,7 +451,7 @@ function MemberRow({
 	onUpdateRole: (membershipId: number, roleId: number | null) => Promise<Membership>;
 	onRemoveMember: (membershipId: number) => Promise<boolean>;
 }) {
-	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
+	const router = useRouter();
 	const initials = getAvatarInitials(member);
 	const displayName = member.user_display_name || member.user_email || "Unknown";
 	const roleName = member.is_owner ? "Owner" : member.role?.name || "No role";
@@ -541,10 +545,7 @@ function MemberRow({
 							<DropdownMenuSeparator className="dark:bg-white/5" />
 							<DropdownMenuItem
 								onClick={() =>
-									setSearchSpaceSettingsDialog({
-										open: true,
-										initialTab: "team-roles",
-									})
+									router.push(`/dashboard/${searchSpaceId}/search-space-settings?tab=team-roles`)
 								}
 							>
 								Manage Roles

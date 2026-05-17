@@ -2,7 +2,7 @@
 
 import { useAtom } from "jotai";
 import { useEffect } from "react";
-import { announcementsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
+import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
 import { AnnouncementCard } from "@/components/announcements/AnnouncementCard";
 import { AnnouncementsEmptyState } from "@/components/announcements/AnnouncementsEmptyState";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
