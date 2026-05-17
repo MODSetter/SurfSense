@@ -18,7 +18,6 @@ import {
 	announcementsDialogAtom,
 	searchSpaceSettingsDialogAtom,
 	teamDialogAtom,
-	userSettingsDialogAtom,
 } from "@/atoms/settings/settings-dialog.atoms";
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -26,7 +25,6 @@ import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog
 import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
 import { TeamDialog } from "@/components/settings/team-dialog";
-import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -382,14 +380,13 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsCreateSearchSpaceDialogOpen(true);
 	}, []);
 
-	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
 	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 	const setTeamDialogOpen = useSetAtom(teamDialogAtom);
 	const setAnnouncementsDialog = useSetAtom(announcementsDialogAtom);
 
 	const handleUserSettings = useCallback(() => {
-		setUserSettingsDialog({ open: true, initialTab: "profile" });
-	}, [setUserSettingsDialog]);
+		router.push(`/dashboard/${searchSpaceId}/user-settings`);
+	}, [router, searchSpaceId]);
 
 	const handleAnnouncements = useCallback(() => {
 		setAnnouncementsDialog(true);
@@ -668,8 +665,11 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Detect if we're on the chat page (needs overflow-hidden for chat's own scroll)
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
+	const isUserSettingsPage = pathname?.endsWith("/user-settings") === true;
 	const useWorkspacePanel =
-		pathname?.endsWith("/buy-more") === true || pathname?.endsWith("/more-pages") === true;
+		pathname?.endsWith("/buy-more") === true ||
+		pathname?.endsWith("/more-pages") === true ||
+		isUserSettingsPage;
 
 	return (
 		<>
@@ -708,6 +708,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				setTheme={setTheme}
 				isChatPage={isChatPage}
 				useWorkspacePanel={useWorkspacePanel}
+				workspacePanelViewportClassName={
+					isUserSettingsPage ? "items-start justify-center px-6 py-8 md:px-10 md:py-10" : undefined
+				}
+				workspacePanelContentClassName={isUserSettingsPage ? "max-w-5xl" : undefined}
 				isLoadingChats={isLoadingThreads}
 				activeSlideoutPanel={activeSlideoutPanel}
 				onSlideoutPanelChange={setActiveSlideoutPanel}
@@ -887,9 +891,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				onOpenChange={setIsCreateSearchSpaceDialogOpen}
 			/>
 
-			{/* Settings Dialogs */}
 			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
-			<UserSettingsDialog />
 			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
 			<AnnouncementsDialog />
 

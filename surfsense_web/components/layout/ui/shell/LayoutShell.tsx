@@ -100,6 +100,8 @@ interface LayoutShellProps {
 	defaultCollapsed?: boolean;
 	isChatPage?: boolean;
 	useWorkspacePanel?: boolean;
+	workspacePanelViewportClassName?: string;
+	workspacePanelContentClassName?: string;
 	children: React.ReactNode;
 	className?: string;
 	// Unified slide-out panel state
@@ -205,6 +207,8 @@ export function LayoutShell({
 	defaultCollapsed = false,
 	isChatPage = false,
 	useWorkspacePanel = false,
+	workspacePanelViewportClassName,
+	workspacePanelContentClassName,
 	children,
 	className,
 	activeSlideoutPanel = null,
@@ -295,7 +299,12 @@ export function LayoutShell({
 						/>
 
 						{useWorkspacePanel ? (
-							<WorkspacePanel>{children}</WorkspacePanel>
+							<WorkspacePanel
+								viewportClassName={workspacePanelViewportClassName}
+								contentClassName={workspacePanelContentClassName}
+							>
+								{children}
+							</WorkspacePanel>
 						) : (
 							<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
 								{children}
@@ -519,7 +528,12 @@ export function LayoutShell({
 
 					<DesktopWorkspaceRegion>
 						{useWorkspacePanel ? (
-							<WorkspacePanel>{children}</WorkspacePanel>
+							<WorkspacePanel
+								viewportClassName={workspacePanelViewportClassName}
+								contentClassName={workspacePanelContentClassName}
+							>
+								{children}
+							</WorkspacePanel>
 						) : (
 							<>
 								{/* Main content panel */}

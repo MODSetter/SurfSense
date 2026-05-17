@@ -1,7 +1,8 @@
 "use client";
 
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import { Plus, Zap } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import {
 	forwardRef,
 	useCallback,
@@ -14,7 +15,6 @@ import {
 } from "react";
 
 import { promptsAtom } from "@/atoms/prompts/prompts-query.atoms";
-import { userSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -35,7 +35,8 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 	{ onSelect, onDone, externalSearch = "" },
 	ref
 ) {
-	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
+	const router = useRouter();
+	const params = useParams();
 	const { data: prompts, isLoading, isError } = useAtomValue(promptsAtom);
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -62,19 +63,24 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 
 	const createPromptIndex = filtered.length;
 	const totalItems = filtered.length + 1;
+	const searchSpaceId = Array.isArray(params?.search_space_id)
+		? params.search_space_id[0]
+		: params?.search_space_id;
 
 	const handleSelect = useCallback(
 		(index: number) => {
 			if (index === createPromptIndex) {
 				onDone();
-				setUserSettingsDialog({ open: true, initialTab: "prompts" });
+				if (searchSpaceId) {
+					router.push(`/dashboard/${searchSpaceId}/user-settings?tab=prompts`);
+				}
 				return;
 			}
 			const action = filtered[index];
 			if (!action) return;
 			onSelect({ name: action.name, prompt: action.prompt, mode: action.mode });
 		},
-		[filtered, onSelect, createPromptIndex, onDone, setUserSettingsDialog]
+		[filtered, onSelect, createPromptIndex, onDone, router, searchSpaceId]
 	);
 
 	useEffect(() => {

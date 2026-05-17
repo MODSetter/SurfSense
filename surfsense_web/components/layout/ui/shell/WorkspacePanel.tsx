@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 interface WorkspacePanelProps {
 	children: ReactNode;
 	className?: string;
+	viewportClassName?: string;
 	contentClassName?: string;
 }
 
@@ -12,7 +13,12 @@ interface WorkspacePanelProps {
  * Use this when a route should own the whole workspace instead of rendering
  * inside the normal TabBar/Header/main/right-panel chrome.
  */
-export function WorkspacePanel({ children, className, contentClassName }: WorkspacePanelProps) {
+export function WorkspacePanel({
+	children,
+	className,
+	viewportClassName,
+	contentClassName,
+}: WorkspacePanelProps) {
 	return (
 		<main
 			className={cn(
@@ -20,7 +26,12 @@ export function WorkspacePanel({ children, className, contentClassName }: Worksp
 				className
 			)}
 		>
-			<div className="flex min-h-0 flex-1 items-center justify-center overflow-auto px-4 py-8">
+			<div
+				className={cn(
+					"flex min-h-0 flex-1 items-center justify-center overflow-auto px-4 py-8",
+					viewportClassName
+				)}
+			>
 				<div className={cn("w-full max-w-md", contentClassName)}>{children}</div>
 			</div>
 		</main>
