@@ -4,8 +4,7 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { BuyPagesContent } from "@/components/settings/buy-pages-content";
 import { BuyTokensContent } from "@/components/settings/buy-tokens-content";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TABS = [
 	{ id: "pages", label: "Pages" },
@@ -22,29 +21,34 @@ export default function BuyMorePage() {
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.3 }}
-			className="w-full select-none space-y-6"
+			className="w-full select-none"
 		>
-			<div className="flex items-center justify-center rounded-lg border bg-muted/30 p-1">
-				{TABS.map((tab) => (
-					<Button
-						key={tab.id}
-						type="button"
-						variant="ghost"
-						size="sm"
-						onClick={() => setActiveTab(tab.id)}
-						className={cn(
-							"h-auto flex-1 px-3 py-1.5 text-sm",
-							activeTab === tab.id
-								? "bg-background text-foreground shadow-sm"
-								: "text-muted-foreground hover:text-accent-foreground"
-						)}
-					>
-						{tab.label}
-					</Button>
-				))}
-			</div>
+			<Tabs
+				value={activeTab}
+				onValueChange={(value) => {
+					setActiveTab(value as TabId);
+				}}
+				className="relative min-h-[37rem] w-full"
+			>
+				<TabsList className="absolute top-20 left-1/2 -translate-x-1/2 rounded-xl bg-accent p-1">
+					{TABS.map((tab) => (
+						<TabsTrigger
+							key={tab.id}
+							value={tab.id}
+							className="h-8 rounded-lg px-4 text-sm font-semibold text-accent-foreground transition-colors hover:bg-transparent hover:text-white data-[state=active]:bg-[#4a4a4a] data-[state=active]:text-white data-[state=active]:shadow-none"
+						>
+							{tab.label}
+						</TabsTrigger>
+					))}
+				</TabsList>
 
-			{activeTab === "pages" ? <BuyPagesContent /> : <BuyTokensContent />}
+				<TabsContent value="pages" className="mt-0 flex min-h-[37rem] items-center pt-14">
+					<BuyPagesContent />
+				</TabsContent>
+				<TabsContent value="tokens" className="mt-0 flex min-h-[37rem] items-center pt-14">
+					<BuyTokensContent />
+				</TabsContent>
+			</Tabs>
 		</motion.div>
 	);
 }

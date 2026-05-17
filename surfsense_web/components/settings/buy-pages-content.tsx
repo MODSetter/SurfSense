@@ -74,11 +74,11 @@ export function BuyPagesContent() {
 				<div className="flex items-center justify-center gap-3">
 					<Button
 						type="button"
-						variant="outline"
+						variant="ghost"
 						size="icon"
 						onClick={() => setQuantity((q) => Math.max(1, q - 1))}
 						disabled={quantity <= 1 || purchaseMutation.isPending}
-						className="size-8 shadow-none transition-colors hover:bg-muted disabled:opacity-40"
+						className="size-8 text-muted-foreground shadow-none transition-colors hover:bg-muted hover:text-white disabled:opacity-40"
 					>
 						<Minus className="h-3.5 w-3.5" />
 					</Button>
@@ -87,11 +87,11 @@ export function BuyPagesContent() {
 					</span>
 					<Button
 						type="button"
-						variant="outline"
+						variant="ghost"
 						size="icon"
 						onClick={() => setQuantity((q) => Math.min(100, q + 1))}
 						disabled={quantity >= 100 || purchaseMutation.isPending}
-						className="size-8 shadow-none transition-colors hover:bg-muted disabled:opacity-40"
+						className="size-8 text-muted-foreground shadow-none transition-colors hover:bg-muted hover:text-white disabled:opacity-40"
 					>
 						<Plus className="h-3.5 w-3.5" />
 					</Button>
@@ -107,10 +107,10 @@ export function BuyPagesContent() {
 							onClick={() => setQuantity(m)}
 							disabled={purchaseMutation.isPending}
 							className={cn(
-								"h-auto rounded-md border px-2.5 py-1 text-xs font-medium tabular-nums transition-colors hover:text-foreground disabled:opacity-60",
+								"h-auto rounded-md px-2.5 py-1 text-xs font-medium tabular-nums transition-colors disabled:opacity-60",
 								quantity === m
-									? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-									: "border-border hover:border-emerald-500/40 hover:bg-muted/40"
+									? "bg-accent text-accent-foreground"
+									: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 							)}
 						>
 							{(m * PAGE_PACK_SIZE).toLocaleString()}
@@ -126,7 +126,7 @@ export function BuyPagesContent() {
 				</div>
 
 				<Button
-					className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
+					className="w-full"
 					disabled={purchaseMutation.isPending || !hasValidSearchSpace}
 					onClick={handleBuyNow}
 				>

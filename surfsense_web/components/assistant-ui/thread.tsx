@@ -23,6 +23,7 @@ import {
 	Wrench,
 	X,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -271,59 +272,76 @@ const ConnectToolsBanner: FC<{
 		if (typeof window === "undefined") return false;
 		return localStorage.getItem(BANNER_DISMISSED_KEY) === "true";
 	});
+	const [dismissRequested, setDismissRequested] = useState(false);
 
 	const hasConnectors = (connectors?.length ?? 0) > 0;
 	const isVisible = !dismissed && !hasConnectors && isThreadEmpty;
+	const shouldShowTray = isVisible && !dismissRequested;
 
 	useEffect(() => {
 		onVisibleChange?.(isVisible);
 	}, [isVisible, onVisibleChange]);
 
-	if (!isVisible) return null;
-
 	const handleDismiss = (e: React.MouseEvent) => {
 		e.stopPropagation();
-		setDismissed(true);
-		localStorage.setItem(BANNER_DISMISSED_KEY, "true");
+		setDismissRequested(true);
 	};
 
 	return (
-		<div className="relative z-0 -mt-5 flex min-w-0 items-center gap-2 rounded-b-3xl border border-input bg-muted/40 px-4 pt-7 pb-3 shadow-sm shadow-black/5 dark:shadow-black/10">
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				className="h-7 min-w-0 cursor-pointer justify-start gap-2 rounded-md px-0 text-[13px] font-normal text-muted-foreground select-none hover:bg-transparent hover:text-foreground"
-				onClick={() => setConnectorDialogOpen(true)}
-			>
-				<Unplug className="size-4 shrink-0" />
-				<span className="truncate">Connect your tools</span>
-			</Button>
-			<div className="min-w-0 flex-1" />
-			<AvatarGroup className="shrink-0">
-				{BANNER_CONNECTORS.map(({ type }, i) => (
-					<Avatar
-						key={type}
-						className="size-5"
-						style={{ zIndex: BANNER_CONNECTORS.length - i }}
+		<AnimatePresence
+			initial={false}
+			onExitComplete={() => {
+				if (!dismissRequested) return;
+				setDismissed(true);
+				localStorage.setItem(BANNER_DISMISSED_KEY, "true");
+			}}
+		>
+			{shouldShowTray ? (
+				<motion.div
+					key="connect-tools-tray"
+					initial={{ opacity: 0, y: -10 }}
+					animate={{ opacity: 1, y: 0 }}
+					exit={{ opacity: 0, y: -14 }}
+					transition={{ duration: 0.18, ease: "easeOut" }}
+					className="relative z-0 -mt-5 flex min-w-0 items-center gap-2 rounded-b-3xl border border-input bg-muted/40 px-4 pt-7 pb-3 shadow-sm shadow-black/5 dark:shadow-black/10"
+				>
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						className="h-7 min-w-0 cursor-pointer justify-start gap-2 rounded-md px-0 text-[13px] font-normal text-muted-foreground select-none hover:bg-transparent hover:text-foreground"
+						onClick={() => setConnectorDialogOpen(true)}
 					>
-						<AvatarFallback className="bg-accent text-[10px]">
-							{getConnectorIcon(type, "size-3")}
-						</AvatarFallback>
-					</Avatar>
-				))}
-			</AvatarGroup>
-			<Button
-				type="button"
-				onClick={handleDismiss}
-				variant="ghost"
-				size="icon"
-				className="size-7 shrink-0 cursor-pointer rounded-md text-muted-foreground hover:bg-transparent hover:text-foreground"
-				aria-label="Dismiss"
-			>
-				<X className="size-3.5" />
-			</Button>
-		</div>
+						<Unplug className="size-4 shrink-0" />
+						<span className="truncate">Connect your tools</span>
+					</Button>
+					<div className="min-w-0 flex-1" />
+					<AvatarGroup className="shrink-0">
+						{BANNER_CONNECTORS.map(({ type }, i) => (
+							<Avatar
+								key={type}
+								className="size-5"
+								style={{ zIndex: BANNER_CONNECTORS.length - i }}
+							>
+								<AvatarFallback className="bg-accent text-[10px]">
+									{getConnectorIcon(type, "size-3")}
+								</AvatarFallback>
+							</Avatar>
+						))}
+					</AvatarGroup>
+					<Button
+						type="button"
+						onClick={handleDismiss}
+						variant="ghost"
+						size="icon"
+						className="size-7 shrink-0 cursor-pointer rounded-md text-muted-foreground hover:bg-transparent hover:text-foreground"
+						aria-label="Dismiss"
+					>
+						<X className="size-3.5" />
+					</Button>
+				</motion.div>
+			) : null}
+		</AnimatePresence>
 	);
 };
 
