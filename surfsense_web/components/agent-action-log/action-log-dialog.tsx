@@ -2,19 +2,19 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue } from "jotai";
-import { RefreshCcw, Workflow, } from "lucide-react";
+import { RefreshCcw, Workflow } from "lucide-react";
 import { useCallback } from "react";
-import { actionLogSheetAtom } from "@/atoms/agent/action-log-sheet.atom";
+import { actionLogDialogAtom } from "@/atoms/agent/action-log-dialog.atom";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { agentActionsQueryKey, useAgentActionsQuery } from "@/hooks/use-agent-actions-query";
 import { ActionLogItem } from "./action-log-item";
@@ -25,7 +25,7 @@ function EmptyState() {
 			<div className="flex max-w-[260px] flex-col gap-1.5">
 				<p className="text-sm font-semibold tracking-tight">No actions logged yet</p>
 				<p className="text-xs leading-relaxed text-muted-foreground">
-				A complete audit trail of every tool the agent uses in this thread will appear here
+					A complete audit trail of every tool the agent uses in this thread will appear here
 				</p>
 			</div>
 		</div>
@@ -64,8 +64,8 @@ function LoadingState() {
 	);
 }
 
-export function ActionLogSheet() {
-	const [state, setState] = useAtom(actionLogSheetAtom);
+export function ActionLogDialog() {
+	const [state, setState] = useAtom(actionLogDialogAtom);
 	const queryClient = useQueryClient();
 
 	const { data: flags } = useAtomValue(agentFlagsAtom);
@@ -78,6 +78,13 @@ export function ActionLogSheet() {
 		{ enabled: state.open && actionLogEnabled }
 	);
 
+	const handleOpenChange = useCallback(
+		(open: boolean) => {
+			setState((current) => (open ? { ...current, open } : { open: false, threadId: null }));
+		},
+		[setState]
+	);
+
 	const handleRevertSuccess = useCallback(() => {
 		if (threadId !== null) {
 			queryClient.invalidateQueries({ queryKey: agentActionsQueryKey(threadId) });
@@ -85,24 +92,22 @@ export function ActionLogSheet() {
 	}, [queryClient, threadId]);
 
 	return (
-		<Sheet open={state.open} onOpenChange={(open) => setState((s) => ({ ...s, open }))}>
-			<SheetContent
-				side="right"
-				className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md select-none"
-			>
-				<SheetHeader className="shrink-0 px-4 py-4">
-					<div className="flex items-center gap-2 pr-24">
-						<SheetTitle className="text-base font-semibold">Agent actions</SheetTitle>
-						{data?.total !== undefined && data.total > 0 && (
+		<Dialog open={state.open} onOpenChange={handleOpenChange}>
+			<DialogContent className="select-none flex h-[90vh] max-h-[640px] w-[95vw] max-w-[900px] flex-col gap-0 overflow-hidden p-0 [--card:var(--popover)] md:h-[80vh]">
+				<div className="shrink-0 px-6 pb-3 pt-6 pr-28">
+					<div className="flex items-center gap-2">
+						<DialogTitle className="text-lg font-semibold">Agent actions</DialogTitle>
+						{data?.total !== undefined && data.total > 0 ? (
 							<Badge variant="secondary" className="text-[10px]">
 								{data.total}
 							</Badge>
-						)}
+						) : null}
 					</div>
-					<SheetDescription className="sr-only">
+					<DialogDescription className="sr-only">
 						Audit trail of every tool call the agent made in this thread.
-					</SheetDescription>
-				</SheetHeader>
+					</DialogDescription>
+					<Separator className="mt-4" />
+				</div>
 
 				<Button
 					size="sm"
@@ -135,7 +140,7 @@ export function ActionLogSheet() {
 					) : items.length === 0 ? (
 						<EmptyState />
 					) : (
-						<div className="flex flex-col gap-2 p-3">
+						<div className="flex flex-col gap-2 px-4 pb-4">
 							{items.map((action) => (
 								<ActionLogItem
 									key={action.id}
@@ -144,15 +149,15 @@ export function ActionLogSheet() {
 									onRevertSuccess={handleRevertSuccess}
 								/>
 							))}
-							{data?.has_more && (
+							{data?.has_more ? (
 								<p className="py-2 text-center text-[11px] text-muted-foreground">
 									Showing {items.length} of {data.total}. Older actions are paginated.
 								</p>
-							)}
+							) : null}
 						</div>
 					)}
 				</div>
-			</SheetContent>
-		</Sheet>
+			</DialogContent>
+		</Dialog>
 	);
 }

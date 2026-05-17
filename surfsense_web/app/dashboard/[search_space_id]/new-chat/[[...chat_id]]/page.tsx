@@ -451,7 +451,7 @@ export default function NewChatPage() {
 	}, [params.search_space_id]);
 
 	// Unified store for agent-action rows (the same react-query cache
-	// the agent-actions sheet, the inline Revert button, and the
+	// the agent-actions dialog, the inline Revert button, and the
 	// per-turn Revert button all read). Hydrates from
 	// ``GET /threads/{id}/actions`` and is updated incrementally by the
 	// SSE handlers + revert-batch results below — no atom side-channel.

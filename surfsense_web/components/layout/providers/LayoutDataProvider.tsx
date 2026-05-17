@@ -22,7 +22,7 @@ import {
 } from "@/atoms/settings/settings-dialog.atoms";
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import { ActionLogSheet } from "@/components/agent-action-log/action-log-sheet";
+import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog";
 import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
 import { TeamDialog } from "@/components/settings/team-dialog";
@@ -893,8 +893,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
 			<AnnouncementsDialog />
 
-			{/* Agent action log + revert sheet */}
-			<ActionLogSheet />
+			{/* Agent action log + revert dialog */}
+			<ActionLogDialog />
 		</>
 	);
 }

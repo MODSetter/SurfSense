@@ -3,7 +3,7 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { Workflow } from "lucide-react";
 import { useCallback } from "react";
-import { openActionLogSheetAtom } from "@/atoms/agent/action-log-sheet.atom";
+import { openActionLogDialogAtom } from "@/atoms/agent/action-log-dialog.atom";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -13,7 +13,7 @@ interface ActionLogButtonProps {
 }
 
 /**
- * Header button that opens the agent action log sheet for the current
+ * Header button that opens the agent action log dialog for the current
  * thread. Renders nothing when:
  *   - the action log feature flag is off (graceful no-op for older
  *     deployments), OR
@@ -21,7 +21,7 @@ interface ActionLogButtonProps {
  */
 export function ActionLogButton({ threadId }: ActionLogButtonProps) {
 	const { data: flags } = useAtomValue(agentFlagsAtom);
-	const open = useSetAtom(openActionLogSheetAtom);
+	const open = useSetAtom(openActionLogDialogAtom);
 
 	const enabled = !!flags?.enable_action_log && !flags?.disable_new_agent_stack;
 

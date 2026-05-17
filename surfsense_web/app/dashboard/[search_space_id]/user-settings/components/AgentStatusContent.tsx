@@ -137,7 +137,7 @@ const FLAG_GROUPS: FlagGroup[] = [
 	{
 		id: "tier5",
 		title: "Tier 5 — Audit + revert",
-		subtitle: "Action log + revert route used by the Agent Actions sheet.",
+		subtitle: "Action log + revert route used by the Agent Actions dialog.",
 		flags: [
 			{
 				key: "enable_action_log",

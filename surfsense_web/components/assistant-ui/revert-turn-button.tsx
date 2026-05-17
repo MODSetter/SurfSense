@@ -5,7 +5,7 @@
  * assistant turn that has at least one reversible action.
  *
  * The button reads from the unified ``useAgentActionsQuery`` cache
- * (the SAME react-query cache the agent-actions sheet and the inline
+ * (the SAME react-query cache the agent-actions dialog and the inline
  * Revert button consume) filtered by ``chat_turn_id``. It shows a
  * confirmation dialog summarising "N reversible / M total" and, on
  * confirm, calls ``POST /threads/{id}/revert-turn/{chat_turn_id}``.

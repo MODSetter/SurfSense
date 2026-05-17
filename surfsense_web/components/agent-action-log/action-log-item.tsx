@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, RotateCcw, ShieldOff, Undo2 } from "lucide-react";
+import { Check, ChevronRight, Copy, RotateCcw, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { getToolDisplayName, getToolIcon } from "@/contracts/enums/toolIcons";
 import { type AgentAction, agentActionsApiService } from "@/lib/apis/agent-actions-api.service";
 import { AppError } from "@/lib/error";
@@ -29,10 +28,55 @@ interface ActionLogItemProps {
 	onRevertSuccess: () => void;
 }
 
+function formatPrimitiveValue(value: unknown) {
+	if (value === null) return "null";
+	if (value === undefined) return "undefined";
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "boolean") return String(value);
+	return JSON.stringify(value, null, 2);
+}
+
+function ArgumentValue({ value }: { value: unknown }) {
+	const formatted = formatPrimitiveValue(value);
+	const isBlockValue =
+		typeof value === "object" ||
+		(typeof value === "string" && (value.includes("\n") || value.length > 120));
+
+	if (isBlockValue) {
+		return (
+			<pre className="mt-2 whitespace-pre-wrap break-words bg-popover px-4 py-3 text-[11px] leading-relaxed text-popover-foreground/80">
+				{formatted}
+			</pre>
+		);
+	}
+
+	return (
+		<p className="mt-1 break-words font-mono text-[11px] leading-relaxed text-popover-foreground/80">
+			{formatted}
+		</p>
+	);
+}
+
+function StructuredArguments({ args }: { args: Record<string, unknown> }) {
+	return (
+		<div className="divide-y divide-popover-border border-t border-popover-border">
+			{Object.entries(args).map(([key, value]) => (
+				<div key={key} className="bg-popover">
+					<div className="px-4 py-3">
+						<p className="font-mono text-[10px] font-medium text-muted-foreground">{key}</p>
+						<ArgumentValue value={value} />
+					</div>
+				</div>
+			))}
+		</div>
+	);
+}
+
 export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogItemProps) {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const [isReverting, setIsReverting] = useState(false);
 	const [confirmOpen, setConfirmOpen] = useState(false);
+	const [copiedSection, setCopiedSection] = useState<"arguments" | null>(null);
 
 	const isAlreadyReverted = action.reverted_by_action_id !== null;
 	const isRevertAction = action.is_revert_action;
@@ -42,10 +86,21 @@ export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogIt
 	const displayName = getToolDisplayName(action.tool_name);
 
 	const argsPreview = action.args ? JSON.stringify(action.args, null, 2) : null;
-	const truncatedArgs =
-		argsPreview && argsPreview.length > 600 ? `${argsPreview.slice(0, 600)}…` : argsPreview;
 
 	const canRevert = action.reversible && !isAlreadyReverted && !isRevertAction && !hasError;
+
+	const handleCopyArguments = async () => {
+		if (!argsPreview) return;
+
+		try {
+			await navigator.clipboard.writeText(argsPreview);
+			setCopiedSection("arguments");
+			toast.success("Arguments copied");
+			window.setTimeout(() => setCopiedSection(null), 1200);
+		} catch {
+			toast.error("Failed to copy arguments.");
+		}
+	};
 
 	const handleRevert = async () => {
 		setIsReverting(true);
@@ -70,7 +125,7 @@ export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogIt
 	return (
 		<div
 			className={cn(
-				"rounded-lg border bg-card transition-colors",
+				"overflow-hidden rounded-lg border border-popover-border bg-popover text-popover-foreground transition-colors",
 				isAlreadyReverted && "opacity-70"
 			)}
 		>
@@ -78,10 +133,10 @@ export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogIt
 				type="button"
 				variant="ghost"
 				onClick={() => setIsExpanded((v) => !v)}
-				className="h-auto w-full items-start justify-start gap-3 p-3 text-left hover:bg-accent hover:text-accent-foreground"
+				className="h-auto w-full items-start justify-start gap-3 rounded-none p-3 text-left hover:bg-accent hover:text-accent-foreground"
 				aria-expanded={isExpanded}
 			>
-				<div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+				<div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent">
 					{isRevertAction ? (
 						<Undo2 className="size-4 text-muted-foreground" />
 					) : (
@@ -102,7 +157,10 @@ export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogIt
 							</Badge>
 						)}
 						{!isRevertAction && action.reversible && !isAlreadyReverted && (
-							<Badge variant="outline" className="text-[10px]">
+							<Badge
+								variant="secondary"
+								className="border-0 bg-neutral-200 px-1.5 py-0.5 text-[10px] text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200"
+							>
 								Reversible
 							</Badge>
 						)}
@@ -116,55 +174,69 @@ export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogIt
 				</div>
 				<ChevronRight
 					className={cn(
-						"size-4 shrink-0 text-muted-foreground transition-transform",
+						"size-4 shrink-0 self-center text-muted-foreground transition-transform",
 						isExpanded && "rotate-90"
 					)}
 				/>
 			</Button>
 
 			{isExpanded && (
-				<div className="flex flex-col gap-3 border-t bg-muted/20 p-3">
-					{truncatedArgs && (
-						<div>
-							<p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-								Arguments
-							</p>
-							<pre className="max-h-48 overflow-auto rounded-md bg-background p-2 text-[11px] text-foreground/80">
-								{truncatedArgs}
-							</pre>
+				<div className="flex flex-col border-t border-popover-border bg-accent/80">
+					{action.args && argsPreview && (
+						<div className="border-b border-popover-border">
+							<div className="flex items-center justify-between px-4 py-2">
+								<p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+									Arguments
+								</p>
+								<Button
+									type="button"
+									size="sm"
+									variant="ghost"
+									onClick={handleCopyArguments}
+									className="size-6 rounded-lg p-0 text-muted-foreground hover:bg-popover hover:text-popover-foreground"
+									aria-label={
+										copiedSection === "arguments" ? "Arguments copied" : "Copy arguments"
+									}
+								>
+									{copiedSection === "arguments" ? (
+										<Check className="size-3" />
+									) : (
+										<Copy className="size-3" />
+									)}
+								</Button>
+							</div>
+							<StructuredArguments args={action.args} />
 						</div>
 					)}
 					{action.error && (
-						<div>
-							<p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+						<div className="border-b border-popover-border">
+							<p className="px-4 py-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
 								Error
 							</p>
-							<pre className="max-h-32 overflow-auto rounded-md bg-destructive/10 p-2 text-[11px] text-destructive">
+							<pre className="max-h-32 overflow-auto border-t border-popover-border bg-destructive/10 px-4 py-3 text-[11px] text-destructive">
 								{JSON.stringify(action.error, null, 2)}
 							</pre>
 						</div>
 					)}
 					{action.reverse_descriptor && (
-						<div>
-							<p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+						<div className="border-b border-popover-border">
+							<p className="px-4 py-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
 								Reverse plan
 							</p>
-							<pre className="max-h-32 overflow-auto rounded-md bg-background p-2 text-[11px] text-foreground/80">
+							<pre className="max-h-32 overflow-auto border-t border-popover-border bg-popover px-4 py-3 text-[11px] text-popover-foreground/80">
 								{JSON.stringify(action.reverse_descriptor, null, 2)}
 							</pre>
 						</div>
 					)}
 
-					<Separator />
-
-					<div className="flex items-center justify-between">
+					<div className="flex items-center justify-between px-4 py-3">
 						<p className="text-[10px] text-muted-foreground">
 							Action ID: <span className="font-mono">{action.id}</span>
 						</p>
 						{canRevert ? (
 							<AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
 								<AlertDialogTrigger asChild>
-									<Button size="sm" variant="outline" className="gap-1.5">
+									<Button size="sm" variant="secondary" className="gap-1.5">
 										<RotateCcw className="size-3.5" />
 										Revert
 									</Button>
@@ -186,6 +258,7 @@ export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogIt
 												handleRevert();
 											}}
 											disabled={isReverting}
+											className="bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-0"
 										>
 											{isReverting ? "Reverting…" : "Revert"}
 										</AlertDialogAction>
@@ -194,7 +267,6 @@ export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogIt
 							</AlertDialog>
 						) : (
 							<div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-								<ShieldOff className="size-3.5" />
 								{isAlreadyReverted
 									? "Already reverted"
 									: isRevertAction
