@@ -177,8 +177,11 @@ export function HeroSection() {
 
 function GetStartedButton() {
 	const isGoogleAuth = AUTH_TYPE === "GOOGLE";
+	const [isRedirecting, setIsRedirecting] = useState(false);
 
 	const handleGoogleLogin = () => {
+		if (isRedirecting) return;
+		setIsRedirecting(true);
 		trackLoginAttempt("google");
 		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
 	};
@@ -189,7 +192,8 @@ function GetStartedButton() {
 				type="button"
 				variant="ghost"
 				onClick={handleGoogleLogin}
-				className="h-14 w-full cursor-pointer gap-3 rounded-lg bg-white text-center text-base font-medium text-neutral-700 shadow-sm ring-1 shadow-black/10 ring-black/10 transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-56 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50 dark:hover:bg-neutral-800"
+				disabled={isRedirecting}
+				className="h-14 w-full cursor-pointer gap-3 rounded-lg border border-white bg-white text-center text-base font-medium text-[#1f1f1f] shadow-sm transition duration-150 hover:bg-zinc-100 hover:text-[#1f1f1f] sm:w-56 dark:border-white"
 			>
 				<GoogleLogo className="h-5 w-5" />
 				<span>Continue with Google</span>

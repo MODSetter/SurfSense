@@ -195,6 +195,7 @@ export default function DesktopLoginPage() {
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [loginError, setLoginError] = useState<string | null>(null);
+	const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
 
 	const [shortcuts, setShortcuts] = useState(DEFAULT_SHORTCUTS);
 	const [shortcutsLoaded, setShortcutsLoaded] = useState(false);
@@ -236,6 +237,8 @@ export default function DesktopLoginPage() {
 	);
 
 	const handleGoogleLogin = () => {
+		if (isGoogleRedirecting) return;
+		setIsGoogleRedirecting(true);
 		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
 	};
 
@@ -344,6 +347,7 @@ export default function DesktopLoginPage() {
 								<Button
 									variant="outline"
 									className="w-full gap-2 h-10 bg-white text-[#1f1f1f] border-white hover:bg-zinc-100 hover:text-[#1f1f1f] dark:border-white shadow-sm font-medium"
+									disabled={isGoogleRedirecting}
 									onClick={handleGoogleLogin}
 								>
 									<GoogleGLogo className="size-4" />
