@@ -210,6 +210,7 @@ export function MobileSidebar({
 									}
 								: undefined
 						}
+						onNavigate={() => onOpenChange(false)}
 						announcementUnreadCount={announcementUnreadCount}
 						onLogout={onLogout}
 						pageUsage={pageUsage}

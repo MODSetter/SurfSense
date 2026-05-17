@@ -261,7 +261,10 @@ const BANNER_CONNECTORS = [
 
 const BANNER_DISMISSED_KEY = "surfsense-connect-tools-banner-dismissed";
 
-const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) => {
+const ConnectToolsBanner: FC<{
+	isThreadEmpty: boolean;
+	onVisibleChange?: (visible: boolean) => void;
+}> = ({ isThreadEmpty, onVisibleChange }) => {
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [dismissed, setDismissed] = useState(() => {
@@ -270,8 +273,13 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 	});
 
 	const hasConnectors = (connectors?.length ?? 0) > 0;
+	const isVisible = !dismissed && !hasConnectors && isThreadEmpty;
 
-	if (dismissed || hasConnectors || !isThreadEmpty) return null;
+	useEffect(() => {
+		onVisibleChange?.(isVisible);
+	}, [isVisible, onVisibleChange]);
+
+	if (!isVisible) return null;
 
 	const handleDismiss = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -280,42 +288,41 @@ const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) =
 	};
 
 	return (
-		<div className="border-t border-border/50">
-			<div className="flex w-full items-center gap-2.5 px-4 py-2.5">
-				<Button
-					type="button"
-					variant="ghost"
-					size="sm"
-					className="h-auto flex-1 justify-start gap-2.5 px-0 py-0 text-left cursor-pointer select-none hover:bg-transparent"
-					onClick={() => setConnectorDialogOpen(true)}
-				>
-					<Unplug className="size-4 text-muted-foreground shrink-0" />
-					<span className="text-[13px] text-muted-foreground/80 flex-1">Connect your tools</span>
-					<AvatarGroup className="shrink-0">
-						{BANNER_CONNECTORS.map(({ type }, i) => (
-							<Avatar
-								key={type}
-								className="size-6"
-								style={{ zIndex: BANNER_CONNECTORS.length - i }}
-							>
-								<AvatarFallback className="bg-muted text-[10px]">
-									{getConnectorIcon(type, "size-3.5")}
-								</AvatarFallback>
-							</Avatar>
-						))}
-					</AvatarGroup>
-				</Button>
-				<Button
-					type="button"
-					onClick={handleDismiss}
-					variant="ghost"
-					size="icon"
-					className="size-auto shrink-0 ml-0.5 -mr-1 p-1.5 text-muted-foreground/40 hover:bg-transparent hover:text-accent-foreground cursor-pointer"
-					aria-label="Dismiss"
-				>
-					<X className="size-3.5" />
-				</Button>
-			</div>
+		<div className="relative z-0 -mt-5 flex min-w-0 items-center gap-2 rounded-b-3xl border border-input bg-muted/40 px-4 pt-7 pb-3 shadow-sm shadow-black/5 dark:shadow-black/10">
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				className="h-7 min-w-0 cursor-pointer justify-start gap-2 rounded-md px-0 text-[13px] font-normal text-muted-foreground select-none hover:bg-transparent hover:text-foreground"
+				onClick={() => setConnectorDialogOpen(true)}
+			>
+				<Unplug className="size-4 shrink-0" />
+				<span className="truncate">Connect your tools</span>
+			</Button>
+			<div className="min-w-0 flex-1" />
+			<AvatarGroup className="shrink-0">
+				{BANNER_CONNECTORS.map(({ type }, i) => (
+					<Avatar
+						key={type}
+						className="size-5"
+						style={{ zIndex: BANNER_CONNECTORS.length - i }}
+					>
+						<AvatarFallback className="bg-accent text-[10px]">
+							{getConnectorIcon(type, "size-3")}
+						</AvatarFallback>
+					</Avatar>
+				))}
+			</AvatarGroup>
+			<Button
+				type="button"
+				onClick={handleDismiss}
+				variant="ghost"
+				size="icon"
+				className="size-7 shrink-0 cursor-pointer rounded-md text-muted-foreground hover:bg-transparent hover:text-foreground"
+				aria-label="Dismiss"
+			>
+				<X className="size-3.5" />
+			</Button>
 		</div>
 	);
 };
@@ -426,6 +433,7 @@ const Composer: FC = () => {
 
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
+	const [connectToolsTrayVisible, setConnectToolsTrayVisible] = useState(false);
 
 	const currentPlaceholder = COMPOSER_PLACEHOLDER;
 
@@ -735,32 +743,42 @@ const Composer: FC = () => {
 					/>
 				</div>
 			)}
-			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-3xl border-input bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-shadow dark:shadow-black/10">
-				<PendingScreenImageStrip />
-				{clipboardInitialText && (
-					<ClipboardChip
-						text={clipboardInitialText}
-						onDismiss={() => setClipboardInitialText(undefined)}
-					/>
-				)}
-				<div className="aui-composer-input-wrapper px-4 pt-3 pb-6">
-					<InlineMentionEditor
-						ref={editorRef}
-						placeholder={currentPlaceholder}
-						onMentionTrigger={handleMentionTrigger}
-						onMentionClose={handleMentionClose}
-						onActionTrigger={handleActionTrigger}
-						onActionClose={handleActionClose}
-						onChange={handleEditorChange}
-						onDocumentRemove={handleDocumentRemove}
-						onSubmit={handleSubmit}
-						onKeyDown={handleKeyDown}
-						className="min-h-[24px]"
-					/>
+			<div className="flex w-full flex-col">
+				<div
+					className={cn(
+						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-shadow dark:shadow-black/10",
+						connectToolsTrayVisible && "rounded-b-3xl shadow-none dark:shadow-none"
+					)}
+				>
+					<PendingScreenImageStrip />
+					{clipboardInitialText && (
+						<ClipboardChip
+							text={clipboardInitialText}
+							onDismiss={() => setClipboardInitialText(undefined)}
+						/>
+					)}
+					<div className="aui-composer-input-wrapper px-4 pt-3 pb-6">
+						<InlineMentionEditor
+							ref={editorRef}
+							placeholder={currentPlaceholder}
+							onMentionTrigger={handleMentionTrigger}
+							onMentionClose={handleMentionClose}
+							onActionTrigger={handleActionTrigger}
+							onActionClose={handleActionClose}
+							onChange={handleEditorChange}
+							onDocumentRemove={handleDocumentRemove}
+							onSubmit={handleSubmit}
+							onKeyDown={handleKeyDown}
+							className="min-h-[24px]"
+						/>
+					</div>
+					<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
+					<ConnectorIndicator showTrigger={false} />
 				</div>
-				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
-				<ConnectorIndicator showTrigger={false} />
-				<ConnectToolsBanner isThreadEmpty={isThreadEmpty} />
+				<ConnectToolsBanner
+					isThreadEmpty={isThreadEmpty}
+					onVisibleChange={setConnectToolsTrayVisible}
+				/>
 			</div>
 		</ComposerPrimitive.Root>
 	);

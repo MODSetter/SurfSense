@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, SquarePen, Zap } from "lucide-react";
+import { CreditCard, Dot, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -83,6 +83,7 @@ interface SidebarProps {
 	onManageMembers?: () => void;
 	onUserSettings?: () => void;
 	onAnnouncements?: () => void;
+	onNavigate?: () => void;
 	announcementUnreadCount?: number;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
@@ -119,6 +120,7 @@ export function Sidebar({
 	onManageMembers,
 	onUserSettings,
 	onAnnouncements,
+	onNavigate,
 	announcementUnreadCount = 0,
 	onLogout,
 	pageUsage,
@@ -344,6 +346,7 @@ export function Sidebar({
 					pageUsage={pageUsage}
 					isCollapsed={isCollapsed}
 					hasNavSectionAbove={footerNavItems.length > 0}
+					onNavigate={onNavigate}
 				/>
 
 				{renderUserProfile && (
@@ -367,10 +370,12 @@ function SidebarUsageFooter({
 	pageUsage,
 	isCollapsed,
 	hasNavSectionAbove = false,
+	onNavigate,
 }: {
 	pageUsage?: PageUsage;
 	isCollapsed: boolean;
 	hasNavSectionAbove?: boolean;
+	onNavigate?: () => void;
 }) {
 	const params = useParams();
 	const searchSpaceId = params?.search_space_id ?? "";
@@ -424,6 +429,7 @@ function SidebarUsageFooter({
 			<div className="space-y-0.5">
 				<Link
 					href={`/dashboard/${searchSpaceId}/more-pages`}
+					onClick={onNavigate}
 					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
 				>
 					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
@@ -436,14 +442,17 @@ function SidebarUsageFooter({
 				</Link>
 				<Link
 					href={`/dashboard/${searchSpaceId}/buy-more`}
+					onClick={onNavigate}
 					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
 				>
 					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
 						<CreditCard className="h-3 w-3 shrink-0" />
 						Buy More
 					</span>
-					<span className="text-[10px] font-medium text-muted-foreground">
-						$1/1k &middot; $1/1M
+					<span className="flex items-center text-[10px] font-medium text-muted-foreground">
+						$1/1k
+						<Dot className="h-3 w-3" />
+						$1/1M
 					</span>
 				</Link>
 			</div>
