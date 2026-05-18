@@ -4,11 +4,9 @@ import { NextResponse } from "next/server";
 import type { Context } from "@/types/zero";
 import { queries } from "@/zero/queries";
 import { schema } from "@/zero/schema";
+import { BACKEND_URL } from "@/lib/env-config";
 
-const backendURL =
-	process.env.FASTAPI_BACKEND_INTERNAL_URL ||
-	process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ||
-	"http://localhost:8000";
+const backendURL = BACKEND_URL;
 
 async function authenticateRequest(
 	request: Request
