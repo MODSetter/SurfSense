@@ -96,10 +96,10 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitt
 
 	return (
 		<div className="space-y-6 pb-6">
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
-				<Info className="size-4 shrink-0" />
-				<AlertTitle className="text-xs sm:text-sm">API Token Required</AlertTitle>
-				<AlertDescription className="text-[10px] sm:text-xs">
+			<Alert>
+				<Info />
+				<AlertTitle>API Token Required</AlertTitle>
+				<AlertDescription>
 					You'll need a BookStack API Token to use this connector. You can create one from your
 					BookStack instance settings.
 				</AlertDescription>

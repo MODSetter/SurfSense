@@ -128,8 +128,8 @@ export function PublicChatSnapshotsManager({
 	// Permission denied
 	if (!canView) {
 		return (
-			<Alert variant="destructive">
-				<Info className="h-4 w-4" />
+			<Alert>
+				<Info />
 				<AlertDescription>
 					You don't have permission to view public chat links in this search space.
 				</AlertDescription>
@@ -141,9 +141,9 @@ export function PublicChatSnapshotsManager({
 
 	return (
 		<div className="space-y-4 md:space-y-5">
-			<Alert className="bg-muted/50 py-3 md:py-4">
-				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-				<AlertDescription className="text-xs md:text-sm">
+			<Alert>
+				<Info />
+				<AlertDescription>
 					Public chat links allow anyone with the URL to view a snapshot of a chat. These links do
 					not update when the original chat changes.
 				</AlertDescription>

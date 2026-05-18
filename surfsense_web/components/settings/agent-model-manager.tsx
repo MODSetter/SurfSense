@@ -152,26 +152,30 @@ export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 			{/* Read-only / Limited permissions notice */}
 			{access && !isLoading && isReadOnly && (
 				<div>
-					<Alert className="bg-muted/50 py-3 md:py-4">
-						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-						<AlertDescription className="text-xs md:text-sm">
-							You have <span className="font-medium">read-only</span> access to LLM configurations.
-							Contact a space owner to request additional permissions.
+					<Alert>
+						<Info />
+						<AlertDescription>
+							<p>
+								You have <span className="font-medium">read-only</span> access to LLM
+								configurations. Contact a space owner to request additional permissions.
+							</p>
 						</AlertDescription>
 					</Alert>
 				</div>
 			)}
 			{access && !isLoading && !isReadOnly && (!canCreate || !canUpdate || !canDelete) && (
 				<div>
-					<Alert className="bg-muted/50 py-3 md:py-4">
-						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-						<AlertDescription className="text-xs md:text-sm">
-							You can{" "}
-							{[canCreate && "create", canUpdate && "edit", canDelete && "delete"]
-								.filter(Boolean)
-								.join(" and ")}{" "}
-							configurations
-							{!canDelete && ", but cannot delete them"}.
+					<Alert>
+						<Info />
+						<AlertDescription>
+							<p>
+								You can{" "}
+								{[canCreate && "create", canUpdate && "edit", canDelete && "delete"]
+									.filter(Boolean)
+									.join(" and ")}{" "}
+								configurations
+								{!canDelete && ", but cannot delete them"}.
+							</p>
 						</AlertDescription>
 					</Alert>
 				</div>
@@ -179,9 +183,9 @@ export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 
 			{/* Global Configs Info */}
 			{globalConfigs.length > 0 && (
-				<Alert className="bg-muted/50 py-3">
-					<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-					<AlertDescription className="text-xs md:text-sm">
+				<Alert>
+					<Info />
+					<AlertDescription>
 						<p>
 							<span className="font-medium">
 								{globalConfigs.length} global {globalConfigs.length === 1 ? "model" : "models"}

@@ -5,6 +5,7 @@ import { AlertTriangle, Copy, Globe, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { copyPromptMutationAtom } from "@/atoms/prompts/prompts-mutation.atoms";
 import { publicPromptsAtom } from "@/atoms/prompts/prompts-query.atoms";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -44,11 +45,11 @@ export function CommunityPromptsContent() {
 
 	if (isError) {
 		return (
-			<div className="rounded-lg border border-dashed border-destructive/40 p-8 text-center">
-				<AlertTriangle className="mx-auto size-8 text-destructive/60" />
-				<p className="mt-2 text-sm text-destructive">Failed to load community prompts</p>
-				<p className="text-xs text-muted-foreground">Please try refreshing the page.</p>
-			</div>
+			<Alert variant="destructive">
+				<AlertTriangle />
+				<AlertTitle>Failed to load community prompts</AlertTitle>
+				<AlertDescription>Please try refreshing the page.</AlertDescription>
+			</Alert>
 		);
 	}
 

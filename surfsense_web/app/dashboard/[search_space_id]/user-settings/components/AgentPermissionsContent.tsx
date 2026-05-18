@@ -218,13 +218,13 @@ export function AgentPermissionsContent() {
 
 	if (isError) {
 		return (
-			<div className="rounded-lg border border-dashed border-destructive/40 p-8 text-center">
-				<AlertTriangle className="mx-auto size-8 text-destructive/60" />
-				<p className="mt-2 text-sm text-destructive">Failed to load rules</p>
-				<p className="text-xs text-muted-foreground">
+			<Alert variant="destructive">
+				<AlertTriangle />
+				<AlertTitle>Failed to load rules</AlertTitle>
+				<AlertDescription>
 					{error instanceof Error ? error.message : "Unknown error."}
-				</p>
-			</div>
+				</AlertDescription>
+			</Alert>
 		);
 	}
 

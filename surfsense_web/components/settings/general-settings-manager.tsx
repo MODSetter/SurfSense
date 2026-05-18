@@ -135,11 +135,9 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 
 	return (
 		<div className="space-y-4 md:space-y-6">
-			<Alert className="bg-muted/50 py-3 md:py-4">
-				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-				<AlertDescription className="text-xs md:text-sm">
-					Update your search space name and description.
-				</AlertDescription>
+			<Alert>
+				<Info />
+				<AlertDescription>Update your search space name and description.</AlertDescription>
 			</Alert>
 
 			<form onSubmit={onSubmit} className="space-y-6">

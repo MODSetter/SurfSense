@@ -155,35 +155,39 @@ export function VisionModelManager({ searchSpaceId }: VisionModelManagerProps) {
 
 			{access && !isLoading && isReadOnly && (
 				<div>
-					<Alert className="bg-muted/50 py-3 md:py-4">
-						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-						<AlertDescription className="text-xs md:text-sm">
-							You have <span className="font-medium">read-only</span> access to vision model
-							configurations. Contact a space owner to request additional permissions.
+					<Alert>
+						<Info />
+						<AlertDescription>
+							<p>
+								You have <span className="font-medium">read-only</span> access to vision model
+								configurations. Contact a space owner to request additional permissions.
+							</p>
 						</AlertDescription>
 					</Alert>
 				</div>
 			)}
 			{access && !isLoading && !isReadOnly && (!canCreate || !canDelete) && (
 				<div>
-					<Alert className="bg-muted/50 py-3 md:py-4">
-						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-						<AlertDescription className="text-xs md:text-sm">
-							You can{" "}
-							{[canCreate && "create and edit", canDelete && "delete"]
-								.filter(Boolean)
-								.join(" and ")}{" "}
-							vision model configurations
-							{!canDelete && ", but cannot delete them"}.
+					<Alert>
+						<Info />
+						<AlertDescription>
+							<p>
+								You can{" "}
+								{[canCreate && "create and edit", canDelete && "delete"]
+									.filter(Boolean)
+									.join(" and ")}{" "}
+								vision model configurations
+								{!canDelete && ", but cannot delete them"}.
+							</p>
 						</AlertDescription>
 					</Alert>
 				</div>
 			)}
 
 			{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length > 0 && (
-				<Alert className="bg-muted/50 py-3">
-					<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-					<AlertDescription className="text-xs md:text-sm">
+				<Alert>
+					<Info />
+					<AlertDescription>
 						<p>
 							<span className="font-medium">
 								{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length}{" "}

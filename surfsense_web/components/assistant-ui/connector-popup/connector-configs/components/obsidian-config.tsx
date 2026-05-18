@@ -47,12 +47,10 @@ export const ObsidianConfig: FC<ConnectorConfigProps> = ({ connector }) => {
 const LegacyBanner: FC = () => {
 	return (
 		<div className="space-y-6">
-			<Alert className="border-amber-500/40 bg-amber-500/10">
-				<AlertTriangle className="size-4 shrink-0 text-amber-500" />
-				<AlertTitle className="text-xs sm:text-sm">
-					Sync stopped, install the plugin to migrate
-				</AlertTitle>
-				<AlertDescription className="text-[11px] sm:text-xs leading-relaxed">
+			<Alert>
+				<AlertTriangle />
+				<AlertTitle>Sync stopped, install the plugin to migrate</AlertTitle>
+				<AlertDescription>
 					This Obsidian connector used the legacy server-path scanner, which has been removed. The
 					notes already indexed remain searchable, but they no longer reflect changes made in your
 					vault.
@@ -124,10 +122,10 @@ const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
 
 	return (
 		<div className="space-y-4">
-			<Alert className="border-emerald-500/30 bg-emerald-500/10">
-				<Info className="size-4 shrink-0 text-emerald-500" />
-				<AlertTitle className="text-xs sm:text-sm">Plugin connected</AlertTitle>
-				<AlertDescription className="text-[11px] sm:text-xs">
+			<Alert>
+				<Info />
+				<AlertTitle>Plugin connected</AlertTitle>
+				<AlertDescription>
 					Your notes stay synced automatically. To stop syncing, disable or uninstall the plugin in
 					Obsidian, or delete this connector.
 				</AlertDescription>
@@ -152,11 +150,11 @@ const PluginStats: FC<{ config: Record<string, unknown> }> = ({ config }) => {
 
 const UnknownConnectorState: FC = () => (
 	<Alert>
-		<Info className="size-4 shrink-0" />
-		<AlertTitle className="text-xs sm:text-sm">Unrecognized config</AlertTitle>
-		<AlertDescription className="text-[11px] sm:text-xs">
-			This connector has neither plugin metadata nor a legacy marker. It may predate migration — you
-			can safely delete it and re-install the SurfSense Obsidian plugin to resume syncing.
+		<Info />
+		<AlertTitle>Unrecognized config</AlertTitle>
+		<AlertDescription>
+			This connector is missing plugin metadata and may predate the Obsidian plugin migration. You
+			can safely delete it and reinstall the SurfSense Obsidian plugin to resume syncing.
 		</AlertDescription>
 	</Alert>
 );

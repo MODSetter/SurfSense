@@ -20,6 +20,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -133,11 +134,11 @@ export function PromptsContent() {
 
 	if (isError) {
 		return (
-			<div className="rounded-lg border border-dashed border-destructive/40 p-8 text-center">
-				<AlertTriangle className="mx-auto size-8 text-destructive/60" />
-				<p className="mt-2 text-sm text-destructive">Failed to load prompts</p>
-				<p className="text-xs text-muted-foreground">Please try refreshing the page.</p>
-			</div>
+			<Alert variant="destructive">
+				<AlertTriangle />
+				<AlertTitle>Failed to load prompts</AlertTitle>
+				<AlertDescription>Please try refreshing the page.</AlertDescription>
+			</Alert>
 		);
 	}
 

@@ -5,6 +5,7 @@ import { ArrowLeft, Info, RefreshCw } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
@@ -350,20 +351,12 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 						{/* Info box - hidden for live connectors */}
 						{connector.is_indexable && !isLive && (
-							<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
-								<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
-									<Info className="size-4" />
-								</div>
-								<div className="text-xs sm:text-sm">
-									<p className="font-medium text-xs sm:text-sm">
-										Re-indexing runs in the background
-									</p>
-									<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-										You can continue using SurfSense while we sync your data. Check inbox for
-										updates.
-									</p>
-								</div>
-							</div>
+							<Alert>
+								<Info />
+								<AlertDescription>
+									You can continue using SurfSense while we sync your data. Check inbox for updates.
+								</AlertDescription>
+							</Alert>
 						)}
 					</div>
 				</div>

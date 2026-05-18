@@ -380,33 +380,32 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 									<div className="px-4 sm:px-12 py-4 sm:py-8 pb-12 sm:pb-16">
 										{/* LLM Configuration Warning */}
 										{!llmConfigLoading && !hasDocumentSummaryLLM && (
-											<Alert
-												variant="destructive"
-												className="mb-6 bg-muted/50 rounded-xl border-destructive/30"
-											>
-												<AlertTriangle className="h-4 w-4" />
-												<AlertTitle>LLM Configuration Required</AlertTitle>
-												<AlertDescription className="mt-2">
-													<p className="mb-3">
-														{isAutoMode && !hasGlobalConfigs
-															? "Auto mode requires a global LLM configuration. Please add one in Settings"
-															: "A Document Summary LLM is required to process uploads, configure one in Settings"}
-													</p>
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={() => {
-															handleOpenChange(false);
-															router.push(
-																`/dashboard/${searchSpaceId}/search-space-settings?tab=models`
-															);
-														}}
-													>
-														<Settings className="mr-2 h-4 w-4" />
-														Go to Settings
-													</Button>
-												</AlertDescription>
-											</Alert>
+											<div className="mb-6">
+												<Alert variant="destructive">
+													<AlertTriangle />
+													<AlertTitle>LLM Configuration Required</AlertTitle>
+													<AlertDescription>
+														<p>
+															{isAutoMode && !hasGlobalConfigs
+																? "Auto mode requires a global LLM configuration. Please add one in Settings"
+																: "A Document Summary LLM is required to process uploads, configure one in Settings"}
+														</p>
+														<Button
+															size="sm"
+															variant="outline"
+															onClick={() => {
+																handleOpenChange(false);
+																router.push(
+																	`/dashboard/${searchSpaceId}/search-space-settings?tab=models`
+																);
+															}}
+														>
+															<Settings className="mr-2 h-4 w-4" />
+															Go to Settings
+														</Button>
+													</AlertDescription>
+												</Alert>
+											</div>
 										)}
 
 										<TabsContent value="all" className="m-0">

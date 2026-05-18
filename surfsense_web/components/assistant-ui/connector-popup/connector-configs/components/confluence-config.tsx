@@ -3,6 +3,7 @@
 import { Info, KeyRound } from "lucide-react";
 import type { FC } from "react";
 import { useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ConnectorConfigProps } from "../index";
@@ -72,23 +73,17 @@ export const ConfluenceConfig: FC<ConfluenceConfigProps> = ({
 		return (
 			<div className="space-y-6">
 				{/* OAuth Info */}
-				<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
-					<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
-						<Info className="size-4" />
-					</div>
-					<div className="text-xs sm:text-sm">
-						<p className="font-medium text-xs sm:text-sm">Connected via OAuth</p>
-						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-							This connector is authenticated using OAuth 2.0. Your Confluence instance is:
-						</p>
-						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
+				<Alert>
+					<Info />
+					<AlertTitle>Connected via OAuth</AlertTitle>
+					<AlertDescription>
+						<p>This connector is authenticated using OAuth 2.0. Your Confluence instance is:</p>
+						<p>
 							<code className="bg-muted px-1 py-0.5 rounded text-inherit">{siteUrl}</code>
 						</p>
-						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-							To update your connection, reconnect this connector.
-						</p>
-					</div>
-				</div>
+						<p>To update your connection, reconnect this connector.</p>
+					</AlertDescription>
+				</Alert>
 			</div>
 		);
 	}

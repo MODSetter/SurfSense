@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -102,21 +102,19 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 	return (
 		<div className="space-y-4 md:space-y-6">
 			{/* Work in Progress Notice */}
-			<Alert
-				variant="default"
-				className="bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700 py-3 md:py-4"
-			>
-				<AlertTriangle className="h-3 w-3 md:h-4 md:w-4 text-amber-600 dark:text-amber-500 shrink-0" />
-				<AlertDescription className="text-amber-800 dark:text-amber-300 text-xs md:text-sm">
-					<span className="font-semibold">Work in Progress:</span> This functionality is currently
-					under development and not yet connected to the backend. Your instructions will be saved
-					but won't affect AI behavior until the feature is fully implemented.
+			<Alert>
+				<AlertTriangle />
+				<AlertTitle>Work in Progress</AlertTitle>
+				<AlertDescription>
+					This functionality is currently under development and not yet connected to the backend.
+					Your instructions will be saved but won't affect AI behavior until the feature is fully
+					implemented.
 				</AlertDescription>
 			</Alert>
 
-			<Alert className="bg-muted/50 py-3 md:py-4">
-				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-				<AlertDescription className="text-xs md:text-sm">
+			<Alert>
+				<Info />
+				<AlertDescription>
 					System instructions apply to all AI interactions in this search space. They guide how the
 					AI responds, its tone, focus areas, and behavior patterns.
 				</AlertDescription>
@@ -167,9 +165,9 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 						</div>
 
 						{customInstructions.trim().length === 0 && (
-							<Alert className="py-2 md:py-3">
-								<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-								<AlertDescription className="text-xs md:text-sm">
+							<Alert>
+								<Info />
+								<AlertDescription>
 									No system instructions are currently set. The AI will use default behavior.
 								</AlertDescription>
 							</Alert>

@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { type FC, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { createDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
@@ -279,10 +280,10 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 
 					{error && <div className="text-sm text-red-500 mt-2">{error}</div>}
 
-					<div className="flex items-start gap-3 rounded-lg border border-blue-200/50 bg-blue-50/50 dark:border-blue-500/20 dark:bg-blue-950/20 p-4 text-sm">
-						<Info className="size-4 mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
-						<p className="text-muted-foreground">{t("chat_tip")}</p>
-					</div>
+					<Alert>
+						<Info />
+						<AlertDescription>{t("chat_tip")}</AlertDescription>
+					</Alert>
 
 					<div className="bg-muted/50 rounded-lg p-4 text-sm">
 						<h4 className="font-medium mb-2">{t("tips_title")}</h4>

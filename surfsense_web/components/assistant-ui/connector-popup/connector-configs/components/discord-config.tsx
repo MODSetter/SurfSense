@@ -2,6 +2,7 @@
 
 import { AlertCircle, CheckCircle2, Hash, Info, Megaphone, RefreshCw } from "lucide-react";
 import { type FC, useCallback, useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { connectorsApiService, type DiscordChannel } from "@/lib/apis/connectors-api.service";
@@ -73,17 +74,14 @@ export const DiscordConfig: FC<DiscordConfigProps> = ({ connector }) => {
 	return (
 		<div className="space-y-6">
 			{/* Info box */}
-			<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
-				<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
-					<Info className="size-4" />
-				</div>
-				<div className="text-xs sm:text-sm">
-					<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-						The bot needs &quot;Read Message History&quot; permission to access channels. Ask a
-						server admin to grant this permission for channels shown below.
-					</p>
-				</div>
-			</div>
+			<Alert>
+				<Info />
+				<AlertTitle>Grant Channel Permissions</AlertTitle>
+				<AlertDescription>
+					The bot needs &quot;Read Message History&quot; permission to access channels. Ask a server
+					admin to grant this permission for channels shown below.
+				</AlertDescription>
+			</Alert>
 
 			{/* Channels Section */}
 			<div className="space-y-3">
