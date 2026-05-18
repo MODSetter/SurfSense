@@ -72,7 +72,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 			if (index === createPromptIndex) {
 				onDone();
 				if (searchSpaceId) {
-					router.push(`/dashboard/${searchSpaceId}/user-settings?tab=prompts`);
+					router.push(`/dashboard/${searchSpaceId}/user-settings/prompts`);
 				}
 				return;
 			}

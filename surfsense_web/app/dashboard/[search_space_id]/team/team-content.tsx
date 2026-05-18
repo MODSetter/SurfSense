@@ -545,7 +545,7 @@ function MemberRow({
 							<DropdownMenuSeparator className="dark:bg-white/5" />
 							<DropdownMenuItem
 								onClick={() =>
-									router.push(`/dashboard/${searchSpaceId}/search-space-settings?tab=team-roles`)
+									router.push(`/dashboard/${searchSpaceId}/search-space-settings/team-roles`)
 								}
 							>
 								Manage Roles

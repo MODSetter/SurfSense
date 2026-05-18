@@ -162,7 +162,7 @@ const DocumentUploadPopupContent: FC<{
 											variant="outline"
 											onClick={() => {
 												onOpenChange(false);
-												router.push(`/dashboard/${searchSpaceId}/search-space-settings?tab=models`);
+												router.push(`/dashboard/${searchSpaceId}/search-space-settings/models`);
 											}}
 										>
 											<Settings className="mr-2 h-4 w-4" />

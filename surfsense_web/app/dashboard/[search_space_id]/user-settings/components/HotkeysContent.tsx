@@ -122,7 +122,7 @@ function HotkeyRow({
 	);
 }
 
-export function DesktopShortcutsContent() {
+export function HotkeysContent() {
 	const api = useElectronAPI();
 	const [shortcuts, setShortcuts] = useState(DEFAULT_SHORTCUTS);
 	const [shortcutsLoaded, setShortcutsLoaded] = useState(false);

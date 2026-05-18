@@ -149,7 +149,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							size="icon"
 							onClick={() =>
 								router.push(
-									`/dashboard/${thread.search_space_id}/search-space-settings?tab=public-links`
+									`/dashboard/${thread.search_space_id}/search-space-settings/public-links`
 								)
 							}
 							className="size-8 bg-muted/50 hover:bg-accent hover:text-accent-foreground"

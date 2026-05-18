@@ -659,8 +659,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Detect if we're on the chat page (needs overflow-hidden for chat's own scroll)
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
-	const isUserSettingsPage = pathname?.endsWith("/user-settings") === true;
-	const isSearchSpaceSettingsPage = pathname?.endsWith("/search-space-settings") === true;
+	const isUserSettingsPage = pathname?.includes("/user-settings") === true;
+	const isSearchSpaceSettingsPage = pathname?.includes("/search-space-settings") === true;
 	const useWorkspacePanel =
 		pathname?.endsWith("/buy-more") === true ||
 		pathname?.endsWith("/more-pages") === true ||

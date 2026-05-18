@@ -396,7 +396,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 															onClick={() => {
 																handleOpenChange(false);
 																router.push(
-																	`/dashboard/${searchSpaceId}/search-space-settings?tab=models`
+																	`/dashboard/${searchSpaceId}/search-space-settings/models`
 																);
 															}}
 														>
