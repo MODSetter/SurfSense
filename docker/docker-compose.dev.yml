@@ -179,7 +179,7 @@ services:
   #     - celery_worker
 
   zero-cache:
-    image: rocicorp/zero:0.26.2
+    image: rocicorp/zero:1.4.0
     ports:
       - "${ZERO_CACHE_PORT:-4848}:4848"
     extra_hosts:

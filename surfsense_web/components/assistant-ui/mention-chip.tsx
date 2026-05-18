@@ -66,23 +66,21 @@ export function MentionChip({
 			disabled={disabled}
 			aria-label={ariaLabel ?? label}
 			className={cn(
-				"inline-flex max-w-[220px] items-center gap-1.5 rounded-md border bg-background px-2 py-0.5 align-middle text-xs font-medium text-foreground leading-5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-				isInteractive
-					? "cursor-pointer hover:bg-accent hover:text-accent-foreground"
-					: "cursor-default",
+				"inline-flex h-5 items-center gap-1 rounded bg-primary/10 px-1 align-middle text-xs font-bold text-primary/60 leading-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				isInteractive ? "cursor-pointer" : "cursor-default",
 				disabled && "opacity-60",
 				className
 			)}
 		>
 			<span className="inline-flex shrink-0 text-muted-foreground">{icon}</span>
-			<span className="truncate">{label}</span>
+			<span className="max-w-[120px] truncate leading-none">{label}</span>
 		</button>
 	);
 
 	if (!tooltip) return chip;
 
 	return (
-		<Tooltip>
+		<Tooltip delayDuration={600}>
 			<TooltipTrigger asChild>{chip}</TooltipTrigger>
 			<TooltipContent side="top" className="max-w-xs break-all">
 				{tooltip}
