@@ -9,11 +9,11 @@ import { useApiKey } from "@/hooks/use-api-key";
 import { copyToClipboard as copyToClipboardUtil } from "@/lib/utils";
 import { getConnectorBenefits } from "../connector-benefits";
 import type { ConnectFormProps } from "../index";
+import { BACKEND_URL } from "@/lib/env-config";
 
 const PLUGIN_RELEASES_URL =
 	"https://github.com/MODSetter/SurfSense/releases?q=obsidian&expanded=true";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "https://surfsense.com";
 
 /**
  * Obsidian connect form for the plugin-only architecture.

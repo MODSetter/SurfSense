@@ -20,7 +20,7 @@ import { getReauthEndpoint, LIVE_CONNECTOR_TYPES } from "../../constants/connect
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { MCPServiceConfig } from "../components/mcp-service-config";
 import { getConnectorConfigComponent } from "../index";
-
+import { BACKEND_URL } from "@/lib/env-config";
 const VISION_LLM_CONNECTOR_TYPES = new Set<SearchSourceConnector["connector_type"]>([
 	EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
 	EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
@@ -93,7 +93,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		if (!spaceId || !reauthEndpoint) return;
 		setReauthing(true);
 		try {
-			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const backendUrl = BACKEND_URL;
 			const url = new URL(`${backendUrl}${reauthEndpoint}`);
 			url.searchParams.set("connector_id", String(connector.id));
 			url.searchParams.set("space_id", String(spaceId));
