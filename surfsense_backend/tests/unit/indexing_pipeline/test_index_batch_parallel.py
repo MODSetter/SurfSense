@@ -37,7 +37,12 @@ def _make_orm_doc(connector_doc, doc_id):
 async def test_index_calls_embed_and_chunk_via_to_thread(
     pipeline, make_connector_document, monkeypatch
 ):
-    """index() runs embed_texts and the chunker via asyncio.to_thread, not blocking the loop."""
+    """index() runs the chunker and embed_texts via asyncio.to_thread, not blocking the loop.
+
+    Routing between ``chunk_text`` (code path) and ``chunk_text_hybrid`` (default
+    path, see issue #1334) is verified separately in
+    ``test_non_code_documents_use_hybrid_chunker``.
+    """
     to_thread_calls = []
     original_to_thread = asyncio.to_thread
 
@@ -50,12 +55,6 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
     monkeypatch.setattr(
         "app.indexing_pipeline.indexing_pipeline_service.summarize_document",
         AsyncMock(return_value="Summary."),
-    )
-    mock_chunk = MagicMock(return_value=["chunk1"])
-    mock_chunk.__name__ = "chunk_text"
-    monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
-        mock_chunk,
     )
     mock_chunk_hybrid = MagicMock(return_value=["chunk1"])
     mock_chunk_hybrid.__name__ = "chunk_text_hybrid"
@@ -71,6 +70,11 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
         "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
         mock_embed,
     )
+    # Bypass set_committed_value, which requires a real ORM instance (not MagicMock).
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.attach_chunks_to_document",
+        MagicMock(),
+    )
 
     connector_doc = make_connector_document(
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
@@ -83,11 +87,62 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
 
     await pipeline.index(document, connector_doc, llm=MagicMock())
 
-    # Non-code documents now route through the table-aware hybrid chunker
-    # (see commit 2f3a33c9). Either chunker entry point satisfies the
-    # "chunking runs off the event loop" contract this test guards.
+    # Either chunker entry point satisfies the "chunking runs off the event
+    # loop" contract this test guards. Routing between the two is verified
+    # in test_non_code_documents_use_hybrid_chunker.
     assert {"chunk_text", "chunk_text_hybrid"} & set(to_thread_calls)
     assert "embed_texts" in to_thread_calls
+    assert document.status == DocumentStatus.ready()
+
+
+async def test_non_code_documents_use_hybrid_chunker(
+    pipeline, make_connector_document, monkeypatch
+):
+    """Non-code documents route through ``chunk_text_hybrid`` (issue #1334).
+
+    The hybrid chunker preserves Markdown table integrity by avoiding splits
+    mid-row. Only documents flagged with ``should_use_code_chunker=True``
+    should take the ``chunk_text`` path.
+    """
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.summarize_document",
+        AsyncMock(return_value="Summary."),
+    )
+    mock_chunk_hybrid = MagicMock(return_value=["chunk1"])
+    mock_chunk_hybrid.__name__ = "chunk_text_hybrid"
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.chunk_text_hybrid",
+        mock_chunk_hybrid,
+    )
+    mock_chunk_code = MagicMock(return_value=["chunk1"])
+    mock_chunk_code.__name__ = "chunk_text"
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
+        mock_chunk_code,
+    )
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+        MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]),
+    )
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.attach_chunks_to_document",
+        MagicMock(),
+    )
+
+    connector_doc = make_connector_document(
+        document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
+        unique_id="msg-1",
+        search_space_id=1,
+        should_use_code_chunker=False,
+    )
+    document = MagicMock(spec=Document)
+    document.id = 1
+    document.status = DocumentStatus.pending()
+
+    await pipeline.index(document, connector_doc, llm=MagicMock())
+
+    mock_chunk_hybrid.assert_called_once()
+    mock_chunk_code.assert_not_called()
 
 
 def _mock_session_factory(orm_docs_by_id):
