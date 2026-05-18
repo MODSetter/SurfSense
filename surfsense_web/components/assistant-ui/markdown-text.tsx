@@ -23,6 +23,8 @@ import "katex/dist/katex.min.css";
 import { toast } from "sonner";
 import { processChildrenWithCitations } from "@/components/citations/citation-renderer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { tryGetHostname } from "@/lib/url";
+
 import {
 	Table,
 	TableBody,
@@ -138,15 +140,6 @@ const MarkdownTextImpl = () => {
 };
 
 export const MarkdownText = memo(MarkdownTextImpl);
-
-function extractDomain(url: string): string {
-	try {
-		const parsed = new URL(url);
-		return parsed.hostname.replace(/^www\./, "");
-	} catch {
-		return "";
-	}
-}
 
 // Canonical local-file virtual paths are mount-prefixed: /<mount>/<relative/path>
 const LOCAL_FILE_PATH_REGEX = /^\/[a-z0-9_-]+\/[^\s`]+(?:\/[^\s`]+)*$/;
@@ -288,7 +281,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
 	if (!src) return null;
 
-	const domain = extractDomain(src);
+	const domain = tryGetHostname(src) ?? "";
 
 	return (
 		<div className="my-4 w-fit max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">

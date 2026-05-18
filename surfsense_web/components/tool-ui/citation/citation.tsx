@@ -6,18 +6,10 @@ import * as React from "react";
 import { openSafeNavigationHref, sanitizeHref } from "../shared/media";
 import { cn, Popover, PopoverContent, PopoverTrigger } from "./_adapter";
 import type { CitationVariant, SerializableCitation } from "./schema";
+import { tryGetHostname } from "@/lib/url";
 import { TYPE_ICONS } from "./type-icons";
 
 const FALLBACK_LOCALE = "en-US";
-
-function extractDomain(url: string): string | undefined {
-	try {
-		const urlObj = new URL(url);
-		return urlObj.hostname.replace(/^www\./, "");
-	} catch {
-		return undefined;
-	}
-}
 
 function formatDate(isoString: string, locale: string): string {
 	try {
@@ -78,7 +70,7 @@ export function Citation(props: CitationProps) {
 
 	const locale = providedLocale ?? FALLBACK_LOCALE;
 	const sanitizedHref = sanitizeHref(rawHref);
-	const domain = providedDomain ?? extractDomain(rawHref);
+	const domain = providedDomain ?? tryGetHostname(rawHref);
 
 	const citationData: SerializableCitation = {
 		...serializable,
