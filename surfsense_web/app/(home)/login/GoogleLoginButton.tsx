@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Logo } from "@/components/Logo";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { AmbientBackground } from "./AmbientBackground";
-
+import { BACKEND_URL } from "@/lib/env-config";
 export function GoogleLoginButton() {
 	const t = useTranslations("auth");
 
@@ -18,7 +18,7 @@ export function GoogleLoginButton() {
 		// cross-origin fetch requests may not be sent on subsequent redirects.
 		// The authorize-redirect endpoint does a server-side redirect to Google
 		// and sets the CSRF cookie properly for same-site context.
-		window.location.href = `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/google/authorize-redirect`;
+		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
 	};
 	return (
 		<div className="relative w-full overflow-hidden">

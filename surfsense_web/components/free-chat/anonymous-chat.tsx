@@ -9,7 +9,7 @@ import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import { QuotaBar } from "./quota-bar";
 import { QuotaWarningBanner } from "./quota-warning-banner";
-
+import { BACKEND_URL } from "@/lib/env-config";
 interface Message {
 	id: string;
 	role: "user" | "assistant";
@@ -78,7 +78,7 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 			}));
 
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000"}/api/v1/public/anon-chat/stream`,
+				`${BACKEND_URL}/api/v1/public/anon-chat/stream`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },

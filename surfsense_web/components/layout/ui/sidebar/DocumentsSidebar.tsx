@@ -83,6 +83,7 @@ import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
+import { BACKEND_URL } from "@/lib/env-config";
 
 const DesktopLocalTabContent = dynamic(
 	() => import("./DesktopLocalTabContent").then((mod) => mod.DesktopLocalTabContent),
@@ -718,7 +719,7 @@ function AuthenticatedDocumentsSidebarBase({
 					.trim()
 					.slice(0, 80) || "folder";
 			await doExport(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${ctx.folder.id}`,
+				`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${ctx.folder.id}`,
 				`${safeName}.zip`
 			);
 			toast.success(`Folder "${ctx.folder.name}" exported`);
@@ -770,7 +771,7 @@ function AuthenticatedDocumentsSidebarBase({
 						.trim()
 						.slice(0, 80) || "folder";
 				await doExport(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${folder.id}`,
+					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${folder.id}`,
 					`${safeName}.zip`
 				);
 				toast.success(`Folder "${folder.name}" exported`);
@@ -795,7 +796,7 @@ function AuthenticatedDocumentsSidebarBase({
 
 			try {
 				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${doc.id}/export?format=${format}`,
+					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${doc.id}/export?format=${format}`,
 					{ method: "GET" }
 				);
 

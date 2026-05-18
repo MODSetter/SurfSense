@@ -14,6 +14,7 @@ import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
+import { BACKEND_URL } from "@/lib/env-config";
 
 interface PromptConfigManagerProps {
 	searchSpaceId: number;
@@ -53,7 +54,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			};
 
 			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}`,
+				`${BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}`,
 				{
 					method: "PUT",
 					headers: { "Content-Type": "application/json" },
