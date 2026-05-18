@@ -316,7 +316,7 @@ const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ ch
 				)}
 				{hasUsage && (
 					<>
-						<ActionBarMorePrimitive.Separator className="bg-popover-border mx-2 my-1 h-px" />
+						<ActionBarMorePrimitive.Separator className="bg-popover-border mx-1 my-1 h-px" />
 						{models.length > 0 ? (
 							models.map(([model, counts]) => {
 								const { name, icon } = resolveModel(model);
@@ -586,7 +586,7 @@ const AssistantActionBar: FC = () => {
 			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground md:data-floating:absolute md:data-floating:rounded-md md:data-floating:p-1 [&>button]:opacity-100 md:[&>button]:opacity-[var(--aui-button-opacity,1)]"
 		>
 			<ActionBarPrimitive.Copy asChild>
-				<TooltipIconButton tooltip="Copy to clipboard">
+				<TooltipIconButton tooltip="Copy">
 					<AuiIf condition={({ message }) => message.isCopied}>
 						<CheckIcon />
 					</AuiIf>

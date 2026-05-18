@@ -251,7 +251,7 @@ export function UserSettingsPanel({
 			<div className="min-w-0 flex-1">
 				<div className="hidden md:block">
 					<h2 className="text-lg font-semibold">{selectedLabel}</h2>
-					<Separator className="mt-4" />
+					<Separator className="mt-4 bg-border" />
 				</div>
 				<div className="min-w-0 pt-4 md:max-w-3xl">
 					{selectedTab === "profile" && <ProfileContent />}

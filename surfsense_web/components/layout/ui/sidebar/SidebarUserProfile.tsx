@@ -38,6 +38,7 @@ import { usePlatform } from "@/hooks/use-platform";
 import { GITHUB_RELEASES_URL, usePrimaryDownload } from "@/lib/desktop-download-utils";
 import { APP_VERSION } from "@/lib/env-config";
 import { trackDesktopDownloadClicked } from "@/lib/posthog/events";
+import { getUserAvatarColor, getUserInitials } from "@/lib/user-avatar";
 import { cn } from "@/lib/utils";
 import type { User } from "../../types/layout.types";
 
@@ -79,46 +80,6 @@ function formatAnnouncementCount(count: number): string {
 	}
 	const thousands = Math.floor(count / 1000);
 	return `${thousands}k+`;
-}
-
-/**
- * Generates a consistent color based on email
- */
-function stringToColor(str: string): string {
-	let hash = 0;
-	for (let i = 0; i < str.length; i++) {
-		hash = str.charCodeAt(i) + ((hash << 5) - hash);
-	}
-	const colors = [
-		"#6366f1",
-		"#8b5cf6",
-		"#a855f7",
-		"#d946ef",
-		"#ec4899",
-		"#f43f5e",
-		"#ef4444",
-		"#f97316",
-		"#eab308",
-		"#84cc16",
-		"#22c55e",
-		"#14b8a6",
-		"#06b6d4",
-		"#0ea5e9",
-		"#3b82f6",
-	];
-	return colors[Math.abs(hash) % colors.length];
-}
-
-/**
- * Gets initials from email
- */
-function getInitials(email: string): string {
-	const name = email.split("@")[0];
-	const parts = name.split(/[._-]/);
-	if (parts.length >= 2) {
-		return (parts[0][0] + parts[1][0]).toUpperCase();
-	}
-	return name.slice(0, 2).toUpperCase();
 }
 
 /**
@@ -180,8 +141,8 @@ export function SidebarUserProfile({
 	const isDesktopViewport = useMediaQuery("(min-width: 768px)");
 	const { os, primary } = usePrimaryDownload();
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
-	const bgColor = stringToColor(user.email);
-	const initials = getInitials(user.email);
+	const bgColor = getUserAvatarColor(user.email);
+	const initials = getUserInitials(user.email);
 	const displayName = user.name || user.email.split("@")[0];
 	const downloadUrl = primary?.url ?? GITHUB_RELEASES_URL;
 	const downloadLabel = t("download_for_os", { os });

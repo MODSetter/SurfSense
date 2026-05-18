@@ -27,14 +27,12 @@ export function ApiKeyContent() {
 
 	return (
 		<div className="space-y-6 min-w-0 overflow-hidden">
-			<Alert className="bg-muted/50 py-3 md:py-4">
-				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-				<AlertDescription className="text-xs md:text-sm">
-					{t("api_key_warning_description")}
-				</AlertDescription>
+			<Alert>
+				<Info />
+				<AlertDescription>{t("api_key_warning_description")}</AlertDescription>
 			</Alert>
 
-			<div className="rounded-lg border border-border/60 bg-card p-6 min-w-0 overflow-hidden">
+			<div className="min-w-0 overflow-hidden">
 				<h3 className="mb-4 text-sm font-semibold tracking-tight">{t("your_api_key")}</h3>
 				{isLoading ? (
 					<div className="h-12 w-full animate-pulse rounded-md border border-border/60 bg-muted/30" />
@@ -70,7 +68,7 @@ export function ApiKeyContent() {
 				)}
 			</div>
 
-			<div className="rounded-lg border border-border/60 bg-card p-6 min-w-0 overflow-hidden">
+			<div className="min-w-0 overflow-hidden">
 				<h3 className="mb-2 text-sm font-semibold tracking-tight">{t("usage_title")}</h3>
 				<p className="mb-4 text-[11px] text-muted-foreground/60">{t("usage_description")}</p>
 				<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">

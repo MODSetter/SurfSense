@@ -11,8 +11,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { getUserAvatarColor, getUserInitials } from "@/lib/user-avatar";
 
-function AvatarDisplay({ url, fallback }: { url?: string; fallback: string }) {
+function AvatarDisplay({
+	url,
+	fallback,
+	bgColor,
+}: {
+	url?: string;
+	fallback: string;
+	bgColor: string;
+}) {
 	const [errorUrl, setErrorUrl] = useState<string>();
 	const hasError = errorUrl === url;
 
@@ -23,15 +32,19 @@ function AvatarDisplay({ url, fallback }: { url?: string; fallback: string }) {
 				alt="Avatar"
 				width={64}
 				height={64}
-				className="h-16 w-16 rounded-xl object-cover"
+				className="h-16 w-16 rounded-full object-cover select-none"
 				onError={() => setErrorUrl(url)}
+				referrerPolicy="no-referrer"
 				unoptimized
 			/>
 		);
 	}
 
 	return (
-		<div className="flex h-16 w-16 items-center justify-center rounded-xl bg-muted text-xl font-semibold text-muted-foreground">
+		<div
+			className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-xl font-semibold text-white select-none"
+			style={{ backgroundColor: bgColor }}
+		>
 			{fallback}
 		</div>
 	);
@@ -50,11 +63,6 @@ export function ProfileContent() {
 		}
 	}, [user]);
 
-	const getInitials = (email: string) => {
-		const name = email.split("@")[0];
-		return name.slice(0, 2).toUpperCase();
-	};
-
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
@@ -69,6 +77,7 @@ export function ProfileContent() {
 	};
 
 	const hasChanges = displayName !== (user?.display_name || "");
+	const avatarBgColor = getUserAvatarColor(user?.email || "");
 
 	return (
 		<div>
@@ -78,13 +87,13 @@ export function ProfileContent() {
 				</div>
 			) : (
 				<form onSubmit={handleSubmit} className="space-y-6">
-					<div className="rounded-lg bg-card">
+					<div className="rounded-lg bg-main-panel">
 						<div className="flex flex-col gap-6">
 							<div className="space-y-2">
-								<Label>{t("profile_avatar")}</Label>
 								<AvatarDisplay
 									url={user?.avatar_url || undefined}
-									fallback={getInitials(user?.email || "")}
+									fallback={getUserInitials(user?.email || "")}
+									bgColor={avatarBgColor}
 								/>
 							</div>
 
