@@ -12,6 +12,7 @@ import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { getAuthHeaders } from "@/lib/auth-utils";
+import { BACKEND_URL } from "@/lib/env-config";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 	"pdfjs-dist/build/pdf.worker.min.mjs",
@@ -221,7 +222,7 @@ function ResumeCard({
 		const previewPath = shareToken
 			? `/api/v1/public/${shareToken}/reports/${reportId}/preview`
 			: `/api/v1/reports/${reportId}/preview`;
-		setPdfUrl(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${previewPath}`);
+		setPdfUrl(`${BACKEND_URL}${previewPath}`);
 
 		if (autoOpen && isDesktop && !autoOpenedRef.current) {
 			autoOpenedRef.current = true;
