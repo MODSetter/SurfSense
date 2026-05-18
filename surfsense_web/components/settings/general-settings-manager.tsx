@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { FolderArchive, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -197,9 +197,6 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 					onClick={handleExportKB}
 					className="relative w-fit shrink-0"
 				>
-					<span className={isExporting ? "opacity-0" : ""}>
-						<FolderArchive className="h-3 w-3 opacity-60" />
-					</span>
 					<span className={isExporting ? "opacity-0" : ""}>Export</span>
 					{isExporting && <Spinner size="sm" className="absolute" />}
 				</Button>

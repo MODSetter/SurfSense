@@ -82,7 +82,9 @@ export const SlackConfig: FC<SlackConfigProps> = ({ connector }) => {
 					<p>
 						Before indexing, add the SurfSense bot to each channel you want to index. The bot can
 						only access messages from channels it's been added to. Type{" "}
-						<code className="bg-muted px-1 py-0.5 rounded text-[9px]">/invite @SurfSense</code>{" "}
+						<code className="rounded bg-popover px-1 py-0.5 text-[9px] text-popover-foreground">
+							/invite @SurfSense
+						</code>{" "}
 						in any channel to add it.
 					</p>
 				</AlertDescription>
