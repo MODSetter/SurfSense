@@ -2,12 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { updateSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +39,9 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 	const [description, setDescription] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [isExporting, setIsExporting] = useState(false);
+	const hasSearchSpace = !!searchSpace;
+	const searchSpaceName = searchSpace?.name;
+	const searchSpaceDescription = searchSpace?.description;
 
 	const handleExportKB = useCallback(async () => {
 		if (isExporting) return;
@@ -74,11 +75,11 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 
 	// Initialize state from fetched search space
 	useEffect(() => {
-		if (searchSpace) {
-			setName(searchSpace.name || "");
-			setDescription(searchSpace.description || "");
+		if (hasSearchSpace) {
+			setName(searchSpaceName || "");
+			setDescription(searchSpaceDescription || "");
 		}
-	}, [searchSpace?.name, searchSpace?.description]);
+	}, [hasSearchSpace, searchSpaceName, searchSpaceDescription]);
 
 	// Derive hasChanges during render
 	const hasChanges =
@@ -98,9 +99,9 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 			});
 
 			await fetchSearchSpace();
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error("Error saving search space details:", error);
-			toast.error(error.message || "Failed to save search space details");
+			toast.error(error instanceof Error ? error.message : "Failed to save search space details");
 		} finally {
 			setSaving(false);
 		}
@@ -135,11 +136,6 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 
 	return (
 		<div className="space-y-4 md:space-y-6">
-			<Alert>
-				<Info />
-				<AlertDescription>Update your search space name and description.</AlertDescription>
-			</Alert>
-
 			<form onSubmit={onSubmit} className="space-y-6">
 				<div className="flex flex-col gap-6">
 					<div className="space-y-2">

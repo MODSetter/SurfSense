@@ -32,13 +32,15 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 
 	const [customInstructions, setCustomInstructions] = useState("");
 	const [saving, setSaving] = useState(false);
+	const hasSearchSpace = !!searchSpace;
+	const searchSpaceInstructions = searchSpace?.qna_custom_instructions;
 
 	// Initialize state from fetched search space
 	useEffect(() => {
-		if (searchSpace) {
-			setCustomInstructions(searchSpace.qna_custom_instructions || "");
+		if (hasSearchSpace) {
+			setCustomInstructions(searchSpaceInstructions || "");
 		}
-	}, [searchSpace?.qna_custom_instructions]);
+	}, [hasSearchSpace, searchSpaceInstructions]);
 
 	// Derive hasChanges during render
 	const hasChanges =
@@ -69,9 +71,9 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			toast.success("System instructions saved successfully");
 
 			await fetchSearchSpace();
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error("Error saving system instructions:", error);
-			toast.error(error.message || "Failed to save system instructions");
+			toast.error(error instanceof Error ? error.message : "Failed to save system instructions");
 		} finally {
 			setSaving(false);
 		}
@@ -102,7 +104,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 	return (
 		<div className="space-y-4 md:space-y-6">
 			{/* Work in Progress Notice */}
-			<Alert>
+			<Alert variant="warning">
 				<AlertTriangle />
 				<AlertTitle>Work in Progress</AlertTitle>
 				<AlertDescription>

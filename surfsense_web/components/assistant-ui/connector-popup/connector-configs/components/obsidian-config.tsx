@@ -47,7 +47,7 @@ export const ObsidianConfig: FC<ConnectorConfigProps> = ({ connector }) => {
 const LegacyBanner: FC = () => {
 	return (
 		<div className="space-y-6">
-			<Alert>
+			<Alert variant="warning">
 				<AlertTriangle />
 				<AlertTitle>Sync stopped, install the plugin to migrate</AlertTitle>
 				<AlertDescription>
