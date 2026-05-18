@@ -61,6 +61,7 @@ import { useDocumentUploadDialog } from "@/components/assistant-ui/document-uplo
 import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
+	type MentionedDocument,
 } from "@/components/assistant-ui/inline-mention-editor";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
@@ -180,36 +181,24 @@ const PremiumQuotaPinnedAlert: FC = () => {
 const getTimeBasedGreeting = (user?: { display_name?: string | null; email?: string }): string => {
 	const hour = new Date().getHours();
 
-	// Extract first name: prefer display_name, fall back to email extraction
 	let firstName: string | null = null;
-
 	if (user?.display_name?.trim()) {
-		// Use display_name if available and not empty
-		// Extract first name from display_name (take first word)
 		const nameParts = user.display_name.trim().split(/\s+/);
 		firstName = nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1).toLowerCase();
 	} else if (user?.email) {
-		// Fall back to email extraction if display_name is not available
 		firstName =
 			user.email.split("@")[0].split(".")[0].charAt(0).toUpperCase() +
 			user.email.split("@")[0].split(".")[0].slice(1);
 	}
 
-	// Array of greeting variations for each time period
 	const morningGreetings = ["Good morning", "Fresh start today", "Morning", "Hey there"];
-
 	const afternoonGreetings = ["Good afternoon", "Afternoon", "Hey there", "Hi there"];
-
 	const eveningGreetings = ["Good evening", "Evening", "Hey there", "Hi there"];
-
 	const nightGreetings = ["Good night", "Evening", "Hey there", "Winding down"];
-
 	const lateNightGreetings = ["Still up", "Night owl mode", "Up past bedtime", "Hi there"];
 
-	// Select a random greeting based on time
 	let greeting: string;
 	if (hour < 5) {
-		// Late night: midnight to 5 AM
 		greeting = lateNightGreetings[Math.floor(Math.random() * lateNightGreetings.length)];
 	} else if (hour < 12) {
 		greeting = morningGreetings[Math.floor(Math.random() * morningGreetings.length)];
@@ -218,33 +207,23 @@ const getTimeBasedGreeting = (user?: { display_name?: string | null; email?: str
 	} else if (hour < 22) {
 		greeting = eveningGreetings[Math.floor(Math.random() * eveningGreetings.length)];
 	} else {
-		// Night: 10 PM to midnight
 		greeting = nightGreetings[Math.floor(Math.random() * nightGreetings.length)];
 	}
 
-	// Add personalization with first name if available
-	if (firstName) {
-		return `${greeting}, ${firstName}!`;
-	}
-
-	return `${greeting}!`;
+	return firstName ? `${greeting}, ${firstName}!` : `${greeting}!`;
 };
 
 const ThreadWelcome: FC = () => {
 	const { data: user } = useAtomValue(currentUserAtom);
-
-	// Memoize greeting so it doesn't change on re-renders (only on user change)
 	const greeting = useMemo(() => getTimeBasedGreeting(user), [user]);
 
 	return (
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
-			{/* Greeting positioned above the composer */}
 			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center">
 				<h1 className="aui-thread-welcome-message-inner text-3xl md:text-[2.625rem] select-none">
 					{greeting}
 				</h1>
 			</div>
-			{/* Composer - top edge fixed, expands downward only */}
 			<div className="w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
 				<Composer />
 			</div>
@@ -422,7 +401,6 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 };
 
 const Composer: FC = () => {
-	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
@@ -434,7 +412,9 @@ const Composer: FC = () => {
 	const promptPickerRef = useRef<PromptPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
 	const aui = useAui();
-	const hasAutoFocusedRef = useRef(false);
+	// Desktop-only auto-focus; on mobile, programmatic focus would
+	// summon the soft keyboard on every picker close / thread switch.
+	const isDesktop = useMediaQuery("(min-width: 640px)");
 
 	const electronAPI = useElectronAPI();
 	const [clipboardInitialText, setClipboardInitialText] = useState<string | undefined>();
@@ -455,7 +435,6 @@ const Composer: FC = () => {
 
 	const currentPlaceholder = COMPOSER_PLACEHOLDER;
 
-	// Live collaboration state
 	const { data: currentUser } = useAtomValue(currentUserAtom);
 	const { data: members } = useAtomValue(membersAtom);
 	const threadId = useMemo(() => {
@@ -469,13 +448,11 @@ const Composer: FC = () => {
 	const respondingToUserId = sessionState?.respondingToUserId ?? null;
 	const isBlockedByOtherUser = isAiResponding && respondingToUserId !== currentUser?.id;
 
-	// Sync comments for the entire thread via Zero (one subscription per thread)
+	// One Zero subscription per thread for comment sync.
 	useCommentsSync(threadId);
 
-	// Batch-prefetch comments for all assistant messages so individual useComments
-	// hooks never fire their own network requests (eliminates N+1 API calls).
-	// Return a primitive string from the selector so useSyncExternalStore can
-	// compare snapshots by value and avoid infinite re-render loops.
+	// Batch-prefetch assistant message comments to avoid N+1 fetches.
+	// Returns a primitive string so useSyncExternalStore can compare by value.
 	const assistantIdsKey = useAuiState(({ thread }) =>
 		thread.messages
 			.filter((m) => m.role === "assistant" && m.id?.startsWith("msg-"))
@@ -488,18 +465,17 @@ const Composer: FC = () => {
 	);
 	useBatchCommentsPreload(assistantDbMessageIds);
 
-	// Auto-focus editor on new chat page after mount
+	// Always-focused composer: refocus whenever no picker has taken
+	// over input. ``threadId`` is in the deps so the effect re-fires
+	// on thread switch (Composer instance is reused).
 	useEffect(() => {
-		if (isThreadEmpty && !hasAutoFocusedRef.current && editorRef.current) {
-			const timeoutId = setTimeout(() => {
-				editorRef.current?.focus();
-				hasAutoFocusedRef.current = true;
-			}, 100);
-			return () => clearTimeout(timeoutId);
-		}
-	}, [isThreadEmpty]);
+		if (!isDesktop) return;
+		if (showDocumentPopover || showPromptPicker) return;
+		void threadId;
+		editorRef.current?.focus();
+	}, [isDesktop, showDocumentPopover, showPromptPicker, threadId]);
 
-	// Close document picker when a slide-out panel (inbox, shared/private chats) opens
+	// Close document picker when a slide-out panel (inbox, etc.) opens.
 	useEffect(() => {
 		const handler = () => {
 			setShowDocumentPopover(false);
@@ -509,21 +485,41 @@ const Composer: FC = () => {
 		return () => window.removeEventListener(SLIDEOUT_PANEL_OPENED_EVENT, handler);
 	}, []);
 
-	// Sync editor text with assistant-ui composer runtime
+	// Sync editor text into assistant-ui's composer and mirror the chip
+	// atom from the editor's reported ``docs``. The editor is the
+	// single source of truth, so this catches every Plate deletion path
+	// (Backspace, X button, Cmd+Backspace, range-delete, cut,
+	// paste-over) without per-keybinding plumbing. The ``prev``
+	// short-circuit keeps pure-text keystrokes from churning the atom.
 	const handleEditorChange = useCallback(
-		(text: string) => {
+		(text: string, docs: MentionedDocument[]) => {
 			aui.composer().setText(text);
+			setMentionedDocuments((prev) => {
+				if (prev.length === docs.length) {
+					const editorKeys = new Set(docs.map((d) => getMentionDocKey(d)));
+					if (prev.every((d) => editorKeys.has(getMentionDocKey(d)))) {
+						return prev;
+					}
+				}
+				return docs.map<MentionedDocumentInfo>((d) => ({
+					id: d.id,
+					title: d.title,
+					// Atom requires a string; ``"UNKNOWN"`` matches the
+					// sentinel ``getMentionDocKey`` and the editor's
+					// match predicates use.
+					document_type: d.document_type ?? "UNKNOWN",
+					kind: d.kind,
+				}));
+			});
 		},
-		[aui]
+		[aui, setMentionedDocuments]
 	);
 
-	// Open document picker when @ mention is triggered
 	const handleMentionTrigger = useCallback((query: string) => {
 		setShowDocumentPopover(true);
 		setMentionQuery(query);
 	}, []);
 
-	// Close document picker and reset query
 	const handleMentionClose = useCallback(() => {
 		if (showDocumentPopover) {
 			setShowDocumentPopover(false);
@@ -531,13 +527,11 @@ const Composer: FC = () => {
 		}
 	}, [showDocumentPopover]);
 
-	// Open action picker when / is triggered
 	const handleActionTrigger = useCallback((query: string) => {
 		setShowPromptPicker(true);
 		setActionQuery(query);
 	}, []);
 
-	// Close action picker and reset query
 	const handleActionClose = useCallback(() => {
 		if (showPromptPicker) {
 			setShowPromptPicker(false);
@@ -581,7 +575,7 @@ const Composer: FC = () => {
 		[clipboardInitialText, electronAPI, aui]
 	);
 
-	// Keyboard navigation for document/action picker (arrow keys, Enter, Escape)
+	// Arrow / Enter / Escape navigation for the active picker.
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (showPromptPicker) {
@@ -662,7 +656,7 @@ const Composer: FC = () => {
 		(docId: number, docType?: string) => {
 			setMentionedDocuments((prev) => {
 				if (!docType) {
-					// Defensive fallback: keep UI in sync even when chip type is unavailable.
+					// Fallback when chip type is unavailable.
 					return prev.filter((doc) => doc.id !== docId);
 				}
 				const removedKey = getMentionDocKey({ id: docId, document_type: docType });
@@ -672,27 +666,22 @@ const Composer: FC = () => {
 		[setMentionedDocuments]
 	);
 
-	const handleDocumentsMention = useCallback(
-		(mentions: MentionedDocumentInfo[]) => {
-			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
-			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
+	const handleDocumentsMention = useCallback((mentions: MentionedDocumentInfo[]) => {
+		const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
+		const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
-			for (const mention of mentions) {
-				const key = getMentionDocKey(mention);
-				if (editorDocKeys.has(key)) continue;
-				editorRef.current?.insertMentionChip(mention);
-			}
+		for (const mention of mentions) {
+			const key = getMentionDocKey(mention);
+			if (editorDocKeys.has(key)) continue;
+			editorRef.current?.insertMentionChip(mention);
+			// Track within the loop so a duplicate-in-batch can't double-insert.
+			editorDocKeys.add(key);
+		}
 
-			setMentionedDocuments((prev) => {
-				const existingKeySet = new Set(prev.map((d) => getMentionDocKey(d)));
-				const uniqueNew = mentions.filter((m) => !existingKeySet.has(getMentionDocKey(m)));
-				return [...prev, ...uniqueNew];
-			});
-
-			setMentionQuery("");
-		},
-		[setMentionedDocuments]
-	);
+		// Atom is reconciled by ``handleEditorChange`` via the editor's
+		// onChange — no second write path here.
+		setMentionQuery("");
+	}, []);
 
 	useEffect(() => {
 		const editor = editorRef.current;
@@ -1292,12 +1281,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	);
 };
 
-/**
- * Friendly tool name for display in the chat UI. Delegates to the
- * shared map in ``contracts/enums/toolIcons`` so unix-style identifiers
- * (``rm``, ``ls``, ``grep`` …) and snake_cased function names render as
- * plain English (e.g. "Delete file", "List files", "Search in files").
- */
+/** Friendly tool name (delegates to ``getToolDisplayName``). */
 function formatToolName(name: string): string {
 	return getToolDisplayName(name);
 }

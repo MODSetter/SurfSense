@@ -1,13 +1,11 @@
 """Composio route integration fixtures.
 
-The sys.modules hijack happens at module import time, before importing
-app.app, so production `from composio import Composio` bindings resolve to
-the strict E2E fake in this pytest process too.
+The `composio` sys.modules hijack lives in the parent integration conftest
+so it runs before any sibling suite imports `app.routes`.
 """
 
 from __future__ import annotations
 
-import sys
 from collections.abc import AsyncGenerator
 
 import httpx
@@ -16,19 +14,15 @@ import pytest_asyncio
 from httpx import ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.e2e.fakes import composio_module as _fake_composio
-
-sys.modules["composio"] = _fake_composio
-
-from app.app import app, limiter  # noqa: E402
-from app.config import config  # noqa: E402
-from app.db import (  # noqa: E402
+from app.app import app, limiter
+from app.config import config
+from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
     User,
     get_async_session,
 )
-from app.users import current_active_user  # noqa: E402
+from app.users import current_active_user
 
 pytestmark = pytest.mark.integration
 

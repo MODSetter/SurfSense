@@ -242,14 +242,7 @@ const SurfsenseDocPreviewContent: FC<{
 	);
 };
 
-function extractDomain(url: string): string {
-	try {
-		const hostname = new URL(url).hostname;
-		return hostname.replace(/^www\./, "");
-	} catch {
-		return url;
-	}
-}
+import { tryGetHostname } from "@/lib/url";
 
 interface UrlCitationProps {
 	url: string;
@@ -261,7 +254,7 @@ interface UrlCitationProps {
  * page title and snippet (extracted deterministically from web_search tool results).
  */
 export const UrlCitation: FC<UrlCitationProps> = ({ url }) => {
-	const domain = extractDomain(url);
+	const domain = tryGetHostname(url) ?? url;
 	const meta = useCitationMetadata(url);
 
 	return (
