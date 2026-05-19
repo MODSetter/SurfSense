@@ -3,7 +3,7 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { PanelRight } from "lucide-react";
 import dynamic from "next/dynamic";
-import { startTransition, useEffect, type MouseEvent } from "react";
+import { type MouseEvent, startTransition, useEffect } from "react";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { citationPanelAtom, closeCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
@@ -12,6 +12,7 @@ import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/features/chat-messages/hitl";
+import { cn } from "@/lib/utils";
 import { DocumentsSidebar } from "../sidebar";
 
 const EditorPanelContent = dynamic(
@@ -51,6 +52,8 @@ interface RightPanelProps {
 		open: boolean;
 		onOpenChange: (open: boolean) => void;
 	};
+	showCollapseButton?: boolean;
+	showTopBorder?: boolean;
 }
 
 function isKeyboardClick(event: MouseEvent) {
@@ -80,13 +83,66 @@ function CollapseButton({ onClick }: { onClick: () => void }) {
 	);
 }
 
+interface RightPanelToggleButtonProps {
+	className?: string;
+	iconClassName?: string;
+	disabled?: boolean;
+}
+
+export function RightPanelToggleButton({
+	className,
+	iconClassName,
+	disabled = false,
+}: RightPanelToggleButtonProps) {
+	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
+	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
+	const reportState = useAtomValue(reportPanelAtom);
+	const editorState = useAtomValue(editorPanelAtom);
+	const hitlEditState = useAtomValue(hitlEditPanelAtom);
+	const citationState = useAtomValue(citationPanelAtom);
+	const reportOpen = reportState.isOpen && !!reportState.reportId;
+	const editorOpen =
+		editorState.isOpen &&
+		(editorState.kind === "document" ? !!editorState.documentId : !!editorState.localFilePath);
+	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
+	const citationOpen = citationState.isOpen && citationState.chunkId != null;
+	const hasContent = documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen;
+	const label = collapsed ? "Expand panel" : "Collapse panel";
+
+	if (!hasContent) return null;
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<Button
+					variant="ghost"
+					size="icon"
+					disabled={disabled}
+					onClick={() => {
+						if (disabled) return;
+						startTransition(() => setCollapsed((value) => !value));
+					}}
+					className={cn(
+						"h-8 w-8 shrink-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+						className
+					)}
+				>
+					<PanelRight className={cn("h-4 w-4", iconClassName)} />
+					<span className="sr-only">{label}</span>
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent side="bottom">{label}</TooltipContent>
+		</Tooltip>
+	);
+}
+
 /**
  * Absolutely positioned expand button — renders at top-right of the main
  * container so it occupies the same screen position as the collapse button
  * inside the Documents header.
  */
 export function RightPanelExpandButton() {
-	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
+	const [collapsed] = useAtom(rightPanelCollapsedAtom);
 	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
 	const reportState = useAtomValue(reportPanelAtom);
 	const editorState = useAtomValue(editorPanelAtom);
@@ -104,24 +160,7 @@ export function RightPanelExpandButton() {
 
 	return (
 		<div className="flex shrink-0 items-center px-0.5">
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button
-						variant="ghost"
-						size="icon"
-						tabIndex={-1}
-						onClick={(event) => {
-							if (isKeyboardClick(event)) return;
-							startTransition(() => setCollapsed(false));
-						}}
-						className="h-8 w-8 shrink-0 -m-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-					>
-						<PanelRight className="h-4 w-4" />
-						<span className="sr-only">Expand panel</span>
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent side="bottom">Expand panel</TooltipContent>
-			</Tooltip>
+			<RightPanelToggleButton className="-m-0.5" />
 		</div>
 	);
 }
@@ -134,7 +173,11 @@ const PANEL_WIDTHS = {
 	citation: 560,
 } as const;
 
-export function RightPanel({ documentsPanel }: RightPanelProps) {
+export function RightPanel({
+	documentsPanel,
+	showCollapseButton = true,
+	showTopBorder = false,
+}: RightPanelProps) {
 	const [activeTab] = useAtom(rightPanelTabAtom);
 	const reportState = useAtomValue(reportPanelAtom);
 	const closeReport = useSetAtom(closeReportPanelAtom);
@@ -208,14 +251,19 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 	}
 
 	const targetWidth = PANEL_WIDTHS[effectiveTab];
-	const collapseButton = <CollapseButton onClick={() => setCollapsed(true)} />;
+	const collapseButton = showCollapseButton ? (
+		<CollapseButton onClick={() => setCollapsed(true)} />
+	) : null;
 
 	if (!isVisible) return null;
 
 	return (
 		<aside
 			style={{ width: targetWidth }}
-			className="flex h-full shrink-0 flex-col border-l bg-panel text-sidebar-foreground overflow-hidden transition-[width] duration-200 ease-out"
+			className={cn(
+				"flex h-full shrink-0 flex-col border-l bg-panel text-sidebar-foreground overflow-hidden transition-[width] duration-200 ease-out",
+				showTopBorder && "border-t"
+			)}
 		>
 			<div className="relative flex-1 min-h-0 overflow-hidden">
 				{effectiveTab === "sources" && documentsOpen && documentsPanel && (

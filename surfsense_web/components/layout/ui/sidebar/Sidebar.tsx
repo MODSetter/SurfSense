@@ -95,6 +95,7 @@ interface SidebarProps {
 	sidebarWidth?: number;
 	isResizing?: boolean;
 	renderUserProfile?: boolean;
+	renderCollapseButton?: boolean;
 }
 
 export function Sidebar({
@@ -132,6 +133,7 @@ export function Sidebar({
 	sidebarWidth = SIDEBAR_MIN_WIDTH,
 	isResizing = false,
 	renderUserProfile = true,
+	renderCollapseButton = true,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
@@ -176,13 +178,15 @@ export function Sidebar({
 						onManageMembers={onManageMembers}
 					/>
 				</div>
-				<div className={cn("shrink-0", isCollapsed && "mx-auto")}>
-					<SidebarCollapseButton
-						isCollapsed={isCollapsed}
-						onToggle={onToggleCollapse ?? (() => {})}
-						disableTooltip={disableTooltips}
-					/>
-				</div>
+				{renderCollapseButton ? (
+					<div className={cn("shrink-0", isCollapsed && "mx-auto")}>
+						<SidebarCollapseButton
+							isCollapsed={isCollapsed}
+							onToggle={onToggleCollapse ?? (() => {})}
+							disableTooltip={disableTooltips}
+						/>
+					</div>
+				) : null}
 			</div>
 
 			<div className="flex flex-col gap-0.5 py-1.5">
@@ -383,10 +387,7 @@ function SidebarUsageFooter({
 
 	if (isCollapsed) return null;
 
-	const containerClass = cn(
-		"px-3 py-3 space-y-3",
-		hasNavSectionAbove && "border-t"
-	);
+	const containerClass = cn("px-3 py-3 space-y-3", hasNavSectionAbove && "border-t");
 
 	if (isAnonymous) {
 		return (
