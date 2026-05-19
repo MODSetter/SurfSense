@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect } from "react";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
 
 interface SidebarSlideOutPanelProps {
@@ -28,7 +28,7 @@ export function SidebarSlideOutPanel({
 	width = 360,
 	children,
 }: SidebarSlideOutPanelProps) {
-	const isMobile = !useMediaQuery("(min-width: 640px)");
+	const isMobile = useIsMobile();
 
 	useEffect(() => {
 		if (open) {
