@@ -357,9 +357,19 @@ class TokenTrackingCallback(CustomLogger):
             cost_micros=cost_micros,
             call_kind=call_kind,
         )
+
+        # Per-LLM-call wall-clock latency (LiteLLM passes datetime objects).
+        call_latency_s: float | None = None
+        try:
+            if start_time is not None and end_time is not None:
+                delta = end_time - start_time
+                call_latency_s = getattr(delta, "total_seconds", lambda: float(delta))()
+        except Exception:
+            call_latency_s = None
+
         logger.info(
             "[TokenTracking] Captured: model=%s kind=%s prompt=%d completion=%d total=%d "
-            "cost=$%.6f (%d micros) (accumulator now has %d calls)",
+            "cost=$%.6f (%d micros) (accumulator now has %d calls)%s",
             model,
             call_kind,
             prompt_tokens,
@@ -368,6 +378,7 @@ class TokenTrackingCallback(CustomLogger):
             cost_usd,
             cost_micros,
             len(acc.calls),
+            f" latency={call_latency_s:.3f}s" if call_latency_s is not None else "",
         )
 
 
