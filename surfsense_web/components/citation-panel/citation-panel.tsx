@@ -32,7 +32,7 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 
 	useEffect(() => {
 		setExpanded(false);
-	}, []);
+	}, [chunkId]);
 
 	const chunkWindow = expanded ? EXPANDED_CHUNK_WINDOW : DEFAULT_CHUNK_WINDOW;
 
