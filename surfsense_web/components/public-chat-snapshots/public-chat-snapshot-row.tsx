@@ -144,7 +144,7 @@ export function PublicChatSnapshotRow({
 														{getInitials(member.name)}
 													</AvatarFallback>
 												</Avatar>
-											<span className="text-[11px] text-muted-foreground/60 truncate">
+												<span className="text-[11px] text-muted-foreground/60 truncate">
 													{member.name}
 												</span>
 											</div>

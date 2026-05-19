@@ -108,7 +108,10 @@ export function MobileSidebar({
 
 	return (
 		<Sheet open={isOpen} onOpenChange={onOpenChange}>
-			<SheetContent side="left" className="w-[340px] p-0 flex flex-row gap-0 bg-panel [&>button]:hidden">
+			<SheetContent
+				side="left"
+				className="w-[340px] p-0 flex flex-row gap-0 bg-panel [&>button]:hidden"
+			>
 				<SheetTitle className="sr-only">Navigation</SheetTitle>
 
 				{/* Vertical Search Spaces Rail - left side */}

@@ -92,16 +92,19 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 	const [selectedFiles, setSelectedFiles] = useState<SelectedItem[]>(existingFiles);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
 
-	const updateConfig = useCallback((folders: SelectedItem[], files: SelectedItem[], options: IndexingOptions) => {
-		if (onConfigChange) {
-			onConfigChange({
-				...connector.config,
-				selected_folders: folders,
-				selected_files: files,
-				indexing_options: options,
-			});
-		}
-	}, [connector.config, onConfigChange]);
+	const updateConfig = useCallback(
+		(folders: SelectedItem[], files: SelectedItem[], options: IndexingOptions) => {
+			if (onConfigChange) {
+				onConfigChange({
+					...connector.config,
+					selected_folders: folders,
+					selected_files: files,
+					indexing_options: options,
+				});
+			}
+		},
+		[connector.config, onConfigChange]
+	);
 
 	const handlePicked = useCallback(
 		(result: PickerResult) => {

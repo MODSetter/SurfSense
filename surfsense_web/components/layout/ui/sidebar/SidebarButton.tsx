@@ -64,17 +64,13 @@ export function SidebarButton({
 					isCollapsed ? "shrink-0" : "flex-1"
 				)}
 			>
-				<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-					{iconNode}
-				</span>
+				<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">{iconNode}</span>
 
 				<span
 					className={cn(
 						"min-w-0 overflow-hidden whitespace-nowrap text-left",
 						"transition-[max-width,opacity,margin-left] duration-200 ease-out",
-						isCollapsed
-							? "max-w-0 opacity-0 ml-0"
-							: "max-w-[260px] flex-1 opacity-100 ml-2"
+						isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[260px] flex-1 opacity-100 ml-2"
 					)}
 				>
 					<span className="block truncate">{label}</span>

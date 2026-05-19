@@ -194,9 +194,7 @@ export function ActionLogItem({ action, threadId, onRevertSuccess }: ActionLogIt
 									variant="ghost"
 									onClick={handleCopyArguments}
 									className="size-6 rounded-lg p-0 text-muted-foreground hover:bg-popover hover:text-popover-foreground"
-									aria-label={
-										copiedSection === "arguments" ? "Arguments copied" : "Copy arguments"
-									}
+									aria-label={copiedSection === "arguments" ? "Arguments copied" : "Copy arguments"}
 								>
 									{copiedSection === "arguments" ? (
 										<Check className="size-3" />

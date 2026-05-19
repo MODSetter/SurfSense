@@ -18,8 +18,8 @@ export const TeamsConfig: FC<TeamsConfigProps> = () => {
 				<AlertDescription>
 					<p>
 						Your agent can search and read messages from Teams channels you have access to, and send
-						messages on your behalf. Make sure you&#39;re a member of the teams you want to
-						interact with.
+						messages on your behalf. Make sure you&#39;re a member of the teams you want to interact
+						with.
 					</p>
 				</AlertDescription>
 			</Alert>

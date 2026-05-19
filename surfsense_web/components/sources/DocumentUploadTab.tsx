@@ -1,15 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import {
-	ChevronDown,
-	Crown,
-	Dot,
-	File as FileIcon,
-	FolderOpen,
-	X,
-	Zap,
-} from "lucide-react";
+import { ChevronDown, Crown, Dot, File as FileIcon, FolderOpen, X, Zap } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -117,7 +109,8 @@ function flattenTree(
 	depth = 0,
 	parentPath = ""
 ): { name: string; isFolder: boolean; depth: number; path: string; size?: number }[] {
-	const items: { name: string; isFolder: boolean; depth: number; path: string; size?: number }[] = [];
+	const items: { name: string; isFolder: boolean; depth: number; path: string; size?: number }[] =
+		[];
 	for (const node of nodes) {
 		const path = parentPath ? `${parentPath}/${node.name}` : node.name;
 		items.push({ name: node.name, isFolder: node.isFolder, depth, path, size: node.size });

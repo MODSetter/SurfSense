@@ -50,8 +50,7 @@ export function useSidebarResize(defaultWidth = SIDEBAR_MIN_WIDTH): UseSidebarRe
 					widthRef.current = parsed;
 				}
 			}
-		} catch {
-		}
+		} catch {}
 	}, []);
 
 	const persistWidth = useCallback((width: number) => {
@@ -71,32 +70,27 @@ export function useSidebarResize(defaultWidth = SIDEBAR_MIN_WIDTH): UseSidebarRe
 				if (target.hasPointerCapture(pointerId)) {
 					target.releasePointerCapture(pointerId);
 				}
-			} catch {
-			}
+			} catch {}
 		}
 		captureTargetRef.current = null;
 		pointerIdRef.current = null;
 	}, []);
 
-	const handlePointerDown = useCallback(
-		(e: React.PointerEvent<HTMLElement>) => {
-			if (e.pointerType === "mouse" && e.button !== 0) return;
+	const handlePointerDown = useCallback((e: React.PointerEvent<HTMLElement>) => {
+		if (e.pointerType === "mouse" && e.button !== 0) return;
 
-			e.preventDefault();
-			const target = e.currentTarget;
-			try {
-				target.setPointerCapture(e.pointerId);
-			} catch {
-			}
-			captureTargetRef.current = target;
-			pointerIdRef.current = e.pointerId;
-			startXRef.current = e.clientX;
-			startWidthRef.current = widthRef.current;
-			setIsDragging(true);
-			setGlobalDragCursor(true);
-		},
-		[]
-	);
+		e.preventDefault();
+		const target = e.currentTarget;
+		try {
+			target.setPointerCapture(e.pointerId);
+		} catch {}
+		captureTargetRef.current = target;
+		pointerIdRef.current = e.pointerId;
+		startXRef.current = e.clientX;
+		startWidthRef.current = widthRef.current;
+		setIsDragging(true);
+		setGlobalDragCursor(true);
+	}, []);
 
 	useEffect(() => {
 		if (!isDragging) return;

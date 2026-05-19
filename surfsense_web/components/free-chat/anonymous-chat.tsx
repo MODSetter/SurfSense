@@ -103,7 +103,8 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 						remaining: 0,
 						status: "exceeded",
 						warning_threshold: quota?.warning_threshold ?? 800000,
-						captcha_required: errorData.detail?.captcha_required ?? quota?.captcha_required ?? false,
+						captcha_required:
+							errorData.detail?.captcha_required ?? quota?.captcha_required ?? false,
 					});
 					setMessages((prev) => prev.filter((m) => m.id !== assistantId));
 					return;

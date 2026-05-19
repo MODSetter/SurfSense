@@ -462,9 +462,7 @@ function RolesContent({
 
 					return (
 						<div key={role.id} className="rounded-lg border border-border/60 overflow-hidden">
-							<div
-								className="group/role-header flex items-center gap-4 p-4 transition-colors hover:bg-accent hover:text-accent-foreground focus-within:bg-accent focus-within:text-accent-foreground"
-							>
+							<div className="group/role-header flex items-center gap-4 p-4 transition-colors hover:bg-accent hover:text-accent-foreground focus-within:bg-accent focus-within:text-accent-foreground">
 								<Button
 									type="button"
 									variant="ghost"
@@ -697,9 +695,7 @@ function PermissionsEditor({
 
 					return (
 						<div key={category} className="rounded-lg border border-border/60 overflow-hidden">
-							<div
-								className="group/category-header flex items-center justify-between px-3 py-2.5 transition-colors hover:bg-accent hover:text-accent-foreground focus-within:bg-accent focus-within:text-accent-foreground"
-							>
+							<div className="group/category-header flex items-center justify-between px-3 py-2.5 transition-colors hover:bg-accent hover:text-accent-foreground focus-within:bg-accent focus-within:text-accent-foreground">
 								<Button
 									type="button"
 									variant="ghost"
@@ -751,7 +747,9 @@ function PermissionsEditor({
 													key={perm.value}
 													className={cn(
 														"flex items-center justify-between gap-3 px-2.5 py-2 rounded-md transition-colors",
-														isSelected ? "bg-muted/60 hover:bg-accent hover:text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
+														isSelected
+															? "bg-muted/60 hover:bg-accent hover:text-accent-foreground"
+															: "hover:bg-accent hover:text-accent-foreground"
 													)}
 												>
 													<Button

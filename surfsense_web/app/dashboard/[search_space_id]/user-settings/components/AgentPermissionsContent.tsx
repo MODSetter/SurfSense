@@ -31,7 +31,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Select,
 	SelectContent,
@@ -39,6 +38,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
 	type AgentPermissionAction,
@@ -215,8 +215,10 @@ export function AgentPermissionsContent() {
 				<AlertDescription>
 					<p>
 						Flip{" "}
-						<code className="rounded bg-popover px-1 py-0.5 text-[10px] text-popover-foreground">SURFSENSE_ENABLE_PERMISSION</code> on
-						the backend to manage allow/deny/ask rules from this panel.
+						<code className="rounded bg-popover px-1 py-0.5 text-[10px] text-popover-foreground">
+							SURFSENSE_ENABLE_PERMISSION
+						</code>{" "}
+						on the backend to manage allow/deny/ask rules from this panel.
 					</p>
 				</AlertDescription>
 			</Alert>
@@ -425,9 +427,7 @@ export function AgentPermissionsContent() {
 												className={cn("h-8 gap-1 border px-2 text-[11px]", badge.className)}
 											>
 												<SelectValue>
-													<span className="flex items-center gap-1">
-														{badge.label}
-													</span>
+													<span className="flex items-center gap-1">{badge.label}</span>
 												</SelectValue>
 											</SelectTrigger>
 											<SelectContent>

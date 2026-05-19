@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { NavItem, SearchSpace } from "../../types/layout.types";
-import type { User } from "../../types/layout.types";
+import type { NavItem, SearchSpace, User } from "../../types/layout.types";
 import { SidebarUserProfile } from "../sidebar/SidebarUserProfile";
 import { SearchSpaceAvatar } from "./SearchSpaceAvatar";
 

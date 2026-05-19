@@ -317,44 +317,44 @@ export function ReportPanelContent({
 		setIsEditing(false);
 	}, []);
 
-	const exportButton = !isEditing && (
-		isResume ? (
-				<Button
-					variant="ghost"
-					size="icon"
-					className="size-6"
-					onClick={() => handleExport("pdf")}
-					disabled={isLoading || !reportContent?.content || exporting !== null}
-				>
-					{exporting === "pdf" ? <Spinner size="xs" /> : <Download className="size-3.5" />}
-					<span className="sr-only">Download report</span>
-				</Button>
-			) : (
-				<DropdownMenu modal={insideDrawer ? false : undefined}>
-					<DropdownMenuTrigger asChild>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="size-6"
-							disabled={isLoading || !reportContent?.content}
-						>
-							<Download className="size-3.5" />
-							<span className="sr-only">Export report</span>
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent
-						align="end"
-						className={`min-w-[200px] select-none${insideDrawer ? " z-[100]" : ""}`}
+	const exportButton =
+		!isEditing &&
+		(isResume ? (
+			<Button
+				variant="ghost"
+				size="icon"
+				className="size-6"
+				onClick={() => handleExport("pdf")}
+				disabled={isLoading || !reportContent?.content || exporting !== null}
+			>
+				{exporting === "pdf" ? <Spinner size="xs" /> : <Download className="size-3.5" />}
+				<span className="sr-only">Download report</span>
+			</Button>
+		) : (
+			<DropdownMenu modal={insideDrawer ? false : undefined}>
+				<DropdownMenuTrigger asChild>
+					<Button
+						variant="ghost"
+						size="icon"
+						className="size-6"
+						disabled={isLoading || !reportContent?.content}
 					>
-						<ExportDropdownItems
-							onExport={handleExport}
-							exporting={exporting}
-							showAllFormats={!shareToken}
-						/>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			)
-	);
+						<Download className="size-3.5" />
+						<span className="sr-only">Export report</span>
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent
+					align="end"
+					className={`min-w-[200px] select-none${insideDrawer ? " z-[100]" : ""}`}
+				>
+					<ExportDropdownItems
+						onExport={handleExport}
+						exporting={exporting}
+						showAllFormats={!shareToken}
+					/>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		));
 
 	const versionSwitcher = !isEditing && versions.length > 1 && (
 		<DropdownMenu modal={insideDrawer ? false : undefined}>
@@ -446,9 +446,7 @@ export function ReportPanelContent({
 				<>
 					{/* Header — matches the Documents panel header pattern */}
 					<div className="shrink-0 flex h-12 items-center justify-between px-3 border-b">
-						<h2 className="select-none text-lg font-semibold">
-							{isResume ? "Resume" : "Report"}
-						</h2>
+						<h2 className="select-none text-lg font-semibold">{isResume ? "Resume" : "Report"}</h2>
 						{onClose && (
 							<Button
 								variant="ghost"

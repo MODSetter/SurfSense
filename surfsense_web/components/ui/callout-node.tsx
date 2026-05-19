@@ -60,10 +60,7 @@ export function CalloutElement({ children, ...props }: PlateElementProps<TCallou
 	}, [editor, variant, props.path]);
 
 	return (
-		<PlateElement
-			{...props}
-			className={cn(calloutVariants({ variant }), props.className)}
-		>
+		<PlateElement {...props} className={cn(calloutVariants({ variant }), props.className)}>
 			<Button
 				variant="ghost"
 				className="mt-0.5 h-auto shrink-0 cursor-pointer select-none p-0 text-lg leading-none hover:bg-transparent"

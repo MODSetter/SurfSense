@@ -72,11 +72,7 @@ import {
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
 	Drawer,
 	DrawerContent,
@@ -383,7 +379,9 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 						size="icon"
 						className="size-5 text-muted-foreground hover:bg-transparent hover:text-accent-foreground"
 					>
-						<ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
+						<ChevronDown
+							className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+						/>
 					</Button>
 				)}
 				<Button
@@ -991,112 +989,110 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								</DrawerHeader>
 								<div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin pb-6">
 									{regularToolGroups.map((group) => (
-											<div key={group.label}>
-												<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
-													{group.label}
-												</div>
-												{group.tools.map((tool) => {
-													const isDisabled = disabledToolsSet.has(tool.name);
-													const ToolIcon = getToolIcon(tool.name);
-													return (
-														<div
-															key={tool.name}
-															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
-														>
-															<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
-															<span className="flex-1 min-w-0 text-sm font-medium truncate">
-																{formatToolName(tool.name)}
-															</span>
-															<Switch
-																checked={!isDisabled}
-																onCheckedChange={() => toggleTool(tool.name)}
-																className="shrink-0"
-															/>
-														</div>
-													);
-												})}
+										<div key={group.label}>
+											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+												{group.label}
 											</div>
-										))}
+											{group.tools.map((tool) => {
+												const isDisabled = disabledToolsSet.has(tool.name);
+												const ToolIcon = getToolIcon(tool.name);
+												return (
+													<div
+														key={tool.name}
+														className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+													>
+														<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
+														<span className="flex-1 min-w-0 text-sm font-medium truncate">
+															{formatToolName(tool.name)}
+														</span>
+														<Switch
+															checked={!isDisabled}
+															onCheckedChange={() => toggleTool(tool.name)}
+															className="shrink-0"
+														/>
+													</div>
+												);
+											})}
+										</div>
+									))}
 									{connectorToolGroups.length > 0 && (
 										<div>
 											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
 												Connector Actions
 											</div>
 											{connectorToolGroups.map((group) => {
-													const iconKey = group.connectorIcon ?? "";
-													const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
-													const toolNames = group.tools.map((t) => t.name);
-													const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
-													const isExpanded = expandedConnectorGroups.has(group.label);
-													return (
-														<Collapsible
-															key={group.label}
-															open={isExpanded}
-															onOpenChange={(open) =>
-																setConnectorGroupExpanded(group.label, open)
-															}
-														>
-															<div className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors">
-																<CollapsibleTrigger asChild>
-																	<button
-																		type="button"
-																		className="flex min-w-0 flex-1 items-center gap-3 text-left"
+												const iconKey = group.connectorIcon ?? "";
+												const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
+												const toolNames = group.tools.map((t) => t.name);
+												const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
+												const isExpanded = expandedConnectorGroups.has(group.label);
+												return (
+													<Collapsible
+														key={group.label}
+														open={isExpanded}
+														onOpenChange={(open) => setConnectorGroupExpanded(group.label, open)}
+													>
+														<div className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors">
+															<CollapsibleTrigger asChild>
+																<button
+																	type="button"
+																	className="flex min-w-0 flex-1 items-center gap-3 text-left"
+																>
+																	{iconInfo ? (
+																		<Image
+																			src={iconInfo.src}
+																			alt={iconInfo.alt}
+																			width={18}
+																			height={18}
+																			className="size-[18px] shrink-0 select-none pointer-events-none"
+																			draggable={false}
+																		/>
+																	) : (
+																		<Wrench className="size-4 shrink-0 text-muted-foreground" />
+																	)}
+																	<span className="min-w-0 flex-1 truncate text-sm font-medium">
+																		{group.label}
+																	</span>
+																	{isExpanded ? (
+																		<ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+																	) : (
+																		<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+																	)}
+																</button>
+															</CollapsibleTrigger>
+															<Switch
+																checked={!allDisabled}
+																onCheckedChange={() => toggleToolGroup(toolNames)}
+																className="shrink-0"
+															/>
+														</div>
+														<CollapsibleContent className="pb-1">
+															{group.tools.map((tool) => {
+																const isDisabled = disabledToolsSet.has(tool.name);
+																return (
+																	<div
+																		key={tool.name}
+																		className={cn(
+																			"ml-8 flex items-center gap-3 px-4 py-1.5 rounded-md transition-colors",
+																			"hover:bg-accent hover:text-accent-foreground",
+																			!isDisabled && "text-primary"
+																		)}
 																	>
-																		{iconInfo ? (
-																			<Image
-																				src={iconInfo.src}
-																				alt={iconInfo.alt}
-																				width={18}
-																				height={18}
-																				className="size-[18px] shrink-0 select-none pointer-events-none"
-																				draggable={false}
-																			/>
-																		) : (
-																			<Wrench className="size-4 shrink-0 text-muted-foreground" />
-																		)}
-																		<span className="min-w-0 flex-1 truncate text-sm font-medium">
-																			{group.label}
+																		<span className="min-w-0 flex-1 truncate text-sm">
+																			{formatToolName(tool.name)}
 																		</span>
-																		{isExpanded ? (
-																			<ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-																		) : (
-																			<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-																		)}
-																	</button>
-																</CollapsibleTrigger>
-																<Switch
-																	checked={!allDisabled}
-																	onCheckedChange={() => toggleToolGroup(toolNames)}
-																	className="shrink-0"
-																/>
-															</div>
-															<CollapsibleContent className="pb-1">
-																{group.tools.map((tool) => {
-																	const isDisabled = disabledToolsSet.has(tool.name);
-																	return (
-																		<div
-																			key={tool.name}
-																			className={cn(
-																				"ml-8 flex items-center gap-3 px-4 py-1.5 rounded-md transition-colors",
-																				"hover:bg-accent hover:text-accent-foreground",
-																				!isDisabled && "text-primary"
-																			)}
-																		>
-																			<span className="min-w-0 flex-1 truncate text-sm">
-																				{formatToolName(tool.name)}
-																			</span>
-																			<Switch
-																				checked={!isDisabled}
-																				onCheckedChange={() => toggleTool(tool.name)}
-																				className="shrink-0"
-																			/>
-																		</div>
-																	);
-																})}
-															</CollapsibleContent>
-														</Collapsible>
-													);
-												})}
+																		<Switch
+																			checked={!isDisabled}
+																			onCheckedChange={() => toggleTool(tool.name)}
+																			className="shrink-0"
+																		/>
+																	</div>
+																);
+															})}
+														</CollapsibleContent>
+													</Collapsible>
+												);
+											})}
 										</div>
 									)}
 									{otherToolGroup && (
@@ -1227,124 +1223,124 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 										onScroll={() => setOpenConnectorSubmenu(null)}
 									>
 										{regularToolGroups.map((group) => (
-												<div key={group.label}>
-													<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
-														{group.label}
-													</div>
-													{group.tools.map((tool) => {
-														const isDisabled = disabledToolsSet.has(tool.name);
-														const ToolIcon = getToolIcon(tool.name);
-														return (
-															<DropdownMenuItem
-																key={tool.name}
-																onSelect={(e) => {
-																	e.preventDefault();
-																	toggleTool(tool.name);
-																}}
-																className={cn(
-																	"mb-1 last:mb-0 transition-all",
-																	"hover:bg-accent hover:text-accent-foreground",
-																	!isDisabled && "text-primary"
-																)}
-															>
-																<ToolIcon className="h-4 w-4" />
-																<span className="flex-1 min-w-0 truncate">
-																	{formatToolName(tool.name)}
-																</span>
-																<Switch
-																	checked={!isDisabled}
-																	tabIndex={-1}
-																	className="pointer-events-none shrink-0 scale-[0.6]"
-																/>
-															</DropdownMenuItem>
-														);
-													})}
+											<div key={group.label}>
+												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
+													{group.label}
 												</div>
-											))}
+												{group.tools.map((tool) => {
+													const isDisabled = disabledToolsSet.has(tool.name);
+													const ToolIcon = getToolIcon(tool.name);
+													return (
+														<DropdownMenuItem
+															key={tool.name}
+															onSelect={(e) => {
+																e.preventDefault();
+																toggleTool(tool.name);
+															}}
+															className={cn(
+																"mb-1 last:mb-0 transition-all",
+																"hover:bg-accent hover:text-accent-foreground",
+																!isDisabled && "text-primary"
+															)}
+														>
+															<ToolIcon className="h-4 w-4" />
+															<span className="flex-1 min-w-0 truncate">
+																{formatToolName(tool.name)}
+															</span>
+															<Switch
+																checked={!isDisabled}
+																tabIndex={-1}
+																className="pointer-events-none shrink-0 scale-[0.6]"
+															/>
+														</DropdownMenuItem>
+													);
+												})}
+											</div>
+										))}
 										{connectorToolGroups.length > 0 && (
 											<div>
 												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
 													Connector Actions
 												</div>
 												{connectorToolGroups.map((group) => {
-														const iconKey = group.connectorIcon ?? "";
-														const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
-														const toolNames = group.tools.map((t) => t.name);
-														const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
-														return (
-															<DropdownMenuSub
-																key={group.label}
-																open={openConnectorSubmenu === group.label}
-																onOpenChange={(open) =>
-																	setOpenConnectorSubmenu(open ? group.label : null)
-																}
+													const iconKey = group.connectorIcon ?? "";
+													const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
+													const toolNames = group.tools.map((t) => t.name);
+													const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
+													return (
+														<DropdownMenuSub
+															key={group.label}
+															open={openConnectorSubmenu === group.label}
+															onOpenChange={(open) =>
+																setOpenConnectorSubmenu(open ? group.label : null)
+															}
+														>
+															<DropdownMenuSubTrigger
+																className={cn(
+																	"mb-1 last:mb-0 transition-all",
+																	"hover:bg-accent hover:text-accent-foreground",
+																	"gap-1 [&>svg:last-child]:ml-0",
+																	!allDisabled && "text-primary"
+																)}
 															>
-																<DropdownMenuSubTrigger
-																	className={cn(
-																		"mb-1 last:mb-0 transition-all",
-																		"hover:bg-accent hover:text-accent-foreground",
-																		"gap-1 [&>svg:last-child]:ml-0",
-																		!allDisabled && "text-primary"
-																	)}
-																>
-																	{iconInfo ? (
-																		<Image
-																			src={iconInfo.src}
-																			alt={iconInfo.alt}
-																			width={16}
-																			height={16}
-																			className="h-4 w-4 shrink-0 select-none pointer-events-none"
-																			draggable={false}
-																		/>
-																	) : (
-																		<Wrench className="h-4 w-4" />
-																	)}
-																	<span className="min-w-0 flex-1 truncate">{group.label}</span>
-																	<Switch
-																		checked={!allDisabled}
-																		tabIndex={-1}
-																		onPointerDown={(event) => event.stopPropagation()}
-																		onClick={(event) => event.stopPropagation()}
-																		onCheckedChange={() => toggleToolGroup(toolNames)}
-																		className="shrink-0 scale-[0.6]"
+																{iconInfo ? (
+																	<Image
+																		src={iconInfo.src}
+																		alt={iconInfo.alt}
+																		width={16}
+																		height={16}
+																		className="h-4 w-4 shrink-0 select-none pointer-events-none"
+																		draggable={false}
 																	/>
-																</DropdownMenuSubTrigger>
-																<DropdownMenuPortal>
-																	<DropdownMenuSubContent
-																		collisionPadding={8}
-																		className="w-60 max-h-56 overflow-y-auto overscroll-none"
-																	>
-																		{group.tools.map((tool) => {
-																			const isDisabled = disabledToolsSet.has(tool.name);
-																			return (
-																				<DropdownMenuItem
-																					key={tool.name}
-																					onSelect={(e) => {
-																						e.preventDefault();
-																						toggleTool(tool.name);
-																					}}
-																					className={cn(
-																						"mb-1 last:mb-0 transition-all",
-																						"hover:bg-accent hover:text-accent-foreground",
-																						!isDisabled && "text-primary"
-																					)}
-																				>
-																					<span className="min-w-0 flex-1 truncate">
-																						{formatToolName(tool.name)}
-																					</span>
-																					<Switch
-																						checked={!isDisabled}
-																						tabIndex={-1}
-																						className="pointer-events-none shrink-0 scale-[0.6]"
-																					/>
-																				</DropdownMenuItem>
-																			);
-																		})}
-																	</DropdownMenuSubContent>
-																</DropdownMenuPortal>
-															</DropdownMenuSub>
-														);
-													})}
+																) : (
+																	<Wrench className="h-4 w-4" />
+																)}
+																<span className="min-w-0 flex-1 truncate">{group.label}</span>
+																<Switch
+																	checked={!allDisabled}
+																	tabIndex={-1}
+																	onPointerDown={(event) => event.stopPropagation()}
+																	onClick={(event) => event.stopPropagation()}
+																	onCheckedChange={() => toggleToolGroup(toolNames)}
+																	className="shrink-0 scale-[0.6]"
+																/>
+															</DropdownMenuSubTrigger>
+															<DropdownMenuPortal>
+																<DropdownMenuSubContent
+																	collisionPadding={8}
+																	className="w-60 max-h-56 overflow-y-auto overscroll-none"
+																>
+																	{group.tools.map((tool) => {
+																		const isDisabled = disabledToolsSet.has(tool.name);
+																		return (
+																			<DropdownMenuItem
+																				key={tool.name}
+																				onSelect={(e) => {
+																					e.preventDefault();
+																					toggleTool(tool.name);
+																				}}
+																				className={cn(
+																					"mb-1 last:mb-0 transition-all",
+																					"hover:bg-accent hover:text-accent-foreground",
+																					!isDisabled && "text-primary"
+																				)}
+																			>
+																				<span className="min-w-0 flex-1 truncate">
+																					{formatToolName(tool.name)}
+																				</span>
+																				<Switch
+																					checked={!isDisabled}
+																					tabIndex={-1}
+																					className="pointer-events-none shrink-0 scale-[0.6]"
+																				/>
+																			</DropdownMenuItem>
+																		);
+																	})}
+																</DropdownMenuSubContent>
+															</DropdownMenuPortal>
+														</DropdownMenuSub>
+													);
+												})}
 											</div>
 										)}
 										{otherToolGroup && (

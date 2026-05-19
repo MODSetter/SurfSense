@@ -1047,7 +1047,9 @@ export function InboxSidebarContent({
 							<History className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
 						)}
 						<p className="text-xs text-muted-foreground">{getEmptyStateMessage().title}</p>
-						<p className="mt-1 text-[11px] text-muted-foreground/70">{getEmptyStateMessage().hint}</p>
+						<p className="mt-1 text-[11px] text-muted-foreground/70">
+							{getEmptyStateMessage().hint}
+						</p>
 					</div>
 				)}
 			</div>

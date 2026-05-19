@@ -84,12 +84,7 @@ export function EquationElement({ children, ...props }: PlateElementProps<TEquat
 						>
 							Cancel
 						</Button>
-						<Button
-							size="sm"
-							className="h-auto px-2 py-1 text-xs"
-							onClick={onSubmit}
-							type="button"
-						>
+						<Button size="sm" className="h-auto px-2 py-1 text-xs" onClick={onSubmit} type="button">
 							Done
 						</Button>
 					</div>

@@ -3,11 +3,11 @@
 import { ExternalLink, Globe } from "lucide-react";
 import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
+import { tryGetHostname } from "@/lib/url";
 import { openSafeNavigationHref, sanitizeHref } from "../shared/media";
 import { cn } from "./_adapter";
 import { CitationHoverPopover } from "./citation-hover-popover";
 import type { CitationVariant, SerializableCitation } from "./schema";
-import { tryGetHostname } from "@/lib/url";
 import { TYPE_ICONS } from "./type-icons";
 
 const FALLBACK_LOCALE = "en-US";
@@ -115,9 +115,7 @@ export function Citation(props: CitationProps) {
 					</div>
 					<p className="text-sm leading-snug font-medium">{title}</p>
 					{snippet && (
-						<p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">
-							{snippet}
-						</p>
+						<p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">{snippet}</p>
 					)}
 				</div>
 			</CitationHoverPopover>

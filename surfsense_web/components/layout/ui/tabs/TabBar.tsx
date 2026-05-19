@@ -190,10 +190,7 @@ export function TabBar({
 									)}
 								/>
 							) : null}
-							<div
-								data-tab-id={tab.id}
-								className="group relative h-full w-[180px] shrink-0"
-							>
+							<div data-tab-id={tab.id} className="group relative h-full w-[180px] shrink-0">
 								<Button
 									type="button"
 									variant="ghost"

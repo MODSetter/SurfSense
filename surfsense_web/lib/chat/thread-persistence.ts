@@ -231,4 +231,3 @@ export function getRegenerateUrl(threadId: number): string {
 	const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 	return `${backendUrl}/api/v1/threads/${threadId}/regenerate`;
 }
-

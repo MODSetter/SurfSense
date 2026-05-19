@@ -24,8 +24,6 @@ import dynamic from "next/dynamic";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
-import { tryGetHostname } from "@/lib/url";
-
 import {
 	globalNewLLMConfigsAtom,
 	newLLMConfigsAtom,
@@ -60,6 +58,7 @@ import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { getProviderIcon } from "@/lib/provider-icons";
+import { tryGetHostname } from "@/lib/url";
 import { cn } from "@/lib/utils";
 
 // Captured once at module load — survives client-side navigations that strip the query param.

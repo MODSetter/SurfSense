@@ -40,10 +40,7 @@ interface UserSettingsLayoutShellProps {
 	children: React.ReactNode;
 }
 
-export function UserSettingsLayoutShell({
-	searchSpaceId,
-	children,
-}: UserSettingsLayoutShellProps) {
+export function UserSettingsLayoutShell({ searchSpaceId, children }: UserSettingsLayoutShellProps) {
 	const t = useTranslations("userSettings");
 	const { isDesktop } = usePlatform();
 	const segment = useSelectedLayoutSegment();

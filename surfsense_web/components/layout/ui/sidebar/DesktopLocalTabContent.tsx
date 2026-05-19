@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import { Folder, FolderPlus, Search, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { localExpandedFolderKeysAtom } from "@/atoms/documents/folder.atoms";
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -11,7 +12,6 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";

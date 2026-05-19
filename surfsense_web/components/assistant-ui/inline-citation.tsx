@@ -105,7 +105,11 @@ const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 			>
 				{chunkId}
 			</Button>
-			<Drawer open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen} shouldScaleBackground={false}>
+			<Drawer
+				open={mobilePreviewOpen}
+				onOpenChange={setMobilePreviewOpen}
+				shouldScaleBackground={false}
+			>
 				<DrawerContent
 					className="h-[85vh] max-h-[85vh] z-80 overflow-hidden"
 					overlayClassName="z-80"
@@ -156,16 +160,21 @@ const SurfsenseDocCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 			>
 				<SurfsenseDocPreview chunkId={chunkId} />
 			</CitationHoverPopover>
-			<Drawer open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen} shouldScaleBackground={false}>
-				<DrawerContent
-					className="max-h-[85vh] z-80"
-					overlayClassName="z-80"
-				>
+			<Drawer
+				open={mobilePreviewOpen}
+				onOpenChange={setMobilePreviewOpen}
+				shouldScaleBackground={false}
+			>
+				<DrawerContent className="max-h-[85vh] z-80" overlayClassName="z-80">
 					<DrawerHandle />
 					<DrawerHeader className="pb-0">
 						<DrawerTitle>Surfsense documentation</DrawerTitle>
 					</DrawerHeader>
-					<SurfsenseDocPreviewContent chunkId={chunkId} query={docQuery} contentClassName="max-h-[60vh]" />
+					<SurfsenseDocPreviewContent
+						chunkId={chunkId}
+						query={docQuery}
+						contentClassName="max-h-[60vh]"
+					/>
 				</DrawerContent>
 			</Drawer>
 		</>
@@ -202,9 +211,7 @@ const SurfsenseDocPreviewContent: FC<{
 		<>
 			<div className="flex items-center justify-between gap-2 border-b px-3 py-2">
 				<div className="min-w-0">
-					<p className="truncate text-sm font-medium">
-						{data?.title ?? "Surfsense documentation"}
-					</p>
+					<p className="truncate text-sm font-medium">{data?.title ?? "Surfsense documentation"}</p>
 					<p className="text-[11px] text-muted-foreground">Chunk #{chunkId}</p>
 				</div>
 				{data?.public_url && (

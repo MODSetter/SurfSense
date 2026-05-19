@@ -75,8 +75,8 @@ export const BaiduSearchApiConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSu
 				<AlertTitle>API Key Required</AlertTitle>
 				<AlertDescription>
 					<p>
-						You'll need a Baidu AppBuilder API key to use this connector. You can get one by
-						signing up at{" "}
+						You'll need a Baidu AppBuilder API key to use this connector. You can get one by signing
+						up at{" "}
 						<a
 							href="https://qianfan.cloud.baidu.com/"
 							target="_blank"
