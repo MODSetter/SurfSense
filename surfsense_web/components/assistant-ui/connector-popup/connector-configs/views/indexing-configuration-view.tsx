@@ -2,6 +2,7 @@
 
 import { ArrowLeft, Check, Info } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
@@ -128,14 +129,15 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 			>
 				{/* Back button - only show if not from OAuth */}
 				{!isFromOAuth && (
-					<button
+					<Button
+						variant="ghost"
 						type="button"
 						onClick={onSkip}
-						className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+						className="mb-6 h-auto w-fit justify-start gap-2 px-0 py-0 text-xs text-muted-foreground hover:bg-transparent hover:text-accent-foreground sm:text-sm"
 					>
-						<ArrowLeft className="size-4" />
+						<ArrowLeft data-icon="inline-start" />
 						Back to connectors
-					</button>
+					</Button>
 				)}
 
 				{/* Success header */}
@@ -229,33 +231,27 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 
 						{/* Info box - hidden for live connectors */}
 						{connector?.is_indexable && !isLive && (
-							<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
-								<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
-									<Info className="size-4" />
-								</div>
-								<div className="text-xs sm:text-sm">
-									<p className="font-medium text-xs sm:text-sm">Indexing runs in the background</p>
-									<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-										You can continue using SurfSense while we sync your data. Check inbox for
-										updates.
-									</p>
-								</div>
-							</div>
+							<Alert>
+								<Info />
+								<AlertDescription>
+									You can continue using SurfSense while we sync your data. Check inbox for updates.
+								</AlertDescription>
+							</Alert>
 						)}
 					</div>
 				</div>
 				{/* Top fade shadow - appears when scrolled */}
 				{isScrolled && (
-					<div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-muted/50 to-transparent pointer-events-none z-10" />
+					<div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-popover to-transparent pointer-events-none z-10" />
 				)}
 				{/* Bottom fade shadow - appears when there's more content */}
 				{hasMoreContent && (
-					<div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-muted/50 to-transparent pointer-events-none z-10" />
+					<div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-popover to-transparent pointer-events-none z-10" />
 				)}
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex items-center justify-end px-6 sm:px-12 py-6 bg-muted">
+			<div className="flex-shrink-0 flex items-center justify-end px-6 sm:px-12 py-6 bg-popover">
 				{isLive ? (
 					<Button onClick={onSkip} className="text-xs sm:text-sm">
 						Done

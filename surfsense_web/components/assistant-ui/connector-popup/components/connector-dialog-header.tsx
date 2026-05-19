@@ -2,6 +2,7 @@
 
 import { Search, X } from "lucide-react";
 import type { FC } from "react";
+import { Button } from "@/components/ui/button";
 import { DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 		<div
 			className={cn(
 				"flex-shrink-0 px-4 sm:px-12 pt-5 sm:pt-10 transition-shadow duration-200 relative z-10",
-				isScrolled && "shadow-xl bg-muted/50 backdrop-blur-md"
+				isScrolled && "bg-popover shadow-xl"
 			)}
 		>
 			<DialogHeader>
@@ -37,7 +38,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 				</DialogDescription>
 			</DialogHeader>
 
-			<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-4 sm:gap-8 mt-4 sm:mt-8 border-b border-border/80 dark:border-white/5">
+			<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-4 sm:gap-8 mt-4 sm:mt-8 border-b border-popover-border">
 				<TabsList className="bg-transparent p-0 gap-4 sm:gap-8 h-auto w-full sm:w-auto justify-center sm:justify-start">
 					<TabsTrigger
 						value="all"
@@ -63,27 +64,29 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 
 				<div className="w-full sm:w-72 sm:pb-1">
 					<div className="relative">
-						<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-500 dark:text-gray-500" />
+						<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
 						<input
 							type="text"
 							autoComplete="off"
 							placeholder="Search"
 							className={cn(
-								"w-full bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 focus:bg-slate-400/10 dark:focus:bg-white/10 border border-border rounded-xl pl-9 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50",
+								"w-full bg-slate-400/5 dark:bg-white/5 hover:bg-accent hover:text-accent-foreground focus:bg-slate-400/10 dark:focus:bg-white/10 border border-border rounded-xl pl-9 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50",
 								searchQuery ? "pr-9" : "pr-4"
 							)}
 							value={searchQuery}
 							onChange={(e) => onSearchChange(e.target.value)}
 						/>
 						{searchQuery && (
-							<button
+							<Button
+								variant="ghost"
+								size="icon"
 								type="button"
 								onClick={() => onSearchChange("")}
-								className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+								className="absolute right-1.5 top-1/2 size-7 -translate-y-1/2 text-muted-foreground transition-colors hover:bg-transparent hover:text-accent-foreground"
 								aria-label="Clear search"
 							>
-								<X className="size-4" />
-							</button>
+								<X data-icon="inline-start" />
+							</Button>
 						)}
 					</div>
 				</div>

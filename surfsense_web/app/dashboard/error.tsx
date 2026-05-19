@@ -3,6 +3,7 @@
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
+import { Button } from "@/components/ui/button";
 import { buildIssueUrl } from "@/lib/error-toast";
 
 export default function DashboardError({
@@ -39,13 +40,9 @@ export default function DashboardError({
 			)}
 
 			<div className="flex gap-2">
-				<button
-					type="button"
-					onClick={reset}
-					className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-				>
+				<Button type="button" onClick={reset}>
 					Try again
-				</button>
+				</Button>
 				<Link
 					href="/dashboard"
 					className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"

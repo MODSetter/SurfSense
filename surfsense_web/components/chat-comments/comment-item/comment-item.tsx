@@ -213,7 +213,7 @@ export function CommentItem({
 					<Button
 						variant="ghost"
 						size="sm"
-						className="mt-1 h-7 w-fit px-2 text-xs text-muted-foreground hover:text-foreground"
+						className="mt-1 h-7 w-fit px-2 text-xs text-muted-foreground hover:text-accent-foreground"
 						onClick={() => onReply(comment.id)}
 					>
 						<MessageCircleReply className="mr-1 size-3" />

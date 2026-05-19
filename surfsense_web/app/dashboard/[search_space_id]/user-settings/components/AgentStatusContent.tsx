@@ -1,8 +1,8 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { CircleCheck, CircleSlash, Cog, RotateCcw } from "lucide-react";
-import { useMemo } from "react";
+import { AlertTriangle, CircleCheck, CircleSlash, Info } from "lucide-react";
+import { Fragment, useMemo } from "react";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -136,7 +136,7 @@ const FLAG_GROUPS: FlagGroup[] = [
 	{
 		id: "tier5",
 		title: "Tier 5 — Audit + revert",
-		subtitle: "Action log + revert route used by the Agent Actions sheet.",
+		subtitle: "Action log + revert route used by the Agent Actions dialog.",
 		flags: [
 			{
 				key: "enable_action_log",
@@ -222,7 +222,7 @@ function FlagRow({ def, value }: { def: FlagDef; value: boolean }) {
 }
 
 export function AgentStatusContent() {
-	const { data: flags, isLoading, isError, error, refetch } = useAtomValue(agentFlagsAtom);
+	const { data: flags, isLoading, isError, error } = useAtomValue(agentFlagsAtom);
 
 	const enabledCount = useMemo(() => {
 		if (!flags) return 0;
@@ -243,17 +243,10 @@ export function AgentStatusContent() {
 	if (isError || !flags) {
 		return (
 			<Alert variant="destructive">
+				<AlertTriangle />
 				<AlertTitle>Failed to load agent status</AlertTitle>
-				<AlertDescription className="flex items-center gap-2">
+				<AlertDescription>
 					{error instanceof Error ? error.message : "Unknown error."}
-					<button
-						type="button"
-						onClick={() => refetch()}
-						className="ml-auto inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs hover:bg-background"
-					>
-						<RotateCcw className="size-3" />
-						Retry
-					</button>
 				</AlertDescription>
 			</Alert>
 		);
@@ -265,28 +258,36 @@ export function AgentStatusContent() {
 		<div className="space-y-6">
 			{masterOff ? (
 				<Alert variant="destructive">
-					<Cog className="size-4" />
+					<AlertTriangle />
 					<AlertTitle>Master kill-switch is on</AlertTitle>
 					<AlertDescription>
-						<code className="rounded bg-muted px-1 text-[10px]">
-							SURFSENSE_DISABLE_NEW_AGENT_STACK=true
-						</code>
-						forces every new middleware off, regardless of the individual flags below. Restart the
-						backend after changing it.
+						<p>
+							Showing that{" "}
+							<code className="rounded bg-muted px-1 text-[10px]">
+								SURFSENSE_DISABLE_NEW_AGENT_STACK=true
+							</code>
+							, which forces every new middleware off, regardless of the individual flags below.
+							Restart the backend after changing it.
+						</p>
 					</AlertDescription>
 				</Alert>
 			) : (
 				<Alert>
-					<Cog className="size-4" />
+					<Info />
 					<AlertTitle className="flex items-center gap-2">
 						Agent stack
-						<Badge variant="secondary" className="text-[10px]">
+						<Badge
+							variant="secondary"
+							className="rounded bg-popover px-1 py-0.5 text-[9px] text-popover-foreground"
+						>
 							{enabledCount} on
 						</Badge>
 					</AlertTitle>
 					<AlertDescription>
-						Read-only mirror of the backend's <code>AgentFeatureFlags</code>. Flip an env var and
-						restart the backend to change a value.
+						<p>
+							Showing a read-only mirror of the backend's <code>AgentFeatureFlags</code>. Flip an
+							env var and restart the backend to change a value.
+						</p>
 					</AlertDescription>
 				</Alert>
 			)}
@@ -295,9 +296,9 @@ export function AgentStatusContent() {
 				const allOff = group.flags.every((f) => !flags[f.key]);
 				return (
 					<div key={group.id}>
-						{groupIdx > 0 && <Separator className="my-4" />}
+						{groupIdx > 0 && <Separator className="my-4 bg-border" />}
 						<div className="rounded-lg border border-border/60 bg-card">
-							<div className="flex items-start justify-between gap-3 border-b px-4 py-3">
+							<div className="flex items-start justify-between gap-3 px-4 py-3">
 								<div>
 									<p className="text-sm font-semibold">{group.title}</p>
 									<p className="text-xs text-muted-foreground">{group.subtitle}</p>
@@ -308,9 +309,13 @@ export function AgentStatusContent() {
 									</Badge>
 								)}
 							</div>
-							<div className="divide-y divide-border/50 px-4">
-								{group.flags.map((def) => (
-									<FlagRow key={def.key} def={def} value={flags[def.key]} />
+							<Separator className="bg-border" />
+							<div className="px-4">
+								{group.flags.map((def, flagIdx) => (
+									<Fragment key={def.key}>
+										{flagIdx > 0 && <Separator className="bg-border" />}
+										<FlagRow def={def} value={flags[def.key]} />
+									</Fragment>
 								))}
 							</div>
 						</div>

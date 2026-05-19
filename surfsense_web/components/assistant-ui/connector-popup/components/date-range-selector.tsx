@@ -136,7 +136,7 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 					variant="outline"
 					size="sm"
 					onClick={handleClearDates}
-					className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
+					className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-accent hover:text-accent-foreground"
 				>
 					Clear Dates
 				</Button>
@@ -145,7 +145,7 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 					variant="outline"
 					size="sm"
 					onClick={handleLast30Days}
-					className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
+					className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-accent hover:text-accent-foreground"
 				>
 					Last 30 Days
 				</Button>
@@ -155,7 +155,7 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 						variant="outline"
 						size="sm"
 						onClick={handleNext30Days}
-						className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
+						className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-accent hover:text-accent-foreground"
 					>
 						Next 30 Days
 					</Button>
@@ -165,7 +165,7 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 					variant="outline"
 					size="sm"
 					onClick={handleLastYear}
-					className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
+					className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-accent hover:text-accent-foreground"
 				>
 					Last Year
 				</Button>

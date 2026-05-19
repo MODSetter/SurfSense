@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { Pricing } from "@/components/pricing";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const demoPlans = [
@@ -264,7 +265,7 @@ function PricingFAQ() {
 
 			<div ref={containerRef} className="relative mt-16 flex w-full flex-col gap-12 px-4 md:px-8">
 				{faqData.map((section) => (
-					<div key={section.title + "faq"}>
+					<div key={`${section.title}faq`}>
 						<h3 className="mb-6 text-lg font-medium text-neutral-800 dark:text-neutral-200">
 							{section.title}
 						</h3>
@@ -275,7 +276,7 @@ function PricingFAQ() {
 
 								return (
 									<div
-										key={id + "faq-item"}
+										key={`${id}faq-item`}
 										className={cn(
 											"relative rounded-lg transition-all duration-200",
 											isActive
@@ -291,10 +292,11 @@ function PricingFAQ() {
 												<GridLineVertical className="-right-[2px] left-auto" offset="100px" />
 											</div>
 										)}
-										<button
+										<Button
+											variant="ghost"
 											type="button"
 											onClick={() => toggleQuestion(id)}
-											className="flex w-full items-center justify-between px-4 py-4 text-left"
+											className="h-auto w-full justify-between rounded-lg px-4 py-4 text-left hover:bg-transparent"
 										>
 											<span className="text-sm font-medium text-neutral-700 md:text-base dark:text-neutral-300">
 												{item.question}
@@ -306,7 +308,7 @@ function PricingFAQ() {
 											>
 												<IconPlus className="size-5 text-neutral-500 dark:text-neutral-400" />
 											</motion.div>
-										</button>
+										</Button>
 										<AnimatePresence initial={false}>
 											{isActive && (
 												<motion.div

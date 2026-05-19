@@ -17,7 +17,6 @@ import {
 } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
 import {
-	Activity,
 	AlertCircle,
 	AlertTriangle,
 	Bug,
@@ -38,6 +37,7 @@ import {
 	RefreshCw,
 	Terminal,
 	Trash,
+	Workflow,
 	X,
 	Zap,
 } from "lucide-react";
@@ -133,7 +133,6 @@ const logStatusConfig = {
 function MessageDetails({
 	message,
 	taskName,
-	metadata,
 	createdAt,
 	children,
 }: {
@@ -623,7 +622,7 @@ function LogsSummaryDashboard({
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 						<CardTitle className="text-sm font-medium">{t("total_logs")}</CardTitle>
-						<Activity className="h-4 w-4 text-muted-foreground" />
+						<Workflow className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">{summary.total_logs}</div>
@@ -739,7 +738,7 @@ function LogsFilters({
 					</div>
 					{Boolean(filterInput) && (
 						<Button
-							className="absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 hover:text-foreground"
+							className="absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 hover:text-accent-foreground"
 							variant="ghost"
 							size="icon"
 							onClick={() => {
@@ -1045,7 +1044,7 @@ function LogsTable({
 										}}
 										exit={{ opacity: 0, y: -10 }}
 										className={cn(
-											"border-b transition-colors hover:bg-muted/50",
+											"border-b transition-colors hover:bg-accent hover:text-accent-foreground",
 											row.getIsSelected() ? "bg-muted/50" : ""
 										)}
 									>

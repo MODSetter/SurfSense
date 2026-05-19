@@ -401,6 +401,16 @@ export function trackSourcesTabViewed(searchSpaceId: number, tab: string) {
 	});
 }
 
+export function trackDesktopDownloadClicked(options: {
+	os: string;
+	placement: "sidebar_collapsed" | "sidebar_expanded";
+}) {
+	safeCapture("desktop_download_clicked", {
+		os: options.os,
+		placement: options.placement,
+	});
+}
+
 // ============================================
 // SEARCH SPACE INVITE EVENTS
 // ============================================

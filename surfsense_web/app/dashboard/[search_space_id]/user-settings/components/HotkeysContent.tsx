@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_SHORTCUTS, keyEventToAccelerator } from "@/components/desktop/shortcut-recorder";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
@@ -78,7 +79,7 @@ function HotkeyRow({
 	);
 
 	return (
-		<div className="flex items-center justify-between gap-2.5 border-border/60 border-b py-3 last:border-b-0">
+		<div className="flex items-center justify-between gap-2.5 py-3">
 			<div className="flex items-center gap-2.5 min-w-0">
 				<div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
 					<Icon className="size-3.5" />
@@ -90,38 +91,39 @@ function HotkeyRow({
 					<Button
 						variant="ghost"
 						size="icon"
-						className="size-7 text-muted-foreground hover:text-foreground"
+						className="size-7 text-muted-foreground hover:text-accent-foreground"
 						onClick={onReset}
 						title="Reset to default"
 					>
 						<RotateCcw className="size-3" />
 					</Button>
 				)}
-				<button
+				<Button
 					ref={inputRef}
 					type="button"
+					variant="ghost"
 					title={recording ? "Press shortcut keys" : "Click to edit shortcut"}
 					onClick={() => setRecording(true)}
 					onKeyDown={handleKeyDown}
 					onBlur={() => setRecording(false)}
 					className={
 						recording
-							? "flex h-7 items-center rounded-md border border-transparent bg-primary/5 outline-none ring-0 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
-							: "flex h-7 cursor-pointer items-center rounded-md border border-transparent bg-transparent outline-none ring-0 transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+							? "h-7 border border-transparent bg-primary/5 px-0 outline-none ring-0 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+							: "h-7 cursor-pointer border border-transparent bg-transparent px-0 outline-none ring-0 transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:outline-none focus-visible:ring-0"
 					}
 				>
 					{recording ? (
-						<span className="px-2 text-[9px] text-primary whitespace-nowrap">Press hotkeys...</span>
+						<span className="px-2 text-[9px] text-primary whitespace-nowrap">Press hotkeys</span>
 					) : (
 						<ShortcutKbd keys={displayKeys} className="ml-0 px-1.5 text-foreground/85" />
 					)}
-				</button>
+				</Button>
 			</div>
 		</div>
 	);
 }
 
-export function DesktopShortcutsContent() {
+export function HotkeysContent() {
 	const api = useElectronAPI();
 	const [shortcuts, setShortcuts] = useState(DEFAULT_SHORTCUTS);
 	const [shortcutsLoaded, setShortcutsLoaded] = useState(false);
@@ -178,17 +180,19 @@ export function DesktopShortcutsContent() {
 	return shortcutsLoaded ? (
 		<div className="flex flex-col gap-3">
 			<div>
-				{HOTKEY_ROWS.map((row) => (
-					<HotkeyRow
-						key={row.key}
-						label={row.label}
-						value={shortcuts[row.key]}
-						defaultValue={DEFAULT_SHORTCUTS[row.key]}
-						icon={row.icon}
-						isMac={isMac}
-						onChange={(accel) => updateShortcut(row.key, accel)}
-						onReset={() => resetShortcut(row.key)}
-					/>
+				{HOTKEY_ROWS.map((row, index) => (
+					<div key={row.key}>
+						<HotkeyRow
+							label={row.label}
+							value={shortcuts[row.key]}
+							defaultValue={DEFAULT_SHORTCUTS[row.key]}
+							icon={row.icon}
+							isMac={isMac}
+							onChange={(accel) => updateShortcut(row.key, accel)}
+							onReset={() => resetShortcut(row.key)}
+						/>
+						{index < HOTKEY_ROWS.length - 1 ? <Separator className="bg-border" /> : null}
+					</div>
 				))}
 			</div>
 		</div>

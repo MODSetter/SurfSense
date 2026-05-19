@@ -15,8 +15,8 @@ import type { Announcement } from "@/contracts/types/announcement.types";
 export const announcements: Announcement[] = [
 	{
 		id: "announcement-1",
-		title: "Introducing Announcements",
-		description: "All major announcements will be posted here.",
+		title: "Introducing What's New",
+		description: "All major product updates will be posted here.",
 		category: "feature",
 		date: "2026-02-17T00:00:00Z",
 		startTime: "2026-02-17T00:00:00Z",

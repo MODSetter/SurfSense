@@ -1,19 +1,16 @@
 "use client";
 
 import { Check, Copy, Info } from "lucide-react";
-import { type FC, useCallback, useRef, useState } from "react";
+import type { FC } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { useApiKey } from "@/hooks/use-api-key";
-import { copyToClipboard as copyToClipboardUtil } from "@/lib/utils";
 import { getConnectorBenefits } from "../connector-benefits";
 import type { ConnectFormProps } from "../index";
 
 const PLUGIN_RELEASES_URL =
 	"https://github.com/MODSetter/SurfSense/releases?q=obsidian&expanded=true";
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "https://surfsense.com";
 
 /**
  * Obsidian connect form for the plugin-only architecture.
@@ -30,16 +27,6 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "https://surf
  */
 export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 	const { apiKey, isLoading, copied, copyToClipboard } = useApiKey();
-	const [copiedUrl, setCopiedUrl] = useState(false);
-	const urlCopyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-	const copyServerUrl = useCallback(async () => {
-		const ok = await copyToClipboardUtil(BACKEND_URL);
-		if (!ok) return;
-		setCopiedUrl(true);
-		if (urlCopyTimerRef.current) clearTimeout(urlCopyTimerRef.current);
-		urlCopyTimerRef.current = setTimeout(() => setCopiedUrl(false), 2000);
-	}, []);
 
 	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -52,10 +39,10 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 			    that just closes the dialog (see component-level docstring). */}
 			<form id="obsidian-connect-form" onSubmit={handleSubmit} />
 
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
-				<Info className="size-4 shrink-0 text-purple-500" />
-				<AlertTitle className="text-xs sm:text-sm">Plugin-based sync</AlertTitle>
-				<AlertDescription className="text-[10px] sm:text-xs">
+			<Alert>
+				<Info />
+				<AlertTitle>Plugin-based sync</AlertTitle>
+				<AlertDescription>
 					SurfSense now syncs Obsidian via an official plugin that runs inside Obsidian itself.
 					Works on desktop and mobile, in cloud and self-hosted deployments.
 				</AlertDescription>
@@ -123,7 +110,7 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 									variant="ghost"
 									size="icon"
 									onClick={copyToClipboard}
-									className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+									className="size-7 shrink-0 text-muted-foreground hover:text-accent-foreground"
 									aria-label={copied ? "Copied" : "Copy API key"}
 								>
 									{copied ? (

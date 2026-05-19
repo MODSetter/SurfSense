@@ -6,9 +6,9 @@
  * `extractDomain` helpers that had subtly different error fallbacks.
  */
 export function tryGetHostname(url: string): string | undefined {
-    try {
-        return new URL(url).hostname.replace(/^www\./, "");
-    } catch {
-        return undefined;
-    }
+	try {
+		return new URL(url).hostname.replace(/^www\./, "");
+	} catch {
+		return undefined;
+	}
 }

@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
+import { Button } from "@/components/ui/button";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { setRedirectPath } from "@/lib/auth-utils";
@@ -154,10 +155,12 @@ function LoginContent() {
 									<p className="text-sm font-semibold mb-1">{urlError.title}</p>
 									<p className="text-sm text-red-700 dark:text-red-300">{urlError.message}</p>
 								</div>
-								<button
+								<Button
 									type="button"
+									variant="ghost"
+									size="icon"
 									onClick={() => setUrlError(null)}
-									className="flex-shrink-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 transition-colors"
+									className="size-6 flex-shrink-0 text-red-500 hover:bg-transparent hover:text-red-700 dark:text-red-400 dark:hover:text-red-200"
 									aria-label="Dismiss error"
 								>
 									<svg
@@ -175,7 +178,7 @@ function LoginContent() {
 										<line x1="18" y1="6" x2="6" y2="18" />
 										<line x1="6" y1="6" x2="18" y2="18" />
 									</svg>
-								</button>
+								</Button>
 							</div>
 						</motion.div>
 					)}

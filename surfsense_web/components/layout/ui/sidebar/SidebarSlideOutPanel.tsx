@@ -99,7 +99,7 @@ export function SidebarSlideOutPanel({
 					>
 						<div
 							style={{ width }}
-							className="h-full bg-sidebar text-sidebar-foreground flex flex-col select-none border rounded-r-xl shadow-xl"
+							className="h-full bg-sidebar text-sidebar-foreground flex flex-col select-none border shadow-xl"
 							role="dialog"
 							aria-label={ariaLabel}
 						>

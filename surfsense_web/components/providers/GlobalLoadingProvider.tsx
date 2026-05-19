@@ -34,7 +34,7 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
 			)}
 			aria-hidden={!isLoading}
 		>
-			<div className="flex min-h-screen flex-col items-center justify-center bg-background">
+			<div className="flex min-h-screen flex-col items-center justify-center bg-main-panel">
 				<div className="h-12 w-12 flex items-center justify-center">
 					<Spinner size="lg" className="text-muted-foreground" />
 				</div>
