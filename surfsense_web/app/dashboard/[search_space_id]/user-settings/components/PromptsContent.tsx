@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertTriangle, Globe, Lock, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, Globe, Lock, MoreHorizontal, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,7 @@ import {
 	updatePromptMutationAtom,
 } from "@/atoms/prompts/prompts-mutation.atoms";
 import { promptsAtom } from "@/atoms/prompts/prompts-query.atoms";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -20,7 +21,6 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -31,10 +31,14 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Select,
 	SelectContent,
@@ -42,6 +46,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import type { PromptRead } from "@/contracts/types/prompts.types";
@@ -221,8 +227,12 @@ export function PromptsContent() {
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="transform">Transform — rewrites or modifies your text</SelectItem>
-									<SelectItem value="explore">Explore — answers a question about your text</SelectItem>
+									<SelectItem value="transform">
+										Transform — rewrites or modifies your text
+									</SelectItem>
+									<SelectItem value="explore">
+										Explore — answers a question about your text
+									</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -333,41 +343,45 @@ export function PromptsContent() {
 									</Button>
 								)}
 							</div>
-							<div className="flex items-center gap-1 shrink-0 opacity-0 pointer-events-none transition-opacity duration-150 group-hover:opacity-100 group-hover:pointer-events-auto">
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon"
-									title={prompt.is_public ? "Make private" : "Share with community"}
-									onClick={() => handleTogglePublic(prompt)}
-									disabled={togglingPublicIds.has(prompt.id)}
-									className="h-7 w-7 rounded-lg text-muted-foreground hover:text-accent-foreground"
-								>
-									{togglingPublicIds.has(prompt.id) ? (
-										<Spinner className="size-3.5" />
-									) : prompt.is_public ? (
-										<Lock className="size-3.5" />
-									) : (
-										<Globe className="size-3.5" />
-									)}
-								</Button>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-7 w-7 rounded-lg text-muted-foreground hover:text-accent-foreground"
-									onClick={() => handleEdit(prompt)}
-								>
-									<Pencil className="size-3.5" />
-								</Button>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive"
-									onClick={() => setDeleteTarget(prompt.id)}
-								>
-									<Trash2 className="size-3.5" />
-								</Button>
-							</div>
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										className="h-7 w-7 shrink-0 self-center rounded-lg text-muted-foreground opacity-100 pointer-events-auto transition-opacity duration-150 hover:text-accent-foreground sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto"
+									>
+										<MoreHorizontal className="size-3.5" />
+										<span className="sr-only">Prompt actions</span>
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									<DropdownMenuItem
+										onClick={() => handleTogglePublic(prompt)}
+										disabled={togglingPublicIds.has(prompt.id)}
+									>
+										{togglingPublicIds.has(prompt.id) ? (
+											<Spinner className="size-4" />
+										) : prompt.is_public ? (
+											<Lock className="size-4" />
+										) : (
+											<Globe className="size-4" />
+										)}
+										{prompt.is_public ? "Make private" : "Share with community"}
+									</DropdownMenuItem>
+									<DropdownMenuItem onClick={() => handleEdit(prompt)}>
+										<Pencil className="size-4" />
+										Edit
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										onClick={() => setDeleteTarget(prompt.id)}
+										className="text-destructive focus:text-destructive"
+									>
+										<Trash2 className="size-4" />
+										Delete
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
 						</div>
 					))}
 				</div>

@@ -916,8 +916,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								<Button
 									variant="ghost"
 									size="icon"
-									className="size-9 rounded-full p-1 font-semibold text-xs text-muted-foreground dark:border-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
-									aria-label="More actions"
+									className="h-9 w-9 rounded-full p-0 font-semibold text-xs text-muted-foreground transition-colors dark:border-muted-foreground/15 hover:bg-foreground/10 hover:text-foreground"
+									aria-label="Upload files, connect tools and more"
 									data-joyride="connector-icon"
 								>
 									<Plus className="size-5" />
@@ -1066,13 +1066,13 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 					<DropdownMenu onOpenChange={(open) => !open && setToolsPopoverOpen(false)}>
 						<DropdownMenuTrigger asChild>
 							<TooltipIconButton
-								tooltip="More actions"
+								tooltip="Upload files, connect tools and more"
 								side="bottom"
 								disableTooltip={toolsPopoverOpen}
 								variant="ghost"
 								size="icon"
-								className="size-9 rounded-full p-1 font-semibold text-xs text-muted-foreground dark:border-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
-								aria-label="More actions"
+								className="h-9 w-9 rounded-full p-0 font-semibold text-xs text-muted-foreground transition-colors dark:border-muted-foreground/15 hover:bg-foreground/10 hover:text-foreground"
+								aria-label="Upload files, connect tools and more"
 								data-joyride="connector-icon"
 							>
 								<Plus className="size-5" />
