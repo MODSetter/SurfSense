@@ -12,7 +12,7 @@ import {
 	ArrowUpIcon,
 	Camera,
 	ChevronDown,
-	ChevronUp,
+	ChevronRight,
 	Clipboard,
 	Globe,
 	Plus,
@@ -72,6 +72,11 @@ import {
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
 	Drawer,
 	DrawerContent,
@@ -378,7 +383,7 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 						size="icon"
 						className="size-5 text-muted-foreground hover:bg-transparent hover:text-accent-foreground"
 					>
-						{expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+						<ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
 					</Button>
 				)}
 				<Button
@@ -799,6 +804,10 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
+	const [openConnectorSubmenu, setOpenConnectorSubmenu] = useState<string | null>(null);
+	const [expandedConnectorGroups, setExpandedConnectorGroups] = useState<Set<string>>(
+		() => new Set()
+	);
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const pendingScreenImages = useAtomValue(pendingUserImageDataUrlsAtom);
@@ -847,6 +856,17 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		},
 		[disabledToolsSet, setDisabledTools]
 	);
+	const setConnectorGroupExpanded = useCallback((label: string, expanded: boolean) => {
+		setExpandedConnectorGroups((prev) => {
+			const next = new Set(prev);
+			if (expanded) {
+				next.add(label);
+			} else {
+				next.delete(label);
+			}
+			return next;
+		});
+	}, []);
 
 	const hasWebSearchTool = agentTools?.some((t) => t.name === "web_search") ?? false;
 	const isWebSearchEnabled = hasWebSearchTool && !disabledToolsSet.has("web_search");
@@ -888,6 +908,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 
 		return result;
 	}, [filteredTools, connectedTypes]);
+	const regularToolGroups = groupedTools.filter((g) => !g.connectorIcon && g.label !== "Other");
+	const connectorToolGroups = groupedTools.filter((g) => g.connectorIcon);
+	const otherToolGroup = groupedTools.find((g) => !g.connectorIcon && g.label === "Other");
 
 	useEffect(() => {
 		hydrateDisabled();
@@ -917,17 +940,13 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									variant="ghost"
 									size="icon"
 									className="h-9 w-9 rounded-full p-0 font-semibold text-xs text-muted-foreground transition-colors dark:border-muted-foreground/15 hover:bg-foreground/10 hover:text-foreground"
-									aria-label="Upload files, connect tools and more"
+									aria-label="Upload files, manage tools and more"
 									data-joyride="connector-icon"
 								>
 									<Plus className="size-5" />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent side="bottom" align="start" sideOffset={8}>
-								<DropdownMenuItem onSelect={() => setToolsPopoverOpen(true)}>
-									<Settings2 className="size-4" />
-									Manage Tools
-								</DropdownMenuItem>
 								<DropdownMenuItem onSelect={() => openUploadDialog()}>
 									<Upload className="size-4" />
 									Upload Files
@@ -952,6 +971,10 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									<Unplug className="size-4" />
 									Manage Connectors
 								</DropdownMenuItem>
+								<DropdownMenuItem onSelect={() => setToolsPopoverOpen(true)}>
+									<Settings2 className="size-4" />
+									Manage Tools
+								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
 						<Drawer
@@ -967,9 +990,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									</DrawerTitle>
 								</DrawerHeader>
 								<div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin pb-6">
-									{groupedTools
-										.filter((g) => !g.connectorIcon)
-										.map((group) => (
+									{regularToolGroups.map((group) => (
 											<div key={group.label}>
 												<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
 													{group.label}
@@ -996,46 +1017,113 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 												})}
 											</div>
 										))}
-									{groupedTools.some((g) => g.connectorIcon) && (
+									{connectorToolGroups.length > 0 && (
 										<div>
 											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
 												Connector Actions
 											</div>
-											{groupedTools
-												.filter((g) => g.connectorIcon)
-												.map((group) => {
+											{connectorToolGroups.map((group) => {
 													const iconKey = group.connectorIcon ?? "";
 													const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
 													const toolNames = group.tools.map((t) => t.name);
 													const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
+													const isExpanded = expandedConnectorGroups.has(group.label);
 													return (
-														<div
+														<Collapsible
 															key={group.label}
-															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+															open={isExpanded}
+															onOpenChange={(open) =>
+																setConnectorGroupExpanded(group.label, open)
+															}
 														>
-															{iconInfo ? (
-																<Image
-																	src={iconInfo.src}
-																	alt={iconInfo.alt}
-																	width={18}
-																	height={18}
-																	className="size-[18px] shrink-0 select-none pointer-events-none"
-																	draggable={false}
+															<div className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors">
+																<CollapsibleTrigger asChild>
+																	<button
+																		type="button"
+																		className="flex min-w-0 flex-1 items-center gap-3 text-left"
+																	>
+																		{iconInfo ? (
+																			<Image
+																				src={iconInfo.src}
+																				alt={iconInfo.alt}
+																				width={18}
+																				height={18}
+																				className="size-[18px] shrink-0 select-none pointer-events-none"
+																				draggable={false}
+																			/>
+																		) : (
+																			<Wrench className="size-4 shrink-0 text-muted-foreground" />
+																		)}
+																		<span className="min-w-0 flex-1 truncate text-sm font-medium">
+																			{group.label}
+																		</span>
+																		{isExpanded ? (
+																			<ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+																		) : (
+																			<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+																		)}
+																	</button>
+																</CollapsibleTrigger>
+																<Switch
+																	checked={!allDisabled}
+																	onCheckedChange={() => toggleToolGroup(toolNames)}
+																	className="shrink-0"
 																/>
-															) : (
-																<Wrench className="size-4 shrink-0 text-muted-foreground" />
-															)}
-															<span className="flex-1 min-w-0 text-sm font-medium truncate">
-																{group.label}
-															</span>
-															<Switch
-																checked={!allDisabled}
-																onCheckedChange={() => toggleToolGroup(toolNames)}
-																className="shrink-0"
-															/>
-														</div>
+															</div>
+															<CollapsibleContent className="pb-1">
+																{group.tools.map((tool) => {
+																	const isDisabled = disabledToolsSet.has(tool.name);
+																	return (
+																		<div
+																			key={tool.name}
+																			className={cn(
+																				"ml-8 flex items-center gap-3 px-4 py-1.5 rounded-md transition-colors",
+																				"hover:bg-accent hover:text-accent-foreground",
+																				!isDisabled && "text-primary"
+																			)}
+																		>
+																			<span className="min-w-0 flex-1 truncate text-sm">
+																				{formatToolName(tool.name)}
+																			</span>
+																			<Switch
+																				checked={!isDisabled}
+																				onCheckedChange={() => toggleTool(tool.name)}
+																				className="shrink-0"
+																			/>
+																		</div>
+																	);
+																})}
+															</CollapsibleContent>
+														</Collapsible>
 													);
 												})}
+										</div>
+									)}
+									{otherToolGroup && (
+										<div>
+											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+												{otherToolGroup.label}
+											</div>
+											{otherToolGroup.tools.map((tool) => {
+												const isDisabled = disabledToolsSet.has(tool.name);
+												const ToolIcon = getToolIcon(tool.name);
+												return (
+													<div
+														key={tool.name}
+														className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+													>
+														<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
+														<span className="flex-1 min-w-0 text-sm font-medium truncate">
+															{formatToolName(tool.name)}
+														</span>
+														<Switch
+															checked={!isDisabled}
+															onCheckedChange={() => toggleTool(tool.name)}
+															className="shrink-0"
+														/>
+													</div>
+												);
+											})}
 										</div>
 									)}
 									{!filteredTools?.length && (
@@ -1063,16 +1151,23 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						</Drawer>
 					</>
 				) : (
-					<DropdownMenu onOpenChange={(open) => !open && setToolsPopoverOpen(false)}>
+					<DropdownMenu
+						onOpenChange={(open) => {
+							if (!open) {
+								setToolsPopoverOpen(false);
+								setOpenConnectorSubmenu(null);
+							}
+						}}
+					>
 						<DropdownMenuTrigger asChild>
 							<TooltipIconButton
-								tooltip="Upload files, connect tools and more"
+								tooltip="Upload files, manage tools and more"
 								side="bottom"
 								disableTooltip={toolsPopoverOpen}
 								variant="ghost"
 								size="icon"
 								className="h-9 w-9 rounded-full p-0 font-semibold text-xs text-muted-foreground transition-colors dark:border-muted-foreground/15 hover:bg-foreground/10 hover:text-foreground"
-								aria-label="Upload files, connect tools and more"
+								aria-label="Upload files, manage tools and more"
 								data-joyride="connector-icon"
 							>
 								<Plus className="size-5" />
@@ -1113,7 +1208,13 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									/>
 								</DropdownMenuItem>
 							)}
-							<DropdownMenuSub open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
+							<DropdownMenuSub
+								open={toolsPopoverOpen}
+								onOpenChange={(open) => {
+									setToolsPopoverOpen(open);
+									if (!open) setOpenConnectorSubmenu(null);
+								}}
+							>
 								<DropdownMenuSubTrigger>
 									<Settings2 className="h-4 w-4" />
 									Manage Tools
@@ -1123,10 +1224,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 										alignOffset={-192}
 										collisionPadding={8}
 										className="w-60 h-56 gap-1 overflow-y-auto overscroll-none"
+										onScroll={() => setOpenConnectorSubmenu(null)}
 									>
-										{groupedTools
-											.filter((g) => !g.connectorIcon)
-											.map((group) => (
+										{regularToolGroups.map((group) => (
 												<div key={group.label}>
 													<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
 														{group.label}
@@ -1161,52 +1261,125 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 													})}
 												</div>
 											))}
-										{groupedTools.some((g) => g.connectorIcon) && (
+										{connectorToolGroups.length > 0 && (
 											<div>
 												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
 													Connector Actions
 												</div>
-												{groupedTools
-													.filter((g) => g.connectorIcon)
-													.map((group) => {
+												{connectorToolGroups.map((group) => {
 														const iconKey = group.connectorIcon ?? "";
 														const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
 														const toolNames = group.tools.map((t) => t.name);
 														const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
 														return (
-															<DropdownMenuItem
+															<DropdownMenuSub
 																key={group.label}
-																onSelect={(e) => {
-																	e.preventDefault();
-																	toggleToolGroup(toolNames);
-																}}
-																className={cn(
-																	"mb-1 last:mb-0 transition-all",
-																	"hover:bg-accent hover:text-accent-foreground",
-																	!allDisabled && "text-primary"
-																)}
+																open={openConnectorSubmenu === group.label}
+																onOpenChange={(open) =>
+																	setOpenConnectorSubmenu(open ? group.label : null)
+																}
 															>
-																{iconInfo ? (
-																	<Image
-																		src={iconInfo.src}
-																		alt={iconInfo.alt}
-																		width={16}
-																		height={16}
-																		className="h-4 w-4 shrink-0 select-none pointer-events-none"
-																		draggable={false}
+																<DropdownMenuSubTrigger
+																	className={cn(
+																		"mb-1 last:mb-0 transition-all",
+																		"hover:bg-accent hover:text-accent-foreground",
+																		"gap-1 [&>svg:last-child]:ml-0",
+																		!allDisabled && "text-primary"
+																	)}
+																>
+																	{iconInfo ? (
+																		<Image
+																			src={iconInfo.src}
+																			alt={iconInfo.alt}
+																			width={16}
+																			height={16}
+																			className="h-4 w-4 shrink-0 select-none pointer-events-none"
+																			draggable={false}
+																		/>
+																	) : (
+																		<Wrench className="h-4 w-4" />
+																	)}
+																	<span className="min-w-0 flex-1 truncate">{group.label}</span>
+																	<Switch
+																		checked={!allDisabled}
+																		tabIndex={-1}
+																		onPointerDown={(event) => event.stopPropagation()}
+																		onClick={(event) => event.stopPropagation()}
+																		onCheckedChange={() => toggleToolGroup(toolNames)}
+																		className="shrink-0 scale-[0.6]"
 																	/>
-																) : (
-																	<Wrench className="h-4 w-4" />
-																)}
-																<span className="flex-1 min-w-0 truncate">{group.label}</span>
-																<Switch
-																	checked={!allDisabled}
-																	tabIndex={-1}
-																	className="pointer-events-none shrink-0 scale-[0.6]"
-																/>
-															</DropdownMenuItem>
+																</DropdownMenuSubTrigger>
+																<DropdownMenuPortal>
+																	<DropdownMenuSubContent
+																		collisionPadding={8}
+																		className="w-60 max-h-56 overflow-y-auto overscroll-none"
+																	>
+																		{group.tools.map((tool) => {
+																			const isDisabled = disabledToolsSet.has(tool.name);
+																			return (
+																				<DropdownMenuItem
+																					key={tool.name}
+																					onSelect={(e) => {
+																						e.preventDefault();
+																						toggleTool(tool.name);
+																					}}
+																					className={cn(
+																						"mb-1 last:mb-0 transition-all",
+																						"hover:bg-accent hover:text-accent-foreground",
+																						!isDisabled && "text-primary"
+																					)}
+																				>
+																					<span className="min-w-0 flex-1 truncate">
+																						{formatToolName(tool.name)}
+																					</span>
+																					<Switch
+																						checked={!isDisabled}
+																						tabIndex={-1}
+																						className="pointer-events-none shrink-0 scale-[0.6]"
+																					/>
+																				</DropdownMenuItem>
+																			);
+																		})}
+																	</DropdownMenuSubContent>
+																</DropdownMenuPortal>
+															</DropdownMenuSub>
 														);
 													})}
+											</div>
+										)}
+										{otherToolGroup && (
+											<div>
+												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
+													{otherToolGroup.label}
+												</div>
+												{otherToolGroup.tools.map((tool) => {
+													const isDisabled = disabledToolsSet.has(tool.name);
+													const ToolIcon = getToolIcon(tool.name);
+													return (
+														<DropdownMenuItem
+															key={tool.name}
+															onSelect={(e) => {
+																e.preventDefault();
+																toggleTool(tool.name);
+															}}
+															className={cn(
+																"mb-1 last:mb-0 transition-all",
+																"hover:bg-accent hover:text-accent-foreground",
+																!isDisabled && "text-primary"
+															)}
+														>
+															<ToolIcon className="h-4 w-4" />
+															<span className="flex-1 min-w-0 truncate">
+																{formatToolName(tool.name)}
+															</span>
+															<Switch
+																checked={!isDisabled}
+																tabIndex={-1}
+																className="pointer-events-none shrink-0 scale-[0.6]"
+															/>
+														</DropdownMenuItem>
+													);
+												})}
 											</div>
 										)}
 										{!filteredTools?.length && (
@@ -1300,7 +1473,13 @@ const TOOL_GROUPS: ToolGroup[] = [
 	},
 	{
 		label: "Generate",
-		tools: ["generate_podcast", "generate_video_presentation", "generate_report", "generate_image"],
+		tools: [
+			"generate_podcast",
+			"generate_video_presentation",
+			"generate_report",
+			"generate_resume",
+			"generate_image",
+		],
 	},
 	{
 		label: "Memory",
@@ -1308,15 +1487,27 @@ const TOOL_GROUPS: ToolGroup[] = [
 	},
 	{
 		label: "Gmail",
-		tools: ["create_gmail_draft", "update_gmail_draft", "send_gmail_email", "trash_gmail_email"],
+		tools: [
+			"search_gmail",
+			"read_gmail_email",
+			"create_gmail_draft",
+			"update_gmail_draft",
+			"send_gmail_email",
+			"trash_gmail_email",
+		],
 		connectorIcon: "gmail",
-		tooltip: "Create drafts, update drafts, send emails, and trash emails in Gmail",
+		tooltip: "Search, read, draft, update, send, and trash emails in Gmail",
 	},
 	{
 		label: "Google Calendar",
-		tools: ["create_calendar_event", "update_calendar_event", "delete_calendar_event"],
+		tools: [
+			"search_calendar_events",
+			"create_calendar_event",
+			"update_calendar_event",
+			"delete_calendar_event",
+		],
 		connectorIcon: "google_calendar",
-		tooltip: "Create, update, and delete events in Google Calendar",
+		tooltip: "Search, create, update, and delete events in Google Calendar",
 	},
 	{
 		label: "Google Drive",
@@ -1359,6 +1550,24 @@ const TOOL_GROUPS: ToolGroup[] = [
 		tools: ["create_confluence_page", "update_confluence_page", "delete_confluence_page"],
 		connectorIcon: "confluence",
 		tooltip: "Create, update, and delete pages in Confluence",
+	},
+	{
+		label: "Discord",
+		tools: ["list_discord_channels", "read_discord_messages", "send_discord_message"],
+		connectorIcon: "discord",
+		tooltip: "List channels, read messages, and send messages in Discord",
+	},
+	{
+		label: "Microsoft Teams",
+		tools: ["list_teams_channels", "read_teams_messages", "send_teams_message"],
+		connectorIcon: "teams",
+		tooltip: "List channels, read messages, and send messages in Microsoft Teams",
+	},
+	{
+		label: "Luma",
+		tools: ["list_luma_events", "read_luma_event", "create_luma_event"],
+		connectorIcon: "luma",
+		tooltip: "List, read, and create events in Luma",
 	},
 ];
 
