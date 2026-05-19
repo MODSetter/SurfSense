@@ -3,13 +3,13 @@
 import {
 	Brain,
 	CircleUser,
-	Globe,
 	Keyboard,
 	KeyRound,
+	Library,
 	Monitor,
 	ReceiptText,
 	ShieldCheck,
-	Sparkles,
+	WandSparkles,
 	Workflow,
 } from "lucide-react";
 import Link from "next/link";
@@ -71,12 +71,12 @@ export function UserSettingsLayoutShell({
 			{
 				value: "prompts" as const,
 				label: "My Prompts",
-				icon: <Sparkles className="h-4 w-4" />,
+				icon: <WandSparkles className="h-4 w-4" />,
 			},
 			{
 				value: "community-prompts" as const,
 				label: "Community Prompts",
-				icon: <Globe className="h-4 w-4" />,
+				icon: <Library className="h-4 w-4" />,
 			},
 			{
 				value: "memory" as const,

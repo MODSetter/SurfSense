@@ -81,30 +81,26 @@ export function PublicChatSnapshotsManager({
 	if (isLoading) {
 		return (
 			<div className="space-y-4 md:space-y-5">
-				{/* Info alert skeleton */}
-				<Skeleton className="h-12 w-full rounded-lg" />
+				<Alert>
+					<Info />
+					<AlertDescription>
+						<div className="flex min-h-[1.625em] items-center">
+							<Skeleton className="h-4 w-60 bg-accent-foreground/15" />
+						</div>
+					</AlertDescription>
+				</Alert>
 
 				{/* Cards grid skeleton */}
 				<div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
 					{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
-						<Card key={key} className="border-border/60">
-							<CardContent className="p-4 flex flex-col gap-3">
-								{/* Header: Title */}
-								<div className="flex items-start justify-between gap-2">
-									<Skeleton className="h-4 w-36 md:w-44" />
-								</div>
-								{/* Message count badge */}
-								<div className="flex items-center gap-1.5">
-									<Skeleton className="h-5 w-24 rounded-full" />
-								</div>
-								{/* URL skeleton */}
-								<Skeleton className="h-3 w-full rounded" />
-								{/* Footer: Date + Creator */}
-								<div className="flex items-center gap-2 pt-2 border-t border-border/40">
-									<Skeleton className="h-3 w-20" />
-									<Skeleton className="h-4 w-4 rounded-full" />
-									<Skeleton className="h-3 w-16" />
-								</div>
+						<Card
+							key={key}
+							className="group relative overflow-hidden transition-all duration-200 border-accent bg-accent/20 hover:shadow-md h-full"
+						>
+							<CardContent className="p-4 flex flex-col gap-3 h-full min-h-32">
+								<Skeleton className="h-4 w-32 md:w-40 bg-accent" />
+								<Skeleton className="h-3 w-full bg-accent" />
+								<Skeleton className="h-3 w-24 md:w-28 bg-accent mt-auto" />
 							</CardContent>
 						</Card>
 					))}

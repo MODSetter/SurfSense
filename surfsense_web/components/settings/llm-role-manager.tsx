@@ -236,35 +236,11 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			{isLoading && (
 				<div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
 					{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
-						<Card key={key} className="border-border/60">
-							<CardContent className="p-4 md:p-5 space-y-4">
-								{/* Header: icon + title + status */}
-								<div className="flex items-start justify-between gap-3">
-									<div className="flex items-center gap-3 min-w-0">
-										<Skeleton className="h-9 w-9 rounded-lg shrink-0" />
-										<div className="space-y-1.5 flex-1">
-											<Skeleton className="h-4 w-24 md:w-28" />
-											<Skeleton className="h-3 w-40 md:w-52" />
-										</div>
-									</div>
-									<Skeleton className="h-4 w-4 rounded-full shrink-0" />
-								</div>
-								{/* Label */}
-								<div className="space-y-1.5">
-									<Skeleton className="h-3 w-20" />
-									<Skeleton className="h-9 md:h-10 w-full rounded-md" />
-								</div>
-								{/* Summary block */}
-								<div className="rounded-lg border border-border/50 p-3 space-y-2">
-									<div className="flex items-center gap-2">
-										<Skeleton className="h-3.5 w-3.5 rounded shrink-0" />
-										<Skeleton className="h-3.5 w-28" />
-									</div>
-									<div className="flex items-center gap-1.5">
-										<Skeleton className="h-4 w-14 rounded-full" />
-										<Skeleton className="h-3 w-24" />
-									</div>
-								</div>
+						<Card key={key} className="border-accent bg-accent/20">
+							<CardContent className="p-4 flex flex-col gap-3 min-h-32">
+								<Skeleton className="h-4 w-32 md:w-40 bg-accent" />
+								<Skeleton className="h-3 w-full bg-accent" />
+								<Skeleton className="h-3 w-24 md:w-28 bg-accent mt-auto" />
 							</CardContent>
 						</Card>
 					))}
@@ -314,7 +290,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 						return (
 							<div key={key}>
-								<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
+								<Card className="group relative overflow-hidden transition-all duration-200 border-accent bg-accent/20 hover:shadow-md h-full">
 									<CardContent className="p-4 md:p-5 space-y-4">
 										{/* Role Header */}
 										<div className="flex items-start justify-between gap-3">

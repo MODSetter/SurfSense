@@ -22,9 +22,26 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import type { PromptRead } from "@/contracts/types/prompts.types";
@@ -124,24 +141,6 @@ export function PromptsContent() {
 
 	const list = prompts ?? [];
 
-	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center py-12">
-				<Spinner className="size-6" />
-			</div>
-		);
-	}
-
-	if (isError) {
-		return (
-			<Alert variant="destructive">
-				<AlertTriangle />
-				<AlertTitle>Failed to load prompts</AlertTitle>
-				<AlertDescription>Please try refreshing the page.</AlertDescription>
-			</Alert>
-		);
-	}
-
 	return (
 		<div className="space-y-6 min-w-0 overflow-hidden">
 			<div className="flex items-center justify-between">
@@ -149,97 +148,146 @@ export function PromptsContent() {
 					Create prompt templates triggered with <ShortcutKbd keys={["/"]} className="ml-0" /> in
 					the chat composer.
 				</p>
-				{!showForm && (
-					<Button
-						size="sm"
-						onClick={() => {
-							setShowForm(true);
-							setEditingId(null);
-							setFormData(EMPTY_FORM);
-						}}
-						className="shrink-0 gap-1.5"
-					>
-						New
-					</Button>
-				)}
+				<Button
+					size="sm"
+					onClick={() => {
+						setShowForm(true);
+						setEditingId(null);
+						setFormData(EMPTY_FORM);
+					}}
+					className="shrink-0 gap-1.5"
+				>
+					New
+				</Button>
 			</div>
 
-			{showForm && (
-				<div className="rounded-lg border border-border/60 bg-card p-6 space-y-4">
-					<h3 className="text-sm font-semibold tracking-tight">
-						{editingId !== null ? "Edit prompt" : "New prompt"}
-					</h3>
+			<Dialog
+				open={showForm}
+				onOpenChange={(open) => {
+					setShowForm(open);
+					if (!open) {
+						setFormData(EMPTY_FORM);
+						setEditingId(null);
+					}
+				}}
+			>
+				<DialogContent className="max-w-lg bg-popover text-popover-foreground">
+					<DialogHeader>
+						<DialogTitle>{editingId !== null ? "Edit prompt" : "New prompt"}</DialogTitle>
+						<DialogDescription>
+							Create prompt templates triggered with / in the chat composer.
+						</DialogDescription>
+					</DialogHeader>
 
-					<div className="space-y-2">
-						<Label htmlFor="prompt-name">Name</Label>
-						<Input
-							id="prompt-name"
-							value={formData.name}
-							onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-							placeholder="e.g. Fix grammar"
-						/>
+					<div className="space-y-4">
+						<div className="space-y-2">
+							<Label htmlFor="prompt-name">Name</Label>
+							<Input
+								id="prompt-name"
+								value={formData.name}
+								onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+								placeholder="e.g. Fix grammar"
+							/>
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor="prompt-template">Prompt template</Label>
+							<textarea
+								id="prompt-template"
+								value={formData.prompt}
+								onChange={(e) => setFormData((p) => ({ ...p, prompt: e.target.value }))}
+								placeholder="e.g. Fix the grammar in the following text:\n\n{selection}"
+								rows={4}
+								className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none resize-none focus:ring-1 focus:ring-ring"
+							/>
+							<p className="text-xs text-muted-foreground">
+								Use{" "}
+								<code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+									{"{selection}"}
+								</code>{" "}
+								to insert the input text. If omitted, the text is appended automatically.
+							</p>
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor="prompt-mode">Mode</Label>
+							<Select
+								value={formData.mode}
+								onValueChange={(value) =>
+									setFormData((p) => ({ ...p, mode: value as "transform" | "explore" }))
+								}
+							>
+								<SelectTrigger id="prompt-mode" className="w-full">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="transform">Transform — rewrites or modifies your text</SelectItem>
+									<SelectItem value="explore">Explore — answers a question about your text</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="flex items-center gap-2">
+							<Switch
+								id="prompt-public"
+								checked={formData.is_public}
+								onCheckedChange={(checked) => setFormData((p) => ({ ...p, is_public: checked }))}
+							/>
+							<Label htmlFor="prompt-public" className="text-sm font-normal">
+								Share with community
+							</Label>
+						</div>
 					</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="prompt-template">Prompt template</Label>
-						<textarea
-							id="prompt-template"
-							value={formData.prompt}
-							onChange={(e) => setFormData((p) => ({ ...p, prompt: e.target.value }))}
-							placeholder="e.g. Fix the grammar in the following text:\n\n{selection}"
-							rows={4}
-							className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none resize-none focus:ring-1 focus:ring-ring"
-						/>
-						<p className="text-xs text-muted-foreground">
-							Use{" "}
-							<code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
-								{"{selection}"}
-							</code>{" "}
-							to insert the input text. If omitted, the text is appended automatically.
-						</p>
-					</div>
-
-					<div className="space-y-2">
-						<Label htmlFor="prompt-mode">Mode</Label>
-						<select
-							id="prompt-mode"
-							value={formData.mode}
-							onChange={(e) =>
-								setFormData((p) => ({ ...p, mode: e.target.value as "transform" | "explore" }))
-							}
-							className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="secondary"
+							size="sm"
+							onClick={handleCancel}
+							disabled={isSaving}
+							className="text-sm h-9"
 						>
-							<option value="transform">Transform — rewrites or modifies your text</option>
-							<option value="explore">Explore — answers a question about your text</option>
-						</select>
-					</div>
-
-					<div className="flex items-center gap-2">
-						<Switch
-							id="prompt-public"
-							checked={formData.is_public}
-							onCheckedChange={(checked) => setFormData((p) => ({ ...p, is_public: checked }))}
-						/>
-						<Label htmlFor="prompt-public" className="text-sm font-normal">
-							Share with community
-						</Label>
-					</div>
-
-					<div className="flex items-center justify-end gap-2 pt-2">
-						<Button variant="ghost" size="sm" onClick={handleCancel}>
 							Cancel
 						</Button>
-						<Button size="sm" onClick={handleSave} disabled={isSaving} className="relative">
+						<Button
+							size="sm"
+							onClick={handleSave}
+							disabled={isSaving}
+							className="relative text-sm h-9 min-w-[96px]"
+						>
 							<span className={isSaving ? "opacity-0" : ""}>
 								{editingId !== null ? "Update" : "Create"}
 							</span>
-							{isSaving && <Spinner className="size-3.5 absolute" />}
+							{isSaving && <Spinner size="sm" className="absolute" />}
 						</Button>
-					</div>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{isLoading && (
+				<div className="space-y-2">
+					{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
+						<Card key={key} className="border-accent bg-accent/20">
+							<CardContent className="p-4 flex flex-col gap-3 min-h-24">
+								<Skeleton className="h-4 w-32 md:w-40 bg-accent" />
+								<Skeleton className="h-3 w-full bg-accent" />
+								<Skeleton className="h-3 w-24 md:w-28 bg-accent mt-auto" />
+							</CardContent>
+						</Card>
+					))}
 				</div>
 			)}
 
-			{list.length === 0 && !showForm && (
+			{isError && (
+				<Alert variant="destructive">
+					<AlertTriangle />
+					<AlertTitle>Failed to load prompts</AlertTitle>
+					<AlertDescription>Please try refreshing the page.</AlertDescription>
+				</Alert>
+			)}
+
+			{!isLoading && !isError && list.length === 0 && !showForm && (
 				<div className="rounded-lg border border-dashed border-border/60 p-8 text-center">
 					<Sparkles className="mx-auto size-8 text-muted-foreground/40" />
 					<p className="mt-2 text-sm text-muted-foreground">No prompts yet</p>
@@ -249,24 +297,21 @@ export function PromptsContent() {
 				</div>
 			)}
 
-			{list.length > 0 && (
+			{!isLoading && !isError && list.length > 0 && (
 				<div className="space-y-2">
 					{list.map((prompt) => (
 						<div
 							key={prompt.id}
-							className="group flex items-start gap-3 rounded-lg border border-border/60 bg-card p-4"
+							className="group relative flex items-start gap-3 overflow-hidden rounded-lg border border-accent bg-accent/20 p-4 transition-all duration-200 hover:shadow-md"
 						>
-							<div className="mt-0.5 shrink-0 text-muted-foreground">
-								<Sparkles className="size-4" />
-							</div>
 							<div className="flex-1 min-w-0">
 								<div className="flex items-center gap-2">
 									<span className="text-sm font-medium">{prompt.name}</span>
-									<span className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground">
+									<span className="rounded-md border-0 bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
 										{prompt.mode}
 									</span>
 									{prompt.is_public && (
-										<span className="flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary">
+										<span className="flex items-center gap-1 rounded-md border-0 bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
 											<Globe className="size-2.5" />
 											Public
 										</span>
@@ -288,7 +333,7 @@ export function PromptsContent() {
 									</Button>
 								)}
 							</div>
-							<div className="hidden group-hover:flex items-center gap-1 shrink-0">
+							<div className="flex items-center gap-1 shrink-0 opacity-0 pointer-events-none transition-opacity duration-150 group-hover:opacity-100 group-hover:pointer-events-auto">
 								<Button
 									type="button"
 									variant="ghost"
@@ -296,7 +341,7 @@ export function PromptsContent() {
 									title={prompt.is_public ? "Make private" : "Share with community"}
 									onClick={() => handleTogglePublic(prompt)}
 									disabled={togglingPublicIds.has(prompt.id)}
-									className="size-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+									className="h-7 w-7 rounded-lg text-muted-foreground hover:text-accent-foreground"
 								>
 									{togglingPublicIds.has(prompt.id) ? (
 										<Spinner className="size-3.5" />
@@ -309,7 +354,7 @@ export function PromptsContent() {
 								<Button
 									variant="ghost"
 									size="icon"
-									className="size-7"
+									className="h-7 w-7 rounded-lg text-muted-foreground hover:text-accent-foreground"
 									onClick={() => handleEdit(prompt)}
 								>
 									<Pencil className="size-3.5" />
@@ -317,7 +362,7 @@ export function PromptsContent() {
 								<Button
 									variant="ghost"
 									size="icon"
-									className="size-7 text-destructive hover:text-destructive"
+									className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive"
 									onClick={() => setDeleteTarget(prompt.id)}
 								>
 									<Trash2 className="size-3.5" />

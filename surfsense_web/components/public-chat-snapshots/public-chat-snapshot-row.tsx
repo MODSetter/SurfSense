@@ -13,6 +13,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PublicChatSnapshotDetail } from "@/contracts/types/chat-threads.types";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -60,8 +61,8 @@ export function PublicChatSnapshotRow({
 	const member = snapshot.created_by_user_id ? memberMap.get(snapshot.created_by_user_id) : null;
 
 	return (
-		<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
-			<CardContent className="p-4 flex flex-col gap-3 h-full">
+		<Card className="group relative overflow-hidden transition-all duration-200 border-accent bg-accent/20 hover:shadow-md h-full">
+			<CardContent className="p-4 flex flex-col gap-3 h-full min-h-32">
 				{/* Header: Title + Actions */}
 				<div className="relative flex items-center">
 					<h4
@@ -122,33 +123,38 @@ export function PublicChatSnapshotRow({
 				</div>
 
 				{/* Footer: Date + Creator */}
-				<div className="flex items-center gap-2 pt-2 border-t border-border/40 mt-auto">
-					<span className="text-[11px] text-muted-foreground/60">{formattedDate}</span>
-					{member && (
-						<>
-							<Dot className="h-4 w-4 text-muted-foreground/30" />
-							<TooltipProvider>
-								<Tooltip open={isDesktop ? undefined : false}>
-									<TooltipTrigger asChild>
-										<div className="flex items-center gap-1.5 cursor-default">
-											<Avatar className="size-4.5 shrink-0">
-												{member.avatarUrl && (
-													<AvatarImage src={member.avatarUrl} alt={member.name} />
-												)}
-												<AvatarFallback className="text-[9px]">
-													{getInitials(member.name)}
-												</AvatarFallback>
-											</Avatar>
-											<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
-												{member.name}
-											</span>
-										</div>
-									</TooltipTrigger>
-									<TooltipContent side="bottom">{member.email || member.name}</TooltipContent>
-								</Tooltip>
-							</TooltipProvider>
-						</>
-					)}
+				<div className="mt-auto space-y-2">
+					<Separator className="bg-accent" />
+					<div className="flex items-center">
+						<span className="shrink-0 text-[11px] text-muted-foreground/60 whitespace-nowrap">
+							{formattedDate}
+						</span>
+						{member && (
+							<>
+								<Dot className="h-4 w-4 text-muted-foreground/30 shrink-0" />
+								<TooltipProvider>
+									<Tooltip open={isDesktop ? undefined : false}>
+										<TooltipTrigger asChild>
+											<div className="min-w-0 flex items-center gap-1.5 cursor-default">
+												<Avatar className="size-4.5 shrink-0">
+													{member.avatarUrl && (
+														<AvatarImage src={member.avatarUrl} alt={member.name} />
+													)}
+													<AvatarFallback className="text-[9px]">
+														{getInitials(member.name)}
+													</AvatarFallback>
+												</Avatar>
+											<span className="text-[11px] text-muted-foreground/60 truncate">
+													{member.name}
+												</span>
+											</div>
+										</TooltipTrigger>
+										<TooltipContent side="bottom">{member.email || member.name}</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
+							</>
+						)}
+					</div>
 				</div>
 			</CardContent>
 		</Card>

@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -130,7 +131,7 @@ export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 					<Button
 						variant="outline"
 						onClick={openNewDialog}
-						className="gap-2 bg-white text-black hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-black"
+						className="gap-2 border-transparent bg-white text-[#1f1f1f] font-medium hover:bg-zinc-100 hover:text-[#1f1f1f] dark:border-transparent dark:bg-white dark:text-[#1f1f1f]"
 					>
 						Add Model
 					</Button>
@@ -182,16 +183,22 @@ export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 			)}
 
 			{/* Global Configs Info */}
-			{globalConfigs.length > 0 && (
+			{(isLoading || globalConfigs.length > 0) && (
 				<Alert>
 					<Info />
 					<AlertDescription>
-						<p>
-							<span className="font-medium">
-								{globalConfigs.length} global {globalConfigs.length === 1 ? "model" : "models"}
-							</span>{" "}
-							available from your administrator.
-						</p>
+						{isLoading ? (
+							<div className="flex min-h-[1.625em] items-center">
+								<Skeleton className="h-4 w-60 bg-accent-foreground/15" />
+							</div>
+						) : (
+							<p>
+								<span className="font-medium">
+									{globalConfigs.length} global {globalConfigs.length === 1 ? "model" : "models"}
+								</span>{" "}
+								available from your administrator.
+							</p>
+						)}
 					</AlertDescription>
 				</Alert>
 			)}
@@ -200,29 +207,11 @@ export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 			{isLoading && (
 				<div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
 					{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
-						<Card key={key} className="border-border/60">
-							<CardContent className="p-4 flex flex-col gap-3">
-								{/* Header: Icon + Name */}
-								<div className="flex items-start gap-2.5">
-									<Skeleton className="size-4 rounded-full shrink-0 mt-0.5" />
-									<div className="space-y-1.5 flex-1 min-w-0">
-										<Skeleton className="h-4 w-28 md:w-32" />
-										<Skeleton className="h-3 w-40 md:w-48" />
-									</div>
-								</div>
-								{/* Feature badges */}
-								<div className="flex items-center gap-1.5">
-									<Skeleton className="h-5 w-20 rounded-full" />
-								</div>
-								{/* Footer */}
-								<div className="flex items-center pt-2 border-t border-border/40">
-									<Skeleton className="h-3 w-20 flex-1" />
-									<Skeleton className="h-3 w-3 rounded-full shrink-0 mx-1" />
-									<div className="flex-1 flex items-center justify-end gap-1.5">
-										<Skeleton className="h-4 w-4 rounded-full" />
-										<Skeleton className="h-3 w-16" />
-									</div>
-								</div>
+						<Card key={key} className="border-accent bg-accent/20">
+							<CardContent className="p-4 flex flex-col gap-3 min-h-32">
+								<Skeleton className="h-4 w-32 md:w-40 bg-accent" />
+								<Skeleton className="h-3 w-full bg-accent" />
+								<Skeleton className="h-3 w-24 md:w-28 bg-accent mt-auto" />
 							</CardContent>
 						</Card>
 					))}
@@ -252,7 +241,7 @@ export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 
 								return (
 									<div key={config.id}>
-										<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
+										<Card className="group relative overflow-hidden transition-all duration-200 border-accent bg-accent/20 hover:shadow-md h-full">
 											<CardContent className="p-4 flex flex-col gap-3 h-full">
 												{/* Header: Icon + Name + Actions */}
 												<div className="flex items-center justify-between gap-2">
@@ -334,41 +323,44 @@ export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 												</div>
 
 												{/* Footer: Date + Creator */}
-												<div className="flex items-center pt-2 border-t border-border/40 mt-auto">
-													<span className="shrink-0 text-[11px] text-muted-foreground/60 whitespace-nowrap">
-														{new Date(config.created_at).toLocaleDateString(undefined, {
-															year: "numeric",
-															month: "short",
-															day: "numeric",
-														})}
-													</span>
-													{member && (
-														<>
-															<Dot className="h-4 w-4 text-muted-foreground/30 shrink-0" />
-															<TooltipProvider>
-																<Tooltip open={isDesktop ? undefined : false}>
-																	<TooltipTrigger asChild>
-																		<div className="min-w-0 flex items-center gap-1.5 cursor-default">
-																			<Avatar className="size-4.5 shrink-0">
-																				{member.avatarUrl && (
-																					<AvatarImage src={member.avatarUrl} alt={member.name} />
-																				)}
-																				<AvatarFallback className="text-[9px]">
-																					{getInitials(member.name)}
-																				</AvatarFallback>
-																			</Avatar>
-																			<span className="text-[11px] text-muted-foreground/60 truncate">
-																				{member.name}
-																			</span>
-																		</div>
-																	</TooltipTrigger>
-																	<TooltipContent side="bottom">
-																		{member.email || member.name}
-																	</TooltipContent>
-																</Tooltip>
-															</TooltipProvider>
-														</>
-													)}
+												<div className="mt-auto space-y-2">
+													<Separator className="bg-accent" />
+													<div className="flex items-center">
+														<span className="shrink-0 text-[11px] text-muted-foreground/60 whitespace-nowrap">
+															{new Date(config.created_at).toLocaleDateString(undefined, {
+																year: "numeric",
+																month: "short",
+																day: "numeric",
+															})}
+														</span>
+														{member && (
+															<>
+																<Dot className="h-4 w-4 text-muted-foreground/30 shrink-0" />
+																<TooltipProvider>
+																	<Tooltip open={isDesktop ? undefined : false}>
+																		<TooltipTrigger asChild>
+																			<div className="min-w-0 flex items-center gap-1.5 cursor-default">
+																				<Avatar className="size-4.5 shrink-0">
+																					{member.avatarUrl && (
+																						<AvatarImage src={member.avatarUrl} alt={member.name} />
+																					)}
+																					<AvatarFallback className="text-[9px]">
+																						{getInitials(member.name)}
+																					</AvatarFallback>
+																				</Avatar>
+																				<span className="text-[11px] text-muted-foreground/60 truncate">
+																					{member.name}
+																				</span>
+																			</div>
+																		</TooltipTrigger>
+																		<TooltipContent side="bottom">
+																			{member.email || member.name}
+																		</TooltipContent>
+																	</Tooltip>
+																</TooltipProvider>
+															</>
+														)}
+													</div>
 												</div>
 											</CardContent>
 										</Card>

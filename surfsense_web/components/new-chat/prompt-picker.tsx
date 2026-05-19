@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Plus, Zap } from "lucide-react";
+import { Plus, WandSparkles } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import {
 	forwardRef,
@@ -173,7 +173,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 								)}
 							>
 								<span className="shrink-0 text-muted-foreground">
-									<Zap className="size-4" />
+									<WandSparkles className="size-4" />
 								</span>
 								<span className="flex-1 text-sm truncate">{action.name}</span>
 							</Button>

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApiKey } from "@/hooks/use-api-key";
 import { copyToClipboard as copyToClipboardUtil } from "@/lib/utils";
@@ -35,7 +36,12 @@ export function ApiKeyContent() {
 			<div className="min-w-0 overflow-hidden">
 				<h3 className="mb-4 text-sm font-semibold tracking-tight">{t("your_api_key")}</h3>
 				{isLoading ? (
-					<div className="h-12 w-full animate-pulse rounded-md border border-border/60 bg-muted/30" />
+					<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
+						<div className="min-w-0 flex-1 overflow-hidden">
+							<Skeleton className="h-3 w-full bg-accent" />
+						</div>
+						<div className="h-6 w-6 shrink-0" />
+					</div>
 				) : apiKey ? (
 					<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
 						<div className="min-w-0 flex-1 overflow-x-auto scrollbar-hide">

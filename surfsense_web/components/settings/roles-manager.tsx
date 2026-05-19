@@ -349,14 +349,14 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 function PermissionsBadge({ permissions }: { permissions: string[] }) {
 	if (permissions.includes("*")) {
 		return (
-			<div className="px-2.5 py-1 rounded-md bg-muted/50 border border-border/60 text-muted-foreground">
-				<span className="text-xs font-medium whitespace-nowrap">Full access</span>
+			<div className="rounded-md border-0 bg-muted px-1.5 py-0.5 text-muted-foreground">
+				<span className="text-[10px] font-medium whitespace-nowrap">Full access</span>
 			</div>
 		);
 	}
 	return (
-		<div className="px-2.5 py-1 rounded-md border border-border/60 bg-muted/50 text-muted-foreground">
-			<span className="text-xs font-medium whitespace-nowrap">
+		<div className="rounded-md border-0 bg-muted px-1.5 py-0.5 text-muted-foreground">
+			<span className="text-[10px] font-medium whitespace-nowrap">
 				{permissions.length} permissions
 			</span>
 		</div>

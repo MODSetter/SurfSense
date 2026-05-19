@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -87,16 +86,16 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 	if (loading) {
 		return (
 			<div className="space-y-4 md:space-y-6">
-				<Card>
-					<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
+				<div className="space-y-3 md:space-y-4">
+					<div className="space-y-2">
 						<Skeleton className="h-5 md:h-6 w-36 md:w-48" />
 						<Skeleton className="h-3 md:h-4 w-full max-w-md mt-2" />
-					</CardHeader>
-					<CardContent className="space-y-3 md:space-y-4 px-3 md:px-6 pb-3 md:pb-6">
+					</div>
+					<div className="space-y-3 md:space-y-4">
 						<Skeleton className="h-16 md:h-20 w-full" />
 						<Skeleton className="h-24 md:h-32 w-full" />
-					</CardContent>
-				</Card>
+					</div>
+				</div>
 			</div>
 		);
 	}
@@ -124,15 +123,17 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 
 			{/* System Instructions Card */}
 			<form onSubmit={onSubmit} className="space-y-4 md:space-y-6">
-				<Card>
-					<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
-						<CardTitle className="text-base md:text-lg">Custom System Instructions</CardTitle>
-						<CardDescription className="text-xs md:text-sm">
+				<div className="space-y-3 md:space-y-4">
+					<div className="space-y-1.5 md:space-y-2">
+						<h3 className="text-base md:text-lg font-semibold tracking-tight">
+							Custom System Instructions
+						</h3>
+						<p className="text-xs md:text-sm text-muted-foreground">
 							Provide specific guidelines for how you want the AI to respond. These instructions
 							will be applied to all answers in this search space.
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-3 md:space-y-4 px-3 md:px-6 pb-3 md:pb-6">
+						</p>
+					</div>
+					<div className="space-y-3 md:space-y-4">
 						<div className="space-y-1.5 md:space-y-2">
 							<Label
 								htmlFor="custom-instructions-settings"
@@ -174,8 +175,8 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 								</AlertDescription>
 							</Alert>
 						)}
-					</CardContent>
-				</Card>
+					</div>
+				</div>
 
 				{/* Action Buttons */}
 				<div className="flex justify-end pt-3 md:pt-4">
