@@ -251,7 +251,7 @@ export function LLMConfigForm({
 												role="combobox"
 												aria-expanded={modelComboboxOpen}
 												className={cn(
-													"w-full justify-between font-normal bg-transparent",
+													"w-full justify-between border-popover-border bg-transparent font-normal",
 													!field.value && "text-muted-foreground"
 												)}
 											>

@@ -441,7 +441,12 @@ export function LayoutShell({
 						/>
 					) : null}
 					<div className="flex min-h-0 flex-1 w-full gap-2 px-2 py-0 overflow-hidden">
-						<div className="hidden md:flex overflow-hidden -mr-2 pr-2 bg-rail">
+						<div
+							className={cn(
+								"hidden md:flex overflow-hidden -mr-2 pr-2 bg-rail",
+								!isMacDesktop && "border-r"
+							)}
+						>
 							<IconRail
 								searchSpaces={searchSpaces}
 								activeSearchSpaceId={activeSearchSpaceId}
