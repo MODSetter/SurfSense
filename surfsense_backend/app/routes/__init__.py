@@ -54,6 +54,7 @@ from .search_spaces_routes import router as search_spaces_router
 from .slack_add_connector_route import router as slack_add_connector_router
 from .stripe_routes import router as stripe_router
 from .surfsense_docs_routes import router as surfsense_docs_router
+from .team_memory_routes import router as team_memory_router
 from .teams_add_connector_route import router as teams_add_connector_router
 from .video_presentations_routes import router as video_presentations_router
 from .vision_llm_routes import router as vision_llm_router
@@ -117,3 +118,4 @@ router.include_router(stripe_router)  # Stripe checkout for additional page pack
 router.include_router(youtube_router)  # YouTube playlist resolution
 router.include_router(prompts_router)
 router.include_router(memory_router)  # User personal memory (memory.md style)
+router.include_router(team_memory_router)  # Search-space team memory
