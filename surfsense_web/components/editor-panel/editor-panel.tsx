@@ -21,8 +21,10 @@ import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { getMemoryLimitState, type MemoryLimits } from "@/hooks/use-memory";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 import { inferMonacoLanguageFromPath } from "@/lib/editor-language";
@@ -127,6 +129,7 @@ export function EditorPanelContent({
 	const [saving, setSaving] = useState(false);
 	const [downloading, setDownloading] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
+	const [memoryLimits, setMemoryLimits] = useState<MemoryLimits | null>(null);
 
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
 	const [localFileContent, setLocalFileContent] = useState("");
@@ -168,6 +171,7 @@ export function EditorPanelContent({
 		setLocalFileContent("");
 		setHasCopied(false);
 		setIsEditing(false);
+		setMemoryLimits(null);
 		initialLoadDone.current = false;
 		changeCountRef.current = 0;
 
@@ -221,7 +225,11 @@ export function EditorPanelContent({
 							.catch(() => ({ detail: "Failed to fetch memory" }));
 						throw new Error(errorData.detail || "Failed to fetch memory");
 					}
-					const data = (await response.json()) as { memory_md?: string };
+					const data = (await response.json()) as {
+						memory_md?: string;
+						limits?: MemoryLimits;
+					};
+					setMemoryLimits(data.limits ?? null);
 					const content: EditorContent = {
 						document_id: memoryScope === "team" ? -1002 : -1001,
 						title: title || (memoryScope === "team" ? "Team Memory" : "Personal Memory"),
@@ -376,9 +384,13 @@ export function EditorPanelContent({
 							.catch(() => ({ detail: "Failed to save memory" }));
 						throw new Error(errorData.detail || "Failed to save memory");
 					}
-					const data = (await response.json()) as { memory_md?: string };
+					const data = (await response.json()) as {
+						memory_md?: string;
+						limits?: MemoryLimits;
+					};
 					const savedContent = data.memory_md ?? markdownRef.current;
 					markdownRef.current = savedContent;
+					setMemoryLimits(data.limits ?? memoryLimits);
 					setEditorDoc((prev) => (prev ? { ...prev, source_markdown: savedContent } : prev));
 					setEditedMarkdown(null);
 					if (!options?.silent) {
@@ -434,6 +446,7 @@ export function EditorPanelContent({
 			isLocalFileMode,
 			isMemoryMode,
 			localFilePath,
+			memoryLimits,
 			memoryScope,
 			resolveLocalVirtualPath,
 			searchSpaceId,
@@ -455,6 +468,17 @@ export function EditorPanelContent({
 	const showDesktopHeader = !!onClose;
 	const showEditingActions = isEditableType && isEditing;
 	const localFileLanguage = inferMonacoLanguageFromPath(localFilePath);
+	const activeMarkdown = editedMarkdown ?? editorDoc?.source_markdown ?? "";
+	const memoryLimitState = isMemoryMode
+		? getMemoryLimitState(activeMarkdown.length, memoryLimits)
+		: null;
+	const memoryCounterClassName =
+		memoryLimitState?.level === "error"
+			? "text-red-500"
+			: memoryLimitState?.level === "warning"
+				? "text-orange-500"
+				: "text-muted-foreground";
+	const saveDisabled = saving || !hasUnsavedChanges || (memoryLimitState?.isOverLimit ?? false);
 
 	const handleCancelEditing = useCallback(() => {
 		const savedContent = editorDoc?.source_markdown ?? "";
@@ -540,6 +564,17 @@ export function EditorPanelContent({
 					<div className="grid h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
 						<div className="min-w-0 flex flex-1 items-center gap-2">
 							<p className="truncate text-sm text-muted-foreground">{displayTitle}</p>
+							{memoryLimitState && (
+								<>
+									<Separator
+										orientation="vertical"
+										className="mx-1 bg-border data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-white/10"
+									/>
+									<span className={`shrink-0 text-xs ${memoryCounterClassName}`}>
+										{memoryLimitState.label}
+									</span>
+								</>
+							)}
 						</div>
 						<div className="flex items-center gap-1 shrink-0">
 							{showEditingActions ? (
@@ -561,7 +596,7 @@ export function EditorPanelContent({
 											const saveSucceeded = await handleSave({ silent: true });
 											if (saveSucceeded) setIsEditing(false);
 										}}
-										disabled={saving || !hasUnsavedChanges}
+										disabled={saveDisabled}
 									>
 										<span className={saving ? "opacity-0" : ""}>Save</span>
 										{saving && <Spinner size="xs" className="absolute" />}
@@ -613,6 +648,17 @@ export function EditorPanelContent({
 				<div className="flex h-14 items-center justify-between border-b px-4 shrink-0">
 					<div className="flex flex-1 min-w-0 items-center gap-2">
 						<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
+						{memoryLimitState && (
+							<>
+								<Separator
+									orientation="vertical"
+									className="mx-1 bg-border data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-white/10"
+								/>
+								<span className={`shrink-0 text-xs ${memoryCounterClassName}`}>
+									{memoryLimitState.label}
+								</span>
+							</>
+						)}
 					</div>
 					<div className="flex items-center gap-1 shrink-0">
 						{showEditingActions ? (
@@ -634,7 +680,7 @@ export function EditorPanelContent({
 										const saveSucceeded = await handleSave({ silent: true });
 										if (saveSucceeded) setIsEditing(false);
 									}}
-									disabled={saving || !hasUnsavedChanges}
+									disabled={saveDisabled}
 								>
 									<span className={saving ? "opacity-0" : ""}>Save</span>
 									{saving && <Spinner size="xs" className="absolute" />}

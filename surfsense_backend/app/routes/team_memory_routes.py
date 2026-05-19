@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import User, get_async_session
 from app.services.memory import (
+    MemoryRead,
     MemoryScope,
+    memory_limits,
     read_memory,
     reset_memory,
     save_memory,
@@ -19,15 +21,11 @@ from app.utils.rbac import check_search_space_access
 router = APIRouter()
 
 
-class TeamMemoryRead(BaseModel):
-    memory_md: str
-
-
 class TeamMemoryUpdate(BaseModel):
     memory_md: str
 
 
-@router.get("/searchspaces/{search_space_id}/memory", response_model=TeamMemoryRead)
+@router.get("/searchspaces/{search_space_id}/memory", response_model=MemoryRead)
 async def get_team_memory(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -39,10 +37,10 @@ async def get_team_memory(
         target_id=search_space_id,
         session=session,
     )
-    return TeamMemoryRead(memory_md=memory_md)
+    return MemoryRead(memory_md=memory_md, limits=memory_limits())
 
 
-@router.put("/searchspaces/{search_space_id}/memory", response_model=TeamMemoryRead)
+@router.put("/searchspaces/{search_space_id}/memory", response_model=MemoryRead)
 async def update_team_memory(
     search_space_id: int,
     body: TeamMemoryUpdate,
@@ -58,10 +56,10 @@ async def update_team_memory(
     )
     if result.status == "error":
         raise HTTPException(status_code=400, detail=result.message)
-    return TeamMemoryRead(memory_md=result.memory_md)
+    return MemoryRead(memory_md=result.memory_md, limits=memory_limits())
 
 
-@router.post("/searchspaces/{search_space_id}/memory/reset", response_model=TeamMemoryRead)
+@router.post("/searchspaces/{search_space_id}/memory/reset", response_model=MemoryRead)
 async def reset_team_memory(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -75,4 +73,4 @@ async def reset_team_memory(
     )
     if result.status == "error":
         raise HTTPException(status_code=400, detail=result.message)
-    return TeamMemoryRead(memory_md=result.memory_md)
+    return MemoryRead(memory_md=result.memory_md, limits=memory_limits())

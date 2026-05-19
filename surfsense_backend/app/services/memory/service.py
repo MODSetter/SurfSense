@@ -9,7 +9,6 @@ from typing import Any, Literal
 from uuid import UUID
 
 from langchain_core.messages import HumanMessage
-from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,9 +18,10 @@ from app.services.memory.prompts import (
     USER_MEMORY_EXTRACT_PROMPT,
 )
 from app.services.memory.rewrite import forced_rewrite
-from app.services.memory.schemas import MemoryExtractionDecision
+from app.services.memory.schemas import MemoryExtractionDecision, MemoryLimits
 from app.services.memory.validation import (
     MEMORY_HARD_LIMIT,
+    MEMORY_SOFT_LIMIT,
     soft_limit_warning,
     strip_preamble_to_first_heading,
     validate_bullet_format,
@@ -68,8 +68,8 @@ class SaveResult:
         return data
 
 
-class MemoryRead(BaseModel):
-    memory_md: str
+def memory_limits() -> MemoryLimits:
+    return MemoryLimits(soft=MEMORY_SOFT_LIMIT, hard=MEMORY_HARD_LIMIT)
 
 
 def _normalize_scope(scope: MemoryScope | str) -> MemoryScope:

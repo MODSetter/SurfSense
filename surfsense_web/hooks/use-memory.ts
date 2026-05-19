@@ -4,13 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { baseApiService } from "@/lib/apis/base-api.service";
 
-export const MEMORY_HARD_LIMIT = 25_000;
+const MemoryLimitsSchema = z.object({
+	soft: z.number(),
+	hard: z.number(),
+});
 
 const MemoryReadSchema = z.object({
 	memory_md: z.string(),
+	limits: MemoryLimitsSchema,
 });
 
 type MemoryScope = "user" | "team";
+export type MemoryLimits = z.infer<typeof MemoryLimitsSchema>;
+export type MemoryLimitLevel = "ok" | "warning" | "error";
 
 interface UseMemoryOptions {
 	scope: MemoryScope;
@@ -31,8 +37,30 @@ export function stripMemoryDisplayPrefixes(memory: string) {
 	);
 }
 
+export function getMemoryLimitState(length: number, limits?: MemoryLimits | null) {
+	if (!limits) {
+		return {
+			level: "ok" as MemoryLimitLevel,
+			label: `${length.toLocaleString()} chars`,
+			isOverLimit: false,
+		};
+	}
+
+	const isOverLimit = length > limits.hard;
+	const isNearLimit = length > limits.soft;
+	const level: MemoryLimitLevel = isOverLimit ? "error" : isNearLimit ? "warning" : "ok";
+	const suffix = isOverLimit ? " - Exceeds limit" : isNearLimit ? " - Approaching limit" : "";
+
+	return {
+		level,
+		label: `${length.toLocaleString()}/${limits.hard.toLocaleString()} chars${suffix}`,
+		isOverLimit,
+	};
+}
+
 export function useMemory({ scope, searchSpaceId, autoLoad = true }: UseMemoryOptions) {
 	const [memory, setMemory] = useState("");
+	const [limits, setLimits] = useState<MemoryLimits | null>(null);
 	const [loading, setLoading] = useState(autoLoad);
 	const [saving, setSaving] = useState(false);
 
@@ -41,6 +69,7 @@ export function useMemory({ scope, searchSpaceId, autoLoad = true }: UseMemoryOp
 		try {
 			const data = await baseApiService.get(getMemoryPath(scope, searchSpaceId), MemoryReadSchema);
 			setMemory(data.memory_md);
+			setLimits(data.limits);
 			return data.memory_md;
 		} finally {
 			setLoading(false);
@@ -66,6 +95,7 @@ export function useMemory({ scope, searchSpaceId, autoLoad = true }: UseMemoryOp
 					}
 				);
 				setMemory(data.memory_md);
+				setLimits(data.limits);
 				return data.memory_md;
 			} finally {
 				setSaving(false);
@@ -82,6 +112,7 @@ export function useMemory({ scope, searchSpaceId, autoLoad = true }: UseMemoryOp
 				MemoryReadSchema
 			);
 			setMemory(data.memory_md);
+			setLimits(data.limits);
 			return data.memory_md;
 		} finally {
 			setSaving(false);
@@ -91,6 +122,7 @@ export function useMemory({ scope, searchSpaceId, autoLoad = true }: UseMemoryOp
 	return {
 		memory,
 		setMemory,
+		limits,
 		displayMemory: stripMemoryDisplayPrefixes(memory),
 		loading,
 		saving,

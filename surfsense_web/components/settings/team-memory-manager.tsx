@@ -12,14 +12,14 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { MEMORY_HARD_LIMIT, useTeamMemory } from "@/hooks/use-memory";
+import { getMemoryLimitState, useTeamMemory } from "@/hooks/use-memory";
 
 interface TeamMemoryManagerProps {
 	searchSpaceId: number;
 }
 
 export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
-	const { memory, displayMemory, loading, saving, reset } = useTeamMemory(searchSpaceId);
+	const { memory, displayMemory, limits, loading, saving, reset } = useTeamMemory(searchSpaceId);
 
 	const handleClear = async () => {
 		try {
@@ -58,11 +58,11 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 	};
 
 	const charCount = memory.length;
+	const limitState = getMemoryLimitState(charCount, limits);
 
 	const getCounterColor = () => {
-		if (charCount > MEMORY_HARD_LIMIT) return "text-red-500";
-		if (charCount > 15_000) return "text-orange-500";
-		if (charCount > 10_000) return "text-yellow-500";
+		if (limitState.level === "error") return "text-red-500";
+		if (limitState.level === "warning") return "text-orange-500";
 		return "text-muted-foreground";
 	};
 
@@ -113,13 +113,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 			</div>
 
 			<div className="flex items-center justify-between gap-2">
-				<span className={`text-xs shrink-0 ${getCounterColor()}`}>
-					{charCount.toLocaleString()} / {MEMORY_HARD_LIMIT.toLocaleString()}
-					<span className="hidden sm:inline"> characters</span>
-					<span className="sm:hidden"> chars</span>
-					{charCount > 15_000 && charCount <= MEMORY_HARD_LIMIT && " - Approaching limit"}
-					{charCount > MEMORY_HARD_LIMIT && " - Exceeds limit"}
-				</span>
+				<span className={`text-xs shrink-0 ${getCounterColor()}`}>{limitState.label}</span>
 				<div className="flex items-center gap-1.5 sm:gap-2">
 					<Button
 						type="button"

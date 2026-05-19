@@ -1,9 +1,11 @@
 """First-class memory service for user and team markdown memory."""
 
+from .schemas import MemoryLimits, MemoryRead
 from .service import (
     MemoryScope,
     SaveResult,
     extract_and_save,
+    memory_limits,
     read_memory,
     reset_memory,
     save_memory,
@@ -18,9 +20,12 @@ from .validation import (
 __all__ = [
     "MEMORY_HARD_LIMIT",
     "MEMORY_SOFT_LIMIT",
+    "MemoryLimits",
+    "MemoryRead",
     "MemoryScope",
     "SaveResult",
     "extract_and_save",
+    "memory_limits",
     "read_memory",
     "reset_memory",
     "save_memory",

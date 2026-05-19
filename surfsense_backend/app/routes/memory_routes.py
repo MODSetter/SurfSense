@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import User, get_async_session
 from app.services.memory import (
+    MemoryRead,
     MemoryScope,
+    memory_limits,
     read_memory,
     reset_memory,
     save_memory,
@@ -16,10 +18,6 @@ from app.services.memory import (
 from app.users import current_active_user
 
 router = APIRouter()
-
-
-class MemoryRead(BaseModel):
-    memory_md: str
 
 
 class MemoryUpdate(BaseModel):
@@ -36,7 +34,7 @@ async def get_user_memory(
         target_id=user.id,
         session=session,
     )
-    return MemoryRead(memory_md=memory_md)
+    return MemoryRead(memory_md=memory_md, limits=memory_limits())
 
 
 @router.put("/users/me/memory", response_model=MemoryRead)
@@ -53,7 +51,7 @@ async def update_user_memory(
     )
     if result.status == "error":
         raise HTTPException(status_code=400, detail=result.message)
-    return MemoryRead(memory_md=result.memory_md)
+    return MemoryRead(memory_md=result.memory_md, limits=memory_limits())
 
 
 @router.post("/users/me/memory/reset", response_model=MemoryRead)
@@ -68,4 +66,4 @@ async def reset_user_memory(
     )
     if result.status == "error":
         raise HTTPException(status_code=400, detail=result.message)
-    return MemoryRead(memory_md=result.memory_md)
+    return MemoryRead(memory_md=result.memory_md, limits=memory_limits())
