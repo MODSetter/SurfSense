@@ -9,6 +9,7 @@ import {
 	MoreHorizontal,
 	Move,
 	Pencil,
+	RotateCcw,
 	Trash2,
 } from "lucide-react";
 import React, { useCallback, useRef, useState } from "react";
@@ -61,8 +62,13 @@ interface DocumentNodeProps {
 	onEdit: (doc: DocumentNodeDoc) => void;
 	onDelete: (doc: DocumentNodeDoc) => void;
 	onMove: (doc: DocumentNodeDoc) => void;
+	onReset?: (doc: DocumentNodeDoc) => void;
 	onExport?: (doc: DocumentNodeDoc, format: string) => void;
 	onVersionHistory?: (doc: DocumentNodeDoc) => void;
+	canDelete?: boolean;
+	canMove?: boolean;
+	canMention?: boolean;
+	canEdit?: boolean;
 	contextMenuOpen?: boolean;
 	onContextMenuOpenChange?: (open: boolean) => void;
 }
@@ -76,8 +82,13 @@ export const DocumentNode = React.memo(function DocumentNode({
 	onEdit,
 	onDelete,
 	onMove,
+	onReset,
 	onExport,
 	onVersionHistory,
+	canDelete = true,
+	canMove = true,
+	canMention = true,
+	canEdit = true,
 	contextMenuOpen,
 	onContextMenuOpenChange,
 }: DocumentNodeProps) {
@@ -85,8 +96,13 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const isFailed = statusState === "failed";
 	const isProcessing = statusState === "pending" || statusState === "processing";
 	const isUnavailable = isProcessing || isFailed;
-	const isSelectable = !isUnavailable;
-	const isEditable = EDITABLE_DOCUMENT_TYPES.has(doc.document_type) && !isUnavailable;
+	const isMemoryDocument =
+		doc.document_type === "USER_MEMORY" || doc.document_type === "TEAM_MEMORY";
+	const isSelectable = canMention && !isUnavailable;
+	const isEditable =
+		canEdit &&
+		(isMemoryDocument || EDITABLE_DOCUMENT_TYPES.has(doc.document_type)) &&
+		!isUnavailable;
 
 	const handleCheckChange = useCallback(() => {
 		if (isSelectable) {
@@ -94,13 +110,22 @@ export const DocumentNode = React.memo(function DocumentNode({
 		}
 	}, [doc, isMentioned, isSelectable, onToggleChatMention]);
 
+	const handlePrimaryClick = useCallback(() => {
+		if (canMention) {
+			handleCheckChange();
+			return;
+		}
+		onPreview(doc);
+	}, [canMention, doc, handleCheckChange, onPreview]);
+
 	const [{ isDragging }, drag] = useDrag(
 		() => ({
 			type: DND_TYPES.DOCUMENT,
 			item: { id: doc.id },
+			canDrag: canMove,
 			collect: (monitor) => ({ isDragging: monitor.isDragging() }),
 		}),
-		[doc.id]
+		[canMove, doc.id]
 	);
 
 	const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -130,9 +155,11 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const attachRef = useCallback(
 		(node: HTMLDivElement | null) => {
 			(rowRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-			drag(node);
+			if (canMove) {
+				drag(node);
+			}
 		},
-		[drag]
+		[canMove, drag]
 	);
 
 	return (
@@ -187,12 +214,39 @@ export const DocumentNode = React.memo(function DocumentNode({
 							);
 						}
 						return (
-							<Checkbox
-								checked={isMentioned}
-								onCheckedChange={handleCheckChange}
-								onClick={(e) => e.stopPropagation()}
-								className="h-3.5 w-3.5 shrink-0"
-							/>
+							<>
+								{isMemoryDocument ? (
+									<button
+										type="button"
+										aria-disabled="true"
+										tabIndex={-1}
+										className="h-3.5 w-3.5 shrink-0 cursor-default"
+										onClick={(e) => e.stopPropagation()}
+										onPointerDown={(e) => e.stopPropagation()}
+									>
+										<Checkbox
+											checked={false}
+											disabled
+											aria-disabled
+											className="h-3.5 w-3.5 pointer-events-none"
+										/>
+									</button>
+								) : canMention ? (
+									<Checkbox
+										checked={isMentioned}
+										onCheckedChange={handleCheckChange}
+										onClick={(e) => e.stopPropagation()}
+										className="h-3.5 w-3.5 shrink-0"
+									/>
+								) : (
+									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+										{getDocumentTypeIcon(
+											doc.document_type as DocumentTypeEnum,
+											"h-3.5 w-3.5 text-muted-foreground"
+										)}
+									</span>
+								)}
+							</>
 						);
 					})()}
 
@@ -205,8 +259,8 @@ export const DocumentNode = React.memo(function DocumentNode({
 							<Button
 								type="button"
 								variant="ghost"
-								aria-disabled={!isSelectable}
-								onClick={handleCheckChange}
+								aria-disabled={canMention ? !isSelectable : false}
+								onClick={handlePrimaryClick}
 								className="h-full min-w-0 flex-1 justify-start bg-transparent px-0 py-0 text-left font-normal text-inherit hover:bg-transparent hover:text-inherit"
 							>
 								<span ref={titleRef} className="min-w-0 flex-1 truncate">
@@ -268,10 +322,12 @@ export const DocumentNode = React.memo(function DocumentNode({
 										Edit
 									</DropdownMenuItem>
 								)}
-								<DropdownMenuItem onClick={() => onMove(doc)}>
-									<Move className="mr-2 h-4 w-4" />
-									Move to...
-								</DropdownMenuItem>
+								{canMove && (
+									<DropdownMenuItem onClick={() => onMove(doc)}>
+										<Move className="mr-2 h-4 w-4" />
+										Move to...
+									</DropdownMenuItem>
+								)}
 								{onExport && (
 									<DropdownMenuSub>
 										<DropdownMenuSubTrigger disabled={isUnavailable}>
@@ -289,10 +345,18 @@ export const DocumentNode = React.memo(function DocumentNode({
 										Versions
 									</DropdownMenuItem>
 								)}
-								<DropdownMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
-									<Trash2 className="mr-2 h-4 w-4" />
-									Delete
-								</DropdownMenuItem>
+								{isMemoryDocument && onReset && (
+									<DropdownMenuItem onClick={() => onReset(doc)}>
+										<RotateCcw className="mr-2 h-4 w-4" />
+										Reset
+									</DropdownMenuItem>
+								)}
+								{canDelete && (
+									<DropdownMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
+										<Trash2 className="mr-2 h-4 w-4" />
+										Delete
+									</DropdownMenuItem>
+								)}
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</span>
@@ -311,10 +375,12 @@ export const DocumentNode = React.memo(function DocumentNode({
 							Edit
 						</ContextMenuItem>
 					)}
-					<ContextMenuItem onClick={() => onMove(doc)}>
-						<Move className="mr-2 h-4 w-4" />
-						Move to...
-					</ContextMenuItem>
+					{canMove && (
+						<ContextMenuItem onClick={() => onMove(doc)}>
+							<Move className="mr-2 h-4 w-4" />
+							Move to...
+						</ContextMenuItem>
+					)}
 					{onExport && (
 						<ContextMenuSub>
 							<ContextMenuSubTrigger disabled={isUnavailable}>
@@ -332,10 +398,18 @@ export const DocumentNode = React.memo(function DocumentNode({
 							Versions
 						</ContextMenuItem>
 					)}
-					<ContextMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
-						<Trash2 className="mr-2 h-4 w-4" />
-						Delete
-					</ContextMenuItem>
+					{isMemoryDocument && onReset && (
+						<ContextMenuItem onClick={() => onReset(doc)}>
+							<RotateCcw className="mr-2 h-4 w-4" />
+							Reset
+						</ContextMenuItem>
+					)}
+					{canDelete && (
+						<ContextMenuItem disabled={isProcessing} onClick={() => onDelete(doc)}>
+							<Trash2 className="mr-2 h-4 w-4" />
+							Delete
+						</ContextMenuItem>
+					)}
 				</ContextMenuContent>
 			)}
 		</ContextMenu>

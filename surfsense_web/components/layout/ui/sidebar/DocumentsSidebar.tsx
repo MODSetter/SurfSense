@@ -88,7 +88,31 @@ const DesktopLocalTabContent = dynamic(
 	{ ssr: false }
 );
 
-const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = ["SURFSENSE_DOCS"];
+const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = [
+	"SURFSENSE_DOCS",
+	"USER_MEMORY",
+	"TEAM_MEMORY",
+];
+const MEMORY_DOCUMENTS: DocumentNodeDoc[] = [
+	{
+		id: -1001,
+		title: "MEMORY.md",
+		document_type: "USER_MEMORY",
+		folderId: null,
+		status: { state: "ready" },
+	},
+	{
+		id: -1002,
+		title: "TEAM_MEMORY.md",
+		document_type: "TEAM_MEMORY",
+		folderId: null,
+		status: { state: "ready" },
+	},
+];
+
+function isMemoryDocument(doc: { document_type: string }) {
+	return doc.document_type === "USER_MEMORY" || doc.document_type === "TEAM_MEMORY";
+}
 const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
 const MAX_LOCAL_FILESYSTEM_ROOTS = 10;
 
@@ -879,6 +903,7 @@ function AuthenticatedDocumentsSidebarBase({
 
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
+			if (isMemoryDocument(doc)) return;
 			const key = getMentionDocKey({ ...doc, kind: "doc" });
 			if (isMentioned) {
 				setSidebarDocs((prev) => prev.filter((d) => getMentionDocKey(d) !== key));
@@ -927,11 +952,66 @@ function AuthenticatedDocumentsSidebarBase({
 		[treeFolders, setSidebarDocs]
 	);
 
+	const treeDocumentsWithMemory = useMemo(
+		() => [...MEMORY_DOCUMENTS, ...treeDocuments],
+		[treeDocuments]
+	);
+
 	const searchFilteredDocuments = useMemo(() => {
 		const query = debouncedSearch.trim().toLowerCase();
-		if (!query) return treeDocuments;
-		return treeDocuments.filter((d) => d.title.toLowerCase().includes(query));
-	}, [treeDocuments, debouncedSearch]);
+		if (!query) return treeDocumentsWithMemory;
+		return treeDocumentsWithMemory.filter((d) => d.title.toLowerCase().includes(query));
+	}, [treeDocumentsWithMemory, debouncedSearch]);
+
+	const openMemoryDocument = useCallback(
+		(doc: DocumentNodeDoc) => {
+			if (doc.document_type === "USER_MEMORY") {
+				openEditorPanel({
+					kind: "memory",
+					memoryScope: "user",
+					searchSpaceId,
+					title: doc.title,
+				});
+				return true;
+			}
+			if (doc.document_type === "TEAM_MEMORY") {
+				openEditorPanel({
+					kind: "memory",
+					memoryScope: "team",
+					searchSpaceId,
+					title: doc.title,
+				});
+				return true;
+			}
+			return false;
+		},
+		[openEditorPanel, searchSpaceId]
+	);
+
+	const handleResetMemoryDocument = useCallback(
+		async (doc: DocumentNodeDoc) => {
+			if (!isMemoryDocument(doc)) return;
+			if (!window.confirm(`Reset ${doc.title.toLowerCase()}? This clears the memory document.`)) {
+				return;
+			}
+			const endpoint =
+				doc.document_type === "USER_MEMORY"
+					? `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/users/me/memory/reset`
+					: `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/memory/reset`;
+			try {
+				const response = await authenticatedFetch(endpoint, { method: "POST" });
+				if (!response.ok) {
+					const errorData = await response.json().catch(() => ({ detail: "Reset failed" }));
+					throw new Error(errorData.detail || "Reset failed");
+				}
+				toast.success(`${doc.title} reset`);
+				openMemoryDocument(doc);
+			} catch (error) {
+				toast.error((error as Error)?.message || `Failed to reset ${doc.title.toLowerCase()}`);
+			}
+		},
+		[openMemoryDocument, searchSpaceId]
+	);
 
 	const typeCounts = useMemo(() => {
 		const counts: Partial<Record<string, number>> = {};
@@ -1169,6 +1249,7 @@ function AuthenticatedDocumentsSidebarBase({
 							onCreateFolder={handleCreateFolder}
 							searchQuery={debouncedSearch.trim() || undefined}
 							onPreviewDocument={(doc) => {
+								if (openMemoryDocument(doc)) return;
 								openEditorPanel({
 									documentId: doc.id,
 									searchSpaceId,
@@ -1176,6 +1257,7 @@ function AuthenticatedDocumentsSidebarBase({
 								});
 							}}
 							onEditDocument={(doc) => {
+								if (openMemoryDocument(doc)) return;
 								openEditorPanel({
 									documentId: doc.id,
 									searchSpaceId,
@@ -1184,6 +1266,7 @@ function AuthenticatedDocumentsSidebarBase({
 							}}
 							onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
 							onMoveDocument={handleMoveDocument}
+							onResetDocument={handleResetMemoryDocument}
 							onExportDocument={handleExportDocument}
 							onVersionHistory={(doc) => setVersionDocId(doc.id)}
 							activeTypes={activeTypes}

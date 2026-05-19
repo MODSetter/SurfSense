@@ -107,13 +107,15 @@ export function EditorPanelContent({
 	kind = "document",
 	documentId,
 	localFilePath,
+	memoryScope,
 	searchSpaceId,
 	title,
 	onClose,
 }: {
-	kind?: "document" | "local_file";
+	kind?: "document" | "local_file" | "memory";
 	documentId?: number;
 	localFilePath?: string;
+	memoryScope?: "user" | "team";
 	searchSpaceId?: number;
 	title: string | null;
 	onClose?: () => void;
@@ -135,6 +137,7 @@ export function EditorPanelContent({
 	const changeCountRef = useRef(0);
 	const [displayTitle, setDisplayTitle] = useState(title || "Untitled");
 	const isLocalFileMode = kind === "local_file";
+	const isMemoryMode = kind === "memory";
 	const editorRenderMode: EditorRenderMode = isLocalFileMode ? "source_code" : "rich_markdown";
 
 	const resolveLocalVirtualPath = useCallback(
@@ -199,6 +202,39 @@ export function EditorPanelContent({
 					initialLoadDone.current = true;
 					return;
 				}
+				if (isMemoryMode) {
+					if (memoryScope === "team" && !searchSpaceId) {
+						throw new Error("Missing search space context");
+					}
+					const response = await authenticatedFetch(
+						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${
+							memoryScope === "team"
+								? `/api/v1/searchspaces/${searchSpaceId}/memory`
+								: "/api/v1/users/me/memory"
+						}`,
+						{ method: "GET" }
+					);
+					if (controller.signal.aborted) return;
+					if (!response.ok) {
+						const errorData = await response
+							.json()
+							.catch(() => ({ detail: "Failed to fetch memory" }));
+						throw new Error(errorData.detail || "Failed to fetch memory");
+					}
+					const data = (await response.json()) as { memory_md?: string };
+					const content: EditorContent = {
+						document_id: memoryScope === "team" ? -1002 : -1001,
+						title: title || (memoryScope === "team" ? "Team Memory" : "Personal Memory"),
+						document_type: memoryScope === "team" ? "TEAM_MEMORY" : "USER_MEMORY",
+						source_markdown: data.memory_md ?? "",
+					};
+					markdownRef.current = content.source_markdown;
+					setDisplayTitle(content.title);
+					setEditorDoc(content);
+					initialLoadDone.current = true;
+					return;
+				}
+
 				if (!documentId || !searchSpaceId) {
 					throw new Error("Missing document context");
 				}
@@ -253,7 +289,9 @@ export function EditorPanelContent({
 		documentId,
 		electronAPI,
 		isLocalFileMode,
+		isMemoryMode,
 		localFilePath,
+		memoryScope,
 		resolveLocalVirtualPath,
 		searchSpaceId,
 		title,
@@ -316,6 +354,39 @@ export function EditorPanelContent({
 					setEditedMarkdown(markdownRef.current === contentToSave ? null : markdownRef.current);
 					return true;
 				}
+				if (isMemoryMode) {
+					if (memoryScope === "team" && !searchSpaceId) {
+						throw new Error("Missing search space context");
+					}
+					const response = await authenticatedFetch(
+						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${
+							memoryScope === "team"
+								? `/api/v1/searchspaces/${searchSpaceId}/memory`
+								: "/api/v1/users/me/memory"
+						}`,
+						{
+							method: "PUT",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ memory_md: markdownRef.current }),
+						}
+					);
+					if (!response.ok) {
+						const errorData = await response
+							.json()
+							.catch(() => ({ detail: "Failed to save memory" }));
+						throw new Error(errorData.detail || "Failed to save memory");
+					}
+					const data = (await response.json()) as { memory_md?: string };
+					const savedContent = data.memory_md ?? markdownRef.current;
+					markdownRef.current = savedContent;
+					setEditorDoc((prev) => (prev ? { ...prev, source_markdown: savedContent } : prev));
+					setEditedMarkdown(null);
+					if (!options?.silent) {
+						toast.success("Memory saved");
+					}
+					return true;
+				}
+
 				if (!searchSpaceId || !documentId) {
 					throw new Error("Missing document context");
 				}
@@ -361,14 +432,17 @@ export function EditorPanelContent({
 			documentId,
 			electronAPI,
 			isLocalFileMode,
+			isMemoryMode,
 			localFilePath,
+			memoryScope,
 			resolveLocalVirtualPath,
 			searchSpaceId,
 		]
 	);
 
 	const isEditableType = editorDoc
-		? (editorRenderMode === "source_code" ||
+		? (isMemoryMode ||
+				editorRenderMode === "source_code" ||
 				EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
 			!isLargeDocument
 		: false;
@@ -495,7 +569,7 @@ export function EditorPanelContent({
 								</>
 							) : (
 								<>
-									{!isLocalFileMode && editorDoc?.document_type && documentId && (
+									{!isLocalFileMode && !isMemoryMode && editorDoc?.document_type && documentId && (
 										<VersionHistoryButton
 											documentId={documentId}
 											documentType={editorDoc.document_type}
@@ -568,7 +642,7 @@ export function EditorPanelContent({
 							</>
 						) : (
 							<>
-								{!isLocalFileMode && editorDoc?.document_type && documentId && (
+								{!isLocalFileMode && !isMemoryMode && editorDoc?.document_type && documentId && (
 									<VersionHistoryButton
 										documentId={documentId}
 										documentType={editorDoc.document_type}
@@ -664,7 +738,13 @@ export function EditorPanelContent({
 					<div className="flex h-full min-h-0 flex-col">
 						<div className="flex-1 min-h-0 overflow-hidden">
 							<PlateEditor
-								key={`${isLocalFileMode ? (localFilePath ?? "local-file") : documentId}-${isEditing ? "editing" : "viewing"}`}
+								key={`${
+									isMemoryMode
+										? `memory-${memoryScope ?? "user"}`
+										: isLocalFileMode
+											? (localFilePath ?? "local-file")
+											: documentId
+								}-${isEditing ? "editing" : "viewing"}`}
 								preset="full"
 								markdown={editorDoc.source_markdown}
 								onMarkdownChange={handleMarkdownChange}
@@ -679,7 +759,7 @@ export function EditorPanelContent({
 								// Edit mode keeps raw text so the user can edit/delete
 								// tokens directly. `local_file` never reaches this branch
 								// (handled by the source_code editor above).
-								enableCitations={!isEditing && !isLocalFileMode}
+								enableCitations={!isEditing && !isLocalFileMode && !isMemoryMode}
 							/>
 						</div>
 					</div>
@@ -708,7 +788,9 @@ function DesktopEditorPanel() {
 	const hasTarget =
 		panelState.kind === "document"
 			? !!panelState.documentId && !!panelState.searchSpaceId
-			: !!panelState.localFilePath;
+			: panelState.kind === "local_file"
+				? !!panelState.localFilePath
+				: !!panelState.memoryScope;
 	if (!panelState.isOpen || !hasTarget) return null;
 
 	return (
@@ -717,6 +799,7 @@ function DesktopEditorPanel() {
 				kind={panelState.kind}
 				documentId={panelState.documentId ?? undefined}
 				localFilePath={panelState.localFilePath ?? undefined}
+				memoryScope={panelState.memoryScope ?? undefined}
 				searchSpaceId={panelState.searchSpaceId ?? undefined}
 				title={panelState.title}
 				onClose={closePanel}
@@ -734,7 +817,7 @@ function MobileEditorDrawer() {
 	const hasTarget =
 		panelState.kind === "document"
 			? !!panelState.documentId && !!panelState.searchSpaceId
-			: !!panelState.localFilePath;
+			: !!panelState.memoryScope;
 	if (!hasTarget) return null;
 
 	return (
@@ -756,6 +839,7 @@ function MobileEditorDrawer() {
 						kind={panelState.kind}
 						documentId={panelState.documentId ?? undefined}
 						localFilePath={panelState.localFilePath ?? undefined}
+						memoryScope={panelState.memoryScope ?? undefined}
 						searchSpaceId={panelState.searchSpaceId ?? undefined}
 						title={panelState.title}
 					/>
@@ -771,7 +855,9 @@ export function EditorPanel() {
 	const hasTarget =
 		panelState.kind === "document"
 			? !!panelState.documentId && !!panelState.searchSpaceId
-			: !!panelState.localFilePath;
+			: panelState.kind === "local_file"
+				? !!panelState.localFilePath
+				: !!panelState.memoryScope;
 
 	if (!panelState.isOpen || !hasTarget) return null;
 	if (!isDesktop && panelState.kind === "local_file") return null;
@@ -789,7 +875,9 @@ export function MobileEditorPanel() {
 	const hasTarget =
 		panelState.kind === "document"
 			? !!panelState.documentId && !!panelState.searchSpaceId
-			: !!panelState.localFilePath;
+			: panelState.kind === "local_file"
+				? !!panelState.localFilePath
+				: !!panelState.memoryScope;
 
 	if (isDesktop || !panelState.isOpen || !hasTarget || panelState.kind === "local_file")
 		return null;

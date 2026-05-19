@@ -32,6 +32,7 @@ interface FolderTreeViewProps {
 	onEditDocument: (doc: DocumentNodeDoc) => void;
 	onDeleteDocument: (doc: DocumentNodeDoc) => void;
 	onMoveDocument: (doc: DocumentNodeDoc) => void;
+	onResetDocument?: (doc: DocumentNodeDoc) => void;
 	onExportDocument?: (doc: DocumentNodeDoc, format: string) => void;
 	onVersionHistory?: (doc: DocumentNodeDoc) => void;
 	activeTypes: DocumentTypeEnum[];
@@ -74,6 +75,7 @@ export function FolderTreeView({
 	onEditDocument,
 	onDeleteDocument,
 	onMoveDocument,
+	onResetDocument,
 	onExportDocument,
 	onVersionHistory,
 	activeTypes,
@@ -236,6 +238,47 @@ export function FolderTreeView({
 		return states;
 	}, [folders, docsByFolder, foldersByParent, folderMap]);
 
+	const renderDocumentNode = useCallback(
+		(d: DocumentNodeDoc, depth: number) => {
+			const isMemoryDocument =
+				d.document_type === "USER_MEMORY" || d.document_type === "TEAM_MEMORY";
+			return (
+				<DocumentNode
+					key={`doc-${d.id}`}
+					doc={d}
+					depth={depth}
+					isMentioned={!isMemoryDocument && mentionedDocKeys.has(getMentionDocKey(d))}
+					onToggleChatMention={onToggleChatMention}
+					onPreview={onPreviewDocument}
+					onEdit={onEditDocument}
+					onDelete={onDeleteDocument}
+					onMove={onMoveDocument}
+					onReset={onResetDocument}
+					onExport={isMemoryDocument ? undefined : onExportDocument}
+					onVersionHistory={isMemoryDocument ? undefined : onVersionHistory}
+					canDelete={!isMemoryDocument}
+					canMove={!isMemoryDocument}
+					canMention={!isMemoryDocument}
+					canEdit
+					contextMenuOpen={openContextMenuId === `doc-${d.id}`}
+					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `doc-${d.id}` : null)}
+				/>
+			);
+		},
+		[
+			mentionedDocKeys,
+			onDeleteDocument,
+			onEditDocument,
+			onExportDocument,
+			onMoveDocument,
+			onPreviewDocument,
+			onResetDocument,
+			onToggleChatMention,
+			onVersionHistory,
+			openContextMenuId,
+		]
+	);
+
 	function renderLevel(parentId: number | null, depth: number): React.ReactNode[] {
 		const key = parentId ?? "root";
 		const childFolders = (foldersByParent[key] ?? []).slice().sort((a, b) => {
@@ -263,23 +306,7 @@ export function FolderTreeView({
 				return state === "pending" || state === "processing";
 			});
 			for (const d of processingDocs) {
-				nodes.push(
-					<DocumentNode
-						key={`doc-${d.id}`}
-						doc={d}
-						depth={depth}
-						isMentioned={mentionedDocKeys.has(getMentionDocKey(d))}
-						onToggleChatMention={onToggleChatMention}
-						onPreview={onPreviewDocument}
-						onEdit={onEditDocument}
-						onDelete={onDeleteDocument}
-						onMove={onMoveDocument}
-						onExport={onExportDocument}
-						onVersionHistory={onVersionHistory}
-						contextMenuOpen={openContextMenuId === `doc-${d.id}`}
-						onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `doc-${d.id}` : null)}
-					/>
-				);
+				nodes.push(renderDocumentNode(d, depth));
 			}
 		}
 
@@ -343,23 +370,7 @@ export function FolderTreeView({
 				: childDocs;
 
 		for (const d of remainingDocs) {
-			nodes.push(
-				<DocumentNode
-					key={`doc-${d.id}`}
-					doc={d}
-					depth={depth}
-					isMentioned={mentionedDocKeys.has(getMentionDocKey(d))}
-					onToggleChatMention={onToggleChatMention}
-					onPreview={onPreviewDocument}
-					onEdit={onEditDocument}
-					onDelete={onDeleteDocument}
-					onMove={onMoveDocument}
-					onExport={onExportDocument}
-					onVersionHistory={onVersionHistory}
-					contextMenuOpen={openContextMenuId === `doc-${d.id}`}
-					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `doc-${d.id}` : null)}
-				/>
-			);
+			nodes.push(renderDocumentNode(d, depth));
 		}
 
 		return nodes;
