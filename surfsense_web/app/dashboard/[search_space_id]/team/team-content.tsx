@@ -518,7 +518,9 @@ function MemberRow({
 						{member.user_avatar_url && (
 							<AvatarImage src={member.user_avatar_url} alt={displayName} />
 						)}
-						<AvatarFallback className="text-sm">{initials}</AvatarFallback>
+						<AvatarFallback className="bg-popover text-sm text-popover-foreground">
+							{initials}
+						</AvatarFallback>
 					</Avatar>
 					<div className="min-w-0">
 						<p className="font-medium text-sm truncate select-text">{displayName}</p>
@@ -543,7 +545,7 @@ function MemberRow({
 								type="button"
 								variant="ghost"
 								size="sm"
-								className="h-auto gap-1.5 px-0 py-0 text-sm text-muted-foreground hover:bg-transparent hover:text-accent-foreground"
+								className="h-auto w-[74px] justify-end gap-1.5 px-0 py-0 text-sm text-muted-foreground hover:bg-transparent hover:text-accent-foreground has-[>svg]:px-0"
 							>
 								{roleName}
 								<ChevronDown className="h-4 w-4" />

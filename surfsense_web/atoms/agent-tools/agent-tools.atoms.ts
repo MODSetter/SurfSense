@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 import { atomWithQuery } from "jotai-tanstack-query";
-import { type AgentToolInfo, agentToolsApiService } from "@/lib/apis/agent-tools-api.service";
+import { agentToolsApiService } from "@/lib/apis/agent-tools-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { activeSearchSpaceIdAtom } from "../search-spaces/search-space-query.atoms";
 
