@@ -240,46 +240,77 @@ export function TeamContent({ searchSpaceId }: TeamContentProps) {
 
 	if (accessLoading || membersLoading) {
 		return (
-			<div className="space-y-6">
-				<div className="flex items-center justify-between">
-					<Skeleton className="h-9 w-36 rounded-md" />
-					<Skeleton className="h-4 w-20" />
+			<div className="space-y-4 md:space-y-6">
+				<div className="flex items-center gap-2 flex-wrap">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						aria-disabled="true"
+						tabIndex={-1}
+						className="pointer-events-none gap-1.5 md:gap-2 text-xs md:text-sm bg-black text-white dark:bg-white dark:text-black"
+					>
+						<UserPlus className="h-3.5 w-3.5 md:h-4 md:w-4" />
+						Invite members
+					</Button>
+					<Button
+						type="button"
+						variant="secondary"
+						size="sm"
+						aria-disabled="true"
+						tabIndex={-1}
+						className="pointer-events-none gap-1.5 md:gap-2 text-xs md:text-sm"
+					>
+						<Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 rotate-315" />
+						Active invites
+						<span className="inline-flex items-center justify-center h-4 md:h-5 min-w-4 md:min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200">
+							<Skeleton className="h-2.5 w-2.5 rounded-sm bg-neutral-500/60" />
+						</span>
+					</Button>
+					<div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground whitespace-nowrap">
+						<Skeleton className="h-3 w-2 rounded-sm" />
+						members
+					</div>
 				</div>
-				<div className="rounded-lg border border-border/40 bg-background overflow-hidden">
+				<div className="rounded-lg border border-border/60 bg-accent overflow-hidden">
 					<Table className="table-fixed w-full">
 						<TableHeader>
-							<TableRow className="hover:bg-transparent border-b border-border/40">
-								<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/40">
-									<Skeleton className="h-3 w-16" />
+							<TableRow className="hover:bg-transparent border-b border-border/60">
+								<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/60">
+									<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
+										<User size={14} className="opacity-60 text-muted-foreground" />
+										Name
+									</span>
 								</TableHead>
-								<TableHead className="hidden md:table-cell w-[25%] border-r border-border/40">
-									<Skeleton className="h-3 w-24" />
+								<TableHead className="hidden md:table-cell w-[25%] border-r border-border/60">
+									<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
+										<Clock size={14} className="opacity-60 text-muted-foreground" />
+										Last logged in
+									</span>
 								</TableHead>
 								<TableHead className="w-[30%] px-4 md:px-6">
-									<div className="flex justify-end">
-										<Skeleton className="h-3 w-12" />
-									</div>
+									<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70 justify-end">
+										<ShieldUser size={14} className="opacity-60 text-muted-foreground" />
+										Role
+									</span>
 								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{SKELETON_KEYS.map((id) => (
-								<TableRow key={id} className="border-b border-border/40 hover:bg-transparent">
-									<TableCell className="w-[45%] py-2.5 px-4 md:px-6 border-r border-border/40">
+							{SKELETON_KEYS.slice(0, 2).map((id) => (
+								<TableRow key={id} className="border-b border-border/60 hover:bg-transparent">
+									<TableCell className="w-[45%] py-2.5 px-4 md:px-6 border-r border-border/60">
 										<div className="flex items-center gap-3">
 											<Skeleton className="h-10 w-10 rounded-full shrink-0" />
-											<div className="flex-1 min-w-0 space-y-1.5">
-												<Skeleton className="h-4 w-[60%]" />
-												<Skeleton className="h-3 w-[40%]" />
-											</div>
+											<Skeleton className="h-4 w-28 md:w-32" />
 										</div>
 									</TableCell>
-									<TableCell className="hidden md:table-cell w-[25%] py-2.5 border-r border-border/40">
+									<TableCell className="hidden md:table-cell w-[25%] py-2.5 border-r border-border/60">
 										<Skeleton className="h-4 w-24" />
 									</TableCell>
 									<TableCell className="w-[30%] py-2.5 px-4 md:px-6">
 										<div className="flex justify-end">
-											<Skeleton className="h-4 w-16" />
+											<Skeleton className="h-4 w-12" />
 										</div>
 									</TableCell>
 								</TableRow>
@@ -294,41 +325,63 @@ export function TeamContent({ searchSpaceId }: TeamContentProps) {
 	return (
 		<div className="space-y-4 md:space-y-6">
 			<div className="flex items-center gap-2 flex-wrap">
-				{rolesLoading ? (
-					<Skeleton className="h-9 w-32 rounded-md" />
-				) : (
-					canInvite && (
+				{canInvite &&
+					(rolesLoading ? (
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							aria-disabled="true"
+							tabIndex={-1}
+							className="pointer-events-none gap-1.5 md:gap-2 text-xs md:text-sm bg-black text-white dark:bg-white dark:text-black"
+						>
+							<UserPlus className="h-3.5 w-3.5 md:h-4 md:w-4" />
+							Invite members
+						</Button>
+					) : (
 						<CreateInviteDialog
 							roles={roles}
 							onCreateInvite={handleCreateInvite}
 							searchSpaceId={searchSpaceId}
 						/>
-					)
-				)}
-				{invitesLoading ? (
-					<Skeleton className="h-9 w-32 rounded-md" />
-				) : (
-					canInvite &&
-					activeInvites.length > 0 && (
-						<AllInvitesDialog invites={activeInvites} onRevokeInvite={handleRevokeInvite} />
-					)
-				)}
+					))}
+				{canInvite &&
+					(invitesLoading ? (
+						<Button
+							type="button"
+							variant="secondary"
+							size="sm"
+							aria-disabled="true"
+							tabIndex={-1}
+							className="pointer-events-none gap-1.5 md:gap-2 text-xs md:text-sm"
+						>
+							<Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 rotate-315" />
+							Active invites
+							<span className="inline-flex items-center justify-center h-4 md:h-5 min-w-4 md:min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200">
+								<Skeleton className="h-2.5 w-2.5 rounded-sm bg-neutral-500/60" />
+							</span>
+						</Button>
+					) : (
+						activeInvites.length > 0 && (
+							<AllInvitesDialog invites={activeInvites} onRevokeInvite={handleRevokeInvite} />
+						)
+					))}
 				<p className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">
 					{members.length} {members.length === 1 ? "member" : "members"}
 				</p>
 			</div>
 
-			<div className="rounded-lg border border-border/40 bg-background overflow-hidden">
+			<div className="rounded-lg border border-border/60 bg-accent overflow-hidden">
 				<Table className="table-fixed w-full">
 					<TableHeader>
-						<TableRow className="hover:bg-transparent border-b border-border/40">
-							<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/40">
+						<TableRow className="hover:bg-transparent border-b border-border/60">
+							<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/60">
 								<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
 									<User size={14} className="opacity-60 text-muted-foreground" />
 									Name
 								</span>
 							</TableHead>
-							<TableHead className="hidden md:table-cell w-[25%] border-r border-border/40">
+							<TableHead className="hidden md:table-cell w-[25%] border-r border-border/60">
 								<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
 									<Clock size={14} className="opacity-60 text-muted-foreground" />
 									Last logged in
@@ -458,8 +511,8 @@ function MemberRow({
 	const showActions = !member.is_owner && (canManageRoles || canRemove);
 
 	return (
-		<TableRow className="border-b border-border/40 transition-colors hover:bg-accent hover:text-accent-foreground">
-			<TableCell className="w-[45%] py-2.5 px-4 md:px-6 max-w-0 border-r border-border/40">
+		<TableRow className="border-b border-border/60 transition-colors hover:bg-accent hover:text-accent-foreground">
+			<TableCell className="w-[45%] py-2.5 px-4 md:px-6 max-w-0 border-r border-border/60">
 				<div className="flex items-center gap-3">
 					<Avatar className="size-10 shrink-0">
 						{member.user_avatar_url && (
@@ -478,7 +531,7 @@ function MemberRow({
 				</div>
 			</TableCell>
 
-			<TableCell className="hidden md:table-cell w-[25%] py-2.5 text-sm text-foreground border-r border-border/40">
+			<TableCell className="hidden md:table-cell w-[25%] py-2.5 text-sm text-foreground border-r border-border/60">
 				{member.user_last_login ? formatRelativeDate(member.user_last_login) : "Never"}
 			</TableCell>
 
@@ -542,7 +595,7 @@ function MemberRow({
 									</AlertDialogContent>
 								</AlertDialog>
 							)}
-							<DropdownMenuSeparator className="dark:bg-white/5" />
+							<DropdownMenuSeparator className="bg-popover-border" />
 							<DropdownMenuItem
 								onClick={() =>
 									router.push(`/dashboard/${searchSpaceId}/search-space-settings/team-roles`)
@@ -710,7 +763,7 @@ function CreateInviteDialog({
 							<div className="space-y-2">
 								<Label htmlFor="invite-role">Role</Label>
 								<Select value={roleId} onValueChange={setRoleId}>
-									<SelectTrigger>
+									<SelectTrigger className="border-popover-border">
 										<SelectValue placeholder="Assign a role" />
 									</SelectTrigger>
 									<SelectContent>
@@ -746,7 +799,7 @@ function CreateInviteDialog({
 											<Button
 												variant="outline"
 												className={cn(
-													"w-full justify-start text-left font-normal bg-transparent",
+													"w-full justify-start text-left font-normal bg-transparent border-popover-border",
 													!expiresAt && "text-muted-foreground"
 												)}
 											>

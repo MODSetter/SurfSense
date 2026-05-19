@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 import { CommentComposer } from "../comment-composer/comment-composer";
 import { CommentThread } from "../comment-thread/comment-thread";
 import type { CommentPanelProps } from "./types";
@@ -85,7 +86,9 @@ export function CommentPanel({
 				</div>
 			)}
 
-			<div className={cn("p-3", isMobile && "fixed bottom-0 left-0 right-0 z-50 bg-card border-t")}>
+			{hasThreads && !isMobile ? <Separator className="bg-sidebar-border" /> : null}
+
+			<div className={cn("p-3", isMobile && "fixed bottom-0 left-0 right-0 z-50 bg-sidebar")}>
 				<CommentComposer
 					members={members}
 					membersLoading={membersLoading}
