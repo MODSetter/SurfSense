@@ -1,10 +1,8 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { ArrowUp, ChevronDown, ClipboardCopy, Download, Info, Pencil } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, ClipboardCopy, Download, Info } from "lucide-react";
 import { toast } from "sonner";
-import { z } from "zod";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -16,100 +14,21 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-
-import { baseApiService } from "@/lib/apis/base-api.service";
-
-const MEMORY_HARD_LIMIT = 25_000;
-
-const MemoryReadSchema = z.object({
-	memory_md: z.string(),
-});
+import { MEMORY_HARD_LIMIT, useUserMemory } from "@/hooks/use-memory";
 
 export function MemoryContent() {
 	const activeSearchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-	const [memory, setMemory] = useState("");
-	const [loading, setLoading] = useState(true);
-	const [saving, setSaving] = useState(false);
-	const [editQuery, setEditQuery] = useState("");
-	const [editing, setEditing] = useState(false);
-	const [showInput, setShowInput] = useState(false);
-	const textareaRef = useRef<HTMLInputElement>(null);
-	const inputContainerRef = useRef<HTMLDivElement>(null);
-
-	const fetchMemory = useCallback(async () => {
-		try {
-			setLoading(true);
-			const data = await baseApiService.get("/api/v1/users/me/memory", MemoryReadSchema);
-			setMemory(data.memory_md);
-		} catch {
-			toast.error("Failed to load memory");
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
-	useEffect(() => {
-		fetchMemory();
-	}, [fetchMemory]);
-
-	useEffect(() => {
-		if (!showInput) return;
-
-		const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
-			const target = event.target;
-			if (!(target instanceof Node)) return;
-			if (inputContainerRef.current?.contains(target)) return;
-
-			setShowInput(false);
-		};
-
-		document.addEventListener("mousedown", handlePointerDownOutside);
-		document.addEventListener("touchstart", handlePointerDownOutside, { passive: true });
-
-		return () => {
-			document.removeEventListener("mousedown", handlePointerDownOutside);
-			document.removeEventListener("touchstart", handlePointerDownOutside);
-		};
-	}, [showInput]);
+	const { memory, displayMemory, loading, saving, reset } = useUserMemory(
+		Number(activeSearchSpaceId)
+	);
 
 	const handleClear = async () => {
 		try {
-			setSaving(true);
-			const data = await baseApiService.put("/api/v1/users/me/memory", MemoryReadSchema, {
-				body: { memory_md: "" },
-			});
-			setMemory(data.memory_md);
+			await reset();
 			toast.success("Memory cleared");
 		} catch {
 			toast.error("Failed to clear memory");
-		} finally {
-			setSaving(false);
 		}
-	};
-
-	const handleEdit = async () => {
-		const query = editQuery.trim();
-		if (!query) return;
-
-		try {
-			setEditing(true);
-			const data = await baseApiService.post("/api/v1/users/me/memory/edit", MemoryReadSchema, {
-				body: { query, search_space_id: Number(activeSearchSpaceId) },
-			});
-			setMemory(data.memory_md);
-			setEditQuery("");
-			setShowInput(false);
-			toast.success("Memory updated");
-		} catch {
-			toast.error("Failed to edit memory");
-		} finally {
-			setEditing(false);
-		}
-	};
-
-	const openInput = () => {
-		setShowInput(true);
-		requestAnimationFrame(() => textareaRef.current?.focus());
 	};
 
 	const handleDownload = () => {
@@ -139,14 +58,6 @@ export function MemoryContent() {
 		}
 	};
 
-	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === "Enter" && !e.shiftKey) {
-			e.preventDefault();
-			handleEdit();
-		}
-	};
-
-	const displayMemory = memory.replace(/\(\d{4}-\d{2}-\d{2}\)\s*\[(fact|pref|instr)\]\s*/g, "");
 	const charCount = memory.length;
 
 	const getCounterColor = () => {
@@ -198,54 +109,6 @@ export function MemoryContent() {
 						className="px-5 py-4 text-sm min-h-full"
 					/>
 				</div>
-
-				{showInput ? (
-					<div className="absolute bottom-3 inset-x-3 z-10">
-						<div
-							ref={inputContainerRef}
-							className="relative flex h-[54px] items-center gap-2 rounded-[9999px] border bg-muted/60 backdrop-blur-sm pl-4 pr-1 shadow-sm"
-						>
-							<input
-								ref={textareaRef}
-								type="text"
-								value={editQuery}
-								onChange={(e) => setEditQuery(e.target.value)}
-								onKeyDown={handleKeyDown}
-								placeholder="Tell SurfSense what to remember or forget"
-								disabled={editing}
-								className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
-							/>
-							<Button
-								type="button"
-								size="icon"
-								variant="ghost"
-								onClick={handleEdit}
-								disabled={editing || !editQuery.trim()}
-								className={`h-11 w-11 shrink-0 rounded-full ${
-									editing
-										? ""
-										: "bg-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
-								}`}
-							>
-								{editing ? (
-									<Spinner size="sm" />
-								) : (
-									<ArrowUp className="!h-5 !w-5 text-foreground" strokeWidth={2.25} />
-								)}
-							</Button>
-						</div>
-					</div>
-				) : (
-					<Button
-						type="button"
-						size="icon"
-						variant="secondary"
-						onClick={openInput}
-						className="absolute bottom-3 right-3 z-10 h-[54px] w-[54px] rounded-full border bg-muted/60 backdrop-blur-sm shadow-sm"
-					>
-						<Pencil className="!h-5 !w-5" />
-					</Button>
-				)}
 			</div>
 
 			<div className="flex items-center justify-between gap-2">
@@ -263,7 +126,7 @@ export function MemoryContent() {
 						size="sm"
 						className="text-xs sm:text-sm"
 						onClick={handleClear}
-						disabled={saving || editing || !memory}
+						disabled={saving || !memory}
 					>
 						<span className="hidden sm:inline">Reset Memory</span>
 						<span className="sm:hidden">Reset</span>

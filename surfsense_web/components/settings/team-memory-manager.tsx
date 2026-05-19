@@ -1,12 +1,7 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAtomValue } from "jotai";
-import { ArrowUp, ChevronDown, ClipboardCopy, Download, Info, Pencil } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ClipboardCopy, Download, Info } from "lucide-react";
 import { toast } from "sonner";
-import { z } from "zod";
-import { updateSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -17,103 +12,22 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { baseApiService } from "@/lib/apis/base-api.service";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
-import { cacheKeys } from "@/lib/query-client/cache-keys";
-
-const MEMORY_HARD_LIMIT = 25_000;
-
-const SearchSpaceSchema = z
-	.object({
-		shared_memory_md: z.string().optional().default(""),
-	})
-	.passthrough();
+import { MEMORY_HARD_LIMIT, useTeamMemory } from "@/hooks/use-memory";
 
 interface TeamMemoryManagerProps {
 	searchSpaceId: number;
 }
 
 export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
-	const queryClient = useQueryClient();
-	const { data: searchSpace, isLoading: loading } = useQuery({
-		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
-		queryFn: () => searchSpacesApiService.getSearchSpace({ id: searchSpaceId }),
-		enabled: !!searchSpaceId,
-	});
-
-	const { mutateAsync: updateSearchSpace } = useAtomValue(updateSearchSpaceMutationAtom);
-
-	const [saving, setSaving] = useState(false);
-	const [editQuery, setEditQuery] = useState("");
-	const [editing, setEditing] = useState(false);
-	const [showInput, setShowInput] = useState(false);
-	const textareaRef = useRef<HTMLInputElement>(null);
-	const inputContainerRef = useRef<HTMLDivElement>(null);
-
-	const memory = searchSpace?.shared_memory_md || "";
-
-	useEffect(() => {
-		if (!showInput) return;
-
-		const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
-			const target = event.target;
-			if (!(target instanceof Node)) return;
-			if (inputContainerRef.current?.contains(target)) return;
-
-			setShowInput(false);
-		};
-
-		document.addEventListener("mousedown", handlePointerDownOutside);
-		document.addEventListener("touchstart", handlePointerDownOutside, { passive: true });
-
-		return () => {
-			document.removeEventListener("mousedown", handlePointerDownOutside);
-			document.removeEventListener("touchstart", handlePointerDownOutside);
-		};
-	}, [showInput]);
+	const { memory, displayMemory, loading, saving, reset } = useTeamMemory(searchSpaceId);
 
 	const handleClear = async () => {
 		try {
-			setSaving(true);
-			await updateSearchSpace({
-				id: searchSpaceId,
-				data: { shared_memory_md: "" },
-			});
+			await reset();
 			toast.success("Team memory cleared");
 		} catch {
 			toast.error("Failed to clear team memory");
-		} finally {
-			setSaving(false);
 		}
-	};
-
-	const handleEdit = async () => {
-		const query = editQuery.trim();
-		if (!query) return;
-
-		try {
-			setEditing(true);
-			await baseApiService.post(
-				`/api/v1/searchspaces/${searchSpaceId}/memory/edit`,
-				SearchSpaceSchema,
-				{ body: { query } }
-			);
-			setEditQuery("");
-			setShowInput(false);
-			await queryClient.invalidateQueries({
-				queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
-			});
-			toast.success("Team memory updated");
-		} catch {
-			toast.error("Failed to edit team memory");
-		} finally {
-			setEditing(false);
-		}
-	};
-
-	const openInput = () => {
-		setShowInput(true);
-		requestAnimationFrame(() => textareaRef.current?.focus());
 	};
 
 	const handleDownload = () => {
@@ -143,14 +57,6 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 		}
 	};
 
-	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === "Enter" && !e.shiftKey) {
-			e.preventDefault();
-			handleEdit();
-		}
-	};
-
-	const displayMemory = memory.replace(/\(\d{4}-\d{2}-\d{2}\)\s*\[(fact|pref|instr)\]\s*/g, "");
 	const charCount = memory.length;
 
 	const getCounterColor = () => {
@@ -204,54 +110,6 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 						className="px-5 py-4 text-sm min-h-full"
 					/>
 				</div>
-
-				{showInput ? (
-					<div className="absolute bottom-3 inset-x-3 z-10">
-						<div
-							ref={inputContainerRef}
-							className="relative flex h-[54px] items-center gap-2 rounded-[9999px] border bg-muted/60 backdrop-blur-sm pl-4 pr-1 shadow-sm"
-						>
-							<input
-								ref={textareaRef}
-								type="text"
-								value={editQuery}
-								onChange={(e) => setEditQuery(e.target.value)}
-								onKeyDown={handleKeyDown}
-								placeholder="Tell SurfSense what to remember or forget about your team"
-								disabled={editing}
-								className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
-							/>
-							<Button
-								type="button"
-								size="icon"
-								variant="ghost"
-								onClick={handleEdit}
-								disabled={editing || !editQuery.trim()}
-								className={`h-11 w-11 shrink-0 rounded-full ${
-									editing
-										? ""
-										: "bg-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
-								}`}
-							>
-								{editing ? (
-									<Spinner size="sm" />
-								) : (
-									<ArrowUp className="!h-5 !w-5 text-foreground" strokeWidth={2.25} />
-								)}
-							</Button>
-						</div>
-					</div>
-				) : (
-					<Button
-						type="button"
-						size="icon"
-						variant="secondary"
-						onClick={openInput}
-						className="absolute bottom-3 right-3 z-10 h-[54px] w-[54px] rounded-full border bg-muted/60 backdrop-blur-sm shadow-sm"
-					>
-						<Pencil className="!h-5 !w-5" />
-					</Button>
-				)}
 			</div>
 
 			<div className="flex items-center justify-between gap-2">
@@ -269,7 +127,7 @@ export function TeamMemoryManager({ searchSpaceId }: TeamMemoryManagerProps) {
 						size="sm"
 						className="text-xs sm:text-sm"
 						onClick={handleClear}
-						disabled={saving || editing || !memory}
+						disabled={saving || !memory}
 					>
 						<span className="hidden sm:inline">Reset Memory</span>
 						<span className="sm:hidden">Reset</span>
