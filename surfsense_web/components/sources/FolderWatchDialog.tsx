@@ -164,7 +164,7 @@ export function FolderWatchDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-md select-none p-0 gap-0 overflow-hidden bg-muted dark:bg-muted border border-border [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-foreground/10">
+			<DialogContent className="sm:max-w-md select-none p-0 gap-0 overflow-hidden [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-accent [&>button]:hover:text-accent-foreground">
 				<DialogHeader className="px-4 sm:px-6 pt-5 sm:pt-6 pb-3">
 					<DialogTitle className="text-lg sm:text-xl font-semibold tracking-tight">
 						Watch Local Folder
@@ -194,13 +194,14 @@ export function FolderWatchDialog({
 							</Button>
 						</div>
 					) : (
-						<button
+						<Button
+							variant="ghost"
 							type="button"
 							onClick={handleSelectFolder}
-							className="flex flex-1 w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 text-sm text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
+							className="h-auto flex-1 w-full gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-transparent text-sm text-muted-foreground transition-colors hover:border-foreground/50 hover:bg-transparent hover:text-accent-foreground"
 						>
 							Browse for a folder
-						</button>
+						</Button>
 					)}
 
 					{selectedFolder && (

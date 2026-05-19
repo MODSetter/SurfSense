@@ -1,6 +1,5 @@
 "use client";
 
-import { MessageCircleReply } from "lucide-react";
 import {
 	Drawer,
 	DrawerContent,
@@ -29,8 +28,7 @@ export function CommentSheet({
 				<DrawerContent className="h-[85vh] max-h-[85vh] z-80" overlayClassName="z-80">
 					<DrawerHandle />
 					<DrawerHeader className="px-4 pb-3 pt-2">
-						<DrawerTitle className="flex items-center gap-2 text-base font-semibold">
-							<MessageCircleReply className="size-5" />
+						<DrawerTitle className="flex items-center justify-center gap-2 text-base font-semibold">
 							Comments
 							{commentCount > 0 && (
 								<span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
@@ -56,7 +54,6 @@ export function CommentSheet({
 			>
 				<SheetHeader className="flex-shrink-0 px-4 py-4">
 					<SheetTitle className="flex items-center gap-2 text-base font-semibold">
-						<MessageCircleReply className="size-5" />
 						Comments
 						{commentCount > 0 && (
 							<span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">

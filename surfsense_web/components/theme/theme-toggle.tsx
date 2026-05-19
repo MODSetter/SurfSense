@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useId, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // ///////////////////////////////////////////////////////////////////////////
@@ -706,10 +707,12 @@ export const ThemeToggleButton = ({
 	const clipPathId = `theme-toggle-clip-${clipId}`;
 
 	return (
-		<button
+		<Button
+			variant="ghost"
+			size="icon"
 			type="button"
 			className={cn(
-				"size-10 cursor-pointer rounded-full p-2 transition-all duration-300 active:scale-95 bg-transparent",
+				"size-10 cursor-pointer rounded-full bg-transparent p-2 transition-all duration-300 hover:bg-transparent active:scale-95",
 				isDark ? "text-white" : "text-black",
 				className
 			)}
@@ -720,6 +723,7 @@ export const ThemeToggleButton = ({
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
 				aria-hidden="true"
+				className="size-full"
 				fill="currentColor"
 				strokeLinecap="round"
 				viewBox="0 0 32 32"
@@ -759,7 +763,7 @@ export const ThemeToggleButton = ({
 					</motion.g>
 				</g>
 			</svg>
-		</button>
+		</Button>
 	);
 };
 

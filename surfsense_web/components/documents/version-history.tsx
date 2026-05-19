@@ -29,7 +29,7 @@ export function isVersionableType(documentType: string) {
 }
 
 const DIALOG_CLASSES =
-	"select-none max-w-[900px] w-[95vw] md:w-[90vw] h-[90vh] md:h-[80vh] max-h-[640px] flex flex-col md:flex-row p-0 gap-0 overflow-hidden [--card:var(--background)] dark:[--card:oklch(0.205_0_0)] dark:[--background:oklch(0.205_0_0)]";
+	"select-none max-w-[900px] w-[95vw] md:w-[90vw] h-[90vh] md:h-[80vh] max-h-[640px] flex flex-col md:flex-row p-0 gap-0 overflow-hidden [--card:var(--popover)]";
 
 export function VersionHistoryButton({ documentId, documentType }: VersionHistoryProps) {
 	if (!isVersionableType(documentType)) return null;
@@ -177,15 +177,16 @@ function VersionHistoryPanel({ documentId }: { documentId: number }) {
 				<div className="flex-1 overflow-y-auto p-2">
 					<div className="flex flex-col gap-0.5">
 						{versions.map((v) => (
-							<button
+							<Button
 								key={v.version_number}
 								type="button"
+								variant="ghost"
 								onClick={() => handleSelectVersion(v.version_number)}
 								className={cn(
-									"flex items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:outline-none w-full",
+									"h-auto w-full justify-start gap-2 rounded-lg px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:outline-none",
 									selectedVersion === v.version_number
 										? "bg-accent text-accent-foreground"
-										: "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+										: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 								)}
 							>
 								<div className="flex-1 min-w-0 space-y-0.5">
@@ -197,7 +198,7 @@ function VersionHistoryPanel({ documentId }: { documentId: number }) {
 									{v.title && <p className="text-xs text-muted-foreground truncate">{v.title}</p>}
 								</div>
 								<ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-50" />
-							</button>
+							</Button>
 						))}
 					</div>
 				</div>

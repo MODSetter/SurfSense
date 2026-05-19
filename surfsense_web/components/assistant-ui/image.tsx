@@ -4,8 +4,9 @@ import type { ImageMessagePartComponent } from "@assistant-ui/react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { ImageIcon, ImageOffIcon } from "lucide-react";
 import NextImage from "next/image";
-import { memo, type PropsWithChildren, useEffect, useRef, useState } from "react";
+import { memo, type PropsWithChildren, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const imageVariants = cva("aui-image-root relative overflow-hidden rounded-lg", {
@@ -44,8 +45,14 @@ function ImageRoot({ className, variant, size, children, ...props }: ImageRootPr
 	);
 }
 
-type ImagePreviewProps = Omit<React.ComponentProps<"img">, "children"> & {
+type ImagePreviewProps = Omit<
+	React.ComponentProps<"img">,
+	"children" | "height" | "onError" | "onLoad" | "src" | "width"
+> & {
 	containerClassName?: string;
+	onError?: React.ReactEventHandler<HTMLImageElement>;
+	onLoad?: React.ReactEventHandler<HTMLImageElement>;
+	src?: string;
 };
 
 function ImagePreview({
@@ -57,18 +64,17 @@ function ImagePreview({
 	src,
 	...props
 }: ImagePreviewProps) {
-	const imgRef = useRef<HTMLImageElement>(null);
 	const [loadedSrc, setLoadedSrc] = useState<string | undefined>(undefined);
 	const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
+	const imageSrc = src ?? "";
 
-	const loaded = loadedSrc === src;
-	const error = errorSrc === src;
+	const loaded = imageSrc !== "" && loadedSrc === imageSrc;
+	const error = imageSrc === "" || errorSrc === imageSrc;
 
 	useEffect(() => {
-		if (typeof src === "string" && imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
-			setLoadedSrc(src);
-		}
-	}, [src]);
+		setLoadedSrc((current) => (current === imageSrc ? current : undefined));
+		setErrorSrc((current) => (current === imageSrc ? current : undefined));
+	}, [imageSrc]);
 
 	return (
 		<div data-slot="image-preview" className={cn("relative min-h-32", containerClassName)}>
@@ -87,55 +93,22 @@ function ImagePreview({
 				>
 					<ImageOffIcon className="size-8 text-muted-foreground" />
 				</div>
-			) : isDataOrBlobUrl(src) ? (
-				// biome-ignore lint/performance/noImgElement: data/blob URLs need plain img
-				<img
-					ref={imgRef}
-					src={src}
-					alt={alt}
-					className={cn("block h-auto w-full object-contain", !loaded && "invisible", className)}
-					onLoad={(e) => {
-						if (typeof src === "string") setLoadedSrc(src);
-						onLoad?.(e);
-					}}
-					onError={(e) => {
-						if (typeof src === "string") setErrorSrc(src);
-						onError?.(e);
-					}}
-					{...props}
-				/>
 			) : (
-				// biome-ignore lint/performance/noImgElement: intentional for dynamic external URLs
-				// <img
-				// 	ref={imgRef}
-				// 	src={src}
-				// 	alt={alt}
-				// 	className={cn("block h-auto w-full object-contain", !loaded && "invisible", className)}
-				// 	onLoad={(e) => {
-				// 		if (typeof src === "string") setLoadedSrc(src);
-				// 		onLoad?.(e);
-				// 	}}
-				// 	onError={(e) => {
-				// 		if (typeof src === "string") setErrorSrc(src);
-				// 		onError?.(e);
-				// 	}}
-				// 	{...props}
-				// />
 				<NextImage
 					fill
-					src={src || ""}
+					src={imageSrc}
 					alt={alt}
 					sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 60vw"
 					className={cn("block object-contain", !loaded && "invisible", className)}
-					onLoad={() => {
-						if (typeof src === "string") setLoadedSrc(src);
-						onLoad?.();
+					onLoad={(event) => {
+						setLoadedSrc(imageSrc);
+						onLoad?.(event);
 					}}
-					onError={() => {
-						if (typeof src === "string") setErrorSrc(src);
-						onError?.();
+					onError={(event) => {
+						setErrorSrc(imageSrc);
+						onError?.(event);
 					}}
-					unoptimized={false}
+					unoptimized={isDataOrBlobUrl(imageSrc)}
 					{...props}
 				/>
 			)}
@@ -196,59 +169,40 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
 
 	return (
 		<>
-			<button
+			<Button
 				type="button"
+				variant="ghost"
 				onClick={handleOpen}
-				className="aui-image-zoom-trigger cursor-zoom-in border-0 bg-transparent p-0 text-left"
+				className="aui-image-zoom-trigger h-auto cursor-zoom-in border-0 bg-transparent p-0 text-left hover:bg-transparent"
 				aria-label="Click to zoom image"
 			>
 				{children}
-			</button>
+			</Button>
 			{isMounted &&
 				isOpen &&
 				createPortal(
-					<button
+					<Button
 						type="button"
+						variant="ghost"
 						data-slot="image-zoom-overlay"
-						className="aui-image-zoom-overlay fade-in fixed inset-0 z-50 flex animate-in cursor-zoom-out items-center justify-center border-0 bg-black/80 p-0 duration-200"
+						className="aui-image-zoom-overlay fade-in fixed inset-0 z-50 h-auto w-auto animate-in cursor-zoom-out items-center justify-center rounded-none border-0 bg-black/80 p-0 duration-200 hover:bg-black/80 focus-visible:ring-0"
 						onClick={handleClose}
 						aria-label="Close zoomed image"
 					>
-						{/** biome-ignore lint/performance/noImgElement: <explanation> */}
-						{isDataOrBlobUrl(src) ? (
-							// biome-ignore lint/performance/noImgElement: data/blob URLs need plain img
-							<img
-								data-slot="image-zoom-content"
-								src={src}
-								alt={alt}
-								className="aui-image-zoom-content fade-in zoom-in-95 max-h-[90vh] max-w-[90vw] animate-in object-contain duration-200"
-								onClick={(e) => {
-									e.stopPropagation();
-									handleClose();
-								}}
-								onKeyDown={(e) => {
-									if (e.key === "Enter") {
-										e.stopPropagation();
-										handleClose();
-									}
-								}}
-							/>
-						) : (
-							<NextImage
-								data-slot="image-zoom-content"
-								fill
-								src={src}
-								alt={alt}
-								sizes="90vw"
-								className="aui-image-zoom-content fade-in zoom-in-95 object-contain duration-200"
-								onClick={(e) => {
-									e.stopPropagation();
-									handleClose();
-								}}
-								unoptimized={false}
-							/>
-						)}
-					</button>,
+						<NextImage
+							data-slot="image-zoom-content"
+							fill
+							src={src}
+							alt={alt}
+							sizes="90vw"
+							className="aui-image-zoom-content fade-in zoom-in-95 object-contain duration-200"
+							onClick={(e) => {
+								e.stopPropagation();
+								handleClose();
+							}}
+							unoptimized={isDataOrBlobUrl(src)}
+						/>
+					</Button>,
 					document.body
 				)}
 		</>

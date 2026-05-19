@@ -298,7 +298,7 @@ export function ImageConfigDialog({
 								/>
 							</div>
 
-							<Separator />
+							<Separator className="bg-popover-border" />
 
 							<div className="space-y-2">
 								<Label className="text-sm font-medium">Provider *</Label>

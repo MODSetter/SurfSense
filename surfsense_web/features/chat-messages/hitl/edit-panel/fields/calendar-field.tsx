@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -81,16 +82,17 @@ export function DateTimePickerField({
 		<div className="flex gap-2">
 			<Popover open={open} onOpenChange={setOpen}>
 				<PopoverTrigger asChild>
-					<button
+					<Button
+						variant="outline"
 						id={id}
 						type="button"
-						className="flex-1 flex items-center gap-2 h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring"
+						className="h-9 flex-1 justify-start gap-2 bg-transparent px-3 py-1 text-sm"
 					>
-						<CalendarIcon className="size-3.5 text-muted-foreground shrink-0" />
+						<CalendarIcon data-icon="inline-start" className="text-muted-foreground" />
 						<span className={selectedDate ? "text-foreground" : "text-muted-foreground"}>
 							{displayLabel}
 						</span>
-					</button>
+					</Button>
 				</PopoverTrigger>
 				<PopoverContent className="w-auto p-0" align="start">
 					<Calendar

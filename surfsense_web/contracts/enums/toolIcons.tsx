@@ -2,7 +2,6 @@ import {
 	BookOpen,
 	Brain,
 	Calendar,
-	Check,
 	FileEdit,
 	FilePlus,
 	FileText,
@@ -23,6 +22,7 @@ import {
 	Podcast,
 	ScanLine,
 	Search,
+	SearchCheck,
 	Send,
 	Trash2,
 	Wrench,
@@ -104,7 +104,7 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 	read_luma_event: Calendar,
 	create_luma_event: Calendar,
 	// Misc
-	get_connected_accounts: Check,
+	get_connected_accounts: SearchCheck,
 	execute: Wrench,
 	execute_code: Wrench,
 };
@@ -200,7 +200,7 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 	read_luma_event: "Read Luma event",
 	create_luma_event: "Create Luma event",
 	// Misc
-	get_connected_accounts: "Check connected accounts",
+	get_connected_accounts: "Discover connected accounts",
 	execute: "Run command",
 	execute_code: "Run code",
 };
@@ -228,6 +228,9 @@ export const CONNECTOR_TOOL_ICON_PATHS: Record<string, { src: string; alt: strin
 	linear: { src: "/connectors/linear.svg", alt: "Linear" },
 	jira: { src: "/connectors/jira.svg", alt: "Jira" },
 	confluence: { src: "/connectors/confluence.svg", alt: "Confluence" },
+	discord: { src: "/connectors/discord.svg", alt: "Discord" },
+	teams: { src: "/connectors/microsoft-teams.svg", alt: "Microsoft Teams" },
+	luma: { src: "/connectors/luma.svg", alt: "Luma" },
 };
 
 export const CONNECTOR_ICON_TO_TYPES: Record<string, string[]> = {
@@ -240,4 +243,7 @@ export const CONNECTOR_ICON_TO_TYPES: Record<string, string[]> = {
 	linear: ["LINEAR_CONNECTOR"],
 	jira: ["JIRA_CONNECTOR"],
 	confluence: ["CONFLUENCE_CONNECTOR"],
+	discord: ["DISCORD_CONNECTOR"],
+	teams: ["TEAMS_CONNECTOR"],
+	luma: ["LUMA_CONNECTOR"],
 };

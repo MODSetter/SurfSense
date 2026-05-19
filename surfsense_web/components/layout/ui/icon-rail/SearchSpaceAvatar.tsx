@@ -3,18 +3,17 @@
 import { Settings, Trash2, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
-	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -122,14 +121,16 @@ export function SearchSpaceAvatar({
 	);
 
 	const avatarButton = (
-		<button
+		<Button
 			type="button"
+			variant="ghost"
+			size="icon"
 			onClick={onClick}
 			className={cn(
-				"relative flex items-center justify-center rounded-lg font-semibold text-white transition-all select-none",
-				"hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+				"relative rounded-lg font-semibold text-white transition-all select-none",
+				"hover:text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 				sizeClasses,
-				isActive && "ring-2 ring-primary ring-offset-1 ring-offset-background"
+				isActive && "ring-2 ring-primary ring-offset-1 ring-offset-rail"
 			)}
 			style={{ backgroundColor: bgColor }}
 		>
@@ -138,15 +139,15 @@ export function SearchSpaceAvatar({
 			{isShared && (
 				<span
 					className={cn(
-						"absolute -top-1 -right-1 flex items-center justify-center rounded-full bg-blue-500 text-white shadow-sm",
+						"absolute -top-1 -right-1 flex items-center justify-center rounded-full bg-gray-800 text-white shadow-sm",
 						size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4"
 					)}
 					title={tCommon("shared")}
 				>
-					<Users className={cn(size === "sm" ? "h-2 w-2" : "h-2.5 w-2.5")} />
+					<Users className={cn(size === "sm" ? "size-2" : "size-2.5")} />
 				</span>
 			)}
-		</button>
+		</Button>
 	);
 
 	const menuItems = (
@@ -157,7 +158,6 @@ export function SearchSpaceAvatar({
 					{tCommon("settings")}
 				</DropdownMenuItem>
 			)}
-			{onSettings && onDelete && <DropdownMenuSeparator />}
 			{onDelete && isOwner && (
 				<DropdownMenuItem onClick={onDelete}>
 					<Trash2 className="mr-2 h-4 w-4" />
@@ -190,7 +190,7 @@ export function SearchSpaceAvatar({
 							{avatarButton}
 						</div>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent className="w-48">{menuItems}</DropdownMenuContent>
+					<DropdownMenuContent>{menuItems}</DropdownMenuContent>
 				</DropdownMenu>
 			);
 		}
@@ -208,14 +208,13 @@ export function SearchSpaceAvatar({
 						{tooltipContent}
 					</TooltipContent>
 				</Tooltip>
-				<ContextMenuContent className="w-48">
+				<ContextMenuContent>
 					{onSettings && (
 						<ContextMenuItem onClick={onSettings}>
 							<Settings className="mr-2 h-4 w-4" />
 							{tCommon("settings")}
 						</ContextMenuItem>
 					)}
-					{onSettings && onDelete && <ContextMenuSeparator />}
 					{onDelete && isOwner && (
 						<ContextMenuItem onClick={onDelete}>
 							<Trash2 className="mr-2 h-4 w-4" />

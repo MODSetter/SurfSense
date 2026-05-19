@@ -295,7 +295,7 @@ function ExecuteCompleted({
 			<Collapsible open={open} onOpenChange={setOpen}>
 				<CollapsibleTrigger
 					className={cn(
-						"flex w-full items-center gap-2 rounded-xl border bg-card px-4 py-2.5 text-left transition-colors hover:bg-accent/50",
+						"flex w-full items-center gap-2 rounded-xl border bg-card px-4 py-2.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground",
 						open && "rounded-b-none border-b-0",
 						parsed.isError && "border-destructive/20"
 					)}

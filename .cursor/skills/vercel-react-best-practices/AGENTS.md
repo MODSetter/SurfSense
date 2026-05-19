@@ -549,6 +549,8 @@ Preload heavy bundles before they're needed to reduce perceived latency.
 **Example: preload on hover/focus**
 
 ```tsx
+import { Button } from '@/components/ui/button'
+
 function EditorButton({ onClick }: { onClick: () => void }) {
   const preload = () => {
     if (typeof window !== 'undefined') {
@@ -557,13 +559,13 @@ function EditorButton({ onClick }: { onClick: () => void }) {
   }
 
   return (
-    <button
+    <Button
       onMouseEnter={preload}
       onFocus={preload}
       onClick={onClick}
     >
       Open Editor
-    </button>
+    </Button>
   )
 }
 ```
@@ -1239,11 +1241,12 @@ function StaticContent() {
 **For mutations:**
 
 ```tsx
+import { Button } from '@/components/ui/button'
 import { useSWRMutation } from 'swr/mutation'
 
 function UpdateButton() {
   const { trigger } = useSWRMutation('/api/user', updateUser)
-  return <button onClick={() => trigger()}>Update</button>
+  return <Button onClick={() => trigger()}>Update</Button>
 }
 ```
 
@@ -1369,6 +1372,8 @@ Don't subscribe to dynamic state (searchParams, localStorage) if you only read i
 **Incorrect: subscribes to all searchParams changes**
 
 ```tsx
+import { Button } from '@/components/ui/button'
+
 function ShareButton({ chatId }: { chatId: string }) {
   const searchParams = useSearchParams()
 
@@ -1377,13 +1382,15 @@ function ShareButton({ chatId }: { chatId: string }) {
     shareChat(chatId, { ref })
   }
 
-  return <button onClick={handleShare}>Share</button>
+  return <Button onClick={handleShare}>Share</Button>
 }
 ```
 
 **Correct: reads on demand, no subscription**
 
 ```tsx
+import { Button } from '@/components/ui/button'
+
 function ShareButton({ chatId }: { chatId: string }) {
   const handleShare = () => {
     const params = new URLSearchParams(window.location.search)
@@ -1391,7 +1398,7 @@ function ShareButton({ chatId }: { chatId: string }) {
     shareChat(chatId, { ref })
   }
 
-  return <button onClick={handleShare}>Share</button>
+  return <Button onClick={handleShare}>Share</Button>
 }
 ```
 
@@ -1549,6 +1556,8 @@ If a side effect is triggered by a specific user action (submit, click, drag), r
 **Incorrect: event modeled as state + effect**
 
 ```tsx
+import { Button } from '@/components/ui/button'
+
 function Form() {
   const [submitted, setSubmitted] = useState(false)
   const theme = useContext(ThemeContext)
@@ -1560,13 +1569,15 @@ function Form() {
     }
   }, [submitted, theme])
 
-  return <button onClick={() => setSubmitted(true)}>Submit</button>
+  return <Button onClick={() => setSubmitted(true)}>Submit</Button>
 }
 ```
 
 **Correct: do it in the handler**
 
 ```tsx
+import { Button } from '@/components/ui/button'
+
 function Form() {
   const theme = useContext(ThemeContext)
 
@@ -1575,7 +1586,7 @@ function Form() {
     showToast('Registered', theme)
   }
 
-  return <button onClick={handleSubmit}>Submit</button>
+  return <Button onClick={handleSubmit}>Submit</Button>
 }
 ```
 

@@ -202,7 +202,7 @@ export function LLMConfigForm({
 											<SelectValue placeholder="Select a provider" />
 										</SelectTrigger>
 									</FormControl>
-									<SelectContent className="max-h-[300px] bg-muted dark:border-neutral-700">
+									<SelectContent className="max-h-[300px]">
 										{LLM_PROVIDERS.map((provider) => (
 											<SelectItem
 												key={provider.value}
@@ -251,7 +251,7 @@ export function LLMConfigForm({
 												role="combobox"
 												aria-expanded={modelComboboxOpen}
 												className={cn(
-													"w-full justify-between font-normal bg-transparent",
+													"w-full justify-between border-popover-border bg-transparent font-normal",
 													!field.value && "text-muted-foreground"
 												)}
 											>
@@ -260,10 +260,7 @@ export function LLMConfigForm({
 											</Button>
 										</FormControl>
 									</PopoverTrigger>
-									<PopoverContent
-										className="w-full p-0 bg-muted dark:border-neutral-700"
-										align="start"
-									>
+									<PopoverContent className="w-full p-0" align="start">
 										<Command shouldFilter={false} className="bg-transparent">
 											<CommandInput
 												placeholder={selectedProvider?.example || "Search model name"}
@@ -407,12 +404,13 @@ export function LLMConfigForm({
 				{/* Advanced Parameters */}
 				{showAdvanced && (
 					<>
-						<Separator />
+						<Separator className="bg-popover-border" />
 						<Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
 							<CollapsibleTrigger asChild>
-								<button
+								<Button
 									type="button"
-									className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+									variant="ghost"
+									className="h-auto w-full justify-between px-0 py-2 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-accent-foreground sm:text-sm"
 								>
 									<span>Advanced Parameters</span>
 									<ChevronDown
@@ -421,7 +419,7 @@ export function LLMConfigForm({
 											advancedOpen && "rotate-180"
 										)}
 									/>
-								</button>
+								</Button>
 							</CollapsibleTrigger>
 							<CollapsibleContent className="space-y-4 pt-2">
 								<FormField
@@ -445,12 +443,13 @@ export function LLMConfigForm({
 				)}
 
 				{/* System Instructions & Citations Section */}
-				<Separator />
+				<Separator className="bg-popover-border" />
 				<Collapsible open={systemInstructionsOpen} onOpenChange={setSystemInstructionsOpen}>
 					<CollapsibleTrigger asChild>
-						<button
+						<Button
 							type="button"
-							className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+							variant="ghost"
+							className="h-auto w-full justify-between px-0 py-2 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-accent-foreground sm:text-sm"
 						>
 							<span>System Instructions</span>
 							<ChevronDown
@@ -459,7 +458,7 @@ export function LLMConfigForm({
 									systemInstructionsOpen && "rotate-180"
 								)}
 							/>
-						</button>
+						</Button>
 					</CollapsibleTrigger>
 					<CollapsibleContent className="space-y-4 pt-2">
 						{/* System Instructions */}
@@ -478,7 +477,7 @@ export function LLMConfigForm({
 												onClick={() =>
 													field.onChange(defaultInstructions.default_system_instructions)
 												}
-												className="h-7 text-[10px] sm:text-xs text-muted-foreground hover:text-foreground"
+												className="h-7 text-[10px] sm:text-xs text-muted-foreground hover:text-accent-foreground"
 											>
 												Reset to Default
 											</Button>

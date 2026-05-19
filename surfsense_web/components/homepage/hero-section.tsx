@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -176,32 +177,38 @@ export function HeroSection() {
 
 function GetStartedButton() {
 	const isGoogleAuth = AUTH_TYPE === "GOOGLE";
+	const [isRedirecting, setIsRedirecting] = useState(false);
 
 	const handleGoogleLogin = () => {
+		if (isRedirecting) return;
+		setIsRedirecting(true);
 		trackLoginAttempt("google");
 		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
 	};
 
 	if (isGoogleAuth) {
 		return (
-			<button
+			<Button
 				type="button"
+				variant="ghost"
 				onClick={handleGoogleLogin}
-				className="flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-lg bg-white text-center text-base font-medium text-neutral-700 shadow-sm ring-1 shadow-black/10 ring-black/10 transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-56 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50 dark:hover:bg-neutral-800"
+				disabled={isRedirecting}
+				className="h-14 w-full cursor-pointer gap-3 rounded-lg border border-white bg-white text-center text-base font-medium text-[#1f1f1f] shadow-sm transition duration-150 hover:bg-zinc-100 hover:text-[#1f1f1f] sm:w-56 dark:border-white"
 			>
 				<GoogleLogo className="h-5 w-5" />
 				<span>Continue with Google</span>
-			</button>
+			</Button>
 		);
 	}
 
 	return (
-		<Link
-			href="/login"
-			className="flex h-14 w-full items-center justify-center rounded-lg bg-black text-center text-base font-medium text-white shadow-sm ring-1 shadow-black/10 ring-black/10 transition duration-150 active:scale-98 sm:w-52 dark:bg-white dark:text-black"
+		<Button
+			asChild
+			variant="ghost"
+			className="h-14 w-full rounded-lg bg-black text-center text-base font-medium text-white shadow-sm ring-1 shadow-black/10 ring-black/10 transition duration-150 active:scale-98 hover:bg-black sm:w-52 dark:bg-white dark:text-black dark:hover:bg-white"
 		>
-			Get Started
-		</Link>
+			<Link href="/login">Get Started</Link>
+		</Button>
 	);
 }
 
@@ -212,35 +219,40 @@ function DownloadButton() {
 
 	if (!primary) {
 		return (
-			<a
-				href={fallbackUrl}
-				target="_blank"
-				rel="noopener noreferrer"
-				className="flex h-14 w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-auto sm:px-6 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+			<Button
+				asChild
+				variant="ghost"
+				className="h-14 w-full gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-auto sm:px-6 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
 			>
-				<Download className="size-4" />
-				Download for {os}
-			</a>
+				<a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
+					<Download className="size-4" />
+					Download for {os}
+				</a>
+			</Button>
 		);
 	}
 
 	return (
 		<div className="flex h-14 w-full items-stretch sm:w-auto">
-			<a
-				href={primary.url}
-				className="flex flex-1 items-center justify-center gap-2 rounded-l-lg border border-r-0 border-neutral-200 bg-white px-5 text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-[0.99] hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+			<Button
+				asChild
+				variant="ghost"
+				className="h-auto flex-1 gap-2 rounded-l-lg rounded-r-none border border-r-0 border-neutral-200 bg-white px-5 text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-[0.99] hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
 			>
-				<Download className="size-4 shrink-0" />
-				Download for {os}
-			</a>
+				<a href={primary.url}>
+					<Download className="size-4 shrink-0" />
+					Download for {os}
+				</a>
+			</Button>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
-					<button
+					<Button
 						type="button"
-						className="flex items-center justify-center rounded-r-lg border border-neutral-200 bg-white px-2.5 text-neutral-500 shadow-sm transition duration-150 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
+						variant="ghost"
+						className="h-auto rounded-l-none rounded-r-lg border border-neutral-200 bg-white px-2.5 text-neutral-500 shadow-sm transition duration-150 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
 					>
 						<ChevronDown className="size-4" />
-					</button>
+					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" className="w-64">
 					{alternatives.map((asset) => (
@@ -284,11 +296,12 @@ const BrowserWindow = () => {
 					<div className="no-visible-scrollbar flex min-w-0 shrink flex-row items-center justify-start gap-2 overflow-x-auto mask-l-from-98% py-0.5 pr-2 pl-2 md:pl-4">
 						{TAB_ITEMS.map((item, index) => (
 							<React.Fragment key={item.title}>
-								<button
+								<Button
 									type="button"
+									variant="ghost"
 									onClick={() => setSelectedIndex(index)}
 									className={cn(
-										"flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs transition duration-150 hover:bg-white sm:text-sm dark:hover:bg-neutral-950",
+										"h-auto shrink-0 gap-1.5 rounded-md px-2 py-1 text-xs transition duration-150 hover:bg-white sm:text-sm dark:hover:bg-neutral-950",
 										selectedIndex === index &&
 											!item.featured &&
 											"bg-white shadow ring-1 shadow-black/10 ring-black/10 dark:bg-neutral-900",
@@ -311,7 +324,7 @@ const BrowserWindow = () => {
 											<TooltipContent side="bottom">Desktop app only</TooltipContent>
 										</Tooltip>
 									)}
-								</button>
+								</Button>
 								{index !== TAB_ITEMS.length - 1 && (
 									<div className="h-4 w-px shrink-0 rounded-full bg-neutral-300 dark:bg-neutral-700" />
 								)}
@@ -354,13 +367,14 @@ const BrowserWindow = () => {
 									</p>
 								</div>
 							</div>
-							<button
+							<Button
 								type="button"
-								className="cursor-pointer bg-neutral-50 p-2 sm:p-3 dark:bg-neutral-950 w-full"
+								variant="ghost"
+								className="h-auto w-full cursor-pointer rounded-none bg-neutral-50 p-2 hover:bg-neutral-50 sm:p-3 dark:bg-neutral-950 dark:hover:bg-neutral-950"
 								onClick={open}
 							>
-								<TabVideo src={selectedItem.src} />
-							</button>
+								<TabVideo key={selectedItem.src} src={selectedItem.src} />
+							</Button>
 						</motion.div>
 					</AnimatePresence>
 				</div>
@@ -385,7 +399,7 @@ const TabVideo = memo(function TabVideo({ src }: { src: string }) {
 		if (!video) return;
 		video.currentTime = 0;
 		video.play().catch(() => {});
-	}, [src]);
+	}, []);
 
 	const handleCanPlay = useCallback(() => {
 		setHasLoaded(true);

@@ -207,13 +207,14 @@ export default function DesktopPermissionsPage() {
 							<Button disabled className="text-sm h-9 min-w-[180px]">
 								Grant permissions to continue
 							</Button>
-							<button
+							<Button
 								type="button"
+								variant="link"
 								onClick={handleSkip}
-								className="block mx-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
+								className="mx-auto h-auto px-0 py-0 text-xs text-muted-foreground hover:text-foreground"
 							>
 								Skip for now
-							</button>
+							</Button>
 						</>
 					)}
 				</div>

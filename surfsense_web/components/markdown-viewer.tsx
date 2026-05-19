@@ -13,10 +13,7 @@ const code = createCodePlugin({
 });
 
 const math = createMathPlugin({
-	// Disabled so currency like "$3,120.00 and ... $0.00" isn't parsed as
-	// inline LaTeX. convertLatexDelimiters() below normalises any genuine
-	// inline math (\(...\), $...$ starting with a LaTeX command, etc.) to
-	// $$...$$, so this flip doesn't lose any math rendering.
+	// Keep currency from being parsed as math; real math is normalized below.
 	singleDollarTextMath: false,
 });
 
@@ -24,76 +21,37 @@ interface MarkdownViewerProps {
 	content: string;
 	className?: string;
 	maxLength?: number;
-	/**
-	 * When true, render `[citation:N]` / `[citation:URL]` tokens as the
-	 * interactive citation badges/popovers used in chat. Default `false`
-	 * so callers that don't need citations are unchanged.
-	 *
-	 * Note: we deliberately do NOT override `<a>` to inject citations into
-	 * link text — that would produce `<button>` inside `<a>` (invalid
-	 * HTML). A `[citation:N]` token literally placed inside markdown link
-	 * text stays as raw text.
-	 */
+	/** Render citation tokens as interactive badges. */
 	enableCitations?: boolean;
 }
 
 const EMPTY_URL_MAP: CitationUrlMap = new Map();
 
-/**
- * If the entire content is wrapped in a single ```markdown or ```md
- * code fence, strip the fence so the inner markdown renders properly.
- */
+/** Strip a single outer markdown fence when the whole payload is fenced. */
 function stripOuterMarkdownFence(content: string): string {
 	const trimmed = content.trim();
-	// Match 3+ backtick fences (LLMs escalate to 4+ when content has triple-backtick blocks)
 	const match = trimmed.match(/^(`{3,})(?:markdown|md)?\s*\n([\s\S]+?)\n\1\s*$/);
 	return match ? match[2] : content;
 }
 
-/**
- * Convert all LaTeX delimiter styles to the double-dollar syntax
- * that Streamdown's @streamdown/math plugin understands.
- *
- * Streamdown math conventions (different from remark-math!):
- *   $$...$$  on the SAME line     → inline math
- *   $$\n...\n$$  on SEPARATE lines → block (display) math
- *
- * Conversions performed:
- *   \[...\]                              → $$\n ... \n$$  (block math)
- *   \(...\)                              → $$...$$        (inline math, same line)
- *   \begin{equation}...\end{equation}    → $$\n ... \n$$  (block math)
- *   \begin{displaymath}...\end{displaymath} → $$\n ... \n$$ (block math)
- *   \begin{math}...\end{math}            → $$...$$        (inline math, same line)
- *   `$$ … $$`                             → $$ … $$       (strip wrapping backtick code)
- *   `$ … $`                               → $ … $         (strip wrapping backtick code)
- *   $...$                                 → $$...$$        (normalise single-$ to double-$$)
- */
+/** Normalize common LaTeX delimiters to Streamdown's double-dollar syntax. */
 function convertLatexDelimiters(content: string): string {
-	// 1. Block math: \[...\] → $$\n...\n$$ (display math on separate lines)
 	content = content.replace(/\\\[([\s\S]*?)\\\]/g, (_, inner) => `\n$$\n${inner.trim()}\n$$\n`);
-	// 2. Inline math: \(...\) → $$...$$ (inline math on same line)
 	content = content.replace(/\\\(([\s\S]*?)\\\)/g, (_, inner) => `$$${inner.trim()}$$`);
-	// 3. Block: \begin{equation}...\end{equation} → $$\n...\n$$
 	content = content.replace(
 		/\\begin\{equation\}([\s\S]*?)\\end\{equation\}/g,
 		(_, inner) => `\n$$\n${inner.trim()}\n$$\n`
 	);
-	// 4. Block: \begin{displaymath}...\end{displaymath} → $$\n...\n$$
 	content = content.replace(
 		/\\begin\{displaymath\}([\s\S]*?)\\end\{displaymath\}/g,
 		(_, inner) => `\n$$\n${inner.trim()}\n$$\n`
 	);
-	// 5. Inline: \begin{math}...\end{math} → $$...$$
 	content = content.replace(
 		/\\begin\{math\}([\s\S]*?)\\end\{math\}/g,
 		(_, inner) => `$$${inner.trim()}$$`
 	);
-	// 6. Strip backtick wrapping around math: `$$...$$` → $$...$$ and `$...$` → $...$
 	content = content.replace(/`(\${1,2})((?:(?!\1).)+)\1`/g, "$1$2$1");
-	// 7. Normalise single-dollar $...$ to double-dollar $$...$$ so they render
-	//    reliably in Streamdown (single-$ has strict no-space rules that often fail).
-	//    We match $…$ where the content starts with a backslash (LaTeX command)
-	//    to avoid converting currency like $50.
+	// Only convert command-style single-dollar math, leaving currency alone.
 	content = content.replace(
 		/(?<!\$)\$(?!\$)(\\[a-zA-Z][\s\S]*?)(?<!\$)\$(?!\$)/g,
 		(_, inner) => `$$${inner.trim()}$$`
@@ -110,9 +68,7 @@ export function MarkdownViewer({
 	const isTruncated = maxLength != null && content.length > maxLength;
 	const displayContent = isTruncated ? content.slice(0, maxLength) : content;
 
-	// Preprocess for URL placeholders BEFORE LaTeX so GFM autolinks don't
-	// split `[citation:https://…]` apart. The preprocess is code-fence
-	// aware so citations inside fenced code stay literal.
+	// Rewrite citation URLs before markdown autolinking can split them.
 	const { processedContent, urlMap } = useMemo(() => {
 		const stripped = stripOuterMarkdownFence(displayContent);
 		if (!enableCitations) {
@@ -128,11 +84,7 @@ export function MarkdownViewer({
 		};
 	}, [displayContent, enableCitations]);
 
-	// Phrasing/block renderers wrap their string children through the
-	// citation renderer when `enableCitations` is on. We deliberately do
-	// NOT override `<a>` (would produce <button> inside <a>) and we do
-	// NOT touch the inline/fenced `code` paths (citations stay literal
-	// inside code, matching markdown-text.tsx behavior).
+	// Do not wrap anchors or code; citation buttons inside them would be invalid.
 	const wrap = (children: React.ReactNode): React.ReactNode =>
 		enableCitations ? processChildrenWithCitations(children, urlMap) : children;
 
@@ -198,27 +150,21 @@ export function MarkdownViewer({
 		),
 		hr: ({ ...props }) => <hr className="my-4 border-muted" {...props} />,
 		img: ({ src, alt, width: _w, height: _h, ...props }) => {
-			const isDataOrUnknownUrl =
-				typeof src === "string" && (src.startsWith("data:") || !src.startsWith("http"));
+			if (typeof src !== "string") return null;
 
-			return isDataOrUnknownUrl ? (
-				// eslint-disable-next-line @next/next/no-img-element
-				<img
-					className="max-w-full h-auto my-4 rounded"
-					alt={alt || "markdown image"}
-					src={src}
-					loading="lazy"
-					{...props}
-				/>
-			) : (
+			const width = typeof _w === "number" ? _w : Number(_w) || 800;
+			const height = typeof _h === "number" ? _h : Number(_h) || 600;
+			const shouldSkipOptimization = src.startsWith("data:");
+
+			return (
 				<Image
 					className="max-w-full h-auto my-4 rounded"
 					alt={alt || "markdown image"}
-					src={typeof src === "string" ? src : ""}
-					width={_w || 800}
-					height={_h || 600}
+					src={src}
+					width={width}
+					height={height}
 					sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 60vw"
-					unoptimized={isDataOrUnknownUrl}
+					unoptimized={shouldSkipOptimization}
 					{...props}
 				/>
 			);

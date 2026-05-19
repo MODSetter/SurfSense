@@ -107,7 +107,7 @@ const UserAvatar: FC<AuthorMetadata & { hasError: boolean; onError: () => void }
 	}
 
 	return (
-		<div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+		<div className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground">
 			{initials}
 		</div>
 	);
@@ -124,7 +124,7 @@ const PublicUserMessage: FC = () => {
 		>
 			<div className="aui-user-message-content-wrapper col-start-2 min-w-0 flex items-end gap-2">
 				<div className="flex-1 min-w-0">
-					<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
+					<div className="aui-user-message-content wrap-break-word rounded-xl bg-muted px-4 py-2.5 text-foreground">
 						<MessagePrimitive.Parts />
 					</div>
 				</div>

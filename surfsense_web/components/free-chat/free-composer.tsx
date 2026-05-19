@@ -5,6 +5,7 @@ import { ArrowUpIcon, Globe, Paperclip, SquareIcon } from "lucide-react";
 import { type FC, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
@@ -67,7 +68,6 @@ const ACCEPT_EXTENSIONS = Array.from(ANON_ALLOWED_EXTENSIONS).join(",");
 export const FreeComposer: FC = () => {
 	const aui = useAui();
 	const isRunning = useAuiState(({ thread }) => thread.isRunning);
-	const isEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const { gate } = useLoginGate();
 	const anonMode = useAnonymousMode();
 	const [text, setText] = useState("");
@@ -186,18 +186,19 @@ export const FreeComposer: FC = () => {
 					/>
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<button
+							<Button
 								type="button"
+								variant="ghost"
 								onClick={handleUploadClick}
 								className={cn(
-									"flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors",
-									"text-muted-foreground hover:text-foreground hover:bg-accent/50",
+									"h-auto gap-1.5 rounded-md px-2 py-1 text-xs transition-colors",
+									"text-muted-foreground hover:text-accent-foreground hover:bg-accent",
 									hasUploadedDoc && "text-primary"
 								)}
 							>
 								<Paperclip className="size-3.5" />
 								{hasUploadedDoc ? "1/1" : "Upload"}
-							</button>
+							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
 							{hasUploadedDoc
@@ -212,7 +213,7 @@ export const FreeComposer: FC = () => {
 						<TooltipTrigger asChild>
 							<label
 								htmlFor="free-web-search-toggle"
-								className="flex items-center gap-1.5 cursor-pointer select-none rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+								className="flex items-center gap-1.5 cursor-pointer select-none rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-accent-foreground hover:bg-accent transition-colors"
 							>
 								<Globe className="size-3.5" />
 								<span className="hidden sm:inline">Web</span>

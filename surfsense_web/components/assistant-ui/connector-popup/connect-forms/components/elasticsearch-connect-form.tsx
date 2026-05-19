@@ -172,10 +172,10 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 
 	return (
 		<div className="space-y-6 pb-6">
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
-				<Info className="size-4 shrink-0" />
-				<AlertTitle className="text-xs sm:text-sm">API Key Required</AlertTitle>
-				<AlertDescription className="text-[10px] sm:text-xs">
+			<Alert>
+				<Info />
+				<AlertTitle>API Key Required</AlertTitle>
+				<AlertDescription>
 					Enter your Elasticsearch cluster endpoint URL and authentication credentials to connect.
 				</AlertDescription>
 			</Alert>
@@ -428,10 +428,10 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 							</div>
 						)}
 
-						<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
-							<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-							<AlertTitle className="text-[10px] sm:text-xs">Index Selection Tips</AlertTitle>
-							<AlertDescription className="text-[9px] sm:text-[10px] mt-2">
+						<Alert>
+							<Info />
+							<AlertTitle>Index Selection Tips</AlertTitle>
+							<AlertDescription>
 								<ul className="list-disc pl-4 space-y-1">
 									<li>Use wildcards like "logs-*" to match multiple indices</li>
 									<li>Separate multiple indices with commas</li>
@@ -643,231 +643,6 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 					</ul>
 				</div>
 			)}
-
-			{/* Documentation Section */}
-			<Accordion
-				type="single"
-				collapsible
-				className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5"
-			>
-				<AccordionItem value="documentation" className="border-0">
-					<AccordionTrigger className="text-sm sm:text-base font-medium px-3 sm:px-6 no-underline hover:no-underline">
-						Documentation
-					</AccordionTrigger>
-					<AccordionContent className="px-3 sm:px-6 pb-3 sm:pb-6 space-y-6">
-						<div>
-							<h3 className="text-sm sm:text-base font-semibold mb-2">How it works</h3>
-							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								The Elasticsearch connector allows you to search and retrieve documents from your
-								Elasticsearch cluster. Configure connection details, select specific indices, and
-								set search parameters to make your existing data searchable within SurfSense.
-							</p>
-						</div>
-
-						<div className="space-y-4">
-							<div>
-								<h3 className="text-sm sm:text-base font-semibold mb-2">Connection Setup</h3>
-								<div className="space-y-4 sm:space-y-6">
-									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
-											Step 1: Get your Elasticsearch endpoint
-										</h4>
-										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
-											You'll need the endpoint URL for your Elasticsearch cluster. This typically
-											looks like:
-										</p>
-										<ul className="list-disc pl-5 space-y-1 text-[10px] sm:text-xs text-muted-foreground mb-4">
-											<li>
-												Cloud:{" "}
-												<code className="bg-muted px-1 py-0.5 rounded">
-													https://your-cluster.es.region.aws.com:443
-												</code>
-											</li>
-											<li>
-												Self-hosted:{" "}
-												<code className="bg-muted px-1 py-0.5 rounded">
-													https://elasticsearch.example.com:9200
-												</code>
-											</li>
-										</ul>
-									</div>
-
-									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
-											Step 2: Configure authentication
-										</h4>
-										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
-											Elasticsearch requires authentication. You can use either:
-										</p>
-										<ul className="list-disc pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground mb-4">
-											<li>
-												<strong>API Key:</strong> A base64-encoded API key. You can create one in
-												Elasticsearch by running:
-												<pre className="bg-muted p-2 rounded mt-1 text-[9px] overflow-x-auto">
-													<code>POST /_security/api_key</code>
-												</pre>
-											</li>
-											<li>
-												<strong>Username & Password:</strong> Basic authentication using your
-												Elasticsearch username and password.
-											</li>
-										</ul>
-									</div>
-
-									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
-											Step 3: Select indices
-										</h4>
-										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
-											Specify which indices to search. You can:
-										</p>
-										<ul className="list-disc pl-5 space-y-1 text-[10px] sm:text-xs text-muted-foreground">
-											<li>
-												Use wildcards: <code className="bg-muted px-1 py-0.5 rounded">logs-*</code>{" "}
-												to match multiple indices
-											</li>
-											<li>
-												List specific indices:{" "}
-												<code className="bg-muted px-1 py-0.5 rounded">
-													logs-2024, documents-2024
-												</code>
-											</li>
-											<li>
-												Leave empty to search all accessible indices (not recommended for
-												performance)
-											</li>
-										</ul>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						<div className="space-y-4">
-							<div>
-								<h3 className="text-sm sm:text-base font-semibold mb-2">Advanced Configuration</h3>
-								<div className="space-y-4">
-									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Search Query</h4>
-										<p className="text-[10px] sm:text-xs text-muted-foreground mb-2">
-											The default query used for searches. Use{" "}
-											<code className="bg-muted px-1 py-0.5 rounded">*</code> to match all
-											documents, or specify a more complex Elasticsearch query.
-										</p>
-									</div>
-
-									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Search Fields</h4>
-										<p className="text-[10px] sm:text-xs text-muted-foreground mb-2">
-											Limit searches to specific fields for better performance. Common fields
-											include:
-										</p>
-										<ul className="list-disc pl-5 space-y-1 text-[10px] sm:text-xs text-muted-foreground">
-											<li>
-												<code className="bg-muted px-1 py-0.5 rounded">title</code> - Document
-												titles
-											</li>
-											<li>
-												<code className="bg-muted px-1 py-0.5 rounded">content</code> - Main content
-											</li>
-											<li>
-												<code className="bg-muted px-1 py-0.5 rounded">description</code> -
-												Descriptions
-											</li>
-										</ul>
-										<p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
-											Leave empty to search all fields in your documents.
-										</p>
-									</div>
-
-									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Maximum Documents</h4>
-										<p className="text-[10px] sm:text-xs text-muted-foreground">
-											Set a limit on the number of documents retrieved per search (1-10,000). This
-											helps control response times and resource usage. Leave empty to use
-											Elasticsearch's default limit.
-										</p>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						<div className="space-y-4">
-							<div>
-								<h3 className="text-sm sm:text-base font-semibold mb-2">Troubleshooting</h3>
-								<div className="space-y-4">
-									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Connection Issues</h4>
-										<ul className="list-disc pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
-											<li>
-												<strong>Invalid URL:</strong> Ensure your endpoint URL includes the protocol
-												(https://) and port number if required.
-											</li>
-											<li>
-												<strong>SSL/TLS Errors:</strong> Verify that your cluster uses HTTPS and the
-												certificate is valid. Self-signed certificates may require additional
-												configuration.
-											</li>
-											<li>
-												<strong>Connection Timeout:</strong> Check your network connectivity and
-												firewall settings. Ensure the Elasticsearch cluster is accessible from
-												SurfSense servers.
-											</li>
-										</ul>
-									</div>
-
-									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
-											Authentication Issues
-										</h4>
-										<ul className="list-disc pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
-											<li>
-												<strong>Invalid Credentials:</strong> Double-check your username/password or
-												API key. API keys must be base64-encoded.
-											</li>
-											<li>
-												<strong>Permission Denied:</strong> Ensure your API key or user account has
-												read permissions for the indices you want to search.
-											</li>
-											<li>
-												<strong>API Key Format:</strong> Elasticsearch API keys are typically
-												base64-encoded strings. Make sure you're using the full key value.
-											</li>
-										</ul>
-									</div>
-
-									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Search Issues</h4>
-										<ul className="list-disc pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
-											<li>
-												<strong>No Results:</strong> Verify that your index selection matches
-												existing indices. Use wildcards carefully.
-											</li>
-											<li>
-												<strong>Slow Searches:</strong> Limit the number of indices or use specific
-												index names instead of wildcards. Reduce the maximum documents limit.
-											</li>
-											<li>
-												<strong>Field Not Found:</strong> Ensure the search fields you specify
-												actually exist in your Elasticsearch documents.
-											</li>
-										</ul>
-									</div>
-
-									<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 mt-4">
-										<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-										<AlertTitle className="text-[10px] sm:text-xs">Need More Help?</AlertTitle>
-										<AlertDescription className="text-[9px] sm:text-[10px]">
-											If you continue to experience issues, check your Elasticsearch cluster logs
-											and ensure your cluster version is compatible. For Elasticsearch Cloud
-											deployments, verify your access policies and IP allowlists.
-										</AlertDescription>
-									</Alert>
-								</div>
-							</div>
-						</div>
-					</AccordionContent>
-				</AccordionItem>
-			</Accordion>
 		</div>
 	);
 };

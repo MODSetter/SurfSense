@@ -203,7 +203,7 @@ export const ChainOfThoughtTrigger: React.FC<ChainOfThoughtTriggerProps> = ({
 }) => (
 	<CollapsibleTrigger
 		className={cn(
-			"group text-muted-foreground hover:text-foreground flex cursor-pointer items-center justify-start gap-1 text-left text-sm transition-colors",
+			"group text-muted-foreground hover:text-accent-foreground flex cursor-pointer items-center justify-start gap-1 text-left text-sm transition-colors",
 			className
 		)}
 		{...props}

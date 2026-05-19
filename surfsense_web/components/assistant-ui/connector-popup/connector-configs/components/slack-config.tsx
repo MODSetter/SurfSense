@@ -2,6 +2,7 @@
 
 import { AlertCircle, CheckCircle2, Hash, Info, Lock, RefreshCw } from "lucide-react";
 import { type FC, useCallback, useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { connectorsApiService, type SlackChannel } from "@/lib/apis/connectors-api.service";
@@ -74,20 +75,20 @@ export const SlackConfig: FC<SlackConfigProps> = ({ connector }) => {
 	return (
 		<div className="space-y-6">
 			{/* Info box */}
-			<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
-				<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
-					<Info className="size-4" />
-				</div>
-				<div className="text-xs sm:text-sm">
-					<p className="font-medium text-xs sm:text-sm">Add Bot to Channels</p>
-					<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
+			<Alert>
+				<Info />
+				<AlertTitle>Add Bot to Channels</AlertTitle>
+				<AlertDescription>
+					<p>
 						Before indexing, add the SurfSense bot to each channel you want to index. The bot can
 						only access messages from channels it's been added to. Type{" "}
-						<code className="bg-muted px-1 py-0.5 rounded text-[9px]">/invite @SurfSense</code> in
-						any channel to add it.
+						<code className="rounded bg-popover px-1 py-0.5 text-[9px] text-popover-foreground">
+							/invite @SurfSense
+						</code>{" "}
+						in any channel to add it.
 					</p>
-				</div>
-			</div>
+				</AlertDescription>
+			</Alert>
 
 			{/* Channels Section */}
 			<div className="space-y-3">
@@ -104,7 +105,7 @@ export const SlackConfig: FC<SlackConfigProps> = ({ connector }) => {
 							size="sm"
 							onClick={fetchChannels}
 							disabled={isLoading}
-							className="h-7 px-2.5 text-[11px] bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20"
+							className="h-7 px-2.5 text-[11px] bg-slate-400/10 dark:bg-white/10 hover:bg-accent hover:text-accent-foreground border-slate-400/20 dark:border-white/20"
 						>
 							<RefreshCw className={cn("mr-1.5 size-3", isLoading && "animate-spin")} />
 							Refresh
@@ -178,7 +179,7 @@ interface ChannelPillProps {
 
 const ChannelPill: FC<ChannelPillProps> = ({ channel }) => {
 	return (
-		<div className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 transition-colors">
+		<div className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-slate-400/10 dark:bg-white/10 hover:bg-accent hover:text-accent-foreground transition-colors">
 			{channel.is_private ? (
 				<Lock className="size-2.5 text-muted-foreground" />
 			) : (

@@ -151,7 +151,7 @@ export default function OnboardPage() {
 	}
 
 	return (
-		<div className="h-screen flex flex-col items-center p-4 bg-background dark:bg-neutral-900 select-none overflow-hidden">
+		<div className="h-screen flex flex-col items-center p-4 bg-main-panel select-none overflow-hidden">
 			<div className="w-full max-w-lg flex flex-col min-h-0 h-full gap-6 py-8">
 				{/* Header */}
 				<div className="text-center space-y-3 shrink-0">
@@ -165,7 +165,7 @@ export default function OnboardPage() {
 				</div>
 
 				{/* Form card */}
-				<div className="rounded-xl border bg-background dark:bg-neutral-900 flex-1 min-h-0 overflow-y-auto px-6 py-6">
+				<div className="rounded-xl border bg-main-panel flex-1 min-h-0 overflow-y-auto px-6 py-6">
 					<LLMConfigForm
 						searchSpaceId={searchSpaceId}
 						onSubmit={handleSubmit}

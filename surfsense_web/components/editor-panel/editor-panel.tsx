@@ -448,17 +448,22 @@ export function EditorPanelContent({
 	return (
 		<>
 			{showDesktopHeader ? (
-				<div className="shrink-0 border-b">
-					<div className="flex h-14 items-center justify-between px-4">
-						<h2 className="text-lg font-medium text-muted-foreground select-none">File</h2>
+				<div className="shrink-0">
+					<div className="shrink-0 flex h-12 items-center justify-between px-3 border-b">
+						<h2 className="select-none text-lg font-semibold">File</h2>
 						<div className="flex items-center gap-1 shrink-0">
-							<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-								<XIcon className="size-4" />
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={onClose}
+								className="h-8 w-8 rounded-full shrink-0 text-muted-foreground hover:text-accent-foreground"
+							>
+								<XIcon className="h-4 w-4" />
 								<span className="sr-only">Close editor panel</span>
 							</Button>
 						</div>
 					</div>
-					<div className="flex h-10 items-center justify-between gap-2 border-t px-4">
+					<div className="grid h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
 						<div className="min-w-0 flex flex-1 items-center gap-2">
 							<p className="truncate text-sm text-muted-foreground">{displayTitle}</p>
 						</div>
@@ -667,7 +672,7 @@ export function EditorPanelContent({
 								placeholder="Start writing..."
 								editorVariant="default"
 								allowModeToggle={false}
-								reserveToolbarSpace
+								reserveToolbarSpace={isEditing}
 								defaultEditing={isEditing}
 								className="**:[[role=toolbar]]:bg-sidebar!"
 								// Render `[citation:N]` badges in view mode only.

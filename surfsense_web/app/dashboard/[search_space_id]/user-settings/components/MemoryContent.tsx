@@ -177,9 +177,9 @@ export function MemoryContent() {
 
 	return (
 		<div className="space-y-4">
-			<Alert className="bg-muted/50 py-3 md:py-4">
-				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-				<AlertDescription className="text-xs md:text-sm">
+			<Alert>
+				<Info />
+				<AlertDescription>
 					<p>
 						SurfSense uses this personal memory to personalize your responses across all
 						conversations.
@@ -222,7 +222,9 @@ export function MemoryContent() {
 								onClick={handleEdit}
 								disabled={editing || !editQuery.trim()}
 								className={`h-11 w-11 shrink-0 rounded-full ${
-									editing ? "" : "bg-muted-foreground/15 hover:bg-muted-foreground/20"
+									editing
+										? ""
+										: "bg-muted-foreground/15 hover:bg-accent hover:text-accent-foreground"
 								}`}
 							>
 								{editing ? (

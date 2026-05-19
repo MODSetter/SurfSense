@@ -7,7 +7,7 @@ mocked at their system boundaries.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
@@ -25,6 +25,7 @@ pytestmark = pytest.mark.integration
 
 _COMPOSIO_ACCOUNT_ID = "composio-gmail-test-456"
 _INDEXER_MODULE = "app.tasks.connector_indexers.google_gmail_indexer"
+_GET_ACCESS_TOKEN = "app.services.composio_service.ComposioService.get_access_token"
 
 
 @pytest_asyncio.fixture
@@ -69,29 +70,31 @@ async def native_gmail(async_engine):
     await cleanup_space(async_engine, data["search_space_id"])
 
 
+@patch(_GET_ACCESS_TOKEN)
 @patch(f"{_INDEXER_MODULE}.TaskLoggingService")
 @patch(f"{_INDEXER_MODULE}.GoogleGmailConnector")
-@patch(f"{_INDEXER_MODULE}.build_composio_credentials")
-async def test_composio_gmail_uses_composio_credentials(
-    mock_build_creds,
+@patch(f"{_INDEXER_MODULE}.ComposioService")
+async def test_composio_gmail_uses_composio_service(
+    mock_composio_service_cls,
     mock_gmail_cls,
     mock_tl_cls,
+    mock_get_access_token,
     async_engine,
     composio_gmail,
 ):
-    """Gmail indexer calls build_composio_credentials for a Composio connector."""
+    """Gmail indexer uses Composio tools directly for a Composio connector."""
     from app.tasks.connector_indexers.google_gmail_indexer import (
         index_google_gmail_messages,
     )
 
     data = composio_gmail
-    mock_creds = MagicMock(name="composio-creds")
-    mock_build_creds.return_value = mock_creds
+    mock_composio_service = MagicMock()
+    mock_composio_service.get_gmail_messages = AsyncMock(
+        return_value=([], None, None, None)
+    )
+    mock_composio_service.get_gmail_message_detail = AsyncMock(return_value=({}, None))
+    mock_composio_service_cls.return_value = mock_composio_service
     mock_tl_cls.return_value = mock_task_logger()
-
-    mock_gmail_instance = MagicMock()
-    mock_gmail_instance.get_recent_messages = AsyncMock(return_value=([], None))
-    mock_gmail_cls.return_value = mock_gmail_instance
 
     maker = make_session_factory(async_engine)
     async with maker() as session:
@@ -102,17 +105,25 @@ async def test_composio_gmail_uses_composio_credentials(
             user_id=data["user_id"],
         )
 
-    mock_build_creds.assert_called_once_with(_COMPOSIO_ACCOUNT_ID)
-    mock_gmail_cls.assert_called_once()
-    args, _ = mock_gmail_cls.call_args
-    assert args[0] is mock_creds
+    mock_composio_service_cls.assert_called_once()
+    mock_composio_service.get_gmail_messages.assert_called_once_with(
+        connected_account_id=_COMPOSIO_ACCOUNT_ID,
+        entity_id=f"surfsense_{data['user_id']}",
+        query=ANY,
+        max_results=ANY,
+        page_token=None,
+    )
+    mock_gmail_cls.assert_not_called()
+    mock_get_access_token.assert_not_called()
 
 
+@patch(_GET_ACCESS_TOKEN)
 @patch(f"{_INDEXER_MODULE}.TaskLoggingService")
-@patch(f"{_INDEXER_MODULE}.build_composio_credentials")
+@patch(f"{_INDEXER_MODULE}.ComposioService")
 async def test_composio_gmail_without_account_id_returns_error(
-    mock_build_creds,
+    mock_composio_service_cls,
     mock_tl_cls,
+    mock_get_access_token,
     async_engine,
     composio_gmail_no_id,
 ):
@@ -136,20 +147,23 @@ async def test_composio_gmail_without_account_id_returns_error(
     assert count == 0
     assert error is not None
     assert "composio" in error.lower()
-    mock_build_creds.assert_not_called()
+    mock_composio_service_cls.assert_not_called()
+    mock_get_access_token.assert_not_called()
 
 
+@patch(_GET_ACCESS_TOKEN)
 @patch(f"{_INDEXER_MODULE}.TaskLoggingService")
+@patch(f"{_INDEXER_MODULE}.ComposioService")
 @patch(f"{_INDEXER_MODULE}.GoogleGmailConnector")
-@patch(f"{_INDEXER_MODULE}.build_composio_credentials")
-async def test_native_gmail_does_not_use_composio_credentials(
-    mock_build_creds,
+async def test_native_gmail_uses_google_gmail_connector(
     mock_gmail_cls,
+    mock_composio_service_cls,
     mock_tl_cls,
+    mock_get_access_token,
     async_engine,
     native_gmail,
 ):
-    """Gmail indexer does NOT call build_composio_credentials for a native connector."""
+    """Native Gmail connector uses GoogleGmailConnector with no Composio path."""
     from app.tasks.connector_indexers.google_gmail_indexer import (
         index_google_gmail_messages,
     )
@@ -170,4 +184,6 @@ async def test_native_gmail_does_not_use_composio_credentials(
             user_id=data["user_id"],
         )
 
-    mock_build_creds.assert_not_called()
+    mock_gmail_cls.assert_called_once()
+    mock_composio_service_cls.assert_not_called()
+    mock_get_access_token.assert_not_called()

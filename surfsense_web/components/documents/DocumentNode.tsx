@@ -138,24 +138,14 @@ export const DocumentNode = React.memo(function DocumentNode({
 	return (
 		<ContextMenu onOpenChange={onContextMenuOpenChange}>
 			<ContextMenuTrigger asChild>
-				{/* biome-ignore lint/a11y/useSemanticElements: contains nested interactive children (Checkbox) that render as <button>, making a semantic <button> wrapper invalid */}
 				<div
-					role="button"
-					tabIndex={0}
 					ref={attachRef}
 					className={cn(
-						"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent/50 cursor-pointer select-none text-left",
-						isMentioned && "bg-accent/30",
+						"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer select-none text-left",
+						isMentioned && "bg-accent text-accent-foreground",
 						isDragging && "opacity-40"
 					)}
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
-					onClick={handleCheckChange}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" || e.key === " ") {
-							e.preventDefault();
-							handleCheckChange();
-						}
-					}}
 				>
 					{(() => {
 						if (statusState === "pending") {
@@ -212,9 +202,17 @@ export const DocumentNode = React.memo(function DocumentNode({
 						onOpenChange={handleTitleTooltipOpenChange}
 					>
 						<TooltipTrigger asChild>
-							<span ref={titleRef} className="flex-1 min-w-0 truncate">
-								{doc.title}
-							</span>
+							<Button
+								type="button"
+								variant="ghost"
+								aria-disabled={!isSelectable}
+								onClick={handleCheckChange}
+								className="h-full min-w-0 flex-1 justify-start bg-transparent px-0 py-0 text-left font-normal text-inherit hover:bg-transparent hover:text-inherit"
+							>
+								<span ref={titleRef} className="min-w-0 flex-1 truncate">
+									{doc.title}
+								</span>
+							</Button>
 						</TooltipTrigger>
 						<TooltipContent side="bottom" className="max-w-xs break-words">
 							{doc.title}

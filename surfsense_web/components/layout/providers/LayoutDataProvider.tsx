@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { AlertTriangle, Inbox, Megaphone, SquareLibrary } from "lucide-react";
+import { AlertTriangle, Inbox, LibraryBig } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -11,25 +11,14 @@ import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
+import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import {
-	searchSpaceSettingsDialogAtom,
-	teamDialogAtom,
-	userSettingsDialogAtom,
-} from "@/atoms/settings/settings-dialog.atoms";
-import {
-	removeChatTabAtom,
-	resetTabsAtom,
-	syncChatTabAtom,
-	type Tab,
-} from "@/atoms/tabs/tabs.atom";
+import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import { ActionLogSheet } from "@/components/agent-action-log/action-log-sheet";
-import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
-import { TeamDialog } from "@/components/settings/team-dialog";
-import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
+import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog";
+import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -105,7 +94,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const currentThreadState = useAtomValue(currentThreadAtom);
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
 	const syncChatTab = useSetAtom(syncChatTabAtom);
-	const resetTabs = useSetAtom(resetTabsAtom);
 	const removeChatTab = useSetAtom(removeChatTabAtom);
 
 	// Key used to force-remount the page component (e.g. after deleting the active chat
@@ -132,16 +120,15 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	});
 
 	// Unified slide-out panel state (only one can be open at a time)
-	type SlideoutPanel = "inbox" | "shared" | "private" | "announcements" | null;
+	type SlideoutPanel = "inbox" | "shared" | "private" | null;
 	const [activeSlideoutPanel, setActiveSlideoutPanel] = useState<SlideoutPanel>(null);
 
 	const isInboxSidebarOpen = activeSlideoutPanel === "inbox";
-	const isAnnouncementsSidebarOpen = activeSlideoutPanel === "announcements";
 
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
 	const [isDocumentsDocked, setIsDocumentsDocked] = useState(true);
-	const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useAtom(rightPanelCollapsedAtom);
+	const setIsRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
 
 	// Open documents sidebar by default on desktop (docked mode)
 	const documentsInitialized = useRef(false);
@@ -252,16 +239,16 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const [isDeletingSearchSpace, setIsDeletingSearchSpace] = useState(false);
 	const [isLeavingSearchSpace, setIsLeavingSearchSpace] = useState(false);
 
-	// Reset transient slide-out panels and tabs when switching search spaces.
-	// Use a ref to skip the initial mount — only reset when the space actually changes.
+	// Reset transient slide-out panels when switching search spaces.
+	// Tabs intentionally persist across spaces — opening tabs from multiple
+	// search spaces is a supported flow (browser-tab semantics).
 	const prevSearchSpaceIdRef = useRef(searchSpaceId);
 	useEffect(() => {
 		if (prevSearchSpaceIdRef.current !== searchSpaceId) {
 			prevSearchSpaceIdRef.current = searchSpaceId;
 			setActiveSlideoutPanel(null);
-			resetTabs();
 		}
-	}, [searchSpaceId, resetTabs]);
+	}, [searchSpaceId]);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
@@ -313,6 +300,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			// Avoid overwriting live SSE-updated tab titles with fallback values.
 			title: chatId ? (thread?.title ?? undefined) : "New Chat",
 			chatUrl,
+			searchSpaceId: Number(searchSpaceId),
 		});
 	}, [currentChatId, searchSpaceId, threadsData?.threads, syncChatTab]);
 
@@ -347,6 +335,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [threadsData, searchSpaceId]);
 
 	// Navigation items
+	// Inbox is rendered explicitly below "New chat" in the sidebar (it is also
+	// surfaced in the icon rail's collapsed mode via this list). Announcements
+	// has been moved to the avatar dropdown and is no longer a nav item.
 	const navItems: NavItem[] = useMemo(
 		() =>
 			(
@@ -362,28 +353,13 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						? {
 								title: "Documents",
 								url: "#documents",
-								icon: SquareLibrary,
+								icon: LibraryBig,
 								isActive: isDocumentsSidebarOpen,
 							}
 						: null,
-					{
-						title: "Announcements",
-						url: "#announcements",
-						icon: Megaphone,
-						isActive: isAnnouncementsSidebarOpen,
-						badge:
-							announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
-					},
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
-		[
-			isMobile,
-			isInboxSidebarOpen,
-			isDocumentsSidebarOpen,
-			totalUnreadCount,
-			isAnnouncementsSidebarOpen,
-			announcementUnreadCount,
-		]
+		[isMobile, isInboxSidebarOpen, isDocumentsSidebarOpen, totalUnreadCount]
 	);
 
 	// Handlers
@@ -398,19 +374,21 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsCreateSearchSpaceDialogOpen(true);
 	}, []);
 
-	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
-	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
-	const setTeamDialogOpen = useSetAtom(teamDialogAtom);
+	const setAnnouncementsDialog = useSetAtom(announcementsDialogAtom);
 
 	const handleUserSettings = useCallback(() => {
-		setUserSettingsDialog({ open: true, initialTab: "profile" });
-	}, [setUserSettingsDialog]);
+		router.push(`/dashboard/${searchSpaceId}/user-settings`);
+	}, [router, searchSpaceId]);
+
+	const handleAnnouncements = useCallback(() => {
+		setAnnouncementsDialog(true);
+	}, [setAnnouncementsDialog]);
 
 	const handleSearchSpaceSettings = useCallback(
-		(_space: SearchSpace) => {
-			setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
+		(space: SearchSpace) => {
+			router.push(`/dashboard/${space.id}/search-space-settings`);
 		},
-		[setSearchSpaceSettingsDialog]
+		[router]
 	);
 
 	const handleSearchSpaceDeleteClick = useCallback((space: SearchSpace) => {
@@ -519,10 +497,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				}
 				return;
 			}
-			if (item.url === "#announcements") {
-				setActiveSlideoutPanel((prev) => (prev === "announcements" ? null : "announcements"));
-				return;
-			}
 			router.push(item.url);
 		},
 		[router, isMobile, isDocumentsSidebarOpen, setIsDocumentsSidebarOpen, setIsRightPanelCollapsed]
@@ -586,12 +560,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	);
 
 	const handleSettings = useCallback(() => {
-		setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
-	}, [setSearchSpaceSettingsDialog]);
+		router.push(`/dashboard/${searchSpaceId}/search-space-settings`);
+	}, [router, searchSpaceId]);
 
 	const handleManageMembers = useCallback(() => {
-		setTeamDialogOpen(true);
-	}, [setTeamDialogOpen]);
+		router.push(`/dashboard/${searchSpaceId}/team`);
+	}, [router, searchSpaceId]);
 
 	const handleLogout = useCallback(async () => {
 		try {
@@ -683,6 +657,15 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Detect if we're on the chat page (needs overflow-hidden for chat's own scroll)
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
+	const isUserSettingsPage = pathname?.includes("/user-settings") === true;
+	const isSearchSpaceSettingsPage = pathname?.includes("/search-space-settings") === true;
+	const isTeamPage = pathname?.endsWith("/team") === true;
+	const useWorkspacePanel =
+		pathname?.endsWith("/buy-more") === true ||
+		pathname?.endsWith("/more-pages") === true ||
+		isUserSettingsPage ||
+		isSearchSpaceSettingsPage ||
+		isTeamPage;
 
 	return (
 		<>
@@ -714,10 +697,21 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				onSettings={handleSettings}
 				onManageMembers={handleManageMembers}
 				onUserSettings={handleUserSettings}
+				onAnnouncements={handleAnnouncements}
+				announcementUnreadCount={announcementUnreadCount}
 				onLogout={handleLogout}
 				theme={theme}
 				setTheme={setTheme}
 				isChatPage={isChatPage}
+				useWorkspacePanel={useWorkspacePanel}
+				workspacePanelViewportClassName={
+					isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage
+						? "items-start justify-center px-6 py-8 md:px-10 md:py-10"
+						: undefined
+				}
+				workspacePanelContentClassName={
+					isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage ? "max-w-5xl" : undefined
+				}
 				isLoadingChats={isLoadingThreads}
 				activeSlideoutPanel={activeSlideoutPanel}
 				onSlideoutPanelChange={setActiveSlideoutPanel}
@@ -897,13 +891,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				onOpenChange={setIsCreateSearchSpaceDialogOpen}
 			/>
 
-			{/* Settings Dialogs */}
-			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
-			<UserSettingsDialog />
-			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
+			<AnnouncementsDialog />
 
-			{/* Agent action log + revert sheet */}
-			<ActionLogSheet />
+			{/* Agent action log + revert dialog */}
+			<ActionLogDialog />
 		</>
 	);
 }
