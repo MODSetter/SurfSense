@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 import { activeTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
+import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { InboxItem } from "@/hooks/use-inbox";
@@ -502,6 +503,11 @@ export function LayoutShell({
 								setTheme={setTheme}
 								renderUserProfile={false}
 								renderCollapseButton={!isMacDesktop}
+								collapsedHeaderContent={
+									isMacDesktop ? (
+										<Logo disableLink priority className="h-7 w-7 rounded-md" />
+									) : undefined
+								}
 								className={cn("flex shrink-0", isMacDesktop && "rounded-tl-xl")}
 								isLoadingChats={isLoadingChats}
 								sidebarWidth={sidebarWidth}

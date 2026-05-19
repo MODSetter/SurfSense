@@ -4,7 +4,7 @@ import { CreditCard, Dot, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -96,6 +96,7 @@ interface SidebarProps {
 	isResizing?: boolean;
 	renderUserProfile?: boolean;
 	renderCollapseButton?: boolean;
+	collapsedHeaderContent?: ReactNode;
 }
 
 export function Sidebar({
@@ -134,6 +135,7 @@ export function Sidebar({
 	isResizing = false,
 	renderUserProfile = true,
 	renderCollapseButton = true,
+	collapsedHeaderContent,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
@@ -162,7 +164,7 @@ export function Sidebar({
 			)}
 			style={{ width: isCollapsed ? collapsedWidth : sidebarWidth }}
 		>
-			<div className="flex h-12 shrink-0 items-center gap-0 px-1 border-b">
+			<div className="relative flex h-12 shrink-0 items-center gap-0 px-1 border-b">
 				<div
 					className={cn(
 						"min-w-0 overflow-hidden",
@@ -178,6 +180,18 @@ export function Sidebar({
 						onManageMembers={onManageMembers}
 					/>
 				</div>
+				{collapsedHeaderContent ? (
+					<div
+						aria-hidden={!isCollapsed}
+						className={cn(
+							"pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center transition-opacity duration-150",
+							isCollapsed ? "opacity-100 delay-150" : "opacity-0"
+						)}
+						style={{ width: collapsedWidth }}
+					>
+						{collapsedHeaderContent}
+					</div>
+				) : null}
 				{renderCollapseButton ? (
 					<div className={cn("shrink-0", isCollapsed && "mx-auto")}>
 						<SidebarCollapseButton
