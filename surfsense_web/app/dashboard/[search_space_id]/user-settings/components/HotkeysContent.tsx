@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_SHORTCUTS, keyEventToAccelerator } from "@/components/desktop/shortcut-recorder";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
@@ -78,7 +79,7 @@ function HotkeyRow({
 	);
 
 	return (
-		<div className="flex items-center justify-between gap-2.5 border-border/60 border-b py-3 last:border-b-0">
+		<div className="flex items-center justify-between gap-2.5 py-3">
 			<div className="flex items-center gap-2.5 min-w-0">
 				<div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
 					<Icon className="size-3.5" />
@@ -179,17 +180,19 @@ export function HotkeysContent() {
 	return shortcutsLoaded ? (
 		<div className="flex flex-col gap-3">
 			<div>
-				{HOTKEY_ROWS.map((row) => (
-					<HotkeyRow
-						key={row.key}
-						label={row.label}
-						value={shortcuts[row.key]}
-						defaultValue={DEFAULT_SHORTCUTS[row.key]}
-						icon={row.icon}
-						isMac={isMac}
-						onChange={(accel) => updateShortcut(row.key, accel)}
-						onReset={() => resetShortcut(row.key)}
-					/>
+				{HOTKEY_ROWS.map((row, index) => (
+					<div key={row.key}>
+						<HotkeyRow
+							label={row.label}
+							value={shortcuts[row.key]}
+							defaultValue={DEFAULT_SHORTCUTS[row.key]}
+							icon={row.icon}
+							isMac={isMac}
+							onChange={(accel) => updateShortcut(row.key, accel)}
+							onReset={() => resetShortcut(row.key)}
+						/>
+						{index < HOTKEY_ROWS.length - 1 ? <Separator className="bg-border" /> : null}
+					</div>
 				))}
 			</div>
 		</div>
