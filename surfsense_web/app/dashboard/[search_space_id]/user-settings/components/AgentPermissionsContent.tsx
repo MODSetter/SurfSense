@@ -307,9 +307,9 @@ export function AgentPermissionsContent() {
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="allow">Allow — run without asking</SelectItem>
-									<SelectItem value="ask">Ask — pause for approval</SelectItem>
-									<SelectItem value="deny">Deny — block silently</SelectItem>
+									<SelectItem value="allow">Allow (run without asking)</SelectItem>
+									<SelectItem value="ask">Ask (pause for approval)</SelectItem>
+									<SelectItem value="deny">Deny (block silently)</SelectItem>
 								</SelectContent>
 							</Select>
 							<p className="text-[11px] text-muted-foreground">

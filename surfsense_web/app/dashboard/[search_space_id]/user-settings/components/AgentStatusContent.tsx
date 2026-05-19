@@ -285,8 +285,8 @@ export function AgentStatusContent() {
 					</AlertTitle>
 					<AlertDescription>
 						<p>
-							Showing a read-only mirror of the backend's <code>AgentFeatureFlags</code>. Flip an env
-							var and restart the backend to change a value.
+							Showing a read-only mirror of the backend's <code>AgentFeatureFlags</code>. Flip an
+							env var and restart the backend to change a value.
 						</p>
 					</AlertDescription>
 				</Alert>

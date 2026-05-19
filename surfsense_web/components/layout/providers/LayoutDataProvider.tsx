@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
-import { announcementsDialogAtom, teamDialogAtom } from "@/atoms/layout/dialogs.atom";
+import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -19,7 +19,6 @@ import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog";
 import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
-import { TeamDialog } from "@/components/settings/team-dialog";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -375,7 +374,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsCreateSearchSpaceDialogOpen(true);
 	}, []);
 
-	const setTeamDialogOpen = useSetAtom(teamDialogAtom);
 	const setAnnouncementsDialog = useSetAtom(announcementsDialogAtom);
 
 	const handleUserSettings = useCallback(() => {
@@ -566,8 +564,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [router, searchSpaceId]);
 
 	const handleManageMembers = useCallback(() => {
-		setTeamDialogOpen(true);
-	}, [setTeamDialogOpen]);
+		router.push(`/dashboard/${searchSpaceId}/team`);
+	}, [router, searchSpaceId]);
 
 	const handleLogout = useCallback(async () => {
 		try {
@@ -661,11 +659,13 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
 	const isUserSettingsPage = pathname?.includes("/user-settings") === true;
 	const isSearchSpaceSettingsPage = pathname?.includes("/search-space-settings") === true;
+	const isTeamPage = pathname?.endsWith("/team") === true;
 	const useWorkspacePanel =
 		pathname?.endsWith("/buy-more") === true ||
 		pathname?.endsWith("/more-pages") === true ||
 		isUserSettingsPage ||
-		isSearchSpaceSettingsPage;
+		isSearchSpaceSettingsPage ||
+		isTeamPage;
 
 	return (
 		<>
@@ -705,12 +705,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				isChatPage={isChatPage}
 				useWorkspacePanel={useWorkspacePanel}
 				workspacePanelViewportClassName={
-					isUserSettingsPage || isSearchSpaceSettingsPage
+					isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage
 						? "items-start justify-center px-6 py-8 md:px-10 md:py-10"
 						: undefined
 				}
 				workspacePanelContentClassName={
-					isUserSettingsPage || isSearchSpaceSettingsPage ? "max-w-5xl" : undefined
+					isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage ? "max-w-5xl" : undefined
 				}
 				isLoadingChats={isLoadingThreads}
 				activeSlideoutPanel={activeSlideoutPanel}
@@ -891,7 +891,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				onOpenChange={setIsCreateSearchSpaceDialogOpen}
 			/>
 
-			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
 			<AnnouncementsDialog />
 
 			{/* Agent action log + revert dialog */}
