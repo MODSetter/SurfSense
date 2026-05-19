@@ -2,26 +2,10 @@
 
 import pytest
 
-from app.agents.new_chat.tools.update_memory import _save_memory
+from app.services.memory import MemoryScope, save_memory
 from app.utils.content_utils import extract_text_content
 
 pytestmark = pytest.mark.unit
-
-
-class _Recorder:
-    def __init__(self) -> None:
-        self.applied_content: str | None = None
-        self.commit_calls = 0
-        self.rollback_calls = 0
-
-    def apply(self, content: str) -> None:
-        self.applied_content = content
-
-    async def commit(self) -> None:
-        self.commit_calls += 1
-
-    async def rollback(self) -> None:
-        self.rollback_calls += 1
 
 
 def test_extract_text_content_keeps_no_update_bare_string_from_content_blocks() -> None:
@@ -69,21 +53,12 @@ def test_extract_text_content_preserves_plain_string_responses() -> None:
 
 @pytest.mark.asyncio
 async def test_save_memory_rejects_non_string_payload_before_commit() -> None:
-    recorder = _Recorder()
-
-    result = await _save_memory(
-        updated_memory=["NO_UPDATE"],  # type: ignore[arg-type]
-        old_memory=None,
-        llm=None,
-        apply_fn=recorder.apply,
-        commit_fn=recorder.commit,
-        rollback_fn=recorder.rollback,
-        label="memory",
-        scope="user",
+    result = await save_memory(
+        scope=MemoryScope.USER,
+        target_id="00000000-0000-0000-0000-000000000000",
+        content=["NO_UPDATE"],  # type: ignore[arg-type]
+        session=None,  # type: ignore[arg-type]
     )
 
-    assert result["status"] == "error"
-    assert "must be a string" in result["message"]
-    assert recorder.applied_content is None
-    assert recorder.commit_calls == 0
-    assert recorder.rollback_calls == 0
+    assert result.status == "error"
+    assert "must be a string" in result.message

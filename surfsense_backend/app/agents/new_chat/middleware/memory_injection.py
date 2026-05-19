@@ -17,8 +17,8 @@ from langgraph.runtime import Runtime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.new_chat.tools.update_memory import MEMORY_HARD_LIMIT, MEMORY_SOFT_LIMIT
 from app.db import ChatVisibility, SearchSpace, User, shielded_async_session
+from app.services.memory import MEMORY_HARD_LIMIT, MEMORY_SOFT_LIMIT
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,9 @@
   - Skip ephemeral chat noise (one-off Q/A, greetings, session logistics).
   - Args: `updated_memory` — FULL replacement markdown (merge and curate,
     don't only append).
-  - Formatting: bullets `- (YYYY-MM-DD) [marker] text` with markers `[fact]`,
-    `[pref]`, `[instr]` (priority when trimming: `instr > pref > fact`).
-    Group bullets under short `##` headings; stay under the limit shown in
-    `<user_memory>`.
+  - Formatting: heading-based markdown with entries under `##` headings.
+    Recommended headings are `## Facts`, `## Preferences`, `## Instructions`,
+    though clearer natural headings are allowed. New bullets should look like
+    `- YYYY-MM-DD: text`; stay under the limit shown in `<user_memory>`.
+  - If existing memory uses legacy `(YYYY-MM-DD) [fact|pref|instr]` markers,
+    preserve the information but write the updated document in the new format.
