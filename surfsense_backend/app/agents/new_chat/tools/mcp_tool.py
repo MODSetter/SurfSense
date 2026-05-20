@@ -1007,6 +1007,94 @@ def invalidate_mcp_tools_cache(search_space_id: int | None = None) -> None:
         _mcp_tools_cache.clear()
 
 
+async def discover_single_mcp_connector(connector_id: int) -> None:
+    """Force live MCP discovery for one connector so its ``cached_tools`` row is fresh.
+
+    ``_load_http_mcp_tools`` persists ``cached_tools`` as a side effect of any
+    live discovery; passing ``cached_tools=None`` here guarantees we go to the
+    network. The returned wrappers are discarded — the in-process LRU is
+    rebuilt lazily on the next user query. Stdio connectors are not cached and
+    are skipped.
+    """
+    from app.db import async_session_maker
+
+    started = time.perf_counter()
+    try:
+        async with async_session_maker() as session:
+            connector = await session.get(SearchSourceConnector, connector_id)
+            if connector is None:
+                logger.info(
+                    "discover_single_mcp_connector: connector %d not found",
+                    connector_id,
+                )
+                return
+
+            cfg = connector.config or {}
+            server_config = cfg.get("server_config", {})
+            if not server_config or not isinstance(server_config, dict):
+                return
+
+            transport = server_config.get("transport", "stdio")
+            if transport not in ("streamable-http", "http", "sse"):
+                return
+
+            if cfg.get("mcp_oauth"):
+                server_config = await _maybe_refresh_mcp_oauth_token(
+                    session, connector, cfg, server_config
+                )
+                cfg = connector.config or {}
+                server_config = _inject_oauth_headers(cfg, server_config)
+                if server_config is None:
+                    logger.info(
+                        "discover_single_mcp_connector: OAuth token unavailable for connector %d",
+                        connector_id,
+                    )
+                    return
+
+            ct = (
+                connector.connector_type.value
+                if hasattr(connector.connector_type, "value")
+                else str(connector.connector_type)
+            )
+            svc_cfg = get_service_by_connector_type(ct)
+            allowed_tools = svc_cfg.allowed_tools if svc_cfg else []
+            readonly_tools = svc_cfg.readonly_tools if svc_cfg else frozenset()
+
+            await asyncio.wait_for(
+                _load_http_mcp_tools(
+                    connector.id,
+                    connector.name,
+                    server_config,
+                    trusted_tools=cfg.get("trusted_tools", []),
+                    allowed_tools=allowed_tools,
+                    readonly_tools=readonly_tools,
+                    tool_name_prefix=None,
+                    is_generic_mcp=svc_cfg is None,
+                    bypass_internal_hitl=True,
+                    cached_tools=None,
+                ),
+                timeout=_MCP_DISCOVERY_TIMEOUT_SECONDS,
+            )
+
+            _perf_log.info(
+                "[mcp_prefetch] connector=%s elapsed=%.3fs",
+                connector_id,
+                time.perf_counter() - started,
+            )
+    except TimeoutError:
+        logger.warning(
+            "discover_single_mcp_connector: connector %d timed out after %ds",
+            connector_id,
+            _MCP_DISCOVERY_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        logger.warning(
+            "discover_single_mcp_connector: failed for connector %d",
+            connector_id,
+            exc_info=True,
+        )
+
+
 async def load_mcp_tools(
     session: AsyncSession,
     search_space_id: int,
