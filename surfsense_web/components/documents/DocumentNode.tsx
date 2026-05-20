@@ -328,7 +328,12 @@ export const DocumentNode = React.memo(function DocumentNode({
 										Move to...
 									</DropdownMenuItem>
 								)}
-								{onExport && (
+								{onExport && isMemoryDocument ? (
+									<DropdownMenuItem disabled={isUnavailable} onClick={() => handleExport("md")}>
+										<Download className="mr-2 h-4 w-4" />
+										Export as MD
+									</DropdownMenuItem>
+								) : onExport ? (
 									<DropdownMenuSub>
 										<DropdownMenuSubTrigger disabled={isUnavailable}>
 											<Download className="mr-2 h-4 w-4" />
@@ -338,7 +343,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 											<ExportDropdownItems onExport={handleExport} exporting={exporting} />
 										</DropdownMenuSubContent>
 									</DropdownMenuSub>
-								)}
+								) : null}
 								{onVersionHistory && isVersionableType(doc.document_type) && (
 									<DropdownMenuItem disabled={isUnavailable} onClick={() => onVersionHistory(doc)}>
 										<History className="mr-2 h-4 w-4" />
@@ -381,7 +386,12 @@ export const DocumentNode = React.memo(function DocumentNode({
 							Move to...
 						</ContextMenuItem>
 					)}
-					{onExport && (
+					{onExport && isMemoryDocument ? (
+						<ContextMenuItem disabled={isUnavailable} onClick={() => handleExport("md")}>
+							<Download className="mr-2 h-4 w-4" />
+							Export as MD
+						</ContextMenuItem>
+					) : onExport ? (
 						<ContextMenuSub>
 							<ContextMenuSubTrigger disabled={isUnavailable}>
 								<Download className="mr-2 h-4 w-4" />
@@ -391,7 +401,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 								<ExportContextItems onExport={handleExport} exporting={exporting} />
 							</ContextMenuSubContent>
 						</ContextMenuSub>
-					)}
+					) : null}
 					{onVersionHistory && isVersionableType(doc.document_type) && (
 						<ContextMenuItem disabled={isUnavailable} onClick={() => onVersionHistory(doc)}>
 							<History className="mr-2 h-4 w-4" />

@@ -113,6 +113,18 @@ const MEMORY_DOCUMENTS: DocumentNodeDoc[] = [
 function isMemoryDocument(doc: { document_type: string }) {
 	return doc.document_type === "USER_MEMORY" || doc.document_type === "TEAM_MEMORY";
 }
+
+function downloadTextFile(content: string, fileName: string, type = "text/markdown;charset=utf-8") {
+	const blob = new Blob([content], { type });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = fileName;
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+}
 const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
 const MAX_LOCAL_FILESYSTEM_ROOTS = 10;
 
@@ -808,6 +820,27 @@ function AuthenticatedDocumentsSidebarBase({
 
 	const handleExportDocument = useCallback(
 		async (doc: DocumentNodeDoc, format: string) => {
+			if (isMemoryDocument(doc)) {
+				try {
+					const endpoint =
+						doc.document_type === "USER_MEMORY"
+							? `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/users/me/memory`
+							: `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/memory`;
+					const response = await authenticatedFetch(endpoint, { method: "GET" });
+					if (!response.ok) {
+						const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
+						throw new Error(errorData.detail || "Export failed");
+					}
+					const data = (await response.json()) as { memory_md?: string };
+					downloadTextFile(data.memory_md ?? "", doc.title.endsWith(".md") ? doc.title : `${doc.title}.md`);
+					return;
+				} catch (err) {
+					console.error("Memory export failed:", err);
+					toast.error(err instanceof Error ? err.message : "Export failed");
+					return;
+				}
+			}
+
 			const safeTitle =
 				doc.title
 					.replace(/[^a-zA-Z0-9 _-]/g, "_")

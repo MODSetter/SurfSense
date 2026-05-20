@@ -254,7 +254,7 @@ export function FolderTreeView({
 					onDelete={onDeleteDocument}
 					onMove={onMoveDocument}
 					onReset={onResetDocument}
-					onExport={isMemoryDocument ? undefined : onExportDocument}
+					onExport={onExportDocument}
 					onVersionHistory={isMemoryDocument ? undefined : onVersionHistory}
 					canDelete={!isMemoryDocument}
 					canMove={!isMemoryDocument}
