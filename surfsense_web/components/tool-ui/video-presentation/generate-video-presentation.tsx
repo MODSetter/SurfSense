@@ -19,6 +19,7 @@ import {
 	type CompiledSlide,
 } from "./combined-player";
 import { getPptxExportErrorToast, getVideoDownloadErrorToast } from "./errors";
+import { BACKEND_URL } from "@/lib/env-config";
 
 const GenerateVideoPresentationArgsSchema = z.object({
 	source_content: z.string(),
@@ -136,7 +137,7 @@ function VideoPresentationPlayer({
 	const [isPptxExporting, setIsPptxExporting] = useState(false);
 	const [pptxProgress, setPptxProgress] = useState<string | null>(null);
 
-	const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "";
+	const backendUrl = BACKEND_URL ?? "";
 	const audioBlobUrlsRef = useRef<string[]>([]);
 
 	const loadPresentation = useCallback(async () => {

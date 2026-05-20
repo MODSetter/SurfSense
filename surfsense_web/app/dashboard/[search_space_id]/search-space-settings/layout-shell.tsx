@@ -3,7 +3,6 @@
 import {
 	BookText,
 	Bot,
-	Brain,
 	CircleUser,
 	Earth,
 	ImageIcon,
@@ -27,7 +26,6 @@ export type SearchSpaceSettingsTab =
 	| "vision-models"
 	| "team-roles"
 	| "prompts"
-	| "team-memory"
 	| "public-links";
 
 const DEFAULT_TAB: SearchSpaceSettingsTab = "general";
@@ -88,11 +86,6 @@ export function SearchSpaceSettingsLayoutShell({
 				value: "prompts" as const,
 				label: t("nav_system_instructions"),
 				icon: <BookText className="h-4 w-4" />,
-			},
-			{
-				value: "team-memory" as const,
-				label: "Team Memory",
-				icon: <Brain className="h-4 w-4" />,
 			},
 			{
 				value: "public-links" as const,

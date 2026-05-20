@@ -21,7 +21,6 @@ class SearchSpaceUpdate(BaseModel):
     description: str | None = None
     citations_enabled: bool | None = None
     qna_custom_instructions: str | None = None
-    shared_memory_md: str | None = None
     ai_file_sort_enabled: bool | None = None
 
 

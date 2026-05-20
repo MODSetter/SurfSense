@@ -14,6 +14,7 @@ import {
 	ClipboardPaste,
 	CopyIcon,
 	DownloadIcon,
+	Dot,
 	ExternalLink,
 	Globe,
 	MessageCircleReply,
@@ -330,9 +331,14 @@ const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ ch
 											{icon}
 											{name}
 										</span>
-										<span className="text-xs text-muted-foreground">
-											{counts.total_tokens.toLocaleString()} tokens
-											{costMicros && costMicros > 0 ? ` · ${formatTurnCost(costMicros)}` : ""}
+										<span className="flex items-center text-xs text-muted-foreground">
+											<span>{counts.total_tokens.toLocaleString()} tokens</span>
+											{costMicros && costMicros > 0 ? (
+												<>
+													<Dot className="size-4 shrink-0" aria-hidden="true" />
+													<span>{formatTurnCost(costMicros)}</span>
+												</>
+											) : null}
 										</span>
 									</ActionBarMorePrimitive.Item>
 								);
@@ -342,11 +348,14 @@ const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ ch
 								className="focus:bg-accent focus:text-accent-foreground relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
 								onSelect={(e) => e.preventDefault()}
 							>
-								<span className="text-xs text-muted-foreground">
-									{usage.total_tokens.toLocaleString()} tokens
-									{usage.cost_micros && usage.cost_micros > 0
-										? ` · ${formatTurnCost(usage.cost_micros)}`
-										: ""}
+								<span className="flex items-center text-xs text-muted-foreground">
+									<span>{usage.total_tokens.toLocaleString()} tokens</span>
+									{usage.cost_micros && usage.cost_micros > 0 ? (
+										<>
+											<Dot className="size-4 shrink-0" aria-hidden="true" />
+											<span>{formatTurnCost(usage.cost_micros)}</span>
+										</>
+									) : null}
 								</span>
 							</ActionBarMorePrimitive.Item>
 						)}

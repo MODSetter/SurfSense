@@ -18,6 +18,10 @@ Persist durable preferences/facts/instructions with `update_memory` while avoidi
 - Do not store transient chatter.
 - Do not store secrets unless explicitly instructed.
 - If memory intent is unclear, return `status=blocked` with the missing intent signal.
+- Persisted memory is heading-based markdown. New saved bullets should look like
+  `- YYYY-MM-DD: text` under `##` headings. If existing memory has legacy
+  `(YYYY-MM-DD) [fact|pref|instr]` markers, preserve the information but write
+  the updated document in the heading-based format.
 </tool_policy>
 
 <out_of_scope>
@@ -53,4 +57,7 @@ Rules:
 - `status=success` -> `next_step=null`, `missing_fields=null`.
 - `status=partial|blocked|error` -> `next_step` must be non-null.
 - `status=blocked` due to missing required inputs -> `missing_fields` must be non-null.
+- `evidence.memory_category` is a semantic classification for supervisor logs
+  only. It is not the persisted storage format and must not force inline
+  `[fact|preference|instruction]` markers into saved memory.
 </output_contract>

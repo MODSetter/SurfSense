@@ -118,7 +118,7 @@ import {
 	trackChatResponseReceived,
 } from "@/lib/posthog/events";
 import Loading from "../loading";
-
+import { BACKEND_URL } from "@/lib/env-config";
 const MobileEditorPanel = dynamic(
 	() =>
 		import("@/components/editor-panel/editor-panel").then((m) => ({
@@ -777,7 +777,7 @@ export default function NewChatPage() {
 		if (threadId) {
 			const token = getBearerToken();
 			if (token) {
-				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const backendUrl = BACKEND_URL;
 				try {
 					const response = await fetch(
 						`${backendUrl}/api/v1/threads/${threadId}/cancel-active-turn`,
@@ -978,7 +978,7 @@ export default function NewChatPage() {
 			let streamBatcher: FrameBatchedUpdater | null = null;
 
 			try {
-				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const backendUrl = BACKEND_URL;
 				const selection = await getAgentFilesystemSelection(searchSpaceId, {
 					localFilesystemEnabled,
 				});
@@ -1520,7 +1520,7 @@ export default function NewChatPage() {
 			}
 
 			try {
-				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const backendUrl = BACKEND_URL;
 				const selection = await getAgentFilesystemSelection(searchSpaceId, {
 					localFilesystemEnabled,
 				});

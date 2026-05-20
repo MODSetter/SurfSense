@@ -11,7 +11,6 @@ class StreamingResult:
     accumulated_text: str = ""
     is_interrupted: bool = False
     sandbox_files: list[str] = field(default_factory=list)
-    agent_called_update_memory: bool = False
     request_id: str | None = None
     turn_id: str = ""
     filesystem_mode: str = "cloud"
