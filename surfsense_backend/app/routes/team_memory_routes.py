@@ -1,4 +1,4 @@
-"""Routes for user memory management."""
+"""Routes for search-space team memory."""
 
 from __future__ import annotations
 
@@ -16,36 +16,41 @@ from app.services.memory import (
     save_memory,
 )
 from app.users import current_active_user
+from app.utils.rbac import check_search_space_access
 
 router = APIRouter()
 
 
-class MemoryUpdate(BaseModel):
+class TeamMemoryUpdate(BaseModel):
     memory_md: str
 
 
-@router.get("/users/me/memory", response_model=MemoryRead)
-async def get_user_memory(
-    user: User = Depends(current_active_user),
+@router.get("/searchspaces/{search_space_id}/memory", response_model=MemoryRead)
+async def get_team_memory(
+    search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
 ):
+    await check_search_space_access(session, user, search_space_id)
     memory_md = await read_memory(
-        scope=MemoryScope.USER,
-        target_id=user.id,
+        scope=MemoryScope.TEAM,
+        target_id=search_space_id,
         session=session,
     )
     return MemoryRead(memory_md=memory_md, limits=memory_limits())
 
 
-@router.put("/users/me/memory", response_model=MemoryRead)
-async def update_user_memory(
-    body: MemoryUpdate,
-    user: User = Depends(current_active_user),
+@router.put("/searchspaces/{search_space_id}/memory", response_model=MemoryRead)
+async def update_team_memory(
+    search_space_id: int,
+    body: TeamMemoryUpdate,
     session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
 ):
+    await check_search_space_access(session, user, search_space_id)
     result = await save_memory(
-        scope=MemoryScope.USER,
-        target_id=user.id,
+        scope=MemoryScope.TEAM,
+        target_id=search_space_id,
         content=body.memory_md,
         session=session,
     )
@@ -54,14 +59,16 @@ async def update_user_memory(
     return MemoryRead(memory_md=result.memory_md, limits=memory_limits())
 
 
-@router.post("/users/me/memory/reset", response_model=MemoryRead)
-async def reset_user_memory(
-    user: User = Depends(current_active_user),
+@router.post("/searchspaces/{search_space_id}/memory/reset", response_model=MemoryRead)
+async def reset_team_memory(
+    search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
 ):
+    await check_search_space_access(session, user, search_space_id)
     result = await reset_memory(
-        scope=MemoryScope.USER,
-        target_id=user.id,
+        scope=MemoryScope.TEAM,
+        target_id=search_space_id,
         session=session,
     )
     if result.status == "error":

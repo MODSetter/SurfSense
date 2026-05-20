@@ -9,7 +9,7 @@ import {
 	NetworkError,
 	NotFoundError,
 } from "../error";
-
+import { BACKEND_URL } from "@/lib/env-config";
 enum ResponseType {
 	JSON = "json",
 	TEXT = "text",
@@ -390,4 +390,4 @@ class BaseApiService {
 	}
 }
 
-export const baseApiService = new BaseApiService(process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "");
+export const baseApiService = new BaseApiService(BACKEND_URL);

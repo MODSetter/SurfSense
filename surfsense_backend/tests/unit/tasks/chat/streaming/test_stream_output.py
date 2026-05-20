@@ -89,7 +89,6 @@ async def test_stream_output_emits_text_lifecycle_and_updates_result() -> None:
         "text_end:text-1",
     ]
     assert result.accumulated_text == "Hello world"
-    assert result.agent_called_update_memory is False
 
 
 async def test_stream_output_passes_runtime_context_to_agent() -> None:

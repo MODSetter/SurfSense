@@ -56,7 +56,6 @@ export const updateSearchSpaceRequest = z.object({
 			description: true,
 			citations_enabled: true,
 			qna_custom_instructions: true,
-			shared_memory_md: true,
 			ai_file_sort_enabled: true,
 		})
 		.partial(),

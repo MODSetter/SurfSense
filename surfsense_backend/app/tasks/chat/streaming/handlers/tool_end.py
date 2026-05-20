@@ -36,9 +36,6 @@ def iter_tool_end_frames(
     raw_output = event.get("data", {}).get("output", "")
     staged_file_path = state.file_path_by_run.pop(run_id, None) if run_id else None
 
-    if tool_name == "update_memory":
-        state.called_update_memory = True
-
     if hasattr(raw_output, "content"):
         content = raw_output.content
         if isinstance(content, str):

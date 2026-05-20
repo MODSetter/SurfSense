@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import type { ConnectorConfigProps } from "../index";
-
+import { BACKEND_URL } from "@/lib/env-config";
 export interface CirclebackConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
 }
@@ -42,7 +42,7 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 		const doFetch = async () => {
 			if (!connector.search_space_id) return;
 
-			const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
+			const baseUrl = BACKEND_URL;
 			if (!baseUrl) {
 				console.error("NEXT_PUBLIC_FASTAPI_BACKEND_URL is not configured");
 				setIsLoading(false);

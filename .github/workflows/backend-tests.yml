@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [main, dev]
     types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'surfsense_backend/**'
+      - '.github/workflows/backend-tests.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,26 +24,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Check if backend files changed
-        id: backend-changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            backend:
-              - 'surfsense_backend/**'
-
       - name: Set up Python
-        if: steps.backend-changes.outputs.backend == 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Install UV
-        if: steps.backend-changes.outputs.backend == 'true'
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Cache dependencies
-        if: steps.backend-changes.outputs.backend == 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -51,19 +43,16 @@ jobs:
             python-deps-
 
       - name: Cache HuggingFace models
-        if: steps.backend-changes.outputs.backend == 'true'
         uses: actions/cache@v5
         with:
           path: ~/.cache/huggingface
           key: hf-models-${{ env.EMBEDDING_MODEL }}
 
       - name: Install dependencies
-        if: steps.backend-changes.outputs.backend == 'true'
         working-directory: surfsense_backend
         run: uv sync
 
       - name: Run unit tests
-        if: steps.backend-changes.outputs.backend == 'true'
         working-directory: surfsense_backend
         run: uv run pytest -m unit
 
@@ -93,26 +82,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Check if backend files changed
-        id: backend-changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            backend:
-              - 'surfsense_backend/**'
-
       - name: Set up Python
-        if: steps.backend-changes.outputs.backend == 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Install UV
-        if: steps.backend-changes.outputs.backend == 'true'
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Cache dependencies
-        if: steps.backend-changes.outputs.backend == 'true'
         uses: actions/cache@v5
         with:
           path: |
@@ -123,19 +101,16 @@ jobs:
             python-deps-
 
       - name: Cache HuggingFace models
-        if: steps.backend-changes.outputs.backend == 'true'
         uses: actions/cache@v5
         with:
           path: ~/.cache/huggingface
           key: hf-models-${{ env.EMBEDDING_MODEL }}
 
       - name: Install dependencies
-        if: steps.backend-changes.outputs.backend == 'true'
         working-directory: surfsense_backend
         run: uv sync
 
       - name: Run integration tests
-        if: steps.backend-changes.outputs.backend == 'true'
         working-directory: surfsense_backend
         env:
           TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense_test
