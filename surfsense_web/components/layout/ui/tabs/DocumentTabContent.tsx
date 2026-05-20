@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
-import { BACKEND_URL, BACKEND_URL } from "@/lib/env-config";
+import { BACKEND_URL } from "@/lib/env-config";
 const LARGE_DOCUMENT_THRESHOLD = 2 * 1024 * 1024; // 2MB
 
 interface DocumentContent {
