@@ -103,7 +103,11 @@ export function RightPanelToggleButton({
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen =
 		editorState.isOpen &&
-		(editorState.kind === "document" ? !!editorState.documentId : !!editorState.localFilePath);
+		(editorState.kind === "document"
+			? !!editorState.documentId
+			: editorState.kind === "memory"
+				? !!editorState.memoryScope
+				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.chunkId != null;
 	const hasContent = documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen;
@@ -151,7 +155,11 @@ export function RightPanelExpandButton() {
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen =
 		editorState.isOpen &&
-		(editorState.kind === "document" ? !!editorState.documentId : !!editorState.localFilePath);
+		(editorState.kind === "document"
+			? !!editorState.documentId
+			: editorState.kind === "memory"
+				? !!editorState.memoryScope
+				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.chunkId != null;
 	const hasContent = documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen;
@@ -193,7 +201,11 @@ export function RightPanel({
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen =
 		editorState.isOpen &&
-		(editorState.kind === "document" ? !!editorState.documentId : !!editorState.localFilePath);
+		(editorState.kind === "document"
+			? !!editorState.documentId
+			: editorState.kind === "memory"
+				? !!editorState.memoryScope
+				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.chunkId != null;
 
@@ -292,6 +304,7 @@ export function RightPanel({
 							kind={editorState.kind}
 							documentId={editorState.documentId ?? undefined}
 							localFilePath={editorState.localFilePath ?? undefined}
+							memoryScope={editorState.memoryScope ?? undefined}
 							searchSpaceId={editorState.searchSpaceId ?? undefined}
 							title={editorState.title}
 							onClose={closeEditor}

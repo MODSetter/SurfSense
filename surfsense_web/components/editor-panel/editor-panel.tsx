@@ -17,10 +17,17 @@ import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { VersionHistoryButton } from "@/components/documents/version-history";
 import { SourceCodeEditor } from "@/components/editor/source-code-editor";
+import {
+	fetchMemoryEditorDocument,
+	getMemoryLimitState,
+	type MemoryLimits,
+	saveMemoryMarkdown,
+} from "@/components/editor-panel/memory";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
@@ -107,13 +114,15 @@ export function EditorPanelContent({
 	kind = "document",
 	documentId,
 	localFilePath,
+	memoryScope,
 	searchSpaceId,
 	title,
 	onClose,
 }: {
-	kind?: "document" | "local_file";
+	kind?: "document" | "local_file" | "memory";
 	documentId?: number;
 	localFilePath?: string;
+	memoryScope?: "user" | "team";
 	searchSpaceId?: number;
 	title: string | null;
 	onClose?: () => void;
@@ -125,6 +134,7 @@ export function EditorPanelContent({
 	const [saving, setSaving] = useState(false);
 	const [downloading, setDownloading] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
+	const [memoryLimits, setMemoryLimits] = useState<MemoryLimits | null>(null);
 
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
 	const [localFileContent, setLocalFileContent] = useState("");
@@ -135,6 +145,7 @@ export function EditorPanelContent({
 	const changeCountRef = useRef(0);
 	const [displayTitle, setDisplayTitle] = useState(title || "Untitled");
 	const isLocalFileMode = kind === "local_file";
+	const isMemoryMode = kind === "memory";
 	const editorRenderMode: EditorRenderMode = isLocalFileMode ? "source_code" : "rich_markdown";
 
 	const resolveLocalVirtualPath = useCallback(
@@ -165,6 +176,7 @@ export function EditorPanelContent({
 		setLocalFileContent("");
 		setHasCopied(false);
 		setIsEditing(false);
+		setMemoryLimits(null);
 		initialLoadDone.current = false;
 		changeCountRef.current = 0;
 
@@ -199,6 +211,24 @@ export function EditorPanelContent({
 					initialLoadDone.current = true;
 					return;
 				}
+				if (isMemoryMode) {
+					if (!memoryScope) throw new Error("Missing memory context");
+					const { document, limits } = await fetchMemoryEditorDocument({
+						scope: memoryScope,
+						searchSpaceId,
+						title,
+						signal: controller.signal,
+					});
+					if (controller.signal.aborted) return;
+					setMemoryLimits(limits);
+					const content: EditorContent = document;
+					markdownRef.current = content.source_markdown;
+					setDisplayTitle(content.title);
+					setEditorDoc(content);
+					initialLoadDone.current = true;
+					return;
+				}
+
 				if (!documentId || !searchSpaceId) {
 					throw new Error("Missing document context");
 				}
@@ -253,7 +283,9 @@ export function EditorPanelContent({
 		documentId,
 		electronAPI,
 		isLocalFileMode,
+		isMemoryMode,
 		localFilePath,
+		memoryScope,
 		resolveLocalVirtualPath,
 		searchSpaceId,
 		title,
@@ -267,13 +299,20 @@ export function EditorPanelContent({
 		};
 	}, []);
 
-	const handleMarkdownChange = useCallback((md: string) => {
-		markdownRef.current = md;
-		if (!initialLoadDone.current) return;
-		changeCountRef.current += 1;
-		if (changeCountRef.current <= 1) return;
-		setEditedMarkdown(md);
-	}, []);
+	const handleMarkdownChange = useCallback(
+		(md: string) => {
+			if (!isEditing) return;
+
+			markdownRef.current = md;
+			if (!initialLoadDone.current) return;
+			changeCountRef.current += 1;
+			if (changeCountRef.current <= 1) return;
+
+			const savedContent = editorDoc?.source_markdown ?? "";
+			setEditedMarkdown(md === savedContent ? null : md);
+		},
+		[editorDoc?.source_markdown, isEditing]
+	);
 
 	const handleCopy = useCallback(async () => {
 		try {
@@ -316,6 +355,23 @@ export function EditorPanelContent({
 					setEditedMarkdown(markdownRef.current === contentToSave ? null : markdownRef.current);
 					return true;
 				}
+				if (isMemoryMode) {
+					if (!memoryScope) throw new Error("Missing memory context");
+					const { markdown: savedContent, limits } = await saveMemoryMarkdown({
+						scope: memoryScope,
+						searchSpaceId,
+						markdown: markdownRef.current,
+					});
+					markdownRef.current = savedContent;
+					setMemoryLimits(limits ?? memoryLimits);
+					setEditorDoc((prev) => (prev ? { ...prev, source_markdown: savedContent } : prev));
+					setEditedMarkdown(null);
+					if (!options?.silent) {
+						toast.success("Memory saved");
+					}
+					return true;
+				}
+
 				if (!searchSpaceId || !documentId) {
 					throw new Error("Missing document context");
 				}
@@ -361,14 +417,18 @@ export function EditorPanelContent({
 			documentId,
 			electronAPI,
 			isLocalFileMode,
+			isMemoryMode,
 			localFilePath,
+			memoryLimits,
+			memoryScope,
 			resolveLocalVirtualPath,
 			searchSpaceId,
 		]
 	);
 
 	const isEditableType = editorDoc
-		? (editorRenderMode === "source_code" ||
+		? (isMemoryMode ||
+				editorRenderMode === "source_code" ||
 				EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
 			!isLargeDocument
 		: false;
@@ -381,6 +441,17 @@ export function EditorPanelContent({
 	const showDesktopHeader = !!onClose;
 	const showEditingActions = isEditableType && isEditing;
 	const localFileLanguage = inferMonacoLanguageFromPath(localFilePath);
+	const activeMarkdown = editedMarkdown ?? editorDoc?.source_markdown ?? "";
+	const memoryLimitState = isMemoryMode
+		? getMemoryLimitState(activeMarkdown.length, memoryLimits)
+		: null;
+	const memoryCounterClassName =
+		memoryLimitState?.level === "error"
+			? "text-red-500"
+			: memoryLimitState?.level === "warning"
+				? "text-orange-500"
+				: "text-muted-foreground";
+	const saveDisabled = saving || !hasUnsavedChanges || (memoryLimitState?.isOverLimit ?? false);
 
 	const handleCancelEditing = useCallback(() => {
 		const savedContent = editorDoc?.source_markdown ?? "";
@@ -466,6 +537,17 @@ export function EditorPanelContent({
 					<div className="grid h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
 						<div className="min-w-0 flex flex-1 items-center gap-2">
 							<p className="truncate text-sm text-muted-foreground">{displayTitle}</p>
+							{memoryLimitState && (
+								<>
+									<Separator
+										orientation="vertical"
+										className="mx-1 bg-border data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-white/10"
+									/>
+									<span className={`shrink-0 text-xs ${memoryCounterClassName}`}>
+										{memoryLimitState.label}
+									</span>
+								</>
+							)}
 						</div>
 						<div className="flex items-center gap-1 shrink-0">
 							{showEditingActions ? (
@@ -487,7 +569,7 @@ export function EditorPanelContent({
 											const saveSucceeded = await handleSave({ silent: true });
 											if (saveSucceeded) setIsEditing(false);
 										}}
-										disabled={saving || !hasUnsavedChanges}
+										disabled={saveDisabled}
 									>
 										<span className={saving ? "opacity-0" : ""}>Save</span>
 										{saving && <Spinner size="xs" className="absolute" />}
@@ -495,7 +577,7 @@ export function EditorPanelContent({
 								</>
 							) : (
 								<>
-									{!isLocalFileMode && editorDoc?.document_type && documentId && (
+									{!isLocalFileMode && !isMemoryMode && editorDoc?.document_type && documentId && (
 										<VersionHistoryButton
 											documentId={documentId}
 											documentType={editorDoc.document_type}
@@ -539,6 +621,17 @@ export function EditorPanelContent({
 				<div className="flex h-14 items-center justify-between border-b px-4 shrink-0">
 					<div className="flex flex-1 min-w-0 items-center gap-2">
 						<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
+						{memoryLimitState && (
+							<>
+								<Separator
+									orientation="vertical"
+									className="mx-1 bg-border data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-white/10"
+								/>
+								<span className={`shrink-0 text-xs ${memoryCounterClassName}`}>
+									{memoryLimitState.label}
+								</span>
+							</>
+						)}
 					</div>
 					<div className="flex items-center gap-1 shrink-0">
 						{showEditingActions ? (
@@ -560,7 +653,7 @@ export function EditorPanelContent({
 										const saveSucceeded = await handleSave({ silent: true });
 										if (saveSucceeded) setIsEditing(false);
 									}}
-									disabled={saving || !hasUnsavedChanges}
+									disabled={saveDisabled}
 								>
 									<span className={saving ? "opacity-0" : ""}>Save</span>
 									{saving && <Spinner size="xs" className="absolute" />}
@@ -568,7 +661,7 @@ export function EditorPanelContent({
 							</>
 						) : (
 							<>
-								{!isLocalFileMode && editorDoc?.document_type && documentId && (
+								{!isLocalFileMode && !isMemoryMode && editorDoc?.document_type && documentId && (
 									<VersionHistoryButton
 										documentId={documentId}
 										documentType={editorDoc.document_type}
@@ -664,7 +757,13 @@ export function EditorPanelContent({
 					<div className="flex h-full min-h-0 flex-col">
 						<div className="flex-1 min-h-0 overflow-hidden">
 							<PlateEditor
-								key={`${isLocalFileMode ? (localFilePath ?? "local-file") : documentId}-${isEditing ? "editing" : "viewing"}`}
+								key={`${
+									isMemoryMode
+										? `memory-${memoryScope ?? "user"}`
+										: isLocalFileMode
+											? (localFilePath ?? "local-file")
+											: documentId
+								}-${isEditing ? "editing" : "viewing"}`}
 								preset="full"
 								markdown={editorDoc.source_markdown}
 								onMarkdownChange={handleMarkdownChange}
@@ -672,14 +771,14 @@ export function EditorPanelContent({
 								placeholder="Start writing..."
 								editorVariant="default"
 								allowModeToggle={false}
-								reserveToolbarSpace={isEditing}
+								reserveToolbarSpace
 								defaultEditing={isEditing}
 								className="**:[[role=toolbar]]:bg-sidebar!"
 								// Render `[citation:N]` badges in view mode only.
 								// Edit mode keeps raw text so the user can edit/delete
 								// tokens directly. `local_file` never reaches this branch
 								// (handled by the source_code editor above).
-								enableCitations={!isEditing && !isLocalFileMode}
+								enableCitations={!isEditing && !isLocalFileMode && !isMemoryMode}
 							/>
 						</div>
 					</div>
@@ -708,7 +807,9 @@ function DesktopEditorPanel() {
 	const hasTarget =
 		panelState.kind === "document"
 			? !!panelState.documentId && !!panelState.searchSpaceId
-			: !!panelState.localFilePath;
+			: panelState.kind === "local_file"
+				? !!panelState.localFilePath
+				: !!panelState.memoryScope;
 	if (!panelState.isOpen || !hasTarget) return null;
 
 	return (
@@ -717,6 +818,7 @@ function DesktopEditorPanel() {
 				kind={panelState.kind}
 				documentId={panelState.documentId ?? undefined}
 				localFilePath={panelState.localFilePath ?? undefined}
+				memoryScope={panelState.memoryScope ?? undefined}
 				searchSpaceId={panelState.searchSpaceId ?? undefined}
 				title={panelState.title}
 				onClose={closePanel}
@@ -734,7 +836,7 @@ function MobileEditorDrawer() {
 	const hasTarget =
 		panelState.kind === "document"
 			? !!panelState.documentId && !!panelState.searchSpaceId
-			: !!panelState.localFilePath;
+			: !!panelState.memoryScope;
 	if (!hasTarget) return null;
 
 	return (
@@ -756,6 +858,7 @@ function MobileEditorDrawer() {
 						kind={panelState.kind}
 						documentId={panelState.documentId ?? undefined}
 						localFilePath={panelState.localFilePath ?? undefined}
+						memoryScope={panelState.memoryScope ?? undefined}
 						searchSpaceId={panelState.searchSpaceId ?? undefined}
 						title={panelState.title}
 					/>
@@ -771,7 +874,9 @@ export function EditorPanel() {
 	const hasTarget =
 		panelState.kind === "document"
 			? !!panelState.documentId && !!panelState.searchSpaceId
-			: !!panelState.localFilePath;
+			: panelState.kind === "local_file"
+				? !!panelState.localFilePath
+				: !!panelState.memoryScope;
 
 	if (!panelState.isOpen || !hasTarget) return null;
 	if (!isDesktop && panelState.kind === "local_file") return null;
@@ -789,7 +894,9 @@ export function MobileEditorPanel() {
 	const hasTarget =
 		panelState.kind === "document"
 			? !!panelState.documentId && !!panelState.searchSpaceId
-			: !!panelState.localFilePath;
+			: panelState.kind === "local_file"
+				? !!panelState.localFilePath
+				: !!panelState.memoryScope;
 
 	if (isDesktop || !panelState.isOpen || !hasTarget || panelState.kind === "local_file")
 		return null;

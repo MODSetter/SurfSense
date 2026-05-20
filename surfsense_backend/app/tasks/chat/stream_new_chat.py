@@ -39,10 +39,6 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_global_llm_config_by_id,
 )
-from app.agents.new_chat.memory_extraction import (
-    extract_and_save_memory,
-    extract_and_save_team_memory,
-)
 from app.agents.new_chat.mention_resolver import resolve_mentions, substitute_in_text
 from app.agents.new_chat.middleware.busy_mutex import (
     end_turn,
@@ -283,7 +279,6 @@ class StreamResult:
     accumulated_text: str = ""
     is_interrupted: bool = False
     sandbox_files: list[str] = field(default_factory=list)
-    agent_called_update_memory: bool = False
     request_id: str | None = None
     turn_id: str = ""
     filesystem_mode: str = "cloud"
@@ -2207,36 +2202,6 @@ async def stream_new_chat(
                     "call_details": accumulator.serialized_calls(),
                 },
             )
-
-        # Fire background memory extraction if the agent didn't handle it.
-        # Shared threads write to team memory; private threads write to user memory.
-        if not stream_result.agent_called_update_memory:
-            memory_seed = user_query.strip() or (
-                f"[{len(user_image_data_urls or [])} image(s)]"
-                if user_image_data_urls
-                else "(message)"
-            )
-            if visibility == ChatVisibility.SEARCH_SPACE:
-                task = asyncio.create_task(
-                    extract_and_save_team_memory(
-                        user_message=memory_seed,
-                        search_space_id=search_space_id,
-                        llm=llm,
-                        author_display_name=current_user_display_name,
-                    )
-                )
-                _background_tasks.add(task)
-                task.add_done_callback(_background_tasks.discard)
-            elif user_id:
-                task = asyncio.create_task(
-                    extract_and_save_memory(
-                        user_message=memory_seed,
-                        user_id=user_id,
-                        llm=llm,
-                    )
-                )
-                _background_tasks.add(task)
-                task.add_done_callback(_background_tasks.discard)
 
         # Finish the step and message
         yield streaming_service.format_data("turn-status", {"status": "idle"})
