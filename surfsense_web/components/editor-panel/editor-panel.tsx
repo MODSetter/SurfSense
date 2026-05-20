@@ -313,13 +313,20 @@ export function EditorPanelContent({
 		};
 	}, []);
 
-	const handleMarkdownChange = useCallback((md: string) => {
-		markdownRef.current = md;
-		if (!initialLoadDone.current) return;
-		changeCountRef.current += 1;
-		if (changeCountRef.current <= 1) return;
-		setEditedMarkdown(md);
-	}, []);
+	const handleMarkdownChange = useCallback(
+		(md: string) => {
+			if (!isEditing) return;
+
+			markdownRef.current = md;
+			if (!initialLoadDone.current) return;
+			changeCountRef.current += 1;
+			if (changeCountRef.current <= 1) return;
+
+			const savedContent = editorDoc?.source_markdown ?? "";
+			setEditedMarkdown(md === savedContent ? null : md);
+		},
+		[editorDoc?.source_markdown, isEditing]
+	);
 
 	const handleCopy = useCallback(async () => {
 		try {
@@ -798,7 +805,7 @@ export function EditorPanelContent({
 								placeholder="Start writing..."
 								editorVariant="default"
 								allowModeToggle={false}
-								reserveToolbarSpace={isEditing}
+								reserveToolbarSpace
 								defaultEditing={isEditing}
 								className="**:[[role=toolbar]]:bg-sidebar!"
 								// Render `[citation:N]` badges in view mode only.
