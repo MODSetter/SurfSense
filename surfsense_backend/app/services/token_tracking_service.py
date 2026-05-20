@@ -325,21 +325,23 @@ class TokenTrackingCallback(CustomLogger):
             total_tokens = getattr(usage, "total_tokens", 0) or 0
             call_kind = "chat"
 
-        # Prompt-cache accounting. Field shapes differ by provider:
-        # - OpenAI / Azure: ``usage.prompt_tokens_details.cached_tokens``
-        # - Anthropic:      ``usage.cache_read_input_tokens`` + ``usage.cache_creation_input_tokens``
-        # LiteLLM normalizes both; we read both shapes and prefer whichever is set.
+        # Prompt-cache accounting. LiteLLM normalizes every provider's cache
+        # fields onto ``usage.prompt_tokens_details``:
+        # - ``cached_tokens``         — cache reads (OpenAI/Azure native, DeepSeek
+        #                               mapped from ``prompt_cache_hit_tokens``,
+        #                               Anthropic mapped from ``cache_read_input_tokens``).
+        # - ``cache_creation_tokens`` — cache writes (Anthropic only; OpenAI/Azure
+        #                               do not expose a write count).
+        # See ``litellm.types.utils.Usage.__init__`` for the mapping.
         cached_tokens = 0
         cache_creation_tokens = 0
         if not is_image:
             prompt_details = getattr(usage, "prompt_tokens_details", None)
             if prompt_details is not None:
                 cached_tokens = getattr(prompt_details, "cached_tokens", 0) or 0
-            if cached_tokens == 0:
-                cached_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
-            cache_creation_tokens = (
-                getattr(usage, "cache_creation_input_tokens", 0) or 0
-            )
+                cache_creation_tokens = (
+                    getattr(prompt_details, "cache_creation_tokens", 0) or 0
+                )
 
         model = kwargs.get("model", "unknown")
 
