@@ -1,7 +1,6 @@
 "use client";
 
 import {
-	Brain,
 	CircleUser,
 	Keyboard,
 	KeyRound,
@@ -26,7 +25,6 @@ export type UserSettingsTab =
 	| "api-key"
 	| "prompts"
 	| "community-prompts"
-	| "memory"
 	| "agent-permissions"
 	| "agent-status"
 	| "purchases"
@@ -74,11 +72,6 @@ export function UserSettingsLayoutShell({ searchSpaceId, children }: UserSetting
 				value: "community-prompts" as const,
 				label: "Community Prompts",
 				icon: <Library className="h-4 w-4" />,
-			},
-			{
-				value: "memory" as const,
-				label: "Memory",
-				icon: <Brain className="h-4 w-4" />,
 			},
 			{
 				value: "agent-permissions" as const,
