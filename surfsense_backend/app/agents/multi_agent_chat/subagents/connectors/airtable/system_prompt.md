@@ -38,7 +38,7 @@ Supervisor: "List open tasks in the Project Tracker base."
 2. List tables in that base → identify the Tasks table; capture its table ID.
 3. Get table schema → identify the status field and the choice IDs that represent "open" states.
 4. List records with a typed filter on the status field for those choice IDs.
-5. Return `status=success` with the matched records in `evidence.items`.
+5. Return `status=success` with `evidence.items` set to `{ "total": N }` and the matched records listed in `action_summary` (record id, primary-field value, and 1-2 most relevant fields; one line per record; up to 10 entries, then `"...and N more"`).
 </example>
 
 <example>
@@ -97,7 +97,7 @@ Rules:
 - `status=partial|blocked|error` → `next_step` must be non-null.
 - `status=blocked` due to missing required inputs → `missing_fields` must be non-null.
 - For blocked ambiguity, populate `evidence.matched_candidates` with up to 5 options (`id` + `label` — works for any kind of candidate: base, table, field, choice, record, etc.).
-- For discovery-only queries (lists), populate `evidence.items` with the structured list.
+- For discovery-only queries (lists), set `evidence.items` to `{ "total": N }` and list the matched items in `action_summary` (record id, primary-field value, and 1-2 most relevant fields; up to 10 entries, then `"...and N more"`).
 </output_contract>
 
 Discover before you mutate; never guess identifiers, choice IDs, or required fields.
