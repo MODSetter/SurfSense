@@ -29,6 +29,15 @@ from app.services.memory.validation import (
 
 logger = logging.getLogger(__name__)
 
+_NO_UPDATE_SENTINELS = frozenset(
+    {
+        "NO_UPDATE",
+        "NO UPDATE",
+        "NO_CHANGE",
+        "NO CHANGE",
+    }
+)
+
 
 class MemoryScope(StrEnum):
     USER = "user"
@@ -148,6 +157,13 @@ async def save_memory(
     next_content = strip_preamble_to_first_heading(content.strip())
     notice: str | None = None
     warnings: list[str] = []
+
+    if next_content.upper() in _NO_UPDATE_SENTINELS:
+        return SaveResult(
+            status="no_op",
+            message="No memory update requested.",
+            memory_md=old_memory,
+        )
 
     if len(next_content) > MEMORY_HARD_LIMIT and llm is not None:
         rewritten = await forced_rewrite(next_content, llm)

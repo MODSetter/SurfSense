@@ -95,6 +95,54 @@ async def test_save_memory_rejects_long_no_heading_payload(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_save_memory_no_update_sentinel_is_no_op(monkeypatch) -> None:
+    existing = "## Preferences\n- 2026-05-20: Existing preference\n"
+    target = SimpleNamespace(memory_md=existing)
+    session = _FakeSession()
+
+    async def fake_load_target(**_kwargs):
+        return target
+
+    monkeypatch.setattr("app.services.memory.service._load_target", fake_load_target)
+
+    result = await save_memory(
+        scope=MemoryScope.USER,
+        target_id="00000000-0000-0000-0000-000000000000",
+        content="NO_UPDATE",
+        session=session,
+    )
+
+    assert result.status == "no_op"
+    assert result.memory_md == existing
+    assert target.memory_md == existing
+    assert session.commit_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_save_memory_no_update_sentinel_is_case_insensitive(monkeypatch) -> None:
+    existing = "## Preferences\n- 2026-05-20: Existing preference\n"
+    target = SimpleNamespace(memory_md=existing)
+    session = _FakeSession()
+
+    async def fake_load_target(**_kwargs):
+        return target
+
+    monkeypatch.setattr("app.services.memory.service._load_target", fake_load_target)
+
+    result = await save_memory(
+        scope=MemoryScope.USER,
+        target_id="00000000-0000-0000-0000-000000000000",
+        content="  no update  ",
+        session=session,
+    )
+
+    assert result.status == "no_op"
+    assert result.memory_md == existing
+    assert target.memory_md == existing
+    assert session.commit_calls == 0
+
+
+@pytest.mark.asyncio
 async def test_save_memory_grandfathers_existing_team_personal_heading(
     monkeypatch,
 ) -> None:
