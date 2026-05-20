@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-import re
 from typing import Literal
+
+from app.services.memory.document import (
+    extract_headings,
+    has_explicit_heading,
+    nonstandard_bullets,
+    parse_memory_document,
+)
 
 MEMORY_SOFT_LIMIT = 18_000
 MEMORY_HARD_LIMIT = 25_000
-
-_SECTION_HEADING_RE = re.compile(r"^##\s+(.+)$", re.MULTILINE)
-_HEADING_LINE_RE = re.compile(r"^##\s+\S+", re.MULTILINE)
-_HEADING_NORMALIZE_RE = re.compile(r"[^a-z0-9]+")
-_LEGACY_BULLET_RE = re.compile(
-    r"^-\s+\(\d{4}-\d{2}-\d{2}\)\s+\[(fact|pref|instr)\]\s+.+$"
-)
-_NEW_BULLET_RE = re.compile(r"^-\s+\d{4}-\d{2}-\d{2}:\s+.+$")
 
 _FORBIDDEN_TEAM_HEADINGS = {
     "preferences",
@@ -25,25 +23,16 @@ _FORBIDDEN_TEAM_HEADINGS = {
 
 
 def has_markdown_heading(content: str) -> bool:
-    return bool(_HEADING_LINE_RE.search(content))
+    return has_explicit_heading(content)
 
 
 def strip_preamble_to_first_heading(content: str) -> str:
     """Drop model preamble before the first ``##`` heading, if one exists."""
-    match = _HEADING_LINE_RE.search(content)
-    if not match:
-        return content.strip()
-    return content[match.start() :].strip()
-
-
-def extract_headings(memory: str | None) -> set[str]:
-    if not memory:
-        return set()
-    return {_normalize_heading(h) for h in _SECTION_HEADING_RE.findall(memory)}
-
-
-def _normalize_heading(heading: str) -> str:
-    return _HEADING_NORMALIZE_RE.sub(" ", heading.strip().lower()).strip()
+    lines = content.splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith("## ") and line[3:].strip():
+            return "\n".join(lines[index:]).strip()
+    return content.strip()
 
 
 def validate_memory_size(content: str) -> dict[str, str] | None:
@@ -69,7 +58,7 @@ def validate_heading_sanity(content: str) -> dict[str, str] | None:
         return None
     if len(stripped) <= 40:
         return None
-    if any(_LEGACY_BULLET_RE.match(line.strip()) for line in stripped.splitlines()):
+    if parse_memory_document(stripped).sections:
         return None
     return {
         "status": "error",
@@ -115,16 +104,7 @@ def validate_memory_scope(
 
 
 def validate_bullet_format(content: str) -> list[str]:
-    warnings: list[str] = []
-    for line in content.splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("- "):
-            continue
-        if _NEW_BULLET_RE.match(stripped) or _LEGACY_BULLET_RE.match(stripped):
-            continue
-        short = stripped[:80] + ("..." if len(stripped) > 80 else "")
-        warnings.append(f"Non-standard memory bullet: {short}")
-    return warnings
+    return nonstandard_bullets(content)
 
 
 def validate_diff(old_memory: str | None, new_memory: str) -> list[str]:
@@ -138,7 +118,7 @@ def validate_diff(old_memory: str | None, new_memory: str) -> list[str]:
     if dropped:
         names = ", ".join(sorted(dropped))
         warnings.append(
-            f"Sections removed: {names}. If unintentional, restore from the settings page."
+            f"Sections removed: {names}. If unintentional, restore them from the memory document."
         )
 
     old_len = len(old_memory)

@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import SearchSpace, User
+from app.services.memory.document import parse_memory_document, render_memory_document
 from app.services.memory.prompts import (
     TEAM_MEMORY_EXTRACT_PROMPT,
     USER_MEMORY_EXTRACT_PROMPT,
@@ -183,6 +184,8 @@ async def save_memory(
             memory_md=old_memory,
             warnings=warnings,
         )
+
+    next_content = render_memory_document(parse_memory_document(next_content))
 
     try:
         _set_memory(target, normalized, next_content)

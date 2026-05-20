@@ -82,7 +82,7 @@ async def test_save_memory_accepts_legacy_marker_payload(monkeypatch) -> None:
     )
 
     assert result.status == "saved"
-    assert "[fact]" in target.memory_md
+    assert target.memory_md == "## Memory\n- 2026-05-19: Legacy marker memory"
 
 
 @pytest.mark.asyncio

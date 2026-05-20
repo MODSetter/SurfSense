@@ -65,6 +65,27 @@ def test_validate_bullet_format_warns_on_nonstandard_bullet() -> None:
 
 
 @pytest.mark.asyncio
+async def test_save_memory_normalizes_legacy_marker_bullets(monkeypatch) -> None:
+    target = type("Target", (), {"memory_md": ""})()
+    session = _FakeSession()
+
+    async def fake_load_target(**_kwargs):
+        return target
+
+    monkeypatch.setattr("app.services.memory.service._load_target", fake_load_target)
+
+    result = await save_memory(
+        scope=MemoryScope.USER,
+        target_id="00000000-0000-0000-0000-000000000000",
+        content="- (2026-04-10) [fact] Legacy fact is preserved\n",
+        session=session,
+    )
+
+    assert result.status == "saved"
+    assert target.memory_md == "## Memory\n- 2026-04-10: Legacy fact is preserved"
+
+
+@pytest.mark.asyncio
 async def test_save_memory_blocks_new_personal_heading_in_team_before_commit(
     monkeypatch,
 ) -> None:
