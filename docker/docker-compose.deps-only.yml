@@ -20,6 +20,18 @@
 #   - Backend .env: SEARXNG_DEFAULT_HOST=http://localhost:${SEARXNG_PORT:-8888}
 #   - Backend .env: CELERY_BROKER_URL / REDIS_APP_URL → redis://localhost:6379/0
 #   - Web .env: NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:${ZERO_CACHE_PORT:-4848}
+#
+# IMPORTANT — schema migrations:
+#   This compose file does NOT build the backend image and therefore cannot
+#   run a `migrations` service. You MUST run alembic on the host before
+#   bringing zero-cache up, or zero-cache will crash-loop with
+#   `Unknown or invalid publications. Specified: [zero_publication]`.
+#
+#   First-time / after-pull:
+#     cd surfsense_backend && uv run alembic upgrade head
+#
+#   The other compose files (docker-compose.yml, docker-compose.dev.yml)
+#   handle this automatically via a dedicated `migrations` service.
 # =============================================================================
 
 name: surfsense-deps
@@ -82,6 +94,10 @@ services:
       timeout: 5s
       retries: 5
 
+  # NOTE: zero-cache requires the `zero_publication` Postgres publication to
+  # exist before it starts. In this deps-only stack there is no backend
+  # container to run migrations, so you must run `uv run alembic upgrade head`
+  # from `surfsense_backend/` on the host BEFORE `docker compose up -d`.
   zero-cache:
     image: rocicorp/zero:1.4.0
     ports:

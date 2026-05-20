@@ -97,6 +97,163 @@ wait_for_pg() {
     success "PostgreSQL is ready."
 }
 
+# ── Stack health helpers ─────────────────────────────────────────────────────
+
+# Enumerate compose services for project `surfsense` as `service|state|health|exitcode`
+# lines. Uses `docker inspect` so we don't depend on `jq`, `python3`, or the
+# exact ordering of fields in `docker compose ps --format json` output.
+get_compose_services() {
+    local containers
+    containers=$(docker ps -a --filter "label=com.docker.compose.project=surfsense" --format '{{.Names}}' 2>/dev/null) || true
+    [[ -z "$containers" ]] && return 0
+
+    while IFS= read -r container; do
+        [[ -z "$container" ]] && continue
+        local svc state health code
+        svc=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$container" 2>/dev/null || echo "")
+        state=$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null || echo "unknown")
+        health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container" 2>/dev/null || echo "")
+        code=$(docker inspect -f '{{.State.ExitCode}}' "$container" 2>/dev/null || echo "")
+        [[ -z "$svc" ]] && continue
+        printf '%s|%s|%s|%s\n' "$svc" "$state" "$health" "$code"
+    done <<< "$containers"
+}
+
+# Globals populated by wait_stack_healthy / consumed by stack_failure_report.
+STACK_BAD=()
+STACK_WAITING=()
+STACK_GOOD=()
+STACK_TIMEOUT=false
+
+wait_stack_healthy() {
+    local timeout_sec=${1:-300}
+    local deadline=$(($(date +%s) + timeout_sec))
+    local last_report=""
+    local bad=()
+    local waiting=()
+    local good=()
+
+    while [[ $(date +%s) -lt $deadline ]]; do
+        local lines
+        lines=$(get_compose_services)
+        if [[ -z "$lines" ]]; then
+            sleep 3
+            continue
+        fi
+
+        bad=()
+        waiting=()
+        good=()
+
+        while IFS='|' read -r name state health code; do
+            [[ -z "$name" ]] && continue
+            if [[ "$name" == "migrations" ]]; then
+                if [[ "$state" == "exited" && "$code" == "0" ]]; then
+                    good+=("$name")
+                elif [[ "$state" == "exited" ]]; then
+                    bad+=("${name} (exit=${code})")
+                else
+                    waiting+=("${name} (${state})")
+                fi
+                continue
+            fi
+
+            if [[ "$state" == "running" ]]; then
+                if [[ -z "$health" || "$health" == "healthy" ]]; then
+                    good+=("$name")
+                elif [[ "$health" == "starting" ]]; then
+                    waiting+=("${name} (starting)")
+                elif [[ "$health" == "unhealthy" ]]; then
+                    bad+=("${name} (unhealthy)")
+                else
+                    waiting+=("${name} (${health})")
+                fi
+            elif [[ "$state" == "restarting" ]]; then
+                bad+=("${name} (restarting)")
+            elif [[ "$state" == "exited" ]]; then
+                bad+=("${name} (exited, code=${code})")
+            else
+                waiting+=("${name} (${state})")
+            fi
+        done <<< "$lines"
+
+        if (( ${#bad[@]} > 0 )); then
+            STACK_BAD=("${bad[@]}")
+            STACK_WAITING=("${waiting[@]}")
+            STACK_GOOD=("${good[@]}")
+            return 1
+        fi
+        if (( ${#waiting[@]} == 0 )); then
+            STACK_GOOD=("${good[@]}")
+            return 0
+        fi
+
+        local report="Waiting on: ${waiting[*]}"
+        if [[ "$report" != "$last_report" ]]; then
+            info "$report"
+            last_report="$report"
+        fi
+        sleep 5
+    done
+
+    # bad/waiting/good are declared at function scope so referencing them is
+    # safe even if the polling loop never executed its body.
+    STACK_BAD=()
+    [[ ${#bad[@]} -gt 0 ]] && STACK_BAD=("${bad[@]}")
+    STACK_WAITING=()
+    [[ ${#waiting[@]} -gt 0 ]] && STACK_WAITING=("${waiting[@]}")
+    STACK_GOOD=()
+    [[ ${#good[@]} -gt 0 ]] && STACK_GOOD=("${good[@]}")
+    STACK_TIMEOUT=true
+    return 1
+}
+
+stack_failure_report() {
+    echo ""
+    echo -e "\033[31m[ERROR]\033[0m Stack did not reach a healthy state."
+    if (( ${#STACK_BAD[@]} > 0 )) && [[ -n "${STACK_BAD[0]}" ]]; then
+        echo "  Failed: ${STACK_BAD[*]}"
+    fi
+    if (( ${#STACK_WAITING[@]} > 0 )) && [[ -n "${STACK_WAITING[0]}" ]]; then
+        echo "  Stuck:  ${STACK_WAITING[*]}"
+    fi
+    echo ""
+    info "Recent logs from migrations / zero-cache / backend:"
+    (cd "${INSTALL_DIR}" && ${DC} logs --tail=60 migrations zero-cache backend 2>&1) || true
+    echo ""
+    echo "Recovery hints:"
+    echo "  1. Inspect migrations:   cd ${INSTALL_DIR} && ${DC} logs migrations"
+    echo "  2. Verify publication:   cd ${INSTALL_DIR} && ${DC} exec db psql -U surfsense -d surfsense -c 'SELECT pubname FROM pg_publication;'"
+    echo "  3. Hard reset zero db:   cd ${INSTALL_DIR} && ${DC} down && docker volume rm surfsense-zero-cache && ${DC} up -d"
+    echo ""
+    exit 1
+}
+
+# True if `surfsense-zero-cache` exists but `surfsense-zero-init` does not.
+# That signals an install that predates the migrations-service fix; the old
+# replica may be half-initialized and would block zero-cache on next start.
+test_stale_zero_cache_volume() {
+    local has_zc has_zi
+    has_zc=$(docker volume ls --format '{{.Name}}' 2>/dev/null | grep -Fx 'surfsense-zero-cache' || true)
+    has_zi=$(docker volume ls --format '{{.Name}}' 2>/dev/null | grep -Fx 'surfsense-zero-init' || true)
+    [[ -n "$has_zc" && -z "$has_zi" ]]
+}
+
+invoke_stale_zero_cache_cleanup() {
+    if ! test_stale_zero_cache_volume; then
+        return 0
+    fi
+    warn "Detected pre-existing 'surfsense-zero-cache' volume from an install that"
+    warn "predates the migrations-service fix. It may contain a half-initialized"
+    warn "SQLite replica that would block zero-cache from starting."
+    warn "The volume will be removed in 5 seconds; press Ctrl+C to cancel."
+    sleep 5
+
+    (cd "${INSTALL_DIR}" && ${DC} down --remove-orphans 2>/dev/null) || true
+    docker volume rm surfsense-zero-cache 2>/dev/null || true
+    success "Removed surfsense-zero-cache volume; zero-cache will re-sync on next start."
+}
+
 # ── Download files ───────────────────────────────────────────────────────────
 
 step "Downloading SurfSense files"
@@ -186,6 +343,8 @@ fi
 
 # ── Start containers ─────────────────────────────────────────────────────────
 
+invoke_stale_zero_cache_cleanup
+
 if $MIGRATION_MODE; then
     # Read DB credentials from .env (fall back to defaults from docker-compose.yml)
     DB_USER=$(grep '^DB_USER=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
@@ -243,7 +402,12 @@ if $MIGRATION_MODE; then
 
     step "Starting all SurfSense services"
     (cd "${INSTALL_DIR}" && ${DC} up -d) < /dev/null
-    success "All services started."
+    success "All containers started; waiting for stack to become healthy..."
+
+    if ! wait_stack_healthy 300; then
+        stack_failure_report
+    fi
+    success "All services healthy."
 
     # Key file is no longer needed — SECRET_KEY is now in .env
     rm -f "${KEY_FILE}"
@@ -251,7 +415,12 @@ if $MIGRATION_MODE; then
 else
     step "Starting SurfSense"
     (cd "${INSTALL_DIR}" && ${DC} up -d) < /dev/null
-    success "All services started."
+    success "All containers started; waiting for stack to become healthy..."
+
+    if ! wait_stack_healthy 300; then
+        stack_failure_report
+    fi
+    success "All services healthy."
 fi
 
 # ── Watchtower (auto-update) ─────────────────────────────────────────────────

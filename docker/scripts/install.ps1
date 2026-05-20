@@ -97,6 +97,161 @@ function Wait-ForPostgres {
     Write-Ok "PostgreSQL is ready."
 }
 
+# ── Stack health helpers ────────────────────────────────────────────────────
+
+function Get-ComposeServices {
+    Push-Location $InstallDir
+    try {
+        $raw = Invoke-NativeSafe { docker compose ps -a --format json 2>$null }
+    } finally {
+        Pop-Location
+    }
+    if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
+
+    # Compose v2.21+ emits a JSON array; older versions emit one object per line.
+    try {
+        $parsed = $raw | ConvertFrom-Json
+        if ($parsed -is [System.Collections.IEnumerable] -and -not ($parsed -is [string])) {
+            return @($parsed)
+        }
+        return @($parsed)
+    } catch {
+        $services = @()
+        foreach ($line in ($raw -split "`r?`n")) {
+            $line = $line.Trim()
+            if (-not $line) { continue }
+            try { $services += ($line | ConvertFrom-Json) } catch { }
+        }
+        return $services
+    }
+}
+
+function Wait-StackHealthy {
+    param([int]$TimeoutSec = 300)
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    $lastReport = ""
+
+    while ((Get-Date) -lt $deadline) {
+        $services = Get-ComposeServices
+        if (-not $services -or $services.Count -eq 0) {
+            Start-Sleep -Seconds 3
+            continue
+        }
+
+        $bad = @()
+        $waiting = @()
+        $good = @()
+
+        foreach ($svc in $services) {
+            $name = $svc.Service
+            $state = $svc.State
+            $health = if ($svc.PSObject.Properties.Name -contains 'Health') { $svc.Health } else { '' }
+            $exit = if ($svc.PSObject.Properties.Name -contains 'ExitCode') { $svc.ExitCode } else { $null }
+
+            if ($name -eq 'migrations') {
+                if ($state -eq 'exited' -and $exit -eq 0) { $good += $name }
+                elseif ($state -eq 'exited') { $bad += "${name} (exit=${exit})" }
+                else { $waiting += "${name} (${state})" }
+                continue
+            }
+
+            if ($state -eq 'running') {
+                if ([string]::IsNullOrEmpty($health) -or $health -eq 'healthy') {
+                    $good += $name
+                } elseif ($health -eq 'starting') {
+                    $waiting += "${name} (starting)"
+                } elseif ($health -eq 'unhealthy') {
+                    $bad += "${name} (unhealthy)"
+                } else {
+                    $waiting += "${name} (${health})"
+                }
+            } elseif ($state -eq 'restarting') {
+                $bad += "${name} (restarting)"
+            } elseif ($state -eq 'exited') {
+                $bad += "${name} (exited, code=${exit})"
+            } else {
+                $waiting += "${name} (${state})"
+            }
+        }
+
+        if ($bad.Count -gt 0) {
+            return @{ Ok = $false; Reason = 'failure'; Bad = $bad; Waiting = $waiting; Good = $good }
+        }
+        if ($waiting.Count -eq 0) {
+            return @{ Ok = $true; Reason = 'all_healthy'; Good = $good }
+        }
+
+        $report = "Waiting on: " + ($waiting -join ', ')
+        if ($report -ne $lastReport) {
+            Write-Info $report
+            $lastReport = $report
+        }
+        Start-Sleep -Seconds 5
+    }
+
+    return @{ Ok = $false; Reason = 'timeout'; Bad = $bad; Waiting = $waiting; Good = $good }
+}
+
+function Test-StaleZeroCacheVolume {
+    $raw = Invoke-NativeSafe { docker volume ls --format '{{.Name}}' 2>$null }
+    if ([string]::IsNullOrWhiteSpace($raw)) { return $false }
+    $names = $raw -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+    $hasZeroCache = $names -contains 'surfsense-zero-cache'
+    $hasZeroInit = $names -contains 'surfsense-zero-init'
+    # Pre-fix installs created surfsense-zero-cache but never surfsense-zero-init.
+    # Such a volume may hold a half-initialized SQLite replica from an earlier
+    # crash-loop. Wiping it forces zero-cache to do a fresh initial sync.
+    return ($hasZeroCache -and -not $hasZeroInit)
+}
+
+function Invoke-StaleZeroCacheCleanup {
+    if (-not (Test-StaleZeroCacheVolume)) { return }
+
+    Write-Warn "Detected pre-existing 'surfsense-zero-cache' volume from an install that"
+    Write-Warn "predates the migrations-service fix. It may contain a half-initialized"
+    Write-Warn "SQLite replica that would block zero-cache from starting."
+    Write-Warn "The volume will be removed in 5 seconds; press Ctrl+C to cancel."
+    Start-Sleep -Seconds 5
+
+    Push-Location $InstallDir
+    Invoke-NativeSafe { docker compose down --remove-orphans 2>$null } | Out-Null
+    Pop-Location
+    Invoke-NativeSafe { docker volume rm surfsense-zero-cache 2>$null } | Out-Null
+    Write-Ok "Removed surfsense-zero-cache volume; zero-cache will re-sync on next start."
+}
+
+function Write-Err-NoExit {
+    param([string]$Message)
+    Write-Host "[ERROR] $Message" -ForegroundColor Red
+}
+
+function Invoke-StackFailureReport {
+    param([hashtable]$Result)
+
+    Write-Host ""
+    Write-Err-NoExit "Stack did not reach a healthy state."
+    if ($Result.Bad.Count -gt 0) { Write-Host ("  Failed: " + ($Result.Bad -join ', ')) }
+    if ($Result.Waiting.Count -gt 0) { Write-Host ("  Stuck:  " + ($Result.Waiting -join ', ')) }
+
+    Write-Host ""
+    Write-Info "Recent logs from migrations / zero-cache / backend:"
+    Push-Location $InstallDir
+    try {
+        Invoke-NativeSafe { docker compose logs --tail=60 migrations zero-cache backend 2>&1 } | Write-Host
+    } finally {
+        Pop-Location
+    }
+
+    Write-Host ""
+    Write-Host "Recovery hints:" -ForegroundColor Yellow
+    Write-Host "  1. Inspect migrations:   cd $InstallDir; docker compose logs migrations"
+    Write-Host "  2. Verify publication:   cd $InstallDir; docker compose exec db psql -U surfsense -d surfsense -c 'SELECT pubname FROM pg_publication;'"
+    Write-Host "  3. Hard reset zero db:   cd $InstallDir; docker compose down; docker volume rm surfsense-zero-cache; docker compose up -d"
+    Write-Host ""
+    exit 1
+}
+
 # ── Download files ──────────────────────────────────────────────────────────
 
 Write-Step "Downloading SurfSense files"
@@ -191,6 +346,8 @@ if (-not (Test-Path $envPath)) {
 
 # ── Start containers ────────────────────────────────────────────────────────
 
+Invoke-StaleZeroCacheCleanup
+
 if ($MigrationMode) {
     $envContent = Get-Content $envPath
     $DbUser = ($envContent | Select-String '^DB_USER=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
@@ -251,7 +408,13 @@ if ($MigrationMode) {
     Push-Location $InstallDir
     Invoke-NativeSafe { docker compose up -d }
     Pop-Location
-    Write-Ok "All services started."
+    Write-Ok "All containers started; waiting for stack to become healthy..."
+
+    $waitResult = Wait-StackHealthy -TimeoutSec 300
+    if (-not $waitResult.Ok) {
+        Invoke-StackFailureReport -Result $waitResult
+    }
+    Write-Ok "All services healthy."
 
     Remove-Item $KeyFile -ErrorAction SilentlyContinue
 
@@ -260,7 +423,13 @@ if ($MigrationMode) {
     Push-Location $InstallDir
     Invoke-NativeSafe { docker compose up -d }
     Pop-Location
-    Write-Ok "All services started."
+    Write-Ok "All containers started; waiting for stack to become healthy..."
+
+    $waitResult = Wait-StackHealthy -TimeoutSec 300
+    if (-not $waitResult.Ok) {
+        Invoke-StackFailureReport -Result $waitResult
+    }
+    Write-Ok "All services healthy."
 }
 
 # ── Watchtower (auto-update) ────────────────────────────────────────────────
