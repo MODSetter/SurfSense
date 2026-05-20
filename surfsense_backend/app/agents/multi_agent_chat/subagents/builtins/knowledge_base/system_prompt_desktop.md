@@ -118,5 +118,6 @@ Rules:
 - `status=success` → `next_step=null`, `missing_fields=null`.
 - `status=partial|blocked|error` → `next_step` must be non-null.
 - `status=blocked` due to missing required inputs → `missing_fields` must be non-null.
+- `evidence.content_excerpt`: max ~500 characters. Surface a short excerpt or a one-sentence summary, not the full file body. The supervisor already sees the tool's raw output.
 
 Infer before you call; map every tool outcome faithfully.

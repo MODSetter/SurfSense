@@ -39,9 +39,19 @@ For OpenAI-family configs we additionally pass:
 
 - ``prompt_cache_key=f"surfsense-thread-{thread_id}"`` — routing hint that
   raises hit rate by sending requests with a shared prefix to the same
-  backend.
+  backend. Supported by ``openai/``, ``deepseek/``, ``xai/``, and
+  ``azure/`` (added to LiteLLM's Azure transformer in
+  https://github.com/BerriAI/litellm/pull/20989, Feb 2026; verified
+  against ``AzureOpenAIConfig.get_supported_openai_params`` in our
+  installed litellm 1.83.14 for ``azure/gpt-4o``, ``azure/gpt-4o-mini``,
+  ``azure/gpt-5.4``, ``azure/gpt-5.4-mini``).
 - ``prompt_cache_retention="24h"`` — extends cache TTL beyond the default
-  5-10 min in-memory cache.
+  5-10 min in-memory cache. Set ONLY for OpenAI/DeepSeek/xAI: Azure's
+  server-side support landed in Microsoft's docs on 2026-05-13 but
+  LiteLLM 1.83.14's Azure transformer still omits it from its supported
+  params list, so it gets silently dropped by ``litellm.drop_params``.
+  Azure's default in-memory retention (5-10 min, max 1 h) already
+  bridges intra-conversation turns; revisit when LiteLLM bumps Azure.
 
 Safety net: ``litellm.drop_params=True`` is set globally in
 ``app.services.llm_service`` at module-load time. Any kwarg the destination
@@ -81,13 +91,31 @@ _DEFAULT_INJECTION_POINTS: tuple[dict[str, Any], ...] = (
     {"location": "message", "index": -1},
 )
 
-# Providers (uppercase ``AgentConfig.provider`` values) that natively expose
-# OpenAI-style automatic prompt caching with ``prompt_cache_key`` and
-# ``prompt_cache_retention`` kwargs. Strict whitelist — many other providers
-# in ``PROVIDER_MAP`` route through litellm's ``openai`` prefix without
-# implementing the OpenAI prompt-cache surface (e.g. MOONSHOT, ZHIPU,
-# MINIMAX), so we can't infer family from the litellm prefix alone.
-_OPENAI_FAMILY_PROVIDERS: frozenset[str] = frozenset({"OPENAI", "DEEPSEEK", "XAI"})
+# Providers (uppercase ``AgentConfig.provider`` values) that accept the
+# OpenAI ``prompt_cache_key`` routing hint. Microsoft's Azure OpenAI docs
+# (2026-05-13) confirm automatic prompt caching applies to every GPT-4o
+# or newer Azure deployment at ≥1024 tokens with no configuration needed,
+# and that ``prompt_cache_key`` is combined with the prefix hash to
+# improve routing affinity and therefore cache hit rate. LiteLLM's Azure
+# transformer ships ``prompt_cache_key`` in its supported params as of
+# https://github.com/BerriAI/litellm/pull/20989.
+#
+# Strict whitelist — many other providers in ``PROVIDER_MAP`` route
+# through litellm's ``openai`` prefix without implementing the OpenAI
+# prompt-cache surface (e.g. MOONSHOT, ZHIPU, MINIMAX), so we can't infer
+# family from the litellm prefix alone.
+_PROMPT_CACHE_KEY_PROVIDERS: frozenset[str] = frozenset(
+    {"OPENAI", "DEEPSEEK", "XAI", "AZURE", "AZURE_OPENAI"}
+)
+
+# Subset of ``_PROMPT_CACHE_KEY_PROVIDERS`` that also accept
+# ``prompt_cache_retention="24h"``. Azure is excluded: see module
+# docstring — LiteLLM 1.83.14's Azure transformer omits the param so
+# ``drop_params`` silently strips it. Re-add Azure once a future LiteLLM
+# release wires it into ``AzureOpenAIConfig.get_supported_openai_params``.
+_PROMPT_CACHE_RETENTION_PROVIDERS: frozenset[str] = frozenset(
+    {"OPENAI", "DEEPSEEK", "XAI"}
+)
 
 
 def _is_router_llm(llm: BaseChatModel) -> bool:
@@ -101,13 +129,13 @@ def _is_router_llm(llm: BaseChatModel) -> bool:
     return type(llm).__name__ == "ChatLiteLLMRouter"
 
 
-def _is_openai_family_config(agent_config: AgentConfig | None) -> bool:
-    """Whether the config targets an OpenAI-style prompt-cache surface.
+def _provider_supports_prompt_cache_key(agent_config: AgentConfig | None) -> bool:
+    """Whether the config targets a provider that accepts ``prompt_cache_key``.
 
-    Strict — only returns True when the user explicitly chose OPENAI,
-    DEEPSEEK, or XAI as the provider in their ``NewLLMConfig`` /
-    ``YAMLConfig``. Auto-mode and custom providers return False because
-    we can't statically know the destination.
+    Strict — only returns True for explicitly chosen OPENAI, DEEPSEEK,
+    XAI, AZURE, or AZURE_OPENAI providers. Auto-mode and custom
+    providers return False because we can't statically know the
+    destination and the router fans out across mixed providers.
     """
     if agent_config is None or not agent_config.provider:
         return False
@@ -115,7 +143,25 @@ def _is_openai_family_config(agent_config: AgentConfig | None) -> bool:
         return False
     if agent_config.custom_provider:
         return False
-    return agent_config.provider.upper() in _OPENAI_FAMILY_PROVIDERS
+    return agent_config.provider.upper() in _PROMPT_CACHE_KEY_PROVIDERS
+
+
+def _provider_supports_prompt_cache_retention(
+    agent_config: AgentConfig | None,
+) -> bool:
+    """Whether the config targets a provider that accepts ``prompt_cache_retention``.
+
+    Tighter than :func:`_provider_supports_prompt_cache_key` — Azure
+    deployments are excluded until LiteLLM ships the param in its Azure
+    transformer (see module docstring).
+    """
+    if agent_config is None or not agent_config.provider:
+        return False
+    if agent_config.is_auto_mode:
+        return False
+    if agent_config.custom_provider:
+        return False
+    return agent_config.provider.upper() in _PROMPT_CACHE_RETENTION_PROVIDERS
 
 
 def _get_or_init_model_kwargs(llm: BaseChatModel) -> dict[str, Any] | None:
@@ -173,16 +219,23 @@ def apply_litellm_prompt_caching(
             dict(point) for point in _DEFAULT_INJECTION_POINTS
         ]
 
-    # OpenAI-family extras only when we statically know the destination is
-    # OpenAI / DeepSeek / xAI. Auto-mode router fans out across providers
-    # so we can't safely set OpenAI-only kwargs there (drop_params would
-    # strip them but it's wasteful to set them in the first place).
+    # OpenAI-style extras only when we statically know the destination
+    # accepts them. Auto-mode router fans out across mixed providers so
+    # we can't safely set destination-specific kwargs there (drop_params
+    # would strip them but it's wasteful to set them in the first
+    # place).
     if _is_router_llm(llm):
         return
-    if not _is_openai_family_config(agent_config):
-        return
 
-    if thread_id is not None and "prompt_cache_key" not in model_kwargs:
+    if (
+        thread_id is not None
+        and "prompt_cache_key" not in model_kwargs
+        and _provider_supports_prompt_cache_key(agent_config)
+    ):
         model_kwargs["prompt_cache_key"] = f"surfsense-thread-{thread_id}"
-    if "prompt_cache_retention" not in model_kwargs:
+
+    if (
+        "prompt_cache_retention" not in model_kwargs
+        and _provider_supports_prompt_cache_retention(agent_config)
+    ):
         model_kwargs["prompt_cache_retention"] = "24h"

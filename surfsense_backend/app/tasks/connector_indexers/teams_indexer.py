@@ -9,6 +9,7 @@ Uses 2-phase document status updates for real-time UI feedback:
 - Phase 2: Process each document: pending → processing → ready/failed
 """
 
+import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -581,7 +582,9 @@ async def index_teams_messages(
 
                 # Heavy processing (embeddings, chunks)
                 chunks = await create_document_chunks(item["combined_document_string"])
-                doc_embedding = embed_text(item["combined_document_string"])
+                doc_embedding = await asyncio.to_thread(
+                    embed_text, item["combined_document_string"]
+                )
 
                 # Update document to READY with actual content
                 document.title = f"{item['team_name']} - {item['channel_name']}"

@@ -325,6 +325,24 @@ class TokenTrackingCallback(CustomLogger):
             total_tokens = getattr(usage, "total_tokens", 0) or 0
             call_kind = "chat"
 
+        # Prompt-cache accounting. LiteLLM normalizes every provider's cache
+        # fields onto ``usage.prompt_tokens_details``:
+        # - ``cached_tokens``         — cache reads (OpenAI/Azure native, DeepSeek
+        #                               mapped from ``prompt_cache_hit_tokens``,
+        #                               Anthropic mapped from ``cache_read_input_tokens``).
+        # - ``cache_creation_tokens`` — cache writes (Anthropic only; OpenAI/Azure
+        #                               do not expose a write count).
+        # See ``litellm.types.utils.Usage.__init__`` for the mapping.
+        cached_tokens = 0
+        cache_creation_tokens = 0
+        if not is_image:
+            prompt_details = getattr(usage, "prompt_tokens_details", None)
+            if prompt_details is not None:
+                cached_tokens = getattr(prompt_details, "cached_tokens", 0) or 0
+                cache_creation_tokens = (
+                    getattr(prompt_details, "cache_creation_tokens", 0) or 0
+                )
+
         model = kwargs.get("model", "unknown")
 
         cost_usd = _extract_cost_usd(
@@ -357,9 +375,23 @@ class TokenTrackingCallback(CustomLogger):
             cost_micros=cost_micros,
             call_kind=call_kind,
         )
+
+        # Per-LLM-call wall-clock latency (LiteLLM passes datetime objects).
+        call_latency_s: float | None = None
+        try:
+            if start_time is not None and end_time is not None:
+                delta = end_time - start_time
+                call_latency_s = getattr(delta, "total_seconds", lambda: float(delta))()
+        except Exception:
+            call_latency_s = None
+
+        cache_hit_ratio: float | None = None
+        if prompt_tokens > 0 and (cached_tokens > 0 or cache_creation_tokens > 0):
+            cache_hit_ratio = cached_tokens / prompt_tokens
+
         logger.info(
             "[TokenTracking] Captured: model=%s kind=%s prompt=%d completion=%d total=%d "
-            "cost=$%.6f (%d micros) (accumulator now has %d calls)",
+            "cost=$%.6f (%d micros) (accumulator now has %d calls)%s%s",
             model,
             call_kind,
             prompt_tokens,
@@ -368,6 +400,17 @@ class TokenTrackingCallback(CustomLogger):
             cost_usd,
             cost_micros,
             len(acc.calls),
+            f" latency={call_latency_s:.3f}s" if call_latency_s is not None else "",
+            (
+                f" cache_read={cached_tokens} cache_write={cache_creation_tokens}"
+                f" hit_ratio={cache_hit_ratio:.1%}"
+                if cache_hit_ratio is not None
+                else (
+                    f" cache_read={cached_tokens} cache_write={cache_creation_tokens}"
+                    if (cached_tokens or cache_creation_tokens)
+                    else ""
+                )
+            ),
         )
 
 

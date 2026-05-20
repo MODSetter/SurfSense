@@ -102,6 +102,7 @@ from app.agents.new_chat.tools.registry import (
 )
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
+from app.services.llm_service import get_planner_llm
 from app.utils.perf import get_perf_logger
 
 _perf_log = get_perf_logger()
@@ -1077,6 +1078,7 @@ def _build_compiled_agent_blocking(
         else None,
         KnowledgePriorityMiddleware(
             llm=llm,
+            planner_llm=get_planner_llm(),
             search_space_id=search_space_id,
             filesystem_mode=filesystem_mode,
             available_connectors=available_connectors,
