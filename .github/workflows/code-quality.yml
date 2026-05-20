@@ -150,6 +150,7 @@ jobs:
           filters: |
             backend:
               - 'surfsense_backend/**'
+              - '.github/workflows/code-quality.yml'
 
       - name: Cache dependencies
         if: steps.backend-changes.outputs.backend == 'true'
@@ -235,8 +236,10 @@ jobs:
           filters: |
             web:
               - 'surfsense_web/**'
+              - '.github/workflows/code-quality.yml'
             extension:
               - 'surfsense_browser_extension/**'
+              - '.github/workflows/code-quality.yml'
 
       - name: Install dependencies for web
         if: steps.frontend-changes.outputs.web == 'true'
