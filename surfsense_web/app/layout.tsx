@@ -137,7 +137,7 @@ export default function RootLayout({
 				<WebSiteJsonLd />
 				<SoftwareApplicationJsonLd />
 			</head>
-			<body className={cn(roboto.className, "bg-white dark:bg-black antialiased h-full w-full ")}>
+			<body className={cn(roboto.className, "bg-main-panel antialiased h-full w-full ")}>
 				<PostHogProvider>
 					<LocaleProvider>
 						<I18nProvider>

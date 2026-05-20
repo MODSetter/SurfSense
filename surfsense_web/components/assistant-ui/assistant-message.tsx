@@ -24,8 +24,6 @@ import dynamic from "next/dynamic";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
-import { tryGetHostname } from "@/lib/url";
-
 import {
 	globalNewLLMConfigsAtom,
 	newLLMConfigsAtom,
@@ -60,6 +58,7 @@ import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { getProviderIcon } from "@/lib/provider-icons";
+import { tryGetHostname } from "@/lib/url";
 import { cn } from "@/lib/utils";
 
 // Captured once at module load — survives client-side navigations that strip the query param.
@@ -138,14 +137,15 @@ const MobileCitationDrawer: FC = () => {
 
 	return (
 		<>
-			<button
+			<Button
 				type="button"
+				variant="ghost"
 				onClick={() => setOpen(true)}
 				className={cn(
-					"isolate inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2",
+					"isolate h-auto cursor-pointer gap-2 rounded-lg px-3 py-2",
 					"bg-muted/40 outline-none",
 					"transition-colors duration-150",
-					"hover:bg-muted/70",
+					"hover:bg-accent hover:text-accent-foreground",
 					"focus-visible:ring-ring focus-visible:ring-2"
 				)}
 			>
@@ -188,7 +188,7 @@ const MobileCitationDrawer: FC = () => {
 				<span className="text-muted-foreground text-sm tabular-nums">
 					{citations.length} source{citations.length !== 1 && "s"}
 				</span>
-			</button>
+			</Button>
 
 			<Drawer open={open} onOpenChange={setOpen}>
 				<DrawerContent className="max-h-[85vh] flex flex-col">
@@ -198,11 +198,12 @@ const MobileCitationDrawer: FC = () => {
 					</DrawerHeader>
 					<div className="overflow-y-auto flex-1 min-h-0 px-1 pb-6">
 						{citations.map((citation) => (
-							<button
+							<Button
 								key={citation.id}
 								type="button"
+								variant="ghost"
 								onClick={() => handleNavigate(citation)}
-								className="group flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+								className="group h-auto w-full justify-start gap-2.5 px-3 py-2.5 text-left hover:bg-accent hover:text-accent-foreground focus-visible:bg-muted"
 							>
 								{citation.favicon ? (
 									// biome-ignore lint/performance/noImgElement: external favicon from arbitrary domain
@@ -224,7 +225,7 @@ const MobileCitationDrawer: FC = () => {
 									<p className="text-muted-foreground truncate text-xs">{citation.domain}</p>
 								</div>
 								<ExternalLink className="text-muted-foreground size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
-							</button>
+							</Button>
 						))}
 					</div>
 				</DrawerContent>
@@ -266,7 +267,7 @@ function formatTurnCost(micros: number): string {
 	return "$0";
 }
 
-const MessageInfoDropdown: FC = () => {
+const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ chatTurnId }) => {
 	const messageId = useAuiState(({ message }) => message?.id);
 	const createdAt = useAuiState(({ message }) => message?.createdAt);
 	const usage = useTokenUsage(messageId);
@@ -305,7 +306,7 @@ const MessageInfoDropdown: FC = () => {
 			</ActionBarMorePrimitive.Trigger>
 			<ActionBarMorePrimitive.Content
 				align="start"
-				className="bg-muted text-popover-foreground z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[180px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border dark:border-neutral-700 p-1 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+				className="bg-popover text-popover-foreground z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[180px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md p-1 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
 			>
 				{createdAt && (
 					<DropdownMenuLabel className="text-xs text-muted-foreground font-normal select-none">
@@ -314,7 +315,7 @@ const MessageInfoDropdown: FC = () => {
 				)}
 				{hasUsage && (
 					<>
-						<ActionBarMorePrimitive.Separator className="bg-border mx-2 my-1 h-px" />
+						<ActionBarMorePrimitive.Separator className="bg-popover-border mx-1 my-1 h-px" />
 						{models.length > 0 ? (
 							models.map(([model, counts]) => {
 								const { name, icon } = resolveModel(model);
@@ -322,7 +323,7 @@ const MessageInfoDropdown: FC = () => {
 								return (
 									<ActionBarMorePrimitive.Item
 										key={model}
-										className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
+										className="focus:bg-accent focus:text-accent-foreground relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
 										onSelect={(e) => e.preventDefault()}
 									>
 										<span className="flex items-center gap-1.5 text-xs font-medium">
@@ -338,7 +339,7 @@ const MessageInfoDropdown: FC = () => {
 							})
 						) : (
 							<ActionBarMorePrimitive.Item
-								className="focus:bg-neutral-200 dark:focus:bg-neutral-700 relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
+								className="focus:bg-accent focus:text-accent-foreground relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
 								onSelect={(e) => e.preventDefault()}
 							>
 								<span className="text-xs text-muted-foreground">
@@ -351,6 +352,7 @@ const MessageInfoDropdown: FC = () => {
 						)}
 					</>
 				)}
+				<RevertTurnButton chatTurnId={chatTurnId} variant="menu-item" />
 			</ActionBarMorePrimitive.Content>
 		</ActionBarMorePrimitive.Root>
 	);
@@ -500,9 +502,10 @@ export const AssistantMessage: FC = () => {
 		>
 			{/* Fixed trigger slot prevents any vertical reflow when visibility changes */}
 			<div className="mr-2 mb-1 flex h-7 justify-end">
-				<button
+				<Button
 					ref={isDesktop ? commentTriggerRef : undefined}
 					type="button"
+					variant="ghost"
 					onClick={
 						showCommentTrigger
 							? isDesktop
@@ -513,14 +516,14 @@ export const AssistantMessage: FC = () => {
 					aria-hidden={!showCommentTrigger}
 					tabIndex={showCommentTrigger ? 0 : -1}
 					className={cn(
-						"flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
+						"h-auto gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
 						"opacity-0 pointer-events-none",
 						showCommentTrigger && "opacity-100 pointer-events-auto",
 						isDesktop && isInlineOpen
 							? "bg-primary/10 text-primary"
 							: hasComments
 								? "text-primary hover:bg-primary/10"
-								: "text-muted-foreground hover:text-foreground hover:bg-muted"
+								: "text-muted-foreground hover:text-accent-foreground hover:bg-accent hover:text-accent-foreground"
 					)}
 				>
 					<MessageCircleReply className={cn("size-3.5", hasComments && "fill-current")} />
@@ -531,7 +534,7 @@ export const AssistantMessage: FC = () => {
 					) : (
 						<span>Add comment</span>
 					)}
-				</button>
+				</Button>
 			</div>
 
 			{/* Desktop floating comment panel — overlays on top of chat content */}
@@ -582,7 +585,7 @@ const AssistantActionBar: FC = () => {
 			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground md:data-floating:absolute md:data-floating:rounded-md md:data-floating:p-1 [&>button]:opacity-100 md:[&>button]:opacity-[var(--aui-button-opacity,1)]"
 		>
 			<ActionBarPrimitive.Copy asChild>
-				<TooltipIconButton tooltip="Copy to clipboard">
+				<TooltipIconButton tooltip="Copy">
 					<AuiIf condition={({ message }) => message.isCopied}>
 						<CheckIcon />
 					</AuiIf>
@@ -614,10 +617,7 @@ const AssistantActionBar: FC = () => {
 					<ClipboardPaste />
 				</TooltipIconButton>
 			)}
-			<MessageInfoDropdown />
-			<div className="ml-auto">
-				<RevertTurnButton chatTurnId={chatTurnId} />
-			</div>
+			<MessageInfoDropdown chatTurnId={chatTurnId} />
 		</ActionBarPrimitive.Root>
 	);
 };

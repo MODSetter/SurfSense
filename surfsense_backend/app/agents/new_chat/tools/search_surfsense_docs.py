@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import SurfsenseDocsChunk, SurfsenseDocsDocument, async_session_maker
 from app.utils.document_converters import embed_text
+from app.utils.surfsense_docs import surfsense_docs_public_url
 
 
 def format_surfsense_docs_results(results: list[tuple]) -> str:
@@ -40,13 +41,14 @@ def format_surfsense_docs_results(results: list[tuple]) -> str:
     # Group chunks by document
     grouped: dict[int, dict] = {}
     for chunk, doc in results:
+        public_url = surfsense_docs_public_url(doc.source)
         if doc.id not in grouped:
             grouped[doc.id] = {
                 "document_id": f"doc-{doc.id}",
                 "document_type": "SURFSENSE_DOCS",
                 "title": doc.title,
-                "url": doc.source,
-                "metadata": {"source": doc.source},
+                "url": public_url,
+                "metadata": {"source": doc.source, "public_url": public_url},
                 "chunks": [],
             }
         grouped[doc.id]["chunks"].append(

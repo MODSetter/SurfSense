@@ -79,6 +79,7 @@ from app.tasks.chat.streaming.helpers.interrupt_inspector import (
 )
 from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
+from app.utils.surfsense_docs import surfsense_docs_public_url
 from app.utils.user_message_multimodal import build_human_message_content
 
 _background_tasks: set[asyncio.Task] = set()
@@ -214,14 +215,17 @@ def format_mentioned_surfsense_docs_as_context(
     )
 
     for doc in documents:
-        metadata_json = json.dumps({"source": doc.source}, ensure_ascii=False)
+        public_url = surfsense_docs_public_url(doc.source)
+        metadata_json = json.dumps(
+            {"source": doc.source, "public_url": public_url}, ensure_ascii=False
+        )
 
         context_parts.append("<document>")
         context_parts.append("<document_metadata>")
         context_parts.append(f"  <document_id>doc-{doc.id}</document_id>")
         context_parts.append("  <document_type>SURFSENSE_DOCS</document_type>")
         context_parts.append(f"  <title><![CDATA[{doc.title}]]></title>")
-        context_parts.append(f"  <url><![CDATA[{doc.source}]]></url>")
+        context_parts.append(f"  <url><![CDATA[{public_url}]]></url>")
         context_parts.append(
             f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>"
         )

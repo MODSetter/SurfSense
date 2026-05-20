@@ -4,6 +4,7 @@ import type { ReasoningMessagePartComponent } from "@assistant-ui/react";
 import { ChevronRightIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
@@ -11,9 +12,9 @@ import { cn } from "@/lib/utils";
  * (typed reasoning deltas from the chat model).
  *
  * Behaviour mirrors the existing `ThinkingStepsDisplay`:
- *   - collapsed by default;
- *   - auto-expanded while the part is still `running`;
- *   - auto-collapsed once status flips to `complete`.
+ *  - collapsed by default;
+ *  - auto-expanded while the part is still `running`;
+ *  - auto-collapsed once status flips to `complete`.
  *
  * The component is registered via the `Reasoning` slot on
  * `MessagePrimitive.Parts` in `assistant-message.tsx` so it lives at the
@@ -45,12 +46,13 @@ export const ReasoningMessagePart: ReasoningMessagePartComponent = ({ text, stat
 	return (
 		<div className="mx-auto w-full max-w-(--thread-max-width) px-2 py-2">
 			<div className="rounded-lg">
-				<button
+				<Button
+					variant="ghost"
 					type="button"
 					onClick={() => setIsOpen((prev) => !prev)}
 					className={cn(
-						"flex w-full items-center gap-1.5 text-left text-sm transition-colors",
-						"text-muted-foreground hover:text-foreground"
+						"h-auto w-full justify-start gap-1.5 p-0 text-left text-sm font-normal transition-colors hover:bg-transparent",
+						"text-muted-foreground hover:text-accent-foreground"
 					)}
 				>
 					{isRunning ? (
@@ -59,9 +61,10 @@ export const ReasoningMessagePart: ReasoningMessagePartComponent = ({ text, stat
 						<span>{headerLabel}</span>
 					)}
 					<ChevronRightIcon
-						className={cn("size-4 transition-transform duration-200", isOpen && "rotate-90")}
+						data-icon="inline-end"
+						className={cn("transition-transform duration-200", isOpen && "rotate-90")}
 					/>
-				</button>
+				</Button>
 
 				<div
 					className={cn(

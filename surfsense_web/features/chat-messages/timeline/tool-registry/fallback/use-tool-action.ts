@@ -10,7 +10,7 @@ import { useAgentActionsQuery } from "@/hooks/use-agent-actions-query";
  * Resolve the ``AgentActionLog`` row for a given tool-call card. Tries
  * three lookup strategies, in priority order, against the unified
  * ``useAgentActionsQuery`` cache (the same react-query cache the
- * agent-actions sheet consumes — keeps the card and the sheet in
+ * agent-actions dialog consumes — keeps the card and the dialog in
  * lockstep across reload, navigation, live stream, post-stream
  * reversibility flips, and explicit revert clicks).
  *

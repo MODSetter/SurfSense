@@ -6,6 +6,7 @@ import type { TCalloutElement } from "platejs";
 import { PlateElement, type PlateElementProps, useEditorPlugin } from "platejs/react";
 import * as React from "react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const calloutVariants = cva("my-1 flex w-full items-start gap-2 rounded-lg border p-4", {
@@ -24,7 +25,10 @@ const calloutVariants = cva("my-1 flex w-full items-start gap-2 rounded-lg borde
 	},
 });
 
-const calloutIcons: Record<string, string> = {
+const variantCycle = ["info", "warning", "error", "success", "note", "tip"] as const;
+type CalloutVariant = (typeof variantCycle)[number];
+
+const calloutIcons: Record<CalloutVariant, string> = {
 	info: "💡",
 	warning: "⚠️",
 	error: "🚨",
@@ -33,13 +37,13 @@ const calloutIcons: Record<string, string> = {
 	tip: "💜",
 };
 
-const variantCycle = ["info", "warning", "error", "success", "note", "tip"] as const;
-
 export function CalloutElement({ children, ...props }: PlateElementProps<TCalloutElement>) {
 	const { editor } = useEditorPlugin(CalloutPlugin);
 	const element = props.element;
-	const variant = element.variant || "info";
-	const icon = element.icon || calloutIcons[variant] || "💡";
+	const variant = variantCycle.includes(element.variant as CalloutVariant)
+		? (element.variant as CalloutVariant)
+		: "info";
+	const icon = element.icon || calloutIcons[variant];
 
 	const cycleVariant = React.useCallback(() => {
 		const currentIndex = variantCycle.indexOf(variant as (typeof variantCycle)[number]);
@@ -56,19 +60,17 @@ export function CalloutElement({ children, ...props }: PlateElementProps<TCallou
 	}, [editor, variant, props.path]);
 
 	return (
-		<PlateElement
-			{...props}
-			className={cn(calloutVariants({ variant: variant as any }), props.className)}
-		>
-			<button
-				className="mt-0.5 shrink-0 cursor-pointer select-none text-lg leading-none"
+		<PlateElement {...props} className={cn(calloutVariants({ variant }), props.className)}>
+			<Button
+				variant="ghost"
+				className="mt-0.5 h-auto shrink-0 cursor-pointer select-none p-0 text-lg leading-none hover:bg-transparent"
 				contentEditable={false}
 				onClick={cycleVariant}
 				type="button"
 				aria-label="Change callout type"
 			>
 				{icon}
-			</button>
+			</Button>
 			<div className="min-w-0 flex-1">{children}</div>
 		</PlateElement>
 	);

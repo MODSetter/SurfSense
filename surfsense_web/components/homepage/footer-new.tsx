@@ -38,7 +38,7 @@ export function FooterNew() {
 			href: "/contact",
 		},
 		{
-			title: "Announcements",
+			title: "What's New",
 			href: "/announcements",
 		},
 	];

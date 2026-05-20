@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { type FC, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { createDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
@@ -216,14 +217,15 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			{/* Header */}
 			<div className="shrink-0 px-6 sm:px-12 pt-8 sm:pt-10">
-				<button
+				<Button
+					variant="ghost"
 					type="button"
 					onClick={onBack}
-					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+					className="mb-6 h-auto w-fit justify-start gap-2 px-0 py-0 text-xs text-muted-foreground hover:bg-transparent hover:text-accent-foreground sm:text-sm"
 				>
-					<ArrowLeft className="size-4" />
+					<ArrowLeft data-icon="inline-start" />
 					Back to connectors
-				</button>
+				</Button>
 
 				<div className="flex items-center gap-4 mb-6">
 					<div className="flex h-14 w-14 items-center justify-center rounded-xl border border-slate-400/30">
@@ -259,7 +261,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 									tag: {
 										body: "h-7 relative bg-background border border-input hover:bg-background rounded-md font-medium text-xs ps-2 pe-7 flex",
 										closeButton:
-											"absolute -inset-y-px -end-px p-0 rounded-e-lg flex size-7 transition-colors outline-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 text-muted-foreground/80 hover:text-foreground",
+											"absolute -inset-y-px -end-px p-0 rounded-e-lg flex size-7 transition-colors outline-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 text-muted-foreground/80 hover:text-accent-foreground",
 									},
 								}}
 								activeTagIndex={activeTagIndex}
@@ -278,10 +280,10 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 
 					{error && <div className="text-sm text-red-500 mt-2">{error}</div>}
 
-					<div className="flex items-start gap-3 rounded-lg border border-blue-200/50 bg-blue-50/50 dark:border-blue-500/20 dark:bg-blue-950/20 p-4 text-sm">
-						<Info className="size-4 mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
-						<p className="text-muted-foreground">{t("chat_tip")}</p>
-					</div>
+					<Alert>
+						<Info />
+						<AlertDescription>{t("chat_tip")}</AlertDescription>
+					</Alert>
 
 					<div className="bg-muted/50 rounded-lg p-4 text-sm">
 						<h4 className="font-medium mb-2">{t("tips_title")}</h4>
@@ -323,7 +325,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-muted border-t border-border">
+			<div className="shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-popover">
 				<Button
 					variant="ghost"
 					onClick={onBack}

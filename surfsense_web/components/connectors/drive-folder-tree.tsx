@@ -13,6 +13,7 @@ import {
 	Presentation,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
@@ -261,15 +262,17 @@ export function DriveFolderTree({
 				<div
 					className={cn(
 						"flex items-center group gap-1 sm:gap-2 h-auto py-1 sm:py-2 px-1 sm:px-2 rounded-md",
-						isFolder && "hover:bg-accent cursor-pointer",
+						isFolder && "hover:bg-accent hover:text-accent-foreground cursor-pointer",
 						!isFolder && "cursor-default opacity-60",
-						isSelected && "bg-accent/50"
+						isSelected && "bg-accent text-accent-foreground"
 					)}
 				>
 					{isFolder ? (
-						<button
+						<Button
 							type="button"
-							className="flex items-center justify-center w-3 h-3 sm:w-4 sm:h-4 shrink-0 bg-transparent border-0 p-0 cursor-pointer"
+							variant="ghost"
+							size="icon"
+							className="h-3 w-3 shrink-0 cursor-pointer bg-transparent p-0 hover:bg-transparent sm:h-4 sm:w-4"
 							onClick={(e) => {
 								e.stopPropagation();
 								toggleFolder(item);
@@ -283,7 +286,7 @@ export function DriveFolderTree({
 							) : (
 								<ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
 							)}
-						</button>
+						</Button>
 					) : (
 						<span className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
 					)}
@@ -314,13 +317,14 @@ export function DriveFolderTree({
 					</div>
 
 					{isFolder ? (
-						<button
+						<Button
 							type="button"
-							className="truncate flex-1 text-left text-xs sm:text-sm min-w-0 bg-transparent border-0 p-0 cursor-pointer"
+							variant="ghost"
+							className="h-auto min-w-0 flex-1 justify-start truncate bg-transparent p-0 text-left text-xs font-normal hover:bg-transparent hover:text-inherit sm:text-sm"
 							onClick={() => toggleFolder(item)}
 						>
 							{item.name}
-						</button>
+						</Button>
 					) : (
 						<span className="truncate flex-1 text-left text-xs sm:text-sm min-w-0">
 							{item.name}
@@ -356,13 +360,14 @@ export function DriveFolderTree({
 								className="shrink-0 h-3.5 w-3.5 sm:h-4 sm:w-4 border-slate-400/20 dark:border-white/20"
 							/>
 							<HardDrive className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
-							<button
+							<Button
 								type="button"
-								className="font-semibold truncate text-xs sm:text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+								variant="ghost"
+								className="h-auto min-w-0 justify-start truncate bg-transparent p-0 text-left text-xs font-semibold hover:bg-transparent hover:text-inherit sm:text-sm"
 								onClick={() => toggleFolderSelection("root", rootLabel)}
 							>
 								{rootLabel}
-							</button>
+							</Button>
 						</div>
 					</div>
 

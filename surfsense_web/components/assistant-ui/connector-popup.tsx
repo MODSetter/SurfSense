@@ -1,7 +1,8 @@
 "use client";
 
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import { AlertTriangle, Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
@@ -10,7 +11,6 @@ import {
 	llmPreferencesAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -44,8 +44,8 @@ interface ConnectorIndicatorProps {
 
 export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, ConnectorIndicatorProps>(
 	(_props, ref) => {
+		const router = useRouter();
 		const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-		const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 		const { data: preferences = {}, isFetching: preferencesLoading } =
 			useAtomValue(llmPreferencesAtom);
 		const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
@@ -218,7 +218,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 					onPointerDownOutside={(e) => {
 						if (pickerOpen) e.preventDefault();
 					}}
-					className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 dark:ring-0 bg-muted dark:bg-muted text-foreground [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-foreground/10 [&>button>svg]:size-5 select-none"
+					className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden ring-0 dark:ring-0 [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-accent [&>button]:hover:text-accent-foreground [&>button>svg]:size-5 select-none"
 				>
 					<DialogTitle className="sr-only">Manage Connectors</DialogTitle>
 					{/* YouTube Crawler View - shown when adding YouTube videos */}
@@ -380,34 +380,32 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 									<div className="px-4 sm:px-12 py-4 sm:py-8 pb-12 sm:pb-16">
 										{/* LLM Configuration Warning */}
 										{!llmConfigLoading && !hasDocumentSummaryLLM && (
-											<Alert
-												variant="destructive"
-												className="mb-6 bg-muted/50 rounded-xl border-destructive/30"
-											>
-												<AlertTriangle className="h-4 w-4" />
-												<AlertTitle>LLM Configuration Required</AlertTitle>
-												<AlertDescription className="mt-2">
-													<p className="mb-3">
-														{isAutoMode && !hasGlobalConfigs
-															? "Auto mode requires a global LLM configuration. Please add one in Settings"
-															: "A Document Summary LLM is required to process uploads, configure one in Settings"}
-													</p>
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={() => {
-															handleOpenChange(false);
-															setSearchSpaceSettingsDialog({
-																open: true,
-																initialTab: "models",
-															});
-														}}
-													>
-														<Settings className="mr-2 h-4 w-4" />
-														Go to Settings
-													</Button>
-												</AlertDescription>
-											</Alert>
+											<div className="mb-6">
+												<Alert variant="destructive">
+													<AlertTriangle />
+													<AlertTitle>LLM Configuration Required</AlertTitle>
+													<AlertDescription>
+														<p>
+															{isAutoMode && !hasGlobalConfigs
+																? "Auto mode requires a global LLM configuration. Please add one in Settings"
+																: "A Document Summary LLM is required to process uploads, configure one in Settings"}
+														</p>
+														<Button
+															size="sm"
+															variant="outline"
+															onClick={() => {
+																handleOpenChange(false);
+																router.push(
+																	`/dashboard/${searchSpaceId}/search-space-settings/models`
+																);
+															}}
+														>
+															<Settings className="mr-2 h-4 w-4" />
+															Go to Settings
+														</Button>
+													</AlertDescription>
+												</Alert>
+											</div>
 										)}
 
 										<TabsContent value="all" className="m-0">
@@ -446,7 +444,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 									</div>
 								</div>
 								{/* Bottom fade shadow */}
-								<div className="absolute bottom-0 left-0 right-0 h-7 bg-linear-to-t from-muted via-muted/80 to-transparent pointer-events-none z-10" />
+								<div className="absolute bottom-0 left-0 right-0 h-7 bg-linear-to-t from-popover via-popover/80 to-transparent pointer-events-none z-10" />
 							</div>
 						</Tabs>
 					)}

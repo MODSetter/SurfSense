@@ -3,7 +3,8 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ExpandedGifOverlay, useExpandedGif } from "@/components/ui/expanded-gif-overlay";
+import { Button } from "@/components/ui/button";
+import { ExpandedMediaOverlay, useExpandedMedia } from "@/components/ui/expanded-gif-overlay";
 
 const carouselItems = [
 	{
@@ -70,7 +71,7 @@ function HeroCarouselCard({
 	src: string;
 	onExpandedChange?: (expanded: boolean) => void;
 }) {
-	const { expanded, open, close } = useExpandedGif();
+	const { expanded, open, close } = useExpandedMedia();
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -147,7 +148,7 @@ function HeroCarouselCard({
 			</div>
 
 			<AnimatePresence>
-				{expanded && <ExpandedGifOverlay src={src} alt={title} onClose={close} />}
+				{expanded && <ExpandedMediaOverlay src={src} alt={title} onClose={close} />}
 			</AnimatePresence>
 		</>
 	);
@@ -204,22 +205,26 @@ function HeroCarousel() {
 			</div>
 
 			<div className="relative z-5 mt-4 flex items-center justify-center gap-2">
-				<button
+				<Button
 					type="button"
+					variant="ghost"
+					size="icon"
 					onClick={() => !isGifExpanded && goToPrev()}
-					className="flex size-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 touch-manipulation dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+					className="size-11 rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm hover:bg-neutral-100 touch-manipulation dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
 					aria-label="Previous slide"
 				>
 					<ChevronLeft className="size-5" />
-				</button>
+				</Button>
 
 				<div className="flex items-center">
-					{carouselItems.map((_, i) => (
-						<button
-							key={`dot_${i}`}
+					{carouselItems.map((carouselItem, i) => (
+						<Button
+							key={carouselItem.src}
 							type="button"
+							variant="ghost"
+							size="icon"
 							onClick={() => !isGifExpanded && goTo(i)}
-							className="flex h-11 min-w-[28px] items-center justify-center touch-manipulation"
+							className="h-11 min-w-[28px] bg-transparent p-0 hover:bg-transparent touch-manipulation"
 							aria-label={`Go to slide ${i + 1}`}
 						>
 							<span
@@ -229,18 +234,20 @@ function HeroCarousel() {
 										: "w-2.5 bg-neutral-300 hover:bg-neutral-400 dark:bg-neutral-600 dark:hover:bg-neutral-500"
 								}`}
 							/>
-						</button>
+						</Button>
 					))}
 				</div>
 
-				<button
+				<Button
 					type="button"
+					variant="ghost"
+					size="icon"
 					onClick={() => !isGifExpanded && goToNext()}
-					className="flex size-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 touch-manipulation dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+					className="size-11 rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm hover:bg-neutral-100 touch-manipulation dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
 					aria-label="Next slide"
 				>
 					<ChevronRight className="size-5" />
-				</button>
+				</Button>
 			</div>
 		</div>
 	);

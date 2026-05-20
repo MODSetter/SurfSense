@@ -6,6 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { ChevronDown } from "lucide-react";
 import * as React from "react";
 
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenuLabel,
 	DropdownMenuRadioGroup,
@@ -219,7 +220,8 @@ export function ToolbarSplitButtonSecondary({
 	...props
 }: React.ComponentPropsWithoutRef<"span"> & VariantProps<typeof dropdownArrowVariants>) {
 	return (
-		<button
+		<Button
+			variant="ghost"
 			type="button"
 			className={cn(
 				dropdownArrowVariants({
@@ -233,7 +235,7 @@ export function ToolbarSplitButtonSecondary({
 			{...(props as React.ComponentPropsWithoutRef<"button">)}
 		>
 			<ChevronDown className="size-3.5 text-muted-foreground" data-icon />
-		</button>
+		</Button>
 	);
 }
 
@@ -337,8 +339,7 @@ export function ToolbarMenuGroup({
 			<DropdownMenuSeparator
 				className={cn(
 					"hidden",
-					"mb-0 mx-2 shrink-0 peer-has-[[role=menuitem]]/menu-group:block peer-has-[[role=menuitemradio]]/menu-group:block peer-has-[[role=option]]/menu-group:block",
-					"dark:bg-neutral-700"
+					"mb-0 mx-2 shrink-0 peer-has-[[role=menuitem]]/menu-group:block peer-has-[[role=menuitemradio]]/menu-group:block peer-has-[[role=option]]/menu-group:block"
 				)}
 			/>
 

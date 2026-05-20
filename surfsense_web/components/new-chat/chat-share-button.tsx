@@ -3,13 +3,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Earth, User, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { createPublicChatSnapshotMutationAtom } from "@/atoms/public-chat-snapshots/public-chat-snapshots-mutation.atoms";
-import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -49,8 +49,8 @@ const visibilityOptions: {
 
 export function ChatShareButton({ thread, onVisibilityChange, className }: ChatShareButtonProps) {
 	const queryClient = useQueryClient();
+	const router = useRouter();
 	const [open, setOpen] = useState(false);
-	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 
 	// Use Jotai atom for visibility (single source of truth)
 	const currentThreadState = useAtomValue(currentThreadAtom);
@@ -143,18 +143,19 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 			{hasPublicSnapshots && (
 				<Tooltip>
 					<TooltipTrigger asChild>
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="icon"
 							onClick={() =>
-								setSearchSpaceSettingsDialog({
-									open: true,
-									initialTab: "public-links",
-								})
+								router.push(
+									`/dashboard/${thread.search_space_id}/search-space-settings/public-links`
+								)
 							}
-							className="flex items-center justify-center h-8 w-8 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+							className="size-8 bg-muted/50 hover:bg-accent hover:text-accent-foreground"
 						>
-							<Earth className="h-4 w-4 text-muted-foreground" />
-						</button>
+							<Earth data-icon="inline-start" className="text-muted-foreground" />
+						</Button>
 					</TooltipTrigger>
 					<TooltipContent>Manage public links</TooltipContent>
 				</Tooltip>
@@ -165,7 +166,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 					<Button
 						variant="outline"
 						size="icon"
-						className="h-8 w-8 md:w-auto md:px-3 md:gap-2 relative bg-muted hover:bg-muted/80 border-0 select-none"
+						className="h-8 w-8 md:w-auto md:px-3 md:gap-2 relative bg-muted hover:bg-accent hover:text-accent-foreground border-0 select-none"
 					>
 						<CurrentIcon className="h-4 w-4" />
 						<span className="hidden md:inline text-sm">{buttonLabel}</span>
@@ -173,7 +174,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				</PopoverTrigger>
 
 				<PopoverContent
-					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
+					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg select-none"
 					align="end"
 					sideOffset={8}
 					onCloseAutoFocus={(e) => e.preventDefault()}
@@ -185,15 +186,14 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							const Icon = option.icon;
 
 							return (
-								<button
+								<Button
 									type="button"
+									variant="ghost"
 									key={option.value}
 									onClick={() => handleVisibilityChange(option.value)}
 									className={cn(
-										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
-										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
-										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-										isSelected && "bg-accent/80 dark:bg-white/10"
+										"h-auto w-full justify-start gap-2.5 whitespace-normal px-2.5 py-2 font-normal",
+										isSelected && "bg-accent text-accent-foreground"
 									)}
 								>
 									<div
@@ -204,7 +204,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									>
 										<Icon
 											className={cn(
-												"size-4 block",
+												"block",
 												isSelected ? "text-primary dark:text-white" : "text-muted-foreground"
 											)}
 										/>
@@ -224,29 +224,28 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 											{option.description}
 										</p>
 									</div>
-								</button>
+								</Button>
 							);
 						})}
 
 						{canCreatePublicLink && (
 							<>
 								{/* Divider */}
-								<div className="border-t border-border dark:border-white/5 my-1" />
+								<div className="border-t border-popover-border my-1" />
 
 								{/* Public Link Option */}
-								<button
+								<Button
 									type="button"
+									variant="ghost"
 									onClick={handleCreatePublicLink}
 									disabled={isCreatingSnapshot}
 									className={cn(
-										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
-										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
-										"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-										"disabled:opacity-50 disabled:cursor-not-allowed"
+										"h-auto w-full justify-start gap-2.5 whitespace-normal px-2.5 py-2 font-normal",
+										"disabled:cursor-not-allowed"
 									)}
 								>
 									<div className="size-7 rounded-md shrink-0 grid place-items-center bg-muted dark:bg-white/5">
-										<Earth className="size-4 block text-muted-foreground" />
+										<Earth className="block text-muted-foreground" />
 									</div>
 									<div className="flex-1 text-left min-w-0">
 										<div className="flex items-center gap-1.5">
@@ -258,7 +257,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 											Creates a shareable snapshot of this chat
 										</p>
 									</div>
-								</button>
+								</Button>
 							</>
 						)}
 					</div>

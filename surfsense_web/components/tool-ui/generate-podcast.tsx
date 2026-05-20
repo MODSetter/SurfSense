@@ -264,7 +264,7 @@ function PodcastPlayer({
 					<div className="mx-5 h-px bg-border/50" />
 					<Accordion type="single" collapsible className="px-5">
 						<AccordionItem value="transcript" className="border-b-0">
-							<AccordionTrigger className="py-3 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground hover:no-underline">
+							<AccordionTrigger className="py-3 text-xs sm:text-sm font-medium text-muted-foreground hover:text-accent-foreground hover:no-underline">
 								View transcript
 							</AccordionTrigger>
 							<AccordionContent className="pb-0">

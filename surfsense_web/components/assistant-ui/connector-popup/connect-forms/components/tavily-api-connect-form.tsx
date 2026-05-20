@@ -70,19 +70,21 @@ export const TavilyApiConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitt
 
 	return (
 		<div className="space-y-6 pb-6">
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
-				<Info className="size-4 shrink-0" />
-				<AlertTitle className="text-xs sm:text-sm">API Key Required</AlertTitle>
-				<AlertDescription className="text-[10px] sm:text-xs">
-					You'll need a Tavily API key to use this connector. You can get one by signing up at{" "}
-					<a
-						href="https://tavily.com"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="font-medium underline underline-offset-4"
-					>
-						tavily.com
-					</a>
+			<Alert>
+				<Info />
+				<AlertTitle>API Key Required</AlertTitle>
+				<AlertDescription>
+					<p>
+						You'll need a Tavily API key to use this connector. You can get one by signing up at{" "}
+						<a
+							href="https://tavily.com"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="font-medium underline underline-offset-4"
+						>
+							tavily.com
+						</a>
+					</p>
 				</AlertDescription>
 			</Alert>
 

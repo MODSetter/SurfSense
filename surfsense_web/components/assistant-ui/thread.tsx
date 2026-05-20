@@ -12,9 +12,8 @@ import {
 	ArrowUpIcon,
 	Camera,
 	ChevronDown,
-	ChevronUp,
+	ChevronRight,
 	Clipboard,
-	Dot,
 	Globe,
 	Plus,
 	Settings2,
@@ -73,17 +72,26 @@ import {
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerHeader,
+	DrawerTitle,
+} from "@/components/ui/drawer";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuPortal,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	CONNECTOR_ICON_TO_TYPES,
@@ -111,7 +119,7 @@ const ThreadContent: FC = () => {
 		<ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
 			style={{
-				["--thread-max-width" as string]: "44rem",
+				["--thread-max-width" as string]: "42rem",
 			}}
 		>
 			<ChatViewport
@@ -156,14 +164,16 @@ const PremiumQuotaPinnedAlert: FC = () => {
 				<div className="min-w-0 flex-1">
 					<p className="text-sm">{alert.message}</p>
 				</div>
-				<button
+				<Button
 					type="button"
-					className="inline-flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+					variant="ghost"
+					size="icon"
+					className="size-6 text-muted-foreground hover:bg-transparent hover:text-accent-foreground"
 					aria-label="Dismiss premium quota alert"
 					onClick={() => clearPremiumAlertForThread(currentThreadId)}
 				>
 					<X className="size-4" />
-				</button>
+				</Button>
 			</div>
 		</div>
 	);
@@ -211,7 +221,7 @@ const ThreadWelcome: FC = () => {
 	return (
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
 			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center">
-				<h1 className="aui-thread-welcome-message-inner text-3xl md:text-5xl select-none">
+				<h1 className="aui-thread-welcome-message-inner text-3xl md:text-[2.625rem] select-none">
 					{greeting}
 				</h1>
 			</div>
@@ -232,58 +242,86 @@ const BANNER_CONNECTORS = [
 
 const BANNER_DISMISSED_KEY = "surfsense-connect-tools-banner-dismissed";
 
-const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) => {
+const ConnectToolsBanner: FC<{
+	isThreadEmpty: boolean;
+	onVisibleChange?: (visible: boolean) => void;
+}> = ({ isThreadEmpty, onVisibleChange }) => {
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [dismissed, setDismissed] = useState(() => {
 		if (typeof window === "undefined") return false;
 		return localStorage.getItem(BANNER_DISMISSED_KEY) === "true";
 	});
+	const [dismissRequested, setDismissRequested] = useState(false);
 
 	const hasConnectors = (connectors?.length ?? 0) > 0;
+	const isVisible = !dismissed && !hasConnectors && isThreadEmpty;
+	const shouldShowTray = isVisible && !dismissRequested;
 
-	if (dismissed || hasConnectors || !isThreadEmpty) return null;
+	useEffect(() => {
+		onVisibleChange?.(isVisible);
+	}, [isVisible, onVisibleChange]);
 
 	const handleDismiss = (e: React.MouseEvent) => {
 		e.stopPropagation();
-		setDismissed(true);
-		localStorage.setItem(BANNER_DISMISSED_KEY, "true");
+		setDismissRequested(true);
 	};
 
 	return (
-		<div className="border-t border-border/50">
-			<div className="flex w-full items-center gap-2.5 px-4 py-2.5">
-				<button
-					type="button"
-					className="flex flex-1 items-center gap-2.5 text-left cursor-pointer select-none"
-					onClick={() => setConnectorDialogOpen(true)}
+		<AnimatePresence
+			initial={false}
+			onExitComplete={() => {
+				if (!dismissRequested) return;
+				setDismissed(true);
+				localStorage.setItem(BANNER_DISMISSED_KEY, "true");
+			}}
+		>
+			{shouldShowTray ? (
+				<motion.div
+					key="connect-tools-tray"
+					initial={{ opacity: 0, y: -10 }}
+					animate={{ opacity: 1, y: 0 }}
+					exit={{ opacity: 0, y: -14 }}
+					transition={{ duration: 0.18, ease: "easeOut" }}
+					className="relative z-0 -mt-5 flex min-w-0 items-center gap-2 rounded-b-3xl border border-input bg-muted/40 px-4 pt-7 pb-3 shadow-sm shadow-black/5 dark:shadow-black/10"
 				>
-					<Unplug className="size-4 text-muted-foreground shrink-0" />
-					<span className="text-[13px] text-muted-foreground/80 flex-1">Connect your tools</span>
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						className="h-7 min-w-0 cursor-pointer justify-start gap-2 rounded-md px-0 text-[13px] font-normal text-muted-foreground select-none hover:bg-transparent hover:text-foreground"
+						onClick={() => setConnectorDialogOpen(true)}
+					>
+						<Unplug className="size-4 shrink-0" />
+						<span className="truncate">Connect your tools</span>
+					</Button>
+					<div className="min-w-0 flex-1" />
 					<AvatarGroup className="shrink-0">
 						{BANNER_CONNECTORS.map(({ type }, i) => (
 							<Avatar
 								key={type}
-								className="size-6"
+								className="size-5"
 								style={{ zIndex: BANNER_CONNECTORS.length - i }}
 							>
-								<AvatarFallback className="bg-muted text-[10px]">
-									{getConnectorIcon(type, "size-3.5")}
+								<AvatarFallback className="bg-accent text-[10px]">
+									{getConnectorIcon(type, "size-3")}
 								</AvatarFallback>
 							</Avatar>
 						))}
 					</AvatarGroup>
-				</button>
-				<button
-					type="button"
-					onClick={handleDismiss}
-					className="shrink-0 ml-0.5 p-1.5 -mr-1 text-muted-foreground/40 hover:text-foreground transition-colors cursor-pointer"
-					aria-label="Dismiss"
-				>
-					<X className="size-3.5 text-muted-foreground" />
-				</button>
-			</div>
-		</div>
+					<Button
+						type="button"
+						onClick={handleDismiss}
+						variant="ghost"
+						size="icon"
+						className="size-7 shrink-0 cursor-pointer rounded-md text-muted-foreground hover:bg-transparent hover:text-foreground"
+						aria-label="Dismiss"
+					>
+						<X className="size-3.5" />
+					</Button>
+				</motion.div>
+			) : null}
+		</AnimatePresence>
 	);
 };
 
@@ -297,16 +335,25 @@ const PendingScreenImageStrip: FC = () => {
 					key={url}
 					className="group relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-border/50 bg-muted"
 				>
-					{/* biome-ignore lint/performance/noImgElement: data URL thumbnails from capture */}
-					<img src={url} alt="" className="size-full object-cover" draggable={false} />
-					<button
+					<Image
+						src={url}
+						alt="Pending screenshot preview"
+						fill
+						sizes="56px"
+						className="object-cover"
+						draggable={false}
+						unoptimized
+					/>
+					<Button
 						type="button"
 						onClick={() => setUrls((prev) => prev.filter((_, i) => i !== index))}
-						className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition-opacity hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
+						variant="ghost"
+						size="icon"
+						className="absolute right-0.5 top-0.5 size-5 rounded-full bg-background/90 text-muted-foreground shadow-sm transition-opacity hover:bg-background/90 hover:text-accent-foreground sm:opacity-0 sm:group-hover:opacity-100"
 						aria-label="Remove screenshot"
 					>
 						<X className="size-3" />
-					</button>
+					</Button>
 				</div>
 			))}
 		</div>
@@ -325,21 +372,27 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 				<span className="text-xs font-medium text-muted-foreground">From clipboard</span>
 				<div className="flex-1" />
 				{isLong && (
-					<button
+					<Button
 						type="button"
 						onClick={() => setExpanded((v) => !v)}
-						className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+						variant="ghost"
+						size="icon"
+						className="size-5 text-muted-foreground hover:bg-transparent hover:text-accent-foreground"
 					>
-						{expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-					</button>
+						<ChevronDown
+							className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+						/>
+					</Button>
 				)}
-				<button
+				<Button
 					type="button"
 					onClick={onDismiss}
-					className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+					variant="ghost"
+					size="icon"
+					className="size-5 text-muted-foreground hover:bg-transparent hover:text-accent-foreground"
 				>
 					<X className="size-3.5" />
-				</button>
+				</Button>
 			</div>
 			<div className="px-3 pb-2">
 				<p className="text-xs text-foreground/80 whitespace-pre-wrap wrap-break-word leading-relaxed">
@@ -381,6 +434,7 @@ const Composer: FC = () => {
 
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
+	const [connectToolsTrayVisible, setConnectToolsTrayVisible] = useState(false);
 
 	const currentPlaceholder = COMPOSER_PLACEHOLDER;
 
@@ -659,7 +713,7 @@ const Composer: FC = () => {
 	}, [mentionedDocuments]);
 
 	return (
-		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
+		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2 rounded-2xl">
 			<ChatSessionStatus
 				isAiResponding={isAiResponding}
 				respondingToUserId={respondingToUserId}
@@ -699,32 +753,42 @@ const Composer: FC = () => {
 					/>
 				</div>
 			)}
-			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
-				<PendingScreenImageStrip />
-				{clipboardInitialText && (
-					<ClipboardChip
-						text={clipboardInitialText}
-						onDismiss={() => setClipboardInitialText(undefined)}
-					/>
-				)}
-				<div className="aui-composer-input-wrapper px-4 pt-3 pb-6">
-					<InlineMentionEditor
-						ref={editorRef}
-						placeholder={currentPlaceholder}
-						onMentionTrigger={handleMentionTrigger}
-						onMentionClose={handleMentionClose}
-						onActionTrigger={handleActionTrigger}
-						onActionClose={handleActionClose}
-						onChange={handleEditorChange}
-						onDocumentRemove={handleDocumentRemove}
-						onSubmit={handleSubmit}
-						onKeyDown={handleKeyDown}
-						className="min-h-[24px]"
-					/>
+			<div className="flex w-full flex-col">
+				<div
+					className={cn(
+						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-shadow dark:shadow-black/10",
+						connectToolsTrayVisible && "rounded-b-3xl shadow-none dark:shadow-none"
+					)}
+				>
+					<PendingScreenImageStrip />
+					{clipboardInitialText && (
+						<ClipboardChip
+							text={clipboardInitialText}
+							onDismiss={() => setClipboardInitialText(undefined)}
+						/>
+					)}
+					<div className="aui-composer-input-wrapper px-4 pt-3 pb-6">
+						<InlineMentionEditor
+							ref={editorRef}
+							placeholder={currentPlaceholder}
+							onMentionTrigger={handleMentionTrigger}
+							onMentionClose={handleMentionClose}
+							onActionTrigger={handleActionTrigger}
+							onActionClose={handleActionClose}
+							onChange={handleEditorChange}
+							onDocumentRemove={handleDocumentRemove}
+							onSubmit={handleSubmit}
+							onKeyDown={handleKeyDown}
+							className="min-h-[24px]"
+						/>
+					</div>
+					<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
+					<ConnectorIndicator showTrigger={false} />
 				</div>
-				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
-				<ConnectorIndicator showTrigger={false} />
-				<ConnectToolsBanner isThreadEmpty={isThreadEmpty} />
+				<ConnectToolsBanner
+					isThreadEmpty={isThreadEmpty}
+					onVisibleChange={setConnectToolsTrayVisible}
+				/>
 			</div>
 		</ComposerPrimitive.Root>
 	);
@@ -738,26 +802,12 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
+	const [openConnectorSubmenu, setOpenConnectorSubmenu] = useState<string | null>(null);
+	const [expandedConnectorGroups, setExpandedConnectorGroups] = useState<Set<string>>(
+		() => new Set()
+	);
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
-	const [toolsScrollPos, setToolsScrollPos] = useState<"top" | "middle" | "bottom">("top");
-	const toolsRafRef = useRef<number | undefined>(undefined);
-	const handleToolsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-		const el = e.currentTarget;
-		if (toolsRafRef.current) return;
-		toolsRafRef.current = requestAnimationFrame(() => {
-			const atTop = el.scrollTop <= 2;
-			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-			setToolsScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
-			toolsRafRef.current = undefined;
-		});
-	}, []);
-	useEffect(
-		() => () => {
-			if (toolsRafRef.current) cancelAnimationFrame(toolsRafRef.current);
-		},
-		[]
-	);
 	const pendingScreenImages = useAtomValue(pendingUserImageDataUrlsAtom);
 	const setPendingScreenImages = useSetAtom(pendingUserImageDataUrlsAtom);
 	const electronAPI = useElectronAPI();
@@ -804,6 +854,17 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		},
 		[disabledToolsSet, setDisabledTools]
 	);
+	const setConnectorGroupExpanded = useCallback((label: string, expanded: boolean) => {
+		setExpandedConnectorGroups((prev) => {
+			const next = new Set(prev);
+			if (expanded) {
+				next.add(label);
+			} else {
+				next.delete(label);
+			}
+			return next;
+		});
+	}, []);
 
 	const hasWebSearchTool = agentTools?.some((t) => t.name === "web_search") ?? false;
 	const isWebSearchEnabled = hasWebSearchTool && !disabledToolsSet.has("web_search");
@@ -845,6 +906,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 
 		return result;
 	}, [filteredTools, connectedTypes]);
+	const regularToolGroups = groupedTools.filter((g) => !g.connectorIcon && g.label !== "Other");
+	const connectorToolGroups = groupedTools.filter((g) => g.connectorIcon);
+	const otherToolGroup = groupedTools.find((g) => !g.connectorIcon && g.label === "Other");
 
 	useEffect(() => {
 		hydrateDisabled();
@@ -864,7 +928,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 
 	return (
-		<div className="aui-composer-action-wrapper relative mx-3 mb-2 flex items-center justify-between">
+		<div className="aui-composer-action-wrapper relative mx-3 mb-3 flex items-center justify-between">
 			<div className="flex items-center gap-1">
 				{!isDesktop ? (
 					<>
@@ -873,100 +937,189 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								<Button
 									variant="ghost"
 									size="icon"
-									className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-									aria-label="More actions"
+									className="h-9 w-9 rounded-full p-0 font-semibold text-xs text-muted-foreground transition-colors dark:border-muted-foreground/15 hover:bg-foreground/10 hover:text-foreground"
+									aria-label="Upload files, manage tools and more"
 									data-joyride="connector-icon"
 								>
-									<Plus className="size-4" />
+									<Plus className="size-5" />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent side="bottom" align="start" sideOffset={8}>
-								<DropdownMenuItem onSelect={() => setToolsPopoverOpen(true)}>
-									<Settings2 className="size-4" />
-									Manage Tools
-								</DropdownMenuItem>
 								<DropdownMenuItem onSelect={() => openUploadDialog()}>
 									<Upload className="size-4" />
 									Upload Files
 								</DropdownMenuItem>
+								{hasWebSearchTool && (
+									<DropdownMenuItem
+										onSelect={(event) => {
+											event.preventDefault();
+											toggleTool("web_search");
+										}}
+									>
+										<Globe className="size-4" />
+										<span className="flex-1">Web Search</span>
+										<Switch
+											checked={isWebSearchEnabled}
+											tabIndex={-1}
+											className="pointer-events-none h-4 w-7 shrink-0 border [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3"
+										/>
+									</DropdownMenuItem>
+								)}
+								<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
+									<Unplug className="size-4" />
+									Manage Connectors
+								</DropdownMenuItem>
+								<DropdownMenuItem onSelect={() => setToolsPopoverOpen(true)}>
+									<Settings2 className="size-4" />
+									Manage Tools
+								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
-						<Drawer open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
-							<DrawerContent className="max-h-[60dvh]">
+						<Drawer
+							open={toolsPopoverOpen}
+							onOpenChange={setToolsPopoverOpen}
+							shouldScaleBackground={false}
+						>
+							<DrawerContent className="h-[85vh] max-h-[85vh] z-80" overlayClassName="z-80">
 								<DrawerHandle />
-								<div className="px-4 py-2">
-									<DrawerTitle className="text-sm font-medium">Manage Tools</DrawerTitle>
-								</div>
-								<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
-									{groupedTools
-										.filter((g) => !g.connectorIcon)
-										.map((group) => (
-											<div key={group.label}>
-												<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
-													{group.label}
-												</div>
-												{group.tools.map((tool) => {
-													const isDisabled = disabledToolsSet.has(tool.name);
-													const ToolIcon = getToolIcon(tool.name);
-													return (
-														<div
-															key={tool.name}
-															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
-														>
-															<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
-															<span className="flex-1 min-w-0 text-sm font-medium truncate">
-																{formatToolName(tool.name)}
-															</span>
-															<Switch
-																checked={!isDisabled}
-																onCheckedChange={() => toggleTool(tool.name)}
-																className="shrink-0"
-															/>
-														</div>
-													);
-												})}
+								<DrawerHeader className="px-4 pb-3 pt-2">
+									<DrawerTitle className="flex items-center justify-center gap-2 text-base font-semibold">
+										Manage Tools
+									</DrawerTitle>
+								</DrawerHeader>
+								<div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin pb-6">
+									{regularToolGroups.map((group) => (
+										<div key={group.label}>
+											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+												{group.label}
 											</div>
-										))}
-									{groupedTools.some((g) => g.connectorIcon) && (
+											{group.tools.map((tool) => {
+												const isDisabled = disabledToolsSet.has(tool.name);
+												const ToolIcon = getToolIcon(tool.name);
+												return (
+													<div
+														key={tool.name}
+														className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+													>
+														<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
+														<span className="flex-1 min-w-0 text-sm font-medium truncate">
+															{formatToolName(tool.name)}
+														</span>
+														<Switch
+															checked={!isDisabled}
+															onCheckedChange={() => toggleTool(tool.name)}
+															className="shrink-0"
+														/>
+													</div>
+												);
+											})}
+										</div>
+									))}
+									{connectorToolGroups.length > 0 && (
 										<div>
 											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
 												Connector Actions
 											</div>
-											{groupedTools
-												.filter((g) => g.connectorIcon)
-												.map((group) => {
-													const iconKey = group.connectorIcon ?? "";
-													const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
-													const toolNames = group.tools.map((t) => t.name);
-													const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
-													return (
-														<div
-															key={group.label}
-															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
-														>
-															{iconInfo ? (
-																<Image
-																	src={iconInfo.src}
-																	alt={iconInfo.alt}
-																	width={18}
-																	height={18}
-																	className="size-[18px] shrink-0 select-none pointer-events-none"
-																	draggable={false}
-																/>
-															) : (
-																<Wrench className="size-4 shrink-0 text-muted-foreground" />
-															)}
-															<span className="flex-1 min-w-0 text-sm font-medium truncate">
-																{group.label}
-															</span>
+											{connectorToolGroups.map((group) => {
+												const iconKey = group.connectorIcon ?? "";
+												const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
+												const toolNames = group.tools.map((t) => t.name);
+												const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
+												const isExpanded = expandedConnectorGroups.has(group.label);
+												return (
+													<Collapsible
+														key={group.label}
+														open={isExpanded}
+														onOpenChange={(open) => setConnectorGroupExpanded(group.label, open)}
+													>
+														<div className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors">
+															<CollapsibleTrigger asChild>
+																<button
+																	type="button"
+																	className="flex min-w-0 flex-1 items-center gap-3 text-left"
+																>
+																	{iconInfo ? (
+																		<Image
+																			src={iconInfo.src}
+																			alt={iconInfo.alt}
+																			width={18}
+																			height={18}
+																			className="size-[18px] shrink-0 select-none pointer-events-none"
+																			draggable={false}
+																		/>
+																	) : (
+																		<Wrench className="size-4 shrink-0 text-muted-foreground" />
+																	)}
+																	<span className="min-w-0 flex-1 truncate text-sm font-medium">
+																		{group.label}
+																	</span>
+																	{isExpanded ? (
+																		<ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+																	) : (
+																		<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+																	)}
+																</button>
+															</CollapsibleTrigger>
 															<Switch
 																checked={!allDisabled}
 																onCheckedChange={() => toggleToolGroup(toolNames)}
 																className="shrink-0"
 															/>
 														</div>
-													);
-												})}
+														<CollapsibleContent className="pb-1">
+															{group.tools.map((tool) => {
+																const isDisabled = disabledToolsSet.has(tool.name);
+																return (
+																	<div
+																		key={tool.name}
+																		className={cn(
+																			"ml-8 flex items-center gap-3 px-4 py-1.5 rounded-md transition-colors",
+																			"hover:bg-accent hover:text-accent-foreground",
+																			!isDisabled && "text-primary"
+																		)}
+																	>
+																		<span className="min-w-0 flex-1 truncate text-sm">
+																			{formatToolName(tool.name)}
+																		</span>
+																		<Switch
+																			checked={!isDisabled}
+																			onCheckedChange={() => toggleTool(tool.name)}
+																			className="shrink-0"
+																		/>
+																	</div>
+																);
+															})}
+														</CollapsibleContent>
+													</Collapsible>
+												);
+											})}
+										</div>
+									)}
+									{otherToolGroup && (
+										<div>
+											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+												{otherToolGroup.label}
+											</div>
+											{otherToolGroup.tools.map((tool) => {
+												const isDisabled = disabledToolsSet.has(tool.name);
+												const ToolIcon = getToolIcon(tool.name);
+												return (
+													<div
+														key={tool.name}
+														className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+													>
+														<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
+														<span className="flex-1 min-w-0 text-sm font-medium truncate">
+															{formatToolName(tool.name)}
+														</span>
+														<Switch
+															checked={!isDisabled}
+															onCheckedChange={() => toggleTool(tool.name)}
+															className="shrink-0"
+														/>
+													</div>
+												);
+											})}
 										</div>
 									)}
 									{!filteredTools?.length && (
@@ -992,206 +1145,256 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								</div>
 							</DrawerContent>
 						</Drawer>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-							aria-label="Manage connectors"
-							onClick={() => setConnectorDialogOpen(true)}
-						>
-							<Unplug className="size-4" />
-						</Button>
 					</>
 				) : (
-					<Popover open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
-						<PopoverTrigger asChild>
+					<DropdownMenu
+						onOpenChange={(open) => {
+							if (!open) {
+								setToolsPopoverOpen(false);
+								setOpenConnectorSubmenu(null);
+							}
+						}}
+					>
+						<DropdownMenuTrigger asChild>
 							<TooltipIconButton
-								tooltip="Manage tools"
+								tooltip="Upload files, manage tools and more"
 								side="bottom"
 								disableTooltip={toolsPopoverOpen}
 								variant="ghost"
 								size="icon"
-								className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-								aria-label="Manage tools"
+								className="h-9 w-9 rounded-full p-0 font-semibold text-xs text-muted-foreground transition-colors dark:border-muted-foreground/15 hover:bg-foreground/10 hover:text-foreground"
+								aria-label="Upload files, manage tools and more"
 								data-joyride="connector-icon"
 							>
-								<Settings2 className="size-4" />
+								<Plus className="size-5" />
 							</TooltipIconButton>
-						</PopoverTrigger>
-						<PopoverContent
+						</DropdownMenuTrigger>
+						<DropdownMenuContent
+							className="w-48"
 							side="bottom"
 							align="start"
-							sideOffset={12}
-							className="w-[calc(100vw-2rem)] max-w-48 sm:max-w-56 sm:w-56 p-0 select-none"
-							onOpenAutoFocus={(e) => e.preventDefault()}
+							sideOffset={8}
+							onCloseAutoFocus={(event) => event.preventDefault()}
 						>
-							<div className="sr-only">Manage Tools</div>
-							<div
-								className="max-h-44 sm:max-h-56 overflow-y-auto overscroll-none py-0.5"
-								onScroll={handleToolsScroll}
-								style={{
-									maskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
-									WebkitMaskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
+							<DropdownMenuItem onSelect={() => openUploadDialog()}>
+								<Upload className="h-4 w-4" />
+								Upload Files
+							</DropdownMenuItem>
+							<DropdownMenuItem onSelect={() => void handleScreenCapture()}>
+								<Camera className="h-4 w-4" />
+								Take a screenshot
+							</DropdownMenuItem>
+							{hasWebSearchTool && (
+								<DropdownMenuItem
+									onSelect={(event) => {
+										event.preventDefault();
+										toggleTool("web_search");
+									}}
+									className={cn(
+										"hover:bg-accent hover:text-accent-foreground",
+										isWebSearchEnabled && "text-primary"
+									)}
+								>
+									<Globe className="h-4 w-4" />
+									<span className="flex-1 min-w-0 truncate">Web Search</span>
+									<Switch
+										checked={isWebSearchEnabled}
+										tabIndex={-1}
+										className="pointer-events-none h-4 w-7 shrink-0 border [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3"
+									/>
+								</DropdownMenuItem>
+							)}
+							<DropdownMenuSub
+								open={toolsPopoverOpen}
+								onOpenChange={(open) => {
+									setToolsPopoverOpen(open);
+									if (!open) setOpenConnectorSubmenu(null);
 								}}
 							>
-								{groupedTools
-									.filter((g) => !g.connectorIcon)
-									.map((group) => (
-										<div key={group.label}>
-											<div className="px-2 sm:px-2.5 pt-1.5 pb-0.5 text-[9px] sm:text-[10px] text-muted-foreground/80 font-normal select-none">
-												{group.label}
-											</div>
-											{group.tools.map((tool) => {
-												const isDisabled = disabledToolsSet.has(tool.name);
-												const ToolIcon = getToolIcon(tool.name);
-												const row = (
-													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-muted-foreground/10 transition-colors">
-														<ToolIcon className="size-3 sm:size-3.5 shrink-0 text-muted-foreground" />
-														<span className="flex-1 min-w-0 text-[11px] sm:text-xs font-medium truncate">
-															{formatToolName(tool.name)}
-														</span>
-														<Switch
-															checked={!isDisabled}
-															onCheckedChange={() => toggleTool(tool.name)}
-															className="shrink-0 scale-50 sm:scale-[0.6]"
-														/>
-													</div>
-												);
-												return (
-													<Tooltip key={tool.name}>
-														<TooltipTrigger asChild>{row}</TooltipTrigger>
-														<TooltipContent side="right" className="max-w-64 text-xs">
-															{tool.description}
-														</TooltipContent>
-													</Tooltip>
-												);
-											})}
-										</div>
-									))}
-								{groupedTools.some((g) => g.connectorIcon) && (
-									<div>
-										<div className="px-2 sm:px-2.5 pt-1.5 pb-0.5 text-[9px] sm:text-[10px] text-muted-foreground/80 font-normal select-none">
-											Connector Actions
-										</div>
-										{groupedTools
-											.filter((g) => g.connectorIcon)
-											.map((group) => {
-												const iconKey = group.connectorIcon ?? "";
-												const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
-												const toolNames = group.tools.map((t) => t.name);
-												const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
-												const groupDef = TOOL_GROUPS.find((g) => g.label === group.label);
-												const row = (
-													<div className="flex w-full items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-0.5 sm:py-1 hover:bg-muted-foreground/10 transition-colors">
-														{iconInfo ? (
-															<Image
-																src={iconInfo.src}
-																alt={iconInfo.alt}
-																width={14}
-																height={14}
-																className="size-3 sm:size-3.5 shrink-0 select-none pointer-events-none"
-																draggable={false}
+								<DropdownMenuSubTrigger>
+									<Settings2 className="h-4 w-4" />
+									Manage Tools
+								</DropdownMenuSubTrigger>
+								<DropdownMenuPortal>
+									<DropdownMenuSubContent
+										alignOffset={-192}
+										collisionPadding={8}
+										className="w-60 h-56 gap-1 overflow-y-auto overscroll-none"
+										onScroll={() => setOpenConnectorSubmenu(null)}
+									>
+										{regularToolGroups.map((group) => (
+											<div key={group.label}>
+												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
+													{group.label}
+												</div>
+												{group.tools.map((tool) => {
+													const isDisabled = disabledToolsSet.has(tool.name);
+													const ToolIcon = getToolIcon(tool.name);
+													return (
+														<DropdownMenuItem
+															key={tool.name}
+															onSelect={(e) => {
+																e.preventDefault();
+																toggleTool(tool.name);
+															}}
+															className={cn(
+																"mb-1 last:mb-0 transition-all",
+																"hover:bg-accent hover:text-accent-foreground",
+																!isDisabled && "text-primary"
+															)}
+														>
+															<ToolIcon className="h-4 w-4" />
+															<span className="flex-1 min-w-0 truncate">
+																{formatToolName(tool.name)}
+															</span>
+															<Switch
+																checked={!isDisabled}
+																tabIndex={-1}
+																className="pointer-events-none shrink-0 scale-[0.6]"
 															/>
-														) : (
-															<Wrench className="size-3 sm:size-3.5 shrink-0 text-muted-foreground" />
-														)}
-														<span className="flex-1 min-w-0 text-[11px] sm:text-xs font-medium truncate">
-															{group.label}
-														</span>
-														<Switch
-															checked={!allDisabled}
-															onCheckedChange={() => toggleToolGroup(toolNames)}
-															className="shrink-0 scale-50 sm:scale-[0.6]"
-														/>
-													</div>
-												);
-												return (
-													<Tooltip key={group.label}>
-														<TooltipTrigger asChild>{row}</TooltipTrigger>
-														<TooltipContent side="right" className="max-w-72 text-xs">
-															{groupDef?.tooltip ??
-																group.tools.flatMap((t, i) =>
-																	i === 0
-																		? [t.description]
-																		: [
-																				<Dot
-																					key={`dot-${group.label}-${t.description}`}
-																					className="inline h-4 w-4"
-																				/>,
-																				t.description,
-																			]
+														</DropdownMenuItem>
+													);
+												})}
+											</div>
+										))}
+										{connectorToolGroups.length > 0 && (
+											<div>
+												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
+													Connector Actions
+												</div>
+												{connectorToolGroups.map((group) => {
+													const iconKey = group.connectorIcon ?? "";
+													const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
+													const toolNames = group.tools.map((t) => t.name);
+													const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
+													return (
+														<DropdownMenuSub
+															key={group.label}
+															open={openConnectorSubmenu === group.label}
+															onOpenChange={(open) =>
+																setOpenConnectorSubmenu(open ? group.label : null)
+															}
+														>
+															<DropdownMenuSubTrigger
+																className={cn(
+																	"mb-1 last:mb-0 transition-all",
+																	"hover:bg-accent hover:text-accent-foreground",
+																	"gap-1 [&>svg:last-child]:ml-0",
+																	!allDisabled && "text-primary"
 																)}
-														</TooltipContent>
-													</Tooltip>
-												);
-											})}
-									</div>
-								)}
-								{!filteredTools?.length && (
-									<div className="px-2 sm:px-2.5 pt-1.5 pb-1">
-										<Skeleton className="h-2 w-12 mb-1.5" />
-										{["dt1", "dt2", "dt3", "dt4"].map((k) => (
-											<div key={k} className="flex items-center gap-1.5 sm:gap-2 py-0.5 sm:py-1">
-												<Skeleton className="size-3 sm:size-3.5 rounded shrink-0" />
-												<Skeleton className="h-2.5 sm:h-3 flex-1" />
-												<Skeleton className="h-3.5 sm:h-4 w-7 sm:w-8 rounded-full shrink-0" />
+															>
+																{iconInfo ? (
+																	<Image
+																		src={iconInfo.src}
+																		alt={iconInfo.alt}
+																		width={16}
+																		height={16}
+																		className="h-4 w-4 shrink-0 select-none pointer-events-none"
+																		draggable={false}
+																	/>
+																) : (
+																	<Wrench className="h-4 w-4" />
+																)}
+																<span className="min-w-0 flex-1 truncate">{group.label}</span>
+																<Switch
+																	checked={!allDisabled}
+																	tabIndex={-1}
+																	onPointerDown={(event) => event.stopPropagation()}
+																	onClick={(event) => event.stopPropagation()}
+																	onCheckedChange={() => toggleToolGroup(toolNames)}
+																	className="shrink-0 scale-[0.6]"
+																/>
+															</DropdownMenuSubTrigger>
+															<DropdownMenuPortal>
+																<DropdownMenuSubContent
+																	collisionPadding={8}
+																	className="w-60 max-h-56 overflow-y-auto overscroll-none"
+																>
+																	{group.tools.map((tool) => {
+																		const isDisabled = disabledToolsSet.has(tool.name);
+																		return (
+																			<DropdownMenuItem
+																				key={tool.name}
+																				onSelect={(e) => {
+																					e.preventDefault();
+																					toggleTool(tool.name);
+																				}}
+																				className={cn(
+																					"mb-1 last:mb-0 transition-all",
+																					"hover:bg-accent hover:text-accent-foreground",
+																					!isDisabled && "text-primary"
+																				)}
+																			>
+																				<span className="min-w-0 flex-1 truncate">
+																					{formatToolName(tool.name)}
+																				</span>
+																				<Switch
+																					checked={!isDisabled}
+																					tabIndex={-1}
+																					className="pointer-events-none shrink-0 scale-[0.6]"
+																				/>
+																			</DropdownMenuItem>
+																		);
+																	})}
+																</DropdownMenuSubContent>
+															</DropdownMenuPortal>
+														</DropdownMenuSub>
+													);
+												})}
 											</div>
-										))}
-										<Skeleton className="h-2 w-20 mt-2 mb-1.5" />
-										{["dc1", "dc2", "dc3"].map((k) => (
-											<div key={k} className="flex items-center gap-1.5 sm:gap-2 py-0.5 sm:py-1">
-												<Skeleton className="size-3 sm:size-3.5 rounded shrink-0" />
-												<Skeleton className="h-2.5 sm:h-3 flex-1" />
-												<Skeleton className="h-3.5 sm:h-4 w-7 sm:w-8 rounded-full shrink-0" />
+										)}
+										{otherToolGroup && (
+											<div>
+												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
+													{otherToolGroup.label}
+												</div>
+												{otherToolGroup.tools.map((tool) => {
+													const isDisabled = disabledToolsSet.has(tool.name);
+													const ToolIcon = getToolIcon(tool.name);
+													return (
+														<DropdownMenuItem
+															key={tool.name}
+															onSelect={(e) => {
+																e.preventDefault();
+																toggleTool(tool.name);
+															}}
+															className={cn(
+																"mb-1 last:mb-0 transition-all",
+																"hover:bg-accent hover:text-accent-foreground",
+																!isDisabled && "text-primary"
+															)}
+														>
+															<ToolIcon className="h-4 w-4" />
+															<span className="flex-1 min-w-0 truncate">
+																{formatToolName(tool.name)}
+															</span>
+															<Switch
+																checked={!isDisabled}
+																tabIndex={-1}
+																className="pointer-events-none shrink-0 scale-[0.6]"
+															/>
+														</DropdownMenuItem>
+													);
+												})}
 											</div>
-										))}
-									</div>
-								)}
-							</div>
-						</PopoverContent>
-					</Popover>
-				)}
-				{hasWebSearchTool && (
-					<button
-						type="button"
-						aria-label={isWebSearchEnabled ? "Disable web search" : "Enable web search"}
-						aria-pressed={isWebSearchEnabled}
-						onClick={() => toggleTool("web_search")}
-						className={cn(
-							"rounded-full transition-[background-color,border-color,color] flex items-center gap-1 px-2 py-1 border h-8 select-none",
-							isWebSearchEnabled
-								? "bg-sky-500/15 border-sky-500/60 text-sky-500"
-								: "bg-transparent border-transparent text-muted-foreground hover:text-foreground"
-						)}
-					>
-						<motion.div
-							animate={{
-								rotate: isWebSearchEnabled ? 360 : 0,
-								scale: isWebSearchEnabled ? 1.1 : 1,
-							}}
-							whileHover={{
-								rotate: isWebSearchEnabled ? 360 : 15,
-								scale: 1.1,
-								transition: { type: "spring", stiffness: 300, damping: 10 },
-							}}
-							transition={{ type: "spring", stiffness: 260, damping: 25 }}
-						>
-							<Globe className="size-4" />
-						</motion.div>
-						<AnimatePresence>
-							{isWebSearchEnabled && (
-								<motion.span
-									initial={{ width: 0, opacity: 0 }}
-									animate={{ width: "auto", opacity: 1 }}
-									exit={{ width: 0, opacity: 0 }}
-									transition={{ duration: 0.2 }}
-									className="text-xs overflow-hidden whitespace-nowrap"
-								>
-									Search
-								</motion.span>
-							)}
-						</AnimatePresence>
-					</button>
+										)}
+										{!filteredTools?.length && (
+											<div className="px-2 pt-1.5 pb-1">
+												<Skeleton className="h-2 w-12 mb-1.5" />
+												{["dt1", "dt2", "dt3", "dt4"].map((k) => (
+													<div key={k} className="flex items-center gap-2 py-1">
+														<Skeleton className="h-4 w-4 rounded shrink-0" />
+														<Skeleton className="h-3 flex-1" />
+														<Skeleton className="h-4 w-8 rounded-full shrink-0" />
+													</div>
+												))}
+											</div>
+										)}
+									</DropdownMenuSubContent>
+								</DropdownMenuPortal>
+							</DropdownMenuSub>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				)}
 			</div>
 			{!hasModelConfigured && (
@@ -1201,19 +1404,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				</div>
 			)}
 			<div className="flex items-center gap-2">
-				{isDesktop && (
-					<TooltipIconButton
-						tooltip="Capture screen"
-						type="button"
-						variant="ghost"
-						size="icon"
-						className="size-8 rounded-full"
-						aria-label="Capture screen"
-						onClick={() => void handleScreenCapture()}
-					>
-						<Camera className="size-4" />
-					</TooltipIconButton>
-				)}
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
@@ -1231,13 +1421,13 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							variant="default"
 							size="icon"
 							className={cn(
-								"aui-composer-send size-8 rounded-full",
+								"aui-composer-send size-9 rounded-full",
 								isSendDisabled && "cursor-not-allowed opacity-50"
 							)}
 							aria-label="Send message"
 							disabled={isSendDisabled}
 						>
-							<ArrowUpIcon className="aui-composer-send-icon size-4" />
+							<ArrowUpIcon className="aui-composer-send-icon size-5" />
 						</TooltipIconButton>
 					</ComposerPrimitive.Send>
 				</AuiIf>
@@ -1248,10 +1438,10 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							type="button"
 							variant="default"
 							size="icon"
-							className="aui-composer-cancel size-8 rounded-full"
+							className="aui-composer-cancel size-9 rounded-full"
 							aria-label="Stop generating"
 						>
-							<SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
+							<SquareIcon className="aui-composer-cancel-icon size-3.5 fill-current" />
 						</Button>
 					</ComposerPrimitive.Cancel>
 				</AuiIf>
@@ -1279,7 +1469,13 @@ const TOOL_GROUPS: ToolGroup[] = [
 	},
 	{
 		label: "Generate",
-		tools: ["generate_podcast", "generate_video_presentation", "generate_report", "generate_image"],
+		tools: [
+			"generate_podcast",
+			"generate_video_presentation",
+			"generate_report",
+			"generate_resume",
+			"generate_image",
+		],
 	},
 	{
 		label: "Memory",
@@ -1287,15 +1483,27 @@ const TOOL_GROUPS: ToolGroup[] = [
 	},
 	{
 		label: "Gmail",
-		tools: ["create_gmail_draft", "update_gmail_draft", "send_gmail_email", "trash_gmail_email"],
+		tools: [
+			"search_gmail",
+			"read_gmail_email",
+			"create_gmail_draft",
+			"update_gmail_draft",
+			"send_gmail_email",
+			"trash_gmail_email",
+		],
 		connectorIcon: "gmail",
-		tooltip: "Create drafts, update drafts, send emails, and trash emails in Gmail",
+		tooltip: "Search, read, draft, update, send, and trash emails in Gmail",
 	},
 	{
 		label: "Google Calendar",
-		tools: ["create_calendar_event", "update_calendar_event", "delete_calendar_event"],
+		tools: [
+			"search_calendar_events",
+			"create_calendar_event",
+			"update_calendar_event",
+			"delete_calendar_event",
+		],
 		connectorIcon: "google_calendar",
-		tooltip: "Create, update, and delete events in Google Calendar",
+		tooltip: "Search, create, update, and delete events in Google Calendar",
 	},
 	{
 		label: "Google Drive",
@@ -1338,6 +1546,24 @@ const TOOL_GROUPS: ToolGroup[] = [
 		tools: ["create_confluence_page", "update_confluence_page", "delete_confluence_page"],
 		connectorIcon: "confluence",
 		tooltip: "Create, update, and delete pages in Confluence",
+	},
+	{
+		label: "Discord",
+		tools: ["list_discord_channels", "read_discord_messages", "send_discord_message"],
+		connectorIcon: "discord",
+		tooltip: "List channels, read messages, and send messages in Discord",
+	},
+	{
+		label: "Microsoft Teams",
+		tools: ["list_teams_channels", "read_teams_messages", "send_teams_message"],
+		connectorIcon: "teams",
+		tooltip: "List channels, read messages, and send messages in Microsoft Teams",
+	},
+	{
+		label: "Luma",
+		tools: ["list_luma_events", "read_luma_event", "create_luma_event"],
+		connectorIcon: "luma",
+		tooltip: "List, read, and create events in Luma",
 	},
 ];
 

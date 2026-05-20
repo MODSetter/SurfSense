@@ -2,12 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { FolderArchive, Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { updateSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +39,9 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 	const [description, setDescription] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [isExporting, setIsExporting] = useState(false);
+	const hasSearchSpace = !!searchSpace;
+	const searchSpaceName = searchSpace?.name;
+	const searchSpaceDescription = searchSpace?.description;
 
 	const handleExportKB = useCallback(async () => {
 		if (isExporting) return;
@@ -74,11 +75,11 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 
 	// Initialize state from fetched search space
 	useEffect(() => {
-		if (searchSpace) {
-			setName(searchSpace.name || "");
-			setDescription(searchSpace.description || "");
+		if (hasSearchSpace) {
+			setName(searchSpaceName || "");
+			setDescription(searchSpaceDescription || "");
 		}
-	}, [searchSpace?.name, searchSpace?.description]);
+	}, [hasSearchSpace, searchSpaceName, searchSpaceDescription]);
 
 	// Derive hasChanges during render
 	const hasChanges =
@@ -98,9 +99,9 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 			});
 
 			await fetchSearchSpace();
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error("Error saving search space details:", error);
-			toast.error(error.message || "Failed to save search space details");
+			toast.error(error instanceof Error ? error.message : "Failed to save search space details");
 		} finally {
 			setSaving(false);
 		}
@@ -135,13 +136,6 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 
 	return (
 		<div className="space-y-4 md:space-y-6">
-			<Alert className="bg-muted/50 py-3 md:py-4">
-				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-				<AlertDescription className="text-xs md:text-sm">
-					Update your search space name and description.
-				</AlertDescription>
-			</Alert>
-
 			<form onSubmit={onSubmit} className="space-y-6">
 				<div className="flex flex-col gap-6">
 					<div className="space-y-2">
@@ -176,7 +170,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 						type="submit"
 						variant="outline"
 						disabled={!hasChanges || saving || !name.trim()}
-						className="relative gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+						className="relative gap-2 bg-white text-black hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-black"
 					>
 						<span className={saving ? "opacity-0" : ""}>{t("general_save")}</span>
 						{saving && <Spinner size="sm" className="absolute" />}
@@ -199,9 +193,6 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 					onClick={handleExportKB}
 					className="relative w-fit shrink-0"
 				>
-					<span className={isExporting ? "opacity-0" : ""}>
-						<FolderArchive className="h-3 w-3 opacity-60" />
-					</span>
 					<span className={isExporting ? "opacity-0" : ""}>Export</span>
 					{isExporting && <Spinner size="sm" className="absolute" />}
 				</Button>

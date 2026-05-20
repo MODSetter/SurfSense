@@ -195,7 +195,7 @@ export const Plan: FC<PlanProps> = ({
 							<Button
 								variant="ghost"
 								size="sm"
-								className="w-full mt-2 text-xs text-muted-foreground hover:text-foreground"
+								className="w-full mt-2 text-xs text-muted-foreground hover:text-accent-foreground"
 							>
 								{isExpanded
 									? "Show less"

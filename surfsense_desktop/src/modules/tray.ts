@@ -11,11 +11,20 @@ let registeredGeneralAssist: string | null = null;
 let registeredScreenshotAssist: string | null = null;
 
 function getTrayIcon(): NativeImage {
-  const iconName = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+  const iconName =
+    process.platform === 'darwin'
+      ? 'iconTemplate.png'
+      : process.platform === 'win32'
+        ? 'icon.ico'
+        : 'icon.png';
   const iconPath = app.isPackaged
     ? path.join(process.resourcesPath, 'assets', iconName)
     : path.join(__dirname, '..', 'assets', iconName);
   const img = nativeImage.createFromPath(iconPath);
+  if (process.platform === 'darwin') {
+    img.setTemplateImage(true);
+    return img;
+  }
   return img.resize({ width: 16, height: 16 });
 }
 

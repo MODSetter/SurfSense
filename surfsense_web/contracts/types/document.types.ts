@@ -88,6 +88,7 @@ export const surfsenseDocsDocument = z.object({
 	id: z.number(),
 	title: z.string(),
 	source: z.string(),
+	public_url: z.string(),
 	content: z.string(),
 });
 

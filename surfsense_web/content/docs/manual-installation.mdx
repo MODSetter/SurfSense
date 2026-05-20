@@ -15,9 +15,11 @@ Before beginning the manual installation, ensure you have the following installe
 ### Required Software
 - **Python 3.12+** - Backend runtime environment
 - **Node.js 20+** - Frontend runtime environment  
-- **PostgreSQL 14+** - Database server
+- **PostgreSQL 14+** - Database server (must be configured with `wal_level = logical` for [Zero real-time sync](/docs/how-to/zero-sync))
 - **PGVector** - PostgreSQL extension for vector similarity search
 - **Redis** - Message broker for Celery task queue
+- **Zero-cache** - Rocicorp Zero real-time sync server (run via Docker; see [Zero-Cache Setup](#zero-cache-setup) below)
+- **Docker** - Required to run zero-cache (the simplest way; the Postgres + Redis can be installed natively)
 - **Git** - Version control (to clone the repository)
 
 ### Required Services & API Keys
@@ -212,7 +214,82 @@ uv sync
 uv sync
 ```
 
-### 3. Start Redis Server
+### 3. Configure PostgreSQL for Zero Sync
+
+SurfSense uses [Rocicorp Zero](https://zero.rocicorp.dev/) for real-time data synchronization (notifications, document status, chat comments, indexing progress). Zero replicates data from PostgreSQL via **logical replication**, which requires a one-time PostgreSQL configuration change.
+
+Edit your `postgresql.conf` (typical locations: `/etc/postgresql/<version>/main/postgresql.conf` on Linux, `/usr/local/var/postgres/postgresql.conf` on macOS via Homebrew, `C:\Program Files\PostgreSQL\<version>\data\postgresql.conf` on Windows) and set:
+
+```ini
+wal_level = logical
+max_replication_slots = 10
+max_wal_senders = 10
+```
+
+Then restart PostgreSQL:
+
+**Linux:**
+
+```bash
+sudo systemctl restart postgresql
+```
+
+**macOS (Homebrew):**
+
+```bash
+brew services restart postgresql
+```
+
+**Windows (PowerShell, replace `17` with your major version):**
+
+```powershell
+Restart-Service postgresql-x64-17
+```
+
+Verify the change:
+
+```bash
+psql -U postgres -d surfsense -c "SHOW wal_level;"
+# Should return: logical
+```
+
+**Managed databases (RDS, Supabase, Cloud SQL, etc.):** Enable logical replication via your provider's parameter group (e.g. `rds.logical_replication=1` on RDS) and grant your database user the `REPLICATION` privilege:
+
+```sql
+ALTER USER surfsense WITH REPLICATION;
+GRANT CREATE ON DATABASE surfsense TO surfsense;
+```
+
+### 4. Run Database Migrations
+
+Before starting the backend, run Alembic migrations. This creates the schema **and** the `zero_publication` that zero-cache needs to start. Skipping this step will cause zero-cache to crash-loop with `Unknown or invalid publications. Specified: [zero_publication]`.
+
+**If using uv:**
+
+```bash
+# From surfsense_backend/
+uv run alembic upgrade head
+```
+
+**If using pip/venv:**
+
+```bash
+# Activate virtual environment first
+source .venv/bin/activate  # Linux/macOS
+# OR
+.venv\Scripts\activate     # Windows
+
+alembic upgrade head
+```
+
+Verify the publication was created:
+
+```bash
+psql -U postgres -d surfsense -c "SELECT pubname FROM pg_publication;"
+# Should include: zero_publication
+```
+
+### 5. Start Redis Server
 
 Redis is required for Celery task queue. Start the Redis server:
 
@@ -271,7 +348,7 @@ redis-cli ping
 # Should return: PONG
 ```
 
-### 4. Start Celery Worker
+### 6. Start Celery Worker
 
 In a new terminal window, start the Celery worker to handle background tasks:
 
@@ -316,7 +393,7 @@ celery -A celery_worker.celery_app flower --port=5555
 
 Access Flower at [http://localhost:5555](http://localhost:5555) to monitor your Celery tasks.
 
-### 5. Start Celery Beat (Scheduler)
+### 7. Start Celery Beat (Scheduler)
 
 In another new terminal window, start Celery Beat to enable periodic tasks (like scheduled connector indexing):
 
@@ -347,7 +424,7 @@ celery -A celery_worker.celery_app beat --loglevel=info
 
 **Important**: Celery Beat is required for the periodic indexing functionality to work. Without it, scheduled connector tasks won't run automatically. The schedule interval can be configured using the `SCHEDULE_CHECKER_INTERVAL` environment variable.
 
-### 6. Run the Backend
+### 8. Run the Backend
 
 Start the backend server:
 
@@ -377,6 +454,92 @@ python main.py --reload
 ```
 
 If everything is set up correctly, you should see output indicating the server is running on `http://localhost:8000`.
+
+## Zero-Cache Setup
+
+**zero-cache** is the Rocicorp Zero server that sits between PostgreSQL and the browser. It streams real-time updates (notifications, document indexing status, chat comments, collaboration indicators) to all connected clients via WebSocket. The frontend connects to it on startup — without zero-cache running, you will not see live updates and many parts of the UI will sit on stale data.
+
+For an overview of how Zero works and the list of synced tables, see the [Real-Time Sync with Zero](/docs/how-to/zero-sync) guide.
+
+### 1. Run Zero-Cache via Docker
+
+The simplest way to run zero-cache is the official Docker image. Open a new terminal:
+
+**Linux/macOS:**
+
+```bash
+docker run -d --name surfsense-zero-cache \
+  -p 4848:4848 \
+  --add-host=host.docker.internal:host-gateway \
+  -e ZERO_UPSTREAM_DB="postgresql://postgres:postgres@host.docker.internal:5432/surfsense?sslmode=disable" \
+  -e ZERO_CVR_DB="postgresql://postgres:postgres@host.docker.internal:5432/surfsense?sslmode=disable" \
+  -e ZERO_CHANGE_DB="postgresql://postgres:postgres@host.docker.internal:5432/surfsense?sslmode=disable" \
+  -e ZERO_REPLICA_FILE=/data/zero.db \
+  -e ZERO_ADMIN_PASSWORD=surfsense-zero-admin \
+  -e ZERO_APP_PUBLICATIONS=zero_publication \
+  -e ZERO_NUM_SYNC_WORKERS=4 \
+  -e ZERO_UPSTREAM_MAX_CONNS=20 \
+  -e ZERO_CVR_MAX_CONNS=30 \
+  -e ZERO_QUERY_URL="http://host.docker.internal:3000/api/zero/query" \
+  -e ZERO_MUTATE_URL="http://host.docker.internal:3000/api/zero/mutate" \
+  -v surfsense-zero-cache:/data \
+  rocicorp/zero:1.4.0
+```
+
+**Windows (PowerShell):**
+
+```powershell
+docker run -d --name surfsense-zero-cache `
+  -p 4848:4848 `
+  --add-host=host.docker.internal:host-gateway `
+  -e ZERO_UPSTREAM_DB="postgresql://postgres:postgres@host.docker.internal:5432/surfsense?sslmode=disable" `
+  -e ZERO_CVR_DB="postgresql://postgres:postgres@host.docker.internal:5432/surfsense?sslmode=disable" `
+  -e ZERO_CHANGE_DB="postgresql://postgres:postgres@host.docker.internal:5432/surfsense?sslmode=disable" `
+  -e ZERO_REPLICA_FILE=/data/zero.db `
+  -e ZERO_ADMIN_PASSWORD=surfsense-zero-admin `
+  -e ZERO_APP_PUBLICATIONS=zero_publication `
+  -e ZERO_NUM_SYNC_WORKERS=4 `
+  -e ZERO_UPSTREAM_MAX_CONNS=20 `
+  -e ZERO_CVR_MAX_CONNS=30 `
+  -e ZERO_QUERY_URL="http://host.docker.internal:3000/api/zero/query" `
+  -e ZERO_MUTATE_URL="http://host.docker.internal:3000/api/zero/mutate" `
+  -v surfsense-zero-cache:/data `
+  rocicorp/zero:1.4.0
+```
+
+**Adjustments to make for your setup:**
+
+- Replace `postgres:postgres` in the connection URLs with your actual `DB_USER:DB_PASSWORD`.
+- On Linux without Docker Desktop, `host.docker.internal` may not resolve. Either keep the `--add-host=host.docker.internal:host-gateway` flag (Docker 20.10+) or replace `host.docker.internal` with your host's IP / `--network=host` + `localhost`.
+- For production / custom domains, set `ZERO_QUERY_URL` and `ZERO_MUTATE_URL` to your public frontend URL (e.g. `https://app.yourdomain.com/api/zero/query`).
+
+### 2. Verify Zero-Cache
+
+Confirm zero-cache is healthy:
+
+```bash
+curl http://localhost:4848/keepalive
+# Should return HTTP 200
+```
+
+Tail the logs to confirm initial replication completed without errors:
+
+```bash
+docker logs -f surfsense-zero-cache
+```
+
+### Alternative: Use `docker-compose.deps-only.yml`
+
+If you would rather have Docker manage Postgres, Redis, SearXNG, and zero-cache together (while still running the backend and frontend natively), the repository ships a deps-only compose file. **Run alembic migrations on the host first** so `zero_publication` exists before zero-cache starts:
+
+```bash
+cd surfsense_backend
+uv run alembic upgrade head
+cd ../docker
+docker compose -f docker-compose.deps-only.yml up -d
+```
+
+The deps-only stack exposes zero-cache on port `4848` (default) — keep `NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:4848` in your `surfsense_web/.env`.
 
 ## Frontend Setup
 
@@ -510,9 +673,10 @@ Load the extension in your browser's developer mode and configure it with your S
 To verify your installation:
 
 1. Open your browser and navigate to `http://localhost:3000`
-2. Sign in with your Google account
+2. Sign in with your Google account (or local credentials if `AUTH_TYPE=LOCAL`)
 3. Create a search space and try uploading a document
-4. Test the chat functionality with your uploaded content
+4. Watch the upload status update live without refreshing — this confirms zero-cache is wired up correctly
+5. Test the chat functionality with your uploaded content
 
 ## Troubleshooting
 
@@ -522,6 +686,11 @@ To verify your installation:
 - **Authentication Problems**: Check your Google OAuth configuration and ensure redirect URIs are set correctly
 - **LLM Errors**: Confirm your LLM API keys are valid and the selected models are accessible
 - **File Upload Failures**: Validate your ETL service API key (Unstructured.io or LlamaCloud) or ensure Docling is properly configured
+- **Real-time updates not working / stale UI**: Verify zero-cache is running (`curl http://localhost:4848/keepalive` returns 200). Open browser DevTools → Console and look for WebSocket errors. Confirm `NEXT_PUBLIC_ZERO_CACHE_URL` in `surfsense_web/.env` matches the running zero-cache address.
+- **Zero-cache stuck on `Unknown or invalid publications. Specified: [zero_publication]`**: You skipped (or never ran) `uv run alembic upgrade head` from `surfsense_backend/`. Run it, then restart the zero-cache container with `docker restart surfsense-zero-cache`.
+- **Zero-cache crashes with `_zero.tableMetadata` errors**: A previous run left a half-built SQLite replica behind. Stop the container, remove the volume, and start fresh: `docker rm -f surfsense-zero-cache && docker volume rm surfsense-zero-cache && docker run -d ...` (re-run the command from [Zero-Cache Setup](#zero-cache-setup)).
+- **`wal_level` is not set to `logical`**: zero-cache requires logical replication. Set `wal_level = logical` in `postgresql.conf`, restart PostgreSQL, and verify with `SHOW wal_level;` in psql.
+- **Backend `/ready` returns 503**: The readiness probe verifies `zero_publication` exists. Run `uv run alembic upgrade head` to create it.
 - **Windows-specific**: If you encounter path issues, ensure you're using the correct path separator (`\` instead of `/`)
 - **macOS-specific**: If you encounter permission issues, you may need to use `sudo` for some installation commands
 

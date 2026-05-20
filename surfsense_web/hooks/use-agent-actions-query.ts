@@ -35,12 +35,12 @@ const dbg = (...args: unknown[]) => {
  * * the per-turn "Revert turn" button under each assistant message
  * * the edit-from-position pre-flight that decides whether to show
  *   the confirmation dialog
- * * the agent-actions sheet
+ * * the agent-actions dialog
  *
  * The cache is hydrated by ``GET /threads/{id}/actions`` (sized to
  * 200, the server max) and updated incrementally by helpers that turn
  * SSE events / revert RPC responses into ``setQueryData`` mutations.
- * That keeps the card and the sheet in lockstep on every code path —
+ * That keeps the card and the dialog in lockstep on every code path —
  * page reload, navigation, live stream, post-stream reversibility flip,
  * and explicit revert clicks.
  */
@@ -72,7 +72,7 @@ export interface ActionLogSseEvent {
  *
  * The SSE payload is a strict subset of ``AgentAction``; missing
  * fields (``args``, ``reverse_descriptor``, ``user_id``) are filled
- * with ``null`` placeholders. The next refetch (sheet open, user
+ * with ``null`` placeholders. The next refetch (dialog open, user
  * focus, route stale) backfills them — but the inline Revert button
  * only reads the fields the SSE payload carries, so it lights up
  * immediately.
@@ -251,7 +251,7 @@ export function applyRevertTurnResultsToCache(
 }
 
 /**
- * Read-side hook used by the card, the turn button, the sheet, and
+ * Read-side hook used by the card, the turn button, the dialog, and
  * the edit-from-position pre-flight.
  *
  * Returns the raw query state plus convenience selectors so consumers

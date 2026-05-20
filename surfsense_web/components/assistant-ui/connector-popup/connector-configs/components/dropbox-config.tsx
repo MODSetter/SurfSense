@@ -14,6 +14,7 @@ import {
 import type { FC } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { DriveFolderTree, type SelectedFolder } from "@/components/connectors/drive-folder-tree";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -177,14 +178,16 @@ export const DropboxConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCha
 								>
 									<FolderClosed className="size-3.5 shrink-0 text-muted-foreground" />
 									<span className="flex-1 truncate">{folder.name}</span>
-									<button
+									<Button
 										type="button"
+										variant="ghost"
+										size="icon"
 										onClick={() => handleRemoveFolder(folder.id)}
-										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										className="size-5 shrink-0 rounded p-0 hover:bg-accent hover:text-accent-foreground"
 										aria-label={`Remove ${folder.name}`}
 									>
 										<X className="size-3.5" />
-									</button>
+									</Button>
 								</div>
 							))}
 							{selectedFiles.map((file) => (
@@ -195,14 +198,16 @@ export const DropboxConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCha
 								>
 									{getFileIconFromName(file.name)}
 									<span className="flex-1 truncate">{file.name}</span>
-									<button
+									<Button
 										type="button"
+										variant="ghost"
+										size="icon"
 										onClick={() => handleRemoveFile(file.id)}
-										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										className="size-5 shrink-0 rounded p-0 hover:bg-accent hover:text-accent-foreground"
 										aria-label={`Remove ${file.name}`}
 									>
 										<X className="size-3.5" />
-									</button>
+									</Button>
 								</div>
 							))}
 						</div>
@@ -217,10 +222,11 @@ export const DropboxConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCha
 
 				{isEditMode ? (
 					<div className="space-y-2">
-						<button
+						<Button
 							type="button"
+							variant="ghost"
 							onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
-							className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+							className="h-auto w-fit gap-2 px-0 py-0 text-xs font-normal text-muted-foreground hover:bg-transparent hover:text-accent-foreground sm:text-sm"
 						>
 							Change Selection
 							{isFolderTreeOpen ? (
@@ -228,7 +234,7 @@ export const DropboxConfig: FC<ConnectorConfigProps> = ({ connector, onConfigCha
 							) : (
 								<ChevronRight className="size-4" />
 							)}
-						</button>
+						</Button>
 						{isFolderTreeOpen && (
 							<DriveFolderTree
 								fetchItems={fetchItems}

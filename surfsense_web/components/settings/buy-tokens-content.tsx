@@ -96,7 +96,7 @@ export function BuyTokensContent() {
 						</span>
 						<span className="font-medium">{usagePercentage.toFixed(0)}%</span>
 					</div>
-					<Progress value={usagePercentage} className="h-1.5" />
+					<Progress value={usagePercentage} className="h-1.5 [&>div]:bg-purple-500" />
 					<p className="text-[11px] text-muted-foreground">
 						{formatUsd(remaining)} of credit remaining
 					</p>
@@ -105,43 +105,48 @@ export function BuyTokensContent() {
 
 			<div className="space-y-3">
 				<div className="flex items-center justify-center gap-3">
-					<button
+					<Button
 						type="button"
+						variant="ghost"
+						size="icon"
 						onClick={() => setQuantity((q) => Math.max(1, q - 1))}
 						disabled={quantity <= 1 || purchaseMutation.isPending}
-						className="flex h-8 w-8 items-center justify-center rounded-md border transition-colors hover:bg-muted disabled:opacity-40"
+						className="size-8 text-muted-foreground shadow-none transition-colors hover:bg-muted hover:text-white disabled:opacity-40"
 					>
 						<Minus className="h-3.5 w-3.5" />
-					</button>
+					</Button>
 					<span className="min-w-32 text-center text-lg font-semibold tabular-nums">
 						${(totalCreditMicros / 1_000_000).toFixed(0)} of credit
 					</span>
-					<button
+					<Button
 						type="button"
+						variant="ghost"
+						size="icon"
 						onClick={() => setQuantity((q) => Math.min(100, q + 1))}
 						disabled={quantity >= 100 || purchaseMutation.isPending}
-						className="flex h-8 w-8 items-center justify-center rounded-md border transition-colors hover:bg-muted disabled:opacity-40"
+						className="size-8 text-muted-foreground shadow-none transition-colors hover:bg-muted hover:text-white disabled:opacity-40"
 					>
 						<Plus className="h-3.5 w-3.5" />
-					</button>
+					</Button>
 				</div>
 
 				<div className="flex flex-wrap justify-center gap-1.5">
 					{PRESET_MULTIPLIERS.map((m) => (
-						<button
+						<Button
 							key={m}
 							type="button"
+							variant="ghost"
 							onClick={() => setQuantity(m)}
 							disabled={purchaseMutation.isPending}
 							className={cn(
-								"rounded-md border px-2.5 py-1 text-xs font-medium tabular-nums transition-colors disabled:opacity-60",
+								"h-auto rounded-md px-2.5 py-1 text-xs font-medium tabular-nums transition-colors disabled:opacity-60",
 								quantity === m
-									? "border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400"
-									: "border-border hover:border-purple-500/40 hover:bg-muted/40"
+									? "bg-accent text-accent-foreground"
+									: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 							)}
 						>
 							${m}
-						</button>
+						</Button>
 					))}
 				</div>
 
@@ -153,7 +158,7 @@ export function BuyTokensContent() {
 				</div>
 
 				<Button
-					className="w-full bg-purple-600 text-white hover:bg-purple-700"
+					className="w-full"
 					disabled={purchaseMutation.isPending}
 					onClick={() => purchaseMutation.mutate({ quantity, search_space_id: searchSpaceId })}
 				>

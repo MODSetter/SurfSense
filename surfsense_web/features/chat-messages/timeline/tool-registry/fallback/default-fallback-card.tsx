@@ -95,12 +95,13 @@ export const DefaultFallbackCard: TimelineToolComponent = ({
 					setIsExpanded(next);
 				}}
 			>
-				<div className="flex items-stretch transition-colors hover:bg-muted/50">
+				<div className="flex items-stretch transition-colors hover:bg-accent hover:text-accent-foreground">
 					<CollapsibleTrigger asChild>
-						<button
+						<Button
+							variant="ghost"
 							type="button"
 							className={cn(
-								"flex flex-1 min-w-0 items-center gap-3 py-4 pl-5 pr-2 text-left",
+								"h-auto flex-1 min-w-0 justify-start gap-3 rounded-none py-4 pl-5 pr-2 text-left font-normal hover:bg-transparent",
 								"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
 								"disabled:cursor-default"
 							)}
@@ -148,7 +149,7 @@ export const DefaultFallbackCard: TimelineToolComponent = ({
 									</p>
 								)}
 							</div>
-						</button>
+						</Button>
 					</CollapsibleTrigger>
 
 					<div className="flex shrink-0 items-center gap-2 pl-2 pr-5">

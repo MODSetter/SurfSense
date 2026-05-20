@@ -11,20 +11,16 @@ import {
 } from "@/lib/citations/citation-parser";
 
 /**
- * Plate inline-void node modeling a single `[citation:...]` reference.
- *
- * Modeled after the existing `MentionPlugin` pattern in
- * `inline-mention-editor.tsx` — the only confirmed pattern in this repo
- * for non-text inline UI. Inline-void elements satisfy Slate's invariant
- * that the editor renders both atomic widgets and surrounding text
- * cleanly without breaking selection / caret semantics.
+ * Plate inline-void node for one `[citation:...]` reference.
+ * Inline voids keep the citation chip atomic while preserving caret behavior
+ * around the surrounding text.
  */
 export type CitationElementNode = {
 	type: "citation";
 	kind: "chunk" | "doc" | "url";
 	chunkId?: number;
 	url?: string;
-	/** Original `[citation:...]` substring for traceability/debugging. */
+	/** Original literal token that produced this citation node. */
 	rawText: string;
 	children: [{ text: "" }];
 };
@@ -62,17 +58,14 @@ const CitationPlugin = createPlatePlugin({
 	},
 });
 
-/** Plugin kit shape used elsewhere in the editor. */
 export const CitationKit = [CitationPlugin];
 
 // ---------------------------------------------------------------------------
-// Slate value transform — runs after MarkdownPlugin.deserialize
+// Slate value transform
 // ---------------------------------------------------------------------------
 
-// Structural shapes used by the value transform. We cannot use Plate's
-// generic Element / Text type predicates directly because `Descendant` is a
-// constrained union and our predicates would over-narrow. Casting through
-// these row types keeps the walker readable without fighting the types.
+// Local structural shapes keep the recursive walker readable without forcing
+// Plate's broad Descendant union into narrower generic predicates.
 type SlateText = { text: string } & Record<string, unknown>;
 type SlateElement = { type?: string; children: Descendant[] } & Record<string, unknown>;
 
@@ -89,19 +82,15 @@ function asElement(node: Descendant): SlateElement {
 }
 
 /**
- * Element types whose subtrees we MUST NOT inject citation void elements
- * into. Each rationale documented in the citation plan:
- *  - `KEYS.codeBlock` / `code_line` — Plate's schema rejects inline elements
- *    inside code containers; the user expects literal text inside code.
- *  - `KEYS.link` — `<button>` inside `<a>` is invalid HTML and the link
- *    swallows the citation click. Mirrors the `<a>` skip in
- *    `MarkdownViewer`.
+ * Subtrees that should keep citation tokens as text:
+ * - Code nodes preserve source text and reject inline void children.
+ * - Link nodes already render as anchors; citation chips are interactive
+ *   shadcn Button-based controls, so injecting them would nest interactions.
  */
 const SKIP_SUBTREE_TYPES = new Set<string>([KEYS.codeBlock, "code_line", KEYS.link]);
 
 /**
- * Build the marks portion of a Slate text node so we can preserve formatting
- * (bold/italic/etc.) on the surrounding text fragments after we split.
+ * Preserve text marks such as bold and italic when splitting around citations.
  */
 function copyMarks(textNode: SlateText): Record<string, unknown> {
 	const { text: _text, ...marks } = textNode;
@@ -131,9 +120,7 @@ function makeCitationElement(
 }
 
 /**
- * Re-extract the raw `[citation:...]` substrings that produced each parsed
- * segment, in source order. Lets us preserve the original literal for
- * `rawText` on the inline-void element.
+ * Keep each original citation token on the generated node for diagnostics.
  */
 function extractRawCitationMatches(text: string): string[] {
 	const matches: string[] = [];
@@ -159,9 +146,7 @@ function transformTextNode(node: SlateText, urlMap: CitationUrlMap): Descendant[
 	let pendingText: string | null = null;
 
 	const flushText = () => {
-		// Slate inline-void adjacency: emit an empty text node (with copied
-		// marks) when the citation appears at the very start/end of the text
-		// node so neighbours of the void always have a text sibling.
+		// Inline voids need text siblings, even at text boundaries.
 		out.push({ ...marks, text: pendingText ?? "" } as unknown as Descendant);
 		pendingText = null;
 	};
@@ -174,8 +159,7 @@ function transformTextNode(node: SlateText, urlMap: CitationUrlMap): Descendant[
 			const raw = rawMatches[citationIdx] ?? "";
 			out.push(makeCitationElement(raw, segment) as unknown as Descendant);
 			citationIdx += 1;
-			// Always reset pendingText so the next loop iteration emits a
-			// trailing empty text node if no further plain text follows.
+			// Ensure a trailing text sibling if the citation ends the node.
 			pendingText = "";
 		}
 	}
@@ -206,12 +190,9 @@ function transformChildren(children: Descendant[], urlMap: CitationUrlMap): Desc
 }
 
 /**
- * Walk a deserialized Slate value and replace every `[citation:...]`
- * substring with a `citation` inline-void element. URL placeholders
- * created by `preprocessCitationMarkdown` are resolved through `urlMap`.
- *
- * Subtrees of `code_block`, `code_line`, and `link` are returned as-is —
- * see `SKIP_SUBTREE_TYPES` above.
+ * Replace citation tokens in a deserialized Slate tree with citation inline
+ * void nodes. URL placeholders from `preprocessCitationMarkdown` are resolved
+ * through `urlMap`; skipped subtrees are returned unchanged.
  */
 export function injectCitationNodes(value: Descendant[], urlMap: CitationUrlMap): Descendant[] {
 	return transformChildren(value, urlMap);

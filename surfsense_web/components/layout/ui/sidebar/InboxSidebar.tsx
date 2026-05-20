@@ -178,7 +178,7 @@ export function InboxSidebarContent({
 	const [mounted, setMounted] = useState(false);
 	const [openDropdown, setOpenDropdown] = useState<"filter" | null>(null);
 	const [connectorScrollPos, setConnectorScrollPos] = useState<"top" | "middle" | "bottom">("top");
-	const connectorRafRef = useRef<number>();
+	const connectorRafRef = useRef<number | null>(null);
 	const handleConnectorScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
 		if (connectorRafRef.current) return;
@@ -186,7 +186,7 @@ export function InboxSidebarContent({
 			const atTop = el.scrollTop <= 2;
 			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
 			setConnectorScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
-			connectorRafRef.current = undefined;
+			connectorRafRef.current = null;
 		});
 	}, []);
 	useEffect(
@@ -528,17 +528,17 @@ export function InboxSidebarContent({
 
 	return (
 		<>
-			<div className="shrink-0 p-4 pb-2 space-y-3">
+			<div className="shrink-0 p-3 pb-1.5 space-y-2">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
 						{isMobile && (
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-8 w-8 rounded-full"
+								className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
 								onClick={() => onOpenChange(false)}
 							>
-								<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+								<ChevronLeft className="h-4 w-4" />
 								<span className="sr-only">{t("close") || "Close"}</span>
 							</Button>
 						)}
@@ -561,7 +561,10 @@ export function InboxSidebarContent({
 									onOpenChange={setFilterDrawerOpen}
 									shouldScaleBackground={false}
 								>
-									<DrawerContent className="max-h-[70vh] z-80" overlayClassName="z-80">
+									<DrawerContent
+										className="max-h-[70vh] z-80 bg-popover text-popover-foreground"
+										overlayClassName="z-80"
+									>
 										<DrawerHandle />
 										<DrawerHeader className="px-4 pb-3 pt-2">
 											<DrawerTitle className="flex items-center gap-2 text-base font-semibold">
@@ -575,14 +578,15 @@ export function InboxSidebarContent({
 													{t("filter") || "Filter"}
 												</p>
 												<div className="space-y-1">
-													<button
+													<Button
 														type="button"
+														variant="ghost"
 														onClick={() => {
 															setActiveFilter("all");
 															setFilterDrawerOpen(false);
 														}}
 														className={cn(
-															"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+															"h-auto w-full justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
 															activeFilter === "all"
 																? "bg-primary/10 text-primary"
 																: "hover:bg-muted"
@@ -593,15 +597,16 @@ export function InboxSidebarContent({
 															<span>{t("all") || "All"}</span>
 														</span>
 														{activeFilter === "all" && <Check className="h-4 w-4" />}
-													</button>
-													<button
+													</Button>
+													<Button
 														type="button"
+														variant="ghost"
 														onClick={() => {
 															setActiveFilter("unread");
 															setFilterDrawerOpen(false);
 														}}
 														className={cn(
-															"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+															"h-auto w-full justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
 															activeFilter === "unread"
 																? "bg-primary/10 text-primary"
 																: "hover:bg-muted"
@@ -612,16 +617,17 @@ export function InboxSidebarContent({
 															<span>{t("unread") || "Unread"}</span>
 														</span>
 														{activeFilter === "unread" && <Check className="h-4 w-4" />}
-													</button>
+													</Button>
 													{activeTab === "status" && (
-														<button
+														<Button
 															type="button"
+															variant="ghost"
 															onClick={() => {
 																setActiveFilter("errors");
 																setFilterDrawerOpen(false);
 															}}
 															className={cn(
-																"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+																"h-auto w-full justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
 																activeFilter === "errors"
 																	? "bg-primary/10 text-primary"
 																	: "hover:bg-muted"
@@ -632,7 +638,7 @@ export function InboxSidebarContent({
 																<span>{t("errors_only") || "Errors only"}</span>
 															</span>
 															{activeFilter === "errors" && <Check className="h-4 w-4" />}
-														</button>
+														</Button>
 													)}
 												</div>
 											</div>
@@ -642,14 +648,15 @@ export function InboxSidebarContent({
 														{t("sources") || "Sources"}
 													</p>
 													<div className="space-y-1">
-														<button
+														<Button
 															type="button"
+															variant="ghost"
 															onClick={() => {
 																setSelectedSource(null);
 																setFilterDrawerOpen(false);
 															}}
 															className={cn(
-																"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+																"h-auto w-full justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
 																selectedSource === null
 																	? "bg-primary/10 text-primary"
 																	: "hover:bg-muted"
@@ -660,17 +667,18 @@ export function InboxSidebarContent({
 																<span>{t("all_sources") || "All sources"}</span>
 															</span>
 															{selectedSource === null && <Check className="h-4 w-4" />}
-														</button>
+														</Button>
 														{statusSourceOptions.map((source) => (
-															<button
+															<Button
 																key={source.key}
 																type="button"
+																variant="ghost"
 																onClick={() => {
 																	setSelectedSource(source.key);
 																	setFilterDrawerOpen(false);
 																}}
 																className={cn(
-																	"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+																	"h-auto w-full justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
 																	selectedSource === source.key
 																		? "bg-primary/10 text-primary"
 																		: "hover:bg-muted"
@@ -681,7 +689,7 @@ export function InboxSidebarContent({
 																	<span>{source.displayName}</span>
 																</span>
 																{selectedSource === source.key && <Check className="h-4 w-4" />}
-															</button>
+															</Button>
 														))}
 													</div>
 												</div>
@@ -811,19 +819,19 @@ export function InboxSidebarContent({
 				</div>
 
 				<div className="relative">
-					<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+					<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
 					<Input
 						type="text"
 						placeholder={t("search_inbox") || "Search inbox"}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="pl-9 pr-8 h-9"
+						className="h-8 border-0 bg-muted pl-8 pr-7 text-sm shadow-none"
 					/>
 					{searchQuery && (
 						<Button
 							variant="ghost"
 							size="icon"
-							className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+							className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 							onClick={handleClearSearch}
 						>
 							<X className="h-3.5 w-3.5" />
@@ -842,23 +850,23 @@ export function InboxSidebarContent({
 						setActiveFilter("all");
 					}
 				}}
-				className="shrink-0 mx-4 mt-2"
+				className="shrink-0 mx-3 mt-1.5"
 			>
 				<TabsList stretch showBottomBorder size="sm">
 					<TabsTrigger value="comments">
 						<span className="inline-flex items-center gap-1.5">
-							<MessageCircleReply className="h-4 w-4" />
+							<MessageCircleReply className="h-3.5 w-3.5" />
 							<span>{t("comments") || "Comments"}</span>
-							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
+							<span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-muted-foreground">
 								{formatInboxCount(comments.unreadCount)}
 							</span>
 						</span>
 					</TabsTrigger>
 					<TabsTrigger value="status">
 						<span className="inline-flex items-center gap-1.5">
-							<History className="h-4 w-4" />
+							<History className="h-3.5 w-3.5" />
 							<span>{t("status") || "Status"}</span>
-							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
+							<span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-muted-foreground">
 								{formatInboxCount(status.unreadCount)}
 							</span>
 						</span>
@@ -922,11 +930,12 @@ export function InboxSidebarContent({
 									{activeTab === "status" ? (
 										<Tooltip delayDuration={600}>
 											<TooltipTrigger asChild>
-												<button
+												<Button
 													type="button"
+													variant="ghost"
 													onClick={() => handleItemClick(item)}
 													disabled={isMarkingAsRead}
-													className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
+													className="h-auto flex-1 justify-start gap-3 overflow-hidden bg-transparent p-0 text-left hover:bg-transparent"
 												>
 													<div className="shrink-0">{getStatusIcon(item)}</div>
 													<div className="flex-1 min-w-0 overflow-hidden">
@@ -942,7 +951,7 @@ export function InboxSidebarContent({
 															{convertRenderedToDisplay(item.message)}
 														</p>
 													</div>
-												</button>
+												</Button>
 											</TooltipTrigger>
 											<TooltipContent side="bottom" align="start" className="max-w-[250px]">
 												<p className="font-medium">{item.title}</p>
@@ -952,11 +961,12 @@ export function InboxSidebarContent({
 											</TooltipContent>
 										</Tooltip>
 									) : (
-										<button
+										<Button
 											type="button"
+											variant="ghost"
 											onClick={() => handleItemClick(item)}
 											disabled={isMarkingAsRead}
-											className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
+											className="h-auto flex-1 justify-start gap-3 overflow-hidden bg-transparent p-0 text-left hover:bg-transparent"
 										>
 											<div className="shrink-0">{getStatusIcon(item)}</div>
 											<div className="flex-1 min-w-0 overflow-hidden">
@@ -972,7 +982,7 @@ export function InboxSidebarContent({
 													{convertRenderedToDisplay(item.message)}
 												</p>
 											</div>
-										</button>
+										</Button>
 									)}
 
 									<div className="flex items-center justify-end gap-1.5 shrink-0 w-10">
@@ -1021,23 +1031,25 @@ export function InboxSidebarContent({
 					</div>
 				) : isSearchMode ? (
 					<div className="text-center py-8">
-						<Search className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-						<p className="text-sm text-muted-foreground">
+						<Search className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
+						<p className="text-xs text-muted-foreground">
 							{t("no_results_found") || "No results found"}
 						</p>
-						<p className="text-xs text-muted-foreground/70 mt-1">
+						<p className="mt-1 text-[11px] text-muted-foreground/70">
 							{t("try_different_search") || "Try a different search term"}
 						</p>
 					</div>
 				) : (
 					<div className="text-center py-8">
 						{activeTab === "comments" ? (
-							<MessageCircleReply className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+							<MessageCircleReply className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
 						) : (
-							<History className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+							<History className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
 						)}
-						<p className="text-sm text-muted-foreground">{getEmptyStateMessage().title}</p>
-						<p className="text-xs text-muted-foreground/70 mt-1">{getEmptyStateMessage().hint}</p>
+						<p className="text-xs text-muted-foreground">{getEmptyStateMessage().title}</p>
+						<p className="mt-1 text-[11px] text-muted-foreground/70">
+							{getEmptyStateMessage().hint}
+						</p>
 					</div>
 				)}
 			</div>

@@ -2,9 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
-import { ChevronDown, ChevronUp, ExternalLink, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
@@ -12,29 +12,27 @@ import { Spinner } from "@/components/ui/spinner";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 
 const DEFAULT_CHUNK_WINDOW = 5;
-const EXPANDED_CHUNK_WINDOW = 50;
 
 interface CitationPanelContentProps {
 	chunkId: number;
 	onClose?: () => void;
+	showHeader?: boolean;
 }
 
 /**
  * Right-panel citation viewer. Shows the cited chunk surrounded by
  * adjacent chunks (±N chunks via the API's `chunk_window` parameter),
  * with the cited one visually highlighted and auto-scrolled into view.
- * The window can be expanded to a wider range, or the user can jump to
- * the full document via the editor panel.
+ * The user can jump to the full document via the editor panel.
  */
-export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, onClose }) => {
+export const CitationPanelContent: FC<CitationPanelContentProps> = ({
+	chunkId,
+	onClose,
+	showHeader = true,
+}) => {
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
-	const [expanded, setExpanded] = useState(false);
 
-	useEffect(() => {
-		setExpanded(false);
-	}, [chunkId]);
-
-	const chunkWindow = expanded ? EXPANDED_CHUNK_WINDOW : DEFAULT_CHUNK_WINDOW;
+	const chunkWindow = DEFAULT_CHUNK_WINDOW;
 
 	const { data, isLoading, error } = useQuery({
 		queryKey: ["citation-panel", chunkId, chunkWindow] as const,
@@ -50,14 +48,6 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 
 	const totalChunks = data?.total_chunks ?? data?.chunks.length ?? 0;
 	const startIndex = data?.chunk_start_index ?? 0;
-	const citedIndexInWindow = data
-		? Math.max(
-				0,
-				data.chunks.findIndex((c) => c.id === chunkId)
-			)
-		: 0;
-	const shownAbove = citedIndexInWindow;
-	const shownBelow = data ? Math.max(0, data.chunks.length - 1 - citedIndexInWindow) : 0;
 	const hasMoreAbove = startIndex > 0;
 	const hasMoreBelow = data ? startIndex + data.chunks.length < totalChunks : false;
 
@@ -94,43 +84,60 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 
 	return (
 		<>
-			<div className="shrink-0 border-b">
-				<div className="flex h-14 items-center justify-between px-4">
-					<h2 className="text-lg font-medium text-muted-foreground select-none">Citation</h2>
-					<div className="flex items-center gap-1 shrink-0">
-						{onClose && (
-							<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-								<XIcon className="size-4" />
-								<span className="sr-only">Close citation panel</span>
-							</Button>
-						)}
+			<div className="shrink-0">
+				{showHeader && (
+					<div className="shrink-0 flex h-12 items-center justify-between px-3 border-b">
+						<h2 className="select-none text-lg font-semibold">Citation</h2>
+						<div className="flex items-center gap-1 shrink-0">
+							{onClose && (
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={onClose}
+									className="h-8 w-8 rounded-full shrink-0 text-muted-foreground hover:text-accent-foreground"
+								>
+									<XIcon className="h-4 w-4" />
+									<span className="sr-only">Close citation panel</span>
+								</Button>
+							)}
+						</div>
 					</div>
-				</div>
-				<div className="flex h-10 items-center justify-between gap-2 border-t px-4">
+				)}
+				<div className="grid h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
 					<div className="min-w-0 flex flex-1 items-center gap-2">
 						<p className="truncate text-sm text-muted-foreground">
 							{data?.title ?? (isLoading ? "Loading…" : `Chunk #${chunkId}`)}
 						</p>
 					</div>
-					<div className="flex items-center gap-2 shrink-0 text-[11px] text-muted-foreground">
-						<span>Chunk #{chunkId}</span>
-						{totalChunks > 0 && <span>· {totalChunks} chunks</span>}
+					<div className="flex items-center gap-3 shrink-0 text-[11px] text-muted-foreground">
+						{totalChunks > 0 && <span>{totalChunks} chunks</span>}
+						{!isLoading && !error && data && (
+							<Button
+								variant="default"
+								size="sm"
+								className="h-6 px-1.5 text-[11px]"
+								onClick={handleOpenFullDocument}
+							>
+								Open
+							</Button>
+						)}
 					</div>
 				</div>
 			</div>
 
 			<div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-5 py-4">
 				{isLoading && (
-					<div className="flex items-center gap-2 py-8 text-muted-foreground">
-						<Spinner size="sm" />
-						<span className="text-sm">Loading citation…</span>
+					<div className="flex min-h-full items-center justify-center text-muted-foreground">
+						<Spinner size="md" />
 					</div>
 				)}
 
 				{error && (
-					<p className="py-8 text-sm text-destructive">
-						{error instanceof Error ? error.message : "Failed to load citation"}
-					</p>
+					<div className="flex min-h-full items-center justify-center text-center">
+						<p className="text-sm text-destructive">
+							{error instanceof Error ? error.message : "Failed to load citation"}
+						</p>
+					</div>
 				)}
 
 				{!isLoading && !error && data && (
@@ -150,22 +157,22 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 										data-cited={isCited || undefined}
 										className={
 											isCited
-												? "rounded-md border-2 border-primary bg-primary/5 px-4 py-3 shadow-sm"
-												: "rounded-md border border-border/40 bg-muted/20 px-4 py-3 opacity-70 transition-opacity hover:opacity-100"
+												? "rounded-md border-2 border-primary bg-accent px-4 py-3 shadow-sm"
+												: "rounded-md bg-accent px-4 py-3 opacity-70 transition-opacity hover:opacity-100"
 										}
 									>
 										<div className="mb-1.5 flex items-center justify-between">
 											<span
 												className={
 													isCited
-														? "text-[11px] font-semibold text-primary"
+														? "text-[11px] text-muted-foreground"
 														: "text-[11px] font-medium text-muted-foreground"
 												}
 											>
-												{isCited ? "Cited chunk" : `Chunk #${chunk.id}`}
+												Chunk #{chunk.id}
 											</span>
 											{isCited && (
-												<span className="text-[11px] text-muted-foreground">#{chunk.id}</span>
+												<span className="text-[11px] font-semibold text-primary">Cited chunk</span>
 											)}
 										</div>
 										<div className="text-sm">
@@ -184,47 +191,6 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 					</>
 				)}
 			</div>
-
-			{!isLoading && !error && data && (
-				<div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3">
-					<div className="text-[11px] text-muted-foreground">
-						Showing {shownAbove} above · cited · {shownBelow} below
-					</div>
-					<div className="flex items-center gap-2">
-						{(hasMoreAbove || hasMoreBelow) && !expanded && (
-							<Button
-								variant="ghost"
-								size="sm"
-								className="h-8 text-xs"
-								onClick={() => setExpanded(true)}
-							>
-								<ChevronDown className="mr-1 size-3.5" />
-								More context
-							</Button>
-						)}
-						{expanded && (
-							<Button
-								variant="ghost"
-								size="sm"
-								className="h-8 text-xs"
-								onClick={() => setExpanded(false)}
-							>
-								<ChevronUp className="mr-1 size-3.5" />
-								Less
-							</Button>
-						)}
-						<Button
-							variant="default"
-							size="sm"
-							className="h-8 text-xs"
-							onClick={handleOpenFullDocument}
-						>
-							<ExternalLink className="mr-1 size-3.5" />
-							Open full document
-						</Button>
-					</div>
-				</div>
-			)}
 		</>
 	);
 };
