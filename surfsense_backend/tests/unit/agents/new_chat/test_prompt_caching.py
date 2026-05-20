@@ -12,13 +12,19 @@ prompt caching. It mutates ``llm.model_kwargs`` so the kwargs flow to
    the deepagent stack accumulates multiple ``SystemMessage``\ s in
    ``state["messages"]`` and ``role: system`` would tag every one of
    them, blowing past Anthropic's 4-block ``cache_control`` cap.
-2. Adds ``prompt_cache_key``/``prompt_cache_retention`` only for
-   single-model OPENAI/DEEPSEEK/XAI configs (where OpenAI's automatic
-   prompt-cache surface is available).
-3. Treats ``ChatLiteLLMRouter`` (auto-mode) as universal-only — no
-   OpenAI-only kwargs because the router fans out across providers.
-4. Idempotent: user-supplied values in ``model_kwargs`` are preserved.
-5. Defensive: LLMs without a writable ``model_kwargs`` are silently
+2. Adds ``prompt_cache_key`` for OPENAI/DEEPSEEK/XAI/AZURE/AZURE_OPENAI
+   configs (Microsoft's Azure transformer was added to LiteLLM in
+   https://github.com/BerriAI/litellm/pull/20989, Feb 2026).
+3. Adds ``prompt_cache_retention="24h"`` ONLY for OPENAI/DEEPSEEK/XAI.
+   Azure's server-side support landed in Microsoft's docs on 2026-05-13
+   but LiteLLM 1.83.14 hasn't wired it through yet, so we let Azure use
+   its default in-memory retention rather than send a param that
+   ``litellm.drop_params`` would silently strip.
+4. Treats ``ChatLiteLLMRouter`` (auto-mode) as universal-only — no
+   destination-specific kwargs because the router fans out across
+   providers.
+5. Idempotent: user-supplied values in ``model_kwargs`` are preserved.
+6. Defensive: LLMs without a writable ``model_kwargs`` are silently
    skipped rather than raising.
 """
 
@@ -191,9 +197,9 @@ def test_does_not_overwrite_user_supplied_prompt_cache_key() -> None:
 
 @pytest.mark.parametrize("provider", ["OPENAI", "DEEPSEEK", "XAI"])
 def test_sets_openai_family_extras(provider: str) -> None:
-    """OpenAI-style providers gain ``prompt_cache_key`` (raises hit rate
-    via routing affinity) and ``prompt_cache_retention="24h"`` (extends
-    cache TTL beyond the default 5-10 min)."""
+    """Native OpenAI-style providers gain ``prompt_cache_key`` (raises
+    hit rate via routing affinity) and ``prompt_cache_retention="24h"``
+    (extends cache TTL beyond the default 5-10 min)."""
     cfg = _make_cfg(provider=provider)
     llm = _FakeLLM()
 
@@ -201,6 +207,27 @@ def test_sets_openai_family_extras(provider: str) -> None:
 
     assert llm.model_kwargs["prompt_cache_key"] == "surfsense-thread-42"
     assert llm.model_kwargs["prompt_cache_retention"] == "24h"
+
+
+@pytest.mark.parametrize("provider", ["AZURE", "AZURE_OPENAI"])
+def test_azure_gets_prompt_cache_key_only(provider: str) -> None:
+    """Azure configs gain ``prompt_cache_key`` for routing affinity
+    (Microsoft auto-caches every GPT-4o+ deployment at ≥1024 tokens;
+    the key clusters same-prefix requests on the same backend GPU pool
+    so hit rate climbs). They DO NOT get ``prompt_cache_retention``
+    because LiteLLM 1.83.14's Azure transformer omits it from its
+    supported params list — ``drop_params`` would silently strip it.
+    Azure's default in-memory retention (5-10 min, max 1 h) is already
+    enough to cover intra-conversation turns; revisit when LiteLLM
+    bumps Azure to match its OpenAI surface."""
+    cfg = _make_cfg(provider=provider, model_name="gpt-5.4")
+    llm = _FakeLLM(model="azure/gpt-5.4")
+
+    apply_litellm_prompt_caching(llm, agent_config=cfg, thread_id=42)
+
+    assert llm.model_kwargs["prompt_cache_key"] == "surfsense-thread-42"
+    assert "prompt_cache_retention" not in llm.model_kwargs
+    assert "cache_control_injection_points" in llm.model_kwargs
 
 
 def test_skips_prompt_cache_key_when_no_thread_id() -> None:
@@ -215,12 +242,26 @@ def test_skips_prompt_cache_key_when_no_thread_id() -> None:
     assert llm.model_kwargs["prompt_cache_retention"] == "24h"
 
 
+def test_azure_skips_prompt_cache_key_when_no_thread_id() -> None:
+    """Azure without a thread id ends up with no extras (retention is
+    Azure-skipped, key needs a thread id) — universal injection points
+    still land."""
+    cfg = _make_cfg(provider="AZURE", model_name="gpt-5.4")
+    llm = _FakeLLM(model="azure/gpt-5.4")
+
+    apply_litellm_prompt_caching(llm, agent_config=cfg, thread_id=None)
+
+    assert "prompt_cache_key" not in llm.model_kwargs
+    assert "prompt_cache_retention" not in llm.model_kwargs
+    assert "cache_control_injection_points" in llm.model_kwargs
+
+
 @pytest.mark.parametrize(
     "provider",
     ["ANTHROPIC", "BEDROCK", "VERTEX_AI", "GOOGLE_AI_STUDIO", "GROQ", "MOONSHOT"],
 )
 def test_no_openai_extras_for_other_providers(provider: str) -> None:
-    """Non-OpenAI-family providers don't expose ``prompt_cache_key`` —
+    """Non-OpenAI-style providers don't expose ``prompt_cache_key`` —
     skip it. ``cache_control_injection_points`` is still set (universal)."""
     cfg = _make_cfg(provider=provider)
     llm = _FakeLLM()
