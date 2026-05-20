@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   file-quality:
-    name: File Quality Checks
+    name: File Quality
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     
@@ -125,7 +125,7 @@ jobs:
           exit ${exit_code:-0}
 
   python-backend:
-    name: Python Backend Quality
+    name: Backend Quality
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     
@@ -206,7 +206,7 @@ jobs:
           exit ${exit_code:-0}
 
   typescript-frontend:
-    name: TypeScript/JavaScript Quality
+    name: Frontend Quality
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     
