@@ -216,13 +216,9 @@ export const DocumentNode = React.memo(function DocumentNode({
 						return (
 							<>
 								{isMemoryDocument ? (
-									<button
-										type="button"
+									<span
 										aria-disabled="true"
-										tabIndex={-1}
 										className="h-3.5 w-3.5 shrink-0 cursor-default"
-										onClick={(e) => e.stopPropagation()}
-										onPointerDown={(e) => e.stopPropagation()}
 									>
 										<Checkbox
 											checked={false}
@@ -230,7 +226,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 											aria-disabled
 											className="h-3.5 w-3.5 pointer-events-none"
 										/>
-									</button>
+									</span>
 								) : canMention ? (
 									<Checkbox
 										checked={isMentioned}

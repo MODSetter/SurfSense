@@ -16,6 +16,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { VersionHistoryButton } from "@/components/documents/version-history";
+import {
+	fetchMemoryEditorDocument,
+	getMemoryLimitState,
+	type MemoryLimits,
+	saveMemoryMarkdown,
+} from "@/components/editor-panel/memory";
 import { SourceCodeEditor } from "@/components/editor/source-code-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -24,7 +30,6 @@ import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { getMemoryLimitState, type MemoryLimits } from "@/hooks/use-memory";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 import { inferMonacoLanguageFromPath } from "@/lib/editor-language";
@@ -207,35 +212,16 @@ export function EditorPanelContent({
 					return;
 				}
 				if (isMemoryMode) {
-					if (memoryScope === "team" && !searchSpaceId) {
-						throw new Error("Missing search space context");
-					}
-					const response = await authenticatedFetch(
-						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${
-							memoryScope === "team"
-								? `/api/v1/searchspaces/${searchSpaceId}/memory`
-								: "/api/v1/users/me/memory"
-						}`,
-						{ method: "GET" }
-					);
+					if (!memoryScope) throw new Error("Missing memory context");
+					const { document, limits } = await fetchMemoryEditorDocument({
+						scope: memoryScope,
+						searchSpaceId,
+						title,
+						signal: controller.signal,
+					});
 					if (controller.signal.aborted) return;
-					if (!response.ok) {
-						const errorData = await response
-							.json()
-							.catch(() => ({ detail: "Failed to fetch memory" }));
-						throw new Error(errorData.detail || "Failed to fetch memory");
-					}
-					const data = (await response.json()) as {
-						memory_md?: string;
-						limits?: MemoryLimits;
-					};
-					setMemoryLimits(data.limits ?? null);
-					const content: EditorContent = {
-						document_id: memoryScope === "team" ? -1002 : -1001,
-						title: title || (memoryScope === "team" ? "Team Memory" : "Personal Memory"),
-						document_type: memoryScope === "team" ? "TEAM_MEMORY" : "USER_MEMORY",
-						source_markdown: data.memory_md ?? "",
-					};
+					setMemoryLimits(limits);
+					const content: EditorContent = document;
 					markdownRef.current = content.source_markdown;
 					setDisplayTitle(content.title);
 					setEditorDoc(content);
@@ -370,34 +356,14 @@ export function EditorPanelContent({
 					return true;
 				}
 				if (isMemoryMode) {
-					if (memoryScope === "team" && !searchSpaceId) {
-						throw new Error("Missing search space context");
-					}
-					const response = await authenticatedFetch(
-						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${
-							memoryScope === "team"
-								? `/api/v1/searchspaces/${searchSpaceId}/memory`
-								: "/api/v1/users/me/memory"
-						}`,
-						{
-							method: "PUT",
-							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify({ memory_md: markdownRef.current }),
-						}
-					);
-					if (!response.ok) {
-						const errorData = await response
-							.json()
-							.catch(() => ({ detail: "Failed to save memory" }));
-						throw new Error(errorData.detail || "Failed to save memory");
-					}
-					const data = (await response.json()) as {
-						memory_md?: string;
-						limits?: MemoryLimits;
-					};
-					const savedContent = data.memory_md ?? markdownRef.current;
+					if (!memoryScope) throw new Error("Missing memory context");
+					const { markdown: savedContent, limits } = await saveMemoryMarkdown({
+						scope: memoryScope,
+						searchSpaceId,
+						markdown: markdownRef.current,
+					});
 					markdownRef.current = savedContent;
-					setMemoryLimits(data.limits ?? memoryLimits);
+					setMemoryLimits(limits ?? memoryLimits);
 					setEditorDoc((prev) => (prev ? { ...prev, source_markdown: savedContent } : prev));
 					setEditedMarkdown(null);
 					if (!options?.silent) {
