@@ -2,6 +2,7 @@
 Unified document save/update logic for file processors.
 """
 
+import asyncio
 import logging
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -43,7 +44,7 @@ async def _generate_summary(
     """
     if not enable_summary:
         summary = f"File: {file_name}\n\n{markdown_content[:4000]}"
-        return summary, embed_text(summary)
+        return summary, await asyncio.to_thread(embed_text, summary)
 
     if etl_service == "DOCLING":
         from app.services.docling_service import create_docling_service
@@ -65,7 +66,7 @@ async def _generate_summary(
                 parts.append(f"**{formatted_key}:** {value}")
 
         enhanced = "\n".join(parts) + "\n\n# DOCUMENT SUMMARY\n\n" + summary_text
-        return enhanced, embed_text(enhanced)
+        return enhanced, await asyncio.to_thread(embed_text, enhanced)
 
     # Standard summary (Unstructured / LlamaCloud / others)
     meta = {

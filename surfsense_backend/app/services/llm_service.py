@@ -659,3 +659,36 @@ async def get_user_long_context_llm(
     return await get_document_summary_llm(
         session, search_space_id, disable_streaming=disable_streaming
     )
+
+
+def get_planner_llm() -> ChatLiteLLM | None:
+    """Return a planner LLM instance from the first global config marked
+    ``is_planner: true``, or ``None`` if no planner config is defined.
+
+    The planner role handles short, structured internal tasks (KB search
+    planning: query rewriting, date extraction, recency classification).
+    These tasks are well-served by small/fast models (e.g. gpt-4o-mini,
+    Claude Haiku, Azure gpt-5.x-nano) — using the user's chat LLM for them
+    is unnecessarily expensive and slow.
+
+    This helper reads from ``config.GLOBAL_LLM_CONFIGS`` (loaded at import
+    time from ``global_llm_config.yaml``) so it has no DB cost and can be
+    called synchronously from middleware/factory code. It returns the same
+    instance shape as the global path of ``get_search_space_llm_instance``.
+
+    Callers MUST fall back to their chat LLM when this returns ``None`` so
+    deployments without a planner config keep working unchanged.
+    """
+    from app.agents.new_chat.llm_config import create_chat_litellm_from_config
+
+    planner_cfg = next(
+        (
+            cfg
+            for cfg in config.GLOBAL_LLM_CONFIGS
+            if cfg.get("is_planner") is True
+        ),
+        None,
+    )
+    if not planner_cfg:
+        return None
+    return create_chat_litellm_from_config(planner_cfg)

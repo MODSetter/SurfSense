@@ -98,7 +98,9 @@ class JiraKBSyncService:
                 summary_content = (
                     f"Jira Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
                 )
-                summary_embedding = embed_text(summary_content)
+                summary_embedding = await asyncio.to_thread(
+                    embed_text, summary_content
+                )
 
             chunks = await create_document_chunks(issue_content)
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -212,7 +214,9 @@ class JiraKBSyncService:
                 summary_content = (
                     f"Jira Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
                 )
-                summary_embedding = embed_text(summary_content)
+                summary_embedding = await asyncio.to_thread(
+                    embed_text, summary_content
+                )
 
             chunks = await create_document_chunks(issue_content)
 

@@ -116,7 +116,9 @@ class GoogleCalendarKBSyncService:
                 summary_content = (
                     f"Google Calendar Event: {event_summary}\n\n{indexable_content}"
                 )
-                summary_embedding = embed_text(summary_content)
+                summary_embedding = await asyncio.to_thread(
+                    embed_text, summary_content
+                )
 
             chunks = await create_document_chunks(indexable_content)
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -295,7 +297,9 @@ class GoogleCalendarKBSyncService:
                 summary_content = (
                     f"Google Calendar Event: {event_summary}\n\n{indexable_content}"
                 )
-                summary_embedding = embed_text(summary_content)
+                summary_embedding = await asyncio.to_thread(
+                    embed_text, summary_content
+                )
 
             chunks = await create_document_chunks(indexable_content)
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

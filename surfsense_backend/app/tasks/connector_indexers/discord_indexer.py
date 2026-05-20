@@ -670,7 +670,9 @@ async def index_discord_messages(
 
                 # Heavy processing (embeddings, chunks)
                 chunks = await create_document_chunks(item["combined_document_string"])
-                doc_embedding = embed_text(item["combined_document_string"])
+                doc_embedding = await asyncio.to_thread(
+                    embed_text, item["combined_document_string"]
+                )
 
                 # Update document to READY with actual content
                 document.title = f"{item['guild_name']}#{item['channel_name']}"

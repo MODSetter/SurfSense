@@ -6,6 +6,7 @@ from langchain_core.language_models import BaseChatModel
 
 from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.agents.new_chat.middleware import KnowledgePriorityMiddleware
+from app.services.llm_service import get_planner_llm
 
 
 def build_knowledge_priority_mw(
@@ -19,6 +20,7 @@ def build_knowledge_priority_mw(
 ) -> KnowledgePriorityMiddleware:
     return KnowledgePriorityMiddleware(
         llm=llm,
+        planner_llm=get_planner_llm(),
         search_space_id=search_space_id,
         filesystem_mode=filesystem_mode,
         available_connectors=available_connectors,

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime
 
@@ -95,7 +96,9 @@ class OneDriveKBSyncService:
             else:
                 logger.warning("No LLM configured — using fallback summary")
                 summary_content = f"OneDrive File: {file_name}\n\n{indexable_content}"
-                summary_embedding = embed_text(summary_content)
+                summary_embedding = await asyncio.to_thread(
+                    embed_text, summary_content
+                )
 
             chunks = await create_document_chunks(indexable_content)
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

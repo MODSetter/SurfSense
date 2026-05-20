@@ -32,6 +32,7 @@ exact same routine when ``aafter_agent`` was skipped (e.g. client disconnect).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -249,11 +250,11 @@ async def _create_document(
     session.add(doc)
     await session.flush()
 
-    summary_embedding = embed_texts([content])[0]
+    summary_embedding = (await asyncio.to_thread(embed_texts, [content]))[0]
     doc.embedding = summary_embedding
     chunks = chunk_text(content)
     if chunks:
-        chunk_embeddings = embed_texts(chunks)
+        chunk_embeddings = await asyncio.to_thread(embed_texts, chunks)
         session.add_all(
             [
                 Chunk(document_id=doc.id, content=text, embedding=embedding)
@@ -295,13 +296,13 @@ async def _update_document(
         search_space_id,
     )
 
-    summary_embedding = embed_texts([content])[0]
+    summary_embedding = (await asyncio.to_thread(embed_texts, [content]))[0]
     document.embedding = summary_embedding
 
     await session.execute(delete(Chunk).where(Chunk.document_id == document.id))
     chunks = chunk_text(content)
     if chunks:
-        chunk_embeddings = embed_texts(chunks)
+        chunk_embeddings = await asyncio.to_thread(embed_texts, chunks)
         session.add_all(
             [
                 Chunk(document_id=document.id, content=text, embedding=embedding)

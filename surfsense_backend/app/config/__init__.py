@@ -110,6 +110,19 @@ def load_global_llm_configs():
         except Exception as e:
             print(f"Warning: Failed to score global LLM configs: {e}")
 
+        # Planner LLM is a singleton role. If an operator accidentally
+        # marks multiple configs ``is_planner: true``, only the first one
+        # is used at runtime — surface the others at startup so the
+        # mistake is caught before traffic, not silently buried.
+        planner_cfgs = [c for c in configs if c.get("is_planner") is True]
+        if len(planner_cfgs) > 1:
+            extra_ids = [c.get("id") for c in planner_cfgs[1:]]
+            print(
+                "Warning: Multiple global LLM configs marked is_planner=true "
+                f"(ids {[c.get('id') for c in planner_cfgs]}); using id "
+                f"{planner_cfgs[0].get('id')} and ignoring {extra_ids}"
+            )
+
         return configs
     except Exception as e:
         print(f"Warning: Failed to load global LLM configs: {e}")

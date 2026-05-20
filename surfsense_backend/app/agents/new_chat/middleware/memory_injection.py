@@ -8,6 +8,7 @@ Injects memory markdown into the system prompt on every turn:
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 from uuid import UUID
 
@@ -19,8 +20,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import ChatVisibility, SearchSpace, User, shielded_async_session
 from app.services.memory import MEMORY_HARD_LIMIT, MEMORY_SOFT_LIMIT
+from app.utils.perf import get_perf_logger
 
 logger = logging.getLogger(__name__)
+_perf_log = get_perf_logger()
 
 
 class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
@@ -53,9 +56,13 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         if not isinstance(last_message, HumanMessage):
             return None
 
+        start = time.perf_counter()
+        db_elapsed = 0.0
         memory_blocks: list[str] = []
+        scope = "team" if self.visibility == ChatVisibility.SEARCH_SPACE else "user"
 
         async with shielded_async_session() as session:
+            db_start = time.perf_counter()
             if self.visibility == ChatVisibility.SEARCH_SPACE:
                 team_memory = await self._load_team_memory(session)
                 if team_memory:
@@ -96,7 +103,15 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                             f"</memory_warning>"
                         )
 
+        db_elapsed = time.perf_counter() - db_start
+
         if not memory_blocks:
+            _perf_log.info(
+                "[memory_injection] scope=%s injected=0 db=%.3fs total=%.3fs",
+                scope,
+                db_elapsed,
+                time.perf_counter() - start,
+            )
             return None
 
         memory_text = "\n\n".join(memory_blocks)
@@ -106,6 +121,13 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         insert_idx = 1 if len(new_messages) > 1 else 0
         new_messages.insert(insert_idx, memory_msg)
 
+        _perf_log.info(
+            "[memory_injection] scope=%s injected=1 chars=%d db=%.3fs total=%.3fs",
+            scope,
+            len(memory_text),
+            db_elapsed,
+            time.perf_counter() - start,
+        )
         return {"messages": new_messages}
 
     async def _load_user_memory(
