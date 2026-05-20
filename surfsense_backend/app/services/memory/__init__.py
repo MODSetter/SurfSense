@@ -4,7 +4,6 @@ from .schemas import MemoryLimits, MemoryRead
 from .service import (
     MemoryScope,
     SaveResult,
-    extract_and_save,
     memory_limits,
     read_memory,
     reset_memory,
@@ -24,7 +23,6 @@ __all__ = [
     "MemoryRead",
     "MemoryScope",
     "SaveResult",
-    "extract_and_save",
     "memory_limits",
     "read_memory",
     "reset_memory",

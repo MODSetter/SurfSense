@@ -6,11 +6,9 @@ import pytest
 
 from app.services.memory import (
     MemoryScope,
-    extract_and_save,
     reset_memory,
     save_memory,
 )
-from app.services.memory.schemas import MemoryExtractionDecision
 
 pytestmark = pytest.mark.unit
 
@@ -29,17 +27,6 @@ class _FakeSession:
 
     async def rollback(self) -> None:
         self.rollback_calls += 1
-
-
-class _StructuredLLM:
-    def __init__(self, decision: MemoryExtractionDecision) -> None:
-        self.decision = decision
-
-    def with_structured_output(self, _schema):
-        return self
-
-    async def ainvoke(self, *_args, **_kwargs):
-        return self.decision
 
 
 @pytest.mark.asyncio
@@ -150,57 +137,3 @@ async def test_reset_memory_clears_memory(monkeypatch) -> None:
 
     assert result.status == "saved"
     assert target.memory_md == ""
-
-
-@pytest.mark.asyncio
-async def test_extract_and_save_no_update_does_not_commit(monkeypatch) -> None:
-    target = SimpleNamespace(memory_md="## Facts\n- 2026-05-19: Existing\n")
-    session = _FakeSession()
-
-    async def fake_load_target(**_kwargs):
-        return target
-
-    monkeypatch.setattr("app.services.memory.service._load_target", fake_load_target)
-
-    result = await extract_and_save(
-        scope=MemoryScope.USER,
-        target_id="00000000-0000-0000-0000-000000000000",
-        user_message="hello",
-        actor_display_name="Anish",
-        session=session,
-        llm=_StructuredLLM(
-            MemoryExtractionDecision(action="no_update", reason="Greeting only")
-        ),
-    )
-
-    assert result.status == "no_op"
-    assert session.commit_calls == 0
-
-
-@pytest.mark.asyncio
-async def test_extract_and_save_persists_structured_update(monkeypatch) -> None:
-    target = SimpleNamespace(memory_md="")
-    session = _FakeSession()
-
-    async def fake_load_target(**_kwargs):
-        return target
-
-    monkeypatch.setattr("app.services.memory.service._load_target", fake_load_target)
-
-    result = await extract_and_save(
-        scope=MemoryScope.USER,
-        target_id="00000000-0000-0000-0000-000000000000",
-        user_message="I work on SurfSense",
-        actor_display_name="Anish",
-        session=session,
-        llm=_StructuredLLM(
-            MemoryExtractionDecision(
-                action="save",
-                updated_memory="## Facts\n- 2026-05-19: Anish works on SurfSense\n",
-            )
-        ),
-    )
-
-    assert result.status == "saved"
-    assert "SurfSense" in target.memory_md
-    assert session.commit_calls == 1

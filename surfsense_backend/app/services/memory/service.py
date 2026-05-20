@@ -8,18 +8,13 @@ from enum import StrEnum
 from typing import Any, Literal
 from uuid import UUID
 
-from langchain_core.messages import HumanMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import SearchSpace, User
 from app.services.memory.document import parse_memory_document, render_memory_document
-from app.services.memory.prompts import (
-    TEAM_MEMORY_EXTRACT_PROMPT,
-    USER_MEMORY_EXTRACT_PROMPT,
-)
 from app.services.memory.rewrite import forced_rewrite
-from app.services.memory.schemas import MemoryExtractionDecision, MemoryLimits
+from app.services.memory.schemas import MemoryLimits
 from app.services.memory.validation import (
     MEMORY_HARD_LIMIT,
     MEMORY_SOFT_LIMIT,
@@ -233,75 +228,4 @@ async def reset_memory(
         content="",
         session=session,
         llm=None,
-    )
-
-
-async def extract_and_save(
-    *,
-    scope: MemoryScope | str,
-    target_id: str | int | UUID,
-    user_message: str,
-    actor_display_name: str | None,
-    session: AsyncSession,
-    llm: Any,
-) -> SaveResult:
-    normalized = _normalize_scope(scope)
-    current_memory = await read_memory(
-        scope=normalized,
-        target_id=target_id,
-        session=session,
-    )
-
-    if normalized is MemoryScope.USER:
-        first_name = (
-            actor_display_name.strip().split()[0]
-            if actor_display_name and actor_display_name.strip()
-            else "The user"
-        )
-        prompt = USER_MEMORY_EXTRACT_PROMPT.format(
-            current_memory=current_memory or "(empty)",
-            user_message=user_message,
-            user_name=first_name,
-        )
-    else:
-        prompt = TEAM_MEMORY_EXTRACT_PROMPT.format(
-            current_memory=current_memory or "(empty)",
-            author=actor_display_name or "Unknown team member",
-            user_message=user_message,
-        )
-
-    try:
-        structured = llm.with_structured_output(MemoryExtractionDecision)
-        decision = await structured.ainvoke(
-            [HumanMessage(content=prompt)],
-            config={"tags": ["surfsense:internal", "memory-extraction"]},
-        )
-    except Exception:
-        logger.exception("Structured memory extraction failed")
-        return SaveResult(
-            status="error",
-            message="Structured memory extraction failed.",
-            memory_md=current_memory,
-        )
-
-    if decision.action == "no_update":
-        return SaveResult(
-            status="no_op",
-            message=decision.reason or "No durable memory to persist.",
-            memory_md=current_memory,
-        )
-
-    if not decision.updated_memory:
-        return SaveResult(
-            status="error",
-            message="Structured memory extraction chose save without updated_memory.",
-            memory_md=current_memory,
-        )
-
-    return await save_memory(
-        scope=normalized,
-        target_id=target_id,
-        content=decision.updated_memory,
-        session=session,
-        llm=llm,
     )

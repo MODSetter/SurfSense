@@ -32,7 +32,6 @@ class AgentEventRelayState:
     last_active_step_items: list[str] = field(default_factory=list)
     just_finished_tool: bool = False
     active_tool_depth: int = 0
-    called_update_memory: bool = False
     current_reasoning_id: str | None = None
     pending_tool_call_chunks: list[dict[str, Any]] = field(default_factory=list)
     lc_tool_call_id_by_run: dict[str, str] = field(default_factory=dict)
