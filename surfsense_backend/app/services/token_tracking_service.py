@@ -325,6 +325,22 @@ class TokenTrackingCallback(CustomLogger):
             total_tokens = getattr(usage, "total_tokens", 0) or 0
             call_kind = "chat"
 
+        # Prompt-cache accounting. Field shapes differ by provider:
+        # - OpenAI / Azure: ``usage.prompt_tokens_details.cached_tokens``
+        # - Anthropic:      ``usage.cache_read_input_tokens`` + ``usage.cache_creation_input_tokens``
+        # LiteLLM normalizes both; we read both shapes and prefer whichever is set.
+        cached_tokens = 0
+        cache_creation_tokens = 0
+        if not is_image:
+            prompt_details = getattr(usage, "prompt_tokens_details", None)
+            if prompt_details is not None:
+                cached_tokens = getattr(prompt_details, "cached_tokens", 0) or 0
+            if cached_tokens == 0:
+                cached_tokens = getattr(usage, "cache_read_input_tokens", 0) or 0
+            cache_creation_tokens = (
+                getattr(usage, "cache_creation_input_tokens", 0) or 0
+            )
+
         model = kwargs.get("model", "unknown")
 
         cost_usd = _extract_cost_usd(
@@ -367,9 +383,13 @@ class TokenTrackingCallback(CustomLogger):
         except Exception:
             call_latency_s = None
 
+        cache_hit_ratio: float | None = None
+        if prompt_tokens > 0 and (cached_tokens > 0 or cache_creation_tokens > 0):
+            cache_hit_ratio = cached_tokens / prompt_tokens
+
         logger.info(
             "[TokenTracking] Captured: model=%s kind=%s prompt=%d completion=%d total=%d "
-            "cost=$%.6f (%d micros) (accumulator now has %d calls)%s",
+            "cost=$%.6f (%d micros) (accumulator now has %d calls)%s%s",
             model,
             call_kind,
             prompt_tokens,
@@ -379,6 +399,16 @@ class TokenTrackingCallback(CustomLogger):
             cost_micros,
             len(acc.calls),
             f" latency={call_latency_s:.3f}s" if call_latency_s is not None else "",
+            (
+                f" cache_read={cached_tokens} cache_write={cache_creation_tokens}"
+                f" hit_ratio={cache_hit_ratio:.1%}"
+                if cache_hit_ratio is not None
+                else (
+                    f" cache_read={cached_tokens} cache_write={cache_creation_tokens}"
+                    if (cached_tokens or cache_creation_tokens)
+                    else ""
+                )
+            ),
         )
 
 
