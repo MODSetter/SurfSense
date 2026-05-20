@@ -457,7 +457,7 @@ async def search_knowledge_base(
     if not query:
         return []
 
-    [embedding] = embed_texts([query])
+    [embedding] = await asyncio.to_thread(embed_texts, [query])
     doc_types = _resolve_search_types(available_connectors, available_document_types)
     retriever_top_k = min(top_k * 3, 30)
 
