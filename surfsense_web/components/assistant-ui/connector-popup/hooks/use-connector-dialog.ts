@@ -43,7 +43,7 @@ import {
 	parseOAuthAuthResponse,
 	validateIndexingConfigState,
 } from "../constants/connector-popup.schemas";
-
+import { BACKEND_URL } from "@/lib/env-config";
 const OAUTH_RESULT_COOKIE = "connector_oauth_result";
 
 function readOAuthResultCookie(): string | null {
@@ -364,7 +364,7 @@ export const useConnectorDialog = () => {
 			try {
 				// Check if authEndpoint already has query parameters
 				const separator = connector.authEndpoint.includes("?") ? "&" : "?";
-				const url = `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${connector.authEndpoint}${separator}space_id=${searchSpaceId}`;
+				const url = `${BACKEND_URL}${connector.authEndpoint}${separator}space_id=${searchSpaceId}`;
 
 				const response = await authenticatedFetch(url, { method: "GET" });
 
