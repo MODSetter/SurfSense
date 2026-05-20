@@ -67,7 +67,7 @@ repos:
       # Biome check for surfsense_web
       - id: biome-check-web
         name: biome-check-web
-        entry: bash -c 'cd surfsense_web && npx @biomejs/biome check --diagnostic-level=error .'
+        entry: bash -c 'cd surfsense_web && npx @biomejs/biome@2.4.6 check --diagnostic-level=error .'
         language: system
         files: ^surfsense_web/
         pass_filenames: false
