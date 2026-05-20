@@ -4,36 +4,19 @@ on:
   pull_request:
     branches: [main, dev]
     types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'surfsense_backend/**'
+      - '.github/workflows/backend-tests.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  changes:
-    name: Changes
-    runs-on: ubuntu-latest
-    outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Check changed files
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          filters: |
-            backend:
-              - 'surfsense_backend/**'
-              - '.github/workflows/backend-tests.yml'
-
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: changes
-    if: ${{ github.event.pull_request.draft == false && needs.changes.outputs.backend == 'true' }}
+    if: github.event.pull_request.draft == false
     env:
       EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
 
@@ -76,8 +59,7 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: changes
-    if: ${{ github.event.pull_request.draft == false && needs.changes.outputs.backend == 'true' }}
+    if: github.event.pull_request.draft == false
     env:
       EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
 
@@ -139,29 +121,14 @@ jobs:
   test-gate:
     name: Test Gate
     runs-on: ubuntu-latest
-    needs: [changes, unit-tests, integration-tests]
+    needs: [unit-tests, integration-tests]
     if: always()
 
     steps:
       - name: Check all test jobs
         run: |
-          if [[ "${{ needs.changes.result }}" == "failure" || "${{ needs.changes.result }}" == "cancelled" ]]; then
-            echo "Backend change detection failed"
-            exit 1
-          fi
-
-          if [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
-            echo "Draft PR; backend tests skipped"
-            exit 0
-          fi
-
-          if [[ "${{ needs.changes.outputs.backend }}" != "true" ]]; then
-            echo "No backend changes detected; backend tests skipped"
-            exit 0
-          fi
-
-          if [[ "${{ needs.unit-tests.result }}" != "success" ||
-                "${{ needs.integration-tests.result }}" != "success" ]]; then
+          if [[ "${{ needs.unit-tests.result }}" == "failure" ||
+                "${{ needs.integration-tests.result }}" == "failure" ]]; then
             echo "Backend tests failed"
             exit 1
           else
