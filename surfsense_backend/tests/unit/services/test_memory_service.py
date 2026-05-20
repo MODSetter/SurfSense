@@ -108,7 +108,9 @@ async def test_save_memory_rejects_long_no_heading_payload(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_save_memory_grandfathers_existing_team_personal_heading(monkeypatch) -> None:
+async def test_save_memory_grandfathers_existing_team_personal_heading(
+    monkeypatch,
+) -> None:
     content = "## Preferences\n- 2026-05-19: Existing legacy heading\n"
     target = SimpleNamespace(shared_memory_md=content)
     session = _FakeSession()

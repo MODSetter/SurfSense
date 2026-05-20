@@ -832,7 +832,10 @@ function AuthenticatedDocumentsSidebarBase({
 						throw new Error(errorData.detail || "Export failed");
 					}
 					const data = (await response.json()) as { memory_md?: string };
-					downloadTextFile(data.memory_md ?? "", doc.title.endsWith(".md") ? doc.title : `${doc.title}.md`);
+					downloadTextFile(
+						data.memory_md ?? "",
+						doc.title.endsWith(".md") ? doc.title : `${doc.title}.md`
+					);
 					return;
 				} catch (err) {
 					console.error("Memory export failed:", err);

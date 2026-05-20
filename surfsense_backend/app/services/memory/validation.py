@@ -11,7 +11,9 @@ MEMORY_HARD_LIMIT = 25_000
 _SECTION_HEADING_RE = re.compile(r"^##\s+(.+)$", re.MULTILINE)
 _HEADING_LINE_RE = re.compile(r"^##\s+\S+", re.MULTILINE)
 _HEADING_NORMALIZE_RE = re.compile(r"[^a-z0-9]+")
-_LEGACY_BULLET_RE = re.compile(r"^-\s+\(\d{4}-\d{2}-\d{2}\)\s+\[(fact|pref|instr)\]\s+.+$")
+_LEGACY_BULLET_RE = re.compile(
+    r"^-\s+\(\d{4}-\d{2}-\d{2}\)\s+\[(fact|pref|instr)\]\s+.+$"
+)
 _NEW_BULLET_RE = re.compile(r"^-\s+\d{4}-\d{2}-\d{2}:\s+.+$")
 
 _FORBIDDEN_TEAM_HEADINGS = {

@@ -216,10 +216,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 						return (
 							<>
 								{isMemoryDocument ? (
-									<span
-										aria-disabled="true"
-										className="h-3.5 w-3.5 shrink-0 cursor-default"
-									>
+									<span aria-disabled="true" className="h-3.5 w-3.5 shrink-0 cursor-default">
 										<Checkbox
 											checked={false}
 											disabled

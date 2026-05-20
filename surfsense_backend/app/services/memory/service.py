@@ -92,7 +92,9 @@ async def _load_target(
             select(User).where(User.id == _normalize_user_id(target_id))  # type: ignore[arg-type]
         )
         return result.scalars().first()
-    result = await session.execute(select(SearchSpace).where(SearchSpace.id == int(target_id)))
+    result = await session.execute(
+        select(SearchSpace).where(SearchSpace.id == int(target_id))
+    )
     return result.scalars().first()
 
 
@@ -141,7 +143,9 @@ async def save_memory(
     if target is None:
         return SaveResult(
             status="error",
-            message="User not found." if normalized is MemoryScope.USER else "Search space not found.",
+            message="User not found."
+            if normalized is MemoryScope.USER
+            else "Search space not found.",
         )
 
     old_memory = _get_memory(target, normalized)

@@ -88,7 +88,9 @@ async def test_save_memory_blocks_new_personal_heading_in_team_before_commit(
 
 
 @pytest.mark.asyncio
-async def test_save_memory_allows_grandfathered_personal_heading_in_team(monkeypatch) -> None:
+async def test_save_memory_allows_grandfathered_personal_heading_in_team(
+    monkeypatch,
+) -> None:
     content = "## Preferences\n- 2026-04-10: Prefers dark mode\n"
     target = type("Target", (), {"shared_memory_md": content})()
     session = _FakeSession()

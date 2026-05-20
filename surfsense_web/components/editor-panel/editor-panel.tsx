@@ -16,13 +16,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { VersionHistoryButton } from "@/components/documents/version-history";
+import { SourceCodeEditor } from "@/components/editor/source-code-editor";
 import {
 	fetchMemoryEditorDocument,
 	getMemoryLimitState,
 	type MemoryLimits,
 	saveMemoryMarkdown,
 } from "@/components/editor-panel/memory";
-import { SourceCodeEditor } from "@/components/editor/source-code-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
