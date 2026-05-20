@@ -7,6 +7,7 @@ import { setActiveSearchSpaceId } from './active-search-space';
 
 const isDev = !app.isPackaged;
 const HOSTED_FRONTEND_URL = process.env.HOSTED_FRONTEND_URL as string;
+const isMac = process.platform === 'darwin';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -35,7 +36,12 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
       webviewTag: false,
     },
     show: false,
-    titleBarStyle: 'hiddenInset',
+    ...(isMac
+      ? {
+          titleBarStyle: 'hidden' as const,
+          trafficLightPosition: { x: 12, y: 10 },
+        }
+      : {}),
   });
 
   mainWindow.once('ready-to-show', () => {

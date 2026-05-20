@@ -945,6 +945,36 @@ async def health_check():
     return {"status": "ok"}
 
 
+@app.get("/ready", tags=["health"])
+@limiter.exempt
+async def readiness_check():
+    """Readiness probe.
+
+    Verifies that the schema state required by downstream services is
+    present. Specifically checks that the ``zero_publication`` Postgres
+    logical-replication publication exists; without it zero-cache crash-loops
+    on `Unknown or invalid publications`.
+
+    Returns 200 when ready, 503 otherwise. Used by the docker-compose
+    backend healthcheck and by ``install.ps1`` / ``install.sh`` post-up
+    verification.
+    """
+    from sqlalchemy import text
+
+    from app.db import async_session_maker
+
+    async with async_session_maker() as session:
+        result = await session.execute(
+            text("SELECT 1 FROM pg_publication WHERE pubname = 'zero_publication'")
+        )
+        if result.first() is None:
+            raise HTTPException(
+                status_code=503,
+                detail="zero_publication missing; run alembic upgrade head",
+            )
+    return {"status": "ready"}
+
+
 @app.get("/verify-token")
 async def authenticated_route(
     user: User = Depends(current_active_user),

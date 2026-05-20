@@ -76,15 +76,17 @@ export function MorePagesContent() {
 			<div className="space-y-2">
 				<h3 className="text-sm font-semibold">Earn Bonus Pages</h3>
 				{isLoading ? (
-					<Card>
-						<CardContent className="flex items-center gap-3 p-3">
-							<Skeleton className="h-8 w-8 rounded-full" />
-							<div className="flex-1 space-y-2">
-								<Skeleton className="h-4 w-3/4" />
-							</div>
-							<Skeleton className="h-8 w-16" />
-						</CardContent>
-					</Card>
+					<div className="space-y-1.5">
+						{["github", "reddit", "discord"].map((task) => (
+							<Card key={task} className="bg-transparent">
+								<CardContent className="flex items-center gap-3 p-3">
+									<Skeleton className="h-8 w-8 rounded-full bg-muted" />
+									<Skeleton className="h-4 flex-1 bg-muted" />
+									<Skeleton className="h-8 w-16 bg-muted" />
+								</CardContent>
+							</Card>
+						))}
+					</div>
 				) : (
 					<div className="space-y-1.5">
 						{data?.tasks.map((task) => (
@@ -119,7 +121,7 @@ export function MorePagesContent() {
 										disabled={task.completed || completeMutation.isPending}
 										onClick={() => handleTaskClick(task)}
 										asChild={!task.completed}
-										className="text-muted-foreground hover:text-foreground"
+										className="text-muted-foreground hover:text-accent-foreground"
 									>
 										{task.completed ? (
 											<span>Done</span>

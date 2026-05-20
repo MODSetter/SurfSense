@@ -137,12 +137,8 @@ function CollapsedOverlay({ item }: { item: NavItem }) {
 
 export function NavSection({ items, onItemClick, isCollapsed = false }: NavSectionProps) {
 	return (
-		<div className={cn("flex flex-col gap-0.5 py-2", isCollapsed && "items-center")}>
+		<div className="flex flex-col gap-0.5 py-2">
 			{items.map((item) => {
-				const joyrideAttr =
-					item.title === "Inbox" || item.title.toLowerCase().includes("inbox")
-						? { "data-joyride": "inbox-sidebar" as const }
-						: {};
 				const { tooltip } = getStatusInfo(item.statusIndicator);
 
 				return (
@@ -159,12 +155,11 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 							<StatusIcon
 								status={item.statusIndicator}
 								FallbackIcon={item.icon}
-								className="h-4 w-4"
+								className="h-3.5 w-3.5"
 							/>
 						}
 						trailingContent={<StatusPill status={item.statusIndicator} />}
 						tooltipContent={tooltip}
-						buttonProps={joyrideAttr}
 					/>
 				);
 			})}

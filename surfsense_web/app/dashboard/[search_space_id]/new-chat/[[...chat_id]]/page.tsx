@@ -49,6 +49,7 @@ import {
 	type TokenUsageData,
 	TokenUsageProvider,
 } from "@/components/assistant-ui/token-usage-context";
+import { Button } from "@/components/ui/button";
 import {
 	type HitlDecision,
 	PendingInterruptProvider,
@@ -78,12 +79,7 @@ import {
 	setActivePodcastTaskId,
 } from "@/lib/chat/podcast-state";
 import { createStreamFlushHelpers } from "@/lib/chat/stream-flush";
-import {
-	consumeSseEvents,
-	hasPersistableContent,
-	markInterruptsCompleted,
-	processSharedStreamEvent,
-} from "@/lib/chat/stream-pipeline";
+import { consumeSseEvents, processSharedStreamEvent } from "@/lib/chat/stream-pipeline";
 import {
 	applyTurnIdToAssistantMessageList,
 	mergeChatTurnIdIntoMessage,
@@ -92,7 +88,6 @@ import {
 } from "@/lib/chat/stream-side-effects";
 import {
 	addToolCall,
-	buildContentForPersistence,
 	buildContentForUI,
 	type ContentPartsState,
 	type FrameBatchedUpdater,
@@ -453,7 +448,7 @@ export default function NewChatPage() {
 	}, [params.search_space_id]);
 
 	// Unified store for agent-action rows (the same react-query cache
-	// the agent-actions sheet, the inline Revert button, and the
+	// the agent-actions dialog, the inline Revert button, and the
 	// per-turn Revert button all read). Hydrates from
 	// ``GET /threads/{id}/actions`` and is updated incrementally by the
 	// SSE handlers + revert-batch results below — no atom side-channel.
@@ -1762,8 +1757,19 @@ export default function NewChatPage() {
 			}
 
 			const byTcId = new Map<string, (typeof incoming)[number]>();
-			for (let i = 0; i < tcIds.length; i++) byTcId.set(tcIds[i], incoming[i]);
-			const submittedDecisions = tcIds.map((id) => byTcId.get(id)!);
+			const submittedDecisions: typeof incoming = [];
+			for (let i = 0; i < tcIds.length; i++) {
+				const tcId = tcIds[i];
+				const decision = incoming[i];
+				if (tcId === undefined || decision === undefined) {
+					toast.error(
+						`Cannot resume: ${incoming.length} decision(s) submitted for ${N} pending actions.`
+					);
+					return;
+				}
+				byTcId.set(tcId, decision);
+				submittedDecisions.push(decision);
+			}
 
 			// All pending cards belong to the same assistant message, so a
 			// single content-update pass suffices.
@@ -2407,16 +2413,15 @@ export default function NewChatPage() {
 		return (
 			<div className="flex h-full flex-col items-center justify-center gap-4">
 				<div className="text-destructive">Failed to load chat</div>
-				<button
+				<Button
 					type="button"
 					onClick={() => {
 						setIsInitializing(true);
 						initializeThread();
 					}}
-					className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
 				>
 					Try Again
-				</button>
+				</Button>
 			</div>
 		);
 	}

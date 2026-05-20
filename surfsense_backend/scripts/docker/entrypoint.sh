@@ -4,10 +4,15 @@ set -e
 # ─────────────────────────────────────────────────────────────
 # SERVICE_ROLE controls which process(es) this container runs.
 #
-#   api     – FastAPI backend only  (runs migrations on startup)
+#   migrate – Run `alembic upgrade head`, verify zero_publication,
+#             then exit 0. Used by the dedicated `migrations` service
+#             in docker-compose.yml so downstream services can gate
+#             on `condition: service_completed_successfully`.
+#   api     – FastAPI backend only (does NOT run migrations)
 #   worker  – Celery worker only
 #   beat    – Celery beat scheduler only
-#   all     – All three in one container (legacy / dev default)
+#   all     – migrations + api + worker + beat in one container
+#             (legacy / dev default; fails fast on migration error)
 #
 # Set SERVICE_ROLE as an environment variable in Coolify for
 # each service deployment.
@@ -41,7 +46,13 @@ cleanup() {
 
 trap cleanup SIGTERM SIGINT
 
-# ── Database migrations (only for api / all) ─────────────────
+# ── Database migrations (only for migrate / all) ─────────────
+# Fail-fast contract:
+#   - alembic upgrade head must succeed within ${MIGRATION_TIMEOUT:-900}s
+#   - zero_publication must exist in pg_publication afterwards
+# Either failure exits non-zero so the dedicated `migrations` compose
+# service exits non-zero, halting the rest of the stack instead of
+# silently producing a half-built system that crash-loops zero-cache.
 run_migrations() {
     echo "Running database migrations..."
     for i in {1..30}; do
@@ -53,11 +64,66 @@ run_migrations() {
         sleep 1
     done
 
-    if timeout 300 alembic upgrade head 2>&1; then
-        echo "Migrations completed successfully."
-    else
-        echo "WARNING: Migration failed or timed out. Continuing anyway..."
-        echo "You may need to run migrations manually: alembic upgrade head"
+    local timeout_secs="${MIGRATION_TIMEOUT:-900}"
+    echo "Running alembic upgrade head (timeout=${timeout_secs}s)..."
+    if ! timeout "${timeout_secs}" alembic upgrade head; then
+        echo "ERROR: alembic upgrade head failed (or exceeded ${timeout_secs}s timeout)." >&2
+        echo "Refusing to start. Inspect the error above and re-run." >&2
+        exit 1
+    fi
+    echo "Migrations completed successfully."
+
+    echo "Verifying zero_publication exists in Postgres..."
+    local pub_oid
+    pub_oid=$(python <<'PY' 2>/dev/null || true
+import asyncio
+import sys
+from sqlalchemy import text
+from app.db import engine
+
+
+async def get_oid():
+    async with engine.connect() as conn:
+        result = await conn.execute(
+            text("SELECT oid FROM pg_publication WHERE pubname = 'zero_publication'")
+        )
+        row = result.first()
+        if row is None:
+            sys.exit(1)
+        print(int(row[0]))
+
+
+asyncio.run(get_oid())
+PY
+)
+    if [ -z "${pub_oid}" ]; then
+        echo "ERROR: zero_publication is missing from Postgres after running alembic." >&2
+        echo "This usually means migration 116 (or a later publication migration) did not run." >&2
+        echo "Inspect alembic state with:" >&2
+        echo "  docker compose exec db psql -U \"\$DB_USER\" -d \"\$DB_NAME\" -c 'SELECT * FROM alembic_version;'" >&2
+        exit 1
+    fi
+    echo "zero_publication verified (oid=${pub_oid})."
+
+    # Stale-replica safety net: if /zero-init is mounted (i.e. we are the
+    # dedicated `migrations` compose service), drop a marker file when the
+    # publication oid changed (or on first run) so the wrapped zero-cache
+    # entrypoint can wipe /data/zero.db before starting. This recovers from
+    # the case where a previous zero-cache crashed mid-init and left a
+    # half-built SQLite replica without a `_zero.tableMetadata` table.
+    if [ -d /zero-init ]; then
+        local stored_oid=""
+        [ -f /zero-init/last_pub_oid ] && stored_oid=$(cat /zero-init/last_pub_oid 2>/dev/null || true)
+        if [ -z "${stored_oid}" ] || [ "${stored_oid}" != "${pub_oid}" ]; then
+            echo "Publication oid changed (stored=${stored_oid:-<none>}, current=${pub_oid}); writing /zero-init/needs_reset."
+            : > /zero-init/needs_reset
+            chmod 666 /zero-init/needs_reset 2>/dev/null || true
+        fi
+        echo "${pub_oid}" > /zero-init/last_pub_oid
+        chmod 666 /zero-init/last_pub_oid 2>/dev/null || true
+        # World-writable dir so the (possibly non-root) zero-cache container
+        # can `rm -f /zero-init/needs_reset` after acting on the marker.
+        chmod 777 /zero-init 2>/dev/null || true
     fi
 }
 
@@ -102,8 +168,12 @@ start_beat() {
 
 # ── Main: run based on role ──────────────────────────────────
 case "${SERVICE_ROLE}" in
-    api)
+    migrate)
         run_migrations
+        echo "Migrations complete; exiting cleanly."
+        exit 0
+        ;;
+    api)
         start_api
         ;;
     worker)
@@ -121,7 +191,7 @@ case "${SERVICE_ROLE}" in
         start_beat
         ;;
     *)
-        echo "ERROR: Unknown SERVICE_ROLE '${SERVICE_ROLE}'. Use: api, worker, beat, or all"
+        echo "ERROR: Unknown SERVICE_ROLE '${SERVICE_ROLE}'. Use: migrate, api, worker, beat, or all"
         exit 1
         ;;
 esac

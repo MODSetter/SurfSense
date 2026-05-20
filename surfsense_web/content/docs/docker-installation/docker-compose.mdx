@@ -71,7 +71,7 @@ Defaults work out of the box. Change `ZERO_ADMIN_PASSWORD` for security in produ
 | `ZERO_UPSTREAM_DB` | PostgreSQL connection URL for replication (must be a direct connection, not via pgbouncer) | *(built from DB_* vars)* |
 | `ZERO_CVR_DB` | PostgreSQL connection URL for client view records | *(built from DB_* vars)* |
 | `ZERO_CHANGE_DB` | PostgreSQL connection URL for replication log entries | *(built from DB_* vars)* |
-| `ZERO_APP_PUBLICATIONS` | PostgreSQL publication restricting which tables are replicated (created by migration 116) | `zero_publication` |
+| `ZERO_APP_PUBLICATIONS` | PostgreSQL publication restricting which tables are replicated (created by migration 116, verified by the `migrations` service before `zero-cache` starts) | `zero_publication` |
 | `ZERO_NUM_SYNC_WORKERS` | Number of view-sync worker processes. Must be ≤ connection pool sizes | `4` |
 | `ZERO_UPSTREAM_MAX_CONNS` | Max connections to upstream PostgreSQL for mutations | `20` |
 | `ZERO_CVR_MAX_CONNS` | Max connections to the CVR database | `30` |
@@ -150,7 +150,9 @@ Uncomment the connectors you want to use. Redirect URIs follow the pattern `http
 | Service | Description |
 |---------|-------------|
 | `db` | PostgreSQL with pgvector extension |
+| `migrations` | Short-lived: runs `alembic upgrade head` and verifies `zero_publication`, then exits |
 | `redis` | Message broker for Celery |
+| `searxng` | Local privacy-respecting search backend |
 | `backend` | FastAPI application server |
 | `celery_worker` | Background task processing (document indexing, etc.) |
 | `celery_beat` | Periodic task scheduler (connector sync) |
@@ -159,7 +161,42 @@ Uncomment the connectors you want to use. Redirect URIs follow the pattern `http
 
 All services start automatically with `docker compose up -d`.
 
-The backend includes a health check. Dependent services (workers, frontend) wait until the API is fully ready before starting. You can monitor startup progress with `docker compose ps` (look for `(health: starting)` → `(healthy)`).
+### How startup ordering works
+
+Schema migrations run as a dedicated `migrations` service that exits 0 on
+success and non-zero on failure. Every other backend-image service gates on
+it via `condition: service_completed_successfully`:
+
+```text
+db (healthy) ──▶ migrations (alembic upgrade head + verify zero_publication)
+                     │
+                     ├── exit 0 ─▶ backend ──▶ frontend
+                     │            celery_worker
+                     │            celery_beat
+                     │            zero-cache ──▶ frontend
+                     │
+                     └── exit ≠ 0 ─▶ compose halts the rest of the stack
+```
+
+This guarantees `zero-cache` only starts after `zero_publication` exists in
+Postgres. Before this design, a silent migration failure would leave
+`zero-cache` crash-looping with `Unknown or invalid publications. Specified:
+[zero_publication]. Found: []`.
+
+### Readiness vs liveness
+
+The backend exposes two endpoints:
+
+- `GET /health` — lightweight liveness probe (always returns 200 if the
+  process is up).
+- `GET /ready` — readiness probe that confirms `zero_publication` exists.
+  Returns 503 if not. The compose `backend.healthcheck` uses `/ready` so the
+  container only reports `healthy` once the schema is actually usable by
+  zero-cache.
+
+You can also monitor startup progress with `docker compose ps` (look for
+`(health: starting)` → `(healthy)`). The install script polls these states
+automatically and times out after 5 minutes if the stack does not converge.
 
 ---
 
@@ -188,6 +225,90 @@ docker compose down -v
 
 - **Ports already in use**: Change the relevant `*_PORT` variable in `.env` and restart.
 - **Permission errors on Linux**: You may need to prefix `docker` commands with `sudo`.
-- **Zero-cache not starting**: Check `docker compose logs zero-cache`. Ensure PostgreSQL has `wal_level=logical` (configured automatically by the bundled `postgresql.conf`).
 - **Real-time updates not working**: Open DevTools → Console and check for WebSocket errors. Verify `NEXT_PUBLIC_ZERO_CACHE_URL` matches the running zero-cache address.
 - **Line ending issues on Windows**: Run `git config --global core.autocrlf true` before cloning.
+
+### Migration service exited non-zero
+
+The `migrations` service exits non-zero in two cases:
+
+1. `alembic upgrade head` failed (timeout or SQL error).
+2. `alembic` succeeded but `zero_publication` is still missing from
+   `pg_publication`.
+
+Inspect the logs and the alembic state:
+
+```bash
+docker compose logs migrations
+docker compose exec db psql -U surfsense -d surfsense \
+  -c 'SELECT * FROM alembic_version;'
+docker compose exec db psql -U surfsense -d surfsense \
+  -c 'SELECT pubname FROM pg_publication;'
+```
+
+The default migration timeout is 900 seconds. Slow disks (Windows / WSL2)
+may need more — set `MIGRATION_TIMEOUT` in `.env` to increase it.
+
+### Zero-cache stuck on `Unknown or invalid publications`
+
+Symptom (in `docker compose logs zero-cache`):
+
+```text
+Error: Unknown or invalid publications. Specified: [zero_publication]. Found: []
+```
+
+This means `zero-cache` started before `zero_publication` was created. With
+the current compose files this should be impossible — the `migrations`
+service blocks `zero-cache` from starting. If you see it, your stack
+predates the fix or you brought up `zero-cache` manually with `docker
+compose up zero-cache` before the migrations service ran.
+
+Recovery:
+
+```bash
+docker compose down
+docker volume rm surfsense-zero-cache   # wipe half-built SQLite replica
+docker compose up -d                    # migrations runs first, then zero-cache
+```
+
+The install script (`install.ps1` / `install.sh`) detects this case
+automatically: if it finds a `surfsense-zero-cache` volume from a previous
+install with no matching `surfsense-zero-init` volume, it removes the stale
+volume before bringing the stack up.
+
+### Zero-cache crashes with `_zero.tableMetadata` errors
+
+This indicates a half-initialized SQLite replica left behind by a previous
+crash. The `migrations` service writes a marker file on a shared volume
+(`surfsense-zero-init`) when the publication oid changes; zero-cache wipes
+its replica and re-syncs on next start. If the marker mechanism somehow did
+not trigger, run the recovery one-liner above.
+
+### Ensuring `wal_level = logical`
+
+Logical replication is required by zero-cache. The bundled
+`docker/postgresql.conf` sets `wal_level = logical` automatically. If you
+swap in your own config or use a managed Postgres, confirm with:
+
+```bash
+docker compose exec db psql -U surfsense -d surfsense \
+  -c "SHOW wal_level;"
+```
+
+### Using `docker-compose.deps-only.yml`
+
+`docker-compose.deps-only.yml` runs only the dependencies (Postgres, Redis,
+SearXNG, zero-cache) on Docker while the backend and frontend run on the
+host. Because there is no backend container in this stack, there is no
+`migrations` service either, and you must run alembic on the host **before**
+bringing the stack up:
+
+```bash
+cd surfsense_backend
+uv run alembic upgrade head
+cd ../docker
+docker compose -f docker-compose.deps-only.yml up -d
+```
+
+If you skip the alembic step, `zero-cache` will crash-loop with `Unknown or
+invalid publications. Specified: [zero_publication]`.

@@ -252,37 +252,36 @@ export function AllPrivateChatsSidebarContent({
 
 	return (
 		<>
-			<div className="shrink-0 p-4 pb-2 space-y-3">
+			<div className="shrink-0 p-3 pb-1.5 space-y-2">
 				<div className="flex items-center gap-2">
 					{isMobile && (
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-8 w-8 rounded-full"
+							className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
 							onClick={() => onOpenChange(false)}
 						>
-							<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+							<ChevronLeft className="h-4 w-4" />
 							<span className="sr-only">{t("close") || "Close"}</span>
 						</Button>
 					)}
-					<User className="h-5 w-5 text-primary" />
 					<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
 				</div>
 
 				<div className="relative">
-					<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+					<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
 					<Input
 						type="text"
 						placeholder={t("search_chats") || "Search chats..."}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="pl-9 pr-8 h-9"
+						className="h-8 border-0 bg-muted pl-8 pr-7 text-sm shadow-none"
 					/>
 					{searchQuery && (
 						<Button
 							variant="ghost"
 							size="icon"
-							className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+							className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 							onClick={handleClearSearch}
 						>
 							<X className="h-3.5 w-3.5" />
@@ -296,23 +295,23 @@ export function AllPrivateChatsSidebarContent({
 				<Tabs
 					value={showArchived ? "archived" : "active"}
 					onValueChange={(value) => setShowArchived(value === "archived")}
-					className="shrink-0 mx-4 mt-2"
+					className="shrink-0 mx-3 mt-1.5"
 				>
 					<TabsList stretch showBottomBorder size="sm">
 						<TabsTrigger value="active">
 							<span className="inline-flex items-center gap-1.5">
-								<MessageCircleMore className="h-4 w-4" />
+								<MessageCircleMore className="h-3.5 w-3.5" />
 								<span>Active</span>
-								<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
+								<span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-muted-foreground">
 									{activeCount}
 								</span>
 							</span>
 						</TabsTrigger>
 						<TabsTrigger value="archived">
 							<span className="inline-flex items-center gap-1.5">
-								<ArchiveIcon className="h-4 w-4" />
+								<ArchiveIcon className="h-3.5 w-3.5" />
 								<span>Archived</span>
-								<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
+								<span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-muted-foreground">
 									{archivedCount}
 								</span>
 							</span>
@@ -321,7 +320,7 @@ export function AllPrivateChatsSidebarContent({
 				</Tabs>
 			)}
 
-			<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
+			<div className="flex-1 overflow-y-auto overflow-x-hidden p-1.5">
 				{isLoading ? (
 					<div className="space-y-1">
 						{[75, 90, 55, 80, 65, 85].map((titleWidth) => (
@@ -347,19 +346,11 @@ export function AllPrivateChatsSidebarContent({
 							const isActive = currentChatId === thread.id;
 
 							return (
-								<div
-									key={thread.id}
-									className={cn(
-										"sidebar-item-lazy group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
-										"hover:bg-accent hover:text-accent-foreground",
-										"transition-colors cursor-pointer",
-										isActive && "bg-accent text-accent-foreground",
-										isBusy && "opacity-50 pointer-events-none"
-									)}
-								>
+								<div key={thread.id} className="group/item relative w-full">
 									{isMobile ? (
-										<button
+										<Button
 											type="button"
+											variant="ghost"
 											onClick={() => {
 												if (wasLongPress()) return;
 												handleThreadClick(thread.id);
@@ -371,21 +362,34 @@ export function AllPrivateChatsSidebarContent({
 											onTouchEnd={longPressHandlers.onTouchEnd}
 											onTouchMove={longPressHandlers.onTouchMove}
 											disabled={isBusy}
-											className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
+											className={cn(
+												"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
+												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
+												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+												isActive && "bg-accent text-accent-foreground",
+												isBusy && "opacity-50 pointer-events-none"
+											)}
 										>
 											<span className="truncate">{thread.title || "New Chat"}</span>
-										</button>
+										</Button>
 									) : (
 										<Tooltip delayDuration={600}>
 											<TooltipTrigger asChild>
-												<button
+												<Button
 													type="button"
+													variant="ghost"
 													onClick={() => handleThreadClick(thread.id)}
 													disabled={isBusy}
-													className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
+													className={cn(
+														"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
+														"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
+														"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+														isActive && "bg-accent text-accent-foreground",
+														isBusy && "opacity-50 pointer-events-none"
+													)}
 												>
 													<span className="truncate">{thread.title || "New Chat"}</span>
-												</button>
+												</Button>
 											</TooltipTrigger>
 											<TooltipContent side="bottom" align="start">
 												<p>
@@ -395,89 +399,97 @@ export function AllPrivateChatsSidebarContent({
 										</Tooltip>
 									)}
 
-									<DropdownMenu
-										open={openDropdownId === thread.id}
-										onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
+									<div
+										className={cn(
+											"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center rounded-r-md pl-6 pr-1",
+											isActive
+												? "bg-gradient-to-l from-accent from-60% to-transparent"
+												: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
+											isMobile
+												? "opacity-0"
+												: openDropdownId === thread.id
+													? "opacity-100"
+													: "opacity-0 group-hover/item:opacity-100"
+										)}
 									>
-										<DropdownMenuTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className={cn(
-													"h-6 w-6 shrink-0 hover:bg-transparent",
-													isMobile
-														? "opacity-0 pointer-events-none absolute"
-														: openDropdownId === thread.id
-															? "opacity-100"
-															: "md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
-													openDropdownId === thread.id && "bg-accent hover:bg-accent",
-													"transition-opacity"
-												)}
-												disabled={isBusy}
-											>
-												{isDeleting ? (
-													<Spinner size="xs" />
-												) : (
-													<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-												)}
-												<span className="sr-only">{t("more_options") || "More options"}</span>
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end" className="w-40 z-80">
-											{!thread.archived && (
-												<DropdownMenuItem
-													onClick={() => handleStartRename(thread.id, thread.title || "New Chat")}
+										<DropdownMenu
+											open={openDropdownId === thread.id}
+											onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
+										>
+											<DropdownMenuTrigger asChild>
+												<Button
+													variant="ghost"
+													size="icon"
+													className={cn(
+														"pointer-events-auto h-6 w-6 hover:bg-transparent",
+														openDropdownId === thread.id && "bg-accent hover:bg-accent"
+													)}
+													disabled={isBusy}
 												>
-													<Pencil className="mr-2 h-4 w-4" />
-													<span>{t("rename") || "Rename"}</span>
-												</DropdownMenuItem>
-											)}
-											<DropdownMenuItem
-												onClick={() => handleToggleArchive(thread.id, thread.archived)}
-												disabled={isArchiving}
-											>
-												{thread.archived ? (
-													<>
-														<RotateCcwIcon className="mr-2 h-4 w-4" />
-														<span>{t("unarchive") || "Restore"}</span>
-													</>
-												) : (
-													<>
-														<ArchiveIcon className="mr-2 h-4 w-4" />
-														<span>{t("archive") || "Archive"}</span>
-													</>
+													{isDeleting ? (
+														<Spinner size="xs" />
+													) : (
+														<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+													)}
+													<span className="sr-only">{t("more_options") || "More options"}</span>
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end" className="w-40 z-80">
+												{!thread.archived && (
+													<DropdownMenuItem
+														onClick={() => handleStartRename(thread.id, thread.title || "New Chat")}
+													>
+														<Pencil className="mr-2 h-4 w-4" />
+														<span>{t("rename") || "Rename"}</span>
+													</DropdownMenuItem>
 												)}
-											</DropdownMenuItem>
-											<DropdownMenuItem onClick={() => handleDeleteThread(thread.id)}>
-												<Trash2 className="mr-2 h-4 w-4" />
-												<span>{t("delete") || "Delete"}</span>
-											</DropdownMenuItem>
-										</DropdownMenuContent>
-									</DropdownMenu>
+												<DropdownMenuItem
+													onClick={() => handleToggleArchive(thread.id, thread.archived)}
+													disabled={isArchiving}
+												>
+													{thread.archived ? (
+														<>
+															<RotateCcwIcon className="mr-2 h-4 w-4" />
+															<span>{t("unarchive") || "Restore"}</span>
+														</>
+													) : (
+														<>
+															<ArchiveIcon className="mr-2 h-4 w-4" />
+															<span>{t("archive") || "Archive"}</span>
+														</>
+													)}
+												</DropdownMenuItem>
+												<DropdownMenuItem onClick={() => handleDeleteThread(thread.id)}>
+													<Trash2 className="mr-2 h-4 w-4" />
+													<span>{t("delete") || "Delete"}</span>
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</div>
 								</div>
 							);
 						})}
 					</div>
 				) : isSearchMode ? (
 					<div className="text-center py-8">
-						<Search className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-						<p className="text-sm text-muted-foreground">
+						<Search className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
+						<p className="text-xs text-muted-foreground">
 							{t("no_chats_found") || "No chats found"}
 						</p>
-						<p className="text-xs text-muted-foreground/70 mt-1">
+						<p className="mt-1 text-[11px] text-muted-foreground/70">
 							{t("try_different_search") || "Try a different search term"}
 						</p>
 					</div>
 				) : (
 					<div className="text-center py-8">
-						<User className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-						<p className="text-sm text-muted-foreground">
+						<User className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
+						<p className="text-xs text-muted-foreground">
 							{showArchived
 								? t("no_archived_chats") || "No archived chats"
 								: t("no_chats") || "No private chats"}
 						</p>
 						{!showArchived && (
-							<p className="text-xs text-muted-foreground/70 mt-1">
+							<p className="mt-1 text-[11px] text-muted-foreground/70">
 								{t("start_new_chat_hint") || "Start a new chat from the chat page"}
 							</p>
 						)}

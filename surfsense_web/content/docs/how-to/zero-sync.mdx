@@ -43,10 +43,31 @@ zero-cache is included in the Docker Compose setup. The key environment variable
 
 ### Manual / Local Development
 
-If running the frontend outside Docker (e.g., `pnpm dev`), you need:
+If running the frontend outside Docker (e.g. `pnpm dev`), you need:
 
-1. A running zero-cache instance pointing at your PostgreSQL database
-2. `NEXT_PUBLIC_ZERO_CACHE_URL` set in your `.env` file (default: `http://localhost:4848`)
+1. **A running zero-cache instance** pointing at your PostgreSQL database. The easiest path is the official Docker image:
+
+    ```bash
+    docker run -d --name surfsense-zero-cache \
+      -p 4848:4848 \
+      --add-host=host.docker.internal:host-gateway \
+      -e ZERO_UPSTREAM_DB="postgresql://postgres:postgres@host.docker.internal:5432/surfsense?sslmode=disable" \
+      -e ZERO_CVR_DB="postgresql://postgres:postgres@host.docker.internal:5432/surfsense?sslmode=disable" \
+      -e ZERO_CHANGE_DB="postgresql://postgres:postgres@host.docker.internal:5432/surfsense?sslmode=disable" \
+      -e ZERO_REPLICA_FILE=/data/zero.db \
+      -e ZERO_ADMIN_PASSWORD=surfsense-zero-admin \
+      -e ZERO_APP_PUBLICATIONS=zero_publication \
+      -e ZERO_QUERY_URL="http://host.docker.internal:3000/api/zero/query" \
+      -e ZERO_MUTATE_URL="http://host.docker.internal:3000/api/zero/mutate" \
+      -v surfsense-zero-cache:/data \
+      rocicorp/zero:1.4.0
+    ```
+
+    Run `uv run alembic upgrade head` from `surfsense_backend/` **before** starting this container so the `zero_publication` exists.
+2. **`NEXT_PUBLIC_ZERO_CACHE_URL`** set in `surfsense_web/.env` (default: `http://localhost:4848`).
+3. **`wal_level = logical`** in your PostgreSQL config (see [Manual Installation → Configure PostgreSQL for Zero Sync](/docs/manual-installation#3-configure-postgresql-for-zero-sync)).
+
+For the full manual setup walkthrough, see the [Manual Installation guide](/docs/manual-installation).
 
 ### Custom Domain / Reverse Proxy
 

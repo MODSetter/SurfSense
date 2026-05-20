@@ -81,6 +81,7 @@ from app.tasks.chat.streaming.helpers.interrupt_inspector import (
 )
 from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
+from app.utils.surfsense_docs import surfsense_docs_public_url
 from app.utils.user_message_multimodal import build_human_message_content
 
 _background_tasks: set[asyncio.Task] = set()
@@ -216,14 +217,17 @@ def format_mentioned_surfsense_docs_as_context(
     )
 
     for doc in documents:
-        metadata_json = json.dumps({"source": doc.source}, ensure_ascii=False)
+        public_url = surfsense_docs_public_url(doc.source)
+        metadata_json = json.dumps(
+            {"source": doc.source, "public_url": public_url}, ensure_ascii=False
+        )
 
         context_parts.append("<document>")
         context_parts.append("<document_metadata>")
         context_parts.append(f"  <document_id>doc-{doc.id}</document_id>")
         context_parts.append("  <document_type>SURFSENSE_DOCS</document_type>")
         context_parts.append(f"  <title><![CDATA[{doc.title}]]></title>")
-        context_parts.append(f"  <url><![CDATA[{doc.source}]]></url>")
+        context_parts.append(f"  <url><![CDATA[{public_url}]]></url>")
         context_parts.append(
             f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>"
         )
@@ -1487,14 +1491,20 @@ async def stream_new_chat(
 
         # Resolve @-mention chips to canonical virtual paths and rewrite
         # the user-typed text so the LLM sees ``\`/documents/...\``` instead
-        # of bare ``@title``. The persisted user-message text keeps
-        # ``@title`` so chip rendering on reload is unchanged — see
-        # ``persistence._build_user_content``.
+        # of bare ``@title``. The substitution lands in ``agent_user_query``
+        # ONLY — the original ``user_query`` (with ``@title`` tokens) flows
+        # untouched into ``persist_user_turn`` below so chip rendering on
+        # reload still works (``UserTextPart`` → ``parseMentionSegments``
+        # matches ``@title``, not ``\`/documents/...\```). It also feeds
+        # the human-readable surfaces — SSE "Processing X" status, auto
+        # thread title, memory seed — which all want what the user typed.
+        # See ``persistence._build_user_content``.
         #
         # Cloud mode only: local-folder mode keeps the legacy
         # ``@title`` text path; mention support there is a follow-up
         # task because the path scheme (mount-rooted) and the picker
         # UI both need separate work.
+        agent_user_query = user_query
         accepted_folder_ids: list[int] = []
         if fs_mode == FilesystemMode.CLOUD.value and (
             mentioned_document_ids
@@ -1529,11 +1539,13 @@ async def stream_new_chat(
                 mentioned_surfsense_doc_ids=mentioned_surfsense_doc_ids,
                 mentioned_folder_ids=mentioned_folder_ids,
             )
-            user_query = substitute_in_text(user_query, resolved.token_to_path)
+            agent_user_query = substitute_in_text(user_query, resolved.token_to_path)
             accepted_folder_ids = resolved.mentioned_folder_ids
 
-        # Format the user query with context (SurfSense docs + reports only)
-        final_query = user_query
+        # Format the user query with context (SurfSense docs + reports only).
+        # Uses ``agent_user_query`` so the LLM sees backtick-wrapped paths
+        # instead of bare ``@title`` tokens.
+        final_query = agent_user_query
         context_parts = []
 
         if mentioned_surfsense_docs:
@@ -1564,7 +1576,7 @@ async def stream_new_chat(
 
         if context_parts:
             context = "\n\n".join(context_parts)
-            final_query = f"{context}\n\n<user_query>{user_query}</user_query>"
+            final_query = f"{context}\n\n<user_query>{agent_user_query}</user_query>"
 
         if visibility == ChatVisibility.SEARCH_SPACE and current_user_display_name:
             final_query = f"**[{current_user_display_name}]:** {final_query}"

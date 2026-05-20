@@ -24,6 +24,7 @@ interface ConnectorAccountsListViewProps {
 	indexingConnectorIds: Set<number>;
 	onBack: () => void;
 	onManage: (connector: SearchSourceConnector) => void;
+	onDisconnect?: (connector: SearchSourceConnector) => Promise<void> | void;
 	onAddAccount: () => void;
 	isConnecting?: boolean;
 	addButtonText?: string;
@@ -36,12 +37,15 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	indexingConnectorIds,
 	onBack,
 	onManage,
+	onDisconnect,
 	onAddAccount,
 	isConnecting = false,
 	addButtonText,
 }) => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const [reauthingId, setReauthingId] = useState<number | null>(null);
+	const [confirmDisconnectId, setConfirmDisconnectId] = useState<number | null>(null);
+	const [disconnectingId, setDisconnectingId] = useState<number | null>(null);
 
 	// Get connector status
 	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
@@ -104,16 +108,17 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	return (
 		<div className="flex flex-col h-full">
 			{/* Header */}
-			<div className="px-6 sm:px-12 pt-8 sm:pt-10 pb-1 sm:pb-4 border-b border-border/50 bg-muted">
+			<div className="px-6 sm:px-12 pt-8 sm:pt-10 pb-1 sm:pb-4 bg-popover">
 				{/* Back button */}
-				<button
+				<Button
 					type="button"
+					variant="ghost"
 					onClick={onBack}
-					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+					className="mb-6 h-auto w-fit gap-2 px-0 py-0 text-xs font-normal text-muted-foreground hover:bg-transparent hover:text-accent-foreground sm:text-sm"
 				>
 					<ArrowLeft className="size-4" />
 					Back to connectors
-				</button>
+				</Button>
 
 				{/* Connector header */}
 				<div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
@@ -131,15 +136,16 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 						</div>
 					</div>
 					{/* Add Account Button with dashed border */}
-					<button
+					<Button
 						type="button"
+						variant="ghost"
 						onClick={onAddAccount}
 						disabled={isConnecting || !isEnabled}
 						className={cn(
-							"flex items-center justify-center gap-1.5 h-8 px-3 rounded-md border-2 border-dashed text-xs sm:text-sm transition-all duration-200 shrink-0 w-full sm:w-auto",
+							"h-8 w-full shrink-0 gap-1.5 rounded-md border-2 border-dashed px-3 text-xs transition-all duration-200 sm:w-auto sm:text-sm",
 							!isEnabled
 								? "border-border/30 opacity-50 cursor-not-allowed"
-								: "border-slate-400/20 dark:border-white/20 hover:bg-primary/5",
+								: "border-slate-400/20 dark:border-white/20 hover:bg-accent hover:text-accent-foreground",
 							isConnecting && "opacity-50 cursor-not-allowed"
 						)}
 					>
@@ -151,7 +157,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 							)}
 						</div>
 						<span className="text-xs sm:text-sm font-medium">{buttonText}</span>
-					</button>
+					</Button>
 				</div>
 			</div>
 
@@ -194,7 +200,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 										"flex items-center gap-4 p-4 rounded-xl transition-all",
 										isIndexing
 											? "bg-primary/5 border-0"
-											: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
+											: "bg-slate-400/5 dark:bg-white/5 hover:bg-accent hover:text-accent-foreground border border-border"
 									)}
 								>
 									<div
@@ -227,7 +233,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 									{isAuthExpired ? (
 										<Button
 											size="sm"
-											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
+											className="h-8 text-[11px] px-3 font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
 											onClick={() => handleReauth(connector)}
 											disabled={reauthingId === connector.id}
 										>
@@ -236,11 +242,55 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 											/>
 											Re-authenticate
 										</Button>
+									) : isLive && onDisconnect ? (
+										confirmDisconnectId === connector.id ? (
+											<div className="flex items-center gap-1.5 shrink-0">
+												<Button
+													variant="destructive"
+													size="sm"
+													className="h-8 text-[11px] px-3 font-medium shadow-xs"
+													onClick={async () => {
+														setDisconnectingId(connector.id);
+														setConfirmDisconnectId(null);
+														try {
+															await onDisconnect(connector);
+														} finally {
+															setDisconnectingId(null);
+														}
+													}}
+													disabled={disconnectingId === connector.id}
+												>
+													{disconnectingId === connector.id ? (
+														<RefreshCw className="size-3.5 animate-spin" />
+													) : (
+														"Confirm"
+													)}
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													className="h-8 text-[11px] px-2"
+													onClick={() => setConfirmDisconnectId(null)}
+													disabled={disconnectingId === connector.id}
+												>
+													Cancel
+												</Button>
+											</div>
+										) : (
+											<Button
+												variant="destructive"
+												size="sm"
+												className="h-8 text-[11px] px-3 font-medium shrink-0"
+												onClick={() => setConfirmDisconnectId(connector.id)}
+											>
+												Disconnect
+											</Button>
+										)
 									) : (
 										<Button
 											variant="secondary"
 											size="sm"
-											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+											className="h-8 text-[11px] px-3 font-medium bg-white text-slate-700 hover:bg-accent hover:text-accent-foreground border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground shrink-0"
 											onClick={() => onManage(connector)}
 										>
 											Manage

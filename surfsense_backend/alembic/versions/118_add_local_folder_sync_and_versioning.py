@@ -1,5 +1,16 @@
 """Add LOCAL_FOLDER_FILE document type, folder metadata, and document_versions table
 
+DO NOT COPY THIS PATTERN. The bare ``ALTER PUBLICATION ... ADD/DROP
+TABLE`` calls below pre-date the ``COMMENT ON PUBLICATION`` bookend
+fix for bug #1355: on Zero >= 1.0 they do not reliably wake the
+zero-cache change-streamer and can leave the replica pinned to a
+stale snapshot. This file is grandfathered in because it has already
+shipped to users; new publication mutations MUST use the
+``COMMENT ON PUBLICATION`` bookend pattern wrapping an
+``ALTER PUBLICATION ... SET TABLE`` -- copy the ``upgrade()`` function
+from migration ``143_force_zero_publication_resync.py`` as your
+starting template.
+
 Revision ID: 118
 Revises: 117
 """

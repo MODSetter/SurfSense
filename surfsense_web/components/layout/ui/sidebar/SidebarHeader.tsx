@@ -36,14 +36,14 @@ export function SidebarHeader({
 					<Button
 						variant="ghost"
 						className={cn(
-							"flex h-auto w-full items-center justify-between gap-1 overflow-hidden py-1.5 font-semibold",
+							"flex h-8 w-full items-center justify-between gap-1 overflow-hidden px-2 py-0.5 font-semibold",
 							isCollapsed && "w-10"
 						)}
 					>
-						<span className="truncate text-base">
+						<span className="truncate text-sm">
 							{searchSpace?.name ?? t("select_search_space")}
 						</span>
-						<ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+						<ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="start" className="w-48">

@@ -22,6 +22,7 @@ class SurfsenseDocsDocumentRead(BaseModel):
     id: int
     title: str
     source: str
+    public_url: str
     content: str
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -35,6 +36,7 @@ class SurfsenseDocsDocumentWithChunksRead(BaseModel):
     id: int
     title: str
     source: str
+    public_url: str
     content: str
     chunks: list[SurfsenseDocsChunkRead]
 

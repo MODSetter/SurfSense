@@ -1,11 +1,12 @@
 "use client";
 
-import { CreditCard, SquarePen, Zap } from "lucide-react";
+import { CreditCard, Dot, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsAnonymous } from "@/contexts/anonymous-mode";
@@ -22,12 +23,40 @@ import { SidebarHeader } from "./SidebarHeader";
 import { SidebarSection } from "./SidebarSection";
 import { SidebarUserProfile } from "./SidebarUserProfile";
 
-function ChatListItemSkeleton() {
+const CHAT_LIST_SKELETON_WIDTHS = ["w-[78%]", "w-[64%]", "w-[86%]", "w-[58%]", "w-[72%]"];
+
+function ChatListItemSkeleton({ widthClass }: { widthClass: string }) {
 	return (
-		<div className="flex w-full items-center gap-2 rounded-md p-2">
-			<Skeleton className="h-4 w-4 shrink-0 rounded" />
-			<Skeleton className="h-4 w-full max-w-[180px]" />
+		<div className="group/item relative w-full">
+			<div className="flex h-[32px] w-full items-center rounded-md px-2 py-1.5">
+				<Skeleton className={cn("h-4 rounded", widthClass)} />
+			</div>
 		</div>
+	);
+}
+
+function ChatListSkeletonRows() {
+	return (
+		<div className="flex flex-col gap-0.5">
+			{CHAT_LIST_SKELETON_WIDTHS.map((widthClass) => (
+				<ChatListItemSkeleton key={widthClass} widthClass={widthClass} />
+			))}
+		</div>
+	);
+}
+
+function CollapsedInboxIcon({ item }: { item: NavItem }) {
+	const Icon = item.icon;
+
+	return (
+		<span className="relative flex h-3.5 w-3.5 items-center justify-center">
+			<Icon className="h-3.5 w-3.5" />
+			{typeof item.badge === "string" ? (
+				<span className="absolute right-0 top-0 flex min-w-3.5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-medium leading-3 text-destructive-foreground">
+					{item.badge}
+				</span>
+			) : null}
+		</span>
 	);
 }
 
@@ -53,6 +82,9 @@ interface SidebarProps {
 	onSettings?: () => void;
 	onManageMembers?: () => void;
 	onUserSettings?: () => void;
+	onAnnouncements?: () => void;
+	onNavigate?: () => void;
+	announcementUnreadCount?: number;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	theme?: string;
@@ -62,6 +94,9 @@ interface SidebarProps {
 	disableTooltips?: boolean;
 	sidebarWidth?: number;
 	isResizing?: boolean;
+	renderUserProfile?: boolean;
+	renderCollapseButton?: boolean;
+	collapsedHeaderContent?: ReactNode;
 }
 
 export function Sidebar({
@@ -86,6 +121,9 @@ export function Sidebar({
 	onSettings,
 	onManageMembers,
 	onUserSettings,
+	onAnnouncements,
+	onNavigate,
+	announcementUnreadCount = 0,
 	onLogout,
 	pageUsage,
 	theme,
@@ -95,62 +133,117 @@ export function Sidebar({
 	disableTooltips = false,
 	sidebarWidth = SIDEBAR_MIN_WIDTH,
 	isResizing = false,
+	renderUserProfile = true,
+	renderCollapseButton = true,
+	collapsedHeaderContent,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
 
+	// Inbox and Documents are rendered explicitly right below New Chat. Pull
+	// them out of the nav items list so they don't also appear in the bottom
+	// NavSection. Documents is only present in navItems on mobile.
+	const inboxItem = useMemo(() => navItems.find((item) => item.url === "#inbox"), [navItems]);
+	const documentsItem = useMemo(
+		() => navItems.find((item) => item.url === "#documents"),
+		[navItems]
+	);
+	const footerNavItems = useMemo(
+		() => navItems.filter((item) => item.url !== "#inbox" && item.url !== "#documents"),
+		[navItems]
+	);
+
+	const collapsedWidth = 51;
+
 	return (
 		<div
 			className={cn(
-				"relative flex h-full flex-col bg-sidebar text-sidebar-foreground overflow-hidden select-none",
-				isCollapsed ? "w-[60px] transition-[width] duration-200" : "",
-				!isCollapsed && !isResizing ? "transition-[width] duration-200" : "",
+				"relative flex h-full flex-col bg-panel text-sidebar-foreground overflow-hidden select-none",
+				!isResizing && "transition-[width] duration-200 ease-out",
 				className
 			)}
-			style={!isCollapsed ? { width: sidebarWidth } : undefined}
+			style={{ width: isCollapsed ? collapsedWidth : sidebarWidth }}
 		>
-			{/* Header - search space name or collapse button when collapsed */}
-			{isCollapsed ? (
-				<div className="flex h-14 shrink-0 items-center justify-center border-b">
-					<SidebarCollapseButton
-						isCollapsed={isCollapsed}
-						onToggle={onToggleCollapse ?? (() => {})}
-						disableTooltip={disableTooltips}
-					/>
-				</div>
-			) : (
-				<div className="flex h-14 shrink-0 items-center gap-0 px-1 border-b">
+			<div className="relative flex h-12 shrink-0 items-center gap-0 px-1 border-b">
+				<div
+					className={cn(
+						"min-w-0 overflow-hidden",
+						"transition-[max-width,opacity,margin-right] duration-200 ease-out",
+						isCollapsed ? "max-w-0 opacity-0 mr-0" : "max-w-[400px] flex-1 opacity-100"
+					)}
+					aria-hidden={isCollapsed}
+				>
 					<SidebarHeader
 						searchSpace={searchSpace}
-						isCollapsed={isCollapsed}
+						isCollapsed={false}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
 					/>
-					<div className="shrink-0">
+				</div>
+				{collapsedHeaderContent ? (
+					<div
+						aria-hidden={!isCollapsed}
+						className={cn(
+							"pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center transition-opacity duration-150",
+							isCollapsed ? "opacity-100 delay-150" : "opacity-0"
+						)}
+						style={{ width: collapsedWidth }}
+					>
+						{collapsedHeaderContent}
+					</div>
+				) : null}
+				{renderCollapseButton ? (
+					<div className={cn("shrink-0", isCollapsed && "mx-auto")}>
 						<SidebarCollapseButton
 							isCollapsed={isCollapsed}
 							onToggle={onToggleCollapse ?? (() => {})}
 							disableTooltip={disableTooltips}
 						/>
 					</div>
-				</div>
-			)}
+				) : null}
+			</div>
 
-			{/* New chat button */}
-			<div className={cn("flex flex-col gap-0.5 py-2", isCollapsed && "items-center")}>
+			<div className="flex flex-col gap-0.5 py-1.5">
 				<SidebarButton
 					icon={SquarePen}
 					label={t("new_chat")}
 					onClick={onNewChat}
 					isCollapsed={isCollapsed}
 				/>
+				{inboxItem && (
+					<SidebarButton
+						icon={inboxItem.icon}
+						label={inboxItem.title}
+						onClick={() => onNavItemClick?.(inboxItem)}
+						isCollapsed={isCollapsed}
+						isActive={inboxItem.isActive}
+						badge={inboxItem.badge}
+						collapsedIconNode={<CollapsedInboxIcon item={inboxItem} />}
+						tooltipContent={isCollapsed ? inboxItem.title : undefined}
+						buttonProps={
+							{
+								"data-joyride": "inbox-sidebar",
+							} as React.ButtonHTMLAttributes<HTMLButtonElement>
+						}
+					/>
+				)}
+				{documentsItem && (
+					<SidebarButton
+						icon={documentsItem.icon}
+						label={documentsItem.title}
+						onClick={() => onNavItemClick?.(documentsItem)}
+						isCollapsed={isCollapsed}
+						isActive={documentsItem.isActive}
+						tooltipContent={isCollapsed ? documentsItem.title : undefined}
+					/>
+				)}
 			</div>
 
 			{/* Chat sections - fills available space */}
 			{isCollapsed ? (
-				<div className="flex-1 w-[60px]" />
+				<div className="flex-1 w-full" />
 			) : (
-				<div className="flex-1 flex flex-col gap-1 py-2 w-full min-h-0 overflow-hidden">
+				<div className="flex-1 flex flex-col gap-1 pt-2 w-full min-h-0 overflow-hidden">
 					{/* Shared Chats Section - takes only space needed, max 50% */}
 					<SidebarSection
 						title={t("shared_chats")}
@@ -160,28 +253,23 @@ export function Sidebar({
 						alwaysShowAction={!disableTooltips && isSharedChatsPanelOpen}
 						action={
 							onViewAllSharedChats ? (
-								<button
+								<Button
 									type="button"
+									variant="ghost"
 									onClick={onViewAllSharedChats}
-									className="text-xs font-medium text-muted-foreground/60 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+									className="h-auto cursor-pointer whitespace-nowrap bg-transparent p-0 text-xs font-medium text-muted-foreground/60 transition-colors hover:bg-transparent hover:text-muted-foreground"
 								>
 									{!disableTooltips && isSharedChatsPanelOpen ? t("hide") : t("show_all")}
-								</button>
+								</Button>
 							) : undefined
 						}
 					>
 						{isLoadingChats ? (
-							<div className="flex flex-col gap-0.5">
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-							</div>
+							<ChatListSkeletonRows />
 						) : sharedChats.length > 0 ? (
 							<div className="relative min-h-0 flex-1">
 								<div
-									className={`flex flex-col gap-0.5 max-h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? "pb-8" : ""}`}
+									className={`flex flex-col gap-0.5 max-h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? "pb-2" : ""}`}
 								>
 									{sharedChats.slice(0, 20).map((chat) => (
 										<ChatListItem
@@ -200,11 +288,11 @@ export function Sidebar({
 								</div>
 								{/* Gradient fade indicator when more than 4 items */}
 								{sharedChats.length > 4 && (
-									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-sidebar via-sidebar/90 to-transparent" />
+									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-sidebar/80 to-transparent" />
 								)}
 							</div>
 						) : (
-							<p className="px-2 py-1 text-xs text-muted-foreground">{t("no_shared_chats")}</p>
+							<p className="px-2 py-1 text-sm text-muted-foreground/60">{t("no_shared_chats")}</p>
 						)}
 					</SidebarSection>
 
@@ -216,28 +304,23 @@ export function Sidebar({
 						alwaysShowAction={!disableTooltips && isPrivateChatsPanelOpen}
 						action={
 							onViewAllPrivateChats ? (
-								<button
+								<Button
 									type="button"
+									variant="ghost"
 									onClick={onViewAllPrivateChats}
-									className="text-xs font-medium text-muted-foreground/60 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+									className="h-auto cursor-pointer whitespace-nowrap bg-transparent p-0 text-xs font-medium text-muted-foreground/60 transition-colors hover:bg-transparent hover:text-muted-foreground"
 								>
 									{!disableTooltips && isPrivateChatsPanelOpen ? t("hide") : t("show_all")}
-								</button>
+								</Button>
 							) : undefined
 						}
 					>
 						{isLoadingChats ? (
-							<div className="flex flex-col gap-0.5">
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-								<ChatListItemSkeleton />
-							</div>
+							<ChatListSkeletonRows />
 						) : chats.length > 0 ? (
 							<div className="relative flex-1 min-h-0">
 								<div
-									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${chats.length > 4 ? "pb-8" : ""}`}
+									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${chats.length > 4 ? "pb-2" : ""}`}
 								>
 									{chats.slice(0, 20).map((chat) => (
 										<ChatListItem
@@ -256,11 +339,11 @@ export function Sidebar({
 								</div>
 								{/* Gradient fade indicator when more than 4 items */}
 								{chats.length > 4 && (
-									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-sidebar via-sidebar/90 to-transparent" />
+									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-sidebar/80 to-transparent" />
 								)}
 							</div>
 						) : (
-							<p className="px-2 py-1 text-xs text-muted-foreground">{t("no_chats")}</p>
+							<p className="px-2 py-1 text-sm text-muted-foreground/60">{t("no_chats")}</p>
 						)}
 					</SidebarSection>
 				</div>
@@ -269,20 +352,33 @@ export function Sidebar({
 			{/* Footer */}
 			<div className="mt-auto border-t">
 				{/* Platform navigation */}
-				{navItems.length > 0 && (
-					<NavSection items={navItems} onItemClick={onNavItemClick} isCollapsed={isCollapsed} />
+				{footerNavItems.length > 0 && (
+					<NavSection
+						items={footerNavItems}
+						onItemClick={onNavItemClick}
+						isCollapsed={isCollapsed}
+					/>
 				)}
 
-				<SidebarUsageFooter pageUsage={pageUsage} isCollapsed={isCollapsed} />
-
-				<SidebarUserProfile
-					user={user}
-					onUserSettings={onUserSettings}
-					onLogout={onLogout}
+				<SidebarUsageFooter
+					pageUsage={pageUsage}
 					isCollapsed={isCollapsed}
-					theme={theme}
-					setTheme={setTheme}
+					hasNavSectionAbove={footerNavItems.length > 0}
+					onNavigate={onNavigate}
 				/>
+
+				{renderUserProfile && (
+					<SidebarUserProfile
+						user={user}
+						onUserSettings={onUserSettings}
+						onAnnouncements={onAnnouncements}
+						announcementUnreadCount={announcementUnreadCount}
+						onLogout={onLogout}
+						isCollapsed={isCollapsed}
+						theme={theme}
+						setTheme={setTheme}
+					/>
+				)}
 			</div>
 		</div>
 	);
@@ -291,9 +387,13 @@ export function Sidebar({
 function SidebarUsageFooter({
 	pageUsage,
 	isCollapsed,
+	hasNavSectionAbove = false,
+	onNavigate,
 }: {
 	pageUsage?: PageUsage;
 	isCollapsed: boolean;
+	hasNavSectionAbove?: boolean;
+	onNavigate?: () => void;
 }) {
 	const params = useParams();
 	const searchSpaceId = params?.search_space_id ?? "";
@@ -301,9 +401,11 @@ function SidebarUsageFooter({
 
 	if (isCollapsed) return null;
 
+	const containerClass = cn("px-3 py-3 space-y-3", hasNavSectionAbove && "border-t");
+
 	if (isAnonymous) {
 		return (
-			<div className="px-3 py-3 border-t space-y-3">
+			<div className={containerClass}>
 				{pageUsage && (
 					<div className="space-y-1.5">
 						<div className="flex justify-between items-center text-xs">
@@ -336,12 +438,13 @@ function SidebarUsageFooter({
 	}
 
 	return (
-		<div className="px-3 py-3 border-t space-y-3">
+		<div className={containerClass}>
 			<PremiumTokenUsageDisplay />
 			<AuthenticatedPageUsageDisplay />
 			<div className="space-y-0.5">
 				<Link
 					href={`/dashboard/${searchSpaceId}/more-pages`}
+					onClick={onNavigate}
 					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
 				>
 					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
@@ -354,14 +457,17 @@ function SidebarUsageFooter({
 				</Link>
 				<Link
 					href={`/dashboard/${searchSpaceId}/buy-more`}
+					onClick={onNavigate}
 					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
 				>
 					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
 						<CreditCard className="h-3 w-3 shrink-0" />
 						Buy More
 					</span>
-					<span className="text-[10px] font-medium text-muted-foreground">
-						$1/1k &middot; $1/1M
+					<span className="flex items-center text-[10px] font-medium text-muted-foreground">
+						$1/1k
+						<Dot className="h-3 w-3" />
+						$1/1M
 					</span>
 				</Link>
 			</div>

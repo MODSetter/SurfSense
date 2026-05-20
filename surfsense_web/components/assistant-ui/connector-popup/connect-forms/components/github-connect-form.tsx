@@ -105,20 +105,23 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 
 	return (
 		<div className="space-y-6 pb-6">
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
-				<Info className="size-4 shrink-0" />
-				<AlertTitle className="text-xs sm:text-sm">Personal Access Token (Optional)</AlertTitle>
-				<AlertDescription className="text-[10px] sm:text-xs">
-					A GitHub PAT is only required for private repositories. Public repos work without a token.{" "}
-					<a
-						href="https://github.com/settings/tokens/new?description=surfsense&scopes=repo"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="font-medium underline underline-offset-4 inline-flex items-center gap-1.5"
-					>
-						Get your token
-						<ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
-					</a>{" "}
+			<Alert>
+				<Info />
+				<AlertTitle>Personal Access Token (Optional)</AlertTitle>
+				<AlertDescription>
+					<p>
+						A GitHub PAT is only required for private repositories. Public repos work without a
+						token.{" "}
+						<a
+							href="https://github.com/settings/tokens/new?description=surfsense&scopes=repo"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="font-medium underline underline-offset-4 inline-flex items-center gap-1.5"
+						>
+							Get your token
+							<ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
+						</a>
+					</p>
 				</AlertDescription>
 			</Alert>
 

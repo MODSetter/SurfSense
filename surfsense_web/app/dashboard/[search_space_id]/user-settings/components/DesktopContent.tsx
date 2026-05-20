@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -11,7 +10,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import type { SearchSpace } from "@/contracts/types/search-space.types";
 import { useElectronAPI } from "@/hooks/use-platform";
@@ -77,8 +77,27 @@ export function DesktopContent() {
 
 	if (loading) {
 		return (
-			<div className="flex items-center justify-center py-12">
-				<Spinner size="md" className="text-muted-foreground" />
+			<div className="flex flex-col gap-4 md:gap-6">
+				<section>
+					<div className="flex flex-col gap-2 pb-2 md:pb-3">
+						<Skeleton className="h-6 w-48 bg-accent" />
+						<Skeleton className="h-4 w-full max-w-2xl bg-accent" />
+					</div>
+					<Skeleton className="h-10 w-full bg-accent" />
+				</section>
+
+				<Separator className="bg-border" />
+
+				<section>
+					<div className="flex flex-col gap-2 pb-2 md:pb-3">
+						<Skeleton className="h-6 w-44 bg-accent" />
+						<Skeleton className="h-4 w-full max-w-3xl bg-accent" />
+					</div>
+					<div className="flex flex-col gap-3">
+						<Skeleton className="h-20 w-full bg-accent" />
+						<Skeleton className="h-20 w-full bg-accent" />
+					</div>
+				</section>
 			</div>
 		);
 	}
@@ -124,16 +143,16 @@ export function DesktopContent() {
 	};
 
 	return (
-		<div className="space-y-4 md:space-y-6">
-			<Card>
-				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
-					<CardTitle className="text-base md:text-lg">Default Search Space</CardTitle>
-					<CardDescription className="text-xs md:text-sm">
+		<div className="flex flex-col gap-4 md:gap-6">
+			<section>
+				<div className="pb-2 md:pb-3">
+					<h2 className="text-base md:text-lg font-semibold">Default Search Space</h2>
+					<p className="text-xs md:text-sm text-muted-foreground">
 						Choose which search space General Assist, Screenshot Assist, and Quick Assist use by
 						default.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+					</p>
+				</div>
+				<div>
 					{searchSpaces.length > 0 ? (
 						<Select value={activeSpaceId ?? undefined} onValueChange={handleSearchSpaceChange}>
 							<SelectTrigger className="w-full">
@@ -152,21 +171,23 @@ export function DesktopContent() {
 							No search spaces found. Create one first.
 						</p>
 					)}
-				</CardContent>
-			</Card>
+				</div>
+			</section>
 
-			<Card>
-				<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
-					<CardTitle className="text-base md:text-lg flex items-center gap-2">
+			<Separator className="bg-border" />
+
+			<section>
+				<div className="pb-2 md:pb-3">
+					<h2 className="text-base md:text-lg font-semibold flex items-center gap-2">
 						Launch on Startup
-					</CardTitle>
-					<CardDescription className="text-xs md:text-sm">
+					</h2>
+					<p className="text-xs md:text-sm text-muted-foreground">
 						Automatically start SurfSense when you sign in to your computer so global shortcuts and
 						folder sync are always available.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="px-3 md:px-6 pb-3 md:pb-6 space-y-3">
-					<div className="flex items-center justify-between rounded-lg border p-4">
+					</p>
+				</div>
+				<div className="flex flex-col gap-3">
+					<div className="flex items-center justify-between rounded-lg bg-accent p-4">
 						<div className="space-y-0.5">
 							<Label htmlFor="auto-launch-toggle" className="text-sm font-medium cursor-pointer">
 								Open SurfSense at login
@@ -184,7 +205,7 @@ export function DesktopContent() {
 							disabled={!autoLaunchSupported}
 						/>
 					</div>
-					<div className="flex items-center justify-between rounded-lg border p-4">
+					<div className="flex items-center justify-between rounded-lg bg-accent p-4">
 						<div className="space-y-0.5">
 							<Label
 								htmlFor="auto-launch-hidden-toggle"
@@ -193,7 +214,7 @@ export function DesktopContent() {
 								Start minimized to tray
 							</Label>
 							<p className="text-xs text-muted-foreground">
-								Skip the main window on boot — SurfSense lives in the system tray until you need it.
+								Skip the main window on boot. SurfSense lives in the system tray until you need it.
 							</p>
 						</div>
 						<Switch
@@ -203,8 +224,8 @@ export function DesktopContent() {
 							disabled={!autoLaunchSupported || !autoLaunchEnabled}
 						/>
 					</div>
-				</CardContent>
-			</Card>
+				</div>
+			</section>
 		</div>
 	);
 }

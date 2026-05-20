@@ -90,14 +90,15 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			{/* Header */}
 			<div className="flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10">
-				<button
+				<Button
+					variant="ghost"
 					type="button"
 					onClick={onBack}
-					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+					className="mb-6 h-auto w-fit justify-start gap-2 px-0 py-0 text-xs text-muted-foreground hover:bg-transparent hover:text-accent-foreground sm:text-sm"
 				>
-					<ArrowLeft className="size-4" />
+					<ArrowLeft data-icon="inline-start" />
 					Back to connectors
-				</button>
+				</Button>
 
 				<div className="flex items-center gap-4 mb-6">
 					<div className="flex h-14 w-14 items-center justify-center rounded-xl border border-slate-400/30">
@@ -133,7 +134,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-muted border-t border-border">
+			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-popover">
 				<Button
 					variant="ghost"
 					onClick={onBack}

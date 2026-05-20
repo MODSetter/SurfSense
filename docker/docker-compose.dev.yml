@@ -34,6 +34,25 @@ services:
       timeout: 5s
       retries: 5
 
+  # Short-lived schema runner; see docker/docker-compose.yml `migrations`
+  # service for the full rationale. Builds from the same backend context as
+  # the dev backend/celery services.
+  migrations:
+    build: *backend-build
+    env_file:
+      - ../surfsense_backend/.env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
+      - PYTHONPATH=/app
+      - SERVICE_ROLE=migrate
+      - MIGRATION_TIMEOUT=${MIGRATION_TIMEOUT:-900}
+    volumes:
+      - zero_init:/zero-init
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   pgadmin:
     image: dpage/pgadmin4
     ports:
@@ -111,8 +130,10 @@ services:
         condition: service_healthy
       searxng:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]
       interval: 15s
       timeout: 5s
       retries: 30
@@ -141,6 +162,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
       backend:
         condition: service_healthy
 
@@ -160,6 +183,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
       celery_worker:
         condition: service_started
 
@@ -179,14 +204,16 @@ services:
   #     - celery_worker
 
   zero-cache:
-    image: rocicorp/zero:0.26.2
+    image: rocicorp/zero:1.4.0
     ports:
       - "${ZERO_CACHE_PORT:-4848}:4848"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      backend:
+      db:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     environment:
       - ZERO_UPSTREAM_DB=${ZERO_UPSTREAM_DB:-postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
       - ZERO_CVR_DB=${ZERO_CVR_DB:-postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
@@ -201,6 +228,12 @@ services:
       - ZERO_MUTATE_URL=${ZERO_MUTATE_URL:-http://frontend:3000/api/zero/mutate}
     volumes:
       - zero_cache_data:/data
+      - zero_init:/zero-init
+    # Wrapper: see docker/docker-compose.yml `zero-cache` for rationale.
+    entrypoint: ["sh", "-c"]
+    # Pass the script as a single list element so Compose does not tokenize it.
+    command:
+      - 'if [ -f /zero-init/needs_reset ]; then echo "[zero-init] publication change detected; wiping replica file(s) under /data" && rm -f /data/zero.db /data/zero.db-shm /data/zero.db-wal && rm -f /zero-init/needs_reset; fi; exec zero-cache'
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4848/keepalive"]
@@ -238,3 +271,5 @@ volumes:
     name: surfsense-dev-shared-temp
   zero_cache_data:
     name: surfsense-dev-zero-cache
+  zero_init:
+    name: surfsense-dev-zero-init

@@ -7,7 +7,6 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { materialDark, materialLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn, copyToClipboard } from "@/lib/utils";
 
 type MarkdownCodeBlockProps = {
@@ -49,7 +48,7 @@ function MarkdownCodeBlockComponent({
 	}, [hasCopied]);
 
 	return (
-		<div className="mt-4 overflow-hidden rounded-2xl" style={{ background: "var(--syntax-bg)" }}>
+		<div className="mt-4 overflow-hidden rounded-md bg-accent">
 			<div className="flex items-center justify-between gap-4 px-4 py-2 font-semibold text-muted-foreground text-sm">
 				<span className="lowercase text-xs">{language}</span>
 				<Button
@@ -82,23 +81,3 @@ function MarkdownCodeBlockComponent({
 }
 
 export const MarkdownCodeBlock = memo(MarkdownCodeBlockComponent);
-
-export function MarkdownCodeBlockSkeleton() {
-	return (
-		<div
-			className="mt-4 overflow-hidden rounded-2xl border"
-			style={{ background: "var(--syntax-bg)" }}
-		>
-			<div className="flex items-center justify-between gap-4 border-b px-4 py-2">
-				<Skeleton className="h-3 w-16" />
-				<Skeleton className="h-8 w-8 rounded-md" />
-			</div>
-			<div className="space-y-2 p-4">
-				<Skeleton className="h-4 w-11/12" />
-				<Skeleton className="h-4 w-10/12" />
-				<Skeleton className="h-4 w-8/12" />
-				<Skeleton className="h-4 w-9/12" />
-			</div>
-		</div>
-	);
-}

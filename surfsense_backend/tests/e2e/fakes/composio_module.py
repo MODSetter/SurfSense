@@ -350,6 +350,25 @@ def _drive_list_files(args: dict[str, Any]) -> dict[str, Any]:
     folder id and serve the matching fixture list.
     """
     q = args.get("q", "")
+    if "in owners" in q:
+        return {
+            "data": {
+                "files": [
+                    {
+                        "id": "fake-file-owner-probe",
+                        "name": "owner-probe",
+                        "owners": [
+                            {
+                                "me": True,
+                                "emailAddress": "e2e-fake@surfsense.example",
+                            }
+                        ],
+                    }
+                ],
+                "nextPageToken": None,
+            }
+        }
+
     folder_id = "root"
     if "in parents" in q:
         # q looks like:  '<folder_id>' in parents and trashed = false ...

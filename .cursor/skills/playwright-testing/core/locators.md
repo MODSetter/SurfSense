@@ -100,7 +100,7 @@ use: {
 Usage:
 
 ```typescript
-// HTML: <button data-testid="submit-btn">Submit</button>
+// React: <Button data-testid="submit-btn">Submit</Button>
 page.getByTestId("submit-btn");
 ```
 

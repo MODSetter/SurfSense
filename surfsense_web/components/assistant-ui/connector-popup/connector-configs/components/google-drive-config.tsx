@@ -92,20 +92,19 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 	const [selectedFiles, setSelectedFiles] = useState<SelectedItem[]>(existingFiles);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
 
-	const updateConfig = (
-		folders: SelectedItem[],
-		files: SelectedItem[],
-		options: IndexingOptions
-	) => {
-		if (onConfigChange) {
-			onConfigChange({
-				...connector.config,
-				selected_folders: folders,
-				selected_files: files,
-				indexing_options: options,
-			});
-		}
-	};
+	const updateConfig = useCallback(
+		(folders: SelectedItem[], files: SelectedItem[], options: IndexingOptions) => {
+			if (onConfigChange) {
+				onConfigChange({
+					...connector.config,
+					selected_folders: folders,
+					selected_files: files,
+					indexing_options: options,
+				});
+			}
+		},
+		[connector.config, onConfigChange]
+	);
 
 	const handlePicked = useCallback(
 		(result: PickerResult) => {
@@ -115,8 +114,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 			setSelectedFiles(files);
 			updateConfig(folders, files, indexingOptions);
 		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[indexingOptions, connector.config]
+		[indexingOptions, updateConfig]
 	);
 
 	const {
@@ -188,14 +186,16 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 								>
 									<FolderClosed className="size-3.5 shrink-0 text-muted-foreground" />
 									<span className="flex-1 truncate">{folder.name}</span>
-									<button
+									<Button
 										type="button"
+										variant="ghost"
+										size="icon"
 										onClick={() => handleRemoveFolder(folder.id)}
-										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										className="size-5 shrink-0 rounded p-0 hover:bg-accent hover:text-accent-foreground"
 										aria-label={`Remove ${folder.name}`}
 									>
 										<X className="size-3.5" />
-									</button>
+									</Button>
 								</div>
 							))}
 							{selectedFiles.map((file) => (
@@ -206,14 +206,16 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 								>
 									{getFileIconFromName(file.name)}
 									<span className="flex-1 truncate">{file.name}</span>
-									<button
+									<Button
 										type="button"
+										variant="ghost"
+										size="icon"
 										onClick={() => handleRemoveFile(file.id)}
-										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										className="size-5 shrink-0 rounded p-0 hover:bg-accent hover:text-accent-foreground"
 										aria-label={`Remove ${file.name}`}
 									>
 										<X className="size-3.5" />
-									</button>
+									</Button>
 								</div>
 							))}
 						</div>
@@ -225,7 +227,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 					variant="outline"
 					onClick={openPicker}
 					disabled={pickerLoading || isAuthExpired}
-					className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
+					className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-accent hover:text-accent-foreground text-xs sm:text-sm h-8 sm:h-9"
 				>
 					{pickerLoading && <Spinner size="xs" className="mr-1.5" />}
 					{totalSelected > 0 ? "Change Selection" : "Select from Google Drive"}

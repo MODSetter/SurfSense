@@ -3,6 +3,7 @@
 import { AlertTriangle, X } from "lucide-react";
 import type { FC } from "react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface ConnectorWarningBannerProps {
@@ -42,14 +43,16 @@ export const ConnectorWarningBanner: FC<ConnectorWarningBannerProps> = ({
 				)}
 			</div>
 			{onDismiss && (
-				<button
+				<Button
+					variant="ghost"
+					size="icon"
 					type="button"
 					onClick={handleDismiss}
-					className="shrink-0 p-0.5 rounded hover:bg-yellow-500/20 transition-colors"
+					className="size-6 shrink-0 rounded p-0 transition-colors hover:bg-yellow-500/20"
 					aria-label="Dismiss warning"
 				>
-					<X className="size-3.5 text-yellow-700 dark:text-yellow-300" />
-				</button>
+					<X data-icon="inline-start" className="text-yellow-700 dark:text-yellow-300" />
+				</Button>
 			)}
 		</div>
 	);

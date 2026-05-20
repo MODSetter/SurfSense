@@ -4,9 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,13 +31,15 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 
 	const [customInstructions, setCustomInstructions] = useState("");
 	const [saving, setSaving] = useState(false);
+	const hasSearchSpace = !!searchSpace;
+	const searchSpaceInstructions = searchSpace?.qna_custom_instructions;
 
 	// Initialize state from fetched search space
 	useEffect(() => {
-		if (searchSpace) {
-			setCustomInstructions(searchSpace.qna_custom_instructions || "");
+		if (hasSearchSpace) {
+			setCustomInstructions(searchSpaceInstructions || "");
 		}
-	}, [searchSpace?.qna_custom_instructions]);
+	}, [hasSearchSpace, searchSpaceInstructions]);
 
 	// Derive hasChanges during render
 	const hasChanges =
@@ -69,9 +70,9 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			toast.success("System instructions saved successfully");
 
 			await fetchSearchSpace();
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error("Error saving system instructions:", error);
-			toast.error(error.message || "Failed to save system instructions");
+			toast.error(error instanceof Error ? error.message : "Failed to save system instructions");
 		} finally {
 			setSaving(false);
 		}
@@ -85,16 +86,16 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 	if (loading) {
 		return (
 			<div className="space-y-4 md:space-y-6">
-				<Card>
-					<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
+				<div className="space-y-3 md:space-y-4">
+					<div className="space-y-2">
 						<Skeleton className="h-5 md:h-6 w-36 md:w-48" />
 						<Skeleton className="h-3 md:h-4 w-full max-w-md mt-2" />
-					</CardHeader>
-					<CardContent className="space-y-3 md:space-y-4 px-3 md:px-6 pb-3 md:pb-6">
+					</div>
+					<div className="space-y-3 md:space-y-4">
 						<Skeleton className="h-16 md:h-20 w-full" />
 						<Skeleton className="h-24 md:h-32 w-full" />
-					</CardContent>
-				</Card>
+					</div>
+				</div>
 			</div>
 		);
 	}
@@ -102,21 +103,19 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 	return (
 		<div className="space-y-4 md:space-y-6">
 			{/* Work in Progress Notice */}
-			<Alert
-				variant="default"
-				className="bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700 py-3 md:py-4"
-			>
-				<AlertTriangle className="h-3 w-3 md:h-4 md:w-4 text-amber-600 dark:text-amber-500 shrink-0" />
-				<AlertDescription className="text-amber-800 dark:text-amber-300 text-xs md:text-sm">
-					<span className="font-semibold">Work in Progress:</span> This functionality is currently
-					under development and not yet connected to the backend. Your instructions will be saved
-					but won't affect AI behavior until the feature is fully implemented.
+			<Alert variant="warning">
+				<AlertTriangle />
+				<AlertTitle>Work in Progress</AlertTitle>
+				<AlertDescription>
+					This functionality is currently under development and not yet connected to the backend.
+					Your instructions will be saved but won't affect AI behavior until the feature is fully
+					implemented.
 				</AlertDescription>
 			</Alert>
 
-			<Alert className="bg-muted/50 py-3 md:py-4">
-				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-				<AlertDescription className="text-xs md:text-sm">
+			<Alert>
+				<Info />
+				<AlertDescription>
 					System instructions apply to all AI interactions in this search space. They guide how the
 					AI responds, its tone, focus areas, and behavior patterns.
 				</AlertDescription>
@@ -124,15 +123,17 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 
 			{/* System Instructions Card */}
 			<form onSubmit={onSubmit} className="space-y-4 md:space-y-6">
-				<Card>
-					<CardHeader className="px-3 md:px-6 pt-3 md:pt-6 pb-2 md:pb-3">
-						<CardTitle className="text-base md:text-lg">Custom System Instructions</CardTitle>
-						<CardDescription className="text-xs md:text-sm">
+				<div className="space-y-3 md:space-y-4">
+					<div className="space-y-1.5 md:space-y-2">
+						<h3 className="text-base md:text-lg font-semibold tracking-tight">
+							Custom System Instructions
+						</h3>
+						<p className="text-xs md:text-sm text-muted-foreground">
 							Provide specific guidelines for how you want the AI to respond. These instructions
 							will be applied to all answers in this search space.
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-3 md:space-y-4 px-3 md:px-6 pb-3 md:pb-6">
+						</p>
+					</div>
+					<div className="space-y-3 md:space-y-4">
 						<div className="space-y-1.5 md:space-y-2">
 							<Label
 								htmlFor="custom-instructions-settings"
@@ -167,15 +168,15 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 						</div>
 
 						{customInstructions.trim().length === 0 && (
-							<Alert className="py-2 md:py-3">
-								<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-								<AlertDescription className="text-xs md:text-sm">
+							<Alert>
+								<Info />
+								<AlertDescription>
 									No system instructions are currently set. The AI will use default behavior.
 								</AlertDescription>
 							</Alert>
 						)}
-					</CardContent>
-				</Card>
+					</div>
+				</div>
 
 				{/* Action Buttons */}
 				<div className="flex justify-end pt-3 md:pt-4">
@@ -183,7 +184,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 						type="submit"
 						variant="outline"
 						disabled={!hasChanges || saving}
-						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+						className="gap-2 bg-white text-black hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-black"
 					>
 						{saving ? <Spinner size="sm" /> : null}
 						{saving ? "Saving" : "Save Instructions"}

@@ -3,6 +3,19 @@ import type { GetDocumentsRequest } from "@/contracts/types/document.types";
 import type { GetLogsRequest } from "@/contracts/types/log.types";
 import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
 
+/**
+ * Convert an object to a stable array of [key, value] pairs sorted by key.
+ * This ensures cache keys are order-independent (avoiding Object.values order-dependency).
+ * Filters out undefined values.
+ */
+function stableEntries(obj: Record<string, unknown> | null | undefined): unknown[] {
+	if (!obj) return [];
+	return Object.entries(obj)
+		.filter(([, v]) => v !== undefined)
+		.sort(([a], [b]) => a.localeCompare(b))
+		.flat();
+}
+
 export const cacheKeys = {
 	// New chat threads (assistant-ui)
 	threads: {
@@ -13,9 +26,9 @@ export const cacheKeys = {
 	},
 	documents: {
 		globalQueryParams: (queries: GetDocumentsRequest["queryParams"]) =>
-			["documents", ...(queries ? Object.values(queries) : [])] as const,
+			["documents", ...stableEntries(queries)] as const,
 		withQueryParams: (queries: GetDocumentsRequest["queryParams"]) =>
-			["documents-with-queries", ...(queries ? Object.values(queries) : [])] as const,
+			["documents-with-queries", ...stableEntries(queries)] as const,
 		document: (documentId: string) => ["document", documentId] as const,
 		byChunk: (chunkId: string) => ["documents", "by-chunk", chunkId] as const,
 	},
@@ -24,7 +37,7 @@ export const cacheKeys = {
 		detail: (logId: number | string) => ["logs", "detail", logId] as const,
 		summary: (searchSpaceId?: number | string) => ["logs", "summary", searchSpaceId] as const,
 		withQueryParams: (queries: GetLogsRequest["queryParams"]) =>
-			["logs", "with-query-params", ...(queries ? Object.values(queries) : [])] as const,
+			["logs", "with-query-params", ...stableEntries(queries)] as const,
 	},
 	newLLMConfigs: {
 		all: (searchSpaceId: number) => ["new-llm-configs", searchSpaceId] as const,
@@ -51,7 +64,7 @@ export const cacheKeys = {
 	searchSpaces: {
 		all: ["search-spaces"] as const,
 		withQueryParams: (queries: GetSearchSpacesRequest["queryParams"]) =>
-			["search-spaces", ...(queries ? Object.values(queries) : [])] as const,
+			["search-spaces", ...stableEntries(queries)] as const,
 		detail: (searchSpaceId: string) => ["search-spaces", searchSpaceId] as const,
 	},
 	user: {
@@ -78,7 +91,7 @@ export const cacheKeys = {
 	connectors: {
 		all: (searchSpaceId: string) => ["connectors", searchSpaceId] as const,
 		withQueryParams: (queries: GetConnectorsRequest["queryParams"]) =>
-			["connectors", ...(queries ? Object.values(queries) : [])] as const,
+			["connectors", ...stableEntries(queries)] as const,
 		byId: (connectorId: string) => ["connector", connectorId] as const,
 		index: () => ["connector", "index"] as const,
 		googleDrive: {

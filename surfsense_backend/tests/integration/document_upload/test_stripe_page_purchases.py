@@ -204,6 +204,7 @@ class TestStripeCheckoutSessionCreation:
         assert (
             fake_client.last_params["success_url"]
             == f"http://localhost:3000/dashboard/{search_space_id}/purchase-success"
+            "?session_id={CHECKOUT_SESSION_ID}"
         )
         assert (
             fake_client.last_params["cancel_url"]

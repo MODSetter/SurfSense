@@ -840,8 +840,8 @@ export function ModelSelector({
 		return (
 			<div
 				className={cn(
-					"shrink-0 border-border/50 flex relative",
-					isMobile ? "flex-row items-center border-b border-border/40" : "flex-col w-10 border-r"
+					"shrink-0 border-popover-border flex relative",
+					isMobile ? "flex-row items-center border-b" : "flex-col w-10 border-r"
 				)}
 			>
 				{!isMobile && (
@@ -853,14 +853,15 @@ export function ModelSelector({
 								: "opacity-100 translate-y-0 pointer-events-auto"
 						)}
 					>
-						<button
+						<Button
 							type="button"
+							variant="ghost"
 							aria-label="Scroll providers up"
 							onClick={() => scrollProviderSidebar("backward")}
-							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-foreground hover:bg-accent/60 transition-colors"
+							className="h-4 w-4 rounded-sm p-0 text-muted-foreground/90 hover:bg-accent hover:text-accent-foreground"
 						>
 							<ChevronUp className="size-3" />
-						</button>
+						</Button>
 					</div>
 				)}
 				{isMobile && (
@@ -907,23 +908,24 @@ export function ModelSelector({
 							<Fragment key={provider}>
 								{showSeparator &&
 									(isMobile ? (
-										<div className="w-px h-5 bg-border/60 shrink-0 self-center mx-0.5" />
+										<div className="w-px h-5 bg-popover-border shrink-0 self-center mx-0.5" />
 									) : (
-										<div className="h-px w-5 bg-border/60 mx-auto my-0.5" />
+										<div className="h-px w-5 bg-popover-border mx-auto my-0.5" />
 									))}
 								<Tooltip>
 									<TooltipTrigger asChild>
-										<button
+										<Button
 											type="button"
+											variant="ghost"
 											onClick={() => setSelectedProvider(provider)}
 											tabIndex={-1}
 											className={cn(
-												"relative flex items-center justify-center rounded-md transition-all duration-150",
+												"relative h-auto rounded-md transition-all duration-150",
 												isMobile ? "p-2 shrink-0" : "p-1.5 w-full",
 												isActive
 													? "bg-primary/10 text-primary"
 													: isConfigured
-														? "hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+														? "hover:bg-accent text-muted-foreground hover:text-accent-foreground"
 														: "opacity-50 hover:opacity-80 hover:bg-accent/40 text-muted-foreground"
 											)}
 										>
@@ -934,7 +936,7 @@ export function ModelSelector({
 													className: "size-4",
 												})
 											)}
-										</button>
+										</Button>
 									</TooltipTrigger>
 									<TooltipContent side={isMobile ? "bottom" : "right"}>
 										{isAll ? "All Models" : formatProviderName(provider)}
@@ -954,14 +956,15 @@ export function ModelSelector({
 								: "opacity-100 translate-y-0 pointer-events-auto"
 						)}
 					>
-						<button
+						<Button
 							type="button"
+							variant="ghost"
 							aria-label="Scroll providers down"
 							onClick={() => scrollProviderSidebar("forward")}
-							className="flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground/90 hover:text-foreground hover:bg-accent/60 transition-colors"
+							className="h-4 w-4 rounded-sm p-0 text-muted-foreground/90 hover:bg-accent hover:text-accent-foreground"
 						>
 							<ChevronDown className="size-3" />
-						</button>
+						</Button>
 					</div>
 				)}
 				{isMobile && (
@@ -997,6 +1000,8 @@ export function ModelSelector({
 		const isSelected = getSelectedId() === config.id;
 		const isFocused = focusedIndex === index;
 		const hasCitations = "citations_enabled" in config && !!config.citations_enabled;
+		const hasPremiumStatus = "is_premium" in config && !isAutoMode;
+		const isPremium = hasPremiumStatus && !!(config as Record<string, unknown>).is_premium;
 		// Chat-tab only: surface an amber "No image" hint when the
 		// composer carries images and the catalog reports the model as
 		// non-vision. This is purely advisory — selection is *not*
@@ -1039,9 +1044,10 @@ export function ModelSelector({
 				onMouseEnter={() => setFocusedIndex(index)}
 				className={cn(
 					"group flex items-center gap-2.5 px-3 py-2 rounded-xl",
-					"transition-all duration-150 mx-2 cursor-pointer hover:bg-accent/40",
-					isSelected && "bg-primary/6 dark:bg-primary/8",
-					isFocused && "bg-accent/50"
+					"transition-colors duration-150 mx-2 cursor-pointer",
+					"hover:bg-accent hover:text-accent-foreground",
+					isFocused && "bg-accent text-accent-foreground",
+					isSelected && "bg-accent text-accent-foreground"
 				)}
 			>
 				{/* Provider icon */}
@@ -1068,23 +1074,6 @@ export function ModelSelector({
 								Recommended
 							</Badge>
 						)}
-						{"is_premium" in config && (config as Record<string, unknown>).is_premium ? (
-							<Badge
-								variant="secondary"
-								className="text-[9px] px-1 py-0 h-3.5 bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border-0"
-							>
-								Premium
-							</Badge>
-						) : "is_premium" in config &&
-							!(config as Record<string, unknown>).is_premium &&
-							!isAutoMode ? (
-							<Badge
-								variant="secondary"
-								className="text-[9px] px-1 py-0 h-3.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-0"
-							>
-								Free
-							</Badge>
-						) : null}
 						{isImageIncompatibleChatModel && (
 							<Badge
 								variant="secondary"
@@ -1094,19 +1083,37 @@ export function ModelSelector({
 							</Badge>
 						)}
 					</div>
-					<div className="flex items-center gap-1.5 mt-0.5">
-						<span className="text-xs text-muted-foreground truncate">
-							{isAutoMode ? "Auto Mode" : (config.model_name as string)}
-						</span>
-						{!isAutoMode && hasCitations && (
-							<Badge
-								variant="secondary"
-								className="text-[10px] px-1.5 py-0.5 border-0 text-muted-foreground bg-muted"
-							>
-								Citations
-							</Badge>
-						)}
-					</div>
+					{isAutoMode ? (
+						<div className="flex items-center gap-1.5 mt-0.5">
+							<span className="text-xs text-muted-foreground truncate">Auto Mode</span>
+						</div>
+					) : (
+						(hasPremiumStatus || hasCitations) && (
+							<div className="flex items-center gap-1.5 mt-0.5">
+								{hasPremiumStatus && (
+									<Badge
+										variant="secondary"
+										className={cn(
+											"text-[10px] px-1.5 py-0.5 border-0",
+											isPremium
+												? "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300"
+												: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+										)}
+									>
+										{isPremium ? "Premium" : "Free"}
+									</Badge>
+								)}
+								{hasCitations && (
+									<Badge
+										variant="secondary"
+										className="text-[10px] px-1.5 py-0.5 border-0 bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200"
+									>
+										Citations
+									</Badge>
+								)}
+							</div>
+						)
+					)}
 				</div>
 
 				{/* Actions */}
@@ -1115,13 +1122,17 @@ export function ModelSelector({
 						<Button
 							variant="ghost"
 							size="icon"
-							className="size-7 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+							className="size-7 rounded-md hover:bg-accent hover:text-accent-foreground opacity-0 group-hover:opacity-100 transition-opacity"
 							onClick={(e) => handleEditItem(e, item)}
 						>
 							<Pencil className="size-3.5 text-muted-foreground" />
 						</Button>
 					)}
-					{isSelected && <Check className="size-4 text-primary shrink-0" />}
+					{isSelected && (
+						<div className="size-7 grid place-items-center shrink-0">
+							<Check className="size-4" />
+						</div>
+					)}
 				</div>
 			</div>
 		);
@@ -1146,7 +1157,7 @@ export function ModelSelector({
 		return (
 			<div className="flex flex-col w-full overflow-hidden">
 				{/* Tab header */}
-				<div className="border-b border-border/80 dark:border-neutral-800">
+				<div className="border-b border-popover-border">
 					<div className="w-full grid grid-cols-3 h-11">
 						{(
 							[
@@ -1167,21 +1178,22 @@ export function ModelSelector({
 								},
 							] as const
 						).map(({ value, icon: Icon, label }) => (
-							<button
+							<Button
 								key={value}
 								type="button"
+								variant="ghost"
 								// onClick={() => setActiveTab(value)}
 								onClick={() => handleTabChange(value)}
 								className={cn(
-									"flex items-center justify-center gap-1.5 text-sm font-medium transition-all duration-200 border-b-[1.5px]",
+									"h-auto rounded-none px-0 py-0 gap-1.5 text-sm font-medium transition-all duration-200 border-b-[1.5px] hover:bg-transparent",
 									activeTab === value
 										? "border-foreground dark:border-white text-foreground"
-										: "border-transparent text-muted-foreground hover:text-foreground/70"
+										: "border-transparent text-muted-foreground hover:text-accent-foreground"
 								)}
 							>
 								<Icon className="size-3.5" />
 								{label}
-							</button>
+							</Button>
 						))}
 					</div>
 				</div>
@@ -1299,7 +1311,7 @@ export function ModelSelector({
 										</>
 									)}
 									{globalItems.length > 0 && userItems.length > 0 && (
-										<div className="my-1.5 mx-4 h-px bg-border/60" />
+										<div className="my-1.5 mx-4 h-px bg-popover-border" />
 									)}
 									{userItems.length > 0 && (
 										<>
@@ -1319,7 +1331,7 @@ export function ModelSelector({
 								<Button
 									variant="ghost"
 									size="sm"
-									className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/[0.06]"
+									className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent hover:text-accent-foreground "
 									onClick={() => {
 										setOpen(false);
 										addHandler(selectedProvider !== "all" ? selectedProvider : undefined);
@@ -1344,7 +1356,7 @@ export function ModelSelector({
 			role="combobox"
 			aria-expanded={open}
 			className={cn(
-				"h-8 gap-2 px-3 text-sm bg-main-panel hover:bg-accent/50 dark:hover:bg-white/[0.06] border border-border/40 select-none",
+				"h-8 gap-2 px-3 text-sm bg-muted shadow-xs hover:bg-accent hover:text-accent-foreground border-0 select-none",
 				className
 			)}
 		>
@@ -1425,7 +1437,7 @@ export function ModelSelector({
 		<Popover open={open} onOpenChange={handleOpenChange}>
 			<PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
 			<PopoverContent
-				className="w-[300px] md:w-[380px] p-0 rounded-lg shadow-lg overflow-hidden bg-white border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
+				className="w-[300px] md:w-[380px] p-0 rounded-lg shadow-lg overflow-hidden select-none"
 				align="start"
 				sideOffset={8}
 				onCloseAutoFocus={(e) => e.preventDefault()}

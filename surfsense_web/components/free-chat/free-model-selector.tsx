@@ -103,7 +103,7 @@ export function FreeModelSelector({ className }: { className?: string }) {
 					role="combobox"
 					aria-expanded={open}
 					className={cn(
-						"h-8 gap-2 px-3 text-sm bg-main-panel hover:bg-accent/50 dark:hover:bg-white/6 border border-border/40 select-none",
+						"h-8 gap-2 px-3 text-sm bg-muted hover:bg-muted/80 border-0 select-none",
 						className
 					)}
 				>
@@ -122,7 +122,7 @@ export function FreeModelSelector({ className }: { className?: string }) {
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent
-				className="w-[320px] p-0 rounded-lg shadow-lg overflow-hidden bg-white border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
+				className="w-[320px] p-0 rounded-lg shadow-lg overflow-hidden select-none"
 				align="start"
 				sideOffset={8}
 				onCloseAutoFocus={(e) => e.preventDefault()}
@@ -164,10 +164,10 @@ export function FreeModelSelector({ className }: { className?: string }) {
 									onMouseEnter={() => setFocusedIndex(index)}
 									className={cn(
 										"group flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer",
-										"transition-all duration-150 mx-2",
-										"hover:bg-accent/40",
-										isSelected && "bg-primary/6 dark:bg-primary/8",
-										isFocused && "bg-accent/50"
+										"transition-colors duration-150 mx-2",
+										"hover:bg-accent hover:text-accent-foreground",
+										isFocused && "bg-accent text-accent-foreground",
+										isSelected && "bg-accent text-accent-foreground"
 									)}
 								>
 									<div className="shrink-0">

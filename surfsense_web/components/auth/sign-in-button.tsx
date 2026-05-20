@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from "motion/react";
 import Link from "next/link";
+import { useState } from "react";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
@@ -46,8 +46,11 @@ interface SignInButtonProps {
 
 export const SignInButton = ({ variant = "desktop" }: SignInButtonProps) => {
 	const isGoogleAuth = AUTH_TYPE === "GOOGLE";
+	const [isRedirecting, setIsRedirecting] = useState(false);
 
 	const handleGoogleLogin = () => {
+		if (isRedirecting) return;
+		setIsRedirecting(true);
 		trackLoginAttempt("google");
 		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
 	};
@@ -55,35 +58,34 @@ export const SignInButton = ({ variant = "desktop" }: SignInButtonProps) => {
 	const getClassName = () => {
 		if (variant === "desktop") {
 			return isGoogleAuth
-				? "hidden rounded-full bg-white px-5 py-2 text-sm text-neutral-700 shadow-md ring-1 ring-neutral-200/50 hover:shadow-lg md:flex dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50"
+				? "hidden rounded-full border border-white bg-white px-5 py-2 text-sm font-medium text-[#1f1f1f] shadow-sm hover:bg-zinc-100 hover:text-[#1f1f1f] md:flex dark:border-white"
 				: "hidden rounded-full bg-black px-8 py-2 text-sm font-bold text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] md:block dark:bg-white dark:text-black";
 		}
 		if (variant === "compact") {
 			return isGoogleAuth
-				? "rounded-full bg-white px-4 py-1.5 text-sm text-neutral-700 shadow-md ring-1 ring-neutral-200/50 hover:shadow-lg dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50"
+				? "rounded-full border border-white bg-white px-4 py-1.5 text-sm font-medium text-[#1f1f1f] shadow-sm hover:bg-zinc-100 hover:text-[#1f1f1f] dark:border-white"
 				: "rounded-full bg-black px-6 py-1.5 text-sm font-bold text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black";
 		}
 		// mobile
 		return isGoogleAuth
-			? "w-full rounded-lg bg-white px-8 py-2.5 text-neutral-700 shadow-md ring-1 ring-neutral-200/50 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50 touch-manipulation"
+			? "w-full rounded-lg border border-white bg-white px-8 py-2.5 font-medium text-[#1f1f1f] shadow-sm hover:bg-zinc-100 hover:text-[#1f1f1f] dark:border-white touch-manipulation"
 			: "w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black text-center touch-manipulation";
 	};
 
 	if (isGoogleAuth) {
 		return (
-			<motion.button
+			<button
 				type="button"
 				onClick={handleGoogleLogin}
-				whileHover={{ scale: 1.02 }}
-				whileTap={{ scale: 0.98 }}
+				disabled={isRedirecting}
 				className={cn(
-					"flex items-center justify-center gap-2 font-semibold transition-all duration-200",
+					"flex items-center justify-center gap-2 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50",
 					getClassName()
 				)}
 			>
 				<GoogleLogo className="h-4 w-4" />
 				<span>Sign In</span>
-			</motion.button>
+			</button>
 		);
 	}
 

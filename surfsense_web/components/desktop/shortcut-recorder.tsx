@@ -48,9 +48,9 @@ export const DEFAULT_SHORTCUTS = {
 export function Kbd({ keys, className }: { keys: string[]; className?: string }) {
 	return (
 		<span className={cn("inline-flex items-center gap-0.5", className)}>
-			{keys.map((key, i) => (
+			{keys.map((key) => (
 				<kbd
-					key={`${key}-${i}`}
+					key={key}
 					className={cn(
 						"inline-flex h-6 min-w-6 items-center justify-center rounded border bg-muted px-1 font-mono text-[11px] font-medium text-muted-foreground",
 						key.length > 3 && "px-1.5"
@@ -136,14 +136,15 @@ export function ShortcutRecorder({
 						<RotateCcw className="size-3" />
 					</Button>
 				)}
-				<button
+				<Button
+					variant="ghost"
 					ref={inputRef}
 					type="button"
 					onClick={() => setRecording(true)}
 					onKeyDown={handleKeyDown}
 					onBlur={() => setRecording(false)}
 					className={cn(
-						"flex h-7 items-center gap-0.5 rounded-md border px-2 transition-all focus:outline-none",
+						"h-7 justify-start gap-0.5 rounded-md border px-2 transition-all",
 						recording
 							? "border-primary bg-primary/5 ring-2 ring-primary/20"
 							: "border-input bg-muted/40 hover:bg-muted"
@@ -156,7 +157,7 @@ export function ShortcutRecorder({
 					) : (
 						<Kbd keys={displayKeys} />
 					)}
-				</button>
+				</Button>
 			</div>
 		</div>
 	);

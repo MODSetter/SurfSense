@@ -131,7 +131,7 @@ export function SearchSpaceForm({
 				>
 					<MoveLeftIcon
 						size={18}
-						className="text-muted-foreground group-hover:text-foreground transition-colors duration-200"
+						className="text-muted-foreground group-hover:text-accent-foreground transition-colors duration-200"
 					/>
 					<div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 				</Button>

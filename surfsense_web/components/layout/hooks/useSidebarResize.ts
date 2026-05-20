@@ -10,8 +10,24 @@ export const SIDEBAR_MAX_WIDTH = 480;
 
 interface UseSidebarResizeReturn {
 	sidebarWidth: number;
-	handleMouseDown: (e: React.MouseEvent) => void;
+	handlePointerDown: (e: React.PointerEvent<HTMLElement>) => void;
 	isDragging: boolean;
+}
+
+function setGlobalDragCursor(active: boolean) {
+	const html = document.documentElement;
+	const body = document.body;
+	if (active) {
+		html.style.cursor = "col-resize";
+		body.style.cursor = "col-resize";
+		html.style.userSelect = "none";
+		body.style.userSelect = "none";
+	} else {
+		html.style.cursor = "";
+		body.style.cursor = "";
+		html.style.userSelect = "";
+		body.style.userSelect = "";
+	}
 }
 
 export function useSidebarResize(defaultWidth = SIDEBAR_MIN_WIDTH): UseSidebarResizeReturn {
@@ -20,8 +36,10 @@ export function useSidebarResize(defaultWidth = SIDEBAR_MIN_WIDTH): UseSidebarRe
 
 	const startXRef = useRef(0);
 	const startWidthRef = useRef(defaultWidth);
+	const widthRef = useRef(defaultWidth);
+	const pointerIdRef = useRef<number | null>(null);
+	const captureTargetRef = useRef<HTMLElement | null>(null);
 
-	// Initialize from cookie on mount
 	useEffect(() => {
 		try {
 			const match = document.cookie.match(/(?:^|; )sidebar_width=([^;]+)/);
@@ -29,73 +47,91 @@ export function useSidebarResize(defaultWidth = SIDEBAR_MIN_WIDTH): UseSidebarRe
 				const parsed = Number(match[1]);
 				if (!Number.isNaN(parsed) && parsed >= SIDEBAR_MIN_WIDTH && parsed <= SIDEBAR_MAX_WIDTH) {
 					setSidebarWidth(parsed);
+					widthRef.current = parsed;
 				}
 			}
-		} catch {
-			// Ignore cookie read errors
-		}
+		} catch {}
 	}, []);
 
-	// Persist width to cookie
 	const persistWidth = useCallback((width: number) => {
 		try {
+			// biome-ignore lint/suspicious/noDocumentCookie: SSR-readable preference, not security-sensitive
 			document.cookie = `${SIDEBAR_WIDTH_COOKIE_NAME}=${width}; path=/; max-age=${SIDEBAR_WIDTH_COOKIE_MAX_AGE}`;
 		} catch {
 			// Ignore cookie write errors
 		}
 	}, []);
 
-	const handleMouseDown = useCallback(
-		(e: React.MouseEvent) => {
-			e.preventDefault();
-			startXRef.current = e.clientX;
-			startWidthRef.current = sidebarWidth;
-			setIsDragging(true);
+	const releaseCapture = useCallback(() => {
+		const target = captureTargetRef.current;
+		const pointerId = pointerIdRef.current;
+		if (target && pointerId !== null) {
+			try {
+				if (target.hasPointerCapture(pointerId)) {
+					target.releasePointerCapture(pointerId);
+				}
+			} catch {}
+		}
+		captureTargetRef.current = null;
+		pointerIdRef.current = null;
+	}, []);
 
-			document.body.style.cursor = "col-resize";
-			document.body.style.userSelect = "none";
-		},
-		[sidebarWidth]
-	);
+	const handlePointerDown = useCallback((e: React.PointerEvent<HTMLElement>) => {
+		if (e.pointerType === "mouse" && e.button !== 0) return;
+
+		e.preventDefault();
+		const target = e.currentTarget;
+		try {
+			target.setPointerCapture(e.pointerId);
+		} catch {}
+		captureTargetRef.current = target;
+		pointerIdRef.current = e.pointerId;
+		startXRef.current = e.clientX;
+		startWidthRef.current = widthRef.current;
+		setIsDragging(true);
+		setGlobalDragCursor(true);
+	}, []);
 
 	useEffect(() => {
 		if (!isDragging) return;
 
-		const handleMouseMove = (e: MouseEvent) => {
+		const handlePointerMove = (e: PointerEvent) => {
+			if (pointerIdRef.current !== null && e.pointerId !== pointerIdRef.current) return;
 			const delta = e.clientX - startXRef.current;
 			const newWidth = Math.min(
 				SIDEBAR_MAX_WIDTH,
 				Math.max(SIDEBAR_MIN_WIDTH, startWidthRef.current + delta)
 			);
-			setSidebarWidth(newWidth);
+			if (newWidth !== widthRef.current) {
+				widthRef.current = newWidth;
+				setSidebarWidth(newWidth);
+			}
 		};
 
-		const handleMouseUp = () => {
+		const stop = (e: PointerEvent) => {
+			if (pointerIdRef.current !== null && e.pointerId !== pointerIdRef.current) return;
+			releaseCapture();
 			setIsDragging(false);
-			document.body.style.cursor = "";
-			document.body.style.userSelect = "";
-
-			// Persist the final width
-			setSidebarWidth((currentWidth) => {
-				persistWidth(currentWidth);
-				return currentWidth;
-			});
+			setGlobalDragCursor(false);
+			persistWidth(widthRef.current);
 		};
 
-		document.addEventListener("mousemove", handleMouseMove);
-		document.addEventListener("mouseup", handleMouseUp);
+		window.addEventListener("pointermove", handlePointerMove);
+		window.addEventListener("pointerup", stop);
+		window.addEventListener("pointercancel", stop);
 
 		return () => {
-			document.removeEventListener("mousemove", handleMouseMove);
-			document.removeEventListener("mouseup", handleMouseUp);
-			document.body.style.cursor = "";
-			document.body.style.userSelect = "";
+			window.removeEventListener("pointermove", handlePointerMove);
+			window.removeEventListener("pointerup", stop);
+			window.removeEventListener("pointercancel", stop);
+			setGlobalDragCursor(false);
+			releaseCapture();
 		};
-	}, [isDragging, persistWidth]);
+	}, [isDragging, persistWidth, releaseCapture]);
 
 	return {
 		sidebarWidth,
-		handleMouseDown,
+		handlePointerDown,
 		isDragging,
 	};
 }

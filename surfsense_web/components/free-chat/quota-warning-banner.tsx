@@ -3,6 +3,7 @@
 import { OctagonAlert, Orbit, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface QuotaWarningBannerProps {
@@ -71,13 +72,15 @@ export function QuotaWarningBanner({
 					</Link>{" "}
 					for $5 of premium credit.
 				</p>
-				<button
+				<Button
 					type="button"
+					variant="ghost"
+					size="icon"
 					onClick={() => setDismissed(true)}
-					className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-200"
+					className="size-6 text-amber-400 hover:bg-transparent hover:text-amber-600 dark:hover:text-amber-200"
 				>
 					<X className="h-4 w-4" />
-				</button>
+				</Button>
 			</div>
 		</div>
 	);

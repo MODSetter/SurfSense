@@ -167,10 +167,14 @@ COPY scripts/docker/entrypoint.sh /app/scripts/docker/entrypoint.sh
 RUN dos2unix /app/scripts/docker/entrypoint.sh && chmod +x /app/scripts/docker/entrypoint.sh
 
 # SERVICE_ROLE controls which process this container runs:
-#   api     – FastAPI backend only (runs migrations on startup)
+#   migrate – Run alembic upgrade head, verify zero_publication exists, exit 0.
+#             Used by the dedicated `migrations` service in docker-compose.yml
+#             so downstream services gate on `service_completed_successfully`.
+#   api     – FastAPI backend only (does NOT run migrations)
 #   worker  – Celery worker only
 #   beat    – Celery beat scheduler only
-#   all     – All three (legacy / dev default)
+#   all     – migrations + api + worker + beat (legacy / dev default;
+#             fails fast on migration error)
 ENV SERVICE_ROLE=all
 
 # Celery worker tuning (only used when SERVICE_ROLE=worker or all)

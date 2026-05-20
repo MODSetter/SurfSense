@@ -22,7 +22,6 @@ import { MentionChip } from "@/components/assistant-ui/mention-chip";
 import "katex/dist/katex.min.css";
 import { toast } from "sonner";
 import { processChildrenWithCitations } from "@/components/citations/citation-renderer";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableBody,
@@ -35,32 +34,17 @@ import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getVirtualPathDisplay } from "@/lib/chat/virtual-path-display";
 import { type CitationUrlMap, preprocessCitationMarkdown } from "@/lib/citations/citation-parser";
+import { tryGetHostname } from "@/lib/url";
 import { cn } from "@/lib/utils";
 
-function MarkdownCodeBlockSkeleton() {
-	return (
-		<div
-			className="mt-4 overflow-hidden rounded-2xl border"
-			style={{ background: "var(--syntax-bg)" }}
-		>
-			<div className="flex items-center justify-between gap-4 border-b px-4 py-2">
-				<Skeleton className="h-3 w-16" />
-				<Skeleton className="h-8 w-8 rounded-md" />
-			</div>
-			<div className="space-y-2 p-4">
-				<Skeleton className="h-4 w-11/12" />
-				<Skeleton className="h-4 w-10/12" />
-				<Skeleton className="h-4 w-8/12" />
-				<Skeleton className="h-4 w-9/12" />
-			</div>
-		</div>
-	);
+function MarkdownCodeBlockLoading() {
+	return <div className="mt-4 h-32 overflow-hidden rounded-md bg-accent" />;
 }
 
 const LazyMarkdownCodeBlock = dynamic(
 	() => import("./markdown-code-block").then((mod) => mod.MarkdownCodeBlock),
 	{
-		loading: () => <MarkdownCodeBlockSkeleton />,
+		loading: () => <MarkdownCodeBlockLoading />,
 	}
 );
 
@@ -138,15 +122,6 @@ const MarkdownTextImpl = () => {
 };
 
 export const MarkdownText = memo(MarkdownTextImpl);
-
-function extractDomain(url: string): string {
-	try {
-		const parsed = new URL(url);
-		return parsed.hostname.replace(/^www\./, "");
-	} catch {
-		return "";
-	}
-}
 
 // Canonical local-file virtual paths are mount-prefixed: /<mount>/<relative/path>
 const LOCAL_FILE_PATH_REGEX = /^\/[a-z0-9_-]+\/[^\s`]+(?:\/[^\s`]+)*$/;
@@ -288,7 +263,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
 	if (!src) return null;
 
-	const domain = extractDomain(src);
+	const domain = tryGetHostname(src) ?? "";
 
 	return (
 		<div className="my-4 w-fit max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
@@ -450,7 +425,7 @@ const defaultComponents = memoizeMarkdownComponents({
 		<hr className={cn("aui-md-hr my-5 border-b", className)} {...props} />
 	),
 	table: ({ className, ...props }) => (
-		<div className="aui-md-table-wrapper my-5 overflow-hidden rounded-2xl border">
+		<div className="aui-md-table-wrapper my-5 overflow-hidden rounded-md border">
 			<Table className={cn("aui-md-table", className)} {...props} />
 		</div>
 	),
@@ -527,7 +502,7 @@ const defaultComponents = memoizeMarkdownComponents({
 			return (
 				<code
 					className={cn(
-						"aui-md-inline-code rounded-md border bg-muted px-1.5 py-0.5 font-mono text-[0.9em] font-normal",
+						"aui-md-inline-code rounded-md bg-primary/10 px-1.5 py-0.5 font-mono text-[0.9em] font-normal text-primary/80",
 						className
 					)}
 					{...props}
@@ -540,7 +515,7 @@ const defaultComponents = memoizeMarkdownComponents({
 			return (
 				<code
 					className={cn(
-						"aui-md-inline-code rounded-md border bg-muted px-1.5 py-0.5 font-mono text-[0.9em] font-normal",
+						"aui-md-inline-code rounded-md bg-primary/10 px-1.5 py-0.5 font-mono text-[0.9em] font-normal text-primary/80",
 						className
 					)}
 					{...props}

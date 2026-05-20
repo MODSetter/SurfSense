@@ -1,6 +1,6 @@
 "use client";
 
-import { PanelRightClose, Plus } from "lucide-react";
+import { PanelLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -34,6 +34,8 @@ interface MobileSidebarProps {
 	onSettings?: () => void;
 	onManageMembers?: () => void;
 	onUserSettings?: () => void;
+	onAnnouncements?: () => void;
+	announcementUnreadCount?: number;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	theme?: string;
@@ -43,8 +45,13 @@ interface MobileSidebarProps {
 
 export function MobileSidebarTrigger({ onClick }: { onClick: () => void }) {
 	return (
-		<Button variant="ghost" size="icon" className="md:hidden h-8 w-8" onClick={onClick}>
-			<PanelRightClose className="h-5 w-5" />
+		<Button
+			variant="ghost"
+			size="icon"
+			onClick={onClick}
+			className="md:hidden h-8 w-8 shrink-0 text-muted-foreground hover:bg-transparent hover:text-muted-foreground"
+		>
+			<PanelLeft className="h-4 w-4" />
 			<span className="sr-only">Open menu</span>
 		</Button>
 	);
@@ -77,6 +84,8 @@ export function MobileSidebar({
 	onSettings,
 	onManageMembers,
 	onUserSettings,
+	onAnnouncements,
+	announcementUnreadCount = 0,
 	onLogout,
 	pageUsage,
 	theme,
@@ -99,11 +108,14 @@ export function MobileSidebar({
 
 	return (
 		<Sheet open={isOpen} onOpenChange={onOpenChange}>
-			<SheetContent side="left" className="w-[340px] p-0 flex flex-row gap-0 [&>button]:hidden">
+			<SheetContent
+				side="left"
+				className="w-[340px] p-0 flex flex-row gap-0 bg-panel [&>button]:hidden"
+			>
 				<SheetTitle className="sr-only">Navigation</SheetTitle>
 
 				{/* Vertical Search Spaces Rail - left side */}
-				<div className="flex h-full w-14 shrink-0 flex-col items-center bg-muted/40 border-r">
+				<div className="flex h-full w-14 shrink-0 flex-col items-center border-r bg-rail">
 					<ScrollArea className="w-full flex-1">
 						<div className="flex flex-col items-center gap-2 px-1.5 py-3">
 							{searchSpaces.map((space) => (
@@ -193,6 +205,16 @@ export function MobileSidebar({
 									}
 								: undefined
 						}
+						onAnnouncements={
+							onAnnouncements
+								? () => {
+										onOpenChange(false);
+										onAnnouncements();
+									}
+								: undefined
+						}
+						onNavigate={() => onOpenChange(false)}
+						announcementUnreadCount={announcementUnreadCount}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 						theme={theme}

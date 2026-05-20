@@ -2,6 +2,7 @@
 
 import { ArrowUp, Loader2, Square } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { AnonModel, AnonQuotaResponse } from "@/contracts/types/anonymous-chat.types";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { readSSEStream } from "@/lib/chat/streaming-state";
@@ -28,14 +29,16 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 	const abortRef = useRef<AbortController | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const modelSlug = model.seo_slug ?? model.model_name;
 
 	useEffect(() => {
 		anonymousChatApiService.getQuota().then(setQuota).catch(console.error);
 	}, []);
 
 	useEffect(() => {
+		if (messages.length === 0) return;
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, [messages]);
+	}, [messages.length]);
 
 	const autoResizeTextarea = useCallback(() => {
 		const textarea = textareaRef.current;
@@ -63,7 +66,7 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 		}
 
 		trackAnonymousChatMessageSent({
-			modelSlug: model.seo_slug,
+			modelSlug,
 			messageLength: trimmed.length,
 			surface: "free_model_page",
 		});
@@ -84,7 +87,7 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 					headers: { "Content-Type": "application/json" },
 					credentials: "include",
 					body: JSON.stringify({
-						model_slug: model.seo_slug,
+						model_slug: modelSlug,
 						messages: chatHistory,
 					}),
 					signal: controller.signal,
@@ -100,6 +103,8 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 						remaining: 0,
 						status: "exceeded",
 						warning_threshold: quota?.warning_threshold ?? 800000,
+						captcha_required:
+							errorData.detail?.captcha_required ?? quota?.captcha_required ?? false,
 					});
 					setMessages((prev) => prev.filter((m) => m.id !== assistantId));
 					return;
@@ -148,7 +153,7 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 			abortRef.current = null;
 			anonymousChatApiService.getQuota().then(setQuota).catch(console.error);
 		}
-	}, [input, isStreaming, messages, model.seo_slug, quota]);
+	}, [input, isStreaming, messages, modelSlug, quota]);
 
 	const handleCancel = useCallback(() => {
 		abortRef.current?.abort();
@@ -258,22 +263,26 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 						)}
 					/>
 					{isStreaming ? (
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="icon"
 							onClick={handleCancel}
-							className="absolute right-2 bottom-2 flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background transition-colors hover:opacity-80"
+							className="absolute right-2 bottom-2 size-8 bg-foreground text-background hover:bg-foreground hover:text-background hover:opacity-80"
 						>
 							<Square className="h-3.5 w-3.5" fill="currentColor" />
-						</button>
+						</Button>
 					) : (
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="icon"
 							onClick={handleSubmit}
 							disabled={!input.trim() || isExceeded}
-							className="absolute right-2 bottom-2 flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background transition-colors hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+							className="absolute right-2 bottom-2 size-8 bg-foreground text-background hover:bg-foreground hover:text-background hover:opacity-80 disabled:opacity-40"
 						>
 							<ArrowUp className="h-4 w-4" />
-						</button>
+						</Button>
 					)}
 				</div>
 

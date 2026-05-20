@@ -27,6 +27,28 @@ services:
       timeout: 5s
       retries: 5
 
+  # Short-lived schema runner. Executes `alembic upgrade head` and verifies
+  # that the `zero_publication` Postgres logical-replication publication
+  # exists, then exits 0. Downstream services (backend, celery_*, zero-cache)
+  # gate on this with `condition: service_completed_successfully` so a failed
+  # migration halts the whole stack instead of silently producing a half-built
+  # system that crash-loops zero-cache on missing publications.
+  migrations:
+    image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
+      PYTHONPATH: /app
+      SERVICE_ROLE: migrate
+      MIGRATION_TIMEOUT: ${MIGRATION_TIMEOUT:-900}
+    volumes:
+      - zero_init:/zero-init
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   redis:
     image: redis:8-alpine
     volumes:
@@ -88,9 +110,11 @@ services:
         condition: service_healthy
       searxng:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]
       interval: 15s
       timeout: 5s
       retries: 30
@@ -118,6 +142,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
       backend:
         condition: service_healthy
     labels:
@@ -140,6 +166,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
       celery_worker:
         condition: service_started
     labels:
@@ -163,7 +191,7 @@ services:
   #   restart: unless-stopped
 
   zero-cache:
-    image: rocicorp/zero:0.26.2
+    image: rocicorp/zero:1.4.0
     ports:
       - "${ZERO_CACHE_PORT:-5929}:4848"
     extra_hosts:
@@ -182,10 +210,21 @@ services:
       ZERO_MUTATE_URL: ${ZERO_MUTATE_URL:-http://frontend:3000/api/zero/mutate}
     volumes:
       - zero_cache_data:/data
+      - zero_init:/zero-init
+    # Wrapper: if the migrations service flagged a publication change via
+    # /zero-init/needs_reset, wipe the SQLite replica before starting so
+    # zero-cache does a clean initial sync. Recovers from the half-built
+    # replica state (`_zero.tableMetadata` missing) caused by earlier crashes.
+    entrypoint: ["sh", "-c"]
+    # Pass the script as a single list element so Compose does not tokenize it.
+    command:
+      - 'if [ -f /zero-init/needs_reset ]; then echo "[zero-init] publication change detected; wiping replica file(s) under /data" && rm -f /data/zero.db /data/zero.db-shm /data/zero.db-wal && rm -f /zero-init/needs_reset; fi; exec zero-cache'
     restart: unless-stopped
     depends_on:
-      backend:
+      db:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4848/keepalive"]
       interval: 10s
@@ -221,3 +260,5 @@ volumes:
     name: surfsense-shared-temp
   zero_cache_data:
     name: surfsense-zero-cache
+  zero_init:
+    name: surfsense-zero-init
