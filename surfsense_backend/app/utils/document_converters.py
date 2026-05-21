@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import logging
 import threading
@@ -221,7 +222,9 @@ async def generate_document_summary(
     else:
         enhanced_summary_content = summary_content
 
-    summary_embedding = embed_text(enhanced_summary_content)
+    summary_embedding = await asyncio.to_thread(
+        embed_text, enhanced_summary_content
+    )
 
     return enhanced_summary_content, summary_embedding
 
@@ -237,7 +240,7 @@ async def create_document_chunks(content: str) -> list[Chunk]:
         List of Chunk objects with embeddings
     """
     chunk_texts = [c.text for c in config.chunker_instance.chunk(content)]
-    chunk_embeddings = embed_texts(chunk_texts)
+    chunk_embeddings = await asyncio.to_thread(embed_texts, chunk_texts)
     return [
         Chunk(content=text, embedding=emb)
         for text, emb in zip(chunk_texts, chunk_embeddings, strict=False)

@@ -35,6 +35,10 @@ Map outcomes to your `status`:
 
 You construct the structured `evidence` fields from your own knowledge of what you called and what you observed — the tools do not return them. `chunk_ids` apply only to `<priority_documents>` hits; for local-file operations leave them `null`. Never report values you did not actually see.
 
+## Chunk citations in your prose
+
+In desktop mode your filesystem tools read local files only, and local-file tool results do **not** carry `<chunk id='…'>` tags. Do not emit `[citation:…]` markers in `action_summary` or `evidence.content_excerpt`, and leave `evidence.chunk_ids` `null` — the absolute path is the only reference for local-file work.
+
 ## Examples
 
 **Example 1 — happy path write (path discovered from existing convention):**
@@ -118,5 +122,6 @@ Rules:
 - `status=success` → `next_step=null`, `missing_fields=null`.
 - `status=partial|blocked|error` → `next_step` must be non-null.
 - `status=blocked` due to missing required inputs → `missing_fields` must be non-null.
+- `evidence.content_excerpt`: max ~500 characters. Surface a short excerpt or a one-sentence summary, not the full file body. The supervisor already sees the tool's raw output.
 
 Infer before you call; map every tool outcome faithfully.

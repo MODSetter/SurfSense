@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { getReauthEndpoint, LIVE_CONNECTOR_TYPES } from "../constants/connector-constants";
 import { useConnectorStatus } from "../hooks/use-connector-status";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
-
+import { BACKEND_URL } from "@/lib/env-config";
 interface ConnectorAccountsListViewProps {
 	connectorType: string;
 	connectorTitle: string;
@@ -59,7 +59,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 			if (!searchSpaceId || !endpoint) return;
 			setReauthingId(connector.id);
 			try {
-				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const backendUrl = BACKEND_URL;
 				const url = new URL(`${backendUrl}${endpoint}`);
 				url.searchParams.set("connector_id", String(connector.id));
 				url.searchParams.set("space_id", String(searchSpaceId));

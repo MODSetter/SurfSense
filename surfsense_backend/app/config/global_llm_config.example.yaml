@@ -258,6 +258,45 @@ global_llm_configs:
     use_default_system_instructions: true
     citations_enabled: true
 
+  # Example: Planner LLM - small, fast model used for internal utility tasks
+  #
+  # The PLANNER role handles short, structured internal calls (KB query
+  # rewriting, date extraction, recency classification, etc.) that don't
+  # need frontier-tier capability. Pointing the planner at a cheap+fast
+  # model (gpt-4o-mini, Claude Haiku, Azure gpt-5.x-nano, Groq Llama, ...)
+  # typically saves 500ms-1.5s per turn vs. routing those same internal
+  # calls through the user's chat model.
+  #
+  # Activation:
+  #   - Mark EXACTLY ONE global config with ``is_planner: true``.
+  #   - If multiple are marked, the first one wins and a WARNING is logged.
+  #   - If none is marked, every internal call falls back to the user's
+  #     chat LLM (same behavior as before this flag existed).
+  #
+  # This config is operator-only — it is NOT exposed in the user-facing
+  # model selector, never billed against premium quota, and the
+  # billing_tier / anonymous_enabled fields below are ignored.
+  - id: -9
+    name: "Global Planner (GPT-4o mini)"
+    description: "Internal-only planner LLM for query rewriting and classification"
+    is_planner: true
+    billing_tier: "free"
+    anonymous_enabled: false
+    seo_enabled: false
+    quota_reserve_tokens: 1000
+    provider: "OPENAI"
+    model_name: "gpt-4o-mini"
+    api_key: "sk-your-openai-api-key-here"
+    api_base: ""
+    rpm: 3500
+    tpm: 200000
+    litellm_params:
+      temperature: 0
+      max_tokens: 1000
+    system_instructions: ""
+    use_default_system_instructions: true
+    citations_enabled: false
+
 # =============================================================================
 # OpenRouter Integration
 # =============================================================================
@@ -492,6 +531,20 @@ global_vision_llm_configs:
 # - Only use vision-capable models (GPT-4o, Gemini, Claude 3, etc.)
 # - Lower temperature (0.3) is recommended for accurate screenshot analysis
 # - Lower max_tokens (1000) is sufficient since autocomplete produces short suggestions
+#
+# PLANNER LLM NOTES:
+# - is_planner: true marks a config as the internal-only planner LLM (small,
+#   fast model used for KB query rewriting, date extraction, recency
+#   classification, etc.). Only one config may carry this flag — if
+#   multiple do, the first one wins and a startup WARNING is logged.
+# - When no config is marked is_planner, every internal utility call falls
+#   back to the user's chat LLM (the historical behavior).
+# - Planner configs are NOT shown in the user-facing model selector and
+#   are NOT billed against the user's premium quota. Their billing_tier,
+#   anonymous_enabled, seo_* fields are ignored.
+# - Recommended models: gpt-4o-mini, claude-3-5-haiku, gemini-1.5-flash,
+#   azure gpt-5.x-nano, groq llama3-8b — anything <200ms p50 on a 1-2k
+#   prompt. Frontier models here defeat the purpose of the flag.
 #
 # TOKEN QUOTA & ANONYMOUS ACCESS NOTES:
 # - billing_tier: "free" or "premium". Controls whether registered users need premium token quota.

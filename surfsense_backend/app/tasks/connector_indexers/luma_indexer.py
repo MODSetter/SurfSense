@@ -6,6 +6,7 @@ Implements 2-phase document status updates for real-time UI feedback:
 - Phase 2: Process each event: pending → processing → ready/failed
 """
 
+import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
@@ -465,7 +466,9 @@ async def index_luma_events(
                     summary_content = (
                         f"Luma Event: {item['event_name']}\n\n{item['event_markdown']}"
                     )
-                    summary_embedding = embed_text(summary_content)
+                    summary_embedding = await asyncio.to_thread(
+                        embed_text, summary_content
+                    )
 
                 chunks = await create_document_chunks(item["event_markdown"])
 

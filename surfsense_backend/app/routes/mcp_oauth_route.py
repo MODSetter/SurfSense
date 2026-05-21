@@ -428,7 +428,7 @@ async def mcp_oauth_callback(
             await session.commit()
             await session.refresh(db_connector)
 
-            _invalidate_cache(space_id)
+            _refresh_mcp_cache(db_connector.id, space_id)
 
             logger.info(
                 "Re-authenticated %s MCP connector %s for user %s",
@@ -481,7 +481,7 @@ async def mcp_oauth_callback(
                 detail="A connector for this service already exists.",
             ) from e
 
-        _invalidate_cache(space_id)
+        _refresh_mcp_cache(new_connector.id, space_id)
 
         logger.info(
             "Created %s MCP connector %s for user %s in space %s",
@@ -658,10 +658,17 @@ async def reauth_mcp_service(
 # ---------------------------------------------------------------------------
 
 
-def _invalidate_cache(space_id: int) -> None:
-    try:
-        from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+def _refresh_mcp_cache(connector_id: int, space_id: int) -> None:
+    """Evict the in-process MCP tool LRU and schedule background prefetch.
 
-        invalidate_mcp_tools_cache(space_id)
+    Wraps :func:`refresh_mcp_tools_cache_for_connector` so any failure is
+    isolated from the OAuth response flow.
+    """
+    try:
+        from app.agents.new_chat.tools.mcp_tools_cache import (
+            refresh_mcp_tools_cache_for_connector,
+        )
+
+        refresh_mcp_tools_cache_for_connector(connector_id, space_id)
     except Exception:
-        logger.debug("MCP cache invalidation skipped", exc_info=True)
+        logger.debug("MCP cache refresh skipped", exc_info=True)

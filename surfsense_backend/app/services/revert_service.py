@@ -29,6 +29,7 @@ same trap waiting to happen).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -234,7 +235,7 @@ async def _restore_in_place_document(
             if isinstance(c, dict) and isinstance(c.get("content"), str)
         ]
         if chunk_texts:
-            chunk_embeddings = embed_texts(chunk_texts)
+            chunk_embeddings = await asyncio.to_thread(embed_texts, chunk_texts)
             session.add_all(
                 [
                     Chunk(document_id=doc.id, content=text, embedding=embedding)
@@ -244,7 +245,9 @@ async def _restore_in_place_document(
                 ]
             )
             if isinstance(revision.content_before, str):
-                doc.embedding = embed_texts([revision.content_before])[0]
+                doc.embedding = (
+                    await asyncio.to_thread(embed_texts, [revision.content_before])
+                )[0]
 
     doc.updated_at = datetime.now(UTC)
     return RevertOutcome(status="ok", message="Document restored from snapshot.")
@@ -320,7 +323,7 @@ async def _reinsert_document_from_revision(
     session.add(new_doc)
     await session.flush()
 
-    new_doc.embedding = embed_texts([content])[0]
+    new_doc.embedding = (await asyncio.to_thread(embed_texts, [content]))[0]
     chunk_texts = []
     chunks_before = revision.chunks_before
     if isinstance(chunks_before, list):
@@ -330,7 +333,7 @@ async def _reinsert_document_from_revision(
             if isinstance(c, dict) and isinstance(c.get("content"), str)
         ]
     if chunk_texts:
-        chunk_embeddings = embed_texts(chunk_texts)
+        chunk_embeddings = await asyncio.to_thread(embed_texts, chunk_texts)
         session.add_all(
             [
                 Chunk(document_id=new_doc.id, content=text, embedding=embedding)

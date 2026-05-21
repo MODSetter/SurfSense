@@ -48,4 +48,3 @@ async def stream_output(
         yield frame
 
     result.accumulated_text = state.accumulated_text
-    result.agent_called_update_memory = state.called_update_memory

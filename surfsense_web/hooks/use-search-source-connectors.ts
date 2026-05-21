@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { authenticatedFetch } from "@/lib/auth-utils";
-
+import { BACKEND_URL } from "@/lib/env-config";
 export interface SearchSourceConnector {
 	id: number;
 	name: string;
@@ -108,7 +108,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 
 				// Build URL with optional search_space_id query parameter
 				const url = new URL(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors`
+					`${BACKEND_URL}/api/v1/search-source-connectors`
 				);
 				if (spaceId !== undefined) {
 					url.searchParams.append("search_space_id", spaceId.toString());
@@ -170,7 +170,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		try {
 			// Add search_space_id as a query parameter
 			const url = new URL(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors`
+				`${BACKEND_URL}/api/v1/search-source-connectors`
 			);
 			url.searchParams.append("search_space_id", spaceId.toString());
 
@@ -208,7 +208,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	) => {
 		try {
 			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
+				`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 				{
 					method: "PUT",
 					headers: { "Content-Type": "application/json" },
@@ -239,7 +239,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	const deleteConnector = async (connectorId: number) => {
 		try {
 			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
+				`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 				{
 					method: "DELETE",
 					headers: { "Content-Type": "application/json" },
@@ -284,7 +284,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 
 			const response = await authenticatedFetch(
 				`${
-					process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL
+					BACKEND_URL
 				}/api/v1/search-source-connectors/${connectorId}/index?${params.toString()}`,
 				{
 					method: "POST",

@@ -22,6 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { BACKEND_URL } from "@/lib/env-config";
 
 function ReportPanelSkeleton() {
 	return (
@@ -244,7 +245,7 @@ export function ReportPanelContent({
 					URL.revokeObjectURL(url);
 				} else {
 					const response = await authenticatedFetch(
-						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${activeReportId}/export?format=${format}`,
+						`${BACKEND_URL}/api/v1/reports/${activeReportId}/export?format=${format}`,
 						{ method: "GET" }
 					);
 
@@ -277,7 +278,7 @@ export function ReportPanelContent({
 		setSaving(true);
 		try {
 			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${activeReportId}/content`,
+				`${BACKEND_URL}/api/v1/reports/${activeReportId}/content`,
 				{
 					method: "PUT",
 					headers: { "Content-Type": "application/json" },
@@ -505,7 +506,7 @@ export function ReportPanelContent({
 					</div>
 				) : reportContent.content_type === "typst" ? (
 					<PdfViewer
-						pdfUrl={`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${shareToken ? `/api/v1/public/${shareToken}/reports/${activeReportId}/preview` : `/api/v1/reports/${activeReportId}/preview`}`}
+						pdfUrl={`${BACKEND_URL}${shareToken ? `/api/v1/public/${shareToken}/reports/${activeReportId}/preview` : `/api/v1/reports/${activeReportId}/preview`}`}
 						isPublic={isPublic}
 						toolbarActions={
 							<>

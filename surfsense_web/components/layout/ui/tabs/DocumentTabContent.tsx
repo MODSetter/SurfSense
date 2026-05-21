@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
-
+import { BACKEND_URL } from "@/lib/env-config";
 const LARGE_DOCUMENT_THRESHOLD = 2 * 1024 * 1024; // 2MB
 
 interface DocumentContent {
@@ -85,7 +85,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 
 			try {
 				const url = new URL(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
+					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
 				);
 				url.searchParams.set("max_length", String(LARGE_DOCUMENT_THRESHOLD));
 
@@ -143,7 +143,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 		setSaving(true);
 		try {
 			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`,
+				`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -285,7 +285,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 											setDownloading(true);
 											try {
 												const response = await authenticatedFetch(
-													`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`,
+													`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`,
 													{ method: "GET" }
 												);
 												if (!response.ok) throw new Error("Download failed");

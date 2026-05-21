@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any, cast
 
 from deepagents.backends.protocol import BackendFactory, BackendProtocol
@@ -15,7 +16,11 @@ from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langgraph.types import Checkpointer
 
+from app.utils.perf import get_perf_logger
+
 from .task_tool import build_task_tool_with_parent_config
+
+_perf_log = get_perf_logger()
 
 
 class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
@@ -54,8 +59,11 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
     def _surf_compile_subagent_graphs(self) -> list[dict[str, Any]]:
         """Mirror of ``SubAgentMiddleware._get_subagents`` that threads the parent checkpointer."""
         specs: list[dict[str, Any]] = []
+        loop_start = time.perf_counter()
+        timings: list[tuple[str, float, str]] = []  # (name, elapsed, source)
 
         for spec in self._subagents:
+            spec_start = time.perf_counter()
             if "runnable" in spec:
                 compiled = cast(CompiledSubAgent, spec)
                 specs.append(
@@ -64,6 +72,9 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
                         "description": compiled["description"],
                         "runnable": compiled["runnable"],
                     }
+                )
+                timings.append(
+                    (compiled["name"], time.perf_counter() - spec_start, "precompiled")
                 )
                 continue
 
@@ -79,20 +90,44 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
                 model = init_chat_model(model)
 
             middleware: list[Any] = list(spec.get("middleware", []))
+            tools_count = len(spec.get("tools") or [])
+            mw_count = len(middleware)
 
+            compile_start = time.perf_counter()
+            runnable = create_agent(
+                model,
+                system_prompt=spec["system_prompt"],
+                tools=spec["tools"],
+                middleware=middleware,
+                name=spec["name"],
+                checkpointer=self._surf_checkpointer,
+            )
+            compile_elapsed = time.perf_counter() - compile_start
             specs.append(
                 {
                     "name": spec["name"],
                     "description": spec["description"],
-                    "runnable": create_agent(
-                        model,
-                        system_prompt=spec["system_prompt"],
-                        tools=spec["tools"],
-                        middleware=middleware,
-                        name=spec["name"],
-                        checkpointer=self._surf_checkpointer,
-                    ),
+                    "runnable": runnable,
                 }
             )
+            timings.append(
+                (
+                    spec["name"],
+                    compile_elapsed,
+                    f"compiled tools={tools_count} mw={mw_count}",
+                )
+            )
+
+        total_elapsed = time.perf_counter() - loop_start
+        per_subagent = ", ".join(
+            f"{name}={elapsed * 1000:.0f}ms[{source}]"
+            for name, elapsed, source in timings
+        )
+        _perf_log.info(
+            "[subagent_compile] total=%.3fs count=%d details=[%s]",
+            total_elapsed,
+            len(timings),
+            per_subagent,
+        )
 
         return specs

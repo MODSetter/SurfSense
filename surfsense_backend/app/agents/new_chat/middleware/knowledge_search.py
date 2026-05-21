@@ -457,7 +457,7 @@ async def search_knowledge_base(
     if not query:
         return []
 
-    [embedding] = embed_texts([query])
+    [embedding] = await asyncio.to_thread(embed_texts, [query])
     doc_types = _resolve_search_types(available_connectors, available_document_types)
     retriever_top_k = min(top_k * 3, 30)
 
@@ -579,6 +579,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         self,
         *,
         llm: BaseChatModel | None = None,
+        planner_llm: BaseChatModel | None = None,
         search_space_id: int,
         filesystem_mode: FilesystemMode = FilesystemMode.CLOUD,
         available_connectors: list[str] | None = None,
@@ -588,6 +589,15 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         inject_system_message: bool = True,  # For backwards compatibility
     ) -> None:
         self.llm = llm
+        # The planner LLM handles short, structured internal tasks (query
+        # rewriting, date extraction, recency classification). When an
+        # operator marks a global config ``is_planner: true`` we route
+        # those calls to a cheap/fast model (e.g. gpt-4o-mini, Haiku, Azure
+        # gpt-5.x-nano) instead of the user's chat LLM — those classification
+        # tasks don't need frontier-tier capability. Falls back to the chat
+        # LLM when no planner config is wired up so deployments without one
+        # keep working unchanged.
+        self.planner_llm = planner_llm or llm
         self.search_space_id = search_space_id
         self.filesystem_mode = filesystem_mode
         self.available_connectors = available_connectors
@@ -598,7 +608,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         # Build the kb-planner private Runnable ONCE here so we don't pay
         # the ``create_agent`` compile cost (50-200ms) on every turn.
         # Disabled by default behind ``enable_kb_planner_runnable``; when
-        # off the planner falls back to the legacy ``self.llm.ainvoke``
+        # off the planner falls back to the legacy ``planner_llm.ainvoke``
         # path.
         self._planner: Runnable | None = None
         self._planner_compile_failed = False
@@ -608,7 +618,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         Returns ``None`` when the feature flag is disabled, when the LLM is
         unavailable, or when ``create_agent`` raises (we fall back to the
-        legacy ``self.llm.ainvoke`` path in that case). Compilation happens
+        legacy ``planner_llm.ainvoke`` path in that case). Compilation happens
         lazily on first call, then memoized via ``self._planner``.
 
         The compiled agent is constructed without tools — the planner's
@@ -618,7 +628,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         """
         if self._planner is not None or self._planner_compile_failed:
             return self._planner
-        if self.llm is None:
+        if self.planner_llm is None:
             return None
         flags = get_flags()
         if not flags.enable_kb_planner_runnable or flags.disable_new_agent_stack:
@@ -628,13 +638,13 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         try:
             self._planner = create_agent(
-                self.llm,
+                self.planner_llm,
                 tools=[],
                 middleware=[RetryAfterMiddleware(max_retries=2)],
             )
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning(
-                "kb-planner Runnable compile failed; falling back to llm.ainvoke: %s",
+                "kb-planner Runnable compile failed; falling back to planner_llm.ainvoke: %s",
                 exc,
             )
             self._planner_compile_failed = True
@@ -647,12 +657,12 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         messages: Sequence[BaseMessage],
         user_text: str,
     ) -> tuple[str, datetime | None, datetime | None, bool]:
-        if self.llm is None:
+        if self.planner_llm is None:
             return user_text, None, None, False
 
         recent_conversation = _render_recent_conversation(
             messages,
-            llm=self.llm,
+            llm=self.planner_llm,
             user_text=user_text,
         )
         prompt = _build_kb_planner_prompt(
@@ -663,8 +673,8 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         t0 = loop.time()
 
         # Prefer the compiled-once planner Runnable when enabled; otherwise
-        # fall back to ``self.llm.ainvoke``. The ``surfsense:internal`` tag
-        # is preserved on both paths so ``_stream_agent_events`` still
+        # fall back to ``planner_llm.ainvoke``. The ``surfsense:internal``
+        # tag is preserved on both paths so ``_stream_agent_events`` still
         # suppresses the planner's intermediate events from the UI.
         planner = self._build_kb_planner_runnable()
         try:
@@ -684,7 +694,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                     else AIMessage(content="")
                 )
             else:
-                response = await self.llm.ainvoke(
+                response = await self.planner_llm.ainvoke(
                     [HumanMessage(content=prompt)],
                     config={"tags": ["surfsense:internal"]},
                 )

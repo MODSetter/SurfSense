@@ -8,9 +8,11 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 import { useApiKey } from "@/hooks/use-api-key";
 import { getConnectorBenefits } from "../connector-benefits";
 import type { ConnectFormProps } from "../index";
+import { BACKEND_URL } from "@/lib/env-config";
 
 const PLUGIN_RELEASES_URL =
 	"https://github.com/MODSetter/SurfSense/releases?q=obsidian&expanded=true";
+
 
 /**
  * Obsidian connect form for the plugin-only architecture.

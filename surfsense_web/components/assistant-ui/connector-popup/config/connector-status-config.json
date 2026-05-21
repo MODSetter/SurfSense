@@ -19,6 +19,11 @@
 			"enabled": false,
 			"status": "maintenance",
 			"statusMessage": "Rework in progress."
+		},
+		"COMPOSIO_GOOGLE_DRIVE_CONNECTOR": {
+			"enabled": false,
+			"status": "maintenance",
+			"statusMessage": "Temporarily unavailable due to an upstream Composio bug (ComposioHQ/composio#3471) that returns malformed presigned URLs for Drive file downloads. Use the native Google Drive connector in the meantime."
 		}
 	},
 	"globalSettings": {
