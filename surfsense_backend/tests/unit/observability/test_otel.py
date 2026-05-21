@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.observability import otel
+from app.observability import bootstrap, metrics, otel
 
 pytestmark = pytest.mark.unit
 
@@ -12,7 +12,14 @@ pytestmark = pytest.mark.unit
 @pytest.fixture(autouse=True)
 def _reset_otel_state(monkeypatch: pytest.MonkeyPatch):
     """Force a clean OTel disabled state per test, then restore after."""
-    for env in ("OTEL_EXPORTER_OTLP_ENDPOINT", "SURFSENSE_DISABLE_OTEL"):
+    for env in (
+        "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "OTEL_EXPORTER_OTLP_PROTOCOL",
+        "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+        "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
+        "SURFSENSE_DISABLE_OTEL",
+        "OTEL_SDK_DISABLED",
+    ):
         monkeypatch.delenv(env, raising=False)
     monkeypatch.setenv("SURFSENSE_DISABLE_OTEL", "true")
     otel.reload_for_tests()
@@ -34,6 +41,158 @@ def test_kill_switch_overrides_endpoint(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
     monkeypatch.setenv("SURFSENSE_DISABLE_OTEL", "true")
     assert otel.reload_for_tests() is False
+
+
+def test_spec_kill_switch_overrides_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SURFSENSE_DISABLE_OTEL", raising=False)
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+    monkeypatch.setenv("OTEL_SDK_DISABLED", "true")
+    assert otel.reload_for_tests() is False
+
+
+class TestBootstrapConfig:
+    def test_disabled_checks_both_kill_switches(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("SURFSENSE_DISABLE_OTEL", raising=False)
+        monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
+        assert bootstrap.is_otel_disabled() is False
+
+        monkeypatch.setenv("OTEL_SDK_DISABLED", "on")
+        assert bootstrap.is_otel_disabled() is True
+
+    def test_configured_by_shared_or_signal_endpoint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("SURFSENSE_DISABLE_OTEL", raising=False)
+        assert bootstrap.is_otel_configured() is False
+
+        monkeypatch.setenv(
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://localhost:4317"
+        )
+        assert bootstrap.is_otel_configured() is True
+
+    def test_init_otel_noops_when_disabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        called = {"traces": False}
+
+        def fake_init_traces(app=None):
+            del app
+            called["traces"] = True
+
+        monkeypatch.setenv("SURFSENSE_DISABLE_OTEL", "true")
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+        monkeypatch.setattr(bootstrap, "init_traces", fake_init_traces)
+
+        bootstrap.init_otel()
+        assert called["traces"] is False
+
+    def test_init_otel_dispatches_enabled_signals(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        called: list[str] = []
+
+        monkeypatch.delenv("SURFSENSE_DISABLE_OTEL", raising=False)
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+        monkeypatch.setattr(
+            bootstrap, "init_traces", lambda app=None: called.append("traces")
+        )
+        monkeypatch.setattr(bootstrap, "init_metrics", lambda: called.append("metrics"))
+        monkeypatch.setattr(bootstrap, "init_logs", lambda: called.append("logs"))
+
+        bootstrap.init_otel()
+        assert called == ["traces", "metrics", "logs"]
+
+    def test_resource_defaults_include_service_metadata(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "custom-backend")
+        monkeypatch.setenv("SURFSENSE_ENV", "test")
+
+        resource = bootstrap._build_resource()
+        attrs = dict(resource.attributes)
+        assert attrs["service.name"] == "custom-backend"
+        assert attrs["deployment.environment"] == "test"
+        assert attrs["service.instance.id"]
+
+    def test_shutdown_is_safe_without_providers(self) -> None:
+        bootstrap.shutdown_otel()
+
+
+class TestMetricHelpers:
+    def test_all_metric_helpers_noop_safely_when_disabled(self) -> None:
+        metrics.record_model_call_duration(12.5, model="gpt-4o", provider="openai")
+        metrics.record_model_token_usage(
+            input_tokens=10,
+            output_tokens=5,
+            model="gpt-4o",
+            provider="openai",
+        )
+        metrics.record_tool_call_duration(3.0, tool_name="web_search")
+        metrics.record_tool_call_error(tool_name="web_search")
+        metrics.record_kb_search_duration(
+            4.0,
+            search_space_id=1,
+            surface="documents",
+        )
+        metrics.record_compaction_run(reason="auto")
+        metrics.record_permission_ask(permission="write_file")
+        metrics.record_interrupt(interrupt_type="permission_ask")
+        metrics.record_indexing_document_duration(1.2, document_type="FILE")
+        metrics.record_indexing_document_outcome(document_type="FILE", status="success")
+        metrics.record_connector_sync_duration(
+            2.3,
+            connector_type="index_notion_pages",
+        )
+        metrics.record_connector_sync_outcome(
+            connector_type="index_notion_pages",
+            status="success",
+        )
+        metrics.record_auth_failure(reason="UNAUTHORIZED")
+        metrics.record_rate_limit_rejection(scope="login")
+        metrics.record_perf_elapsed(7.0, label="[test]")
+
+    def test_runtime_observables_register_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        class FakeMeter:
+            def __init__(self) -> None:
+                self.names: list[str] = []
+
+            def create_observable_gauge(self, name: str, **kwargs) -> None:
+                del kwargs
+                self.names.append(name)
+
+        fake_meter = FakeMeter()
+        monkeypatch.setattr(metrics, "_OBSERVABLES_REGISTERED", False)
+        monkeypatch.setattr(metrics, "_is_enabled", lambda: True)
+        monkeypatch.setattr(metrics, "_get_meter", lambda: fake_meter)
+
+        metrics.register_runtime_observables()
+        metrics.register_runtime_observables()
+
+        assert len(fake_meter.names) == 6
+        assert fake_meter.names.count("python.asyncio.tasks") == 1
+        monkeypatch.setattr(metrics, "_OBSERVABLES_REGISTERED", False)
+
+
+def test_log_record_factory_provides_zero_otel_fields() -> None:
+    import logging
+
+    import main  # noqa: F401
+
+    record = logging.getLogRecordFactory()(
+        "test",
+        logging.INFO,
+        __file__,
+        1,
+        "hello",
+        (),
+        None,
+    )
+    assert record.otelTraceID == "0"
+    assert record.otelSpanID == "0"
 
 
 class TestNoopSpansWhenDisabled:
