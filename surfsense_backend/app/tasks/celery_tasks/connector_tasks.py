@@ -1,12 +1,41 @@
 """Celery tasks for connector indexing."""
 
 import logging
+import time
 import traceback
+from collections.abc import Awaitable, Callable
+
+from celery import current_task
 
 from app.celery_app import celery_app
-from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
+from app.observability import metrics as ot_metrics
+from app.tasks.celery_tasks import (
+    get_celery_session_maker,
+    run_async_celery_task as _run_async_celery_task,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def run_async_celery_task[T](coro_factory: Callable[[], Awaitable[T]]) -> T:
+    """Run connector sync work and record aggregate connector metrics."""
+    task_name = getattr(current_task, "name", None) or "unknown"
+    t0 = time.perf_counter()
+    status = "failed"
+    try:
+        result = _run_async_celery_task(coro_factory)
+        status = "success"
+        return result
+    finally:
+        elapsed_s = time.perf_counter() - t0
+        ot_metrics.record_connector_sync_duration(
+            elapsed_s,
+            connector_type=task_name,
+        )
+        ot_metrics.record_connector_sync_outcome(
+            connector_type=task_name,
+            status=status,
+        )
 
 
 def _handle_greenlet_error(e: Exception, task_name: str, connector_id: int) -> None:
