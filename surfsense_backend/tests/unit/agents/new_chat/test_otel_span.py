@@ -23,6 +23,7 @@ pytestmark = pytest.mark.unit
 @pytest.fixture(autouse=True)
 def _disable_otel(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+    monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
     monkeypatch.setenv("SURFSENSE_DISABLE_OTEL", "true")
     from app.observability import otel as ot
 
@@ -99,16 +100,17 @@ class TestAnnotateModelResponse:
                 "total_tokens": 150,
             },
         )
-        _annotate_model_response(sp, msg)
-        sp.set_attribute.assert_any_call("tokens.prompt", 100)
-        sp.set_attribute.assert_any_call("tokens.completion", 50)
-        sp.set_attribute.assert_any_call("tokens.total", 150)
+        assert _annotate_model_response(sp, msg) == (100, 50)
+        sp.set_attribute.assert_any_call("gen_ai.usage.input_tokens", 100)
+        sp.set_attribute.assert_any_call("gen_ai.usage.output_tokens", 50)
+        sp.set_attribute.assert_any_call("gen_ai.usage.total_tokens", 150)
+        sp.set_attribute.assert_any_call("gen_ai.operation.name", "chat")
 
     def test_handles_response_with_no_metadata(self) -> None:
         sp = MagicMock()
         msg = AIMessage(content="hello")
         # Should not raise even when usage_metadata is missing
-        _annotate_model_response(sp, msg)
+        assert _annotate_model_response(sp, msg) == (None, None)
 
 
 class TestAnnotateToolResult:
@@ -119,7 +121,7 @@ class TestAnnotateToolResult:
             tool_call_id="abc",
             status="success",
         )
-        _annotate_tool_result(sp, result)
+        assert _annotate_tool_result(sp, result) is False
         sp.set_attribute.assert_any_call("tool.output.size", len("result text"))
         sp.set_attribute.assert_any_call("tool.status", "success")
 
@@ -130,7 +132,7 @@ class TestAnnotateToolResult:
             tool_call_id="abc",
             additional_kwargs={"error": {"code": "x"}},
         )
-        _annotate_tool_result(sp, result)
+        assert _annotate_tool_result(sp, result) is True
         sp.set_attribute.assert_any_call("tool.error", True)
 
 
@@ -191,5 +193,93 @@ class TestMiddlewareIntegration:
             result = await mw.awrap_model_call(request, handler)
             assert isinstance(result, AIMessage)
             assert result.content == "enabled"
+        finally:
+            ot.reload_for_tests()
+
+    async def test_enabled_model_call_records_metrics(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("SURFSENSE_DISABLE_OTEL", raising=False)
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+        from app.observability import otel as ot
+
+        duration_calls: list[dict[str, Any]] = []
+        token_calls: list[dict[str, Any]] = []
+        monkeypatch.setattr(
+            "app.agents.new_chat.middleware.otel_span.ot_metrics.record_model_call_duration",
+            lambda duration_ms, **attrs: duration_calls.append(
+                {"duration_ms": duration_ms, **attrs}
+            ),
+        )
+        monkeypatch.setattr(
+            "app.agents.new_chat.middleware.otel_span.ot_metrics.record_model_token_usage",
+            lambda **attrs: token_calls.append(attrs),
+        )
+
+        ot.reload_for_tests()
+        try:
+            mw = OtelSpanMiddleware()
+
+            async def handler(req):
+                return AIMessage(
+                    content="enabled",
+                    usage_metadata={
+                        "input_tokens": 3,
+                        "output_tokens": 5,
+                        "total_tokens": 8,
+                    },
+                )
+
+            request = MagicMock()
+            request.model = MagicMock()
+            request.model.model_name = "gpt-4o"
+            request.model.provider = "openai"
+            await mw.awrap_model_call(request, handler)
+
+            assert duration_calls
+            assert token_calls == [
+                {
+                    "input_tokens": 3,
+                    "output_tokens": 5,
+                    "model": "gpt-4o",
+                    "provider": "openai",
+                }
+            ]
+        finally:
+            ot.reload_for_tests()
+
+    async def test_enabled_tool_call_records_error_metric(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("SURFSENSE_DISABLE_OTEL", raising=False)
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+        from app.observability import otel as ot
+
+        errors: list[str] = []
+        monkeypatch.setattr(
+            "app.agents.new_chat.middleware.otel_span.ot_metrics.record_tool_call_error",
+            lambda *, tool_name: errors.append(tool_name),
+        )
+        monkeypatch.setattr(
+            "app.agents.new_chat.middleware.otel_span.ot_metrics.record_tool_call_duration",
+            lambda *args, **kwargs: None,
+        )
+
+        ot.reload_for_tests()
+        try:
+            mw = OtelSpanMiddleware()
+
+            async def handler(req):
+                return ToolMessage(
+                    content="failed",
+                    tool_call_id="abc",
+                    status="error",
+                )
+
+            request = MagicMock()
+            request.tool = MagicMock()
+            request.tool.name = "web_search"
+            await mw.awrap_tool_call(request, handler)
+            assert errors == ["web_search"]
         finally:
             ot.reload_for_tests()
