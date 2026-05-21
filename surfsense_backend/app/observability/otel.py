@@ -66,6 +66,8 @@ def _resolve_enabled() -> bool:
     # Honor an explicit kill-switch first.
     if os.environ.get("SURFSENSE_DISABLE_OTEL", "").lower() in {"1", "true", "yes"}:
         return False
+    if os.environ.get("OTEL_SDK_DISABLED", "").lower() in {"1", "true", "yes", "on"}:
+        return False
     # Treat a configured endpoint as the canonical "OTel is wired up" signal.
     if os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
         return True
@@ -198,8 +200,11 @@ def model_call_span(
     attrs: dict[str, Any] = {}
     if model_id:
         attrs["model.id"] = model_id
+        attrs["gen_ai.request.model"] = model_id
     if provider:
         attrs["model.provider"] = provider
+        attrs["gen_ai.provider.name"] = provider
+    attrs["gen_ai.operation.name"] = "chat"
     if extra:
         attrs.update(extra)
     return span("model.call", attributes=attrs)

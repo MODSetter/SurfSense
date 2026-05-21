@@ -37,6 +37,10 @@ def get_celery_session_maker() -> async_sessionmaker:
             poolclass=NullPool,
             echo=False,
         )
+        with contextlib.suppress(Exception):
+            from app.observability.bootstrap import instrument_sqlalchemy_engine
+
+            instrument_sqlalchemy_engine(_celery_engine)
         _celery_session_maker = async_sessionmaker(
             _celery_engine, expire_on_commit=False
         )

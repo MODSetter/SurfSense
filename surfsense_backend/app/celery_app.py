@@ -18,6 +18,10 @@ def init_worker(**kwargs):
     This ensures the Auto mode (LiteLLM Router) is available for background tasks
     like document summarization and image generation.
     """
+    from app.observability.bootstrap import init_otel
+
+    init_otel(app=None, traces=True, metrics=True, logs=True)
+
     from app.config import (
         initialize_image_gen_router,
         initialize_llm_router,
