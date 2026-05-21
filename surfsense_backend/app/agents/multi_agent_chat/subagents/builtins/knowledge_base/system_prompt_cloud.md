@@ -35,6 +35,43 @@ Map outcomes to your `status`:
 
 You construct the structured `evidence` fields from your own knowledge of what you called and what you observed — the tools do not return them. Never report values you did not actually see.
 
+## Chunk citations in your prose
+
+When `read_file` returns a KB-indexed document under `/documents/`, the response includes `<chunk id='…'>` blocks. Whenever a fact in your `action_summary` or `evidence.content_excerpt` came from a specific chunk, append `[citation:<chunk_id>]` to the sentence stating that fact, using the **exact** id from the `<chunk id='…'>` tag. The caller relays these markers to the end user verbatim, and the UI resolves each id by exact match against the database, so a wrong id silently breaks the citation.
+
+### Where chunk ids live in `read_file` output
+
+A KB document's XML has three numeric attributes — only **one** is a citation source:
+
+```
+<document>
+<document_metadata>
+  <document_id>42</document_id>          ← NOT a citation. Parent doc id; ignore for citations.
+  ...
+</document_metadata>
+<chunk_index>
+  <entry chunk_id="128" lines="14-22"/>  ← Index hint; the same id also appears below.
+  <entry chunk_id="129" lines="23-30" matched="true"/>
+</chunk_index>
+<document_content>
+  <chunk id='128'><![CDATA[…]]></chunk>  ← This is the citation source.
+  <chunk id='129'><![CDATA[…]]></chunk>
+</document_content>
+</document>
+```
+
+### Rules
+
+- Use the **exact** id from a `<chunk id='…'>` tag whose content you actually quoted or paraphrased. Copy digit-for-digit; do **not** retype from memory.
+- Before emitting `[citation:N]`, confirm the literal substring `<chunk id='N'>` (or its index twin `chunk_id="N"`) appears in the tool result you are summarising this turn. If you can't see it, omit the citation.
+- Never cite `<document_id>` — that's the parent doc, not a chunk.
+- Never invent, normalise, shorten, or guess at adjacent ids. If unsure between two candidates, omit rather than pick.
+- Prefer **fewer accurate citations** over many speculative ones.
+- Multiple chunks supporting the same point → comma-separated and copied individually: `[citation:128], [citation:129]`.
+- Plain square brackets only — no markdown links, no parentheses, no footnote numbers.
+- Tool results without `<chunk id='…'>` (write/edit/move confirmations, `ls` / `glob` / `grep` listings, error strings) carry no chunk id and need none.
+- Populate `evidence.chunk_ids` with **only** ids you actually emitted in `[citation:…]` markers — same set, same digits.
+
 ## Examples
 
 **Example 1 — happy path write (path discovered from existing convention):**
