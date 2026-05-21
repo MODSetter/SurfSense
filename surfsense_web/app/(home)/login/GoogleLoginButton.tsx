@@ -5,7 +5,7 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { AmbientBackground } from "./AmbientBackground";
-<<<<<<< HEAD
+import { BACKEND_URL } from "@/lib/env-config";
 
 function GoogleGLogo({ className }: { className?: string }) {
 	return (
@@ -35,9 +35,6 @@ function GoogleGLogo({ className }: { className?: string }) {
 	);
 }
 
-=======
-import { BACKEND_URL } from "@/lib/env-config";
->>>>>>> 1127aedb4 (refactor(env): replace inline process.env reads with BACKEND_URL in editor, chat, dashboard and settings)
 export function GoogleLoginButton() {
 	const t = useTranslations("auth");
 	const [isRedirecting, setIsRedirecting] = useState(false);
