@@ -39,7 +39,8 @@ export async function startNextServer(): Promise<void> {
   const serverScript = path.join(standalonePath, 'server.js');
 
   process.env.PORT = String(serverPort);
-  process.env.HOSTNAME = '0.0.0.0';
+  // Loopback bind: 0.0.0.0 leaks into request.url and flips window origin via NextResponse.redirect.
+  process.env.HOSTNAME = 'localhost';
   process.env.NODE_ENV = 'production';
   process.chdir(standalonePath);
 
