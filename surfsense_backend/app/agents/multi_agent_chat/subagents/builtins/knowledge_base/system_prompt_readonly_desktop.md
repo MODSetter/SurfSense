@@ -28,3 +28,7 @@ Reply in plain prose:
 - Cite every claim with an absolute path.
 - If the workspace does not contain the requested information, say so explicitly. Do not fabricate paths or content.
 - If the question is genuinely ambiguous after a thorough lookup, list the candidates with their paths and stop.
+
+## Chunk citations
+
+In desktop mode your filesystem tools read local files only, and local-file `read_file` responses do **not** carry `<chunk id='…'>` tags. Cite each claim with the absolute local path; do not emit `[citation:…]` markers — your caller has nothing to resolve them against.
