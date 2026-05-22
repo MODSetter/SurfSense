@@ -83,14 +83,39 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
     session.defaultSession.webRequest.onBeforeRequest(rewriteFilter, (details, callback) => {
       try {
         const u = new URL(details.url);
+        const originalHost = u.host;
         u.protocol = 'http:';
         u.host = `localhost:${getServerPort()}`;
+        trackEvent('desktop_oauth_redirect_intercepted', {
+          host: originalHost,
+          path: u.pathname,
+          rewritten_to_port: getServerPort(),
+        });
         callback({ redirectURL: u.toString() });
       } catch {
         callback({});
       }
     });
   }
+
+  // Diagnostic: connector callback landing somewhere other than localhost
+  // means the rewrite missed and the user is stranded off-app.
+  session.defaultSession.webRequest.onCompleted(
+    { urls: ['*://*/dashboard/*/connectors/callback*'] },
+    (details) => {
+      try {
+        const u = new URL(details.url);
+        if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') return;
+        trackEvent('desktop_oauth_redirect_missed', {
+          host: u.host,
+          path: u.pathname,
+          status_code: details.statusCode,
+        });
+      } catch {
+        // ignore malformed URLs
+      }
+    }
+  );
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     console.error(`Failed to load ${validatedURL}: ${errorDescription} (${errorCode})`);
