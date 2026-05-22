@@ -31,7 +31,7 @@ import {
 	deleteMemberMutationAtom,
 	updateMemberMutationAtom,
 } from "@/atoms/members/members-mutation.atoms";
-import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { membersAtom, myAccessAtom, canPerform } from "@/atoms/members/members-query.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -126,14 +126,9 @@ export function TeamContent({ searchSpaceId }: TeamContentProps) {
 	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
 
 	const hasPermission = useCallback(
-		(permission: string) => {
-			if (!access) return false;
-			if (access.is_owner) return true;
-			return access.permissions?.includes(permission) ?? false;
-		},
+		(permission: string) => canPerform(access, permission),
 		[access]
 	);
-
 	const { data: members = [], isLoading: membersLoading } = useAtomValue(membersAtom);
 
 	const { mutateAsync: updateMember } = useAtomValue(updateMemberMutationAtom);
