@@ -71,7 +71,7 @@ def _build_resource():
             "service.name": os.environ.get("OTEL_SERVICE_NAME", "surfsense-backend"),
             "service.version": _package_version(),
             "service.instance.id": socket.gethostname(),
-            "deployment.environment": _deployment_environment(),
+            "deployment.environment.name": _deployment_environment(),
         }
     )
 
@@ -336,7 +336,10 @@ def init_logs() -> None:
     def _run() -> None:
         from opentelemetry.instrumentation.logging import LoggingInstrumentor
 
-        LoggingInstrumentor().instrument()
+        # Required for stdlib LogRecords to receive otelTraceID/otelSpanID.
+        # logging.basicConfig is already installed by main.py, so this does not
+        # take over formatting in normal app startup.
+        LoggingInstrumentor().instrument(set_logging_format=True)
 
     if _safe_instrument("logging", _run):
         _LOGS_INITIALIZED = True

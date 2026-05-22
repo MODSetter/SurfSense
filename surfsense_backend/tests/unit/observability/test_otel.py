@@ -113,11 +113,36 @@ class TestBootstrapConfig:
         resource = bootstrap._build_resource()
         attrs = dict(resource.attributes)
         assert attrs["service.name"] == "custom-backend"
-        assert attrs["deployment.environment"] == "test"
+        assert attrs["deployment.environment.name"] == "test"
         assert attrs["service.instance.id"]
 
     def test_shutdown_is_safe_without_providers(self) -> None:
         bootstrap.shutdown_otel()
+
+    def test_init_logs_enables_log_correlation(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[dict[str, object]] = []
+
+        class FakeLoggingInstrumentor:
+            def instrument(self, **kwargs: object) -> None:
+                calls.append(kwargs)
+
+        def fake_safe_instrument(name: str, callback):
+            assert name == "logging"
+            monkeypatch.setattr(
+                "opentelemetry.instrumentation.logging.LoggingInstrumentor",
+                FakeLoggingInstrumentor,
+            )
+            callback()
+            return True
+
+        monkeypatch.setattr(bootstrap, "_LOGS_INITIALIZED", False)
+        monkeypatch.setattr(bootstrap, "_safe_instrument", fake_safe_instrument)
+
+        bootstrap.init_logs()
+
+        assert calls == [{"set_logging_format": True}]
 
 
 class TestMetricHelpers:
