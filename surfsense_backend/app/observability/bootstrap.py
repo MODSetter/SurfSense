@@ -8,6 +8,7 @@ import os
 import socket
 from importlib import metadata
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from app.observability import otel
 
@@ -122,6 +123,27 @@ def _safe_instrument(name: str, instrument: Any) -> bool:
     return True
 
 
+def _url_without_query(raw_url: Any) -> str | None:
+    try:
+        parts = urlsplit(str(raw_url))
+    except Exception:
+        return None
+    if not parts.scheme or not parts.netloc:
+        return None
+    return urlunsplit((parts.scheme, parts.netloc, parts.path or "/", "", ""))
+
+
+def _sanitize_http_span_url(span: Any, request: Any) -> None:
+    sanitized = _url_without_query(getattr(request, "url", None))
+    if not sanitized:
+        return
+    with contextlib.suppress(Exception):
+        # Keep both old and current semantic-convention names safe. The
+        # collector can drop one later without needing application changes.
+        span.set_attribute("http.url", sanitized)
+        span.set_attribute("url.full", sanitized)
+
+
 def _instrument_fastapi(app: Any | None) -> None:
     global _FASTAPI_INSTRUMENTED
     if app is None or _FASTAPI_INSTRUMENTED:
@@ -202,7 +224,12 @@ def _instrument_httpx() -> None:
     def _run() -> None:
         from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 
-        HTTPXClientInstrumentor().instrument()
+        HTTPXClientInstrumentor().instrument(
+            request_hook=lambda span, request: _sanitize_http_span_url(span, request),
+            response_hook=lambda span, request, _response: _sanitize_http_span_url(
+                span, request
+            ),
+        )
 
     if _safe_instrument("HTTPX", _run):
         _HTTPX_INSTRUMENTED = True
