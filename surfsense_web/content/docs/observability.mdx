@@ -1,0 +1,167 @@
+---
+title: Observability
+description: Configure backend traces and metrics for SurfSense
+icon: Radar
+---
+
+SurfSense uses OpenTelemetry for backend traces and metrics. Application logs
+include trace and span IDs so you can correlate logs with traces, but logs stay
+on the normal container stderr path.
+
+## Enable Locally
+
+The development compose file reads backend settings from
+`surfsense_backend/.env`. Add these values there:
+
+```dotenv
+SURFSENSE_ENABLE_OTEL=true
+SURFSENSE_ENV=dev
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-lgtm:4317
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+OTEL_RESOURCE_ATTRIBUTES=service.namespace=surfsense
+OTEL_METRIC_EXPORT_INTERVAL=300000
+```
+
+Then start the development stack with the local LGTM backend:
+
+```bash
+docker compose -f docker/docker-compose.dev.yml up --build
+```
+
+Grafana is exposed on `http://localhost:3001` by default.
+
+## Enable in Production Docker Compose
+
+Production Docker Compose reads backend and collector settings from
+`docker/.env`. The API and Celery worker export telemetry to the bundled
+collector at `otel-collector:4317`; the collector is the only service that uses
+the Grafana Cloud credentials.
+
+Add these values to `docker/.env`:
+
+```dotenv
+SURFSENSE_ENV=production
+SURFSENSE_ENABLE_OTEL=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+OTEL_RESOURCE_ATTRIBUTES=service.namespace=surfsense
+OTEL_METRIC_EXPORT_INTERVAL=300000
+
+GRAFANA_CLOUD_OTLP_ENDPOINT=https://otlp-gateway-<region>.grafana.net/otlp
+GRAFANA_CLOUD_INSTANCE_ID=<stack instance id>
+GRAFANA_CLOUD_API_KEY=<cloud access policy token>
+```
+
+Then start the stack:
+
+```bash
+docker compose -f docker/docker-compose.yml --profile observability up -d
+```
+
+The collector receives OTLP on `otel-collector:4317`, scrubs sensitive span
+attributes, applies the configured tail-sampling policy, batches exports,
+retries failures, and forwards traces and metrics to Grafana Cloud over OTLP
+HTTP.
+
+When deploying `surfsense_backend/Dockerfile` directly instead of production
+compose, use the same split: SurfSense containers export to a collector, and
+the collector owns the Grafana Cloud credentials.
+
+## Automatic Traces
+
+When OpenTelemetry is enabled, the backend instruments:
+
+- FastAPI inbound requests.
+- SQLAlchemy queries from the main async engine and Celery task engine.
+- Raw psycopg calls used by the LangGraph checkpointer.
+- Redis commands.
+- HTTPX outbound requests.
+- Celery producer and worker execution.
+
+## Manual Spans
+
+SurfSense keeps project-specific spans behind `app.observability.otel`:
+
+- `model.call`
+- `tool.call`
+- `chat.request`
+- `kb.search`
+- `kb.persist`
+- `connector.sync`
+- `subagent.invoke`
+- `etl.extract`
+- `etl.parse`
+- `etl.ocr`
+- `etl.picture.describe`
+- `etl.picture.ocr`
+- `compaction.run`
+- `permission.asked`
+- `interrupt.raised`
+
+Keep span names and attributes low-cardinality. Do not attach user content,
+prompts, document titles, file paths, user-specific URLs, secrets, or raw
+queries as span attributes.
+
+## Metrics
+
+The OpenTelemetry instrumentors provide HTTP, HTTPX, and Celery runtime
+metrics. SurfSense adds these project metrics from `app.observability.metrics`:
+
+- `surfsense.model.call.duration`
+- `gen_ai.client.token.usage`
+- `surfsense.tool.call.duration`
+- `surfsense.tool.call.errors`
+- `surfsense.chat.request.duration`
+- `surfsense.chat.request.outcome`
+- `surfsense.kb.search.duration`
+- `surfsense.compaction.runs`
+- `surfsense.permission.asks`
+- `surfsense.interrupt.raised`
+- `surfsense.indexing.document.duration`
+- `surfsense.indexing.document.outcome`
+- `surfsense.connector.sync.duration`
+- `surfsense.connector.sync.outcome`
+- `surfsense.subagent.invoke.duration`
+- `surfsense.subagent.invoke.outcome`
+- `surfsense.etl.extract.duration`
+- `surfsense.etl.extract.outcome`
+- `surfsense.celery.heartbeat.refreshes`
+- `surfsense.celery.heartbeat.failures`
+- `surfsense.celery.queue.latency`
+- `surfsense.auth.failures`
+- `surfsense.rate_limit.rejections`
+- `surfsense.perf.elapsed_ms`
+
+Runtime gauges include process RSS, CPU utilization, threads, open file
+descriptors, asyncio tasks, and CPython GC counters.
+
+## Logs
+
+`LoggingInstrumentor().instrument()` injects `otelTraceID` and `otelSpanID` into
+standard Python `LogRecord`s. The root log format writes them as
+`trace_id=... span_id=...`.
+
+SurfSense intentionally does not create an OpenTelemetry `LoggerProvider`,
+`LoggingHandler`, or `OTLPLogExporter`. Container stderr remains the log
+transport.
+
+## Verification
+
+1. Hit a FastAPI endpoint and confirm an inbound server span appears in Grafana.
+2. Run a chat request and confirm `model.call` and `tool.call` child spans.
+3. Run a knowledge-base search and confirm `kb.search` spans and SQL child spans.
+4. Run connector indexing and confirm Celery producer/worker spans share a trace
+   ID and connector sync metrics increment.
+5. Confirm `gen_ai.client.token.usage`, model/tool durations, request duration,
+   Celery runtime, and runtime gauges appear within one export interval.
+6. Confirm logs emitted inside a traced request show non-zero trace and span IDs.
+
+## Out Of Scope
+
+- Frontend/browser OpenTelemetry.
+- OpenTelemetry log export.
+- Profiling.
+- Production backend selection.
+- Tail-sampling collector configuration.
+- Replacing LangSmith.
+- Vendor SDKs.
