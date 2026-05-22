@@ -6,8 +6,25 @@ import { getServerPort } from './server';
 import { setActiveSearchSpaceId } from './active-search-space';
 
 const isDev = !app.isPackaged;
-const HOSTED_FRONTEND_URL = process.env.HOSTED_FRONTEND_URL as string;
 const isMac = process.platform === 'darwin';
+
+function getHostedFrontendUrl(): string {
+  return (
+    process.env.SURFSENSE_HOSTED_FRONTEND_URL_OVERRIDE ||
+    process.env.HOSTED_FRONTEND_URL ||
+    'https://surfsense.net'
+  );
+}
+
+function getHostedFrontendHosts(): string[] {
+  try {
+    const host = new URL(getHostedFrontendUrl()).host;
+    const sibling = host.startsWith('www.') ? host.slice(4) : `www.${host}`;
+    return Array.from(new Set([host, sibling]));
+  } catch {
+    return [];
+  }
+}
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -58,11 +75,22 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
     return { action: 'deny' };
   });
 
-  const filter = { urls: [`${HOSTED_FRONTEND_URL}/*`] };
-  session.defaultSession.webRequest.onBeforeRequest(filter, (details, callback) => {
-    const rewritten = details.url.replace(HOSTED_FRONTEND_URL, `http://localhost:${getServerPort()}`);
-    callback({ redirectURL: rewritten });
-  });
+  const hostedHosts = getHostedFrontendHosts();
+  const rewriteFilter = {
+    urls: hostedHosts.flatMap((h) => [`http://${h}/*`, `https://${h}/*`]),
+  };
+  if (rewriteFilter.urls.length > 0) {
+    session.defaultSession.webRequest.onBeforeRequest(rewriteFilter, (details, callback) => {
+      try {
+        const u = new URL(details.url);
+        u.protocol = 'http:';
+        u.host = `localhost:${getServerPort()}`;
+        callback({ redirectURL: u.toString() });
+      } catch {
+        callback({});
+      }
+    });
+  }
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     console.error(`Failed to load ${validatedURL}: ${errorDescription} (${errorCode})`);
