@@ -244,6 +244,152 @@ def kb_persist_span(
     return span("kb.persist", attributes=attrs)
 
 
+def chat_request_span(
+    *,
+    chat_id: int | None = None,
+    search_space_id: int | None = None,
+    flow: str | None = None,
+    request_id: str | None = None,
+    turn_id: str | None = None,
+    filesystem_mode: str | None = None,
+    client_platform: str | None = None,
+    agent_mode: str | None = None,
+    extra: dict[str, Any] | None = None,
+):
+    """Parent span for a single streamed chat or resume turn."""
+    attrs: dict[str, Any] = {}
+    if chat_id is not None:
+        attrs["chat.id"] = int(chat_id)
+    if search_space_id is not None:
+        attrs["search_space.id"] = int(search_space_id)
+    if flow:
+        attrs["chat.flow"] = flow
+    if request_id:
+        attrs["request.id"] = request_id
+    if turn_id:
+        attrs["turn.id"] = turn_id
+    if filesystem_mode:
+        attrs["filesystem.mode"] = filesystem_mode
+    if client_platform:
+        attrs["client.platform"] = client_platform
+    if agent_mode:
+        attrs["agent.mode"] = agent_mode
+    if extra:
+        attrs.update(extra)
+    return span("chat.request", attributes=attrs)
+
+
+def subagent_invoke_span(
+    *,
+    subagent_type: str,
+    path: str | None = None,
+    extra: dict[str, Any] | None = None,
+):
+    """Span around invoking a delegated subagent from the main agent."""
+    attrs: dict[str, Any] = {"subagent.type": subagent_type}
+    if path:
+        attrs["subagent.path"] = path
+    if extra:
+        attrs.update(extra)
+    return span("subagent.invoke", attributes=attrs)
+
+
+def connector_sync_span(
+    *,
+    connector_type: str | None,
+    extra: dict[str, Any] | None = None,
+):
+    """Business-level span around connector indexing task execution."""
+    attrs: dict[str, Any] = {"connector.type": connector_type or "unknown"}
+    if extra:
+        attrs.update(extra)
+    return span("connector.sync", attributes=attrs)
+
+
+def etl_extract_span(
+    *,
+    content_type: str | None = None,
+    file_extension: str | None = None,
+    processing_mode: str | None = None,
+    extra: dict[str, Any] | None = None,
+):
+    """Span around top-level ETL extraction for a file."""
+    attrs: dict[str, Any] = {}
+    if content_type:
+        attrs["content.type"] = content_type
+    if file_extension:
+        attrs["file.extension"] = file_extension
+    if processing_mode:
+        attrs["processing.mode"] = processing_mode
+    if extra:
+        attrs.update(extra)
+    return span("etl.extract", attributes=attrs)
+
+
+def etl_parse_span(
+    *,
+    etl_service: str | None,
+    content_type: str | None = None,
+    file_extension: str | None = None,
+    processing_mode: str | None = None,
+    extra: dict[str, Any] | None = None,
+):
+    """Span around a concrete ETL parser/backend call."""
+    attrs: dict[str, Any] = {"etl.service": etl_service or "unknown"}
+    if content_type:
+        attrs["content.type"] = content_type
+    if file_extension:
+        attrs["file.extension"] = file_extension
+    if processing_mode:
+        attrs["processing.mode"] = processing_mode
+    if extra:
+        attrs.update(extra)
+    return span("etl.parse", attributes=attrs)
+
+
+def etl_ocr_span(
+    *,
+    etl_service: str | None,
+    file_extension: str | None = None,
+    extra: dict[str, Any] | None = None,
+):
+    """Span around OCR extraction from image content."""
+    attrs: dict[str, Any] = {"etl.service": etl_service or "unknown"}
+    if file_extension:
+        attrs["file.extension"] = file_extension
+    if extra:
+        attrs.update(extra)
+    return span("etl.ocr", attributes=attrs)
+
+
+def etl_picture_describe_span(
+    *,
+    image_count: int | None = None,
+    extra: dict[str, Any] | None = None,
+):
+    """Span around describing embedded images in a document."""
+    attrs: dict[str, Any] = {}
+    if image_count is not None:
+        attrs["image.count"] = int(image_count)
+    if extra:
+        attrs.update(extra)
+    return span("etl.picture.describe", attributes=attrs)
+
+
+def etl_picture_ocr_span(
+    *,
+    file_extension: str | None = None,
+    extra: dict[str, Any] | None = None,
+):
+    """Span around per-image OCR during picture description."""
+    attrs: dict[str, Any] = {}
+    if file_extension:
+        attrs["file.extension"] = file_extension
+    if extra:
+        attrs.update(extra)
+    return span("etl.picture.ocr", attributes=attrs)
+
+
 def compaction_span(
     *,
     reason: str | None = None,
@@ -306,7 +452,14 @@ def reload_for_tests() -> bool:
 
 
 __all__ = [
+    "chat_request_span",
     "compaction_span",
+    "connector_sync_span",
+    "etl_extract_span",
+    "etl_ocr_span",
+    "etl_parse_span",
+    "etl_picture_describe_span",
+    "etl_picture_ocr_span",
     "interrupt_span",
     "is_enabled",
     "kb_persist_span",
@@ -315,5 +468,6 @@ __all__ = [
     "permission_asked_span",
     "reload_for_tests",
     "span",
+    "subagent_invoke_span",
     "tool_call_span",
 ]

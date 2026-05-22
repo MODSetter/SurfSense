@@ -195,6 +195,73 @@ def _perf_elapsed():
     )
 
 
+@lru_cache(maxsize=1)
+def _chat_request_duration():
+    return _get_meter().create_histogram(
+        "surfsense.chat.request.duration",
+        unit="ms",
+        description="Duration of SurfSense streamed chat requests.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _chat_request_outcome():
+    return _get_meter().create_counter(
+        "surfsense.chat.request.outcome",
+        description="Count of SurfSense chat request outcomes.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _subagent_invoke_duration():
+    return _get_meter().create_histogram(
+        "surfsense.subagent.invoke.duration",
+        unit="ms",
+        description="Duration of SurfSense subagent invocations.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _subagent_invoke_outcome():
+    return _get_meter().create_counter(
+        "surfsense.subagent.invoke.outcome",
+        description="Count of SurfSense subagent invocation outcomes.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _etl_extract_duration():
+    return _get_meter().create_histogram(
+        "surfsense.etl.extract.duration",
+        unit="s",
+        description="Duration of SurfSense ETL extraction.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _etl_extract_outcome():
+    return _get_meter().create_counter(
+        "surfsense.etl.extract.outcome",
+        description="Count of SurfSense ETL extraction outcomes.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _celery_heartbeat_refreshes():
+    return _get_meter().create_counter(
+        "surfsense.celery.heartbeat.refreshes",
+        description="Count of SurfSense Celery heartbeat refreshes.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _celery_heartbeat_failures():
+    return _get_meter().create_counter(
+        "surfsense.celery.heartbeat.failures",
+        description="Count of SurfSense Celery heartbeat failures.",
+    )
+
+
 def record_model_call_duration(
     duration_ms: float, *, model: str | None, provider: str | None
 ) -> None:
@@ -312,6 +379,111 @@ def record_perf_elapsed(duration_ms: float, *, label: str) -> None:
     _record(_perf_elapsed(), duration_ms, {"label": label})
 
 
+def record_chat_request_duration(
+    duration_ms: float,
+    *,
+    flow: str,
+    outcome: str,
+    agent_mode: str | None = None,
+) -> None:
+    _record(
+        _chat_request_duration(),
+        duration_ms,
+        {"chat.flow": flow, "outcome": outcome, "agent.mode": agent_mode},
+    )
+
+
+def record_chat_request_outcome(
+    *,
+    flow: str,
+    outcome: str,
+    agent_mode: str | None = None,
+) -> None:
+    _add(
+        _chat_request_outcome(),
+        1,
+        {"chat.flow": flow, "outcome": outcome, "agent.mode": agent_mode},
+    )
+
+
+def record_subagent_invoke_duration(
+    duration_ms: float,
+    *,
+    subagent_type: str,
+    path: str | None,
+    outcome: str,
+) -> None:
+    _record(
+        _subagent_invoke_duration(),
+        duration_ms,
+        {
+            "subagent.type": subagent_type,
+            "subagent.path": path or "unknown",
+            "outcome": outcome,
+        },
+    )
+
+
+def record_subagent_invoke_outcome(
+    *,
+    subagent_type: str,
+    path: str | None,
+    outcome: str,
+) -> None:
+    _add(
+        _subagent_invoke_outcome(),
+        1,
+        {
+            "subagent.type": subagent_type,
+            "subagent.path": path or "unknown",
+            "outcome": outcome,
+        },
+    )
+
+
+def record_etl_extract_duration(
+    duration_s: float,
+    *,
+    etl_service: str | None,
+    content_type: str | None,
+    status: str,
+) -> None:
+    _record(
+        _etl_extract_duration(),
+        duration_s,
+        {
+            "etl.service": etl_service or "unknown",
+            "content.type": content_type or "unknown",
+            "status": status,
+        },
+    )
+
+
+def record_etl_extract_outcome(
+    *,
+    etl_service: str | None,
+    content_type: str | None,
+    status: str,
+) -> None:
+    _add(
+        _etl_extract_outcome(),
+        1,
+        {
+            "etl.service": etl_service or "unknown",
+            "content.type": content_type or "unknown",
+            "status": status,
+        },
+    )
+
+
+def record_celery_heartbeat_refresh(*, heartbeat_type: str) -> None:
+    _add(_celery_heartbeat_refreshes(), 1, {"heartbeat.type": heartbeat_type})
+
+
+def record_celery_heartbeat_failure(*, heartbeat_type: str) -> None:
+    _add(_celery_heartbeat_failures(), 1, {"heartbeat.type": heartbeat_type})
+
+
 def _runtime_snapshot_value(key: str, transform: Any = None) -> list[Any]:
     from opentelemetry.metrics import Observation
 
@@ -398,9 +570,15 @@ def register_runtime_observables() -> None:
 
 __all__ = [
     "record_auth_failure",
+    "record_celery_heartbeat_failure",
+    "record_celery_heartbeat_refresh",
+    "record_chat_request_duration",
+    "record_chat_request_outcome",
     "record_compaction_run",
     "record_connector_sync_duration",
     "record_connector_sync_outcome",
+    "record_etl_extract_duration",
+    "record_etl_extract_outcome",
     "record_indexing_document_duration",
     "record_indexing_document_outcome",
     "record_interrupt",
@@ -410,6 +588,8 @@ __all__ = [
     "record_perf_elapsed",
     "record_permission_ask",
     "record_rate_limit_rejection",
+    "record_subagent_invoke_duration",
+    "record_subagent_invoke_outcome",
     "record_tool_call_duration",
     "record_tool_call_error",
     "register_runtime_observables",
