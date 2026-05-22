@@ -45,6 +45,8 @@ from langchain.agents.middleware.types import (
 from langchain_core.callbacks import adispatch_custom_event, dispatch_custom_event
 from langchain_core.messages import AIMessage
 
+from app.observability import metrics as ot_metrics, otel as ot
+
 logger = logging.getLogger(__name__)
 
 # Names of exception classes for which a retry would not help — context
@@ -198,6 +200,15 @@ class RetryAfterMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Resp
                 if not self._should_retry(exc) or attempt >= self.max_retries:
                     raise
                 delay = self._delay_for_attempt(attempt, exc)
+                ot.add_event(
+                    "model.retry.scheduled",
+                    {
+                        "retry.attempt": attempt + 1,
+                        "retry.max": self.max_retries,
+                        "retry.delay_ms": int(delay * 1000),
+                        "retry.reason": ot_metrics.categorize_exception(exc),
+                    },
+                )
                 try:
                     dispatch_custom_event(
                         "surfsense.retrying",
@@ -231,6 +242,15 @@ class RetryAfterMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Resp
                 if not self._should_retry(exc) or attempt >= self.max_retries:
                     raise
                 delay = self._delay_for_attempt(attempt, exc)
+                ot.add_event(
+                    "model.retry.scheduled",
+                    {
+                        "retry.attempt": attempt + 1,
+                        "retry.max": self.max_retries,
+                        "retry.delay_ms": int(delay * 1000),
+                        "retry.reason": ot_metrics.categorize_exception(exc),
+                    },
+                )
                 try:
                     await adispatch_custom_event(
                         "surfsense.retrying",
