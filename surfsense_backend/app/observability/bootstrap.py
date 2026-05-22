@@ -55,23 +55,22 @@ def _package_version() -> str:
 
 
 def _deployment_environment() -> str:
-    return (
-        os.environ.get("SURFSENSE_ENV")
-        or os.environ.get("APP_ENV")
-        or os.environ.get("ENVIRONMENT")
-        or "dev"
-    )
+    return os.environ.get("SURFSENSE_ENV", "dev")
 
 
 def _build_resource():
     from opentelemetry.sdk.resources import Resource
 
+    deployment_environment = _deployment_environment()
     return Resource.create(
         {
             "service.name": os.environ.get("OTEL_SERVICE_NAME", "surfsense-backend"),
             "service.version": _package_version(),
             "service.instance.id": socket.gethostname(),
-            "deployment.environment.name": _deployment_environment(),
+            "deployment.environment.name": deployment_environment,
+            # Compatibility alias for Grafana onboarding checks that still use
+            # the older semantic-convention key.
+            "deployment.environment": deployment_environment,
         }
     )
 

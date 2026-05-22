@@ -114,7 +114,19 @@ class TestBootstrapConfig:
         attrs = dict(resource.attributes)
         assert attrs["service.name"] == "custom-backend"
         assert attrs["deployment.environment.name"] == "test"
+        assert attrs["deployment.environment"] == "test"
         assert attrs["service.instance.id"]
+
+    def test_deployment_environment_uses_surfsense_env_only(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("SURFSENSE_ENV", raising=False)
+
+        assert bootstrap._deployment_environment() == "dev"
+
+        monkeypatch.setenv("SURFSENSE_ENV", "production")
+
+        assert bootstrap._deployment_environment() == "production"
 
     def test_shutdown_is_safe_without_providers(self) -> None:
         bootstrap.shutdown_otel()
