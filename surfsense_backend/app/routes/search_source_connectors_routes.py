@@ -43,6 +43,7 @@ from app.db import (
     async_session_maker,
     get_async_session,
 )
+from app.observability import metrics as ot_metrics
 from app.schemas import (
     GoogleDriveIndexRequest,
     MCPConnectorCreate,
@@ -104,7 +105,9 @@ async def _run_indexing_heartbeat_loop(notification_id: int) -> None:
             await asyncio.sleep(HEARTBEAT_REFRESH_INTERVAL)
             try:
                 get_heartbeat_redis_client().setex(key, HEARTBEAT_TTL_SECONDS, "alive")
+                ot_metrics.record_celery_heartbeat_refresh(heartbeat_type="connector")
             except Exception as e:
+                ot_metrics.record_celery_heartbeat_failure(heartbeat_type="connector")
                 logger.warning(
                     f"Failed to refresh Redis heartbeat for notification "
                     f"{notification_id}: {e}"
@@ -1338,7 +1341,13 @@ async def _run_indexing_with_notifications(
                     get_heartbeat_redis_client().setex(
                         heartbeat_key, HEARTBEAT_TTL_SECONDS, "0"
                     )
+                    ot_metrics.record_celery_heartbeat_refresh(
+                        heartbeat_type="connector"
+                    )
                 except Exception as e:
+                    ot_metrics.record_celery_heartbeat_failure(
+                        heartbeat_type="connector"
+                    )
                     logger.warning(f"Failed to set initial Redis heartbeat: {e}")
 
                 # Start a background coroutine that refreshes the
@@ -1397,8 +1406,14 @@ async def _run_indexing_with_notifications(
                     get_heartbeat_redis_client().setex(
                         heartbeat_key, HEARTBEAT_TTL_SECONDS, str(indexed_count)
                     )
+                    ot_metrics.record_celery_heartbeat_refresh(
+                        heartbeat_type="connector"
+                    )
                 except Exception as e:
                     # Don't let Redis errors break the indexing
+                    ot_metrics.record_celery_heartbeat_failure(
+                        heartbeat_type="connector"
+                    )
                     logger.warning(f"Failed to set Redis heartbeat: {e}")
 
                 try:
