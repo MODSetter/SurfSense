@@ -92,6 +92,48 @@ def is_enabled() -> bool:
     return _ENABLED
 
 
+def _clean_event_attrs(attrs: dict[str, Any]) -> dict[str, str | int | float | bool]:
+    """Coerce event attributes to OTel-safe scalar values."""
+    cleaned: dict[str, str | int | float | bool] = {}
+    for key, value in attrs.items():
+        if value is None:
+            continue
+        if isinstance(value, bool | int | float):
+            cleaned[key] = value
+            continue
+        text = str(value)
+        if text:
+            cleaned[key] = text
+    return cleaned
+
+
+def add_event(name: str, attributes: dict[str, Any] | None = None) -> None:
+    """Attach an event to the current active span.
+
+    This is intentionally no-op and exception-safe when OTel is disabled,
+    unavailable, or no span is currently recording.
+    """
+    if not _ENABLED or _ot_trace is None:
+        return
+    with contextlib.suppress(Exception):
+        sp = _ot_trace.get_current_span()
+        if sp is None or not sp.is_recording():
+            return
+        sp.add_event(
+            name,
+            attributes=_clean_event_attrs(attributes) if attributes else None,
+        )
+
+
+def record_error(span_obj: Any, exc: BaseException) -> None:
+    """Record an exception and mark a span as errored without re-raising."""
+    if not _ENABLED:
+        return
+    with contextlib.suppress(Exception):
+        span_obj.record_exception(exc)
+        span_obj.set_status(_OtStatus(_OtStatusCode.ERROR, str(exc)))
+
+
 def _get_tracer():
     if not _OTEL_AVAILABLE:
         return None
@@ -452,6 +494,7 @@ def reload_for_tests() -> bool:
 
 
 __all__ = [
+    "add_event",
     "chat_request_span",
     "compaction_span",
     "connector_sync_span",
@@ -466,6 +509,7 @@ __all__ = [
     "kb_search_span",
     "model_call_span",
     "permission_asked_span",
+    "record_error",
     "reload_for_tests",
     "span",
     "subagent_invoke_span",

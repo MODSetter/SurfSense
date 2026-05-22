@@ -20,6 +20,19 @@ logger = logging.getLogger(__name__)
 
 _INSTRUMENTATION_NAME = "surfsense.platform"
 _OBSERVABLES_REGISTERED = False
+_ERROR_CATEGORY_UNKNOWN = "unknown"
+
+_ERROR_CATEGORY_HINTS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("rate_limited", ("ratelimit", "rate_limit", "toomanyrequests", "429")),
+    ("auth_failed", ("authentication", "auth", "unauthorized", "forbidden")),
+    ("quota_exhausted", ("quota", "insufficient", "credit", "billing")),
+    ("timeout", ("timeout", "timedout", "deadline")),
+    ("network_failed", ("connection", "connect", "network", "dns", "socket")),
+    ("server_error", ("internalserver", "serviceunavailable", "badgateway", "gateway")),
+    ("lock_contention", ("lock", "busy", "contention", "alreadyrunning")),
+    ("unsupported_format", ("unsupported", "format", "filetype")),
+    ("provider_error", ("provider", "apierror", "apistatus", "badrequest")),
+)
 
 
 def _package_version() -> str:
@@ -45,6 +58,36 @@ def _clean_attrs(attrs: dict[str, Any]) -> dict[str, str | int | float | bool]:
         if text:
             cleaned[key] = text
     return cleaned
+
+
+def _attrs_with_optional_error_category(
+    attrs: dict[str, Any], error_category: str | None
+) -> dict[str, Any]:
+    if error_category:
+        return {**attrs, "error.category": error_category}
+    return attrs
+
+
+def categorize_exception(exc: BaseException | None) -> str:
+    """Return a low-cardinality category for an exception."""
+    if exc is None:
+        return _ERROR_CATEGORY_UNKNOWN
+    haystack = " ".join(
+        cls.__name__.replace("-", "").replace("_", "").lower()
+        for cls in type(exc).__mro__
+    )
+    for category, hints in _ERROR_CATEGORY_HINTS:
+        if any(hint in haystack for hint in hints):
+            return category
+    return _ERROR_CATEGORY_UNKNOWN
+
+
+def parse_celery_task_label(task_name: str | None) -> str:
+    """Return the operation token from a Celery task name."""
+    if not task_name:
+        return "unknown"
+    operation = str(task_name).split("_", 1)[0].strip()
+    return operation or "unknown"
 
 
 def _record(callable_obj: Any, value: int | float, attrs: dict[str, Any]) -> None:
@@ -262,6 +305,15 @@ def _celery_heartbeat_failures():
     )
 
 
+@lru_cache(maxsize=1)
+def _celery_queue_latency():
+    return _get_meter().create_histogram(
+        "surfsense.celery.queue.latency",
+        unit="s",
+        description="Time SurfSense Celery tasks spend waiting in queue.",
+    )
+
+
 def record_model_call_duration(
     duration_ms: float, *, model: str | None, provider: str | None
 ) -> None:
@@ -359,11 +411,16 @@ def record_connector_sync_duration(
     )
 
 
-def record_connector_sync_outcome(*, connector_type: str | None, status: str) -> None:
+def record_connector_sync_outcome(
+    *, connector_type: str | None, status: str, error_category: str | None = None
+) -> None:
     _add(
         _connector_sync_outcome(),
         1,
-        {"connector.type": connector_type or "unknown", "status": status},
+        _attrs_with_optional_error_category(
+            {"connector.type": connector_type or "unknown", "status": status},
+            error_category,
+        ),
     )
 
 
@@ -398,11 +455,15 @@ def record_chat_request_outcome(
     flow: str,
     outcome: str,
     agent_mode: str | None = None,
+    error_category: str | None = None,
 ) -> None:
     _add(
         _chat_request_outcome(),
         1,
-        {"chat.flow": flow, "outcome": outcome, "agent.mode": agent_mode},
+        _attrs_with_optional_error_category(
+            {"chat.flow": flow, "outcome": outcome, "agent.mode": agent_mode},
+            error_category,
+        ),
     )
 
 
@@ -464,15 +525,19 @@ def record_etl_extract_outcome(
     etl_service: str | None,
     content_type: str | None,
     status: str,
+    error_category: str | None = None,
 ) -> None:
     _add(
         _etl_extract_outcome(),
         1,
-        {
-            "etl.service": etl_service or "unknown",
-            "content.type": content_type or "unknown",
-            "status": status,
-        },
+        _attrs_with_optional_error_category(
+            {
+                "etl.service": etl_service or "unknown",
+                "content.type": content_type or "unknown",
+                "status": status,
+            },
+            error_category,
+        ),
     )
 
 
@@ -482,6 +547,26 @@ def record_celery_heartbeat_refresh(*, heartbeat_type: str) -> None:
 
 def record_celery_heartbeat_failure(*, heartbeat_type: str) -> None:
     _add(_celery_heartbeat_failures(), 1, {"heartbeat.type": heartbeat_type})
+
+
+def record_celery_queue_latency(
+    duration_s: float,
+    *,
+    task_name: str | None,
+    queue: str | None,
+    scheduled: bool,
+    operation: str | None,
+) -> None:
+    _record(
+        _celery_queue_latency(),
+        duration_s,
+        {
+            "task.name": task_name or "unknown",
+            "task.queue": queue or "unknown",
+            "task.scheduled": bool(scheduled),
+            "operation": operation or "unknown",
+        },
+    )
 
 
 def _runtime_snapshot_value(key: str, transform: Any = None) -> list[Any]:
@@ -569,9 +654,12 @@ def register_runtime_observables() -> None:
 
 
 __all__ = [
+    "categorize_exception",
+    "parse_celery_task_label",
     "record_auth_failure",
     "record_celery_heartbeat_failure",
     "record_celery_heartbeat_refresh",
+    "record_celery_queue_latency",
     "record_chat_request_duration",
     "record_chat_request_outcome",
     "record_compaction_run",
