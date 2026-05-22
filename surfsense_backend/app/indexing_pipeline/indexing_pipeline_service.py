@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import hashlib
 import logging
+import sys
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -445,6 +446,7 @@ class IndexingPipelineService:
             await self._enqueue_ai_sort_if_enabled(document)
 
         except RETRYABLE_LLM_ERRORS as e:
+            ot.record_error(persist_span, e)
             log_retryable_llm_error(ctx, e)
             outcome_status = "requeued"
             await rollback_and_persist_failure(
@@ -452,24 +454,28 @@ class IndexingPipelineService:
             )
 
         except PERMANENT_LLM_ERRORS as e:
+            ot.record_error(persist_span, e)
             log_permanent_llm_error(ctx, e)
             await rollback_and_persist_failure(
                 self.session, document, llm_permanent_message(e)
             )
 
         except RecursionError as e:
+            ot.record_error(persist_span, e)
             log_chunking_overflow(ctx, e)
             await rollback_and_persist_failure(
                 self.session, document, PipelineMessages.CHUNKING_OVERFLOW
             )
 
         except EMBEDDING_ERRORS as e:
+            ot.record_error(persist_span, e)
             log_embedding_error(ctx, e)
             await rollback_and_persist_failure(
                 self.session, document, embedding_message(e)
             )
 
         except Exception as e:
+            ot.record_error(persist_span, e)
             log_unexpected_error(ctx, e)
             await rollback_and_persist_failure(
                 self.session, document, safe_exception_message(e)
@@ -488,7 +494,7 @@ class IndexingPipelineService:
             document_type=document_type,
             status=outcome_status,
         )
-        persist_span_cm.__exit__(None, None, None)
+        persist_span_cm.__exit__(*sys.exc_info())
         return document
 
     async def _enqueue_ai_sort_if_enabled(self, document: Document) -> None:

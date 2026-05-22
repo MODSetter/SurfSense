@@ -30,6 +30,7 @@ class EtlPipelineService:
         category = classify_file(request.filename)
         start = time.perf_counter()
         status = "success"
+        error_category: str | None = None
         result: EtlResult | None = None
         with ot.etl_extract_span(
             content_type=category.value,
@@ -75,8 +76,9 @@ class EtlPipelineService:
 
                 result = await self._extract_document(request)
                 return result
-            except Exception:
+            except Exception as exc:
                 status = "error"
+                error_category = ot_metrics.categorize_exception(exc)
                 raise
             finally:
                 with contextlib.suppress(Exception):
@@ -94,6 +96,7 @@ class EtlPipelineService:
                         etl_service=result.etl_service if result else None,
                         content_type=result.content_type if result else category.value,
                         status=status,
+                        error_category=error_category,
                     )
 
     async def _extract_image(self, request: EtlRequest) -> EtlResult:
@@ -134,10 +137,26 @@ class EtlPipelineService:
                         request.filename,
                         exc_info=True,
                     )
+                ot.add_event(
+                    "etl.fallback",
+                    {
+                        "fallback.from": "vision_llm",
+                        "fallback.to": "document_parser",
+                        "fallback.reason": ot_metrics.categorize_exception(exc),
+                    },
+                )
         else:
             logging.info(
                 "No vision LLM provided, falling back to document parser for %s",
                 request.filename,
+            )
+            ot.add_event(
+                "etl.fallback",
+                {
+                    "fallback.from": "vision_llm",
+                    "fallback.to": "document_parser",
+                    "fallback.reason": "not_configured",
+                },
             )
 
         try:
@@ -246,6 +265,13 @@ class EtlPipelineService:
                 # Common case: the configured ETL service can't OCR
                 # this image format (or no service is configured at
                 # all). Don't spam warnings -- just no OCR for it.
+                ot.add_event(
+                    "etl.ocr.skipped",
+                    {
+                        "skip.reason": "unsupported_format",
+                        "error.category": ot_metrics.categorize_exception(exc),
+                    },
+                )
                 logging.debug("Skipping per-image OCR for %s: %s", image_name, exc)
                 return ""
             return ocr_result.markdown_content
@@ -264,9 +290,17 @@ class EtlPipelineService:
                 sp.set_attribute("image.skipped.too_large", result.skipped_too_large)
                 sp.set_attribute("image.skipped.duplicate", result.skipped_duplicate)
                 sp.set_attribute("etl.status", "success")
-        except Exception:
+        except Exception as exc:
             # Picture description is additive; never let it fail an
             # otherwise-successful document extraction.
+            ot.add_event(
+                "etl.degraded",
+                {
+                    "degraded.reason": "picture_describe_failed",
+                    "degraded.action": "return_parser_output",
+                    "error.category": ot_metrics.categorize_exception(exc),
+                },
+            )
             logging.warning(
                 "Picture description failed for %s, returning parser output unchanged",
                 request.filename,
@@ -319,7 +353,15 @@ class EtlPipelineService:
                 return await parse_with_azure_doc_intelligence(
                     request.file_path, processing_mode=mode_value
                 )
-            except Exception:
+            except Exception as exc:
+                ot.add_event(
+                    "etl.fallback",
+                    {
+                        "fallback.from": "azure_di",
+                        "fallback.to": "llamacloud",
+                        "fallback.reason": ot_metrics.categorize_exception(exc),
+                    },
+                )
                 logging.warning(
                     "Azure Document Intelligence failed for %s, "
                     "falling back to LlamaCloud",
