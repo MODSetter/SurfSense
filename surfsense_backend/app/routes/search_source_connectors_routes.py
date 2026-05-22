@@ -43,7 +43,7 @@ from app.db import (
     async_session_maker,
     get_async_session,
 )
-from app.observability import metrics as ot_metrics
+from app.observability import metrics as ot_metrics, otel as ot
 from app.schemas import (
     GoogleDriveIndexRequest,
     MCPConnectorCreate,
@@ -1246,6 +1246,12 @@ async def _persist_auth_expired(session: AsyncSession, connector_id: int) -> Non
     """Flag a connector as auth_expired so the frontend shows a re-auth prompt."""
     from sqlalchemy.orm.attributes import flag_modified
 
+    ot.add_event(
+        "connector.auth.expired",
+        {
+            "error.category": "auth_failed",
+        },
+    )
     try:
         result = await session.execute(
             select(SearchSourceConnector).where(
@@ -1305,6 +1311,13 @@ async def _run_indexing_with_notifications(
     try:
         connector_lock_acquired = acquire_connector_indexing_lock(connector_id)
         if not connector_lock_acquired:
+            ot.add_event(
+                "connector.sync.skipped",
+                {
+                    "skip.reason": "lock_contention",
+                    "error.category": "lock_contention",
+                },
+            )
             logger.info(
                 f"Skipping indexing for connector {connector_id} "
                 "(another worker already holds Redis connector lock)"
@@ -1375,6 +1388,15 @@ async def _run_indexing_with_notifications(
         ) -> None:
             """Callback to update notification during API retries (rate limits, etc.)"""
             nonlocal notification
+            ot.add_event(
+                "connector.retry.scheduled",
+                {
+                    "retry.reason": retry_reason,
+                    "retry.attempt": attempt,
+                    "retry.max": max_attempts,
+                    "retry.delay_ms": int(wait_seconds * 1000),
+                },
+            )
             if notification:
                 try:
                     await session.refresh(notification)

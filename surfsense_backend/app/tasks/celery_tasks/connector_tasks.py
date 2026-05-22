@@ -22,15 +22,18 @@ def run_async_celery_task[T](coro_factory: Callable[[], Awaitable[T]]) -> T:
     task_name = getattr(current_task, "name", None) or "unknown"
     t0 = time.perf_counter()
     status = "failed"
+    error_category: str | None = None
     try:
         with ot.connector_sync_span(connector_type=task_name) as sp:
-            result = _run_async_celery_task(coro_factory)
-            sp.set_attribute("connector.status", "success")
+            try:
+                result = _run_async_celery_task(coro_factory)
+                sp.set_attribute("connector.status", "success")
+            except Exception as exc:
+                error_category = ot_metrics.categorize_exception(exc)
+                sp.set_attribute("connector.error.category", error_category)
+                raise
         status = "success"
         return result
-    except Exception:
-        status = "failed"
-        raise
     finally:
         elapsed_s = time.perf_counter() - t0
         ot_metrics.record_connector_sync_duration(
@@ -40,6 +43,7 @@ def run_async_celery_task[T](coro_factory: Callable[[], Awaitable[T]]) -> T:
         ot_metrics.record_connector_sync_outcome(
             connector_type=task_name,
             status=status,
+            error_category=error_category,
         )
 
 
