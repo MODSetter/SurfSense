@@ -77,7 +77,7 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
 linux:
-  icon: assets/icon.png
+  icon: assets/icons/
   category: Utility
   artifactName: "${productName}-${version}-${arch}.${ext}"
   mimeTypes:
