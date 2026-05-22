@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 from celery import current_task
 
 from app.celery_app import celery_app
-from app.observability import metrics as ot_metrics
+from app.observability import metrics as ot_metrics, otel as ot
 from app.tasks.celery_tasks import (
     get_celery_session_maker,
     run_async_celery_task as _run_async_celery_task,
@@ -23,9 +23,14 @@ def run_async_celery_task[T](coro_factory: Callable[[], Awaitable[T]]) -> T:
     t0 = time.perf_counter()
     status = "failed"
     try:
-        result = _run_async_celery_task(coro_factory)
+        with ot.connector_sync_span(connector_type=task_name) as sp:
+            result = _run_async_celery_task(coro_factory)
+            sp.set_attribute("connector.status", "success")
         status = "success"
         return result
+    except Exception:
+        status = "failed"
+        raise
     finally:
         elapsed_s = time.perf_counter() - t0
         ot_metrics.record_connector_sync_duration(
