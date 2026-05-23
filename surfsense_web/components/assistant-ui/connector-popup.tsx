@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertTriangle, Settings } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -381,7 +381,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 										{/* LLM Configuration Warning */}
 										{!llmConfigLoading && !hasDocumentSummaryLLM && (
 											<div className="mb-6">
-												<Alert variant="destructive">
+												<Alert variant="warning">
 													<AlertTriangle />
 													<AlertTitle>LLM Configuration Required</AlertTitle>
 													<AlertDescription>
@@ -392,7 +392,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 														</p>
 														<Button
 															size="sm"
-															variant="outline"
+															variant="secondary"
 															onClick={() => {
 																handleOpenChange(false);
 																router.push(
@@ -400,7 +400,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 																);
 															}}
 														>
-															<Settings className="mr-2 h-4 w-4" />
 															Go to Settings
 														</Button>
 													</AlertDescription>

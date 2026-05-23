@@ -3,9 +3,9 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { BACKEND_URL } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { AmbientBackground } from "./AmbientBackground";
-import { BACKEND_URL } from "@/lib/env-config";
 
 function GoogleGLogo({ className }: { className?: string }) {
 	return (

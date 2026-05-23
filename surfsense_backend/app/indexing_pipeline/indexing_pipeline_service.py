@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import hashlib
 import logging
+import sys
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -57,6 +58,7 @@ from app.indexing_pipeline.pipeline_logger import (
     log_retryable_llm_error,
     log_unexpected_error,
 )
+from app.observability import metrics as ot_metrics, otel as ot
 from app.utils.perf import get_perf_logger
 
 
@@ -362,6 +364,16 @@ class IndexingPipelineService:
         )
         perf = get_perf_logger()
         t_index = time.perf_counter()
+        document_type = (
+            document.document_type.value
+            if getattr(document, "document_type", None)
+            else None
+        )
+        persist_span_cm = ot.kb_persist_span(
+            document_type=document_type,
+        )
+        persist_span = persist_span_cm.__enter__()
+        outcome_status = "failed"
         try:
             log_index_started(ctx)
             document.status = DocumentStatus.processing()
@@ -429,34 +441,41 @@ class IndexingPipelineService:
                 time.perf_counter() - t_index,
             )
             log_index_success(ctx, chunk_count=len(chunks))
+            outcome_status = "success"
 
             await self._enqueue_ai_sort_if_enabled(document)
 
         except RETRYABLE_LLM_ERRORS as e:
+            ot.record_error(persist_span, e)
             log_retryable_llm_error(ctx, e)
+            outcome_status = "requeued"
             await rollback_and_persist_failure(
                 self.session, document, llm_retryable_message(e)
             )
 
         except PERMANENT_LLM_ERRORS as e:
+            ot.record_error(persist_span, e)
             log_permanent_llm_error(ctx, e)
             await rollback_and_persist_failure(
                 self.session, document, llm_permanent_message(e)
             )
 
         except RecursionError as e:
+            ot.record_error(persist_span, e)
             log_chunking_overflow(ctx, e)
             await rollback_and_persist_failure(
                 self.session, document, PipelineMessages.CHUNKING_OVERFLOW
             )
 
         except EMBEDDING_ERRORS as e:
+            ot.record_error(persist_span, e)
             log_embedding_error(ctx, e)
             await rollback_and_persist_failure(
                 self.session, document, embedding_message(e)
             )
 
         except Exception as e:
+            ot.record_error(persist_span, e)
             log_unexpected_error(ctx, e)
             await rollback_and_persist_failure(
                 self.session, document, safe_exception_message(e)
@@ -465,6 +484,17 @@ class IndexingPipelineService:
         with contextlib.suppress(Exception):
             await self.session.refresh(document)
 
+        with contextlib.suppress(Exception):
+            persist_span.set_attribute("indexing.status", outcome_status)
+        ot_metrics.record_indexing_document_duration(
+            time.perf_counter() - t_index,
+            document_type=document_type,
+        )
+        ot_metrics.record_indexing_document_outcome(
+            document_type=document_type,
+            status=outcome_status,
+        )
+        persist_span_cm.__exit__(*sys.exc_info())
         return document
 
     async def _enqueue_ai_sort_if_enabled(self, document: Document) -> None:

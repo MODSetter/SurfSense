@@ -78,6 +78,15 @@ services:
       timeout: 5s
       retries: 5
 
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - "${OTEL_GRPC_PORT:-4317}:4317"
+      - "${OTEL_HTTP_PORT:-4318}:4318"
+      - "${OTEL_GRAFANA_PORT:-3001}:3000"
+      - "${OTEL_TEMPO_PORT:-3200}:3200"
+    restart: unless-stopped
+
   searxng:
     image: searxng/searxng:2026.3.13-3c1f68c59
     ports:

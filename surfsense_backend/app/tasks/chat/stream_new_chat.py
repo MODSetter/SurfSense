@@ -14,6 +14,7 @@ import contextlib
 import gc
 import json
 import logging
+import sys
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
@@ -58,6 +59,7 @@ from app.db import (
     async_session_maker,
     shielded_async_session,
 )
+from app.observability import metrics as ot_metrics, otel as ot
 from app.prompts import TITLE_GENERATION_PROMPT
 from app.services.auto_model_pin_service import (
     mark_runtime_cooldown,
@@ -883,6 +885,20 @@ async def stream_new_chat(
     stream_result.turn_id = f"{chat_id}:{int(time.time() * 1000)}"
     stream_result.filesystem_mode = fs_mode
     stream_result.client_platform = fs_platform
+    chat_agent_mode = "unknown"
+    chat_outcome = "success"
+    chat_error_category: str | None = None
+    chat_span_cm = ot.chat_request_span(
+        chat_id=chat_id,
+        search_space_id=search_space_id,
+        flow=flow,
+        request_id=request_id,
+        turn_id=stream_result.turn_id,
+        filesystem_mode=fs_mode,
+        client_platform=fs_platform,
+        agent_mode=chat_agent_mode,
+    )
+    chat_span = chat_span_cm.__enter__()
     _log_file_contract("turn_start", stream_result)
     _perf_log.info(
         "[stream_new_chat] filesystem_mode=%s client_platform=%s",
@@ -971,6 +987,14 @@ async def stream_new_chat(
                     requires_image_input=_requires_image_input,
                 )
             ).resolved_llm_config_id
+            ot.add_event(
+                "model.pin.resolved",
+                {
+                    "pin.requested_id": requested_llm_config_id,
+                    "pin.resolved_id": llm_config_id,
+                    "pin.requires_image_input": _requires_image_input,
+                },
+            )
         except ValueError as pin_error:
             # Auto-pin's "no vision-capable cfg" path raises a ValueError
             # whose message we map to the friendly image-input SSE error
@@ -987,6 +1011,13 @@ async def stream_new_chat(
                 if error_code == "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"
                 else "server_error"
             )
+            if error_code == "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT":
+                ot.add_event(
+                    "quota.denied",
+                    {
+                        "quota.code": error_code,
+                    },
+                )
             yield _emit_stream_error(
                 message=str(pin_error),
                 error_kind=error_kind,
@@ -1041,6 +1072,12 @@ async def stream_new_chat(
                 model_label = (
                     agent_config.config_name or agent_config.model_name or "model"
                 )
+                ot.add_event(
+                    "quota.denied",
+                    {
+                        "quota.code": "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT",
+                    },
+                )
                 yield _emit_stream_error(
                     message=(
                         f"The selected model ({model_label}) does not support "
@@ -1084,6 +1121,12 @@ async def stream_new_chat(
                 )
             _premium_reserved_micros = reserve_amount_micros
             if not quota_result.allowed:
+                ot.add_event(
+                    "quota.denied",
+                    {
+                        "quota.code": "PREMIUM_QUOTA_EXHAUSTED",
+                    },
+                )
                 if requested_llm_config_id == 0:
                     try:
                         llm_config_id = (
@@ -1097,6 +1140,13 @@ async def stream_new_chat(
                                 requires_image_input=_requires_image_input,
                             )
                         ).resolved_llm_config_id
+                        ot.add_event(
+                            "model.repin",
+                            {
+                                "repin.reason": "premium_quota_exhausted",
+                                "repin.to_config_id": llm_config_id,
+                            },
+                        )
                     except ValueError as pin_error:
                         yield _emit_stream_error(
                             message=str(pin_error),
@@ -1189,6 +1239,9 @@ async def stream_new_chat(
         from app.config import config as _app_config
 
         use_multi_agent = bool(_app_config.MULTI_AGENT_CHAT_ENABLED)
+        chat_agent_mode = "multi" if use_multi_agent else "single"
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("agent.mode", chat_agent_mode)
 
         _t0 = time.perf_counter()
         agent_factory = (
@@ -1863,6 +1916,14 @@ async def stream_new_chat(
                     llm_config_id,
                     time.perf_counter() - _t0,
                 )
+                ot.add_event(
+                    "chat.rate_limit.recovered",
+                    {
+                        "recovery.reason": "provider_rate_limited",
+                        "recovery.previous_config_id": previous_config_id,
+                        "recovery.fallback_config_id": llm_config_id,
+                    },
+                )
                 _log_chat_stream_error(
                     flow=flow,
                     error_kind="rate_limited",
@@ -1893,6 +1954,12 @@ async def stream_new_chat(
         log_system_snapshot("stream_new_chat_END")
 
         if stream_result.is_interrupted:
+            ot.add_event(
+                "chat.interrupted",
+                {
+                    "chat.flow": flow,
+                },
+            )
             if title_task is not None and not title_task.done():
                 title_task.cancel()
 
@@ -2011,6 +2078,12 @@ async def stream_new_chat(
             user_message,
             error_extra,
         ) = _classify_stream_exception(e, flow_label="chat")
+        chat_outcome = error_code or error_kind or "error"
+        chat_error_category = ot_metrics.categorize_exception(e)
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("chat.outcome", chat_outcome)
+            chat_span.set_attribute("error.category", chat_error_category)
+            ot.record_error(chat_span, e)
         error_message = f"Error during chat: {e!s}"
         print(f"[stream_new_chat] {error_message}")
         print(f"[stream_new_chat] Exception type: {type(e).__name__}")
@@ -2201,6 +2274,21 @@ async def stream_new_chat(
             )
         trim_native_heap()
         log_system_snapshot("stream_new_chat_END")
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("chat.outcome", chat_outcome)
+            ot_metrics.record_chat_request_duration(
+                (time.perf_counter() - _t_total) * 1000,
+                flow=flow,
+                outcome=chat_outcome,
+                agent_mode=chat_agent_mode,
+            )
+            ot_metrics.record_chat_request_outcome(
+                flow=flow,
+                outcome=chat_outcome,
+                agent_mode=chat_agent_mode,
+                error_category=chat_error_category,
+            )
+        chat_span_cm.__exit__(*sys.exc_info())
 
 
 async def stream_resume_chat(
@@ -2225,6 +2313,20 @@ async def stream_resume_chat(
     stream_result.turn_id = f"{chat_id}:{int(time.time() * 1000)}"
     stream_result.filesystem_mode = fs_mode
     stream_result.client_platform = fs_platform
+    chat_agent_mode = "unknown"
+    chat_outcome = "success"
+    chat_error_category: str | None = None
+    chat_span_cm = ot.chat_request_span(
+        chat_id=chat_id,
+        search_space_id=search_space_id,
+        flow="resume",
+        request_id=request_id,
+        turn_id=stream_result.turn_id,
+        filesystem_mode=fs_mode,
+        client_platform=fs_platform,
+        agent_mode=chat_agent_mode,
+    )
+    chat_span = chat_span_cm.__enter__()
     _log_file_contract("turn_start", stream_result)
     _perf_log.info(
         "[stream_resume] filesystem_mode=%s client_platform=%s",
@@ -2297,6 +2399,14 @@ async def stream_resume_chat(
                     selected_llm_config_id=llm_config_id,
                 )
             ).resolved_llm_config_id
+            ot.add_event(
+                "model.pin.resolved",
+                {
+                    "pin.requested_id": requested_llm_config_id,
+                    "pin.resolved_id": llm_config_id,
+                    "pin.requires_image_input": False,
+                },
+            )
         except ValueError as pin_error:
             yield _emit_stream_error(
                 message=str(pin_error),
@@ -2353,6 +2463,12 @@ async def stream_resume_chat(
                 )
             _resume_premium_reserved_micros = reserve_amount_micros
             if not quota_result.allowed:
+                ot.add_event(
+                    "quota.denied",
+                    {
+                        "quota.code": "PREMIUM_QUOTA_EXHAUSTED",
+                    },
+                )
                 if requested_llm_config_id == 0:
                     try:
                         llm_config_id = (
@@ -2365,6 +2481,13 @@ async def stream_resume_chat(
                                 force_repin_free=True,
                             )
                         ).resolved_llm_config_id
+                        ot.add_event(
+                            "model.repin",
+                            {
+                                "repin.reason": "premium_quota_exhausted",
+                                "repin.to_config_id": llm_config_id,
+                            },
+                        )
                     except ValueError as pin_error:
                         yield _emit_stream_error(
                             message=str(pin_error),
@@ -2454,6 +2577,11 @@ async def stream_resume_chat(
         visibility = thread_visibility or ChatVisibility.PRIVATE
         from app.config import config as _app_config
 
+        chat_agent_mode = (
+            "multi" if _app_config.MULTI_AGENT_CHAT_ENABLED else "single"
+        )
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("agent.mode", chat_agent_mode)
         _t0 = time.perf_counter()
         agent_factory = (
             create_multi_agent_chat_deep_agent
@@ -2695,6 +2823,14 @@ async def stream_resume_chat(
                     llm_config_id,
                     time.perf_counter() - _t0,
                 )
+                ot.add_event(
+                    "chat.rate_limit.recovered",
+                    {
+                        "recovery.reason": "provider_rate_limited",
+                        "recovery.previous_config_id": previous_config_id,
+                        "recovery.fallback_config_id": llm_config_id,
+                    },
+                )
                 _log_chat_stream_error(
                     flow="resume",
                     error_kind="rate_limited",
@@ -2722,6 +2858,12 @@ async def stream_resume_chat(
             chat_id,
         )
         if stream_result.is_interrupted:
+            ot.add_event(
+                "chat.interrupted",
+                {
+                    "chat.flow": "resume",
+                },
+            )
             usage_summary = accumulator.per_message_summary()
             _perf_log.info(
                 "[token_usage] interrupted resume_chat: calls=%d total=%d cost_micros=%d summary=%s",
@@ -2815,6 +2957,12 @@ async def stream_resume_chat(
             user_message,
             error_extra,
         ) = _classify_stream_exception(e, flow_label="resume")
+        chat_outcome = error_code or error_kind or "error"
+        chat_error_category = ot_metrics.categorize_exception(e)
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("chat.outcome", chat_outcome)
+            chat_span.set_attribute("error.category", chat_error_category)
+            ot.record_error(chat_span, e)
         error_message = f"Error during resume: {e!s}"
         print(f"[stream_resume_chat] {error_message}")
         print(f"[stream_resume_chat] Traceback:\n{traceback.format_exc()}")
@@ -2964,3 +3112,18 @@ async def stream_resume_chat(
             )
         trim_native_heap()
         log_system_snapshot("stream_resume_chat_END")
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("chat.outcome", chat_outcome)
+            ot_metrics.record_chat_request_duration(
+                (time.perf_counter() - _t_total) * 1000,
+                flow="resume",
+                outcome=chat_outcome,
+                agent_mode=chat_agent_mode,
+            )
+            ot_metrics.record_chat_request_outcome(
+                flow="resume",
+                outcome=chat_outcome,
+                agent_mode=chat_agent_mode,
+                error_category=chat_error_category,
+            )
+        chat_span_cm.__exit__(*sys.exc_info())

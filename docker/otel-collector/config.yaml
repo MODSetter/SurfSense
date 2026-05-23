@@ -1,0 +1,81 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  basicauth/grafana_cloud:
+    client_auth:
+      username: ${env:GRAFANA_CLOUD_INSTANCE_ID}
+      password: ${env:GRAFANA_CLOUD_API_KEY}
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Percentage limits are calculated against the collector container memory limit.
+  # Keep docker-compose.yml/Coolify memory limit set for predictability.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+
+  attributes/scrub:
+    actions:
+      - key: http.request.header.authorization
+        action: delete
+      - key: http.request.header.cookie
+        action: delete
+      - key: db.statement
+        action: delete
+
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 50000
+    expected_new_traces_per_sec: 100
+    policies:
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: slow-requests
+        type: latency
+        latency:
+          threshold_ms: 500
+      - name: baseline
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 100
+
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+exporters:
+  otlp_http/grafana_cloud:
+    endpoint: ${env:GRAFANA_CLOUD_OTLP_ENDPOINT}
+    auth:
+      authenticator: basicauth/grafana_cloud
+    sending_queue:
+      enabled: true
+      queue_size: 10000
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+service:
+  extensions: [health_check, basicauth/grafana_cloud]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/scrub, tail_sampling, batch]
+      exporters: [otlp_http/grafana_cloud]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/grafana_cloud]

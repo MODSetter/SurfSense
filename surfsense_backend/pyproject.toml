@@ -76,6 +76,17 @@ dependencies = [
     "litellm>=1.83.7",
     "langchain-litellm>=0.6.4",
     "deepagents>=0.4.12,<0.5",
+    "opentelemetry-api>=1.40.0",
+    "opentelemetry-sdk>=1.40.0",
+    "opentelemetry-exporter-otlp>=1.40.0",
+    "opentelemetry-semantic-conventions>=0.61b0",
+    "opentelemetry-instrumentation-fastapi>=0.61b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.61b0",
+    "opentelemetry-instrumentation-psycopg>=0.61b0",
+    "opentelemetry-instrumentation-redis>=0.61b0",
+    "opentelemetry-instrumentation-httpx>=0.61b0",
+    "opentelemetry-instrumentation-celery>=0.61b0",
+    "opentelemetry-instrumentation-logging>=0.61b0",
 ]
 
 [dependency-groups]

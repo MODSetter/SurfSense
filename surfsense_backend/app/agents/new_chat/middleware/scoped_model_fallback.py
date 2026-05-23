@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware import ModelFallbackMiddleware
 
+from app.observability import metrics as ot_metrics, otel as ot
+
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
@@ -55,7 +57,16 @@ class ScopedModelFallbackMiddleware(ModelFallbackMiddleware):
                 raise
             last_exception = e
 
-        for fallback_model in self.models:
+        for attempt, fallback_model in enumerate(self.models, start=1):
+            ot.add_event(
+                "model.fallback",
+                {
+                    "fallback.attempt": attempt,
+                    "fallback.from": attempt - 1,
+                    "fallback.to": attempt,
+                    "fallback.reason": ot_metrics.categorize_exception(last_exception),
+                },
+            )
             try:
                 return handler(request.override(model=fallback_model))
             except Exception as e:
@@ -79,7 +90,16 @@ class ScopedModelFallbackMiddleware(ModelFallbackMiddleware):
                 raise
             last_exception = e
 
-        for fallback_model in self.models:
+        for attempt, fallback_model in enumerate(self.models, start=1):
+            ot.add_event(
+                "model.fallback",
+                {
+                    "fallback.attempt": attempt,
+                    "fallback.from": attempt - 1,
+                    "fallback.to": attempt,
+                    "fallback.reason": ot_metrics.categorize_exception(last_exception),
+                },
+            )
             try:
                 return await handler(request.override(model=fallback_model))
             except Exception as e:

@@ -7,6 +7,7 @@ import {
 	Download,
 	FlaskConical,
 	Heart,
+	Radar,
 	Unplug,
 	Wrench,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const DOCS_ICONS: Record<string, React.ComponentType> = {
 	Download,
 	FlaskConical,
 	Heart,
+	Radar,
 	Unplug,
 	Wrench,
 };
