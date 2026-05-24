@@ -105,7 +105,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
-import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
+import { slideoutOpenedTickAtom } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
 
 const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
@@ -478,15 +478,18 @@ const Composer: FC = () => {
 		editorRef.current?.focus();
 	}, [isDesktop, showDocumentPopover, showPromptPicker, threadId]);
 
-	// Close document picker when a slide-out panel (inbox, etc.) opens.
+	// Close document picker when a sidebar slide-out panel (inbox, etc.) opens.
+	const slideoutOpenedTick = useAtomValue(slideoutOpenedTickAtom);
+	const isFirstSlideoutTickRef = useRef(true);
 	useEffect(() => {
-		const handler = () => {
-			setShowDocumentPopover(false);
-			setMentionQuery("");
-		};
-		window.addEventListener(SLIDEOUT_PANEL_OPENED_EVENT, handler);
-		return () => window.removeEventListener(SLIDEOUT_PANEL_OPENED_EVENT, handler);
-	}, []);
+		void slideoutOpenedTick;
+		if (isFirstSlideoutTickRef.current) {
+			isFirstSlideoutTickRef.current = false;
+			return;
+		}
+		setShowDocumentPopover(false);
+		setMentionQuery("");
+	}, [slideoutOpenedTick]);
 
 	// Sync editor text into assistant-ui's composer and mirror the chip
 	// atom from the editor's reported ``docs``. The editor is the

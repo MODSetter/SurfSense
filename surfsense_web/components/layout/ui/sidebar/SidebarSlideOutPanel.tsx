@@ -1,9 +1,10 @@
 "use client";
 
+import { useSetAtom } from "jotai";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
+import { slideoutOpenedTickAtom } from "@/lib/layout-events";
 
 interface SidebarSlideOutPanelProps {
 	open: boolean;
@@ -29,12 +30,13 @@ export function SidebarSlideOutPanel({
 	children,
 }: SidebarSlideOutPanelProps) {
 	const isMobile = useIsMobile();
+	const bumpSlideoutOpenedTick = useSetAtom(slideoutOpenedTickAtom);
 
 	useEffect(() => {
 		if (open) {
-			window.dispatchEvent(new Event(SLIDEOUT_PANEL_OPENED_EVENT));
+			bumpSlideoutOpenedTick((tick) => tick + 1);
 		}
-	}, [open]);
+	}, [open, bumpSlideoutOpenedTick]);
 
 	const handleEscape = useCallback(
 		(e: KeyboardEvent) => {
