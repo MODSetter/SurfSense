@@ -479,14 +479,14 @@ const Composer: FC = () => {
 	}, [isDesktop, showDocumentPopover, showPromptPicker, threadId]);
 
 	// Close document picker when a sidebar slide-out panel (inbox, etc.) opens.
+	// React only on changes to the tick — comparing against the previously-seen
+	// value preserves the one-shot semantics of the prior window-event approach
+	// (no retroactive close on mount if a panel had already opened earlier).
 	const slideoutOpenedTick = useAtomValue(slideoutOpenedTickAtom);
-	const isFirstSlideoutTickRef = useRef(true);
+	const lastSeenSlideoutTickRef = useRef(slideoutOpenedTick);
 	useEffect(() => {
-		void slideoutOpenedTick;
-		if (isFirstSlideoutTickRef.current) {
-			isFirstSlideoutTickRef.current = false;
-			return;
-		}
+		if (lastSeenSlideoutTickRef.current === slideoutOpenedTick) return;
+		lastSeenSlideoutTickRef.current = slideoutOpenedTick;
 		setShowDocumentPopover(false);
 		setMentionQuery("");
 	}, [slideoutOpenedTick]);

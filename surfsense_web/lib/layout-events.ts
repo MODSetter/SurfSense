@@ -2,8 +2,10 @@ import { atom } from "jotai";
 
 /**
  * Tick counter that increments each time a sidebar slide-out panel opens.
- * Consumers read this with `useAtomValue` and react to it changing — guard
- * the initial render with a ref so the effect only fires on subsequent
- * opens, matching the one-shot semantics of the previous window event.
+ * Consumers read this with `useAtomValue` and store the last-seen value in
+ * a ref so the effect fires only when the tick changes. This preserves the
+ * one-shot semantics of the previous window-event implementation: a
+ * subscriber that mounts after a panel has already opened does not
+ * retroactively re-trigger.
  */
 export const slideoutOpenedTickAtom = atom(0);
