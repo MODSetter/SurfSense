@@ -127,7 +127,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
-	const [isDocumentsDocked, setIsDocumentsDocked] = useState(true);
 	const setIsRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
 
 	// Open documents sidebar by default on desktop (docked mode)
@@ -748,8 +747,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				documentsPanel={{
 					open: isDocumentsSidebarOpen,
 					onOpenChange: setIsDocumentsSidebarOpen,
-					isDocked: isDocumentsDocked,
-					onDockedChange: setIsDocumentsDocked,
 				}}
 				onTabSwitch={handleTabSwitch}
 			>
