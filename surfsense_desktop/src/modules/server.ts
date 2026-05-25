@@ -49,6 +49,7 @@ export async function startNextServer(): Promise<void> {
     env: {
       ...process.env,
       PORT: String(serverPort),
+      // Loopback bind: avoids 0.0.0.0 leaking into request.url and redirect origins.
       HOSTNAME: SERVER_HOST,
       NODE_ENV: 'production',
     },

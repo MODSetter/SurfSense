@@ -14,7 +14,9 @@ import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-quer
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
+import { OAUTH_RESULT_COOKIE, parseOAuthCallbackResult } from "@/contracts/types/oauth.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { BACKEND_URL } from "@/lib/env-config";
 import {
 	trackConnectorConnected,
 	trackConnectorDeleted,
@@ -36,15 +38,12 @@ import {
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "../constants/connector-constants";
-
 import {
 	dateRangeSchema,
 	frequencyMinutesSchema,
 	parseOAuthAuthResponse,
 	validateIndexingConfigState,
 } from "../constants/connector-popup.schemas";
-import { BACKEND_URL } from "@/lib/env-config";
-const OAUTH_RESULT_COOKIE = "connector_oauth_result";
 
 function readOAuthResultCookie(): string | null {
 	const match = document.cookie
@@ -211,17 +210,8 @@ export const useConnectorDialog = () => {
 		if (!raw || !searchSpaceId) return;
 		clearOAuthResultCookie();
 
-		let result: {
-			success: string | null;
-			error: string | null;
-			connector: string | null;
-			connectorId: string | null;
-		};
-		try {
-			result = JSON.parse(raw);
-		} catch {
-			return;
-		}
+		const result = parseOAuthCallbackResult(raw);
+		if (!result) return;
 
 		if (result.error) {
 			const oauthConnector = result.connector

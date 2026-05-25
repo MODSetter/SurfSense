@@ -33,7 +33,7 @@ Map outcomes to your `status`:
 - Any other `"Error: …"` → `status=error` and relay the tool's message verbatim as `next_step`.
 - HITL rejection → `status=blocked` with `next_step="User declined this filesystem action. Do not retry."`.
 
-You construct the structured `evidence` fields from your own knowledge of what you called and what you observed — the tools do not return them. `chunk_ids` apply only to `<priority_documents>` hits; for local-file operations leave them `null`. Never report values you did not actually see.
+You construct the structured `evidence` fields from your own knowledge of what you called and what you observed — the tools do not return them. Never report values you did not actually see. (`chunk_ids` is always `null` in desktop mode — see "Chunk citations in your prose" below.)
 
 ## Chunk citations in your prose
 

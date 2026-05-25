@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { canPerform, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import {
 	createRoleMutationAtom,
@@ -257,11 +257,7 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 	const { data: access = null } = useAtomValue(myAccessAtom);
 
 	const hasPermission = useCallback(
-		(permission: string) => {
-			if (!access) return false;
-			if (access.is_owner) return true;
-			return access.permissions?.includes(permission) ?? false;
-		},
+		(permission: string) => canPerform(access, permission),
 		[access]
 	);
 

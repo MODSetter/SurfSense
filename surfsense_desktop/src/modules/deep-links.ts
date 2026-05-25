@@ -60,6 +60,11 @@ export function setupDeepLinks(): boolean {
     app.setAsDefaultProtocolClient(PROTOCOL);
   }
 
+  // Cold-start on Windows/Linux: protocol URL arrives via argv of the
+  // first instance, not via `second-instance` or `open-url`.
+  const cold = process.argv.find((arg) => arg.startsWith(`${PROTOCOL}://`));
+  if (cold) handleDeepLink(cold);
+
   return true;
 }
 
