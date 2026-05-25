@@ -17,8 +17,32 @@ type UpdateInfo = {
   version: string;
 };
 
+type UpdateMenuState =
+  | { status: 'idle' }
+  | { status: 'downloading'; version: string }
+  | { status: 'ready'; version: string };
+
 let listenersRegistered = false;
-let manualUpdateCheckInProgress = false;
+let updateMenuState: UpdateMenuState = { status: 'idle' };
+const updateMenuStateListeners = new Set<(state: UpdateMenuState) => void>();
+
+export function getUpdateMenuState(): UpdateMenuState {
+  return updateMenuState;
+}
+
+export function onUpdateMenuStateChange(listener: (state: UpdateMenuState) => void): () => void {
+  updateMenuStateListeners.add(listener);
+  return () => {
+    updateMenuStateListeners.delete(listener);
+  };
+}
+
+function setUpdateMenuState(state: UpdateMenuState): void {
+  updateMenuState = state;
+  for (const listener of updateMenuStateListeners) {
+    listener(state);
+  }
+}
 
 function getAutoUpdater(): AutoUpdater {
   const { autoUpdater } = require('electron-updater');
@@ -35,6 +59,7 @@ function configureAutoUpdater(autoUpdater: AutoUpdater): void {
 
   autoUpdater.on('update-available', (info: UpdateInfo) => {
     console.log(`Update available: ${info.version}`);
+    setUpdateMenuState({ status: 'downloading', version: info.version });
     trackEvent('desktop_update_available', {
       current_version: version,
       new_version: info.version,
@@ -43,16 +68,20 @@ function configureAutoUpdater(autoUpdater: AutoUpdater): void {
 
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
     console.log(`Update downloaded: ${info.version}`);
+    setUpdateMenuState({ status: 'ready', version: info.version });
     trackEvent('desktop_update_downloaded', {
       current_version: version,
       new_version: info.version,
     });
-    if (!manualUpdateCheckInProgress) {
-      notifyRenderersUpdateDownloaded(info);
-    }
+    notifyRenderersUpdateDownloaded(info);
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    setUpdateMenuState({ status: 'idle' });
   });
 
   autoUpdater.on('error', (err: Error) => {
+    setUpdateMenuState({ status: 'idle' });
     console.log('Auto-updater: update check skipped —', err.message?.split('\n')[0]);
     trackEvent('desktop_update_error', {
       message: err.message?.split('\n')[0],
@@ -92,6 +121,13 @@ export function setupAutoUpdater(): void {
 }
 
 export async function checkForUpdatesManually(): Promise<void> {
+  const currentState = getUpdateMenuState();
+  if (currentState.status === 'ready') {
+    installDownloadedUpdate();
+    return;
+  }
+  if (currentState.status === 'downloading') return;
+
   if (!app.isPackaged) {
     await dialog.showMessageBox({
       type: 'info',
@@ -115,29 +151,20 @@ export async function checkForUpdatesManually(): Promise<void> {
   configureAutoUpdater(autoUpdater);
 
   try {
-    manualUpdateCheckInProgress = true;
     const result = await new Promise<'not-available' | 'downloaded'>((resolve, reject) => {
       const cleanup = () => {
-        manualUpdateCheckInProgress = false;
         autoUpdater.removeListener('update-available', onAvailable);
         autoUpdater.removeListener('update-not-available', onNotAvailable);
         autoUpdater.removeListener('update-downloaded', onDownloaded);
         autoUpdater.removeListener('error', onError);
       };
-      const onAvailable = (info: UpdateInfo) => {
-        void dialog.showMessageBox({
-          type: 'info',
-          title: 'Update Available',
-          message: `Version ${info.version} is available and will download in the background.`,
-        });
-      };
+      const onAvailable = () => {};
       const onNotAvailable = () => {
         cleanup();
         resolve('not-available');
       };
-      const onDownloaded = (info: UpdateInfo) => {
+      const onDownloaded = () => {
         cleanup();
-        notifyRenderersUpdateDownloaded(info);
         resolve('downloaded');
       };
       const onError = (err: Error) => {
@@ -151,6 +178,7 @@ export async function checkForUpdatesManually(): Promise<void> {
       autoUpdater.once('error', onError);
       autoUpdater.checkForUpdates().catch((err: Error) => {
         cleanup();
+        setUpdateMenuState({ status: 'idle' });
         reject(err);
       });
     });
@@ -163,7 +191,7 @@ export async function checkForUpdatesManually(): Promise<void> {
       });
     }
   } catch (err) {
-    manualUpdateCheckInProgress = false;
+    setUpdateMenuState({ status: 'idle' });
     await dialog.showMessageBox({
       type: 'error',
       title: 'Update Check Failed',

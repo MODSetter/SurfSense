@@ -1,12 +1,39 @@
 import { app, Menu, shell } from 'electron';
-import { checkForUpdatesManually } from './auto-updater';
+import {
+  checkForUpdatesManually,
+  getUpdateMenuState,
+  installDownloadedUpdate,
+  onUpdateMenuStateChange,
+} from './auto-updater';
 
-const checkForUpdatesItem: Electron.MenuItemConstructorOptions = {
-  label: 'Check for Updates...',
-  click: () => {
-    void checkForUpdatesManually();
-  },
-};
+let updateMenuListenerRegistered = false;
+
+function getUpdateMenuItem(): Electron.MenuItemConstructorOptions {
+  const state = getUpdateMenuState();
+
+  if (state.status === 'downloading') {
+    return {
+      label: 'Downloading...',
+      enabled: false,
+    };
+  }
+
+  if (state.status === 'ready') {
+    return {
+      label: 'Install and Restart',
+      click: () => {
+        installDownloadedUpdate();
+      },
+    };
+  }
+
+  return {
+    label: 'Check for Updates...',
+    click: () => {
+      void checkForUpdatesManually();
+    },
+  };
+}
 
 const privacyPolicyItem: Electron.MenuItemConstructorOptions = {
   label: 'Privacy Policy',
@@ -23,14 +50,22 @@ const termsOfServiceItem: Electron.MenuItemConstructorOptions = {
 };
 
 export function setupMenu(): void {
+  if (!updateMenuListenerRegistered) {
+    updateMenuListenerRegistered = true;
+    onUpdateMenuStateChange(() => {
+      setupMenu();
+    });
+  }
+
   const isMac = process.platform === 'darwin';
+  const updateMenuItem = getUpdateMenuItem();
   const template: Electron.MenuItemConstructorOptions[] = [
     ...(isMac
       ? [{
           label: app.name,
           submenu: [
             { role: 'about' as const },
-            checkForUpdatesItem,
+            updateMenuItem,
             { type: 'separator' as const },
             { role: 'services' as const },
             { type: 'separator' as const },
@@ -51,7 +86,7 @@ export function setupMenu(): void {
       submenu: [
         ...(!isMac
           ? [
-              checkForUpdatesItem,
+              updateMenuItem,
               { type: 'separator' as const },
             ]
           : []),
