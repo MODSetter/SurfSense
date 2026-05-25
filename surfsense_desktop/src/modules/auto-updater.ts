@@ -1,4 +1,5 @@
-import { app, dialog } from 'electron';
+import { app, BrowserWindow, dialog } from 'electron';
+import { IPC_CHANNELS } from '../ipc/channels';
 import { trackEvent } from './analytics';
 
 const SEMVER_RE = /^\d+\.\d+\.\d+/;
@@ -17,6 +18,7 @@ type UpdateInfo = {
 };
 
 let listenersRegistered = false;
+let manualUpdateCheckInProgress = false;
 
 function getAutoUpdater(): AutoUpdater {
   const { autoUpdater } = require('electron-updater');
@@ -45,20 +47,9 @@ function configureAutoUpdater(autoUpdater: AutoUpdater): void {
       current_version: version,
       new_version: info.version,
     });
-    dialog.showMessageBox({
-      type: 'info',
-      buttons: ['Restart', 'Later'],
-      defaultId: 0,
-      title: 'Update Ready',
-      message: `Version ${info.version} has been downloaded. Restart to apply the update.`,
-    }).then(({ response }: { response: number }) => {
-      if (response === 0) {
-        trackEvent('desktop_update_install_accepted', { new_version: info.version });
-        autoUpdater.quitAndInstall();
-      } else {
-        trackEvent('desktop_update_install_deferred', { new_version: info.version });
-      }
-    });
+    if (!manualUpdateCheckInProgress) {
+      notifyRenderersUpdateDownloaded(info);
+    }
   });
 
   autoUpdater.on('error', (err: Error) => {
@@ -67,6 +58,39 @@ function configureAutoUpdater(autoUpdater: AutoUpdater): void {
       message: err.message?.split('\n')[0],
     });
   });
+}
+
+function notifyRenderersUpdateDownloaded(info: UpdateInfo): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send(IPC_CHANNELS.UPDATE_DOWNLOADED, {
+        version: info.version,
+      });
+    }
+  }
+}
+
+async function showNativeInstallDialog(autoUpdater: AutoUpdater, info: UpdateInfo): Promise<void> {
+  const { response } = await dialog.showMessageBox({
+    type: 'info',
+    buttons: ['Restart', 'Later'],
+    defaultId: 0,
+    title: 'Update Ready',
+    message: `Version ${info.version} has been downloaded. Restart to apply the update.`,
+  });
+
+  if (response === 0) {
+    trackEvent('desktop_update_install_accepted', { new_version: info.version });
+    autoUpdater.quitAndInstall();
+  } else {
+    trackEvent('desktop_update_install_deferred', { new_version: info.version });
+  }
+}
+
+export function installDownloadedUpdate(): void {
+  const autoUpdater = getAutoUpdater();
+  trackEvent('desktop_update_install_accepted', { source: 'renderer_prompt' });
+  autoUpdater.quitAndInstall();
 }
 
 export function setupAutoUpdater(): void {
@@ -108,24 +132,30 @@ export async function checkForUpdatesManually(): Promise<void> {
   configureAutoUpdater(autoUpdater);
 
   try {
-    const result = await new Promise<'available' | 'not-available'>((resolve, reject) => {
+    manualUpdateCheckInProgress = true;
+    const result = await new Promise<'not-available' | 'downloaded'>((resolve, reject) => {
       const cleanup = () => {
+        manualUpdateCheckInProgress = false;
         autoUpdater.removeListener('update-available', onAvailable);
         autoUpdater.removeListener('update-not-available', onNotAvailable);
+        autoUpdater.removeListener('update-downloaded', onDownloaded);
         autoUpdater.removeListener('error', onError);
       };
       const onAvailable = (info: UpdateInfo) => {
-        cleanup();
         void dialog.showMessageBox({
           type: 'info',
           title: 'Update Available',
           message: `Version ${info.version} is available and will download in the background.`,
         });
-        resolve('available');
       };
       const onNotAvailable = () => {
         cleanup();
         resolve('not-available');
+      };
+      const onDownloaded = (info: UpdateInfo) => {
+        cleanup();
+        void showNativeInstallDialog(autoUpdater, info);
+        resolve('downloaded');
       };
       const onError = (err: Error) => {
         cleanup();
@@ -134,6 +164,7 @@ export async function checkForUpdatesManually(): Promise<void> {
 
       autoUpdater.once('update-available', onAvailable);
       autoUpdater.once('update-not-available', onNotAvailable);
+      autoUpdater.once('update-downloaded', onDownloaded);
       autoUpdater.once('error', onError);
       autoUpdater.checkForUpdates().catch((err: Error) => {
         cleanup();
@@ -149,6 +180,7 @@ export async function checkForUpdatesManually(): Promise<void> {
       });
     }
   } catch (err) {
+    manualUpdateCheckInProgress = false;
     await dialog.showMessageBox({
       type: 'error',
       title: 'Update Check Failed',

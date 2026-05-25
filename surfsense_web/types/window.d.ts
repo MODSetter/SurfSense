@@ -83,6 +83,10 @@ interface LocalTextFileResult {
 	error?: string;
 }
 
+interface UpdateDownloadedEvent {
+	version: string;
+}
+
 interface ElectronAPI {
 	versions: {
 		electron: string;
@@ -92,6 +96,8 @@ interface ElectronAPI {
 	};
 	openExternal: (url: string) => void;
 	getAppVersion: () => Promise<string>;
+	onUpdateDownloaded: (callback: (data: UpdateDownloadedEvent) => void) => () => void;
+	installUpdateNow: () => Promise<void>;
 	onDeepLink: (callback: (url: string) => void) => () => void;
 	onChatScreenCapture: (callback: (dataUrl: string) => void) => () => void;
 	getQuickAskText: () => Promise<string>;

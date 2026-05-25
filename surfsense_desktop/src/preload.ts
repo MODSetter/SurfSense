@@ -10,6 +10,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   openExternal: (url: string) => ipcRenderer.send(IPC_CHANNELS.OPEN_EXTERNAL, url),
   getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.GET_APP_VERSION),
+  onUpdateDownloaded: (callback: (data: { version: string }) => void) => {
+    const listener = (_event: unknown, data: { version: string }) => callback(data);
+    ipcRenderer.on(IPC_CHANNELS.UPDATE_DOWNLOADED, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.UPDATE_DOWNLOADED, listener);
+    };
+  },
+  installUpdateNow: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_INSTALL_NOW),
   onDeepLink: (callback: (url: string) => void) => {
     const listener = (_event: unknown, url: string) => callback(url);
     ipcRenderer.on(IPC_CHANNELS.DEEP_LINK, listener);
