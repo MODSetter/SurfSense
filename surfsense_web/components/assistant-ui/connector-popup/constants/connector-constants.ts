@@ -1,5 +1,4 @@
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 /**
  * Connectors that operate in real time (no background indexing).
@@ -293,26 +292,6 @@ export const AUTO_INDEX_DEFAULTS: Record<string, AutoIndexConfig> = {
 };
 
 export const AUTO_INDEX_CONNECTOR_TYPES = new Set<string>(Object.keys(AUTO_INDEX_DEFAULTS));
-
-// ============================================================================
-// CONNECTOR TELEMETRY REGISTRY
-// ----------------------------------------------------------------------------
-// Single source of truth for "what does this connector_type look like in
-// analytics?". Any connector added to the lists above is automatically
-// picked up here, so adding a new integration does NOT require touching
-// `lib/posthog/events.ts` or per-connector tracking code.
-// ============================================================================
-
-// Telemetry types & helpers are now defined in `@/lib/connector-telemetry`.
-// Re-exported here for backward compatibility with existing imports.
-export type {
-	ConnectorTelemetryGroup,
-	ConnectorTelemetryMeta,
-} from "@/lib/connector-telemetry";
-export {
-	getConnectorTelemetryMeta,
-	getReauthEndpoint,
-} from "@/lib/connector-telemetry";
 
 // Re-export IndexingConfigState from schemas for backward compatibility
 export type { IndexingConfigState } from "./connector-popup.schemas";
