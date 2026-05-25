@@ -2,7 +2,7 @@ import { app, BrowserWindow, shell, session } from 'electron';
 import path from 'path';
 import { trackEvent } from './analytics';
 import { showErrorDialog } from './errors';
-import { getServerPort } from './server';
+import { getServerOrigin } from './server';
 import { setActiveSearchSpaceId } from './active-search-space';
 
 const isDev = !app.isPackaged;
@@ -58,10 +58,10 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
     mainWindow?.setTitle(WINDOW_TITLE);
   });
 
-  mainWindow.loadURL(`http://localhost:${getServerPort()}${initialPath}`);
+  mainWindow.loadURL(`${getServerOrigin()}${initialPath}`);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://localhost')) {
+    if (url.startsWith(getServerOrigin())) {
       return { action: 'allow' };
     }
     shell.openExternal(url);
@@ -70,7 +70,7 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
 
   const filter = { urls: [`${HOSTED_FRONTEND_URL}/*`] };
   session.defaultSession.webRequest.onBeforeRequest(filter, (details, callback) => {
-    const rewritten = details.url.replace(HOSTED_FRONTEND_URL, `http://localhost:${getServerPort()}`);
+    const rewritten = details.url.replace(HOSTED_FRONTEND_URL, getServerOrigin());
     callback({ redirectURL: rewritten });
   });
 

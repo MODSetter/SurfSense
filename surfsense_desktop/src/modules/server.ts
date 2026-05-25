@@ -3,11 +3,16 @@ import { app, utilityProcess } from 'electron';
 import { getPort } from 'get-port-please';
 
 const isDev = !app.isPackaged;
+const SERVER_HOST = '127.0.0.1';
 let serverPort = 3000;
 let nextServerProcess: ReturnType<typeof utilityProcess.fork> | null = null;
 
 export function getServerPort(): number {
   return serverPort;
+}
+
+export function getServerOrigin(): string {
+  return `http://${SERVER_HOST}:${serverPort}`;
 }
 
 function getStandalonePath(): string {
@@ -44,7 +49,7 @@ export async function startNextServer(): Promise<void> {
     env: {
       ...process.env,
       PORT: String(serverPort),
-      HOSTNAME: '127.0.0.1',
+      HOSTNAME: SERVER_HOST,
       NODE_ENV: 'production',
     },
     serviceName: 'SurfSense Next Server',
@@ -75,7 +80,7 @@ export async function startNextServer(): Promise<void> {
     child.once('exit', startupExitHandler);
   });
 
-  const ready = await Promise.race([waitForServer(`http://localhost:${serverPort}`), exited]);
+  const ready = await Promise.race([waitForServer(getServerOrigin()), exited]);
   if (startupExitHandler) {
     child.removeListener('exit', startupExitHandler);
   }

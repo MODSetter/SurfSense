@@ -2,7 +2,7 @@ import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell } from
 import path from 'path';
 import { IPC_CHANNELS } from '../ipc/channels';
 import { checkAccessibilityPermission, getFrontmostApp, simulateCopy, simulatePaste } from './platform';
-import { getServerPort } from './server';
+import { getServerOrigin } from './server';
 import { getShortcuts } from './shortcuts';
 import { getActiveSearchSpaceId } from './active-search-space';
 import { trackEvent } from './analytics';
@@ -58,7 +58,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
 
   const spaceId = pendingSearchSpaceId;
   const route = spaceId ? `/dashboard/${spaceId}/new-chat` : '/dashboard';
-  quickAskWindow.loadURL(`http://localhost:${getServerPort()}${route}?quickAssist=true`);
+  quickAskWindow.loadURL(`${getServerOrigin()}${route}?quickAssist=true`);
 
   quickAskWindow.once('ready-to-show', () => {
     quickAskWindow?.show();
@@ -69,7 +69,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
   });
 
   quickAskWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://localhost')) {
+    if (url.startsWith(getServerOrigin())) {
       return { action: 'allow' };
     }
     shell.openExternal(url);
