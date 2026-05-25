@@ -8,6 +8,7 @@ import { setActiveSearchSpaceId } from './active-search-space';
 const isDev = !app.isPackaged;
 const HOSTED_FRONTEND_URL = process.env.HOSTED_FRONTEND_URL as string;
 const isMac = process.platform === 'darwin';
+const WINDOW_TITLE = 'SurfSense';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -24,6 +25,7 @@ export function markQuitting(): void {
 
 export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
   mainWindow = new BrowserWindow({
+    title: WINDOW_TITLE,
     width: 1280,
     height: 800,
     minWidth: 800,
@@ -46,6 +48,14 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
+  });
+
+  mainWindow.webContents.on('page-title-updated', (event) => {
+    event.preventDefault();
+    mainWindow?.setTitle(WINDOW_TITLE);
+  });
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow?.setTitle(WINDOW_TITLE);
   });
 
   mainWindow.loadURL(`http://localhost:${getServerPort()}${initialPath}`);

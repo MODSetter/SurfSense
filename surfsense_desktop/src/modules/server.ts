@@ -1,9 +1,10 @@
 import path from 'path';
-import { app } from 'electron';
+import { app, utilityProcess } from 'electron';
 import { getPort } from 'get-port-please';
 
 const isDev = !app.isPackaged;
 let serverPort = 3000;
+let nextServerProcess: ReturnType<typeof utilityProcess.fork> | null = null;
 
 export function getServerPort(): number {
   return serverPort;
@@ -38,16 +39,54 @@ export async function startNextServer(): Promise<void> {
   const standalonePath = getStandalonePath();
   const serverScript = path.join(standalonePath, 'server.js');
 
-  process.env.PORT = String(serverPort);
-  process.env.HOSTNAME = '0.0.0.0';
-  process.env.NODE_ENV = 'production';
-  process.chdir(standalonePath);
+  const child = utilityProcess.fork(serverScript, [], {
+    cwd: standalonePath,
+    env: {
+      ...process.env,
+      PORT: String(serverPort),
+      HOSTNAME: '127.0.0.1',
+      NODE_ENV: 'production',
+    },
+    serviceName: 'SurfSense Next Server',
+    stdio: 'pipe',
+  });
+  nextServerProcess = child;
 
-  require(serverScript);
+  child.stdout?.on('data', (chunk) => {
+    process.stdout.write(chunk);
+  });
+  child.stderr?.on('data', (chunk) => {
+    process.stderr.write(chunk);
+  });
 
-  const ready = await waitForServer(`http://localhost:${serverPort}`);
+  const handleExit = (code: number) => {
+    if (nextServerProcess === child) {
+      nextServerProcess = null;
+    }
+    console.error(`Next.js server exited with code ${code}`);
+  };
+  child.on('exit', handleExit);
+
+  let startupExitHandler: ((code: number) => void) | null = null;
+  const exited = new Promise<never>((_resolve, reject) => {
+    startupExitHandler = (code: number) => {
+      reject(new Error(`Next.js server exited before startup completed with code ${code}`));
+    };
+    child.once('exit', startupExitHandler);
+  });
+
+  const ready = await Promise.race([waitForServer(`http://localhost:${serverPort}`), exited]);
+  if (startupExitHandler) {
+    child.removeListener('exit', startupExitHandler);
+  }
   if (!ready) {
+    stopNextServer();
     throw new Error('Next.js server failed to start within 30 s');
   }
   console.log(`Next.js server ready on port ${serverPort}`);
+}
+
+export function stopNextServer(): void {
+  nextServerProcess?.kill();
+  nextServerProcess = null;
 }
