@@ -3,20 +3,35 @@ import { trackEvent } from './analytics';
 
 const SEMVER_RE = /^\d+\.\d+\.\d+/;
 
-export function setupAutoUpdater(): void {
-  if (!app.isPackaged) return;
+type AutoUpdater = {
+  autoDownload: boolean;
+  on(event: string, listener: (...args: any[]) => void): void;
+  once(event: string, listener: (...args: any[]) => void): void;
+  removeListener(event: string, listener: (...args: any[]) => void): void;
+  checkForUpdates(): Promise<unknown>;
+  quitAndInstall(): void;
+};
 
-  const version = app.getVersion();
-  if (!SEMVER_RE.test(version)) {
-    console.log(`Auto-updater: skipping — "${version}" is not valid semver`);
-    return;
-  }
+type UpdateInfo = {
+  version: string;
+};
 
+let listenersRegistered = false;
+
+function getAutoUpdater(): AutoUpdater {
   const { autoUpdater } = require('electron-updater');
+  return autoUpdater as AutoUpdater;
+}
 
+function configureAutoUpdater(autoUpdater: AutoUpdater): void {
   autoUpdater.autoDownload = true;
 
-  autoUpdater.on('update-available', (info: { version: string }) => {
+  if (listenersRegistered) return;
+  listenersRegistered = true;
+
+  const version = app.getVersion();
+
+  autoUpdater.on('update-available', (info: UpdateInfo) => {
     console.log(`Update available: ${info.version}`);
     trackEvent('desktop_update_available', {
       current_version: version,
@@ -24,7 +39,7 @@ export function setupAutoUpdater(): void {
     });
   });
 
-  autoUpdater.on('update-downloaded', (info: { version: string }) => {
+  autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
     console.log(`Update downloaded: ${info.version}`);
     trackEvent('desktop_update_downloaded', {
       current_version: version,
@@ -52,6 +67,92 @@ export function setupAutoUpdater(): void {
       message: err.message?.split('\n')[0],
     });
   });
+}
+
+export function setupAutoUpdater(): void {
+  if (!app.isPackaged) return;
+
+  const version = app.getVersion();
+  if (!SEMVER_RE.test(version)) {
+    console.log(`Auto-updater: skipping - "${version}" is not valid semver`);
+    return;
+  }
+
+  const autoUpdater = getAutoUpdater();
+  configureAutoUpdater(autoUpdater);
 
   autoUpdater.checkForUpdates().catch(() => {});
+}
+
+export async function checkForUpdatesManually(): Promise<void> {
+  if (!app.isPackaged) {
+    await dialog.showMessageBox({
+      type: 'info',
+      title: 'Updates Unavailable',
+      message: 'Updates are only available in packaged builds.',
+    });
+    return;
+  }
+
+  const version = app.getVersion();
+  if (!SEMVER_RE.test(version)) {
+    await dialog.showMessageBox({
+      type: 'info',
+      title: 'Updates Unavailable',
+      message: `Version "${version}" is not a valid release version, so updates cannot be checked.`,
+    });
+    return;
+  }
+
+  const autoUpdater = getAutoUpdater();
+  configureAutoUpdater(autoUpdater);
+
+  try {
+    const result = await new Promise<'available' | 'not-available'>((resolve, reject) => {
+      const cleanup = () => {
+        autoUpdater.removeListener('update-available', onAvailable);
+        autoUpdater.removeListener('update-not-available', onNotAvailable);
+        autoUpdater.removeListener('error', onError);
+      };
+      const onAvailable = (info: UpdateInfo) => {
+        cleanup();
+        void dialog.showMessageBox({
+          type: 'info',
+          title: 'Update Available',
+          message: `Version ${info.version} is available and will download in the background.`,
+        });
+        resolve('available');
+      };
+      const onNotAvailable = () => {
+        cleanup();
+        resolve('not-available');
+      };
+      const onError = (err: Error) => {
+        cleanup();
+        reject(err);
+      };
+
+      autoUpdater.once('update-available', onAvailable);
+      autoUpdater.once('update-not-available', onNotAvailable);
+      autoUpdater.once('error', onError);
+      autoUpdater.checkForUpdates().catch((err: Error) => {
+        cleanup();
+        reject(err);
+      });
+    });
+
+    if (result === 'not-available') {
+      await dialog.showMessageBox({
+        type: 'info',
+        title: 'No Updates Available',
+        message: "You're up to date.",
+      });
+    }
+  } catch (err) {
+    await dialog.showMessageBox({
+      type: 'error',
+      title: 'Update Check Failed',
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
 }

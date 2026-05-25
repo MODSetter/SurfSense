@@ -13,7 +13,7 @@ function getHostedFrontendUrl(): string {
   return (
     process.env.SURFSENSE_HOSTED_FRONTEND_URL_OVERRIDE ||
     process.env.HOSTED_FRONTEND_URL ||
-    'https://surfsense.net'
+    'https://surfsense.com'
   );
 }
 
