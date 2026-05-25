@@ -1,10 +1,24 @@
-import { app, Menu } from 'electron';
+import { app, Menu, shell } from 'electron';
 import { checkForUpdatesManually } from './auto-updater';
 
 const checkForUpdatesItem: Electron.MenuItemConstructorOptions = {
   label: 'Check for Updates...',
   click: () => {
     void checkForUpdatesManually();
+  },
+};
+
+const privacyPolicyItem: Electron.MenuItemConstructorOptions = {
+  label: 'Privacy Policy',
+  click: () => {
+    void shell.openExternal('https://www.surfsense.com/privacy');
+  },
+};
+
+const termsOfServiceItem: Electron.MenuItemConstructorOptions = {
+  label: 'Terms of Service',
+  click: () => {
+    void shell.openExternal('https://www.surfsense.com/terms');
   },
 };
 
@@ -32,14 +46,19 @@ export function setupMenu(): void {
     { role: 'editMenu' as const },
     { role: 'viewMenu' as const },
     { role: 'windowMenu' as const },
-    ...(!isMac
-      ? [{
-          role: 'help' as const,
-          submenu: [
-            checkForUpdatesItem,
-          ],
-        }]
-      : []),
+    {
+      role: 'help' as const,
+      submenu: [
+        ...(!isMac
+          ? [
+              checkForUpdatesItem,
+              { type: 'separator' as const },
+            ]
+          : []),
+        privacyPolicyItem,
+        termsOfServiceItem,
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }

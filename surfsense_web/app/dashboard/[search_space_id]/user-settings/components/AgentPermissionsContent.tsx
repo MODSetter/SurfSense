@@ -474,8 +474,10 @@ export function AgentPermissionsContent() {
 								handleConfirmDelete();
 							}}
 							disabled={deleteMutation.isPending}
+							className="relative min-w-[88px]"
 						>
-							{deleteMutation.isPending ? "Deleting…" : "Delete"}
+							<span className={deleteMutation.isPending ? "opacity-0" : ""}>Delete</span>
+							{deleteMutation.isPending && <Spinner size="sm" className="absolute" />}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
