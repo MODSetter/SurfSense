@@ -70,23 +70,6 @@ function notifyRenderersUpdateDownloaded(info: UpdateInfo): void {
   }
 }
 
-async function showNativeInstallDialog(autoUpdater: AutoUpdater, info: UpdateInfo): Promise<void> {
-  const { response } = await dialog.showMessageBox({
-    type: 'info',
-    buttons: ['Restart', 'Later'],
-    defaultId: 0,
-    title: 'Update Ready',
-    message: `Version ${info.version} has been downloaded. Restart to apply the update.`,
-  });
-
-  if (response === 0) {
-    trackEvent('desktop_update_install_accepted', { new_version: info.version });
-    autoUpdater.quitAndInstall();
-  } else {
-    trackEvent('desktop_update_install_deferred', { new_version: info.version });
-  }
-}
-
 export function installDownloadedUpdate(): void {
   const autoUpdater = getAutoUpdater();
   trackEvent('desktop_update_install_accepted', { source: 'renderer_prompt' });
@@ -154,7 +137,7 @@ export async function checkForUpdatesManually(): Promise<void> {
       };
       const onDownloaded = (info: UpdateInfo) => {
         cleanup();
-        void showNativeInstallDialog(autoUpdater, info);
+        notifyRenderersUpdateDownloaded(info);
         resolve('downloaded');
       };
       const onError = (err: Error) => {
