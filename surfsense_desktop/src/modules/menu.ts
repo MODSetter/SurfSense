@@ -58,7 +58,23 @@ export function setupMenu(): void {
   }
 
   const isMac = process.platform === 'darwin';
+  const isDev = !app.isPackaged;
   const updateMenuItem = getUpdateMenuItem();
+  const viewSubmenu: Electron.MenuItemConstructorOptions[] = [
+    { role: 'reload' as const },
+    { role: 'forceReload' as const },
+    ...(isDev
+      ? [
+          { role: 'toggleDevTools' as const },
+        ]
+      : []),
+    { type: 'separator' as const },
+    { role: 'resetZoom' as const },
+    { role: 'zoomIn' as const },
+    { role: 'zoomOut' as const },
+    { type: 'separator' as const },
+    { role: 'togglefullscreen' as const },
+  ];
   const template: Electron.MenuItemConstructorOptions[] = [
     ...(isMac
       ? [{
@@ -79,7 +95,10 @@ export function setupMenu(): void {
       : []),
     { role: 'fileMenu' as const },
     { role: 'editMenu' as const },
-    { role: 'viewMenu' as const },
+    {
+      label: 'View',
+      submenu: viewSubmenu,
+    },
     { role: 'windowMenu' as const },
     {
       role: 'help' as const,

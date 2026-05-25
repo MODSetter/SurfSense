@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell } from 'electron';
+import { app, BrowserWindow, clipboard, globalShortcut, ipcMain, screen, shell } from 'electron';
 import path from 'path';
 import { IPC_CHANNELS } from '../ipc/channels';
 import { checkAccessibilityPermission, getFrontmostApp, simulateCopy, simulatePaste } from './platform';
@@ -51,6 +51,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      devTools: !app.isPackaged,
     },
     show: false,
     skipTaskbar: true,

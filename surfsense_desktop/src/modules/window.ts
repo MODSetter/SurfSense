@@ -53,6 +53,7 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
       webviewTag: false,
+      devTools: !app.isPackaged,
     },
     show: false,
     ...(isMac
