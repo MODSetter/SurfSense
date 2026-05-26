@@ -438,7 +438,7 @@ export const DocumentMentionPicker = forwardRef<
 		() => new Set(initialSelectedDocuments.map((d) => getMentionDocKey(d))),
 		[initialSelectedDocuments]
 	);
-	const showSurfsenseDocsRootRef = useRef((surfsenseDocs?.items?.length ?? 0) > 0);
+	const showSurfsenseDocsRoot = surfsenseDocsList.length > 0;
 
 	const selectMention = useCallback(
 		(mention: MentionedDocumentInfo) => {
@@ -463,7 +463,7 @@ export const DocumentMentionPicker = forwardRef<
 	const rootNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(
 		() => {
 			const nodes: ComposerSuggestionNode<ResourceNodeValue>[] = [...recentRootNodes];
-			if (showSurfsenseDocsRootRef.current) {
+			if (showSurfsenseDocsRoot) {
 				nodes.push({
 					id: "surfsense-docs",
 					label: "SurfSense Docs",
@@ -496,7 +496,7 @@ export const DocumentMentionPicker = forwardRef<
 			);
 			return nodes;
 		},
-		[activeConnectors.length, recentRootNodes]
+		[activeConnectors.length, recentRootNodes, showSurfsenseDocsRoot]
 	);
 
 	const searchNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
@@ -680,11 +680,18 @@ export const DocumentMentionPicker = forwardRef<
 		[canLoadMoreDocuments, hasMore, isLoadingMore, loadNextPage]
 	);
 
+	const isRootBrowseView = !hasSearch && view.kind === "root";
+	const isVisibleViewLoading = hasSearch
+		? isTitleSearchLoading || isSurfsenseDocsLoading || isConnectorsLoading
+		: view.kind === "surfsense-docs"
+			? isSurfsenseDocsLoading
+			: view.kind === "files-folders"
+				? isTitleSearchLoading
+				: view.kind === "connectors" || view.kind === "connector-type"
+					? isConnectorsLoading
+					: false;
 	const actualLoading =
-		(isTitleSearchLoading || isSurfsenseDocsLoading || isConnectorsLoading) &&
-		!isSingleCharSearch &&
-		visibleNodes.length === 0 &&
-		(view.kind === "root" || hasSearch);
+		isVisibleViewLoading && !isSingleCharSearch && visibleNodes.length === 0 && !isRootBrowseView;
 
 	const title =
 		hasSearch || view.kind === "root"
@@ -703,9 +710,10 @@ export const DocumentMentionPicker = forwardRef<
 			onScroll={handleScroll}
 			role="listbox"
 			tabIndex={-1}
+			className={isRootBrowseView ? "max-h-none overflow-visible sm:max-h-none" : undefined}
 		>
 			{actualLoading ? (
-				<ComposerSuggestionSkeleton />
+				<ComposerSuggestionSkeleton rows={8} mobileRows={8} />
 			) : (
 				<ComposerSuggestionGroup>
 					{title ? (

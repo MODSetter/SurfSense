@@ -31,7 +31,7 @@ function ComposerSuggestionPopoverContent({
 				onCloseAutoFocus?.(event);
 			}}
 			className={cn(
-				"w-[232px] overflow-hidden rounded-md border border-popover-border bg-popover p-0 text-popover-foreground shadow-md sm:w-[264px]",
+				"w-[232px] select-none overflow-hidden rounded-md border border-popover-border bg-popover p-0 text-popover-foreground shadow-md sm:w-[264px]",
 				"data-[state=open]:!animate-none data-[state=closed]:!animate-none data-[state=open]:!duration-0 data-[state=closed]:!duration-0",
 				className
 			)}
@@ -145,18 +145,24 @@ function ComposerSuggestionMessage({
 	);
 }
 
-function ComposerSuggestionSkeleton() {
+function ComposerSuggestionSkeleton({
+	rows = 5,
+	mobileRows = 3,
+}: {
+	rows?: number;
+	mobileRows?: number;
+}) {
 	return (
 		<div className="px-1.5 py-1">
 			<div className="px-2 py-1">
 				<Skeleton className="h-3.5 w-20" />
 			</div>
-			{["a", "b", "c", "d", "e"].map((id, index) => (
+			{Array.from({ length: rows }, (_, index) => `skeleton-row-${index}`).map((id, index) => (
 				<div
 					key={id}
 					className={cn(
 						"flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left",
-						index >= 3 && "hidden sm:flex"
+						index >= mobileRows && "hidden sm:flex"
 					)}
 				>
 					<span className="shrink-0">

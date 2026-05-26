@@ -1401,14 +1401,15 @@ async def stream_new_chat(
                     continue
                 connector_lines.append(
                     f'  - connector_id={connector_id}, connector_type="{connector_type}", '
-                    f'account="{account_name or ""}"'
+                    f'account_name="{account_name or ""}"'
                 )
             if connector_lines:
                 context_parts.append(
                     "<mentioned_connectors>\n"
                     "The user selected these exact connector accounts with @. "
-                    "For read, write, or HITL tool calls involving these services, "
-                    "prefer the matching connector_id instead of guessing from available accounts:\n"
+                    "These entries are selection metadata, not retrieved connector content. "
+                    "When a connector-backed tool needs an account, use the matching "
+                    "connector_id from this list if the tool supports connector_id:\n"
                     + "\n".join(connector_lines)
                     + "\n</mentioned_connectors>"
                 )
