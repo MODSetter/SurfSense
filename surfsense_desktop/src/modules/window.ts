@@ -2,17 +2,18 @@ import { app, BrowserWindow, shell, session } from 'electron';
 import path from 'path';
 import { trackEvent } from './analytics';
 import { showErrorDialog } from './errors';
-import { getServerPort } from './server';
+import { getServerOrigin, getServerPort } from './server';
 import { setActiveSearchSpaceId } from './active-search-space';
 
 const isDev = !app.isPackaged;
 const isMac = process.platform === 'darwin';
+const WINDOW_TITLE = 'SurfSense';
 
 function getHostedFrontendUrl(): string {
   return (
     process.env.SURFSENSE_HOSTED_FRONTEND_URL_OVERRIDE ||
     process.env.HOSTED_FRONTEND_URL ||
-    'https://surfsense.net'
+    'https://surfsense.com'
   );
 }
 
@@ -41,6 +42,7 @@ export function markQuitting(): void {
 
 export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
   mainWindow = new BrowserWindow({
+    title: WINDOW_TITLE,
     width: 1280,
     height: 800,
     minWidth: 800,
@@ -51,6 +53,7 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
       webviewTag: false,
+      devTools: !app.isPackaged,
     },
     show: false,
     ...(isMac
@@ -65,10 +68,18 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
     mainWindow?.show();
   });
 
-  mainWindow.loadURL(`http://localhost:${getServerPort()}${initialPath}`);
+  mainWindow.webContents.on('page-title-updated', (event) => {
+    event.preventDefault();
+    mainWindow?.setTitle(WINDOW_TITLE);
+  });
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow?.setTitle(WINDOW_TITLE);
+  });
+
+  mainWindow.loadURL(`${getServerOrigin()}${initialPath}`);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://localhost')) {
+    if (url.startsWith(getServerOrigin())) {
       return { action: 'allow' };
     }
     shell.openExternal(url);
@@ -84,8 +95,9 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
       try {
         const u = new URL(details.url);
         const originalHost = u.host;
-        u.protocol = 'http:';
-        u.host = `localhost:${getServerPort()}`;
+        const local = new URL(getServerOrigin());
+        u.protocol = local.protocol;
+        u.host = local.host;
         trackEvent('desktop_oauth_redirect_intercepted', {
           host: originalHost,
           path: u.pathname,

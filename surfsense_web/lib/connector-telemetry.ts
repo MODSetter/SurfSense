@@ -1,9 +1,9 @@
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import {
-	OAUTH_CONNECTORS,
 	COMPOSIO_CONNECTORS,
 	CRAWLERS,
+	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "@/components/assistant-ui/connector-popup/constants/connector-constants";
 

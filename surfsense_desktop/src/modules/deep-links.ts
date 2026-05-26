@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
 import { getMainWindow } from './window';
-import { getServerPort } from './server';
+import { getServerOrigin } from './server';
 import { trackEvent } from './analytics';
 
 const PROTOCOL = 'surfsense';
@@ -23,7 +23,7 @@ function handleDeepLink(url: string) {
   });
   if (parsed.hostname === 'auth' && parsed.pathname === '/callback') {
     const params = parsed.searchParams.toString();
-    win.loadURL(`http://localhost:${getServerPort()}/auth/callback?${params}`);
+    win.loadURL(`${getServerOrigin()}/auth/callback?${params}`);
   }
 
   win.show();

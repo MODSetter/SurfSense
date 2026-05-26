@@ -51,6 +51,7 @@ import {
   stopAgentFilesystemTreeWatch,
   type AgentFilesystemTreeWatchOptions,
 } from '../modules/agent-filesystem-tree-watcher';
+import { installDownloadedUpdate } from '../modules/auto-updater';
 
 let authTokens: { bearer: string; refresh: string } | null = null;
 
@@ -68,6 +69,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.GET_APP_VERSION, () => {
     return app.getVersion();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.UPDATE_INSTALL_NOW, () => {
+    installDownloadedUpdate();
   });
 
   ipcMain.handle(IPC_CHANNELS.GET_PERMISSIONS_STATUS, () => {
