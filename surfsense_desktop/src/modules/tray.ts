@@ -10,6 +10,30 @@ let tray: Tray | null = null;
 let registeredGeneralAssist: string | null = null;
 let registeredScreenshotAssist: string | null = null;
 
+function buildContextMenu(screenshotAccelerator: string): Menu {
+  return Menu.buildFromTemplate([
+    { label: 'Open SurfSense', click: () => showMainWindow('tray_menu') },
+    {
+      label: 'Take Screenshot\u2026',
+      accelerator: screenshotAccelerator || undefined,
+      click: () => {
+        trackEvent('desktop_tray_screenshot_clicked');
+        void Promise.resolve(runScreenshotAssistShortcut()).catch((err) => {
+          console.error('[tray] Screenshot Assist failed:', err);
+        });
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => {
+        trackEvent('desktop_tray_quit_clicked');
+        app.exit(0);
+      },
+    },
+  ]);
+}
+
 function getTrayIcon(): NativeImage {
   const iconName =
     process.platform === 'darwin'
@@ -59,22 +83,10 @@ export async function createTray(): Promise<void> {
   tray = new Tray(getTrayIcon());
   tray.setToolTip('SurfSense');
 
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Open SurfSense', click: () => showMainWindow('tray_menu') },
-    { type: 'separator' },
-    {
-      label: 'Quit',
-      click: () => {
-        trackEvent('desktop_tray_quit_clicked');
-        app.exit(0);
-      },
-    },
-  ]);
-
-  tray.setContextMenu(contextMenu);
+  const shortcuts = await getShortcuts();
+  tray.setContextMenu(buildContextMenu(shortcuts.screenshotAssist));
   tray.on('double-click', () => showMainWindow('tray_click'));
 
-  const shortcuts = await getShortcuts();
   registeredGeneralAssist = registerOne(
     null,
     shortcuts.generalAssist,
@@ -107,6 +119,7 @@ export async function reregisterScreenshotAssist(): Promise<void> {
     runScreenshotAssistShortcut,
     'Screenshot Assist'
   );
+  tray?.setContextMenu(buildContextMenu(shortcuts.screenshotAssist));
 }
 
 export function destroyTray(): void {
