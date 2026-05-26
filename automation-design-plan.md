@@ -109,143 +109,34 @@ The runtime invariant: a Capability is **a typed, named, callable thing
 the system can do.** Every consumer (executor, agent tool layer, future
 HTTP API) sees the same five-field shape and uses it the same way.
 
-### Where capabilities live: a two-tier registry
+### Where capabilities live (v1)
 
-The capability registry has different storage requirements for different
-kinds of capabilities. **Native capabilities and MCP capabilities have
-different lifecycles**, so they're persisted differently:
+In v1, the capability registry is a single in-memory dict, populated at
+process startup from native registrations in
+`automations/registries/capabilities/`. Identical across all workers.
+No database persistence, no closures rebuilt per worker.
 
-| Tier | What's there | Where it lives | Lifetime |
-| --- | --- | --- | --- |
-| **Native** | Capabilities defined in SurfSense's codebase (`search_space.query`, `agent.run`, etc.) | In-memory dict, populated at startup from `automations/capabilities/native.py` | Process lifetime, identical across all workers |
-| **MCP (durable)** | The fact that this SearchSpace has connected to this MCP server, the tool list it exposes, credentials | PostgreSQL: `mcp_connections` and `mcp_tools` tables | Persistent across restarts and across time |
-| **MCP (cached)** | Handler closures wrapping `(connection_id, tool_name)` | Per-worker in-memory cache, lazily built from the database on first reference | Process lifetime, rebuilt on demand |
+### MCP integration — deferred to Phase 4
 
-The reason this matters: **a user connects an MCP server on Monday, writes
-an automation on Tuesday, the automation runs on Friday.** Between Monday
-and Friday, workers will restart many times. Any state that only lives in
-worker memory is gone. The closures generated at connection time would
-not survive.
+The earlier two-tier registry (native + MCP-derived), the
+`mcp_connections` / `mcp_tools` tables, the harvester, and the lazy
+per-worker closure cache are **deferred to Phase 4** along with the
+rest of the integration-tooling surface. They are removed from v1
+because:
 
-So we split persistence by lifecycle:
+- v1 has no external connector capabilities (no Slack, Notion, Drive,
+  etc.). The only capabilities that will ship are server-side helpers
+  (search-space query / fetch) plus the loose `agent_task` action.
+- Without external connectors, the lifecycle mismatch that motivates
+  the two-tier design (connect Monday, run Friday, workers restarted
+  in between) doesn't arise. A startup-time dict is sufficient.
+- Phase 4 reintroduces this design as-is — the registry interface in
+  v1 is the same callable surface a Phase-4 MCP harvester will register
+  into. The deferral is additive, not a different design.
 
-- Native capability handlers live in the codebase. Always available, no
-  need for the database.
-- MCP capability metadata lives in the database, so the knowledge "this
-  SearchSpace has these capabilities" survives any restart.
-- The actual closures are built on demand from the database state. They
-  live in worker memory only until the worker dies, at which point they
-  get rebuilt by the next worker that needs them.
-
-### MCP database schema
-
-```sql
-CREATE TABLE mcp_connections (
-    id                UUID PRIMARY KEY,
-    search_space_id   INT REFERENCES search_spaces(id),
-    server_url        TEXT,
-    transport         TEXT,                  -- "http", "stdio", etc.
-    name              TEXT,                  -- "Slack (Acme workspace)"
-    access_token      BYTEA,                 -- encrypted at rest
-    refresh_token     BYTEA,                 -- encrypted at rest
-    expires_at        TIMESTAMPTZ,
-    last_harvested_at TIMESTAMPTZ,
-    created_at        TIMESTAMPTZ,
-    created_by        INT REFERENCES users(id)
-);
-
-CREATE TABLE mcp_tools (
-    id              UUID PRIMARY KEY,
-    connection_id   UUID REFERENCES mcp_connections(id) ON DELETE CASCADE,
-    name            TEXT,                    -- "post_message"
-    description     TEXT,
-    input_schema    JSONB,
-    output_schema   JSONB,
-    side_effects    TEXT[],                  -- inferred or admin-curated
-    UNIQUE (connection_id, name)
-);
-```
-
-### MCP lifecycle: connect, harvest, invoke
-
-Three phases, each with distinct concerns.
-
-**Phase 1 — Connect (one-time, on user action).** User clicks "Connect
-Slack MCP." OAuth flow completes. A row is added to `mcp_connections`
-with the encrypted tokens.
-
-**Phase 2 — Harvest (right after connect, also re-runnable).** SurfSense
-opens a temporary client to the MCP server, calls `tools/list`, and writes
-one row to `mcp_tools` per discovered tool. The temporary client is then
-discarded; only the database state persists.
-
-```python
-async def harvest_mcp_server(connection_id: UUID, ctx):
-    connection = await ctx.db.get(MCPConnection, connection_id)
-    client = build_temporary_client(connection)
-    tools = await client.list_tools()
-    
-    # Replace existing tool rows for this connection
-    await ctx.db.execute(
-        delete(MCPTool).where(MCPTool.connection_id == connection_id)
-    )
-    for tool in tools:
-        ctx.db.add(MCPTool(
-            connection_id=connection_id,
-            name=tool.name,
-            description=tool.description,
-            input_schema=tool.inputSchema,
-            output_schema=tool.outputSchema,
-            side_effects=infer_side_effects(tool),
-        ))
-    connection.last_harvested_at = now()
-    await ctx.db.commit()
-```
-
-Harvesting can be re-run on a schedule (say, daily) or on user request,
-to pick up new tools the server has added.
-
-**Phase 3 — Invoke (every time a step references an MCP capability).**
-This is where the closure gets built. The executor calls
-`ctx.get_capability("slack.post_message")`. The worker's in-memory cache is
-checked; on miss, the database is queried:
-
-```python
-async def get_capability(capability_id: str, ctx: ActionContext) -> Capability:
-    cached = _WORKER_CAPABILITY_CACHE.get((ctx.search_space.id, capability_id))
-    if cached:
-        return cached
-    
-    if is_native(capability_id):
-        capability = _NATIVE_REGISTRY[capability_id]
-    else:
-        # MCP path: look up tool metadata
-        tool_row = await ctx.db.execute(
-            select(MCPTool)
-            .join(MCPConnection)
-            .where(MCPConnection.search_space_id == ctx.search_space.id)
-            .where(tool_qualified_name(MCPTool, MCPConnection) == capability_id)
-        )
-        capability = Capability(
-            id=capability_id,
-            input_schema=tool_row.input_schema,
-            output_schema=tool_row.output_schema,
-            side_effects=set(tool_row.side_effects),
-            handler=make_mcp_handler(
-                connection_id=tool_row.connection_id,
-                tool_name=tool_row.name,
-            ),
-        )
-    
-    _WORKER_CAPABILITY_CACHE[(ctx.search_space.id, capability_id)] = capability
-    return capability
-```
-
-The closure created by `make_mcp_handler` captures only the connection ID
-and tool name. When invoked, it asks `ctx.resolve_mcp_client(connection_id)`
-to build an authenticated client from the connection record (including
-token refresh if needed). That client is also transient — built per call,
-discarded after.
+See archived design at `docs/automation/archived/mcp-registry.md` once
+v1 ships; for now the only consumer of the registry is the in-memory
+native path.
 
 ### Credentials: resolved at the moment of use
 
