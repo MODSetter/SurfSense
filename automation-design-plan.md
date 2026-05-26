@@ -801,12 +801,20 @@ mechanical, additive, and free of design rewrite.
 
 ## 9. Data model
 
-Six tables. All scoped by `search_space_id` for RBAC.
+**v1 ships three tables:** `automations`, `automation_triggers`,
+`automation_runs`. All scoped by `search_space_id` for RBAC.
 
-The first four (`automations`, `automation_triggers`, `automation_runs`,
-`domain_events`) are the engine's own state. The last two
-(`mcp_connections`, `mcp_tools`) hold the durable knowledge that backs
-MCP-derived capabilities — see §3 for the lifecycle rationale.
+The other three tables described in earlier drafts are deferred:
+
+- `domain_events` → **deferred to Phase 3** (introduced with the event
+  trigger).
+- `mcp_connections`, `mcp_tools` → **deferred to Phase 4** (MCP
+  integration).
+
+The deferred tables ship as-is when their consuming feature lands;
+nothing in the v1 schema needs to change to accommodate them. The three
+v1 tables form the engine's persistent state — definitions, triggers,
+and an immutable run history.
 
 ### `automations`
 
@@ -828,11 +836,13 @@ MCP-derived capabilities — see §3 for the lifecycle rationale.
 | --------------- | ----------------------------------------------------------------------------- | ------------------------------------------- |
 | `id`            | int PK                                                                        |                                             |
 | `automation_id` | FK                                                                            |                                             |
-| `type`          | enum: `schedule`, `webhook`, `event`                                          |                                             |
+| `type`          | enum: `schedule`, `manual` (Phase 2/3 add `webhook`, `event`)                  |                                             |
 | `config`        | jsonb                                                                         | validated against trigger's `config_schema` |
 | `enabled`       | bool                                                                          |                                             |
-| `secret_hash`   | str / null                                                                    | for webhook bearer tokens                   |
 | `last_fired_at` | timestamp                                                                     |                                             |
+
+`secret_hash` (for webhook bearer tokens) is **deferred to Phase 2** with
+the webhook trigger.
 
 ### `automation_runs`
 
@@ -849,61 +859,25 @@ MCP-derived capabilities — see §3 for the lifecycle rationale.
 | `output`          | jsonb / null                                                                 |                                                    |
 | `artifacts`       | jsonb                                                                        | references to created artifacts                    |
 | `error`           | jsonb / null                                                                 |                                                    |
-| `cost_usd`        | decimal                                                                      | accumulated cost                                   |
 | `started_at` / `finished_at` | timestamps                                                        |                                                    |
 | `agent_session_id`| str / null                                                                   | link to LangGraph trace if agent_task was used     |
 
-### `domain_events`
+`cost_usd` (per-run accumulated cost) is **deferred** until at least one
+v1 capability records token-level cost. When reintroduced it lands as a
+column-only migration.
 
-| field             | type        | notes                                              |
-| ----------------- | ----------- | -------------------------------------------------- |
-| `id`              | UUID PK     |                                                    |
-| `search_space_id` | FK          | scoping                                            |
-| `event_type`      | varchar     | e.g. `drive.file_added`, `automation.run.succeeded` |
-| `source_id`       | varchar     | which connector/automation/etc. produced it        |
-| `payload`         | jsonb       | matches the event type's documented schema         |
-| `created_at`      | timestamp   |                                                    |
-| `consumed_by`     | jsonb       | array of consumer_ids, for tracking + replay       |
-| `expires_at`     | timestamp   | auto-cleanup after 7 days                          |
+### Deferred tables
 
-### `mcp_connections`
+- **`domain_events`** — the event bus backing event triggers. Ships in
+  Phase 3 with the event trigger. v1 only emits `automation.run.*`
+  events into application logs; the table is added when at least one
+  consumer needs to subscribe to them.
+- **`mcp_connections`** / **`mcp_tools`** — see §3. Both ship in Phase 4
+  alongside the MCP harvester and the two-tier registry.
 
-Persistent record of MCP server connections per SearchSpace.
-
-| field               | type        | notes                                              |
-| ------------------- | ----------- | -------------------------------------------------- |
-| `id`                | UUID PK     |                                                    |
-| `search_space_id`   | FK          | scoping                                            |
-| `server_url`        | text        | the MCP server's endpoint                          |
-| `transport`         | text        | `"http"`, `"stdio"`, etc.                          |
-| `name`              | text        | human-readable label (e.g., "Slack — Acme")        |
-| `access_token`      | bytea       | encrypted at rest                                  |
-| `refresh_token`     | bytea       | encrypted at rest                                  |
-| `expires_at`        | timestamp   | for OAuth tokens                                   |
-| `last_harvested_at` | timestamp   | when tool list was last refreshed                  |
-| `created_at`        | timestamp   |                                                    |
-| `created_by`        | FK → users  |                                                    |
-
-### `mcp_tools`
-
-The tool list each connected MCP server exposes. Acts as the durable
-source for MCP capabilities — definitions reference `mcp_tools` rows by
-qualified name, and worker processes lazily build handler closures from
-this state.
-
-| field           | type        | notes                                            |
-| --------------- | ----------- | ------------------------------------------------ |
-| `id`            | UUID PK     |                                                  |
-| `connection_id` | FK → `mcp_connections.id` ON DELETE CASCADE | |
-| `name`          | text        | the tool name reported by the MCP server         |
-| `description`   | text        | description for the NL generator and form editor |
-| `input_schema`  | jsonb       | JSON Schema for tool arguments                   |
-| `output_schema` | jsonb       | JSON Schema for tool results                     |
-| `side_effects`  | text[]      | inferred from MCP hints + naming + admin override |
-| UNIQUE          |             | (connection_id, name)                            |
-
-NL drafts are **not** a core table. They live in a generic short-TTL store
-(Redis or a transient table) when the NL flow is built in Phase 3.
+NL drafts are **not** a core table. They live in a generic short-TTL
+store (Redis or a transient table) when the NL flow is built in
+Phase 3.
 
 ---
 
@@ -1092,21 +1066,39 @@ which actions and triggers are available, not whether users can describe
 automations in natural language.
 
 ### Phase 1 — Engine MVP with NL authoring
-- 4 tables + Alembic migration
-- Capability registry with native capabilities (`search_space.query`,
-  `search_space.fetch_document`, `agent.run`)
-- `agent_task` action only
-- `schedule` trigger + manual "Run now" endpoint
-- Executor with retries, timeouts, budget caps
-- Template engine (Jinja sandbox + 15 filters + 4 runtime limits)
-- **NL authoring flow**: Generator LLM, deterministic validator,
-  Review LLM, editable form
+
+**Step 1 (current scope, this batch of commits):**
+- 3 tables (`automations`, `automation_triggers`, `automation_runs`) +
+  Alembic migration
+- Empty Capability, Action, Trigger registries (concrete entries land in
+  later steps when the consuming feature lands)
+- Pydantic schemas for the automation definition envelope, the two v1
+  trigger configs (`schedule`, `manual`), and the one v1 action config
+  (`agent_task`)
+- Module structure under `app/automations/` (data/, schemas/,
+  registries/), fully isolated from the existing codebase
+
+**Step 2:**
+- Register the `agent_task` action and the `schedule` / `manual`
+  triggers in the registries
+- Capability registry populated with native deliverable-producing
+  capabilities (chosen when this step starts)
+
+**Step 3:**
+- Executor (single-queue Celery task) with retries, timeouts, budget
+  caps measured against `cost_usd` ledger on the run
+- Template engine (Jinja sandbox + the v1 filter allowlist + runtime
+  limits)
+- Manual "Run now" endpoint
+
+**Step 4:**
+- NL authoring flow: Generator LLM, deterministic validator, Review LLM,
+  editable form
 - Run history UI with Electric SQL streaming
 
 **After Phase 1**: a user can describe an automation in natural language,
 review the proposal (with summary + flagged anomalies), edit any field,
-save, and watch it run on a schedule. The Claude Routines value
-proposition, on SurfSense's data, with NL-first authoring.
+save, and watch it run on a schedule.
 
 ### Phase 2 — Webhooks and delivery
 - `webhook` trigger with per-automation bearer tokens
