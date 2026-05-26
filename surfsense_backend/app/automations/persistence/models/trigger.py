@@ -1,4 +1,4 @@
-"""``AutomationTrigger`` table — one row per (automation, trigger-instance) pair."""
+"""``automation_triggers`` table — one row per (automation, trigger-instance) pair."""
 
 from __future__ import annotations
 
@@ -18,14 +18,6 @@ from ..enums.trigger_type import TriggerType
 
 
 class AutomationTrigger(BaseModel, TimestampMixin):
-    """One trigger attached to an automation.
-
-    An automation may have multiple triggers — e.g. a ``schedule`` trigger
-    for the autonomous path and a ``manual`` trigger backing the UI's
-    "Run now" affordance. Each trigger's ``config`` is validated against
-    the registered ``TriggerDefinition.config_schema`` for its ``type``.
-    """
-
     __tablename__ = "automation_triggers"
 
     automation_id = Column(
@@ -51,7 +43,4 @@ class AutomationTrigger(BaseModel, TimestampMixin):
         index=True,
     )
 
-    last_fired_at = Column(
-        TIMESTAMP(timezone=True),
-        nullable=True,
-    )
+    last_fired_at = Column(TIMESTAMP(timezone=True), nullable=True)

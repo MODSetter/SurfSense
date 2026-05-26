@@ -1,4 +1,4 @@
-"""Per-action config schemas: one file per action type registered in v1."""
+"""Per-action config schemas, one per action type."""
 
 from __future__ import annotations
 

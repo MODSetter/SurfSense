@@ -1,4 +1,4 @@
-"""``AutomationRun`` table — the immutable per-fire execution record."""
+"""``automation_runs`` table — immutable per-fire execution record."""
 
 from __future__ import annotations
 
@@ -18,16 +18,6 @@ from ..enums.run_status import RunStatus
 
 
 class AutomationRun(BaseModel, TimestampMixin):
-    """One execution of an automation.
-
-    Every fire of any trigger inserts exactly one row here. The row is
-    immutable from the user's perspective — the executor only updates
-    ``status``, ``step_results``, ``output``, ``artifacts``, ``error``,
-    ``started_at``, ``finished_at`` as the run progresses; the
-    ``definition_snapshot`` is locked at fire time so the user can always
-    see exactly what code path executed for any historical run.
-    """
-
     __tablename__ = "automation_runs"
 
     automation_id = Column(
@@ -52,18 +42,14 @@ class AutomationRun(BaseModel, TimestampMixin):
         index=True,
     )
 
+    # locked at fire time so historical runs always show the exact code path
     definition_snapshot = Column(JSONB, nullable=False)
 
     trigger_payload = Column(JSONB, nullable=True)
-
     resolved_inputs = Column(JSONB, nullable=False, server_default="{}")
-
     step_results = Column(JSONB, nullable=False, server_default="[]")
-
     output = Column(JSONB, nullable=True)
-
     artifacts = Column(JSONB, nullable=False, server_default="[]")
-
     error = Column(JSONB, nullable=True)
 
     started_at = Column(TIMESTAMP(timezone=True), nullable=True)

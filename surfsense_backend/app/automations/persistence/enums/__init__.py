@@ -1,4 +1,4 @@
-"""SQLAlchemy / Python enums backing the three automation tables."""
+"""Enums for the automation tables."""
 
 from __future__ import annotations
 

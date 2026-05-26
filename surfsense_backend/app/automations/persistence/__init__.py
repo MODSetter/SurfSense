@@ -1,4 +1,4 @@
-"""Persistence layer: SQLAlchemy enums under ``enums/`` and models under ``models/``."""
+"""SQLAlchemy models and enums for the automation tables."""
 
 from __future__ import annotations
 

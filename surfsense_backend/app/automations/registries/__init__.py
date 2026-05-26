@@ -1,4 +1,4 @@
-"""Three registries — ``capabilities/``, ``actions/``, ``triggers/`` — populated at import time."""
+"""Capability, action, and trigger registries — populated at process startup."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Action registry: ``types.py`` (dataclass), ``store.py`` (dict + register fn)."""
+"""Action registry."""
 
 from __future__ import annotations
 

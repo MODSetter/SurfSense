@@ -1,4 +1,4 @@
-"""Automation definition envelope: the editable structured spec users author and run."""
+"""Automation definition envelope and its building blocks."""
 
 from __future__ import annotations
 

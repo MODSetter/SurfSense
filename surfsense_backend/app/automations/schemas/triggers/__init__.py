@@ -1,4 +1,4 @@
-"""Per-trigger config schemas: one file per trigger type registered in v1."""
+"""Per-trigger config schemas, one per trigger type."""
 
 from __future__ import annotations
 

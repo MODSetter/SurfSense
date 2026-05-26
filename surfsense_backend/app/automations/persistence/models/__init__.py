@@ -1,4 +1,4 @@
-"""SQLAlchemy models: one file per table (``automation.py``, ``trigger.py``, ``run.py``)."""
+"""SQLAlchemy models, one per table."""
 
 from __future__ import annotations
 

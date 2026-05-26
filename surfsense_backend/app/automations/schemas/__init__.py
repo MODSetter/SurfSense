@@ -1,4 +1,4 @@
-"""Pydantic schemas: definition envelope, trigger configs, action configs."""
+"""Pydantic schemas for the automation definition and per-type configs."""
 
 from __future__ import annotations
 

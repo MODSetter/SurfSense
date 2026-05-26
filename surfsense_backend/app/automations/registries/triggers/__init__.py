@@ -1,4 +1,4 @@
-"""Trigger registry: ``types.py`` (dataclass), ``store.py`` (dict + register fn)."""
+"""Trigger registry."""
 
 from __future__ import annotations
 

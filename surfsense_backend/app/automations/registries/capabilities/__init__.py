@@ -1,4 +1,4 @@
-"""Capability registry: ``types.py`` (dataclass), ``store.py`` (dict + register fn)."""
+"""Capability registry."""
 
 from __future__ import annotations
 
