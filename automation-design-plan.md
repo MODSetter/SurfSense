@@ -76,17 +76,38 @@ is the atomic unit of "things automations can do."
 @dataclass
 class Capability:
     id: str                                # "slack.post_message"
-    name: str                              # "Post Slack message"
-    description: str                       # for the NL generator
+    description: str                       # for the NL generator + UI label
     input_schema: dict                     # JSON Schema
     output_schema: dict                    # JSON Schema
-    required_credentials: list[CredSpec]   # what creds the handler needs
-    side_effects: set[SideEffect]          # READ, WRITE, EXTERNAL_WRITE,
-                                           # COST_INCURRING, USER_VISIBLE
-    expected_duration_seconds: int         # estimate or upper bound
-    cost_estimate: Callable[[dict], Decimal]  # f(input) → estimated USD
     handler: AsyncHandler
 ```
+
+### v1-minimum: five fields, nothing else
+
+The Capability is **deliberately five fields in v1**. Every additional field
+that earlier drafts considered (`name`, `required_credentials`,
+`side_effects`, `expected_duration_seconds`, `cost_estimate`) has been
+removed until a concrete consumer feature demands it. Authoring stays cheap
+and the registry stays trivial to introspect:
+
+- `name` → folded into `description`. The UI can render a short label from
+  the first line of `description` or fall back to `id`. No separate field
+  needed in v1.
+- `required_credentials` → returns when external-credential capabilities
+  ship (Phase 2). v1 capabilities run server-side with app config; nothing
+  to declare.
+- `side_effects` → returns when RBAC inside automations or
+  `READ_ONLY`-only agent tool gating arrives. v1 capabilities are
+  hand-picked and all trusted code.
+- `expected_duration_seconds` → returns when multi-queue routing ships.
+  Single Celery queue in v1.
+- `cost_estimate` → never returns as a declared field; cost is measured
+  per run from a ledger, aggregated per Capability, and surfaced as a
+  historical average. Pre-flight checks are deferred.
+
+The runtime invariant: a Capability is **a typed, named, callable thing
+the system can do.** Every consumer (executor, agent tool layer, future
+HTTP API) sees the same five-field shape and uses it the same way.
 
 ### Where capabilities live: a two-tier registry
 
