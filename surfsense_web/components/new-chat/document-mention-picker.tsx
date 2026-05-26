@@ -8,7 +8,7 @@ import {
 	ChevronRight,
 	Files,
 	Folder as FolderIcon,
-	Plug,
+	Unplug,
 } from "lucide-react";
 import {
 	forwardRef,
@@ -23,14 +23,12 @@ import type * as React from "react";
 import type { MentionedDocumentInfo } from "@/atoms/chat/mentioned-documents.atom";
 import { useAtomValue } from "jotai";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import {
-	COMPOSIO_CONNECTORS,
-	OAUTH_CONNECTORS,
-} from "@/components/assistant-ui/connector-popup/constants/connector-constants";
+import { getConnectorTitle } from "@/components/assistant-ui/connector-popup/constants/connector-constants";
 import { getConnectorDisplayName } from "@/components/assistant-ui/connector-popup/tabs/all-connectors-tab";
 import {
 	ComposerSuggestionGroup,
 	ComposerSuggestionGroupHeading,
+	ComposerSuggestionHeader,
 	ComposerSuggestionItem,
 	ComposerSuggestionList,
 	ComposerSuggestionMessage,
@@ -94,19 +92,6 @@ function useDebounced<T>(value: T, delay = DEBOUNCE_MS) {
 	return debounced;
 }
 
-function titleForConnectorType(connectorType: string) {
-	const configured =
-		OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
-		COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
-	return (
-		configured?.title ||
-		connectorType
-			.replace(/_/g, " ")
-			.replace(/connector/gi, "")
-			.trim()
-	);
-}
-
 function makeDocMention(doc: Pick<Document, "id" | "title" | "document_type">): MentionedDocumentInfo {
 	return {
 		id: doc.id,
@@ -130,7 +115,7 @@ function makeConnectorMention(
 	connector: SearchSourceConnector
 ): Extract<MentionedDocumentInfo, { kind: "connector" }> {
 	const accountName = getConnectorDisplayName(connector.name);
-	const connectorTitle = titleForConnectorType(connector.connector_type);
+	const connectorTitle = getConnectorTitle(connector.connector_type);
 	return {
 		id: connector.id,
 		title: `${connectorTitle}: ${accountName}`,
@@ -319,6 +304,7 @@ export const DocumentMentionPicker = forwardRef<
 		() => new Set(initialSelectedDocuments.map((d) => getMentionDocKey(d))),
 		[initialSelectedDocuments]
 	);
+	const showSurfsenseDocsRootRef = useRef((surfsenseDocs?.items?.length ?? 0) > 0);
 
 	const selectMention = useCallback(
 		(mention: MentionedDocumentInfo) => {
@@ -329,35 +315,41 @@ export const DocumentMentionPicker = forwardRef<
 	);
 
 	const rootNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(
-		() => [
-			{
-				id: "surfsense-docs",
-				label: "SurfSense Docs",
-				subtitle: "Browse product documentation",
-				icon: <BookOpen className="size-4" />,
-				type: "branch",
-				value: { kind: "view", view: { kind: "surfsense-docs" } },
-			},
-			{
-				id: "files-folders",
-				label: "Files & Folders",
-				subtitle: "Browse your knowledge base",
-				icon: <Files className="size-4" />,
-				type: "branch",
-				value: { kind: "view", view: { kind: "files-folders" } },
-			},
-			{
-				id: "connectors",
-				label: "Connectors",
-				subtitle: activeConnectors.length
-					? "Choose the exact account for tool use"
-					: "No connected accounts yet",
-				icon: <Plug className="size-4" />,
-				type: "branch",
-				disabled: activeConnectors.length === 0,
-				value: { kind: "view", view: { kind: "connectors" } },
-			},
-		],
+		() => {
+			const nodes: ComposerSuggestionNode<ResourceNodeValue>[] = [];
+			if (showSurfsenseDocsRootRef.current) {
+				nodes.push({
+					id: "surfsense-docs",
+					label: "SurfSense Docs",
+					subtitle: "Browse product documentation",
+					icon: <BookOpen className="size-4" />,
+					type: "branch",
+					value: { kind: "view", view: { kind: "surfsense-docs" } },
+				});
+			}
+			nodes.push(
+				{
+					id: "files-folders",
+					label: "Files & Folders",
+					subtitle: "Browse your knowledge base",
+					icon: <Files className="size-4" />,
+					type: "branch",
+					value: { kind: "view", view: { kind: "files-folders" } },
+				},
+				{
+					id: "connectors",
+					label: "Connectors",
+					subtitle: activeConnectors.length
+						? "Choose the exact account for tool use"
+						: "No connected accounts yet",
+				icon: <Unplug className="size-4" />,
+					type: "branch",
+					disabled: activeConnectors.length === 0,
+					value: { kind: "view", view: { kind: "connectors" } },
+				}
+			);
+			return nodes;
+		},
 		[activeConnectors.length]
 	);
 
@@ -389,7 +381,7 @@ export const DocumentMentionPicker = forwardRef<
 				id: getMentionDocKey(mention),
 				label: mention.title,
 				subtitle: "Connector account",
-				icon: getConnectorIcon(mention.connector_type, "size-4") ?? <Plug className="size-4" />,
+				icon: getConnectorIcon(mention.connector_type, "size-4") ?? <Unplug className="size-4" />,
 				type: "item" as const,
 				disabled: selectedKeys.has(getMentionDocKey(mention)),
 				value: { kind: "mention" as const, mention },
@@ -414,7 +406,7 @@ export const DocumentMentionPicker = forwardRef<
 			byType.set(connector.connector_type, list);
 		}
 		return Array.from(byType.entries()).sort(([a], [b]) =>
-			titleForConnectorType(a).localeCompare(titleForConnectorType(b))
+			getConnectorTitle(a).localeCompare(getConnectorTitle(b))
 		);
 	}, [activeConnectors]);
 
@@ -459,16 +451,16 @@ export const DocumentMentionPicker = forwardRef<
 		if (view.kind === "connectors") {
 			return connectorTypeEntries.map(([connectorType, typeConnectors]) => ({
 				id: `connector-type:${connectorType}`,
-				label: titleForConnectorType(connectorType),
+				label: getConnectorTitle(connectorType),
 				subtitle: `${typeConnectors.length} ${typeConnectors.length === 1 ? "account" : "accounts"}`,
-				icon: getConnectorIcon(connectorType, "size-4") ?? <Plug className="size-4" />,
+				icon: getConnectorIcon(connectorType, "size-4") ?? <Unplug className="size-4" />,
 				type: "branch" as const,
 				value: {
 					kind: "view" as const,
 					view: {
 						kind: "connector-type" as const,
 						connectorType,
-						title: titleForConnectorType(connectorType),
+						title: getConnectorTitle(connectorType),
 					},
 				},
 			}));
@@ -481,7 +473,7 @@ export const DocumentMentionPicker = forwardRef<
 					id: getMentionDocKey(mention),
 					label: getConnectorDisplayName(connector.name),
 					subtitle: `${view.title} account`,
-					icon: getConnectorIcon(connector.connector_type, "size-4") ?? <Plug className="size-4" />,
+					icon: getConnectorIcon(connector.connector_type, "size-4") ?? <Unplug className="size-4" />,
 					type: "item" as const,
 					disabled: selectedKeys.has(getMentionDocKey(mention)),
 					value: { kind: "mention" as const, mention },
@@ -571,13 +563,20 @@ export const DocumentMentionPicker = forwardRef<
 				<ComposerSuggestionGroup>
 					{title ? (
 						<>
-							<ComposerSuggestionItem
-								icon={<ChevronLeft className="size-4" />}
-								muted
-								onClick={handleBack}
+							<ComposerSuggestionHeader
+								icon={
+									<button
+										type="button"
+										onClick={handleBack}
+										aria-label="Back"
+										className="-ml-0.5 flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+									>
+										<ChevronLeft className="size-4" />
+									</button>
+								}
 							>
-								<span className="flex-1 truncate text-sm">{title}</span>
-							</ComposerSuggestionItem>
+								<span className="flex-1 truncate">{title}</span>
+							</ComposerSuggestionHeader>
 							<ComposerSuggestionSeparator />
 						</>
 					) : null}

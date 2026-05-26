@@ -31,7 +31,7 @@ function ComposerSuggestionPopoverContent({
 				onCloseAutoFocus?.(event);
 			}}
 			className={cn(
-				"w-[280px] overflow-hidden rounded-md border border-popover-border bg-popover p-0 text-popover-foreground shadow-md sm:w-[320px]",
+				"w-[256px] overflow-hidden rounded-md border border-popover-border bg-popover p-0 text-popover-foreground shadow-md sm:w-[288px]",
 				"data-[state=open]:!animate-none data-[state=closed]:!animate-none data-[state=open]:!duration-0 data-[state=closed]:!duration-0",
 				className
 			)}
@@ -47,14 +47,14 @@ const ComposerSuggestionList = React.forwardRef<
 >(({ className, ...props }, ref) => (
 	<div
 		ref={ref}
-		className={cn("max-h-[180px] overflow-y-auto sm:max-h-[280px]", className)}
+		className={cn("max-h-[160px] overflow-y-auto sm:max-h-[232px]", className)}
 		{...props}
 	/>
 ));
 ComposerSuggestionList.displayName = "ComposerSuggestionList";
 
 function ComposerSuggestionGroup({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-	return <div className={cn("px-2 py-1", className)} {...props} />;
+	return <div className={cn("px-1.5 py-2", className)} {...props} />;
 }
 
 function ComposerSuggestionGroupHeading({
@@ -63,9 +63,29 @@ function ComposerSuggestionGroupHeading({
 }: React.HTMLAttributes<HTMLDivElement>) {
 	return (
 		<div
-			className={cn("px-3 py-2 text-xs font-bold text-muted-foreground/55", className)}
+			className={cn("px-2.5 py-1.5 text-xs font-bold text-muted-foreground/55", className)}
 			{...props}
 		/>
+	);
+}
+
+function ComposerSuggestionHeader({
+	className,
+	icon,
+	children,
+	...props
+}: React.HTMLAttributes<HTMLDivElement> & { icon?: React.ReactNode }) {
+	return (
+		<div
+			className={cn(
+				"flex items-center gap-2 px-2 py-1.5 text-sm font-semibold text-muted-foreground",
+				className
+			)}
+			{...props}
+		>
+			{icon ? <span className="shrink-0 text-muted-foreground">{icon}</span> : null}
+			{children}
+		</div>
 	);
 }
 
@@ -83,7 +103,7 @@ const ComposerSuggestionItem = React.forwardRef<
 		variant="ghost"
 		disabled={disabled}
 		className={cn(
-			"h-auto w-full justify-start gap-2 rounded-md px-3 py-2 text-left text-sm font-normal transition-colors",
+			"h-auto w-full justify-start gap-2 rounded-md px-2.5 py-1.5 text-left text-sm font-normal transition-colors",
 			disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
 			muted && !selected && "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
 			selected && "bg-accent text-accent-foreground",
@@ -99,7 +119,7 @@ ComposerSuggestionItem.displayName = "ComposerSuggestionItem";
 
 function ComposerSuggestionSeparator({ className, ...props }: React.ComponentProps<typeof Separator>) {
 	return (
-		<div className={cn("my-1 px-4", className)}>
+		<div className={cn("my-1 px-3", className)}>
 			<Separator className="bg-popover-border" {...props} />
 		</div>
 	);
@@ -111,10 +131,10 @@ function ComposerSuggestionMessage({
 	variant = "muted",
 }: React.HTMLAttributes<HTMLParagraphElement> & { variant?: "muted" | "destructive" }) {
 	return (
-		<div className="px-2 py-1">
+		<div className="px-1.5 py-1">
 			<p
 				className={cn(
-					"px-3 py-2 text-xs",
+					"px-2.5 py-1.5 text-xs",
 					variant === "destructive" ? "text-destructive" : "text-muted-foreground",
 					className
 				)}
@@ -127,15 +147,15 @@ function ComposerSuggestionMessage({
 
 function ComposerSuggestionSkeleton() {
 	return (
-		<div className="px-2 py-1">
-			<div className="px-3 py-2">
+		<div className="px-1.5 py-1">
+			<div className="px-2.5 py-1.5">
 				<Skeleton className="h-[16px] w-24" />
 			</div>
 			{["a", "b", "c", "d", "e"].map((id, index) => (
 				<div
 					key={id}
 					className={cn(
-						"flex w-full items-center gap-2 rounded-md px-3 py-2 text-left",
+						"flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left",
 						index >= 3 && "hidden sm:flex"
 					)}
 				>
@@ -156,6 +176,7 @@ export {
 	ComposerSuggestionList,
 	ComposerSuggestionGroup,
 	ComposerSuggestionGroupHeading,
+	ComposerSuggestionHeader,
 	ComposerSuggestionItem,
 	ComposerSuggestionSeparator,
 	ComposerSuggestionMessage,

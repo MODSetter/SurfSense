@@ -1,5 +1,4 @@
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 /**
  * Connectors that operate in real time (no background indexing).
@@ -229,6 +228,20 @@ export const COMPOSIO_CONNECTORS = [
 		authEndpoint: "/api/v1/auth/composio/connector/add/?toolkit_id=googlecalendar",
 	},
 ] as const;
+
+export const CONNECTOR_DISPLAY_DEFINITIONS = [
+	...OAUTH_CONNECTORS,
+	...CRAWLERS,
+	...OTHER_CONNECTORS,
+	...COMPOSIO_CONNECTORS,
+] as const;
+
+export function getConnectorTitle(connectorType: string): string {
+	return (
+		CONNECTOR_DISPLAY_DEFINITIONS.find((connector) => connector.connectorType === connectorType)
+			?.title ?? connectorType
+	);
+}
 
 // Composio Toolkits (available integrations via Composio)
 export const COMPOSIO_TOOLKITS = [
