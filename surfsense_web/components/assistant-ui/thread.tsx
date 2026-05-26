@@ -564,7 +564,7 @@ const Composer: FC = () => {
 			setSuggestionAnchorPoint(null);
 			return;
 		}
-		setSuggestionAnchorPoint(anchorPoint);
+		setSuggestionAnchorPoint((current) => current ?? anchorPoint);
 		setShowDocumentPopover(true);
 		setMentionQuery(trigger.query);
 	}, []);
@@ -596,7 +596,7 @@ const Composer: FC = () => {
 			setSuggestionAnchorPoint(null);
 			return;
 		}
-		setSuggestionAnchorPoint(anchorPoint);
+		setSuggestionAnchorPoint((current) => current ?? anchorPoint);
 		setShowPromptPicker(true);
 		setActionQuery(trigger.query);
 	}, [clipboardInitialText]);
@@ -866,7 +866,7 @@ const Composer: FC = () => {
 							onDocumentRemove={handleDocumentRemove}
 							onSubmit={handleSubmit}
 							onKeyDown={handleKeyDown}
-							className="min-h-[24px]"
+							className="min-h-[24px] **:data-slate-placeholder:font-semibold"
 						/>
 					</div>
 					<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />

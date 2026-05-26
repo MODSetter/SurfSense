@@ -21,6 +21,7 @@ import {
 	useRef,
 } from "react";
 import { FOLDER_MENTION_DOCUMENT_TYPE } from "@/atoms/chat/mentioned-documents.atom";
+import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -160,8 +161,10 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 							)}
 						</span>
 						{ctx ? (
-							<button
+							<Button
 								type="button"
+								variant="ghost"
+								size="icon"
 								aria-label={`Remove mention ${element.title}`}
 								title={`Remove ${element.title}`}
 								onMouseDown={(e) => e.preventDefault()}
@@ -169,10 +172,10 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 									e.stopPropagation();
 									ctx.removeChip(element.id, element.document_type);
 								}}
-								className="absolute inset-0 flex items-center justify-center rounded-sm opacity-0 transition-opacity hover:text-primary focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100"
+								className="absolute inset-0 size-3 rounded-sm p-0 opacity-0 transition-opacity hover:bg-transparent hover:text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-0 group-hover:opacity-100 [&_svg]:size-3"
 							>
-								<XIcon className="h-3 w-3" />
-							</button>
+								<XIcon />
+							</Button>
 						) : null}
 					</span>
 				</span>

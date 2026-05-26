@@ -14,6 +14,7 @@ function ComposerSuggestionPopoverContent({
 	collisionPadding = 12,
 	onOpenAutoFocus,
 	onCloseAutoFocus,
+	style,
 	...props
 }: React.ComponentProps<typeof PopoverContent>) {
 	return (
@@ -31,8 +32,10 @@ function ComposerSuggestionPopoverContent({
 			}}
 			className={cn(
 				"w-[280px] overflow-hidden rounded-md border border-popover-border bg-popover p-0 text-popover-foreground shadow-md sm:w-[320px]",
+				"data-[state=open]:!animate-none data-[state=closed]:!animate-none data-[state=open]:!duration-0 data-[state=closed]:!duration-0",
 				className
 			)}
+			style={{ ...style, animation: "none" }}
 			{...props}
 		/>
 	);
