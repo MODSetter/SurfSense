@@ -4,27 +4,31 @@ import { atom } from "jotai";
 import type { Document } from "@/contracts/types/document.types";
 
 /**
- * Sentinel ``document_type`` used for folder mention chips so the
- * dedup key (`kind:document_type:id`) never collides a document with a
- * folder that happens to share an integer id.
- */
-export const FOLDER_MENTION_DOCUMENT_TYPE = "FOLDER";
-
-/**
  * Display metadata for a single ``@``-mention chip.
  *
- * The ``kind`` discriminator identifies whether the chip is a
- * knowledge-base document or a knowledge-base folder. Folders carry
- * the sentinel ``document_type === FOLDER_MENTION_DOCUMENT_TYPE`` so
- * the editor, picker, and persisted ``mentioned-documents`` content
- * part all stay aligned with the backend Pydantic schema.
+ * Historical name is retained because this atom is already wired into
+ * chat persistence and sidebar selection. The shape is now the selected
+ * composer context, not only documents.
  */
-export interface MentionedDocumentInfo {
-	id: number;
-	title: string;
-	document_type: string;
-	kind: "doc" | "folder";
-}
+export type MentionedDocumentInfo =
+	| {
+			id: number;
+			title: string;
+			document_type: string;
+			kind: "doc";
+	  }
+	| {
+			id: number;
+			title: string;
+			kind: "folder";
+	  }
+	| {
+			id: number;
+			title: string;
+			kind: "connector";
+			connector_type: string;
+			account_name: string;
+	  };
 
 /**
  * Backwards-compatible doc-only chip shape for legacy callers that
@@ -38,13 +42,15 @@ type LegacyDocMention = Pick<Document, "id" | "title" | "document_type">;
  * Normalize an arbitrary chip-like input into the discriminated
  * ``MentionedDocumentInfo`` shape. Existing call sites that only have
  * ``{id, title, document_type}`` flow through here so they don't have
- * to thread ``kind`` everywhere — the helper defaults to ``"doc"`` and
- * rewrites the document type for folders.
+ * to thread ``kind`` everywhere — the helper defaults to ``"doc"``.
  */
 export function toMentionedDocumentInfo(
 	input: LegacyDocMention | MentionedDocumentInfo
 ): MentionedDocumentInfo {
-	if ("kind" in input && (input.kind === "doc" || input.kind === "folder")) {
+	if (
+		"kind" in input &&
+		(input.kind === "doc" || input.kind === "folder" || input.kind === "connector")
+	) {
 		return input;
 	}
 	return {
@@ -62,43 +68,53 @@ export function makeFolderMention(input: { id: number; name: string }): Mentione
 	return {
 		id: input.id,
 		title: input.name,
-		document_type: FOLDER_MENTION_DOCUMENT_TYPE,
 		kind: "folder",
 	};
 }
 
 /**
- * Atom to store the full mention objects (documents + folders) attached
- * via @-mention chips in the current chat composer. Persists across
- * component remounts.
+ * Atom to store the full context objects attached via @-mention chips in
+ * the current chat composer. Persists across component remounts.
  */
 export const mentionedDocumentsAtom = atom<MentionedDocumentInfo[]>([]);
 
 /**
  * Derived read-only atom that maps deduplicated mention chips into
- * backend payload fields. Doc chips split by ``document_type`` exactly
- * like before; folder chips are projected into a separate
- * ``folder_ids`` bucket so the route can forward
- * ``mentioned_folder_ids`` to the agent without the priority middleware
- * conflating them with hybrid-search ids.
+ * backend payload fields. Each mention kind maps to its own explicit
+ * payload bucket so non-document context never has to masquerade as a
+ * document type.
  */
 export const mentionedDocumentIdsAtom = atom((get) => {
 	const allMentions = get(mentionedDocumentsAtom);
 	const seen = new Set<string>();
 	const deduped = allMentions.filter((m) => {
-		const key = `${m.kind}:${m.document_type}:${m.id}`;
+		const key =
+			m.kind === "doc"
+				? `doc:${m.document_type}:${m.id}`
+				: m.kind === "connector"
+					? `connector:${m.connector_type}:${m.id}`
+					: `folder:${m.id}`;
 		if (seen.has(key)) return false;
 		seen.add(key);
 		return true;
 	});
 	const docs = deduped.filter((m) => m.kind === "doc");
 	const folders = deduped.filter((m) => m.kind === "folder");
+	const connectors = deduped.filter((m) => m.kind === "connector");
 	return {
 		surfsense_doc_ids: docs
 			.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
 			.map((doc) => doc.id),
 		document_ids: docs.filter((doc) => doc.document_type !== "SURFSENSE_DOCS").map((doc) => doc.id),
 		folder_ids: folders.map((f) => f.id),
+		connector_ids: connectors.map((c) => c.id),
+		connectors: connectors.map((c) => ({
+			id: c.id,
+			title: c.title,
+			kind: c.kind,
+			connector_type: c.connector_type,
+			account_name: c.account_name,
+		})),
 	};
 });
 

@@ -190,7 +190,6 @@ export function FolderTreeView({
 		for (const f of folders) {
 			const folderMentionKey = getMentionDocKey({
 				id: f.id,
-				document_type: "FOLDER",
 				kind: "folder",
 			});
 			states[f.id] = mentionedDocKeys.has(folderMentionKey) ? "all" : "none";

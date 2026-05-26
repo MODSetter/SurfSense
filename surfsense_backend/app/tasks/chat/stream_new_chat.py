@@ -839,6 +839,8 @@ async def stream_new_chat(
     mentioned_document_ids: list[int] | None = None,
     mentioned_surfsense_doc_ids: list[int] | None = None,
     mentioned_folder_ids: list[int] | None = None,
+    mentioned_connector_ids: list[int] | None = None,
+    mentioned_connectors: list[dict[str, Any]] | None = None,
     mentioned_documents: list[dict[str, Any]] | None = None,
     checkpoint_id: str | None = None,
     needs_history_bootstrap: bool = False,
@@ -1385,6 +1387,33 @@ async def stream_new_chat(
                 format_mentioned_surfsense_docs_as_context(mentioned_surfsense_docs)
             )
 
+        if mentioned_connectors:
+            connector_lines = []
+            for connector in mentioned_connectors:
+                if not isinstance(connector, dict):
+                    continue
+                connector_id = connector.get("id")
+                connector_type = connector.get("connector_type") or connector.get(
+                    "document_type"
+                )
+                account_name = connector.get("account_name") or connector.get("title")
+                if connector_id is None or connector_type is None:
+                    continue
+                connector_lines.append(
+                    f'  - connector_id={connector_id}, connector_type="{connector_type}", '
+                    f'account_name="{account_name or ""}"'
+                )
+            if connector_lines:
+                context_parts.append(
+                    "<mentioned_connectors>\n"
+                    "The user selected these exact connector accounts with @. "
+                    "These entries are selection metadata, not retrieved connector content. "
+                    "When a connector-backed tool needs an account, use the matching "
+                    "connector_id from this list if the tool supports connector_id:\n"
+                    + "\n".join(connector_lines)
+                    + "\n</mentioned_connectors>"
+                )
+
         # Surface report IDs prominently so the LLM doesn't have to
         # retrieve them from old tool responses in conversation history.
         if recent_reports:
@@ -1778,6 +1807,8 @@ async def stream_new_chat(
             mentioned_folder_ids=list(
                 accepted_folder_ids or mentioned_folder_ids or []
             ),
+            mentioned_connector_ids=list(mentioned_connector_ids or []),
+            mentioned_connectors=list(mentioned_connectors or []),
             request_id=request_id,
             turn_id=stream_result.turn_id,
         )

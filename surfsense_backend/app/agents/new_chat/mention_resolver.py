@@ -134,7 +134,7 @@ async def resolve_mentions(
             kind = chip.kind
             if kind == "folder":
                 chip_folder_ids.append(chip.id)
-            else:
+            elif kind == "doc":
                 chip_doc_ids.append(chip.id)
             chip_titles_by_id[(kind, chip.id)] = chip.title
 

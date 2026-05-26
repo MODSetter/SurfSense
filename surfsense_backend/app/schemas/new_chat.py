@@ -203,13 +203,11 @@ class NewChatUserImagePart(BaseModel):
 class MentionedDocumentInfo(BaseModel):
     """Display metadata for a single ``@``-mention chip.
 
-    Carries either a knowledge-base document or a knowledge-base folder
-    (discriminated by ``kind``). The full triple
-    ``{id, title, document_type}`` is forwarded by the frontend mention
-    chip so the server can embed it in the persisted user message
-    ``ContentPart[]`` (single ``mentioned-documents`` part). The
-    history loader then renders the chips on reload without an extra
-    fetch — mirrors the pre-refactor frontend ``persistUserTurn`` shape.
+    Carries a knowledge-base document, knowledge-base folder, or
+    connected account (discriminated by ``kind``). Each kind uses its
+    real identity fields: docs carry ``document_type``, folders carry
+    only their folder id/title, and connectors carry ``connector_type``
+    plus account metadata.
 
     ``kind`` defaults to ``"doc"`` so legacy clients and persisted rows
     that predate folder mentions deserialise unchanged.
@@ -217,18 +215,18 @@ class MentionedDocumentInfo(BaseModel):
 
     id: int
     title: str = Field(..., min_length=1, max_length=500)
-    document_type: str = Field(..., min_length=1, max_length=100)
-    kind: Literal["doc", "folder"] = Field(
+    document_type: str | None = Field(default=None, min_length=1, max_length=100)
+    kind: Literal["doc", "folder", "connector"] = Field(
         default="doc",
         description=(
             "Discriminator for the chip's referent: ``doc`` is a "
             "knowledge-base ``Document`` row, ``folder`` is a "
-            "knowledge-base ``Folder`` row. Folders carry the sentinel "
-            "``document_type='FOLDER'`` to keep the frontend dedup key "
-            "``(kind:document_type:id)`` from colliding doc and folder "
-            "ids that happen to share an integer value."
+            "knowledge-base ``Folder`` row, and ``connector`` is a "
+            "concrete connected account."
         ),
     )
+    connector_type: str | None = Field(default=None, max_length=100)
+    account_name: str | None = Field(default=None, max_length=255)
 
 
 class NewChatRequest(BaseModel):
@@ -264,6 +262,18 @@ class NewChatRequest(BaseModel):
             "reload renders chips without an extra fetch. Optional and "
             "additive — when None the user message is persisted without "
             "a mentioned-documents part."
+        ),
+    )
+    mentioned_connector_ids: list[int] | None = Field(
+        default=None,
+        description="Optional concrete connector account IDs the user @-mentioned.",
+    )
+    mentioned_connectors: list[MentionedDocumentInfo] | None = Field(
+        default=None,
+        description=(
+            "Display/context metadata for selected connector accounts. "
+            "Kept separate from document/folder id arrays so tools can "
+            "prefer the exact account the user selected."
         ),
     )
     disabled_tools: list[str] | None = (
@@ -335,6 +345,8 @@ class RegenerateRequest(BaseModel):
             "new user message. None means no chip metadata."
         ),
     )
+    mentioned_connector_ids: list[int] | None = None
+    mentioned_connectors: list[MentionedDocumentInfo] | None = None
     disabled_tools: list[str] | None = None
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
