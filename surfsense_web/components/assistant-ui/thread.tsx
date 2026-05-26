@@ -62,6 +62,8 @@ import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
 	type MentionedDocument,
+	type SuggestionAnchorRect,
+	type SuggestionTriggerInfo,
 } from "@/components/assistant-ui/inline-mention-editor";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
@@ -111,6 +113,34 @@ import { slideoutOpenedTickAtom } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
 
 const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
+
+type ComposerSuggestionAnchorPoint = {
+	left: number;
+	top: number;
+};
+
+function ComposerSuggestionAnchor({ point }: { point: ComposerSuggestionAnchorPoint }) {
+	return (
+		<PopoverAnchor
+			className="pointer-events-none fixed size-0"
+			style={{
+				left: point.left,
+				top: point.top,
+			}}
+		/>
+	);
+}
+
+function getComposerSuggestionAnchorPoint(
+	triggerRect: SuggestionAnchorRect | null,
+	side: "top" | "bottom"
+): ComposerSuggestionAnchorPoint | null {
+	if (!triggerRect) return null;
+	return {
+		left: triggerRect.left,
+		top: side === "bottom" ? triggerRect.bottom : triggerRect.top,
+	};
+}
 
 export const Thread: FC = () => {
 	return <ThreadContent />;
@@ -411,6 +441,8 @@ const Composer: FC = () => {
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
 	const [actionQuery, setActionQuery] = useState("");
+	const [suggestionAnchorPoint, setSuggestionAnchorPoint] =
+		useState<ComposerSuggestionAnchorPoint | null>(null);
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const prevMentionedDocsRef = useRef<Map<string, MentionedDocumentInfo>>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
@@ -491,6 +523,7 @@ const Composer: FC = () => {
 		lastSeenSlideoutTickRef.current = slideoutOpenedTick;
 		setShowDocumentPopover(false);
 		setMentionQuery("");
+		setSuggestionAnchorPoint(null);
 	}, [slideoutOpenedTick]);
 
 	// Sync editor text into assistant-ui's composer and mirror the chip
@@ -523,38 +556,65 @@ const Composer: FC = () => {
 		[aui, setMentionedDocuments]
 	);
 
-	const handleMentionTrigger = useCallback((query: string) => {
+	const handleMentionTrigger = useCallback((trigger: SuggestionTriggerInfo) => {
+		const anchorPoint = getComposerSuggestionAnchorPoint(trigger.anchorRect, "top");
+		if (!anchorPoint) {
+			setShowDocumentPopover(false);
+			setMentionQuery("");
+			setSuggestionAnchorPoint(null);
+			return;
+		}
+		setSuggestionAnchorPoint(anchorPoint);
 		setShowDocumentPopover(true);
-		setMentionQuery(query);
+		setMentionQuery(trigger.query);
 	}, []);
 
 	const handleMentionClose = useCallback(() => {
 		if (showDocumentPopover) {
 			setShowDocumentPopover(false);
 			setMentionQuery("");
+			setSuggestionAnchorPoint(null);
 		}
 	}, [showDocumentPopover]);
 
 	const handleDocumentPopoverOpenChange = useCallback((open: boolean) => {
 		setShowDocumentPopover(open);
-		if (!open) setMentionQuery("");
+		if (!open) {
+			setMentionQuery("");
+			setSuggestionAnchorPoint(null);
+		}
 	}, []);
 
-	const handleActionTrigger = useCallback((query: string) => {
+	const handleActionTrigger = useCallback((trigger: SuggestionTriggerInfo) => {
+		const anchorPoint = getComposerSuggestionAnchorPoint(
+			trigger.anchorRect,
+			clipboardInitialText ? "bottom" : "top"
+		);
+		if (!anchorPoint) {
+			setShowPromptPicker(false);
+			setActionQuery("");
+			setSuggestionAnchorPoint(null);
+			return;
+		}
+		setSuggestionAnchorPoint(anchorPoint);
 		setShowPromptPicker(true);
-		setActionQuery(query);
-	}, []);
+		setActionQuery(trigger.query);
+	}, [clipboardInitialText]);
 
 	const handleActionClose = useCallback(() => {
 		if (showPromptPicker) {
 			setShowPromptPicker(false);
 			setActionQuery("");
+			setSuggestionAnchorPoint(null);
 		}
 	}, [showPromptPicker]);
 
 	const handlePromptPickerOpenChange = useCallback((open: boolean) => {
 		setShowPromptPicker(open);
-		if (!open) setActionQuery("");
+		if (!open) {
+			setActionQuery("");
+			setSuggestionAnchorPoint(null);
+		}
 	}, []);
 
 	const handleActionSelect = useCallback(
@@ -573,6 +633,7 @@ const Composer: FC = () => {
 			aui.composer().setText(finalPrompt);
 			setShowPromptPicker(false);
 			setActionQuery("");
+			setSuggestionAnchorPoint(null);
 		},
 		[actionQuery, aui]
 	);
@@ -588,6 +649,7 @@ const Composer: FC = () => {
 			aui.composer().setText(finalPrompt);
 			setShowPromptPicker(false);
 			setActionQuery("");
+			setSuggestionAnchorPoint(null);
 			setClipboardInitialText(undefined);
 		},
 		[clipboardInitialText, electronAPI, aui]
@@ -616,6 +678,7 @@ const Composer: FC = () => {
 					e.preventDefault();
 					setShowPromptPicker(false);
 					setActionQuery("");
+					setSuggestionAnchorPoint(null);
 					return;
 				}
 			}
@@ -639,6 +702,7 @@ const Composer: FC = () => {
 					e.preventDefault();
 					setShowDocumentPopover(false);
 					setMentionQuery("");
+					setSuggestionAnchorPoint(null);
 					return;
 				}
 			}
@@ -699,6 +763,7 @@ const Composer: FC = () => {
 		// Atom is reconciled by ``handleEditorChange`` via the editor's
 		// onChange — no second write path here.
 		setMentionQuery("");
+		setSuggestionAnchorPoint(null);
 	}, []);
 
 	useEffect(() => {
@@ -736,34 +801,44 @@ const Composer: FC = () => {
 				members={members ?? []}
 			/>
 			<Popover open={showDocumentPopover} onOpenChange={handleDocumentPopoverOpenChange}>
-				<PopoverAnchor className="pointer-events-none absolute inset-0" />
-				<ComposerSuggestionPopoverContent side="top">
-					<DocumentMentionPicker
-						ref={documentPickerRef}
-						searchSpaceId={Number(search_space_id)}
-						onSelectionChange={handleDocumentsMention}
-						onDone={() => {
-							setShowDocumentPopover(false);
-							setMentionQuery("");
-						}}
-						initialSelectedDocuments={mentionedDocuments}
-						externalSearch={mentionQuery}
-					/>
-				</ComposerSuggestionPopoverContent>
+				{suggestionAnchorPoint ? (
+					<>
+						<ComposerSuggestionAnchor point={suggestionAnchorPoint} />
+						<ComposerSuggestionPopoverContent side="top">
+							<DocumentMentionPicker
+								ref={documentPickerRef}
+								searchSpaceId={Number(search_space_id)}
+								onSelectionChange={handleDocumentsMention}
+								onDone={() => {
+									setShowDocumentPopover(false);
+									setMentionQuery("");
+									setSuggestionAnchorPoint(null);
+								}}
+								initialSelectedDocuments={mentionedDocuments}
+								externalSearch={mentionQuery}
+							/>
+						</ComposerSuggestionPopoverContent>
+					</>
+				) : null}
 			</Popover>
 			<Popover open={showPromptPicker} onOpenChange={handlePromptPickerOpenChange}>
-				<PopoverAnchor className="pointer-events-none absolute inset-0" />
-				<ComposerSuggestionPopoverContent side={clipboardInitialText ? "bottom" : "top"}>
-					<PromptPicker
-						ref={promptPickerRef}
-						onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
-						onDone={() => {
-							setShowPromptPicker(false);
-							setActionQuery("");
-						}}
-						externalSearch={actionQuery}
-					/>
-				</ComposerSuggestionPopoverContent>
+				{suggestionAnchorPoint ? (
+					<>
+						<ComposerSuggestionAnchor point={suggestionAnchorPoint} />
+						<ComposerSuggestionPopoverContent side={clipboardInitialText ? "bottom" : "top"}>
+							<PromptPicker
+								ref={promptPickerRef}
+								onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
+								onDone={() => {
+									setShowPromptPicker(false);
+									setActionQuery("");
+									setSuggestionAnchorPoint(null);
+								}}
+								externalSearch={actionQuery}
+							/>
+						</ComposerSuggestionPopoverContent>
+					</>
+				) : null}
 			</Popover>
 			<div className="flex w-full flex-col">
 				<div

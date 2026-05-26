@@ -10,7 +10,8 @@ import { cn } from "@/lib/utils";
 function ComposerSuggestionPopoverContent({
 	className,
 	align = "start",
-	sideOffset = 8,
+	sideOffset = 6,
+	collisionPadding = 12,
 	onOpenAutoFocus,
 	onCloseAutoFocus,
 	...props
@@ -19,6 +20,7 @@ function ComposerSuggestionPopoverContent({
 		<PopoverContent
 			align={align}
 			sideOffset={sideOffset}
+			collisionPadding={collisionPadding}
 			onOpenAutoFocus={(event) => {
 				event.preventDefault();
 				onOpenAutoFocus?.(event);
@@ -28,7 +30,7 @@ function ComposerSuggestionPopoverContent({
 				onCloseAutoFocus?.(event);
 			}}
 			className={cn(
-				"w-[280px] overflow-hidden rounded-xl border border-popover-border bg-popover p-0 text-popover-foreground shadow-2xl sm:w-[320px]",
+				"w-[280px] overflow-hidden rounded-md border border-popover-border bg-popover p-0 text-popover-foreground shadow-md sm:w-[320px]",
 				className
 			)}
 			{...props}

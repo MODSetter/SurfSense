@@ -47,6 +47,17 @@ export type MentionChipInput = {
 	kind?: MentionKind;
 };
 
+export type SuggestionAnchorRect = {
+	left: number;
+	top: number;
+	bottom: number;
+};
+
+export type SuggestionTriggerInfo = {
+	query: string;
+	anchorRect: SuggestionAnchorRect | null;
+};
+
 export interface InlineMentionEditorRef {
 	focus: () => void;
 	clear: () => void;
@@ -73,9 +84,9 @@ export interface InlineMentionEditorRef {
 
 interface InlineMentionEditorProps {
 	placeholder?: string;
-	onMentionTrigger?: (query: string) => void;
+	onMentionTrigger?: (trigger: SuggestionTriggerInfo) => void;
 	onMentionClose?: () => void;
-	onActionTrigger?: (query: string) => void;
+	onActionTrigger?: (trigger: SuggestionTriggerInfo) => void;
 	onActionClose?: () => void;
 	onSubmit?: () => void;
 	onChange?: (text: string, docs: MentionedDocument[]) => void;
@@ -299,6 +310,36 @@ function scanActiveTrigger(text: string, cursor: number) {
 	return { triggerChar, query };
 }
 
+function rectToAnchor(rect: DOMRect): SuggestionAnchorRect {
+	return {
+		left: rect.left,
+		top: rect.top,
+		bottom: rect.bottom,
+	};
+}
+
+function getSelectionAnchorRect(root: HTMLElement | null): SuggestionAnchorRect | null {
+	if (!root || typeof window === "undefined") return null;
+
+	const selection = window.getSelection();
+	if (!selection || selection.rangeCount === 0 || !selection.anchorNode) return null;
+	if (!root.contains(selection.anchorNode)) return null;
+
+	const range = selection.getRangeAt(0).cloneRange();
+	const rect = range.getClientRects()[0] ?? range.getBoundingClientRect();
+	if (rect.width > 0 || rect.height > 0) return rectToAnchor(rect);
+
+	if (range.collapsed && range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset > 0) {
+		const fallbackRange = range.cloneRange();
+		fallbackRange.setStart(range.startContainer, range.startOffset - 1);
+		fallbackRange.setEnd(range.startContainer, range.startOffset);
+		const fallbackRect = fallbackRange.getClientRects()[0] ?? fallbackRange.getBoundingClientRect();
+		if (fallbackRect.width > 0 || fallbackRect.height > 0) return rectToAnchor(fallbackRect);
+	}
+
+	return null;
+}
+
 export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMentionEditorProps>(
 	(
 		{
@@ -360,14 +401,19 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					return;
 				}
 
+				const triggerInfo: SuggestionTriggerInfo = {
+					query: trigger.query,
+					anchorRect: getSelectionAnchorRect(editableRef.current),
+				};
+
 				if (trigger.triggerChar === "@") {
-					onMentionTrigger?.(trigger.query);
 					onActionClose?.();
+					onMentionTrigger?.(triggerInfo);
 					return;
 				}
 
-				onActionTrigger?.(trigger.query);
 				onMentionClose?.();
+				onActionTrigger?.(triggerInfo);
 			},
 			[editor.selection, onActionClose, onActionTrigger, onChange, onMentionClose, onMentionTrigger]
 		);
