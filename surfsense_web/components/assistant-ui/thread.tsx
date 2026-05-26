@@ -866,7 +866,7 @@ const Composer: FC = () => {
 							onDocumentRemove={handleDocumentRemove}
 							onSubmit={handleSubmit}
 							onKeyDown={handleKeyDown}
-							className="min-h-[24px] **:data-slate-placeholder:font-semibold"
+							className="min-h-[24px] **:data-slate-placeholder:font-normal"
 						/>
 					</div>
 					<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
@@ -1121,9 +1121,10 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 													>
 														<div className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors">
 															<CollapsibleTrigger asChild>
-																<button
+																<Button
 																	type="button"
-																	className="flex min-w-0 flex-1 items-center gap-3 text-left"
+																	variant="ghost"
+																	className="h-auto min-w-0 flex-1 justify-start gap-3 p-0 text-left hover:bg-transparent hover:text-inherit"
 																>
 																	{iconInfo ? (
 																		<Image
@@ -1145,7 +1146,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 																	) : (
 																		<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
 																	)}
-																</button>
+																</Button>
 															</CollapsibleTrigger>
 															<Switch
 																checked={!allDisabled}

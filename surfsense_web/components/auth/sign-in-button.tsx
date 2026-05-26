@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
@@ -74,8 +75,9 @@ export const SignInButton = ({ variant = "desktop" }: SignInButtonProps) => {
 
 	if (isGoogleAuth) {
 		return (
-			<button
+			<Button
 				type="button"
+				variant="ghost"
 				onClick={handleGoogleLogin}
 				disabled={isRedirecting}
 				className={cn(
@@ -85,7 +87,7 @@ export const SignInButton = ({ variant = "desktop" }: SignInButtonProps) => {
 			>
 				<GoogleLogo className="h-4 w-4" />
 				<span>Sign In</span>
-			</button>
+			</Button>
 		);
 	}
 
