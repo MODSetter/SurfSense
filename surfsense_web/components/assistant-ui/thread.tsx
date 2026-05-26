@@ -1077,7 +1077,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 										<Switch
 											checked={isWebSearchEnabled}
 											tabIndex={-1}
-											className="pointer-events-none h-4 w-7 shrink-0 border [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3"
+											className="pointer-events-none shrink-0 origin-right scale-[0.6]"
 										/>
 									</DropdownMenuItem>
 								)}
@@ -1317,7 +1317,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									<Switch
 										checked={isWebSearchEnabled}
 										tabIndex={-1}
-										className="pointer-events-none h-4 w-7 shrink-0 border [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3"
+										className="pointer-events-none shrink-0 origin-right scale-[0.6]"
 									/>
 								</DropdownMenuItem>
 							)}
@@ -1367,7 +1367,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 															<Switch
 																checked={!isDisabled}
 																tabIndex={-1}
-																className="pointer-events-none shrink-0 scale-[0.6]"
+																className="pointer-events-none shrink-0 origin-right scale-[0.6]"
 															/>
 														</DropdownMenuItem>
 													);
@@ -1419,7 +1419,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 																	onPointerDown={(event) => event.stopPropagation()}
 																	onClick={(event) => event.stopPropagation()}
 																	onCheckedChange={() => toggleToolGroup(toolNames)}
-																	className="shrink-0 scale-[0.6]"
+																	className="mr-2 shrink-0 origin-right scale-[0.6]"
 																/>
 															</DropdownMenuSubTrigger>
 															<DropdownMenuPortal>
@@ -1448,7 +1448,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 																				<Switch
 																					checked={!isDisabled}
 																					tabIndex={-1}
-																					className="pointer-events-none shrink-0 scale-[0.6]"
+																					className="pointer-events-none shrink-0 origin-right scale-[0.6]"
 																				/>
 																			</DropdownMenuItem>
 																		);
@@ -1488,7 +1488,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 															<Switch
 																checked={!isDisabled}
 																tabIndex={-1}
-																className="pointer-events-none shrink-0 scale-[0.6]"
+																className="pointer-events-none shrink-0 origin-right scale-[0.6]"
 															/>
 														</DropdownMenuItem>
 													);
