@@ -203,13 +203,11 @@ class NewChatUserImagePart(BaseModel):
 class MentionedDocumentInfo(BaseModel):
     """Display metadata for a single ``@``-mention chip.
 
-    Carries either a knowledge-base document or a knowledge-base folder
-    (discriminated by ``kind``). The full triple
-    ``{id, title, document_type}`` is forwarded by the frontend mention
-    chip so the server can embed it in the persisted user message
-    ``ContentPart[]`` (single ``mentioned-documents`` part). The
-    history loader then renders the chips on reload without an extra
-    fetch — mirrors the pre-refactor frontend ``persistUserTurn`` shape.
+    Carries a knowledge-base document, knowledge-base folder, or
+    connected account (discriminated by ``kind``). Each kind uses its
+    real identity fields: docs carry ``document_type``, folders carry
+    only their folder id/title, and connectors carry ``connector_type``
+    plus account metadata.
 
     ``kind`` defaults to ``"doc"`` so legacy clients and persisted rows
     that predate folder mentions deserialise unchanged.
@@ -217,17 +215,14 @@ class MentionedDocumentInfo(BaseModel):
 
     id: int
     title: str = Field(..., min_length=1, max_length=500)
-    document_type: str = Field(..., min_length=1, max_length=100)
+    document_type: str | None = Field(default=None, min_length=1, max_length=100)
     kind: Literal["doc", "folder", "connector"] = Field(
         default="doc",
         description=(
             "Discriminator for the chip's referent: ``doc`` is a "
             "knowledge-base ``Document`` row, ``folder`` is a "
             "knowledge-base ``Folder`` row, and ``connector`` is a "
-            "concrete connected account. Folders carry the sentinel "
-            "``document_type='FOLDER'`` to keep the frontend dedup key "
-            "``(kind:document_type:id)`` from colliding doc and folder "
-            "ids that happen to share an integer value."
+            "concrete connected account."
         ),
     )
     connector_type: str | None = Field(default=None, max_length=100)

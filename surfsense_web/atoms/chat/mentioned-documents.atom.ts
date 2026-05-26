@@ -4,13 +4,6 @@ import { atom } from "jotai";
 import type { Document } from "@/contracts/types/document.types";
 
 /**
- * Sentinel ``document_type`` used for folder mention chips so the
- * dedup key (`kind:document_type:id`) never collides a document with a
- * folder that happens to share an integer id.
- */
-export const FOLDER_MENTION_DOCUMENT_TYPE = "FOLDER";
-
-/**
  * Display metadata for a single ``@``-mention chip.
  *
  * Historical name is retained because this atom is already wired into
@@ -27,13 +20,11 @@ export type MentionedDocumentInfo =
 	| {
 			id: number;
 			title: string;
-			document_type: typeof FOLDER_MENTION_DOCUMENT_TYPE;
 			kind: "folder";
 	  }
 	| {
 			id: number;
 			title: string;
-			document_type: string;
 			kind: "connector";
 			connector_type: string;
 			account_name: string;
@@ -51,8 +42,7 @@ type LegacyDocMention = Pick<Document, "id" | "title" | "document_type">;
  * Normalize an arbitrary chip-like input into the discriminated
  * ``MentionedDocumentInfo`` shape. Existing call sites that only have
  * ``{id, title, document_type}`` flow through here so they don't have
- * to thread ``kind`` everywhere — the helper defaults to ``"doc"`` and
- * rewrites the document type for folders.
+ * to thread ``kind`` everywhere — the helper defaults to ``"doc"``.
  */
 export function toMentionedDocumentInfo(
 	input: LegacyDocMention | MentionedDocumentInfo
@@ -78,31 +68,32 @@ export function makeFolderMention(input: { id: number; name: string }): Mentione
 	return {
 		id: input.id,
 		title: input.name,
-		document_type: FOLDER_MENTION_DOCUMENT_TYPE,
 		kind: "folder",
 	};
 }
 
 /**
- * Atom to store the full mention objects (documents + folders) attached
- * via @-mention chips in the current chat composer. Persists across
- * component remounts.
+ * Atom to store the full context objects attached via @-mention chips in
+ * the current chat composer. Persists across component remounts.
  */
 export const mentionedDocumentsAtom = atom<MentionedDocumentInfo[]>([]);
 
 /**
  * Derived read-only atom that maps deduplicated mention chips into
- * backend payload fields. Doc chips split by ``document_type`` exactly
- * like before; folder chips are projected into a separate
- * ``folder_ids`` bucket so the route can forward
- * ``mentioned_folder_ids`` to the agent without the priority middleware
- * conflating them with hybrid-search ids.
+ * backend payload fields. Each mention kind maps to its own explicit
+ * payload bucket so non-document context never has to masquerade as a
+ * document type.
  */
 export const mentionedDocumentIdsAtom = atom((get) => {
 	const allMentions = get(mentionedDocumentsAtom);
 	const seen = new Set<string>();
 	const deduped = allMentions.filter((m) => {
-		const key = `${m.kind}:${m.document_type}:${m.id}`;
+		const key =
+			m.kind === "doc"
+				? `doc:${m.document_type}:${m.id}`
+				: m.kind === "connector"
+					? `connector:${m.connector_type}:${m.id}`
+					: `folder:${m.id}`;
 		if (seen.has(key)) return false;
 		seen.add(key);
 		return true;
@@ -120,7 +111,6 @@ export const mentionedDocumentIdsAtom = atom((get) => {
 		connectors: connectors.map((c) => ({
 			id: c.id,
 			title: c.title,
-			document_type: c.document_type,
 			kind: c.kind,
 			connector_type: c.connector_type,
 			account_name: c.account_name,

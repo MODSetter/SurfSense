@@ -20,10 +20,7 @@ import {
 	useState,
 } from "react";
 import type * as React from "react";
-import {
-	FOLDER_MENTION_DOCUMENT_TYPE,
-	type MentionedDocumentInfo,
-} from "@/atoms/chat/mentioned-documents.atom";
+import type { MentionedDocumentInfo } from "@/atoms/chat/mentioned-documents.atom";
 import { useAtomValue } from "jotai";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import {
@@ -78,6 +75,10 @@ type ResourceNodeValue =
 	| { kind: "view"; view: BrowseView }
 	| { kind: "mention"; mention: MentionedDocumentInfo };
 
+function isConnectorActive(connector: SearchSourceConnector) {
+	return connector.is_active !== false;
+}
+
 function useDebounced<T>(value: T, delay = DEBOUNCE_MS) {
 	const [debounced, setDebounced] = useState(value);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -115,22 +116,24 @@ function makeDocMention(doc: Pick<Document, "id" | "title" | "document_type">): 
 	};
 }
 
-function makeFolderMention(folder: { id: number; title: string }): MentionedDocumentInfo {
+function makeFolderMention(
+	folder: { id: number; title: string }
+): Extract<MentionedDocumentInfo, { kind: "folder" }> {
 	return {
 		id: folder.id,
 		title: folder.title,
-		document_type: FOLDER_MENTION_DOCUMENT_TYPE,
 		kind: "folder",
 	};
 }
 
-function makeConnectorMention(connector: SearchSourceConnector): MentionedDocumentInfo {
+function makeConnectorMention(
+	connector: SearchSourceConnector
+): Extract<MentionedDocumentInfo, { kind: "connector" }> {
 	const accountName = getConnectorDisplayName(connector.name);
 	const connectorTitle = titleForConnectorType(connector.connector_type);
 	return {
 		id: connector.id,
 		title: `${connectorTitle}: ${accountName}`,
-		document_type: connector.connector_type,
 		kind: "connector",
 		connector_type: connector.connector_type,
 		account_name: accountName,
@@ -140,8 +143,8 @@ function makeConnectorMention(connector: SearchSourceConnector): MentionedDocume
 function mentionMatchesSearch(mention: MentionedDocumentInfo, searchLower: string) {
 	return [
 		mention.title,
-		mention.document_type,
 		mention.kind,
+		mention.kind === "doc" ? mention.document_type : "",
 		mention.kind === "connector" ? mention.connector_type : "",
 		mention.kind === "connector" ? mention.account_name : "",
 	].some((value) => value.toLowerCase().includes(searchLower));
@@ -171,6 +174,7 @@ export const DocumentMentionPicker = forwardRef<
 
 	const [zeroFolders] = useZeroQuery(queries.folders.bySpace({ searchSpaceId }));
 	const { data: connectors = [], isLoading: isConnectorsLoading } = useAtomValue(connectorsAtom);
+	const activeConnectors = useMemo(() => connectors.filter(isConnectorActive), [connectors]);
 	const paginationScopeKey = useMemo(
 		() => `${searchSpaceId}:${debouncedSearch}`,
 		[searchSpaceId, debouncedSearch]
@@ -307,8 +311,8 @@ export const DocumentMentionPicker = forwardRef<
 	}, [zeroFolders, debouncedSearch, deferredSearch, isSingleCharSearch, hasSearch]);
 
 	const connectorMentions = useMemo(
-		() => connectors.filter((c) => c.is_active).map(makeConnectorMention),
-		[connectors]
+		() => activeConnectors.map(makeConnectorMention),
+		[activeConnectors]
 	);
 
 	const selectedKeys = useMemo(
@@ -345,16 +349,16 @@ export const DocumentMentionPicker = forwardRef<
 			{
 				id: "connectors",
 				label: "Connectors",
-				subtitle: connectors.length
+				subtitle: activeConnectors.length
 					? "Choose the exact account for tool use"
 					: "No connected accounts yet",
 				icon: <Plug className="size-4" />,
 				type: "branch",
-				disabled: connectors.length === 0,
+				disabled: activeConnectors.length === 0,
 				value: { kind: "view", view: { kind: "connectors" } },
 			},
 		],
-		[connectors.length]
+		[activeConnectors.length]
 	);
 
 	const searchNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
@@ -385,7 +389,7 @@ export const DocumentMentionPicker = forwardRef<
 				id: getMentionDocKey(mention),
 				label: mention.title,
 				subtitle: "Connector account",
-				icon: getConnectorIcon(mention.document_type, "size-4") ?? <Plug className="size-4" />,
+				icon: getConnectorIcon(mention.connector_type, "size-4") ?? <Plug className="size-4" />,
 				type: "item" as const,
 				disabled: selectedKeys.has(getMentionDocKey(mention)),
 				value: { kind: "mention" as const, mention },
@@ -404,7 +408,7 @@ export const DocumentMentionPicker = forwardRef<
 
 	const connectorTypeEntries = useMemo(() => {
 		const byType = new Map<string, SearchSourceConnector[]>();
-		for (const connector of connectors.filter((c) => c.is_active)) {
+		for (const connector of activeConnectors) {
 			const list = byType.get(connector.connector_type) ?? [];
 			list.push(connector);
 			byType.set(connector.connector_type, list);
@@ -412,7 +416,7 @@ export const DocumentMentionPicker = forwardRef<
 		return Array.from(byType.entries()).sort(([a], [b]) =>
 			titleForConnectorType(a).localeCompare(titleForConnectorType(b))
 		);
-	}, [connectors]);
+	}, [activeConnectors]);
 
 	const browseNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
 		if (view.kind === "root") return rootNodes;
@@ -469,8 +473,8 @@ export const DocumentMentionPicker = forwardRef<
 				},
 			}));
 		}
-		return connectors
-			.filter((connector) => connector.is_active && connector.connector_type === view.connectorType)
+		return activeConnectors
+			.filter((connector) => connector.connector_type === view.connectorType)
 			.map((connector) => {
 				const mention = makeConnectorMention(connector);
 				return {
@@ -484,7 +488,7 @@ export const DocumentMentionPicker = forwardRef<
 				};
 			});
 	}, [
-		connectors,
+		activeConnectors,
 		connectorTypeEntries,
 		folderMentions,
 		rootNodes,

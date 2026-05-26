@@ -104,7 +104,7 @@ const UserTextPart: FC = () => {
 				const icon = isFolder ? (
 					<FolderIcon className="size-3.5" />
 				) : isConnector ? (
-					getConnectorIcon(segment.doc.connector_type ?? segment.doc.document_type, "size-3.5") ?? (
+					getConnectorIcon(segment.doc.connector_type, "size-3.5") ?? (
 						<Plug className="size-3.5" />
 					)
 				) : (

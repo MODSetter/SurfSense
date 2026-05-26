@@ -36,7 +36,6 @@ import {
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import {
-	FOLDER_MENTION_DOCUMENT_TYPE,
 	type MentionedDocumentInfo,
 	mentionedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
@@ -544,14 +543,12 @@ const Composer: FC = () => {
 					}
 				}
 				return docs.map<MentionedDocumentInfo>((d) => {
-					const documentType = d.document_type ?? "UNKNOWN";
 					if (d.kind === "connector") {
 						return {
 							id: d.id,
 							title: d.title,
-							document_type: documentType,
 							kind: "connector",
-							connector_type: d.connector_type ?? documentType,
+							connector_type: d.connector_type ?? "UNKNOWN",
 							account_name: d.account_name ?? d.title,
 						};
 					}
@@ -559,17 +556,13 @@ const Composer: FC = () => {
 						return {
 							id: d.id,
 							title: d.title,
-							document_type: FOLDER_MENTION_DOCUMENT_TYPE,
 							kind: "folder",
 						};
 					}
 					return {
 						id: d.id,
 						title: d.title,
-						// Atom requires a string; ``"UNKNOWN"`` matches the
-						// sentinel ``getMentionDocKey`` and the editor's
-						// match predicates use.
-						document_type: documentType,
+						document_type: d.document_type ?? "UNKNOWN",
 						kind: "doc",
 					};
 				});
@@ -760,13 +753,14 @@ const Composer: FC = () => {
 	]);
 
 	const handleDocumentRemove = useCallback(
-		(docId: number, docType?: string) => {
+		(docId: number, docType?: string, kind?: "doc" | "folder" | "connector", connectorType?: string) => {
 			setMentionedDocuments((prev) => {
-				if (!docType) {
-					// Fallback when chip type is unavailable.
-					return prev.filter((doc) => doc.id !== docId);
-				}
-				const removedKey = getMentionDocKey({ id: docId, document_type: docType });
+				const removedKey = getMentionDocKey({
+					id: docId,
+					document_type: docType,
+					kind,
+					connector_type: connectorType,
+				});
 				return prev.filter((doc) => getMentionDocKey(doc) !== removedKey);
 			});
 		},
@@ -810,7 +804,12 @@ const Composer: FC = () => {
 
 		for (const [key, doc] of prevDocsMap) {
 			if (!nextDocsMap.has(key)) {
-				editor.removeDocumentChip(doc.id, doc.document_type);
+				editor.removeDocumentChip(
+					doc.id,
+					doc.kind === "doc" ? doc.document_type : undefined,
+					doc.kind,
+					doc.kind === "connector" ? doc.connector_type : undefined
+				);
 			}
 		}
 

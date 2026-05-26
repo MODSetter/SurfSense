@@ -109,7 +109,7 @@ def _build_user_content(
         [{"type": "text", "text": "..."},
          {"type": "image", "image": "data:..."},
          {"type": "mentioned-documents", "documents": [{"id": int,
-            "title": str, "document_type": str, "kind": "doc" | "folder"},
+            "title": str, "kind": "doc" | "folder" | "connector", ...},
             ...]}]
 
     The companion reader is
@@ -117,8 +117,8 @@ def _build_user_content(
     which expects exactly this shape — keep them in sync.
 
     ``mentioned_documents``: optional list of mention chip dicts. Each
-    dict may include a ``kind`` discriminator (``"doc"`` or ``"folder"``)
-    so the persisted ContentPart round-trips folder chips on reload.
+    dict may include a ``kind`` discriminator so the persisted
+    ContentPart round-trips folder and connector chips on reload.
     When ``kind`` is missing we default to ``"doc"`` so legacy clients
     that haven't migrated to the union schema still persist correctly.
     """
@@ -134,18 +134,23 @@ def _build_user_content(
             doc_id = doc.get("id")
             title = doc.get("title")
             document_type = doc.get("document_type")
-            if doc_id is None or title is None or document_type is None:
-                continue
             kind_raw = doc.get("kind", "doc")
             kind = kind_raw if kind_raw in ("doc", "folder", "connector") else "doc"
+            if doc_id is None or title is None:
+                continue
+            if kind == "doc" and document_type is None:
+                continue
             item = {
                 "id": doc_id,
                 "title": str(title),
-                "document_type": str(document_type),
                 "kind": kind,
             }
+            if document_type is not None:
+                item["document_type"] = str(document_type)
             if kind == "connector":
-                connector_type = doc.get("connector_type") or document_type
+                connector_type = doc.get("connector_type")
+                if connector_type is None:
+                    continue
                 account_name = doc.get("account_name") or title
                 item["connector_type"] = str(connector_type)
                 item["account_name"] = str(account_name)

@@ -20,7 +20,6 @@ import {
 	useMemo,
 	useRef,
 } from "react";
-import { FOLDER_MENTION_DOCUMENT_TYPE } from "@/atoms/chat/mentioned-documents.atom";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
@@ -40,8 +39,6 @@ export interface MentionedDocument {
 
 /**
  * Input shape for inserting a chip. ``kind`` defaults to ``"doc"``.
- * Folder chips default ``document_type`` to ``FOLDER_MENTION_DOCUMENT_TYPE``
- * so the dedup key never collides with a doc chip sharing the same id.
  */
 export type MentionChipInput = {
 	id: number;
@@ -78,7 +75,12 @@ export interface InlineMentionEditorRef {
 		doc: Pick<Document, "id" | "title" | "document_type">,
 		options?: { removeTriggerText?: boolean }
 	) => void;
-	removeDocumentChip: (docId: number, docType?: string) => void;
+	removeDocumentChip: (
+		docId: number,
+		docType?: string,
+		kind?: MentionKind,
+		connectorType?: string
+	) => void;
 	setDocumentChipStatus: (
 		docId: number,
 		docType: string | undefined,
@@ -95,7 +97,7 @@ interface InlineMentionEditorProps {
 	onActionClose?: () => void;
 	onSubmit?: () => void;
 	onChange?: (text: string, docs: MentionedDocument[]) => void;
-	onDocumentRemove?: (docId: number, docType?: string) => void;
+	onDocumentRemove?: (docId: number, docType?: string, kind?: MentionKind, connectorType?: string) => void;
 	onKeyDown?: (e: React.KeyboardEvent) => void;
 	disabled?: boolean;
 	className?: string;
@@ -135,7 +137,12 @@ const EMPTY_VALUE: ComposerValue = [{ type: "p", children: [{ text: "" }] }];
  * the X button and Backspace go through the same call site.
  */
 type MentionEditorContextValue = {
-	removeChip: (docId: number, docType: string | undefined) => void;
+	removeChip: (
+		docId: number,
+		docType: string | undefined,
+		kind: MentionKind | undefined,
+		connectorType: string | undefined
+	) => void;
 };
 const MentionEditorContext = createContext<MentionEditorContextValue | null>(null);
 
@@ -181,7 +188,12 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 								onMouseDown={(e) => e.preventDefault()}
 								onClick={(e) => {
 									e.stopPropagation();
-									ctx.removeChip(element.id, element.document_type);
+									ctx.removeChip(
+										element.id,
+										element.document_type,
+										element.kind,
+										element.connector_type
+									);
 								}}
 								className="absolute inset-0 size-3 rounded-sm p-0 opacity-0 transition-opacity hover:bg-transparent hover:text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-0 group-hover:opacity-100 [&_svg]:size-3"
 							>
@@ -456,18 +468,11 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 				const removeTriggerText = options?.removeTriggerText ?? true;
 				const kind: MentionKind = mention.kind ?? "doc";
-				const document_type =
-					mention.document_type ??
-					(kind === "folder"
-						? FOLDER_MENTION_DOCUMENT_TYPE
-						: kind === "connector"
-							? mention.connector_type
-							: undefined);
 				const mentionNode: MentionElementNode = {
 					type: MENTION_TYPE,
 					id: mention.id,
 					title: mention.title,
-					document_type,
+					document_type: mention.document_type,
 					kind,
 					connector_type: mention.connector_type,
 					account_name: mention.account_name,
@@ -526,17 +531,33 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			[insertMentionChip]
 		);
 
-		// Remove chip(s) matching (id, document_type). Iterates in
+		// Remove chip(s) matching the mention identity. Iterates in
 		// descending path order so removing one entry can't invalidate
 		// later paths. Chips are deduped today, so this typically runs
 		// at most once.
 		const removeDocumentChip = useCallback(
-			(docId: number, docType?: string) => {
+			(docId: number, docType?: string, kind?: MentionKind, connectorType?: string) => {
 				const match = (n: unknown) => {
 					if (!n || typeof n !== "object" || !("type" in n)) return false;
 					const node = n as MentionElementNode;
 					if (node.type !== MENTION_TYPE) return false;
 					if (node.id !== docId) return false;
+					if (kind) {
+						return (
+							getMentionDocKey({
+								id: node.id,
+								kind: node.kind ?? "doc",
+								document_type: node.document_type,
+								connector_type: node.connector_type,
+							}) ===
+							getMentionDocKey({
+								id: docId,
+								kind,
+								document_type: docType,
+								connector_type: connectorType,
+							})
+						);
+					}
 					return (node.document_type ?? "UNKNOWN") === (docType ?? "UNKNOWN");
 				};
 
@@ -554,9 +575,14 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		// Single removal call site for Backspace and the X button so the
 		// two can never diverge (e.g. one forgetting to notify the parent).
 		const removeChip = useCallback(
-			(docId: number, docType: string | undefined) => {
-				removeDocumentChip(docId, docType);
-				onDocumentRemove?.(docId, docType);
+			(
+				docId: number,
+				docType: string | undefined,
+				kind: MentionKind | undefined,
+				connectorType: string | undefined
+			) => {
+				removeDocumentChip(docId, docType, kind, connectorType);
+				onDocumentRemove?.(docId, docType, kind, connectorType);
 			},
 			[onDocumentRemove, removeDocumentChip]
 		);
@@ -679,7 +705,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				if (!isMentionNode(prev)) return;
 
 				e.preventDefault();
-				removeChip(prev.id, prev.document_type);
+				removeChip(prev.id, prev.document_type, prev.kind, prev.connector_type);
 			},
 			[editor.selection, getCurrentValue, onKeyDown, onSubmit, removeChip]
 		);

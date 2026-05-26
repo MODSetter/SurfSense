@@ -73,6 +73,7 @@ import {
 	convertToThreadMessage,
 	reconcileInterruptedAssistantMessages,
 } from "@/lib/chat/message-utils";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import {
 	isPodcastGenerating,
 	looksLikePodcastRequest,
@@ -206,7 +207,7 @@ function pairBundleToolCallIds(
 const MentionedDocumentInfoSchema = z.object({
 	id: z.number(),
 	title: z.string(),
-	document_type: z.string(),
+	document_type: z.string().optional(),
 	kind: z
 		.union([z.literal("doc"), z.literal("folder"), z.literal("connector")])
 		.optional()
@@ -234,9 +235,8 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 					return {
 						id: doc.id,
 						title: doc.title,
-						document_type: doc.document_type,
 						kind: "connector",
-						connector_type: doc.connector_type ?? doc.document_type,
+						connector_type: doc.connector_type ?? doc.document_type ?? "UNKNOWN",
 						account_name: doc.account_name ?? doc.title,
 					};
 				}
@@ -244,14 +244,13 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 					return {
 						id: doc.id,
 						title: doc.title,
-						document_type: "FOLDER",
 						kind: "folder",
 					};
 				}
 				return {
 					id: doc.id,
 					title: doc.title,
-					document_type: doc.document_type,
+					document_type: doc.document_type ?? "UNKNOWN",
 					kind: "doc",
 				};
 			});
@@ -957,15 +956,13 @@ export default function NewChatPage() {
 			});
 
 			// Collect unique mention chips for display & persistence.
-			// Dedup key is ``kind:document_type:id`` so a folder and a
-			// doc with the same integer id never collapse into one
-			// entry. The ``kind`` field is forwarded to the backend
+			// The ``kind`` field is forwarded to the backend
 			// so the persisted ``mentioned-documents`` content part
 			// can render the correct chip type on reload.
 			const allMentionedDocs: MentionedDocumentInfo[] = [];
 			const seenDocKeys = new Set<string>();
 			for (const doc of mentionedDocuments) {
-				const key = `${doc.kind}:${doc.document_type}:${doc.id}`;
+				const key = getMentionDocKey(doc);
 				if (seenDocKeys.has(key)) continue;
 				seenDocKeys.add(key);
 				allMentionedDocs.push(doc);
