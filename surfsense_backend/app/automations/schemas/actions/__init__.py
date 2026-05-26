@@ -2,4 +2,8 @@
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .agent_task import AgentTaskActionConfig
+
+__all__ = [
+    "AgentTaskActionConfig",
+]

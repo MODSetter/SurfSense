@@ -2,4 +2,10 @@
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .manual import ManualTriggerConfig
+from .schedule import ScheduleTriggerConfig
+
+__all__ = [
+    "ManualTriggerConfig",
+    "ScheduleTriggerConfig",
+]

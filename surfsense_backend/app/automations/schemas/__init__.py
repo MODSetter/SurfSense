@@ -2,4 +2,25 @@
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .actions import AgentTaskActionConfig
+from .definition import (
+    AutomationDefinition,
+    ExecutionBlock,
+    InputsBlock,
+    MetadataBlock,
+    PlanStep,
+    TriggerSpec,
+)
+from .triggers import ManualTriggerConfig, ScheduleTriggerConfig
+
+__all__ = [
+    "AgentTaskActionConfig",
+    "AutomationDefinition",
+    "ExecutionBlock",
+    "InputsBlock",
+    "ManualTriggerConfig",
+    "MetadataBlock",
+    "PlanStep",
+    "ScheduleTriggerConfig",
+    "TriggerSpec",
+]
