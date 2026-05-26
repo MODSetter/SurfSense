@@ -13,18 +13,31 @@ export const FOLDER_MENTION_DOCUMENT_TYPE = "FOLDER";
 /**
  * Display metadata for a single ``@``-mention chip.
  *
- * The ``kind`` discriminator identifies whether the chip is a
- * knowledge-base document or a knowledge-base folder. Folders carry
- * the sentinel ``document_type === FOLDER_MENTION_DOCUMENT_TYPE`` so
- * the editor, picker, and persisted ``mentioned-documents`` content
- * part all stay aligned with the backend Pydantic schema.
+ * Historical name is retained because this atom is already wired into
+ * chat persistence and sidebar selection. The shape is now the selected
+ * composer context, not only documents.
  */
-export interface MentionedDocumentInfo {
-	id: number;
-	title: string;
-	document_type: string;
-	kind: "doc" | "folder";
-}
+export type MentionedDocumentInfo =
+	| {
+			id: number;
+			title: string;
+			document_type: string;
+			kind: "doc";
+	  }
+	| {
+			id: number;
+			title: string;
+			document_type: typeof FOLDER_MENTION_DOCUMENT_TYPE;
+			kind: "folder";
+	  }
+	| {
+			id: number;
+			title: string;
+			document_type: string;
+			kind: "connector";
+			connector_type: string;
+			account_name: string;
+	  };
 
 /**
  * Backwards-compatible doc-only chip shape for legacy callers that
@@ -44,7 +57,10 @@ type LegacyDocMention = Pick<Document, "id" | "title" | "document_type">;
 export function toMentionedDocumentInfo(
 	input: LegacyDocMention | MentionedDocumentInfo
 ): MentionedDocumentInfo {
-	if ("kind" in input && (input.kind === "doc" || input.kind === "folder")) {
+	if (
+		"kind" in input &&
+		(input.kind === "doc" || input.kind === "folder" || input.kind === "connector")
+	) {
 		return input;
 	}
 	return {
@@ -93,12 +109,22 @@ export const mentionedDocumentIdsAtom = atom((get) => {
 	});
 	const docs = deduped.filter((m) => m.kind === "doc");
 	const folders = deduped.filter((m) => m.kind === "folder");
+	const connectors = deduped.filter((m) => m.kind === "connector");
 	return {
 		surfsense_doc_ids: docs
 			.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
 			.map((doc) => doc.id),
 		document_ids: docs.filter((doc) => doc.document_type !== "SURFSENSE_DOCS").map((doc) => doc.id),
 		folder_ids: folders.map((f) => f.id),
+		connector_ids: connectors.map((c) => c.id),
+		connectors: connectors.map((c) => ({
+			id: c.id,
+			title: c.title,
+			document_type: c.document_type,
+			kind: c.kind,
+			connector_type: c.connector_type,
+			account_name: c.account_name,
+		})),
 	};
 });
 

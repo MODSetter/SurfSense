@@ -137,15 +137,19 @@ def _build_user_content(
             if doc_id is None or title is None or document_type is None:
                 continue
             kind_raw = doc.get("kind", "doc")
-            kind = kind_raw if kind_raw in ("doc", "folder") else "doc"
-            normalized.append(
-                {
-                    "id": doc_id,
-                    "title": str(title),
-                    "document_type": str(document_type),
-                    "kind": kind,
-                }
-            )
+            kind = kind_raw if kind_raw in ("doc", "folder", "connector") else "doc"
+            item = {
+                "id": doc_id,
+                "title": str(title),
+                "document_type": str(document_type),
+                "kind": kind,
+            }
+            if kind == "connector":
+                connector_type = doc.get("connector_type") or document_type
+                account_name = doc.get("account_name") or title
+                item["connector_type"] = str(connector_type)
+                item["account_name"] = str(account_name)
+            normalized.append(item)
         if normalized:
             parts.append({"type": "mentioned-documents", "documents": normalized})
     return parts

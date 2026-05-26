@@ -36,6 +36,7 @@ import {
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import {
+	FOLDER_MENTION_DOCUMENT_TYPE,
 	type MentionedDocumentInfo,
 	mentionedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
@@ -71,7 +72,7 @@ import { ComposerSuggestionPopoverContent } from "@/components/new-chat/composer
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
-} from "@/components/new-chat/document-mention-picker";
+} from "../new-chat/document-mention-picker";
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -542,15 +543,36 @@ const Composer: FC = () => {
 						return prev;
 					}
 				}
-				return docs.map<MentionedDocumentInfo>((d) => ({
-					id: d.id,
-					title: d.title,
-					// Atom requires a string; ``"UNKNOWN"`` matches the
-					// sentinel ``getMentionDocKey`` and the editor's
-					// match predicates use.
-					document_type: d.document_type ?? "UNKNOWN",
-					kind: d.kind,
-				}));
+				return docs.map<MentionedDocumentInfo>((d) => {
+					const documentType = d.document_type ?? "UNKNOWN";
+					if (d.kind === "connector") {
+						return {
+							id: d.id,
+							title: d.title,
+							document_type: documentType,
+							kind: "connector",
+							connector_type: d.connector_type ?? documentType,
+							account_name: d.account_name ?? d.title,
+						};
+					}
+					if (d.kind === "folder") {
+						return {
+							id: d.id,
+							title: d.title,
+							document_type: FOLDER_MENTION_DOCUMENT_TYPE,
+							kind: "folder",
+						};
+					}
+					return {
+						id: d.id,
+						title: d.title,
+						// Atom requires a string; ``"UNKNOWN"`` matches the
+						// sentinel ``getMentionDocKey`` and the editor's
+						// match predicates use.
+						document_type: documentType,
+						kind: "doc",
+					};
+				});
 			});
 		},
 		[aui, setMentionedDocuments]
@@ -700,6 +722,9 @@ const Composer: FC = () => {
 				}
 				if (e.key === "Escape") {
 					e.preventDefault();
+					if (documentPickerRef.current?.goBack()) {
+						return;
+					}
 					setShowDocumentPopover(false);
 					setMentionQuery("");
 					setSuggestionAnchorPoint(null);

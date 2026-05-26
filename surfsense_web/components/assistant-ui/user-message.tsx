@@ -6,7 +6,7 @@ import {
 	useMessagePartText,
 } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { CheckIcon, CopyIcon, Folder as FolderIcon, Pencil } from "lucide-react";
+import { CheckIcon, CopyIcon, Folder as FolderIcon, Pencil, Plug } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useState } from "react";
@@ -100,8 +100,13 @@ const UserTextPart: FC = () => {
 					return <span key={`txt-${segment.start}`}>{segment.value}</span>;
 				}
 				const isFolder = segment.doc.kind === "folder";
+				const isConnector = segment.doc.kind === "connector";
 				const icon = isFolder ? (
 					<FolderIcon className="size-3.5" />
+				) : isConnector ? (
+					getConnectorIcon(segment.doc.connector_type ?? segment.doc.document_type, "size-3.5") ?? (
+						<Plug className="size-3.5" />
+					)
 				) : (
 					getConnectorIcon(segment.doc.document_type ?? "UNKNOWN", "size-3.5")
 				);
@@ -110,8 +115,16 @@ const UserTextPart: FC = () => {
 						key={`mention-${getMentionDocKey(segment.doc)}-${segment.start}`}
 						icon={icon}
 						label={segment.doc.title}
-						tooltip={isFolder ? `Folder: ${segment.doc.title}` : segment.doc.title}
-						onClick={isFolder ? undefined : () => handleOpenDoc(segment.doc.id, segment.doc.title)}
+						tooltip={
+							isFolder
+								? `Folder: ${segment.doc.title}`
+								: isConnector
+									? `Connector account: ${segment.doc.title}`
+									: segment.doc.title
+						}
+						onClick={
+							isFolder || isConnector ? undefined : () => handleOpenDoc(segment.doc.id, segment.doc.title)
+						}
 						className="mx-0.5"
 					/>
 				);

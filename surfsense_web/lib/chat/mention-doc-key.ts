@@ -1,7 +1,7 @@
 type MentionKeyInput = {
 	id: number;
 	document_type?: string | null;
-	kind?: "doc" | "folder";
+	kind?: "doc" | "folder" | "connector";
 };
 
 /**

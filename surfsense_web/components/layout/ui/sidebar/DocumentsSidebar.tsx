@@ -1063,6 +1063,7 @@ function AuthenticatedDocumentsSidebarBase({
 		const treeDocMap = new Map(treeDocuments.map((d) => [d.id, d]));
 		return sidebarDocs
 			.filter((doc) => {
+				if (doc.kind !== "doc") return false;
 				const fullDoc = treeDocMap.get(doc.id);
 				if (!fullDoc) return false;
 				const state = fullDoc.status?.state ?? "ready";
@@ -1124,7 +1125,7 @@ function AuthenticatedDocumentsSidebarBase({
 			try {
 				await deleteDocumentMutation({ id });
 				toast.success(t("delete_success") || "Document deleted");
-				setSidebarDocs((prev) => prev.filter((d) => d.id !== id));
+				setSidebarDocs((prev) => prev.filter((d) => d.kind !== "doc" || d.id !== id));
 				return true;
 			} catch (e) {
 				console.error("Error deleting document:", e);
@@ -1953,7 +1954,7 @@ function AnonymousDocumentsSidebar({
 						onEditDocument={() => gate("edit documents")}
 						onDeleteDocument={async () => {
 							handleRemoveDoc();
-							setSidebarDocs((prev) => prev.filter((d) => d.id !== -1));
+							setSidebarDocs((prev) => prev.filter((d) => d.kind !== "doc" || d.id !== -1));
 							return true;
 						}}
 						onMoveDocument={() => gate("organize documents")}

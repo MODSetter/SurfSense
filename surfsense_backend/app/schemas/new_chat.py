@@ -218,17 +218,20 @@ class MentionedDocumentInfo(BaseModel):
     id: int
     title: str = Field(..., min_length=1, max_length=500)
     document_type: str = Field(..., min_length=1, max_length=100)
-    kind: Literal["doc", "folder"] = Field(
+    kind: Literal["doc", "folder", "connector"] = Field(
         default="doc",
         description=(
             "Discriminator for the chip's referent: ``doc`` is a "
             "knowledge-base ``Document`` row, ``folder`` is a "
-            "knowledge-base ``Folder`` row. Folders carry the sentinel "
+            "knowledge-base ``Folder`` row, and ``connector`` is a "
+            "concrete connected account. Folders carry the sentinel "
             "``document_type='FOLDER'`` to keep the frontend dedup key "
             "``(kind:document_type:id)`` from colliding doc and folder "
             "ids that happen to share an integer value."
         ),
     )
+    connector_type: str | None = Field(default=None, max_length=100)
+    account_name: str | None = Field(default=None, max_length=255)
 
 
 class NewChatRequest(BaseModel):
@@ -264,6 +267,18 @@ class NewChatRequest(BaseModel):
             "reload renders chips without an extra fetch. Optional and "
             "additive — when None the user message is persisted without "
             "a mentioned-documents part."
+        ),
+    )
+    mentioned_connector_ids: list[int] | None = Field(
+        default=None,
+        description="Optional concrete connector account IDs the user @-mentioned.",
+    )
+    mentioned_connectors: list[MentionedDocumentInfo] | None = Field(
+        default=None,
+        description=(
+            "Display/context metadata for selected connector accounts. "
+            "Kept separate from document/folder id arrays so tools can "
+            "prefer the exact account the user selected."
         ),
     )
     disabled_tools: list[str] | None = (
@@ -335,6 +350,8 @@ class RegenerateRequest(BaseModel):
             "new user message. None means no chip metadata."
         ),
     )
+    mentioned_connector_ids: list[int] | None = None
+    mentioned_connectors: list[MentionedDocumentInfo] | None = None
     disabled_tools: list[str] | None = None
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"

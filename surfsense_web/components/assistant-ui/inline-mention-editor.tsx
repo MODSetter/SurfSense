@@ -1,6 +1,6 @@
 "use client";
 
-import { Folder as FolderIcon, X as XIcon } from "lucide-react";
+import { Folder as FolderIcon, Plug as PlugIcon, X as XIcon } from "lucide-react";
 import type { NodeEntry, TElement } from "platejs";
 import type { PlateElementProps } from "platejs/react";
 import {
@@ -27,13 +27,15 @@ import type { Document } from "@/contracts/types/document.types";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { cn } from "@/lib/utils";
 
-export type MentionKind = "doc" | "folder";
+export type MentionKind = "doc" | "folder" | "connector";
 
 export interface MentionedDocument {
 	id: number;
 	title: string;
 	document_type?: string;
 	kind: MentionKind;
+	connector_type?: string;
+	account_name?: string;
 }
 
 /**
@@ -46,6 +48,8 @@ export type MentionChipInput = {
 	title: string;
 	document_type?: string;
 	kind?: MentionKind;
+	connector_type?: string;
+	account_name?: string;
 };
 
 export type SuggestionAnchorRect = {
@@ -107,6 +111,8 @@ type MentionElementNode = {
 	document_type?: string;
 	/** Discriminator; defaults to ``"doc"`` for legacy nodes. */
 	kind?: MentionKind;
+	connector_type?: string;
+	account_name?: string;
 	statusLabel?: string | null;
 	statusKind?: MentionStatusKind;
 	children: [{ text: "" }];
@@ -146,6 +152,7 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 				: "text-amber-700";
 
 	const isFolder = element.kind === "folder";
+	const isConnector = element.kind === "connector";
 	const ctx = useContext(MentionEditorContext);
 
 	return (
@@ -156,6 +163,10 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 						<span className="flex items-center justify-center transition-opacity group-hover:opacity-0">
 							{isFolder ? (
 								<FolderIcon className="h-3 w-3" />
+							) : isConnector ? (
+								getConnectorIcon(element.connector_type ?? element.document_type ?? "UNKNOWN", "h-3 w-3") ?? (
+									<PlugIcon className="h-3 w-3" />
+								)
 							) : (
 								getConnectorIcon(element.document_type ?? "UNKNOWN", "h-3 w-3")
 							)}
@@ -242,6 +253,8 @@ function getMentionedDocuments(value: ComposerValue): MentionedDocument[] {
 				title: node.title,
 				document_type: node.document_type,
 				kind,
+				connector_type: node.connector_type,
+				account_name: node.account_name,
 			};
 			map.set(getMentionDocKey(doc), doc);
 		}
@@ -444,13 +457,20 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				const removeTriggerText = options?.removeTriggerText ?? true;
 				const kind: MentionKind = mention.kind ?? "doc";
 				const document_type =
-					mention.document_type ?? (kind === "folder" ? FOLDER_MENTION_DOCUMENT_TYPE : undefined);
+					mention.document_type ??
+					(kind === "folder"
+						? FOLDER_MENTION_DOCUMENT_TYPE
+						: kind === "connector"
+							? mention.connector_type
+							: undefined);
 				const mentionNode: MentionElementNode = {
 					type: MENTION_TYPE,
 					id: mention.id,
 					title: mention.title,
 					document_type,
 					kind,
+					connector_type: mention.connector_type,
+					account_name: mention.account_name,
 					children: [{ text: "" }],
 				};
 

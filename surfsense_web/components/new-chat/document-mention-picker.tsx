@@ -2,21 +2,35 @@
 
 import { useQuery as useZeroQuery } from "@rocicorp/zero/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Folder as FolderIcon } from "lucide-react";
+import {
+	BookOpen,
+	ChevronLeft,
+	ChevronRight,
+	Files,
+	Folder as FolderIcon,
+	Plug,
+} from "lucide-react";
 import {
 	forwardRef,
 	useCallback,
 	useDeferredValue,
 	useEffect,
-	useImperativeHandle,
 	useMemo,
 	useRef,
 	useState,
 } from "react";
+import type * as React from "react";
 import {
 	FOLDER_MENTION_DOCUMENT_TYPE,
 	type MentionedDocumentInfo,
 } from "@/atoms/chat/mentioned-documents.atom";
+import { useAtomValue } from "jotai";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
+import {
+	COMPOSIO_CONNECTORS,
+	OAUTH_CONNECTORS,
+} from "@/components/assistant-ui/connector-popup/constants/connector-constants";
+import { getConnectorDisplayName } from "@/components/assistant-ui/connector-popup/tabs/all-connectors-tab";
 import {
 	ComposerSuggestionGroup,
 	ComposerSuggestionGroupHeading,
@@ -26,18 +40,20 @@ import {
 	ComposerSuggestionSeparator,
 	ComposerSuggestionSkeleton,
 } from "@/components/new-chat/composer-suggestion-popup";
+import {
+	type ComposerSuggestionNavigatorRef,
+	type ComposerSuggestionNode,
+	useComposerSuggestionNavigator,
+} from "@/components/new-chat/use-composer-suggestion-navigator";
 import { Spinner } from "@/components/ui/spinner";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { queries } from "@/zero/queries";
 
-export interface DocumentMentionPickerRef {
-	selectHighlighted: () => void;
-	moveUp: () => void;
-	moveDown: () => void;
-}
+export type DocumentMentionPickerRef = ComposerSuggestionNavigatorRef;
 
 interface DocumentMentionPickerProps {
 	searchSpaceId: number;
@@ -51,32 +67,84 @@ const PAGE_SIZE = 20;
 const MIN_SEARCH_LENGTH = 2;
 const DEBOUNCE_MS = 100;
 
-/**
- * Custom debounce hook that delays value updates until user input stabilizes.
- * Preferred over throttling for search inputs as it reduces API request frequency
- * and prevents race conditions from stale responses overtaking recent ones.
- */
+type BrowseView =
+	| { kind: "root" }
+	| { kind: "surfsense-docs" }
+	| { kind: "files-folders" }
+	| { kind: "connectors" }
+	| { kind: "connector-type"; connectorType: string; title: string };
+
+type ResourceNodeValue =
+	| { kind: "view"; view: BrowseView }
+	| { kind: "mention"; mention: MentionedDocumentInfo };
+
 function useDebounced<T>(value: T, delay = DEBOUNCE_MS) {
 	const [debounced, setDebounced] = useState(value);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
 	useEffect(() => {
-		if (timeoutRef.current) {
-			clearTimeout(timeoutRef.current);
-		}
-
-		timeoutRef.current = setTimeout(() => {
-			setDebounced(value);
-		}, delay);
-
+		if (timeoutRef.current) clearTimeout(timeoutRef.current);
+		timeoutRef.current = setTimeout(() => setDebounced(value), delay);
 		return () => {
-			if (timeoutRef.current) {
-				clearTimeout(timeoutRef.current);
-			}
+			if (timeoutRef.current) clearTimeout(timeoutRef.current);
 		};
 	}, [value, delay]);
 
 	return debounced;
+}
+
+function titleForConnectorType(connectorType: string) {
+	const configured =
+		OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
+		COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
+	return (
+		configured?.title ||
+		connectorType
+			.replace(/_/g, " ")
+			.replace(/connector/gi, "")
+			.trim()
+	);
+}
+
+function makeDocMention(doc: Pick<Document, "id" | "title" | "document_type">): MentionedDocumentInfo {
+	return {
+		id: doc.id,
+		title: doc.title,
+		document_type: doc.document_type,
+		kind: "doc",
+	};
+}
+
+function makeFolderMention(folder: { id: number; title: string }): MentionedDocumentInfo {
+	return {
+		id: folder.id,
+		title: folder.title,
+		document_type: FOLDER_MENTION_DOCUMENT_TYPE,
+		kind: "folder",
+	};
+}
+
+function makeConnectorMention(connector: SearchSourceConnector): MentionedDocumentInfo {
+	const accountName = getConnectorDisplayName(connector.name);
+	const connectorTitle = titleForConnectorType(connector.connector_type);
+	return {
+		id: connector.id,
+		title: `${connectorTitle}: ${accountName}`,
+		document_type: connector.connector_type,
+		kind: "connector",
+		connector_type: connector.connector_type,
+		account_name: accountName,
+	};
+}
+
+function mentionMatchesSearch(mention: MentionedDocumentInfo, searchLower: string) {
+	return [
+		mention.title,
+		mention.document_type,
+		mention.kind,
+		mention.kind === "connector" ? mention.connector_type : "",
+		mention.kind === "connector" ? mention.account_name : "",
+	].some((value) => value.toLowerCase().includes(searchLower));
 }
 
 export const DocumentMentionPicker = forwardRef<
@@ -86,18 +154,14 @@ export const DocumentMentionPicker = forwardRef<
 	{ searchSpaceId, onSelectionChange, onDone, initialSelectedDocuments = [], externalSearch = "" },
 	ref
 ) {
-	// Debounced search value to minimize API calls and prevent race conditions
 	const search = externalSearch;
 	const debouncedSearch = useDebounced(search, DEBOUNCE_MS);
-	// Deferred snapshot of debouncedSearch — client-side filtering uses this so it
-	// is treated as a non-urgent update, keeping the input responsive.
 	const deferredSearch = useDeferredValue(debouncedSearch);
-	const [highlightedIndex, setHighlightedIndex] = useState(0);
-	const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
-	const scrollContainerRef = useRef<HTMLDivElement>(null);
-	const shouldScrollRef = useRef(false); // Keyboard navigation scroll flag
+	const hasSearch = debouncedSearch.trim().length > 0;
+	const isSearchValid = debouncedSearch.trim().length >= MIN_SEARCH_LENGTH;
+	const isSingleCharSearch = debouncedSearch.trim().length === 1;
+	const [view, setView] = useState<BrowseView>({ kind: "root" });
 
-	// Pagination state for infinite scroll
 	const [accumulatedDocuments, setAccumulatedDocuments] = useState<
 		Pick<Document, "id" | "title" | "document_type">[]
 	>([]);
@@ -105,32 +169,26 @@ export const DocumentMentionPicker = forwardRef<
 	const [hasMore, setHasMore] = useState(false);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-	// Folders for this search space — pulled from Zero so the picker
-	// stays consistent with the documents sidebar (same source of
-	// truth, automatic updates on rename/delete).
 	const [zeroFolders] = useZeroQuery(queries.folders.bySpace({ searchSpaceId }));
+	const { data: connectors = [], isLoading: isConnectorsLoading } = useAtomValue(connectorsAtom);
+	const paginationScopeKey = useMemo(
+		() => `${searchSpaceId}:${debouncedSearch}`,
+		[searchSpaceId, debouncedSearch]
+	);
+	const previousPaginationScopeKeyRef = useRef<string | null>(null);
 
-	/**
-	 * Search Strategy:
-	 * - Single character (length === 1): Client-side filtering for instant results
-	 * - Two or more characters (length >= 2): Server-side search with pg_trgm index
-	 * This hybrid approach optimizes UX by providing immediate feedback for short queries
-	 * while leveraging efficient database indexing for longer, more specific searches.
-	 */
-	const isSearchValid = debouncedSearch.trim().length >= MIN_SEARCH_LENGTH;
-	const shouldSearch = debouncedSearch.trim().length > 0;
-	const isSingleCharSearch = debouncedSearch.trim().length === 1;
-
-	// Reset pagination state when search query or search space changes.
-	// Documents are not cleared to maintain visual continuity during fetches.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: Intentional reset on search/space change
+	// Reset pagination state when the active search scope changes.
 	useEffect(() => {
+		if (previousPaginationScopeKeyRef.current === paginationScopeKey) return;
+		previousPaginationScopeKeyRef.current = paginationScopeKey;
 		setCurrentPage(0);
 		setHasMore(false);
-		setHighlightedIndex(0);
-	}, [debouncedSearch, searchSpaceId]);
+	}, [paginationScopeKey]);
 
-	// Query parameters for lightweight title search endpoint
+	useEffect(() => {
+		if (hasSearch) setView({ kind: "root" });
+	}, [hasSearch]);
+
 	const titleSearchParams = useMemo(
 		() => ({
 			search_space_id: searchSpaceId,
@@ -146,77 +204,59 @@ export const DocumentMentionPicker = forwardRef<
 			page: 0,
 			page_size: PAGE_SIZE,
 		};
-		if (isSearchValid) {
-			params.title = debouncedSearch.trim();
-		}
+		if (isSearchValid) params.title = debouncedSearch.trim();
 		return params;
 	}, [debouncedSearch, isSearchValid]);
 
-	/**
-	 * TanStack Query for document title search.
-	 * - Uses AbortSignal for automatic request cancellation on query key changes
-	 * - placeholderData: keepPreviousData maintains UI stability during fetches
-	 * - Only triggers server-side search when isSearchValid (2+ characters)
-	 */
 	const { data: titleSearchResults, isLoading: isTitleSearchLoading } = useQuery({
 		queryKey: ["document-titles", titleSearchParams],
 		queryFn: ({ signal }) =>
 			documentsApiService.searchDocumentTitles({ queryParams: titleSearchParams }, signal),
 		staleTime: 60 * 1000,
-		enabled: !!searchSpaceId && currentPage === 0 && (!shouldSearch || isSearchValid),
+		enabled: !!searchSpaceId && currentPage === 0 && (!hasSearch || isSearchValid),
 		placeholderData: keepPreviousData,
 	});
 
-	/**
-	 * TanStack Query for SurfSense documentation.
-	 * - Uses AbortSignal for automatic request cancellation
-	 * - placeholderData: keepPreviousData prevents UI flicker during refetches
-	 */
 	const { data: surfsenseDocs, isLoading: isSurfsenseDocsLoading } = useQuery({
 		queryKey: ["surfsense-docs-mention", debouncedSearch, isSearchValid],
 		queryFn: ({ signal }) =>
 			documentsApiService.getSurfsenseDocs({ queryParams: surfsenseDocsQueryParams }, signal),
 		staleTime: 3 * 60 * 1000,
-		enabled: !shouldSearch || isSearchValid,
+		enabled: !hasSearch || isSearchValid,
 		placeholderData: keepPreviousData,
 	});
 
-	// Post-fetch filter to eliminate false positives from backend fuzzy matching
 	const filterBySearchTerm = useCallback(
 		(docs: Pick<Document, "id" | "title" | "document_type">[]) => {
-			if (!isSearchValid) return docs; // No filtering when not searching
+			if (!isSearchValid) return docs;
 			const searchLower = debouncedSearch.trim().toLowerCase();
 			return docs.filter((doc) => doc.title.toLowerCase().includes(searchLower));
 		},
 		[debouncedSearch, isSearchValid]
 	);
 
-	// Combine and update document list when first page data arrives
 	useEffect(() => {
-		if (currentPage === 0) {
-			const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
+		if (currentPage !== 0) return;
+		const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
 
-			// SurfSense docs displayed first in the list
-			if (surfsenseDocs?.items) {
-				for (const doc of surfsenseDocs.items) {
-					combinedDocs.push({
-						id: doc.id,
-						title: doc.title,
-						document_type: "SURFSENSE_DOCS",
-					});
-				}
+		if (surfsenseDocs?.items) {
+			for (const doc of surfsenseDocs.items) {
+				combinedDocs.push({
+					id: doc.id,
+					title: doc.title,
+					document_type: "SURFSENSE_DOCS",
+				});
 			}
-
-			if (titleSearchResults?.items) {
-				combinedDocs.push(...titleSearchResults.items);
-				setHasMore(titleSearchResults.has_more);
-			}
-
-			setAccumulatedDocuments(filterBySearchTerm(combinedDocs));
 		}
+
+		if (titleSearchResults?.items) {
+			combinedDocs.push(...titleSearchResults.items);
+			setHasMore(titleSearchResults.has_more);
+		}
+
+		setAccumulatedDocuments(filterBySearchTerm(combinedDocs));
 	}, [titleSearchResults, surfsenseDocs, currentPage, filterBySearchTerm]);
 
-	// Load next page for infinite scroll pagination
 	const loadNextPage = useCallback(async () => {
 		if (isLoadingMore || !hasMore) return;
 
@@ -230,9 +270,9 @@ export const DocumentMentionPicker = forwardRef<
 				page_size: PAGE_SIZE,
 				...(isSearchValid ? { title: debouncedSearch.trim() } : {}),
 			};
-			const response: SearchDocumentTitlesResponse = await documentsApiService.searchDocumentTitles(
-				{ queryParams }
-			);
+			const response: SearchDocumentTitlesResponse = await documentsApiService.searchDocumentTitles({
+				queryParams,
+			});
 
 			setAccumulatedDocuments((prev) => [...prev, ...response.items]);
 			setHasMore(response.has_more);
@@ -244,41 +284,12 @@ export const DocumentMentionPicker = forwardRef<
 		}
 	}, [currentPage, hasMore, isLoadingMore, debouncedSearch, searchSpaceId, isSearchValid]);
 
-	// Trigger pagination when user scrolls near the bottom (50px threshold)
-	const handleScroll = useCallback(
-		(e: React.UIEvent<HTMLDivElement>) => {
-			const target = e.currentTarget;
-			const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
-
-			if (scrollBottom < 50 && hasMore && !isLoadingMore) {
-				loadNextPage();
-			}
-		},
-		[hasMore, isLoadingMore, loadNextPage]
-	);
-
-	/**
-	 * Client-side filtering for single character searches.
-	 * Filters cached documents locally for instant feedback without additional API calls.
-	 * Server-side search is reserved for 2+ character queries to leverage database indexing.
-	 * Uses deferredSearch (a deferred snapshot of debouncedSearch) so this memo is treated
-	 * as non-urgent — React can interrupt it to keep the input responsive.
-	 */
-	const clientFilteredDocs = useMemo(() => {
-		if (!isSingleCharSearch) return null;
+	const actualDocuments = useMemo(() => {
+		if (!isSingleCharSearch) return accumulatedDocuments;
 		const searchLower = deferredSearch.trim().toLowerCase();
 		return accumulatedDocuments.filter((doc) => doc.title.toLowerCase().includes(searchLower));
-	}, [isSingleCharSearch, deferredSearch, accumulatedDocuments]);
+	}, [accumulatedDocuments, deferredSearch, isSingleCharSearch]);
 
-	// Select data source based on search length: client-filtered for single char, server results for 2+
-	const actualDocuments = isSingleCharSearch ? (clientFilteredDocs ?? []) : accumulatedDocuments;
-	// Only show loading spinner on initial load (no documents yet), not during subsequent searches
-	const actualLoading =
-		(isTitleSearchLoading || isSurfsenseDocsLoading) &&
-		currentPage === 0 &&
-		!isSingleCharSearch &&
-		accumulatedDocuments.length === 0;
-	// Partition documents by type for grouped UI rendering
 	const surfsenseDocsList = useMemo(
 		() => actualDocuments.filter((doc) => doc.document_type === "SURFSENSE_DOCS"),
 		[actualDocuments]
@@ -287,47 +298,25 @@ export const DocumentMentionPicker = forwardRef<
 		() => actualDocuments.filter((doc) => doc.document_type !== "SURFSENSE_DOCS"),
 		[actualDocuments]
 	);
-
-	// Folder mention candidates filtered by the current search term.
-	// Single-char and server-search both use the same client filter
-	// — folder counts in a workspace are tiny compared to docs, so we
-	// don't need a paged endpoint. Empty search shows all folders.
-	const folderMentions: MentionedDocumentInfo[] = useMemo(() => {
-		const all = (zeroFolders ?? []).map((f) => ({
-			id: f.id,
-			title: f.name,
-			document_type: FOLDER_MENTION_DOCUMENT_TYPE,
-			kind: "folder" as const,
-		}));
-		if (!shouldSearch) return all;
+	const folderMentions = useMemo(() => {
+		const all = (zeroFolders ?? []).map((f) => makeFolderMention({ id: f.id, title: f.name }));
+		if (!hasSearch) return all;
 		const needle = (isSingleCharSearch ? deferredSearch : debouncedSearch).trim().toLowerCase();
 		if (!needle) return all;
 		return all.filter((f) => f.title.toLowerCase().includes(needle));
-	}, [zeroFolders, debouncedSearch, deferredSearch, isSingleCharSearch, shouldSearch]);
+	}, [zeroFolders, debouncedSearch, deferredSearch, isSingleCharSearch, hasSearch]);
 
-	// Doc-shape entries reuse their ``document_type`` discriminator;
-	// folder entries lift the existing kind-aware key so the same
-	// matchers used by the chip atom apply unchanged.
+	const connectorMentions = useMemo(
+		() => connectors.filter((c) => c.is_active).map(makeConnectorMention),
+		[connectors]
+	);
+
 	const selectedKeys = useMemo(
 		() => new Set(initialSelectedDocuments.map((d) => getMentionDocKey(d))),
 		[initialSelectedDocuments]
 	);
 
-	// Combined navigation order: SurfSense docs -> User docs -> Folders.
-	// Mirrors the on-screen ordering so keyboard arrows match what the
-	// user sees.
-	const selectableMentions = useMemo<MentionedDocumentInfo[]>(() => {
-		const docs: MentionedDocumentInfo[] = actualDocuments.map((doc) => ({
-			id: doc.id,
-			title: doc.title,
-			document_type: doc.document_type,
-			kind: "doc" as const,
-		}));
-		const ordered = [...docs, ...folderMentions];
-		return ordered.filter((m) => !selectedKeys.has(getMentionDocKey(m)));
-	}, [actualDocuments, folderMentions, selectedKeys]);
-
-	const handleSelectMention = useCallback(
+	const selectMention = useCallback(
 		(mention: MentionedDocumentInfo) => {
 			onSelectionChange([...initialSelectedDocuments, mention]);
 			onDone();
@@ -335,258 +324,303 @@ export const DocumentMentionPicker = forwardRef<
 		[initialSelectedDocuments, onSelectionChange, onDone]
 	);
 
-	// Auto-scroll highlighted item into view (keyboard navigation only, not mouse hover)
-	useEffect(() => {
-		if (!shouldScrollRef.current) {
-			return;
-		}
-		shouldScrollRef.current = false;
-
-		const rafId = requestAnimationFrame(() => {
-			const item = itemRefs.current.get(highlightedIndex);
-			const container = scrollContainerRef.current;
-
-			if (item && container) {
-				const itemRect = item.getBoundingClientRect();
-				const containerRect = container.getBoundingClientRect();
-				const padding = 8;
-				const isAboveViewport = itemRect.top < containerRect.top + padding;
-				const isBelowViewport = itemRect.bottom > containerRect.bottom - padding;
-
-				if (isAboveViewport || isBelowViewport) {
-					const itemOffsetTop = item.offsetTop;
-					const containerHeight = container.clientHeight;
-					const itemHeight = item.offsetHeight;
-					const targetScrollTop = itemOffsetTop - containerHeight / 2 + itemHeight / 2;
-					const maxScrollTop = container.scrollHeight - containerHeight;
-					const clampedScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
-
-					container.scrollTo({
-						top: clampedScrollTop,
-						behavior: "smooth",
-					});
-				}
-			}
-		});
-
-		return () => cancelAnimationFrame(rafId);
-	}, [highlightedIndex]);
-
-	// Reset highlight position when search query changes
-	const prevSearchRef = useRef(search);
-	if (prevSearchRef.current !== search) {
-		prevSearchRef.current = search;
-		if (highlightedIndex !== 0) {
-			setHighlightedIndex(0);
-		}
-	}
-
-	// Expose navigation and selection methods to parent component via ref
-	useImperativeHandle(
-		ref,
-		() => ({
-			selectHighlighted: () => {
-				if (selectableMentions[highlightedIndex]) {
-					handleSelectMention(selectableMentions[highlightedIndex]);
-				}
+	const rootNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(
+		() => [
+			{
+				id: "surfsense-docs",
+				label: "SurfSense Docs",
+				subtitle: "Browse product documentation",
+				icon: <BookOpen className="size-4" />,
+				type: "branch",
+				value: { kind: "view", view: { kind: "surfsense-docs" } },
 			},
-			moveUp: () => {
-				shouldScrollRef.current = true;
-				setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableMentions.length - 1));
+			{
+				id: "files-folders",
+				label: "Files & Folders",
+				subtitle: "Browse your knowledge base",
+				icon: <Files className="size-4" />,
+				type: "branch",
+				value: { kind: "view", view: { kind: "files-folders" } },
 			},
-			moveDown: () => {
-				shouldScrollRef.current = true;
-				setHighlightedIndex((prev) => (prev < selectableMentions.length - 1 ? prev + 1 : 0));
+			{
+				id: "connectors",
+				label: "Connectors",
+				subtitle: connectors.length
+					? "Choose the exact account for tool use"
+					: "No connected accounts yet",
+				icon: <Plug className="size-4" />,
+				type: "branch",
+				disabled: connectors.length === 0,
+				value: { kind: "view", view: { kind: "connectors" } },
 			},
-		}),
-		[selectableMentions, highlightedIndex, handleSelectMention]
+		],
+		[connectors.length]
 	);
 
-	// Keyboard navigation handler for arrow keys, Enter, and Escape
-	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent) => {
-			if (selectableMentions.length === 0) return;
+	const searchNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
+		const searchLower = (isSingleCharSearch ? deferredSearch : debouncedSearch).trim().toLowerCase();
+		const docNodes = actualDocuments.map((doc) => {
+			const mention = makeDocMention(doc);
+			return {
+				id: getMentionDocKey(mention),
+				label: doc.title,
+				icon: getConnectorIcon(doc.document_type, "size-4"),
+				type: "item" as const,
+				disabled: selectedKeys.has(getMentionDocKey(mention)),
+				value: { kind: "mention" as const, mention },
+			};
+		});
+		const folderNodes = folderMentions.map((mention) => ({
+			id: getMentionDocKey(mention),
+			label: mention.title,
+			subtitle: "Folder",
+			icon: <FolderIcon className="size-4" />,
+			type: "item" as const,
+			disabled: selectedKeys.has(getMentionDocKey(mention)),
+			value: { kind: "mention" as const, mention },
+		}));
+		const connectorNodes = connectorMentions
+			.filter((mention) => !searchLower || mentionMatchesSearch(mention, searchLower))
+			.map((mention) => ({
+				id: getMentionDocKey(mention),
+				label: mention.title,
+				subtitle: "Connector account",
+				icon: getConnectorIcon(mention.document_type, "size-4") ?? <Plug className="size-4" />,
+				type: "item" as const,
+				disabled: selectedKeys.has(getMentionDocKey(mention)),
+				value: { kind: "mention" as const, mention },
+			}));
 
-			switch (e.key) {
-				case "ArrowDown":
-					e.preventDefault();
-					shouldScrollRef.current = true;
-					setHighlightedIndex((prev) => (prev < selectableMentions.length - 1 ? prev + 1 : 0));
-					break;
-				case "ArrowUp":
-					e.preventDefault();
-					shouldScrollRef.current = true;
-					setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableMentions.length - 1));
-					break;
-				case "Enter":
-					e.preventDefault();
-					if (selectableMentions[highlightedIndex]) {
-						handleSelectMention(selectableMentions[highlightedIndex]);
-					}
-					break;
-				case "Escape":
-					e.preventDefault();
-					onDone();
-					break;
+		return [...docNodes, ...folderNodes, ...connectorNodes];
+	}, [
+		actualDocuments,
+		connectorMentions,
+		debouncedSearch,
+		deferredSearch,
+		folderMentions,
+		isSingleCharSearch,
+		selectedKeys,
+	]);
+
+	const connectorTypeEntries = useMemo(() => {
+		const byType = new Map<string, SearchSourceConnector[]>();
+		for (const connector of connectors.filter((c) => c.is_active)) {
+			const list = byType.get(connector.connector_type) ?? [];
+			list.push(connector);
+			byType.set(connector.connector_type, list);
+		}
+		return Array.from(byType.entries()).sort(([a], [b]) =>
+			titleForConnectorType(a).localeCompare(titleForConnectorType(b))
+		);
+	}, [connectors]);
+
+	const browseNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
+		if (view.kind === "root") return rootNodes;
+		if (view.kind === "surfsense-docs") {
+			return surfsenseDocsList.map((doc) => {
+				const mention = makeDocMention(doc);
+				return {
+					id: getMentionDocKey(mention),
+					label: doc.title,
+					icon: getConnectorIcon(doc.document_type, "size-4"),
+					type: "item" as const,
+					disabled: selectedKeys.has(getMentionDocKey(mention)),
+					value: { kind: "mention" as const, mention },
+				};
+			});
+		}
+		if (view.kind === "files-folders") {
+			const folders = folderMentions.map((mention) => ({
+				id: getMentionDocKey(mention),
+				label: mention.title,
+				subtitle: "Folder",
+				icon: <FolderIcon className="size-4" />,
+				type: "item" as const,
+				disabled: selectedKeys.has(getMentionDocKey(mention)),
+				value: { kind: "mention" as const, mention },
+			}));
+			const docs = userDocsList.map((doc) => {
+				const mention = makeDocMention(doc);
+				return {
+					id: getMentionDocKey(mention),
+					label: doc.title,
+					icon: getConnectorIcon(doc.document_type, "size-4"),
+					type: "item" as const,
+					disabled: selectedKeys.has(getMentionDocKey(mention)),
+					value: { kind: "mention" as const, mention },
+				};
+			});
+			return [...folders, ...docs];
+		}
+		if (view.kind === "connectors") {
+			return connectorTypeEntries.map(([connectorType, typeConnectors]) => ({
+				id: `connector-type:${connectorType}`,
+				label: titleForConnectorType(connectorType),
+				subtitle: `${typeConnectors.length} ${typeConnectors.length === 1 ? "account" : "accounts"}`,
+				icon: getConnectorIcon(connectorType, "size-4") ?? <Plug className="size-4" />,
+				type: "branch" as const,
+				value: {
+					kind: "view" as const,
+					view: {
+						kind: "connector-type" as const,
+						connectorType,
+						title: titleForConnectorType(connectorType),
+					},
+				},
+			}));
+		}
+		return connectors
+			.filter((connector) => connector.is_active && connector.connector_type === view.connectorType)
+			.map((connector) => {
+				const mention = makeConnectorMention(connector);
+				return {
+					id: getMentionDocKey(mention),
+					label: getConnectorDisplayName(connector.name),
+					subtitle: `${view.title} account`,
+					icon: getConnectorIcon(connector.connector_type, "size-4") ?? <Plug className="size-4" />,
+					type: "item" as const,
+					disabled: selectedKeys.has(getMentionDocKey(mention)),
+					value: { kind: "mention" as const, mention },
+				};
+			});
+	}, [
+		connectors,
+		connectorTypeEntries,
+		folderMentions,
+		rootNodes,
+		selectedKeys,
+		surfsenseDocsList,
+		userDocsList,
+		view,
+	]);
+
+	const visibleNodes = hasSearch ? searchNodes : browseNodes;
+	const handleNodeSelect = useCallback(
+		(node: ComposerSuggestionNode<ResourceNodeValue>) => {
+			const value = node.value;
+			if (!value) return;
+			if (value.kind === "view") {
+				setView(value.view);
+				return;
+			}
+			selectMention(value.mention);
+		},
+		[selectMention]
+	);
+	const handleBack = useCallback(() => {
+		if (hasSearch || view.kind === "root") return false;
+		if (view.kind === "connector-type") {
+			setView({ kind: "connectors" });
+			return true;
+		}
+		setView({ kind: "root" });
+		return true;
+	}, [hasSearch, view]);
+
+	const navigator = useComposerSuggestionNavigator({
+		nodes: visibleNodes,
+		onSelect: handleNodeSelect,
+		onBack: handleBack,
+		ref,
+	});
+
+	const handleScroll = useCallback(
+		(e: React.UIEvent<HTMLDivElement>) => {
+			if (view.kind === "connectors" || view.kind === "connector-type") return;
+			const target = e.currentTarget;
+			const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+
+			if (scrollBottom < 50 && hasMore && !isLoadingMore) {
+				loadNextPage();
 			}
 		},
-		[selectableMentions, highlightedIndex, handleSelectMention, onDone]
+		[hasMore, isLoadingMore, loadNextPage, view.kind]
 	);
+
+	const actualLoading =
+		(isTitleSearchLoading || isSurfsenseDocsLoading || isConnectorsLoading) &&
+		!isSingleCharSearch &&
+		visibleNodes.length === 0 &&
+		(view.kind === "root" || hasSearch);
+
+	const title =
+		hasSearch || view.kind === "root"
+			? null
+			: view.kind === "surfsense-docs"
+				? "SurfSense Docs"
+				: view.kind === "files-folders"
+					? "Files & Folders"
+					: view.kind === "connectors"
+						? "Connectors"
+						: view.title;
 
 	return (
 		<ComposerSuggestionList
-			ref={scrollContainerRef}
-			onKeyDown={handleKeyDown}
+			ref={navigator.scrollContainerRef}
 			onScroll={handleScroll}
 			role="listbox"
 			tabIndex={-1}
 		>
 			{actualLoading ? (
 				<ComposerSuggestionSkeleton />
-			) : actualDocuments.length > 0 || folderMentions.length > 0 ? (
+			) : (
 				<ComposerSuggestionGroup>
-					{/* SurfSense Documentation */}
-					{surfsenseDocsList.length > 0 && (
+					{title ? (
 						<>
-							<ComposerSuggestionGroupHeading>SurfSense Docs</ComposerSuggestionGroupHeading>
-							{surfsenseDocsList.map((doc) => {
-								const mention: MentionedDocumentInfo = {
-									id: doc.id,
-									title: doc.title,
-									document_type: doc.document_type,
-									kind: "doc",
-								};
-								const docKey = getMentionDocKey(mention);
-								const isAlreadySelected = selectedKeys.has(docKey);
-								const selectableIndex = selectableMentions.findIndex(
-									(m) => getMentionDocKey(m) === docKey
-								);
-								const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
-
-								return (
-									<ComposerSuggestionItem
-										key={docKey}
-										ref={(el) => {
-											if (el && selectableIndex >= 0) itemRefs.current.set(selectableIndex, el);
-											else if (selectableIndex >= 0) itemRefs.current.delete(selectableIndex);
-										}}
-										icon={getConnectorIcon(doc.document_type)}
-										selected={isHighlighted}
-										disabled={isAlreadySelected}
-										onClick={() => !isAlreadySelected && handleSelectMention(mention)}
-										onMouseEnter={() => {
-											if (!isAlreadySelected && selectableIndex >= 0) {
-												setHighlightedIndex(selectableIndex);
-											}
-										}}
-									>
-										<span className="flex-1 truncate text-sm" title={doc.title}>
-											{doc.title}
-										</span>
-									</ComposerSuggestionItem>
-								);
-							})}
+							<ComposerSuggestionItem
+								icon={<ChevronLeft className="size-4" />}
+								muted
+								onClick={handleBack}
+							>
+								<span className="flex-1 truncate text-sm">{title}</span>
+							</ComposerSuggestionItem>
+							<ComposerSuggestionSeparator />
 						</>
+					) : null}
+
+					{visibleNodes.length > 0 ? (
+						<>
+							{hasSearch ? (
+								<ComposerSuggestionGroupHeading>Suggested Context</ComposerSuggestionGroupHeading>
+							) : null}
+							{visibleNodes.map((node, index) => (
+								<ComposerSuggestionItem
+									key={node.id}
+									ref={navigator.getItemRef(index)}
+									icon={node.icon}
+									selected={index === navigator.highlightedIndex}
+									disabled={node.disabled}
+									onClick={() => !node.disabled && handleNodeSelect(node)}
+									onMouseEnter={() => navigator.setHighlightedIndex(index)}
+								>
+									<span className="min-w-0 flex-1">
+										<span className="block truncate text-sm" title={node.label}>
+											{node.label}
+										</span>
+										{node.subtitle ? (
+											<span className="block truncate text-[11px] text-muted-foreground">
+												{node.subtitle}
+											</span>
+										) : null}
+									</span>
+									{node.type === "branch" ? (
+										<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+									) : null}
+								</ComposerSuggestionItem>
+							))}
+						</>
+					) : (
+						<ComposerSuggestionMessage>
+							{hasSearch ? "No matching context" : "No items available"}
+						</ComposerSuggestionMessage>
 					)}
 
-					{/* User Documents */}
-					{userDocsList.length > 0 && (
-						<>
-							{surfsenseDocsList.length > 0 && <ComposerSuggestionSeparator className="my-4" />}
-							<ComposerSuggestionGroupHeading>Your Documents</ComposerSuggestionGroupHeading>
-							{userDocsList.map((doc) => {
-								const mention: MentionedDocumentInfo = {
-									id: doc.id,
-									title: doc.title,
-									document_type: doc.document_type,
-									kind: "doc",
-								};
-								const docKey = getMentionDocKey(mention);
-								const isAlreadySelected = selectedKeys.has(docKey);
-								const selectableIndex = selectableMentions.findIndex(
-									(m) => getMentionDocKey(m) === docKey
-								);
-								const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
-
-								return (
-									<ComposerSuggestionItem
-										key={docKey}
-										ref={(el) => {
-											if (el && selectableIndex >= 0) itemRefs.current.set(selectableIndex, el);
-											else if (selectableIndex >= 0) itemRefs.current.delete(selectableIndex);
-										}}
-										icon={getConnectorIcon(doc.document_type)}
-										selected={isHighlighted}
-										disabled={isAlreadySelected}
-										onClick={() => !isAlreadySelected && handleSelectMention(mention)}
-										onMouseEnter={() => {
-											if (!isAlreadySelected && selectableIndex >= 0) {
-												setHighlightedIndex(selectableIndex);
-											}
-										}}
-									>
-										<span className="flex-1 truncate text-sm" title={doc.title}>
-											{doc.title}
-										</span>
-									</ComposerSuggestionItem>
-								);
-							})}
-						</>
-					)}
-
-					{/* Folders — single source of truth is Zero (same store
-					    that powers the documents sidebar). Selecting a
-					    folder inserts a folder chip whose path the agent
-					    can walk with ``ls`` / ``find_documents``. */}
-					{folderMentions.length > 0 && (
-						<>
-							{(surfsenseDocsList.length > 0 || userDocsList.length > 0) && (
-								<ComposerSuggestionSeparator className="my-4" />
-							)}
-							<ComposerSuggestionGroupHeading>Folders</ComposerSuggestionGroupHeading>
-							{folderMentions.map((folder) => {
-								const folderKey = getMentionDocKey(folder);
-								const isAlreadySelected = selectedKeys.has(folderKey);
-								const selectableIndex = selectableMentions.findIndex(
-									(m) => getMentionDocKey(m) === folderKey
-								);
-								const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
-
-								return (
-									<ComposerSuggestionItem
-										key={folderKey}
-										ref={(el) => {
-											if (el && selectableIndex >= 0) itemRefs.current.set(selectableIndex, el);
-											else if (selectableIndex >= 0) itemRefs.current.delete(selectableIndex);
-										}}
-										icon={<FolderIcon className="size-4" />}
-										selected={isHighlighted}
-										disabled={isAlreadySelected}
-										onClick={() => !isAlreadySelected && handleSelectMention(folder)}
-										onMouseEnter={() => {
-											if (!isAlreadySelected && selectableIndex >= 0) {
-												setHighlightedIndex(selectableIndex);
-											}
-										}}
-									>
-										<span className="flex-1 truncate text-sm" title={folder.title}>
-											{folder.title}
-										</span>
-									</ComposerSuggestionItem>
-								);
-							})}
-						</>
-					)}
-
-					{/* Pagination loading indicator */}
 					{isLoadingMore && (
 						<div className="flex items-center justify-center py-2 text-primary">
 							<Spinner size="sm" />
 						</div>
 					)}
 				</ComposerSuggestionGroup>
-			) : (
-				<ComposerSuggestionMessage>No matching documents</ComposerSuggestionMessage>
 			)}
 		</ComposerSuggestionList>
 	);
