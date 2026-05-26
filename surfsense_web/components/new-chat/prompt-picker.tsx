@@ -142,12 +142,12 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 								if (el) itemRefs.current.set(index, el);
 								else itemRefs.current.delete(index);
 							}}
-							icon={<WandSparkles className="size-4" />}
+							icon={<WandSparkles className="size-3.5" />}
 							selected={index === highlightedIndex}
 							onClick={() => handleSelect(index)}
 							onMouseEnter={() => setHighlightedIndex(index)}
 						>
-							<span className="flex-1 truncate text-sm">{action.name}</span>
+							<span className="flex-1 truncate text-xs">{action.name}</span>
 						</ComposerSuggestionItem>
 					))}
 
@@ -157,7 +157,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 							if (el) itemRefs.current.set(createPromptIndex, el);
 							else itemRefs.current.delete(createPromptIndex);
 						}}
-						icon={<Plus className="size-4" />}
+						icon={<Plus className="size-3.5" />}
 						muted
 						selected={highlightedIndex === createPromptIndex}
 						onClick={() => handleSelect(createPromptIndex)}

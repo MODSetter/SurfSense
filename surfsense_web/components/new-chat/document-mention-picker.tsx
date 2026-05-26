@@ -11,7 +11,9 @@ import {
 	Unplug,
 } from "lucide-react";
 import {
+	Fragment,
 	forwardRef,
+	type UIEvent,
 	useCallback,
 	useDeferredValue,
 	useEffect,
@@ -19,7 +21,6 @@ import {
 	useRef,
 	useState,
 } from "react";
-import type * as React from "react";
 import type { MentionedDocumentInfo } from "@/atoms/chat/mentioned-documents.atom";
 import { useAtomValue } from "jotai";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
@@ -61,6 +62,8 @@ interface DocumentMentionPickerProps {
 const PAGE_SIZE = 20;
 const MIN_SEARCH_LENGTH = 2;
 const DEBOUNCE_MS = 100;
+const RECENTS_LIMIT = 3;
+const RECENTS_STORAGE_PREFIX = "surfsense:composer-mention-recents:v1:";
 
 type BrowseView =
 	| { kind: "root" }
@@ -75,6 +78,89 @@ type ResourceNodeValue =
 
 function isConnectorActive(connector: SearchSourceConnector) {
 	return connector.is_active !== false;
+}
+
+function isMentionedContextItem(value: unknown): value is MentionedDocumentInfo {
+	if (!value || typeof value !== "object") return false;
+	const item = value as Partial<MentionedDocumentInfo>;
+	if (typeof item.id !== "number" || typeof item.title !== "string") return false;
+	if (item.kind === "doc") return typeof item.document_type === "string";
+	if (item.kind === "folder") return true;
+	if (item.kind === "connector") {
+		return typeof item.connector_type === "string" && typeof item.account_name === "string";
+	}
+	return false;
+}
+
+function getRecentsStorageKey(searchSpaceId: number) {
+	return `${RECENTS_STORAGE_PREFIX}${searchSpaceId}`;
+}
+
+function readRecentMentions(searchSpaceId: number): MentionedDocumentInfo[] {
+	if (typeof window === "undefined") return [];
+	try {
+		const raw = window.localStorage.getItem(getRecentsStorageKey(searchSpaceId));
+		if (!raw) return [];
+		const parsed: unknown = JSON.parse(raw);
+		if (!Array.isArray(parsed)) return [];
+		return parsed.filter(isMentionedContextItem).slice(0, RECENTS_LIMIT);
+	} catch {
+		return [];
+	}
+}
+
+function writeRecentMentions(searchSpaceId: number, mentions: MentionedDocumentInfo[]) {
+	if (typeof window === "undefined") return;
+	try {
+		window.localStorage.setItem(
+			getRecentsStorageKey(searchSpaceId),
+			JSON.stringify(mentions.slice(0, RECENTS_LIMIT))
+		);
+	} catch {
+		// Recents are optional UI state; storage failures should not block mention insertion.
+	}
+}
+
+export function promoteRecentMention(searchSpaceId: number, mention: MentionedDocumentInfo) {
+	const mentionKey = getMentionDocKey(mention);
+	const next = [
+		mention,
+		...readRecentMentions(searchSpaceId).filter((item) => getMentionDocKey(item) !== mentionKey),
+	].slice(0, RECENTS_LIMIT);
+	writeRecentMentions(searchSpaceId, next);
+	return next;
+}
+
+function getMentionIcon(mention: MentionedDocumentInfo) {
+	if (mention.kind === "folder") return <FolderIcon className="size-4" />;
+	if (mention.kind === "connector") {
+		return getConnectorIcon(mention.connector_type, "size-4") ?? <Unplug className="size-4" />;
+	}
+	return getConnectorIcon(mention.document_type, "size-4");
+}
+
+function refreshRecentMention(
+	mention: MentionedDocumentInfo,
+	documents: Pick<Document, "id" | "title" | "document_type">[],
+	folders: { id: number; name: string }[],
+	connectors: SearchSourceConnector[],
+	hasHydratedRecentDocs: boolean
+): MentionedDocumentInfo | null {
+	if (mention.kind === "doc") {
+		const doc = documents.find(
+			(item) => item.id === mention.id && item.document_type === mention.document_type
+		);
+		if (doc) return makeDocMention(doc);
+		return hasHydratedRecentDocs ? null : mention;
+	}
+	if (mention.kind === "folder") {
+		const folder = folders.find((item) => item.id === mention.id);
+		return folder ? makeFolderMention({ id: folder.id, title: folder.name }) : null;
+	}
+	const connector = connectors.find(
+		(item) => item.id === mention.id && item.connector_type === mention.connector_type
+	);
+	return connector ? makeConnectorMention(connector) : null;
 }
 
 function useDebounced<T>(value: T, delay = DEBOUNCE_MS) {
@@ -156,6 +242,9 @@ export const DocumentMentionPicker = forwardRef<
 	const [currentPage, setCurrentPage] = useState(0);
 	const [hasMore, setHasMore] = useState(false);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
+	const [recentMentions, setRecentMentions] = useState<MentionedDocumentInfo[]>(() =>
+		readRecentMentions(searchSpaceId)
+	);
 
 	const [zeroFolders] = useZeroQuery(queries.folders.bySpace({ searchSpaceId }));
 	const { data: connectors = [], isLoading: isConnectorsLoading } = useAtomValue(connectorsAtom);
@@ -177,6 +266,10 @@ export const DocumentMentionPicker = forwardRef<
 	useEffect(() => {
 		if (hasSearch) setView({ kind: "root" });
 	}, [hasSearch]);
+
+	useEffect(() => {
+		setRecentMentions(readRecentMentions(searchSpaceId));
+	}, [searchSpaceId]);
 
 	const titleSearchParams = useMemo(
 		() => ({
@@ -226,24 +319,24 @@ export const DocumentMentionPicker = forwardRef<
 
 	useEffect(() => {
 		if (currentPage !== 0) return;
-		const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
+			const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
 
-		if (surfsenseDocs?.items) {
-			for (const doc of surfsenseDocs.items) {
-				combinedDocs.push({
-					id: doc.id,
-					title: doc.title,
-					document_type: "SURFSENSE_DOCS",
-				});
+			if (surfsenseDocs?.items) {
+				for (const doc of surfsenseDocs.items) {
+					combinedDocs.push({
+						id: doc.id,
+						title: doc.title,
+						document_type: "SURFSENSE_DOCS",
+					});
+				}
 			}
-		}
 
-		if (titleSearchResults?.items) {
-			combinedDocs.push(...titleSearchResults.items);
-			setHasMore(titleSearchResults.has_more);
-		}
+			if (titleSearchResults?.items) {
+				combinedDocs.push(...titleSearchResults.items);
+				setHasMore(titleSearchResults.has_more);
+			}
 
-		setAccumulatedDocuments(filterBySearchTerm(combinedDocs));
+			setAccumulatedDocuments(filterBySearchTerm(combinedDocs));
 	}, [titleSearchResults, surfsenseDocs, currentPage, filterBySearchTerm]);
 
 	const loadNextPage = useCallback(async () => {
@@ -299,6 +392,47 @@ export const DocumentMentionPicker = forwardRef<
 		() => activeConnectors.map(makeConnectorMention),
 		[activeConnectors]
 	);
+	const recentDocMentions = useMemo(
+		() => recentMentions.filter((mention) => mention.kind === "doc"),
+		[recentMentions]
+	);
+	const recentDocIdsKey = useMemo(
+		() => recentDocMentions.map((mention) => mention.id).join(","),
+		[recentDocMentions]
+	);
+	const { data: hydratedRecentDocs = [], isFetched: hasHydratedRecentDocs } = useQuery({
+		queryKey: ["composer-mention-recent-docs", searchSpaceId, recentDocIdsKey],
+		queryFn: async () => {
+			const results = await Promise.allSettled(
+				recentDocMentions.map((mention) => documentsApiService.getDocument({ id: mention.id }))
+			);
+			return results
+				.map((result) => (result.status === "fulfilled" ? result.value : null))
+				.filter((doc): doc is Document => doc !== null);
+		},
+		enabled: recentDocMentions.length > 0,
+		staleTime: 60 * 1000,
+	});
+	const recentValidationDocuments = useMemo(
+		() => [...actualDocuments, ...hydratedRecentDocs],
+		[actualDocuments, hydratedRecentDocs]
+	);
+	const visibleRecentMentions = useMemo(
+		() =>
+			recentMentions
+				.map((mention) =>
+					refreshRecentMention(
+						mention,
+						recentValidationDocuments,
+						zeroFolders ?? [],
+						activeConnectors,
+						hasHydratedRecentDocs
+					)
+				)
+				.filter((mention): mention is MentionedDocumentInfo => mention !== null)
+				.slice(0, RECENTS_LIMIT),
+		[activeConnectors, hasHydratedRecentDocs, recentMentions, recentValidationDocuments, zeroFolders]
+	);
 
 	const selectedKeys = useMemo(
 		() => new Set(initialSelectedDocuments.map((d) => getMentionDocKey(d))),
@@ -313,10 +447,22 @@ export const DocumentMentionPicker = forwardRef<
 		},
 		[initialSelectedDocuments, onSelectionChange, onDone]
 	);
+	const recentRootNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(
+		() =>
+			visibleRecentMentions.map((mention) => ({
+				id: `recent:${getMentionDocKey(mention)}`,
+				label: mention.title,
+				icon: getMentionIcon(mention),
+				type: "item" as const,
+				disabled: selectedKeys.has(getMentionDocKey(mention)),
+				value: { kind: "mention" as const, mention },
+			})),
+		[visibleRecentMentions, selectedKeys]
+	);
 
 	const rootNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(
 		() => {
-			const nodes: ComposerSuggestionNode<ResourceNodeValue>[] = [];
+			const nodes: ComposerSuggestionNode<ResourceNodeValue>[] = [...recentRootNodes];
 			if (showSurfsenseDocsRootRef.current) {
 				nodes.push({
 					id: "surfsense-docs",
@@ -350,7 +496,7 @@ export const DocumentMentionPicker = forwardRef<
 			);
 			return nodes;
 		},
-		[activeConnectors.length]
+		[activeConnectors.length, recentRootNodes]
 	);
 
 	const searchNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
@@ -519,10 +665,11 @@ export const DocumentMentionPicker = forwardRef<
 		onBack: handleBack,
 		ref,
 	});
+	const canLoadMoreDocuments = hasSearch || view.kind === "files-folders";
 
 	const handleScroll = useCallback(
-		(e: React.UIEvent<HTMLDivElement>) => {
-			if (view.kind === "connectors" || view.kind === "connector-type") return;
+		(e: UIEvent<HTMLDivElement>) => {
+			if (!canLoadMoreDocuments) return;
 			const target = e.currentTarget;
 			const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
 
@@ -530,7 +677,7 @@ export const DocumentMentionPicker = forwardRef<
 				loadNextPage();
 			}
 		},
-		[hasMore, isLoadingMore, loadNextPage, view.kind]
+		[canLoadMoreDocuments, hasMore, isLoadingMore, loadNextPage]
 	);
 
 	const actualLoading =
@@ -564,15 +711,21 @@ export const DocumentMentionPicker = forwardRef<
 					{title ? (
 						<>
 							<ComposerSuggestionHeader
+								role="button"
+								tabIndex={0}
+								aria-label={`Back from ${title}`}
+								onClick={handleBack}
+								onKeyDown={(event) => {
+									if (event.key === "Enter" || event.key === " ") {
+										event.preventDefault();
+										handleBack();
+									}
+								}}
+								className="cursor-pointer rounded-sm transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 								icon={
-									<button
-										type="button"
-										onClick={handleBack}
-										aria-label="Back"
-										className="-ml-0.5 flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-									>
-										<ChevronLeft className="size-4" />
-									</button>
+									<span className="-ml-0.5 flex size-4.5 items-center justify-center">
+										<ChevronLeft className="size-3.5" />
+										</span>
 								}
 							>
 								<span className="flex-1 truncate">{title}</span>
@@ -586,31 +739,43 @@ export const DocumentMentionPicker = forwardRef<
 							{hasSearch ? (
 								<ComposerSuggestionGroupHeading>Suggested Context</ComposerSuggestionGroupHeading>
 							) : null}
-							{visibleNodes.map((node, index) => (
-								<ComposerSuggestionItem
-									key={node.id}
-									ref={navigator.getItemRef(index)}
-									icon={node.icon}
-									selected={index === navigator.highlightedIndex}
-									disabled={node.disabled}
-									onClick={() => !node.disabled && handleNodeSelect(node)}
-									onMouseEnter={() => navigator.setHighlightedIndex(index)}
-								>
-									<span className="min-w-0 flex-1">
-										<span className="block truncate text-sm" title={node.label}>
-											{node.label}
+							{!hasSearch && view.kind === "root" && recentRootNodes.length > 0 ? (
+								<ComposerSuggestionGroupHeading>Recents</ComposerSuggestionGroupHeading>
+							) : null}
+							{visibleNodes.map((node, index) => {
+								const showRecentsSeparator =
+									!hasSearch &&
+									view.kind === "root" &&
+									recentRootNodes.length > 0 &&
+									index === recentRootNodes.length;
+								return (
+									<Fragment key={node.id}>
+										{showRecentsSeparator ? <ComposerSuggestionSeparator /> : null}
+									<ComposerSuggestionItem
+											ref={navigator.getItemRef(index)}
+											icon={node.icon}
+											selected={index === navigator.highlightedIndex}
+											disabled={node.disabled}
+											onClick={() => !node.disabled && handleNodeSelect(node)}
+											onMouseEnter={() => navigator.setHighlightedIndex(index)}
+										>
+											<span className="min-w-0 flex-1">
+												<span className="block truncate text-xs" title={node.label}>
+													{node.label}
+												</span>
+												{node.subtitle ? (
+													<span className="block truncate text-[10px] text-muted-foreground">
+														{node.subtitle}
+													</span>
+												) : null}
 										</span>
-										{node.subtitle ? (
-											<span className="block truncate text-[11px] text-muted-foreground">
-												{node.subtitle}
-											</span>
-										) : null}
-									</span>
-									{node.type === "branch" ? (
-										<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-									) : null}
-								</ComposerSuggestionItem>
-							))}
+											{node.type === "branch" ? (
+												<ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+											) : null}
+									</ComposerSuggestionItem>
+									</Fragment>
+								);
+							})}
 						</>
 					) : (
 						<ComposerSuggestionMessage>
@@ -618,7 +783,7 @@ export const DocumentMentionPicker = forwardRef<
 						</ComposerSuggestionMessage>
 					)}
 
-					{isLoadingMore && (
+					{canLoadMoreDocuments && isLoadingMore && (
 						<div className="flex items-center justify-center py-2 text-primary">
 							<Spinner size="sm" />
 						</div>

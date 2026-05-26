@@ -70,6 +70,7 @@ import { UserMessage } from "@/components/assistant-ui/user-message";
 import { ComposerSuggestionPopoverContent } from "@/components/new-chat/composer-suggestion-popup";
 import {
 	DocumentMentionPicker,
+	promoteRecentMention,
 	type DocumentMentionPickerRef,
 } from "../new-chat/document-mention-picker";
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
@@ -768,6 +769,7 @@ const Composer: FC = () => {
 	);
 
 	const handleDocumentsMention = useCallback((mentions: MentionedDocumentInfo[]) => {
+		const parsedSearchSpaceId = Number(search_space_id);
 		const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
 		const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
@@ -775,6 +777,9 @@ const Composer: FC = () => {
 			const key = getMentionDocKey(mention);
 			if (editorDocKeys.has(key)) continue;
 			editorRef.current?.insertMentionChip(mention);
+			if (Number.isFinite(parsedSearchSpaceId)) {
+				promoteRecentMention(parsedSearchSpaceId, mention);
+			}
 			// Track within the loop so a duplicate-in-batch can't double-insert.
 			editorDocKeys.add(key);
 		}
@@ -783,7 +788,7 @@ const Composer: FC = () => {
 		// onChange — no second write path here.
 		setMentionQuery("");
 		setSuggestionAnchorPoint(null);
-	}, []);
+	}, [search_space_id]);
 
 	useEffect(() => {
 		const editor = editorRef.current;

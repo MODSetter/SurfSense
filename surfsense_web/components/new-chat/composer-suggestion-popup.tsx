@@ -31,7 +31,7 @@ function ComposerSuggestionPopoverContent({
 				onCloseAutoFocus?.(event);
 			}}
 			className={cn(
-				"w-[256px] overflow-hidden rounded-md border border-popover-border bg-popover p-0 text-popover-foreground shadow-md sm:w-[288px]",
+				"w-[232px] overflow-hidden rounded-md border border-popover-border bg-popover p-0 text-popover-foreground shadow-md sm:w-[264px]",
 				"data-[state=open]:!animate-none data-[state=closed]:!animate-none data-[state=open]:!duration-0 data-[state=closed]:!duration-0",
 				className
 			)}
@@ -47,14 +47,14 @@ const ComposerSuggestionList = React.forwardRef<
 >(({ className, ...props }, ref) => (
 	<div
 		ref={ref}
-		className={cn("max-h-[160px] overflow-y-auto sm:max-h-[232px]", className)}
+		className={cn("max-h-[144px] overflow-y-auto sm:max-h-[200px]", className)}
 		{...props}
 	/>
 ));
 ComposerSuggestionList.displayName = "ComposerSuggestionList";
 
 function ComposerSuggestionGroup({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-	return <div className={cn("px-1.5 py-2", className)} {...props} />;
+	return <div className={cn("px-1.5 py-1.5", className)} {...props} />;
 }
 
 function ComposerSuggestionGroupHeading({
@@ -63,7 +63,7 @@ function ComposerSuggestionGroupHeading({
 }: React.HTMLAttributes<HTMLDivElement>) {
 	return (
 		<div
-			className={cn("px-2.5 py-1.5 text-xs font-bold text-muted-foreground/55", className)}
+			className={cn("px-2 py-1 text-xs font-semibold text-muted-foreground", className)}
 			{...props}
 		/>
 	);
@@ -78,12 +78,12 @@ function ComposerSuggestionHeader({
 	return (
 		<div
 			className={cn(
-				"flex items-center gap-2 px-2 py-1.5 text-sm font-semibold text-muted-foreground",
+				"flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-muted-foreground",
 				className
 			)}
 			{...props}
 		>
-			{icon ? <span className="shrink-0 text-muted-foreground">{icon}</span> : null}
+			{icon ? <span className="shrink-0 text-current [&_svg]:size-3.5">{icon}</span> : null}
 			{children}
 		</div>
 	);
@@ -103,7 +103,7 @@ const ComposerSuggestionItem = React.forwardRef<
 		variant="ghost"
 		disabled={disabled}
 		className={cn(
-			"h-auto w-full justify-start gap-2 rounded-md px-2.5 py-1.5 text-left text-sm font-normal transition-colors",
+			"h-auto w-full justify-start gap-1.5 rounded-md px-2 py-1 text-left text-xs font-normal transition-colors",
 			disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
 			muted && !selected && "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
 			selected && "bg-accent text-accent-foreground",
@@ -111,7 +111,7 @@ const ComposerSuggestionItem = React.forwardRef<
 		)}
 		{...props}
 	>
-		{icon ? <span className="shrink-0 text-muted-foreground">{icon}</span> : null}
+		{icon ? <span className="shrink-0 text-current [&_svg]:size-3.5">{icon}</span> : null}
 		{children}
 	</Button>
 ));
@@ -119,7 +119,7 @@ ComposerSuggestionItem.displayName = "ComposerSuggestionItem";
 
 function ComposerSuggestionSeparator({ className, ...props }: React.ComponentProps<typeof Separator>) {
 	return (
-		<div className={cn("my-1 px-3", className)}>
+		<div className={cn("my-0.5 px-2.5", className)}>
 			<Separator className="bg-popover-border" {...props} />
 		</div>
 	);
@@ -134,7 +134,7 @@ function ComposerSuggestionMessage({
 		<div className="px-1.5 py-1">
 			<p
 				className={cn(
-					"px-2.5 py-1.5 text-xs",
+					"px-2 py-1 text-xs",
 					variant === "destructive" ? "text-destructive" : "text-muted-foreground",
 					className
 				)}
@@ -148,22 +148,22 @@ function ComposerSuggestionMessage({
 function ComposerSuggestionSkeleton() {
 	return (
 		<div className="px-1.5 py-1">
-			<div className="px-2.5 py-1.5">
-				<Skeleton className="h-[16px] w-24" />
+			<div className="px-2 py-1">
+				<Skeleton className="h-3.5 w-20" />
 			</div>
 			{["a", "b", "c", "d", "e"].map((id, index) => (
 				<div
 					key={id}
 					className={cn(
-						"flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left",
+						"flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left",
 						index >= 3 && "hidden sm:flex"
 					)}
 				>
 					<span className="shrink-0">
-						<Skeleton className="size-4" />
+						<Skeleton className="size-3.5" />
 					</span>
-					<span className="flex-1 text-sm">
-						<Skeleton className="h-[20px]" style={{ width: `${60 + ((index * 7) % 30)}%` }} />
+					<span className="flex-1 text-xs">
+						<Skeleton className="h-4" style={{ width: `${60 + ((index * 7) % 30)}%` }} />
 					</span>
 				</div>
 			))}
