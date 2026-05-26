@@ -2,4 +2,12 @@
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .automation import Automation
+from .run import AutomationRun
+from .trigger import AutomationTrigger
+
+__all__ = [
+    "Automation",
+    "AutomationRun",
+    "AutomationTrigger",
+]
