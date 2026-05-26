@@ -157,8 +157,6 @@ interface LayoutShellProps {
 	documentsPanel?: {
 		open: boolean;
 		onOpenChange: (open: boolean) => void;
-		isDocked?: boolean;
-		onDockedChange?: (docked: boolean) => void;
 	};
 	onTabSwitch?: (tab: Tab) => void;
 }
