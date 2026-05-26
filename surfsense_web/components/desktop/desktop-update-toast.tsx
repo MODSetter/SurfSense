@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type UpdatePromptState = {
+type UpdateToastState = {
 	version: string;
 };
 
-export function DesktopUpdatePrompt() {
-	const [update, setUpdate] = useState<UpdatePromptState | null>(null);
+export function DesktopUpdateToast() {
+	const [update, setUpdate] = useState<UpdateToastState | null>(null);
 
 	useEffect(() => {
 		const api = window.electronAPI;
@@ -71,7 +71,7 @@ export function DesktopUpdatePrompt() {
 					variant="ghost"
 					size="icon"
 					className="absolute right-2 top-2 size-7 text-muted-foreground hover:bg-transparent hover:text-foreground"
-					aria-label="Dismiss update prompt"
+					aria-label="Dismiss update toast"
 					onClick={() => setUpdate(null)}
 				>
 					<X className="size-4" strokeWidth={1.8} />

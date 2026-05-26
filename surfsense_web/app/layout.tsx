@@ -3,7 +3,7 @@ import "./globals.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { Roboto } from "next/font/google";
 import { AnnouncementToastProvider } from "@/components/announcements/AnnouncementToastProvider";
-import { DesktopUpdatePrompt } from "@/components/desktop/DesktopUpdatePrompt";
+import { DesktopUpdateToast } from "@/components/desktop/desktop-update-toast";
 import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
 import { I18nProvider } from "@/components/providers/I18nProvider";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
@@ -155,7 +155,7 @@ export default function RootLayout({
 												<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
 											</ZeroProvider>
 										</ReactQueryClientProvider>
-										<DesktopUpdatePrompt />
+										<DesktopUpdateToast />
 										<Toaster />
 										<AnnouncementToastProvider />
 									</RootProvider>
