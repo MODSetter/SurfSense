@@ -17,13 +17,20 @@ import {
 	FOLDER_MENTION_DOCUMENT_TYPE,
 	type MentionedDocumentInfo,
 } from "@/atoms/chat/mentioned-documents.atom";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+	ComposerSuggestionGroup,
+	ComposerSuggestionGroupHeading,
+	ComposerSuggestionItem,
+	ComposerSuggestionList,
+	ComposerSuggestionMessage,
+	ComposerSuggestionSeparator,
+	ComposerSuggestionSkeleton,
+} from "@/components/new-chat/composer-suggestion-popup";
+import { Spinner } from "@/components/ui/spinner";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
-import { cn } from "@/lib/utils";
 import { queries } from "@/zero/queries";
 
 export interface DocumentMentionPickerRef {
@@ -427,221 +434,160 @@ export const DocumentMentionPicker = forwardRef<
 	);
 
 	return (
-		<div
-			className="shadow-2xl rounded-lg overflow-hidden bg-popover text-popover-foreground flex flex-col w-[280px] sm:w-[320px] select-none"
+		<ComposerSuggestionList
+			ref={scrollContainerRef}
 			onKeyDown={handleKeyDown}
+			onScroll={handleScroll}
 			role="listbox"
 			tabIndex={-1}
 		>
-			{/* Scrollable document list with responsive height */}
-			<div
-				ref={scrollContainerRef}
-				className="max-h-[180px] sm:max-h-[280px] overflow-y-auto"
-				onScroll={handleScroll}
-			>
-				{actualLoading ? (
-					<div className="py-1 px-2">
-						<div className="px-3 py-2">
-							<Skeleton className="h-[16px] w-24" />
+			{actualLoading ? (
+				<ComposerSuggestionSkeleton />
+			) : actualDocuments.length > 0 || folderMentions.length > 0 ? (
+				<ComposerSuggestionGroup>
+					{/* SurfSense Documentation */}
+					{surfsenseDocsList.length > 0 && (
+						<>
+							<ComposerSuggestionGroupHeading>SurfSense Docs</ComposerSuggestionGroupHeading>
+							{surfsenseDocsList.map((doc) => {
+								const mention: MentionedDocumentInfo = {
+									id: doc.id,
+									title: doc.title,
+									document_type: doc.document_type,
+									kind: "doc",
+								};
+								const docKey = getMentionDocKey(mention);
+								const isAlreadySelected = selectedKeys.has(docKey);
+								const selectableIndex = selectableMentions.findIndex(
+									(m) => getMentionDocKey(m) === docKey
+								);
+								const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
+
+								return (
+									<ComposerSuggestionItem
+										key={docKey}
+										ref={(el) => {
+											if (el && selectableIndex >= 0) itemRefs.current.set(selectableIndex, el);
+											else if (selectableIndex >= 0) itemRefs.current.delete(selectableIndex);
+										}}
+										icon={getConnectorIcon(doc.document_type)}
+										selected={isHighlighted}
+										disabled={isAlreadySelected}
+										onClick={() => !isAlreadySelected && handleSelectMention(mention)}
+										onMouseEnter={() => {
+											if (!isAlreadySelected && selectableIndex >= 0) {
+												setHighlightedIndex(selectableIndex);
+											}
+										}}
+									>
+										<span className="flex-1 truncate text-sm" title={doc.title}>
+											{doc.title}
+										</span>
+									</ComposerSuggestionItem>
+								);
+							})}
+						</>
+					)}
+
+					{/* User Documents */}
+					{userDocsList.length > 0 && (
+						<>
+							{surfsenseDocsList.length > 0 && <ComposerSuggestionSeparator className="my-4" />}
+							<ComposerSuggestionGroupHeading>Your Documents</ComposerSuggestionGroupHeading>
+							{userDocsList.map((doc) => {
+								const mention: MentionedDocumentInfo = {
+									id: doc.id,
+									title: doc.title,
+									document_type: doc.document_type,
+									kind: "doc",
+								};
+								const docKey = getMentionDocKey(mention);
+								const isAlreadySelected = selectedKeys.has(docKey);
+								const selectableIndex = selectableMentions.findIndex(
+									(m) => getMentionDocKey(m) === docKey
+								);
+								const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
+
+								return (
+									<ComposerSuggestionItem
+										key={docKey}
+										ref={(el) => {
+											if (el && selectableIndex >= 0) itemRefs.current.set(selectableIndex, el);
+											else if (selectableIndex >= 0) itemRefs.current.delete(selectableIndex);
+										}}
+										icon={getConnectorIcon(doc.document_type)}
+										selected={isHighlighted}
+										disabled={isAlreadySelected}
+										onClick={() => !isAlreadySelected && handleSelectMention(mention)}
+										onMouseEnter={() => {
+											if (!isAlreadySelected && selectableIndex >= 0) {
+												setHighlightedIndex(selectableIndex);
+											}
+										}}
+									>
+										<span className="flex-1 truncate text-sm" title={doc.title}>
+											{doc.title}
+										</span>
+									</ComposerSuggestionItem>
+								);
+							})}
+						</>
+					)}
+
+					{/* Folders — single source of truth is Zero (same store
+					    that powers the documents sidebar). Selecting a
+					    folder inserts a folder chip whose path the agent
+					    can walk with ``ls`` / ``find_documents``. */}
+					{folderMentions.length > 0 && (
+						<>
+							{(surfsenseDocsList.length > 0 || userDocsList.length > 0) && (
+								<ComposerSuggestionSeparator className="my-4" />
+							)}
+							<ComposerSuggestionGroupHeading>Folders</ComposerSuggestionGroupHeading>
+							{folderMentions.map((folder) => {
+								const folderKey = getMentionDocKey(folder);
+								const isAlreadySelected = selectedKeys.has(folderKey);
+								const selectableIndex = selectableMentions.findIndex(
+									(m) => getMentionDocKey(m) === folderKey
+								);
+								const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
+
+								return (
+									<ComposerSuggestionItem
+										key={folderKey}
+										ref={(el) => {
+											if (el && selectableIndex >= 0) itemRefs.current.set(selectableIndex, el);
+											else if (selectableIndex >= 0) itemRefs.current.delete(selectableIndex);
+										}}
+										icon={<FolderIcon className="size-4" />}
+										selected={isHighlighted}
+										disabled={isAlreadySelected}
+										onClick={() => !isAlreadySelected && handleSelectMention(folder)}
+										onMouseEnter={() => {
+											if (!isAlreadySelected && selectableIndex >= 0) {
+												setHighlightedIndex(selectableIndex);
+											}
+										}}
+									>
+										<span className="flex-1 truncate text-sm" title={folder.title}>
+											{folder.title}
+										</span>
+									</ComposerSuggestionItem>
+								);
+							})}
+						</>
+					)}
+
+					{/* Pagination loading indicator */}
+					{isLoadingMore && (
+						<div className="flex items-center justify-center py-2 text-primary">
+							<Spinner size="sm" />
 						</div>
-						{["a", "b", "c", "d", "e"].map((id, i) => (
-							<div
-								key={id}
-								className={cn(
-									"w-full flex items-center gap-2 px-3 py-2 text-left rounded-md",
-									i >= 3 && "hidden sm:flex"
-								)}
-							>
-								<span className="shrink-0">
-									<Skeleton className="h-4 w-4" />
-								</span>
-								<span className="flex-1 text-sm">
-									<Skeleton className="h-[20px]" style={{ width: `${60 + ((i * 7) % 30)}%` }} />
-								</span>
-							</div>
-						))}
-					</div>
-				) : actualDocuments.length > 0 || folderMentions.length > 0 ? (
-					<div className="py-1 px-2">
-						{/* SurfSense Documentation */}
-						{surfsenseDocsList.length > 0 && (
-							<>
-								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
-									SurfSense Docs
-								</div>
-								{surfsenseDocsList.map((doc) => {
-									const mention: MentionedDocumentInfo = {
-										id: doc.id,
-										title: doc.title,
-										document_type: doc.document_type,
-										kind: "doc",
-									};
-									const docKey = getMentionDocKey(mention);
-									const isAlreadySelected = selectedKeys.has(docKey);
-									const selectableIndex = selectableMentions.findIndex(
-										(m) => getMentionDocKey(m) === docKey
-									);
-									const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
-
-									return (
-										<Button
-											key={docKey}
-											ref={(el) => {
-												if (el && selectableIndex >= 0) {
-													itemRefs.current.set(selectableIndex, el);
-												}
-											}}
-											type="button"
-											variant="ghost"
-											onClick={() => !isAlreadySelected && handleSelectMention(mention)}
-											onMouseEnter={() => {
-												if (!isAlreadySelected && selectableIndex >= 0) {
-													setHighlightedIndex(selectableIndex);
-												}
-											}}
-											disabled={isAlreadySelected}
-											className={cn(
-												"h-auto w-full justify-start gap-2 px-3 py-2 text-left transition-colors",
-												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-												isHighlighted && "bg-accent text-accent-foreground"
-											)}
-										>
-											<span className="shrink-0 text-muted-foreground text-sm">
-												{getConnectorIcon(doc.document_type)}
-											</span>
-											<span className="flex-1 text-sm truncate" title={doc.title}>
-												{doc.title}
-											</span>
-										</Button>
-									);
-								})}
-							</>
-						)}
-
-						{/* User Documents */}
-						{userDocsList.length > 0 && (
-							<>
-								{surfsenseDocsList.length > 0 && (
-									<div className="mx-2 my-4 border-t border-popover-border" />
-								)}
-								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
-									Your Documents
-								</div>
-								{userDocsList.map((doc) => {
-									const mention: MentionedDocumentInfo = {
-										id: doc.id,
-										title: doc.title,
-										document_type: doc.document_type,
-										kind: "doc",
-									};
-									const docKey = getMentionDocKey(mention);
-									const isAlreadySelected = selectedKeys.has(docKey);
-									const selectableIndex = selectableMentions.findIndex(
-										(m) => getMentionDocKey(m) === docKey
-									);
-									const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
-
-									return (
-										<Button
-											key={docKey}
-											ref={(el) => {
-												if (el && selectableIndex >= 0) {
-													itemRefs.current.set(selectableIndex, el);
-												}
-											}}
-											type="button"
-											variant="ghost"
-											onClick={() => !isAlreadySelected && handleSelectMention(mention)}
-											onMouseEnter={() => {
-												if (!isAlreadySelected && selectableIndex >= 0) {
-													setHighlightedIndex(selectableIndex);
-												}
-											}}
-											disabled={isAlreadySelected}
-											className={cn(
-												"h-auto w-full justify-start gap-2 px-3 py-2 text-left transition-colors",
-												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-												isHighlighted && "bg-accent text-accent-foreground"
-											)}
-										>
-											<span className="shrink-0 text-muted-foreground text-sm">
-												{getConnectorIcon(doc.document_type)}
-											</span>
-											<span className="flex-1 text-sm truncate" title={doc.title}>
-												{doc.title}
-											</span>
-										</Button>
-									);
-								})}
-							</>
-						)}
-
-						{/* Folders — single source of truth is Zero (same store
-						    that powers the documents sidebar). Selecting a
-						    folder inserts a folder chip whose path the agent
-						    can walk with ``ls`` / ``find_documents``. */}
-						{folderMentions.length > 0 && (
-							<>
-								{(surfsenseDocsList.length > 0 || userDocsList.length > 0) && (
-									<div className="mx-2 my-4 border-t border-popover-border" />
-								)}
-								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">Folders</div>
-								{folderMentions.map((folder) => {
-									const folderKey = getMentionDocKey(folder);
-									const isAlreadySelected = selectedKeys.has(folderKey);
-									const selectableIndex = selectableMentions.findIndex(
-										(m) => getMentionDocKey(m) === folderKey
-									);
-									const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
-
-									return (
-										<Button
-											key={folderKey}
-											ref={(el) => {
-												if (el && selectableIndex >= 0) {
-													itemRefs.current.set(selectableIndex, el);
-												}
-											}}
-											type="button"
-											variant="ghost"
-											onClick={() => !isAlreadySelected && handleSelectMention(folder)}
-											onMouseEnter={() => {
-												if (!isAlreadySelected && selectableIndex >= 0) {
-													setHighlightedIndex(selectableIndex);
-												}
-											}}
-											disabled={isAlreadySelected}
-											className={cn(
-												"h-auto w-full justify-start gap-2 px-3 py-2 text-left transition-colors",
-												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-												isHighlighted && "bg-accent text-accent-foreground"
-											)}
-										>
-											<span className="shrink-0 text-muted-foreground text-sm">
-												<FolderIcon className="h-4 w-4" />
-											</span>
-											<span className="flex-1 text-sm truncate" title={folder.title}>
-												{folder.title}
-											</span>
-										</Button>
-									);
-								})}
-							</>
-						)}
-
-						{/* Pagination loading indicator */}
-						{isLoadingMore && (
-							<div className="flex items-center justify-center py-2">
-								<div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
-							</div>
-						)}
-					</div>
-				) : (
-					<div className="py-1 px-2">
-						<p className="px-3 py-2 text-xs text-muted-foreground">No matching documents</p>
-					</div>
-				)}
-			</div>
-		</div>
+					)}
+				</ComposerSuggestionGroup>
+			) : (
+				<ComposerSuggestionMessage>No matching documents</ComposerSuggestionMessage>
+			)}
+		</ComposerSuggestionList>
 	);
 });

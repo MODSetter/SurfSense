@@ -65,6 +65,7 @@ import {
 } from "@/components/assistant-ui/inline-mention-editor";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
+import { ComposerSuggestionPopoverContent } from "@/components/new-chat/composer-suggestion-popup";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
@@ -90,6 +91,7 @@ import {
 	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -533,6 +535,11 @@ const Composer: FC = () => {
 		}
 	}, [showDocumentPopover]);
 
+	const handleDocumentPopoverOpenChange = useCallback((open: boolean) => {
+		setShowDocumentPopover(open);
+		if (!open) setMentionQuery("");
+	}, []);
+
 	const handleActionTrigger = useCallback((query: string) => {
 		setShowPromptPicker(true);
 		setActionQuery(query);
@@ -544,6 +551,11 @@ const Composer: FC = () => {
 			setActionQuery("");
 		}
 	}, [showPromptPicker]);
+
+	const handlePromptPickerOpenChange = useCallback((open: boolean) => {
+		setShowPromptPicker(open);
+		if (!open) setActionQuery("");
+	}, []);
 
 	const handleActionSelect = useCallback(
 		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
@@ -723,8 +735,9 @@ const Composer: FC = () => {
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			{showDocumentPopover && (
-				<div className="absolute bottom-full left-0 z-[9999] mb-2">
+			<Popover open={showDocumentPopover} onOpenChange={handleDocumentPopoverOpenChange}>
+				<PopoverAnchor className="pointer-events-none absolute inset-0" />
+				<ComposerSuggestionPopoverContent side="top">
 					<DocumentMentionPicker
 						ref={documentPickerRef}
 						searchSpaceId={Number(search_space_id)}
@@ -736,15 +749,11 @@ const Composer: FC = () => {
 						initialSelectedDocuments={mentionedDocuments}
 						externalSearch={mentionQuery}
 					/>
-				</div>
-			)}
-			{showPromptPicker && (
-				<div
-					className={cn(
-						"absolute left-0 z-[9999]",
-						clipboardInitialText ? "top-full mt-2" : "bottom-full mb-2"
-					)}
-				>
+				</ComposerSuggestionPopoverContent>
+			</Popover>
+			<Popover open={showPromptPicker} onOpenChange={handlePromptPickerOpenChange}>
+				<PopoverAnchor className="pointer-events-none absolute inset-0" />
+				<ComposerSuggestionPopoverContent side={clipboardInitialText ? "bottom" : "top"}>
 					<PromptPicker
 						ref={promptPickerRef}
 						onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
@@ -754,8 +763,8 @@ const Composer: FC = () => {
 						}}
 						externalSearch={actionQuery}
 					/>
-				</div>
-			)}
+				</ComposerSuggestionPopoverContent>
+			</Popover>
 			<div className="flex w-full flex-col">
 				<div
 					className={cn(

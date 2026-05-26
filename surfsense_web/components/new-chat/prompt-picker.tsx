@@ -15,9 +15,15 @@ import {
 } from "react";
 
 import { promptsAtom } from "@/atoms/prompts/prompts-query.atoms";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import {
+	ComposerSuggestionGroup,
+	ComposerSuggestionGroupHeading,
+	ComposerSuggestionItem,
+	ComposerSuggestionList,
+	ComposerSuggestionMessage,
+	ComposerSuggestionSeparator,
+	ComposerSuggestionSkeleton,
+} from "@/components/new-chat/composer-suggestion-popup";
 
 export interface PromptPickerRef {
 	selectHighlighted: () => void;
@@ -119,91 +125,48 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 	);
 
 	return (
-		<div className="shadow-2xl rounded-lg overflow-hidden bg-popover text-popover-foreground flex flex-col w-[280px] sm:w-[320px] select-none">
-			<div ref={scrollContainerRef} className="max-h-[180px] sm:max-h-[280px] overflow-y-auto">
-				{isLoading ? (
-					<div className="py-1 px-2">
-						<div className="px-3 py-2">
-							<Skeleton className="h-[16px] w-24" />
-						</div>
-						{["a", "b", "c", "d", "e"].map((id, i) => (
-							<div
-								key={id}
-								className={cn(
-									"w-full flex items-center gap-2 px-3 py-2 text-left rounded-md",
-									i >= 3 && "hidden sm:flex"
-								)}
-							>
-								<span className="shrink-0">
-									<Skeleton className="h-4 w-4" />
-								</span>
-								<span className="flex-1 text-sm">
-									<Skeleton className="h-[20px]" style={{ width: `${60 + ((i * 7) % 30)}%` }} />
-								</span>
-							</div>
-						))}
-					</div>
-				) : isError ? (
-					<div className="py-1 px-2">
-						<p className="px-3 py-2 text-xs text-destructive">Failed to load prompts</p>
-					</div>
-				) : filtered.length === 0 ? (
-					<div className="py-1 px-2">
-						<p className="px-3 py-2 text-xs text-muted-foreground">No matching prompts</p>
-					</div>
-				) : (
-					<div className="py-1 px-2">
-						<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
-							Saved Prompts
-						</div>
-						{filtered.map((action, index) => (
-							<Button
-								key={action.id}
-								ref={(el) => {
-									if (el) itemRefs.current.set(index, el);
-									else itemRefs.current.delete(index);
-								}}
-								type="button"
-								variant="ghost"
-								onClick={() => handleSelect(index)}
-								onMouseEnter={() => setHighlightedIndex(index)}
-								className={cn(
-									"h-auto w-full justify-start gap-2 rounded-md px-3 py-2 text-left text-sm font-normal transition-colors",
-									index === highlightedIndex && "bg-accent text-accent-foreground"
-								)}
-							>
-								<span className="shrink-0 text-muted-foreground">
-									<WandSparkles className="size-4" />
-								</span>
-								<span className="flex-1 text-sm truncate">{action.name}</span>
-							</Button>
-						))}
-
-						<div className="mx-2 my-1 border-t border-popover-border" />
-						<Button
+		<ComposerSuggestionList ref={scrollContainerRef}>
+			{isLoading ? (
+				<ComposerSuggestionSkeleton />
+			) : isError ? (
+				<ComposerSuggestionMessage variant="destructive">Failed to load prompts</ComposerSuggestionMessage>
+			) : filtered.length === 0 ? (
+				<ComposerSuggestionMessage>No matching prompts</ComposerSuggestionMessage>
+			) : (
+				<ComposerSuggestionGroup>
+					<ComposerSuggestionGroupHeading>Saved Prompts</ComposerSuggestionGroupHeading>
+					{filtered.map((action, index) => (
+						<ComposerSuggestionItem
+							key={action.id}
 							ref={(el) => {
-								if (el) itemRefs.current.set(createPromptIndex, el);
-								else itemRefs.current.delete(createPromptIndex);
+								if (el) itemRefs.current.set(index, el);
+								else itemRefs.current.delete(index);
 							}}
-							type="button"
-							variant="ghost"
-							onClick={() => handleSelect(createPromptIndex)}
-							onMouseEnter={() => setHighlightedIndex(createPromptIndex)}
-							className={cn(
-								"h-auto w-full justify-start gap-2 rounded-md px-3 py-2 text-left text-sm font-normal text-muted-foreground transition-colors",
-								highlightedIndex === createPromptIndex
-									? "bg-accent text-accent-foreground"
-									: "hover:text-accent-foreground hover:bg-accent"
-							)}
+							icon={<WandSparkles className="size-4" />}
+							selected={index === highlightedIndex}
+							onClick={() => handleSelect(index)}
+							onMouseEnter={() => setHighlightedIndex(index)}
 						>
-							<span className="shrink-0">
-								<Plus className="size-4" />
-							</span>
-							<span>Create prompt</span>
-						</Button>
-					</div>
-				)}
-			</div>
-		</div>
+							<span className="flex-1 truncate text-sm">{action.name}</span>
+						</ComposerSuggestionItem>
+					))}
+
+					<ComposerSuggestionSeparator />
+					<ComposerSuggestionItem
+						ref={(el) => {
+							if (el) itemRefs.current.set(createPromptIndex, el);
+							else itemRefs.current.delete(createPromptIndex);
+						}}
+						icon={<Plus className="size-4" />}
+						muted
+						selected={highlightedIndex === createPromptIndex}
+						onClick={() => handleSelect(createPromptIndex)}
+						onMouseEnter={() => setHighlightedIndex(createPromptIndex)}
+					>
+						<span>Create prompt</span>
+					</ComposerSuggestionItem>
+				</ComposerSuggestionGroup>
+			)}
+		</ComposerSuggestionList>
 	);
 });
