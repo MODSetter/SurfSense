@@ -138,47 +138,24 @@ See archived design at `docs/automation/archived/mcp-registry.md` once
 v1 ships; for now the only consumer of the registry is the in-memory
 native path.
 
-### Credentials: resolved at the moment of use
+### Credentials — deferred to Phase 2
 
-The handler doesn't carry credentials and the closure doesn't capture them.
-When invoked, the handler asks `ActionContext` for what it needs:
+The earlier per-call credential resolution pattern (`ctx.resolve_mcp_client`,
+`ctx.resolve_http_client`, `ctx.resolve_llm`) is **deferred to Phase 2**.
+v1 capabilities run server-side using app-level configuration; none of
+the seven v1 capabilities needs per-user or per-connection auth.
 
-```python
-def make_mcp_handler(connection_id: UUID, tool_name: str):
-    async def handler(ctx: ActionContext, args: dict) -> Any:
-        # Credential resolution happens here, per call
-        client = await ctx.resolve_mcp_client(connection_id)
-        response = await client.call_tool(name=tool_name, arguments=args)
-        return response.content
-    return handler
-```
+When Phase 2 ships external-credential capabilities (Slack, email, etc.),
+the three guarantees the original design promised are reintroduced
+unchanged:
 
-`ctx.resolve_mcp_client(connection_id)`:
-1. Loads the `mcp_connections` row
-2. Decrypts the access token
-3. Refreshes the token if it's expired (using the refresh token)
-4. Constructs an `MCPClient` with the token set as a default authorization
-   header
+- Credentials never appear in the automation definition (connection IDs
+  only).
+- Credentials never appear in the LLM's context (the host holds them
+  and uses them on the LLM's behalf when executing tool calls).
+- Credentials are loaded per-call, not pre-loaded into worker memory.
 
-The HTTP library carries the auth header on every subsequent call the
-client makes — the handler doesn't think about it after construction.
-
-For native capabilities calling external APIs directly,
-`ctx.resolve_http_client(provider)` returns an authenticated `httpx`
-client. For LLM operations, `ctx.resolve_llm(provider)` returns a
-configured LLM client. **Three resolution methods, one pattern: the
-context returns a client already authenticated.**
-
-Three properties this gives us:
-
-- **Credentials never appear in the automation definition.** The JSON
-  contains capability references and connection IDs, never tokens.
-- **Credentials never appear in the LLM's context.** Even during
-  `agent_task`, the LLM sees tool descriptions only; the host holds
-  credentials and uses them when executing the tools the LLM requests.
-- **Credentials are loaded per-call, not pre-loaded.** The credential
-  exists in memory only during the moment a handler is making a call. No
-  long-lived secrets in worker memory.
+The Phase-2 design returns as-is; only the v1 surface is simplified.
 
 ---
 
@@ -504,12 +481,18 @@ event, evaluates all matching triggers' filters, fires the matches.
 Common path (after a trigger has fired):
 1. Resolve `inputs` from trigger payload and defaults
 2. Validate resolved inputs against the automation's input schema
-3. **Cost estimate** — sum capabilities' `cost_estimate(args)` for the plan;
-   refuse if exceeds `budget_cap_usd`
-4. **Idempotency check** — dedup against existing pending/running runs
-5. **Snapshot the resolved definition** into the run row (immutable history)
-6. Enqueue executor task on the appropriate Celery queue (per
-   `expected_duration_seconds`)
+3. **Idempotency check** — dedup against existing pending/running runs
+4. **Snapshot the resolved definition** into the run row (immutable history)
+5. Enqueue executor task on the single `automations_default` Celery queue
+
+The cost-estimate pre-check (originally step 3) is **deferred**.
+v1 capabilities do not declare `cost_estimate`; pre-flight budgeting
+returns when a historical-cost ledger exists. The mid-flight budget
+cap (§7.2) still kills the run if accumulated cost crosses
+`budget_cap_usd`.
+
+Queue routing by `expected_duration_seconds` is **deferred** until load
+patterns justify a second queue. v1 uses a single queue.
 
 ### 7.2 Executor
 
@@ -801,16 +784,18 @@ The engine handles storage (writes to SurfSense's existing object storage),
 URL generation (signed, scoped to the run's permissions), and cleanup (a
 nightly Celery Beat task deletes expired artifacts).
 
-### Duration classes and queue routing
+### Duration classes and queue routing — deferred
 
-Capabilities declare `expected_duration_seconds`. The dispatcher routes
-runs to Celery queues based on the longest-duration step:
-- < 10s → `automations_fast`
-- 10s – 5min → `automations_medium`
-- 5min – 1hr → `automations_long`
+The original design routed runs to multiple Celery queues based on each
+capability's declared `expected_duration_seconds`. v1 ships with **one
+queue** (`automations_default`) and capabilities do not declare a
+duration. Multi-queue routing returns when burst load on a single queue
+actually justifies the operational complexity of independent worker
+pools.
 
-Operators scale each queue's worker pool independently. A future "very
-long" queue is a config change, not a contract change.
+Adding the second queue is a config change plus reintroducing
+`expected_duration_seconds` on the `Capability` dataclass — both
+mechanical, additive, and free of design rewrite.
 
 ---
 
@@ -1210,9 +1195,9 @@ place.
 
 ### Components
 23. ✅ Dispatcher / executor / handlers / registry — distinct, each replaceable
-24. ✅ Side effects are a set, including `USER_VISIBLE`
-25. ✅ `expected_duration_seconds` integer drives queue routing
-26. ✅ `produces_artifacts` is a list of `ArtifactSpec`, not a bool
+24. ⏸ Side effects are a set, including `USER_VISIBLE` — **deferred** until multi-user automation RBAC ships
+25. ⏸ `expected_duration_seconds` integer drives queue routing — **deferred** until a second Celery queue is needed
+26. ⏸ `produces_artifacts` is a list of `ArtifactSpec`, not a bool — **deferred** until artifacts beyond the deliverable handlers' own persistence are needed
 27. ✅ Output schemas recommended on `agent_task`; editor warns when missing
 
 ### Event bus
@@ -1220,20 +1205,25 @@ place.
 29. ✅ Automations publish run events for composability
 30. ✅ Publish/subscribe behind interface — no direct table access elsewhere
 
-### Capability storage (two-tier persistence)
+### Capability storage
 31. ✅ Native capabilities registered in-memory at startup from the codebase. Identical across all workers.
-32. ✅ MCP capability metadata persisted in `mcp_connections` and `mcp_tools` tables. Survives restarts.
-33. ✅ MCP handler closures built lazily per worker from database state. Worker-local cache, rebuilt on demand.
-34. ✅ MCP server tool list re-harvested on a schedule (default: daily) and on user request.
-35. ✅ MCP tools harvested into the capability registry at connection time
-36. ✅ Side effects inferred from MCP hints + naming + admin overrides
-37. ✅ MCP tools callable directly (no agent required) when caller knows args
+32. ⏸ MCP capability metadata persisted in `mcp_connections` and `mcp_tools` tables — **deferred to Phase 4**
+33. ⏸ MCP handler closures built lazily per worker from database state — **deferred to Phase 4**
+34. ⏸ MCP server tool list re-harvested on a schedule — **deferred to Phase 4**
+35. ⏸ MCP tools harvested into the capability registry at connection time — **deferred to Phase 4**
+36. ⏸ Side effects inferred from MCP hints + naming + admin overrides — **deferred to Phase 4**
+37. ⏸ MCP tools callable directly (no agent required) when caller knows args — **deferred to Phase 4**
 
-### Credentials
-38. ✅ Credentials never appear in the automation definition — only connection IDs do
-39. ✅ Credentials never appear in the LLM's context — the host holds them and uses them on the LLM's behalf
-40. ✅ Credentials resolved per-call by `ActionContext`, not pre-loaded into worker environment
-41. ✅ Tokens encrypted at rest in the database; refresh handled automatically by `ActionContext.resolve_*_client`
+### Credentials — all deferred to Phase 2
+38. ⏸ Credentials never appear in the automation definition — only connection IDs do — **Phase 2**
+39. ⏸ Credentials never appear in the LLM's context — the host holds them — **Phase 2**
+40. ⏸ Credentials resolved per-call by `ActionContext`, not pre-loaded into worker environment — **Phase 2**
+41. ⏸ Tokens encrypted at rest; refresh handled automatically by `ActionContext.resolve_*_client` — **Phase 2**
+
+### v1-minimum (new lock)
+v1. ✅ `Capability` is exactly five fields: `id`, `description`, `input_schema`, `output_schema`, `handler`. Additional fields are added only when a concrete consumer feature requires them.
+v2. ✅ Cost is **measured** from a per-run ledger, not declared. Pre-flight cost checks return when the ledger has enough history.
+v3. ✅ Single `automations_default` Celery queue in v1. Multi-queue routing returns when load justifies it.
 
 ### NL authoring
 42. ✅ LLM-authored templates is the primary path from day one — not a Phase 3 addition. Hand-authoring JSON is supported but secondary
