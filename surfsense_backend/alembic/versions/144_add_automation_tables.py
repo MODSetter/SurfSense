@@ -86,7 +86,7 @@ def upgrade() -> None:
             automation_id INTEGER NOT NULL
                 REFERENCES automations(id) ON DELETE CASCADE,
             type automation_trigger_type NOT NULL,
-            config JSONB NOT NULL,
+            params JSONB NOT NULL,
             enabled BOOLEAN NOT NULL DEFAULT true,
             last_fired_at TIMESTAMP WITH TIME ZONE,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
