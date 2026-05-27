@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from .actions import (
+    ActionContext,
     ActionDefinition,
     ActionHandler,
+    ActionHandlerFactory,
     all_actions,
     get_action,
     register_action,
@@ -17,8 +19,10 @@ from .triggers import (
 )
 
 __all__ = [
+    "ActionContext",
     "ActionDefinition",
     "ActionHandler",
+    "ActionHandlerFactory",
     "TriggerDefinition",
     "all_actions",
     "all_triggers",

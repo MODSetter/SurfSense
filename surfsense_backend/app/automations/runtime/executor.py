@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.automations.persistence.enums.run_status import RunStatus
 from app.automations.persistence.models.run import AutomationRun
+from app.automations.registries.actions.types import ActionContext
 from app.automations.schemas.definition.envelope import AutomationDefinition
+from app.automations.schemas.definition.plan_step import PlanStep
 from app.automations.templating import build_run_context
 
 from . import repository
@@ -41,10 +43,12 @@ async def execute_run(session: AsyncSession, run_id: int) -> None:
     step_outputs: dict[str, Any] = {}
 
     for step in definition.plan:
-        ctx = _build_ctx(run, step_outputs)
+        template_ctx = _build_template_ctx(run, step_outputs)
+        action_ctx = _build_action_ctx(session, run, step)
         result = await execute_step(
             step=step,
-            template_context=ctx,
+            template_context=template_ctx,
+            action_context=action_ctx,
             default_max_retries=definition.execution.max_retries,
             default_retry_backoff=definition.execution.retry_backoff,
             default_timeout_seconds=definition.execution.timeout_seconds,
@@ -73,11 +77,13 @@ async def _run_on_failure(
     """Run the on_failure steps. Their failures don't recurse into more on_failure."""
     if not definition.execution.on_failure:
         return
-    ctx = _build_ctx(run, step_outputs={})
+    template_ctx = _build_template_ctx(run, step_outputs={})
     for step in definition.execution.on_failure:
+        action_ctx = _build_action_ctx(session, run, step)
         result = await execute_step(
             step=step,
-            template_context=ctx,
+            template_context=template_ctx,
+            action_context=action_ctx,
             default_max_retries=definition.execution.max_retries,
             default_retry_backoff=definition.execution.retry_backoff,
             default_timeout_seconds=definition.execution.timeout_seconds,
@@ -86,7 +92,7 @@ async def _run_on_failure(
         await session.commit()
 
 
-def _build_ctx(run: AutomationRun, step_outputs: dict[str, Any]) -> dict[str, Any]:
+def _build_template_ctx(run: AutomationRun, step_outputs: dict[str, Any]) -> dict[str, Any]:
     automation = run.automation
     trigger = run.trigger
     return build_run_context(
@@ -102,4 +108,17 @@ def _build_ctx(run: AutomationRun, step_outputs: dict[str, Any]) -> dict[str, An
         attempt=1,
         resolved_inputs=run.resolved_inputs or {},
         step_outputs=step_outputs,
+    )
+
+
+def _build_action_ctx(
+    session: AsyncSession, run: AutomationRun, step: PlanStep
+) -> ActionContext:
+    automation = run.automation
+    return ActionContext(
+        session=session,
+        run_id=run.id,
+        step_id=step.step_id,
+        search_space_id=automation.search_space_id,
+        creator_user_id=automation.created_by_user_id,
     )

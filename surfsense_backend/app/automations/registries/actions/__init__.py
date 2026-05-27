@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from .store import all_actions, get_action, register_action
-from .types import ActionDefinition, ActionHandler
+from .types import ActionContext, ActionDefinition, ActionHandler, ActionHandlerFactory
 
 __all__ = [
+    "ActionContext",
     "ActionDefinition",
     "ActionHandler",
+    "ActionHandlerFactory",
     "all_actions",
     "get_action",
     "register_action",

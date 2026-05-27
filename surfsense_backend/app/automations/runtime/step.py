@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.automations.registries import get_action
+from app.automations.registries.actions.types import ActionContext
 from app.automations.schemas.definition.plan_step import PlanStep
 from app.automations.templating import evaluate_predicate, render_value
 
@@ -17,6 +18,7 @@ async def execute_step(
     *,
     step: PlanStep,
     template_context: Mapping[str, Any],
+    action_context: ActionContext,
     default_max_retries: int,
     default_retry_backoff: str,
     default_timeout_seconds: int,
@@ -47,12 +49,14 @@ async def execute_step(
             error={"message": f"action not registered: {step.action}", "type": "ActionNotFound"},
         )
 
+    handler = action.build_handler(action_context)
+
     max_retries = step.max_retries if step.max_retries is not None else default_max_retries
     timeout = step.timeout_seconds or default_timeout_seconds
 
     try:
         result, attempts = await with_retries(
-            lambda: action.handler(resolved_params),
+            lambda: handler(resolved_params),
             max_retries=max_retries,
             backoff=default_retry_backoff,
             timeout=timeout,
