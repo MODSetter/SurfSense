@@ -42,7 +42,11 @@ class Automation(BaseModel, TimestampMixin):
     description = Column(Text, nullable=True)
 
     status = Column(
-        SQLAlchemyEnum(AutomationStatus, name="automation_status"),
+        SQLAlchemyEnum(
+            AutomationStatus,
+            name="automation_status",
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         default=AutomationStatus.ACTIVE,
         server_default=AutomationStatus.ACTIVE.value,

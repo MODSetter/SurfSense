@@ -29,7 +29,11 @@ class AutomationTrigger(BaseModel, TimestampMixin):
     )
 
     type = Column(
-        SQLAlchemyEnum(TriggerType, name="automation_trigger_type"),
+        SQLAlchemyEnum(
+            TriggerType,
+            name="automation_trigger_type",
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         index=True,
     )

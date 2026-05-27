@@ -35,7 +35,11 @@ class AutomationRun(BaseModel, TimestampMixin):
     )
 
     status = Column(
-        SQLAlchemyEnum(RunStatus, name="automation_run_status"),
+        SQLAlchemyEnum(
+            RunStatus,
+            name="automation_run_status",
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         default=RunStatus.PENDING,
         server_default=RunStatus.PENDING.value,
