@@ -1,4 +1,9 @@
-"""``automation_runs`` table — immutable per-fire execution record."""
+"""``automation_runs`` table — immutable per-fire execution record.
+
+Per-step metadata (incl. any LangGraph session id for an ``agent_task`` step)
+lives inside ``step_results[i]``, since a single run may contain zero, one,
+or N agent steps.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +13,6 @@ from sqlalchemy import (
     Enum as SQLAlchemyEnum,
     ForeignKey,
     Integer,
-    String,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -54,5 +58,3 @@ class AutomationRun(BaseModel, TimestampMixin):
 
     started_at = Column(TIMESTAMP(timezone=True), nullable=True)
     finished_at = Column(TIMESTAMP(timezone=True), nullable=True)
-
-    agent_session_id = Column(String(200), nullable=True)

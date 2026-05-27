@@ -125,7 +125,6 @@ def upgrade() -> None:
             error JSONB,
             started_at TIMESTAMP WITH TIME ZONE,
             finished_at TIMESTAMP WITH TIME ZONE,
-            agent_session_id VARCHAR(200),
             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
         """
