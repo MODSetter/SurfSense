@@ -1,4 +1,4 @@
-"""Invoke SurfSense chat agent for gateway channels."""
+"""Invoke SurfSense chat agent for external chat surfaces."""
 
 from __future__ import annotations
 
@@ -6,9 +6,10 @@ import json
 import logging
 from collections.abc import AsyncIterator
 
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import GatewayConversationBinding
+from app.db import ExternalChatBinding, NewChatMessage
 from app.gateway.auth_invariant import assert_authorization_invariant
 from app.gateway.base.translator import GatewayStreamEvent
 from app.gateway.bindings import get_or_create_thread_for_binding
@@ -55,7 +56,7 @@ async def _events_from_sse(chunks: AsyncIterator[str]) -> AsyncIterator[GatewayS
 async def call_agent_for_gateway(
     *,
     session: AsyncSession,
-    binding: GatewayConversationBinding,
+    binding: ExternalChatBinding,
     user_text: str,
     translator: TelegramStreamTranslator,
     request_id: str | None = None,
@@ -85,6 +86,12 @@ async def call_agent_for_gateway(
         finally:
             await events.aclose()
             await stream.aclose()
+        await session.execute(
+            update(NewChatMessage)
+            .where(NewChatMessage.thread_id == thread.id, NewChatMessage.source == "web")
+            .values(source="telegram")
+        )
+        await session.commit()
         record_gateway_turn_latency(0, platform="telegram")
     finally:
         release_thread_lock(thread.id)
