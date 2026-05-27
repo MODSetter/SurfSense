@@ -439,6 +439,13 @@ class Permission(StrEnum):
     PUBLIC_SHARING_CREATE = "public_sharing:create"
     PUBLIC_SHARING_DELETE = "public_sharing:delete"
 
+    # Automations
+    AUTOMATIONS_CREATE = "automations:create"
+    AUTOMATIONS_READ = "automations:read"
+    AUTOMATIONS_UPDATE = "automations:update"
+    AUTOMATIONS_DELETE = "automations:delete"
+    AUTOMATIONS_EXECUTE = "automations:execute"
+
     # Full access wildcard
     FULL_ACCESS = "*"
 
@@ -494,6 +501,11 @@ DEFAULT_ROLE_PERMISSIONS = {
         # Public Sharing (can create and view, no delete)
         Permission.PUBLIC_SHARING_VIEW.value,
         Permission.PUBLIC_SHARING_CREATE.value,
+        # Automations (no delete)
+        Permission.AUTOMATIONS_CREATE.value,
+        Permission.AUTOMATIONS_READ.value,
+        Permission.AUTOMATIONS_UPDATE.value,
+        Permission.AUTOMATIONS_EXECUTE.value,
     ],
     "Viewer": [
         # Documents (read only)
@@ -525,6 +537,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.SETTINGS_VIEW.value,
         # Public Sharing (view only)
         Permission.PUBLIC_SHARING_VIEW.value,
+        # Automations (read only)
+        Permission.AUTOMATIONS_READ.value,
     ],
 }
 
