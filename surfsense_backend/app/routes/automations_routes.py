@@ -8,8 +8,9 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.automations.dispatch import DispatchError, dispatch_manual_run
+from app.automations.dispatch import DispatchError
 from app.automations.persistence.models.automation import Automation
+from app.automations.triggers.manual import dispatch_manual_run
 from app.db import Permission, User, get_async_session
 from app.users import current_active_user
 from app.utils.rbac import check_permission

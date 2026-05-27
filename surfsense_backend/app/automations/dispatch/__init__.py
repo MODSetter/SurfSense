@@ -1,8 +1,8 @@
-"""Public dispatch surface for firing automations."""
+"""Generic dispatch primitives shared across trigger types."""
 
-from .manual import DispatchError, dispatch_manual_run
+from __future__ import annotations
 
-__all__ = [
-    "DispatchError",
-    "dispatch_manual_run",
-]
+from .errors import DispatchError
+from .run import dispatch_run
+
+__all__ = ["DispatchError", "dispatch_run"]
