@@ -120,4 +120,4 @@ router.include_router(youtube_router)  # YouTube playlist resolution
 router.include_router(prompts_router)
 router.include_router(memory_router)  # User personal memory (memory.md style)
 router.include_router(team_memory_router)  # Search-space team memory
-router.include_router(automations_router)  # Automations (manual run-now)
+router.include_router(automations_router)  # Automations CRUD + run history

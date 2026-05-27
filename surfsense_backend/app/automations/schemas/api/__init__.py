@@ -9,7 +9,7 @@ from .automation import (
     AutomationSummary,
     AutomationUpdate,
 )
-from .run import RunDetail, RunDispatched, RunList, RunSummary
+from .run import RunDetail, RunList, RunSummary
 from .trigger import TriggerCreate, TriggerDetail, TriggerUpdate
 
 __all__ = [
@@ -19,7 +19,6 @@ __all__ = [
     "AutomationSummary",
     "AutomationUpdate",
     "RunDetail",
-    "RunDispatched",
     "RunList",
     "RunSummary",
     "TriggerCreate",

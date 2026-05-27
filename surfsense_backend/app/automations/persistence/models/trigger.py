@@ -56,7 +56,7 @@ class AutomationTrigger(BaseModel, TimestampMixin):
 
     # Precomputed next fire moment in UTC; advanced after each fire by the
     # schedule tick. NULL means the trigger has never been scheduled (the
-    # tick self-heals on first sight). Manual triggers leave this NULL.
+    # tick self-heals on first sight).
     next_fire_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
     automation = relationship("Automation", back_populates="triggers")

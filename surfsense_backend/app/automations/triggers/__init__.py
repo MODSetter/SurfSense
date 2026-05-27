@@ -1,6 +1,6 @@
 """Triggers domain: registry surface + built-in trigger packages.
 
-Each trigger lives in its own subpackage (``manual/``, ``schedule/``, ...) and
+Each trigger lives in its own subpackage (``schedule/``, ...) and
 self-registers at import time via its ``definition`` module.
 """
 
@@ -17,4 +17,4 @@ __all__ = [
 ]
 
 # Built-in triggers self-register at import time.
-from . import manual, schedule  # noqa: E402, F401
+from . import schedule  # noqa: E402, F401

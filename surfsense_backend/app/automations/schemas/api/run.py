@@ -1,4 +1,4 @@
-"""Response schemas for run sub-resources and run dispatch."""
+"""Response schemas for run sub-resources."""
 
 from __future__ import annotations
 
@@ -40,10 +40,3 @@ class RunList(BaseModel):
 
     items: list[RunSummary]
     total: int
-
-
-class RunDispatched(BaseModel):
-    """Response of a successful run dispatch."""
-
-    run_id: int
-    status: RunStatus

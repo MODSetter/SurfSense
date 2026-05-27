@@ -1,4 +1,9 @@
-"""Trigger-kind discriminator. v1: schedule | manual; webhook/event in Phase 2/3."""
+"""Trigger-kind discriminator.
+
+v1 only registers ``schedule``. ``manual`` is reserved in the enum (mirrors the
+postgres enum) but is intentionally unregistered pending a redesign of the
+"Run now" UX.
+"""
 
 from __future__ import annotations
 

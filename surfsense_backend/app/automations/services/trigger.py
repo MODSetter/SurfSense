@@ -69,7 +69,7 @@ class TriggerService:
             trigger.enabled = data["enabled"]
 
         # Recompute next_fire_at when schedule timing changed or the trigger was
-        # toggled back on. Manual triggers always have NULL next_fire_at.
+        # toggled back on.
         if trigger.type == TriggerType.SCHEDULE:
             trigger.next_fire_at = _initial_next_fire(
                 trigger.type, trigger.params, trigger.enabled

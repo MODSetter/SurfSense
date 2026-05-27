@@ -1,45 +1,24 @@
-"""``RunService`` — dispatch and history of automation runs."""
+"""``RunService`` — read-only access to automation run history."""
 
 from __future__ import annotations
-
-from typing import Any
 
 from fastapi import Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.automations.dispatch import DispatchError
 from app.automations.persistence.models.automation import Automation
 from app.automations.persistence.models.run import AutomationRun
-from app.automations.triggers.manual import dispatch_manual_run
 from app.db import Permission, User, get_async_session
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 
 
 class RunService:
-    """Lifecycle of the ``AutomationRun`` resource."""
+    """Read-only access to ``AutomationRun`` history."""
 
     def __init__(self, *, session: AsyncSession, user: User) -> None:
         self.session = session
         self.user = user
-
-    async def dispatch_manual(
-        self,
-        *,
-        automation_id: int,
-        runtime_inputs: dict[str, Any] | None,
-    ) -> AutomationRun:
-        """Fire a manual run via the registered manual trigger."""
-        await self._authorize(automation_id, Permission.AUTOMATIONS_EXECUTE.value)
-        try:
-            return await dispatch_manual_run(
-                session=self.session,
-                automation_id=automation_id,
-                runtime_inputs=runtime_inputs,
-            )
-        except DispatchError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     async def list(
         self,
