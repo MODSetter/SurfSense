@@ -8,6 +8,12 @@ interface AutomationsHeaderProps {
 	total: number;
 	loading: boolean;
 	canCreate: boolean;
+	/**
+	 * Render the header's Create CTA. Defaults to true; the empty state owns
+	 * the primary CTA on its own card, so the orchestrator turns this off
+	 * there to avoid a duplicate button.
+	 */
+	showCreateCta?: boolean;
 }
 
 /**
@@ -20,6 +26,7 @@ export function AutomationsHeader({
 	total,
 	loading,
 	canCreate,
+	showCreateCta = true,
 }: AutomationsHeaderProps) {
 	return (
 		<div className="flex items-center justify-between gap-4 flex-wrap">
@@ -31,7 +38,7 @@ export function AutomationsHeader({
 					</span>
 				)}
 			</div>
-			{canCreate && (
+			{canCreate && showCreateCta && (
 				<Button asChild size="sm">
 					<Link href={`/dashboard/${searchSpaceId}/new-chat`}>
 						<MessageSquarePlus className="mr-2 h-4 w-4" />

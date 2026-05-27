@@ -75,6 +75,7 @@ export function AutomationsContent({ searchSpaceId }: AutomationsContentProps) {
 					total={0}
 					loading={false}
 					canCreate={perms.canCreate}
+					showCreateCta={false}
 				/>
 				<AutomationsEmptyState searchSpaceId={searchSpaceId} canCreate={perms.canCreate} />
 			</>
