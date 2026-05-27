@@ -411,6 +411,38 @@ def _gateway_active_bindings():
     )
 
 
+@lru_cache(maxsize=1)
+def _gateway_inbox_enqueued():
+    return _get_meter().create_counter(
+        "gateway_inbox_enqueued_total",
+        description="Count of gateway inbox rows enqueued for worker processing.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _gateway_inbox_sweep_replayed():
+    return _get_meter().create_counter(
+        "gateway_inbox_sweep_replayed_total",
+        description="Count of received gateway inbox rows replayed by the sweep.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _gateway_byo_longpoll_running():
+    return _get_meter().create_up_down_counter(
+        "gateway_byo_longpoll_running",
+        description="Current change in BYO Telegram long-poll supervisors holding a poll loop.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _gateway_webhook_parse_errors():
+    return _get_meter().create_counter(
+        "gateway_webhook_parse_error_total",
+        description="Count of malformed gateway webhook payloads.",
+    )
+
+
 def record_model_call_duration(
     duration_ms: float, *, model: str | None, provider: str | None
 ) -> None:
@@ -720,6 +752,22 @@ def record_gateway_hitl_aborted(*, platform: str) -> None:
 
 def record_gateway_active_bindings_delta(delta: int, *, platform: str) -> None:
     _add(_gateway_active_bindings(), delta, {"platform": platform})
+
+
+def record_gateway_inbox_enqueued(*, intake: str, outcome: str) -> None:
+    _add(_gateway_inbox_enqueued(), 1, {"intake": intake, "outcome": outcome})
+
+
+def record_gateway_inbox_sweep_replayed() -> None:
+    _add(_gateway_inbox_sweep_replayed(), 1, {})
+
+
+def record_gateway_byo_longpoll_running_delta(delta: int, *, account_id: int) -> None:
+    _add(_gateway_byo_longpoll_running(), delta, {"account_id": account_id})
+
+
+def record_gateway_webhook_parse_error() -> None:
+    _add(_gateway_webhook_parse_errors(), 1, {})
 
 
 def _runtime_snapshot_value(key: str, transform: Any = None) -> list[Any]:
