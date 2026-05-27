@@ -5,9 +5,9 @@ from __future__ import annotations
 from .actions import AgentTaskActionParams
 from .definition import (
     AutomationDefinition,
-    ExecutionBlock,
-    InputsBlock,
-    MetadataBlock,
+    Execution,
+    Inputs,
+    Metadata,
     PlanStep,
     TriggerSpec,
 )
@@ -16,10 +16,10 @@ from .triggers import ManualTriggerParams, ScheduleTriggerParams
 __all__ = [
     "AgentTaskActionParams",
     "AutomationDefinition",
-    "ExecutionBlock",
-    "InputsBlock",
+    "Execution",
+    "Inputs",
     "ManualTriggerParams",
-    "MetadataBlock",
+    "Metadata",
     "PlanStep",
     "ScheduleTriggerParams",
     "TriggerSpec",

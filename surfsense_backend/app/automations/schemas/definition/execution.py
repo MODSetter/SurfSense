@@ -1,4 +1,4 @@
-"""``ExecutionBlock`` — automation-wide execution defaults (overridable per step)."""
+"""``Execution`` — automation-wide execution defaults (overridable per step)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .plan_step import PlanStep
 
 
-class ExecutionBlock(BaseModel):
+class Execution(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     timeout_seconds: int = Field(default=600, gt=0, description="Wall-clock cap for the run.")

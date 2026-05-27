@@ -1,4 +1,4 @@
-"""``InputsBlock`` — JSON Schema for inputs an automation accepts at fire time."""
+"""``Inputs`` — JSON Schema for inputs an automation accepts at fire time."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class InputsBlock(BaseModel):
+class Inputs(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
