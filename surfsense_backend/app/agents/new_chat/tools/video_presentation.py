@@ -2,16 +2,22 @@
 Video presentation generation tool for the SurfSense agent.
 
 This module provides a factory function for creating the generate_video_presentation
-tool that submits a Celery task for background video presentation generation.
-The frontend polls for completion and auto-updates when the presentation is ready.
+tool that submits a Celery task for background video presentation generation. The
+tool then polls the row until it reaches a terminal status (READY/FAILED) and
+returns that status. The wait is bounded by the chat's HTTP / process lifetime;
+see app.agents.shared.deliverable_wait for details.
 """
 
+import logging
 from typing import Any
 
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.shared.deliverable_wait import wait_for_deliverable
 from app.db import VideoPresentation, VideoPresentationStatus, shielded_async_session
+
+logger = logging.getLogger(__name__)
 
 
 def create_generate_video_presentation_tool(
@@ -72,20 +78,58 @@ def create_generate_video_presentation_tool(
                 user_prompt=user_prompt,
             )
 
-            print(
-                f"[generate_video_presentation] Created video presentation {video_pres_id}, task: {task.id}"
+            logger.info(
+                "[generate_video_presentation] Created video presentation %s, task: %s",
+                video_pres_id,
+                task.id,
             )
 
+            # Wait until the Celery worker flips the row to a terminal
+            # state. No internal budget — see deliverable_wait module.
+            terminal_status, _columns, elapsed = await wait_for_deliverable(
+                model=VideoPresentation,
+                row_id=video_pres_id,
+                columns=[VideoPresentation.status],
+                terminal_statuses={
+                    VideoPresentationStatus.READY,
+                    VideoPresentationStatus.FAILED,
+                },
+            )
+
+            if terminal_status == VideoPresentationStatus.READY:
+                logger.info(
+                    "[generate_video_presentation] %s READY in %.2fs",
+                    video_pres_id,
+                    elapsed,
+                )
+                return {
+                    "status": VideoPresentationStatus.READY.value,
+                    "video_presentation_id": video_pres_id,
+                    "title": video_title,
+                    "message": "Video presentation generated and saved.",
+                }
+
+            # Only other terminal state is FAILED.
+            logger.warning(
+                "[generate_video_presentation] %s FAILED in %.2fs",
+                video_pres_id,
+                elapsed,
+            )
             return {
-                "status": VideoPresentationStatus.PENDING.value,
+                "status": VideoPresentationStatus.FAILED.value,
                 "video_presentation_id": video_pres_id,
                 "title": video_title,
-                "message": "Video presentation generation started. This may take a few minutes.",
+                "error": (
+                    "Background worker reported FAILED status for this "
+                    "video presentation."
+                ),
             }
 
         except Exception as e:
             error_message = str(e)
-            print(f"[generate_video_presentation] Error: {error_message}")
+            logger.exception(
+                "[generate_video_presentation] Error: %s", error_message
+            )
             return {
                 "status": VideoPresentationStatus.FAILED.value,
                 "error": error_message,

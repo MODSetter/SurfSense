@@ -17,8 +17,7 @@ from langchain_core.tools import BaseTool
 from langgraph.types import interrupt
 
 from app.agents.new_chat.permissions import Rule
-from app.observability import metrics as ot_metrics
-from app.observability import otel as ot
+from app.observability import metrics as ot_metrics, otel as ot
 
 from .decision import normalize_permission_decision
 from .payload import PERMISSION_ASK_INTERRUPT_TYPE, build_permission_ask_payload

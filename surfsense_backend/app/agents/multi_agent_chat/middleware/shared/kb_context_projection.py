@@ -52,9 +52,7 @@ class KbContextProjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             messages.insert(insert_at, SystemMessage(content=tree_text))
         priority_count = 0
         if priority:
-            priority_count = (
-                len(priority) if hasattr(priority, "__len__") else 1
-            )
+            priority_count = len(priority) if hasattr(priority, "__len__") else 1
             messages.insert(insert_at, _render_priority_message(priority))
         _perf_log.info(
             "[kb_context_projection] tree_chars=%d priority_items=%d elapsed=%.3fs",

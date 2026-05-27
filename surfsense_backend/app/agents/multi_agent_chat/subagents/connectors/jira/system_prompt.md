@@ -111,12 +111,12 @@ Return **only** one JSON object (no markdown, no prose):
   "missing_fields": string[] | null,
   "assumptions": string[] | null
 }
-Rules:
-- `status=success` → `next_step=null`, `missing_fields=null`.
-- `status=partial|blocked|error` → `next_step` must be non-null.
-- `status=blocked` due to missing required inputs → `missing_fields` must be non-null.
+<include snippet="output_contract_base"/>
+Route-specific rules:
 - For blocked ambiguity, populate `evidence.matched_candidates` with up to 5 options (`id` + `label` — works for any kind of candidate: site, project, issue, user, transition, etc.).
 - For discovery-only queries (lists), set `evidence.items` to `{ "total": N }` and list the matched items in `action_summary` (issue key, summary, status, assignee; up to 10 entries, then `"...and N more"`).
 </output_contract>
+
+<include snippet="verifiable_handle"/>
 
 Discover before you mutate; never guess identifiers, transitions, or required fields.

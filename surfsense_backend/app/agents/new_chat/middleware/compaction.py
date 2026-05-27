@@ -34,8 +34,7 @@ from deepagents.middleware.summarization import (
 )
 from langchain_core.messages import SystemMessage
 
-from app.observability import metrics as ot_metrics
-from app.observability import otel as ot
+from app.observability import metrics as ot_metrics, otel as ot
 
 if TYPE_CHECKING:
     from deepagents.backends.protocol import BACKEND_TYPES

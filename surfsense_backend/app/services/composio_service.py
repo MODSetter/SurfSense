@@ -835,7 +835,14 @@ class ComposioService:
             )
 
             if not result.get("success"):
-                return [], None, result.get("error", "Unknown error")
+                # 4-tuple to match this function's declared return shape
+                # ``(messages, next_page_token, result_size_estimate, error)``.
+                # The error branch previously dropped the
+                # ``result_size_estimate`` slot, which crashed the caller's
+                # unpack with ``ValueError: not enough values to unpack
+                # (expected 4, got 3)`` and hid the real Composio error
+                # (e.g. expired connected account / invalid API key).
+                return [], None, None, result.get("error", "Unknown error")
 
             data = result.get("data", {})
 

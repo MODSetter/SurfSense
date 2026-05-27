@@ -682,11 +682,7 @@ def get_planner_llm() -> ChatLiteLLM | None:
     from app.agents.new_chat.llm_config import create_chat_litellm_from_config
 
     planner_cfg = next(
-        (
-            cfg
-            for cfg in config.GLOBAL_LLM_CONFIGS
-            if cfg.get("is_planner") is True
-        ),
+        (cfg for cfg in config.GLOBAL_LLM_CONFIGS if cfg.get("is_planner") is True),
         None,
     )
     if not planner_cfg:
