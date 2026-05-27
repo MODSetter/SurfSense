@@ -4,8 +4,9 @@
  * to the raw expression when unrecognized so the user still sees something
  * honest instead of a guess.
  *
- * Lives in the automations slice because it's a UI display concern with no
- * consumers outside it. If reuse grows, lift to ``lib/cron-describe.ts``.
+ * Lives under ``lib/automations/`` because both the dashboard slice and the
+ * chat ``create_automation`` approval card render schedule descriptions —
+ * keeping the helper outside either feature avoids a layering violation.
  */
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

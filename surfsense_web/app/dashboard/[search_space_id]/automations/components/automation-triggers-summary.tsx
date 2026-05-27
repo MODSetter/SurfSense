@@ -1,7 +1,7 @@
 "use client";
 import { CalendarClock, Pause } from "lucide-react";
 import type { Trigger } from "@/contracts/types/automation.types";
-import { describeCron } from "../lib/describe-cron";
+import { describeCron } from "@/lib/automations/describe-cron";
 
 interface AutomationTriggersSummaryProps {
 	triggers: Trigger[];

@@ -66,9 +66,11 @@ def create_create_automation_tool(
         names, …) it needs.
 
         The tool drafts the full automation JSON internally, shows the user
-        an approval card for review, and persists on approval. Do NOT
-        prompt the user to confirm before calling — the card IS the
-        confirmation. The user can edit any field there.
+        a structured preview on an approval card, and persists on approval.
+        The card supports approve/reject only — if the user wants edits
+        after seeing the draft, they say so in chat and you call this tool
+        again with a refined intent. Do NOT prompt the user to confirm
+        before calling — the card IS the confirmation.
 
         Args:
             intent: Concrete restatement of the user's request. Include

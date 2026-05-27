@@ -6,8 +6,8 @@ import { updateTriggerMutationAtom } from "@/atoms/automations/automations-mutat
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type { Trigger } from "@/contracts/types/automation.types";
+import { describeCron } from "@/lib/automations/describe-cron";
 import { formatRelativeDate } from "@/lib/format-date";
-import { describeCron } from "../../lib/describe-cron";
 import { DeleteTriggerDialog } from "./delete-trigger-dialog";
 
 interface TriggerCardProps {
