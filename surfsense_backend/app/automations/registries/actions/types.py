@@ -14,5 +14,5 @@ class ActionDefinition:
     type: str
     name: str
     description: str
-    config_schema: dict[str, Any]
+    params_schema: dict[str, Any]
     handler: ActionHandler

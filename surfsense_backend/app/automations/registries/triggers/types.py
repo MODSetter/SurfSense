@@ -10,5 +10,5 @@ from typing import Any
 class TriggerDefinition:
     type: str
     description: str
-    config_schema: dict[str, Any]
+    params_schema: dict[str, Any]
     payload_schema: dict[str, Any]
