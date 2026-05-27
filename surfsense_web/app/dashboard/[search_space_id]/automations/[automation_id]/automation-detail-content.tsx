@@ -6,6 +6,7 @@ import { AutomationDefinitionSection } from "./components/automation-definition-
 import { AutomationDetailHeader } from "./components/automation-detail-header";
 import { AutomationDetailLoading } from "./components/automation-detail-loading";
 import { AutomationNotFound } from "./components/automation-not-found";
+import { AutomationRunsSection } from "./components/automation-runs-section";
 import { AutomationTriggersSection } from "./components/automation-triggers-section";
 
 interface AutomationDetailContentProps {
@@ -81,6 +82,8 @@ export function AutomationDetailContent({
 				canDelete={perms.canDelete}
 				canCreate={perms.canCreate}
 			/>
+
+			<AutomationRunsSection automationId={automation.id} />
 		</>
 	);
 }
