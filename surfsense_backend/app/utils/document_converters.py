@@ -222,9 +222,7 @@ async def generate_document_summary(
     else:
         enhanced_summary_content = summary_content
 
-    summary_embedding = await asyncio.to_thread(
-        embed_text, enhanced_summary_content
-    )
+    summary_embedding = await asyncio.to_thread(embed_text, enhanced_summary_content)
 
     return enhanced_summary_content, summary_embedding
 

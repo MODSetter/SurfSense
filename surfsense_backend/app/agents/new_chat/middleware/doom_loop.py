@@ -47,8 +47,7 @@ from langgraph.config import get_config
 from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 
-from app.observability import metrics as ot_metrics
-from app.observability import otel as ot
+from app.observability import metrics as ot_metrics, otel as ot
 
 logger = logging.getLogger(__name__)
 

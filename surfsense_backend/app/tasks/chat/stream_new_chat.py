@@ -2608,9 +2608,7 @@ async def stream_resume_chat(
         visibility = thread_visibility or ChatVisibility.PRIVATE
         from app.config import config as _app_config
 
-        chat_agent_mode = (
-            "multi" if _app_config.MULTI_AGENT_CHAT_ENABLED else "single"
-        )
+        chat_agent_mode = "multi" if _app_config.MULTI_AGENT_CHAT_ENABLED else "single"
         with contextlib.suppress(Exception):
             chat_span.set_attribute("agent.mode", chat_agent_mode)
         _t0 = time.perf_counter()

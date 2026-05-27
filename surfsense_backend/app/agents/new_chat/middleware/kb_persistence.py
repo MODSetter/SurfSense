@@ -55,6 +55,7 @@ from app.agents.new_chat.path_resolver import (
     virtual_path_to_doc,
 )
 from app.agents.new_chat.state_reducers import _CLEAR
+from app.agents.shared.receipt import Receipt, make_receipt
 from app.db import (
     AgentActionLog,
     Chunk,
@@ -1392,6 +1393,81 @@ async def commit_staged_filesystem_state(
         "pending_dir_deletes": [_CLEAR],
         "dirty_path_tool_calls": {_CLEAR: True},
     }
+
+    # Emit one Receipt per committed mutation, folded into ``state['receipts']``
+    # via ``_list_append_reducer``. The receipts surface what actually committed
+    # (post-savepoint) rather than what the LLM intended; the orchestrator uses
+    # them as ground truth in the ``<verification>`` teaching. KB writes do not
+    # have public verifiable URLs, so ``verifiable_url`` stays unset.
+    receipts: list[Receipt] = []
+
+    def _kb_receipt(
+        *,
+        type: str,
+        operation: str,
+        path: str,
+        external_id: int | None = None,
+    ) -> None:
+        if not path:
+            return
+        preview = path.rsplit("/", 1)[-1] or path
+        receipts.append(
+            make_receipt(
+                route="knowledge_base",
+                type=type,
+                operation=operation,
+                status="success",
+                external_id=str(external_id) if external_id is not None else path,
+                preview=preview,
+            )
+        )
+
+    for payload in committed_creates:
+        path = str(payload.get("virtualPath") or "")
+        _kb_receipt(
+            type="file",
+            operation="write_file",
+            path=path,
+            external_id=payload.get("id"),
+        )
+    for payload in committed_updates:
+        path = str(payload.get("virtualPath") or "")
+        _kb_receipt(
+            type="file",
+            operation="edit_file",
+            path=path,
+            external_id=payload.get("id"),
+        )
+    for payload in applied_moves:
+        # ``applied_moves`` rows carry the destination ``virtualPath`` because
+        # the move has already landed in the DB by the time we reach this code.
+        path = str(payload.get("virtualPath") or "")
+        _kb_receipt(
+            type="file",
+            operation="move_file",
+            path=path,
+            external_id=payload.get("id"),
+        )
+    for path in staged_dirs:
+        _kb_receipt(type="folder", operation="mkdir", path=path)
+    for payload in committed_deletes:
+        path = str(payload.get("virtualPath") or "")
+        _kb_receipt(
+            type="file",
+            operation="rm",
+            path=path,
+            external_id=payload.get("id"),
+        )
+    for payload in committed_folder_deletes:
+        path = str(payload.get("virtualPath") or "")
+        _kb_receipt(
+            type="folder",
+            operation="rmdir",
+            path=path,
+            external_id=payload.get("id"),
+        )
+    if receipts:
+        delta["receipts"] = receipts
     files_delta: dict[str, Any] = {}
     if temp_paths:
         files_delta.update(dict.fromkeys(temp_paths))

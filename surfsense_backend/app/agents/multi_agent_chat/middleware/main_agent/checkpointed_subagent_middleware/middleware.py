@@ -16,6 +16,9 @@ from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langgraph.types import Checkpointer
 
+from app.agents.multi_agent_chat.subagents.shared.spec import (
+    SURF_CONTEXT_HINT_PROVIDER_KEY,
+)
 from app.utils.perf import get_perf_logger
 
 from .task_tool import build_task_tool_with_parent_config
@@ -34,6 +37,7 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
         subagents: list[SubAgent | CompiledSubAgent],
         system_prompt: str | None = TASK_SYSTEM_PROMPT,
         task_description: str | None = None,
+        search_space_id: int | None = None,
     ) -> None:
         self._surf_checkpointer = checkpointer
         super(SubAgentMiddleware, self).__init__()
@@ -43,8 +47,17 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
             )
         self._backend = backend
         self._subagents = subagents
+        # Search-space id is captured at build time (the orchestrator runs in
+        # exactly one search space for its lifetime). The spawn-paused kill
+        # switch keys on it so an operator can quarantine one workspace
+        # without affecting the rest of the deployment.
+        self._search_space_id = search_space_id
         subagent_specs = self._surf_compile_subagent_graphs()
-        task_tool = build_task_tool_with_parent_config(subagent_specs, task_description)
+        task_tool = build_task_tool_with_parent_config(
+            subagent_specs,
+            task_description,
+            search_space_id=search_space_id,
+        )
         if system_prompt and subagent_specs:
             agents_desc = "\n".join(
                 f"- {s['name']}: {s['description']}" for s in subagent_specs
@@ -64,6 +77,10 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
 
         for spec in self._subagents:
             spec_start = time.perf_counter()
+            # Provider may be ``None`` (no hint), in which case task_tool
+            # skips the prepend step. We forward the key unconditionally so
+            # the registry shape is uniform.
+            hint_provider = cast(dict, spec).get(SURF_CONTEXT_HINT_PROVIDER_KEY)
             if "runnable" in spec:
                 compiled = cast(CompiledSubAgent, spec)
                 specs.append(
@@ -71,6 +88,7 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
                         "name": compiled["name"],
                         "description": compiled["description"],
                         "runnable": compiled["runnable"],
+                        SURF_CONTEXT_HINT_PROVIDER_KEY: hint_provider,
                     }
                 )
                 timings.append(
@@ -108,6 +126,7 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
                     "name": spec["name"],
                     "description": spec["description"],
                     "runnable": runnable,
+                    SURF_CONTEXT_HINT_PROVIDER_KEY: hint_provider,
                 }
             )
             timings.append(

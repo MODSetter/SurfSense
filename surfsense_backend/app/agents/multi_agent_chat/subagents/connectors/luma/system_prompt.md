@@ -101,9 +101,8 @@ Return **only** one JSON object (no markdown or prose outside it):
 }
 ```
 
-Rules:
-- `status=success` → `next_step=null`, `missing_fields=null`.
-- `status=partial|blocked|error` → `next_step` must be non-null.
-- `status=blocked` due to missing required inputs → `missing_fields` must be non-null.
+<include snippet="output_contract_base"/>
+
+<include snippet="verifiable_handle"/>
 
 Infer before you call; verify before you create; map every tool outcome faithfully.

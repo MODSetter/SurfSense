@@ -33,9 +33,11 @@ from typing_extensions import TypedDict
 from app.agents.new_chat.state_reducers import (
     _add_unique_reducer,
     _dict_merge_with_tombstones_reducer,
+    _int_counter_merge_reducer,
     _list_append_reducer,
     _replace_reducer,
 )
+from app.agents.shared.receipt import Receipt
 
 
 class PendingMove(TypedDict, total=False):
@@ -171,6 +173,35 @@ class SurfSenseFilesystemState(FilesystemState):
 
     workspace_tree_text: NotRequired[Annotated[str, _replace_reducer]]
     """Pre-rendered ``<workspace_tree>`` body; shared with subagents to skip re-render."""
+
+    billable_calls: NotRequired[Annotated[dict[str, int], _int_counter_merge_reducer]]
+    """Per-subagent ``task(...)`` invocation counter, summed across the turn.
+
+    Incremented by ``task_tool.py`` each time a subagent invocation
+    completes (single- or batch-mode). The orchestrator can read this map
+    to self-limit when a runaway loop sends the same specialist 20 calls
+    in a row; the runtime emits a soft warning ToolMessage once the
+    cumulative count crosses :data:`DEFAULT_SUBAGENT_BILLABLE_THRESHOLD`.
+    Cleared by checkpoint rollover (i.e. per turn).
+    """
+
+    receipts: NotRequired[Annotated[list[Receipt], _list_append_reducer]]
+    """Structured Receipt handles emitted by mutating subagent tools this turn.
+
+    Each mutating tool (deliverables, every connector, KB writes via the
+    persistence middleware) wraps its native return into a
+    :class:`~app.agents.shared.receipt.Receipt`
+    and returns it under the ``"receipt"`` key alongside its existing
+    payload. The subagent's tool-call middleware folds the receipt into
+    this list, and ``_return_command_with_state_update`` in
+    ``checkpointed_subagent_middleware/task_tool.py`` carries the list up
+    to the parent automatically (``"receipts"`` is not in
+    ``EXCLUDED_STATE_KEYS``).
+
+    Append-only across the turn; cleared by checkpoint rollover. The
+    orchestrator reads it via the ``<verification>`` teaching to confirm
+    side-effecting subagent claims (see ``shared/snippets/verifiable_handle.md``).
+    """
 
 
 __all__ = [

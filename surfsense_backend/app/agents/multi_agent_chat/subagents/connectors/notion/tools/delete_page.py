@@ -1,12 +1,16 @@
 import logging
 from typing import Any
 
+from langchain.tools import ToolRuntime
 from langchain_core.tools import tool
+from langgraph.types import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
     request_approval,
 )
+from app.agents.shared.receipt import make_receipt
+from app.agents.shared.receipt_command import with_receipt
 from app.connectors.notion_history import NotionAPIError, NotionHistoryConnector
 from app.services.notion.tool_metadata_service import NotionToolMetadataService
 
@@ -35,8 +39,9 @@ def create_delete_notion_page_tool(
     @tool
     async def delete_notion_page(
         page_title: str,
+        runtime: ToolRuntime,
         delete_from_kb: bool = False,
-    ) -> dict[str, Any]:
+    ) -> Command:
         """Delete (archive) a Notion page.
 
         Use this tool when the user asks you to delete, remove, or archive
@@ -65,14 +70,39 @@ def create_delete_notion_page_tool(
             f"delete_notion_page called: page_title='{page_title}', delete_from_kb={delete_from_kb}"
         )
 
+        def _emit(
+            payload: dict[str, Any],
+            *,
+            status: str,
+            external_id: str | None = None,
+            error: str | None = None,
+        ) -> Command:
+            return with_receipt(
+                payload=payload,
+                receipt=make_receipt(
+                    route="notion",
+                    type="page",
+                    operation="delete",
+                    status="success" if status == "success" else "failed",
+                    external_id=external_id,
+                    preview=page_title,
+                    error=error,
+                ),
+                tool_call_id=runtime.tool_call_id,
+            )
+
         if db_session is None or search_space_id is None or user_id is None:
             logger.error(
                 "Notion tool not properly configured - missing required parameters"
             )
-            return {
-                "status": "error",
-                "message": "Notion tool not properly configured. Please contact support.",
-            }
+            return _emit(
+                {
+                    "status": "error",
+                    "message": "Notion tool not properly configured. Please contact support.",
+                },
+                status="error",
+                error="Notion tool not properly configured. Please contact support.",
+            )
 
         try:
             # Get page context (page_id, account, title) from indexed data
@@ -86,16 +116,18 @@ def create_delete_notion_page_tool(
                 # Check if it's a "not found" error (softer handling for LLM)
                 if "not found" in error_msg.lower():
                     logger.warning(f"Page not found: {error_msg}")
-                    return {
-                        "status": "not_found",
-                        "message": error_msg,
-                    }
+                    return _emit(
+                        {"status": "not_found", "message": error_msg},
+                        status="error",
+                        error=error_msg,
+                    )
                 else:
                     logger.error(f"Failed to fetch delete context: {error_msg}")
-                    return {
-                        "status": "error",
-                        "message": error_msg,
-                    }
+                    return _emit(
+                        {"status": "error", "message": error_msg},
+                        status="error",
+                        error=error_msg,
+                    )
 
             account = context.get("account", {})
             if account.get("auth_expired"):
@@ -103,10 +135,14 @@ def create_delete_notion_page_tool(
                     "Notion account %s has expired authentication",
                     account.get("id"),
                 )
-                return {
-                    "status": "auth_error",
-                    "message": "The Notion account for this page needs re-authentication. Please re-authenticate in your connector settings.",
-                }
+                return _emit(
+                    {
+                        "status": "auth_error",
+                        "message": "The Notion account for this page needs re-authentication. Please re-authenticate in your connector settings.",
+                    },
+                    status="error",
+                    error="auth_expired",
+                )
 
             page_id = context.get("page_id")
             connector_id_from_context = account.get("id")
@@ -129,10 +165,14 @@ def create_delete_notion_page_tool(
 
             if result.rejected:
                 logger.info("Notion page deletion rejected by user")
-                return {
-                    "status": "rejected",
-                    "message": "User declined. Do not retry or suggest alternatives.",
-                }
+                return _emit(
+                    {
+                        "status": "rejected",
+                        "message": "User declined. Do not retry or suggest alternatives.",
+                    },
+                    status="error",
+                    error="user_rejected",
+                )
 
             final_page_id = result.params.get("page_id", page_id)
             final_connector_id = result.params.get(
@@ -165,18 +205,26 @@ def create_delete_notion_page_tool(
                     logger.error(
                         f"Invalid connector_id={final_connector_id} for search_space_id={search_space_id}"
                     )
-                    return {
-                        "status": "error",
-                        "message": "Selected Notion account is invalid or has been disconnected. Please select a valid account.",
-                    }
+                    return _emit(
+                        {
+                            "status": "error",
+                            "message": "Selected Notion account is invalid or has been disconnected. Please select a valid account.",
+                        },
+                        status="error",
+                        error="invalid_connector",
+                    )
                 actual_connector_id = connector.id
                 logger.info(f"Validated Notion connector: id={actual_connector_id}")
             else:
                 logger.error("No connector found for this page")
-                return {
-                    "status": "error",
-                    "message": "No connector found for this page.",
-                }
+                return _emit(
+                    {
+                        "status": "error",
+                        "message": "No connector found for this page.",
+                    },
+                    status="error",
+                    error="no_connector",
+                )
 
             # Create connector instance
             notion_connector = NotionHistoryConnector(
@@ -232,7 +280,13 @@ def create_delete_notion_page_tool(
                         f"{result.get('message', '')} (also removed from knowledge base)"
                     )
 
-            return result
+            status = result.get("status", "error")
+            return _emit(
+                result,
+                status=status,
+                external_id=str(final_page_id) if final_page_id else None,
+                error=None if status == "success" else result.get("message"),
+            )
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt
@@ -245,20 +299,28 @@ def create_delete_notion_page_tool(
             if isinstance(e, NotionAPIError) and (
                 "401" in error_str or "unauthorized" in error_str
             ):
-                return {
-                    "status": "auth_error",
-                    "message": str(e),
-                    "connector_id": connector_id_from_context
-                    if "connector_id_from_context" in dir()
-                    else None,
-                    "connector_type": "notion",
-                }
+                return _emit(
+                    {
+                        "status": "auth_error",
+                        "message": str(e),
+                        "connector_id": connector_id_from_context
+                        if "connector_id_from_context" in dir()
+                        else None,
+                        "connector_type": "notion",
+                    },
+                    status="error",
+                    error=str(e),
+                )
             if isinstance(e, ValueError | NotionAPIError):
                 message = str(e)
             else:
                 message = (
                     "Something went wrong while deleting the page. Please try again."
                 )
-            return {"status": "error", "message": message}
+            return _emit(
+                {"status": "error", "message": message},
+                status="error",
+                error=message,
+            )
 
     return delete_notion_page
