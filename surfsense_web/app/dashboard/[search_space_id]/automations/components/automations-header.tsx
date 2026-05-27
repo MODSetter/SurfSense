@@ -1,5 +1,5 @@
 "use client";
-import { MessageSquarePlus } from "lucide-react";
+import { FileJson, MessageSquarePlus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -39,12 +39,20 @@ export function AutomationsHeader({
 				)}
 			</div>
 			{canCreate && showCreateCta && (
-				<Button asChild size="sm">
-					<Link href={`/dashboard/${searchSpaceId}/new-chat`}>
-						<MessageSquarePlus className="mr-2 h-4 w-4" />
-						Create via chat
-					</Link>
-				</Button>
+				<div className="flex items-center gap-2">
+					<Button asChild size="sm" variant="outline">
+						<Link href={`/dashboard/${searchSpaceId}/automations/new`}>
+							<FileJson className="mr-2 h-4 w-4" />
+							Create via JSON
+						</Link>
+					</Button>
+					<Button asChild size="sm">
+						<Link href={`/dashboard/${searchSpaceId}/new-chat`}>
+							<MessageSquarePlus className="mr-2 h-4 w-4" />
+							Create via chat
+						</Link>
+					</Button>
+				</div>
 			)}
 		</div>
 	);

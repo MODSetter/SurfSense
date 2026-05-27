@@ -1,5 +1,5 @@
 "use client";
-import { MessageSquarePlus, Workflow } from "lucide-react";
+import { FileJson, MessageSquarePlus, Workflow } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -26,12 +26,20 @@ export function AutomationsEmptyState({ searchSpaceId, canCreate }: AutomationsE
 				SurfSense drafts the automation for your approval.
 			</p>
 			{canCreate ? (
-				<Button asChild className="mt-6">
-					<Link href={`/dashboard/${searchSpaceId}/new-chat`}>
-						<MessageSquarePlus className="mr-2 h-4 w-4" />
-						Create via chat
-					</Link>
-				</Button>
+				<div className="mt-6 flex items-center justify-center gap-2 flex-wrap">
+					<Button asChild>
+						<Link href={`/dashboard/${searchSpaceId}/new-chat`}>
+							<MessageSquarePlus className="mr-2 h-4 w-4" />
+							Create via chat
+						</Link>
+					</Button>
+					<Button asChild variant="outline">
+						<Link href={`/dashboard/${searchSpaceId}/automations/new`}>
+							<FileJson className="mr-2 h-4 w-4" />
+							Create via JSON
+						</Link>
+					</Button>
+				</div>
 			) : (
 				<p className="mt-6 text-xs text-muted-foreground">
 					You don't have permission to create automations in this search space.
