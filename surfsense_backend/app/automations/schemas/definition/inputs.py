@@ -17,5 +17,5 @@ class InputsBlock(BaseModel):
     schema_: dict[str, Any] = Field(
         ...,
         alias="schema",
-        description="JSON Schema (draft-07) for accepted inputs.",
+        description="JSON Schema (draft 2020-12) for accepted inputs.",
     )

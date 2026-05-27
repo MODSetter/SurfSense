@@ -14,11 +14,11 @@ class PlanStep(BaseModel):
     action: str = Field(..., min_length=1, description="Action type; resolved via registry.")
     when: str | None = Field(
         default=None,
-        description="Optional Jinja expression; step is skipped when falsy.",
+        description="Optional predicate; step is skipped when falsy.",
     )
-    config: dict[str, Any] = Field(
+    params: dict[str, Any] = Field(
         default_factory=dict,
-        description="Action-type-specific config; Jinja-rendered at execute time.",
+        description="Action-type-specific params; rendered at execute time.",
     )
     output_as: str | None = Field(
         default=None,

@@ -11,7 +11,7 @@ class TriggerSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     type: str = Field(..., min_length=1, description="Trigger type; resolved via registry.")
-    config: dict[str, Any] = Field(
+    params: dict[str, Any] = Field(
         default_factory=dict,
-        description="Type-specific config; validated against the trigger's schema.",
+        description="Type-specific params; validated against the trigger's schema.",
     )

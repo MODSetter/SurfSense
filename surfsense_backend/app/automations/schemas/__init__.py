@@ -1,8 +1,8 @@
-"""Pydantic schemas for the automation definition and per-type configs."""
+"""Schemas for the automation definition and per-type configs."""
 
 from __future__ import annotations
 
-from .actions import AgentTaskActionConfig
+from .actions import AgentTaskActionParams
 from .definition import (
     AutomationDefinition,
     ExecutionBlock,
@@ -11,16 +11,16 @@ from .definition import (
     PlanStep,
     TriggerSpec,
 )
-from .triggers import ManualTriggerConfig, ScheduleTriggerConfig
+from .triggers import ManualTriggerParams, ScheduleTriggerParams
 
 __all__ = [
-    "AgentTaskActionConfig",
+    "AgentTaskActionParams",
     "AutomationDefinition",
     "ExecutionBlock",
     "InputsBlock",
-    "ManualTriggerConfig",
+    "ManualTriggerParams",
     "MetadataBlock",
     "PlanStep",
-    "ScheduleTriggerConfig",
+    "ScheduleTriggerParams",
     "TriggerSpec",
 ]

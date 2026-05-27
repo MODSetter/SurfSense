@@ -1,11 +1,11 @@
-"""Per-trigger config schemas, one per trigger type."""
+"""Per-trigger params schemas, one per trigger type."""
 
 from __future__ import annotations
 
-from .manual import ManualTriggerConfig
-from .schedule import ScheduleTriggerConfig
+from .manual import ManualTriggerParams
+from .schedule import ScheduleTriggerParams
 
 __all__ = [
-    "ManualTriggerConfig",
-    "ScheduleTriggerConfig",
+    "ManualTriggerParams",
+    "ScheduleTriggerParams",
 ]

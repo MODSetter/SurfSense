@@ -16,9 +16,6 @@ class ExecutionBlock(BaseModel):
     max_retries: int = Field(default=2, ge=0, description="Per-step retry budget.")
     retry_backoff: Literal["exponential", "linear", "none"] = "exponential"
     concurrency: Literal["drop_if_running", "queue", "always"] = "drop_if_running"
-    budget_cap_usd: float | None = Field(
-        default=None, gt=0, description="Kill the run when accumulated cost exceeds this."
-    )
     on_failure: list[PlanStep] = Field(
         default_factory=list,
         description="Steps run when the main plan fails after retries.",
