@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
 
 from app.db import BaseModel, TimestampMixin
 
@@ -44,3 +45,10 @@ class AutomationTrigger(BaseModel, TimestampMixin):
     )
 
     last_fired_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    automation = relationship("Automation", back_populates="triggers")
+    runs = relationship(
+        "AutomationRun",
+        back_populates="trigger",
+        passive_deletes=True,
+    )

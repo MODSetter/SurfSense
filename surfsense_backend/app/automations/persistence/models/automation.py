@@ -14,6 +14,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import relationship
 
 from app.db import BaseModel, TimestampMixin
 
@@ -58,4 +59,19 @@ class Automation(BaseModel, TimestampMixin):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
         index=True,
+    )
+
+    search_space = relationship("SearchSpace", back_populates="automations")
+    created_by = relationship("User", back_populates="automations")
+    triggers = relationship(
+        "AutomationTrigger",
+        back_populates="automation",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    runs = relationship(
+        "AutomationRun",
+        back_populates="automation",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )

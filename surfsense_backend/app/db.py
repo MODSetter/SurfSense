@@ -1533,6 +1533,14 @@ class SearchSpace(BaseModel, TimestampMixin):
         cascade="all, delete-orphan",
     )
 
+    automations = relationship(
+        "Automation",
+        back_populates="search_space",
+        order_by="Automation.id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
     # RBAC relationships
     roles = relationship(
         "SearchSpaceRole",
@@ -2125,6 +2133,13 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # Automations created by this user
+        automations = relationship(
+            "Automation",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
         # Incentive tasks completed by this user
         incentive_tasks = relationship(
             "UserIncentiveTask",
@@ -2254,6 +2269,13 @@ else:
         vision_llm_configs = relationship(
             "VisionLLMConfig",
             back_populates="user",
+            passive_deletes=True,
+        )
+
+        # Automations created by this user
+        automations = relationship(
+            "Automation",
+            back_populates="created_by",
             passive_deletes=True,
         )
 
@@ -2558,6 +2580,16 @@ class RefreshToken(Base, TimestampMixin):
     @property
     def is_valid(self) -> bool:
         return not self.is_expired and not self.is_revoked
+
+
+# Register model packages that live outside this file so their classes
+# are present in Base.metadata before configure_mappers() resolves any
+# string-based relationship() references.
+from app.automations.persistence import (  # noqa: E402, F401
+    Automation,
+    AutomationRun,
+    AutomationTrigger,
+)
 
 
 engine = create_async_engine(

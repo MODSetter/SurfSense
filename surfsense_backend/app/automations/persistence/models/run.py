@@ -10,6 +10,7 @@ from sqlalchemy import (
     Integer,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
 
 from app.db import BaseModel, TimestampMixin
 
@@ -55,3 +56,6 @@ class AutomationRun(BaseModel, TimestampMixin):
 
     started_at = Column(TIMESTAMP(timezone=True), nullable=True)
     finished_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    automation = relationship("Automation", back_populates="runs")
+    trigger = relationship("AutomationTrigger", back_populates="runs")
