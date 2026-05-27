@@ -1,4 +1,5 @@
 import type { ZodType } from "zod";
+import { BACKEND_URL } from "@/lib/env-config";
 import { getClientPlatform } from "../agent-filesystem";
 import { getBearerToken, handleUnauthorized, refreshAccessToken } from "../auth-utils";
 import {
@@ -9,7 +10,7 @@ import {
 	NetworkError,
 	NotFoundError,
 } from "../error";
-import { BACKEND_URL } from "@/lib/env-config";
+
 enum ResponseType {
 	JSON = "json",
 	TEXT = "text",
@@ -122,8 +123,9 @@ class BaseApiService {
 				if (contentType === "application/json" && typeof mergedOptions.body === "object") {
 					fetchOptions.body = JSON.stringify(mergedOptions.body);
 				} else {
-					// Pass body as-is for other content types (e.g., form data, already stringified)
-					fetchOptions.body = mergedOptions.body;
+					// Pass body as-is for other content types (form data, already stringified).
+					// Caller is responsible for passing a real BodyInit when Content-Type is not JSON.
+					fetchOptions.body = mergedOptions.body as BodyInit;
 				}
 			}
 
@@ -210,32 +212,39 @@ class BaseApiService {
 			let data;
 			const responseType = mergedOptions.responseType;
 
-			try {
-				switch (responseType) {
-					case ResponseType.JSON:
-						data = await response.json();
-						break;
-					case ResponseType.TEXT:
-						data = await response.text();
-						break;
-					case ResponseType.BLOB:
-						data = await response.blob();
-						break;
-					case ResponseType.ARRAY_BUFFER:
-						data = await response.arrayBuffer();
-						break;
-					//  Add more cases as needed
-					default:
-						data = await response.json();
+			if (response.status === 204) {
+				// 204 No Content has no body; .json() would throw SyntaxError.
+				// Leave data as null and skip schema validation below so endpoints
+				// that opt out of bodies (REST-style DELETE) don't error on success.
+				data = null;
+			} else {
+				try {
+					switch (responseType) {
+						case ResponseType.JSON:
+							data = await response.json();
+							break;
+						case ResponseType.TEXT:
+							data = await response.text();
+							break;
+						case ResponseType.BLOB:
+							data = await response.blob();
+							break;
+						case ResponseType.ARRAY_BUFFER:
+							data = await response.arrayBuffer();
+							break;
+						//  Add more cases as needed
+						default:
+							data = await response.json();
+					}
+				} catch (error) {
+					console.error("Failed to parse response as JSON:", error);
+					throw new AppError("Failed to parse response", response.status, response.statusText);
 				}
-			} catch (error) {
-				console.error("Failed to parse response as JSON:", error);
-				throw new AppError("Failed to parse response", response.status, response.statusText);
 			}
 
 			// Validate response
 			if (responseType === ResponseType.JSON) {
-				if (!responseSchema) {
+				if (!responseSchema || response.status === 204) {
 					return data;
 				}
 				const parsedData = responseSchema.safeParse(data);
