@@ -10,6 +10,9 @@ import sys
 from dotenv import load_dotenv
 from telegram import Bot
 
+from app.db import async_session_maker
+from app.gateway.accounts import get_or_create_system_telegram_account
+
 load_dotenv()
 
 WEBHOOK_SECRET_RE = re.compile(r"^[A-Za-z0-9_-]{1,256}$")
@@ -32,7 +35,13 @@ async def main() -> int:
         )
         return 1
 
-    webhook_url = f"{base_url.rstrip('/')}/api/v1/gateway/webhooks/telegram/{secret}"
+    async with async_session_maker() as session:
+        account = await get_or_create_system_telegram_account(session)
+        account.webhook_secret = secret
+        await session.commit()
+        account_id = int(account.id)
+
+    webhook_url = f"{base_url.rstrip('/')}/api/v1/gateway/webhooks/telegram/{account_id}"
     bot = Bot(token=token)
     ok = await bot.set_webhook(
         url=webhook_url,
