@@ -1,4 +1,4 @@
-"""SQLAlchemy models, one per table."""
+"""Models, one per table."""
 
 from __future__ import annotations
 

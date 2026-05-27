@@ -33,7 +33,7 @@ class AutomationTrigger(BaseModel, TimestampMixin):
         index=True,
     )
 
-    config = Column(JSONB, nullable=False)
+    params = Column(JSONB, nullable=False)
 
     enabled = Column(
         Boolean,

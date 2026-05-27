@@ -1,4 +1,4 @@
-"""SQLAlchemy models and enums for the automation tables."""
+"""Models and enums for the automation tables."""
 
 from __future__ import annotations
 

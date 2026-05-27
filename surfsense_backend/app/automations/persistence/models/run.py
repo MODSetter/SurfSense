@@ -47,7 +47,7 @@ class AutomationRun(BaseModel, TimestampMixin):
     trigger_payload = Column(JSONB, nullable=True)
     resolved_inputs = Column(JSONB, nullable=False, server_default="{}")
     # one entry per executed step; agent_task entries carry their own
-    # `agent_session_id` (LangGraph thread reference) inside this JSONB
+    # `agent_session_id` inside their entry
     step_results = Column(JSONB, nullable=False, server_default="[]")
     output = Column(JSONB, nullable=True)
     artifacts = Column(JSONB, nullable=False, server_default="[]")
