@@ -243,7 +243,6 @@ celery_app.conf.update(
         "index_obsidian_attachment": {"queue": CONNECTORS_QUEUE},
         # Everything else (document processing, podcasts, reindexing,
         # schedule checker, cleanup) stays on the default fast queue.
-        "gateway.process_inbound_event": {"queue": f"{CELERY_TASK_DEFAULT_QUEUE}.gateway"},
         "gateway.reconcile_inbox": {"queue": f"{CELERY_TASK_DEFAULT_QUEUE}.gateway"},
         "gateway.health_check": {"queue": f"{CELERY_TASK_DEFAULT_QUEUE}.gateway"},
         "gateway.retention_sweep": {"queue": f"{CELERY_TASK_DEFAULT_QUEUE}.gateway"},
