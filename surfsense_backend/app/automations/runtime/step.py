@@ -6,8 +6,8 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
-from app.automations.registries import get_action
-from app.automations.registries.actions.types import ActionContext
+from app.automations.actions import get_action
+from app.automations.actions.types import ActionContext
 from app.automations.schemas.definition.plan_step import PlanStep
 from app.automations.templating import evaluate_predicate, render_value
 

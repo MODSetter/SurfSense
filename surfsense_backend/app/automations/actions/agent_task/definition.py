@@ -1,12 +1,11 @@
-"""Built-in ``agent_task`` action. Self-registers at import time."""
+"""``agent_task`` ``ActionDefinition`` registration."""
 
 from __future__ import annotations
 
-from app.automations.actions.agent_task import build_handler
-from app.automations.schemas.actions import AgentTaskActionParams
-
-from .store import register_action
-from .types import ActionDefinition
+from ..store import register_action
+from ..types import ActionDefinition
+from .factory import build_handler
+from .params import AgentTaskActionParams
 
 AGENT_TASK_ACTION = ActionDefinition(
     type="agent_task",

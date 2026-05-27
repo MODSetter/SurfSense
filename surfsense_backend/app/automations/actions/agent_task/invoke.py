@@ -10,8 +10,9 @@ from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
 from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
-from app.automations.registries.actions.types import ActionContext
 from app.db import ChatVisibility, async_session_maker
+
+from ..types import ActionContext
 
 from .auto_decide import build_auto_decisions
 from .dependencies import build_dependencies

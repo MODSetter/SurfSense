@@ -4,13 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.automations.registries.actions.types import (
-    ActionContext,
-    ActionHandler,
-)
-from app.automations.schemas.actions import AgentTaskActionParams
-
+from ..types import ActionContext, ActionHandler
 from .invoke import run_agent_task
+from .params import AgentTaskActionParams
 
 
 def build_handler(ctx: ActionContext) -> ActionHandler:

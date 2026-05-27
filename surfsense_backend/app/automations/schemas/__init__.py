@@ -1,8 +1,13 @@
-"""Schemas for the automation definition and per-type configs."""
+"""Schemas for the automation definition envelope.
+
+Per-action and per-trigger params schemas live with the action/trigger
+implementations (``app.automations.actions.<name>.params`` /
+``app.automations.triggers.<name>.params``); only the cross-cutting envelope
+lives here.
+"""
 
 from __future__ import annotations
 
-from .actions import AgentTaskActionParams
 from .definition import (
     AutomationDefinition,
     Execution,
@@ -11,16 +16,12 @@ from .definition import (
     PlanStep,
     TriggerSpec,
 )
-from .triggers import ManualTriggerParams, ScheduleTriggerParams
 
 __all__ = [
-    "AgentTaskActionParams",
     "AutomationDefinition",
     "Execution",
     "Inputs",
-    "ManualTriggerParams",
     "Metadata",
     "PlanStep",
-    "ScheduleTriggerParams",
     "TriggerSpec",
 ]

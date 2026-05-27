@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.automations.persistence.enums.run_status import RunStatus
 from app.automations.persistence.models.run import AutomationRun
-from app.automations.registries.actions.types import ActionContext
+from app.automations.actions.types import ActionContext
 from app.automations.schemas.definition.envelope import AutomationDefinition
 from app.automations.schemas.definition.plan_step import PlanStep
 from app.automations.templating import build_run_context

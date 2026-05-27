@@ -1,11 +1,10 @@
-"""Built-in ``manual`` trigger. Self-registers at import time."""
+"""``manual`` ``TriggerDefinition`` registration."""
 
 from __future__ import annotations
 
-from app.automations.schemas.triggers import ManualTriggerParams
-
-from .store import register_trigger
-from .types import TriggerDefinition
+from ..store import register_trigger
+from ..types import TriggerDefinition
+from .params import ManualTriggerParams
 
 MANUAL_TRIGGER = TriggerDefinition(
     type="manual",

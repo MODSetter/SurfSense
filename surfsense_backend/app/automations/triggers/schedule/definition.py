@@ -1,11 +1,10 @@
-"""Built-in ``schedule`` trigger. Self-registers at import time."""
+"""``schedule`` ``TriggerDefinition`` registration."""
 
 from __future__ import annotations
 
-from app.automations.schemas.triggers import ScheduleTriggerParams
-
-from .store import register_trigger
-from .types import TriggerDefinition
+from ..store import register_trigger
+from ..types import TriggerDefinition
+from .params import ScheduleTriggerParams
 
 SCHEDULE_TRIGGER = TriggerDefinition(
     type="schedule",

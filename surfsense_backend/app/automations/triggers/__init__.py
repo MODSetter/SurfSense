@@ -1,4 +1,8 @@
-"""Trigger registry."""
+"""Triggers domain: registry surface + built-in trigger packages.
+
+Each trigger lives in its own subpackage (``manual/``, ``schedule/``, ...) and
+self-registers at import time via its ``definition`` module.
+"""
 
 from __future__ import annotations
 
