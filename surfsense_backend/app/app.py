@@ -37,6 +37,14 @@ from app.config import (
 )
 from app.db import User, create_db_and_tables, get_async_session
 from app.exceptions import GENERIC_5XX_MESSAGE, ISSUES_URL, SurfSenseError
+from app.gateway.byo_long_poll import (
+    start_byo_long_poll_supervisors,
+    stop_byo_long_poll_supervisors,
+)
+from app.gateway.inbox_worker import (
+    start_gateway_inbox_worker,
+    stop_gateway_inbox_worker,
+)
 from app.observability import metrics as ot_metrics
 from app.observability.bootstrap import init_otel, shutdown_otel
 from app.rate_limiter import get_real_client_ip, limiter
@@ -597,12 +605,17 @@ async def lifespan(app: FastAPI):
         )
 
     log_system_snapshot("startup_complete")
+    await start_gateway_inbox_worker()
+    await start_byo_long_poll_supervisors()
 
-    yield
-
-    _stop_openrouter_background_refresh()
-    await close_checkpointer()
-    shutdown_otel()
+    try:
+        yield
+    finally:
+        await stop_byo_long_poll_supervisors()
+        await stop_gateway_inbox_worker()
+        _stop_openrouter_background_refresh()
+        await close_checkpointer()
+        shutdown_otel()
 
 
 def registration_allowed():

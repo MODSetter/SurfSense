@@ -546,6 +546,9 @@ class Config:
     TELEGRAM_SHARED_BOT_USERNAME = os.getenv("TELEGRAM_SHARED_BOT_USERNAME")
     TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET")
     GATEWAY_BASE_URL = os.getenv("GATEWAY_BASE_URL", BACKEND_URL)
+    GATEWAY_BYO_LONGPOLL_ENABLED = (
+        os.getenv("GATEWAY_BYO_LONGPOLL_ENABLED", "TRUE").upper() == "TRUE"
+    )
 
     # Stripe checkout for pay-as-you-go page packs
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
