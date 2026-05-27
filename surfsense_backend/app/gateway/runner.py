@@ -24,7 +24,7 @@ def _lock_key(token: str) -> int:
 
 class GatewayRunner:
     async def run(self) -> None:
-        print("Gateway runner started. Waiting for inbound events...", flush=True)
+        logger.info("Gateway runner started. Waiting for inbound events.")
         tasks = [asyncio.create_task(self._process_inbox_forever())]
 
         async with async_session_maker() as session:

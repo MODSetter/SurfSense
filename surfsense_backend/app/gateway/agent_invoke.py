@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _events_from_sse(chunks: AsyncIterator[str]) -> AsyncIterator[GatewayStreamEvent]:
+    saw_text = False
     async for chunk in chunks:
         for raw_line in chunk.splitlines():
             line = raw_line.strip()
@@ -29,6 +30,7 @@ async def _events_from_sse(chunks: AsyncIterator[str]) -> AsyncIterator[GatewayS
                 continue
             payload = line.removeprefix("data:").strip()
             if payload == "[DONE]":
+                logger.info("Gateway SSE normalized: done")
                 yield GatewayStreamEvent(type="done")
                 continue
             try:
@@ -37,12 +39,16 @@ async def _events_from_sse(chunks: AsyncIterator[str]) -> AsyncIterator[GatewayS
                 continue
             event_type = str(data.get("type") or "")
             if event_type == "text-delta":
-                yield GatewayStreamEvent(type="text-delta", data={"delta": data.get("delta", "")})
-            elif event_type == "text-end":
-                yield GatewayStreamEvent(type="text-end", data=data)
-            elif event_type == "finish":
+                delta = data.get("delta", "")
+                if delta and not saw_text:
+                    logger.info("Gateway SSE normalized: text stream started")
+                    saw_text = True
+                yield GatewayStreamEvent(type="text-delta", data={"delta": delta})
+            elif event_type in {"finish", "done"}:
+                logger.info("Gateway SSE normalized: %s", event_type)
                 yield GatewayStreamEvent(type="finish", data=data)
             elif event_type == "data-interrupt-request":
+                logger.info("Gateway SSE normalized: interrupt request")
                 yield GatewayStreamEvent(type="data-interrupt-request", data=data)
 
 

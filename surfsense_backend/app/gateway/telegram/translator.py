@@ -54,7 +54,7 @@ class TelegramStreamTranslator(BaseStreamTranslator):
             elif event.type in {"data-interrupt-request", "interrupt"}:
                 await self._handle_hitl_interrupt()
                 return
-            elif event.type in {"text-end", "finish", "done"}:
+            elif event.type in {"finish", "done"}:
                 break
 
         await self._flush(final=True)
@@ -100,6 +100,11 @@ class TelegramStreamTranslator(BaseStreamTranslator):
     async def _send_text(self, text: str) -> PlatformSendResult:
         await self._throttle()
         parse_mode = None if self._plaintext_mode else ParseMode.MARKDOWN_V2
+        logger.info(
+            "Telegram gateway sending message peer=%s chars=%d",
+            self.external_peer_id,
+            len(text),
+        )
         try:
             result = await retry_plaintext_on_bad_markdown(
                 self.adapter.send_message,
@@ -110,12 +115,23 @@ class TelegramStreamTranslator(BaseStreamTranslator):
         except Exception:
             record_gateway_outbound(platform="telegram", kind="send", status="failed")
             raise
+        logger.info(
+            "Telegram gateway sent message peer=%s message_id=%s",
+            self.external_peer_id,
+            result.external_message_id,
+        )
         record_gateway_outbound(platform="telegram", kind="send", status="sent")
         return result
 
     async def _edit_text(self, message_id: str, text: str) -> PlatformSendResult:
         await self._throttle()
         parse_mode = None if self._plaintext_mode else ParseMode.MARKDOWN_V2
+        logger.info(
+            "Telegram gateway editing message peer=%s message_id=%s chars=%d",
+            self.external_peer_id,
+            message_id,
+            len(text),
+        )
         try:
             result = await retry_plaintext_on_bad_markdown(
                 self.adapter.edit_message,
@@ -127,6 +143,11 @@ class TelegramStreamTranslator(BaseStreamTranslator):
         except Exception:
             record_gateway_outbound(platform="telegram", kind="edit", status="failed")
             raise
+        logger.info(
+            "Telegram gateway edited message peer=%s message_id=%s",
+            self.external_peer_id,
+            result.external_message_id,
+        )
         record_gateway_outbound(platform="telegram", kind="edit", status="edited")
         return result
 
