@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.db import GatewayBindingState
+from app.db import ExternalChatBindingState
 from app.gateway.pairing import generate_pairing_code, redeem_pairing_code
 
 
@@ -16,7 +16,7 @@ def test_generate_pairing_code_is_short_display_token():
 @pytest.mark.asyncio
 async def test_redeem_pairing_code_binds_pending_row(mocker):
     binding = mocker.Mock()
-    binding.state = GatewayBindingState.PENDING
+    binding.state = ExternalChatBindingState.PENDING
     binding.pairing_code_expires_at = datetime.now(UTC) + timedelta(minutes=1)
     scalars = mocker.Mock()
     scalars.first.return_value = binding
@@ -35,7 +35,7 @@ async def test_redeem_pairing_code_binds_pending_row(mocker):
     )
 
     assert redeemed is binding
-    assert binding.state == GatewayBindingState.BOUND
+    assert binding.state == ExternalChatBindingState.BOUND
     assert binding.external_peer_id == "telegram:123"
     assert binding.pairing_code is None
 

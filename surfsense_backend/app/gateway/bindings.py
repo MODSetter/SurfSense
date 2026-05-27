@@ -1,4 +1,4 @@
-"""Gateway binding helpers."""
+"""External chat binding helpers."""
 
 from __future__ import annotations
 
@@ -9,19 +9,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import (
     ChatVisibility,
-    GatewayBindingState,
-    GatewayConversationBinding,
+    ExternalChatBindingState,
+    ExternalChatBinding,
     NewChatThread,
 )
 
 
 async def get_or_create_thread_for_binding(
     session: AsyncSession,
-    binding: GatewayConversationBinding,
+    binding: ExternalChatBinding,
 ) -> NewChatThread:
-    if binding.active_thread_id is not None:
+    if binding.new_chat_thread_id is not None:
         result = await session.execute(
-            select(NewChatThread).where(NewChatThread.id == binding.active_thread_id)
+            select(NewChatThread).where(NewChatThread.id == binding.new_chat_thread_id)
         )
         thread = result.scalars().first()
         if thread is not None and not thread.archived:
@@ -33,30 +33,30 @@ async def get_or_create_thread_for_binding(
         created_by_id=binding.user_id,
         visibility=ChatVisibility.PRIVATE,
         source="telegram",
-        binding_id=binding.id,
+        external_chat_binding_id=binding.id,
     )
     session.add(thread)
     await session.flush()
-    binding.active_thread_id = thread.id
+    binding.new_chat_thread_id = thread.id
     return thread
 
 
-def suspend_binding(binding: GatewayConversationBinding, reason: str) -> None:
+def suspend_binding(binding: ExternalChatBinding, reason: str) -> None:
     now = datetime.now(UTC)
-    binding.state = GatewayBindingState.SUSPENDED
+    binding.state = ExternalChatBindingState.SUSPENDED
     binding.suspended_at = now
     binding.suspended_reason = reason
 
 
-def revoke_binding(binding: GatewayConversationBinding) -> None:
+def revoke_binding(binding: ExternalChatBinding) -> None:
     now = datetime.now(UTC)
-    binding.state = GatewayBindingState.REVOKED
+    binding.state = ExternalChatBindingState.REVOKED
     binding.revoked_at = now
-    binding.active_thread_id = None
+    binding.new_chat_thread_id = None
 
 
-def resume_binding(binding: GatewayConversationBinding) -> None:
-    binding.state = GatewayBindingState.BOUND
+def resume_binding(binding: ExternalChatBinding) -> None:
+    binding.state = ExternalChatBindingState.BOUND
     binding.suspended_at = None
     binding.suspended_reason = None
 

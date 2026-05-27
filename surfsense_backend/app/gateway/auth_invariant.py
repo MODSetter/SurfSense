@@ -1,11 +1,11 @@
-"""Authorization invariants for gateway-routed turns."""
+"""Authorization invariants for external-chat-routed turns."""
 
 from __future__ import annotations
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import GatewayConversationBinding, Permission, User
+from app.db import ExternalChatBinding, Permission, User
 from app.gateway.bindings import suspend_binding
 from app.observability.metrics import record_gateway_auth_invariant_failure
 from app.utils.rbac import check_permission, check_search_space_access
@@ -19,7 +19,7 @@ class GatewaySuspendedError(RuntimeError):
 
 async def _fail(
     session: AsyncSession,
-    binding: GatewayConversationBinding,
+    binding: ExternalChatBinding,
     reason: str,
 ) -> None:
     suspend_binding(binding, reason)
@@ -30,7 +30,7 @@ async def _fail(
 
 async def assert_authorization_invariant(
     session: AsyncSession,
-    binding: GatewayConversationBinding,
+    binding: ExternalChatBinding,
 ) -> User:
     if binding.state != "bound":
         await _fail(session, binding, "binding_not_bound")
@@ -46,7 +46,7 @@ async def assert_authorization_invariant(
             user,
             binding.search_space_id,
             Permission.CHATS_CREATE.value,
-            "Gateway owner no longer has permission to chat in this search space",
+            "External chat owner no longer has permission to chat in this search space",
         )
     except HTTPException as exc:
         await _fail(session, binding, f"rbac_{exc.status_code}")
