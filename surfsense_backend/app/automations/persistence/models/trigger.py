@@ -36,6 +36,10 @@ class AutomationTrigger(BaseModel, TimestampMixin):
 
     params = Column(JSONB, nullable=False)
 
+    # Per-attachment domain values merged into every dispatched run's inputs.
+    # Static wins over runtime data on key collision.
+    static_inputs = Column(JSONB, nullable=False, server_default="{}")
+
     enabled = Column(
         Boolean,
         nullable=False,

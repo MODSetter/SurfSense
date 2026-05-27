@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,8 +18,17 @@ async def dispatch_schedule_run(
     *,
     session: AsyncSession,
     trigger: AutomationTrigger,
+    fired_at: datetime,
+    scheduled_for: datetime,
+    previous_last_fired_at: datetime | None,
 ) -> AutomationRun:
     """Fire one scheduled run for ``trigger``.
+
+    Emits calendar context as runtime inputs:
+
+    - ``fired_at`` — actual fire time
+    - ``scheduled_for`` — cron-derived target time for this fire
+    - ``last_fired_at`` — fire time of the previous run, or null on first fire
 
     The caller (the schedule tick) is responsible for selecting due triggers
     and advancing ``next_fire_at`` / ``last_fired_at`` before invoking this.
@@ -33,11 +44,19 @@ async def dispatch_schedule_run(
             f"automation {trigger.automation_id} is {automation.status.value}, not active"
         )
 
+    runtime_inputs = {
+        "fired_at": fired_at.isoformat(),
+        "scheduled_for": scheduled_for.isoformat(),
+        "last_fired_at": (
+            previous_last_fired_at.isoformat() if previous_last_fired_at else None
+        ),
+    }
+
     return await dispatch_run(
         session=session,
         automation=automation,
         trigger=trigger,
-        payload=None,
+        runtime_inputs=runtime_inputs,
     )
 
 

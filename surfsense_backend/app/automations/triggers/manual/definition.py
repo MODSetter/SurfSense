@@ -9,8 +9,7 @@ from .params import ManualTriggerParams
 MANUAL_TRIGGER = TriggerDefinition(
     type="manual",
     description="Fire on a user-initiated 'Run now' invocation.",
-    params_schema=ManualTriggerParams.model_json_schema(),
-    payload_schema={"type": "object"},
+    params_model=ManualTriggerParams,
 )
 
 register_trigger(MANUAL_TRIGGER)

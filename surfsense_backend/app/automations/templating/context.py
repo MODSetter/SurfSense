@@ -19,7 +19,7 @@ def build_run_context(
     trigger_type: str | None,
     started_at: datetime | None,
     attempt: int,
-    resolved_inputs: Mapping[str, Any],
+    inputs: Mapping[str, Any],
     step_outputs: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Build the ``{run, inputs, steps}`` namespace exposed to every template."""
@@ -36,6 +36,6 @@ def build_run_context(
             "started_at": started_at,
             "attempt": attempt,
         },
-        "inputs": dict(resolved_inputs),
+        "inputs": dict(inputs),
         "steps": dict(step_outputs),
     }

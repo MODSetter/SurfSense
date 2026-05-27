@@ -15,6 +15,7 @@ Runs every minute. Each tick performs two passes:
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -39,6 +40,15 @@ TASK_NAME = "automation_schedule_tick"
 _TICK_BATCH = 200
 
 
+@dataclass(frozen=True, slots=True)
+class _Claim:
+    """Per-trigger fire context captured before row state is mutated."""
+
+    trigger_id: int
+    scheduled_for: datetime
+    previous_last_fired_at: datetime | None
+
+
 @celery_app.task(name=TASK_NAME)
 def automation_schedule_tick() -> None:
     """Tick once: self-heal NULL next_fire_at, claim due rows, fire each."""
@@ -52,12 +62,12 @@ async def _tick() -> None:
 
         await _self_heal_null_next_fire(session, now=now)
 
-        claimed_ids = await _claim_due_triggers(session, now=now)
-        if not claimed_ids:
+        claims = await _claim_due_triggers(session, now=now)
+        if not claims:
             return
 
-        for trigger_id in claimed_ids:
-            await _fire_one(session, trigger_id=trigger_id)
+        for claim in claims:
+            await _fire_one(session, claim=claim, fired_at=now)
 
 
 async def _self_heal_null_next_fire(session: AsyncSession, *, now: datetime) -> None:
@@ -95,8 +105,8 @@ async def _self_heal_null_next_fire(session: AsyncSession, *, now: datetime) -> 
 
 async def _claim_due_triggers(
     session: AsyncSession, *, now: datetime
-) -> list[int]:
-    """Lock and advance due rows; return claimed trigger ids."""
+) -> list[_Claim]:
+    """Lock and advance due rows; return per-trigger fire context."""
     stmt = (
         select(AutomationTrigger)
         .where(
@@ -113,8 +123,12 @@ async def _claim_due_triggers(
     if not triggers:
         return []
 
-    claimed: list[int] = []
+    claims: list[_Claim] = []
     for trigger in triggers:
+        # Snapshot fire-context BEFORE we advance the row.
+        scheduled_for = trigger.next_fire_at
+        previous_last_fired_at = trigger.last_fired_at
+
         try:
             trigger.next_fire_at = compute_next_fire_at(
                 trigger.params["cron"],
@@ -131,29 +145,43 @@ async def _claim_due_triggers(
             continue
 
         trigger.last_fired_at = now
-        claimed.append(trigger.id)
+        claims.append(
+            _Claim(
+                trigger_id=trigger.id,
+                scheduled_for=scheduled_for,
+                previous_last_fired_at=previous_last_fired_at,
+            )
+        )
 
     await session.commit()
-    return claimed
+    return claims
 
 
-async def _fire_one(session: AsyncSession, *, trigger_id: int) -> None:
+async def _fire_one(
+    session: AsyncSession, *, claim: _Claim, fired_at: datetime
+) -> None:
     """Reload the trigger post-commit and dispatch a run for it."""
-    trigger = await session.get(AutomationTrigger, trigger_id)
+    trigger = await session.get(AutomationTrigger, claim.trigger_id)
     if trigger is None:
         return
 
     try:
-        run = await dispatch_schedule_run(session=session, trigger=trigger)
+        run = await dispatch_schedule_run(
+            session=session,
+            trigger=trigger,
+            fired_at=fired_at,
+            scheduled_for=claim.scheduled_for,
+            previous_last_fired_at=claim.previous_last_fired_at,
+        )
         logger.info(
             "scheduled fire: trigger=%d automation=%d run=%d",
-            trigger_id,
+            claim.trigger_id,
             trigger.automation_id,
             run.id,
         )
     except Exception:
         logger.exception(
             "scheduled fire failed for trigger %d (next attempt at next match)",
-            trigger_id,
+            claim.trigger_id,
         )
         await session.rollback()

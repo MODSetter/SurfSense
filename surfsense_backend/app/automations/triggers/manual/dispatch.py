@@ -19,9 +19,14 @@ async def dispatch_manual_run(
     *,
     session: AsyncSession,
     automation_id: int,
-    payload: dict[str, Any] | None,
+    runtime_inputs: dict[str, Any] | None,
 ) -> AutomationRun:
-    """Find the automation + its enabled manual trigger, then run the generic dispatch."""
+    """Find the automation + its enabled manual trigger, then run the generic dispatch.
+
+    ``runtime_inputs`` is the caller-supplied payload (e.g. an HTTP body for a
+    "Run now" API call); it is merged with the trigger's ``static_inputs`` by
+    the generic dispatcher, with static winning on key collision.
+    """
     automation = await _load_automation(session, automation_id)
     if automation is None:
         raise DispatchError(f"automation {automation_id} not found")
@@ -41,7 +46,7 @@ async def dispatch_manual_run(
         session=session,
         automation=automation,
         trigger=trigger,
-        payload=payload,
+        runtime_inputs=runtime_inputs,
     )
 
 

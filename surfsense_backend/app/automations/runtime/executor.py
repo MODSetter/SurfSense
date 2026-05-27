@@ -106,7 +106,7 @@ def _build_template_ctx(run: AutomationRun, step_outputs: dict[str, Any]) -> dic
         trigger_type=trigger.type.value if trigger else None,
         started_at=run.started_at,
         attempt=1,
-        resolved_inputs=run.resolved_inputs or {},
+        inputs=run.inputs or {},
         step_outputs=step_outputs,
     )
 

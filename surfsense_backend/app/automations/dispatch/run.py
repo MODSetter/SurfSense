@@ -22,9 +22,13 @@ async def dispatch_run(
     session: AsyncSession,
     automation: Automation,
     trigger: AutomationTrigger,
-    payload: dict[str, Any] | None,
+    runtime_inputs: dict[str, Any] | None = None,
 ) -> AutomationRun:
     """Validate, snapshot the definition, persist an ``AutomationRun``, enqueue execution.
+
+    Final inputs = ``trigger.static_inputs`` merged with ``runtime_inputs``,
+    static winning on key collision. The merged dict is validated against
+    ``automation.definition.inputs.schema_`` and stored on the run.
 
     Callers (trigger-specific adapters) are responsible for resolving
     ``automation`` and ``trigger`` and for the trigger-side ``ACTIVE`` /
@@ -36,7 +40,8 @@ async def dispatch_run(
     except Exception as exc:
         raise DispatchError(f"invalid automation definition: {exc}") from exc
 
-    resolved_inputs = _validate_inputs(definition, payload or {})
+    merged_inputs = {**(runtime_inputs or {}), **(trigger.static_inputs or {})}
+    validated_inputs = _validate_inputs(definition, merged_inputs)
     snapshot = definition.model_dump(mode="json", by_alias=True)
 
     run = AutomationRun(
@@ -44,8 +49,7 @@ async def dispatch_run(
         trigger_id=trigger.id,
         status=RunStatus.PENDING,
         definition_snapshot=snapshot,
-        trigger_payload=payload,
-        resolved_inputs=resolved_inputs,
+        inputs=validated_inputs,
         step_results=[],
         artifacts=[],
     )
@@ -61,12 +65,12 @@ async def dispatch_run(
 
 
 def _validate_inputs(
-    definition: AutomationDefinition, payload: dict[str, Any]
+    definition: AutomationDefinition, inputs: dict[str, Any]
 ) -> dict[str, Any]:
     if definition.inputs is None or not definition.inputs.schema_:
         return {}
     try:
-        jsonschema.validate(instance=payload, schema=definition.inputs.schema_)
+        jsonschema.validate(instance=inputs, schema=definition.inputs.schema_)
     except jsonschema.ValidationError as exc:
         raise DispatchError(f"inputs: {exc.message}") from exc
-    return payload
+    return inputs

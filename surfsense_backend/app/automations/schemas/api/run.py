@@ -28,8 +28,7 @@ class RunDetail(RunSummary):
     """Full run view including snapshot, results and artifacts."""
 
     definition_snapshot: dict[str, Any]
-    trigger_payload: dict[str, Any] | None = None
-    resolved_inputs: dict[str, Any]
+    inputs: dict[str, Any]
     step_results: list[dict[str, Any]]
     output: dict[str, Any] | None = None
     artifacts: list[dict[str, Any]]

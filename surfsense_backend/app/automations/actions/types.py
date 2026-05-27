@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -30,5 +31,10 @@ class ActionDefinition:
     type: str
     name: str
     description: str
-    params_schema: dict[str, Any]
+    params_model: type[BaseModel]
     build_handler: ActionHandlerFactory
+
+    @property
+    def params_schema(self) -> dict[str, Any]:
+        """JSON Schema (draft 2020-12) derived from ``params_model``."""
+        return self.params_model.model_json_schema()

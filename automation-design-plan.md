@@ -34,23 +34,26 @@ system will survive feature growth:
 
 ---
 
-## 2. The four-layer contract
+## 2. The three-layer contract
 
-The system is structured as four layers. Layers 1, 2, and 4 are defined by
-SurfSense developers (at registration time). Layer 3 is what users write
-(or the NL generator produces). The runtime reads all four to do its job.
+The system is structured as three layers. Layers 1 and 3 are defined by
+SurfSense developers (at registration time). Layer 2 is what users write
+(or the NL generator produces). The runtime reads all three to do its job.
 
 | Layer | What it is | Defined by |
 | ----- | ---------- | ---------- |
-| **1. Capability registry** | What this SurfSense instance can do | Developers, at startup |
-| **2. Action contract** | Per-action input/output schema | Developers, at startup |
-| **3. Automation definition** | One concrete saved automation | Users (or NL generator) |
-| **4. Trigger contract** | Per-trigger config and payload schemas | Developers, at startup |
+| **1. Action contract** | Per-action params and output schema | Developers, at startup |
+| **2. Automation definition** | One concrete saved automation | Users (or NL generator) |
+| **3. Trigger contract** | Per-trigger params and payload schemas | Developers, at startup |
 
-Each layer constrains the one above. The runtime reads all four but doesn't
-know what's in them ahead of time. That's how a new capability or trigger
+Each layer constrains the next. The runtime reads all three but doesn't
+know what's in them ahead of time. That's how a new action or trigger
 type becomes available across the engine without code changes outside its
 registration.
+
+A unification layer below Layer 1 — one catalog of "things this SurfSense
+instance can do," shared by automations, agents, and future surfaces — was
+considered and deferred (§3). v1 actions are stand-alone.
 
 ### Schema language
 
@@ -66,167 +69,126 @@ extensions on top:
 
 ---
 
-## 3. Capability registry (Layer 1)
+## 3. Capability unification layer — deferred to post-v1
 
-A `Capability` is one discrete thing the SurfSense backend exposes —
-"post a Slack message," "query the Search Space," "generate a podcast." It
-is the atomic unit of "things automations can do."
+Earlier drafts introduced a `Capability` registry as Layer 1: one catalog
+of "things this SurfSense instance can do," shared by the automation
+engine (as actions), the agent (as tools), and any future HTTP surface.
+The motivation is real — one source of truth beats N parallel registries —
+but v1 has a single action (`agent_task`) and a single consumer (the
+automation engine). The five-field shape sketched earlier (`id`,
+`description`, `input_schema`, `output_schema`, `handler`) cannot safely
+host any non-trivial capability: it carries no caller identity, no
+search-space scoping, and no authorization gate on tool delegation.
+Building the abstraction with one consumer would lock in a shape that
+doesn't survive the second consumer.
 
-```python
-@dataclass
-class Capability:
-    id: str                                # "slack.post_message"
-    description: str                       # for the NL generator + UI label
-    input_schema: dict                     # JSON Schema
-    output_schema: dict                    # JSON Schema
-    handler: AsyncHandler
-```
+The unification layer returns when the second consumer lands (Phase 2
+tight actions or Phase 4 MCP), redesigned from the start with:
 
-### v1-minimum: five fields, nothing else
+- A `CallContext` carrying caller user id, search space id, and run id,
+  passed to every handler invocation.
+- Explicit scope declarations per capability (e.g. `reads:documents`,
+  `writes:slack`, `destructive`) for the authorization layer to read.
+- A per-user, per-search-space filter consulted at both definition save
+  time (validating `agent_task.tools`) and run time (scoping the agent's
+  tool list to what the automation creator can delegate).
 
-The Capability is **deliberately five fields in v1**. Every additional field
-that earlier drafts considered (`name`, `required_credentials`,
-`side_effects`, `expected_duration_seconds`, `cost_estimate`) has been
-removed until a concrete consumer feature demands it. Authoring stays cheap
-and the registry stays trivial to introspect:
+Until then:
 
-- `name` → folded into `description`. The UI can render a short label from
-  the first line of `description` or fall back to `id`. No separate field
-  needed in v1.
-- `required_credentials` → returns when external-credential capabilities
-  ship (Phase 2). v1 capabilities run server-side with app config; nothing
-  to declare.
-- `side_effects` → returns when RBAC inside automations or
-  `READ_ONLY`-only agent tool gating arrives. v1 capabilities are
-  hand-picked and all trusted code.
-- `expected_duration_seconds` → returns when multi-queue routing ships.
-  Single Celery queue in v1.
-- `cost_estimate` → never returns as a declared field; cost is measured
-  per run from a ledger, aggregated per Capability, and surfaced as a
-  historical average. Pre-flight checks are deferred.
-
-The runtime invariant: a Capability is **a typed, named, callable thing
-the system can do.** Every consumer (executor, agent tool layer, future
-HTTP API) sees the same five-field shape and uses it the same way.
-
-### Where capabilities live (v1)
-
-In v1, the capability registry is a single in-memory dict, populated at
-process startup from native registrations in
-`automations/registries/capabilities/`. Identical across all workers.
-No database persistence, no closures rebuilt per worker.
-
-### MCP integration — deferred to Phase 4
-
-The earlier two-tier registry (native + MCP-derived), the
-`mcp_connections` / `mcp_tools` tables, the harvester, and the lazy
-per-worker closure cache are **deferred to Phase 4** along with the
-rest of the integration-tooling surface. They are removed from v1
-because:
-
-- v1 has no external connector capabilities (no Slack, Notion, Drive,
-  etc.). The only capabilities that will ship are server-side helpers
-  (search-space query / fetch) plus the loose `agent_task` action.
-- Without external connectors, the lifecycle mismatch that motivates
-  the two-tier design (connect Monday, run Friday, workers restarted
-  in between) doesn't arise. A startup-time dict is sufficient.
-- Phase 4 reintroduces this design as-is — the registry interface in
-  v1 is the same callable surface a Phase-4 MCP harvester will register
-  into. The deferral is additive, not a different design.
-
-See archived design at `docs/automation/archived/mcp-registry.md` once
-v1 ships; for now the only consumer of the registry is the in-memory
-native path.
+- v1 actions are stand-alone units (Layer 1 below); the automation engine
+  reads its own action registry, nothing else.
+- `agent_task.params.tools` is a forward-looking allowlist field with no
+  v1 semantics beyond "list of string identifiers." The handler's tool
+  resolution is opaque to the automation contract.
 
 ### Credentials — deferred to Phase 2
 
-The earlier per-call credential resolution pattern (`ctx.resolve_mcp_client`,
-`ctx.resolve_http_client`, `ctx.resolve_llm`) is **deferred to Phase 2**.
-v1 capabilities run server-side using app-level configuration; none of
-the seven v1 capabilities needs per-user or per-connection auth.
+External-credential handlers (Slack, email, etc.) require per-user or
+per-connection auth. v1 actions run server-side with app-level
+configuration. When tight actions ship in Phase 2, the credential design
+lands as part of the unification redesign: connection IDs in the
+definition (never tokens); credentials loaded per-call by the handler
+context (never pre-loaded into worker memory); credentials never enter
+LLM context.
 
-When Phase 2 ships external-credential capabilities (Slack, email, etc.),
-the three guarantees the original design promised are reintroduced
-unchanged:
+### MCP — deferred to Phase 4
 
-- Credentials never appear in the automation definition (connection IDs
-  only).
-- Credentials never appear in the LLM's context (the host holds them
-  and uses them on the LLM's behalf when executing tool calls).
-- Credentials are loaded per-call, not pre-loaded into worker memory.
-
-The Phase-2 design returns as-is; only the v1 surface is simplified.
+External tool servers feeding tools into a shared registry land with the
+rest of the integration tooling in Phase 4, after the unification layer
+is in place. The two-tier registry, `mcp_connections` and `mcp_tools`
+tables, and the harvester arrive as a single coherent step then.
 
 ---
 
-## 4. Action contract (Layer 2)
+## 4. Action contract
 
-An `Action` is what a user references in a plan step. Most actions are
-thin wrappers around one capability (e.g., `slack_post` wraps
-`slack.post_message`). Some compose: `agent_task` is one action whose
-handler invokes the LangGraph runtime, which in turn can call many
-capabilities.
+An `Action` is what a user references in a plan step. Some actions are
+deterministic single-purpose handlers (`slack_post`, `send_email`); one
+action (`agent_task`) hosts an LLM and a tool allowlist for cases where
+judgment is needed. The contract is the same in both cases — only the
+handler differs.
 
 ```python
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ActionDefinition:
-    type: str                              # "agent_task", "slack_post"
-    name: str                              # for the UI
-    description: str                       # for the NL generator
-    config_schema: dict                    # JSON Schema for action.config
-    output_contract: dict | DynamicOutput  # what it produces
-    uses_capabilities: list[str]           # IDs from the registry
-    produces_artifacts: list[ArtifactSpec] # see §8
-    handler: AsyncHandler
+    type: str            # "agent_task", "slack_post"
+    name: str            # short UI label
+    description: str     # for the NL generator and the UI
+    params_schema: dict  # JSON Schema for step.params
+    handler: ActionHandler
 ```
+
+This is the v1 shape: five fields, no handler context, no output
+contract, no artifact declaration. The deferrals are intentional:
+
+- **`output_contract`** — Phase 2. Deterministic handlers will return
+  a fixed shape; v1's only action (`agent_task`) takes an
+  `output_schema` inside `params` and validates against that instead.
+- **`produces_artifacts`** — Phase 5. Artifact lifecycle (storage,
+  signed URLs, retention) is its own design step; v1 handlers
+  persist their own outputs.
+- **Handler context** — paired with the unification redesign (§3).
+  v1 handlers receive `(args)` only; per-user / per-search-space
+  behavior is not yet a v1 concern.
 
 ### Tight vs loose actions
 
 Two patterns coexist by design:
 
-- **Tight actions** (`slack_post`, `linear_create_issue`, `send_email`):
-  config_schema is fully specified, output_contract is fixed, handler is a
-  thin wrapper. ~20 LOC each. Used when the user knows exactly what they
-  want done — no LLM tokens spent on trivial work.
+- **Tight actions** (`slack_post`, `linear_create_issue`,
+  `send_email`) — deterministic single-purpose handlers. ~20 LOC
+  each. **Phase 2.**
+- **Loose actions** (`agent_task`) — params_schema accepts a `prompt`,
+  a `tools` allowlist, and an optional `output_schema` declaring what
+  the agent must return; the handler validates the agent's output
+  against it. **v1.**
 
-- **Loose actions** (`agent_task`): config_schema accepts a `prompt` and a
-  `tools` allowlist; output_contract is *dynamic* — the user declares the
-  output shape they want via `output_schema` in the step config; the
-  handler asks the LLM to return that shape and validates. Used when
-  judgment is needed.
-
-The agent's tool list is **the same capabilities** that tight actions call
-directly. One registry, two invocation modes. Adding a new MCP server gives
-both modes access to its tools automatically.
+The agent's `tools` allowlist resolves opaquely in v1; the redesigned
+unification layer (§3) will give both invocation modes access to the
+same vocabulary, with per-user authorization gating both.
 
 ### How names in the definition become function calls
 
-The definition contains strings like `"action": "slack_post"`. The string is
-just a name — it does not point to a function. At runtime, the executor
-performs a **name-based lookup** against the action registry:
+The definition contains strings like `"action": "agent_task"`. The
+string is just a name — it does not point to a function. At runtime,
+the executor performs a **name-based lookup** against the action
+registry:
 
 ```python
-# step.action is a string from the JSON definition, e.g. "slack_post"
-action_def = _ACTION_REGISTRY[step.action]   # dict lookup
-handler = action_def.handler                  # Python callable
-result = await handler(ctx, resolved_config)  # invocation
+action_def = action_registry.get(step.action)   # dict lookup
+handler = action_def.handler                    # Python callable
+result = await handler(resolved_params)         # invocation
 ```
 
-The registry is a Python dict (or a thin wrapper around one) populated at
-process startup. Each entry in `automations/actions/*.py` calls a
-`register_action(...)` function at module import time, putting its
-`ActionDefinition` (including the handler function reference) into the
-registry.
+The registry is a Python dict populated at process startup. Each entry
+in `automations/registries/actions/*.py` calls `register_action(...)`
+at module import time, putting its `ActionDefinition` (including the
+handler function reference) into the registry.
 
-The same pattern applies to capabilities. The definition references
-capabilities by ID (`"slack.post_message"`); the capability registry maps
-the ID to a `Capability` object holding the handler. Definitions never
-reference Python code directly — they reference names that the registry
-resolves to code.
-
-This separation is what makes the contract portable. The definition is
-pure data. The registry is the engine's runtime vocabulary. They meet at
-name-based lookup; nothing else crosses the boundary.
+The definition is pure data. The registry is the engine's runtime
+vocabulary. They meet at name-based lookup; nothing else crosses the
+boundary.
 
 ### The full expressive spectrum
 
@@ -238,7 +200,7 @@ fully agentic. Six practical shapes worth recognizing:
 | **1. Direct call** | `slack_post` with literal channel and template | No LLM. ~200ms. Fractions of a cent. |
 | **2. Direct call with computed inputs** | `linear_create_issue` using `{{summary.title}}` from a prior step | No LLM for this step. Cheap. |
 | **3. Single-domain agent task** | `agent_task` with `tools: ["slack.*"]` only | One LLM, bounded toolset. |
-| **4. Multi-domain agent task, narrow** | `agent_task` with `tools: ["github.list_pull_requests", "linear.create_issue"]` | One LLM, named capabilities. |
+| **4. Multi-domain agent task, narrow** | `agent_task` with `tools: ["github.list_pull_requests", "linear.create_issue"]` | One LLM, named tools. |
 | **5. Multi-domain agent task, broad** | `agent_task` with `tools: ["slack.*", "github.*", "linear.*"]` | One LLM, large toolset, most agentic. |
 | **6. Composed plan** | `agent_task` (narrow) for thinking → `slack_post` + `linear_create_issue` for acting | Best cost-to-power ratio. |
 
@@ -258,7 +220,7 @@ user's.
 
 ---
 
-## 5. Automation definition (Layer 3)
+## 5. Automation definition
 
 This is the JSON the user writes (or the NL generator produces). Stored in
 `automations.definition` as JSONB.
@@ -287,7 +249,7 @@ This is the JSON the user writes (or the NL generator produces). Stored in
   "triggers": [
     {
       "type": "schedule",
-      "config": { "cron": "0 9 * * 1-5", "timezone": "Africa/Kigali" }
+      "params": { "cron": "0 9 * * 1-5", "timezone": "Africa/Kigali" }
     }
   ],
 
@@ -295,7 +257,7 @@ This is the JSON the user writes (or the NL generator produces). Stored in
     {
       "step_id": "research",
       "action": "agent_task",
-      "config": {
+      "params": {
         "prompt": "Find documents tagged {{inputs.tags}} indexed since {{inputs.since}}. Return JSON with bullets and source_doc_ids.",
         "tools": ["search_space.query", "search_space.fetch_document"],
         "model": "anthropic/claude-sonnet-4-7",
@@ -313,7 +275,7 @@ This is the JSON the user writes (or the NL generator produces). Stored in
     {
       "step_id": "deliver",
       "action": "slack_post",
-      "config": {
+      "params": {
         "channel_id": "C0123",
         "message_template": "*Competitor digest*\n\n{% for b in summary.bullets %}• {{b}}\n{% endfor %}"
       }
@@ -325,11 +287,10 @@ This is the JSON the user writes (or the NL generator produces). Stored in
     "max_retries": 2,
     "retry_backoff": "exponential",
     "concurrency": "drop_if_running",
-    "budget_cap_usd": 1.50,
     "on_failure": [ /* steps to run if main plan fails after retries */ ]
   },
 
-  "metadata": { "tags": ["digest"], "created_from_nl": true }
+  "metadata": { "tags": ["digest"] }
 }
 ```
 
@@ -340,7 +301,7 @@ This is the JSON the user writes (or the NL generator produces). Stored in
   "step_id": "...",                      // unique within plan
   "action": "...",                       // references an ActionDefinition.type
   "when": "{{ ... }}",                   // optional Jinja expr → bool; false = skip
-  "config": { ... },                     // validated against action's config_schema
+  "params": { ... },                     // validated against action's params_schema
   "output_as": "...",                    // binds output to this name for later steps
   "max_retries": 0,                      // optional, overrides automation default
   "timeout_seconds": 1200                // optional, overrides automation default
@@ -354,7 +315,7 @@ about it, or they compose automations through events (§7.5).
 
 ---
 
-## 6. Trigger contract (Layer 4)
+## 6. Trigger contract
 
 Three trigger types. That's the entire taxonomy.
 
@@ -363,23 +324,12 @@ Three trigger types. That's the entire taxonomy.
 ```python
 TriggerDefinition(
     type="schedule",
-    config_schema={
-        "type": "object",
-        "required": ["cron", "timezone"],
-        "properties": {
-            "cron":     { "type": "string" },
-            "timezone": { "type": "string", "format": "iana-timezone" }
-        }
-    },
-    payload_schema={
-        "type": "object",
-        "properties": {
-            "fired_at":      { "type": "string", "format": "date-time" },
-            "scheduled_for": { "type": "string", "format": "date-time" },
-            "last_fired_at": { "type": "string", "format": "date-time" }
-        }
-    }
+    params_model=ScheduleTriggerParams,  # cron + timezone
 )
+# At fire time the schedule producer emits runtime inputs
+# (fired_at, scheduled_for, last_fired_at) which are merged with the
+# trigger row's static_inputs (static wins) and validated against
+# automation.definition.inputs.schema_.
 ```
 
 Implementation: extends `app/utils/periodic_scheduler.py`, which already
@@ -395,7 +345,7 @@ want an event trigger instead.
 ```python
 TriggerDefinition(
     type="webhook",
-    config_schema={
+    params_schema={
         "type": "object",
         "properties": {
             "input_mapping": {
@@ -422,7 +372,7 @@ Dedups against runs in the last 24 hours.
 ```python
 TriggerDefinition(
     type="event",
-    config_schema={
+    params_schema={
         "type": "object",
         "required": ["event_type"],
         "properties": {
@@ -485,11 +435,13 @@ Common path (after a trigger has fired):
 4. **Snapshot the resolved definition** into the run row (immutable history)
 5. Enqueue executor task on the single `automations_default` Celery queue
 
-The cost-estimate pre-check (originally step 3) is **deferred**.
-v1 capabilities do not declare `cost_estimate`; pre-flight budgeting
-returns when a historical-cost ledger exists. The mid-flight budget
-cap (§7.2) still kills the run if accumulated cost crosses
-`budget_cap_usd`.
+The cost-estimate pre-check (originally step 3) is **deferred**. v1
+actions do not declare cost estimates, the run row has no `cost_usd`
+column, and no handler reports tokens used — so neither pre-flight
+prediction nor mid-flight accumulation can be enforced. `Execution`
+therefore does not expose `budget_cap_usd` in v1; it returns as a single
+field addition the day the cost ledger ships (per-action cost reporting
++ `automation_runs.cost_usd` column + executor accumulation).
 
 Queue routing by `expected_duration_seconds` is **deferred** until load
 patterns justify a second queue. v1 uses a single queue.
@@ -510,15 +462,15 @@ async def execute_run(run_id: int) -> None:
         if step.when and not evaluate_predicate(step.when, context | step_outputs):
             record_step_skipped(run, step); continue
 
-        resolved_config = render_config(step.config, context | step_outputs)
+        resolved_params = render_params(step.params, context | step_outputs)
         action = action_registry.get(step.action)
-        validate(resolved_config, action.config_schema)
+        validate(resolved_params, action.params_schema)
 
         try:
             result = await with_retries(
                 action.handler,
                 ctx=build_action_context(run, action),
-                args=resolved_config,
+                args=resolved_params,
                 policy=step.retry_policy or run.execution.retry_policy,
             )
             validate(result, step.output_schema)
@@ -541,13 +493,19 @@ validated dict come back; it doesn't know that step was "smart."
 
 ### 7.3 Action handlers
 
-One handler per `ActionDefinition.type`. Receives `(ctx, args)`, returns
-a dict matching `output_contract` (or matching the user-declared
-`output_schema` for dynamic-output actions like `agent_task`).
+One handler per `ActionDefinition.type`. Receives the validated `args`
+dict and returns whatever the step's output validates against (a fixed
+shape declared by tight actions, or a dynamic shape declared via
+`output_schema` in the step params for `agent_task`).
 
-Handlers handle their own credential resolution via `ctx.resolve_credentials`.
-They do not know about retries, timeouts, or budget caps — those are the
+Handlers do not know about retries or timeouts — those are the
 executor's concern.
+
+In v1, handlers take `(args)` only. The `CallContext` parameter sketched
+in §7.2's pseudo-code (caller user id, search space id, run id,
+credential resolver) arrives with the unification layer redesign (§3);
+v1's single action (`agent_task`) reads what it needs from app-level
+configuration.
 
 ### 7.4 Template engine
 
@@ -747,7 +705,7 @@ Three fields, per-automation defaults with optional per-step overrides:
 - `timeout_seconds`: integer
 
 Retries on:
-- Capability handler exceptions
+- Action handler exceptions
 - Output schema validation failures (for dynamic-output actions, the
   validation error is fed back to the LLM in the retry)
 
@@ -755,12 +713,21 @@ Not retries:
 - `when:` evaluation failures (these are user errors, surface immediately)
 - Input validation failures (caught at dispatch, never reach the executor)
 
-### Budget enforcement
+### Budget enforcement *(deferred — not in v1)*
 
-`budget_cap_usd` is per-run. The dispatcher refuses to enqueue if estimated
-cost exceeds it. The executor kills the run if accumulated cost crosses it
-mid-flight (the LLM ops handler reports tokens consumed back to the
-executor between calls).
+Future shape: `budget_cap_usd` on `Execution`, dispatcher refuses to
+enqueue if estimated cost exceeds it, executor kills the run if
+accumulated cost crosses it mid-flight (the LLM ops handler reports
+tokens consumed back to the executor between calls).
+
+Prerequisites before this can land:
+- Each action declares cost reporting (tokens × model price, API call
+  charges) — `ActionDefinition` has no such field today.
+- `automation_runs.cost_usd` column + executor accumulates per step.
+- A historical-cost ledger so pre-flight estimation can return useful
+  numbers (otherwise the dispatcher gate is guessing).
+
+Until all three exist, v1 has no surface for budget enforcement.
 
 ### On-failure handlers
 
@@ -787,14 +754,13 @@ nightly Celery Beat task deletes expired artifacts).
 ### Duration classes and queue routing — deferred
 
 The original design routed runs to multiple Celery queues based on each
-capability's declared `expected_duration_seconds`. v1 ships with **one
-queue** (`automations_default`) and capabilities do not declare a
-duration. Multi-queue routing returns when burst load on a single queue
-actually justifies the operational complexity of independent worker
-pools.
+action's declared `expected_duration_seconds`. v1 ships with **one
+queue** (`automations_default`) and actions do not declare a duration.
+Multi-queue routing returns when burst load on a single queue actually
+justifies the operational complexity of independent worker pools.
 
 Adding the second queue is a config change plus reintroducing
-`expected_duration_seconds` on the `Capability` dataclass — both
+`expected_duration_seconds` on the `ActionDefinition` dataclass — both
 mechanical, additive, and free of design rewrite.
 
 ---
@@ -832,14 +798,16 @@ and an immutable run history.
 
 ### `automation_triggers`
 
-| field           | type                                                                          | notes                                       |
-| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------- |
-| `id`            | int PK                                                                        |                                             |
-| `automation_id` | FK                                                                            |                                             |
-| `type`          | enum: `schedule`, `manual` (Phase 2/3 add `webhook`, `event`)                  |                                             |
-| `config`        | jsonb                                                                         | validated against trigger's `config_schema` |
-| `enabled`       | bool                                                                          |                                             |
-| `last_fired_at` | timestamp                                                                     |                                             |
+| field           | type                                                                          | notes                                                       |
+| --------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `id`            | int PK                                                                        |                                                             |
+| `automation_id` | FK                                                                            |                                                             |
+| `type`          | enum: `schedule`, `manual` (Phase 2/3 add `webhook`, `event`)                  |                                                             |
+| `params`        | jsonb                                                                         | trigger-type config, validated against trigger's `params_schema` |
+| `static_inputs` | jsonb                                                                         | per-attachment domain values merged into every run (static wins on collision) |
+| `enabled`       | bool                                                                          |                                                             |
+| `last_fired_at` | timestamp                                                                     |                                                             |
+| `next_fire_at`  | timestamp / null                                                              | precomputed next fire moment for schedule triggers          |
 
 `secret_hash` (for webhook bearer tokens) is **deferred to Phase 2** with
 the webhook trigger.
@@ -853,8 +821,7 @@ the webhook trigger.
 | `trigger_id`      | FK / null                                                                    | null = manual via UI                               |
 | `status`          | enum                                                                         | `pending`, `running`, `succeeded`, `failed`, `cancelled`, `timed_out` |
 | `definition_snapshot` | jsonb                                                                    | the definition as it was when this run fired       |
-| `trigger_payload` | jsonb                                                                        |                                                    |
-| `resolved_inputs` | jsonb                                                                        |                                                    |
+| `inputs`          | jsonb                                                                        | merged & validated inputs (trigger.static_inputs ∪ producer runtime data, static wins) |
 | `step_results`    | jsonb                                                                        | array of per-step results with timing              |
 | `output`          | jsonb / null                                                                 |                                                    |
 | `artifacts`       | jsonb                                                                        | references to created artifacts                    |
@@ -863,7 +830,7 @@ the webhook trigger.
 | `agent_session_id`| str / null                                                                   | link to LangGraph trace if agent_task was used     |
 
 `cost_usd` (per-run accumulated cost) is **deferred** until at least one
-v1 capability records token-level cost. When reintroduced it lands as a
+action records token-level cost. When reintroduced it lands as a
 column-only migration.
 
 ### Deferred tables
@@ -897,8 +864,8 @@ not "trusted authors only."
 
 User provides natural-language input. The Generator LLM is given:
 - The full schema set (input schema for definition, registry of action
-  types with their config_schemas, registry of trigger types, available
-  capabilities for this SearchSpace, list of allowed Jinja filters)
+  types with their params_schemas, registry of trigger types, list of
+  allowed Jinja filters)
 - A tool to list available connectors, channels, and other SearchSpace
   resources, so it doesn't invent names that don't exist
 - A few-shot set of examples
@@ -918,13 +885,13 @@ Output: a structured proposal matching the automation definition schema.
 
 Server-side, before the proposal reaches the user:
 - Validate against JSON Schema (shape correctness)
-- Verify every capability referenced exists in the registry (resource existence)
+- Verify every action and trigger type referenced exists in the registry
 - Verify every connector/channel/resource referenced exists in this SearchSpace
 - Validate every template against the sandbox's allowlist (no underscore
   attributes, no unregistered filter names, length under cap)
 
 Failures here are deterministic errors, not warnings. A proposal that
-references a non-existent capability or includes a template using
+references a non-existent action or includes a template using
 `{{x.__class__}}` is rejected before the user sees it; the Generator is
 re-prompted with the validation error and asked to fix the proposal.
 
@@ -947,7 +914,7 @@ produces two outputs for the user:
    - Action sequences that touch external systems without obvious benefit
      to the user
    - Cost estimates that seem high relative to the goal
-   - References to capabilities the user hasn't used before
+   - References to actions the user hasn't used before
    - Schedules tighter than 15 minutes (likely should be event triggers)
 
 The Review LLM is a **UX layer** that makes review actually useful. It is
@@ -1009,33 +976,18 @@ always.
 surfsense_backend/app/
 ├── automations/                       # NEW: the engine
 │   ├── __init__.py
-│   ├── models.py                      # SQLAlchemy models for 6 tables
-│   ├── schemas.py                     # Pydantic schemas (definition envelope, etc.)
+│   ├── persistence/                   # SQLAlchemy models + enums for 3 tables
+│   ├── schemas/                       # Pydantic schemas (definition envelope, etc.)
 │   ├── routes.py                      # FastAPI router (/api/v1/automations)
 │   ├── service.py                     # CRUD + business logic
-│   ├── dispatcher.py                  # trigger matching, cost check, run creation
+│   ├── dispatcher.py                  # trigger matching, run creation
 │   ├── executor.py                    # the Celery task that runs a plan
 │   ├── templating.py                  # Jinja sandbox + filters
 │   ├── events.py                      # publish/subscribe for domain_events
 │   ├── filters.py                     # JSON filter grammar evaluator
-│   ├── actions/
-│   │   ├── registry.py
-│   │   ├── agent_task.py
-│   │   ├── transform_data.py
-│   │   ├── slack_post.py
-│   │   ├── send_email.py
-│   │   ├── notification.py
-│   │   └── (more in Phase 5: podcast_generation, report_generation, ...)
-│   ├── triggers/
-│   │   ├── registry.py
-│   │   ├── schedule.py                # Celery Beat hookup
-│   │   ├── webhook.py                 # /fire endpoint
-│   │   └── event.py                   # subscribes to domain_events
-│   ├── capabilities/
-│   │   ├── registry.py
-│   │   ├── native.py                  # native capability registrations
-│   │   ├── mcp_harvester.py           # registers MCP tools as capabilities (Phase 4)
-│   │   └── (LLM ops registered alongside)
+│   ├── registries/                    # action and trigger registries
+│   │   ├── actions/                   # ActionDefinition + handler registration
+│   │   └── triggers/                  # TriggerDefinition
 │   └── nl/                            # Phase 1 — primary user path
 │       ├── generator.py               # Generator LLM
 │       ├── reviewer.py                # Review LLM (summary + flagged items)
@@ -1070,23 +1022,22 @@ automations in natural language.
 **Step 1 (current scope, this batch of commits):**
 - 3 tables (`automations`, `automation_triggers`, `automation_runs`) +
   Alembic migration
-- Empty Capability, Action, Trigger registries (concrete entries land in
-  later steps when the consuming feature lands)
+- Empty action and trigger registries under
+  `app/automations/registries/` (concrete entries land in later steps)
 - Pydantic schemas for the automation definition envelope, the two v1
-  trigger configs (`schedule`, `manual`), and the one v1 action config
-  (`agent_task`)
-- Module structure under `app/automations/` (data/, schemas/,
+  trigger params shapes (`schedule`, `manual`), and the one v1 action
+  params shape (`agent_task`)
+- Module structure under `app/automations/` (persistence/, schemas/,
   registries/), fully isolated from the existing codebase
 
 **Step 2:**
-- Register the `agent_task` action and the `schedule` / `manual`
-  triggers in the registries
-- Capability registry populated with native deliverable-producing
-  capabilities (chosen when this step starts)
+- The `agent_task` action handler and the `schedule` / `manual` triggers
+  registered in `app/automations/registries/`. Tool resolution for
+  `agent_task.params.tools` is opaque to the contract — the handler
+  decides what string identifiers it accepts and how they resolve.
 
 **Step 3:**
-- Executor (single-queue Celery task) with retries, timeouts, budget
-  caps measured against `cost_usd` ledger on the run
+- Executor (single-queue Celery task) with retries and timeouts
 - Template engine (Jinja sandbox + the v1 filter allowlist + runtime
   limits)
 - Manual "Run now" endpoint
@@ -1122,19 +1073,23 @@ somewhere humans see, complex pipelines have proper error handling.
 **After Phase 3**: NL authoring is the polished primary surface; edit
 flows are conversational rather than form-only.
 
-### Phase 4 — Event triggers
+### Phase 4 — Event triggers + integration tooling
 - `domain_events` table and `events.py` module
 - Indexing pipeline publishes `connector.*` events (smallest change — just
   add publish calls to the existing flow)
 - Automations publish `automation.run.*` events on completion
 - `event` trigger with filter grammar
-- MCP capability harvester (so MCP-backed events and tools both work)
+- The unification layer redesign (see §3) — `CallContext`, scope
+  declarations, per-user authorization gating
+- MCP integration on top of the unification layer (external tool servers
+  harvested into the shared catalog)
 
 **After Phase 4**: "do X when Y happens" automations work, including
-automation-chaining through events.
+automation-chaining through events; external MCP tools and SurfSense
+actions share one vocabulary.
 
 ### Phase 5 — Wrapping existing features and sharing
-- Wrap existing SurfSense capabilities as actions: `podcast_generation`,
+- Wrap existing SurfSense features as actions: `podcast_generation`,
   `report_generation`, `indexing_sweep`
 - Artifact lifecycle implementation
 - `expected_duration_seconds` based queue routing (split `automations_long`
@@ -1144,7 +1099,7 @@ automation-chaining through events.
   shift documented in §7.4's pre-Phase-5 gate
 - Cross-automation composition examples in the docs
 
-**After Phase 5**: every existing SurfSense capability is automatable
+**After Phase 5**: every existing SurfSense feature is automatable
 without any per-feature code, and automations can be shared between
 SearchSpaces and users.
 
@@ -1156,13 +1111,12 @@ For reference — every decision made through the design process, in one
 place.
 
 ### Foundations
-1. ✅ JSON Schema 2020-12 is the single schema language for everything
+1. ✅ JSON Schema (draft 2020-12) is the single schema language for everything
 2. ✅ Definition is the program; infrastructure is the interpreter
 3. ✅ List of steps (not single action) in the plan, with `output_as` chaining
-4. ✅ One capability registry serving native + MCP + LLM operations through the same interface
-5. ✅ Capability IDs do not leak handler kind (`slack.post_message`, not `mcp.slack.post_message`)
-6. ✅ Name-based resolution: definitions reference actions and capabilities by string ID. The registry is the runtime's vocabulary; lookup is a dict access. No code references in definitions.
-7. ✅ The expressive spectrum runs from pure direct calls to broad agent_task; the NL generator proposes the cheapest shape that meets intent (Shape 6 from §4 by default)
+4. ⏸ Capability unification layer (one catalog shared by automations, agents, and future surfaces) — **deferred to post-v1** (see §3). v1 ships actions only.
+5. ✅ Name-based resolution: definitions reference action and trigger types by string ID. The registry is the runtime's vocabulary; lookup is a dict access. No code references in definitions.
+6. ✅ The expressive spectrum runs from pure direct calls to broad agent_task; the NL generator proposes the cheapest shape that meets intent (Shape 6 from §4 by default)
 
 ### Trigger taxonomy
 8. ✅ Three trigger types: `schedule`, `webhook`, `event`
@@ -1183,7 +1137,7 @@ place.
 19. ✅ No DAGs, no parallelism, no loops — composition via agent_task or events
 20. ✅ `on_failure` part of execution policy from v1
 21. ✅ Step-level retry and timeout overrides
-22. ✅ Budget cap enforced pre-enqueue and mid-flight
+22. ⏸ Budget cap enforced pre-enqueue and mid-flight — **deferred** until the cost ledger ships (see §8 Budget enforcement)
 
 ### Components
 23. ✅ Dispatcher / executor / handlers / registry — distinct, each replaceable
@@ -1197,25 +1151,22 @@ place.
 29. ✅ Automations publish run events for composability
 30. ✅ Publish/subscribe behind interface — no direct table access elsewhere
 
-### Capability storage
-31. ✅ Native capabilities registered in-memory at startup from the codebase. Identical across all workers.
-32. ⏸ MCP capability metadata persisted in `mcp_connections` and `mcp_tools` tables — **deferred to Phase 4**
-33. ⏸ MCP handler closures built lazily per worker from database state — **deferred to Phase 4**
-34. ⏸ MCP server tool list re-harvested on a schedule — **deferred to Phase 4**
-35. ⏸ MCP tools harvested into the capability registry at connection time — **deferred to Phase 4**
-36. ⏸ Side effects inferred from MCP hints + naming + admin overrides — **deferred to Phase 4**
-37. ⏸ MCP tools callable directly (no agent required) when caller knows args — **deferred to Phase 4**
+### Capability unification — all deferred to post-v1
+31. ⏸ One shared catalog of "things this SurfSense instance can do" — **deferred**, see §3
+32. ⏸ Handler `CallContext` (caller user id, search space id, run id) — **deferred** with unification
+33. ⏸ Per-capability scope declarations driving authorization — **deferred** with unification
+34. ⏸ MCP integration on top of the unification layer (`mcp_connections`, `mcp_tools`, harvester) — **deferred to Phase 4**
 
 ### Credentials — all deferred to Phase 2
-38. ⏸ Credentials never appear in the automation definition — only connection IDs do — **Phase 2**
-39. ⏸ Credentials never appear in the LLM's context — the host holds them — **Phase 2**
-40. ⏸ Credentials resolved per-call by `ActionContext`, not pre-loaded into worker environment — **Phase 2**
-41. ⏸ Tokens encrypted at rest; refresh handled automatically by `ActionContext.resolve_*_client` — **Phase 2**
+35. ⏸ Credentials never appear in the automation definition — only connection IDs do — **Phase 2**
+36. ⏸ Credentials never appear in the LLM's context — the host holds them — **Phase 2**
+37. ⏸ Credentials resolved per-call by the handler context, not pre-loaded into worker environment — **Phase 2**
+38. ⏸ Tokens encrypted at rest; refresh handled automatically by the handler context — **Phase 2**
 
-### v1-minimum (new lock)
-v1. ✅ `Capability` is exactly five fields: `id`, `description`, `input_schema`, `output_schema`, `handler`. Additional fields are added only when a concrete consumer feature requires them.
-v2. ✅ Cost is **measured** from a per-run ledger, not declared. Pre-flight cost checks return when the ledger has enough history.
-v3. ✅ Single `automations_default` Celery queue in v1. Multi-queue routing returns when load justifies it.
+### v1-minimum
+39. ✅ v1 ships actions only — no separate capability layer. `ActionDefinition` is five fields: `type`, `name`, `description`, `params_schema`, `handler`. Additional fields are added only when a concrete consumer feature requires them.
+40. ✅ Cost is **measured** from a per-run ledger, not declared. Pre-flight cost checks return when the ledger has enough history.
+41. ✅ Single `automations_default` Celery queue in v1. Multi-queue routing returns when load justifies it.
 
 ### NL authoring
 42. ✅ LLM-authored templates is the primary path from day one — not a Phase 3 addition. Hand-authoring JSON is supported but secondary
@@ -1227,7 +1178,7 @@ v3. ✅ Single `automations_default` Celery queue in v1. Multi-queue routing ret
 48. ✅ NL drafts are transient storage, not a core table
 
 ### Data model
-49. ✅ Six tables total — four for engine state, two for MCP persistence
+49. ✅ v1 ships three tables (`automations`, `automation_triggers`, `automation_runs`). `domain_events` lands in Phase 3; `mcp_connections` and `mcp_tools` in Phase 4.
 50. ✅ Run rows snapshot the definition (immutable history)
 51. ✅ All entities scoped by `search_space_id` for RBAC
 52. ✅ Editing an automation bumps `version`; existing runs unaffected
@@ -1283,7 +1234,7 @@ Schemas spelled out concretely. Those follow mechanically from this plan.
 agent (cron and skills subsystems); n8n documentation on node types and
 workflow data model; the SurfSense repository and DeepWiki architecture
 notes (FastAPI + Celery Beat + Electric SQL + LangGraph Deep Agents +
-Search Space RBAC); Model Context Protocol specification for capability
-harvesting; AWS EventBridge for filter grammar; workflow-pattern
+Search Space RBAC); Model Context Protocol specification for external
+tool harvesting; AWS EventBridge for filter grammar; workflow-pattern
 literature (van der Aalst et al.) for the trigger / action / concurrency
 vocabulary.*

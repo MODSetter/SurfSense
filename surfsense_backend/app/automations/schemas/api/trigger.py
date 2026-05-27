@@ -17,6 +17,7 @@ class TriggerCreate(BaseModel):
 
     type: TriggerType
     params: dict[str, Any] = Field(default_factory=dict)
+    static_inputs: dict[str, Any] = Field(default_factory=dict)
     enabled: bool = True
 
 
@@ -27,6 +28,7 @@ class TriggerUpdate(BaseModel):
 
     enabled: bool | None = None
     params: dict[str, Any] | None = None
+    static_inputs: dict[str, Any] | None = None
 
 
 class TriggerDetail(BaseModel):
@@ -37,6 +39,7 @@ class TriggerDetail(BaseModel):
     id: int
     type: TriggerType
     params: dict[str, Any]
+    static_inputs: dict[str, Any]
     enabled: bool
     last_fired_at: datetime | None = None
     next_fire_at: datetime | None = None

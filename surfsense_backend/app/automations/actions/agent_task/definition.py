@@ -11,7 +11,7 @@ AGENT_TASK_ACTION = ActionDefinition(
     type="agent_task",
     name="Agent task",
     description="Run a multi_agent_chat turn from an automation step.",
-    params_schema=AgentTaskActionParams.model_json_schema(),
+    params_model=AgentTaskActionParams,
     build_handler=build_handler,
 )
 
