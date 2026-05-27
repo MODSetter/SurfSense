@@ -1,7 +1,7 @@
 "use client";
 import { useAtomValue } from "jotai";
 import { useState } from "react";
-import { deleteAutomationMutationAtom } from "@/atoms/automations/automations-mutation.atoms";
+import { removeTriggerMutationAtom } from "@/atoms/automations/automations-mutation.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -14,41 +14,33 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Spinner } from "@/components/ui/spinner";
 
-interface DeleteAutomationDialogProps {
+interface DeleteTriggerDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	automationId: number;
-	automationName: string;
-	searchSpaceId: number;
-	/**
-	 * Fired after a successful delete, before the dialog closes. The detail
-	 * page uses this to navigate back to the list (the row simply vanishes
-	 * on the list page so no callback is needed there).
-	 */
-	onDeleted?: () => void;
+	triggerId: number;
+	triggerLabel: string;
 }
 
 /**
- * Confirm + delete one automation. FK cascade on the backend wipes attached
- * triggers and runs, so we mention it explicitly. List re-fetch is handled
- * by the mutation atom's onSuccess.
+ * Confirm + detach one trigger from its automation. The automation itself
+ * is untouched; only this trigger row is removed. The mutation atom
+ * invalidates the parent automation detail so the page rerenders.
  */
-export function DeleteAutomationDialog({
+export function DeleteTriggerDialog({
 	open,
 	onOpenChange,
 	automationId,
-	automationName,
-	searchSpaceId,
-	onDeleted,
-}: DeleteAutomationDialogProps) {
-	const { mutateAsync: deleteAutomation } = useAtomValue(deleteAutomationMutationAtom);
+	triggerId,
+	triggerLabel,
+}: DeleteTriggerDialogProps) {
+	const { mutateAsync: removeTrigger } = useAtomValue(removeTriggerMutationAtom);
 	const [submitting, setSubmitting] = useState(false);
 
 	async function handleConfirm() {
 		setSubmitting(true);
 		try {
-			await deleteAutomation({ automationId, searchSpaceId });
-			onDeleted?.();
+			await removeTrigger({ automationId, triggerId });
 			onOpenChange(false);
 		} finally {
 			setSubmitting(false);
@@ -59,10 +51,10 @@ export function DeleteAutomationDialog({
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
 				<AlertDialogHeader>
-					<AlertDialogTitle>Delete this automation?</AlertDialogTitle>
+					<AlertDialogTitle>Remove this trigger?</AlertDialogTitle>
 					<AlertDialogDescription>
-						<span className="font-medium text-foreground">{automationName}</span> and all of its
-						triggers and run history will be removed. This cannot be undone.
+						<span className="font-medium text-foreground">{triggerLabel}</span> will be detached.
+						The automation itself stays, but it won't fire on this trigger anymore.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
@@ -75,10 +67,10 @@ export function DeleteAutomationDialog({
 						{submitting ? (
 							<span className="inline-flex items-center gap-2">
 								<Spinner size="xs" />
-								Deleting…
+								Removing…
 							</span>
 						) : (
-							"Delete"
+							"Remove"
 						)}
 					</AlertDialogAction>
 				</AlertDialogFooter>
