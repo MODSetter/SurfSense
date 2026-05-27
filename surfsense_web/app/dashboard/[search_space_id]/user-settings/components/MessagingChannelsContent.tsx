@@ -1,0 +1,174 @@
+"use client";
+
+import { MessageCircle, RefreshCw, ShieldAlert } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { authenticatedFetch } from "@/lib/auth-utils";
+import { BACKEND_URL } from "@/lib/env-config";
+
+type Binding = {
+	id: number;
+	state: string;
+	search_space_id: number;
+	external_display_name?: string | null;
+	external_username?: string | null;
+	suspended_reason?: string | null;
+};
+
+type Platform = {
+	id: number;
+	platform: string;
+	mode: string;
+	bot_username?: string | null;
+	health_status: string;
+	last_health_check_at?: string | null;
+};
+
+type Pairing = {
+	binding_id: number;
+	code: string;
+	deep_link: string;
+	expires_at: string;
+};
+
+export function MessagingChannelsContent() {
+	const params = useParams<{ search_space_id: string }>();
+	const searchSpaceId = Number(params.search_space_id);
+	const [bindings, setBindings] = useState<Binding[]>([]);
+	const [platforms, setPlatforms] = useState<Platform[]>([]);
+	const [pairing, setPairing] = useState<Pairing | null>(null);
+	const [loading, setLoading] = useState(true);
+
+	const refresh = useCallback(async () => {
+		setLoading(true);
+		const [bindingsRes, platformsRes] = await Promise.all([
+			authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/bindings`),
+			authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/platforms`),
+		]);
+		setBindings(await bindingsRes.json());
+		setPlatforms(await platformsRes.json());
+		setLoading(false);
+	}, []);
+
+	useEffect(() => {
+		void refresh();
+	}, [refresh]);
+
+	async function startPairing() {
+		const res = await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/bindings/start`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ platform: "telegram", search_space_id: searchSpaceId }),
+		});
+		setPairing(await res.json());
+		await refresh();
+	}
+
+	async function revoke(id: number) {
+		await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/bindings/${id}`, {
+			method: "DELETE",
+		});
+		await refresh();
+	}
+
+	async function resume(id: number) {
+		await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/bindings/${id}/resume`, {
+			method: "POST",
+		});
+		await refresh();
+	}
+
+	const telegram = platforms.find((p) => p.platform === "telegram");
+	const activeBindings = bindings.filter((binding) => binding.search_space_id === searchSpaceId);
+
+	return (
+		<div className="space-y-5">
+			<Card>
+				<CardHeader className="space-y-2">
+					<div className="flex items-center justify-between gap-3">
+						<CardTitle className="flex items-center gap-2 text-base">
+							<MessageCircle className="h-4 w-4" />
+							Telegram
+						</CardTitle>
+						<Badge variant={telegram?.health_status === "ok" ? "default" : "secondary"}>
+							{telegram?.health_status ?? "not configured"}
+						</Badge>
+					</div>
+					<p className="text-sm text-muted-foreground">
+						Pair a Telegram chat with this search space. Telegram conversations stay in Telegram and
+						are not mirrored in SurfSense chat history.
+					</p>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<div className="flex flex-wrap gap-2">
+						<Button onClick={startPairing}>Pair Telegram Chat</Button>
+						<Button variant="outline" onClick={refresh} disabled={loading}>
+							<RefreshCw className="mr-2 h-4 w-4" />
+							Refresh
+						</Button>
+					</div>
+
+					{pairing ? (
+						<div className="rounded-md border border-border bg-muted/30 p-4">
+							<p className="text-sm font-medium">Pairing code</p>
+							<p className="mt-2 font-mono text-lg">{pairing.code}</p>
+							<a className="mt-2 block text-sm text-primary underline" href={pairing.deep_link}>
+								Open Telegram pairing link
+							</a>
+							<p className="mt-2 text-xs text-muted-foreground">
+								Expires at {new Date(pairing.expires_at).toLocaleString()}. SurfSense stores this
+								channel's messages for agent memory and operational debugging.
+							</p>
+						</div>
+					) : null}
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle className="text-base">Active Chats</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-3">
+					{activeBindings.length === 0 ? (
+						<p className="text-sm text-muted-foreground">No Telegram chats paired yet.</p>
+					) : (
+						activeBindings.map((binding) => (
+							<div
+								key={binding.id}
+								className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3"
+							>
+								<div>
+									<p className="text-sm font-medium">
+										{binding.external_display_name ||
+											binding.external_username ||
+											`Binding ${binding.id}`}
+									</p>
+									<p className="text-xs text-muted-foreground">{binding.state}</p>
+									{binding.suspended_reason ? (
+										<p className="mt-1 flex items-center gap-1 text-xs text-destructive">
+											<ShieldAlert className="h-3 w-3" />
+											{binding.suspended_reason}
+										</p>
+									) : null}
+								</div>
+								<div className="flex gap-2">
+									{binding.state === "suspended" ? (
+										<Button size="sm" variant="outline" onClick={() => resume(binding.id)}>
+											Resume
+										</Button>
+									) : null}
+									<Button size="sm" variant="destructive" onClick={() => revoke(binding.id)}>
+										Revoke
+									</Button>
+								</div>
+							</div>
+						))
+					)}
+				</CardContent>
+			</Card>
+		</div>
+	);
+}
