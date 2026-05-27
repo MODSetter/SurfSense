@@ -12,3 +12,6 @@ __all__ = [
     "get_action",
     "register_action",
 ]
+
+# Built-in actions self-register at import time.
+from . import agent_task  # noqa: E402, F401

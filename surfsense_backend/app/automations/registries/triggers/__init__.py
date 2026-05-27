@@ -11,3 +11,6 @@ __all__ = [
     "get_trigger",
     "register_trigger",
 ]
+
+# Built-in triggers self-register at import time.
+from . import manual, schedule  # noqa: E402, F401
