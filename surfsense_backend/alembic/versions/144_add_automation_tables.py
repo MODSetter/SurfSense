@@ -89,6 +89,7 @@ def upgrade() -> None:
             params JSONB NOT NULL,
             enabled BOOLEAN NOT NULL DEFAULT true,
             last_fired_at TIMESTAMP WITH TIME ZONE,
+            next_fire_at TIMESTAMP WITH TIME ZONE,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
         """
@@ -104,6 +105,17 @@ def upgrade() -> None:
     )
     op.execute(
         "CREATE INDEX ix_automation_triggers_created_at ON automation_triggers(created_at);"
+    )
+    # Partial index for the schedule tick: only enabled schedule triggers
+    # with a scheduled next fire are ever scanned for due rows.
+    op.execute(
+        """
+        CREATE INDEX ix_automation_triggers_due
+            ON automation_triggers (next_fire_at)
+            WHERE enabled = true
+              AND type = 'schedule'
+              AND next_fire_at IS NOT NULL;
+        """
     )
 
     # automation_runs — the immutable per-fire execution record
@@ -148,6 +160,7 @@ def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS ix_automation_runs_automation_id;")
     op.execute("DROP TABLE IF EXISTS automation_runs;")
 
+    op.execute("DROP INDEX IF EXISTS ix_automation_triggers_due;")
     op.execute("DROP INDEX IF EXISTS ix_automation_triggers_created_at;")
     op.execute("DROP INDEX IF EXISTS ix_automation_triggers_enabled;")
     op.execute("DROP INDEX IF EXISTS ix_automation_triggers_type;")

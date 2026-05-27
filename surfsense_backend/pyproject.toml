@@ -87,6 +87,7 @@ dependencies = [
     "opentelemetry-instrumentation-httpx>=0.61b0",
     "opentelemetry-instrumentation-celery>=0.61b0",
     "opentelemetry-instrumentation-logging>=0.61b0",
+    "croniter>=2.0.0",
 ]
 
 [dependency-groups]
