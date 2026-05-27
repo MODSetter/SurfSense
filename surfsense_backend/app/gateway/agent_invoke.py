@@ -79,7 +79,12 @@ async def call_agent_for_gateway(
             disabled_tools=sorted(DEFAULT_HITL_TOOL_NAMES),
             request_id=request_id or "gateway",
         )
-        await translator.translate(_events_from_sse(stream))
+        events = _events_from_sse(stream)
+        try:
+            await translator.translate(events)
+        finally:
+            await events.aclose()
+            await stream.aclose()
         record_gateway_turn_latency(0, platform="telegram")
     finally:
         release_thread_lock(thread.id)
