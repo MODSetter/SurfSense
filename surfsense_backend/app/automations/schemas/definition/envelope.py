@@ -12,7 +12,7 @@ from .trigger_spec import TriggerSpec
 
 
 class AutomationDefinition(BaseModel):
-    """Top-level shape of an automation. See automation-design-plan.md §5."""
+    """Top-level shape of an automation."""
 
     model_config = ConfigDict(extra="forbid")
 

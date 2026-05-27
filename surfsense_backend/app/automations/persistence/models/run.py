@@ -1,9 +1,4 @@
-"""``automation_runs`` table — immutable per-fire execution record.
-
-Per-step metadata (incl. any LangGraph session id for an ``agent_task`` step)
-lives inside ``step_results[i]``, since a single run may contain zero, one,
-or N agent steps.
-"""
+"""``automation_runs`` table — immutable per-fire execution record."""
 
 from __future__ import annotations
 
@@ -51,6 +46,8 @@ class AutomationRun(BaseModel, TimestampMixin):
 
     trigger_payload = Column(JSONB, nullable=True)
     resolved_inputs = Column(JSONB, nullable=False, server_default="{}")
+    # one entry per executed step; agent_task entries carry their own
+    # `agent_session_id` (LangGraph thread reference) inside this JSONB
     step_results = Column(JSONB, nullable=False, server_default="[]")
     output = Column(JSONB, nullable=True)
     artifacts = Column(JSONB, nullable=False, server_default="[]")
