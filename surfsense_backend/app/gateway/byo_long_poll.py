@@ -46,7 +46,7 @@ async def start_byo_long_poll_supervisors() -> None:
     """Start one BYO long-poll supervisor per active non-system Telegram account."""
 
     global _shutdown_event
-    if not config.GATEWAY_BYO_LONGPOLL_ENABLED:
+    if config.GATEWAY_TELEGRAM_INTAKE_MODE != "longpoll":
         return
     if _tasks:
         return

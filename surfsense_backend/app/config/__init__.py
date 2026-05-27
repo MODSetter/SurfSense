@@ -546,9 +546,13 @@ class Config:
     TELEGRAM_SHARED_BOT_USERNAME = os.getenv("TELEGRAM_SHARED_BOT_USERNAME")
     TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET")
     GATEWAY_BASE_URL = os.getenv("GATEWAY_BASE_URL", BACKEND_URL)
-    GATEWAY_BYO_LONGPOLL_ENABLED = (
-        os.getenv("GATEWAY_BYO_LONGPOLL_ENABLED", "TRUE").upper() == "TRUE"
-    )
+    GATEWAY_TELEGRAM_INTAKE_MODE = os.getenv(
+        "GATEWAY_TELEGRAM_INTAKE_MODE", "webhook"
+    ).lower()
+    if GATEWAY_TELEGRAM_INTAKE_MODE not in {"webhook", "longpoll", "disabled"}:
+        raise ValueError(
+            "GATEWAY_TELEGRAM_INTAKE_MODE must be one of: webhook, longpoll, disabled"
+        )
 
     # Stripe checkout for pay-as-you-go page packs
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
