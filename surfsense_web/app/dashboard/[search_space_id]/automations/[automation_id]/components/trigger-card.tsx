@@ -1,12 +1,13 @@
 "use client";
 import { useAtomValue } from "jotai";
-import { CalendarClock, Clock, Trash2 } from "lucide-react";
+import { AlertCircle, CalendarClock, Clock, Pencil, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { updateTriggerMutationAtom } from "@/atoms/automations/automations-mutation.atoms";
 import { JsonView } from "@/components/json-view";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import type { Trigger } from "@/contracts/types/automation.types";
+import { type Trigger, triggerUpdateRequest } from "@/contracts/types/automation.types";
 import { describeCron } from "@/lib/automations/describe-cron";
 import { formatRelativeDate, formatRelativeFutureDate } from "@/lib/format-date";
 import { DeleteTriggerDialog } from "./delete-trigger-dialog";
@@ -18,20 +19,36 @@ interface TriggerCardProps {
 	canDelete: boolean;
 }
 
+interface TriggerDraft {
+	params: Record<string, unknown>;
+	static_inputs: Record<string, unknown>;
+}
+
+function draftFromTrigger(trigger: Trigger): TriggerDraft {
+	return {
+		params: trigger.params,
+		static_inputs: trigger.static_inputs ?? {},
+	};
+}
+
 /**
  * One trigger row in the Triggers section of the detail page. Renders:
  *   - type icon + human-readable schedule + timezone
  *   - last_fired_at / next_fire_at hints
  *   - static_inputs as formatted JSON (when present)
- *   - enable toggle + remove button (each gated independently)
+ *   - enable toggle + remove button + inline edit (each gated independently)
  *
- * Editing params (cron, timezone, static_inputs) lives behind the future
- * raw-JSON path; this card stays read-only-except-for-toggle for v1.
+ * Inline edit covers ``params`` and ``static_inputs`` — the two fields the
+ * backend ``PATCH /triggers/[id]`` endpoint accepts beyond ``enabled``.
+ * ``enabled`` stays on the Switch so the two surfaces don't fight.
  */
 export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: TriggerCardProps) {
 	const { mutateAsync: updateTrigger, isPending: updating } =
 		useAtomValue(updateTriggerMutationAtom);
 	const [deleteOpen, setDeleteOpen] = useState(false);
+	const [isEditing, setIsEditing] = useState(false);
+	const [draft, setDraft] = useState<TriggerDraft>(() => draftFromTrigger(trigger));
+	const [issues, setIssues] = useState<string[]>([]);
 
 	const cron = typeof trigger.params.cron === "string" ? trigger.params.cron : undefined;
 	const tz = typeof trigger.params.timezone === "string" ? trigger.params.timezone : "UTC";
@@ -45,6 +62,38 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 			triggerId: trigger.id,
 			patch: { enabled: checked },
 		});
+	}
+
+	function startEdit() {
+		setDraft(draftFromTrigger(trigger));
+		setIssues([]);
+		setIsEditing(true);
+	}
+
+	function cancelEdit() {
+		setIsEditing(false);
+		setIssues([]);
+	}
+
+	async function saveEdit() {
+		setIssues([]);
+		const result = triggerUpdateRequest.safeParse(draft);
+		if (!result.success) {
+			setIssues(
+				result.error.issues.map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
+			);
+			return;
+		}
+		try {
+			await updateTrigger({
+				automationId,
+				triggerId: trigger.id,
+				patch: result.data,
+			});
+			setIsEditing(false);
+		} catch (err) {
+			setIssues([(err as Error).message ?? "Update failed"]);
+		}
 	}
 
 	return (
@@ -71,10 +120,21 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 								<Switch
 									checked={trigger.enabled}
 									onCheckedChange={handleToggle}
-									disabled={updating}
+									disabled={updating || isEditing}
 									aria-label={trigger.enabled ? "Disable trigger" : "Enable trigger"}
 								/>
 							</div>
+						)}
+						{canUpdate && !isEditing && (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 text-muted-foreground"
+								onClick={startEdit}
+								aria-label="Edit trigger"
+							>
+								<Pencil className="h-4 w-4" />
+							</Button>
 						)}
 						{canDelete && (
 							<Button
@@ -82,6 +142,7 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 								size="icon"
 								className="h-8 w-8 text-muted-foreground hover:text-destructive"
 								onClick={() => setDeleteOpen(true)}
+								disabled={isEditing}
 								aria-label="Remove trigger"
 							>
 								<Trash2 className="h-4 w-4" />
@@ -91,29 +152,78 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 				</div>
 
 				<div className="px-4 py-3 space-y-3 text-xs">
-					{(trigger.last_fired_at || trigger.next_fire_at) && (
-						<dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1">
-							{trigger.next_fire_at && (
-								<TimeRow
-									label="Next fire"
-									iso={trigger.next_fire_at}
-									tense="future"
-									highlight={trigger.enabled}
+					{isEditing ? (
+						<>
+							<div className="rounded-md border border-input bg-background px-3 py-2 max-h-[24rem] overflow-auto">
+								<JsonView
+									src={draft}
+									editable
+									onChange={(next) => setDraft(next as TriggerDraft)}
+									collapsed={false}
 								/>
-							)}
-							{trigger.last_fired_at && (
-								<TimeRow label="Last fired" iso={trigger.last_fired_at} tense="past" />
-							)}
-						</dl>
-					)}
-
-					{hasStaticInputs && (
-						<div>
-							<div className="text-muted-foreground mb-1">Static inputs</div>
-							<div className="rounded-md bg-muted/40 px-3 py-2 overflow-auto">
-								<JsonView src={trigger.static_inputs} collapsed={1} />
 							</div>
-						</div>
+
+							{issues.length > 0 && (
+								<div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
+									<div className="flex items-center gap-1.5 font-medium text-destructive mb-1">
+										<AlertCircle className="h-3 w-3" aria-hidden />
+										{issues.length === 1 ? "1 issue" : `${issues.length} issues`}
+									</div>
+									<ul className="space-y-0.5 text-destructive list-disc list-inside">
+										{issues.map((issue) => (
+											<li key={issue}>{issue}</li>
+										))}
+									</ul>
+								</div>
+							)}
+
+							<div className="flex items-center justify-end gap-2">
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={cancelEdit}
+									disabled={updating}
+								>
+									Cancel
+								</Button>
+								<Button type="button" size="sm" onClick={saveEdit} disabled={updating}>
+									{updating ? (
+										<Spinner size="xs" className="mr-1.5" />
+									) : (
+										<Save className="mr-1.5 h-3.5 w-3.5" />
+									)}
+									Save
+								</Button>
+							</div>
+						</>
+					) : (
+						<>
+							{(trigger.last_fired_at || trigger.next_fire_at) && (
+								<dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1">
+									{trigger.next_fire_at && (
+										<TimeRow
+											label="Next fire"
+											iso={trigger.next_fire_at}
+											tense="future"
+											highlight={trigger.enabled}
+										/>
+									)}
+									{trigger.last_fired_at && (
+										<TimeRow label="Last fired" iso={trigger.last_fired_at} tense="past" />
+									)}
+								</dl>
+							)}
+
+							{hasStaticInputs && (
+								<div>
+									<div className="text-muted-foreground mb-1">Static inputs</div>
+									<div className="rounded-md bg-muted/40 px-3 py-2 overflow-auto">
+										<JsonView src={trigger.static_inputs} collapsed={1} />
+									</div>
+								</div>
+							)}
+						</>
 					)}
 				</div>
 			</div>
