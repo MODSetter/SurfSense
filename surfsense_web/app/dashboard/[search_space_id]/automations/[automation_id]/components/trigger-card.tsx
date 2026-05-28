@@ -3,6 +3,7 @@ import { useAtomValue } from "jotai";
 import { CalendarClock, Clock, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { updateTriggerMutationAtom } from "@/atoms/automations/automations-mutation.atoms";
+import { JsonView } from "@/components/json-view";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type { Trigger } from "@/contracts/types/automation.types";
@@ -109,9 +110,9 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 					{hasStaticInputs && (
 						<div>
 							<div className="text-muted-foreground mb-1">Static inputs</div>
-							<pre className="rounded-md bg-muted/40 px-3 py-2 font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-words">
-								{JSON.stringify(trigger.static_inputs, null, 2)}
-							</pre>
+							<div className="rounded-md bg-muted/40 px-3 py-2 overflow-auto">
+								<JsonView src={trigger.static_inputs} collapsed={1} />
+							</div>
 						</div>
 					)}
 				</div>

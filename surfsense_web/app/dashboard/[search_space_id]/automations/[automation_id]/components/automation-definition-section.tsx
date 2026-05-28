@@ -11,9 +11,8 @@ interface AutomationDefinitionSectionProps {
 }
 
 /**
- * The Definition card. Read-only in v1 — editing definitions happens via
- * chat (re-run create_automation with a refined intent) or, later, via
- * the raw-JSON path. Layout is top-down:
+ * The Definition card. Read view; editing happens on the sibling /edit
+ * route (Edit button in the header). Layout is top-down:
  *   goal → tags → execution defaults → inputs schema (if any) → plan
  *
  * The schema_version is rendered as a small badge next to the section

@@ -1,6 +1,6 @@
 "use client";
 import { useAtomValue } from "jotai";
-import { ArrowLeft, Pause, Play, Trash2 } from "lucide-react";
+import { ArrowLeft, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
@@ -82,6 +82,14 @@ export function AutomationDetailHeader({
 					</div>
 
 					<div className="flex items-center gap-2 shrink-0">
+						{canUpdate && (
+							<Button asChild type="button" variant="outline" size="sm">
+								<Link href={`/dashboard/${searchSpaceId}/automations/${automation.id}/edit`}>
+									<Pencil className="mr-2 h-4 w-4" />
+									Edit
+								</Link>
+							</Button>
+						)}
 						{canToggle && (
 							<Button
 								type="button"

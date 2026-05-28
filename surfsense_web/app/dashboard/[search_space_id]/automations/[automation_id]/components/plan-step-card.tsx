@@ -1,5 +1,6 @@
 "use client";
 import { ArrowRightCircle, GitCommitHorizontal } from "lucide-react";
+import { JsonView } from "@/components/json-view";
 import type { PlanStep } from "@/contracts/types/automation.types";
 
 interface PlanStepCardProps {
@@ -54,9 +55,9 @@ export function PlanStepCard({ step, index }: PlanStepCardProps) {
 						<GitCommitHorizontal className="h-3.5 w-3.5" aria-hidden />
 						Params
 					</div>
-					<pre className="rounded-md bg-muted/40 px-3 py-2 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-words">
-						{JSON.stringify(step.params, null, 2)}
-					</pre>
+					<div className="rounded-md bg-muted/40 px-3 py-2 overflow-auto">
+						<JsonView src={step.params} collapsed={1} />
+					</div>
 				</div>
 			</div>
 		</div>

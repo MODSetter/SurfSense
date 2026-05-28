@@ -2,17 +2,11 @@
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import {
-	AlertCircle,
-	Code,
-	CornerDownLeftIcon,
-	ExternalLink,
-	Pencil,
-	Workflow,
-} from "lucide-react";
+import { AlertCircle, CornerDownLeftIcon, ExternalLink, Pencil, Workflow } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { JsonView } from "@/components/json-view";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { automationCreateRequest } from "@/contracts/types/automation.types";
@@ -231,28 +225,12 @@ interface JsonEditorProps {
 }
 
 function JsonEditor({ initialValue, onSave, onCancel }: JsonEditorProps) {
-	const [text, setText] = useState(() => JSON.stringify(initialValue, null, 2));
+	const [value, setValue] = useState<Record<string, unknown>>(initialValue);
 	const [issues, setIssues] = useState<string[]>([]);
-
-	function handleFormat() {
-		try {
-			setText(JSON.stringify(JSON.parse(text), null, 2));
-			setIssues([]);
-		} catch (err) {
-			setIssues([`Cannot format — not valid JSON: ${(err as Error).message}`]);
-		}
-	}
 
 	function handleSave() {
 		setIssues([]);
-		let parsed: unknown;
-		try {
-			parsed = JSON.parse(text);
-		} catch (err) {
-			setIssues([`Invalid JSON: ${(err as Error).message}`]);
-			return;
-		}
-		const result = editArgsSchema.safeParse(parsed);
+		const result = editArgsSchema.safeParse(value);
 		if (!result.success) {
 			setIssues(
 				result.error.issues.map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
@@ -264,14 +242,14 @@ function JsonEditor({ initialValue, onSave, onCancel }: JsonEditorProps) {
 
 	return (
 		<div className="space-y-3">
-			<textarea
-				value={text}
-				onChange={(e) => setText(e.target.value)}
-				spellCheck={false}
-				rows={16}
-				className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y min-h-[12rem]"
-				aria-label="Automation JSON"
-			/>
+			<div className="rounded-md border border-input bg-background px-3 py-2 max-h-[24rem] overflow-auto">
+				<JsonView
+					src={value}
+					editable
+					onChange={(next) => setValue(next as Record<string, unknown>)}
+					collapsed={false}
+				/>
+			</div>
 			{issues.length > 0 && (
 				<div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
 					<div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
@@ -290,10 +268,6 @@ function JsonEditor({ initialValue, onSave, onCancel }: JsonEditorProps) {
 			<div className="flex items-center justify-end gap-2">
 				<Button type="button" variant="ghost" size="sm" onClick={onCancel}>
 					Cancel
-				</Button>
-				<Button type="button" variant="outline" size="sm" onClick={handleFormat}>
-					<Code className="mr-1.5 h-3.5 w-3.5" />
-					Format
 				</Button>
 				<Button type="button" size="sm" onClick={handleSave}>
 					Save edits

@@ -1,5 +1,6 @@
 "use client";
 import { AlertCircle, FileOutput, GitCommitHorizontal, Package, Settings2 } from "lucide-react";
+import { JsonView } from "@/components/json-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAutomationRun } from "@/hooks/use-automation-runs";
 
@@ -109,8 +110,8 @@ function Section({
 
 function JsonBlock({ value }: { value: unknown }) {
 	return (
-		<pre className="rounded-md bg-muted/40 px-3 py-2 text-[11px] font-mono text-foreground overflow-x-auto whitespace-pre-wrap break-words max-h-64">
-			{JSON.stringify(value, null, 2)}
-		</pre>
+		<div className="rounded-md bg-muted/40 px-3 py-2 max-h-64 overflow-auto">
+			<JsonView src={value} collapsed={1} />
+		</div>
 	);
 }
