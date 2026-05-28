@@ -126,4 +126,14 @@ export const cacheKeys = {
 		batchUnreadCounts: (searchSpaceId: number | null) =>
 			["notifications", "unread-counts-batch", searchSpaceId] as const,
 	},
+	automations: {
+		// list endpoint is keyed by pagination too so distinct pages don't collide
+		list: (searchSpaceId: number, limit: number, offset: number) =>
+			["automations", "list", searchSpaceId, limit, offset] as const,
+		detail: (automationId: number) => ["automations", "detail", automationId] as const,
+		runs: (automationId: number, limit: number, offset: number) =>
+			["automations", "runs", automationId, limit, offset] as const,
+		run: (automationId: number, runId: number) =>
+			["automations", "runs", automationId, runId] as const,
+	},
 };

@@ -10,6 +10,7 @@ MAIN_AGENT_SURFSENSE_TOOL_NAMES_ORDERED: tuple[str, ...] = (
     "web_search",
     "scrape_webpage",
     "update_memory",
+    "create_automation",
 )
 
 MAIN_AGENT_SURFSENSE_TOOL_NAMES: frozenset[str] = frozenset(

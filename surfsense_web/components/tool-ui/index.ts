@@ -7,6 +7,7 @@
  */
 
 export { Audio } from "./audio";
+export { CreateAutomationToolUI } from "./automation";
 export { CreateDropboxFileToolUI, DeleteDropboxFileToolUI } from "./dropbox";
 export {
 	type GenerateImageArgs,

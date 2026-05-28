@@ -151,6 +151,28 @@ class ToolDefinition:
 
 
 # =============================================================================
+# Deferred-import factories
+# =============================================================================
+# Used for tools whose impls live under ``multi_agent_chat``. Importing those
+# at module-load time would cycle (``multi_agent_chat`` middleware imports
+# this registry). The import inside the factory runs only when
+# ``build_tools`` is called, by which point ``multi_agent_chat`` is fully
+# initialised.
+
+
+def _build_create_automation_tool(deps: dict[str, Any]) -> BaseTool:
+    from app.agents.multi_agent_chat.main_agent.tools.automation import (
+        create_create_automation_tool,
+    )
+
+    return create_create_automation_tool(
+        search_space_id=deps["search_space_id"],
+        user_id=deps["user_id"],
+        llm=deps["llm"],
+    )
+
+
+# =============================================================================
 # Built-in Tools Registry
 # =============================================================================
 
@@ -259,6 +281,21 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # AUTOMATION AUTHORING - single HITL tool. The tool takes an NL ``intent``
+    # from the main agent, drafts the full AutomationCreate JSON via a focused
+    # sub-LLM, surfaces it on an approval card, and persists on approval. The
+    # factory defers its import because the impl lives under ``multi_agent_chat``
+    # and that package transitively pulls this registry via middleware;
+    # deferring to ``build_tools`` call-time breaks the cycle without a
+    # parallel registry.
+    # =========================================================================
+    ToolDefinition(
+        name="create_automation",
+        description="Draft an automation from an NL intent; user approves the card; tool saves",
+        factory=_build_create_automation_tool,
+        requires=["search_space_id", "user_id", "llm"],
     ),
     # =========================================================================
     # MEMORY TOOL - single update_memory, private or team by thread_visibility

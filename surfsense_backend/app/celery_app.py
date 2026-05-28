@@ -188,6 +188,8 @@ celery_app = Celery(
         "app.tasks.celery_tasks.document_reindex_tasks",
         "app.tasks.celery_tasks.stale_notification_cleanup_task",
         "app.tasks.celery_tasks.stripe_reconciliation_task",
+        "app.automations.tasks.execute_run",
+        "app.automations.tasks.schedule_tick",
     ],
 )
 
@@ -280,6 +282,16 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(**stripe_reconciliation_schedule_params),
         "options": {
             "expires": 60,
+        },
+    },
+    # Fire due automation schedule triggers. Ticks every minute; per-row cron
+    # math is precomputed (next_fire_at column) so the tick is an indexed
+    # lookup, not N cron evaluations.
+    "automation-schedule-tick": {
+        "task": "automation_schedule_tick",
+        "schedule": crontab(minute="*"),
+        "options": {
+            "expires": 50,
         },
     },
 }
