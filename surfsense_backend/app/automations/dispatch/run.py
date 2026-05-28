@@ -67,8 +67,15 @@ async def dispatch_run(
 def _validate_inputs(
     definition: AutomationDefinition, inputs: dict[str, Any]
 ) -> dict[str, Any]:
+    """Validate merged inputs against the optional declared schema.
+
+    No declared schema → pass through (runtime inputs like ``fired_at`` /
+    ``last_fired_at`` and trigger ``static_inputs`` must still reach the
+    template context). Returning ``{}`` here strips them and makes Jinja
+    blow up on any ``{{ inputs.* }}`` reference.
+    """
     if definition.inputs is None or not definition.inputs.schema_:
-        return {}
+        return inputs
     try:
         jsonschema.validate(instance=inputs, schema=definition.inputs.schema_)
     except jsonschema.ValidationError as exc:

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type { Trigger } from "@/contracts/types/automation.types";
 import { describeCron } from "@/lib/automations/describe-cron";
-import { formatRelativeDate } from "@/lib/format-date";
+import { formatRelativeDate, formatRelativeFutureDate } from "@/lib/format-date";
 import { DeleteTriggerDialog } from "./delete-trigger-dialog";
 
 interface TriggerCardProps {
@@ -91,11 +91,18 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 
 				<div className="px-4 py-3 space-y-3 text-xs">
 					{(trigger.last_fired_at || trigger.next_fire_at) && (
-						<dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+						<dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1">
 							{trigger.next_fire_at && (
-								<TimeRow label="Next fire" iso={trigger.next_fire_at} highlight={trigger.enabled} />
+								<TimeRow
+									label="Next fire"
+									iso={trigger.next_fire_at}
+									tense="future"
+									highlight={trigger.enabled}
+								/>
 							)}
-							{trigger.last_fired_at && <TimeRow label="Last fired" iso={trigger.last_fired_at} />}
+							{trigger.last_fired_at && (
+								<TimeRow label="Last fired" iso={trigger.last_fired_at} tense="past" />
+							)}
 						</dl>
 					)}
 
@@ -126,17 +133,20 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 function TimeRow({
 	label,
 	iso,
+	tense,
 	highlight = false,
 }: {
 	label: string;
 	iso: string;
+	tense: "past" | "future";
 	highlight?: boolean;
 }) {
+	const formatted = tense === "future" ? formatRelativeFutureDate(iso) : formatRelativeDate(iso);
 	return (
-		<div className="flex items-baseline gap-2 min-w-0">
-			<dt className="text-muted-foreground shrink-0 inline-flex items-center gap-1">
+		<>
+			<dt className="text-muted-foreground inline-flex items-center gap-1.5 whitespace-nowrap">
 				<Clock className="h-3 w-3" aria-hidden />
-				{label}:
+				{label}
 			</dt>
 			<dd
 				className={
@@ -144,9 +154,10 @@ function TimeRow({
 						? "text-foreground font-medium min-w-0 truncate"
 						: "text-muted-foreground min-w-0 truncate"
 				}
+				title={new Date(iso).toLocaleString()}
 			>
-				{formatRelativeDate(iso)}
+				{formatted}
 			</dd>
-		</div>
+		</>
 	);
 }

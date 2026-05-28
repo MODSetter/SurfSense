@@ -77,10 +77,8 @@ export function AutomationDetailContent({
 			<AutomationTriggersSection
 				triggers={automation.triggers}
 				automationId={automation.id}
-				searchSpaceId={searchSpaceId}
 				canUpdate={perms.canUpdate}
 				canDelete={perms.canDelete}
-				canCreate={perms.canCreate}
 			/>
 
 			<AutomationRunsSection automationId={automation.id} />

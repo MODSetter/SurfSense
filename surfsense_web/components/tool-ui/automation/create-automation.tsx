@@ -2,15 +2,25 @@
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import { CornerDownLeftIcon, ExternalLink, Workflow } from "lucide-react";
+import {
+	AlertCircle,
+	Code,
+	CornerDownLeftIcon,
+	ExternalLink,
+	Pencil,
+	Workflow,
+} from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
+import { automationCreateRequest } from "@/contracts/types/automation.types";
 import type { HitlDecision, InterruptResult } from "@/features/chat-messages/hitl";
 import { isInterruptResult, useHitlDecision, useHitlPhase } from "@/features/chat-messages/hitl";
 import { AutomationDraftPreview } from "./automation-draft-preview";
+
+const editArgsSchema = automationCreateRequest.omit({ search_space_id: true });
 
 // ----------------------------------------------------------------------------
 // Result discrimination — mirrors the backend return shapes in
@@ -62,12 +72,11 @@ function hasStatus(value: unknown, status: string): boolean {
 // ----------------------------------------------------------------------------
 // Approval card — pending → processing → complete / rejected.
 //
-// v1 deliberately supports only approve/reject. The drafted JSON is complex
-// (full plan + triggers) and we already have a multi-turn refinement path via
-// chat ("make it run at 10am instead" → the agent re-calls the tool with a
-// refined intent). An in-card edit form would duplicate that flow and add UX
-// surface area we don't need yet — leave it for the raw-JSON path on the
-// detail page.
+// Edit toggle reuses the same primitives as the Create-via-JSON page: raw
+// textarea, Format, Zod validation against ``AutomationCreate`` (minus the
+// ``search_space_id`` field, which the backend injects). Approve dispatches
+// an ``edit`` decision with the parsed args when edits are pending, otherwise
+// a plain ``approve``. Multi-turn chat refinement still works as a fallback.
 // ----------------------------------------------------------------------------
 
 interface ApprovalCardProps {
@@ -83,28 +92,34 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canApprove = allowedDecisions.includes("approve");
 	const canReject = allowedDecisions.includes("reject");
+	const canEdit = allowedDecisions.includes("edit");
 
-	const draft = useMemo(() => extractDraft(args), [args]);
+	const [pendingEdits, setPendingEdits] = useState<Record<string, unknown> | null>(null);
+	const [isEditing, setIsEditing] = useState(false);
+
+	const effectiveArgs = pendingEdits ?? args;
+	const draft = useMemo(() => extractDraft(effectiveArgs), [effectiveArgs]);
 
 	const handleApprove = useCallback(() => {
-		if (phase !== "pending" || !canApprove) return;
+		if (phase !== "pending" || !canApprove || isEditing) return;
 		setProcessing();
 		onDecision({
-			type: "approve",
+			type: pendingEdits ? "edit" : "approve",
 			edited_action: {
 				name: interruptData.action_requests[0]?.name ?? "create_automation",
-				args,
+				args: pendingEdits ?? args,
 			},
 		});
-	}, [phase, canApprove, setProcessing, onDecision, interruptData, args]);
+	}, [phase, canApprove, isEditing, setProcessing, onDecision, interruptData, args, pendingEdits]);
 
 	const handleReject = useCallback(() => {
-		if (phase !== "pending" || !canReject) return;
+		if (phase !== "pending" || !canReject || isEditing) return;
 		setRejected();
 		onDecision({ type: "reject", message: "User rejected the automation draft." });
-	}, [phase, canReject, setRejected, onDecision]);
+	}, [phase, canReject, isEditing, setRejected, onDecision]);
 
 	useEffect(() => {
+		if (isEditing) return;
 		const handler = (e: KeyboardEvent) => {
 			if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
 				handleApprove();
@@ -112,46 +127,77 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 		};
 		window.addEventListener("keydown", handler);
 		return () => window.removeEventListener("keydown", handler);
-	}, [handleApprove]);
+	}, [handleApprove, isEditing]);
 
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300">
-			<div className="flex items-start gap-3 px-5 pt-5 pb-4 select-none">
-				<Workflow className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
-				<div className="min-w-0">
-					<p className="text-sm font-semibold text-foreground">
-						{phase === "rejected"
-							? "Automation cancelled"
-							: phase === "processing"
-								? "Saving automation"
-								: phase === "complete"
-									? "Automation saved"
-									: "Create automation"}
-					</p>
-					{phase === "processing" ? (
-						<TextShimmerLoader text="Saving automation" size="sm" />
-					) : phase === "complete" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Automation created from this draft
+			<div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 select-none">
+				<div className="flex items-start gap-3 min-w-0">
+					<Workflow className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
+					<div className="min-w-0">
+						<p className="text-sm font-semibold text-foreground">
+							{phase === "rejected"
+								? "Automation cancelled"
+								: phase === "processing"
+									? "Saving automation"
+									: phase === "complete"
+										? "Automation saved"
+										: "Create automation"}
 						</p>
-					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							No automation was saved — ask in chat to refine and try again.
-						</p>
-					) : (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Review and approve to save. To change anything, reply in chat — I'll redraft.
-						</p>
-					)}
+						{phase === "processing" ? (
+							<TextShimmerLoader
+								text={pendingEdits ? "Saving with your edits" : "Saving automation"}
+								size="sm"
+							/>
+						) : phase === "complete" ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{pendingEdits
+									? "Automation saved with your edits"
+									: "Automation created from this draft"}
+							</p>
+						) : phase === "rejected" ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								No automation was saved — ask in chat to refine and try again.
+							</p>
+						) : (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{pendingEdits
+									? "Showing your edits. Approve to save, or edit again."
+									: "Review and approve to save. Edit for fine-tuning, or reply in chat for a redraft."}
+							</p>
+						)}
+					</div>
 				</div>
+				{phase === "pending" && canEdit && !isEditing && (
+					<Button
+						size="sm"
+						variant="ghost"
+						className="rounded-lg text-muted-foreground -mt-1 -mr-2 shrink-0"
+						onClick={() => setIsEditing(true)}
+					>
+						<Pencil className="size-3.5" />
+						Edit
+					</Button>
+				)}
 			</div>
 
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
-				<AutomationDraftPreview draft={draft} raw={args} />
+				{isEditing ? (
+					<JsonEditor
+						initialValue={effectiveArgs}
+						onSave={(parsed) => {
+							setPendingEdits(parsed);
+							setIsEditing(false);
+						}}
+						onCancel={() => setIsEditing(false)}
+					/>
+				) : (
+					<AutomationDraftPreview draft={draft} raw={effectiveArgs} />
+				)}
 			</div>
 
-			{phase === "pending" && (
+			{phase === "pending" && !isEditing && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
@@ -174,6 +220,85 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 					</div>
 				</>
 			)}
+		</div>
+	);
+}
+
+interface JsonEditorProps {
+	initialValue: Record<string, unknown>;
+	onSave: (parsed: Record<string, unknown>) => void;
+	onCancel: () => void;
+}
+
+function JsonEditor({ initialValue, onSave, onCancel }: JsonEditorProps) {
+	const [text, setText] = useState(() => JSON.stringify(initialValue, null, 2));
+	const [issues, setIssues] = useState<string[]>([]);
+
+	function handleFormat() {
+		try {
+			setText(JSON.stringify(JSON.parse(text), null, 2));
+			setIssues([]);
+		} catch (err) {
+			setIssues([`Cannot format — not valid JSON: ${(err as Error).message}`]);
+		}
+	}
+
+	function handleSave() {
+		setIssues([]);
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(text);
+		} catch (err) {
+			setIssues([`Invalid JSON: ${(err as Error).message}`]);
+			return;
+		}
+		const result = editArgsSchema.safeParse(parsed);
+		if (!result.success) {
+			setIssues(
+				result.error.issues.map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
+			);
+			return;
+		}
+		onSave(result.data as unknown as Record<string, unknown>);
+	}
+
+	return (
+		<div className="space-y-3">
+			<textarea
+				value={text}
+				onChange={(e) => setText(e.target.value)}
+				spellCheck={false}
+				rows={16}
+				className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y min-h-[12rem]"
+				aria-label="Automation JSON"
+			/>
+			{issues.length > 0 && (
+				<div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
+					<div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+						<AlertCircle className="h-3.5 w-3.5" aria-hidden />
+						{issues.length} issue{issues.length === 1 ? "" : "s"}
+					</div>
+					<ul className="mt-1.5 space-y-0.5 text-xs text-destructive/90 list-disc list-inside">
+						{issues.map((issue) => (
+							<li key={issue} className="font-mono">
+								{issue}
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
+			<div className="flex items-center justify-end gap-2">
+				<Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+					Cancel
+				</Button>
+				<Button type="button" variant="outline" size="sm" onClick={handleFormat}>
+					<Code className="mr-1.5 h-3.5 w-3.5" />
+					Format
+				</Button>
+				<Button type="button" size="sm" onClick={handleSave}>
+					Save edits
+				</Button>
+			</div>
 		</div>
 	);
 }

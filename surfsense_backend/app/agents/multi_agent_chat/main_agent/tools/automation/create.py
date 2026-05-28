@@ -22,11 +22,14 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
+from langchain.tools import ToolRuntime
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 from pydantic import ValidationError
 
-from app.agents.new_chat.tools.hitl import request_approval
+from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
+    request_approval,
+)
 from app.automations.schemas.api import AutomationCreate
 from app.automations.services.automation import AutomationService
 from app.db import User, async_session_maker
@@ -56,7 +59,7 @@ def create_create_automation_tool(
     uid = UUID(user_id) if isinstance(user_id, str) else user_id
 
     @tool
-    async def create_automation(intent: str) -> dict[str, Any]:
+    async def create_automation(intent: str, runtime: ToolRuntime) -> dict[str, Any]:
         """Draft + save an automation from a natural-language intent.
 
         Use this when the user wants SurfSense to do something on its own
@@ -137,6 +140,7 @@ def create_create_automation_tool(
                 tool_name="create_automation",
                 params=card_params,
                 context={"search_space_id": search_space_id},
+                tool_call_id=runtime.tool_call_id,
             )
 
             if result.rejected:
@@ -200,6 +204,5 @@ def _extract_json(text: str) -> dict[str, Any] | None:
 
 def _format_validation_issues(exc: ValidationError) -> list[str]:
     return [
-        f"{'.'.join(str(p) for p in err['loc'])}: {err['msg']}"
-        for err in exc.errors()
+        f"{'.'.join(str(p) for p in err['loc'])}: {err['msg']}" for err in exc.errors()
     ]

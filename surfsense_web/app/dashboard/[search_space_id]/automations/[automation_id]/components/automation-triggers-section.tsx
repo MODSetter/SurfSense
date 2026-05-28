@@ -1,7 +1,5 @@
 "use client";
-import { CalendarClock, MessageSquarePlus } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { CalendarClock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Trigger } from "@/contracts/types/automation.types";
 import { TriggerCard } from "./trigger-card";
@@ -9,43 +7,28 @@ import { TriggerCard } from "./trigger-card";
 interface AutomationTriggersSectionProps {
 	triggers: Trigger[];
 	automationId: number;
-	searchSpaceId: number;
 	canUpdate: boolean;
 	canDelete: boolean;
-	canCreate: boolean;
 }
 
 /**
  * The Triggers card. Lists each attached trigger with its own enable
- * toggle and remove button. Adding a new trigger is intent-driven (via
- * chat) for v1 — same philosophy as creating an automation, so the
- * empty/add CTA links to a new chat rather than opening a form.
+ * toggle and remove button. v1 attaches triggers at automation-creation
+ * time only; there is no in-place "add trigger" affordance here.
  */
 export function AutomationTriggersSection({
 	triggers,
 	automationId,
-	searchSpaceId,
 	canUpdate,
 	canDelete,
-	canCreate,
 }: AutomationTriggersSectionProps) {
 	return (
 		<Card>
-			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-				<div className="space-y-1">
-					<CardTitle className="text-base font-semibold">Triggers</CardTitle>
-					<p className="text-xs text-muted-foreground">
-						When this automation fires. v1 supports scheduled triggers only.
-					</p>
-				</div>
-				{canCreate && (
-					<Button asChild variant="outline" size="sm">
-						<Link href={`/dashboard/${searchSpaceId}/new-chat`}>
-							<MessageSquarePlus className="mr-2 h-4 w-4" />
-							Add via chat
-						</Link>
-					</Button>
-				)}
+			<CardHeader className="pb-4">
+				<CardTitle className="text-base font-semibold">Triggers</CardTitle>
+				<p className="text-xs text-muted-foreground">
+					When this automation fires. v1 supports scheduled triggers only.
+				</p>
 			</CardHeader>
 			<CardContent>
 				{triggers.length === 0 ? (

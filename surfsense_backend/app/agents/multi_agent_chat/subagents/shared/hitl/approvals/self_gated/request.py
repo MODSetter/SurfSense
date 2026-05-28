@@ -49,6 +49,7 @@ def request_approval(
     params: dict[str, Any],
     context: dict[str, Any] | None = None,
     trusted_tools: list[str] | None = None,
+    tool_call_id: str | None = None,
 ) -> HITLResult:
     """Pause the graph for user approval and return the user's decision.
 
@@ -64,6 +65,10 @@ def request_approval(
             forwarded verbatim to the FE for richer card chrome.
         trusted_tools: Per-session allowlist; when ``tool_name`` is in it the
             interrupt is skipped and the tool runs immediately.
+        tool_call_id: Caller's LangChain tool-call id. Required for tools
+            running directly on the main agent; subagent-mounted tools omit
+            it (the ``task`` chokepoint stamps it on re-raise — see
+            :mod:`...checkpointed_subagent_middleware.propagation`).
 
     Returns:
         :class:`HITLResult` with ``rejected=True`` if the user declined or
@@ -90,6 +95,8 @@ def request_approval(
         interrupt_type=action_type,
         context=context,
     )
+    if tool_call_id:
+        payload["tool_call_id"] = tool_call_id
     approval = interrupt(payload)
 
     parsed = parse_lc_envelope(approval)
