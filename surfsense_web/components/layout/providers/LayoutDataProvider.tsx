@@ -726,9 +726,11 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						: undefined
 				}
 				workspacePanelContentClassName={
-					isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage || isAutomationsPage
-						? "max-w-5xl"
-						: undefined
+					isAutomationsPage
+						? "max-w-none"
+						: isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage
+							? "max-w-5xl"
+							: undefined
 				}
 				isLoadingChats={isLoadingThreads}
 				activeSlideoutPanel={activeSlideoutPanel}

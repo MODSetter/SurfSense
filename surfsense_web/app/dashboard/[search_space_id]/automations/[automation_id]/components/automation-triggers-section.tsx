@@ -23,7 +23,7 @@ export function AutomationTriggersSection({
 	canDelete,
 }: AutomationTriggersSectionProps) {
 	return (
-		<Card>
+		<Card className="border-border/60 bg-accent">
 			<CardHeader className="pb-4">
 				<CardTitle className="text-base font-semibold">Triggers</CardTitle>
 				<p className="text-xs text-muted-foreground">

@@ -48,7 +48,7 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 
 	return (
 		<>
-			<div className="rounded-md border border-border/60 bg-background overflow-hidden">
+			<div className="rounded-md border border-border/60 overflow-hidden">
 				<div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-border/60">
 					<div className="flex items-center gap-3 min-w-0">
 						<CalendarClock className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />

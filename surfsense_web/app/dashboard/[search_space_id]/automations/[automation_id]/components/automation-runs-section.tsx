@@ -23,7 +23,7 @@ export function AutomationRunsSection({ automationId }: AutomationRunsSectionPro
 	const runs = data?.items ?? [];
 
 	return (
-		<Card>
+		<Card className="border-border/60 bg-accent">
 			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
 				<div className="space-y-1">
 					<CardTitle className="text-base font-semibold inline-flex items-center gap-2">

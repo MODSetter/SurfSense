@@ -24,7 +24,7 @@ export function AutomationDefinitionSection({ definition }: AutomationDefinition
 	const hasInputs = !!definition.inputs;
 
 	return (
-		<Card>
+		<Card className="border-border/60 bg-accent">
 			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
 				<CardTitle className="text-base font-semibold">Definition</CardTitle>
 				<span className="text-xs font-mono text-muted-foreground border border-border/60 rounded px-1.5 py-0.5">

@@ -24,7 +24,7 @@ export function RunRow({ run, automationId }: RunRowProps) {
 		: formatRelativeDate(run.created_at);
 
 	return (
-		<div className="rounded-md border border-border/60 bg-background overflow-hidden">
+		<div className="rounded-md border border-border/60 overflow-hidden">
 			<button
 				type="button"
 				onClick={() => setOpen((value) => !value)}

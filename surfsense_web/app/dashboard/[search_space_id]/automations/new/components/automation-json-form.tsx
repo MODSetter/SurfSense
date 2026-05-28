@@ -75,7 +75,7 @@ export function AutomationJsonForm({ searchSpaceId }: AutomationJsonFormProps) {
 	const hasIssues = issues.length > 0;
 
 	return (
-		<Card>
+		<Card className="border-border/60 bg-accent">
 			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
 				<CardTitle className="text-base font-semibold inline-flex items-center gap-2">
 					<FileJson className="h-4 w-4 text-muted-foreground" aria-hidden />

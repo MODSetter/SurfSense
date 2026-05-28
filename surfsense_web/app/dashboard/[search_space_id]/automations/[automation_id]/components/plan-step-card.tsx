@@ -15,7 +15,7 @@ interface PlanStepCardProps {
  */
 export function PlanStepCard({ step, index }: PlanStepCardProps) {
 	return (
-		<div className="rounded-md border border-border/60 bg-background overflow-hidden">
+		<div className="rounded-md border border-border/60 overflow-hidden">
 			<div className="flex items-center gap-2 px-4 py-2 border-b border-border/60 bg-muted/30">
 				<span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
 					{index + 1}

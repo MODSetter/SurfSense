@@ -72,16 +72,20 @@ export function AutomationDetailContent({
 				canDelete={perms.canDelete}
 			/>
 
-			<AutomationDefinitionSection definition={automation.definition} />
-
-			<AutomationTriggersSection
-				triggers={automation.triggers}
-				automationId={automation.id}
-				canUpdate={perms.canUpdate}
-				canDelete={perms.canDelete}
-			/>
-
-			<AutomationRunsSection automationId={automation.id} />
+			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+				<div className="space-y-6 min-w-0 lg:col-span-2">
+					<AutomationDefinitionSection definition={automation.definition} />
+					<AutomationRunsSection automationId={automation.id} />
+				</div>
+				<div className="space-y-6 min-w-0">
+					<AutomationTriggersSection
+						triggers={automation.triggers}
+						automationId={automation.id}
+						canUpdate={perms.canUpdate}
+						canDelete={perms.canDelete}
+					/>
+				</div>
+			</div>
 		</>
 	);
 }
