@@ -696,9 +696,9 @@ class NewChatThread(BaseModel, TimestampMixin):
     # agent_llm_id changes). Unindexed: all reads are by primary key.
     pinned_llm_config_id = Column(Integer, nullable=True)
 
-    # Surface metadata for web and external chat threads. Zero publishes all
-    # chat-message sources; the UI can decide which surfaces to render.
-    source = Column(Text, nullable=False, default="web", server_default="web")
+    # Surface metadata for first-party SurfSense and external chat threads.
+    # Zero publishes all chat-message sources; the UI can decide which surfaces to render.
+    source = Column(Text, nullable=False, default="surfsense", server_default="surfsense")
     external_chat_binding_id = Column(
         BigInteger,
         ForeignKey("external_chat_bindings.id", ondelete="SET NULL"),
@@ -786,7 +786,7 @@ class NewChatMessage(BaseModel, TimestampMixin):
 
     # Mirrors the parent thread source for publication-level filtering.
     # This denormalization avoids join-dependent logical replication rules.
-    source = Column(Text, nullable=False, default="web", server_default="web")
+    source = Column(Text, nullable=False, default="surfsense", server_default="surfsense")
     platform_metadata = Column(JSONB, nullable=True)
 
     # Relationships

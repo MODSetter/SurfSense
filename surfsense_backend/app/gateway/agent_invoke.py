@@ -88,7 +88,10 @@ async def call_agent_for_gateway(
             await stream.aclose()
         await session.execute(
             update(NewChatMessage)
-            .where(NewChatMessage.thread_id == thread.id, NewChatMessage.source == "web")
+            .where(
+                NewChatMessage.thread_id == thread.id,
+                NewChatMessage.source == "surfsense",
+            )
             .values(source="telegram")
         )
         await session.commit()

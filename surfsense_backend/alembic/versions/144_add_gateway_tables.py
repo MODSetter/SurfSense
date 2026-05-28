@@ -424,7 +424,7 @@ def upgrade() -> None:
     if not _column_exists(conn, "new_chat_threads", "source"):
         op.add_column(
             "new_chat_threads",
-            sa.Column("source", sa.Text(), nullable=False, server_default="web"),
+            sa.Column("source", sa.Text(), nullable=False, server_default="surfsense"),
         )
     op.alter_column("new_chat_threads", "source", type_=sa.Text())
     if not _column_exists(conn, "new_chat_threads", "external_chat_binding_id"):
@@ -454,7 +454,7 @@ def upgrade() -> None:
     if not _column_exists(conn, "new_chat_messages", "source"):
         op.add_column(
             "new_chat_messages",
-            sa.Column("source", sa.Text(), nullable=False, server_default="web"),
+            sa.Column("source", sa.Text(), nullable=False, server_default="surfsense"),
         )
     op.alter_column("new_chat_messages", "source", type_=sa.Text())
     if not _column_exists(conn, "new_chat_messages", "platform_metadata"):

@@ -41,7 +41,7 @@ The backend is the core of SurfSense. Follow these steps to set it up:
 
 ### Optional: Telegram External Chat Surface
 
-SurfSense can expose the same canonical chat agent through Telegram. The `external_chat_*` tables store adapter identity, delivery configuration, and durable inbox rows. The actual chat thread and messages remain in `new_chat_threads` and `new_chat_messages`, and all chat-message sources are eligible for Zero replication so a future SurfSense UI layer can render external chat surfaces. The web app initially shows pairing, health, revoke, and resume controls under **User Settings > Messaging Channels**.
+SurfSense can expose the same canonical chat agent through Telegram. The `external_chat_*` tables store adapter identity, delivery configuration, and durable inbox rows. The actual chat thread and messages remain in `new_chat_threads` and `new_chat_messages`, with first-party web/desktop chats marked as `source="surfsense"` and external surfaces marked by platform, such as `source="telegram"`. All chat-message sources are eligible for Zero replication so a future SurfSense UI layer can render external chat surfaces. The web app initially shows pairing, health, revoke, and resume controls under **User Settings > Messaging Channels**.
 
 Add these variables to `surfsense_backend/.env` when enabling the Telegram surface:
 
