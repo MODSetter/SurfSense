@@ -2,6 +2,7 @@
 
 import { MessageCircle, RefreshCw, ShieldAlert } from "lucide-react";
 import { useParams } from "next/navigation";
+import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,16 +38,23 @@ type Pairing = {
 
 type PairingPlatform = "telegram" | "whatsapp";
 
+type BaileysHealth = {
+	status: string;
+	hasQr: boolean;
+	qr?: string | null;
+	queueDepth?: number;
+	user?: unknown;
+};
+
 export function MessagingChannelsContent() {
 	const params = useParams<{ search_space_id: string }>();
 	const searchSpaceId = Number(params.search_space_id);
+	const whatsappMode = process.env.NEXT_PUBLIC_GATEWAY_WHATSAPP_INTAKE_MODE ?? "disabled";
 	const [bindings, setBindings] = useState<Binding[]>([]);
 	const [platforms, setPlatforms] = useState<Platform[]>([]);
 	const [pairing, setPairing] = useState<Pairing | null>(null);
 	const [pairingPlatform, setPairingPlatform] = useState<PairingPlatform | null>(null);
-	const [whatsappStatus, setWhatsappStatus] = useState<string | null>(null);
-	const [baileysPhone, setBaileysPhone] = useState("");
-	const [baileysCode, setBaileysCode] = useState<string | null>(null);
+	const [baileysHealth, setBaileysHealth] = useState<BaileysHealth | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [isPending, startTransition] = useTransition();
 
@@ -65,6 +73,18 @@ export function MessagingChannelsContent() {
 		void refresh();
 	}, [refresh]);
 
+	const refreshBaileysHealth = useCallback(async () => {
+		if (whatsappMode !== "baileys") return;
+		const res = await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/whatsapp/baileys/health`);
+		if (!res.ok) return;
+		const data = (await res.json()) as BaileysHealth;
+		setBaileysHealth(data);
+	}, [whatsappMode]);
+
+	useEffect(() => {
+		void refreshBaileysHealth();
+	}, [refreshBaileysHealth]);
+
 	async function startPairing(platform: PairingPlatform) {
 		const res = await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/bindings/start`, {
 			method: "POST",
@@ -76,25 +96,9 @@ export function MessagingChannelsContent() {
 		await refresh();
 	}
 
-	function pairBaileys() {
+	function refreshBaileys() {
 		startTransition(async () => {
-			setWhatsappStatus("Requesting WhatsApp pairing code...");
-			const res = await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/whatsapp/baileys/pair`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ search_space_id: searchSpaceId, phone_number: baileysPhone }),
-			});
-			if (!res.ok) {
-				setWhatsappStatus("Unable to request pairing code. Check the whatsapp-bridge service.");
-				return;
-			}
-			const data = await res.json();
-			setBaileysCode(data.pairing_code ?? null);
-			setWhatsappStatus(
-				data.status === "connected"
-					? "WhatsApp bridge is connected."
-					: "Enter the pairing code in WhatsApp.",
-			);
+			await refreshBaileysHealth();
 			await refresh();
 		});
 	}
@@ -115,7 +119,7 @@ export function MessagingChannelsContent() {
 
 	const telegram = platforms.find((p) => p.platform === "telegram");
 	const whatsapp = platforms.find((p) => p.platform === "whatsapp");
-	const whatsappMode = process.env.NEXT_PUBLIC_GATEWAY_WHATSAPP_INTAKE_MODE ?? "disabled";
+	const baileysQr = baileysHealth?.qr || null;
 	const activeBindings = bindings.filter((binding) => binding.search_space_id === searchSpaceId);
 	const renderPairingPanel = (platform: PairingPlatform) => {
 		if (!pairing || pairingPlatform !== platform) return null;
@@ -195,25 +199,29 @@ export function MessagingChannelsContent() {
 									Self-hosted WhatsApp uses Message Yourself mode. After pairing, send messages in
 									your own WhatsApp chat with yourself; messages from other chats are ignored.
 								</p>
-								<input
-									className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-									placeholder="Phone number with country code, e.g. 15551234567"
-									value={baileysPhone}
-									onChange={(event) => setBaileysPhone(event.target.value)}
-								/>
-								<Button onClick={pairBaileys} disabled={isPending || !baileysPhone.trim()}>
-									Pair WhatsApp
+								<Button variant="outline" onClick={refreshBaileys} disabled={isPending}>
+									Refresh WhatsApp Bridge
 								</Button>
-								{baileysCode ? (
+								{baileysQr ? (
 									<div className="rounded-md border border-border bg-muted/30 p-4">
-										<p className="text-sm font-medium">WhatsApp pairing code</p>
-										<p className="mt-2 font-mono text-lg">{baileysCode}</p>
+										<p className="text-sm font-medium">WhatsApp QR pairing</p>
+										<p className="mt-1 text-xs text-muted-foreground">
+											Scan this QR from WhatsApp &gt; Linked Devices &gt; Link a Device.
+										</p>
+										<div className="mt-3 inline-block rounded-md bg-white p-3">
+											<QRCodeSVG value={baileysQr} size={192} />
+										</div>
 									</div>
 								) : null}
+								{baileysHealth ? (
+									<p className="text-xs text-muted-foreground">
+										Bridge status: {baileysHealth.status}
+										{typeof baileysHealth.queueDepth === "number"
+											? `, queue: ${baileysHealth.queueDepth}`
+											: ""}
+									</p>
+								) : null}
 							</div>
-						) : null}
-						{whatsappStatus ? (
-							<p className="text-sm text-muted-foreground">{whatsappStatus}</p>
 						) : null}
 					</CardContent>
 				</Card>

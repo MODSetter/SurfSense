@@ -8,7 +8,7 @@ import {
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import express from "express";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import pino from "pino";
 import qrcode from "qrcode-terminal";
@@ -16,6 +16,7 @@ import qrcode from "qrcode-terminal";
 const PORT = Number(process.env.PORT || "9929");
 const SESSION_DIR = process.env.WHATSAPP_SESSION_DIR || "/data/sessions";
 const SEND_TIMEOUT_MS = Number(process.env.WHATSAPP_SEND_TIMEOUT_MS || "60000");
+const PAIRING_TIMEOUT_MS = Number(process.env.WHATSAPP_PAIRING_TIMEOUT_MS || "30000");
 const MAX_QUEUE_SIZE = Number(process.env.WHATSAPP_MAX_QUEUE_SIZE || "100");
 const WHATSAPP_MODE = process.env.WHATSAPP_MODE || "self-chat";
 const SENT_ECHO_TTL_MS = 60_000;
@@ -34,6 +35,82 @@ let sock = null;
 let connectionState = "disconnected";
 let latestQr = null;
 let starting = null;
+let pendingPairing = null;
+
+function resetSessionState() {
+  sock = null;
+  latestQr = null;
+  sentKeys.clear();
+  recentlySentIds.clear();
+  mkdirSync(SESSION_DIR, { recursive: true });
+  for (const entry of readdirSync(SESSION_DIR)) {
+    rmSync(path.join(SESSION_DIR, entry), { recursive: true, force: true });
+  }
+}
+
+function resolvePendingPairing(payload) {
+  if (!pendingPairing) return;
+  clearTimeout(pendingPairing.timer);
+  pendingPairing.resolve(payload);
+  pendingPairing = null;
+}
+
+function rejectPendingPairing(error) {
+  if (!pendingPairing) return;
+  clearTimeout(pendingPairing.timer);
+  pendingPairing.reject(error);
+  pendingPairing = null;
+}
+
+async function maybeRequestPairingCode(update = {}) {
+  if (!pendingPairing || pendingPairing.inFlight || !sock) return;
+
+  const canRequestPairingCode =
+    update.connection === "connecting" ||
+    Boolean(update.qr) ||
+    Boolean(latestQr);
+
+  if (!canRequestPairingCode) return;
+
+  pendingPairing.inFlight = true;
+  connectionState = "pairing";
+  try {
+    const code = await sock.requestPairingCode(pendingPairing.phoneNumber);
+    resolvePendingPairing({ status: "pairing", pairing_code: code, expires_in: 60 });
+  } catch (error) {
+    rejectPendingPairing(error);
+  }
+}
+
+function requestPairingCodeWhenReady(phoneNumber) {
+  if (connectionState === "connected") {
+    return Promise.resolve({ status: "connected", pairing_code: null, expires_in: 0 });
+  }
+
+  if (pendingPairing) {
+    return Promise.reject(new Error("A WhatsApp pairing request is already in progress"));
+  }
+
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pendingPairing = null;
+      reject(new Error("Timed out waiting for WhatsApp to become ready for pairing"));
+    }, PAIRING_TIMEOUT_MS);
+
+    pendingPairing = {
+      phoneNumber,
+      resolve,
+      reject,
+      timer,
+      inFlight: false,
+    };
+
+    void startSocket()
+      .then(() => maybeRequestPairingCode())
+      .catch((error) => rejectPendingPairing(error));
+    void maybeRequestPairingCode();
+  });
+}
 
 function normalizeText(message) {
   const content = message?.message || {};
@@ -111,24 +188,33 @@ async function startSocket() {
         latestQr = qr;
         connectionState = "qr";
         qrcode.generate(qr, { small: true });
+        void maybeRequestPairingCode(update);
       }
       if (connection === "open") {
         latestQr = null;
         connectionState = "connected";
         console.log("WhatsApp connected");
+        resolvePendingPairing({ status: "connected", pairing_code: null, expires_in: 0 });
       }
       if (connection === "close") {
         const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
         connectionState = "disconnected";
         if (reason === DisconnectReason.loggedOut) {
-          console.error("WhatsApp logged out; clear the session volume and pair again.");
-          process.exit(1);
+          console.error("WhatsApp logged out; clearing session and waiting for pairing.");
+          connectionState = "logged_out";
+          resetSessionState();
+          setTimeout(() => {
+            starting = null;
+            void startSocket();
+          }, 1000);
+          return;
         }
         setTimeout(() => {
           starting = null;
           void startSocket();
         }, reason === 515 ? 1000 : 3000);
       }
+      void maybeRequestPairingCode(update);
     });
 
     sock.ev.on("messages.upsert", ({ messages, type }) => {
@@ -167,6 +253,7 @@ app.get("/health", (_req, res) => {
   res.json({
     status: connectionState,
     hasQr: Boolean(latestQr),
+    qr: latestQr,
     queueDepth: messageQueue.length,
     user: sock?.user || null,
   });
@@ -238,17 +325,11 @@ app.post("/typing", async (req, res) => {
 
 app.post("/pair", async (req, res) => {
   try {
-    await startSocket();
     const phoneNumber = String(req.body?.phoneNumber || req.body?.phone_number || "").replace(/\D/g, "");
-    if (connectionState === "connected") {
-      return res.json({ status: "connected", pairing_code: null, expires_in: 0 });
-    }
     if (!phoneNumber) {
       return res.status(400).json({ error: "phoneNumber is required for pairing code" });
     }
-    connectionState = "pairing";
-    const code = await sock.requestPairingCode(phoneNumber);
-    res.json({ status: "pairing", pairing_code: code, expires_in: 60 });
+    res.json(await requestPairingCodeWhenReady(phoneNumber));
   } catch (error) {
     res.status(500).json({ error: error?.message || "pairing failed" });
   }

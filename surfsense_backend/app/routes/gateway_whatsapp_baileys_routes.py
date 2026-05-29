@@ -90,7 +90,9 @@ async def request_pairing_code(
 
 
 @router.get("/health")
-async def bridge_health() -> dict[str, Any]:
+async def bridge_health(
+    user: User = Depends(current_active_user),
+) -> dict[str, Any]:
     _ensure_baileys_enabled()
     adapter = WhatsAppBaileysAdapter()
     try:
