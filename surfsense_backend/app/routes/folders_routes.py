@@ -525,11 +525,8 @@ async def bulk_move_documents(
                     detail="Cannot move documents to a folder in a different search space",
                 )
 
-        await session.execute(
-            Document.__table__.update()
-            .where(Document.id.in_(request.document_ids))
-            .values(folder_id=request.folder_id)
-        )
+        for doc in documents:
+            doc.folder_id = request.folder_id
         await session.commit()
         return {"message": f"{len(request.document_ids)} documents moved successfully"}
 
