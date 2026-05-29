@@ -148,26 +148,33 @@ export function scheduleToCron(schedule: BuilderSchedule): string {
  * Project a task's @-mentions into the ``agent_task`` param fields the backend
  * understands (the same names the chat ``new_chat`` request uses, minus
  * SurfSense docs). Returns an empty object when there are no mentions so the
- * params stay clean. ``mentioned_documents`` carries full chip metadata so the
- * run can resolve titles/paths and the form can round-trip the chips back.
+ * params stay clean.
+ *
+ * ``mentioned_documents`` carries doc/folder chip metadata (so the run can
+ * resolve titles to paths); connectors live only in ``mentioned_connectors`` /
+ * ``mentioned_connector_ids`` to avoid duplicating them across buckets.
  */
 function mentionParams(mentions: MentionedDocumentInfo[]): Record<string, unknown> {
 	if (mentions.length === 0) return {};
 	const documentIds: number[] = [];
 	const folderIds: number[] = [];
 	const connectorIds: number[] = [];
+	const documents: MentionedDocumentInfo[] = [];
 	const connectors: MentionedDocumentInfo[] = [];
 	for (const mention of mentions) {
 		if (mention.kind === "folder") {
 			folderIds.push(mention.id);
+			documents.push(mention);
 		} else if (mention.kind === "connector") {
 			connectorIds.push(mention.id);
 			connectors.push(mention);
 		} else {
 			documentIds.push(mention.id);
+			documents.push(mention);
 		}
 	}
-	const out: Record<string, unknown> = { mentioned_documents: mentions };
+	const out: Record<string, unknown> = {};
+	if (documents.length > 0) out.mentioned_documents = documents;
 	if (documentIds.length > 0) out.mentioned_document_ids = documentIds;
 	if (folderIds.length > 0) out.mentioned_folder_ids = folderIds;
 	if (connectorIds.length > 0) {
@@ -294,17 +301,26 @@ function coerceMention(raw: unknown): MentionedDocumentInfo | null {
 }
 
 /**
- * Rebuild a task's mention chips from step params. Returns ``null`` when the
- * step carries mention IDs that aren't backed by usable ``mentioned_documents``
- * metadata (e.g. hand-edited JSON), so the caller can fall back to JSON mode
- * rather than silently dropping those IDs on the next save.
+ * Rebuild a task's mention chips from step params. Doc/folder chips come from
+ * ``mentioned_documents``; connector chips from ``mentioned_connectors`` (kept
+ * in their own bucket). Returns ``null`` when the step carries mention IDs that
+ * aren't backed by usable chip metadata (e.g. hand-edited JSON), so the caller
+ * can fall back to JSON mode rather than silently dropping those IDs on save.
  */
 function mentionsFromParams(params: Record<string, unknown>): MentionedDocumentInfo[] | null {
-	const rawList = Array.isArray(params.mentioned_documents) ? params.mentioned_documents : [];
 	const mentions: MentionedDocumentInfo[] = [];
-	for (const raw of rawList) {
+	const docList = Array.isArray(params.mentioned_documents) ? params.mentioned_documents : [];
+	for (const raw of docList) {
 		const mention = coerceMention(raw);
-		if (mention) mentions.push(mention);
+		// Connectors belong in their own bucket; ignore any that leak in here.
+		if (mention && mention.kind !== "connector") mentions.push(mention);
+	}
+	const connectorList = Array.isArray(params.mentioned_connectors)
+		? params.mentioned_connectors
+		: [];
+	for (const raw of connectorList) {
+		const mention = coerceMention(raw);
+		if (mention && mention.kind === "connector") mentions.push(mention);
 	}
 
 	const haveByKind = {
