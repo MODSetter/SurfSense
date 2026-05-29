@@ -13,7 +13,7 @@ import path from "node:path";
 import pino from "pino";
 import qrcode from "qrcode-terminal";
 
-const PORT = Number(process.env.PORT || "3000");
+const PORT = Number(process.env.PORT || "9929");
 const SESSION_DIR = process.env.WHATSAPP_SESSION_DIR || "/data/sessions";
 const SEND_TIMEOUT_MS = Number(process.env.WHATSAPP_SEND_TIMEOUT_MS || "60000");
 const MAX_QUEUE_SIZE = Number(process.env.WHATSAPP_MAX_QUEUE_SIZE || "100");
