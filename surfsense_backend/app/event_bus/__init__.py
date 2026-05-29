@@ -9,12 +9,17 @@ Domain-agnostic pub/sub. Producers ``await bus.publish(...)``; subscribers
 
 from __future__ import annotations
 
+from . import events  # noqa: F401  — populates the event-type catalog
 from .bus import EventBus, Subscriber, bus
+from .catalog import EventCatalog, EventType, catalog
 from .event import Event
 
 __all__ = [
     "Event",
     "EventBus",
+    "EventCatalog",
+    "EventType",
     "Subscriber",
     "bus",
+    "catalog",
 ]
