@@ -553,6 +553,23 @@ class Config:
         raise ValueError(
             "GATEWAY_TELEGRAM_INTAKE_MODE must be one of: webhook, longpoll, disabled"
         )
+    WHATSAPP_SHARED_BUSINESS_TOKEN = os.getenv("WHATSAPP_SHARED_BUSINESS_TOKEN")
+    WHATSAPP_SHARED_PHONE_NUMBER_ID = os.getenv("WHATSAPP_SHARED_PHONE_NUMBER_ID")
+    WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER = os.getenv(
+        "WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER"
+    )
+    WHATSAPP_SHARED_WABA_ID = os.getenv("WHATSAPP_SHARED_WABA_ID")
+    WHATSAPP_GRAPH_API_VERSION = os.getenv("WHATSAPP_GRAPH_API_VERSION", "v25.0")
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN")
+    WHATSAPP_WEBHOOK_APP_SECRET = os.getenv("WHATSAPP_WEBHOOK_APP_SECRET")
+    WHATSAPP_BRIDGE_URL = os.getenv("WHATSAPP_BRIDGE_URL", "http://whatsapp-bridge:3000")
+    GATEWAY_WHATSAPP_INTAKE_MODE = os.getenv(
+        "GATEWAY_WHATSAPP_INTAKE_MODE", "disabled"
+    ).lower()
+    if GATEWAY_WHATSAPP_INTAKE_MODE not in {"cloud", "baileys", "disabled"}:
+        raise ValueError(
+            "GATEWAY_WHATSAPP_INTAKE_MODE must be one of: cloud, baileys, disabled"
+        )
 
     # Stripe checkout for pay-as-you-go page packs
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")

@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
 from app.db import (
+    ExternalChatAccount,
     ExternalChatAccountMode,
     ExternalChatHealthStatus,
     ExternalChatPlatform,
-    ExternalChatAccount,
 )
 from app.utils.oauth_security import TokenEncryption
 
@@ -44,6 +44,34 @@ async def get_or_create_system_telegram_account(
         bot_username=config.TELEGRAM_SHARED_BOT_USERNAME,
         webhook_secret=config.TELEGRAM_WEBHOOK_SECRET,
         cursor_state={},
+        health_status=ExternalChatHealthStatus.UNKNOWN,
+    )
+    session.add(account)
+    await session.flush()
+    return account
+
+
+async def get_or_create_system_whatsapp_account(
+    session: AsyncSession,
+) -> ExternalChatAccount:
+    result = await session.execute(
+        select(ExternalChatAccount).where(
+            ExternalChatAccount.platform == ExternalChatPlatform.WHATSAPP,
+            ExternalChatAccount.is_system_account.is_(True),
+        )
+    )
+    account = result.scalars().first()
+    if account is not None:
+        return account
+    account = ExternalChatAccount(
+        platform=ExternalChatPlatform.WHATSAPP,
+        mode=ExternalChatAccountMode.CLOUD_SHARED,
+        is_system_account=True,
+        cursor_state={
+            "phone_number_id": config.WHATSAPP_SHARED_PHONE_NUMBER_ID,
+            "display_phone_number": config.WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER,
+            "waba_id": config.WHATSAPP_SHARED_WABA_ID,
+        },
         health_status=ExternalChatHealthStatus.UNKNOWN,
     )
     session.add(account)
