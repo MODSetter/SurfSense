@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from app.gateway.base.formatting import split_text_message
+
 MARKDOWN_V2_RESERVED = r"_*[]()~`>#+-=|{}.!"
 MAX_TELEGRAM_MESSAGE_UNITS = 4096
 
@@ -43,13 +45,15 @@ def chunk_message(
     max_units: int = MAX_TELEGRAM_MESSAGE_UNITS,
 ) -> list[str]:
     """Split a Telegram message at paragraph/sentence boundaries."""
-    if not text:
-        return [""]
+    if max_units == MAX_TELEGRAM_MESSAGE_UNITS:
+        if not text:
+            return [""]
 
-    chunks: list[str] = []
-    remaining = text
-    while remaining:
-        chunk, remaining = _split_at_boundary(remaining, max_units)
-        chunks.append(chunk)
-    return chunks
+        chunks: list[str] = []
+        remaining = text
+        while remaining:
+            chunk, remaining = _split_at_boundary(remaining, max_units)
+            chunks.append(chunk)
+        return chunks
+    return split_text_message(text, max_chars=max_units)
 
