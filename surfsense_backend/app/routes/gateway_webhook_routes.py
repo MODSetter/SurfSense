@@ -7,6 +7,7 @@ import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -16,14 +17,17 @@ from starlette.responses import Response
 
 from app.config import config
 from app.db import (
-    ExternalChatBindingState,
-    ExternalChatBinding,
-    ExternalChatPlatform,
     ExternalChatAccount,
+    ExternalChatBinding,
+    ExternalChatBindingState,
+    ExternalChatPlatform,
     User,
     get_async_session,
 )
-from app.gateway.accounts import get_or_create_system_telegram_account
+from app.gateway.accounts import (
+    get_or_create_system_telegram_account,
+    get_or_create_system_whatsapp_account,
+)
 from app.gateway.bindings import resume_binding, revoke_binding
 from app.gateway.inbox import persist_inbound_event, telegram_event_dedupe_key
 from app.gateway.pairing import generate_pairing_code, pairing_expires_at
@@ -131,11 +135,39 @@ async def start_binding(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> StartBindingResponse:
-    if body.platform != ExternalChatPlatform.TELEGRAM:
-        raise HTTPException(status_code=400, detail="Only Telegram is supported in v1")
-
-    account = await get_or_create_system_telegram_account(session)
     code = generate_pairing_code()
+    if body.platform == ExternalChatPlatform.TELEGRAM:
+        account = await get_or_create_system_telegram_account(session)
+        username = account.bot_username or config.TELEGRAM_SHARED_BOT_USERNAME
+        if not username:
+            raise HTTPException(
+                status_code=500,
+                detail="Telegram bot username is not configured",
+            )
+        deep_link = f"https://t.me/{username}?start={code}"
+    elif body.platform == ExternalChatPlatform.WHATSAPP:
+        if config.GATEWAY_WHATSAPP_INTAKE_MODE != "cloud":
+            raise HTTPException(
+                status_code=400,
+                detail="WhatsApp /start pairing requires GATEWAY_WHATSAPP_INTAKE_MODE=cloud",
+            )
+        account = await get_or_create_system_whatsapp_account(session)
+        phone = config.WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER
+        if not phone:
+            raise HTTPException(
+                status_code=500,
+                detail="WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER is not configured",
+            )
+        normalized_phone = "".join(ch for ch in phone if ch.isdigit())
+        if not normalized_phone:
+            raise HTTPException(
+                status_code=500,
+                detail="WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER must contain digits",
+            )
+        deep_link = f"https://wa.me/{normalized_phone}?text={quote(f'/start {code}')}"
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported platform")
+
     expires_at = pairing_expires_at()
     binding = ExternalChatBinding(
         account_id=account.id,
@@ -149,13 +181,10 @@ async def start_binding(
     await session.commit()
     await session.refresh(binding)
 
-    username = account.bot_username or config.TELEGRAM_SHARED_BOT_USERNAME
-    if not username:
-        raise HTTPException(status_code=500, detail="Telegram bot username is not configured")
     return StartBindingResponse(
         binding_id=binding.id,
         code=code,
-        deep_link=f"https://t.me/{username}?start={code}",
+        deep_link=deep_link,
         expires_at=expires_at,
     )
 
@@ -166,21 +195,21 @@ async def list_bindings(
     session: AsyncSession = Depends(get_async_session),
 ) -> list[dict[str, Any]]:
     result = await session.execute(
-        select(ExternalChatBinding).where(
-            ExternalChatBinding.user_id == user.id
-        )
+        select(ExternalChatBinding, ExternalChatAccount)
+        .join(ExternalChatAccount, ExternalChatBinding.account_id == ExternalChatAccount.id)
+        .where(ExternalChatBinding.user_id == user.id)
     )
     return [
         {
             "id": binding.id,
-            "platform": "telegram",
+            "platform": account.platform.value,
             "state": binding.state.value,
             "search_space_id": binding.search_space_id,
             "external_display_name": binding.external_display_name,
             "external_username": binding.external_username,
             "suspended_reason": binding.suspended_reason,
         }
-        for binding in result.scalars()
+        for binding, account in result.all()
     ]
 
 

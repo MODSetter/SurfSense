@@ -19,6 +19,8 @@ from .editor_routes import router as editor_router
 from .export_routes import router as export_router
 from .folders_routes import router as folders_router
 from .gateway_webhook_routes import router as gateway_router
+from .gateway_whatsapp_baileys_routes import router as gateway_whatsapp_baileys_router
+from .gateway_whatsapp_webhook_routes import router as gateway_whatsapp_webhook_router
 from .google_calendar_add_connector_route import (
     router as google_calendar_add_connector_router,
 )
@@ -70,6 +72,8 @@ router.include_router(export_router)
 router.include_router(documents_router)
 router.include_router(folders_router)
 router.include_router(gateway_router)
+router.include_router(gateway_whatsapp_webhook_router)
+router.include_router(gateway_whatsapp_baileys_router)
 router.include_router(notes_router)
 router.include_router(new_chat_router)  # Chat with assistant-ui persistence
 router.include_router(agent_revert_router)  # POST /threads/{id}/revert/{action_id}

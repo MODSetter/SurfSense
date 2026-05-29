@@ -9,14 +9,14 @@ from sqlalchemy import select, update
 
 from app.celery_app import celery_app
 from app.db import (
+    ExternalChatAccount,
     ExternalChatEventStatus,
     ExternalChatHealthStatus,
     ExternalChatInboundEvent,
     ExternalChatPlatform,
-    ExternalChatAccount,
 )
-from app.gateway.accounts import account_token
 from app.gateway.inbox import persist_inbound_event, telegram_event_dedupe_key
+from app.gateway.registry import resolve_platform_bundle
 from app.gateway.telegram.adapter import TelegramAdapter
 from app.observability.metrics import (
     record_gateway_health_check_failure,
@@ -69,15 +69,29 @@ def gateway_health_check_task() -> None:
             result = await session.execute(select(ExternalChatAccount))
             accounts = list(result.scalars())
             for account in accounts:
-                token = account_token(account)
-                if not token or account.platform != ExternalChatPlatform.TELEGRAM:
-                    continue
                 try:
-                    metadata = await TelegramAdapter(token).validate_credentials()
+                    bundle = resolve_platform_bundle(account)
+                    metadata = await bundle.adapter.validate_credentials()
                     account.health_status = ExternalChatHealthStatus.OK
-                    account.bot_username = metadata.get("username")
+                    if account.platform == ExternalChatPlatform.TELEGRAM:
+                        account.bot_username = metadata.get("username")
+                    elif account.platform == ExternalChatPlatform.WHATSAPP:
+                        cursor_state = dict(account.cursor_state or {})
+                        for key in (
+                            "quality_rating",
+                            "account_review_status",
+                            "status",
+                        ):
+                            if key in metadata:
+                                cursor_state[key] = metadata[key]
+                        account.cursor_state = cursor_state
                 except Exception:
-                    logger.warning("External chat Telegram health check failed", exc_info=True)
+                    logger.warning(
+                        "External chat health check failed platform=%s account_id=%s",
+                        account.platform.value,
+                        account.id,
+                        exc_info=True,
+                    )
                     account.health_status = ExternalChatHealthStatus.FAILING
                     record_gateway_health_check_failure(platform=account.platform.value)
                 account.last_health_check_at = datetime.now(UTC)
