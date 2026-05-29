@@ -19,7 +19,7 @@ from app.automations.schemas.api import (
     TriggerCreate,
 )
 from app.automations.triggers import get_trigger
-from app.automations.triggers.schedule import compute_next_fire_at
+from app.automations.triggers.builtin.schedule import compute_next_fire_at
 from app.db import Permission, User, get_async_session
 from app.users import current_active_user
 from app.utils.rbac import check_permission

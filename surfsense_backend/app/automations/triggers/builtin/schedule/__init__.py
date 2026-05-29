@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 from .cron import InvalidCronError, compute_next_fire_at, validate_cron
-from .dispatch import dispatch_schedule_run
 from .params import ScheduleTriggerParams
 
 __all__ = [
     "InvalidCronError",
     "ScheduleTriggerParams",
     "compute_next_fire_at",
-    "dispatch_schedule_run",
     "validate_cron",
 ]
 

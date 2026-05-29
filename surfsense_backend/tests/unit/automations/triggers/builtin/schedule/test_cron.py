@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.automations.triggers.schedule.cron import (
+from app.automations.triggers.builtin.schedule.cron import (
     InvalidCronError,
     compute_next_fire_at,
     validate_cron,

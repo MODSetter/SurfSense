@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from ..store import register_trigger
-from ..types import TriggerDefinition
+from app.automations.triggers.store import register_trigger
+from app.automations.triggers.types import TriggerDefinition
+
 from .params import ScheduleTriggerParams
 
 SCHEDULE_TRIGGER = TriggerDefinition(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.automations.triggers.schedule.params import ScheduleTriggerParams
+from app.automations.triggers.builtin.schedule.params import ScheduleTriggerParams
 
 pytestmark = pytest.mark.unit
 
