@@ -1,0 +1,16 @@
+{
+  "name": "surfsense-whatsapp-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node bridge.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "latest",
+    "@whiskeysockets/baileys": "latest",
+    "express": "latest",
+    "pino": "latest",
+    "qrcode-terminal": "latest"
+  }
+}
