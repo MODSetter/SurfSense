@@ -58,8 +58,16 @@ async def create_podcast_transcript(
     # blocks including 'reasoning' entries.  Normalise to a plain string.
     content = strip_markdown_fences(extract_text_content(llm_response.content))
 
+    # Fix multilingual content: escape backslashes that would cause JSON parse errors
+    # (e.g., Chinese backslash usage in LLM-generated transcripts)
+    content = content.replace(“\\”, “\\\\”)
+
+    # Fix multilingual content: escape backslashes that would cause JSON parse errors
+    # (e.g., Chinese backslash usage in LLM-generated transcripts)
+    content = content.replace("\", "\\") 
+
     try:
-        podcast_transcript = PodcastTranscripts.model_validate(json.loads(content))
+        podcast_transcript = PodcastTranscripts.model_validate(json.loads(content, strict=False))
     except (json.JSONDecodeError, TypeError, ValueError) as e:
         print(f"Direct JSON parsing failed, trying fallback approach: {e!s}")
 
@@ -142,9 +150,14 @@ async def create_merged_podcast_audio(
         try:
             if app_config.TTS_SERVICE == "local/kokoro":
                 # Use Kokoro TTS service
+                # Use Kokoro TTS service
+                # Read lang_code from environment (default: "a" for American English)
+                # Valid codes: "a" (American English), "b" (British English),
+                # "z" (Chinese), "j" (Japanese), "k" (Korean), etc.
+                kokoro_lang_code = os.getenv("KOKORO_LANG_CODE", "a")
                 kokoro_service = await get_kokoro_tts_service(
-                    lang_code="a"
-                )  # American English
+                    lang_code=kokoro_lang_code
+                )
                 audio_path = await kokoro_service.generate_speech(
                     text=dialog, voice=voice, speed=1.0, output_path=filename
                 )
