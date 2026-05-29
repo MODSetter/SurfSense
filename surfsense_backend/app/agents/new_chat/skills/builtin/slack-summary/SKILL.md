@@ -1,7 +1,6 @@
 ---
 name: slack-summary
 description: Distill a Slack channel or thread into actionable summary
-allowed-tools: search_surfsense_docs
 ---
 
 # Slack summarization

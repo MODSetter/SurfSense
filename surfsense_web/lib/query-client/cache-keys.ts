@@ -30,7 +30,6 @@ export const cacheKeys = {
 		withQueryParams: (queries: GetDocumentsRequest["queryParams"]) =>
 			["documents-with-queries", ...stableEntries(queries)] as const,
 		document: (documentId: string) => ["document", documentId] as const,
-		byChunk: (chunkId: string) => ["documents", "by-chunk", chunkId] as const,
 	},
 	logs: {
 		list: (searchSpaceId?: number | string) => ["logs", "list", searchSpaceId] as const,

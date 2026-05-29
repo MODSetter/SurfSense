@@ -104,7 +104,7 @@ class AgentFeatureFlags:
     # ``tools/google_drive``, ``tools/dropbox``, ``tools/onedrive``,
     # ``tools/google_calendar``, ``tools/confluence``, ``tools/discord``,
     # ``tools/teams``, ``tools/luma``, ``connected_accounts``,
-    # ``update_memory``, ``search_surfsense_docs``) now acquire fresh
+    # ``update_memory``) now acquire fresh
     # short-lived ``AsyncSession`` instances per call via
     # :data:`async_session_maker`. The factory still accepts ``db_session``
     # for registry compatibility but ``del``'s it immediately — see any

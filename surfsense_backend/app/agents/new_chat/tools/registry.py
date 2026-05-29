@@ -101,7 +101,6 @@ from .podcast import create_generate_podcast_tool
 from .report import create_generate_report_tool
 from .resume import create_generate_resume_tool
 from .scrape_webpage import create_scrape_webpage_tool
-from .search_surfsense_docs import create_search_surfsense_docs_tool
 from .teams import (
     create_list_teams_channels_tool,
     create_read_teams_messages_tool,
@@ -257,15 +256,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             available_connectors=deps.get("available_connectors"),
         ),
         requires=[],
-    ),
-    # Surfsense documentation search tool
-    ToolDefinition(
-        name="search_surfsense_docs",
-        description="Search Surfsense documentation for help with using the application",
-        factory=lambda deps: create_search_surfsense_docs_tool(
-            db_session=deps["db_session"],
-        ),
-        requires=["db_session"],
     ),
     # =========================================================================
     # SERVICE ACCOUNT DISCOVERY

@@ -123,7 +123,6 @@ async def stream_new_chat(
     user_id: str | None = None,
     llm_config_id: int = -1,
     mentioned_document_ids: list[int] | None = None,
-    mentioned_surfsense_doc_ids: list[int] | None = None,
     mentioned_folder_ids: list[int] | None = None,
     mentioned_documents: list[dict[str, Any]] | None = None,
     checkpoint_id: str | None = None,
@@ -435,7 +434,6 @@ async def stream_new_chat(
             user_query=user_query,
             user_image_data_urls=user_image_data_urls,
             mentioned_document_ids=mentioned_document_ids,
-            mentioned_surfsense_doc_ids=mentioned_surfsense_doc_ids,
             mentioned_folder_ids=mentioned_folder_ids,
             mentioned_documents=mentioned_documents,
             needs_history_bootstrap=needs_history_bootstrap,
@@ -447,7 +445,6 @@ async def stream_new_chat(
         )
         input_state = assembled.input_state
         accepted_folder_ids = assembled.accepted_folder_ids
-        mentioned_surfsense_docs = assembled.mentioned_surfsense_docs
         _perf_log.info(
             "[stream_new_chat] History bootstrap + doc/report queries in %.3fs",
             time.perf_counter() - _t0,
@@ -560,7 +557,6 @@ async def stream_new_chat(
         initial_step = build_initial_thinking_step(
             user_query=user_query,
             user_image_data_urls=user_image_data_urls,
-            mentioned_surfsense_docs=mentioned_surfsense_docs,
         )
         for sse in iter_initial_thinking_step_frame(
             initial_step,
@@ -575,7 +571,7 @@ async def stream_new_chat(
         # Drop the heavy ORM objects + the container that holds them so they
         # aren't retained for the entire streaming duration. ``input_state``
         # already carries the langchain_messages list independently.
-        del assembled, mentioned_surfsense_docs
+        del assembled
 
         title_task = spawn_title_task(
             chat_id=chat_id,

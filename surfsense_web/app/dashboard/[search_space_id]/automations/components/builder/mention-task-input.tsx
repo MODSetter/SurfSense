@@ -89,10 +89,10 @@ function removeFirstToken(text: string, token: string): string {
 
 /**
  * Task input that reuses the chat ``@`` mention experience -- the same
- * ``InlineMentionEditor`` + ``DocumentMentionPicker`` as the composer, minus
- * SurfSense product docs. The editor is the source of truth while mounted;
- * ``onChange`` reports both the plain text (chips rendered as ``@Title``) and
- * the structured mention list so the builder can persist IDs for the run.
+ * ``InlineMentionEditor`` + ``DocumentMentionPicker`` as the composer. The
+ * editor is the source of truth while mounted; ``onChange`` reports both the
+ * plain text (chips rendered as ``@Title``) and the structured mention list
+ * so the builder can persist IDs for the run.
  */
 export function MentionTaskInput({
 	searchSpaceId,
@@ -233,7 +233,6 @@ export function MentionTaskInput({
 							<DocumentMentionPicker
 								ref={pickerRef}
 								searchSpaceId={searchSpaceId}
-								includeSurfsenseDocs={false}
 								onSelectionChange={handleSelection}
 								onDone={closePopover}
 								initialSelectedDocuments={mentions}

@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from dataclasses import dataclass
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -140,45 +139,28 @@ def test_orchestrators_are_async_generator_functions() -> None:
 # ------------------------------------------------------------ initial thinking
 
 
-@dataclass
-class _FakeSurfsenseDoc:
-    """Stand-in for ``SurfsenseDocsDocument`` with just the field we read."""
-
-    title: str
-
-
 @pytest.mark.parametrize(
-    "user_query, image_urls, docs, expected_title, expected_action",
+    "user_query, image_urls, expected_title, expected_action",
     [
-        ("hello world", None, [], "Understanding your request", "Processing"),
+        ("hello world", None, "Understanding your request", "Processing"),
         (
             "",
             ["data:image/png;base64,AAA"],
-            [],
             "Understanding your request",
             "Processing",
         ),
-        ("", None, [], "Understanding your request", "Processing"),
-        (
-            "doc question",
-            None,
-            [_FakeSurfsenseDoc(title="My Doc")],
-            "Analyzing referenced content",
-            "Analyzing",
-        ),
+        ("", None, "Understanding your request", "Processing"),
     ],
 )
 def test_initial_thinking_step_branches(
     user_query: str,
     image_urls: list[str] | None,
-    docs: list[Any],
     expected_title: str,
     expected_action: str,
 ) -> None:
     step = build_initial_thinking_step(
         user_query=user_query,
         user_image_data_urls=image_urls,
-        mentioned_surfsense_docs=docs,  # type: ignore[arg-type]
     )
     assert step.step_id == "thinking-1"
     assert step.title == expected_title
@@ -191,23 +173,12 @@ def test_initial_thinking_step_truncates_long_query() -> None:
     step = build_initial_thinking_step(
         user_query=long_query,
         user_image_data_urls=None,
-        mentioned_surfsense_docs=[],
     )
     # 80-char truncation + ellipsis, sandwiched after "Processing: ".
     assert "..." in step.items[0]
     item = step.items[0]
     payload = item[len("Processing: ") :]
     assert payload.startswith("x" * 80) and payload.endswith("...")
-
-
-def test_initial_thinking_step_collapses_many_doc_names() -> None:
-    docs = [_FakeSurfsenseDoc(title=f"Doc {i}") for i in range(5)]
-    step = build_initial_thinking_step(
-        user_query="q",
-        user_image_data_urls=None,
-        mentioned_surfsense_docs=docs,  # type: ignore[arg-type]
-    )
-    assert "[5 docs]" in step.items[0]
 
 
 # ------------------------------------------------------------ capability gate

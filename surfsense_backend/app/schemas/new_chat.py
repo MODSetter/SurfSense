@@ -239,9 +239,6 @@ class NewChatRequest(BaseModel):
     mentioned_document_ids: list[int] | None = (
         None  # Optional document IDs mentioned with @ in the chat
     )
-    mentioned_surfsense_doc_ids: list[int] | None = (
-        None  # Optional SurfSense documentation IDs mentioned with @ in the chat
-    )
     mentioned_folder_ids: list[int] | None = Field(
         default=None,
         description=(
@@ -326,7 +323,6 @@ class RegenerateRequest(BaseModel):
         None  # New user query (for edit). None = reload with same query
     )
     mentioned_document_ids: list[int] | None = None
-    mentioned_surfsense_doc_ids: list[int] | None = None
     mentioned_folder_ids: list[int] | None = Field(
         default=None,
         description=(

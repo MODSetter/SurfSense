@@ -1593,7 +1593,7 @@ interface ToolGroup {
 const TOOL_GROUPS: ToolGroup[] = [
 	{
 		label: "Research",
-		tools: ["search_surfsense_docs", "scrape_webpage"],
+		tools: ["scrape_webpage"],
 	},
 	{
 		label: "Generate",

@@ -13,6 +13,7 @@ When to use which tool:
 - Knowledge base content (Notion, GitHub, files, notes) → automatically searched
 - Real-time public web data → call web_search
 - Reading a specific webpage → call scrape_webpage
+- SurfSense product / how-to questions (setup, configuration, connectors, feature behavior) → point the user to the documentation: https://www.surfsense.com/docs
 
 **`task` subagents (when to delegate):**
 - **`linear_specialist`** — Linear-only investigations and tool use.

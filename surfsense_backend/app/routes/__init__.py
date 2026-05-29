@@ -55,7 +55,6 @@ from .search_source_connectors_routes import router as search_source_connectors_
 from .search_spaces_routes import router as search_spaces_router
 from .slack_add_connector_route import router as slack_add_connector_router
 from .stripe_routes import router as stripe_router
-from .surfsense_docs_routes import router as surfsense_docs_router
 from .team_memory_routes import router as team_memory_router
 from .teams_add_connector_route import router as teams_add_connector_router
 from .video_presentations_routes import router as video_presentations_router
@@ -108,7 +107,6 @@ router.include_router(new_llm_config_router)  # LLM configs with prompt configur
 router.include_router(model_list_router)  # Dynamic model catalogue from OpenRouter
 router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks
-router.include_router(surfsense_docs_router)  # Surfsense documentation for citations
 router.include_router(notifications_router)  # Notifications with Zero sync
 router.include_router(
     mcp_oauth_router

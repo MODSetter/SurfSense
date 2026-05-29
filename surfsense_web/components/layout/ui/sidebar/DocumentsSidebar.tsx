@@ -90,7 +90,6 @@ const DesktopLocalTabContent = dynamic(
 );
 
 const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = [
-	"SURFSENSE_DOCS",
 	"USER_MEMORY",
 	"TEAM_MEMORY",
 ];

@@ -3,14 +3,7 @@
 import { useQuery as useZeroQuery } from "@rocicorp/zero/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import {
-	BookOpen,
-	ChevronLeft,
-	ChevronRight,
-	Files,
-	Folder as FolderIcon,
-	Unplug,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Files, Folder as FolderIcon, Unplug } from "lucide-react";
 import {
 	Fragment,
 	forwardRef,
@@ -57,13 +50,6 @@ interface DocumentMentionPickerProps {
 	onDone: () => void;
 	initialSelectedDocuments?: MentionedDocumentInfo[];
 	externalSearch?: string;
-	/**
-	 * Whether to surface the "SurfSense Docs" (product documentation) branch
-	 * and include those docs in search results. Defaults to ``true`` so the
-	 * chat composer is unchanged; callers like the automation task input pass
-	 * ``false`` to reference only the user's own knowledge base + connectors.
-	 */
-	includeSurfsenseDocs?: boolean;
 }
 
 const PAGE_SIZE = 20;
@@ -74,7 +60,6 @@ const RECENTS_STORAGE_PREFIX = "surfsense:composer-mention-recents:v1:";
 
 type BrowseView =
 	| { kind: "root" }
-	| { kind: "surfsense-docs" }
 	| { kind: "files-folders" }
 	| { kind: "connectors" }
 	| { kind: "connector-type"; connectorType: string; title: string };
@@ -241,7 +226,6 @@ export const DocumentMentionPicker = forwardRef<
 		onDone,
 		initialSelectedDocuments = [],
 		externalSearch = "",
-		includeSurfsenseDocs = true,
 	},
 	ref
 ) {
@@ -298,30 +282,12 @@ export const DocumentMentionPicker = forwardRef<
 		[searchSpaceId, debouncedSearch, isSearchValid]
 	);
 
-	const surfsenseDocsQueryParams = useMemo(() => {
-		const params: { page: number; page_size: number; title?: string } = {
-			page: 0,
-			page_size: PAGE_SIZE,
-		};
-		if (isSearchValid) params.title = debouncedSearch.trim();
-		return params;
-	}, [debouncedSearch, isSearchValid]);
-
 	const { data: titleSearchResults, isLoading: isTitleSearchLoading } = useQuery({
 		queryKey: ["document-titles", titleSearchParams],
 		queryFn: ({ signal }) =>
 			documentsApiService.searchDocumentTitles({ queryParams: titleSearchParams }, signal),
 		staleTime: 60 * 1000,
 		enabled: !!searchSpaceId && currentPage === 0 && (!hasSearch || isSearchValid),
-		placeholderData: keepPreviousData,
-	});
-
-	const { data: surfsenseDocs, isLoading: isSurfsenseDocsLoading } = useQuery({
-		queryKey: ["surfsense-docs-mention", debouncedSearch, isSearchValid],
-		queryFn: ({ signal }) =>
-			documentsApiService.getSurfsenseDocs({ queryParams: surfsenseDocsQueryParams }, signal),
-		staleTime: 3 * 60 * 1000,
-		enabled: includeSurfsenseDocs && (!hasSearch || isSearchValid),
 		placeholderData: keepPreviousData,
 	});
 
@@ -338,23 +304,13 @@ export const DocumentMentionPicker = forwardRef<
 		if (currentPage !== 0) return;
 		const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
 
-		if (includeSurfsenseDocs && surfsenseDocs?.items) {
-			for (const doc of surfsenseDocs.items) {
-				combinedDocs.push({
-					id: doc.id,
-					title: doc.title,
-					document_type: "SURFSENSE_DOCS",
-				});
-			}
-		}
-
 		if (titleSearchResults?.items) {
 			combinedDocs.push(...titleSearchResults.items);
 			setHasMore(titleSearchResults.has_more);
 		}
 
 		setAccumulatedDocuments(filterBySearchTerm(combinedDocs));
-	}, [titleSearchResults, surfsenseDocs, currentPage, filterBySearchTerm, includeSurfsenseDocs]);
+	}, [titleSearchResults, currentPage, filterBySearchTerm]);
 
 	const loadNextPage = useCallback(async () => {
 		if (isLoadingMore || !hasMore) return;
@@ -391,14 +347,6 @@ export const DocumentMentionPicker = forwardRef<
 		return accumulatedDocuments.filter((doc) => doc.title.toLowerCase().includes(searchLower));
 	}, [accumulatedDocuments, deferredSearch, isSingleCharSearch]);
 
-	const surfsenseDocsList = useMemo(
-		() => actualDocuments.filter((doc) => doc.document_type === "SURFSENSE_DOCS"),
-		[actualDocuments]
-	);
-	const userDocsList = useMemo(
-		() => actualDocuments.filter((doc) => doc.document_type !== "SURFSENSE_DOCS"),
-		[actualDocuments]
-	);
 	const folderMentions = useMemo(() => {
 		const all = (zeroFolders ?? []).map((f) => makeFolderMention({ id: f.id, title: f.name }));
 		if (!hasSearch) return all;
@@ -463,7 +411,6 @@ export const DocumentMentionPicker = forwardRef<
 		() => new Set(initialSelectedDocuments.map((d) => getMentionDocKey(d))),
 		[initialSelectedDocuments]
 	);
-	const showSurfsenseDocsRoot = includeSurfsenseDocs && surfsenseDocsList.length > 0;
 
 	const selectMention = useCallback(
 		(mention: MentionedDocumentInfo) => {
@@ -487,16 +434,6 @@ export const DocumentMentionPicker = forwardRef<
 
 	const rootNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
 		const nodes: ComposerSuggestionNode<ResourceNodeValue>[] = [...recentRootNodes];
-		if (showSurfsenseDocsRoot) {
-			nodes.push({
-				id: "surfsense-docs",
-				label: "SurfSense Docs",
-				subtitle: "Browse product documentation",
-				icon: <BookOpen className="size-4" />,
-				type: "branch",
-				value: { kind: "view", view: { kind: "surfsense-docs" } },
-			});
-		}
 		nodes.push(
 			{
 				id: "files-folders",
@@ -519,7 +456,7 @@ export const DocumentMentionPicker = forwardRef<
 			}
 		);
 		return nodes;
-	}, [activeConnectors.length, recentRootNodes, showSurfsenseDocsRoot]);
+	}, [activeConnectors.length, recentRootNodes]);
 
 	const searchNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
 		const searchLower = (isSingleCharSearch ? deferredSearch : debouncedSearch)
@@ -582,19 +519,6 @@ export const DocumentMentionPicker = forwardRef<
 
 	const browseNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
 		if (view.kind === "root") return rootNodes;
-		if (view.kind === "surfsense-docs") {
-			return surfsenseDocsList.map((doc) => {
-				const mention = makeDocMention(doc);
-				return {
-					id: getMentionDocKey(mention),
-					label: doc.title,
-					icon: getConnectorIcon(doc.document_type, "size-4"),
-					type: "item" as const,
-					disabled: selectedKeys.has(getMentionDocKey(mention)),
-					value: { kind: "mention" as const, mention },
-				};
-			});
-		}
 		if (view.kind === "files-folders") {
 			const folders = folderMentions.map((mention) => ({
 				id: getMentionDocKey(mention),
@@ -605,7 +529,7 @@ export const DocumentMentionPicker = forwardRef<
 				disabled: selectedKeys.has(getMentionDocKey(mention)),
 				value: { kind: "mention" as const, mention },
 			}));
-			const docs = userDocsList.map((doc) => {
+			const docs = actualDocuments.map((doc) => {
 				const mention = makeDocMention(doc);
 				return {
 					id: getMentionDocKey(mention),
@@ -652,13 +576,12 @@ export const DocumentMentionPicker = forwardRef<
 				};
 			});
 	}, [
+		actualDocuments,
 		activeConnectors,
 		connectorTypeEntries,
 		folderMentions,
 		rootNodes,
 		selectedKeys,
-		surfsenseDocsList,
-		userDocsList,
 		view,
 	]);
 
@@ -708,27 +631,23 @@ export const DocumentMentionPicker = forwardRef<
 
 	const isRootBrowseView = !hasSearch && view.kind === "root";
 	const isVisibleViewLoading = hasSearch
-		? isTitleSearchLoading || isSurfsenseDocsLoading || isConnectorsLoading
-		: view.kind === "surfsense-docs"
-			? isSurfsenseDocsLoading
-			: view.kind === "files-folders"
-				? isTitleSearchLoading
-				: view.kind === "connectors" || view.kind === "connector-type"
-					? isConnectorsLoading
-					: false;
+		? isTitleSearchLoading || isConnectorsLoading
+		: view.kind === "files-folders"
+			? isTitleSearchLoading
+			: view.kind === "connectors" || view.kind === "connector-type"
+				? isConnectorsLoading
+				: false;
 	const actualLoading =
 		isVisibleViewLoading && !isSingleCharSearch && visibleNodes.length === 0 && !isRootBrowseView;
 
 	const title =
 		hasSearch || view.kind === "root"
 			? null
-			: view.kind === "surfsense-docs"
-				? "SurfSense Docs"
-				: view.kind === "files-folders"
-					? "Files & Folders"
-					: view.kind === "connectors"
-						? "Connectors"
-						: view.title;
+			: view.kind === "files-folders"
+				? "Files & Folders"
+				: view.kind === "connectors"
+					? "Connectors"
+					: view.title;
 
 	return (
 		<ComposerSuggestionList

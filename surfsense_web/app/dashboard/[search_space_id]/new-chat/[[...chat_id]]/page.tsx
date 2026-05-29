@@ -740,15 +740,6 @@ export default function NewChatPage() {
 			queryFn: () => documentsApiService.searchDocumentTitles({ queryParams: prefetchParams }),
 			staleTime: 60 * 1000,
 		});
-
-		queryClient.prefetchQuery({
-			queryKey: ["surfsense-docs-mention", "", false],
-			queryFn: () =>
-				documentsApiService.getSurfsenseDocs({
-					queryParams: { page: 0, page_size: 20 },
-				}),
-			staleTime: 3 * 60 * 1000,
-		});
 	}, [searchSpaceId, queryClient]);
 
 	// Handle scroll to comment from URL query params (e.g., from inbox item click)
@@ -949,7 +940,6 @@ export default function NewChatPage() {
 			trackChatMessageSent(searchSpaceId, currentThreadId, {
 				hasAttachments: userImages.length > 0,
 				hasMentionedDocuments:
-					mentionedDocumentIds.surfsense_doc_ids.length > 0 ||
 					mentionedDocumentIds.document_ids.length > 0 ||
 					mentionedDocumentIds.folder_ids.length > 0 ||
 					mentionedDocumentIds.connector_ids.length > 0,
@@ -1027,12 +1017,11 @@ export default function NewChatPage() {
 
 				// Get mentioned document IDs for context (separate fields for backend)
 				const hasDocumentIds = mentionedDocumentIds.document_ids.length > 0;
-				const hasSurfsenseDocIds = mentionedDocumentIds.surfsense_doc_ids.length > 0;
 				const hasFolderIds = mentionedDocumentIds.folder_ids.length > 0;
 				const hasConnectorIds = mentionedDocumentIds.connector_ids.length > 0;
 
 				// Clear mentioned documents after capturing them
-				if (hasDocumentIds || hasSurfsenseDocIds || hasFolderIds || hasConnectorIds) {
+				if (hasDocumentIds || hasFolderIds || hasConnectorIds) {
 					setMentionedDocuments([]);
 				}
 
@@ -1053,9 +1042,6 @@ export default function NewChatPage() {
 							messages: messageHistory,
 							mentioned_document_ids: hasDocumentIds
 								? mentionedDocumentIds.document_ids
-								: undefined,
-							mentioned_surfsense_doc_ids: hasSurfsenseDocIds
-								? mentionedDocumentIds.surfsense_doc_ids
 								: undefined,
 							mentioned_folder_ids: hasFolderIds ? mentionedDocumentIds.folder_ids : undefined,
 							mentioned_connector_ids: hasConnectorIds
@@ -1947,18 +1933,14 @@ export default function NewChatPage() {
 				const selection = await getAgentFilesystemSelection(searchSpaceId, {
 					localFilesystemEnabled,
 				});
-				// Partition the source mentions back into doc/surfsense_doc/folder
-				// id buckets so the regenerate route can pass them to
-				// ``stream_new_chat`` and the priority middleware sees the
-				// same ``[USER-MENTIONED]`` priority entries the original
-				// turn did. Without this partition the regenerate flow
-				// silently dropped the agent's mention awareness — same
-				// architectural bug we fixed on the new-chat path.
-				const regenerateSurfsenseDocIds = sourceMentionedDocs
-					.filter((d) => d.kind === "doc" && d.document_type === "SURFSENSE_DOCS")
-					.map((d) => d.id);
+				// Partition the source mentions back into doc/folder id buckets
+				// so the regenerate route can pass them to ``stream_new_chat``
+				// and the priority middleware sees the same ``[USER-MENTIONED]``
+				// priority entries the original turn did. Without this partition
+				// the regenerate flow silently dropped the agent's mention
+				// awareness — same architectural bug we fixed on the new-chat path.
 				const regenerateDocIds = sourceMentionedDocs
-					.filter((d) => d.kind === "doc" && d.document_type !== "SURFSENSE_DOCS")
+					.filter((d) => d.kind === "doc")
 					.map((d) => d.id);
 				const regenerateFolderIds = sourceMentionedDocs
 					.filter((d) => d.kind === "folder")
@@ -1973,8 +1955,6 @@ export default function NewChatPage() {
 					client_platform: selection.client_platform,
 					local_filesystem_mounts: selection.local_filesystem_mounts,
 					mentioned_document_ids: regenerateDocIds.length > 0 ? regenerateDocIds : undefined,
-					mentioned_surfsense_doc_ids:
-						regenerateSurfsenseDocIds.length > 0 ? regenerateSurfsenseDocIds : undefined,
 					mentioned_folder_ids: regenerateFolderIds.length > 0 ? regenerateFolderIds : undefined,
 					mentioned_connector_ids:
 						regenerateConnectors.length > 0 ? regenerateConnectors.map((d) => d.id) : undefined,
