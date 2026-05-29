@@ -43,6 +43,7 @@ from app.rate_limiter import get_real_client_ip, limiter
 from app.routes import router as crud_router
 from app.routes.auth_routes import router as auth_router
 from app.schemas import UserCreate, UserRead, UserUpdate
+from app.session_events import register_session_hooks
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
 from app.utils.perf import log_system_snapshot
 
@@ -588,6 +589,7 @@ async def lifespan(app: FastAPI):
             "first real request will pay the full compile cost."
         )
 
+    register_session_hooks()
     log_system_snapshot("startup_complete")
 
     yield
