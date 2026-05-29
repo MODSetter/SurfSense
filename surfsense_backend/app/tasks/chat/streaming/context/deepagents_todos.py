@@ -19,9 +19,7 @@ def extract_todos_from_deepagents(command_output: Any) -> dict:
     elif isinstance(command_output, dict):
         if "todos" in command_output:
             todos_data = command_output.get("todos", [])
-        elif "update" in command_output and isinstance(
-            command_output["update"], dict
-        ):
+        elif "update" in command_output and isinstance(command_output["update"], dict):
             todos_data = command_output["update"].get("todos", [])
 
     return {"todos": todos_data}

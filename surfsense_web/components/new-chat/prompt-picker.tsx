@@ -129,7 +129,9 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 			{isLoading ? (
 				<ComposerSuggestionSkeleton rows={8} mobileRows={8} />
 			) : isError ? (
-				<ComposerSuggestionMessage variant="destructive">Failed to load prompts</ComposerSuggestionMessage>
+				<ComposerSuggestionMessage variant="destructive">
+					Failed to load prompts
+				</ComposerSuggestionMessage>
 			) : filtered.length === 0 ? (
 				<ComposerSuggestionMessage>No matching prompts</ComposerSuggestionMessage>
 			) : (

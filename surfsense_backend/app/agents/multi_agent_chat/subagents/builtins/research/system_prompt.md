@@ -8,7 +8,6 @@ Gather and synthesize evidence using SurfSense research tools with clear citatio
 <available_tools>
 - `web_search`
 - `scrape_webpage`
-- `search_surfsense_docs`
 </available_tools>
 
 <tool_policy>

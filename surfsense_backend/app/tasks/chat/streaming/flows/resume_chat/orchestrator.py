@@ -15,14 +15,10 @@ building blocks under ``flows/shared/``. Mirrors ``stream_new_chat`` but:
 from __future__ import annotations
 
 import contextlib
-import gc
 import logging
-import sys
 import time
-import uuid as _uuid
 from collections.abc import AsyncGenerator
 from functools import partial
-from typing import Any
 from uuid import UUID
 
 import anyio
@@ -32,7 +28,7 @@ from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.new_chat.middleware.busy_mutex import end_turn
 from app.config import config as _app_config
-from app.db import ChatVisibility, async_session_maker, shielded_async_session
+from app.db import ChatVisibility, async_session_maker
 from app.observability import otel as ot
 from app.services.chat_session_state_service import set_ai_responding
 from app.services.new_streaming_service import VercelStreamingService
@@ -89,7 +85,7 @@ from app.tasks.chat.streaming.flows.shared.terminal_error import (
 )
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.tasks.chat.streaming.shared.utils import resume_step_prefix
-from app.utils.perf import get_perf_logger, log_system_snapshot
+from app.utils.perf import get_perf_logger
 
 logger = logging.getLogger(__name__)
 _perf_log = get_perf_logger()
@@ -217,12 +213,11 @@ async def stream_resume_chat(
 
         if needs_premium_quota(agent_config, user_id):
             premium_reservation = await reserve_premium(
-                agent_config=agent_config, user_id=user_id  # type: ignore[arg-type]
+                agent_config=agent_config,
+                user_id=user_id,  # type: ignore[arg-type]
             )
             if not premium_reservation.allowed:
-                ot.add_event(
-                    "quota.denied", {"quota.code": "PREMIUM_QUOTA_EXHAUSTED"}
-                )
+                ot.add_event("quota.denied", {"quota.code": "PREMIUM_QUOTA_EXHAUSTED"})
                 if requested_llm_config_id == 0:
                     try:
                         pinned_fb = await resolve_or_get_pinned_llm_config_id(
@@ -396,7 +391,9 @@ async def stream_resume_chat(
 
         # --- First SSE frames ---
 
-        for sse in iter_initial_frames(streaming_service, turn_id=stream_result.turn_id):
+        for sse in iter_initial_frames(
+            streaming_service, turn_id=stream_result.turn_id
+        ):
             yield sse
 
         # --- Assistant-shell persistence + id frame ---
@@ -517,7 +514,9 @@ async def stream_resume_chat(
             fallback_commit_search_space_id=search_space_id,
             fallback_commit_created_by_id=user_id,
             fallback_commit_filesystem_mode=(
-                filesystem_selection.mode if filesystem_selection else FilesystemMode.CLOUD
+                filesystem_selection.mode
+                if filesystem_selection
+                else FilesystemMode.CLOUD
             ),
             fallback_commit_thread_id=chat_id,
             runtime_context=runtime_context,
@@ -589,9 +588,7 @@ async def stream_resume_chat(
             end_turn(str(chat_id))
 
             if premium_reservation is not None and user_id:
-                await release_premium(
-                    reservation=premium_reservation, user_id=user_id
-                )
+                await release_premium(reservation=premium_reservation, user_id=user_id)
 
             await close_session_and_clear_ai_responding(session, chat_id)
 
@@ -609,13 +606,11 @@ async def stream_resume_chat(
         if not busy_error_raised:
             with contextlib.suppress(Exception):
                 end_turn(str(chat_id))
-                _perf_log.info(
-                    "[stream_resume] end_turn cleanup (chat_id=%s)", chat_id
-                )
+                _perf_log.info("[stream_resume] end_turn cleanup (chat_id=%s)", chat_id)
 
-        agent = llm = connector_service = None  # noqa: F841
-        stream_result = None  # noqa: F841
-        session = None  # noqa: F841
+        agent = llm = connector_service = None
+        stream_result = None
+        session = None
 
         run_gc_pass(log_prefix="stream_resume", chat_id=chat_id)
         close_chat_request_span(

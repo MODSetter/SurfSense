@@ -1,10 +1,11 @@
 "use client";
 import { ShieldAlert } from "lucide-react";
 import { useAutomation } from "@/hooks/use-automation";
+import { AutomationBuilderForm } from "../../components/builder/automation-builder-form";
 import { useAutomationPermissions } from "../../hooks/use-automation-permissions";
 import { AutomationDetailLoading } from "../components/automation-detail-loading";
 import { AutomationNotFound } from "../components/automation-not-found";
-import { AutomationEditForm } from "./components/automation-edit-form";
+import { AutomationEditHeader } from "./components/automation-edit-header";
 
 interface AutomationEditContentProps {
 	searchSpaceId: number;
@@ -16,10 +17,7 @@ interface AutomationEditContentProps {
  * structure but gates on ``canUpdate`` instead of ``canRead``: a user who
  * can read but not update is bounced to the access-denied panel.
  */
-export function AutomationEditContent({
-	searchSpaceId,
-	automationId,
-}: AutomationEditContentProps) {
+export function AutomationEditContent({ searchSpaceId, automationId }: AutomationEditContentProps) {
 	const perms = useAutomationPermissions();
 	const validId = Number.isInteger(automationId) && automationId > 0;
 	const { data: automation, isLoading, error } = useAutomation(validId ? automationId : undefined);
@@ -52,5 +50,10 @@ export function AutomationEditContent({
 		return <AutomationNotFound searchSpaceId={searchSpaceId} error={error} />;
 	}
 
-	return <AutomationEditForm automation={automation} searchSpaceId={searchSpaceId} />;
+	return (
+		<>
+			<AutomationEditHeader automation={automation} searchSpaceId={searchSpaceId} />
+			<AutomationBuilderForm mode="edit" searchSpaceId={searchSpaceId} automation={automation} />
+		</>
+	);
 }

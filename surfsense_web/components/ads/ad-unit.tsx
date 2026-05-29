@@ -52,7 +52,8 @@ export function AdUnit({
 		// sets data-adsbygoogle-status="done" once it has filled a slot.
 		if (el.getAttribute("data-adsbygoogle-status")) return;
 		try {
-			(window.adsbygoogle = window.adsbygoogle || []).push({});
+			window.adsbygoogle = window.adsbygoogle || [];
+			window.adsbygoogle.push({});
 		} catch {
 			// AdSense throws if pushed before the script has loaded or on
 			// duplicate pushes. The script processes pending pushes when it

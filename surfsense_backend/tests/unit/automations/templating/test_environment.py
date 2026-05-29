@@ -32,7 +32,9 @@ def test_environment_finalizes_datetime_output_to_iso_string() -> None:
     when emitting ``inputs.fired_at`` and other datetime values."""
     dt = datetime(2026, 5, 28, 14, 30, tzinfo=UTC)
 
-    assert render_template("{{ moment }}", {"moment": dt}) == "2026-05-28T14:30:00+00:00"
+    assert (
+        render_template("{{ moment }}", {"moment": dt}) == "2026-05-28T14:30:00+00:00"
+    )
 
 
 def test_environment_finalizes_none_output_to_empty_string() -> None:

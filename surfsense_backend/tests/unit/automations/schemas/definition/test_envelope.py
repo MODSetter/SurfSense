@@ -11,7 +11,9 @@ from app.automations.schemas.definition.plan_step import PlanStep
 pytestmark = pytest.mark.unit
 
 
-def test_automation_definition_accepts_minimal_valid_input_with_sensible_defaults() -> None:
+def test_automation_definition_accepts_minimal_valid_input_with_sensible_defaults() -> (
+    None
+):
     """A definition with just ``name`` + a one-step ``plan`` is valid and
     fills in the rest with safe defaults so users don't have to write
     out every section to get started."""

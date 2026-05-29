@@ -8,10 +8,10 @@ from fastapi import Depends, HTTPException
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.automations.schemas.api import TriggerCreate, TriggerUpdate
 from app.automations.persistence.enums.trigger_type import TriggerType
 from app.automations.persistence.models.automation import Automation
 from app.automations.persistence.models.trigger import AutomationTrigger
+from app.automations.schemas.api import TriggerCreate, TriggerUpdate
 from app.automations.triggers import get_trigger
 from app.automations.triggers.schedule import compute_next_fire_at
 from app.db import Permission, User, get_async_session
@@ -40,7 +40,9 @@ class TriggerService:
             params=validated_params,
             static_inputs=payload.static_inputs,
             enabled=payload.enabled,
-            next_fire_at=_initial_next_fire(payload.type, validated_params, payload.enabled),
+            next_fire_at=_initial_next_fire(
+                payload.type, validated_params, payload.enabled
+            ),
         )
         self.session.add(trigger)
         await self.session.commit()
@@ -54,7 +56,9 @@ class TriggerService:
         trigger_id: int,
         patch: TriggerUpdate,
     ) -> AutomationTrigger:
-        await self._authorize_automation(automation_id, Permission.AUTOMATIONS_UPDATE.value)
+        await self._authorize_automation(
+            automation_id, Permission.AUTOMATIONS_UPDATE.value
+        )
         trigger = await self._get_trigger_or_raise(automation_id, trigger_id)
 
         data = patch.model_dump(exclude_unset=True)
@@ -80,7 +84,9 @@ class TriggerService:
         return trigger
 
     async def remove(self, *, automation_id: int, trigger_id: int) -> None:
-        await self._authorize_automation(automation_id, Permission.AUTOMATIONS_UPDATE.value)
+        await self._authorize_automation(
+            automation_id, Permission.AUTOMATIONS_UPDATE.value
+        )
         trigger = await self._get_trigger_or_raise(automation_id, trigger_id)
         await self.session.delete(trigger)
         await self.session.commit()

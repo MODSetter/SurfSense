@@ -12,4 +12,4 @@ from .params import AgentTaskActionParams
 __all__ = ["AgentTaskActionParams", "build_handler"]
 
 # Side-effect: register on the actions store.
-from . import definition  # noqa: E402, F401
+from . import definition  # noqa: F401

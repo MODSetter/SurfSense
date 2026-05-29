@@ -104,9 +104,9 @@ const UserTextPart: FC = () => {
 				const icon = isFolder ? (
 					<FolderIcon className="size-3.5" />
 				) : isConnector ? (
-					getConnectorIcon(segment.doc.connector_type, "size-3.5") ?? (
+					(getConnectorIcon(segment.doc.connector_type, "size-3.5") ?? (
 						<Plug className="size-3.5" />
-					)
+					))
 				) : (
 					getConnectorIcon(segment.doc.document_type ?? "UNKNOWN", "size-3.5")
 				);
@@ -123,7 +123,9 @@ const UserTextPart: FC = () => {
 									: segment.doc.title
 						}
 						onClick={
-							isFolder || isConnector ? undefined : () => handleOpenDoc(segment.doc.id, segment.doc.title)
+							isFolder || isConnector
+								? undefined
+								: () => handleOpenDoc(segment.doc.id, segment.doc.title)
 						}
 						className="mx-0.5"
 					/>

@@ -60,7 +60,6 @@ class TestReadOnlyToolsAllowed:
             "glob",
             "web_search",
             "scrape_webpage",
-            "search_surfsense_docs",
             "get_connected_accounts",
             "write_todos",
             "task",

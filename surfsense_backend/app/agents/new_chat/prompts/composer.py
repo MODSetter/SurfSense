@@ -151,7 +151,6 @@ def _read_fragment(subpath: str) -> str:
 # Ordered for reading flow: fundamentals first, then artifact generators,
 # then memory at the end (mirrors the legacy ``_ALL_TOOL_NAMES_ORDERED``).
 ALL_TOOL_NAMES_ORDERED: tuple[str, ...] = (
-    "search_surfsense_docs",
     "web_search",
     "generate_podcast",
     "generate_video_presentation",

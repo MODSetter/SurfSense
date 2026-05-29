@@ -10,7 +10,9 @@ from .cron import InvalidCronError, validate_cron
 class ScheduleTriggerParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    cron: str = Field(..., description="Five-field cron expression.", examples=["0 9 * * 1-5"])
+    cron: str = Field(
+        ..., description="Five-field cron expression.", examples=["0 9 * * 1-5"]
+    )
     timezone: str = Field(..., description="IANA timezone.", examples=["Africa/Kigali"])
 
     @model_validator(mode="after")

@@ -6,9 +6,9 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.automations.actions.types import ActionContext
 from app.automations.persistence.enums.run_status import RunStatus
 from app.automations.persistence.models.run import AutomationRun
-from app.automations.actions.types import ActionContext
 from app.automations.schemas.definition.envelope import AutomationDefinition
 from app.automations.schemas.definition.plan_step import PlanStep
 from app.automations.templating import build_run_context
@@ -32,7 +32,10 @@ async def execute_run(session: AsyncSession, run_id: int) -> None:
         await repository.mark_failed(
             session,
             run,
-            {"message": f"definition_snapshot invalid: {exc}", "type": type(exc).__name__},
+            {
+                "message": f"definition_snapshot invalid: {exc}",
+                "type": type(exc).__name__,
+            },
         )
         await session.commit()
         return
@@ -92,7 +95,9 @@ async def _run_on_failure(
         await session.commit()
 
 
-def _build_template_ctx(run: AutomationRun, step_outputs: dict[str, Any]) -> dict[str, Any]:
+def _build_template_ctx(
+    run: AutomationRun, step_outputs: dict[str, Any]
+) -> dict[str, Any]:
     automation = run.automation
     trigger = run.trigger
     return build_run_context(

@@ -30,9 +30,7 @@ def build_new_chat_runtime_context(
     return SurfSenseContextSchema(
         search_space_id=search_space_id,
         mentioned_document_ids=list(mentioned_document_ids or []),
-        mentioned_folder_ids=list(
-            accepted_folder_ids or mentioned_folder_ids or []
-        ),
+        mentioned_folder_ids=list(accepted_folder_ids or mentioned_folder_ids or []),
         request_id=request_id,
         turn_id=turn_id,
     )

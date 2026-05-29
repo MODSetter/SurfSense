@@ -34,6 +34,7 @@ import { useElectronAPI } from "@/hooks/use-platform";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 import { inferMonacoLanguageFromPath } from "@/lib/editor-language";
 import { BACKEND_URL } from "@/lib/env-config";
+
 const PlateEditor = dynamic(
 	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
 	{ ssr: false, loading: () => <EditorPanelSkeleton /> }

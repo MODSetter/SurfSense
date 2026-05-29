@@ -1150,46 +1150,6 @@ class Chunk(BaseModel, TimestampMixin):
     document = relationship("Document", back_populates="chunks")
 
 
-class SurfsenseDocsDocument(BaseModel, TimestampMixin):
-    """
-    Surfsense documentation storage.
-    Indexed at migration time from MDX files.
-    """
-
-    __tablename__ = "surfsense_docs_documents"
-
-    source = Column(
-        String, nullable=False, unique=True, index=True
-    )  # File path: "connectors/slack.mdx"
-    title = Column(String, nullable=False)
-    content = Column(Text, nullable=False)
-    content_hash = Column(String, nullable=False, index=True)  # For detecting changes
-    embedding = Column(Vector(config.embedding_model_instance.dimension))
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)
-
-    chunks = relationship(
-        "SurfsenseDocsChunk",
-        back_populates="document",
-        cascade="all, delete-orphan",
-    )
-
-
-class SurfsenseDocsChunk(BaseModel, TimestampMixin):
-    """Chunk storage for Surfsense documentation."""
-
-    __tablename__ = "surfsense_docs_chunks"
-
-    content = Column(Text, nullable=False)
-    embedding = Column(Vector(config.embedding_model_instance.dimension))
-
-    document_id = Column(
-        Integer,
-        ForeignKey("surfsense_docs_documents.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    document = relationship("SurfsenseDocsDocument", back_populates="chunks")
-
-
 class Podcast(BaseModel, TimestampMixin):
     """Podcast model for storing generated podcasts."""
 
@@ -2605,7 +2565,6 @@ from app.automations.persistence import (  # noqa: E402, F401
     AutomationTrigger,
 )
 
-
 engine = create_async_engine(
     DATABASE_URL,
     pool_size=30,
@@ -2679,11 +2638,6 @@ async def setup_indexes():
         await conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS idx_documents_search_space_updated ON documents (search_space_id, updated_at DESC NULLS LAST) INCLUDE (id, title, document_type)"
-            )
-        )
-        await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS idx_surfsense_docs_title_trgm ON surfsense_docs_documents USING gin (title gin_trgm_ops)"
             )
         )
 

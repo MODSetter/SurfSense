@@ -36,10 +36,16 @@ class RunService:
         )
 
         rows = (
-            await self.session.execute(
-                base.order_by(AutomationRun.created_at.desc()).limit(limit).offset(offset)
+            (
+                await self.session.execute(
+                    base.order_by(AutomationRun.created_at.desc())
+                    .limit(limit)
+                    .offset(offset)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows), int(total or 0)
 
     async def get(self, *, automation_id: int, run_id: int) -> AutomationRun:

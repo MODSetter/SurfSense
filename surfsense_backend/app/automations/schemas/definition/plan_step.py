@@ -11,7 +11,9 @@ class PlanStep(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     step_id: str = Field(..., min_length=1, description="Unique within the plan.")
-    action: str = Field(..., min_length=1, description="Action type; resolved via registry.")
+    action: str = Field(
+        ..., min_length=1, description="Action type; resolved via registry."
+    )
     when: str | None = Field(
         default=None,
         description="Optional predicate; step is skipped when falsy.",

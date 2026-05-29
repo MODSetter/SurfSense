@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from dataclasses import dataclass
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -33,7 +32,6 @@ import pytest
 
 from app.agents.new_chat.context import SurfSenseContextSchema
 from app.services.new_streaming_service import VercelStreamingService
-
 from app.tasks.chat.stream_new_chat import (
     stream_new_chat as old_stream_new_chat,
     stream_resume_chat as old_stream_resume_chat,
@@ -141,39 +139,28 @@ def test_orchestrators_are_async_generator_functions() -> None:
 # ------------------------------------------------------------ initial thinking
 
 
-@dataclass
-class _FakeSurfsenseDoc:
-    """Stand-in for ``SurfsenseDocsDocument`` with just the field we read."""
-
-    title: str
-
-
 @pytest.mark.parametrize(
-    "user_query, image_urls, docs, expected_title, expected_action",
+    "user_query, image_urls, expected_title, expected_action",
     [
-        ("hello world", None, [], "Understanding your request", "Processing"),
-        ("", ["data:image/png;base64,AAA"], [], "Understanding your request", "Processing"),
-        ("", None, [], "Understanding your request", "Processing"),
+        ("hello world", None, "Understanding your request", "Processing"),
         (
-            "doc question",
-            None,
-            [_FakeSurfsenseDoc(title="My Doc")],
-            "Analyzing referenced content",
-            "Analyzing",
+            "",
+            ["data:image/png;base64,AAA"],
+            "Understanding your request",
+            "Processing",
         ),
+        ("", None, "Understanding your request", "Processing"),
     ],
 )
 def test_initial_thinking_step_branches(
     user_query: str,
     image_urls: list[str] | None,
-    docs: list[Any],
     expected_title: str,
     expected_action: str,
 ) -> None:
     step = build_initial_thinking_step(
         user_query=user_query,
         user_image_data_urls=image_urls,
-        mentioned_surfsense_docs=docs,  # type: ignore[arg-type]
     )
     assert step.step_id == "thinking-1"
     assert step.title == expected_title
@@ -186,7 +173,6 @@ def test_initial_thinking_step_truncates_long_query() -> None:
     step = build_initial_thinking_step(
         user_query=long_query,
         user_image_data_urls=None,
-        mentioned_surfsense_docs=[],
     )
     # 80-char truncation + ellipsis, sandwiched after "Processing: ".
     assert "..." in step.items[0]
@@ -195,23 +181,14 @@ def test_initial_thinking_step_truncates_long_query() -> None:
     assert payload.startswith("x" * 80) and payload.endswith("...")
 
 
-def test_initial_thinking_step_collapses_many_doc_names() -> None:
-    docs = [_FakeSurfsenseDoc(title=f"Doc {i}") for i in range(5)]
-    step = build_initial_thinking_step(
-        user_query="q",
-        user_image_data_urls=None,
-        mentioned_surfsense_docs=docs,  # type: ignore[arg-type]
-    )
-    assert "[5 docs]" in step.items[0]
-
-
 # ------------------------------------------------------------ capability gate
 
 
 def test_image_capability_passes_without_images() -> None:
-    assert check_image_input_capability(
-        user_image_data_urls=None, agent_config=None
-    ) is None
+    assert (
+        check_image_input_capability(user_image_data_urls=None, agent_config=None)
+        is None
+    )
 
 
 def test_image_capability_passes_when_capability_unknown() -> None:
@@ -500,9 +477,7 @@ def test_can_recover_provider_rate_limit_rejects_non_rate_limit_exception() -> N
 def test_spawn_set_ai_responding_bg_noop_without_user_id() -> None:
     async def _run() -> set[asyncio.Task]:
         background: set[asyncio.Task] = set()
-        spawn_set_ai_responding_bg(
-            chat_id=1, user_id=None, background_tasks=background
-        )
+        spawn_set_ai_responding_bg(chat_id=1, user_id=None, background_tasks=background)
         return background
 
     bg = asyncio.run(_run())

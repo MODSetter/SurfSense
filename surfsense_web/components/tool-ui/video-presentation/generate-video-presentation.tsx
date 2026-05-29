@@ -10,6 +10,7 @@ import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { BACKEND_URL } from "@/lib/env-config";
 import { compileCheck, compileToComponent } from "@/lib/remotion/compile-check";
 import { FPS } from "@/lib/remotion/constants";
 import {
@@ -19,7 +20,6 @@ import {
 	type CompiledSlide,
 } from "./combined-player";
 import { getPptxExportErrorToast, getVideoDownloadErrorToast } from "./errors";
-import { BACKEND_URL } from "@/lib/env-config";
 
 const GenerateVideoPresentationArgsSchema = z.object({
 	source_content: z.string(),

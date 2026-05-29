@@ -1,8 +1,8 @@
 """Build and emit the first ``thinking-1`` step for a new-chat turn.
 
 The step title and "Processing X" items are derived from what the user sent
-(text snippet, image count, mentioned doc titles) so the FE can render a
-meaningful placeholder while the agent stream warms up.
+(text snippet, image count) so the FE can render a meaningful placeholder
+while the agent stream warms up.
 
 ``thinking-1`` is the canonical id for this step — every subsequent
 ``thinking-N`` produced by ``stream_agent_events`` folds into the same
@@ -15,7 +15,6 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
 
-from app.db import SurfsenseDocsDocument
 from app.services.new_streaming_service import VercelStreamingService
 
 
@@ -37,14 +36,9 @@ def build_initial_thinking_step(
     *,
     user_query: str,
     user_image_data_urls: list[str] | None,
-    mentioned_surfsense_docs: list[SurfsenseDocsDocument],
 ) -> InitialThinkingStep:
-    if mentioned_surfsense_docs:
-        title = "Analyzing referenced content"
-        action_verb = "Analyzing"
-    else:
-        title = "Understanding your request"
-        action_verb = "Processing"
+    title = "Understanding your request"
+    action_verb = "Processing"
 
     processing_parts: list[str] = []
     if user_query.strip():
@@ -54,18 +48,6 @@ def build_initial_thinking_step(
         processing_parts.append(f"[{len(user_image_data_urls)} image(s)]")
     else:
         processing_parts.append("(message)")
-
-    if mentioned_surfsense_docs:
-        doc_names: list[str] = []
-        for doc in mentioned_surfsense_docs:
-            t = doc.title
-            if len(t) > 30:
-                t = t[:27] + "..."
-            doc_names.append(t)
-        if len(doc_names) == 1:
-            processing_parts.append(f"[{doc_names[0]}]")
-        else:
-            processing_parts.append(f"[{len(doc_names)} docs]")
 
     items = [f"{action_verb}: {' '.join(processing_parts)}"]
     return InitialThinkingStep(step_id="thinking-1", title=title, items=items)

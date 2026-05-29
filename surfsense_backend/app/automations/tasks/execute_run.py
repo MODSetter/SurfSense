@@ -17,7 +17,7 @@ TASK_NAME = "automation_run_execute"
 
 
 @celery_app.task(name=TASK_NAME, bind=True)
-def automation_run_execute(self, run_id: int) -> None:  # noqa: ARG001 — Celery bind
+def automation_run_execute(self, run_id: int) -> None:
     """Execute one ``AutomationRun``. Idempotent: terminal runs no-op."""
     return run_async_celery_task(lambda: _impl(run_id))
 

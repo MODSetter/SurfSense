@@ -28,7 +28,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-
 _HEADER = """\
 You are the SurfSense automation drafter. Convert the user intent below
 into a SINGLE JSON object matching the AutomationCreate schema. Output

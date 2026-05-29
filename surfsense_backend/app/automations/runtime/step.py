@@ -30,14 +30,18 @@ async def execute_step(
         try:
             should_run = evaluate_predicate(step.when, template_context)
         except Exception as exc:
-            return _result(step, "failed", started_at, attempts=0, error=_error(exc, "when"))
+            return _result(
+                step, "failed", started_at, attempts=0, error=_error(exc, "when")
+            )
         if not should_run:
             return _result(step, "skipped", started_at, attempts=0)
 
     try:
         resolved_params = render_value(step.params, template_context)
     except Exception as exc:
-        return _result(step, "failed", started_at, attempts=0, error=_error(exc, "render"))
+        return _result(
+            step, "failed", started_at, attempts=0, error=_error(exc, "render")
+        )
 
     action = get_action(step.action)
     if action is None:
@@ -46,12 +50,17 @@ async def execute_step(
             "failed",
             started_at,
             attempts=0,
-            error={"message": f"action not registered: {step.action}", "type": "ActionNotFound"},
+            error={
+                "message": f"action not registered: {step.action}",
+                "type": "ActionNotFound",
+            },
         )
 
     handler = action.build_handler(action_context)
 
-    max_retries = step.max_retries if step.max_retries is not None else default_max_retries
+    max_retries = (
+        step.max_retries if step.max_retries is not None else default_max_retries
+    )
     timeout = step.timeout_seconds or default_timeout_seconds
 
     try:
@@ -62,7 +71,9 @@ async def execute_step(
             timeout=timeout,
         )
     except Exception as exc:
-        return _result(step, "failed", started_at, attempts=max_retries + 1, error=_error(exc))
+        return _result(
+            step, "failed", started_at, attempts=max_retries + 1, error=_error(exc)
+        )
 
     return _result(step, "succeeded", started_at, attempts=attempts, result=result)
 

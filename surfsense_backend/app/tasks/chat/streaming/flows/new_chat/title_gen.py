@@ -133,12 +133,8 @@ async def _generate_title(
             # inherited Azure endpoint — see ``provider_api_base`` for the
             # same bug repro on the image-gen / vision paths.
             raw_model = getattr(llm, "model", "") or ""
-            provider_prefix = (
-                raw_model.split("/", 1)[0] if "/" in raw_model else None
-            )
-            provider_value = (
-                agent_config.provider if agent_config is not None else None
-            )
+            provider_prefix = raw_model.split("/", 1)[0] if "/" in raw_model else None
+            provider_value = agent_config.provider if agent_config is not None else None
             title_api_base = resolve_api_base(
                 provider=provider_value,
                 provider_prefix=provider_prefix,

@@ -41,9 +41,7 @@ class PremiumReservation:
     allowed: bool
 
 
-def needs_premium_quota(
-    agent_config: AgentConfig | None, user_id: str | None
-) -> bool:
+def needs_premium_quota(agent_config: AgentConfig | None, user_id: str | None) -> bool:
     return bool(agent_config is not None and user_id and agent_config.is_premium)
 
 
@@ -61,8 +59,10 @@ async def reserve_premium(
     request_id = _uuid.uuid4().hex[:16]
     litellm_params = agent_config.litellm_params or {}
     base_model = (
-        litellm_params.get("base_model") if isinstance(litellm_params, dict) else None
-    ) or agent_config.model_name or ""
+        (litellm_params.get("base_model") if isinstance(litellm_params, dict) else None)
+        or agent_config.model_name
+        or ""
+    )
     reserve_amount_micros = estimate_call_reserve_micros(
         base_model=base_model,
         quota_reserve_tokens=agent_config.quota_reserve_tokens,

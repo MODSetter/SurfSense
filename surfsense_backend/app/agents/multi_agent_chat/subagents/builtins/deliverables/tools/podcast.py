@@ -117,9 +117,7 @@ def create_generate_podcast_tool(
                     "podcast_id": podcast_id,
                     "title": podcast_title,
                     "file_location": file_location,
-                    "message": (
-                        "Podcast generated and saved to your podcast panel."
-                    ),
+                    "message": ("Podcast generated and saved to your podcast panel."),
                 }
                 return with_receipt(
                     payload=payload,

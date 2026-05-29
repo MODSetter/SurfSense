@@ -33,7 +33,9 @@ async def test_with_retries_returns_result_and_attempts_one_on_first_success() -
     assert calls == 1
 
 
-async def test_with_retries_returns_attempt_count_when_succeeding_after_failures() -> None:
+async def test_with_retries_returns_attempt_count_when_succeeding_after_failures() -> (
+    None
+):
     """A coroutine that fails twice then succeeds returns ``attempts=3``
     (the actual attempt that produced the result). Locks the contract
     that the caller can distinguish first-try success from a recovery."""

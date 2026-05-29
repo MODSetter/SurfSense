@@ -6,8 +6,7 @@ import contextlib
 import sys
 from typing import Any, Literal
 
-from app.observability import metrics as ot_metrics
-from app.observability import otel as ot
+from app.observability import metrics as ot_metrics, otel as ot
 
 
 def open_chat_request_span(

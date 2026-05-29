@@ -12,7 +12,9 @@ from .plan_step import PlanStep
 class Execution(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    timeout_seconds: int = Field(default=600, gt=0, description="Wall-clock cap for the run.")
+    timeout_seconds: int = Field(
+        default=600, gt=0, description="Wall-clock cap for the run."
+    )
     max_retries: int = Field(default=2, ge=0, description="Per-step retry budget.")
     retry_backoff: Literal["exponential", "linear", "none"] = "exponential"
     concurrency: Literal["drop_if_running", "queue", "always"] = "drop_if_running"

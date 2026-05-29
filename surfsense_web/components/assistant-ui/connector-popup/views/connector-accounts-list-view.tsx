@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { LIVE_CONNECTOR_TYPES } from "../constants/connector-constants";
 import { useConnectorStatus } from "../hooks/use-connector-status";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
+
 interface ConnectorAccountsListViewProps {
 	connectorType: string;
 	connectorTitle: string;

@@ -15,8 +15,7 @@ from collections.abc import Iterator
 from typing import Any, Literal
 
 from app.agents.new_chat.errors import BusyError
-from app.observability import metrics as ot_metrics
-from app.observability import otel as ot
+from app.observability import metrics as ot_metrics, otel as ot
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat.streaming.errors.classifier import classify_stream_exception
 from app.tasks.chat.streaming.errors.emitter import emit_stream_terminal_error

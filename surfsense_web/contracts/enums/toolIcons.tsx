@@ -1,5 +1,4 @@
 import {
-	BookOpen,
 	Brain,
 	Calendar,
 	FileEdit,
@@ -47,7 +46,6 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 	// Web / search
 	scrape_webpage: ScanLine,
 	web_search: Globe,
-	search_surfsense_docs: BookOpen,
 	// Automations
 	create_automation: Workflow,
 	// Memory
@@ -152,7 +150,6 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 	// Web / search
 	scrape_webpage: "Read webpage",
 	web_search: "Search the web",
-	search_surfsense_docs: "Search knowledge base",
 	// Automations
 	create_automation: "Create automation",
 	// Memory

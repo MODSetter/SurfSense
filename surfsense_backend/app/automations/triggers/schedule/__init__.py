@@ -15,4 +15,4 @@ __all__ = [
 ]
 
 # Side-effect: register on the triggers store.
-from . import definition  # noqa: E402, F401
+from . import definition  # noqa: F401

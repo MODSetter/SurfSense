@@ -17,4 +17,4 @@ __all__ = [
 ]
 
 # Built-in triggers self-register at import time.
-from . import schedule  # noqa: E402, F401
+from . import schedule  # noqa: F401
