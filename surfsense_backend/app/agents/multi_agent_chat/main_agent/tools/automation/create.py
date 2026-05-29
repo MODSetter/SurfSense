@@ -32,7 +32,8 @@ from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated impo
 )
 from app.automations.schemas.api import AutomationCreate
 from app.automations.services.automation import AutomationService
-from app.db import User, async_session_maker
+from app.automations.services.model_policy import get_automation_model_eligibility
+from app.db import SearchSpace, User, async_session_maker
 from app.utils.content_utils import extract_text_content
 
 from .prompt import build_draft_prompt
@@ -98,6 +99,27 @@ def create_create_automation_tool(
             declined. Acknowledge once and stop — do NOT retry or pitch
             variants without a fresh user request.
         """
+        # --- 0. Eligibility gate (fail fast, before drafting + HITL) ---
+        # Automations may only use premium or BYOK models. Check up front so we
+        # don't make the user draft + approve a card that can't be saved.
+        async with async_session_maker() as session:
+            search_space = await session.get(SearchSpace, search_space_id)
+            if search_space is None:
+                return {
+                    "status": "error",
+                    "message": "search space not found in this session",
+                }
+            eligibility = get_automation_model_eligibility(search_space)
+        if not eligibility["allowed"]:
+            reasons = " ".join(v["reason"] for v in eligibility["violations"])
+            return {
+                "status": "error",
+                "message": (
+                    f"{reasons} Update the search space's model settings to a "
+                    "premium or your own (BYOK) model, then try again."
+                ),
+            }
+
         # --- 1. Draft via sub-LLM ---
         prompt = build_draft_prompt(search_space_id=search_space_id, intent=intent)
         try:

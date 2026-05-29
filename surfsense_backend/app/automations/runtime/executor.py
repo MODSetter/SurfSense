@@ -9,7 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.automations.actions.types import ActionContext
 from app.automations.persistence.enums.run_status import RunStatus
 from app.automations.persistence.models.run import AutomationRun
-from app.automations.schemas.definition.envelope import AutomationDefinition
+from app.automations.schemas.definition.envelope import (
+    AutomationDefinition,
+    AutomationModels,
+)
 from app.automations.schemas.definition.plan_step import PlanStep
 from app.automations.templating import build_run_context
 
@@ -47,7 +50,7 @@ async def execute_run(session: AsyncSession, run_id: int) -> None:
 
     for step in definition.plan:
         template_ctx = _build_template_ctx(run, step_outputs)
-        action_ctx = _build_action_ctx(session, run, step)
+        action_ctx = _build_action_ctx(session, run, step, definition.models)
         result = await execute_step(
             step=step,
             template_context=template_ctx,
@@ -82,7 +85,7 @@ async def _run_on_failure(
         return
     template_ctx = _build_template_ctx(run, step_outputs={})
     for step in definition.execution.on_failure:
-        action_ctx = _build_action_ctx(session, run, step)
+        action_ctx = _build_action_ctx(session, run, step, definition.models)
         result = await execute_step(
             step=step,
             template_context=template_ctx,
@@ -117,7 +120,10 @@ def _build_template_ctx(
 
 
 def _build_action_ctx(
-    session: AsyncSession, run: AutomationRun, step: PlanStep
+    session: AsyncSession,
+    run: AutomationRun,
+    step: PlanStep,
+    models: AutomationModels | None,
 ) -> ActionContext:
     automation = run.automation
     return ActionContext(
@@ -126,4 +132,9 @@ def _build_action_ctx(
         step_id=step.step_id,
         search_space_id=automation.search_space_id,
         creator_user_id=automation.created_by_user_id,
+        agent_llm_id=models.agent_llm_id if models else None,
+        image_generation_config_id=(
+            models.image_generation_config_id if models else None
+        ),
+        vision_llm_config_id=models.vision_llm_config_id if models else None,
     )

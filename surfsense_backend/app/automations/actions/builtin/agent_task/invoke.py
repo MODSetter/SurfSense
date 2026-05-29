@@ -147,6 +147,9 @@ async def run_agent_task(
         deps = await build_dependencies(
             session=agent_session,
             search_space_id=ctx.search_space_id,
+            agent_llm_id=ctx.agent_llm_id,
+            image_generation_config_id=ctx.image_generation_config_id,
+            vision_llm_config_id=ctx.vision_llm_config_id,
         )
 
         agent = await create_multi_agent_chat_deep_agent(
@@ -161,6 +164,7 @@ async def run_agent_task(
             firecrawl_api_key=deps.firecrawl_api_key,
             thread_visibility=ChatVisibility.PRIVATE,
             mentioned_document_ids=mentioned_document_ids,
+            image_generation_config_id=ctx.image_generation_config_id,
         )
 
         agent_query, runtime_context = await _resolve_mention_context(

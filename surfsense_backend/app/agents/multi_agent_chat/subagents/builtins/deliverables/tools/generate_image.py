@@ -63,8 +63,14 @@ def _get_global_image_gen_config(config_id: int) -> dict | None:
 def create_generate_image_tool(
     search_space_id: int,
     db_session: AsyncSession,
+    image_generation_config_id_override: int | None = None,
 ):
-    """Create ``generate_image`` with bound search space; DB work uses a per-call session."""
+    """Create ``generate_image`` with bound search space; DB work uses a per-call session.
+
+    ``image_generation_config_id_override``: when set (automations running on a
+    captured model), use this config id instead of reading the search space's
+    live ``image_generation_config_id``.
+    """
     del db_session  # use a fresh per-call session, see below
 
     @tool
@@ -108,19 +114,27 @@ def create_generate_image_tool(
             # task's session is shared across every tool; without isolation,
             # autoflushes from a concurrent writer poison this tool too.
             async with shielded_async_session() as session:
-                result = await session.execute(
-                    select(SearchSpace).filter(SearchSpace.id == search_space_id)
-                )
-                search_space = result.scalars().first()
-                if not search_space:
-                    return _failed(
-                        {"error": "Search space not found"},
-                        error="Search space not found",
+                if image_generation_config_id_override is not None:
+                    # Automation run: use the captured image model, insulated from
+                    # later search-space changes. No search-space read needed.
+                    config_id = (
+                        image_generation_config_id_override or IMAGE_GEN_AUTO_MODE_ID
                     )
+                else:
+                    result = await session.execute(
+                        select(SearchSpace).filter(SearchSpace.id == search_space_id)
+                    )
+                    search_space = result.scalars().first()
+                    if not search_space:
+                        return _failed(
+                            {"error": "Search space not found"},
+                            error="Search space not found",
+                        )
 
-                config_id = (
-                    search_space.image_generation_config_id or IMAGE_GEN_AUTO_MODE_ID
-                )
+                    config_id = (
+                        search_space.image_generation_config_id
+                        or IMAGE_GEN_AUTO_MODE_ID
+                    )
 
                 # Build generation kwargs
                 # NOTE: size, quality, and style are intentionally NOT passed.

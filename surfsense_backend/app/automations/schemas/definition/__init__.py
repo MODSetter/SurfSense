@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .envelope import AutomationDefinition
+from .envelope import AutomationDefinition, AutomationModels
 from .execution import Execution
 from .inputs import Inputs
 from .metadata import Metadata
@@ -11,6 +11,7 @@ from .trigger_spec import TriggerSpec
 
 __all__ = [
     "AutomationDefinition",
+    "AutomationModels",
     "Execution",
     "Inputs",
     "Metadata",

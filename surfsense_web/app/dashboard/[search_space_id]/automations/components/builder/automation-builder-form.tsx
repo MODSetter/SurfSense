@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
 	type Automation,
 	automationCreateRequest,
@@ -45,6 +46,12 @@ interface AutomationBuilderFormProps {
 	searchSpaceId: number;
 	/** Required in edit mode; seeds the form and trigger reconciliation. */
 	automation?: Automation;
+	/**
+	 * When set (create mode only), the search space's models aren't billable
+	 * for automations. Submit is disabled with this reason as the tooltip; the
+	 * orchestrator also renders the full gate alert above the form.
+	 */
+	submitDisabledReason?: string;
 }
 
 type Mode = "form" | "json";
@@ -66,6 +73,7 @@ export function AutomationBuilderForm({
 	mode,
 	searchSpaceId,
 	automation,
+	submitDisabledReason,
 }: AutomationBuilderFormProps) {
 	const router = useRouter();
 	const { mutateAsync: createAutomation } = useAtomValue(createAutomationMutationAtom);
@@ -273,6 +281,8 @@ export function AutomationBuilderForm({
 	}
 
 	const submitLabel = mode === "edit" ? "Save changes" : "Create automation";
+	// Only gate creation; editing an existing automation isn't blocked here.
+	const submitBlocked = mode === "create" && !!submitDisabledReason;
 
 	return (
 		<div className="space-y-4">
@@ -390,15 +400,39 @@ export function AutomationBuilderForm({
 				<Button asChild type="button" variant="ghost" size="sm">
 					<Link href={cancelHref}>Cancel</Link>
 				</Button>
-				<Button
-					type="button"
-					size="sm"
-					disabled={submitting}
-					onClick={() => (activeMode === "json" ? submitJson() : submitForm())}
-				>
-					{submitting ? <Spinner size="xs" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
-					{submitLabel}
-				</Button>
+				{submitBlocked ? (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							{/* aria-disabled keeps the button focusable so the tooltip is
+							    reachable by hover and keyboard; onClick is a no-op. */}
+							<Button
+								type="button"
+								size="sm"
+								aria-disabled
+								className="cursor-not-allowed opacity-50"
+								onClick={(event) => event.preventDefault()}
+							>
+								<Save className="mr-2 h-4 w-4" />
+								{submitLabel}
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent className="max-w-xs">{submitDisabledReason}</TooltipContent>
+					</Tooltip>
+				) : (
+					<Button
+						type="button"
+						size="sm"
+						disabled={submitting}
+						onClick={() => (activeMode === "json" ? submitJson() : submitForm())}
+					>
+						{submitting ? (
+							<Spinner size="xs" className="mr-2" />
+						) : (
+							<Save className="mr-2 h-4 w-4" />
+						)}
+						{submitLabel}
+					</Button>
+				)}
 			</div>
 		</div>
 	);
