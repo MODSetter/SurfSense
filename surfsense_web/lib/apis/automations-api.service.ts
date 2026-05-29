@@ -6,6 +6,7 @@ import {
 	automationCreateRequest,
 	automationListResponse,
 	automationUpdateRequest,
+	modelEligibility,
 	type RunListParams,
 	run,
 	runListResponse,
@@ -60,6 +61,13 @@ class AutomationsApiService {
 	// Server returns 204; baseApiService now resolves to null and skips schema validation.
 	deleteAutomation = async (automationId: number) => {
 		return baseApiService.delete(`${BASE}/${automationId}`);
+	};
+
+	// Whether the search space's models are billable for automations (premium
+	// global or BYOK). Used to gate creation surfaces before submit.
+	getModelEligibility = async (searchSpaceId: number) => {
+		const qs = new URLSearchParams({ search_space_id: String(searchSpaceId) });
+		return baseApiService.get(`${BASE}/model-eligibility?${qs.toString()}`, modelEligibility);
 	};
 
 	// ---- Triggers (sub-resource) --------------------------------------------

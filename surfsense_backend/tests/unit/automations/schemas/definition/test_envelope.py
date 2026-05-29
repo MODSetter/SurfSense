@@ -5,7 +5,10 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.automations.schemas.definition.envelope import AutomationDefinition
+from app.automations.schemas.definition.envelope import (
+    AutomationDefinition,
+    AutomationModels,
+)
 from app.automations.schemas.definition.plan_step import PlanStep
 
 pytestmark = pytest.mark.unit
@@ -27,6 +30,34 @@ def test_automation_definition_accepts_minimal_valid_input_with_sensible_default
     assert definition.goal is None
     assert definition.inputs is None
     assert definition.triggers == []
+    # ``models`` is optional (populated server-side at create()).
+    assert definition.models is None
+
+
+def test_automation_definition_models_round_trip() -> None:
+    """The captured ``models`` snapshot survives a model_dump/validate round-trip."""
+    definition = AutomationDefinition(
+        name="Daily digest",
+        plan=[PlanStep(step_id="s1", action="agent_task")],
+        models=AutomationModels(
+            agent_llm_id=-1,
+            image_generation_config_id=5,
+            vision_llm_config_id=-1,
+        ),
+    )
+
+    dumped = definition.model_dump(mode="json", by_alias=True)
+    assert dumped["models"] == {
+        "agent_llm_id": -1,
+        "image_generation_config_id": 5,
+        "vision_llm_config_id": -1,
+    }
+
+    restored = AutomationDefinition.model_validate(dumped)
+    assert restored.models is not None
+    assert restored.models.agent_llm_id == -1
+    assert restored.models.image_generation_config_id == 5
+    assert restored.models.vision_llm_config_id == -1
 
 
 def test_automation_definition_rejects_unknown_top_level_field() -> None:

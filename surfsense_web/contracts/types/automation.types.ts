@@ -60,6 +60,15 @@ export const inputs = z.object({
 });
 export type Inputs = z.infer<typeof inputs>;
 
+// Captured model snapshot (server-managed). Set at create time and preserved
+// across edits so runs are insulated from later chat/search-space model changes.
+export const automationModels = z.object({
+	agent_llm_id: z.number().int().default(0),
+	image_generation_config_id: z.number().int().default(0),
+	vision_llm_config_id: z.number().int().default(0),
+});
+export type AutomationModels = z.infer<typeof automationModels>;
+
 export const automationDefinition = z.object({
 	schema_version: z.string().default("1.0"),
 	name: z.string().min(1).max(200),
@@ -69,6 +78,7 @@ export const automationDefinition = z.object({
 	plan: z.array(planStep).min(1),
 	execution: execution.default(execution.parse({})),
 	metadata: metadata.default(metadata.parse({})),
+	models: automationModels.nullable().optional(),
 });
 export type AutomationDefinition = z.infer<typeof automationDefinition>;
 
@@ -191,3 +201,23 @@ export const runListParams = z.object({
 	offset: z.number().int().min(0).default(0),
 });
 export type RunListParams = z.infer<typeof runListParams>;
+
+// =============================================================================
+// Model eligibility — mirror app/automations/api/automation.py (ModelEligibility)
+// =============================================================================
+
+export const modelEligibilityKind = z.enum(["llm", "image", "vision"]);
+export type ModelEligibilityKind = z.infer<typeof modelEligibilityKind>;
+
+export const modelEligibilityViolation = z.object({
+	kind: modelEligibilityKind,
+	config_id: z.number().nullable(),
+	reason: z.string(),
+});
+export type ModelEligibilityViolation = z.infer<typeof modelEligibilityViolation>;
+
+export const modelEligibility = z.object({
+	allowed: z.boolean(),
+	violations: z.array(modelEligibilityViolation),
+});
+export type ModelEligibility = z.infer<typeof modelEligibility>;

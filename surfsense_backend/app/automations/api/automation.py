@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query, status
+from pydantic import BaseModel
 
 from app.automations.schemas.api import (
     AutomationCreate,
@@ -14,6 +15,17 @@ from app.automations.schemas.api import (
 from app.automations.services import AutomationService, get_automation_service
 
 router = APIRouter()
+
+
+class ModelEligibilityViolation(BaseModel):
+    kind: str
+    config_id: int | None
+    reason: str
+
+
+class ModelEligibility(BaseModel):
+    allowed: bool
+    violations: list[ModelEligibilityViolation]
 
 
 @router.post(
@@ -45,6 +57,23 @@ async def list_automations(
         items=[AutomationSummary.model_validate(a) for a in items],
         total=total,
     )
+
+
+@router.get("/automations/model-eligibility", response_model=ModelEligibility)
+async def get_automation_model_eligibility(
+    search_space_id: int = Query(...),
+    service: AutomationService = Depends(get_automation_service),
+) -> ModelEligibility:
+    """Report whether a search space's models are billable for automations.
+
+    Used by the frontend to gate creation: automations may only use premium
+    global models or user BYOK models (free models and Auto mode are blocked).
+
+    NOTE: declared before ``/automations/{automation_id}`` so the literal path
+    isn't captured by the int-typed ``{automation_id}`` route.
+    """
+    result = await service.model_eligibility(search_space_id=search_space_id)
+    return ModelEligibility.model_validate(result)
 
 
 @router.get("/automations/{automation_id}", response_model=AutomationDetail)
