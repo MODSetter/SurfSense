@@ -57,6 +57,7 @@ async def build_agent_with_cache(
     mcp_tools_by_agent: dict[str, list[BaseTool]],
     disabled_tools: list[str] | None,
     config_id: str | None,
+    image_generation_config_id_override: int | None = None,
 ) -> Any:
     """Compile the multi-agent graph, serving from cache when key components are stable."""
 
@@ -91,7 +92,7 @@ async def build_agent_with_cache(
     # the key, otherwise a hit will leak state across threads. Bump the schema
     # version when the component list changes shape.
     cache_key = stable_hash(
-        "multi-agent-v1",
+        "multi-agent-v2",
         config_id,
         thread_id,
         user_id,
@@ -109,6 +110,10 @@ async def build_agent_with_cache(
         system_prompt_hash(final_system_prompt),
         max_input_tokens,
         sorted(disabled_tools) if disabled_tools else None,
+        # Bound into the generate_image subagent tool at construction time, so it
+        # must key the compiled-agent cache to avoid leaking one automation's
+        # image model into another with the same config_id/search_space.
+        image_generation_config_id_override,
     )
     return await get_cache().get_or_build(cache_key, builder=_build)
 

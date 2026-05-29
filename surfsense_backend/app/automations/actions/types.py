@@ -20,6 +20,12 @@ class ActionContext:
     step_id: str
     search_space_id: int
     creator_user_id: UUID | None
+    # Captured model snapshot from the automation definition (``definition.models``),
+    # resolved per run instead of the live search space. ``None`` falls back to the
+    # search space's current prefs (defensive; should not happen post-capture).
+    agent_llm_id: int | None = None
+    image_generation_config_id: int | None = None
+    vision_llm_config_id: int | None = None
 
 
 ActionHandler = Callable[[dict[str, Any]], Awaitable[Any]]

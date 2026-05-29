@@ -134,5 +134,7 @@ export const cacheKeys = {
 			["automations", "runs", automationId, limit, offset] as const,
 		run: (automationId: number, runId: number) =>
 			["automations", "runs", automationId, runId] as const,
+		modelEligibility: (searchSpaceId: number) =>
+			["automations", "model-eligibility", searchSpaceId] as const,
 	},
 };

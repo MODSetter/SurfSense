@@ -1,5 +1,7 @@
 "use client";
 import { ShieldAlert } from "lucide-react";
+import { useAutomationModelEligibility } from "@/hooks/use-automation-model-eligibility";
+import { AutomationModelGateAlert } from "../components/automation-model-gate-alert";
 import { AutomationBuilderForm } from "../components/builder/automation-builder-form";
 import { useAutomationPermissions } from "../hooks/use-automation-permissions";
 import { AutomationNewHeader } from "./components/automation-new-header";
@@ -16,6 +18,9 @@ interface AutomationNewContentProps {
  */
 export function AutomationNewContent({ searchSpaceId }: AutomationNewContentProps) {
 	const perms = useAutomationPermissions();
+	const { data: eligibility, isLoading: eligibilityLoading } = useAutomationModelEligibility(
+		perms.canCreate ? searchSpaceId : undefined
+	);
 
 	if (perms.loading) {
 		return <div className="h-32 rounded-md border border-border/60 bg-muted/10 animate-pulse" />;
@@ -33,10 +38,22 @@ export function AutomationNewContent({ searchSpaceId }: AutomationNewContentProp
 		);
 	}
 
+	const modelViolations = eligibility?.violations ?? [];
+	const submitDisabledReason = eligibilityLoading
+		? "Checking model eligibility…"
+		: modelViolations[0]?.reason;
+
 	return (
 		<>
 			<AutomationNewHeader searchSpaceId={searchSpaceId} />
-			<AutomationBuilderForm mode="create" searchSpaceId={searchSpaceId} />
+			{modelViolations.length > 0 && (
+				<AutomationModelGateAlert searchSpaceId={searchSpaceId} violations={modelViolations} />
+			)}
+			<AutomationBuilderForm
+				mode="create"
+				searchSpaceId={searchSpaceId}
+				submitDisabledReason={submitDisabledReason}
+			/>
 		</>
 	);
 }

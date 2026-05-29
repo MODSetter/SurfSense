@@ -1,6 +1,8 @@
 "use client";
 import { ShieldAlert } from "lucide-react";
+import { useAutomationModelEligibility } from "@/hooks/use-automation-model-eligibility";
 import { useAutomations } from "@/hooks/use-automations";
+import { AutomationModelGateAlert } from "./components/automation-model-gate-alert";
 import { AutomationsEmptyState } from "./components/automations-empty-state";
 import { AutomationsHeader } from "./components/automations-header";
 import { AutomationsTable } from "./components/automations-table";
@@ -22,6 +24,18 @@ interface AutomationsContentProps {
 export function AutomationsContent({ searchSpaceId }: AutomationsContentProps) {
 	const { automations, total, loading, error } = useAutomations();
 	const perms = useAutomationPermissions();
+	// Gate creation on billable models (premium/BYOK). Only meaningful for
+	// users who can create; the eligibility query loads in parallel.
+	const { data: eligibility, isLoading: eligibilityLoading } = useAutomationModelEligibility(
+		perms.canCreate ? searchSpaceId : undefined
+	);
+	const modelViolations = eligibility?.violations ?? [];
+	// Disable create CTAs while loading (avoid a flash of enabled buttons) and
+	// when the resolved models aren't billable.
+	const createDisabled = perms.canCreate && (eligibilityLoading || modelViolations.length > 0);
+	const disabledReason = eligibilityLoading
+		? "Checking model eligibility…"
+		: modelViolations[0]?.reason;
 
 	if (perms.loading) {
 		// Permissions gate the entire page; defer everything until we know.
@@ -77,7 +91,11 @@ export function AutomationsContent({ searchSpaceId }: AutomationsContentProps) {
 					canCreate={perms.canCreate}
 					showCreateCta={false}
 				/>
-				<AutomationsEmptyState searchSpaceId={searchSpaceId} canCreate={perms.canCreate} />
+				<AutomationsEmptyState
+					searchSpaceId={searchSpaceId}
+					canCreate={perms.canCreate}
+					modelViolations={modelViolations}
+				/>
 			</>
 		);
 	}
@@ -89,7 +107,12 @@ export function AutomationsContent({ searchSpaceId }: AutomationsContentProps) {
 				total={total}
 				loading={loading}
 				canCreate={perms.canCreate}
+				createDisabled={createDisabled}
+				disabledReason={disabledReason}
 			/>
+			{modelViolations.length > 0 && (
+				<AutomationModelGateAlert searchSpaceId={searchSpaceId} violations={modelViolations} />
+			)}
 			<AutomationsTable
 				automations={automations}
 				searchSpaceId={searchSpaceId}
