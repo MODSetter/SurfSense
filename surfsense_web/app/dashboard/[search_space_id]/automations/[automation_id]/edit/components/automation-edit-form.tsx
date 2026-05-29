@@ -9,10 +9,7 @@ import { JsonView } from "@/components/json-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import {
-	type Automation,
-	automationUpdateRequest,
-} from "@/contracts/types/automation.types";
+import { type Automation, automationUpdateRequest } from "@/contracts/types/automation.types";
 
 interface AutomationEditFormProps {
 	automation: Automation;

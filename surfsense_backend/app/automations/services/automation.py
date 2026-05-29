@@ -10,14 +10,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.automations.persistence.enums.trigger_type import TriggerType
+from app.automations.persistence.models.automation import Automation
+from app.automations.persistence.models.trigger import AutomationTrigger
 from app.automations.schemas.api import (
     AutomationCreate,
     AutomationUpdate,
     TriggerCreate,
 )
-from app.automations.persistence.enums.trigger_type import TriggerType
-from app.automations.persistence.models.automation import Automation
-from app.automations.persistence.models.trigger import AutomationTrigger
 from app.automations.triggers import get_trigger
 from app.automations.triggers.schedule import compute_next_fire_at
 from app.db import Permission, User, get_async_session
@@ -34,7 +34,9 @@ class AutomationService:
 
     async def create(self, payload: AutomationCreate) -> Automation:
         """Create an automation and its initial triggers in one transaction."""
-        await self._authorize(payload.search_space_id, Permission.AUTOMATIONS_CREATE.value)
+        await self._authorize(
+            payload.search_space_id, Permission.AUTOMATIONS_CREATE.value
+        )
 
         automation = Automation(
             search_space_id=payload.search_space_id,
@@ -67,22 +69,32 @@ class AutomationService:
         )
 
         rows = (
-            await self.session.execute(
-                base.order_by(Automation.created_at.desc()).limit(limit).offset(offset)
+            (
+                await self.session.execute(
+                    base.order_by(Automation.created_at.desc())
+                    .limit(limit)
+                    .offset(offset)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows), int(total or 0)
 
     async def get(self, automation_id: int) -> Automation:
         """Get an automation with its triggers loaded."""
         automation = await self._get_with_triggers_or_raise(automation_id)
-        await self._authorize(automation.search_space_id, Permission.AUTOMATIONS_READ.value)
+        await self._authorize(
+            automation.search_space_id, Permission.AUTOMATIONS_READ.value
+        )
         return automation
 
     async def update(self, automation_id: int, patch: AutomationUpdate) -> Automation:
         """Patch fields. Bumps ``version`` when ``definition`` changes."""
         automation = await self._get_with_triggers_or_raise(automation_id)
-        await self._authorize(automation.search_space_id, Permission.AUTOMATIONS_UPDATE.value)
+        await self._authorize(
+            automation.search_space_id, Permission.AUTOMATIONS_UPDATE.value
+        )
 
         data = patch.model_dump(exclude_unset=True)
 
@@ -93,7 +105,9 @@ class AutomationService:
         if "status" in data:
             automation.status = data["status"]
         if "definition" in data:
-            automation.definition = patch.definition.model_dump(mode="json", by_alias=True)
+            automation.definition = patch.definition.model_dump(
+                mode="json", by_alias=True
+            )
             automation.version += 1
 
         await self.session.commit()
@@ -102,7 +116,9 @@ class AutomationService:
     async def delete(self, automation_id: int) -> None:
         """Delete an automation; FK cascades remove triggers and runs."""
         automation = await self._get_or_raise(automation_id)
-        await self._authorize(automation.search_space_id, Permission.AUTOMATIONS_DELETE.value)
+        await self._authorize(
+            automation.search_space_id, Permission.AUTOMATIONS_DELETE.value
+        )
         await self.session.delete(automation)
         await self.session.commit()
 
@@ -141,7 +157,9 @@ def _build_trigger(spec: TriggerCreate) -> AutomationTrigger:
     """Validate trigger params via its registered Pydantic model and build the ORM row."""
     definition = get_trigger(spec.type.value)
     if definition is None:
-        raise HTTPException(status_code=422, detail=f"unknown trigger type {spec.type.value!r}")
+        raise HTTPException(
+            status_code=422, detail=f"unknown trigger type {spec.type.value!r}"
+        )
 
     try:
         validated = definition.params_model.model_validate(spec.params)

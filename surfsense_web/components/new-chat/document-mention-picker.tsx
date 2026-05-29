@@ -2,6 +2,7 @@
 
 import { useQuery as useZeroQuery } from "@rocicorp/zero/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import {
 	BookOpen,
 	ChevronLeft,
@@ -22,7 +23,6 @@ import {
 	useState,
 } from "react";
 import type { MentionedDocumentInfo } from "@/atoms/chat/mentioned-documents.atom";
-import { useAtomValue } from "jotai";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { getConnectorTitle } from "@/components/assistant-ui/connector-popup/constants/connector-constants";
 import { getConnectorDisplayName } from "@/components/assistant-ui/connector-popup/tabs/all-connectors-tab";
@@ -178,7 +178,9 @@ function useDebounced<T>(value: T, delay = DEBOUNCE_MS) {
 	return debounced;
 }
 
-function makeDocMention(doc: Pick<Document, "id" | "title" | "document_type">): MentionedDocumentInfo {
+function makeDocMention(
+	doc: Pick<Document, "id" | "title" | "document_type">
+): MentionedDocumentInfo {
 	return {
 		id: doc.id,
 		title: doc.title,
@@ -187,9 +189,10 @@ function makeDocMention(doc: Pick<Document, "id" | "title" | "document_type">): 
 	};
 }
 
-function makeFolderMention(
-	folder: { id: number; title: string }
-): Extract<MentionedDocumentInfo, { kind: "folder" }> {
+function makeFolderMention(folder: {
+	id: number;
+	title: string;
+}): Extract<MentionedDocumentInfo, { kind: "folder" }> {
 	return {
 		id: folder.id,
 		title: folder.title,
@@ -319,24 +322,24 @@ export const DocumentMentionPicker = forwardRef<
 
 	useEffect(() => {
 		if (currentPage !== 0) return;
-			const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
+		const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
 
-			if (surfsenseDocs?.items) {
-				for (const doc of surfsenseDocs.items) {
-					combinedDocs.push({
-						id: doc.id,
-						title: doc.title,
-						document_type: "SURFSENSE_DOCS",
-					});
-				}
+		if (surfsenseDocs?.items) {
+			for (const doc of surfsenseDocs.items) {
+				combinedDocs.push({
+					id: doc.id,
+					title: doc.title,
+					document_type: "SURFSENSE_DOCS",
+				});
 			}
+		}
 
-			if (titleSearchResults?.items) {
-				combinedDocs.push(...titleSearchResults.items);
-				setHasMore(titleSearchResults.has_more);
-			}
+		if (titleSearchResults?.items) {
+			combinedDocs.push(...titleSearchResults.items);
+			setHasMore(titleSearchResults.has_more);
+		}
 
-			setAccumulatedDocuments(filterBySearchTerm(combinedDocs));
+		setAccumulatedDocuments(filterBySearchTerm(combinedDocs));
 	}, [titleSearchResults, surfsenseDocs, currentPage, filterBySearchTerm]);
 
 	const loadNextPage = useCallback(async () => {
@@ -352,9 +355,11 @@ export const DocumentMentionPicker = forwardRef<
 				page_size: PAGE_SIZE,
 				...(isSearchValid ? { title: debouncedSearch.trim() } : {}),
 			};
-			const response: SearchDocumentTitlesResponse = await documentsApiService.searchDocumentTitles({
-				queryParams,
-			});
+			const response: SearchDocumentTitlesResponse = await documentsApiService.searchDocumentTitles(
+				{
+					queryParams,
+				}
+			);
 
 			setAccumulatedDocuments((prev) => [...prev, ...response.items]);
 			setHasMore(response.has_more);
@@ -431,7 +436,13 @@ export const DocumentMentionPicker = forwardRef<
 				)
 				.filter((mention): mention is MentionedDocumentInfo => mention !== null)
 				.slice(0, RECENTS_LIMIT),
-		[activeConnectors, hasHydratedRecentDocs, recentMentions, recentValidationDocuments, zeroFolders]
+		[
+			activeConnectors,
+			hasHydratedRecentDocs,
+			recentMentions,
+			recentValidationDocuments,
+			zeroFolders,
+		]
 	);
 
 	const selectedKeys = useMemo(
@@ -460,47 +471,46 @@ export const DocumentMentionPicker = forwardRef<
 		[visibleRecentMentions, selectedKeys]
 	);
 
-	const rootNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(
-		() => {
-			const nodes: ComposerSuggestionNode<ResourceNodeValue>[] = [...recentRootNodes];
-			if (showSurfsenseDocsRoot) {
-				nodes.push({
-					id: "surfsense-docs",
-					label: "SurfSense Docs",
-					subtitle: "Browse product documentation",
-					icon: <BookOpen className="size-4" />,
-					type: "branch",
-					value: { kind: "view", view: { kind: "surfsense-docs" } },
-				});
-			}
-			nodes.push(
-				{
-					id: "files-folders",
-					label: "Files & Folders",
-					subtitle: "Browse your knowledge base",
-					icon: <Files className="size-4" />,
-					type: "branch",
-					value: { kind: "view", view: { kind: "files-folders" } },
-				},
-				{
-					id: "connectors",
-					label: "Connectors",
-					subtitle: activeConnectors.length
-						? "Choose the exact account for tool use"
-						: "No connected accounts yet",
+	const rootNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
+		const nodes: ComposerSuggestionNode<ResourceNodeValue>[] = [...recentRootNodes];
+		if (showSurfsenseDocsRoot) {
+			nodes.push({
+				id: "surfsense-docs",
+				label: "SurfSense Docs",
+				subtitle: "Browse product documentation",
+				icon: <BookOpen className="size-4" />,
+				type: "branch",
+				value: { kind: "view", view: { kind: "surfsense-docs" } },
+			});
+		}
+		nodes.push(
+			{
+				id: "files-folders",
+				label: "Files & Folders",
+				subtitle: "Browse your knowledge base",
+				icon: <Files className="size-4" />,
+				type: "branch",
+				value: { kind: "view", view: { kind: "files-folders" } },
+			},
+			{
+				id: "connectors",
+				label: "Connectors",
+				subtitle: activeConnectors.length
+					? "Choose the exact account for tool use"
+					: "No connected accounts yet",
 				icon: <Unplug className="size-4" />,
-					type: "branch",
-					disabled: activeConnectors.length === 0,
-					value: { kind: "view", view: { kind: "connectors" } },
-				}
-			);
-			return nodes;
-		},
-		[activeConnectors.length, recentRootNodes, showSurfsenseDocsRoot]
-	);
+				type: "branch",
+				disabled: activeConnectors.length === 0,
+				value: { kind: "view", view: { kind: "connectors" } },
+			}
+		);
+		return nodes;
+	}, [activeConnectors.length, recentRootNodes, showSurfsenseDocsRoot]);
 
 	const searchNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
-		const searchLower = (isSingleCharSearch ? deferredSearch : debouncedSearch).trim().toLowerCase();
+		const searchLower = (isSingleCharSearch ? deferredSearch : debouncedSearch)
+			.trim()
+			.toLowerCase();
 		const docNodes = actualDocuments.map((doc) => {
 			const mention = makeDocMention(doc);
 			return {
@@ -619,7 +629,9 @@ export const DocumentMentionPicker = forwardRef<
 					id: getMentionDocKey(mention),
 					label: getConnectorDisplayName(connector.name),
 					subtitle: `${view.title} account`,
-					icon: getConnectorIcon(connector.connector_type, "size-4") ?? <Unplug className="size-4" />,
+					icon: getConnectorIcon(connector.connector_type, "size-4") ?? (
+						<Unplug className="size-4" />
+					),
 					type: "item" as const,
 					disabled: selectedKeys.has(getMentionDocKey(mention)),
 					value: { kind: "mention" as const, mention },
@@ -733,7 +745,7 @@ export const DocumentMentionPicker = forwardRef<
 								icon={
 									<span className="-ml-0.5 flex size-4.5 items-center justify-center">
 										<ChevronLeft className="size-3.5" />
-										</span>
+									</span>
 								}
 							>
 								<span className="flex-1 truncate">{title}</span>
@@ -759,7 +771,7 @@ export const DocumentMentionPicker = forwardRef<
 								return (
 									<Fragment key={node.id}>
 										{showRecentsSeparator ? <ComposerSuggestionSeparator /> : null}
-									<ComposerSuggestionItem
+										<ComposerSuggestionItem
 											ref={navigator.getItemRef(index)}
 											icon={node.icon}
 											selected={index === navigator.highlightedIndex}
@@ -776,11 +788,11 @@ export const DocumentMentionPicker = forwardRef<
 														{node.subtitle}
 													</span>
 												) : null}
-										</span>
+											</span>
 											{node.type === "branch" ? (
 												<ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
 											) : null}
-									</ComposerSuggestionItem>
+										</ComposerSuggestionItem>
 									</Fragment>
 								);
 							})}

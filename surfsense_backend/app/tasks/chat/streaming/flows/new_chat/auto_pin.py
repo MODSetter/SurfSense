@@ -69,17 +69,13 @@ async def resolve_initial_auto_pin(
                 "pin.requires_image_input": requires_image_input,
             },
         )
-        return AutoPinResult(
-            llm_config_id=pinned.resolved_llm_config_id, error=None
-        )
+        return AutoPinResult(llm_config_id=pinned.resolved_llm_config_id, error=None)
     except ValueError as pin_error:
         # The "no vision-capable cfg" path raises a ValueError whose message
         # we map to the friendly image-input SSE error so the user sees the
         # same message regardless of whether the gate fired in the resolver or
         # in ``llm_capability.assert_vision_capability_for_image_turn``.
-        is_vision_failure = (
-            requires_image_input and "vision-capable" in str(pin_error)
-        )
+        is_vision_failure = requires_image_input and "vision-capable" in str(pin_error)
         error_code = (
             "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"
             if is_vision_failure

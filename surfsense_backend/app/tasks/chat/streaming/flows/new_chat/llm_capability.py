@@ -48,9 +48,7 @@ def check_image_input_capability(
         return None
 
     model_label = agent_config.config_name or agent_config.model_name or "model"
-    ot.add_event(
-        "quota.denied", {"quota.code": "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"}
-    )
+    ot.add_event("quota.denied", {"quota.code": "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"})
     return (
         (
             f"The selected model ({model_label}) does not support "

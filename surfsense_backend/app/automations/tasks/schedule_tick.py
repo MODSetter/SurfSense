@@ -103,9 +103,7 @@ async def _self_heal_null_next_fire(session: AsyncSession, *, now: datetime) -> 
     await session.commit()
 
 
-async def _claim_due_triggers(
-    session: AsyncSession, *, now: datetime
-) -> list[_Claim]:
+async def _claim_due_triggers(session: AsyncSession, *, now: datetime) -> list[_Claim]:
     """Lock and advance due rows; return per-trigger fire context."""
     stmt = (
         select(AutomationTrigger)

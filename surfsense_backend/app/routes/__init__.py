@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 
+from app.automations.api import router as automations_router
+
 from .agent_action_log_route import router as agent_action_log_router
 from .agent_flags_route import router as agent_flags_router
 from .agent_permissions_route import router as agent_permissions_router
@@ -7,7 +9,6 @@ from .agent_revert_route import router as agent_revert_router
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
-from app.automations.api import router as automations_router
 from .chat_comments_routes import router as chat_comments_router
 from .circleback_webhook_route import router as circleback_webhook_router
 from .clickup_add_connector_route import router as clickup_add_connector_router

@@ -2605,7 +2605,6 @@ from app.automations.persistence import (  # noqa: E402, F401
     AutomationTrigger,
 )
 
-
 engine = create_async_engine(
     DATABASE_URL,
     pool_size=30,

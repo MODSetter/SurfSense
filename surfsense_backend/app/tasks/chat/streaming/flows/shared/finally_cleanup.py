@@ -39,9 +39,7 @@ async def close_session_and_clear_ai_responding(
             async with shielded_async_session() as fresh_session:
                 await clear_ai_responding(fresh_session, chat_id)
         except Exception:
-            logger.warning(
-                "Failed to clear AI responding state for thread %s", chat_id
-            )
+            logger.warning("Failed to clear AI responding state for thread %s", chat_id)
 
     with contextlib.suppress(Exception):
         session.expunge_all()

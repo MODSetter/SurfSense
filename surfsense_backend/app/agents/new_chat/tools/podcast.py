@@ -131,9 +131,7 @@ def create_generate_podcast_tool(
                     "podcast_id": podcast_id,
                     "title": podcast_title,
                     "file_location": file_location,
-                    "message": (
-                        "Podcast generated and saved to your podcast panel."
-                    ),
+                    "message": ("Podcast generated and saved to your podcast panel."),
                 }
 
             # Only other terminal state is FAILED.
@@ -146,9 +144,7 @@ def create_generate_podcast_tool(
                 "status": PodcastStatus.FAILED.value,
                 "podcast_id": podcast_id,
                 "title": podcast_title,
-                "error": (
-                    "Background worker reported FAILED status for this podcast."
-                ),
+                "error": ("Background worker reported FAILED status for this podcast."),
             }
 
         except Exception as e:

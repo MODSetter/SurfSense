@@ -16,6 +16,7 @@ import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { clearActivePodcastTaskId, setActivePodcastTaskId } from "@/lib/chat/podcast-state";
 import { BACKEND_URL } from "@/lib/env-config";
+
 /**
  * Zod schemas for runtime validation
  */
@@ -193,10 +194,10 @@ function PodcastPlayer({
 				} else {
 					// Authenticated view - fetch audio and details in parallel
 					const [audioResponse, details] = await Promise.all([
-						authenticatedFetch(
-							`${BACKEND_URL}/api/v1/podcasts/${podcastId}/audio`,
-							{ method: "GET", signal: controller.signal }
-						),
+						authenticatedFetch(`${BACKEND_URL}/api/v1/podcasts/${podcastId}/audio`, {
+							method: "GET",
+							signal: controller.signal,
+						}),
 						baseApiService.get<unknown>(`/api/v1/podcasts/${podcastId}`),
 					]);
 

@@ -78,11 +78,11 @@ import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import { BACKEND_URL } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
-import { BACKEND_URL } from "@/lib/env-config";
 
 const DesktopLocalTabContent = dynamic(
 	() => import("./DesktopLocalTabContent").then((mod) => mod.DesktopLocalTabContent),

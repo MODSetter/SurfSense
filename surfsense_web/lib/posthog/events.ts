@@ -1,6 +1,6 @@
+import type { ChatErrorKind, ChatErrorSeverity, ChatFlow } from "@/lib/chat/chat-error-classifier";
 import type { ConnectorTelemetryMeta } from "@/lib/connector-telemetry";
 import { getConnectorTelemetryMeta } from "@/lib/connector-telemetry";
-import type { ChatErrorKind, ChatErrorSeverity, ChatFlow } from "@/lib/chat/chat-error-classifier";
 
 /**
  * PostHog Analytics Event Definitions

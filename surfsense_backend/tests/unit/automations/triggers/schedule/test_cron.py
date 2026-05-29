@@ -45,8 +45,12 @@ def test_compute_next_fire_at_respects_dst_offset_change() -> None:
     winter_after = datetime(2026, 2, 15, 0, 0, tzinfo=UTC)
     summer_after = datetime(2026, 4, 15, 0, 0, tzinfo=UTC)
 
-    winter_fire = compute_next_fire_at("0 9 * * *", "America/New_York", after=winter_after)
-    summer_fire = compute_next_fire_at("0 9 * * *", "America/New_York", after=summer_after)
+    winter_fire = compute_next_fire_at(
+        "0 9 * * *", "America/New_York", after=winter_after
+    )
+    summer_fire = compute_next_fire_at(
+        "0 9 * * *", "America/New_York", after=summer_after
+    )
 
     assert winter_fire == datetime(2026, 2, 15, 14, 0, tzinfo=UTC)
     assert summer_fire == datetime(2026, 4, 15, 13, 0, tzinfo=UTC)

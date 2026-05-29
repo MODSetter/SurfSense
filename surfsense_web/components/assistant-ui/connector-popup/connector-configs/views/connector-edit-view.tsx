@@ -23,6 +23,7 @@ import { LIVE_CONNECTOR_TYPES } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { MCPServiceConfig } from "../components/mcp-service-config";
 import { getConnectorConfigComponent } from "../index";
+
 const VISION_LLM_CONNECTOR_TYPES = new Set<SearchSourceConnector["connector_type"]>([
 	EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
 	EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,

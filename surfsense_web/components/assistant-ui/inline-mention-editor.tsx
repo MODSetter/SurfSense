@@ -97,7 +97,12 @@ interface InlineMentionEditorProps {
 	onActionClose?: () => void;
 	onSubmit?: () => void;
 	onChange?: (text: string, docs: MentionedDocument[]) => void;
-	onDocumentRemove?: (docId: number, docType?: string, kind?: MentionKind, connectorType?: string) => void;
+	onDocumentRemove?: (
+		docId: number,
+		docType?: string,
+		kind?: MentionKind,
+		connectorType?: string
+	) => void;
 	onKeyDown?: (e: React.KeyboardEvent) => void;
 	disabled?: boolean;
 	className?: string;
@@ -171,9 +176,10 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 							{isFolder ? (
 								<FolderIcon className="h-3 w-3" />
 							) : isConnector ? (
-								getConnectorIcon(element.connector_type ?? element.document_type ?? "UNKNOWN", "h-3 w-3") ?? (
-									<PlugIcon className="h-3 w-3" />
-								)
+								(getConnectorIcon(
+									element.connector_type ?? element.document_type ?? "UNKNOWN",
+									"h-3 w-3"
+								) ?? <PlugIcon className="h-3 w-3" />)
 							) : (
 								getConnectorIcon(element.document_type ?? "UNKNOWN", "h-3 w-3")
 							)}
@@ -357,7 +363,11 @@ function getSelectionAnchorRect(root: HTMLElement | null): SuggestionAnchorRect 
 	const rect = range.getClientRects()[0] ?? range.getBoundingClientRect();
 	if (rect.width > 0 || rect.height > 0) return rectToAnchor(rect);
 
-	if (range.collapsed && range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset > 0) {
+	if (
+		range.collapsed &&
+		range.startContainer.nodeType === Node.TEXT_NODE &&
+		range.startOffset > 0
+	) {
 		const fallbackRange = range.cloneRange();
 		fallbackRange.setStart(range.startContainer, range.startOffset - 1);
 		fallbackRange.setEnd(range.startContainer, range.startOffset);

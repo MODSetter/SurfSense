@@ -69,11 +69,11 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import {
 	convertToThreadMessage,
 	reconcileInterruptedAssistantMessages,
 } from "@/lib/chat/message-utils";
-import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import {
 	isPodcastGenerating,
 	looksLikePodcastRequest,
@@ -110,6 +110,7 @@ import {
 	extractUserTurnForNewChatApi,
 	type NewChatUserImagePayload,
 } from "@/lib/chat/user-turn-api-parts";
+import { BACKEND_URL } from "@/lib/env-config";
 import { NotFoundError } from "@/lib/error";
 import {
 	trackChatBlocked,
@@ -119,7 +120,7 @@ import {
 	trackChatResponseReceived,
 } from "@/lib/posthog/events";
 import Loading from "../loading";
-import { BACKEND_URL } from "@/lib/env-config";
+
 const MobileEditorPanel = dynamic(
 	() =>
 		import("@/components/editor-panel/editor-panel").then((m) => ({
@@ -1977,14 +1978,12 @@ export default function NewChatPage() {
 					mentioned_folder_ids: regenerateFolderIds.length > 0 ? regenerateFolderIds : undefined,
 					mentioned_connector_ids:
 						regenerateConnectors.length > 0 ? regenerateConnectors.map((d) => d.id) : undefined,
-					mentioned_connectors:
-						regenerateConnectors.length > 0 ? regenerateConnectors : undefined,
+					mentioned_connectors: regenerateConnectors.length > 0 ? regenerateConnectors : undefined,
 					// Full mention metadata for the regenerate-specific
 					// source list. Only meaningful for edit (the BE only
 					// re-persists a user row when ``user_query`` is set);
 					// reload reuses the original turn's mentioned_documents.
-					mentioned_documents:
-						sourceMentionedDocs.length > 0 ? sourceMentionedDocs : undefined,
+					mentioned_documents: sourceMentionedDocs.length > 0 ? sourceMentionedDocs : undefined,
 				};
 				if (isEdit) {
 					requestBody.user_images = editExtras?.userImages ?? [];

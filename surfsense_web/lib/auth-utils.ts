@@ -2,6 +2,7 @@
  * Authentication utilities for handling token expiration and redirects
  */
 import { BACKEND_URL } from "@/lib/env-config";
+
 const REDIRECT_PATH_KEY = "surfsense_redirect_path";
 const BEARER_TOKEN_KEY = "surfsense_bearer_token";
 const REFRESH_TOKEN_KEY = "surfsense_refresh_token";

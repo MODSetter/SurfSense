@@ -98,9 +98,7 @@ def upgrade() -> None:
     op.execute(
         "CREATE INDEX ix_automation_triggers_automation_id ON automation_triggers(automation_id);"
     )
-    op.execute(
-        "CREATE INDEX ix_automation_triggers_type ON automation_triggers(type);"
-    )
+    op.execute("CREATE INDEX ix_automation_triggers_type ON automation_triggers(type);")
     op.execute(
         "CREATE INDEX ix_automation_triggers_enabled ON automation_triggers(enabled);"
     )

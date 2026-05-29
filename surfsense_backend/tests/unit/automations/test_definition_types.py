@@ -31,7 +31,7 @@ def test_action_definition_params_schema_reflects_params_model() -> None:
         name="N",
         description="D",
         params_model=_Topic,
-        build_handler=lambda _ctx: (lambda _p: {}),  # type: ignore[arg-type,return-value]
+        build_handler=lambda _ctx: lambda _p: {},  # type: ignore[arg-type,return-value]
     )
 
     schema = definition.params_schema

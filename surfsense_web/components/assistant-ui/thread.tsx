@@ -68,11 +68,6 @@ import {
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { ComposerSuggestionPopoverContent } from "@/components/new-chat/composer-suggestion-popup";
-import {
-	DocumentMentionPicker,
-	promoteRecentMention,
-	type DocumentMentionPickerRef,
-} from "../new-chat/document-mention-picker";
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -112,6 +107,11 @@ import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { slideoutOpenedTickAtom } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
+import {
+	DocumentMentionPicker,
+	type DocumentMentionPickerRef,
+	promoteRecentMention,
+} from "../new-chat/document-mention-picker";
 
 const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
 
@@ -601,21 +601,24 @@ const Composer: FC = () => {
 		}
 	}, []);
 
-	const handleActionTrigger = useCallback((trigger: SuggestionTriggerInfo) => {
-		const anchorPoint = getComposerSuggestionAnchorPoint(
-			trigger.anchorRect,
-			clipboardInitialText ? "bottom" : "top"
-		);
-		if (!anchorPoint) {
-			setShowPromptPicker(false);
-			setActionQuery("");
-			setSuggestionAnchorPoint(null);
-			return;
-		}
-		setSuggestionAnchorPoint((current) => current ?? anchorPoint);
-		setShowPromptPicker(true);
-		setActionQuery(trigger.query);
-	}, [clipboardInitialText]);
+	const handleActionTrigger = useCallback(
+		(trigger: SuggestionTriggerInfo) => {
+			const anchorPoint = getComposerSuggestionAnchorPoint(
+				trigger.anchorRect,
+				clipboardInitialText ? "bottom" : "top"
+			);
+			if (!anchorPoint) {
+				setShowPromptPicker(false);
+				setActionQuery("");
+				setSuggestionAnchorPoint(null);
+				return;
+			}
+			setSuggestionAnchorPoint((current) => current ?? anchorPoint);
+			setShowPromptPicker(true);
+			setActionQuery(trigger.query);
+		},
+		[clipboardInitialText]
+	);
 
 	const handleActionClose = useCallback(() => {
 		if (showPromptPicker) {
@@ -754,7 +757,12 @@ const Composer: FC = () => {
 	]);
 
 	const handleDocumentRemove = useCallback(
-		(docId: number, docType?: string, kind?: "doc" | "folder" | "connector", connectorType?: string) => {
+		(
+			docId: number,
+			docType?: string,
+			kind?: "doc" | "folder" | "connector",
+			connectorType?: string
+		) => {
 			setMentionedDocuments((prev) => {
 				const removedKey = getMentionDocKey({
 					id: docId,
@@ -768,27 +776,30 @@ const Composer: FC = () => {
 		[setMentionedDocuments]
 	);
 
-	const handleDocumentsMention = useCallback((mentions: MentionedDocumentInfo[]) => {
-		const parsedSearchSpaceId = Number(search_space_id);
-		const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
-		const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
+	const handleDocumentsMention = useCallback(
+		(mentions: MentionedDocumentInfo[]) => {
+			const parsedSearchSpaceId = Number(search_space_id);
+			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
+			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
-		for (const mention of mentions) {
-			const key = getMentionDocKey(mention);
-			if (editorDocKeys.has(key)) continue;
-			editorRef.current?.insertMentionChip(mention);
-			if (Number.isFinite(parsedSearchSpaceId)) {
-				promoteRecentMention(parsedSearchSpaceId, mention);
+			for (const mention of mentions) {
+				const key = getMentionDocKey(mention);
+				if (editorDocKeys.has(key)) continue;
+				editorRef.current?.insertMentionChip(mention);
+				if (Number.isFinite(parsedSearchSpaceId)) {
+					promoteRecentMention(parsedSearchSpaceId, mention);
+				}
+				// Track within the loop so a duplicate-in-batch can't double-insert.
+				editorDocKeys.add(key);
 			}
-			// Track within the loop so a duplicate-in-batch can't double-insert.
-			editorDocKeys.add(key);
-		}
 
-		// Atom is reconciled by ``handleEditorChange`` via the editor's
-		// onChange — no second write path here.
-		setMentionQuery("");
-		setSuggestionAnchorPoint(null);
-	}, [search_space_id]);
+			// Atom is reconciled by ``handleEditorChange`` via the editor's
+			// onChange — no second write path here.
+			setMentionQuery("");
+			setSuggestionAnchorPoint(null);
+		},
+		[search_space_id]
+	);
 
 	useEffect(() => {
 		const editor = editorRef.current;

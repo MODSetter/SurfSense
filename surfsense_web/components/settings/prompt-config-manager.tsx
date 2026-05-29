@@ -20,10 +20,7 @@ interface PromptConfigManagerProps {
 }
 
 export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps) {
-	const {
-		data: searchSpace,
-		isLoading: loading,
-	} = useQuery({
+	const { data: searchSpace, isLoading: loading } = useQuery({
 		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
 		queryFn: () => searchSpacesApiService.getSearchSpace({ id: searchSpaceId }),
 		enabled: !!searchSpaceId,
@@ -56,8 +53,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			});
 			toast.success("System instructions saved successfully");
 		} catch (error: unknown) {
-			const message =
-				error instanceof Error ? error.message : "Failed to save system instructions";
+			const message = error instanceof Error ? error.message : "Failed to save system instructions";
 			console.error("Error saving system instructions:", error);
 			toast.error(message);
 		}

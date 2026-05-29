@@ -221,10 +221,7 @@ export default async function FreeHubPage() {
 				<Separator className="my-12 max-w-4xl mx-auto" />
 
 				{/* In-content ad: above the model table */}
-				<aside
-					aria-label="Advertisement"
-					className="max-w-4xl mx-auto mb-8 min-h-[100px]"
-				>
+				<aside aria-label="Advertisement" className="max-w-4xl mx-auto mb-8 min-h-[100px]">
 					<AdUnit slot={ADSENSE_SLOTS.freeHubInContent} />
 				</aside>
 
@@ -353,10 +350,7 @@ export default async function FreeHubPage() {
 				<Separator className="my-12 max-w-4xl mx-auto" />
 
 				{/* In-content ad: after CTA, before FAQ */}
-				<aside
-					aria-label="Advertisement"
-					className="max-w-3xl mx-auto my-8 min-h-[100px]"
-				>
+				<aside aria-label="Advertisement" className="max-w-3xl mx-auto my-8 min-h-[100px]">
 					<AdUnit slot={ADSENSE_SLOTS.freeHubBeforeFaq} />
 				</aside>
 

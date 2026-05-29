@@ -16,10 +16,7 @@ interface AutomationEditContentProps {
  * structure but gates on ``canUpdate`` instead of ``canRead``: a user who
  * can read but not update is bounced to the access-denied panel.
  */
-export function AutomationEditContent({
-	searchSpaceId,
-	automationId,
-}: AutomationEditContentProps) {
+export function AutomationEditContent({ searchSpaceId, automationId }: AutomationEditContentProps) {
 	const perms = useAutomationPermissions();
 	const validId = Number.isInteger(automationId) && automationId > 0;
 	const { data: automation, isLoading, error } = useAutomation(validId ? automationId : undefined);

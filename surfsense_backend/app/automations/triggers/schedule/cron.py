@@ -32,6 +32,10 @@ def compute_next_fire_at(cron: str, timezone: str, *, after: datetime) -> dateti
     given timezone before evaluation so DST and IANA rules apply correctly.
     """
     tz = ZoneInfo(timezone)
-    base = after.astimezone(tz) if after.tzinfo else after.replace(tzinfo=UTC).astimezone(tz)
+    base = (
+        after.astimezone(tz)
+        if after.tzinfo
+        else after.replace(tzinfo=UTC).astimezone(tz)
+    )
     nxt: datetime = croniter(cron, base).get_next(datetime)
     return nxt.astimezone(UTC)

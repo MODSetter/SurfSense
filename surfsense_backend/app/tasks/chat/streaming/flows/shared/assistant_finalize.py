@@ -49,9 +49,7 @@ async def finalize_assistant_message(
     was never assigned.
     """
     if not (
-        stream_result
-        and stream_result.turn_id
-        and stream_result.assistant_message_id
+        stream_result and stream_result.turn_id and stream_result.assistant_message_id
     ):
         return
 

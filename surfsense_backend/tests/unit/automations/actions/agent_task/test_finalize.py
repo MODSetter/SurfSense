@@ -72,7 +72,11 @@ def test_extract_returns_none_when_no_assistant_text_is_present() -> None:
     anything?" rather than guess whether ``""`` means silence or empty
     output. Empty-string contents are normalized to ``None`` too."""
     no_ai = {"messages": [HumanMessage(content="just a question")]}
-    only_tools = {"messages": [AIMessage(content=[{"type": "tool_use", "name": "x", "input": {}}])]}
+    only_tools = {
+        "messages": [
+            AIMessage(content=[{"type": "tool_use", "name": "x", "input": {}}])
+        ]
+    }
     empty_string = {"messages": [AIMessage(content="   ")]}
 
     assert extract_final_assistant_message(no_ai) is None

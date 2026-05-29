@@ -29,7 +29,9 @@ class _Params(BaseModel):
 
 
 def _trigger(type_: str = "test_trigger") -> TriggerDefinition:
-    return TriggerDefinition(type=type_, description="Test trigger.", params_model=_Params)
+    return TriggerDefinition(
+        type=type_, description="Test trigger.", params_model=_Params
+    )
 
 
 def _action(type_: str = "test_action") -> ActionDefinition:
@@ -38,7 +40,7 @@ def _action(type_: str = "test_action") -> ActionDefinition:
         name="Test",
         description="Test action.",
         params_model=_Params,
-        build_handler=lambda _ctx: (lambda _p: {}),  # type: ignore[arg-type,return-value]
+        build_handler=lambda _ctx: lambda _p: {},  # type: ignore[arg-type,return-value]
     )
 
 

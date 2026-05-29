@@ -404,9 +404,7 @@ def build_task_tool_with_parent_config(
                 continue
             messages = payload.get("messages") or []
             last_text = _safe_message_text(messages[-1]).rstrip() if messages else ""
-            message_blocks.append(
-                f"[task {task_index}] {last_text or '<empty>'}"
-            )
+            message_blocks.append(f"[task {task_index}] {last_text or '<empty>'}")
             try:
                 child_trace = _build_tool_trace(messages)
             except Exception:

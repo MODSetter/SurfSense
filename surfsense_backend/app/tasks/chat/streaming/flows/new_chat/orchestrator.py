@@ -259,7 +259,8 @@ async def stream_new_chat(
 
         if needs_premium_quota(agent_config, user_id):
             premium_reservation = await reserve_premium(
-                agent_config=agent_config, user_id=user_id  # type: ignore[arg-type]
+                agent_config=agent_config,
+                user_id=user_id,  # type: ignore[arg-type]
             )
             if not premium_reservation.allowed:
                 ot.add_event("quota.denied", {"quota.code": "PREMIUM_QUOTA_EXHAUSTED"})
@@ -492,7 +493,9 @@ async def stream_new_chat(
 
         # --- Block 4: First SSE frames ---
 
-        for sse in iter_initial_frames(streaming_service, turn_id=stream_result.turn_id):
+        for sse in iter_initial_frames(
+            streaming_service, turn_id=stream_result.turn_id
+        ):
             yield sse
 
         # --- Block 5: Persistence join + message-id frames ---
@@ -693,7 +696,9 @@ async def stream_new_chat(
             fallback_commit_search_space_id=search_space_id,
             fallback_commit_created_by_id=user_id,
             fallback_commit_filesystem_mode=(
-                filesystem_selection.mode if filesystem_selection else FilesystemMode.CLOUD
+                filesystem_selection.mode
+                if filesystem_selection
+                else FilesystemMode.CLOUD
             ),
             fallback_commit_thread_id=chat_id,
             runtime_context=runtime_context,
@@ -715,11 +720,7 @@ async def stream_new_chat(
                 title_emitted = True
             # Account for the case where the task completed but produced no
             # title — flip the flag anyway so we don't keep checking it.
-            if (
-                title_task is not None
-                and title_task.done()
-                and not title_emitted
-            ):
+            if title_task is not None and title_task.done() and not title_emitted:
                 title_emitted = True
 
         _perf_log.info(
@@ -811,9 +812,7 @@ async def stream_new_chat(
             end_turn(str(chat_id))
 
             if premium_reservation is not None and user_id:
-                await release_premium(
-                    reservation=premium_reservation, user_id=user_id
-                )
+                await release_premium(reservation=premium_reservation, user_id=user_id)
 
             await close_session_and_clear_ai_responding(session, chat_id)
 
@@ -852,9 +851,9 @@ async def stream_new_chat(
 
         # Break circular refs held by the agent graph, tools, and LLM
         # wrappers so the GC can reclaim them in a single pass.
-        agent = llm = connector_service = None  # noqa: F841
-        input_state = stream_result = None  # noqa: F841
-        session = None  # noqa: F841
+        agent = llm = connector_service = None
+        input_state = stream_result = None
+        session = None
 
         run_gc_pass(log_prefix="stream_new_chat", chat_id=chat_id)
         close_chat_request_span(

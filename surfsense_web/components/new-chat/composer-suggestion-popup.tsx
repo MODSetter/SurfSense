@@ -117,7 +117,10 @@ const ComposerSuggestionItem = React.forwardRef<
 ));
 ComposerSuggestionItem.displayName = "ComposerSuggestionItem";
 
-function ComposerSuggestionSeparator({ className, ...props }: React.ComponentProps<typeof Separator>) {
+function ComposerSuggestionSeparator({
+	className,
+	...props
+}: React.ComponentProps<typeof Separator>) {
 	return (
 		<div className={cn("my-0.5 px-2.5", className)}>
 			<Separator className="bg-popover-border" {...props} />

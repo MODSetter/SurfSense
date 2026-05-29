@@ -50,7 +50,7 @@ class AutomationRun(BaseModel, TimestampMixin):
     definition_snapshot = Column(JSONB, nullable=False)
 
     # merged & validated inputs the run was dispatched with
-    # (trigger.static_inputs ∪ producer runtime data, static wins on collision)
+    # (trigger.static_inputs union producer runtime data, static wins on collision)
     inputs = Column(JSONB, nullable=False, server_default="{}")
     # one entry per executed step; agent_task entries carry their own
     # `agent_session_id` inside their entry

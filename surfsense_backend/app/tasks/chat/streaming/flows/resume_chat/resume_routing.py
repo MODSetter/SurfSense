@@ -47,9 +47,7 @@ async def build_resume_routing(
         slice_decisions_by_tool_call,
     )
 
-    parent_state = await agent.aget_state(
-        {"configurable": {"thread_id": str(chat_id)}}
-    )
+    parent_state = await agent.aget_state({"configurable": {"thread_id": str(chat_id)}})
     pending = collect_pending_tool_calls(parent_state)
     _perf_log.info(
         "[hitl_route] resume_entry chat_id=%s decisions=%d pending_subagents=%d",

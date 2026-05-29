@@ -127,9 +127,7 @@ def create_generate_video_presentation_tool(
 
         except Exception as e:
             error_message = str(e)
-            logger.exception(
-                "[generate_video_presentation] Error: %s", error_message
-            )
+            logger.exception("[generate_video_presentation] Error: %s", error_message)
             return {
                 "status": VideoPresentationStatus.FAILED.value,
                 "error": error_message,
