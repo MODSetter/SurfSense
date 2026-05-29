@@ -18,6 +18,11 @@ def build_handler(ctx: ActionContext) -> ActionHandler:
             ctx=ctx,
             query=validated.query,
             auto_approve_all=validated.auto_approve_all,
+            mentioned_document_ids=validated.mentioned_document_ids,
+            mentioned_folder_ids=validated.mentioned_folder_ids,
+            mentioned_connector_ids=validated.mentioned_connector_ids,
+            mentioned_connectors=validated.mentioned_connectors,
+            mentioned_documents=validated.mentioned_documents,
         )
 
     return handle

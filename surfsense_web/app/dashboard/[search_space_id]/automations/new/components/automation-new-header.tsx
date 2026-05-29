@@ -22,12 +22,9 @@ export function AutomationNewHeader({ searchSpaceId }: AutomationNewHeaderProps)
 
 			<div className="flex items-start justify-between gap-4 flex-wrap">
 				<div className="space-y-1">
-					<h1 className="text-xl md:text-2xl font-semibold text-foreground">
-						New automation · raw JSON
-					</h1>
+					<h1 className="text-xl md:text-2xl font-semibold text-foreground">New automation</h1>
 					<p className="text-sm text-muted-foreground max-w-2xl">
-						Paste an ``AutomationCreate`` payload and submit. Validated against the schema before
-						save. Prefer natural language? Use chat instead.
+						Set up a task and a schedule. Prefer natural language? Use chat instead.
 					</p>
 				</div>
 				<Button asChild variant="outline" size="sm">

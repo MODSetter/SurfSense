@@ -1,7 +1,7 @@
 "use client";
 import { ShieldAlert } from "lucide-react";
+import { AutomationBuilderForm } from "../components/builder/automation-builder-form";
 import { useAutomationPermissions } from "../hooks/use-automation-permissions";
-import { AutomationJsonForm } from "./components/automation-json-form";
 import { AutomationNewHeader } from "./components/automation-new-header";
 
 interface AutomationNewContentProps {
@@ -9,10 +9,10 @@ interface AutomationNewContentProps {
 }
 
 /**
- * Orchestrator for the raw-JSON create route. Gates on
- * ``automations:create`` so users who can't create don't even see the
- * form; same panel as the detail page's access-denied state for
- * consistency.
+ * Orchestrator for the create route. Gates on ``automations:create`` so users
+ * who can't create don't even see the form; same panel as the detail page's
+ * access-denied state for consistency. The builder defaults to the friendly
+ * form with a raw-JSON escape hatch.
  */
 export function AutomationNewContent({ searchSpaceId }: AutomationNewContentProps) {
 	const perms = useAutomationPermissions();
@@ -36,7 +36,7 @@ export function AutomationNewContent({ searchSpaceId }: AutomationNewContentProp
 	return (
 		<>
 			<AutomationNewHeader searchSpaceId={searchSpaceId} />
-			<AutomationJsonForm searchSpaceId={searchSpaceId} />
+			<AutomationBuilderForm mode="create" searchSpaceId={searchSpaceId} />
 		</>
 	);
 }

@@ -57,6 +57,13 @@ interface DocumentMentionPickerProps {
 	onDone: () => void;
 	initialSelectedDocuments?: MentionedDocumentInfo[];
 	externalSearch?: string;
+	/**
+	 * Whether to surface the "SurfSense Docs" (product documentation) branch
+	 * and include those docs in search results. Defaults to ``true`` so the
+	 * chat composer is unchanged; callers like the automation task input pass
+	 * ``false`` to reference only the user's own knowledge base + connectors.
+	 */
+	includeSurfsenseDocs?: boolean;
 }
 
 const PAGE_SIZE = 20;
@@ -228,7 +235,14 @@ export const DocumentMentionPicker = forwardRef<
 	DocumentMentionPickerRef,
 	DocumentMentionPickerProps
 >(function DocumentMentionPicker(
-	{ searchSpaceId, onSelectionChange, onDone, initialSelectedDocuments = [], externalSearch = "" },
+	{
+		searchSpaceId,
+		onSelectionChange,
+		onDone,
+		initialSelectedDocuments = [],
+		externalSearch = "",
+		includeSurfsenseDocs = true,
+	},
 	ref
 ) {
 	const search = externalSearch;
@@ -307,7 +321,7 @@ export const DocumentMentionPicker = forwardRef<
 		queryFn: ({ signal }) =>
 			documentsApiService.getSurfsenseDocs({ queryParams: surfsenseDocsQueryParams }, signal),
 		staleTime: 3 * 60 * 1000,
-		enabled: !hasSearch || isSearchValid,
+		enabled: includeSurfsenseDocs && (!hasSearch || isSearchValid),
 		placeholderData: keepPreviousData,
 	});
 
@@ -324,7 +338,7 @@ export const DocumentMentionPicker = forwardRef<
 		if (currentPage !== 0) return;
 		const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
 
-		if (surfsenseDocs?.items) {
+		if (includeSurfsenseDocs && surfsenseDocs?.items) {
 			for (const doc of surfsenseDocs.items) {
 				combinedDocs.push({
 					id: doc.id,
@@ -340,7 +354,7 @@ export const DocumentMentionPicker = forwardRef<
 		}
 
 		setAccumulatedDocuments(filterBySearchTerm(combinedDocs));
-	}, [titleSearchResults, surfsenseDocs, currentPage, filterBySearchTerm]);
+	}, [titleSearchResults, surfsenseDocs, currentPage, filterBySearchTerm, includeSurfsenseDocs]);
 
 	const loadNextPage = useCallback(async () => {
 		if (isLoadingMore || !hasMore) return;
@@ -449,7 +463,7 @@ export const DocumentMentionPicker = forwardRef<
 		() => new Set(initialSelectedDocuments.map((d) => getMentionDocKey(d))),
 		[initialSelectedDocuments]
 	);
-	const showSurfsenseDocsRoot = surfsenseDocsList.length > 0;
+	const showSurfsenseDocsRoot = includeSurfsenseDocs && surfsenseDocsList.length > 0;
 
 	const selectMention = useCallback(
 		(mention: MentionedDocumentInfo) => {

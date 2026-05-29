@@ -1,10 +1,11 @@
 "use client";
 import { ShieldAlert } from "lucide-react";
 import { useAutomation } from "@/hooks/use-automation";
+import { AutomationBuilderForm } from "../../components/builder/automation-builder-form";
 import { useAutomationPermissions } from "../../hooks/use-automation-permissions";
 import { AutomationDetailLoading } from "../components/automation-detail-loading";
 import { AutomationNotFound } from "../components/automation-not-found";
-import { AutomationEditForm } from "./components/automation-edit-form";
+import { AutomationEditHeader } from "./components/automation-edit-header";
 
 interface AutomationEditContentProps {
 	searchSpaceId: number;
@@ -49,5 +50,10 @@ export function AutomationEditContent({ searchSpaceId, automationId }: Automatio
 		return <AutomationNotFound searchSpaceId={searchSpaceId} error={error} />;
 	}
 
-	return <AutomationEditForm automation={automation} searchSpaceId={searchSpaceId} />;
+	return (
+		<>
+			<AutomationEditHeader automation={automation} searchSpaceId={searchSpaceId} />
+			<AutomationBuilderForm mode="edit" searchSpaceId={searchSpaceId} automation={automation} />
+		</>
+	);
 }
