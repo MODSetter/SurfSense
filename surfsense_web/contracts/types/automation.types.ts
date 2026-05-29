@@ -7,7 +7,7 @@ import { z } from "zod";
 export const automationStatus = z.enum(["active", "paused", "archived"]);
 export type AutomationStatus = z.infer<typeof automationStatus>;
 
-export const triggerType = z.enum(["schedule", "manual"]);
+export const triggerType = z.enum(["schedule", "manual", "event"]);
 export type TriggerType = z.infer<typeof triggerType>;
 
 export const runStatus = z.enum([
