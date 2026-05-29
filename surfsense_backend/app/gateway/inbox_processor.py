@@ -15,26 +15,19 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import config
 from app.db import (
-    ExternalChatBindingState,
+    ExternalChatAccount,
     ExternalChatBinding,
+    ExternalChatBindingState,
     ExternalChatEventStatus,
     ExternalChatInboundEvent,
     ExternalChatPeerKind,
-    ExternalChatAccount,
     NewChatThread,
     async_session_maker,
 )
-from app.gateway.accounts import account_token
 from app.gateway.agent_invoke import call_agent_for_gateway
+from app.gateway.base.commands import command_name
 from app.gateway.bindings import get_or_create_thread_for_binding
-from app.gateway.telegram.adapter import TelegramAdapter
-from app.gateway.telegram.commands import (
-    command_name,
-    handle_help_command,
-    handle_start_command,
-    send_unbound_onboarding,
-)
-from app.gateway.telegram.translator import TelegramStreamTranslator
+from app.gateway.registry import resolve_platform_bundle
 from app.observability.metrics import record_gateway_inbox_processed
 
 logger = logging.getLogger(__name__)
@@ -150,14 +143,15 @@ async def _dispatch_inbound_event(
             await session.commit()
             return
 
-        token = account_token(account)
-        if not token:
+        try:
+            bundle = resolve_platform_bundle(account)
+        except RuntimeError as exc:
             event.status = ExternalChatEventStatus.FAILED
-            event.last_error = "missing_telegram_token"
+            event.last_error = str(exc)
             await session.commit()
             return
 
-        adapter = TelegramAdapter(token)
+        adapter = bundle.adapter
         parsed = adapter.parse_inbound(event.raw_payload or {})
         if parsed.external_peer_id is None:
             event.status = ExternalChatEventStatus.IGNORED
@@ -179,7 +173,8 @@ async def _dispatch_inbound_event(
         binding = result.scalars().first()
 
         if parsed.external_peer_kind != ExternalChatPeerKind.DIRECT.value:
-            await adapter.leave_chat(external_peer_id=parsed.external_peer_id)
+            if hasattr(adapter, "leave_chat"):
+                await adapter.leave_chat(external_peer_id=parsed.external_peer_id)
             event.status = ExternalChatEventStatus.IGNORED
             event.last_error = "group_rejected"
             await session.commit()
@@ -187,7 +182,7 @@ async def _dispatch_inbound_event(
 
         cmd = command_name(parsed.text)
         if cmd == "/start":
-            handled = await handle_start_command(
+            handled = await bundle.commands.handle_start_command(
                 session=session, adapter=adapter, event=parsed
             )
             await session.commit()
@@ -195,23 +190,39 @@ async def _dispatch_inbound_event(
                 return
 
         if binding is None:
-            await send_unbound_onboarding(
-                adapter=adapter,
-                event=parsed,
-                dashboard_url=_dashboard_url(),
-            )
-            event.status = ExternalChatEventStatus.IGNORED
-            event.last_error = "unbound_chat"
-            await session.commit()
-            return
+            if bundle.auto_bind_owner and account.owner_user_id and account.owner_search_space_id:
+                binding = ExternalChatBinding(
+                    account_id=account.id,
+                    user_id=account.owner_user_id,
+                    search_space_id=account.owner_search_space_id,
+                    state=ExternalChatBindingState.BOUND,
+                    external_peer_id=parsed.external_peer_id,
+                    external_peer_kind=parsed.external_peer_kind,
+                    external_display_name=parsed.display_name,
+                    external_username=parsed.username,
+                    external_metadata=parsed.metadata,
+                )
+                session.add(binding)
+                await session.flush()
+            else:
+                await bundle.commands.send_unbound_onboarding(
+                    adapter=adapter,
+                    event=parsed,
+                    dashboard_url=_dashboard_url(),
+                )
+                event.status = ExternalChatEventStatus.IGNORED
+                event.last_error = "unbound_chat"
+                await session.commit()
+                return
 
         event.external_chat_binding_id = binding.id
 
         if cmd == "/help":
-            await handle_help_command(adapter=adapter, event=parsed)
-            event.status = ExternalChatEventStatus.PROCESSED
-            await session.commit()
-            return
+            handled = await bundle.commands.handle_help_command(adapter=adapter, event=parsed)
+            if handled:
+                event.status = ExternalChatEventStatus.PROCESSED
+                await session.commit()
+                return
         if cmd == "/new":
             binding.new_chat_thread_id = None
             await adapter.send_message(
@@ -231,21 +242,19 @@ async def _dispatch_inbound_event(
         thread = await get_or_create_thread_for_binding(session, binding)
         await session.commit()
 
-        translator = TelegramStreamTranslator(
-            adapter=adapter,
-            external_peer_id=parsed.external_peer_id,
-        )
+        translator = bundle.translator_factory(adapter, parsed)
         await call_agent_for_gateway(
             session=session,
             binding=binding,
             user_text=parsed.text,
             translator=translator,
+            platform_label=bundle.platform_label,
             request_id=event.request_id or f"gateway:{inbox_id}",
         )
 
         thread = await session.get(NewChatThread, thread.id)
         if thread is not None:
-            thread.source = "telegram"
+            thread.source = bundle.platform_label
         await session.commit()
 
 

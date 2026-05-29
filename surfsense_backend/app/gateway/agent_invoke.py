@@ -11,10 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import ExternalChatBinding, NewChatMessage
 from app.gateway.auth_invariant import assert_authorization_invariant
-from app.gateway.base.translator import GatewayStreamEvent
+from app.gateway.base.translator import BaseStreamTranslator, GatewayStreamEvent
 from app.gateway.bindings import get_or_create_thread_for_binding
 from app.gateway.hitl_filter import DEFAULT_HITL_TOOL_NAMES
-from app.gateway.telegram.translator import TelegramStreamTranslator
 from app.gateway.thread_lock import acquire_thread_lock, release_thread_lock
 from app.observability.metrics import record_gateway_turn_latency
 from app.tasks.chat.stream_new_chat import stream_new_chat
@@ -58,7 +57,8 @@ async def call_agent_for_gateway(
     session: AsyncSession,
     binding: ExternalChatBinding,
     user_text: str,
-    translator: TelegramStreamTranslator,
+    translator: BaseStreamTranslator,
+    platform_label: str = "telegram",
     request_id: str | None = None,
 ) -> None:
     user = await assert_authorization_invariant(session, binding)
@@ -92,10 +92,10 @@ async def call_agent_for_gateway(
                 NewChatMessage.thread_id == thread.id,
                 NewChatMessage.source == "surfsense",
             )
-            .values(source="telegram")
+            .values(source=platform_label)
         )
         await session.commit()
-        record_gateway_turn_latency(0, platform="telegram")
+        record_gateway_turn_latency(0, platform=platform_label)
     finally:
         release_thread_lock(thread.id)
 
