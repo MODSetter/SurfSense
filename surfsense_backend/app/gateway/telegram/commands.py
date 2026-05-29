@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.gateway.base.adapter import ParsedInboundEvent
+from app.gateway.base.commands import BaseGatewayCommands
 from app.gateway.pairing import redeem_pairing_code
 from app.gateway.ratelimit import acquire_token
 from app.gateway.telegram.adapter import TelegramAdapter
@@ -13,12 +14,6 @@ HELP_TEXT = (
     "/new - start a fresh conversation\n"
     "/help - show this help"
 )
-
-
-def command_name(text: str | None) -> str | None:
-    if not text or not text.startswith("/"):
-        return None
-    return text.split(maxsplit=1)[0].split("@", 1)[0].lower()
 
 
 async def handle_start_command(
@@ -89,3 +84,34 @@ async def send_unbound_onboarding(
         ),
     )
 
+
+class TelegramGatewayCommands(BaseGatewayCommands):
+    async def handle_start_command(
+        self,
+        *,
+        session,
+        adapter: TelegramAdapter,
+        event: ParsedInboundEvent,
+    ) -> bool:
+        return await handle_start_command(session=session, adapter=adapter, event=event)
+
+    async def handle_help_command(
+        self,
+        *,
+        adapter: TelegramAdapter,
+        event: ParsedInboundEvent,
+    ) -> bool:
+        return await handle_help_command(adapter=adapter, event=event)
+
+    async def send_unbound_onboarding(
+        self,
+        *,
+        adapter: TelegramAdapter,
+        event: ParsedInboundEvent,
+        dashboard_url: str,
+    ) -> None:
+        await send_unbound_onboarding(
+            adapter=adapter,
+            event=event,
+            dashboard_url=dashboard_url,
+        )
