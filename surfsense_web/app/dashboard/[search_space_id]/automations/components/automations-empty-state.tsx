@@ -1,5 +1,5 @@
 "use client";
-import { FileJson, MessageSquarePlus, Workflow } from "lucide-react";
+import { MessageSquarePlus, SquarePen, Workflow } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -35,8 +35,8 @@ export function AutomationsEmptyState({ searchSpaceId, canCreate }: AutomationsE
 					</Button>
 					<Button asChild variant="outline">
 						<Link href={`/dashboard/${searchSpaceId}/automations/new`}>
-							<FileJson className="mr-2 h-4 w-4" />
-							Create via JSON
+							<SquarePen className="mr-2 h-4 w-4" />
+							Create manually
 						</Link>
 					</Button>
 				</div>
