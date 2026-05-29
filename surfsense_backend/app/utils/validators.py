@@ -513,6 +513,12 @@ def validate_connector_config(
             ],
             "validators": {},
         },
+        "OXYLABS_API": {
+            # One Oxylabs AI Studio key powers both live web search and the
+            # single-URL extract used by scrape_webpage.
+            "required": ["OXYLABS_AI_STUDIO_API_KEY"],
+            "validators": {},
+        },
         # "SLACK_CONNECTOR": {
         #     "required": [],  # OAuth uses bot_token (encrypted), legacy uses SLACK_BOT_TOKEN
         #     "optional": [

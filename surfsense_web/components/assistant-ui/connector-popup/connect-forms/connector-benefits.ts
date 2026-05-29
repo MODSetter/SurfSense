@@ -33,6 +33,11 @@ export function getConnectorBenefits(connectorType: string): string[] | null {
 			"Real-time information from Baidu's search index",
 			"AI-powered summarization with source references",
 		],
+		OXYLABS_API: [
+			"Real-time web search results for your queries",
+			"Single-URL content extraction for the scrape tool",
+			"One API key powers both search and extract",
+		],
 		SLACK_CONNECTOR: [
 			"Search through all your Slack messages and conversations",
 			"Access messages from public and private channels",

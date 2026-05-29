@@ -45,6 +45,7 @@ dependencies = [
     "flower>=2.0.1",
     "redis>=5.2.1",
     "firecrawl-py>=4.9.0",
+    "oxylabs-ai-studio>=0.2.20",
     "boto3>=1.35.0",
     "fake-useragent>=2.2.0",
     "trafilatura>=2.0.0",

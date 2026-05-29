@@ -14,6 +14,7 @@ const INTEGRATIONS: Integration[] = [
 	{ name: "Elasticsearch", icon: "/connectors/elasticsearch.svg" },
 	{ name: "Baidu Search", icon: "/connectors/baidu-search.svg" },
 	{ name: "SearXNG", icon: "/connectors/searxng.svg" },
+	{ name: "Oxylabs", icon: "/connectors/oxylabs.svg" },
 
 	// Communication
 	{ name: "Slack", icon: "/connectors/slack.svg" },

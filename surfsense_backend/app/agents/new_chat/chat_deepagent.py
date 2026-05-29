@@ -146,13 +146,14 @@ def _resolve_prompt_model_name(
 
 # Maps SearchSourceConnectorType enum values to the searchable document/connector types
 # used by pre-search middleware and web_search.
-# Live search connectors (TAVILY_API, LINKUP_API, BAIDU_SEARCH_API) are routed to
-# the web_search tool; all others are considered local/indexed data.
+# Live search connectors (TAVILY_API, LINKUP_API, BAIDU_SEARCH_API, OXYLABS_API)
+# are routed to the web_search tool; all others are considered local/indexed data.
 _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
     # Live search connectors (handled by web_search tool)
     "TAVILY_API": "TAVILY_API",
     "LINKUP_API": "LINKUP_API",
     "BAIDU_SEARCH_API": "BAIDU_SEARCH_API",
+    "OXYLABS_API": "OXYLABS_API",
     # Local/indexed connectors (handled by KB pre-search middleware)
     "SLACK_CONNECTOR": "SLACK_CONNECTOR",
     "TEAMS_CONNECTOR": "TEAMS_CONNECTOR",
@@ -247,6 +248,7 @@ async def create_surfsense_deep_agent(
     disabled_tools: list[str] | None = None,
     additional_tools: Sequence[BaseTool] | None = None,
     firecrawl_api_key: str | None = None,
+    oxylabs_api_key: str | None = None,
     thread_visibility: ChatVisibility | None = None,
     mentioned_document_ids: list[int] | None = None,
     anon_session_id: str | None = None,
@@ -285,7 +287,8 @@ async def create_surfsense_deep_agent(
         additional_tools: Extra custom tools to add beyond the built-in ones.
                          These are always added regardless of enabled/disabled settings.
         firecrawl_api_key: Optional Firecrawl API key for premium web scraping.
-                          Falls back to Chromium/Trafilatura if not provided.
+        oxylabs_api_key: Optional Oxylabs AI Studio API key for premium web scraping.
+                          Falls back to Chromium/Trafilatura if neither key is provided.
 
     Returns:
         CompiledStateGraph: The configured deep agent
@@ -396,6 +399,7 @@ async def create_surfsense_deep_agent(
         "db_session": db_session,
         "connector_service": connector_service,
         "firecrawl_api_key": firecrawl_api_key,
+        "oxylabs_api_key": oxylabs_api_key,
         "user_id": user_id,
         "thread_id": thread_id,
         "thread_visibility": visibility,

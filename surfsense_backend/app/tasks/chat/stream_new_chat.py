@@ -511,6 +511,7 @@ async def _build_main_agent_for_thread(
     thread_id: int | None,
     agent_config: AgentConfig | None,
     firecrawl_api_key: str | None,
+    oxylabs_api_key: str | None,
     thread_visibility: ChatVisibility | None,
     filesystem_selection: FilesystemSelection | None,
     disabled_tools: list[str] | None = None,
@@ -529,6 +530,7 @@ async def _build_main_agent_for_thread(
         thread_id=thread_id,
         agent_config=agent_config,
         firecrawl_api_key=firecrawl_api_key,
+        oxylabs_api_key=oxylabs_api_key,
         thread_visibility=thread_visibility,
         filesystem_selection=filesystem_selection,
         disabled_tools=disabled_tools,
@@ -1173,8 +1175,17 @@ async def stream_new_chat(
         )
         if webcrawler_connector and webcrawler_connector.config:
             firecrawl_api_key = webcrawler_connector.config.get("FIRECRAWL_API_KEY")
+
+        # The Oxylabs connector powers both web search and single-URL extract;
+        # source the extract key from it so scrape_webpage can use Oxylabs.
+        oxylabs_api_key = None
+        oxylabs_connector = await connector_service.get_connector_by_type(
+            SearchSourceConnectorType.OXYLABS_API, search_space_id
+        )
+        if oxylabs_connector and oxylabs_connector.config:
+            oxylabs_api_key = oxylabs_connector.config.get("OXYLABS_AI_STUDIO_API_KEY")
         _perf_log.info(
-            "[stream_new_chat] Connector service + firecrawl key in %.3fs",
+            "[stream_new_chat] Connector service + scrape keys in %.3fs",
             time.perf_counter() - _t0,
         )
 
@@ -1211,6 +1222,7 @@ async def stream_new_chat(
             thread_id=chat_id,
             agent_config=agent_config,
             firecrawl_api_key=firecrawl_api_key,
+            oxylabs_api_key=oxylabs_api_key,
             thread_visibility=visibility,
             filesystem_selection=filesystem_selection,
             disabled_tools=disabled_tools,
@@ -1851,6 +1863,7 @@ async def stream_new_chat(
                     thread_id=chat_id,
                     agent_config=agent_config,
                     firecrawl_api_key=firecrawl_api_key,
+                    oxylabs_api_key=oxylabs_api_key,
                     thread_visibility=visibility,
                     filesystem_selection=filesystem_selection,
                     disabled_tools=disabled_tools,
@@ -2440,8 +2453,17 @@ async def stream_resume_chat(
         )
         if webcrawler_connector and webcrawler_connector.config:
             firecrawl_api_key = webcrawler_connector.config.get("FIRECRAWL_API_KEY")
+
+        # The Oxylabs connector powers both web search and single-URL extract;
+        # source the extract key from it so scrape_webpage can use Oxylabs.
+        oxylabs_api_key = None
+        oxylabs_connector = await connector_service.get_connector_by_type(
+            SearchSourceConnectorType.OXYLABS_API, search_space_id
+        )
+        if oxylabs_connector and oxylabs_connector.config:
+            oxylabs_api_key = oxylabs_connector.config.get("OXYLABS_AI_STUDIO_API_KEY")
         _perf_log.info(
-            "[stream_resume] Connector service + firecrawl key in %.3fs",
+            "[stream_resume] Connector service + scrape keys in %.3fs",
             time.perf_counter() - _t0,
         )
 
@@ -2475,6 +2497,7 @@ async def stream_resume_chat(
             thread_id=chat_id,
             agent_config=agent_config,
             firecrawl_api_key=firecrawl_api_key,
+            oxylabs_api_key=oxylabs_api_key,
             thread_visibility=visibility,
             filesystem_selection=filesystem_selection,
             disabled_tools=disabled_tools,
@@ -2684,6 +2707,7 @@ async def stream_resume_chat(
                     thread_id=chat_id,
                     agent_config=agent_config,
                     firecrawl_api_key=firecrawl_api_key,
+                    oxylabs_api_key=oxylabs_api_key,
                     thread_visibility=visibility,
                     filesystem_selection=filesystem_selection,
                     disabled_tools=disabled_tools,

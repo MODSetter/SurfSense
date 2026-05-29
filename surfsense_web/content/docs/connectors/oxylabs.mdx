@@ -1,0 +1,93 @@
+---
+title: Oxylabs
+description: Add web search and single-URL extract with Oxylabs AI Studio in SurfSense
+---
+
+# Oxylabs Integration Setup Guide
+
+This guide walks you through connecting Oxylabs AI Studio to SurfSense for live web search and single-URL content extraction.
+
+## How it works
+
+The Oxylabs connector uses [Oxylabs AI Studio](https://aistudio.oxylabs.io/). A single API key powers two capabilities:
+
+- **Web search** — a live search connector. SurfSense queries Oxylabs when the assistant needs current web results, in parallel with SearXNG and any other configured search engines. Results are returned as sources that can be cited in chat responses.
+- **Single-URL extract** — when the assistant reads a specific page (the `scrape_webpage` tool), it uses Oxylabs to fetch and convert the page to markdown, falling back to the built-in crawler if Oxylabs is unavailable.
+
+It does not create indexed documents in your knowledge base and does not run a periodic crawler.
+
+---
+
+## Authorization
+
+<Callout type="info" title="API Key Required">
+You need an Oxylabs AI Studio API key to use this connector. The key is encrypted and stored securely by SurfSense.
+</Callout>
+
+### Step 1: Get Your Oxylabs AI Studio API Key
+
+1. Open the [Oxylabs AI Studio API key page](https://aistudio.oxylabs.io/api-key) and sign in.
+2. Generate or copy your API key.
+3. SurfSense stores it as the `OXYLABS_AI_STUDIO_API_KEY` connector setting.
+
+<Callout type="warn">
+Keep this key private. Do not paste it into chat messages, issue reports, screenshots, or public repositories.
+</Callout>
+
+---
+
+## Connecting to SurfSense
+
+1. Navigate to **Connectors** → **Add Connector** → **Oxylabs**.
+2. Fill in the required fields:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Connector Name** | A friendly name to identify this connector | `Oxylabs` |
+| **Oxylabs AI Studio API Key** | Your AI Studio API key | `oxy-...` |
+
+3. Click **Connect** to save the connector.
+4. Ask a current-events question in chat to trigger web search, or paste a URL and ask the assistant to read it to trigger extract.
+
+---
+
+## When to Use Oxylabs
+
+| Use Case | Why Oxylabs Helps |
+|----------|-------------------|
+| Current events and fresh web facts | Live search results merged with your other engines |
+| Reading a specific page | Markdown extraction for the `scrape_webpage` tool |
+| Sites that block lightweight fetching | Premium scraping before the built-in HTTP/Chromium fallback |
+| Cross-checking web search | Adds another source alongside SearXNG, Tavily, or Linkup |
+
+<Callout type="info" title="Live Search Connector">
+Oxylabs does not create indexed documents in your knowledge base. It runs when the assistant calls web search or reads a URL, then returns live results for that answer.
+</Callout>
+
+---
+
+## Troubleshooting
+
+**No Oxylabs results appear**
+
+- Confirm the Oxylabs connector is active in the current search space.
+- Check whether other web search engines are returning results. If none are, review the general [Web Search](/docs/how-to/web-search) setup.
+
+**Authentication failed**
+
+- Verify that the API key was copied from [aistudio.oxylabs.io/api-key](https://aistudio.oxylabs.io/api-key) without extra whitespace.
+- Regenerate the API key if it was rotated or expired.
+
+**Extraction is slow or times out**
+
+- Oxylabs submits a scrape job and polls for completion, which can take longer than a lightweight fetch for heavy pages.
+- If a page consistently times out, the assistant falls back to the built-in crawler automatically.
+
+---
+
+## Verification Checklist
+
+- The Oxylabs connector appears in your connector list.
+- A current-events query triggers web search in chat with Oxylabs-backed sources.
+- Asking the assistant to read a URL returns markdown content.
+- Invalid API keys fail without breaking other configured search engines.

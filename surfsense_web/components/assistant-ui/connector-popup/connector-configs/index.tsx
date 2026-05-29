@@ -24,6 +24,8 @@ const configMap: Record<string, () => Promise<{ default: FC<ConnectorConfigProps
 		import("./components/baidu-search-api-config").then((m) => ({
 			default: m.BaiduSearchApiConfig,
 		})),
+	OXYLABS_API: () =>
+		import("./components/oxylabs-api-config").then((m) => ({ default: m.OxylabsApiConfig })),
 	WEBCRAWLER_CONNECTOR: () =>
 		import("./components/webcrawler-config").then((m) => ({ default: m.WebcrawlerConfig })),
 	ELASTICSEARCH_CONNECTOR: () =>

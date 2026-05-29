@@ -27,6 +27,7 @@ _LIVE_SEARCH_CONNECTORS: set[str] = {
     "TAVILY_API",
     "LINKUP_API",
     "BAIDU_SEARCH_API",
+    "OXYLABS_API",
 }
 
 # Patterns that indicate the query has no meaningful search signal.
@@ -490,6 +491,7 @@ def format_documents_for_context(
         "TAVILY_API",
         "LINKUP_API",
         "BAIDU_SEARCH_API",
+        "OXYLABS_API",
     }
 
     # Render XML expected by citation instructions, respecting the char budget.

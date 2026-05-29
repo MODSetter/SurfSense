@@ -84,6 +84,7 @@ class SearchSourceConnectorType(StrEnum):
     SEARXNG_API = "SEARXNG_API"
     LINKUP_API = "LINKUP_API"
     BAIDU_SEARCH_API = "BAIDU_SEARCH_API"  # Baidu AI Search API for Chinese web search
+    OXYLABS_API = "OXYLABS_API"  # Oxylabs AI Studio: web search + extract
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
     TEAMS_CONNECTOR = "TEAMS_CONNECTOR"
     ONEDRIVE_CONNECTOR = "ONEDRIVE_CONNECTOR"

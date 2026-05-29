@@ -61,6 +61,7 @@ _CONNECTOR_TYPE_LABEL: dict[str, str] = {
     SearchSourceConnectorType.SEARXNG_API: "SearXNG Search",
     SearchSourceConnectorType.LINKUP_API: "Linkup Search",
     SearchSourceConnectorType.BAIDU_SEARCH_API: "Baidu Search",
+    SearchSourceConnectorType.OXYLABS_API: "Oxylabs",
     SearchSourceConnectorType.SLACK_CONNECTOR: "Slack",
     SearchSourceConnectorType.TEAMS_CONNECTOR: "Teams",
     SearchSourceConnectorType.ONEDRIVE_CONNECTOR: "OneDrive",

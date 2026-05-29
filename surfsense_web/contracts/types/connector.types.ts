@@ -7,6 +7,7 @@ export const searchSourceConnectorTypeEnum = z.enum([
 	"SEARXNG_API",
 	"LINKUP_API",
 	"BAIDU_SEARCH_API",
+	"OXYLABS_API",
 	"SLACK_CONNECTOR",
 	"TEAMS_CONNECTOR",
 	"ONEDRIVE_CONNECTOR",

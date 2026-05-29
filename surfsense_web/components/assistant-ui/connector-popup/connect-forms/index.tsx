@@ -37,6 +37,10 @@ const formMap: Record<string, () => Promise<{ default: FC<ConnectFormProps> }>> 
 		import("./components/baidu-search-api-connect-form").then((m) => ({
 			default: m.BaiduSearchApiConnectForm,
 		})),
+	OXYLABS_API: () =>
+		import("./components/oxylabs-api-connect-form").then((m) => ({
+			default: m.OxylabsApiConnectForm,
+		})),
 	ELASTICSEARCH_CONNECTOR: () =>
 		import("./components/elasticsearch-connect-form").then((m) => ({
 			default: m.ElasticsearchConnectForm,

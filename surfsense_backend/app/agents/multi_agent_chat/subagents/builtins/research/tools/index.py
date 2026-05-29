@@ -26,6 +26,9 @@ def load_tools(
             search_space_id=d.get("search_space_id"),
             available_connectors=d.get("available_connectors"),
         ),
-        create_scrape_webpage_tool(firecrawl_api_key=d.get("firecrawl_api_key")),
+        create_scrape_webpage_tool(
+            firecrawl_api_key=d.get("firecrawl_api_key"),
+            oxylabs_api_key=d.get("oxylabs_api_key"),
+        ),
         create_search_surfsense_docs_tool(db_session=d["db_session"]),
     ]

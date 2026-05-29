@@ -159,13 +159,17 @@ async def _scrape_youtube_video(
     }
 
 
-def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
+def create_scrape_webpage_tool(
+    firecrawl_api_key: str | None = None,
+    oxylabs_api_key: str | None = None,
+):
     """
     Factory function to create the scrape_webpage tool.
 
     Args:
         firecrawl_api_key: Optional Firecrawl API key for premium web scraping.
-                          Falls back to Chromium/Trafilatura if not provided.
+        oxylabs_api_key: Optional Oxylabs AI Studio API key for premium web scraping.
+                         Falls back to Chromium/Trafilatura if neither key is provided.
 
     Returns:
         A configured tool function for scraping webpages.
@@ -223,7 +227,10 @@ def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
                 return await _scrape_youtube_video(url, video_id, max_length)
 
             # Create webcrawler connector
-            connector = WebCrawlerConnector(firecrawl_api_key=firecrawl_api_key)
+            connector = WebCrawlerConnector(
+                firecrawl_api_key=firecrawl_api_key,
+                oxylabs_api_key=oxylabs_api_key,
+            )
 
             # Crawl the URL
             result, error = await connector.crawl_url(url, formats=["markdown"])

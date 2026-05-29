@@ -36,6 +36,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <Image src="/connectors/searxng.svg" alt="SearXNG" {...imgProps} />;
 		case EnumConnectorName.BAIDU_SEARCH_API:
 			return <Image src="/connectors/baidu-search.svg" alt="Baidu" {...imgProps} />;
+		case EnumConnectorName.OXYLABS_API:
+			return <Image src="/connectors/oxylabs.svg" alt="Oxylabs" {...imgProps} />;
 		case EnumConnectorName.SLACK_CONNECTOR:
 			return <Image src="/connectors/slack.svg" alt="Slack" {...imgProps} />;
 		case EnumConnectorName.TEAMS_CONNECTOR:

@@ -7,7 +7,7 @@ description: How SurfSense web search works and how to configure it for producti
 
 SurfSense uses [SearXNG](https://docs.searxng.org/) as a bundled meta-search engine to provide web search across all search spaces. SearXNG aggregates results from multiple search engines (Google, DuckDuckGo, Brave, Bing, and more) without requiring any API keys.
 
-You can also add live search connectors such as Baidu Search, Tavily, and Linkup to a search space. When those connectors are active, SurfSense queries them in parallel with SearXNG and merges the results before passing sources to the assistant.
+You can also add live search connectors such as Baidu Search, Tavily, Linkup, and Oxylabs to a search space. When those connectors are active, SurfSense queries them in parallel with SearXNG and merges the results before passing sources to the assistant.
 
 ## How It Works
 
@@ -30,6 +30,7 @@ Live search connectors are optional API-backed search providers configured per s
 | Baidu Search | Chinese web search and China-focused current information | [Baidu Search connector](/docs/connectors/baidu-search) |
 | Tavily | General web research through Tavily's search API | Add the Tavily connector from the Connectors dashboard |
 | Linkup | General web search through Linkup's search API | Add the Linkup connector from the Connectors dashboard |
+| Oxylabs | General web search plus single-URL extract via Oxylabs AI Studio | [Oxylabs connector](/docs/connectors/oxylabs) |
 
 <Callout type="info" title="Search Space Scoped">
 Live search connectors only run for the search space where they are configured. They do not replace SearXNG globally.

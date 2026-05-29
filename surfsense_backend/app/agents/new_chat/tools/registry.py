@@ -223,8 +223,9 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         description="Scrape and extract the main content from a webpage",
         factory=lambda deps: create_scrape_webpage_tool(
             firecrawl_api_key=deps.get("firecrawl_api_key"),
+            oxylabs_api_key=deps.get("oxylabs_api_key"),
         ),
-        requires=[],  # firecrawl_api_key is optional
+        requires=[],  # firecrawl_api_key / oxylabs_api_key are optional
     ),
     # Web search tool — real-time web search via SearXNG + user-configured engines
     ToolDefinition(

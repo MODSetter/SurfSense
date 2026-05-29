@@ -186,6 +186,12 @@ export const OTHER_CONNECTORS = [
 		connectorType: EnumConnectorName.BAIDU_SEARCH_API,
 	},
 	{
+		id: "oxylabs-api",
+		title: "Oxylabs",
+		description: "Web search and single-URL extract with Oxylabs AI Studio",
+		connectorType: EnumConnectorName.OXYLABS_API,
+	},
+	{
 		id: "circleback-connector",
 		title: "Circleback",
 		description: "Receive meeting notes, transcripts",

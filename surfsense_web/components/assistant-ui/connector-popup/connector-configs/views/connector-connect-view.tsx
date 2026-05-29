@@ -13,6 +13,7 @@ const FORM_ID_MAP: Record<string, string> = {
 	TAVILY_API: "tavily-connect-form",
 	LINKUP_API: "linkup-api-connect-form",
 	BAIDU_SEARCH_API: "baidu-search-api-connect-form",
+	OXYLABS_API: "oxylabs-connect-form",
 	ELASTICSEARCH_CONNECTOR: "elasticsearch-connect-form",
 	BOOKSTACK_CONNECTOR: "bookstack-connect-form",
 	GITHUB_CONNECTOR: "github-connect-form",

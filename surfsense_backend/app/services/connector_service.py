@@ -584,6 +584,114 @@ class ConnectorService:
                 "sources": [],
             }, []
 
+    async def search_oxylabs(
+        self, user_query: str, search_space_id: int, top_k: int = 20
+    ) -> tuple:
+        """
+        Search using Oxylabs AI Studio and return both the source information
+        and documents.
+
+        Live search connector: queries Oxylabs when the assistant needs current
+        web results instead of indexing content into the knowledge base. Returns
+        listings only (``return_content=False``); per-URL content belongs to the
+        ``scrape_webpage`` extract tool, which can be backed by the same Oxylabs
+        connector.
+
+        Args:
+            user_query: The user's query
+            search_space_id: The search space ID
+            top_k: Maximum number of results to return
+
+        Returns:
+            tuple: (sources_info, documents)
+        """
+        empty_result = {
+            "id": 13,
+            "name": "Oxylabs",
+            "type": "OXYLABS_API",
+            "sources": [],
+        }
+
+        # Get Oxylabs connector configuration
+        oxylabs_connector = await self.get_connector_by_type(
+            SearchSourceConnectorType.OXYLABS_API, search_space_id
+        )
+
+        if not oxylabs_connector or not oxylabs_connector.config:
+            return empty_result, []
+
+        api_key = oxylabs_connector.config.get("OXYLABS_AI_STUDIO_API_KEY")
+        if not api_key:
+            print("ERROR: Oxylabs connector is missing OXYLABS_AI_STUDIO_API_KEY")
+            return empty_result, []
+
+        # Lazy import keeps the SDK out of the import path for deployments that
+        # never configure an Oxylabs connector.
+        from oxylabs_ai_studio.apps.ai_search import AiSearch
+
+        from app.utils.oxylabs import ensure_integration_tag
+
+        ensure_integration_tag()
+        try:
+            client = AiSearch(api_key=api_key)
+            # search_async polls with ``await asyncio.sleep`` so it never blocks
+            # the event loop. return_content=False returns listings only.
+            job = await client.search_async(
+                query=user_query,
+                limit=top_k,
+                return_content=False,
+            )
+        except Exception as e:
+            print(f"Error searching with Oxylabs: {e!s}")
+            return empty_result, []
+
+        results = job.data or []
+        if not results:
+            return empty_result, []
+
+        sources_list = []
+        documents = []
+
+        async with self.counter_lock:
+            for result in results:
+                url = getattr(result, "url", "") or ""
+                title = getattr(result, "title", "") or "Oxylabs Result"
+                description = getattr(result, "description", "") or ""
+
+                source = {
+                    "id": self.source_id_counter,
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                }
+                sources_list.append(source)
+
+                document = {
+                    "chunk_id": self.source_id_counter,
+                    "content": description,
+                    "score": 0.0,
+                    "document": {
+                        "id": self.source_id_counter,
+                        "title": title,
+                        "document_type": "OXYLABS_API",
+                        "metadata": {
+                            "url": url,
+                            "source": "OXYLABS_API",
+                        },
+                    },
+                }
+                documents.append(document)
+                self.source_id_counter += 1
+
+        result_object = {
+            "id": 13,
+            "name": "Oxylabs",
+            "type": "OXYLABS_API",
+            "sources": sources_list,
+        }
+
+        return result_object, documents
+
     async def search_searxng(
         self,
         user_query: str,

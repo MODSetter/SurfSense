@@ -2,13 +2,14 @@
 WebCrawler Connector Module
 
 A module for crawling web pages and extracting content using Firecrawl,
-plain HTTP+Trafilatura, or Playwright.  Provides a unified interface for
-web scraping.
+Oxylabs AI Studio, plain HTTP+Trafilatura, or Playwright.  Provides a unified
+interface for web scraping.
 
 Fallback order:
   1. Firecrawl  (if API key is configured)
-  2. HTTP + Trafilatura  (lightweight, works on any event loop)
-  3. Playwright / Chromium  (runs in a thread to avoid event-loop limitations)
+  2. Oxylabs AI Studio  (if API key is configured)
+  3. HTTP + Trafilatura  (lightweight, works on any event loop)
+  4. Playwright / Chromium  (runs in a thread to avoid event-loop limitations)
 """
 
 import asyncio
@@ -30,17 +31,24 @@ logger = logging.getLogger(__name__)
 class WebCrawlerConnector:
     """Class for crawling web pages and extracting content."""
 
-    def __init__(self, firecrawl_api_key: str | None = None):
+    def __init__(
+        self,
+        firecrawl_api_key: str | None = None,
+        oxylabs_api_key: str | None = None,
+    ):
         """
         Initialize the WebCrawlerConnector class.
 
         Args:
-            firecrawl_api_key: Firecrawl API key (optional). If provided, Firecrawl will be tried first
-                             and Chromium will be used as fallback if Firecrawl fails. If not provided,
-                             Chromium will be used directly.
+            firecrawl_api_key: Firecrawl API key (optional). If provided, Firecrawl will be tried first.
+            oxylabs_api_key: Oxylabs AI Studio API key (optional). If provided, Oxylabs is tried
+                             after Firecrawl. When neither premium provider is configured (or both
+                             fail), the connector falls back to HTTP+Trafilatura and then Chromium.
         """
         self.firecrawl_api_key = firecrawl_api_key
         self.use_firecrawl = bool(firecrawl_api_key)
+        self.oxylabs_api_key = oxylabs_api_key
+        self.use_oxylabs = bool(oxylabs_api_key)
 
     def set_api_key(self, api_key: str) -> None:
         """
@@ -60,8 +68,9 @@ class WebCrawlerConnector:
 
         Fallback order:
           1. Firecrawl (if API key configured)
-          2. Plain HTTP + Trafilatura (lightweight, no subprocess)
-          3. Playwright / Chromium (needs subprocess-capable event loop)
+          2. Oxylabs AI Studio (if API key configured)
+          3. Plain HTTP + Trafilatura (lightweight, no subprocess)
+          4. Playwright / Chromium (needs subprocess-capable event loop)
 
         Args:
             url: URL to crawl
@@ -91,7 +100,16 @@ class WebCrawlerConnector:
                     errors.append(f"Firecrawl: {exc!s}")
                     logger.warning(f"[webcrawler] Firecrawl failed for {url}: {exc!s}")
 
-            # --- 2. HTTP + Trafilatura (no subprocess required) ---
+            # --- 2. Oxylabs AI Studio (premium, if configured) ---
+            if self.use_oxylabs:
+                try:
+                    logger.info(f"[webcrawler] Using Oxylabs for: {url}")
+                    return await self._crawl_with_oxylabs(url), None
+                except Exception as exc:
+                    errors.append(f"Oxylabs: {exc!s}")
+                    logger.warning(f"[webcrawler] Oxylabs failed for {url}: {exc!s}")
+
+            # --- 3. HTTP + Trafilatura (no subprocess required) ---
             try:
                 logger.info(f"[webcrawler] Using HTTP+Trafilatura for: {url}")
                 result = await self._crawl_with_http(url)
@@ -104,7 +122,7 @@ class WebCrawlerConnector:
                     f"[webcrawler] HTTP+Trafilatura failed for {url}: {exc!s}"
                 )
 
-            # --- 3. Playwright / Chromium (full browser, last resort) ---
+            # --- 4. Playwright / Chromium (full browser, last resort) ---
             try:
                 logger.info(f"[webcrawler] Using Chromium+Trafilatura for: {url}")
                 return await self._crawl_with_chromium(url), None
@@ -175,6 +193,55 @@ class WebCrawlerConnector:
                 **metadata,
             },
             "crawler_type": "firecrawl",
+        }
+
+    async def _crawl_with_oxylabs(self, url: str) -> dict[str, Any]:
+        """
+        Crawl URL using Oxylabs AI Studio (AiScraper).
+
+        Uses the SDK's native async ``scrape_async`` with markdown output, which
+        submits a scrape job and polls for completion without blocking the event
+        loop.
+
+        Args:
+            url: URL to crawl
+
+        Returns:
+            Dict containing crawled content and metadata
+
+        Raises:
+            ValueError: If the Oxylabs API key is not set or no content is returned
+        """
+        if not self.oxylabs_api_key:
+            raise ValueError("Oxylabs API key not set.")
+
+        # Lazy import keeps the SDK off the import path unless an Oxylabs key
+        # is actually configured.
+        from oxylabs_ai_studio.apps.ai_scraper import AiScraper
+
+        from app.utils.oxylabs import ensure_integration_tag
+
+        ensure_integration_tag()
+        scraper = AiScraper(api_key=self.oxylabs_api_key)
+        job = await scraper.scrape_async(url=url, output_format="markdown")
+
+        # markdown output_format returns the content as a string.
+        content = job.data if isinstance(job.data, str) else ""
+        if not content.strip():
+            raise ValueError("Oxylabs returned no content")
+
+        metadata: dict[str, Any] = {
+            "source": url,
+            "title": url,
+            "sourceURL": url,
+        }
+        if getattr(job, "run_id", None):
+            metadata["oxylabs_run_id"] = job.run_id
+
+        return {
+            "content": content,
+            "metadata": metadata,
+            "crawler_type": "oxylabs",
         }
 
     async def _crawl_with_http(self, url: str) -> dict[str, Any] | None:

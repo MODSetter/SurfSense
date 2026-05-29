@@ -117,6 +117,7 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 		SEARXNG_API: "SearXNG",
 		LINKUP_API: "Linkup",
 		BAIDU_SEARCH_API: "Baidu",
+		OXYLABS_API: "Oxylabs",
 	};
 
 	return (
