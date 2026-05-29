@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, List
 
 from pydantic import BaseModel
 
@@ -18,7 +18,7 @@ class PodcastBase(BaseModel):
     """Base podcast schema."""
 
     title: str
-    podcast_transcript: list[dict[str, Any]] | None = None
+    podcast_transcript: List[dict[str, Any]] | None = None
     file_location: str | None = None
     search_space_id: int
 
@@ -33,7 +33,7 @@ class PodcastUpdate(BaseModel):
     """Schema for updating a podcast."""
 
     title: str | None = None
-    podcast_transcript: list[dict[str, Any]] | None = None
+    podcast_transcript: List[dict[str, Any]] | None = None
     file_location: str | None = None
 
 
@@ -41,7 +41,7 @@ class PodcastRead(PodcastBase):
     """Schema for reading a podcast."""
 
     id: int
-    status: PodcastStatusEnum = PodcastStatusEnum.READY
+    status: PodcastStatusEnum
     created_at: datetime
     transcript_entries: int | None = None
 
