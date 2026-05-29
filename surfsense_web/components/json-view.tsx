@@ -35,6 +35,23 @@ export interface JsonViewProps {
 	className?: string;
 }
 
+/** Recursively coerce string values that are valid JSON numbers back to numbers.
+ *  react-json-view's text input always yields strings; this restores the
+ *  correct type so filters like ``{ "folder_id": 56 }`` survive editing. */
+function coerceNumbers(value: unknown): unknown {
+	if (typeof value === "string") {
+		const n = Number(value);
+		return !Number.isNaN(n) && value.trim() !== "" ? n : value;
+	}
+	if (Array.isArray(value)) return value.map(coerceNumbers);
+	if (value && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, coerceNumbers(v)])
+		);
+	}
+	return value;
+}
+
 const DARK_THEME = "monokai" as const;
 const LIGHT_THEME = "rjv-default" as const;
 
@@ -67,7 +84,7 @@ export function JsonView({
 
 	const handleChange = useCallback(
 		(interaction: InteractionProps) => {
-			onChange?.(interaction.updated_src);
+			onChange?.(coerceNumbers(interaction.updated_src));
 			return true;
 		},
 		[onChange]
