@@ -10,7 +10,9 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from app.automations.actions.agent_task.finalize import extract_final_assistant_message
+from app.automations.actions.builtin.agent_task.finalize import (
+    extract_final_assistant_message,
+)
 
 pytestmark = pytest.mark.unit
 

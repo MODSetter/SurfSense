@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from ..store import register_action
-from ..types import ActionDefinition
+from ...store import register_action
+from ...types import ActionDefinition
 from .factory import build_handler
 from .params import AgentTaskActionParams
 

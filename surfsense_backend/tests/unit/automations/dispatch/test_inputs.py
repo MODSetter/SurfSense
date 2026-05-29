@@ -1,10 +1,8 @@
-"""Lock the input-validation contract used by ``dispatch_run``.
+"""Lock the input-validation contract enforced before a run is enqueued.
 
-``_validate_inputs`` is module-internal by convention (underscore), but it
-encodes a real behavior contract the rest of the system depends on, and the
-public alternative (``dispatch_run``) requires a real DB session. Tests
-target the pure function directly; the contract — not the symbol — is what's
-locked.
+``validate_inputs`` is the pure schema check that ``enqueue_run`` runs against
+merged inputs. ``enqueue_run`` itself needs a real DB session, so tests target
+this pure function directly; the contract — not the symbol — is what's locked.
 """
 
 from __future__ import annotations
@@ -12,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from app.automations.dispatch.errors import DispatchError
-from app.automations.dispatch.run import _validate_inputs
+from app.automations.dispatch.inputs import validate_inputs
 from app.automations.schemas.definition.envelope import AutomationDefinition
 from app.automations.schemas.definition.inputs import Inputs
 from app.automations.schemas.definition.plan_step import PlanStep
@@ -42,7 +40,7 @@ def test_validate_inputs_passes_through_when_no_schema_is_declared() -> None:
         "static_key": "value",
     }
 
-    assert _validate_inputs(definition, runtime_inputs) == runtime_inputs
+    assert validate_inputs(definition, runtime_inputs) == runtime_inputs
 
 
 def test_validate_inputs_returns_inputs_when_they_match_declared_schema() -> None:
@@ -58,14 +56,13 @@ def test_validate_inputs_returns_inputs_when_they_match_declared_schema() -> Non
 
     inputs = {"topic": "weekly report"}
 
-    assert _validate_inputs(definition, inputs) == inputs
+    assert validate_inputs(definition, inputs) == inputs
 
 
 def test_validate_inputs_raises_dispatch_error_when_inputs_violate_schema() -> None:
     """Inputs that don't match the declared schema must surface as
-    ``DispatchError`` (not the raw ``jsonschema.ValidationError``), so the
-    schedule tick and any other caller can handle one dispatch-domain
-    exception type uniformly."""
+    ``DispatchError`` (not the raw ``jsonschema.ValidationError``), so every
+    caller can handle one dispatch-domain exception type uniformly."""
     schema = {
         "type": "object",
         "properties": {"topic": {"type": "string"}},
@@ -74,4 +71,4 @@ def test_validate_inputs_raises_dispatch_error_when_inputs_violate_schema() -> N
     definition = _minimal_definition(inputs=Inputs(schema=schema))
 
     with pytest.raises(DispatchError):
-        _validate_inputs(definition, {"topic": 42})  # type violates string
+        validate_inputs(definition, {"topic": 42})  # type violates string

@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.automations.dispatch import start_run
+from app.automations.dispatch import launch_run
 from app.automations.persistence.enums.trigger_type import TriggerType
 from app.automations.persistence.models.trigger import AutomationTrigger
 from app.celery_app import celery_app
@@ -159,7 +159,7 @@ async def _start_one(
         return
 
     try:
-        run = await start_run(
+        run = await launch_run(
             session=session,
             trigger=trigger,
             runtime_inputs=schedule_runtime_inputs(

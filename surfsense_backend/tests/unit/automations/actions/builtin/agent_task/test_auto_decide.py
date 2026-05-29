@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from app.automations.actions.agent_task.auto_decide import build_auto_decisions
+from app.automations.actions.builtin.agent_task.auto_decide import build_auto_decisions
 
 pytestmark = pytest.mark.unit
 

@@ -1,33 +1,24 @@
-"""Start one run for a trigger: resolve its automation, guard ``ACTIVE``, dispatch.
-
-Shared by every trigger type. A type's selector builds the runtime inputs and
-hands one trigger row here; this resolves and guards the automation, then calls
-the generic ``dispatch_run``.
-"""
+"""Resolve the automation behind a trigger and guard that it may run."""
 
 from __future__ import annotations
-
-from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.automations.persistence.enums.automation_status import AutomationStatus
 from app.automations.persistence.models.automation import Automation
-from app.automations.persistence.models.run import AutomationRun
 from app.automations.persistence.models.trigger import AutomationTrigger
 
 from .errors import DispatchError
-from .run import dispatch_run
 
 
-async def start_run(
-    *,
-    session: AsyncSession,
-    trigger: AutomationTrigger,
-    runtime_inputs: dict[str, Any] | None = None,
-) -> AutomationRun:
-    """Resolve ``trigger``'s automation, require it ``ACTIVE``, dispatch a run."""
+async def resolve_active_automation(
+    session: AsyncSession, trigger: AutomationTrigger
+) -> Automation:
+    """Load ``trigger``'s automation and require it ``ACTIVE``.
+
+    Raises ``DispatchError`` if the automation is missing or not active.
+    """
     automation = await _load_automation(session, trigger.automation_id)
     if automation is None:
         raise DispatchError(
@@ -39,12 +30,7 @@ async def start_run(
             f"automation {trigger.automation_id} is {automation.status.value}, not active"
         )
 
-    return await dispatch_run(
-        session=session,
-        automation=automation,
-        trigger=trigger,
-        runtime_inputs=runtime_inputs,
-    )
+    return automation
 
 
 async def _load_automation(

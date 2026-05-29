@@ -16,7 +16,7 @@ from app.agents.new_chat.mention_resolver import resolve_mentions, substitute_in
 from app.db import ChatVisibility, async_session_maker
 from app.schemas.new_chat import MentionedDocumentInfo
 
-from ..types import ActionContext
+from ...types import ActionContext
 from .auto_decide import build_auto_decisions
 from .dependencies import build_dependencies
 from .finalize import extract_final_assistant_message

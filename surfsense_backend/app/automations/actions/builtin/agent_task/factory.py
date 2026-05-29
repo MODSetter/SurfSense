@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..types import ActionContext, ActionHandler
+from ...types import ActionContext, ActionHandler
 from .invoke import run_agent_task
 from .params import AgentTaskActionParams
 

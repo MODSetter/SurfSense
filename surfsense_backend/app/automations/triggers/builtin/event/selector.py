@@ -13,7 +13,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.automations.dispatch import start_run
+from app.automations.dispatch import launch_run
 from app.automations.persistence.enums.trigger_type import TriggerType
 from app.automations.persistence.models.trigger import AutomationTrigger
 from app.celery_app import celery_app
@@ -58,7 +58,7 @@ async def _start_one(
     session: AsyncSession, *, trigger: AutomationTrigger, event: Event
 ) -> None:
     try:
-        run = await start_run(
+        run = await launch_run(
             session=session,
             trigger=trigger,
             runtime_inputs=event_runtime_inputs(event),
