@@ -189,7 +189,8 @@ celery_app = Celery(
         "app.tasks.celery_tasks.stale_notification_cleanup_task",
         "app.tasks.celery_tasks.stripe_reconciliation_task",
         "app.automations.tasks.execute_run",
-        "app.automations.tasks.schedule_tick",
+        "app.automations.triggers.builtin.schedule.selector",
+        "app.automations.triggers.builtin.event.selector",
     ],
 )
 
@@ -247,6 +248,12 @@ celery_app.conf.update(
     },
 )
 
+# Imported late (after celery_app is built) to keep the automations triggers
+# package out of this module's top-level import graph.
+from app.automations.triggers.builtin.schedule.source import (  # noqa: E402
+    BEAT_SCHEDULE as SCHEDULE_BEAT_SCHEDULE,
+)
+
 # Configure Celery Beat schedule
 # This uses a meta-scheduler pattern: instead of creating individual Beat schedules
 # for each connector, we have ONE schedule that checks the database at the configured interval
@@ -284,14 +291,7 @@ celery_app.conf.beat_schedule = {
             "expires": 60,
         },
     },
-    # Fire due automation schedule triggers. Ticks every minute; per-row cron
-    # math is precomputed (next_fire_at column) so the tick is an indexed
-    # lookup, not N cron evaluations.
-    "automation-schedule-tick": {
-        "task": "automation_schedule_tick",
-        "schedule": crontab(minute="*"),
-        "options": {
-            "expires": 50,
-        },
-    },
+    # Fire due automation schedule triggers (Beat entry owned by the schedule
+    # trigger; see app.automations.triggers.builtin.schedule.source).
+    **SCHEDULE_BEAT_SCHEDULE,
 }

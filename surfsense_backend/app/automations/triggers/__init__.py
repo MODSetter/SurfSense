@@ -1,7 +1,6 @@
 """Triggers domain: registry surface + built-in trigger packages.
 
-Each trigger lives in its own subpackage (``schedule/``, ...) and
-self-registers at import time via its ``definition`` module.
+Built-in trigger types live under ``builtin/`` and self-register at import time.
 """
 
 from __future__ import annotations
@@ -17,4 +16,4 @@ __all__ = [
 ]
 
 # Built-in triggers self-register at import time.
-from . import schedule  # noqa: F401
+from . import builtin  # noqa: F401
