@@ -1,7 +1,5 @@
 "use client";
 import { ShieldAlert } from "lucide-react";
-import { useAutomationModelEligibility } from "@/hooks/use-automation-model-eligibility";
-import { AutomationModelGateAlert } from "../components/automation-model-gate-alert";
 import { AutomationBuilderForm } from "../components/builder/automation-builder-form";
 import { useAutomationPermissions } from "../hooks/use-automation-permissions";
 import { AutomationNewHeader } from "./components/automation-new-header";
@@ -15,12 +13,13 @@ interface AutomationNewContentProps {
  * who can't create don't even see the form; same panel as the detail page's
  * access-denied state for consistency. The builder defaults to the friendly
  * form with a raw-JSON escape hatch.
+ *
+ * Model eligibility is no longer gated here — the builder's own model pickers
+ * list eligible (premium/BYOK) models, surface a per-slot notice when none
+ * exist, and block submit until each slot resolves.
  */
 export function AutomationNewContent({ searchSpaceId }: AutomationNewContentProps) {
 	const perms = useAutomationPermissions();
-	const { data: eligibility, isLoading: eligibilityLoading } = useAutomationModelEligibility(
-		perms.canCreate ? searchSpaceId : undefined
-	);
 
 	if (perms.loading) {
 		return <div className="h-32 rounded-md border border-border/60 bg-muted/10 animate-pulse" />;
@@ -38,22 +37,10 @@ export function AutomationNewContent({ searchSpaceId }: AutomationNewContentProp
 		);
 	}
 
-	const modelViolations = eligibility?.violations ?? [];
-	const submitDisabledReason = eligibilityLoading
-		? "Checking model eligibility…"
-		: modelViolations[0]?.reason;
-
 	return (
 		<>
 			<AutomationNewHeader searchSpaceId={searchSpaceId} />
-			{modelViolations.length > 0 && (
-				<AutomationModelGateAlert searchSpaceId={searchSpaceId} violations={modelViolations} />
-			)}
-			<AutomationBuilderForm
-				mode="create"
-				searchSpaceId={searchSpaceId}
-				submitDisabledReason={submitDisabledReason}
-			/>
+			<AutomationBuilderForm mode="create" searchSpaceId={searchSpaceId} />
 		</>
 	);
 }
