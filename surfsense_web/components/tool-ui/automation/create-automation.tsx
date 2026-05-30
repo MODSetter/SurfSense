@@ -5,6 +5,10 @@ import { useAtomValue } from "jotai";
 import { AlertCircle, CornerDownLeftIcon, ExternalLink, Pencil, Workflow } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+	AutomationModelFields,
+	type AutomationModelSelection,
+} from "@/app/dashboard/[search_space_id]/automations/components/builder/automation-model-fields";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { JsonView } from "@/components/json-view";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
@@ -12,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { automationCreateRequest } from "@/contracts/types/automation.types";
 import type { HitlDecision, InterruptResult } from "@/features/chat-messages/hitl";
 import { isInterruptResult, useHitlDecision, useHitlPhase } from "@/features/chat-messages/hitl";
+import { useAutomationEligibleModels } from "@/hooks/use-automation-eligible-models";
 import { AutomationDraftPreview } from "./automation-draft-preview";
 
 const editArgsSchema = automationCreateRequest.omit({ search_space_id: true });
@@ -94,17 +99,71 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 	const effectiveArgs = pendingEdits ?? args;
 	const draft = useMemo(() => extractDraft(effectiveArgs), [effectiveArgs]);
 
+	// Per-automation model selection. The card always supplies models (chosen
+	// here, not snapshotted from the search space), so Approve dispatches an
+	// `edit` decision carrying `definition.models`.
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const eligibleModels = useAutomationEligibleModels();
+	const [modelSelection, setModelSelection] = useState<AutomationModelSelection>({
+		agentLlmId: 0,
+		imageConfigId: 0,
+		visionConfigId: 0,
+	});
+	// Resolve each slot during render: an explicit pick wins, else the eligible
+	// default. No effect seeds async hook data into state.
+	const resolvedModels = useMemo<AutomationModelSelection>(
+		() => ({
+			agentLlmId: modelSelection.agentLlmId || eligibleModels.llm.defaultId || 0,
+			imageConfigId: modelSelection.imageConfigId || eligibleModels.image.defaultId || 0,
+			visionConfigId: modelSelection.visionConfigId || eligibleModels.vision.defaultId || 0,
+		}),
+		[
+			modelSelection,
+			eligibleModels.llm.defaultId,
+			eligibleModels.image.defaultId,
+			eligibleModels.vision.defaultId,
+		]
+	);
+	const modelsResolved =
+		resolvedModels.agentLlmId !== 0 &&
+		resolvedModels.imageConfigId !== 0 &&
+		resolvedModels.visionConfigId !== 0;
+
 	const handleApprove = useCallback(() => {
-		if (phase !== "pending" || !canApprove || isEditing) return;
+		if (phase !== "pending" || !canApprove || isEditing || !modelsResolved) return;
 		setProcessing();
+		const baseArgs = pendingEdits ?? args;
+		const baseDefinition = (baseArgs.definition ?? {}) as Record<string, unknown>;
+		const mergedArgs = {
+			...baseArgs,
+			definition: {
+				...baseDefinition,
+				models: {
+					agent_llm_id: resolvedModels.agentLlmId,
+					image_generation_config_id: resolvedModels.imageConfigId,
+					vision_llm_config_id: resolvedModels.visionConfigId,
+				},
+			},
+		};
 		onDecision({
-			type: pendingEdits ? "edit" : "approve",
+			type: "edit",
 			edited_action: {
 				name: interruptData.action_requests[0]?.name ?? "create_automation",
-				args: pendingEdits ?? args,
+				args: mergedArgs,
 			},
 		});
-	}, [phase, canApprove, isEditing, setProcessing, onDecision, interruptData, args, pendingEdits]);
+	}, [
+		phase,
+		canApprove,
+		isEditing,
+		modelsResolved,
+		setProcessing,
+		onDecision,
+		interruptData,
+		args,
+		pendingEdits,
+		resolvedModels,
+	]);
 
 	const handleReject = useCallback(() => {
 		if (phase !== "pending" || !canReject || isEditing) return;
@@ -194,9 +253,23 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 			{phase === "pending" && !isEditing && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4">
+						<p className="mb-3 text-xs font-medium text-foreground">Models</p>
+						<AutomationModelFields
+							searchSpaceId={Number(searchSpaceId)}
+							value={resolvedModels}
+							onChange={(patch) => setModelSelection((prev) => ({ ...prev, ...patch }))}
+						/>
+					</div>
+					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
 						{canApprove && (
-							<Button size="sm" className="rounded-lg gap-1.5" onClick={handleApprove}>
+							<Button
+								size="sm"
+								className="rounded-lg gap-1.5"
+								disabled={!modelsResolved}
+								onClick={handleApprove}
+							>
 								Approve
 								<CornerDownLeftIcon className="size-3 opacity-60" />
 							</Button>

@@ -16,7 +16,10 @@ from fastapi import HTTPException
 
 import app.automations.services.automation as automation_mod
 from app.automations.schemas.api import AutomationCreate, AutomationUpdate
-from app.automations.schemas.definition.envelope import AutomationDefinition
+from app.automations.schemas.definition.envelope import (
+    AutomationDefinition,
+    AutomationModels,
+)
 from app.automations.schemas.definition.plan_step import PlanStep
 from app.automations.services.automation import AutomationService
 from app.automations.services.model_policy import AutomationModelPolicyError
@@ -175,6 +178,100 @@ async def test_create_treats_unset_prefs_as_auto_zero(
     }
 
 
+async def test_create_honors_selected_models_when_provided(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the payload carries ``definition.models`` they are validated + kept.
+
+    The search-space snapshot path is bypassed entirely (no
+    ``assert_automation_models_billable`` call).
+    """
+
+    def _fail_snapshot(_ss):
+        raise AssertionError("snapshot path should not run when models are provided")
+
+    monkeypatch.setattr(
+        automation_mod, "assert_automation_models_billable", _fail_snapshot
+    )
+    validated: dict[str, Any] = {}
+
+    def _assert_ok(*, agent_llm_id, image_generation_config_id, vision_llm_config_id):
+        validated["ids"] = (
+            agent_llm_id,
+            image_generation_config_id,
+            vision_llm_config_id,
+        )
+
+    monkeypatch.setattr(automation_mod, "assert_models_billable", _assert_ok)
+
+    async def _noop_authorize(self, *_a, **_k):
+        return None
+
+    async def _return_added(self, _aid):
+        return self.session.added[-1]
+
+    monkeypatch.setattr(AutomationService, "_authorize", _noop_authorize)
+    monkeypatch.setattr(AutomationService, "_get_with_triggers_or_raise", _return_added)
+
+    service = _service(SimpleNamespace(agent_llm_id=-99))
+    payload = AutomationCreate(
+        search_space_id=1,
+        name="A",
+        definition=_definition(
+            models=AutomationModels(
+                agent_llm_id=-1,
+                image_generation_config_id=7,
+                vision_llm_config_id=-2,
+            )
+        ),
+    )
+
+    automation = await service.create(payload)
+
+    assert validated["ids"] == (-1, 7, -2)
+    assert automation.definition["models"] == {
+        "agent_llm_id": -1,
+        "image_generation_config_id": 7,
+        "vision_llm_config_id": -2,
+    }
+
+
+async def test_create_rejects_unbillable_selected_models(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-billable explicit selection maps the policy error to HTTP 422."""
+
+    def _raise(*, agent_llm_id, image_generation_config_id, vision_llm_config_id):
+        raise AutomationModelPolicyError(
+            [{"kind": "llm", "config_id": -3, "reason": "free model"}]
+        )
+
+    monkeypatch.setattr(automation_mod, "assert_models_billable", _raise)
+
+    async def _noop_authorize(self, *_a, **_k):
+        return None
+
+    monkeypatch.setattr(AutomationService, "_authorize", _noop_authorize)
+
+    service = _service(SimpleNamespace(agent_llm_id=-3))
+    payload = AutomationCreate(
+        search_space_id=1,
+        name="A",
+        definition=_definition(
+            models=AutomationModels(
+                agent_llm_id=-3,
+                image_generation_config_id=7,
+                vision_llm_config_id=-2,
+            )
+        ),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.create(payload)
+
+    assert exc_info.value.status_code == 422
+
+
 async def test_update_preserves_captured_models(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -204,6 +301,166 @@ async def test_update_preserves_captured_models(
     service = _service(SimpleNamespace())
     # The incoming patch definition has no ``models`` (frontend strips it).
     patch = AutomationUpdate(definition=_definition())
+
+    result = await service.update(7, patch)
+
+    assert result.definition["models"] == captured
+    assert result.version == 4
+
+
+async def test_update_honors_changed_models_when_valid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A definition edit with a *changed* models block validates + keeps it."""
+    existing = SimpleNamespace(
+        search_space_id=1,
+        definition={
+            "name": "A",
+            "plan": [],
+            "models": {
+                "agent_llm_id": -1,
+                "image_generation_config_id": 5,
+                "vision_llm_config_id": -1,
+            },
+        },
+        version=3,
+    )
+    validated: dict[str, Any] = {}
+
+    def _assert_ok(*, agent_llm_id, image_generation_config_id, vision_llm_config_id):
+        validated["ids"] = (
+            agent_llm_id,
+            image_generation_config_id,
+            vision_llm_config_id,
+        )
+
+    monkeypatch.setattr(automation_mod, "assert_models_billable", _assert_ok)
+
+    async def _noop_authorize(self, *_a, **_k):
+        return None
+
+    async def _return_existing(self, _aid):
+        return existing
+
+    monkeypatch.setattr(AutomationService, "_authorize", _noop_authorize)
+    monkeypatch.setattr(
+        AutomationService, "_get_with_triggers_or_raise", _return_existing
+    )
+
+    service = _service(SimpleNamespace())
+    patch = AutomationUpdate(
+        definition=_definition(
+            models=AutomationModels(
+                agent_llm_id=-2,
+                image_generation_config_id=9,
+                vision_llm_config_id=-2,
+            )
+        )
+    )
+
+    result = await service.update(7, patch)
+
+    assert validated["ids"] == (-2, 9, -2)
+    assert result.definition["models"] == {
+        "agent_llm_id": -2,
+        "image_generation_config_id": 9,
+        "vision_llm_config_id": -2,
+    }
+    assert result.version == 4
+
+
+async def test_update_rejects_changed_unbillable_models(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A *changed* non-billable models block is rejected with HTTP 422."""
+    existing = SimpleNamespace(
+        search_space_id=1,
+        definition={
+            "name": "A",
+            "plan": [],
+            "models": {
+                "agent_llm_id": -1,
+                "image_generation_config_id": 5,
+                "vision_llm_config_id": -1,
+            },
+        },
+        version=3,
+    )
+
+    def _raise(*, agent_llm_id, image_generation_config_id, vision_llm_config_id):
+        raise AutomationModelPolicyError(
+            [{"kind": "llm", "config_id": -7, "reason": "free model"}]
+        )
+
+    monkeypatch.setattr(automation_mod, "assert_models_billable", _raise)
+
+    async def _noop_authorize(self, *_a, **_k):
+        return None
+
+    async def _return_existing(self, _aid):
+        return existing
+
+    monkeypatch.setattr(AutomationService, "_authorize", _noop_authorize)
+    monkeypatch.setattr(
+        AutomationService, "_get_with_triggers_or_raise", _return_existing
+    )
+
+    service = _service(SimpleNamespace())
+    patch = AutomationUpdate(
+        definition=_definition(
+            models=AutomationModels(
+                agent_llm_id=-7,
+                image_generation_config_id=5,
+                vision_llm_config_id=-1,
+            )
+        )
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await service.update(7, patch)
+
+    assert exc_info.value.status_code == 422
+
+
+async def test_update_keeps_unchanged_models_without_revalidation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unchanged models block is kept as-is and is NOT re-validated.
+
+    Lets users edit an automation whose captured model later drifted out of
+    premium without an unrelated edit tripping the policy check.
+    """
+    captured = {
+        "agent_llm_id": -1,
+        "image_generation_config_id": 5,
+        "vision_llm_config_id": -1,
+    }
+    existing = SimpleNamespace(
+        search_space_id=1,
+        definition={"name": "A", "plan": [], "models": captured},
+        version=3,
+    )
+
+    def _fail(*_a, **_k):
+        raise AssertionError("unchanged models must not be re-validated")
+
+    monkeypatch.setattr(automation_mod, "assert_models_billable", _fail)
+
+    async def _noop_authorize(self, *_a, **_k):
+        return None
+
+    async def _return_existing(self, _aid):
+        return existing
+
+    monkeypatch.setattr(AutomationService, "_authorize", _noop_authorize)
+    monkeypatch.setattr(
+        AutomationService, "_get_with_triggers_or_raise", _return_existing
+    )
+
+    service = _service(SimpleNamespace())
+    patch = AutomationUpdate(
+        definition=_definition(models=AutomationModels(**captured))
+    )
 
     result = await service.update(7, patch)
 

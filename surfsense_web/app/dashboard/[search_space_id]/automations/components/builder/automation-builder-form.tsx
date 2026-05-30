@@ -21,8 +21,10 @@ import {
 	automationCreateRequest,
 	automationUpdateRequest,
 } from "@/contracts/types/automation.types";
+import { useAutomationEligibleModels } from "@/hooks/use-automation-eligible-models";
 import {
 	type BuilderForm,
+	type BuilderModels,
 	buildCreatePayload,
 	builderFormSchema,
 	buildScheduleTrigger,
@@ -30,10 +32,12 @@ import {
 	createEmptyForm,
 	formFromAutomation,
 	type HydratableTrigger,
+	hasResolvedModels,
 	hydrateForm,
 } from "@/lib/automations/builder-schema";
 import { cn } from "@/lib/utils";
 import { AdvancedSection } from "./advanced-section";
+import { AutomationModelFields } from "./automation-model-fields";
 import { BasicsSection } from "./basics-section";
 import { BuilderSummary } from "./builder-summary";
 import { JsonModePanel } from "./json-mode-panel";
@@ -47,9 +51,9 @@ interface AutomationBuilderFormProps {
 	/** Required in edit mode; seeds the form and trigger reconciliation. */
 	automation?: Automation;
 	/**
-	 * When set (create mode only), the search space's models aren't billable
-	 * for automations. Submit is disabled with this reason as the tooltip; the
-	 * orchestrator also renders the full gate alert above the form.
+	 * Optional extra create-mode block reason (composed with the form's own
+	 * model-eligibility gate). Shown as the submit button's tooltip. Model
+	 * eligibility itself is now owned by the in-form pickers.
 	 */
 	submitDisabledReason?: string;
 }
@@ -117,15 +121,46 @@ export function AutomationBuilderForm({
 			? `/dashboard/${searchSpaceId}/automations/${automation.id}`
 			: `/dashboard/${searchSpaceId}/automations`;
 
+	// Eligible models + the search-space-seeded defaults. Models are chosen per
+	// automation on create; in edit mode the backend preserves the captured
+	// snapshot, so the picker is create-only.
+	const eligibleModels = useAutomationEligibleModels();
+
+	// Resolve each slot during render: an explicit (non-zero) pick wins,
+	// otherwise fall back to the eligible default. No effect copies async hook
+	// data into state, so there's no flicker/loop and the user's pick is sticky.
+	const resolvedModels = useMemo<BuilderModels>(
+		() => ({
+			agentLlmId: form.models.agentLlmId || eligibleModels.llm.defaultId || 0,
+			imageConfigId: form.models.imageConfigId || eligibleModels.image.defaultId || 0,
+			visionConfigId: form.models.visionConfigId || eligibleModels.vision.defaultId || 0,
+		}),
+		[
+			form.models,
+			eligibleModels.llm.defaultId,
+			eligibleModels.image.defaultId,
+			eligibleModels.vision.defaultId,
+		]
+	);
+
+	// The form with resolved models folded in — what every payload builder reads.
+	const formForPayload = useMemo<BuilderForm>(
+		() => ({ ...form, models: resolvedModels }),
+		[form, resolvedModels]
+	);
+
 	function patchForm(patch: Partial<BuilderForm>) {
 		setForm((prev) => ({ ...prev, ...patch }));
 	}
 
 	function jsonFromCurrentForm(): Record<string, unknown> {
 		if (mode === "edit" && automation) {
-			return { ...buildUpdatePayload(form), status: automation.status };
+			return { ...buildUpdatePayload(formForPayload), status: automation.status };
 		}
-		const { search_space_id: _ignored, ...rest } = buildCreatePayload(form, searchSpaceId);
+		const { search_space_id: _ignored, ...rest } = buildCreatePayload(
+			formForPayload,
+			searchSpaceId
+		);
 		return rest;
 	}
 
@@ -223,7 +258,7 @@ export function AutomationBuilderForm({
 		setSubmitting(true);
 		try {
 			if (mode === "edit" && automation) {
-				const payload = buildUpdatePayload(form);
+				const payload = buildUpdatePayload(formForPayload);
 				const parsed = automationUpdateRequest.safeParse(payload);
 				if (!parsed.success) {
 					setRootError(zodIssueList(parsed.error).join("; "));
@@ -233,7 +268,7 @@ export function AutomationBuilderForm({
 				await reconcileTriggers(automation.id);
 				router.push(`/dashboard/${searchSpaceId}/automations/${automation.id}`);
 			} else {
-				const payload = buildCreatePayload(form, searchSpaceId);
+				const payload = buildCreatePayload(formForPayload, searchSpaceId);
 				const parsed = automationCreateRequest.safeParse(payload);
 				if (!parsed.success) {
 					setRootError(zodIssueList(parsed.error).join("; "));
@@ -281,8 +316,18 @@ export function AutomationBuilderForm({
 	}
 
 	const submitLabel = mode === "edit" ? "Save changes" : "Create automation";
+	// Block creation until every model slot resolves to an eligible id. The
+	// per-field Alert already explains *why* a slot is empty; this just guards
+	// submit. `submitDisabledReason` (from the caller) still composes in.
+	const modelsUnresolved =
+		mode === "create" && !eligibleModels.isLoading && !hasResolvedModels(resolvedModels);
+	const effectiveDisabledReason =
+		submitDisabledReason ??
+		(modelsUnresolved
+			? "Set up a premium or your own (BYOK) agent, image, and vision model in role settings before creating an automation."
+			: undefined);
 	// Only gate creation; editing an existing automation isn't blocked here.
-	const submitBlocked = mode === "create" && !!submitDisabledReason;
+	const submitBlocked = mode === "create" && !!effectiveDisabledReason;
 
 	return (
 		<div className="space-y-4">
@@ -366,6 +411,19 @@ export function AutomationBuilderForm({
 
 						<Card className="border-border/60 bg-accent">
 							<CardHeader className="pb-3">
+								<CardTitle className="text-sm font-semibold">Models</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<AutomationModelFields
+									searchSpaceId={searchSpaceId}
+									value={resolvedModels}
+									onChange={(patch) => patchForm({ models: { ...form.models, ...patch } })}
+								/>
+							</CardContent>
+						</Card>
+
+						<Card className="border-border/60 bg-accent">
+							<CardHeader className="pb-3">
 								<CardTitle className="text-sm font-semibold">Settings</CardTitle>
 							</CardHeader>
 							<CardContent>
@@ -416,7 +474,7 @@ export function AutomationBuilderForm({
 								{submitLabel}
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent className="max-w-xs">{submitDisabledReason}</TooltipContent>
+						<TooltipContent className="max-w-xs">{effectiveDisabledReason}</TooltipContent>
 					</Tooltip>
 				) : (
 					<Button

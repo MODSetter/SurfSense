@@ -22,6 +22,7 @@ from app.automations.schemas.definition.envelope import AutomationModels
 from app.automations.services.model_policy import (
     AutomationModelPolicyError,
     assert_automation_models_billable,
+    assert_models_billable,
     get_automation_model_eligibility,
 )
 from app.automations.triggers import get_trigger
@@ -43,16 +44,23 @@ class AutomationService:
         await self._authorize(
             payload.search_space_id, Permission.AUTOMATIONS_CREATE.value
         )
-        search_space = await self._assert_models_billable(payload.search_space_id)
 
-        # Snapshot the search space's current (already-validated) model prefs onto
-        # the definition so runs are insulated from later chat/search-space model
-        # changes. Captured ids are guaranteed billable by the check above.
-        payload.definition.models = AutomationModels(
-            agent_llm_id=search_space.agent_llm_id or 0,
-            image_generation_config_id=search_space.image_generation_config_id or 0,
-            vision_llm_config_id=search_space.vision_llm_config_id or 0,
-        )
+        # Capture the model profile onto the definition so runs are insulated
+        # from later chat/search-space model changes. Two sources:
+        #   1. Explicit per-automation selection in ``payload.definition.models``
+        #      (manual builder + chat approval card). Validate the chosen ids.
+        #   2. Fallback (no selection): snapshot the search space's current prefs.
+        # Either way the captured ids are guaranteed billable (premium/BYOK).
+        selected_models = payload.definition.models
+        if selected_models is not None:
+            self._assert_selected_models_billable(selected_models)
+        else:
+            search_space = await self._assert_models_billable(payload.search_space_id)
+            payload.definition.models = AutomationModels(
+                agent_llm_id=search_space.agent_llm_id or 0,
+                image_generation_config_id=search_space.image_generation_config_id or 0,
+                vision_llm_config_id=search_space.vision_llm_config_id or 0,
+            )
 
         automation = Automation(
             search_space_id=payload.search_space_id,
@@ -122,13 +130,22 @@ class AutomationService:
             automation.status = data["status"]
         if "definition" in data:
             new_def = patch.definition.model_dump(mode="json", by_alias=True)
-            # Preserve the captured model snapshot across edits so a definition
-            # change never silently re-binds the automation to the current chat
-            # model selection. Backend-managed; survives whether or not the
-            # client round-trips ``models``.
+            # Model snapshot handling on edit:
+            #   * absent in the patch  -> preserve the captured snapshot
+            #     (a non-model definition change never silently re-binds the
+            #     automation to the current chat/search-space selection).
+            #   * unchanged from the snapshot -> keep as-is, no re-validation
+            #     (so editing an automation whose captured model later drifted
+            #     out of premium isn't blocked by an unrelated name/schedule edit).
+            #   * genuinely changed -> validate the new selection (422 on a
+            #     non-billable pick), then accept it.
             existing_models = (automation.definition or {}).get("models")
-            if existing_models is not None:
-                new_def["models"] = existing_models
+            provided_models = new_def.get("models")
+            if provided_models is None:
+                if existing_models is not None:
+                    new_def["models"] = existing_models
+            elif provided_models != existing_models:
+                self._assert_selected_models_billable(patch.definition.models)
             automation.definition = new_def
             automation.version += 1
 
@@ -198,6 +215,22 @@ class AutomationService:
         except AutomationModelPolicyError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         return search_space
+
+    def _assert_selected_models_billable(self, models: AutomationModels) -> None:
+        """Reject creation when an explicitly selected model isn't billable.
+
+        Used when the client supplies ``definition.models`` (per-automation
+        selection from the builder or chat approval card). Same policy as the
+        search-space path: premium global or BYOK only, no free/Auto.
+        """
+        try:
+            assert_models_billable(
+                agent_llm_id=models.agent_llm_id,
+                image_generation_config_id=models.image_generation_config_id,
+                vision_llm_config_id=models.vision_llm_config_id,
+            )
+        except AutomationModelPolicyError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     async def _authorize(self, search_space_id: int, permission: str) -> None:
         await check_permission(

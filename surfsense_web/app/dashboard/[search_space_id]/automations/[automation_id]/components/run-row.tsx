@@ -2,6 +2,7 @@
 import { ChevronDown, ChevronRight, Hand } from "lucide-react";
 import { useState } from "react";
 import type { RunSummary } from "@/contracts/types/automation.types";
+import { formatDuration } from "@/lib/automations/run-duration";
 import { formatRelativeDate } from "@/lib/format-date";
 import { RunDetailsPanel } from "./run-details-panel";
 import { RunStatusBadge } from "./run-status-badge";
@@ -18,7 +19,7 @@ interface RunRowProps {
  */
 export function RunRow({ run, automationId }: RunRowProps) {
 	const [open, setOpen] = useState(false);
-	const duration = computeDuration(run.started_at, run.finished_at);
+	const duration = formatDuration(run.started_at, run.finished_at);
 	const startedLabel = run.started_at
 		? formatRelativeDate(run.started_at)
 		: formatRelativeDate(run.created_at);
@@ -61,15 +62,4 @@ function TriggerSource({ triggerId }: { triggerId: number | null }) {
 		);
 	}
 	return <span>via trigger #{triggerId}</span>;
-}
-
-function computeDuration(started: string | null | undefined, finished: string | null | undefined) {
-	if (!started || !finished) return null;
-	const ms = new Date(finished).getTime() - new Date(started).getTime();
-	if (!Number.isFinite(ms) || ms < 0) return null;
-	if (ms < 1000) return `${ms}ms`;
-	if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-	const minutes = Math.floor(ms / 60_000);
-	const seconds = Math.floor((ms % 60_000) / 1000);
-	return `${minutes}m ${seconds}s`;
 }

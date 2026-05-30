@@ -190,6 +190,31 @@ export const run = runSummary.extend({
 });
 export type Run = z.infer<typeof run>;
 
+/**
+ * Typed view over a single entry in {@link Run.step_results}. The Zod schema
+ * keeps step results as opaque records (the backend emits action-specific
+ * payloads), so this interface exists purely for safe field access in the UI
+ * and does not perform runtime validation.
+ *
+ * Mirrors `_result()` in
+ * `surfsense_backend/app/automations/runtime/step.py`. For the `agent_task`
+ * action, `result` carries the markdown `final_message` produced by the agent.
+ */
+export interface RunStepResult {
+	step_id: string;
+	action: string;
+	status: "succeeded" | "failed" | "skipped" | string;
+	started_at?: string;
+	finished_at?: string;
+	attempts?: number;
+	result?: {
+		final_message?: string;
+		agent_session_id?: string;
+		resumes?: unknown;
+	} & Record<string, unknown>;
+	error?: { message?: string; type?: string };
+}
+
 export const runListResponse = z.object({
 	items: z.array(runSummary),
 	total: z.number(),

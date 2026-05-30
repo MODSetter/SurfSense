@@ -66,6 +66,19 @@ export const builderExecutionSchema = z.object({
 });
 export type BuilderExecution = z.infer<typeof builderExecutionSchema>;
 
+/**
+ * Per-automation model selection. ``0`` means "unset" — the builder resolves it
+ * to the eligible default during render, and the resolved (non-zero) ids are
+ * written onto ``definition.models`` at submit so the run is insulated from
+ * later chat/search-space model changes.
+ */
+export const builderModelsSchema = z.object({
+	agentLlmId: z.number().int(),
+	imageConfigId: z.number().int(),
+	visionConfigId: z.number().int(),
+});
+export type BuilderModels = z.infer<typeof builderModelsSchema>;
+
 export const builderFormSchema = z.object({
 	name: z.string().trim().min(1, "Give your automation a name").max(200),
 	description: z.string().trim().max(2000).nullable(),
@@ -77,6 +90,8 @@ export const builderFormSchema = z.object({
 	tags: z.array(z.string()),
 	/** Carried through from an edited definition so we don't drop it. */
 	goal: z.string().nullable(),
+	/** Selected agent/image/vision models (``0`` = use the eligible default). */
+	models: builderModelsSchema,
 });
 export type BuilderForm = z.infer<typeof builderFormSchema>;
 
@@ -132,6 +147,7 @@ export function createEmptyForm(): BuilderForm {
 		},
 		tags: [],
 		goal: null,
+		models: { agentLlmId: 0, imageConfigId: 0, visionConfigId: 0 },
 	};
 }
 
@@ -218,7 +234,24 @@ function buildDefinition(form: BuilderForm): AutomationDefinition {
 			on_failure: [],
 		},
 		metadata: { tags: form.tags },
+		// Only emit models when fully resolved (the builder seeds non-zero
+		// defaults before submit). A zero/unset triple is omitted so the
+		// backend falls back to the search-space snapshot.
+		...(hasResolvedModels(form.models)
+			? {
+					models: {
+						agent_llm_id: form.models.agentLlmId,
+						image_generation_config_id: form.models.imageConfigId,
+						vision_llm_config_id: form.models.visionConfigId,
+					},
+				}
+			: {}),
 	} as unknown as AutomationDefinition;
+}
+
+/** True once every model slot holds a concrete (non-zero) id. */
+export function hasResolvedModels(models: BuilderModels): boolean {
+	return models.agentLlmId !== 0 && models.imageConfigId !== 0 && models.visionConfigId !== 0;
 }
 
 /** The desired schedule trigger for this form, or ``null`` if none. */
@@ -434,6 +467,8 @@ export function hydrateForm(
 		? metadata.tags.filter((tag): tag is string => typeof tag === "string")
 		: [];
 
+	const models = modelsFromDefinition(d.models);
+
 	return {
 		formable: true,
 		form: {
@@ -455,7 +490,19 @@ export function hydrateForm(
 			},
 			tags,
 			goal: typeof d.goal === "string" ? d.goal : null,
+			models,
 		},
+	};
+}
+
+/** Read a captured ``definition.models`` snapshot into the form's model slots. */
+function modelsFromDefinition(raw: unknown): BuilderModels {
+	const m = asRecord(raw);
+	const num = (value: unknown) => (typeof value === "number" ? value : 0);
+	return {
+		agentLlmId: num(m.agent_llm_id),
+		imageConfigId: num(m.image_generation_config_id),
+		visionConfigId: num(m.vision_llm_config_id),
 	};
 }
 
