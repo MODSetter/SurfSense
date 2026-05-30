@@ -4,7 +4,7 @@ import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
 import { AlertCircle, CornerDownLeftIcon, ExternalLink, Pencil, Workflow } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	AutomationModelFields,
 	type AutomationModelSelection,
@@ -17,6 +17,13 @@ import { automationCreateRequest } from "@/contracts/types/automation.types";
 import type { HitlDecision, InterruptResult } from "@/features/chat-messages/hitl";
 import { isInterruptResult, useHitlDecision, useHitlPhase } from "@/features/chat-messages/hitl";
 import { useAutomationEligibleModels } from "@/hooks/use-automation-eligible-models";
+import {
+	trackAutomationChatApproved,
+	trackAutomationChatCreateFailed,
+	trackAutomationChatCreateSucceeded,
+	trackAutomationChatDraftEdited,
+	trackAutomationChatRejected,
+} from "@/lib/posthog/events";
 import { AutomationDraftPreview } from "./automation-draft-preview";
 
 const editArgsSchema = automationCreateRequest.omit({ search_space_id: true });
@@ -145,6 +152,19 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 				},
 			},
 		};
+		const plan = Array.isArray(baseDefinition.plan) ? baseDefinition.plan : [];
+		const triggers = Array.isArray(baseArgs.triggers) ? baseArgs.triggers : [];
+		trackAutomationChatApproved({
+			search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+			edited: pendingEdits !== null,
+			task_count: plan.length,
+			trigger_type:
+				(triggers[0] as { type?: string } | undefined)?.type ??
+				(triggers.length ? undefined : "none"),
+			agent_llm_id: resolvedModels.agentLlmId,
+			image_generation_config_id: resolvedModels.imageConfigId,
+			vision_llm_config_id: resolvedModels.visionConfigId,
+		});
 		onDecision({
 			type: "edit",
 			edited_action: {
@@ -163,13 +183,17 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 		args,
 		pendingEdits,
 		resolvedModels,
+		searchSpaceId,
 	]);
 
 	const handleReject = useCallback(() => {
 		if (phase !== "pending" || !canReject || isEditing) return;
 		setRejected();
+		trackAutomationChatRejected({
+			search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+		});
 		onDecision({ type: "reject", message: "User rejected the automation draft." });
-	}, [phase, canReject, isEditing, setRejected, onDecision]);
+	}, [phase, canReject, isEditing, setRejected, onDecision, searchSpaceId]);
 
 	useEffect(() => {
 		if (isEditing) return;
@@ -242,6 +266,9 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 						onSave={(parsed) => {
 							setPendingEdits(parsed);
 							setIsEditing(false);
+							trackAutomationChatDraftEdited({
+								search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+							});
 						}}
 						onCancel={() => setIsEditing(false)}
 					/>
@@ -356,6 +383,17 @@ function JsonEditor({ initialValue, onSave, onCancel }: JsonEditorProps) {
 
 function SavedCard({ result }: { result: SavedResult }) {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const tracked = useRef(false);
+	useEffect(() => {
+		if (tracked.current) return;
+		tracked.current = true;
+		trackAutomationChatCreateSucceeded({
+			automation_id: result.automation_id,
+			name: result.name,
+			search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+		});
+	}, [result.automation_id, result.name, searchSpaceId]);
+
 	const detailHref = searchSpaceId
 		? `/dashboard/${searchSpaceId}/automations/${result.automation_id}`
 		: null;
@@ -388,6 +426,18 @@ function SavedCard({ result }: { result: SavedResult }) {
 }
 
 function InvalidCard({ result }: { result: InvalidResult }) {
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const tracked = useRef(false);
+	useEffect(() => {
+		if (tracked.current) return;
+		tracked.current = true;
+		trackAutomationChatCreateFailed({
+			reason: "invalid",
+			issue_count: result.issues.length,
+			search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+		});
+	}, [result.issues.length, searchSpaceId]);
+
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
@@ -411,6 +461,18 @@ function InvalidCard({ result }: { result: InvalidResult }) {
 }
 
 function ErrorCard({ result }: { result: ErrorResult }) {
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const tracked = useRef(false);
+	useEffect(() => {
+		if (tracked.current) return;
+		tracked.current = true;
+		trackAutomationChatCreateFailed({
+			reason: "error",
+			message: result.message,
+			search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+		});
+	}, [result.message, searchSpaceId]);
+
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">

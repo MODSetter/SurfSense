@@ -88,9 +88,12 @@ async function initPostHog() {
 				}
 				return event;
 			},
-			loaded: (ph) => {
+			loaded: () => {
 				if (typeof window !== "undefined") {
-					window.posthog = ph;
+					// `loaded` hands back a `PostHogInterface`, but it's the same
+					// singleton as the default import (typed `PostHog`); use that to
+					// keep `window.posthog` correctly typed.
+					window.posthog = posthog;
 				}
 			},
 		});
