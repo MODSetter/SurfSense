@@ -220,13 +220,7 @@ export const DocumentMentionPicker = forwardRef<
 	DocumentMentionPickerRef,
 	DocumentMentionPickerProps
 >(function DocumentMentionPicker(
-	{
-		searchSpaceId,
-		onSelectionChange,
-		onDone,
-		initialSelectedDocuments = [],
-		externalSearch = "",
-	},
+	{ searchSpaceId, onSelectionChange, onDone, initialSelectedDocuments = [], externalSearch = "" },
 	ref
 ) {
 	const search = externalSearch;

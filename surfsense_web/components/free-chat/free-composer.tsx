@@ -6,6 +6,7 @@ import { type FC, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
@@ -71,10 +72,11 @@ export const FreeComposer: FC = () => {
 	const { gate } = useLoginGate();
 	const anonMode = useAnonymousMode();
 	const [text, setText] = useState("");
-	const [webSearchEnabled, setWebSearchEnabled] = useState(true);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const hasUploadedDoc = anonMode.isAnonymous && anonMode.uploadedDoc !== null;
+	const webSearchEnabled = anonMode.isAnonymous ? anonMode.webSearchEnabled : true;
+	const setWebSearchEnabled = anonMode.isAnonymous ? anonMode.setWebSearchEnabled : () => {};
 
 	const handleTextChange = useCallback(
 		(e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -189,14 +191,11 @@ export const FreeComposer: FC = () => {
 							<Button
 								type="button"
 								variant="ghost"
+								size="sm"
 								onClick={handleUploadClick}
-								className={cn(
-									"h-auto gap-1.5 rounded-md px-2 py-1 text-xs transition-colors",
-									"text-muted-foreground hover:text-accent-foreground hover:bg-accent",
-									hasUploadedDoc && "text-primary"
-								)}
+								className={cn(hasUploadedDoc && "text-primary")}
 							>
-								<Paperclip className="size-3.5" />
+								<Paperclip data-icon="inline-start" />
 								{hasUploadedDoc ? "1/1" : "Upload"}
 							</Button>
 						</TooltipTrigger>
@@ -207,13 +206,13 @@ export const FreeComposer: FC = () => {
 						</TooltipContent>
 					</Tooltip>
 
-					<div className="h-4 w-px bg-border/60" />
+					<Separator orientation="vertical" className="h-4" />
 
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<label
 								htmlFor="free-web-search-toggle"
-								className="flex items-center gap-1.5 cursor-pointer select-none rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-accent-foreground hover:bg-accent transition-colors"
+								className="flex cursor-pointer select-none items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 							>
 								<Globe className="size-3.5" />
 								<span className="hidden sm:inline">Web</span>
@@ -221,7 +220,6 @@ export const FreeComposer: FC = () => {
 									id="free-web-search-toggle"
 									checked={webSearchEnabled}
 									onCheckedChange={setWebSearchEnabled}
-									className="scale-75"
 								/>
 							</label>
 						</TooltipTrigger>

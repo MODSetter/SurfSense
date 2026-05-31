@@ -24,6 +24,7 @@ def _event_type(type_: str = "test.thing") -> EventType:
 
 def test_register_then_get_returns_the_event_type(isolated_event_catalog: None) -> None:
     from app.event_bus.catalog import catalog
+
     catalog.register(_event_type())
 
     assert catalog.get("test.thing") is not None
@@ -32,12 +33,14 @@ def test_register_then_get_returns_the_event_type(isolated_event_catalog: None) 
 
 def test_get_unknown_type_returns_none(isolated_event_catalog: None) -> None:
     from app.event_bus.catalog import catalog
+
     assert catalog.get("does.not.exist") is None
 
 
 def test_register_duplicate_type_raises(isolated_event_catalog: None) -> None:
     """A type is a contract; registering it twice is a bug, not an override."""
     from app.event_bus.catalog import catalog
+
     catalog.register(_event_type())
 
     with pytest.raises(ValueError, match="already registered"):
@@ -47,6 +50,7 @@ def test_register_duplicate_type_raises(isolated_event_catalog: None) -> None:
 def test_all_is_a_defensive_snapshot(isolated_event_catalog: None) -> None:
     """Mutating the returned dict must not corrupt the registry."""
     from app.event_bus.catalog import catalog
+
     catalog.register(_event_type())
 
     snapshot = catalog.all()

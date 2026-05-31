@@ -79,9 +79,11 @@ def _after_commit(session: Session) -> None:
     ]
     for task in tasks:
         task.add_done_callback(
-            lambda t: logger.error("event publish failed: %s", t.exception())
-            if not t.cancelled() and t.exception()
-            else None
+            lambda t: (
+                logger.error("event publish failed: %s", t.exception())
+                if not t.cancelled() and t.exception()
+                else None
+            )
         )
 
 

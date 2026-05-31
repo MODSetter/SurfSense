@@ -89,10 +89,7 @@ const DesktopLocalTabContent = dynamic(
 	{ ssr: false }
 );
 
-const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = [
-	"USER_MEMORY",
-	"TEAM_MEMORY",
-];
+const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = ["USER_MEMORY", "TEAM_MEMORY"];
 const MEMORY_DOCUMENTS: DocumentNodeDoc[] = [
 	{
 		id: -1001,

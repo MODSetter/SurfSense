@@ -1,10 +1,18 @@
 "use client";
 
-import { Bot, Check, ChevronDown, Search } from "lucide-react";
+import { Bot, Check, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import type { AnonModel } from "@/contracts/types/anonymous-chat.types";
@@ -19,21 +27,18 @@ export function FreeModelSelector({ className }: { className?: string }) {
 
 	const [open, setOpen] = useState(false);
 	const [models, setModels] = useState<AnonModel[]>([]);
-	const [searchQuery, setSearchQuery] = useState("");
-	const [focusedIndex, setFocusedIndex] = useState(-1);
-	const searchInputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
-		anonymousChatApiService.getModels().then(setModels).catch(console.error);
-	}, []);
-
-	const handleOpenChange = useCallback((next: boolean) => {
-		if (next) {
-			setSearchQuery("");
-			setFocusedIndex(-1);
-			requestAnimationFrame(() => searchInputRef.current?.focus());
-		}
-		setOpen(next);
+		const controller = new AbortController();
+		anonymousChatApiService
+			.getModels()
+			.then((data) => {
+				if (!controller.signal.aborted) setModels(data);
+			})
+			.catch((err) => {
+				if (!controller.signal.aborted) console.error(err);
+			});
+		return () => controller.abort();
 	}, []);
 
 	const currentModel = useMemo(
@@ -41,21 +46,11 @@ export function FreeModelSelector({ className }: { className?: string }) {
 		[models, currentSlug]
 	);
 
+	// Free models first, premium last; immutable sort to avoid mutating state.
 	const sortedModels = useMemo(
-		() => [...models].sort((a, b) => Number(a.is_premium) - Number(b.is_premium)),
+		() => models.toSorted((a, b) => Number(a.is_premium) - Number(b.is_premium)),
 		[models]
 	);
-
-	const filteredModels = useMemo(() => {
-		if (!searchQuery.trim()) return sortedModels;
-		const q = searchQuery.toLowerCase();
-		return sortedModels.filter(
-			(m) =>
-				m.name.toLowerCase().includes(q) ||
-				m.model_name.toLowerCase().includes(q) ||
-				m.provider.toLowerCase().includes(q)
-		);
-	}, [sortedModels, searchQuery]);
 
 	const handleSelect = useCallback(
 		(model: AnonModel) => {
@@ -70,42 +65,15 @@ export function FreeModelSelector({ className }: { className?: string }) {
 		[currentSlug, anonMode, router]
 	);
 
-	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent<HTMLInputElement>) => {
-			const count = filteredModels.length;
-			if (count === 0) return;
-			switch (e.key) {
-				case "ArrowDown":
-					e.preventDefault();
-					setFocusedIndex((p) => (p < count - 1 ? p + 1 : 0));
-					break;
-				case "ArrowUp":
-					e.preventDefault();
-					setFocusedIndex((p) => (p > 0 ? p - 1 : count - 1));
-					break;
-				case "Enter":
-					e.preventDefault();
-					if (focusedIndex >= 0 && focusedIndex < count) {
-						handleSelect(filteredModels[focusedIndex]);
-					}
-					break;
-			}
-		},
-		[filteredModels, focusedIndex, handleSelect]
-	);
-
 	return (
-		<Popover open={open} onOpenChange={handleOpenChange}>
+		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
 				<Button
 					variant="ghost"
 					size="sm"
 					role="combobox"
 					aria-expanded={open}
-					className={cn(
-						"h-8 gap-2 px-3 text-sm bg-muted hover:bg-muted/80 border-0 select-none",
-						className
-					)}
+					className={cn("gap-2 bg-muted hover:bg-muted/80", className)}
 				>
 					{currentModel ? (
 						<>
@@ -118,90 +86,47 @@ export function FreeModelSelector({ className }: { className?: string }) {
 							<span className="text-muted-foreground">Select Model</span>
 						</>
 					)}
-					<ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0" />
+					<ChevronDown className="ml-1 size-3.5 shrink-0 text-muted-foreground" />
 				</Button>
 			</PopoverTrigger>
-			<PopoverContent
-				className="w-[320px] p-0 rounded-lg shadow-lg overflow-hidden select-none"
-				align="start"
-				sideOffset={8}
-				onCloseAutoFocus={(e) => e.preventDefault()}
-			>
-				<div className="relative">
-					<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-					<input
-						ref={searchInputRef}
-						placeholder="Search models"
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-						onKeyDown={handleKeyDown}
-						className="w-full pl-8 pr-3 py-2.5 text-sm bg-transparent focus:outline-none placeholder:text-muted-foreground"
-					/>
-				</div>
-				<div className="overflow-y-auto max-h-[320px] py-1 space-y-0.5">
-					{filteredModels.length === 0 ? (
-						<div className="flex flex-col items-center justify-center gap-2 py-8 px-4">
-							<Search className="size-6 text-muted-foreground" />
-							<p className="text-sm text-muted-foreground">No models found</p>
-						</div>
-					) : (
-						filteredModels.map((model, index) => {
-							const isSelected = model.seo_slug === currentSlug;
-							const isFocused = focusedIndex === index;
-							return (
-								<div
-									key={model.id}
-									role="option"
-									tabIndex={0}
-									aria-selected={isSelected}
-									onClick={() => handleSelect(model)}
-									onKeyDown={(e) => {
-										if (e.key === "Enter" || e.key === " ") {
-											e.preventDefault();
-											handleSelect(model);
-										}
-									}}
-									onMouseEnter={() => setFocusedIndex(index)}
-									className={cn(
-										"group flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer",
-										"transition-colors duration-150 mx-2",
-										"hover:bg-accent hover:text-accent-foreground",
-										isFocused && "bg-accent text-accent-foreground",
-										isSelected && "bg-accent text-accent-foreground"
-									)}
-								>
-									<div className="shrink-0">
-										{getProviderIcon(model.provider, { className: "size-5" })}
-									</div>
-									<div className="flex-1 min-w-0">
-										<div className="flex items-center gap-1.5">
-											<span className="font-medium text-sm truncate">{model.name}</span>
-											{model.is_premium ? (
-												<Badge
-													variant="secondary"
-													className="text-[9px] px-1 py-0 h-3.5 bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border-0"
-												>
-													Premium
-												</Badge>
-											) : (
-												<Badge
-													variant="secondary"
-													className="text-[9px] px-1 py-0 h-3.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-0"
-												>
-													Free
-												</Badge>
-											)}
+			<PopoverContent className="w-[320px] p-0" align="start" sideOffset={8}>
+				<Command
+					filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}
+				>
+					<CommandInput placeholder="Search models" />
+					<CommandList>
+						<CommandEmpty>No models found.</CommandEmpty>
+						<CommandGroup>
+							{sortedModels.map((model) => {
+								const isSelected = model.seo_slug === currentSlug;
+								return (
+									<CommandItem
+										key={model.id}
+										value={`${model.name} ${model.model_name} ${model.provider}`}
+										onSelect={() => handleSelect(model)}
+										className="gap-2.5"
+									>
+										<div className="shrink-0">
+											{getProviderIcon(model.provider, { className: "size-5" })}
 										</div>
-										<span className="text-xs text-muted-foreground truncate block">
-											{model.model_name}
-										</span>
-									</div>
-									{isSelected && <Check className="size-4 text-primary shrink-0" />}
-								</div>
-							);
-						})
-					)}
-				</div>
+										<div className="flex min-w-0 flex-1 flex-col">
+											<div className="flex items-center gap-1.5">
+												<span className="truncate text-sm font-medium">{model.name}</span>
+												<Badge variant={model.is_premium ? "default" : "secondary"}>
+													{model.is_premium ? "Premium" : "Free"}
+												</Badge>
+											</div>
+											<span className="block truncate text-xs text-muted-foreground">
+												{model.model_name}
+											</span>
+										</div>
+										{isSelected && <Check className="size-4 shrink-0 text-primary" />}
+									</CommandItem>
+								);
+							})}
+						</CommandGroup>
+					</CommandList>
+				</Command>
 			</PopoverContent>
 		</Popover>
 	);
