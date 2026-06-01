@@ -212,9 +212,9 @@ API Base URL: https://open.bigmodel.cn/api/paas/v4
 
 | 字段 | 值 | 说明 |
 |------|-----|------|
-| **Configuration Name** | `MiniMax M2.5` | 配置名称（自定义） |
+| **Configuration Name** | `MiniMax M3` | 配置名称（自定义） |
 | **Provider** | `MINIMAX` | 选择 MiniMax |
-| **Model Name** | `MiniMax-M2.5` | 推荐模型<br>其他选项: `MiniMax-M2.5-highspeed` |
+| **Model Name** | `MiniMax-M3` | 推荐模型<br>其他选项: `MiniMax-M2.7`、`MiniMax-M2.7-highspeed` |
 | **API Key** | `eyJ...` | 你的 MiniMax API Key |
 | **API Base URL** | `https://api.minimax.io/v1` | MiniMax API 地址 |
 | **Parameters** | `{"temperature": 1.0}` | 注意：temperature 必须在 (0.0, 1.0] 范围内，不能为 0 |
@@ -222,22 +222,23 @@ API Base URL: https://open.bigmodel.cn/api/paas/v4
 ### 示例配置
 
 ```
-Configuration Name: MiniMax M2.5
+Configuration Name: MiniMax M3
 Provider: MINIMAX
-Model Name: MiniMax-M2.5
+Model Name: MiniMax-M3
 API Key: eyJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 API Base URL: https://api.minimax.io/v1
 ```
 
 ### 可用模型
 
-- **MiniMax-M2.5**: 高性能通用模型，204K 上下文窗口（推荐）
-- **MiniMax-M2.5-highspeed**: 高速推理版本，204K 上下文窗口
+- **MiniMax-M3**: 旗舰模型，512K 上下文窗口（推荐）
+- **MiniMax-M2.7**: 上一代通用模型，204K 上下文窗口
+- **MiniMax-M2.7-highspeed**: 上一代高速推理版本，204K 上下文窗口
 
 ### 注意事项
 
 - **temperature 参数**: MiniMax 要求 temperature 必须在 (0.0, 1.0] 范围内，不能设置为 0。建议使用 1.0。
-- 两个模型都支持 204K 超长上下文窗口，适合处理长文本任务。
+- M3 支持 512K 超长上下文，M2.7 系列保留 204K，适合按需求选择。
 
 ### 定价
 - 请访问 [MiniMax 定价页面](https://platform.minimaxi.com/document/Price) 查看最新价格
@@ -315,8 +316,8 @@ docker compose logs backend | grep -i "error"
 |---------|---------|------|
 | **文档摘要** | Qwen-Plus, GLM-4 | 平衡性能和成本 |
 | **代码分析** | DeepSeek-Coder | 代码专用 |
-| **长文本处理** | Kimi 128K, MiniMax-M2.5 (204K) | 超长上下文 |
-| **快速响应** | Qwen-Turbo, GLM-4-Flash, MiniMax-M2.5-highspeed | 速度优先 |
+| **长文本处理** | Kimi 128K, MiniMax-M3 (512K) | 超长上下文 |
+| **快速响应** | Qwen-Turbo, GLM-4-Flash, MiniMax-M2.7-highspeed | 速度优先 |
 
 ### 2. 成本优化
 
