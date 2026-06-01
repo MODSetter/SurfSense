@@ -67,6 +67,7 @@ import {
 } from "@/components/assistant-ui/inline-mention-editor";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
+import { ChatExamplePrompts } from "@/components/new-chat/chat-example-prompts";
 import { ComposerSuggestionPopoverContent } from "@/components/new-chat/composer-suggestion-popup";
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
@@ -657,6 +658,15 @@ const Composer: FC = () => {
 		[actionQuery, aui]
 	);
 
+	const handleExampleSelect = useCallback(
+		(prompt: string) => {
+			editorRef.current?.setText(prompt);
+			aui.composer().setText(prompt);
+			editorRef.current?.focus();
+		},
+		[aui]
+	);
+
 	const handleQuickAskSelect = useCallback(
 		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
 			if (!clipboardInitialText) return;
@@ -916,6 +926,7 @@ const Composer: FC = () => {
 					isThreadEmpty={isThreadEmpty}
 					onVisibleChange={setConnectToolsTrayVisible}
 				/>
+				{isThreadEmpty && <ChatExamplePrompts onSelect={handleExampleSelect} />}
 			</div>
 		</ComposerPrimitive.Root>
 	);
