@@ -578,6 +578,7 @@ class ExternalChatPlatform(StrEnum):
     TELEGRAM = "telegram"
     WHATSAPP = "whatsapp"
     SLACK = "slack"
+    DISCORD = "discord"
     SIGNAL = "signal"
 
 
@@ -890,7 +891,9 @@ class ExternalChatAccount(Base, TimestampMixin):
             "platform",
             unique=True,
             postgresql_where=text(
-                "is_system_account = true AND NOT (cursor_state ? 'team_id')"
+                "is_system_account = true "
+                "AND NOT (cursor_state ? 'team_id') "
+                "AND NOT (cursor_state ? 'guild_id')"
             ),
         ),
         Index(
@@ -900,6 +903,15 @@ class ExternalChatAccount(Base, TimestampMixin):
             unique=True,
             postgresql_where=text(
                 "is_system_account = true AND cursor_state ? 'team_id'"
+            ),
+        ),
+        Index(
+            "uq_external_chat_accounts_discord_guild",
+            "platform",
+            text("(cursor_state ->> 'guild_id')"),
+            unique=True,
+            postgresql_where=text(
+                "is_system_account = true AND cursor_state ? 'guild_id'"
             ),
         ),
         Index(
