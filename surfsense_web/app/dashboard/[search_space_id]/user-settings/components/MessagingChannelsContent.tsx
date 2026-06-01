@@ -18,6 +18,7 @@ type Binding = {
 	external_display_name?: string | null;
 	external_username?: string | null;
 	suspended_reason?: string | null;
+	external_metadata?: Record<string, unknown> | null;
 };
 
 type Platform = {
@@ -50,6 +51,7 @@ export function MessagingChannelsContent() {
 	const params = useParams<{ search_space_id: string }>();
 	const searchSpaceId = Number(params.search_space_id);
 	const whatsappMode = process.env.NEXT_PUBLIC_GATEWAY_WHATSAPP_INTAKE_MODE ?? "disabled";
+	const slackGatewayEnabled = process.env.NEXT_PUBLIC_GATEWAY_SLACK_ENABLED === "true";
 	const [bindings, setBindings] = useState<Binding[]>([]);
 	const [platforms, setPlatforms] = useState<Platform[]>([]);
 	const [pairing, setPairing] = useState<Pairing | null>(null);
@@ -96,6 +98,17 @@ export function MessagingChannelsContent() {
 		await refresh();
 	}
 
+	async function installSlackGateway() {
+		const res = await authenticatedFetch(
+			`${BACKEND_URL}/api/v1/gateway/slack/install?search_space_id=${searchSpaceId}`
+		);
+		if (!res.ok) return;
+		const data = (await res.json()) as { auth_url?: string };
+		if (data.auth_url) {
+			window.location.href = data.auth_url;
+		}
+	}
+
 	function refreshBaileys() {
 		startTransition(async () => {
 			await refreshBaileysHealth();
@@ -119,8 +132,13 @@ export function MessagingChannelsContent() {
 
 	const telegram = platforms.find((p) => p.platform === "telegram");
 	const whatsapp = platforms.find((p) => p.platform === "whatsapp");
+	const slack = platforms.find((p) => p.platform === "slack");
 	const baileysQr = baileysHealth?.qr || null;
-	const activeBindings = bindings.filter((binding) => binding.search_space_id === searchSpaceId);
+	const activeBindings = bindings.filter(
+		(binding) =>
+			binding.search_space_id === searchSpaceId &&
+			binding.external_metadata?.kind !== "slack_thread"
+	);
 	const renderPairingPanel = (platform: PairingPlatform) => {
 		if (!pairing || pairingPlatform !== platform) return null;
 
@@ -169,6 +187,40 @@ export function MessagingChannelsContent() {
 					{renderPairingPanel("telegram")}
 				</CardContent>
 			</Card>
+
+			{slackGatewayEnabled ? (
+				<Card>
+					<CardHeader className="space-y-2">
+						<div className="flex items-center justify-between gap-3">
+							<CardTitle className="flex items-center gap-2 text-base">
+								<MessageCircle className="h-4 w-4" />
+								Slack Bot
+							</CardTitle>
+							<Badge variant={slack?.health_status === "ok" ? "default" : "secondary"}>
+								{slack ? "enabled" : "not enabled"}
+							</Badge>
+						</div>
+						<p className="text-sm text-muted-foreground">
+							Enable the SurfSense Slack bot so teammates can mention it in Slack. This is separate
+							from the Slack search connector.
+						</p>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="flex flex-wrap gap-2">
+							<Button onClick={installSlackGateway}>
+								{slack ? "Reconnect Slack Bot" : "Enable Slack Bot"}
+							</Button>
+							<Button variant="outline" onClick={refresh} disabled={loading}>
+								<RefreshCw className="mr-2 h-4 w-4" />
+								Refresh
+							</Button>
+						</div>
+						<p className="text-xs text-muted-foreground">
+							Slack search remains controlled by the Slack connector in the connector popup.
+						</p>
+					</CardContent>
+				</Card>
+			) : null}
 
 			{whatsappMode !== "disabled" ? (
 				<Card>
