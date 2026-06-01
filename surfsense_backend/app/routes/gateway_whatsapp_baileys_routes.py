@@ -85,6 +85,8 @@ async def request_pairing_code(
         account.mode = ExternalChatAccountMode.SELF_HOST_BYO
         account.owner_search_space_id = body.search_space_id
         account.health_status = ExternalChatHealthStatus.UNKNOWN
+        account.suspended_at = None
+        account.suspended_reason = None
     account.last_health_check_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(account)

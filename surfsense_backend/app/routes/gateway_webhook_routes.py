@@ -169,6 +169,10 @@ class UpdateBindingSearchSpaceRequest(BaseModel):
     search_space_id: int
 
 
+class UpdateAccountSearchSpaceRequest(BaseModel):
+    search_space_id: int
+
+
 def _classify_telegram_event(payload: dict[str, Any]) -> str:
     if "message" in payload:
         return "message"
@@ -704,21 +708,27 @@ async def list_bindings(
 
 @router.get("/connections")
 async def list_connections(
+    platform: ExternalChatPlatform | None = None,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> list[dict[str, Any]]:
+    filters = [
+        ExternalChatBinding.user_id == user.id,
+        ExternalChatBinding.state.in_(
+            [ExternalChatBindingState.BOUND, ExternalChatBindingState.SUSPENDED]
+        ),
+    ]
+    if platform is not None:
+        filters.append(ExternalChatAccount.platform == platform)
+
     result = await session.execute(
         select(ExternalChatBinding, ExternalChatAccount)
         .join(ExternalChatAccount, ExternalChatBinding.account_id == ExternalChatAccount.id)
-        .where(
-            ExternalChatBinding.user_id == user.id,
-            ExternalChatBinding.state.in_(
-                [ExternalChatBindingState.BOUND, ExternalChatBindingState.SUSPENDED]
-            ),
-        )
+        .where(*filters)
     )
 
     connections: list[dict[str, Any]] = []
+    baileys_account_ids: set[int] = set()
     for binding, account in result.all():
         binding_metadata = binding.external_metadata or {}
         kind = str(binding_metadata.get("kind") or "")
@@ -728,6 +738,10 @@ async def list_connections(
         account_state = account.cursor_state or {}
         workspace_name = None
         workspace_id = None
+        route_type = "binding"
+        connection_id = binding.id
+        search_space_id = binding.search_space_id
+        display_name = binding.external_display_name or binding.external_username
         if account.platform == ExternalChatPlatform.SLACK:
             workspace_name = account_state.get("team_name")
             workspace_id = account_state.get("team_id")
@@ -737,23 +751,67 @@ async def list_connections(
         elif account.platform == ExternalChatPlatform.WHATSAPP:
             workspace_name = account_state.get("display_phone_number")
             workspace_id = account_state.get("phone_number_id")
+            if account.mode == ExternalChatAccountMode.SELF_HOST_BYO:
+                if int(account.id) in baileys_account_ids:
+                    continue
+                baileys_account_ids.add(int(account.id))
+                route_type = "account"
+                connection_id = account.id
+                search_space_id = account.owner_search_space_id or binding.search_space_id
+                display_name = "WhatsApp Bridge"
 
         connections.append(
             {
-                "id": binding.id,
+                "id": connection_id,
+                "account_id": account.id,
+                "route_type": route_type,
                 "platform": account.platform.value,
+                "mode": account.mode.value,
                 "state": binding.state.value,
-                "search_space_id": binding.search_space_id,
-                "display_name": binding.external_display_name
-                or binding.external_username
-                or workspace_name,
-                "external_username": binding.external_username,
+                "search_space_id": search_space_id,
+                "display_name": display_name or workspace_name,
+                "external_username": (
+                    None
+                    if account.mode == ExternalChatAccountMode.SELF_HOST_BYO
+                    else binding.external_username
+                ),
                 "workspace_name": workspace_name,
                 "workspace_id": workspace_id,
                 "health_status": account.health_status.value,
                 "suspended_reason": binding.suspended_reason,
             }
         )
+
+    if platform is None or platform == ExternalChatPlatform.WHATSAPP:
+        account_result = await session.execute(
+            select(ExternalChatAccount).where(
+                ExternalChatAccount.owner_user_id == user.id,
+                ExternalChatAccount.platform == ExternalChatPlatform.WHATSAPP,
+                ExternalChatAccount.mode == ExternalChatAccountMode.SELF_HOST_BYO,
+                ExternalChatAccount.owner_search_space_id.is_not(None),
+            )
+        )
+        for account in account_result.scalars():
+            if int(account.id) in baileys_account_ids:
+                continue
+            account_state = account.cursor_state or {}
+            connections.append(
+                {
+                    "id": account.id,
+                    "account_id": account.id,
+                    "route_type": "account",
+                    "platform": account.platform.value,
+                    "mode": account.mode.value,
+                    "state": "bound",
+                    "search_space_id": account.owner_search_space_id,
+                    "display_name": "WhatsApp Bridge",
+                    "external_username": None,
+                    "workspace_name": account_state.get("display_phone_number"),
+                    "workspace_id": account_state.get("phone_number_id"),
+                    "health_status": account.health_status.value,
+                    "suspended_reason": account.suspended_reason,
+                }
+            )
 
     return connections
 
@@ -807,6 +865,44 @@ async def update_binding_search_space(
     return {"ok": True}
 
 
+@router.patch("/accounts/{account_id}/search-space")
+async def update_gateway_account_search_space(
+    account_id: int,
+    body: UpdateAccountSearchSpaceRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> dict[str, bool]:
+    account = await session.get(ExternalChatAccount, account_id)
+    if (
+        account is None
+        or account.owner_user_id != user.id
+        or account.platform != ExternalChatPlatform.WHATSAPP
+        or account.mode != ExternalChatAccountMode.SELF_HOST_BYO
+    ):
+        raise HTTPException(status_code=404, detail="Gateway account not found")
+
+    await check_search_space_access(session, user, body.search_space_id)
+    account.owner_search_space_id = body.search_space_id
+    account.updated_at = datetime.now(UTC)
+
+    result = await session.execute(
+        select(ExternalChatBinding).where(
+            ExternalChatBinding.account_id == account.id,
+            ExternalChatBinding.user_id == user.id,
+            ExternalChatBinding.state.in_(
+                [ExternalChatBindingState.BOUND, ExternalChatBindingState.SUSPENDED]
+            ),
+        )
+    )
+    for binding in result.scalars():
+        binding.search_space_id = body.search_space_id
+        binding.new_chat_thread_id = None
+        binding.updated_at = datetime.now(UTC)
+
+    await session.commit()
+    return {"ok": True}
+
+
 @router.delete("/bindings/{binding_id}")
 async def delete_binding(
     binding_id: int,
@@ -817,6 +913,41 @@ async def delete_binding(
     if binding is None or binding.user_id != user.id:
         raise HTTPException(status_code=404, detail="Binding not found")
     revoke_binding(binding)
+    await session.commit()
+    return {"ok": True}
+
+
+@router.delete("/accounts/{account_id}")
+async def delete_gateway_account(
+    account_id: int,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> dict[str, bool]:
+    account = await session.get(ExternalChatAccount, account_id)
+    if (
+        account is None
+        or account.owner_user_id != user.id
+        or account.platform != ExternalChatPlatform.WHATSAPP
+        or account.mode != ExternalChatAccountMode.SELF_HOST_BYO
+    ):
+        raise HTTPException(status_code=404, detail="Gateway account not found")
+
+    result = await session.execute(
+        select(ExternalChatBinding).where(
+            ExternalChatBinding.account_id == account.id,
+            ExternalChatBinding.user_id == user.id,
+            ExternalChatBinding.state.in_(
+                [ExternalChatBindingState.BOUND, ExternalChatBindingState.SUSPENDED]
+            ),
+        )
+    )
+    for binding in result.scalars():
+        revoke_binding(binding)
+
+    account.owner_search_space_id = None
+    account.suspended_at = datetime.now(UTC)
+    account.suspended_reason = "disconnected"
+    account.updated_at = datetime.now(UTC)
     await session.commit()
     return {"ok": True}
 
