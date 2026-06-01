@@ -5,6 +5,7 @@ import hmac
 import inspect
 import json
 import time
+from types import SimpleNamespace
 
 import pytest
 
@@ -271,4 +272,31 @@ async def test_slack_webhook_ignores_self_event(monkeypatch, mocker):
 
     assert response.status_code == 200
     persist.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_discord_gateway_install_returns_oauth_url(monkeypatch):
+    monkeypatch.setattr(routes.config, "DISCORD_CLIENT_ID", "discord-client")
+    monkeypatch.setattr(
+        routes.config,
+        "GATEWAY_DISCORD_REDIRECT_URI",
+        "http://localhost:8000/api/v1/gateway/discord/callback",
+    )
+    monkeypatch.setattr(routes.config, "SECRET_KEY", "test-secret")
+
+    response = await routes.install_discord_gateway(
+        search_space_id=123,
+        user=SimpleNamespace(id="00000000-0000-0000-0000-000000000001"),
+    )
+
+    assert response["auth_url"].startswith("https://discord.com/api/oauth2/authorize?")
+    assert "client_id=discord-client" in response["auth_url"]
+    assert "gateway%2Fdiscord%2Fcallback" in response["auth_url"]
+    assert "scope=identify+guilds+bot" in response["auth_url"]
+
+
+def test_discord_gateway_callback_does_not_create_search_source_connector():
+    callback_source = inspect.getsource(routes.discord_gateway_callback)
+
+    assert "SearchSourceConnector" not in callback_source
 
