@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.config import config
 from app.db import (
     ExternalChatAccount,
+    ExternalChatAccountMode,
     ExternalChatBinding,
     ExternalChatBindingState,
     ExternalChatEventStatus,
@@ -38,6 +39,21 @@ SessionMaker = async_sessionmaker[AsyncSession] | Callable[[], AsyncSession]
 
 def _dashboard_url() -> str:
     return config.NEXT_FRONTEND_URL or "/dashboard"
+
+
+def _active_whatsapp_account_mode() -> ExternalChatAccountMode | None:
+    if config.GATEWAY_WHATSAPP_INTAKE_MODE == "cloud":
+        return ExternalChatAccountMode.CLOUD_SHARED
+    if config.GATEWAY_WHATSAPP_INTAKE_MODE == "baileys":
+        return ExternalChatAccountMode.SELF_HOST_BYO
+    return None
+
+
+def _is_inactive_whatsapp_account(account: ExternalChatAccount) -> bool:
+    return (
+        account.platform == ExternalChatPlatform.WHATSAPP
+        and account.mode != _active_whatsapp_account_mode()
+    )
 
 
 async def claim_next_inbound_event(
@@ -291,6 +307,11 @@ async def _dispatch_inbound_event(
         if account is None:
             event.status = ExternalChatEventStatus.IGNORED
             event.last_error = "account_missing"
+            await session.commit()
+            return
+        if _is_inactive_whatsapp_account(account):
+            event.status = ExternalChatEventStatus.IGNORED
+            event.last_error = "inactive_whatsapp_mode"
             await session.commit()
             return
 

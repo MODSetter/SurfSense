@@ -208,12 +208,18 @@ export function MessagingChannelsContent() {
 		await refreshPlatform(connection.platform as GatewayPlatform);
 	}
 
+	const isConnectionInActiveMode = (connection: GatewayConnection) => {
+		if (connection.platform !== "whatsapp") return true;
+		if (whatsappMode === "baileys") return connection.mode === "self_host_byo";
+		if (whatsappMode === "cloud") return connection.mode !== "self_host_byo";
+		return false;
+	};
 	const baileysQr = baileysHealth?.qr || null;
 	const hasTelegramConnection = connections.some(
 		(connection) => connection.platform === "telegram"
 	);
 	const hasWhatsAppConnection = connections.some(
-		(connection) => connection.platform === "whatsapp"
+		(connection) => connection.platform === "whatsapp" && isConnectionInActiveMode(connection)
 	);
 	const isRefreshing = (platform: GatewayPlatform) => refreshingPlatform === platform;
 	const refreshButtonClassName = "gap-2";
@@ -242,7 +248,7 @@ export function MessagingChannelsContent() {
 				`${platformLabel(connection.platform)} connection`;
 	const renderConnectionRows = (platform: GatewayConnection["platform"], emptyText: string) => {
 		const platformConnections = connections.filter(
-			(connection) => connection.platform === platform
+			(connection) => connection.platform === platform && isConnectionInActiveMode(connection)
 		);
 
 		if (platformConnections.length === 0) {
@@ -327,7 +333,7 @@ export function MessagingChannelsContent() {
 
 	return (
 		<div className="grid items-stretch gap-3 sm:grid-cols-2">
-			<Card className="group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
+			<Card className="order-1 group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
 				<CardHeader className="space-y-1.5 p-4 pb-2">
 					<div className="flex items-center justify-between gap-3">
 						<CardTitle className="flex items-center gap-2 text-sm">Telegram</CardTitle>
@@ -360,7 +366,7 @@ export function MessagingChannelsContent() {
 			</Card>
 
 			{slackGatewayEnabled ? (
-				<Card className="group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
+				<Card className="order-4 group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
 					<CardHeader className="space-y-1.5 p-4 pb-2">
 						<div className="flex items-center justify-between gap-3">
 							<CardTitle className="flex items-center gap-2 text-sm">Slack</CardTitle>
@@ -392,7 +398,7 @@ export function MessagingChannelsContent() {
 			) : null}
 
 			{discordGatewayEnabled ? (
-				<Card className="group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
+				<Card className="order-3 group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
 					<CardHeader className="space-y-1.5 p-4 pb-2">
 						<div className="flex items-center justify-between gap-3">
 							<CardTitle className="flex items-center gap-2 text-sm">Discord</CardTitle>
@@ -424,16 +430,15 @@ export function MessagingChannelsContent() {
 			) : null}
 
 			{whatsappMode !== "disabled" ? (
-				<Card className="group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
+				<Card className="order-2 group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
 					<CardHeader className="space-y-1.5 p-4 pb-2">
 						<div className="flex items-center justify-between gap-3">
 							<CardTitle className="flex items-center gap-2 text-sm">WhatsApp</CardTitle>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							Pair this search space with WhatsApp using the configured gateway mode.
 							{whatsappMode === "baileys"
-								? " Send messages to your own WhatsApp chat. Other chats are ignored."
-								: ""}
+								? "Use the WhatsApp bridge for your own WhatsApp chat. Other chats are ignored."
+								: "Pair this search space with WhatsApp Cloud API."}
 						</p>
 					</CardHeader>
 					<CardContent className="space-y-3 p-4 pt-0">
@@ -469,7 +474,7 @@ export function MessagingChannelsContent() {
 									disabled={isRefreshing("whatsapp")}
 								>
 									<RefreshCw className={refreshIconClassName("whatsapp")} />
-									Refresh WhatsApp Bridge
+									Refresh
 								</Button>
 								{baileysQr ? (
 									<div className="rounded-lg border border-accent bg-accent/20 p-3">

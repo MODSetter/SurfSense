@@ -16,7 +16,7 @@ from uuid import UUID
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
@@ -171,6 +171,21 @@ class UpdateBindingSearchSpaceRequest(BaseModel):
 
 class UpdateAccountSearchSpaceRequest(BaseModel):
     search_space_id: int
+
+
+def _active_whatsapp_account_mode() -> ExternalChatAccountMode | None:
+    if config.GATEWAY_WHATSAPP_INTAKE_MODE == "cloud":
+        return ExternalChatAccountMode.CLOUD_SHARED
+    if config.GATEWAY_WHATSAPP_INTAKE_MODE == "baileys":
+        return ExternalChatAccountMode.SELF_HOST_BYO
+    return None
+
+
+def _is_inactive_whatsapp_account(account: ExternalChatAccount) -> bool:
+    return (
+        account.platform == ExternalChatPlatform.WHATSAPP
+        and account.mode != _active_whatsapp_account_mode()
+    )
 
 
 def _classify_telegram_event(payload: dict[str, Any]) -> str:
@@ -712,6 +727,10 @@ async def list_connections(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> list[dict[str, Any]]:
+    active_whatsapp_mode = _active_whatsapp_account_mode()
+    if platform == ExternalChatPlatform.WHATSAPP and active_whatsapp_mode is None:
+        return []
+
     filters = [
         ExternalChatBinding.user_id == user.id,
         ExternalChatBinding.state.in_(
@@ -720,6 +739,17 @@ async def list_connections(
     ]
     if platform is not None:
         filters.append(ExternalChatAccount.platform == platform)
+        if platform == ExternalChatPlatform.WHATSAPP and active_whatsapp_mode is not None:
+            filters.append(ExternalChatAccount.mode == active_whatsapp_mode)
+    elif active_whatsapp_mode is None:
+        filters.append(ExternalChatAccount.platform != ExternalChatPlatform.WHATSAPP)
+    else:
+        filters.append(
+            or_(
+                ExternalChatAccount.platform != ExternalChatPlatform.WHATSAPP,
+                ExternalChatAccount.mode == active_whatsapp_mode,
+            )
+        )
 
     result = await session.execute(
         select(ExternalChatBinding, ExternalChatAccount)
@@ -782,7 +812,10 @@ async def list_connections(
             }
         )
 
-    if platform is None or platform == ExternalChatPlatform.WHATSAPP:
+    if (
+        active_whatsapp_mode == ExternalChatAccountMode.SELF_HOST_BYO
+        and (platform is None or platform == ExternalChatPlatform.WHATSAPP)
+    ):
         account_result = await session.execute(
             select(ExternalChatAccount).where(
                 ExternalChatAccount.owner_user_id == user.id,
@@ -855,6 +888,9 @@ async def update_binding_search_space(
         ExternalChatBindingState.SUSPENDED,
     }:
         raise HTTPException(status_code=400, detail="Only active bindings can be routed")
+    account = await session.get(ExternalChatAccount, binding.account_id)
+    if account is None or _is_inactive_whatsapp_account(account):
+        raise HTTPException(status_code=404, detail="Binding not found")
 
     await check_search_space_access(session, user, body.search_space_id)
     if binding.search_space_id != body.search_space_id:
@@ -878,6 +914,7 @@ async def update_gateway_account_search_space(
         or account.owner_user_id != user.id
         or account.platform != ExternalChatPlatform.WHATSAPP
         or account.mode != ExternalChatAccountMode.SELF_HOST_BYO
+        or _is_inactive_whatsapp_account(account)
     ):
         raise HTTPException(status_code=404, detail="Gateway account not found")
 
@@ -912,6 +949,9 @@ async def delete_binding(
     binding = await session.get(ExternalChatBinding, binding_id)
     if binding is None or binding.user_id != user.id:
         raise HTTPException(status_code=404, detail="Binding not found")
+    account = await session.get(ExternalChatAccount, binding.account_id)
+    if account is None or _is_inactive_whatsapp_account(account):
+        raise HTTPException(status_code=404, detail="Binding not found")
     revoke_binding(binding)
     await session.commit()
     return {"ok": True}
@@ -929,6 +969,7 @@ async def delete_gateway_account(
         or account.owner_user_id != user.id
         or account.platform != ExternalChatPlatform.WHATSAPP
         or account.mode != ExternalChatAccountMode.SELF_HOST_BYO
+        or _is_inactive_whatsapp_account(account)
     ):
         raise HTTPException(status_code=404, detail="Gateway account not found")
 
@@ -960,6 +1001,9 @@ async def resume_external_chat_binding(
 ) -> dict[str, bool]:
     binding = await session.get(ExternalChatBinding, binding_id)
     if binding is None or binding.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Binding not found")
+    account = await session.get(ExternalChatAccount, binding.account_id)
+    if account is None or _is_inactive_whatsapp_account(account):
         raise HTTPException(status_code=404, detail="Binding not found")
     resume_binding(binding)
     binding.updated_at = datetime.now(UTC)
