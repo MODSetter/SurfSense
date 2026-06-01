@@ -1,5 +1,13 @@
 "use client";
-import { ChevronDown, Clock, Download, Monitor, Sparkles } from "lucide-react";
+import {
+	ChevronDown,
+	Clock,
+	CornerDownLeft,
+	Download,
+	Lightbulb,
+	Monitor,
+	Sparkles,
+} from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -67,6 +75,7 @@ type HeroUseCase = {
 	description: string;
 	src: string | null;
 	comingSoon?: boolean;
+	examples?: string[];
 };
 
 type HeroCategory = {
@@ -143,9 +152,16 @@ const CATEGORIES: HeroCategory[] = [
 			{
 				id: "resume",
 				title: "AI Resume Builder",
-				description: "Draft and format an ATS-ready resume as a polished PDF.",
+				description: "Tailor your existing resume to any job description and beat the ATS.",
 				src: null,
 				comingSoon: true,
+				examples: [
+					"Tailor my resume to this job description so it gets past ATS and lands an interview.",
+					"Optimize my resume for ATS by matching the keywords in this job posting.",
+					"Rewrite my resume bullet points to highlight the skills this role is asking for.",
+					"Compare my resume against this job description and list the gaps to fix.",
+					"Write a matching cover letter from my resume and this job description.",
+				],
 			},
 		],
 	},
@@ -159,6 +175,13 @@ const CATEGORIES: HeroCategory[] = [
 				description: "Run an agent on a schedule: daily briefs, weekly digests, recurring reports.",
 				src: null,
 				comingSoon: true,
+				examples: [
+					"Email me a daily brief of new documents in my knowledge base every morning.",
+					"Generate a weekly status report from my Slack and Gmail every Friday.",
+					"Run a monthly competitor analysis report and save it to my workspace.",
+					"Summarize my GitHub and Linear activity into a daily standup update.",
+					"Create a recurring weekly research report on the topics I track.",
+				],
 			},
 			{
 				id: "event",
@@ -167,6 +190,13 @@ const CATEGORIES: HeroCategory[] = [
 					"Fire an agent the moment a document lands in a folder, then post the result to your tools.",
 				src: null,
 				comingSoon: true,
+				examples: [
+					"When a PDF lands in my Research folder, generate a cited AI summary.",
+					"When new meeting notes are added, turn them into meeting minutes with action items.",
+					"When an invoice is uploaded, extract the vendor, total, and due date into a table.",
+					"When a contract enters my Legal folder, flag key terms and renewal dates.",
+					"When a resume is added to Candidates, screen it against the job description.",
+				],
 			},
 			{
 				id: "chat-built",
@@ -174,6 +204,13 @@ const CATEGORIES: HeroCategory[] = [
 				description: "Describe an automation in plain English and SurfSense builds it for you.",
 				src: null,
 				comingSoon: true,
+				examples: [
+					"Build an AI agent that emails me a summary of new Notion pages each morning.",
+					"Create a no-code automation that posts a weekly research digest to Slack.",
+					"Set up an AI note taker that turns new meeting notes into minutes.",
+					"Make a workflow that extracts action items from meeting notes and assigns owners.",
+					"Automate a daily email brief from my Gmail and Google Drive.",
+				],
 			},
 		],
 	},
@@ -230,6 +267,13 @@ const CATEGORIES: HeroCategory[] = [
 				description: "Let the agent post results back to Notion, Slack, Linear and Drive.",
 				src: null,
 				comingSoon: true,
+				examples: [
+					"Post this research summary to my Notion workspace.",
+					"Send these meeting action items to our team Slack channel.",
+					"Create a Jira ticket from this bug report.",
+					"Open a Linear issue from this feature request.",
+					"Save this generated report to Google Drive as a doc.",
+				],
 			},
 		],
 	},
@@ -435,6 +479,28 @@ const UseCasePlaceholder = ({ title }: { title: string }) => (
 	</Empty>
 );
 
+const UseCaseExamples = ({ examples }: { examples: string[] }) => (
+	<div className="flex size-full flex-col gap-3 rounded-lg border border-dashed bg-muted/30 p-4 sm:rounded-xl sm:p-5">
+		<div className="flex items-center gap-2">
+			<Lightbulb aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+			<p className="text-sm font-medium text-foreground">Try prompts like these today</p>
+		</div>
+		<ul className="flex min-w-0 flex-col gap-2">
+			{examples.map((example) => (
+				<li key={example}>
+					<div className="flex items-start gap-2.5 rounded-md border bg-background px-3 py-2">
+						<CornerDownLeft
+							aria-hidden="true"
+							className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/70"
+						/>
+						<span className="min-w-0 text-sm text-pretty text-muted-foreground">{example}</span>
+					</div>
+				</li>
+			))}
+		</ul>
+	</div>
+);
+
 const DesktopBadge = () => (
 	<Tooltip>
 		<TooltipTrigger asChild>
@@ -469,9 +535,13 @@ const UseCasePane = memo(function UseCasePane({
 		</Button>
 	) : (
 		<div className="bg-neutral-50 p-2 sm:p-3 dark:bg-neutral-950">
-			<div className="aspect-video w-full">
-				<UseCasePlaceholder title={useCase.title} />
-			</div>
+			{useCase.examples && useCase.examples.length > 0 ? (
+				<UseCaseExamples examples={useCase.examples} />
+			) : (
+				<div className="aspect-video w-full">
+					<UseCasePlaceholder title={useCase.title} />
+				</div>
+			)}
 		</div>
 	);
 
