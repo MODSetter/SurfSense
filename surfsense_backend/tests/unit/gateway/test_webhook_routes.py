@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import inspect
+import json
+import time
 
 import pytest
 
-from app.db import ExternalChatPlatform, ExternalChatAccount
+from app.db import ExternalChatAccount, ExternalChatAccountMode, ExternalChatPlatform
 from app.routes import gateway_webhook_routes as routes
 
 
@@ -19,6 +23,9 @@ class RequestStub:
             raise self._json_exc
         return self._payload
 
+    async def body(self):
+        return json.dumps(self._payload).encode()
+
 
 def _account(secret: str = "secret") -> ExternalChatAccount:
     return ExternalChatAccount(
@@ -26,6 +33,38 @@ def _account(secret: str = "secret") -> ExternalChatAccount:
         platform=ExternalChatPlatform.TELEGRAM,
         webhook_secret=secret,
         bot_username="surf_bot",
+    )
+
+
+def _slack_account() -> ExternalChatAccount:
+    return ExternalChatAccount(
+        id=456,
+        platform=ExternalChatPlatform.SLACK,
+        mode=ExternalChatAccountMode.CLOUD_SHARED,
+        is_system_account=True,
+        cursor_state={"team_id": "T123", "bot_user_id": "U_BOT"},
+    )
+
+
+def _signed_slack_request(payload: dict, *, secret: str = "signing-secret") -> RequestStub:
+    body = json.dumps(payload).encode()
+    timestamp = str(int(time.time()))
+    digest = hmac.new(
+        secret.encode(),
+        b"v0:" + timestamp.encode() + b":" + body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    class SlackRequestStub(RequestStub):
+        async def body(self):
+            return body
+
+    return SlackRequestStub(
+        payload,
+        headers={
+            "X-Slack-Request-Timestamp": timestamp,
+            "X-Slack-Signature": f"v0={digest}",
+        },
     )
 
 
@@ -146,4 +185,90 @@ def test_telegram_webhook_does_not_use_slowapi_limiter():
     route_source = inspect.getsource(routes)
 
     assert "@limiter.limit" not in route_source
+
+
+def test_verify_slack_signature_accepts_valid_signature():
+    payload = b'{"type":"event_callback"}'
+    timestamp = str(int(time.time()))
+    digest = hmac.new(
+        b"secret",
+        b"v0:" + timestamp.encode() + b":" + payload,
+        hashlib.sha256,
+    ).hexdigest()
+
+    assert routes.verify_slack_signature(
+        signing_secret="secret",
+        timestamp=timestamp,
+        signature=f"v0={digest}",
+        body=payload,
+    )
+
+
+@pytest.mark.asyncio
+async def test_slack_webhook_url_verification(monkeypatch, mocker):
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+    request = _signed_slack_request({"type": "url_verification", "challenge": "abc123"})
+
+    response = await routes.slack_webhook(request=request, session=mocker.AsyncMock())
+
+    assert response.status_code == 200
+    assert json.loads(response.body)["challenge"] == "abc123"
+
+
+@pytest.mark.asyncio
+async def test_slack_webhook_persists_event(monkeypatch, mocker):
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+    session = mocker.AsyncMock()
+    monkeypatch.setattr(routes, "get_slack_account_by_team", mocker.AsyncMock(return_value=_slack_account()))
+    persist = mocker.AsyncMock(return_value=100)
+    monkeypatch.setattr(routes, "persist_inbound_event", persist)
+    payload = {
+        "type": "event_callback",
+        "team_id": "T123",
+        "event_id": "Ev123",
+        "event": {
+            "type": "app_mention",
+            "channel": "C123",
+            "user": "U123",
+            "text": "<@U_BOT> hello",
+            "ts": "1717000000.000100",
+        },
+    }
+    request = _signed_slack_request(payload)
+
+    response = await routes.slack_webhook(request=request, session=session)
+
+    assert response.status_code == 200
+    persist.assert_awaited_once()
+    assert persist.await_args.kwargs["event_dedupe_key"] == "slack_event:Ev123"
+    assert persist.await_args.kwargs["platform"] == ExternalChatPlatform.SLACK
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_slack_webhook_ignores_self_event(monkeypatch, mocker):
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+    session = mocker.AsyncMock()
+    monkeypatch.setattr(routes, "get_slack_account_by_team", mocker.AsyncMock(return_value=_slack_account()))
+    persist = mocker.AsyncMock(return_value=100)
+    monkeypatch.setattr(routes, "persist_inbound_event", persist)
+    request = _signed_slack_request(
+        {
+            "type": "event_callback",
+            "team_id": "T123",
+            "event_id": "Ev123",
+            "event": {
+                "type": "app_mention",
+                "channel": "C123",
+                "user": "U_BOT",
+                "text": "loop",
+                "ts": "1717000000.000100",
+            },
+        }
+    )
+
+    response = await routes.slack_webhook(request=request, session=session)
+
+    assert response.status_code == 200
+    persist.assert_not_awaited()
 
