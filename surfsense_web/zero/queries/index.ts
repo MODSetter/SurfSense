@@ -1,4 +1,5 @@
 import { defineQueries } from "@rocicorp/zero";
+import { automationRunQueries } from "./automations";
 import { chatSessionQueries, commentQueries, messageQueries } from "./chat";
 import { connectorQueries, documentQueries } from "./documents";
 import { folderQueries } from "./folders";
@@ -14,4 +15,5 @@ export const queries = defineQueries({
 	comments: commentQueries,
 	chatSession: chatSessionQueries,
 	user: userQueries,
+	automationRuns: automationRunQueries,
 });

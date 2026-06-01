@@ -184,8 +184,8 @@ export const LLM_PROVIDERS: LLMProvider[] = [
 	{
 		value: "MINIMAX",
 		label: "MiniMax",
-		example: "MiniMax-M2.5, MiniMax-M2.5-highspeed",
-		description: "High-performance models with 204K context",
+		example: "MiniMax-M3, MiniMax-M2.7",
+		description: "High-performance models with up to 512K context",
 		apiBase: "https://api.minimax.io/v1",
 	},
 	{

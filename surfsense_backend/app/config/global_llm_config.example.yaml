@@ -236,17 +236,17 @@ global_llm_configs:
     use_default_system_instructions: true
     citations_enabled: true
 
-  # Example: MiniMax M2.5 - High-performance with 204K context window
+  # Example: MiniMax M3 - High-performance with 512K context window
   - id: -8
-    name: "Global MiniMax M2.5"
-    description: "MiniMax M2.5 with 204K context window and competitive pricing"
+    name: "Global MiniMax M3"
+    description: "MiniMax M3 with 512K context window and competitive pricing"
     billing_tier: "free"
     anonymous_enabled: true
     seo_enabled: true
-    seo_slug: "minimax-m2.5"
+    seo_slug: "minimax-m3"
     quota_reserve_tokens: 4000
     provider: "MINIMAX"
-    model_name: "MiniMax-M2.5"
+    model_name: "MiniMax-M3"
     api_key: "your-minimax-api-key-here"
     api_base: "https://api.minimax.io/v1"
     rpm: 60

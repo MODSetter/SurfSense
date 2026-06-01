@@ -1,21 +1,21 @@
 "use client";
 import { ChevronDown, ChevronRight, Hand } from "lucide-react";
 import { useState } from "react";
-import type { RunSummary } from "@/contracts/types/automation.types";
+import type { LiveRunSummary } from "@/hooks/use-automation-runs";
 import { formatDuration } from "@/lib/automations/run-duration";
 import { formatRelativeDate } from "@/lib/format-date";
 import { RunDetailsPanel } from "./run-details-panel";
 import { RunStatusBadge } from "./run-status-badge";
 
 interface RunRowProps {
-	run: RunSummary;
+	run: LiveRunSummary;
 	automationId: number;
 }
 
 /**
- * One run row. Click to expand → fetches the full run and shows the
- * details panel inline. State is local to each row so multiple panels
- * can be open at once (or none).
+ * One run row. Click to expand → renders the details panel inline.
+ * Status and step_results come live from the parent's Zero query; the
+ * panel itself only fetches the heavy REST fields on first expand.
  */
 export function RunRow({ run, automationId }: RunRowProps) {
 	const [open, setOpen] = useState(false);
@@ -47,7 +47,14 @@ export function RunRow({ run, automationId }: RunRowProps) {
 				</div>
 			</button>
 
-			{open && <RunDetailsPanel automationId={automationId} runId={run.id} />}
+			{open && (
+				<RunDetailsPanel
+					automationId={automationId}
+					runId={run.id}
+					liveSteps={run.step_results}
+					liveStatus={run.status}
+				/>
+			)}
 		</div>
 	);
 }
