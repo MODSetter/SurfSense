@@ -577,6 +577,7 @@ class ChatVisibility(StrEnum):
 class ExternalChatPlatform(StrEnum):
     TELEGRAM = "telegram"
     WHATSAPP = "whatsapp"
+    SLACK = "slack"
     SIGNAL = "signal"
 
 
@@ -888,7 +889,18 @@ class ExternalChatAccount(Base, TimestampMixin):
             "uq_external_chat_accounts_system_platform",
             "platform",
             unique=True,
-            postgresql_where=text("is_system_account = true"),
+            postgresql_where=text(
+                "is_system_account = true AND NOT (cursor_state ? 'team_id')"
+            ),
+        ),
+        Index(
+            "uq_external_chat_accounts_slack_team",
+            "platform",
+            text("(cursor_state ->> 'team_id')"),
+            unique=True,
+            postgresql_where=text(
+                "is_system_account = true AND cursor_state ? 'team_id'"
+            ),
         ),
         Index(
             "uq_external_chat_accounts_webhook_secret",
