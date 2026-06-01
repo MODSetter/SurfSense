@@ -1,0 +1,84 @@
+---
+title: Slack
+description: Enable the SurfSense bot for in-Slack agent chat
+---
+
+# Slack Messaging Channel
+
+The Slack messaging channel lets users mention the SurfSense bot in Slack and
+chat with the SurfSense backend agent from a Slack thread.
+
+This is separate from the Slack connector. The messaging channel handles bot
+mentions and replies; the connector gives the agent Slack search/read tools.
+
+## Required Slack App Scopes
+
+Add these **Bot Token Scopes** in Slack OAuth & Permissions:
+
+| Scope | Purpose |
+| --- | --- |
+| `app_mentions:read` | Receive bot mention events |
+| `chat:write` | Reply in Slack threads |
+| `channels:read` | Read public channel metadata |
+| `groups:read` | Read private channel metadata where the bot is present |
+| `im:write` | Send onboarding or direct replies |
+| `users:read` | Resolve Slack users |
+| `team:read` | Resolve workspace metadata |
+
+Optional scopes:
+
+- `im:history` if you support direct message chat with the bot.
+- `commands` if you add slash commands.
+
+Avoid `channels:history` and `groups:history` for the messaging channel unless
+you specifically need gateway-side context reads. Slack workspace search should
+stay with the Slack connector.
+
+## Event Subscriptions
+
+Enable Slack Events API and subscribe to:
+
+- `app_mention`
+
+Set the request URL to:
+
+```bash
+https://your-backend.example.com/api/v1/gateway/webhooks/slack
+```
+
+Slack must be able to reach this URL. Do not use `localhost` for event
+subscriptions.
+
+## OAuth Redirect URLs
+
+If the same Slack app powers both the connector and messaging channel, add both
+redirect URLs in **OAuth & Permissions**:
+
+```bash
+https://your-backend.example.com/api/v1/auth/slack/connector/callback
+https://your-backend.example.com/api/v1/gateway/slack/callback
+```
+
+## Environment Variables
+
+For Docker installs, add these to `docker/.env`. For manual installs, add them to
+`surfsense_backend/.env`.
+
+```bash
+SLACK_CLIENT_ID=your_slack_client_id
+SLACK_CLIENT_SECRET=your_slack_client_secret
+GATEWAY_SLACK_ENABLED=TRUE
+GATEWAY_SLACK_SIGNING_SECRET=your_slack_signing_secret
+GATEWAY_SLACK_REDIRECT_URI=https://your-backend.example.com/api/v1/gateway/slack/callback
+```
+
+After changing Slack scopes, redirect URLs, or event subscriptions, reinstall
+the Slack app to your workspace so Slack grants the updated permissions.
+
+## Runtime Behavior
+
+1. Slack sends an `app_mention` event to SurfSense.
+2. SurfSense verifies the Slack signature and stores the event in the gateway inbox.
+3. SurfSense resolves the Slack user binding to a SurfSense user and search space.
+4. SurfSense runs the backend agent with that user's permissions.
+5. The agent reply is posted back in the same Slack thread.

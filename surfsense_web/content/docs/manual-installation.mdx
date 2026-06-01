@@ -39,38 +39,14 @@ Complete all the [setup steps](/docs), including:
 
 The backend is the core of SurfSense. Follow these steps to set it up:
 
-### Optional: Telegram External Chat Surface
+### Optional: Messaging Channels
 
-SurfSense can expose the same canonical chat agent through Telegram. The `external_chat_*` tables store adapter identity, delivery configuration, and durable inbox rows. The actual chat thread and messages remain in `new_chat_threads` and `new_chat_messages`, with first-party web/desktop chats marked as `source="surfsense"` and external surfaces marked by platform, such as `source="telegram"`. All chat-message sources are eligible for Zero replication so a future SurfSense UI layer can render external chat surfaces. The web app initially shows pairing, health, revoke, and resume controls under **User Settings > Messaging Channels**.
+SurfSense can expose the same backend agent through Telegram, WhatsApp, Slack,
+and Discord. For manual installs, configure the relevant channel variables in
+`surfsense_backend/.env`.
 
-Add these variables to `surfsense_backend/.env` when enabling the Telegram surface:
-
-```bash
-TELEGRAM_SHARED_BOT_TOKEN=123456:bot-token-from-botfather
-TELEGRAM_SHARED_BOT_USERNAME=your_bot_username
-TELEGRAM_WEBHOOK_SECRET=generate-a-long-random-secret
-GATEWAY_BASE_URL=https://api.example.com
-GATEWAY_TELEGRAM_INTAKE_MODE=webhook
-```
-
-`GATEWAY_TELEGRAM_INTAKE_MODE` must be `webhook`, `longpoll`, or `disabled`. Use `webhook` for production/SaaS deployments, `longpoll` only for single-replica self-host installs that cannot expose a public HTTPS webhook, and `disabled` to skip Telegram intake. `TELEGRAM_WEBHOOK_SECRET` must use only `A-Z`, `a-z`, `0-9`, `_`, and `-` characters. `REDIS_APP_URL` is reused for external chat rate limits and per-thread locks. The webhook URL shape is:
-
-```text
-${GATEWAY_BASE_URL}/api/v1/gateway/webhooks/telegram/{account_id}
-```
-
-After deploying the backend, register the webhook:
-
-```bash
-cd surfsense_backend
-uv run python scripts/register_webhook.py
-```
-
-Keep the FastAPI backend, Celery worker, and Celery beat running. Telegram webhooks write inbound updates into `external_chat_inbound_events`. The FastAPI process owns external chat inbox processing and runs the same SurfSense agent used by web UI chats, then replies back to Telegram. Celery remains maintenance-only for external chat reconciliation, health checks, and retention sweeps. There is no separate gateway service, `SERVICE_ROLE=gateway` process, or Celery agent-processing path.
-
-For self-hosted BYO Telegram bots without a public HTTPS URL, set `GATEWAY_TELEGRAM_INTAKE_MODE=longpoll`. The FastAPI process starts one lifespan long-poll supervisor per non-system Telegram account and writes updates into the same durable inbox. The FastAPI inbox worker then processes those rows in-process through the canonical `new_chat_*` surface. This fallback is intended for single-replica self-hosted installs. For SaaS-style multi-replica deployments, prefer public webhooks and keep `GATEWAY_TELEGRAM_INTAKE_MODE=webhook` so API replicas skip BYO polling entirely. Telegram does not allow `get_updates()` while a webhook is active, so delete any existing webhook for a BYO bot before relying on long polling.
-
-When upgrading from an older gateway-runner deployment, apply the rewritten migration 144 external chat schema, deploy the new backend, worker, and beat images, then stop the old `gateway` service. Wait about 30 seconds for any old Telegram `getUpdates` long-poll request to release its advisory lock before starting the new API process. Register each webhook again with the account-id URL above and the per-account `webhook_secret`. If you roll back before using the migration in production, restore the old image and downgrade the schema first.
+See [Messaging Channels](/docs/messaging-channels) for the channel-specific
+setup guides.
 
 ### 1. Environment Configuration
 
@@ -490,7 +466,7 @@ If everything is set up correctly, you should see output indicating the server i
 
 ## Zero-Cache Setup
 
-**zero-cache** is the Rocicorp Zero server that sits between PostgreSQL and the browser. It streams real-time updates (notifications, document indexing status, chat comments, collaboration indicators) to all connected clients via WebSocket. The frontend connects to it on startup — without zero-cache running, you will not see live updates and many parts of the UI will sit on stale data.
+**zero-cache** is the Rocicorp Zero server that sits between PostgreSQL and the browser. It streams real-time updates (notifications, document indexing status, chat comments, collaboration indicators) to all connected clients via WebSocket. The frontend connects to it on startup. Without zero-cache running, you will not see live updates and many parts of the UI will sit on stale data.
 
 For an overview of how Zero works and the list of synced tables, see the [Real-Time Sync with Zero](/docs/how-to/zero-sync) guide.
 
@@ -572,7 +548,7 @@ cd ../docker
 docker compose -f docker-compose.deps-only.yml up -d
 ```
 
-The deps-only stack exposes zero-cache on port `4848` (default) — keep `NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:4848` in your `surfsense_web/.env`.
+The deps-only stack exposes zero-cache on port `4848` by default. Keep `NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:4848` in your `surfsense_web/.env`.
 
 ## Frontend Setup
 
@@ -708,7 +684,7 @@ To verify your installation:
 1. Open your browser and navigate to `http://localhost:3000`
 2. Sign in with your Google account (or local credentials if `AUTH_TYPE=LOCAL`)
 3. Create a search space and try uploading a document
-4. Watch the upload status update live without refreshing — this confirms zero-cache is wired up correctly
+4. Watch the upload status update live without refreshing. This confirms zero-cache is wired up correctly
 5. Test the chat functionality with your uploaded content
 
 ## Troubleshooting

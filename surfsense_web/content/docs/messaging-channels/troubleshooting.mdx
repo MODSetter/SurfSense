@@ -1,0 +1,66 @@
+---
+title: Troubleshooting
+description: Common messaging channel pairing, webhook, and bot reply issues
+---
+
+# Messaging Channels Troubleshooting
+
+## The Bot Does Not Reply
+
+Check that:
+
+- The channel is enabled in the backend environment.
+- The backend restarted after the environment change.
+- The external platform can reach your public HTTPS backend URL.
+- The user paired the channel from **User Settings > Messaging Channels**.
+- Redis is running, because gateway inbox processing uses backend coordination
+  and rate-limit state.
+
+## Telegram
+
+Check that:
+
+- `TELEGRAM_SHARED_BOT_TOKEN` and `TELEGRAM_SHARED_BOT_USERNAME` are correct.
+- `GATEWAY_TELEGRAM_INTAKE_MODE` is one of `webhook`, `longpoll`, or `disabled`.
+- `TELEGRAM_WEBHOOK_SECRET` contains only `A-Z`, `a-z`, `0-9`, `_`, or `-`.
+- Webhook mode uses a public HTTPS `GATEWAY_BASE_URL`.
+- Long polling runs in only one backend process.
+
+## WhatsApp
+
+For Meta Cloud API, check that:
+
+- `GATEWAY_WHATSAPP_INTAKE_MODE=cloud`.
+- The Meta webhook URL is `${GATEWAY_BASE_URL}/api/v1/gateway/webhooks/whatsapp`.
+- The Meta verify token matches `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
+- `WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER` contains the public WhatsApp number
+  users should message.
+
+For Baileys, check that:
+
+- `GATEWAY_WHATSAPP_INTAKE_MODE=baileys`.
+- The `whatsapp` Compose profile is running.
+- The bridge is paired and healthy.
+- You are messaging the account's Message Yourself chat.
+
+## Slack
+
+Check that:
+
+- `GATEWAY_SLACK_ENABLED=TRUE`.
+- The Slack signing secret matches `GATEWAY_SLACK_SIGNING_SECRET`.
+- Slack Events API is enabled and subscribed to `app_mention`.
+- The Slack event request URL is public HTTPS and points to
+  `/api/v1/gateway/webhooks/slack`.
+- The Slack app was reinstalled after scope or redirect URL changes.
+
+## Discord
+
+Check that:
+
+- `GATEWAY_DISCORD_ENABLED=TRUE`.
+- The bot token is valid.
+- Message Content Intent is enabled.
+- The bot can view and send messages in the channel.
+- Exactly one backend process is running the Discord listener.
+- The Discord user is paired to a SurfSense user and search space.

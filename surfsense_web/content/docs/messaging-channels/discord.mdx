@@ -1,0 +1,76 @@
+---
+title: Discord
+description: Enable the SurfSense bot for in-Discord agent chat
+---
+
+# Discord Messaging Channel
+
+The Discord messaging channel lets users mention the SurfSense bot in Discord
+and chat with the SurfSense backend agent from a Discord channel.
+
+This is separate from the Discord connector. The messaging channel handles bot
+mentions and replies; the connector gives the agent Discord channel/message read
+tools.
+
+## Discord Application Settings
+
+Create or reuse a Discord application in the
+[Discord Developer Portal](https://discord.com/developers/applications).
+
+In **OAuth2 > Redirects**, add both callback URLs if the same application powers
+the connector and messaging channel:
+
+```bash
+https://your-backend.example.com/api/v1/auth/discord/connector/callback
+https://your-backend.example.com/api/v1/gateway/discord/callback
+```
+
+For local OAuth testing, replace the host with your local or public tunnel URL,
+and make sure `DISCORD_REDIRECT_URI` and `GATEWAY_DISCORD_REDIRECT_URI` match
+the Discord dashboard exactly.
+
+## Bot Permissions And Intents
+
+In **Bot > Privileged Gateway Intents**, enable:
+
+- **Message Content Intent** so SurfSense can read text after a bot mention.
+
+When installing the bot, grant:
+
+- View Channels
+- Send Messages
+- Send Messages in Threads
+- Read Message History
+
+## Environment Variables
+
+For Docker installs, add these to `docker/.env`. For manual installs, add them to
+`surfsense_backend/.env`.
+
+```bash
+DISCORD_CLIENT_ID=your_discord_client_id
+DISCORD_CLIENT_SECRET=your_discord_client_secret
+DISCORD_BOT_TOKEN=your_discord_bot_token
+GATEWAY_DISCORD_ENABLED=TRUE
+GATEWAY_DISCORD_REDIRECT_URI=https://your-backend.example.com/api/v1/gateway/discord/callback
+```
+
+The messaging channel uses the same Discord app credentials as the Discord
+connector. `DISCORD_REDIRECT_URI` remains the connector callback;
+`GATEWAY_DISCORD_REDIRECT_URI` is the separate messaging channel install
+callback.
+
+## Runtime Behavior
+
+1. Discord sends a `MESSAGE_CREATE` event over its WebSocket API.
+2. SurfSense stores the event in the durable gateway inbox.
+3. SurfSense resolves the Discord user binding to a SurfSense user and search space.
+4. SurfSense runs the backend agent with that user's permissions.
+5. The agent reply is posted back to the same Discord channel.
+
+## Deployment Note
+
+Only one running backend process should connect to Discord with a
+given bot token. For multi-replica deployments, enable
+`GATEWAY_DISCORD_ENABLED=TRUE` in a single backend process and leave it disabled
+in other API replicas.
