@@ -1,37 +1,36 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import { AlertTriangle, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { updateSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
-import { authenticatedFetch } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
-import { BACKEND_URL } from "@/lib/env-config";
 
 interface PromptConfigManagerProps {
 	searchSpaceId: number;
 }
 
 export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps) {
-	const {
-		data: searchSpace,
-		isLoading: loading,
-		refetch: fetchSearchSpace,
-	} = useQuery({
+	const { data: searchSpace, isLoading: loading } = useQuery({
 		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
 		queryFn: () => searchSpacesApiService.getSearchSpace({ id: searchSpaceId }),
 		enabled: !!searchSpaceId,
 	});
 
+	const { mutateAsync: updateSearchSpace, isPending: isSaving } = useAtomValue(
+		updateSearchSpaceMutationAtom
+	);
+
 	const [customInstructions, setCustomInstructions] = useState("");
-	const [saving, setSaving] = useState(false);
 	const hasSearchSpace = !!searchSpace;
 	const searchSpaceInstructions = searchSpace?.qna_custom_instructions;
 
@@ -48,34 +47,15 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 
 	const handleSave = async () => {
 		try {
-			setSaving(true);
-
-			const payload = {
-				qna_custom_instructions: customInstructions.trim() || "",
-			};
-
-			const response = await authenticatedFetch(
-				`${BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}`,
-				{
-					method: "PUT",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(payload),
-				}
-			);
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData.detail || "Failed to save system instructions");
-			}
-
+			await updateSearchSpace({
+				id: searchSpaceId,
+				data: { qna_custom_instructions: customInstructions.trim() || "" },
+			});
 			toast.success("System instructions saved successfully");
-
-			await fetchSearchSpace();
 		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : "Failed to save system instructions";
 			console.error("Error saving system instructions:", error);
-			toast.error(error instanceof Error ? error.message : "Failed to save system instructions");
-		} finally {
-			setSaving(false);
+			toast.error(message);
 		}
 	};
 
@@ -184,11 +164,11 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 					<Button
 						type="submit"
 						variant="outline"
-						disabled={!hasChanges || saving}
+						disabled={!hasChanges || isSaving}
 						className="gap-2 bg-white text-black hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-black"
 					>
-						{saving ? <Spinner size="sm" /> : null}
-						{saving ? "Saving" : "Save Instructions"}
+						{isSaving ? <Spinner size="sm" /> : null}
+						{isSaving ? "Saving" : "Save Instructions"}
 					</Button>
 				</div>
 			</form>

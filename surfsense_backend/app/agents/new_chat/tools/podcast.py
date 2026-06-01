@@ -2,16 +2,22 @@
 Podcast generation tool for the SurfSense agent.
 
 This module provides a factory function for creating the generate_podcast tool
-that submits a Celery task for background podcast generation. The frontend
-polls for completion and auto-updates when the podcast is ready.
+that submits a Celery task for background podcast generation. The tool then
+polls the podcast row until it reaches a terminal status (READY/FAILED) and
+returns that status. The wait is bounded by the chat's HTTP / process
+lifetime; see app.agents.shared.deliverable_wait for details.
 """
 
+import logging
 from typing import Any
 
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.shared.deliverable_wait import wait_for_deliverable
 from app.db import Podcast, PodcastStatus, shielded_async_session
+
+logger = logging.getLogger(__name__)
 
 
 def create_generate_podcast_tool(
@@ -97,18 +103,53 @@ def create_generate_podcast_tool(
                 user_prompt=user_prompt,
             )
 
-            print(f"[generate_podcast] Created podcast {podcast_id}, task: {task.id}")
+            logger.info(
+                "[generate_podcast] Created podcast %s, task: %s",
+                podcast_id,
+                task.id,
+            )
 
+            # Wait until the Celery worker flips the row to a terminal
+            # state. No internal budget — see deliverable_wait module.
+            terminal_status, columns, elapsed = await wait_for_deliverable(
+                model=Podcast,
+                row_id=podcast_id,
+                columns=[Podcast.status, Podcast.file_location],
+                terminal_statuses={PodcastStatus.READY, PodcastStatus.FAILED},
+            )
+
+            if terminal_status == PodcastStatus.READY:
+                file_location = columns[1] if columns else None
+                logger.info(
+                    "[generate_podcast] Podcast %s READY in %.2fs (file=%s)",
+                    podcast_id,
+                    elapsed,
+                    file_location,
+                )
+                return {
+                    "status": PodcastStatus.READY.value,
+                    "podcast_id": podcast_id,
+                    "title": podcast_title,
+                    "file_location": file_location,
+                    "message": ("Podcast generated and saved to your podcast panel."),
+                }
+
+            # Only other terminal state is FAILED.
+            logger.warning(
+                "[generate_podcast] Podcast %s FAILED in %.2fs",
+                podcast_id,
+                elapsed,
+            )
             return {
-                "status": PodcastStatus.PENDING.value,
+                "status": PodcastStatus.FAILED.value,
                 "podcast_id": podcast_id,
                 "title": podcast_title,
-                "message": "Podcast generation started. This may take a few minutes.",
+                "error": ("Background worker reported FAILED status for this podcast."),
             }
 
         except Exception as e:
             error_message = str(e)
-            print(f"[generate_podcast] Error: {error_message}")
+            logger.exception("[generate_podcast] Error: %s", error_message)
             return {
                 "status": PodcastStatus.FAILED.value,
                 "error": error_message,

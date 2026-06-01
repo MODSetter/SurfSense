@@ -12,9 +12,26 @@ if sys.platform == "win32":
 
 from app.config.uvicorn import load_uvicorn_config
 
+_old_log_record_factory = logging.getLogRecordFactory()
+
+
+def _otel_safe_log_record_factory(*args, **kwargs):
+    record = _old_log_record_factory(*args, **kwargs)
+    if not hasattr(record, "otelTraceID"):
+        record.otelTraceID = "0"
+    if not hasattr(record, "otelSpanID"):
+        record.otelSpanID = "0"
+    return record
+
+
+logging.setLogRecordFactory(_otel_safe_log_record_factory)
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format=(
+        "%(asctime)s - %(name)s - %(levelname)s - "
+        "[trace_id=%(otelTraceID)s span_id=%(otelSpanID)s] %(message)s"
+    ),
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 

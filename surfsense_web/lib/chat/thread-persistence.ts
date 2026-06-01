@@ -221,7 +221,6 @@ export interface RegenerateParams {
 		content: string;
 	}>;
 	mentionedDocumentIds?: number[];
-	mentionedSurfsenseDocIds?: number[];
 }
 
 /**

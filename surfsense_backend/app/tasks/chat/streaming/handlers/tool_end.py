@@ -6,6 +6,9 @@ import json
 from collections.abc import Iterator
 from typing import Any
 
+from langchain_core.messages import ToolMessage
+from langgraph.types import Command
+
 from app.tasks.chat.streaming.handlers.tools import (
     ToolCompletionEmissionContext,
     iter_tool_completion_emission_frames,
@@ -17,6 +20,38 @@ from app.tasks.chat.streaming.relay.task_span import (
     clear_task_span_if_delegating_task_ended,
 )
 from app.tasks.chat.streaming.relay.thinking_step_sse import emit_thinking_step_frame
+
+
+def _unwrap_command_output(raw_output: Any) -> Any:
+    """Replace a ``Command`` from a tool return with its inner ``ToolMessage``.
+
+    Tools that participate in receipt-style state writes (see
+    ``app.agents.shared.receipt_command.with_receipt``) return a
+    ``Command(update={"messages": [ToolMessage(...)], "receipts": [...]})``.
+    LangChain's ``on_tool_end`` event surfaces that ``Command`` verbatim as
+    ``data.output``, which the rest of this handler can't introspect: it has
+    no ``.content``, isn't a ``dict``, and stringifies to ``"Command(...)"``.
+    That stringified payload reaches the frontend and breaks tool-specific
+    UI components (e.g. the podcast card) that look for ``status`` /
+    ``podcast_id`` at the top level.
+
+    We extract the first ``ToolMessage`` from the Command's ``messages`` list
+    so downstream code can read ``.content`` normally. Commands that don't
+    contain a ``ToolMessage`` (rare, e.g. pure state updates) are returned
+    unchanged — the existing ``str(raw_output)`` fallback handles them.
+    """
+    if not isinstance(raw_output, Command):
+        return raw_output
+    update = raw_output.update
+    if not isinstance(update, dict):
+        return raw_output
+    messages = update.get("messages")
+    if not isinstance(messages, list):
+        return raw_output
+    for msg in messages:
+        if isinstance(msg, ToolMessage):
+            return msg
+    return raw_output
 
 
 def iter_tool_end_frames(
@@ -33,7 +68,7 @@ def iter_tool_end_frames(
     state.active_tool_depth = max(0, state.active_tool_depth - 1)
     run_id = event.get("run_id", "")
     tool_name = event.get("name", "unknown_tool")
-    raw_output = event.get("data", {}).get("output", "")
+    raw_output = _unwrap_command_output(event.get("data", {}).get("output", ""))
     staged_file_path = state.file_path_by_run.pop(run_id, None) if run_id else None
 
     if hasattr(raw_output, "content"):

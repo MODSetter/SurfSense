@@ -62,13 +62,13 @@ import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
 	type MentionedDocument,
+	type SuggestionAnchorRect,
+	type SuggestionTriggerInfo,
 } from "@/components/assistant-ui/inline-mention-editor";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
-import {
-	DocumentMentionPicker,
-	type DocumentMentionPickerRef,
-} from "@/components/new-chat/document-mention-picker";
+import { ChatExamplePrompts } from "@/components/new-chat/chat-example-prompts";
+import { ComposerSuggestionPopoverContent } from "@/components/new-chat/composer-suggestion-popup";
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -90,6 +90,7 @@ import {
 	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -105,10 +106,43 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
-import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/lib/layout-events";
+import { slideoutOpenedTickAtom } from "@/lib/layout-events";
 import { cn } from "@/lib/utils";
+import {
+	DocumentMentionPicker,
+	type DocumentMentionPickerRef,
+	promoteRecentMention,
+} from "../new-chat/document-mention-picker";
 
 const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
+
+type ComposerSuggestionAnchorPoint = {
+	left: number;
+	top: number;
+};
+
+function ComposerSuggestionAnchor({ point }: { point: ComposerSuggestionAnchorPoint }) {
+	return (
+		<PopoverAnchor
+			className="pointer-events-none fixed size-0"
+			style={{
+				left: point.left,
+				top: point.top,
+			}}
+		/>
+	);
+}
+
+function getComposerSuggestionAnchorPoint(
+	triggerRect: SuggestionAnchorRect | null,
+	side: "top" | "bottom"
+): ComposerSuggestionAnchorPoint | null {
+	if (!triggerRect) return null;
+	return {
+		left: triggerRect.left,
+		top: side === "bottom" ? triggerRect.bottom : triggerRect.top,
+	};
+}
 
 export const Thread: FC = () => {
 	return <ThreadContent />;
@@ -409,6 +443,8 @@ const Composer: FC = () => {
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
 	const [actionQuery, setActionQuery] = useState("");
+	const [suggestionAnchorPoint, setSuggestionAnchorPoint] =
+		useState<ComposerSuggestionAnchorPoint | null>(null);
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const prevMentionedDocsRef = useRef<Map<string, MentionedDocumentInfo>>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
@@ -478,15 +514,19 @@ const Composer: FC = () => {
 		editorRef.current?.focus();
 	}, [isDesktop, showDocumentPopover, showPromptPicker, threadId]);
 
-	// Close document picker when a slide-out panel (inbox, etc.) opens.
+	// Close document picker when a sidebar slide-out panel (inbox, etc.) opens.
+	// React only on changes to the tick — comparing against the previously-seen
+	// value preserves the one-shot semantics of the prior window-event approach
+	// (no retroactive close on mount if a panel had already opened earlier).
+	const slideoutOpenedTick = useAtomValue(slideoutOpenedTickAtom);
+	const lastSeenSlideoutTickRef = useRef(slideoutOpenedTick);
 	useEffect(() => {
-		const handler = () => {
-			setShowDocumentPopover(false);
-			setMentionQuery("");
-		};
-		window.addEventListener(SLIDEOUT_PANEL_OPENED_EVENT, handler);
-		return () => window.removeEventListener(SLIDEOUT_PANEL_OPENED_EVENT, handler);
-	}, []);
+		if (lastSeenSlideoutTickRef.current === slideoutOpenedTick) return;
+		lastSeenSlideoutTickRef.current = slideoutOpenedTick;
+		setShowDocumentPopover(false);
+		setMentionQuery("");
+		setSuggestionAnchorPoint(null);
+	}, [slideoutOpenedTick]);
 
 	// Sync editor text into assistant-ui's composer and mirror the chip
 	// atom from the editor's reported ``docs``. The editor is the
@@ -504,43 +544,98 @@ const Composer: FC = () => {
 						return prev;
 					}
 				}
-				return docs.map<MentionedDocumentInfo>((d) => ({
-					id: d.id,
-					title: d.title,
-					// Atom requires a string; ``"UNKNOWN"`` matches the
-					// sentinel ``getMentionDocKey`` and the editor's
-					// match predicates use.
-					document_type: d.document_type ?? "UNKNOWN",
-					kind: d.kind,
-				}));
+				return docs.map<MentionedDocumentInfo>((d) => {
+					if (d.kind === "connector") {
+						return {
+							id: d.id,
+							title: d.title,
+							kind: "connector",
+							connector_type: d.connector_type ?? "UNKNOWN",
+							account_name: d.account_name ?? d.title,
+						};
+					}
+					if (d.kind === "folder") {
+						return {
+							id: d.id,
+							title: d.title,
+							kind: "folder",
+						};
+					}
+					return {
+						id: d.id,
+						title: d.title,
+						document_type: d.document_type ?? "UNKNOWN",
+						kind: "doc",
+					};
+				});
 			});
 		},
 		[aui, setMentionedDocuments]
 	);
 
-	const handleMentionTrigger = useCallback((query: string) => {
+	const handleMentionTrigger = useCallback((trigger: SuggestionTriggerInfo) => {
+		const anchorPoint = getComposerSuggestionAnchorPoint(trigger.anchorRect, "top");
+		if (!anchorPoint) {
+			setShowDocumentPopover(false);
+			setMentionQuery("");
+			setSuggestionAnchorPoint(null);
+			return;
+		}
+		setSuggestionAnchorPoint((current) => current ?? anchorPoint);
 		setShowDocumentPopover(true);
-		setMentionQuery(query);
+		setMentionQuery(trigger.query);
 	}, []);
 
 	const handleMentionClose = useCallback(() => {
 		if (showDocumentPopover) {
 			setShowDocumentPopover(false);
 			setMentionQuery("");
+			setSuggestionAnchorPoint(null);
 		}
 	}, [showDocumentPopover]);
 
-	const handleActionTrigger = useCallback((query: string) => {
-		setShowPromptPicker(true);
-		setActionQuery(query);
+	const handleDocumentPopoverOpenChange = useCallback((open: boolean) => {
+		setShowDocumentPopover(open);
+		if (!open) {
+			setMentionQuery("");
+			setSuggestionAnchorPoint(null);
+		}
 	}, []);
+
+	const handleActionTrigger = useCallback(
+		(trigger: SuggestionTriggerInfo) => {
+			const anchorPoint = getComposerSuggestionAnchorPoint(
+				trigger.anchorRect,
+				clipboardInitialText ? "bottom" : "top"
+			);
+			if (!anchorPoint) {
+				setShowPromptPicker(false);
+				setActionQuery("");
+				setSuggestionAnchorPoint(null);
+				return;
+			}
+			setSuggestionAnchorPoint((current) => current ?? anchorPoint);
+			setShowPromptPicker(true);
+			setActionQuery(trigger.query);
+		},
+		[clipboardInitialText]
+	);
 
 	const handleActionClose = useCallback(() => {
 		if (showPromptPicker) {
 			setShowPromptPicker(false);
 			setActionQuery("");
+			setSuggestionAnchorPoint(null);
 		}
 	}, [showPromptPicker]);
+
+	const handlePromptPickerOpenChange = useCallback((open: boolean) => {
+		setShowPromptPicker(open);
+		if (!open) {
+			setActionQuery("");
+			setSuggestionAnchorPoint(null);
+		}
+	}, []);
 
 	const handleActionSelect = useCallback(
 		(action: { name: string; prompt: string; mode: "transform" | "explore" }) => {
@@ -558,8 +653,18 @@ const Composer: FC = () => {
 			aui.composer().setText(finalPrompt);
 			setShowPromptPicker(false);
 			setActionQuery("");
+			setSuggestionAnchorPoint(null);
 		},
 		[actionQuery, aui]
+	);
+
+	const handleExampleSelect = useCallback(
+		(prompt: string) => {
+			editorRef.current?.setText(prompt);
+			aui.composer().setText(prompt);
+			editorRef.current?.focus();
+		},
+		[aui]
 	);
 
 	const handleQuickAskSelect = useCallback(
@@ -573,6 +678,7 @@ const Composer: FC = () => {
 			aui.composer().setText(finalPrompt);
 			setShowPromptPicker(false);
 			setActionQuery("");
+			setSuggestionAnchorPoint(null);
 			setClipboardInitialText(undefined);
 		},
 		[clipboardInitialText, electronAPI, aui]
@@ -601,6 +707,7 @@ const Composer: FC = () => {
 					e.preventDefault();
 					setShowPromptPicker(false);
 					setActionQuery("");
+					setSuggestionAnchorPoint(null);
 					return;
 				}
 			}
@@ -622,8 +729,12 @@ const Composer: FC = () => {
 				}
 				if (e.key === "Escape") {
 					e.preventDefault();
+					if (documentPickerRef.current?.goBack()) {
+						return;
+					}
 					setShowDocumentPopover(false);
 					setMentionQuery("");
+					setSuggestionAnchorPoint(null);
 					return;
 				}
 			}
@@ -656,35 +767,49 @@ const Composer: FC = () => {
 	]);
 
 	const handleDocumentRemove = useCallback(
-		(docId: number, docType?: string) => {
+		(
+			docId: number,
+			docType?: string,
+			kind?: "doc" | "folder" | "connector",
+			connectorType?: string
+		) => {
 			setMentionedDocuments((prev) => {
-				if (!docType) {
-					// Fallback when chip type is unavailable.
-					return prev.filter((doc) => doc.id !== docId);
-				}
-				const removedKey = getMentionDocKey({ id: docId, document_type: docType });
+				const removedKey = getMentionDocKey({
+					id: docId,
+					document_type: docType,
+					kind,
+					connector_type: connectorType,
+				});
 				return prev.filter((doc) => getMentionDocKey(doc) !== removedKey);
 			});
 		},
 		[setMentionedDocuments]
 	);
 
-	const handleDocumentsMention = useCallback((mentions: MentionedDocumentInfo[]) => {
-		const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
-		const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
+	const handleDocumentsMention = useCallback(
+		(mentions: MentionedDocumentInfo[]) => {
+			const parsedSearchSpaceId = Number(search_space_id);
+			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
+			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
-		for (const mention of mentions) {
-			const key = getMentionDocKey(mention);
-			if (editorDocKeys.has(key)) continue;
-			editorRef.current?.insertMentionChip(mention);
-			// Track within the loop so a duplicate-in-batch can't double-insert.
-			editorDocKeys.add(key);
-		}
+			for (const mention of mentions) {
+				const key = getMentionDocKey(mention);
+				if (editorDocKeys.has(key)) continue;
+				editorRef.current?.insertMentionChip(mention);
+				if (Number.isFinite(parsedSearchSpaceId)) {
+					promoteRecentMention(parsedSearchSpaceId, mention);
+				}
+				// Track within the loop so a duplicate-in-batch can't double-insert.
+				editorDocKeys.add(key);
+			}
 
-		// Atom is reconciled by ``handleEditorChange`` via the editor's
-		// onChange — no second write path here.
-		setMentionQuery("");
-	}, []);
+			// Atom is reconciled by ``handleEditorChange`` via the editor's
+			// onChange — no second write path here.
+			setMentionQuery("");
+			setSuggestionAnchorPoint(null);
+		},
+		[search_space_id]
+	);
 
 	useEffect(() => {
 		const editor = editorRef.current;
@@ -705,7 +830,12 @@ const Composer: FC = () => {
 
 		for (const [key, doc] of prevDocsMap) {
 			if (!nextDocsMap.has(key)) {
-				editor.removeDocumentChip(doc.id, doc.document_type);
+				editor.removeDocumentChip(
+					doc.id,
+					doc.kind === "doc" ? doc.document_type : undefined,
+					doc.kind,
+					doc.kind === "connector" ? doc.connector_type : undefined
+				);
 			}
 		}
 
@@ -720,39 +850,46 @@ const Composer: FC = () => {
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			{showDocumentPopover && (
-				<div className="absolute bottom-full left-0 z-[9999] mb-2">
-					<DocumentMentionPicker
-						ref={documentPickerRef}
-						searchSpaceId={Number(search_space_id)}
-						onSelectionChange={handleDocumentsMention}
-						onDone={() => {
-							setShowDocumentPopover(false);
-							setMentionQuery("");
-						}}
-						initialSelectedDocuments={mentionedDocuments}
-						externalSearch={mentionQuery}
-					/>
-				</div>
-			)}
-			{showPromptPicker && (
-				<div
-					className={cn(
-						"absolute left-0 z-[9999]",
-						clipboardInitialText ? "top-full mt-2" : "bottom-full mb-2"
-					)}
-				>
-					<PromptPicker
-						ref={promptPickerRef}
-						onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
-						onDone={() => {
-							setShowPromptPicker(false);
-							setActionQuery("");
-						}}
-						externalSearch={actionQuery}
-					/>
-				</div>
-			)}
+			<Popover open={showDocumentPopover} onOpenChange={handleDocumentPopoverOpenChange}>
+				{suggestionAnchorPoint ? (
+					<>
+						<ComposerSuggestionAnchor point={suggestionAnchorPoint} />
+						<ComposerSuggestionPopoverContent side="top">
+							<DocumentMentionPicker
+								ref={documentPickerRef}
+								searchSpaceId={Number(search_space_id)}
+								onSelectionChange={handleDocumentsMention}
+								onDone={() => {
+									setShowDocumentPopover(false);
+									setMentionQuery("");
+									setSuggestionAnchorPoint(null);
+								}}
+								initialSelectedDocuments={mentionedDocuments}
+								externalSearch={mentionQuery}
+							/>
+						</ComposerSuggestionPopoverContent>
+					</>
+				) : null}
+			</Popover>
+			<Popover open={showPromptPicker} onOpenChange={handlePromptPickerOpenChange}>
+				{suggestionAnchorPoint ? (
+					<>
+						<ComposerSuggestionAnchor point={suggestionAnchorPoint} />
+						<ComposerSuggestionPopoverContent side={clipboardInitialText ? "bottom" : "top"}>
+							<PromptPicker
+								ref={promptPickerRef}
+								onSelect={clipboardInitialText ? handleQuickAskSelect : handleActionSelect}
+								onDone={() => {
+									setShowPromptPicker(false);
+									setActionQuery("");
+									setSuggestionAnchorPoint(null);
+								}}
+								externalSearch={actionQuery}
+							/>
+						</ComposerSuggestionPopoverContent>
+					</>
+				) : null}
+			</Popover>
 			<div className="flex w-full flex-col">
 				<div
 					className={cn(
@@ -779,7 +916,7 @@ const Composer: FC = () => {
 							onDocumentRemove={handleDocumentRemove}
 							onSubmit={handleSubmit}
 							onKeyDown={handleKeyDown}
-							className="min-h-[24px]"
+							className="min-h-[24px] **:data-slate-placeholder:font-normal"
 						/>
 					</div>
 					<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
@@ -789,6 +926,7 @@ const Composer: FC = () => {
 					isThreadEmpty={isThreadEmpty}
 					onVisibleChange={setConnectToolsTrayVisible}
 				/>
+				{isThreadEmpty && <ChatExamplePrompts onSelect={handleExampleSelect} />}
 			</div>
 		</ComposerPrimitive.Root>
 	);
@@ -961,7 +1099,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 										<Switch
 											checked={isWebSearchEnabled}
 											tabIndex={-1}
-											className="pointer-events-none h-4 w-7 shrink-0 border [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3"
+											className="pointer-events-none shrink-0 origin-right scale-[0.6]"
 										/>
 									</DropdownMenuItem>
 								)}
@@ -1034,9 +1172,10 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 													>
 														<div className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors">
 															<CollapsibleTrigger asChild>
-																<button
+																<Button
 																	type="button"
-																	className="flex min-w-0 flex-1 items-center gap-3 text-left"
+																	variant="ghost"
+																	className="h-auto min-w-0 flex-1 justify-start gap-3 p-0 text-left hover:bg-transparent hover:text-inherit"
 																>
 																	{iconInfo ? (
 																		<Image
@@ -1058,7 +1197,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 																	) : (
 																		<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
 																	)}
-																</button>
+																</Button>
 															</CollapsibleTrigger>
 															<Switch
 																checked={!allDisabled}
@@ -1200,7 +1339,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									<Switch
 										checked={isWebSearchEnabled}
 										tabIndex={-1}
-										className="pointer-events-none h-4 w-7 shrink-0 border [&>span]:h-3 [&>span]:w-3 [&>span[data-state=checked]]:translate-x-3"
+										className="pointer-events-none shrink-0 origin-right scale-[0.6]"
 									/>
 								</DropdownMenuItem>
 							)}
@@ -1250,7 +1389,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 															<Switch
 																checked={!isDisabled}
 																tabIndex={-1}
-																className="pointer-events-none shrink-0 scale-[0.6]"
+																className="pointer-events-none shrink-0 origin-right scale-[0.6]"
 															/>
 														</DropdownMenuItem>
 													);
@@ -1302,7 +1441,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 																	onPointerDown={(event) => event.stopPropagation()}
 																	onClick={(event) => event.stopPropagation()}
 																	onCheckedChange={() => toggleToolGroup(toolNames)}
-																	className="shrink-0 scale-[0.6]"
+																	className="mr-2 shrink-0 origin-right scale-[0.6]"
 																/>
 															</DropdownMenuSubTrigger>
 															<DropdownMenuPortal>
@@ -1331,7 +1470,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 																				<Switch
 																					checked={!isDisabled}
 																					tabIndex={-1}
-																					className="pointer-events-none shrink-0 scale-[0.6]"
+																					className="pointer-events-none shrink-0 origin-right scale-[0.6]"
 																				/>
 																			</DropdownMenuItem>
 																		);
@@ -1371,7 +1510,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 															<Switch
 																checked={!isDisabled}
 																tabIndex={-1}
-																className="pointer-events-none shrink-0 scale-[0.6]"
+																className="pointer-events-none shrink-0 origin-right scale-[0.6]"
 															/>
 														</DropdownMenuItem>
 													);
@@ -1465,7 +1604,7 @@ interface ToolGroup {
 const TOOL_GROUPS: ToolGroup[] = [
 	{
 		label: "Research",
-		tools: ["search_surfsense_docs", "scrape_webpage"],
+		tools: ["scrape_webpage"],
 	},
 	{
 		label: "Generate",

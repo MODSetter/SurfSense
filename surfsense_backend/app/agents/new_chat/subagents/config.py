@@ -46,7 +46,6 @@ logger = logging.getLogger(__name__)
 # ``glob``, ``grep``) plus the SurfSense-side read tools.
 EXPLORE_READ_TOOLS: frozenset[str] = frozenset(
     {
-        "search_surfsense_docs",
         "web_search",
         "scrape_webpage",
         "read_file",
@@ -61,7 +60,6 @@ EXPLORE_READ_TOOLS: frozenset[str] = frozenset(
 # is needed, the parent should hand off to ``explore`` first.
 REPORT_WRITER_TOOLS: frozenset[str] = frozenset(
     {
-        "search_surfsense_docs",
         "read_file",
         "generate_report",
     }
@@ -222,7 +220,6 @@ EXPLORE_SYSTEM_PROMPT = """You are the **explore** subagent for SurfSense.
 Conduct read-only research across the user's knowledge base, the web, and any documents the parent agent has surfaced. Return a synthesized answer with explicit citations — never speculate beyond the sources you have actually inspected.
 
 ## Tools available
-- `search_surfsense_docs` — fast hybrid search over the user's knowledge base.
 - `web_search` — only when the user's KB clearly does not contain the answer.
 - `scrape_webpage` — to read a URL the user or the search results provided.
 - `read_file`, `ls`, `glob`, `grep` — to inspect specific documents or trees the parent has flagged.
@@ -242,7 +239,7 @@ Produce a single high-quality report deliverable using `generate_report`. The pa
 
 ## Workflow
 1. **Outline first.** Before calling `generate_report`, write a one-paragraph outline of the sections you plan to produce. Confirm the outline reflects the parent's instructions.
-2. **Source resolution.** Decide whether to call `search_surfsense_docs` and `read_file` for any final-checks, or whether the parent's earlier tool calls already cover the source set.
+2. **Source resolution.** Decide whether to call `read_file` for any final-checks, or whether the parent's earlier tool calls already cover the source set.
 3. **One report.** Call `generate_report` exactly once with `source_strategy` chosen per the topic and chat history (see the `report-writing` skill).
 4. **Confirm.** End with a one-sentence summary in your final message — never paste the report back into chat; the artifact card renders itself.
 """

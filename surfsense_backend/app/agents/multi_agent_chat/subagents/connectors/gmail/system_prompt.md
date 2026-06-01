@@ -110,11 +110,12 @@ Return **only** one JSON object (no markdown or prose outside it):
 }
 ```
 
-Rules:
-- `status=success` → `next_step=null`, `missing_fields=null`.
-- `status=partial|blocked|error` → `next_step` must be non-null.
-- `status=blocked` due to missing required inputs → `missing_fields` must be non-null.
+<include snippet="output_contract_base"/>
+
+Route-specific rules:
 - For `search_gmail` results, set `evidence.items` to `{ "total": N }` and list the matched emails in `action_summary` (sender, subject, date; up to 10 entries, then `"...and N more"`).
 - For ambiguous matches across `update_gmail_draft` / `trash_gmail_email` / `read_gmail_email`, populate `evidence.matched_candidates` with up to 5 options (`id` + `label`).
+
+<include snippet="verifiable_handle"/>
 
 Infer before you call; verify before you send; map every tool outcome faithfully.

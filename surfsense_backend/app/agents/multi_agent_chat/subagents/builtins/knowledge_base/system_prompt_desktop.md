@@ -33,7 +33,7 @@ Map outcomes to your `status`:
 - Any other `"Error: …"` → `status=error` and relay the tool's message verbatim as `next_step`.
 - HITL rejection → `status=blocked` with `next_step="User declined this filesystem action. Do not retry."`.
 
-You construct the structured `evidence` fields from your own knowledge of what you called and what you observed — the tools do not return them. `chunk_ids` apply only to `<priority_documents>` hits; for local-file operations leave them `null`. Never report values you did not actually see.
+You construct the structured `evidence` fields from your own knowledge of what you called and what you observed — the tools do not return them. Never report values you did not actually see. (`chunk_ids` is always `null` in desktop mode — see "Chunk citations in your prose" below.)
 
 ## Chunk citations in your prose
 
@@ -117,11 +117,12 @@ Return **only** one JSON object (no markdown or prose outside it):
 }
 ```
 
-Rules:
+<include snippet="output_contract_base"/>
 
-- `status=success` → `next_step=null`, `missing_fields=null`.
-- `status=partial|blocked|error` → `next_step` must be non-null.
-- `status=blocked` due to missing required inputs → `missing_fields` must be non-null.
+Route-specific rules:
+
 - `evidence.content_excerpt`: max ~500 characters. Surface a short excerpt or a one-sentence summary, not the full file body. The supervisor already sees the tool's raw output.
+
+<include snippet="verifiable_handle"/>
 
 Infer before you call; map every tool outcome faithfully.

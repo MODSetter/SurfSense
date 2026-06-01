@@ -3,16 +3,19 @@
 import { ThreadPrimitive } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
 import type { FC, ReactNode } from "react";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Button } from "@/components/ui/button";
 
 const ChatScrollToBottom: FC = () => (
 	<ThreadPrimitive.ScrollToBottom asChild>
-		<TooltipIconButton
-			tooltip="Scroll to bottom"
-			className="aui-thread-scroll-to-bottom -top-12 absolute z-10 self-center rounded-full border-0 bg-muted p-4 text-foreground hover:bg-accent hover:text-accent-foreground disabled:invisible"
+		<Button
+			type="button"
+			variant="ghost"
+			size="icon"
+			aria-label="Scroll to bottom"
+			className="aui-thread-scroll-to-bottom -top-12 absolute z-10 size-10 self-center rounded-full border border-input bg-muted p-0 text-foreground shadow-sm shadow-black/5 hover:bg-accent hover:text-accent-foreground disabled:invisible dark:shadow-black/10"
 		>
 			<ArrowDownIcon />
-		</TooltipIconButton>
+		</Button>
 	</ThreadPrimitive.ScrollToBottom>
 );
 

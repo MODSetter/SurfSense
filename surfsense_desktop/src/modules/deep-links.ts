@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
 import { getMainWindow } from './window';
-import { getServerPort } from './server';
+import { getServerOrigin } from './server';
 import { trackEvent } from './analytics';
 
 const PROTOCOL = 'surfsense';
@@ -23,7 +23,7 @@ function handleDeepLink(url: string) {
   });
   if (parsed.hostname === 'auth' && parsed.pathname === '/callback') {
     const params = parsed.searchParams.toString();
-    win.loadURL(`http://localhost:${getServerPort()}/auth/callback?${params}`);
+    win.loadURL(`${getServerOrigin()}/auth/callback?${params}`);
   }
 
   win.show();
@@ -59,6 +59,11 @@ export function setupDeepLinks(): boolean {
   } else {
     app.setAsDefaultProtocolClient(PROTOCOL);
   }
+
+  // Cold-start on Windows/Linux: protocol URL arrives via argv of the
+  // first instance, not via `second-instance` or `open-url`.
+  const cold = process.argv.find((arg) => arg.startsWith(`${PROTOCOL}://`));
+  if (cold) handleDeepLink(cold);
 
   return true;
 }

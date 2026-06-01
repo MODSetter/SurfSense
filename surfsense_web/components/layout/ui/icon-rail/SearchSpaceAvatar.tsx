@@ -2,14 +2,9 @@
 
 import { Settings, Trash2, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { MouseEvent } from "react";
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-	ContextMenu,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -80,19 +75,28 @@ export function SearchSpaceAvatar({
 	const initials = getInitials(name);
 	const sizeClasses = size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";
 
-	// Long-press state for mobile
-	const [longPressMenuOpen, setLongPressMenuOpen] = useState(false);
+	const [menuOpen, setMenuOpen] = useState(false);
 	const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const touchMoved = useRef(false);
+
+	const openMenu = useCallback(() => {
+		setMenuOpen(true);
+	}, []);
+
+	const handleContextMenu = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setMenuOpen(true);
+	}, []);
 
 	const handleTouchStart = useCallback(() => {
 		touchMoved.current = false;
 		longPressTimer.current = setTimeout(() => {
 			if (!touchMoved.current) {
-				setLongPressMenuOpen(true);
+				openMenu();
 			}
 		}, 500);
-	}, []);
+	}, [openMenu]);
 
 	const handleTouchMove = useCallback(() => {
 		touchMoved.current = true;
@@ -120,12 +124,26 @@ export function SearchSpaceAvatar({
 		</div>
 	);
 
-	const avatarButton = (
+	const avatarButton = (withMenuHandlers = false) => (
 		<Button
 			type="button"
 			variant="ghost"
 			size="icon"
 			onClick={onClick}
+			onPointerDown={
+				withMenuHandlers
+					? (event) => {
+							if (event.button === 0) {
+								event.preventDefault();
+							}
+						}
+					: undefined
+			}
+			onContextMenu={withMenuHandlers ? handleContextMenu : undefined}
+			onTouchStart={withMenuHandlers ? handleTouchStart : undefined}
+			onTouchMove={withMenuHandlers ? handleTouchMove : undefined}
+			onTouchEnd={withMenuHandlers ? handleTouchEnd : undefined}
+			onTouchCancel={withMenuHandlers ? handleTouchEnd : undefined}
 			className={cn(
 				"relative rounded-lg font-semibold text-white transition-all select-none",
 				"hover:text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -173,73 +191,37 @@ export function SearchSpaceAvatar({
 		</>
 	);
 
-	// If delete or settings handlers are provided, wrap with context menu
+	// If delete or settings handlers are provided, expose them through a dropdown menu.
 	if (onDelete || onSettings) {
-		// Mobile: use long-press triggered DropdownMenu
-		if (disableTooltip) {
-			return (
-				<DropdownMenu open={longPressMenuOpen} onOpenChange={setLongPressMenuOpen}>
-					<DropdownMenuTrigger asChild>
-						<div
-							className="inline-block"
-							onTouchStart={handleTouchStart}
-							onTouchMove={handleTouchMove}
-							onTouchEnd={handleTouchEnd}
-							onTouchCancel={handleTouchEnd}
-						>
-							{avatarButton}
-						</div>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent>{menuItems}</DropdownMenuContent>
-				</DropdownMenu>
-			);
-		}
+		const trigger = <DropdownMenuTrigger asChild>{avatarButton(true)}</DropdownMenuTrigger>;
 
-		// Desktop: use right-click ContextMenu + Tooltip
 		return (
-			<ContextMenu>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<ContextMenuTrigger asChild>
-							<div className="inline-block">{avatarButton}</div>
-						</ContextMenuTrigger>
-					</TooltipTrigger>
-					<TooltipContent side="right" sideOffset={8}>
-						{tooltipContent}
-					</TooltipContent>
-				</Tooltip>
-				<ContextMenuContent>
-					{onSettings && (
-						<ContextMenuItem onClick={onSettings}>
-							<Settings className="mr-2 h-4 w-4" />
-							{tCommon("settings")}
-						</ContextMenuItem>
-					)}
-					{onDelete && isOwner && (
-						<ContextMenuItem onClick={onDelete}>
-							<Trash2 className="mr-2 h-4 w-4" />
-							{tCommon("delete")}
-						</ContextMenuItem>
-					)}
-					{onDelete && !isOwner && (
-						<ContextMenuItem onClick={onDelete}>
-							<Trash2 className="mr-2 h-4 w-4" />
-							{t("leave")}
-						</ContextMenuItem>
-					)}
-				</ContextMenuContent>
-			</ContextMenu>
+			<DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+				{disableTooltip ? (
+					trigger
+				) : (
+					<Tooltip>
+						<TooltipTrigger asChild>{trigger}</TooltipTrigger>
+						<TooltipContent side="right" sideOffset={8}>
+							{tooltipContent}
+						</TooltipContent>
+					</Tooltip>
+				)}
+				<DropdownMenuContent side="right" align="start">
+					{menuItems}
+				</DropdownMenuContent>
+			</DropdownMenu>
 		);
 	}
 
 	// No context menu needed
 	if (disableTooltip) {
-		return avatarButton;
+		return avatarButton();
 	}
 
 	return (
 		<Tooltip>
-			<TooltipTrigger asChild>{avatarButton}</TooltipTrigger>
+			<TooltipTrigger asChild>{avatarButton()}</TooltipTrigger>
 			<TooltipContent side="right" sideOffset={8}>
 				{tooltipContent}
 			</TooltipContent>

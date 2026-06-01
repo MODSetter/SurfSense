@@ -73,9 +73,8 @@ class ResolvedMentionSet:
     ``@Project Roadmap`` is never shadowed by a shorter prefix
     ``@Project``).
 
-    ``mentioned_document_ids`` collapses doc + surfsense_doc chips into
-    a single ordered, deduped list because the priority middleware
-    treats them uniformly downstream — see
+    ``mentioned_document_ids`` is an ordered, deduped list consumed by
+    the priority middleware downstream — see
     ``KnowledgePriorityMiddleware._compute_priority_paths``.
     """
 
@@ -103,7 +102,6 @@ async def resolve_mentions(
     search_space_id: int,
     mentioned_documents: list[MentionedDocumentInfo] | None,
     mentioned_document_ids: list[int] | None = None,
-    mentioned_surfsense_doc_ids: list[int] | None = None,
     mentioned_folder_ids: list[int] | None = None,
 ) -> ResolvedMentionSet:
     """Resolve every @-mention chip on a turn into virtual paths.
@@ -111,8 +109,7 @@ async def resolve_mentions(
     The function takes both the ``mentioned_documents`` discriminated
     list (chip metadata used for substitution + persistence) and the
     parallel id arrays (``mentioned_document_ids``,
-    ``mentioned_surfsense_doc_ids``, ``mentioned_folder_ids``) for two
-    reasons:
+    ``mentioned_folder_ids``) for two reasons:
 
     * Legacy clients that haven't migrated to the unified chip list
       still send the id arrays — we treat the union as authoritative.
@@ -134,7 +131,7 @@ async def resolve_mentions(
             kind = chip.kind
             if kind == "folder":
                 chip_folder_ids.append(chip.id)
-            else:
+            elif kind == "doc":
                 chip_doc_ids.append(chip.id)
             chip_titles_by_id[(kind, chip.id)] = chip.title
 
@@ -142,7 +139,6 @@ async def resolve_mentions(
         dict.fromkeys(
             [
                 *(mentioned_document_ids or []),
-                *(mentioned_surfsense_doc_ids or []),
                 *chip_doc_ids,
             ]
         )

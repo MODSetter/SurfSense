@@ -6,10 +6,14 @@ import logging
 import re
 from typing import Any
 
+from langchain.tools import ToolRuntime
 from langchain_core.callbacks import dispatch_custom_event
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
+from langgraph.types import Command
 
+from app.agents.shared.receipt import make_receipt
+from app.agents.shared.receipt_command import with_receipt
 from app.db import Report, shielded_async_session
 from app.services.connector_service import ConnectorService
 from app.services.llm_service import get_document_summary_llm
@@ -573,13 +577,14 @@ def create_generate_report_tool(
     @tool
     async def generate_report(
         topic: str,
+        runtime: ToolRuntime,
         source_content: str = "",
         source_strategy: str = "provided",
         search_queries: list[str] | None = None,
         report_style: str = "detailed",
         user_instructions: str | None = None,
         parent_report_id: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> Command:
         """
         Generate a structured Markdown report artifact from provided content.
 
@@ -692,6 +697,23 @@ def create_generate_report_tool(
         parent_report_content: str | None = None
         report_group_id: int | None = None
 
+        def _failed(payload: dict[str, Any], *, error: str) -> Command:
+            return with_receipt(
+                payload=payload,
+                receipt=make_receipt(
+                    route="deliverables",
+                    type="report",
+                    operation="generate",
+                    status="failed",
+                    external_id=str(payload.get("report_id"))
+                    if payload.get("report_id") is not None
+                    else None,
+                    preview=topic,
+                    error=error,
+                ),
+                tool_call_id=runtime.tool_call_id,
+            )
+
         async def _save_failed_report(error_msg: str) -> int | None:
             """Persist a failed report row using a short-lived session."""
             try:
@@ -753,12 +775,15 @@ def create_generate_report_tool(
                     "No LLM configured. Please configure a language model in Settings."
                 )
                 report_id = await _save_failed_report(error_msg)
-                return {
-                    "status": "failed",
-                    "error": error_msg,
-                    "report_id": report_id,
-                    "title": topic,
-                }
+                return _failed(
+                    {
+                        "status": "failed",
+                        "error": error_msg,
+                        "report_id": report_id,
+                        "title": topic,
+                    },
+                    error=error_msg,
+                )
 
             # Build the user instructions string
             user_instructions_section = ""
@@ -971,12 +996,15 @@ def create_generate_report_tool(
             if not report_content or not isinstance(report_content, str):
                 error_msg = "LLM returned empty or invalid content"
                 report_id = await _save_failed_report(error_msg)
-                return {
-                    "status": "failed",
-                    "error": error_msg,
-                    "report_id": report_id,
-                    "title": topic,
-                }
+                return _failed(
+                    {
+                        "status": "failed",
+                        "error": error_msg,
+                        "report_id": report_id,
+                        "title": topic,
+                    },
+                    error=error_msg,
+                )
 
             # LLMs often wrap output in ```markdown ... ``` fences — strip them
             report_content = _strip_wrapping_code_fences(report_content)
@@ -984,12 +1012,15 @@ def create_generate_report_tool(
             if not report_content:
                 error_msg = "LLM returned empty or invalid content"
                 report_id = await _save_failed_report(error_msg)
-                return {
-                    "status": "failed",
-                    "error": error_msg,
-                    "report_id": report_id,
-                    "title": topic,
-                }
+                return _failed(
+                    {
+                        "status": "failed",
+                        "error": error_msg,
+                        "report_id": report_id,
+                        "title": topic,
+                    },
+                    error=error_msg,
+                )
 
             # Strip any existing footer(s) carried over from parent version(s)
             while report_content.rstrip().endswith(_REPORT_FOOTER):
@@ -1036,7 +1067,7 @@ def create_generate_report_tool(
                 f"{metadata.get('section_count', 0)} sections"
             )
 
-            return {
+            payload: dict[str, Any] = {
                 "status": "ready",
                 "report_id": saved_report_id,
                 "title": topic,
@@ -1045,17 +1076,32 @@ def create_generate_report_tool(
                 "report_markdown": report_content,
                 "message": f"Report generated successfully: {topic}",
             }
+            receipt = make_receipt(
+                route="deliverables",
+                type="report",
+                operation="generate",
+                status="success",
+                external_id=str(saved_report_id),
+                preview=topic,
+            )
+            return with_receipt(
+                payload=payload,
+                receipt=receipt,
+                tool_call_id=runtime.tool_call_id,
+            )
 
         except Exception as e:
             error_message = str(e)
             logger.exception(f"[generate_report] Error: {error_message}")
             report_id = await _save_failed_report(error_message)
-
-            return {
-                "status": "failed",
-                "error": error_message,
-                "report_id": report_id,
-                "title": topic,
-            }
+            return _failed(
+                {
+                    "status": "failed",
+                    "error": error_message,
+                    "report_id": report_id,
+                    "title": topic,
+                },
+                error=error_message,
+            )
 
     return generate_report

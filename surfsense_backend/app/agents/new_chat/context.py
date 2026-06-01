@@ -64,6 +64,8 @@ class SurfSenseContextSchema:
     search_space_id: int | None = None
     mentioned_document_ids: list[int] = field(default_factory=list)
     mentioned_folder_ids: list[int] = field(default_factory=list)
+    mentioned_connector_ids: list[int] = field(default_factory=list)
+    mentioned_connectors: list[dict[str, object]] = field(default_factory=list)
     file_operation_contract: FileOperationContractState | None = None
     turn_id: str | None = None
     request_id: str | None = None

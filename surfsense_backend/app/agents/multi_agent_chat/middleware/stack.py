@@ -173,6 +173,7 @@ def build_main_agent_deepagent_middleware(
             subagents=subagents,
             system_prompt=None,
             task_description=TASK_TOOL_DESCRIPTION,
+            search_space_id=search_space_id,
         ),
         resilience.model_call_limit,
         resilience.tool_call_limit,

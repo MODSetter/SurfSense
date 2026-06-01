@@ -16,6 +16,8 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any
 
+from app.observability import metrics as ot_metrics
+
 _perf_log: logging.Logger | None = None
 _last_rss_mb: float = 0.0
 
@@ -50,6 +52,7 @@ def perf_timer(label: str, *, extra: dict[str, Any] | None = None):
     if extra:
         suffix = " " + " ".join(f"{k}={v}" for k, v in extra.items())
     log.info("%s in %.3fs%s", label, elapsed, suffix)
+    ot_metrics.record_perf_elapsed(elapsed * 1000, label=label)
 
 
 @asynccontextmanager
@@ -68,6 +71,7 @@ async def perf_async_timer(label: str, *, extra: dict[str, Any] | None = None):
     if extra:
         suffix = " " + " ".join(f"{k}={v}" for k, v in extra.items())
     log.info("%s in %.3fs%s", label, elapsed, suffix)
+    ot_metrics.record_perf_elapsed(elapsed * 1000, label=label)
 
 
 def system_snapshot() -> dict[str, Any]:

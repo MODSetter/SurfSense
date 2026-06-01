@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import re
 from typing import Any, cast
 
 from deepagents import SubAgent
@@ -12,8 +14,47 @@ from langchain_core.tools import BaseTool
 from app.agents.multi_agent_chat.middleware.shared.permissions import (
     build_permission_mw,
 )
-from app.agents.multi_agent_chat.subagents.shared.spec import SurfSenseSubagentSpec
+from app.agents.multi_agent_chat.subagents.shared.md_file_reader import (
+    read_shared_snippet,
+)
+from app.agents.multi_agent_chat.subagents.shared.spec import (
+    SURF_CONTEXT_HINT_PROVIDER_KEY,
+    ContextHintProvider,
+    SurfSenseSubagentSpec,
+)
 from app.agents.new_chat.permissions import Ruleset
+
+logger = logging.getLogger(__name__)
+
+# ``<include snippet="NAME"/>`` directive. Matches an XML-style self-closing
+# tag whose ``snippet`` attribute names a file in ``shared/snippets/``.
+# Whitespace around the attribute and self-close is tolerated; the snippet
+# name itself must be a bare identifier (letters / digits / underscores) so
+# we never pull a path-traversal value into ``read_shared_snippet``.
+_INCLUDE_DIRECTIVE_RE = re.compile(
+    r"<include\s+snippet=\"(?P<name>[A-Za-z0-9_]+)\"\s*/>"
+)
+
+
+def _resolve_includes(prompt: str, *, subagent_name: str) -> str:
+    """Replace ``<include snippet="X"/>`` directives with the snippet body.
+
+    Unknown snippet names raise; an empty body is treated as unknown so a
+    typo or missing file fails loudly at startup instead of silently
+    shipping a broken prompt to the LLM.
+    """
+
+    def _replace(match: re.Match[str]) -> str:
+        name = match.group("name")
+        body = read_shared_snippet(name)
+        if not body.strip():
+            raise ValueError(
+                f"Subagent {subagent_name!r}: unknown or empty shared "
+                f"snippet {name!r} referenced via <include>."
+            )
+        return body
+
+    return _INCLUDE_DIRECTIVE_RE.sub(_replace, prompt)
 
 
 def _user_allowlist_for(
@@ -43,6 +84,7 @@ def pack_subagent(
     dependencies: dict[str, Any],
     model: BaseChatModel | None = None,
     middleware_stack: dict[str, Any] | None = None,
+    context_hint_provider: ContextHintProvider | None = None,
 ) -> SurfSenseSubagentSpec:
     """Pack the route-local pieces into one sub-agent spec + its Ruleset.
 
@@ -67,6 +109,8 @@ def pack_subagent(
     if not system_prompt.strip():
         msg = f"Subagent {name!r}: system_prompt is empty"
         raise ValueError(msg)
+
+    system_prompt = _resolve_includes(system_prompt, subagent_name=name)
 
     flags = dependencies["flags"]
     user_allowlist = _user_allowlist_for(dependencies, name)
@@ -99,4 +143,12 @@ def pack_subagent(
     }
     if model is not None:
         spec_dict["model"] = model
-    return SurfSenseSubagentSpec(spec=cast(SubAgent, spec_dict), ruleset=ruleset)
+    if context_hint_provider is not None:
+        # Stash the callback on the dict so it survives the trip through
+        # registry / middleware unpacking (both treat the spec as opaque).
+        spec_dict[SURF_CONTEXT_HINT_PROVIDER_KEY] = context_hint_provider
+    return SurfSenseSubagentSpec(
+        spec=cast(SubAgent, spec_dict),
+        ruleset=ruleset,
+        context_hint_provider=context_hint_provider,
+    )

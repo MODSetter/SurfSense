@@ -61,7 +61,7 @@ from app.agents.new_chat.permissions import (
     aggregate_action,
     evaluate_many,
 )
-from app.observability import otel as ot
+from app.observability import metrics as ot_metrics, otel as ot
 
 logger = logging.getLogger(__name__)
 
@@ -284,6 +284,8 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             ),
             ot.interrupt_span(interrupt_type="permission_ask"),
         ):
+            ot_metrics.record_permission_ask(permission=tool_name)
+            ot_metrics.record_interrupt(interrupt_type="permission_ask")
             decision = interrupt(payload)
         return _normalize_permission_decision(decision)
 

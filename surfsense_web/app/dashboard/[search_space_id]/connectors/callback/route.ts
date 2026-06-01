@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-
-const OAUTH_RESULT_COOKIE = "connector_oauth_result";
+import { OAUTH_RESULT_COOKIE, type OAuthCallbackResult } from "@/contracts/types/oauth.types";
 
 export async function GET(
 	request: NextRequest,
@@ -9,12 +8,13 @@ export async function GET(
 	const { search_space_id } = await params;
 	const searchParams = request.nextUrl.searchParams;
 
-	const result = JSON.stringify({
+	const payload: OAuthCallbackResult = {
 		success: searchParams.get("success"),
 		error: searchParams.get("error"),
 		connector: searchParams.get("connector"),
 		connectorId: searchParams.get("connectorId"),
-	});
+	};
+	const result = JSON.stringify(payload);
 
 	const redirectUrl = new URL(`/dashboard/${search_space_id}/new-chat`, request.url);
 

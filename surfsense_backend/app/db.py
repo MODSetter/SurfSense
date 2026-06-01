@@ -439,6 +439,13 @@ class Permission(StrEnum):
     PUBLIC_SHARING_CREATE = "public_sharing:create"
     PUBLIC_SHARING_DELETE = "public_sharing:delete"
 
+    # Automations
+    AUTOMATIONS_CREATE = "automations:create"
+    AUTOMATIONS_READ = "automations:read"
+    AUTOMATIONS_UPDATE = "automations:update"
+    AUTOMATIONS_DELETE = "automations:delete"
+    AUTOMATIONS_EXECUTE = "automations:execute"
+
     # Full access wildcard
     FULL_ACCESS = "*"
 
@@ -494,6 +501,11 @@ DEFAULT_ROLE_PERMISSIONS = {
         # Public Sharing (can create and view, no delete)
         Permission.PUBLIC_SHARING_VIEW.value,
         Permission.PUBLIC_SHARING_CREATE.value,
+        # Automations (no delete)
+        Permission.AUTOMATIONS_CREATE.value,
+        Permission.AUTOMATIONS_READ.value,
+        Permission.AUTOMATIONS_UPDATE.value,
+        Permission.AUTOMATIONS_EXECUTE.value,
     ],
     "Viewer": [
         # Documents (read only)
@@ -525,6 +537,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.SETTINGS_VIEW.value,
         # Public Sharing (view only)
         Permission.PUBLIC_SHARING_VIEW.value,
+        # Automations (read only)
+        Permission.AUTOMATIONS_READ.value,
     ],
 }
 
@@ -1136,46 +1150,6 @@ class Chunk(BaseModel, TimestampMixin):
     document = relationship("Document", back_populates="chunks")
 
 
-class SurfsenseDocsDocument(BaseModel, TimestampMixin):
-    """
-    Surfsense documentation storage.
-    Indexed at migration time from MDX files.
-    """
-
-    __tablename__ = "surfsense_docs_documents"
-
-    source = Column(
-        String, nullable=False, unique=True, index=True
-    )  # File path: "connectors/slack.mdx"
-    title = Column(String, nullable=False)
-    content = Column(Text, nullable=False)
-    content_hash = Column(String, nullable=False, index=True)  # For detecting changes
-    embedding = Column(Vector(config.embedding_model_instance.dimension))
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)
-
-    chunks = relationship(
-        "SurfsenseDocsChunk",
-        back_populates="document",
-        cascade="all, delete-orphan",
-    )
-
-
-class SurfsenseDocsChunk(BaseModel, TimestampMixin):
-    """Chunk storage for Surfsense documentation."""
-
-    __tablename__ = "surfsense_docs_chunks"
-
-    content = Column(Text, nullable=False)
-    embedding = Column(Vector(config.embedding_model_instance.dimension))
-
-    document_id = Column(
-        Integer,
-        ForeignKey("surfsense_docs_documents.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    document = relationship("SurfsenseDocsDocument", back_populates="chunks")
-
-
 class Podcast(BaseModel, TimestampMixin):
     """Podcast model for storing generated podcasts."""
 
@@ -1531,6 +1505,14 @@ class SearchSpace(BaseModel, TimestampMixin):
         back_populates="search_space",
         order_by="VisionLLMConfig.id",
         cascade="all, delete-orphan",
+    )
+
+    automations = relationship(
+        "Automation",
+        back_populates="search_space",
+        order_by="Automation.id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     # RBAC relationships
@@ -2125,6 +2107,13 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # Automations created by this user
+        automations = relationship(
+            "Automation",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
         # Incentive tasks completed by this user
         incentive_tasks = relationship(
             "UserIncentiveTask",
@@ -2254,6 +2243,13 @@ else:
         vision_llm_configs = relationship(
             "VisionLLMConfig",
             back_populates="user",
+            passive_deletes=True,
+        )
+
+        # Automations created by this user
+        automations = relationship(
+            "Automation",
+            back_populates="created_by",
             passive_deletes=True,
         )
 
@@ -2560,6 +2556,15 @@ class RefreshToken(Base, TimestampMixin):
         return not self.is_expired and not self.is_revoked
 
 
+# Register model packages that live outside this file so their classes
+# are present in Base.metadata before configure_mappers() resolves any
+# string-based relationship() references.
+from app.automations.persistence import (  # noqa: E402, F401
+    Automation,
+    AutomationRun,
+    AutomationTrigger,
+)
+
 engine = create_async_engine(
     DATABASE_URL,
     pool_size=30,
@@ -2633,11 +2638,6 @@ async def setup_indexes():
         await conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS idx_documents_search_space_updated ON documents (search_space_id, updated_at DESC NULLS LAST) INCLUDE (id, title, document_type)"
-            )
-        )
-        await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS idx_surfsense_docs_title_trgm ON surfsense_docs_documents USING gin (title gin_trgm_ops)"
             )
         )
 

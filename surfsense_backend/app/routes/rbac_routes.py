@@ -107,6 +107,12 @@ PERMISSION_DESCRIPTIONS = {
     "settings:view": "View search space settings",
     "settings:update": "Modify search space settings",
     "settings:delete": "Delete the entire search space",
+    # Automations
+    "automations:create": "Create automations from chat or JSON",
+    "automations:read": "View automations, their triggers, and run history",
+    "automations:update": "Edit automations and manage their triggers",
+    "automations:delete": "Remove automations from the search space",
+    "automations:execute": "Manually fire automations",
     # Full access
     "*": "Full access to all features and settings",
 }

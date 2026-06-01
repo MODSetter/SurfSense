@@ -171,6 +171,39 @@ def _dict_merge_with_tombstones_reducer(
     return result
 
 
+def _int_counter_merge_reducer(
+    left: dict[str, int] | None,
+    right: dict[str, int] | None,
+) -> dict[str, int]:
+    """Merge ``right`` into ``left`` by **summing** per-key integer counters.
+
+    Used for state fields that accumulate counts across multiple updates
+    within the same turn (e.g. per-subagent ``billable_calls``). Unknown
+    keys are added; existing keys are summed. ``_CLEAR`` sentinels reset
+    the accumulator the same way the other reducers do, so the orchestrator
+    can wipe the counter at end-of-turn if needed.
+    """
+    if right is None:
+        return dict(left or {})
+
+    if _CLEAR in right or any(_is_clear(k) for k in right):
+        result: dict[str, int] = {}
+        for key, value in right.items():
+            if _is_clear(key):
+                continue
+            if not isinstance(value, int):
+                continue
+            result[key] = result.get(key, 0) + value
+        return result
+
+    base = dict(left or {})
+    for key, value in right.items():
+        if not isinstance(value, int):
+            continue
+        base[key] = base.get(key, 0) + value
+    return base
+
+
 def _initial_filesystem_state() -> dict[str, Any]:
     """Default empty values for SurfSense filesystem state fields.
 
@@ -200,6 +233,7 @@ __all__ = [
     "_add_unique_reducer",
     "_dict_merge_with_tombstones_reducer",
     "_initial_filesystem_state",
+    "_int_counter_merge_reducer",
     "_list_append_reducer",
     "_replace_reducer",
 ]

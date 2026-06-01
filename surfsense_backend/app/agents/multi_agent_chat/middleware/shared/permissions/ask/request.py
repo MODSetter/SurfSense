@@ -17,7 +17,7 @@ from langchain_core.tools import BaseTool
 from langgraph.types import interrupt
 
 from app.agents.new_chat.permissions import Rule
-from app.observability import otel as ot
+from app.observability import metrics as ot_metrics, otel as ot
 
 from .decision import normalize_permission_decision
 from .payload import PERMISSION_ASK_INTERRUPT_TYPE, build_permission_ask_payload
@@ -52,6 +52,8 @@ def request_permission_decision(
         ),
         ot.interrupt_span(interrupt_type=PERMISSION_ASK_INTERRUPT_TYPE),
     ):
+        ot_metrics.record_permission_ask(permission=tool_name)
+        ot_metrics.record_interrupt(interrupt_type=PERMISSION_ASK_INTERRUPT_TYPE)
         decision = interrupt(payload)
     return normalize_permission_decision(decision)
 

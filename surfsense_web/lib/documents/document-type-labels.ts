@@ -25,7 +25,6 @@ export function getDocumentTypeLabel(type: string): string {
 		CIRCLEBACK: "Circleback",
 		OBSIDIAN_CONNECTOR: "Obsidian",
 		LOCAL_FOLDER_FILE: "Local Folder",
-		SURFSENSE_DOCS: "SurfSense Docs",
 		NOTE: "Note",
 		COMPOSIO_GOOGLE_DRIVE_CONNECTOR: "Composio Google Drive",
 		COMPOSIO_GMAIL_CONNECTOR: "Composio Gmail",

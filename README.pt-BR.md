@@ -41,6 +41,7 @@ O NotebookLM é uma das melhores e mais úteis plataformas de IA disponíveis, m
 - **Sem Dependência de Fornecedor** - Configure qualquer modelo LLM, de imagem, TTS e STT.
 - **25+ Fontes de Dados Externas** - Adicione suas fontes do Google Drive, OneDrive, Dropbox, Notion e muitos outros serviços externos.
 - **Suporte Multiplayer em Tempo Real** - Trabalhe facilmente com os membros da sua equipe em um notebook compartilhado.
+- **Automações e Agentes de IA** - Execute agentes de IA em uma programação ou dispare-os no momento em que um documento chega a uma pasta, e escreva os resultados de volta no Notion, Slack, Linear e Drive. Crie automações sem código apenas descrevendo-as no chat.
 - **Aplicativo Desktop** - Obtenha assistência de IA em qualquer aplicativo com Quick Assist, General Assist, Screenshot Assist e sincronização de pastas locais.
 
 ...e mais por vir.
@@ -76,48 +77,118 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 4. Quando tudo estiver indexado, pergunte o que quiser (Casos de uso):
 
-   - Aplicativo Desktop — General Assist
+   **Aplicativo Desktop** (extras nativos, além de tudo o que está abaixo, não um conjunto separado)
+
+   - General Assist: abra o SurfSense instantaneamente de qualquer aplicativo com um atalho global.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
 
-   - Aplicativo Desktop — Quick Assist
+   - Quick Assist: selecione um texto em qualquer lugar e peça à IA para explicar, reescrever ou agir sobre ele.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
 
-   - Aplicativo Desktop — Screenshot Assist
+   - Screenshot Assist: capture qualquer região da tela e pergunte à IA sobre o que está nela.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/screenshot_assist.gif" alt="Screenshot Assist" /></p>
 
-   - Aplicativo Desktop — Watch Local Folder
+   - Watch Local Folder: sincronize automaticamente uma pasta local com sua base de conhecimento. Ótimo para cofres do Obsidian.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
 
-   - Geração de vídeos
+   **Estúdio de Entregáveis**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="Geração de Vídeos" /></p>
+   - AI Report Generator: gere relatórios de pesquisa com citações e exporte para PDF, DOCX, HTML, LaTeX, EPUB, ODT ou texto simples.
 
-   - Busca básica e citações
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="Busca e Citação" /></p>
+   - AI Podcast Generator: transforme qualquer documento ou pasta em um podcast de IA com dois apresentadores em menos de 20 segundos.
 
-   - QNA com menção de documentos
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="AI Podcast Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="QNA com Menção de Documentos" /></p>
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="QNA com Menção de Documentos" /></p>
+   - AI Presentation & Video Maker: crie apresentações editáveis e vídeos narrados a partir das suas fontes.
 
-   - Geração de relatórios e exportações (PDF, DOCX, HTML, LaTeX, EPUB, ODT, texto simples)
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="AI Presentation and Video Maker" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Geração de Relatórios" /></p>
+   - AI Image Generator: gere imagens de alta qualidade diretamente das suas conversas e documentos.
 
-   - Geração de podcasts
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="Geração de Podcasts" /></p>
+   - AI Resume Builder: adapte seu currículo atual a qualquer descrição de vaga e supere o ATS.
+     Experimente prompts como estes:
 
-   - Geração de imagens
+     - "Adapte meu currículo a esta descrição de vaga para passar pelo ATS e conseguir uma entrevista."
+     - "Otimize meu currículo para o ATS combinando as palavras-chave desta vaga."
+     - "Reescreva os tópicos do meu currículo para destacar as habilidades que esta vaga exige."
+     - "Compare meu currículo com esta descrição de vaga e liste as lacunas a corrigir."
+     - "Escreva uma carta de apresentação combinando com meu currículo e esta descrição de vaga."
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="Geração de Imagens" /></p>
+   **Busca e Chat**
 
-   - E mais em breve.
+   - Chat With Your PDFs & Docs: faça perguntas sobre todos os seus arquivos e receba respostas com citações inline.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Chat With Your PDFs and Docs" /></p>
+
+   - AI Search With Citations: busca híbrida semântica e por palavra-chave em toda a sua base de conhecimento.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="AI Search With Citations" /></p>
+
+   - Collaborative AI Chat: trabalhe em conversas de IA com sua equipe em tempo real.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Collaborative AI Chat" /></p>
+
+   - Comments & Mentions: comente e marque colegas em qualquer mensagem de IA.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comments and Mentions" /></p>
+
+   **Conectores e Integrações**
+
+   - Connect & Sync Your Tools: sincronize Notion, Slack, Google Drive, Gmail, GitHub, Linear e mais de 25 fontes em um único acervo pesquisável.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Connect and Sync Your Tools" /></p>
+
+   - Chat With Uploaded Files: envie PDFs, documentos do Office, imagens e áudio. Pesquisáveis instantaneamente.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
+
+   - Connector Write-Back: deixe o agente publicar os resultados de volta no Notion, Slack, Linear e Drive.
+     Experimente prompts como estes:
+
+     - "Publique este resumo de pesquisa no meu espaço do Notion."
+     - "Envie estes itens de ação da reunião para o nosso canal do Slack."
+     - "Crie um ticket no Jira a partir deste relatório de bug."
+     - "Abra uma issue no Linear a partir desta solicitação de funcionalidade."
+     - "Salve este relatório gerado no Google Drive como um documento."
+
+   - Obsidian & Knowledge Base Sync: mantenha seu cofre do Obsidian e sua base de conhecimento pessoal sincronizados.
+
+   **Automações**
+
+   - Scheduled AI Workflows: execute um agente em uma programação: resumos diários, boletins semanais, relatórios recorrentes.
+     Experimente prompts como estes:
+
+     - "Envie-me todas as manhãs um resumo diário dos novos documentos na minha base de conhecimento."
+     - "Gere um relatório de status semanal a partir do meu Slack e Gmail toda sexta-feira."
+     - "Execute um relatório mensal de análise da concorrência e salve-o no meu espaço de trabalho."
+     - "Resuma minha atividade no GitHub e Linear em uma atualização diária de standup."
+     - "Crie um relatório de pesquisa semanal recorrente sobre os temas que acompanho."
+
+   - Event-Triggered Automations: dispare um agente no momento em que um documento chega a uma pasta e publique o resultado nas suas ferramentas.
+     Experimente prompts como estes:
+
+     - "Quando um PDF chegar à minha pasta de Pesquisa, gere um resumo com IA e citações."
+     - "Quando novas notas de reunião forem adicionadas, transforme-as em atas com itens de ação."
+     - "Quando uma fatura for enviada, extraia o fornecedor, o total e a data de vencimento em uma tabela."
+     - "Quando um contrato entrar na minha pasta Jurídica, sinalize os termos-chave e as datas de renovação."
+     - "Quando um currículo for adicionado a Candidatos, avalie-o em relação à descrição da vaga."
+
+   - Chat-Built Automations: descreva uma automação em linguagem simples e o SurfSense a cria para você.
+     Experimente prompts como estes:
+
+     - "Crie um agente de IA que me envie todas as manhãs um resumo das novas páginas do Notion."
+     - "Crie uma automação sem código que publique um resumo de pesquisa semanal no Slack."
+     - "Configure um anotador com IA que transforme as novas notas de reunião em atas."
+     - "Crie um fluxo que extraia os itens de ação das notas de reunião e atribua responsáveis."
+     - "Automatize um resumo diário por e-mail a partir do meu Gmail e Google Drive."
 
 
 ### Auto-Hospedado
@@ -199,6 +270,7 @@ Todos os recursos operam no espaço de busca escolhido, para que suas respostas 
 | **Geração de Vídeos** | Visões gerais cinemáticas via Veo 3 (apenas Ultra) | Disponível (NotebookLM é melhor aqui, melhorando ativamente) |
 | **Geração de Apresentações** | Slides mais bonitos mas não editáveis | Cria apresentações editáveis baseadas em slides |
 | **Geração de Podcasts** | Visões gerais em áudio com hosts e idiomas personalizáveis | Disponível com múltiplos provedores TTS (NotebookLM é melhor aqui, melhorando ativamente) |
+| **Automações e Agentes de IA** | Não | Fluxos de trabalho de IA agendados, gatilhos por eventos em novos documentos e automações sem código criadas por chat com escrita de volta no Notion, Slack, Linear e Jira |
 | **Aplicativo Desktop** | Não | Aplicativo nativo com General Assist, Quick Assist, Screenshot Assist e sincronização de pastas locais |
 | **Extensão de Navegador** | Não | Extensão multi-navegador para salvar qualquer página web, incluindo páginas protegidas por autenticação |
 

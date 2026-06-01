@@ -351,10 +351,9 @@ async def stream_anonymous_chat(
     async def _generate():
         from langchain_core.messages import AIMessage, HumanMessage
 
-        from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
+        from app.agents.new_chat.anonymous_agent import create_anonymous_chat_agent
         from app.agents.new_chat.checkpointer import get_checkpointer
         from app.db import shielded_async_session
-        from app.services.connector_service import ConnectorService
         from app.services.new_streaming_service import VercelStreamingService
         from app.services.token_tracking_service import start_turn
         from app.tasks.chat.stream_new_chat import StreamResult, _stream_agent_events
@@ -363,24 +362,23 @@ async def stream_anonymous_chat(
         streaming_service = VercelStreamingService()
 
         try:
-            async with shielded_async_session() as session:
-                connector_service = ConnectorService(session, search_space_id=None)
+            async with shielded_async_session():
                 checkpointer = await get_checkpointer()
 
                 anon_thread_id = f"anon-{session_id}-{request_id}"
 
-                agent = await create_surfsense_deep_agent(
+                # Load the optional uploaded document as read-only context.
+                anon_doc = await _load_anon_document(session_id)
+
+                # Minimal Q/A agent: web_search only (when enabled), no
+                # filesystem / persistence / subagents. The uploaded document
+                # is injected into the system prompt as read-only context.
+                agent = await create_anonymous_chat_agent(
                     llm=llm,
-                    search_space_id=0,
-                    db_session=session,
-                    connector_service=connector_service,
                     checkpointer=checkpointer,
-                    user_id=None,
-                    thread_id=None,
-                    agent_config=agent_config,
-                    enabled_tools=list(enabled_for_agent),
-                    disabled_tools=None,
                     anon_session_id=session_id,
+                    anon_doc=anon_doc,
+                    enable_web_search="web_search" in enabled_for_agent,
                 )
 
                 langchain_messages = []
@@ -396,7 +394,6 @@ async def stream_anonymous_chat(
 
                 input_state = {
                     "messages": langchain_messages,
-                    "search_space_id": 0,
                 }
 
                 langgraph_config = {
@@ -498,6 +495,38 @@ async def stream_anonymous_chat(
 
 ANON_ALLOWED_EXTENSIONS = PLAINTEXT_EXTENSIONS | DIRECT_CONVERT_EXTENSIONS
 ANON_DOC_REDIS_PREFIX = "anon:doc:"
+
+
+async def _load_anon_document(session_id: str) -> dict[str, Any] | None:
+    """Read the anonymous session's uploaded document from Redis.
+
+    Returns ``{"title", "content"}`` for read-only injection into the agent's
+    system prompt, or ``None`` when nothing was uploaded for this session.
+    """
+    import json as _json
+
+    import redis.asyncio as aioredis
+
+    redis_client = aioredis.from_url(config.REDIS_APP_URL, decode_responses=True)
+    redis_key = f"{ANON_DOC_REDIS_PREFIX}{session_id}"
+    try:
+        data = await redis_client.get(redis_key)
+        if not data:
+            return None
+        payload = _json.loads(data)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Failed to load anonymous document from Redis: %s", exc)
+        return None
+    finally:
+        await redis_client.aclose()
+
+    content = str(payload.get("content") or "")
+    if not content:
+        return None
+    return {
+        "title": str(payload.get("filename") or "uploaded_document"),
+        "content": content,
+    }
 
 
 class AnonDocResponse(BaseModel):

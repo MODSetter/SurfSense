@@ -1,6 +1,6 @@
 import posthog from "posthog-js";
-import { getConnectorTelemetryMeta } from "@/components/assistant-ui/connector-popup/constants/connector-constants";
 import type { ChatErrorKind, ChatErrorSeverity, ChatFlow } from "@/lib/chat/chat-error-classifier";
+import { getConnectorTelemetryMeta } from "@/lib/connector-telemetry";
 
 /**
  * PostHog Analytics Event Definitions
@@ -19,6 +19,7 @@ import type { ChatErrorKind, ChatErrorSeverity, ChatFlow } from "@/lib/chat/chat
  * - connector: External connector events (all lifecycle stages)
  * - contact: Contact form events
  * - settings: Settings changes
+ * - automation: Automation lifecycle (create/update/delete/trigger/chat)
  * - marketing: Marketing/referral tracking
  */
 
@@ -33,7 +34,7 @@ function safeCapture(event: string, properties?: Record<string, unknown>) {
 /**
  * Drop undefined values so PostHog doesn't log `"foo": undefined` noise.
  */
-function compact<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
+function compact<T extends object>(obj: T): Record<string, unknown> {
 	const out: Record<string, unknown> = {};
 	for (const [k, v] of Object.entries(obj)) {
 		if (v !== undefined) out[k] = v;
@@ -596,6 +597,146 @@ export function trackReferralLanding(refCode: string, landingUrl: string) {
 		$set_once: { first_ref_code: refCode },
 		$set: { latest_ref_code: refCode },
 	});
+}
+
+// ============================================
+// AUTOMATION EVENTS
+// ============================================
+
+interface AutomationCreatedProps {
+	search_space_id: number;
+	automation_id: number;
+	task_count?: number;
+	trigger_type?: string;
+	has_schedule?: boolean;
+	agent_llm_id?: number;
+	image_generation_config_id?: number;
+	vision_llm_config_id?: number;
+	tags_count?: number;
+}
+
+export function trackAutomationCreated(props: AutomationCreatedProps) {
+	safeCapture("automation_created", compact(props));
+}
+
+export function trackAutomationCreateFailed(props: { search_space_id?: number; error?: string }) {
+	safeCapture("automation_create_failed", compact(props));
+}
+
+export function trackAutomationUpdated(props: {
+	automation_id: number;
+	search_space_id?: number;
+	has_definition_change?: boolean;
+	has_name_change?: boolean;
+	has_description_change?: boolean;
+	task_count?: number;
+}) {
+	safeCapture("automation_updated", compact(props));
+}
+
+export function trackAutomationStatusChanged(props: {
+	automation_id: number;
+	search_space_id?: number;
+	next_status: string;
+}) {
+	safeCapture("automation_status_changed", compact(props));
+}
+
+export function trackAutomationUpdateFailed(props: { automation_id: number; error?: string }) {
+	safeCapture("automation_update_failed", compact(props));
+}
+
+export function trackAutomationDeleted(props: { automation_id: number; search_space_id?: number }) {
+	safeCapture("automation_deleted", compact(props));
+}
+
+export function trackAutomationDeleteFailed(props: { automation_id: number; error?: string }) {
+	safeCapture("automation_delete_failed", compact(props));
+}
+
+export function trackAutomationTriggerAdded(props: {
+	automation_id: number;
+	trigger_id?: number;
+	trigger_type?: string;
+	enabled?: boolean;
+	has_cron?: boolean;
+}) {
+	safeCapture("automation_trigger_added", compact(props));
+}
+
+export function trackAutomationTriggerAddFailed(props: { automation_id: number; error?: string }) {
+	safeCapture("automation_trigger_add_failed", compact(props));
+}
+
+export function trackAutomationTriggerUpdated(props: {
+	automation_id: number;
+	trigger_id: number;
+	change?: "enabled" | "params" | "other";
+	enabled?: boolean;
+}) {
+	safeCapture("automation_trigger_updated", compact(props));
+}
+
+export function trackAutomationTriggerUpdateFailed(props: {
+	automation_id: number;
+	trigger_id: number;
+	error?: string;
+}) {
+	safeCapture("automation_trigger_update_failed", compact(props));
+}
+
+export function trackAutomationTriggerRemoved(props: {
+	automation_id: number;
+	trigger_id: number;
+}) {
+	safeCapture("automation_trigger_removed", compact(props));
+}
+
+export function trackAutomationTriggerRemoveFailed(props: {
+	automation_id: number;
+	trigger_id: number;
+	error?: string;
+}) {
+	safeCapture("automation_trigger_remove_failed", compact(props));
+}
+
+interface AutomationChatDecisionProps {
+	search_space_id?: number;
+	edited?: boolean;
+	task_count?: number;
+	trigger_type?: string;
+	agent_llm_id?: number;
+	image_generation_config_id?: number;
+	vision_llm_config_id?: number;
+}
+
+export function trackAutomationChatApproved(props: AutomationChatDecisionProps) {
+	safeCapture("automation_chat_approved", compact(props));
+}
+
+export function trackAutomationChatRejected(props: { search_space_id?: number }) {
+	safeCapture("automation_chat_rejected", compact(props));
+}
+
+export function trackAutomationChatDraftEdited(props: { search_space_id?: number }) {
+	safeCapture("automation_chat_draft_edited", compact(props));
+}
+
+export function trackAutomationChatCreateSucceeded(props: {
+	automation_id: number;
+	name?: string;
+	search_space_id?: number;
+}) {
+	safeCapture("automation_chat_create_succeeded", compact(props));
+}
+
+export function trackAutomationChatCreateFailed(props: {
+	reason: "invalid" | "error";
+	search_space_id?: number;
+	issue_count?: number;
+	message?: string;
+}) {
+	safeCapture("automation_chat_create_failed", compact(props));
 }
 
 // ============================================

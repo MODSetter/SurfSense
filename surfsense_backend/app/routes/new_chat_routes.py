@@ -1771,6 +1771,11 @@ async def handle_new_chat(
             if request.mentioned_documents
             else None
         )
+        mentioned_connectors_payload = (
+            [doc.model_dump() for doc in request.mentioned_connectors]
+            if request.mentioned_connectors
+            else None
+        )
 
         return StreamingResponse(
             stream_new_chat(
@@ -1780,8 +1785,9 @@ async def handle_new_chat(
                 user_id=str(user.id),
                 llm_config_id=llm_config_id,
                 mentioned_document_ids=request.mentioned_document_ids,
-                mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
                 mentioned_folder_ids=request.mentioned_folder_ids,
+                mentioned_connector_ids=request.mentioned_connector_ids,
+                mentioned_connectors=mentioned_connectors_payload,
                 mentioned_documents=mentioned_documents_payload,
                 needs_history_bootstrap=thread.needs_history_bootstrap,
                 thread_visibility=thread.visibility,
@@ -2258,6 +2264,11 @@ async def regenerate_response(
                 if request.mentioned_documents
                 else None
             )
+            mentioned_connectors_payload = (
+                [doc.model_dump() for doc in request.mentioned_connectors]
+                if request.mentioned_connectors
+                else None
+            )
             try:
                 async for chunk in stream_new_chat(
                     user_query=str(user_query_to_use),
@@ -2266,8 +2277,9 @@ async def regenerate_response(
                     user_id=str(user.id),
                     llm_config_id=llm_config_id,
                     mentioned_document_ids=request.mentioned_document_ids,
-                    mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
                     mentioned_folder_ids=request.mentioned_folder_ids,
+                    mentioned_connector_ids=request.mentioned_connector_ids,
+                    mentioned_connectors=mentioned_connectors_payload,
                     mentioned_documents=mentioned_documents_payload,
                     checkpoint_id=target_checkpoint_id,
                     needs_history_bootstrap=thread.needs_history_bootstrap,

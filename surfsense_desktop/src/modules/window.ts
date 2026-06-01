@@ -2,12 +2,30 @@ import { app, BrowserWindow, shell, session } from 'electron';
 import path from 'path';
 import { trackEvent } from './analytics';
 import { showErrorDialog } from './errors';
-import { getServerPort } from './server';
+import { getServerOrigin, getServerPort } from './server';
 import { setActiveSearchSpaceId } from './active-search-space';
 
 const isDev = !app.isPackaged;
-const HOSTED_FRONTEND_URL = process.env.HOSTED_FRONTEND_URL as string;
 const isMac = process.platform === 'darwin';
+const WINDOW_TITLE = 'SurfSense';
+
+function getHostedFrontendUrl(): string {
+  return (
+    process.env.SURFSENSE_HOSTED_FRONTEND_URL_OVERRIDE ||
+    process.env.HOSTED_FRONTEND_URL ||
+    'https://surfsense.com'
+  );
+}
+
+function getHostedFrontendHosts(): string[] {
+  try {
+    const host = new URL(getHostedFrontendUrl()).host;
+    const sibling = host.startsWith('www.') ? host.slice(4) : `www.${host}`;
+    return Array.from(new Set([host, sibling]));
+  } catch {
+    return [];
+  }
+}
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -24,6 +42,7 @@ export function markQuitting(): void {
 
 export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
   mainWindow = new BrowserWindow({
+    title: WINDOW_TITLE,
     width: 1280,
     height: 800,
     minWidth: 800,
@@ -34,6 +53,7 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
       webviewTag: false,
+      devTools: !app.isPackaged,
     },
     show: false,
     ...(isMac
@@ -48,21 +68,66 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
     mainWindow?.show();
   });
 
-  mainWindow.loadURL(`http://localhost:${getServerPort()}${initialPath}`);
+  mainWindow.webContents.on('page-title-updated', (event) => {
+    event.preventDefault();
+    mainWindow?.setTitle(WINDOW_TITLE);
+  });
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow?.setTitle(WINDOW_TITLE);
+  });
+
+  mainWindow.loadURL(`${getServerOrigin()}${initialPath}`);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://localhost')) {
+    if (url.startsWith(getServerOrigin())) {
       return { action: 'allow' };
     }
     shell.openExternal(url);
     return { action: 'deny' };
   });
 
-  const filter = { urls: [`${HOSTED_FRONTEND_URL}/*`] };
-  session.defaultSession.webRequest.onBeforeRequest(filter, (details, callback) => {
-    const rewritten = details.url.replace(HOSTED_FRONTEND_URL, `http://localhost:${getServerPort()}`);
-    callback({ redirectURL: rewritten });
-  });
+  const hostedHosts = getHostedFrontendHosts();
+  const rewriteFilter = {
+    urls: hostedHosts.flatMap((h) => [`http://${h}/*`, `https://${h}/*`]),
+  };
+  if (rewriteFilter.urls.length > 0) {
+    session.defaultSession.webRequest.onBeforeRequest(rewriteFilter, (details, callback) => {
+      try {
+        const u = new URL(details.url);
+        const originalHost = u.host;
+        const local = new URL(getServerOrigin());
+        u.protocol = local.protocol;
+        u.host = local.host;
+        trackEvent('desktop_oauth_redirect_intercepted', {
+          host: originalHost,
+          path: u.pathname,
+          rewritten_to_port: getServerPort(),
+        });
+        callback({ redirectURL: u.toString() });
+      } catch {
+        callback({});
+      }
+    });
+  }
+
+  // Diagnostic: connector callback landing somewhere other than localhost
+  // means the rewrite missed and the user is stranded off-app.
+  session.defaultSession.webRequest.onCompleted(
+    { urls: ['*://*/dashboard/*/connectors/callback*'] },
+    (details) => {
+      try {
+        const u = new URL(details.url);
+        if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') return;
+        trackEvent('desktop_oauth_redirect_missed', {
+          host: u.host,
+          path: u.pathname,
+          status_code: details.statusCode,
+        });
+      } catch {
+        // ignore malformed URLs
+      }
+    }
+  );
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     console.error(`Failed to load ${validatedURL}: ${errorDescription} (${errorCode})`);

@@ -59,14 +59,13 @@ Do NOT cite document_id. Always use the chunk id.
 - NEVER create your own citation format - use the exact chunk_id values from the documents in the [citation:chunk_id] format
 - NEVER format citations as clickable links or as markdown links like "([citation:5](https://example.com))". Always use plain square brackets only
 - NEVER make up chunk IDs if you are unsure about the chunk_id. It is better to omit the citation than to guess
-- Copy the EXACT chunk id from the XML - if it says `<chunk id='doc-123'>`, use [citation:doc-123]
+- Copy the EXACT chunk id from the XML - if it says `<chunk id='5'>`, use [citation:5]
 - If the chunk id is a URL like `<chunk id='https://example.com/page'>`, use [citation:https://example.com/page]
 </citation_format>
 
 <citation_examples>
 CORRECT citation formats:
 - [citation:5] (numeric chunk ID from knowledge base)
-- [citation:doc-123] (for Surfsense documentation chunks)
 - [citation:https://example.com/article] (URL chunk ID from web search results)
 - [citation:chunk_id1], [citation:chunk_id2], [citation:chunk_id3] (multiple citations)
 

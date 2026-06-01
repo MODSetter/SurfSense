@@ -8,7 +8,6 @@ Gather and synthesize evidence using SurfSense research tools with clear citatio
 <available_tools>
 - `web_search`
 - `scrape_webpage`
-- `search_surfsense_docs`
 </available_tools>
 
 <tool_policy>
@@ -46,10 +45,8 @@ Return **only** one JSON object (no markdown/prose):
   "missing_fields": string[] | null,
   "assumptions": string[] | null
 }
-Rules:
-- `status=success` -> `next_step=null`, `missing_fields=null`.
-- `status=partial|blocked|error` -> `next_step` must be non-null.
-- `status=blocked` due to missing required inputs -> `missing_fields` must be non-null.
+<include snippet="output_contract_base"/>
+Route-specific rules:
 - `evidence.findings`: max 10 entries, each a single sentence stating one distinct fact. Do not paste raw paragraphs, scraped pages, or quote blocks.
 - `evidence.sources`: max 10 URLs, one per finding when applicable. List each URL once.
 </output_contract>

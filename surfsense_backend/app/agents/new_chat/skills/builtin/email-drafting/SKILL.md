@@ -1,7 +1,6 @@
 ---
 name: email-drafting
 description: Draft an email matching the user's voice, with structured intent and CTA
-allowed-tools: search_surfsense_docs
 ---
 
 # Email drafting

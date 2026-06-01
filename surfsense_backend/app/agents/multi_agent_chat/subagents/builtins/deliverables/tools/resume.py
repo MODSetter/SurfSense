@@ -8,10 +8,14 @@ from typing import Any
 
 import pypdf
 import typst
+from langchain.tools import ToolRuntime
 from langchain_core.callbacks import dispatch_custom_event
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
+from langgraph.types import Command
 
+from app.agents.shared.receipt import make_receipt
+from app.agents.shared.receipt_command import with_receipt
 from app.db import Report, shielded_async_session
 from app.services.llm_service import get_document_summary_llm
 
@@ -429,10 +433,11 @@ def create_generate_resume_tool(
     @tool
     async def generate_resume(
         user_info: str,
+        runtime: ToolRuntime,
         user_instructions: str | None = None,
         parent_report_id: int | None = None,
         max_pages: int = 1,
-    ) -> dict[str, Any]:
+    ) -> Command:
         """
         Generate a professional resume as a Typst document.
 
@@ -476,6 +481,41 @@ def create_generate_resume_tool(
         template = _get_template()
         llm_reference = _build_llm_reference(template)
 
+        def _success(payload: dict[str, Any], *, report_id: int, title: str) -> Command:
+            return with_receipt(
+                payload=payload,
+                receipt=make_receipt(
+                    route="deliverables",
+                    type="resume",
+                    operation="generate",
+                    status="success",
+                    external_id=str(report_id),
+                    preview=title,
+                ),
+                tool_call_id=runtime.tool_call_id,
+            )
+
+        def _failed(
+            payload: dict[str, Any],
+            *,
+            report_id: int | None,
+            error: str,
+            title: str = "Resume",
+        ) -> Command:
+            return with_receipt(
+                payload=payload,
+                receipt=make_receipt(
+                    route="deliverables",
+                    type="resume",
+                    operation="generate",
+                    status="failed",
+                    external_id=str(report_id) if report_id is not None else None,
+                    preview=title,
+                    error=error,
+                ),
+                tool_call_id=runtime.tool_call_id,
+            )
+
         async def _save_failed_report(error_msg: str) -> int | None:
             try:
                 async with shielded_async_session() as session:
@@ -514,13 +554,17 @@ def create_generate_resume_tool(
             except ValueError as e:
                 error_msg = str(e)
                 report_id = await _save_failed_report(error_msg)
-                return {
-                    "status": "failed",
-                    "error": error_msg,
-                    "report_id": report_id,
-                    "title": "Resume",
-                    "content_type": "typst",
-                }
+                return _failed(
+                    {
+                        "status": "failed",
+                        "error": error_msg,
+                        "report_id": report_id,
+                        "title": "Resume",
+                        "content_type": "typst",
+                    },
+                    report_id=report_id,
+                    error=error_msg,
+                )
 
             # ── Phase 1: READ ─────────────────────────────────────────────
             async with shielded_async_session() as read_session:
@@ -541,13 +585,17 @@ def create_generate_resume_tool(
                     "No LLM configured. Please configure a language model in Settings."
                 )
                 report_id = await _save_failed_report(error_msg)
-                return {
-                    "status": "failed",
-                    "error": error_msg,
-                    "report_id": report_id,
-                    "title": "Resume",
-                    "content_type": "typst",
-                }
+                return _failed(
+                    {
+                        "status": "failed",
+                        "error": error_msg,
+                        "report_id": report_id,
+                        "title": "Resume",
+                        "content_type": "typst",
+                    },
+                    report_id=report_id,
+                    error=error_msg,
+                )
 
             # ── Phase 2: LLM GENERATION ───────────────────────────────────
 
@@ -588,13 +636,17 @@ def create_generate_resume_tool(
             if not body or not isinstance(body, str):
                 error_msg = "LLM returned empty or invalid content"
                 report_id = await _save_failed_report(error_msg)
-                return {
-                    "status": "failed",
-                    "error": error_msg,
-                    "report_id": report_id,
-                    "title": "Resume",
-                    "content_type": "typst",
-                }
+                return _failed(
+                    {
+                        "status": "failed",
+                        "error": error_msg,
+                        "report_id": report_id,
+                        "title": "Resume",
+                        "content_type": "typst",
+                    },
+                    report_id=report_id,
+                    error=error_msg,
+                )
 
             body = _strip_typst_fences(body)
             body = _strip_imports(body)
@@ -661,13 +713,17 @@ def create_generate_resume_tool(
                         f"{compile_error or 'Unknown compile error'}"
                     )
                     report_id = await _save_failed_report(error_msg)
-                    return {
-                        "status": "failed",
-                        "error": error_msg,
-                        "report_id": report_id,
-                        "title": "Resume",
-                        "content_type": "typst",
-                    }
+                    return _failed(
+                        {
+                            "status": "failed",
+                            "error": error_msg,
+                            "report_id": report_id,
+                            "title": "Resume",
+                            "content_type": "typst",
+                        },
+                        report_id=report_id,
+                        error=error_msg,
+                    )
 
                 actual_pages = _count_pdf_pages(pdf_bytes)
                 if actual_pages <= validated_max_pages:
@@ -700,13 +756,17 @@ def create_generate_resume_tool(
                 ):
                     error_msg = "LLM returned empty content while compressing resume"
                     report_id = await _save_failed_report(error_msg)
-                    return {
-                        "status": "failed",
-                        "error": error_msg,
-                        "report_id": report_id,
-                        "title": "Resume",
-                        "content_type": "typst",
-                    }
+                    return _failed(
+                        {
+                            "status": "failed",
+                            "error": error_msg,
+                            "report_id": report_id,
+                            "title": "Resume",
+                            "content_type": "typst",
+                        },
+                        report_id=report_id,
+                        error=error_msg,
+                    )
 
                 body = _strip_typst_fences(compress_response.content)
                 body = _strip_imports(body)
@@ -718,13 +778,17 @@ def create_generate_resume_tool(
                     f"Hard limit: <= {MAX_RESUME_PAGES} page(s), actual: {actual_pages}."
                 )
                 report_id = await _save_failed_report(error_msg)
-                return {
-                    "status": "failed",
-                    "error": error_msg,
-                    "report_id": report_id,
-                    "title": "Resume",
-                    "content_type": "typst",
-                }
+                return _failed(
+                    {
+                        "status": "failed",
+                        "error": error_msg,
+                        "report_id": report_id,
+                        "title": "Resume",
+                        "content_type": "typst",
+                    },
+                    report_id=report_id,
+                    error=error_msg,
+                )
 
             # ── Phase 4: SAVE ─────────────────────────────────────────────
             dispatch_custom_event(
@@ -768,32 +832,40 @@ def create_generate_resume_tool(
 
             logger.info(f"[generate_resume] Created resume {saved_id}: {resume_title}")
 
-            return {
-                "status": "ready",
-                "report_id": saved_id,
-                "title": resume_title,
-                "content_type": "typst",
-                "is_revision": bool(parent_content),
-                "message": (
-                    f"Resume generated successfully: {resume_title}"
-                    if target_page_met
-                    else (
-                        f"Resume generated, but could not fit the target of <= {validated_max_pages} "
-                        f"page(s). Final length: {actual_pages} page(s)."
-                    )
-                ),
-            }
+            return _success(
+                {
+                    "status": "ready",
+                    "report_id": saved_id,
+                    "title": resume_title,
+                    "content_type": "typst",
+                    "is_revision": bool(parent_content),
+                    "message": (
+                        f"Resume generated successfully: {resume_title}"
+                        if target_page_met
+                        else (
+                            f"Resume generated, but could not fit the target of <= {validated_max_pages} "
+                            f"page(s). Final length: {actual_pages} page(s)."
+                        )
+                    ),
+                },
+                report_id=saved_id,
+                title=resume_title,
+            )
 
         except Exception as e:
             error_message = str(e)
             logger.exception(f"[generate_resume] Error: {error_message}")
             report_id = await _save_failed_report(error_message)
-            return {
-                "status": "failed",
-                "error": error_message,
-                "report_id": report_id,
-                "title": "Resume",
-                "content_type": "typst",
-            }
+            return _failed(
+                {
+                    "status": "failed",
+                    "error": error_message,
+                    "report_id": report_id,
+                    "title": "Resume",
+                    "content_type": "typst",
+                },
+                report_id=report_id,
+                error=error_message,
+            )
 
     return generate_resume

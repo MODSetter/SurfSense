@@ -107,9 +107,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 				setError(null);
 
 				// Build URL with optional search_space_id query parameter
-				const url = new URL(
-					`${BACKEND_URL}/api/v1/search-source-connectors`
-				);
+				const url = new URL(`${BACKEND_URL}/api/v1/search-source-connectors`);
 				if (spaceId !== undefined) {
 					url.searchParams.append("search_space_id", spaceId.toString());
 				}
@@ -169,9 +167,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	) => {
 		try {
 			// Add search_space_id as a query parameter
-			const url = new URL(
-				`${BACKEND_URL}/api/v1/search-source-connectors`
-			);
+			const url = new URL(`${BACKEND_URL}/api/v1/search-source-connectors`);
 			url.searchParams.append("search_space_id", spaceId.toString());
 
 			const response = await authenticatedFetch(url.toString(), {
@@ -283,9 +279,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			}
 
 			const response = await authenticatedFetch(
-				`${
-					BACKEND_URL
-				}/api/v1/search-source-connectors/${connectorId}/index?${params.toString()}`,
+				`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?${params.toString()}`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },

@@ -4,11 +4,15 @@ import hashlib
 import logging
 from typing import Any
 
+from langchain.tools import ToolRuntime
 from langchain_core.tools import tool
+from langgraph.types import Command
 from litellm import aimage_generation
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.shared.receipt import make_receipt
+from app.agents.shared.receipt_command import with_receipt
 from app.config import config
 from app.db import (
     ImageGeneration,
@@ -59,15 +63,22 @@ def _get_global_image_gen_config(config_id: int) -> dict | None:
 def create_generate_image_tool(
     search_space_id: int,
     db_session: AsyncSession,
+    image_generation_config_id_override: int | None = None,
 ):
-    """Create ``generate_image`` with bound search space; DB work uses a per-call session."""
+    """Create ``generate_image`` with bound search space; DB work uses a per-call session.
+
+    ``image_generation_config_id_override``: when set (automations running on a
+    captured model), use this config id instead of reading the search space's
+    live ``image_generation_config_id``.
+    """
     del db_session  # use a fresh per-call session, see below
 
     @tool
     async def generate_image(
         prompt: str,
+        runtime: ToolRuntime,
         n: int = 1,
-    ) -> dict[str, Any]:
+    ) -> Command:
         """
         Generate an image from a text description using AI image models.
 
@@ -82,22 +93,48 @@ def create_generate_image_tool(
         Returns:
             A dictionary containing the generated image(s) for display in the chat.
         """
+
+        def _failed(payload: dict[str, Any], *, error: str) -> Command:
+            return with_receipt(
+                payload=payload,
+                receipt=make_receipt(
+                    route="deliverables",
+                    type="image",
+                    operation="generate",
+                    status="failed",
+                    preview=prompt[:200] if prompt else None,
+                    error=error,
+                ),
+                tool_call_id=runtime.tool_call_id,
+            )
+
         try:
             # Use a per-call session so concurrent tool calls don't share an
             # AsyncSession (which is not concurrency-safe). The streaming
             # task's session is shared across every tool; without isolation,
             # autoflushes from a concurrent writer poison this tool too.
             async with shielded_async_session() as session:
-                result = await session.execute(
-                    select(SearchSpace).filter(SearchSpace.id == search_space_id)
-                )
-                search_space = result.scalars().first()
-                if not search_space:
-                    return {"error": "Search space not found"}
+                if image_generation_config_id_override is not None:
+                    # Automation run: use the captured image model, insulated from
+                    # later search-space changes. No search-space read needed.
+                    config_id = (
+                        image_generation_config_id_override or IMAGE_GEN_AUTO_MODE_ID
+                    )
+                else:
+                    result = await session.execute(
+                        select(SearchSpace).filter(SearchSpace.id == search_space_id)
+                    )
+                    search_space = result.scalars().first()
+                    if not search_space:
+                        return _failed(
+                            {"error": "Search space not found"},
+                            error="Search space not found",
+                        )
 
-                config_id = (
-                    search_space.image_generation_config_id or IMAGE_GEN_AUTO_MODE_ID
-                )
+                    config_id = (
+                        search_space.image_generation_config_id
+                        or IMAGE_GEN_AUTO_MODE_ID
+                    )
 
                 # Build generation kwargs
                 # NOTE: size, quality, and style are intentionally NOT passed.
@@ -112,19 +149,19 @@ def create_generate_image_tool(
                 # Call litellm based on config type
                 if is_image_gen_auto_mode(config_id):
                     if not ImageGenRouterService.is_initialized():
-                        return {
-                            "error": "No image generation models configured. "
+                        err = (
+                            "No image generation models configured. "
                             "Please add an image model in Settings > Image Models."
-                        }
+                        )
+                        return _failed({"error": err}, error=err)
                     response = await ImageGenRouterService.aimage_generation(
                         prompt=prompt, model="auto", **gen_kwargs
                     )
                 elif config_id < 0:
                     cfg = _get_global_image_gen_config(config_id)
                     if not cfg:
-                        return {
-                            "error": f"Image generation config {config_id} not found"
-                        }
+                        err = f"Image generation config {config_id} not found"
+                        return _failed({"error": err}, error=err)
 
                     model_string = _build_model_string(
                         cfg.get("provider", ""),
@@ -151,9 +188,8 @@ def create_generate_image_tool(
                     )
                     db_cfg = cfg_result.scalars().first()
                     if not db_cfg:
-                        return {
-                            "error": f"Image generation config {config_id} not found"
-                        }
+                        err = f"Image generation config {config_id} not found"
+                        return _failed({"error": err}, error=err)
 
                     model_string = _build_model_string(
                         db_cfg.provider.value,
@@ -200,7 +236,10 @@ def create_generate_image_tool(
             # Extract image URLs from response
             images = response_dict.get("data", [])
             if not images:
-                return {"error": "No images were generated"}
+                return _failed(
+                    {"error": "No images were generated"},
+                    error="No images were generated",
+                )
 
             first_image = images[0]
             revised_prompt = first_image.get("revised_prompt", prompt)
@@ -219,11 +258,14 @@ def create_generate_image_tool(
                     f"{db_image_gen_id}/image?token={access_token}"
                 )
             else:
-                return {"error": "No displayable image data in the response"}
+                return _failed(
+                    {"error": "No displayable image data in the response"},
+                    error="No displayable image data in the response",
+                )
 
             image_id = f"image-{hashlib.md5(image_url.encode()).hexdigest()[:12]}"
 
-            return {
+            payload = {
                 "id": image_id,
                 "assetId": image_url,
                 "src": image_url,
@@ -236,12 +278,26 @@ def create_generate_image_tool(
                 "prompt": prompt,
                 "image_count": len(images),
             }
+            return with_receipt(
+                payload=payload,
+                receipt=make_receipt(
+                    route="deliverables",
+                    type="image",
+                    operation="generate",
+                    status="success",
+                    external_id=str(db_image_gen_id),
+                    verifiable_url=image_url,
+                    preview=(revised_prompt or prompt)[:200],
+                ),
+                tool_call_id=runtime.tool_call_id,
+            )
 
         except Exception as e:
             logger.exception("Image generation failed in tool")
-            return {
-                "error": f"Image generation failed: {e!s}",
-                "prompt": prompt,
-            }
+            err = f"Image generation failed: {e!s}"
+            return _failed(
+                {"error": err, "prompt": prompt},
+                error=err,
+            )
 
     return generate_image

@@ -27,7 +27,6 @@ export const documentTypeEnum = z.enum([
 	"CIRCLEBACK",
 	"OBSIDIAN_CONNECTOR",
 	"LOCAL_FOLDER_FILE",
-	"SURFSENSE_DOCS",
 	"NOTE",
 	"USER_MEMORY",
 	"TEAM_MEMORY",
@@ -75,27 +74,6 @@ export const documentWithChunks = document.extend({
 	),
 	total_chunks: z.number().optional().default(0),
 	chunk_start_index: z.number().optional().default(0),
-});
-
-/**
- * Surfsense documentation schemas
- * Follows the same pattern as document/documentWithChunks
- */
-export const surfsenseDocsChunk = z.object({
-	id: z.number(),
-	content: z.string(),
-});
-
-export const surfsenseDocsDocument = z.object({
-	id: z.number(),
-	title: z.string(),
-	source: z.string(),
-	public_url: z.string(),
-	content: z.string(),
-});
-
-export const surfsenseDocsDocumentWithChunks = surfsenseDocsDocument.extend({
-	chunks: z.array(surfsenseDocsChunk),
 });
 
 /**
@@ -285,32 +263,6 @@ export const getDocumentChunksResponse = z.object({
 });
 
 /**
- * Get Surfsense docs by chunk
- */
-export const getSurfsenseDocsByChunkRequest = z.object({
-	chunk_id: z.number(),
-});
-
-export const getSurfsenseDocsByChunkResponse = surfsenseDocsDocumentWithChunks;
-
-/**
- * List Surfsense docs
- */
-export const getSurfsenseDocsRequest = z.object({
-	queryParams: paginationQueryParams.extend({
-		title: z.string().optional(),
-	}),
-});
-
-export const getSurfsenseDocsResponse = z.object({
-	items: z.array(surfsenseDocsDocument),
-	total: z.number(),
-	page: z.number(),
-	page_size: z.number(),
-	has_more: z.boolean(),
-});
-
-/**
  * Update document
  */
 export const updateDocumentRequest = z.object({
@@ -358,13 +310,6 @@ export type DeleteDocumentResponse = z.infer<typeof deleteDocumentResponse>;
 export type DocumentTypeEnum = z.infer<typeof documentTypeEnum>;
 export type DocumentSortBy = z.infer<typeof documentSortByEnum>;
 export type SortOrder = z.infer<typeof sortOrderEnum>;
-export type SurfsenseDocsChunk = z.infer<typeof surfsenseDocsChunk>;
-export type SurfsenseDocsDocument = z.infer<typeof surfsenseDocsDocument>;
-export type SurfsenseDocsDocumentWithChunks = z.infer<typeof surfsenseDocsDocumentWithChunks>;
-export type GetSurfsenseDocsByChunkRequest = z.infer<typeof getSurfsenseDocsByChunkRequest>;
-export type GetSurfsenseDocsByChunkResponse = z.infer<typeof getSurfsenseDocsByChunkResponse>;
-export type GetSurfsenseDocsRequest = z.infer<typeof getSurfsenseDocsRequest>;
-export type GetSurfsenseDocsResponse = z.infer<typeof getSurfsenseDocsResponse>;
 export type GetDocumentChunksRequest = z.infer<typeof getDocumentChunksRequest>;
 export type GetDocumentChunksResponse = z.infer<typeof getDocumentChunksResponse>;
 export type ChunkRead = z.infer<typeof chunkRead>;

@@ -14,6 +14,7 @@ import contextlib
 import gc
 import json
 import logging
+import sys
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
@@ -24,7 +25,6 @@ from uuid import UUID
 import anyio
 from langchain_core.messages import HumanMessage
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
 
 from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
@@ -54,10 +54,10 @@ from app.db import (
     NewChatThread,
     Report,
     SearchSourceConnectorType,
-    SurfsenseDocsDocument,
     async_session_maker,
     shielded_async_session,
 )
+from app.observability import metrics as ot_metrics, otel as ot
 from app.prompts import TITLE_GENERATION_PROMPT
 from app.services.auto_model_pin_service import (
     mark_runtime_cooldown,
@@ -75,7 +75,6 @@ from app.tasks.chat.streaming.helpers.interrupt_inspector import (
 )
 from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
-from app.utils.surfsense_docs import surfsense_docs_public_url
 from app.utils.user_message_multimodal import build_human_message_content
 
 _background_tasks: set[asyncio.Task] = set()
@@ -194,58 +193,6 @@ def _extract_chunk_parts(chunk: Any) -> dict[str, Any]:
                 out["tool_call_chunks"].append(tcc)
 
     return out
-
-
-def format_mentioned_surfsense_docs_as_context(
-    documents: list[SurfsenseDocsDocument],
-) -> str:
-    """Format mentioned SurfSense documentation as context for the agent."""
-    if not documents:
-        return ""
-
-    context_parts = ["<mentioned_surfsense_docs>"]
-    context_parts.append(
-        "The user has explicitly mentioned the following SurfSense documentation pages. "
-        "These are official documentation about how to use SurfSense and should be used to answer questions about the application. "
-        "Use [citation:CHUNK_ID] format for citations (e.g., [citation:doc-123])."
-    )
-
-    for doc in documents:
-        public_url = surfsense_docs_public_url(doc.source)
-        metadata_json = json.dumps(
-            {"source": doc.source, "public_url": public_url}, ensure_ascii=False
-        )
-
-        context_parts.append("<document>")
-        context_parts.append("<document_metadata>")
-        context_parts.append(f"  <document_id>doc-{doc.id}</document_id>")
-        context_parts.append("  <document_type>SURFSENSE_DOCS</document_type>")
-        context_parts.append(f"  <title><![CDATA[{doc.title}]]></title>")
-        context_parts.append(f"  <url><![CDATA[{public_url}]]></url>")
-        context_parts.append(
-            f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>"
-        )
-        context_parts.append("</document_metadata>")
-        context_parts.append("")
-        context_parts.append("<document_content>")
-
-        if hasattr(doc, "chunks") and doc.chunks:
-            for chunk in doc.chunks:
-                context_parts.append(
-                    f"  <chunk id='doc-{chunk.id}'><![CDATA[{chunk.content}]]></chunk>"
-                )
-        else:
-            context_parts.append(
-                f"  <chunk id='doc-0'><![CDATA[{doc.content}]]></chunk>"
-            )
-
-        context_parts.append("</document_content>")
-        context_parts.append("</document>")
-        context_parts.append("")
-
-    context_parts.append("</mentioned_surfsense_docs>")
-
-    return "\n".join(context_parts)
 
 
 def extract_todos_from_deepagents(command_output) -> dict:
@@ -835,8 +782,9 @@ async def stream_new_chat(
     user_id: str | None = None,
     llm_config_id: int = -1,
     mentioned_document_ids: list[int] | None = None,
-    mentioned_surfsense_doc_ids: list[int] | None = None,
     mentioned_folder_ids: list[int] | None = None,
+    mentioned_connector_ids: list[int] | None = None,
+    mentioned_connectors: list[dict[str, Any]] | None = None,
     mentioned_documents: list[dict[str, Any]] | None = None,
     checkpoint_id: str | None = None,
     needs_history_bootstrap: bool = False,
@@ -865,7 +813,6 @@ async def stream_new_chat(
         llm_config_id: The LLM configuration ID (default: -1 for first global config)
         needs_history_bootstrap: If True, load message history from DB (for cloned chats)
         mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
-        mentioned_surfsense_doc_ids: Optional list of SurfSense doc IDs mentioned with @ in the chat
         mentioned_folder_ids: Optional list of knowledge-base folder IDs mentioned with @ (cloud mode)
         checkpoint_id: Optional checkpoint ID to rewind/fork from (for edit/reload operations)
 
@@ -883,6 +830,20 @@ async def stream_new_chat(
     stream_result.turn_id = f"{chat_id}:{int(time.time() * 1000)}"
     stream_result.filesystem_mode = fs_mode
     stream_result.client_platform = fs_platform
+    chat_agent_mode = "unknown"
+    chat_outcome = "success"
+    chat_error_category: str | None = None
+    chat_span_cm = ot.chat_request_span(
+        chat_id=chat_id,
+        search_space_id=search_space_id,
+        flow=flow,
+        request_id=request_id,
+        turn_id=stream_result.turn_id,
+        filesystem_mode=fs_mode,
+        client_platform=fs_platform,
+        agent_mode=chat_agent_mode,
+    )
+    chat_span = chat_span_cm.__enter__()
     _log_file_contract("turn_start", stream_result)
     _perf_log.info(
         "[stream_new_chat] filesystem_mode=%s client_platform=%s",
@@ -971,6 +932,14 @@ async def stream_new_chat(
                     requires_image_input=_requires_image_input,
                 )
             ).resolved_llm_config_id
+            ot.add_event(
+                "model.pin.resolved",
+                {
+                    "pin.requested_id": requested_llm_config_id,
+                    "pin.resolved_id": llm_config_id,
+                    "pin.requires_image_input": _requires_image_input,
+                },
+            )
         except ValueError as pin_error:
             # Auto-pin's "no vision-capable cfg" path raises a ValueError
             # whose message we map to the friendly image-input SSE error
@@ -987,6 +956,13 @@ async def stream_new_chat(
                 if error_code == "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"
                 else "server_error"
             )
+            if error_code == "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT":
+                ot.add_event(
+                    "quota.denied",
+                    {
+                        "quota.code": error_code,
+                    },
+                )
             yield _emit_stream_error(
                 message=str(pin_error),
                 error_kind=error_kind,
@@ -1041,6 +1017,12 @@ async def stream_new_chat(
                 model_label = (
                     agent_config.config_name or agent_config.model_name or "model"
                 )
+                ot.add_event(
+                    "quota.denied",
+                    {
+                        "quota.code": "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT",
+                    },
+                )
                 yield _emit_stream_error(
                     message=(
                         f"The selected model ({model_label}) does not support "
@@ -1084,6 +1066,12 @@ async def stream_new_chat(
                 )
             _premium_reserved_micros = reserve_amount_micros
             if not quota_result.allowed:
+                ot.add_event(
+                    "quota.denied",
+                    {
+                        "quota.code": "PREMIUM_QUOTA_EXHAUSTED",
+                    },
+                )
                 if requested_llm_config_id == 0:
                     try:
                         llm_config_id = (
@@ -1097,6 +1085,13 @@ async def stream_new_chat(
                                 requires_image_input=_requires_image_input,
                             )
                         ).resolved_llm_config_id
+                        ot.add_event(
+                            "model.repin",
+                            {
+                                "repin.reason": "premium_quota_exhausted",
+                                "repin.to_config_id": llm_config_id,
+                            },
+                        )
                     except ValueError as pin_error:
                         yield _emit_stream_error(
                             message=str(pin_error),
@@ -1189,6 +1184,9 @@ async def stream_new_chat(
         from app.config import config as _app_config
 
         use_multi_agent = bool(_app_config.MULTI_AGENT_CHAT_ENABLED)
+        chat_agent_mode = "multi" if use_multi_agent else "single"
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("agent.mode", chat_agent_mode)
 
         _t0 = time.perf_counter()
         agent_factory = (
@@ -1240,19 +1238,7 @@ async def stream_new_chat(
 
         # Mentioned KB documents are now handled by KnowledgeBaseSearchMiddleware
         # which merges them into the scoped filesystem with full document
-        # structure. Only SurfSense docs and report context are inlined here.
-
-        # Fetch mentioned SurfSense docs if any
-        mentioned_surfsense_docs: list[SurfsenseDocsDocument] = []
-        if mentioned_surfsense_doc_ids:
-            result = await session.execute(
-                select(SurfsenseDocsDocument)
-                .options(selectinload(SurfsenseDocsDocument.chunks))
-                .filter(
-                    SurfsenseDocsDocument.id.in_(mentioned_surfsense_doc_ids),
-                )
-            )
-            mentioned_surfsense_docs = list(result.scalars().all())
+        # structure. Only report context is inlined here.
 
         # Fetch the most recent report(s) in this thread so the LLM can
         # easily find report_id for versioning decisions, instead of
@@ -1286,10 +1272,7 @@ async def stream_new_chat(
         agent_user_query = user_query
         accepted_folder_ids: list[int] = []
         if fs_mode == FilesystemMode.CLOUD.value and (
-            mentioned_document_ids
-            or mentioned_surfsense_doc_ids
-            or mentioned_folder_ids
-            or mentioned_documents
+            mentioned_document_ids or mentioned_folder_ids or mentioned_documents
         ):
             from app.schemas.new_chat import (
                 MentionedDocumentInfo as _MentionedDocumentInfo,
@@ -1315,22 +1298,43 @@ async def stream_new_chat(
                 search_space_id=search_space_id,
                 mentioned_documents=chip_objs,
                 mentioned_document_ids=mentioned_document_ids,
-                mentioned_surfsense_doc_ids=mentioned_surfsense_doc_ids,
                 mentioned_folder_ids=mentioned_folder_ids,
             )
             agent_user_query = substitute_in_text(user_query, resolved.token_to_path)
             accepted_folder_ids = resolved.mentioned_folder_ids
 
-        # Format the user query with context (SurfSense docs + reports only).
+        # Format the user query with context (reports only).
         # Uses ``agent_user_query`` so the LLM sees backtick-wrapped paths
         # instead of bare ``@title`` tokens.
         final_query = agent_user_query
         context_parts = []
 
-        if mentioned_surfsense_docs:
-            context_parts.append(
-                format_mentioned_surfsense_docs_as_context(mentioned_surfsense_docs)
-            )
+        if mentioned_connectors:
+            connector_lines = []
+            for connector in mentioned_connectors:
+                if not isinstance(connector, dict):
+                    continue
+                connector_id = connector.get("id")
+                connector_type = connector.get("connector_type") or connector.get(
+                    "document_type"
+                )
+                account_name = connector.get("account_name") or connector.get("title")
+                if connector_id is None or connector_type is None:
+                    continue
+                connector_lines.append(
+                    f'  - connector_id={connector_id}, connector_type="{connector_type}", '
+                    f'account_name="{account_name or ""}"'
+                )
+            if connector_lines:
+                context_parts.append(
+                    "<mentioned_connectors>\n"
+                    "The user selected these exact connector accounts with @. "
+                    "These entries are selection metadata, not retrieved connector content. "
+                    "When a connector-backed tool needs an account, use the matching "
+                    "connector_id from this list if the tool supports connector_id:\n"
+                    + "\n".join(connector_lines)
+                    + "\n</mentioned_connectors>"
+                )
 
         # Surface report IDs prominently so the LLM doesn't have to
         # retrieve them from old tool responses in conversation history.
@@ -1535,12 +1539,8 @@ async def stream_new_chat(
         stream_result.content_builder = AssistantContentBuilder()
 
         # Initial thinking step - analyzing the request
-        if mentioned_surfsense_docs:
-            initial_title = "Analyzing referenced content"
-            action_verb = "Analyzing"
-        else:
-            initial_title = "Understanding your request"
-            action_verb = "Processing"
+        initial_title = "Understanding your request"
+        action_verb = "Processing"
 
         processing_parts = []
         if user_query.strip():
@@ -1550,18 +1550,6 @@ async def stream_new_chat(
             processing_parts.append(f"[{len(user_image_data_urls)} image(s)]")
         else:
             processing_parts.append("(message)")
-
-        if mentioned_surfsense_docs:
-            doc_names = []
-            for doc in mentioned_surfsense_docs:
-                title = doc.title
-                if len(title) > 30:
-                    title = title[:27] + "..."
-                doc_names.append(title)
-            if len(doc_names) == 1:
-                processing_parts.append(f"[{doc_names[0]}]")
-            else:
-                processing_parts.append(f"[{len(doc_names)} docs]")
 
         initial_items = [f"{action_verb}: {' '.join(processing_parts)}"]
         initial_step_id = "thinking-1"
@@ -1582,10 +1570,10 @@ async def stream_new_chat(
             items=initial_items,
         )
 
-        # These ORM objects (with eagerly-loaded chunks) can be very large.
-        # They're only needed to build context strings already copied into
-        # final_query / langchain_messages — release them before streaming.
-        del mentioned_surfsense_docs, recent_reports
+        # These ORM objects can be large. They're only needed to build context
+        # strings already copied into final_query / langchain_messages —
+        # release them before streaming.
+        del recent_reports
         del langchain_messages, final_query
 
         # Check if this is the first assistant response so we can generate
@@ -1725,6 +1713,8 @@ async def stream_new_chat(
             mentioned_folder_ids=list(
                 accepted_folder_ids or mentioned_folder_ids or []
             ),
+            mentioned_connector_ids=list(mentioned_connector_ids or []),
+            mentioned_connectors=list(mentioned_connectors or []),
             request_id=request_id,
             turn_id=stream_result.turn_id,
         )
@@ -1863,6 +1853,14 @@ async def stream_new_chat(
                     llm_config_id,
                     time.perf_counter() - _t0,
                 )
+                ot.add_event(
+                    "chat.rate_limit.recovered",
+                    {
+                        "recovery.reason": "provider_rate_limited",
+                        "recovery.previous_config_id": previous_config_id,
+                        "recovery.fallback_config_id": llm_config_id,
+                    },
+                )
                 _log_chat_stream_error(
                     flow=flow,
                     error_kind="rate_limited",
@@ -1893,6 +1891,12 @@ async def stream_new_chat(
         log_system_snapshot("stream_new_chat_END")
 
         if stream_result.is_interrupted:
+            ot.add_event(
+                "chat.interrupted",
+                {
+                    "chat.flow": flow,
+                },
+            )
             if title_task is not None and not title_task.done():
                 title_task.cancel()
 
@@ -2011,6 +2015,12 @@ async def stream_new_chat(
             user_message,
             error_extra,
         ) = _classify_stream_exception(e, flow_label="chat")
+        chat_outcome = error_code or error_kind or "error"
+        chat_error_category = ot_metrics.categorize_exception(e)
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("chat.outcome", chat_outcome)
+            chat_span.set_attribute("error.category", chat_error_category)
+            ot.record_error(chat_span, e)
         error_message = f"Error during chat: {e!s}"
         print(f"[stream_new_chat] {error_message}")
         print(f"[stream_new_chat] Exception type: {type(e).__name__}")
@@ -2201,6 +2211,21 @@ async def stream_new_chat(
             )
         trim_native_heap()
         log_system_snapshot("stream_new_chat_END")
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("chat.outcome", chat_outcome)
+            ot_metrics.record_chat_request_duration(
+                (time.perf_counter() - _t_total) * 1000,
+                flow=flow,
+                outcome=chat_outcome,
+                agent_mode=chat_agent_mode,
+            )
+            ot_metrics.record_chat_request_outcome(
+                flow=flow,
+                outcome=chat_outcome,
+                agent_mode=chat_agent_mode,
+                error_category=chat_error_category,
+            )
+        chat_span_cm.__exit__(*sys.exc_info())
 
 
 async def stream_resume_chat(
@@ -2225,6 +2250,20 @@ async def stream_resume_chat(
     stream_result.turn_id = f"{chat_id}:{int(time.time() * 1000)}"
     stream_result.filesystem_mode = fs_mode
     stream_result.client_platform = fs_platform
+    chat_agent_mode = "unknown"
+    chat_outcome = "success"
+    chat_error_category: str | None = None
+    chat_span_cm = ot.chat_request_span(
+        chat_id=chat_id,
+        search_space_id=search_space_id,
+        flow="resume",
+        request_id=request_id,
+        turn_id=stream_result.turn_id,
+        filesystem_mode=fs_mode,
+        client_platform=fs_platform,
+        agent_mode=chat_agent_mode,
+    )
+    chat_span = chat_span_cm.__enter__()
     _log_file_contract("turn_start", stream_result)
     _perf_log.info(
         "[stream_resume] filesystem_mode=%s client_platform=%s",
@@ -2297,6 +2336,14 @@ async def stream_resume_chat(
                     selected_llm_config_id=llm_config_id,
                 )
             ).resolved_llm_config_id
+            ot.add_event(
+                "model.pin.resolved",
+                {
+                    "pin.requested_id": requested_llm_config_id,
+                    "pin.resolved_id": llm_config_id,
+                    "pin.requires_image_input": False,
+                },
+            )
         except ValueError as pin_error:
             yield _emit_stream_error(
                 message=str(pin_error),
@@ -2353,6 +2400,12 @@ async def stream_resume_chat(
                 )
             _resume_premium_reserved_micros = reserve_amount_micros
             if not quota_result.allowed:
+                ot.add_event(
+                    "quota.denied",
+                    {
+                        "quota.code": "PREMIUM_QUOTA_EXHAUSTED",
+                    },
+                )
                 if requested_llm_config_id == 0:
                     try:
                         llm_config_id = (
@@ -2365,6 +2418,13 @@ async def stream_resume_chat(
                                 force_repin_free=True,
                             )
                         ).resolved_llm_config_id
+                        ot.add_event(
+                            "model.repin",
+                            {
+                                "repin.reason": "premium_quota_exhausted",
+                                "repin.to_config_id": llm_config_id,
+                            },
+                        )
                     except ValueError as pin_error:
                         yield _emit_stream_error(
                             message=str(pin_error),
@@ -2454,6 +2514,9 @@ async def stream_resume_chat(
         visibility = thread_visibility or ChatVisibility.PRIVATE
         from app.config import config as _app_config
 
+        chat_agent_mode = "multi" if _app_config.MULTI_AGENT_CHAT_ENABLED else "single"
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("agent.mode", chat_agent_mode)
         _t0 = time.perf_counter()
         agent_factory = (
             create_multi_agent_chat_deep_agent
@@ -2695,6 +2758,14 @@ async def stream_resume_chat(
                     llm_config_id,
                     time.perf_counter() - _t0,
                 )
+                ot.add_event(
+                    "chat.rate_limit.recovered",
+                    {
+                        "recovery.reason": "provider_rate_limited",
+                        "recovery.previous_config_id": previous_config_id,
+                        "recovery.fallback_config_id": llm_config_id,
+                    },
+                )
                 _log_chat_stream_error(
                     flow="resume",
                     error_kind="rate_limited",
@@ -2722,6 +2793,12 @@ async def stream_resume_chat(
             chat_id,
         )
         if stream_result.is_interrupted:
+            ot.add_event(
+                "chat.interrupted",
+                {
+                    "chat.flow": "resume",
+                },
+            )
             usage_summary = accumulator.per_message_summary()
             _perf_log.info(
                 "[token_usage] interrupted resume_chat: calls=%d total=%d cost_micros=%d summary=%s",
@@ -2815,6 +2892,12 @@ async def stream_resume_chat(
             user_message,
             error_extra,
         ) = _classify_stream_exception(e, flow_label="resume")
+        chat_outcome = error_code or error_kind or "error"
+        chat_error_category = ot_metrics.categorize_exception(e)
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("chat.outcome", chat_outcome)
+            chat_span.set_attribute("error.category", chat_error_category)
+            ot.record_error(chat_span, e)
         error_message = f"Error during resume: {e!s}"
         print(f"[stream_resume_chat] {error_message}")
         print(f"[stream_resume_chat] Traceback:\n{traceback.format_exc()}")
@@ -2964,3 +3047,18 @@ async def stream_resume_chat(
             )
         trim_native_heap()
         log_system_snapshot("stream_resume_chat_END")
+        with contextlib.suppress(Exception):
+            chat_span.set_attribute("chat.outcome", chat_outcome)
+            ot_metrics.record_chat_request_duration(
+                (time.perf_counter() - _t_total) * 1000,
+                flow="resume",
+                outcome=chat_outcome,
+                agent_mode=chat_agent_mode,
+            )
+            ot_metrics.record_chat_request_outcome(
+                flow="resume",
+                outcome=chat_outcome,
+                agent_mode=chat_agent_mode,
+                error_category=chat_error_category,
+            )
+        chat_span_cm.__exit__(*sys.exc_info())

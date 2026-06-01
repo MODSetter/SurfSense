@@ -4,8 +4,8 @@ never invent ids you didn't see. Citation ids are resolved by exact-match
 lookup; a wrong id silently breaks the link, so when in doubt, omit.
 
 ### Channel A — chunk blocks injected this turn
-When `search_surfsense_docs` or `web_search` returns `<document>` /
-`<chunk id='…'>` blocks in this turn:
+When `web_search` returns `<document>` / `<chunk id='…'>` blocks in this
+turn:
 
 1. For each factual statement taken from those chunks, add
    `[citation:chunk_id]` using the **exact** id from a visible

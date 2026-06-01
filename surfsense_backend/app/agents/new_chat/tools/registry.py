@@ -101,7 +101,6 @@ from .podcast import create_generate_podcast_tool
 from .report import create_generate_report_tool
 from .resume import create_generate_resume_tool
 from .scrape_webpage import create_scrape_webpage_tool
-from .search_surfsense_docs import create_search_surfsense_docs_tool
 from .teams import (
     create_list_teams_channels_tool,
     create_read_teams_messages_tool,
@@ -148,6 +147,28 @@ class ToolDefinition:
     required_connector: str | None = None
     dedup_key: Callable[[dict[str, Any]], str] | None = None
     reverse: Callable[[dict[str, Any], Any], dict[str, Any]] | None = None
+
+
+# =============================================================================
+# Deferred-import factories
+# =============================================================================
+# Used for tools whose impls live under ``multi_agent_chat``. Importing those
+# at module-load time would cycle (``multi_agent_chat`` middleware imports
+# this registry). The import inside the factory runs only when
+# ``build_tools`` is called, by which point ``multi_agent_chat`` is fully
+# initialised.
+
+
+def _build_create_automation_tool(deps: dict[str, Any]) -> BaseTool:
+    from app.agents.multi_agent_chat.main_agent.tools.automation import (
+        create_create_automation_tool,
+    )
+
+    return create_create_automation_tool(
+        search_space_id=deps["search_space_id"],
+        user_id=deps["user_id"],
+        llm=deps["llm"],
+    )
 
 
 # =============================================================================
@@ -236,15 +257,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=[],
     ),
-    # Surfsense documentation search tool
-    ToolDefinition(
-        name="search_surfsense_docs",
-        description="Search Surfsense documentation for help with using the application",
-        factory=lambda deps: create_search_surfsense_docs_tool(
-            db_session=deps["db_session"],
-        ),
-        requires=["db_session"],
-    ),
     # =========================================================================
     # SERVICE ACCOUNT DISCOVERY
     # Generic tool for the LLM to discover connected accounts and resolve
@@ -259,6 +271,21 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # AUTOMATION AUTHORING - single HITL tool. The tool takes an NL ``intent``
+    # from the main agent, drafts the full AutomationCreate JSON via a focused
+    # sub-LLM, surfaces it on an approval card, and persists on approval. The
+    # factory defers its import because the impl lives under ``multi_agent_chat``
+    # and that package transitively pulls this registry via middleware;
+    # deferring to ``build_tools`` call-time breaks the cycle without a
+    # parallel registry.
+    # =========================================================================
+    ToolDefinition(
+        name="create_automation",
+        description="Draft an automation from an NL intent; user approves the card; tool saves",
+        factory=_build_create_automation_tool,
+        requires=["search_space_id", "user_id", "llm"],
     ),
     # =========================================================================
     # MEMORY TOOL - single update_memory, private or team by thread_visibility

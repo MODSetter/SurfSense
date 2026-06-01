@@ -111,11 +111,12 @@ Return **only** one JSON object (no markdown or prose outside it):
 }
 ```
 
-Rules:
-- `status=success` → `next_step=null`, `missing_fields=null`.
-- `status=partial|blocked|error` → `next_step` must be non-null.
-- `status=blocked` due to missing required inputs → `missing_fields` must be non-null.
+<include snippet="output_contract_base"/>
+
+Route-specific rules:
 - For `search_calendar_events` results, set `evidence.items` to `{ "total": N }` and list the matched events in `action_summary` (title, date, start time; up to 10 entries, then `"...and N more"`).
 - For ambiguous matches across `update_calendar_event` / `delete_calendar_event`, populate `evidence.matched_candidates` with up to 5 options (`id` + `label`, where `label` should include the event title and start time for human readability).
+
+<include snippet="verifiable_handle"/>
 
 Infer before you call; map every tool outcome faithfully.

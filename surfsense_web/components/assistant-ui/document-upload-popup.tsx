@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertTriangle, Settings } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
 	createContext,
@@ -148,7 +148,7 @@ const DocumentUploadPopupContent: FC<{
 					<div className="px-4 sm:px-6 pb-4 sm:pb-6">
 						{!isLoading && !hasDocumentSummaryLLM ? (
 							<div className="mb-4">
-								<Alert variant="destructive">
+								<Alert variant="warning">
 									<AlertTriangle />
 									<AlertTitle>LLM Configuration Required</AlertTitle>
 									<AlertDescription>
@@ -159,13 +159,12 @@ const DocumentUploadPopupContent: FC<{
 										</p>
 										<Button
 											size="sm"
-											variant="outline"
+											variant="secondary"
 											onClick={() => {
 												onOpenChange(false);
 												router.push(`/dashboard/${searchSpaceId}/search-space-settings/models`);
 											}}
 										>
-											<Settings className="mr-2 h-4 w-4" />
 											Go to Settings
 										</Button>
 									</AlertDescription>

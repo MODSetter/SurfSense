@@ -1,14 +1,101 @@
 """Celery application configuration and setup."""
 
+import contextlib
 import os
+import time
 
 from celery import Celery
 from celery.schedules import crontab
-from celery.signals import worker_process_init
+from celery.signals import (
+    before_task_publish,
+    task_postrun,
+    task_prerun,
+    worker_process_init,
+)
 from dotenv import load_dotenv
+
+try:
+    from opentelemetry import trace
+except ImportError:  # pragma: no cover - optional OTel dependency
+    trace = None  # type: ignore[assignment]
 
 # Load environment variables
 load_dotenv()
+
+
+@before_task_publish.connect
+def _stamp_enqueue_time(headers=None, **_kwargs):
+    """Stamp enqueue time so workers can measure queue wait."""
+    if headers is None:
+        return
+    with contextlib.suppress(Exception):
+        headers["surfsense.enqueued_at_ns"] = str(time.monotonic_ns())
+
+
+@task_prerun.connect
+def _record_queue_latency(task=None, **_kwargs):
+    """Record queue latency and stash task metadata for span enrichment."""
+    if task is None:
+        return
+    try:
+        from app.observability import metrics as ot_metrics
+
+        task_name = getattr(task, "name", None) or "unknown"
+        operation = ot_metrics.parse_celery_task_label(task_name)
+        request = getattr(task, "request", None)
+        delivery_info = getattr(request, "delivery_info", None) or {}
+        queue = delivery_info.get("routing_key") or "unknown"
+        scheduled = bool(
+            getattr(request, "eta", None) or getattr(request, "expires", None)
+        )
+
+        with contextlib.suppress(Exception):
+            request.surfsense_operation = operation
+            request.surfsense_queue = queue
+            request.surfsense_scheduled = scheduled
+
+        headers = getattr(request, "headers", None) or {}
+        enqueued_ns = headers.get("surfsense.enqueued_at_ns")
+        if enqueued_ns is None:
+            return
+
+        elapsed_s = (time.monotonic_ns() - int(enqueued_ns)) / 1e9
+        with contextlib.suppress(Exception):
+            request.surfsense_queue_latency_ms = elapsed_s * 1000
+
+        ot_metrics.record_celery_queue_latency(
+            elapsed_s,
+            task_name=task_name,
+            queue=queue,
+            scheduled=scheduled,
+            operation=operation,
+        )
+    except Exception:
+        pass
+
+
+@task_postrun.connect
+def _set_celery_span_attributes(task=None, **_kwargs):
+    """Attach derived queue metadata to the active Celery run span."""
+    if task is None or trace is None:
+        return
+
+    try:
+        request = getattr(task, "request", None)
+        if request is None:
+            return
+
+        span = trace.get_current_span()
+
+        operation = getattr(request, "surfsense_operation", None)
+        if operation:
+            span.set_attribute("celery.task.operation", operation)
+
+        latency_ms = getattr(request, "surfsense_queue_latency_ms", None)
+        if latency_ms is not None:
+            span.set_attribute("celery.queue.latency_ms", latency_ms)
+    except Exception:
+        pass
 
 
 @worker_process_init.connect
@@ -18,6 +105,10 @@ def init_worker(**kwargs):
     This ensures the Auto mode (LiteLLM Router) is available for background tasks
     like document summarization and image generation.
     """
+    from app.observability.bootstrap import init_otel
+
+    init_otel(app=None, traces=True, metrics=True, logs=True)
+
     from app.config import (
         initialize_image_gen_router,
         initialize_llm_router,
@@ -97,6 +188,9 @@ celery_app = Celery(
         "app.tasks.celery_tasks.document_reindex_tasks",
         "app.tasks.celery_tasks.stale_notification_cleanup_task",
         "app.tasks.celery_tasks.stripe_reconciliation_task",
+        "app.automations.tasks.execute_run",
+        "app.automations.triggers.builtin.schedule.selector",
+        "app.automations.triggers.builtin.event.selector",
     ],
 )
 
@@ -154,6 +248,12 @@ celery_app.conf.update(
     },
 )
 
+# Imported late (after celery_app is built) to keep the automations triggers
+# package out of this module's top-level import graph.
+from app.automations.triggers.builtin.schedule.source import (  # noqa: E402
+    BEAT_SCHEDULE as SCHEDULE_BEAT_SCHEDULE,
+)
+
 # Configure Celery Beat schedule
 # This uses a meta-scheduler pattern: instead of creating individual Beat schedules
 # for each connector, we have ONE schedule that checks the database at the configured interval
@@ -191,4 +291,7 @@ celery_app.conf.beat_schedule = {
             "expires": 60,
         },
     },
+    # Fire due automation schedule triggers (Beat entry owned by the schedule
+    # trigger; see app.automations.triggers.builtin.schedule.source).
+    **SCHEDULE_BEAT_SCHEDULE,
 }

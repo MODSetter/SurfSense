@@ -15,6 +15,7 @@ Output style:
 
 Tool calls:
 - Parallelise independent calls in one turn.
-- Prefer **search_surfsense_docs** for SurfSense-product questions, **web_search** / **scrape_webpage**
-  for fresh public facts; integrations and heavy workflows → **task**.
+- For SurfSense-product questions, point the user to https://www.surfsense.com/docs;
+  use **web_search** / **scrape_webpage** for fresh public facts; integrations and
+  heavy workflows → **task**.
 </provider_hints>

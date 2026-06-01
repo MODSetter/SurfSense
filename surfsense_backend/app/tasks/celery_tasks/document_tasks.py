@@ -9,6 +9,7 @@ from uuid import UUID
 
 from app.celery_app import celery_app
 from app.config import config
+from app.observability import metrics as ot_metrics
 from app.services.notification_service import NotificationService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
@@ -59,7 +60,9 @@ def _start_heartbeat(notification_id: int) -> None:
     try:
         key = _get_heartbeat_key(notification_id)
         _get_doc_heartbeat_redis().setex(key, HEARTBEAT_TTL_SECONDS, "started")
+        ot_metrics.record_celery_heartbeat_refresh(heartbeat_type="document")
     except Exception as e:
+        ot_metrics.record_celery_heartbeat_failure(heartbeat_type="document")
         logger.warning(
             f"Failed to set initial heartbeat for notification {notification_id}: {e}"
         )
@@ -87,7 +90,9 @@ async def _run_heartbeat_loop(notification_id: int):
             await asyncio.sleep(HEARTBEAT_REFRESH_INTERVAL)
             try:
                 _get_doc_heartbeat_redis().setex(key, HEARTBEAT_TTL_SECONDS, "alive")
+                ot_metrics.record_celery_heartbeat_refresh(heartbeat_type="document")
             except Exception as e:
+                ot_metrics.record_celery_heartbeat_failure(heartbeat_type="document")
                 logger.warning(
                     f"Failed to refresh heartbeat for notification {notification_id}: {e}"
                 )

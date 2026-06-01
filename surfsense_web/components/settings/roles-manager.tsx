@@ -23,10 +23,11 @@ import {
 	Unplug,
 	Users,
 	Video,
+	Workflow,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { canPerform, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import {
 	createRoleMutationAtom,
@@ -126,6 +127,12 @@ const CATEGORY_CONFIG: Record<
 		description: "Generate AI podcasts from content",
 		order: 5,
 	},
+	automations: {
+		label: "Automations",
+		icon: Workflow,
+		description: "Scheduled and event-driven agent tasks",
+		order: 5.5,
+	},
 	connectors: {
 		label: "Connectors",
 		icon: Unplug,
@@ -200,6 +207,10 @@ const ROLE_PRESETS = {
 			"podcasts:create",
 			"podcasts:read",
 			"podcasts:update",
+			"automations:create",
+			"automations:read",
+			"automations:update",
+			"automations:execute",
 			"connectors:create",
 			"connectors:read",
 			"connectors:update",
@@ -220,6 +231,7 @@ const ROLE_PRESETS = {
 			"comments:read",
 			"llm_configs:read",
 			"podcasts:read",
+			"automations:read",
 			"connectors:read",
 			"logs:read",
 			"members:view",
@@ -240,6 +252,10 @@ const ROLE_PRESETS = {
 			"comments:read",
 			"llm_configs:read",
 			"podcasts:read",
+			"automations:create",
+			"automations:read",
+			"automations:update",
+			"automations:execute",
 			"connectors:read",
 			"logs:read",
 			"members:view",
@@ -257,11 +273,7 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 	const { data: access = null } = useAtomValue(myAccessAtom);
 
 	const hasPermission = useCallback(
-		(permission: string) => {
-			if (!access) return false;
-			if (access.is_owner) return true;
-			return access.permissions?.includes(permission) ?? false;
-		},
+		(permission: string) => canPerform(access, permission),
 		[access]
 	);
 

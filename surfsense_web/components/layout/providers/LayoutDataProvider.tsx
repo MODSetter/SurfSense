@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { AlertTriangle, Inbox, LibraryBig } from "lucide-react";
+import { AlertTriangle, Inbox, LibraryBig, Workflow } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -18,6 +18,7 @@ import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog";
+import { AnnouncementSpotlight } from "@/components/announcements/AnnouncementSpotlight";
 import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
 import {
 	AlertDialog,
@@ -127,7 +128,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
-	const [isDocumentsDocked, setIsDocumentsDocked] = useState(true);
 	const setIsRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
 
 	// Open documents sidebar by default on desktop (docked mode)
@@ -335,9 +335,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [threadsData, searchSpaceId]);
 
 	// Navigation items
-	// Inbox is rendered explicitly below "New chat" in the sidebar (it is also
-	// surfaced in the icon rail's collapsed mode via this list). Announcements
-	// has been moved to the avatar dropdown and is no longer a nav item.
+	// Inbox, Automations, and Documents are rendered explicitly below "New chat"
+	// in the sidebar (also surfaced in the icon rail's collapsed mode via this
+	// list). Announcements has been moved to the avatar dropdown.
+	const isAutomationsActive = pathname?.includes("/automations") === true;
 	const navItems: NavItem[] = useMemo(
 		() =>
 			(
@@ -349,6 +350,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						isActive: isInboxSidebarOpen,
 						badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
 					},
+					{
+						title: "Automations",
+						url: `/dashboard/${searchSpaceId}/automations`,
+						icon: Workflow,
+						isActive: isAutomationsActive,
+					},
 					isMobile
 						? {
 								title: "Documents",
@@ -359,7 +366,14 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						: null,
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
-		[isMobile, isInboxSidebarOpen, isDocumentsSidebarOpen, totalUnreadCount]
+		[
+			isMobile,
+			isInboxSidebarOpen,
+			isDocumentsSidebarOpen,
+			totalUnreadCount,
+			searchSpaceId,
+			isAutomationsActive,
+		]
 	);
 
 	// Handlers
@@ -660,12 +674,14 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const isUserSettingsPage = pathname?.includes("/user-settings") === true;
 	const isSearchSpaceSettingsPage = pathname?.includes("/search-space-settings") === true;
 	const isTeamPage = pathname?.endsWith("/team") === true;
+	const isAutomationsPage = pathname?.includes("/automations") === true;
 	const useWorkspacePanel =
 		pathname?.endsWith("/buy-more") === true ||
 		pathname?.endsWith("/more-pages") === true ||
 		isUserSettingsPage ||
 		isSearchSpaceSettingsPage ||
-		isTeamPage;
+		isTeamPage ||
+		isAutomationsPage;
 
 	return (
 		<>
@@ -705,12 +721,16 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				isChatPage={isChatPage}
 				useWorkspacePanel={useWorkspacePanel}
 				workspacePanelViewportClassName={
-					isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage
+					isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage || isAutomationsPage
 						? "items-start justify-center px-6 py-8 md:px-10 md:py-10"
 						: undefined
 				}
 				workspacePanelContentClassName={
-					isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage ? "max-w-5xl" : undefined
+					isAutomationsPage
+						? "max-w-none"
+						: isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage
+							? "max-w-5xl"
+							: undefined
 				}
 				isLoadingChats={isLoadingThreads}
 				activeSlideoutPanel={activeSlideoutPanel}
@@ -748,8 +768,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				documentsPanel={{
 					open: isDocumentsSidebarOpen,
 					onOpenChange: setIsDocumentsSidebarOpen,
-					isDocked: isDocumentsDocked,
-					onDockedChange: setIsDocumentsDocked,
 				}}
 				onTabSwitch={handleTabSwitch}
 			>
@@ -892,6 +910,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			/>
 
 			<AnnouncementsDialog />
+			<AnnouncementSpotlight />
 
 			{/* Agent action log + revert dialog */}
 			<ActionLogDialog />

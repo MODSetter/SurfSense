@@ -12,16 +12,18 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { getReauthEndpoint } from "@/lib/connector-telemetry";
+import { BACKEND_URL } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
-import { getReauthEndpoint, LIVE_CONNECTOR_TYPES } from "../../constants/connector-constants";
+import { LIVE_CONNECTOR_TYPES } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { MCPServiceConfig } from "../components/mcp-service-config";
 import { getConnectorConfigComponent } from "../index";
-import { BACKEND_URL } from "@/lib/env-config";
+
 const VISION_LLM_CONNECTOR_TYPES = new Set<SearchSourceConnector["connector_type"]>([
 	EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
 	EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,

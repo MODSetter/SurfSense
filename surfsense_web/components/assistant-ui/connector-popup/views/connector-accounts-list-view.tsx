@@ -11,12 +11,14 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { getReauthEndpoint } from "@/lib/connector-telemetry";
+import { BACKEND_URL } from "@/lib/env-config";
 import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
-import { getReauthEndpoint, LIVE_CONNECTOR_TYPES } from "../constants/connector-constants";
+import { LIVE_CONNECTOR_TYPES } from "../constants/connector-constants";
 import { useConnectorStatus } from "../hooks/use-connector-status";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
-import { BACKEND_URL } from "@/lib/env-config";
+
 interface ConnectorAccountsListViewProps {
 	connectorType: string;
 	connectorTitle: string;

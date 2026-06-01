@@ -1,7 +1,7 @@
 import { app } from 'electron';
 
 import { registerGlobalErrorHandlers, showErrorDialog } from './modules/errors';
-import { startNextServer } from './modules/server';
+import { startNextServer, stopNextServer } from './modules/server';
 import { createMainWindow, getMainWindow, markQuitting } from './modules/window';
 import { setupDeepLinks, handlePendingDeepLink, hasPendingDeepLink } from './modules/deep-links';
 import { setupAutoUpdater } from './modules/auto-updater';
@@ -19,6 +19,7 @@ import {
 } from './modules/auto-launch';
 
 registerGlobalErrorHandlers();
+app.setName('SurfSense');
 
 if (!setupDeepLinks()) {
   app.quit();
@@ -93,6 +94,7 @@ app.on('will-quit', async (e) => {
   e.preventDefault();
   unregisterQuickAsk();
   unregisterFolderWatcher();
+  stopNextServer();
   destroyTray();
   await shutdownAnalytics();
   app.exit();

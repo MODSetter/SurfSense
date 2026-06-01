@@ -1,7 +1,7 @@
 ---
 name: meeting-prep
 description: Pull together briefing materials before a scheduled meeting
-allowed-tools: search_surfsense_docs, web_search, scrape_webpage, read_file
+allowed-tools: web_search, scrape_webpage, read_file
 ---
 
 # Meeting preparation

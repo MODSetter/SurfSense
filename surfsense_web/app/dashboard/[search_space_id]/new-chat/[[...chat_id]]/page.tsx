@@ -69,6 +69,7 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import {
 	convertToThreadMessage,
 	reconcileInterruptedAssistantMessages,
@@ -109,6 +110,7 @@ import {
 	extractUserTurnForNewChatApi,
 	type NewChatUserImagePayload,
 } from "@/lib/chat/user-turn-api-parts";
+import { BACKEND_URL } from "@/lib/env-config";
 import { NotFoundError } from "@/lib/error";
 import {
 	trackChatBlocked,
@@ -118,7 +120,7 @@ import {
 	trackChatResponseReceived,
 } from "@/lib/posthog/events";
 import Loading from "../loading";
-import { BACKEND_URL } from "@/lib/env-config";
+
 const MobileEditorPanel = dynamic(
 	() =>
 		import("@/components/editor-panel/editor-panel").then((m) => ({
@@ -206,11 +208,13 @@ function pairBundleToolCallIds(
 const MentionedDocumentInfoSchema = z.object({
 	id: z.number(),
 	title: z.string(),
-	document_type: z.string(),
+	document_type: z.string().optional(),
 	kind: z
-		.union([z.literal("doc"), z.literal("folder")])
+		.union([z.literal("doc"), z.literal("folder"), z.literal("connector")])
 		.optional()
 		.default("doc"),
+	connector_type: z.string().optional(),
+	account_name: z.string().optional(),
 });
 
 const MentionedDocumentsPartSchema = z.object({
@@ -227,7 +231,30 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 	for (const part of content) {
 		const result = MentionedDocumentsPartSchema.safeParse(part);
 		if (result.success) {
-			return result.data.documents;
+			return result.data.documents.map<MentionedDocumentInfo>((doc) => {
+				if (doc.kind === "connector") {
+					return {
+						id: doc.id,
+						title: doc.title,
+						kind: "connector",
+						connector_type: doc.connector_type ?? doc.document_type ?? "UNKNOWN",
+						account_name: doc.account_name ?? doc.title,
+					};
+				}
+				if (doc.kind === "folder") {
+					return {
+						id: doc.id,
+						title: doc.title,
+						kind: "folder",
+					};
+				}
+				return {
+					id: doc.id,
+					title: doc.title,
+					document_type: doc.document_type ?? "UNKNOWN",
+					kind: "doc",
+				};
+			});
 		}
 	}
 
@@ -713,15 +740,6 @@ export default function NewChatPage() {
 			queryFn: () => documentsApiService.searchDocumentTitles({ queryParams: prefetchParams }),
 			staleTime: 60 * 1000,
 		});
-
-		queryClient.prefetchQuery({
-			queryKey: ["surfsense-docs-mention", "", false],
-			queryFn: () =>
-				documentsApiService.getSurfsenseDocs({
-					queryParams: { page: 0, page_size: 20 },
-				}),
-			staleTime: 3 * 60 * 1000,
-		});
 	}, [searchSpaceId, queryClient]);
 
 	// Handle scroll to comment from URL query params (e.g., from inbox item click)
@@ -922,30 +940,23 @@ export default function NewChatPage() {
 			trackChatMessageSent(searchSpaceId, currentThreadId, {
 				hasAttachments: userImages.length > 0,
 				hasMentionedDocuments:
-					mentionedDocumentIds.surfsense_doc_ids.length > 0 ||
 					mentionedDocumentIds.document_ids.length > 0 ||
-					mentionedDocumentIds.folder_ids.length > 0,
+					mentionedDocumentIds.folder_ids.length > 0 ||
+					mentionedDocumentIds.connector_ids.length > 0,
 				messageLength: userQuery.length,
 			});
 
 			// Collect unique mention chips for display & persistence.
-			// Dedup key is ``kind:document_type:id`` so a folder and a
-			// doc with the same integer id never collapse into one
-			// entry. The ``kind`` field is forwarded to the backend
+			// The ``kind`` field is forwarded to the backend
 			// so the persisted ``mentioned-documents`` content part
 			// can render the correct chip type on reload.
 			const allMentionedDocs: MentionedDocumentInfo[] = [];
 			const seenDocKeys = new Set<string>();
 			for (const doc of mentionedDocuments) {
-				const key = `${doc.kind}:${doc.document_type}:${doc.id}`;
+				const key = getMentionDocKey(doc);
 				if (seenDocKeys.has(key)) continue;
 				seenDocKeys.add(key);
-				allMentionedDocs.push({
-					id: doc.id,
-					title: doc.title,
-					document_type: doc.document_type,
-					kind: doc.kind,
-				});
+				allMentionedDocs.push(doc);
 			}
 
 			if (allMentionedDocs.length > 0) {
@@ -1006,11 +1017,11 @@ export default function NewChatPage() {
 
 				// Get mentioned document IDs for context (separate fields for backend)
 				const hasDocumentIds = mentionedDocumentIds.document_ids.length > 0;
-				const hasSurfsenseDocIds = mentionedDocumentIds.surfsense_doc_ids.length > 0;
 				const hasFolderIds = mentionedDocumentIds.folder_ids.length > 0;
+				const hasConnectorIds = mentionedDocumentIds.connector_ids.length > 0;
 
 				// Clear mentioned documents after capturing them
-				if (hasDocumentIds || hasSurfsenseDocIds || hasFolderIds) {
+				if (hasDocumentIds || hasFolderIds || hasConnectorIds) {
 					setMentionedDocuments([]);
 				}
 
@@ -1032,24 +1043,17 @@ export default function NewChatPage() {
 							mentioned_document_ids: hasDocumentIds
 								? mentionedDocumentIds.document_ids
 								: undefined,
-							mentioned_surfsense_doc_ids: hasSurfsenseDocIds
-								? mentionedDocumentIds.surfsense_doc_ids
-								: undefined,
 							mentioned_folder_ids: hasFolderIds ? mentionedDocumentIds.folder_ids : undefined,
+							mentioned_connector_ids: hasConnectorIds
+								? mentionedDocumentIds.connector_ids
+								: undefined,
+							mentioned_connectors: hasConnectorIds ? mentionedDocumentIds.connectors : undefined,
 							// Full mention metadata (docs + folders, with
 							// ``kind`` discriminator) so the BE can embed a
 							// ``mentioned-documents`` ContentPart on the
 							// persisted user message (replaces the old FE-side
 							// injection in ``persistUserTurn``).
-							mentioned_documents:
-								allMentionedDocs.length > 0
-									? allMentionedDocs.map((d) => ({
-											id: d.id,
-											title: d.title,
-											document_type: d.document_type,
-											kind: d.kind,
-										}))
-									: undefined,
+							mentioned_documents: allMentionedDocs.length > 0 ? allMentionedDocs : undefined,
 							disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
 							...(userImages.length > 0 ? { user_images: userImages } : {}),
 						}),
@@ -1929,22 +1933,19 @@ export default function NewChatPage() {
 				const selection = await getAgentFilesystemSelection(searchSpaceId, {
 					localFilesystemEnabled,
 				});
-				// Partition the source mentions back into doc/surfsense_doc/folder
-				// id buckets so the regenerate route can pass them to
-				// ``stream_new_chat`` and the priority middleware sees the
-				// same ``[USER-MENTIONED]`` priority entries the original
-				// turn did. Without this partition the regenerate flow
-				// silently dropped the agent's mention awareness — same
-				// architectural bug we fixed on the new-chat path.
-				const regenerateSurfsenseDocIds = sourceMentionedDocs
-					.filter((d) => d.kind === "doc" && d.document_type === "SURFSENSE_DOCS")
-					.map((d) => d.id);
+				// Partition the source mentions back into doc/folder id buckets
+				// so the regenerate route can pass them to ``stream_new_chat``
+				// and the priority middleware sees the same ``[USER-MENTIONED]``
+				// priority entries the original turn did. Without this partition
+				// the regenerate flow silently dropped the agent's mention
+				// awareness — same architectural bug we fixed on the new-chat path.
 				const regenerateDocIds = sourceMentionedDocs
-					.filter((d) => d.kind === "doc" && d.document_type !== "SURFSENSE_DOCS")
+					.filter((d) => d.kind === "doc")
 					.map((d) => d.id);
 				const regenerateFolderIds = sourceMentionedDocs
 					.filter((d) => d.kind === "folder")
 					.map((d) => d.id);
+				const regenerateConnectors = sourceMentionedDocs.filter((d) => d.kind === "connector");
 
 				const requestBody: Record<string, unknown> = {
 					search_space_id: searchSpaceId,
@@ -1954,22 +1955,15 @@ export default function NewChatPage() {
 					client_platform: selection.client_platform,
 					local_filesystem_mounts: selection.local_filesystem_mounts,
 					mentioned_document_ids: regenerateDocIds.length > 0 ? regenerateDocIds : undefined,
-					mentioned_surfsense_doc_ids:
-						regenerateSurfsenseDocIds.length > 0 ? regenerateSurfsenseDocIds : undefined,
 					mentioned_folder_ids: regenerateFolderIds.length > 0 ? regenerateFolderIds : undefined,
+					mentioned_connector_ids:
+						regenerateConnectors.length > 0 ? regenerateConnectors.map((d) => d.id) : undefined,
+					mentioned_connectors: regenerateConnectors.length > 0 ? regenerateConnectors : undefined,
 					// Full mention metadata for the regenerate-specific
 					// source list. Only meaningful for edit (the BE only
 					// re-persists a user row when ``user_query`` is set);
 					// reload reuses the original turn's mentioned_documents.
-					mentioned_documents:
-						sourceMentionedDocs.length > 0
-							? sourceMentionedDocs.map((d) => ({
-									id: d.id,
-									title: d.title,
-									document_type: d.document_type,
-									kind: d.kind,
-								}))
-							: undefined,
+					mentioned_documents: sourceMentionedDocs.length > 0 ? sourceMentionedDocs : undefined,
 				};
 				if (isEdit) {
 					requestBody.user_images = editExtras?.userImages ?? [];

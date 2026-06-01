@@ -1,10 +1,48 @@
 import contextlib
+import functools
 import time
 from datetime import datetime
 
+from app.observability import metrics as ot_metrics, otel as ot
 from app.utils.perf import get_perf_logger
 
 _MAX_FETCH_CHUNKS_PER_DOC = 20
+
+
+def _instrument_search(mode: str):
+    def _decorator(func):
+        @functools.wraps(func)
+        async def _wrapper(
+            self, query_text: str, top_k: int, search_space_id: int, *args, **kwargs
+        ):
+            t0 = time.perf_counter()
+            with ot.kb_search_span(
+                search_space_id=search_space_id,
+                query_chars=len(query_text),
+                extra={"search.surface": "documents", "search.mode": mode},
+            ) as sp:
+                try:
+                    result = await func(
+                        self, query_text, top_k, search_space_id, *args, **kwargs
+                    )
+                except Exception:
+                    ot_metrics.record_kb_search_duration(
+                        (time.perf_counter() - t0) * 1000,
+                        search_space_id=search_space_id,
+                        surface="documents",
+                    )
+                    raise
+                sp.set_attribute("result.count", len(result))
+                ot_metrics.record_kb_search_duration(
+                    (time.perf_counter() - t0) * 1000,
+                    search_space_id=search_space_id,
+                    surface="documents",
+                )
+                return result
+
+        return _wrapper
+
+    return _decorator
 
 
 class DocumentHybridSearchRetriever:
@@ -17,6 +55,7 @@ class DocumentHybridSearchRetriever:
         """
         self.db_session = db_session
 
+    @_instrument_search("vector")
     async def vector_search(
         self,
         query_text: str,
@@ -81,6 +120,7 @@ class DocumentHybridSearchRetriever:
 
         return documents
 
+    @_instrument_search("full_text")
     async def full_text_search(
         self,
         query_text: str,
@@ -145,6 +185,7 @@ class DocumentHybridSearchRetriever:
 
         return documents
 
+    @_instrument_search("hybrid")
     async def hybrid_search(
         self,
         query_text: str,

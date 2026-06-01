@@ -47,7 +47,7 @@ from langgraph.config import get_config
 from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 
-from app.observability import otel as ot
+from app.observability import metrics as ot_metrics, otel as ot
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +195,7 @@ class DoomLoopMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Respon
                 "interrupt.tool": (action or {}).get("tool", "<unknown>"),
             },
         ):
+            ot_metrics.record_interrupt(interrupt_type="permission_ask")
             decision = interrupt(
                 {
                     "type": "permission_ask",
