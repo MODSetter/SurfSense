@@ -6,7 +6,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.db import ExternalChatAccount, ExternalChatAccountMode, ExternalChatPlatform
-from app.gateway.accounts import account_token, slack_account_credentials
+from app.gateway.accounts import (
+    account_token,
+    discord_account_credentials,
+    slack_account_credentials,
+)
 from app.gateway.base.adapter import BasePlatformAdapter, ParsedInboundEvent
 from app.gateway.base.commands import BaseGatewayCommands
 from app.gateway.base.translator import BaseStreamTranslator
@@ -87,6 +91,23 @@ def _slack_translator_factory(
     )
 
 
+def _discord_translator_factory(
+    adapter: BasePlatformAdapter,
+    event: ParsedInboundEvent,
+) -> BaseStreamTranslator:
+    channel_id = event.metadata.get("channel_id")
+    message_id = event.metadata.get("message_id")
+    if not channel_id:
+        raise RuntimeError("missing_discord_channel_metadata")
+    from app.gateway.discord.translator import DiscordStreamTranslator
+
+    return DiscordStreamTranslator(
+        adapter=adapter,  # type: ignore[arg-type]
+        channel_id=channel_id,
+        reply_to_message_id=message_id,
+    )
+
+
 def resolve_platform_bundle(account: ExternalChatAccount) -> PlatformBundle:
     if account.platform == ExternalChatPlatform.TELEGRAM:
         token = account_token(account)
@@ -142,6 +163,26 @@ def resolve_platform_bundle(account: ExternalChatAccount) -> PlatformBundle:
             translator_factory=_slack_translator_factory,
             platform_label="slack",
             commands=SlackGatewayCommands(),
+            auto_bind_owner=False,
+        )
+
+    if account.platform == ExternalChatPlatform.DISCORD:
+        from app.gateway.discord.adapter import DiscordAdapter
+        from app.gateway.discord.commands import DiscordGatewayCommands
+
+        credentials = discord_account_credentials(account)
+        bot_token = credentials.get("bot_token")
+        if not bot_token:
+            raise RuntimeError("missing_discord_bot_token")
+        cursor_state = account.cursor_state or {}
+        return PlatformBundle(
+            adapter=DiscordAdapter(
+                bot_token,
+                bot_user_id=cursor_state.get("bot_user_id"),
+            ),
+            translator_factory=_discord_translator_factory,
+            platform_label="discord",
+            commands=DiscordGatewayCommands(),
             auto_bind_owner=False,
         )
 

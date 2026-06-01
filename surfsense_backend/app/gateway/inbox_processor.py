@@ -136,6 +136,8 @@ async def _resolve_binding_for_event(
 ) -> ExternalChatBinding | None:
     if account.platform == ExternalChatPlatform.SLACK:
         return await _resolve_slack_thread_binding(session, account, parsed)
+    if account.platform == ExternalChatPlatform.DISCORD:
+        return await _resolve_discord_thread_binding(session, account, parsed)
 
     result = await session.execute(
         select(ExternalChatBinding).where(
@@ -209,6 +211,74 @@ async def _resolve_slack_thread_binding(
     return thread_binding
 
 
+async def _resolve_discord_thread_binding(
+    session: AsyncSession,
+    account: ExternalChatAccount,
+    parsed,
+) -> ExternalChatBinding | None:
+    user_peer_id = parsed.metadata.get("discord_user_peer_id")
+    thread_peer_id = parsed.metadata.get("discord_thread_peer_id") or parsed.external_peer_id
+    if not user_peer_id or not thread_peer_id:
+        return None
+
+    user_result = await session.execute(
+        select(ExternalChatBinding).where(
+            ExternalChatBinding.account_id == account.id,
+            ExternalChatBinding.external_peer_id == user_peer_id,
+            ExternalChatBinding.state.in_(
+                [ExternalChatBindingState.BOUND, ExternalChatBindingState.SUSPENDED]
+            ),
+        )
+    )
+    user_binding = user_result.scalars().first()
+    if user_binding is None:
+        return None
+
+    thread_result = await session.execute(
+        select(ExternalChatBinding).where(
+            ExternalChatBinding.account_id == account.id,
+            ExternalChatBinding.external_peer_id == thread_peer_id,
+            ExternalChatBinding.state.in_(
+                [ExternalChatBindingState.BOUND, ExternalChatBindingState.SUSPENDED]
+            ),
+        )
+    )
+    thread_binding = thread_result.scalars().first()
+    if thread_binding is not None:
+        return thread_binding
+
+    thread_binding = ExternalChatBinding(
+        account_id=account.id,
+        user_id=user_binding.user_id,
+        search_space_id=user_binding.search_space_id,
+        state=ExternalChatBindingState.BOUND,
+        external_peer_id=thread_peer_id,
+        external_peer_kind=ExternalChatPeerKind.CHANNEL,
+        external_thread_id=parsed.metadata.get("thread_key"),
+        external_display_name=parsed.metadata.get("channel_id"),
+        external_username=parsed.external_user_id,
+        external_metadata={
+            "kind": "discord_thread",
+            "guild_id": parsed.metadata.get("guild_id"),
+            "channel_id": parsed.metadata.get("channel_id"),
+            "thread_key": parsed.metadata.get("thread_key"),
+            "discord_user_id": parsed.metadata.get("discord_user_id"),
+            "user_binding_id": user_binding.id,
+        },
+    )
+    session.add(thread_binding)
+    await session.flush()
+    return thread_binding
+
+
+def _reply_target(parsed) -> tuple[str | None, str | None]:
+    if parsed.platform == "slack":
+        return parsed.metadata.get("channel_id"), parsed.metadata.get("thread_ts")
+    if parsed.platform == "discord":
+        return parsed.metadata.get("channel_id"), parsed.metadata.get("message_id")
+    return parsed.external_peer_id, None
+
+
 async def _dispatch_inbound_event(
     inbox_id: int,
     session_maker: SessionMaker,
@@ -245,7 +315,8 @@ async def _dispatch_inbound_event(
         binding = await _resolve_binding_for_event(session, account, parsed)
 
         if (
-            account.platform != ExternalChatPlatform.SLACK
+            account.platform
+            not in {ExternalChatPlatform.SLACK, ExternalChatPlatform.DISCORD}
             and parsed.external_peer_kind != ExternalChatPeerKind.DIRECT.value
         ):
             if hasattr(adapter, "leave_chat"):
@@ -300,10 +371,13 @@ async def _dispatch_inbound_event(
                 return
         if cmd == "/new":
             binding.new_chat_thread_id = None
-            await adapter.send_message(
-                external_peer_id=parsed.external_peer_id,
-                text="Started a new SurfSense conversation.",
-            )
+            reply_peer_id, reply_message_id = _reply_target(parsed)
+            if reply_peer_id:
+                await adapter.send_message(
+                    external_peer_id=reply_peer_id,
+                    text="Started a new SurfSense conversation.",
+                    reply_to_message_id=reply_message_id,
+                )
             event.status = ExternalChatEventStatus.PROCESSED
             await session.commit()
             return
