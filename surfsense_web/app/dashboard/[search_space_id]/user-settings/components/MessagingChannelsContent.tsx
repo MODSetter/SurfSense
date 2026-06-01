@@ -4,21 +4,33 @@ import { MessageCircle, RefreshCw, ShieldAlert } from "lucide-react";
 import { useParams } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import type { SearchSpace } from "@/contracts/types/search-space.types";
+import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { BACKEND_URL } from "@/lib/env-config";
 
-type Binding = {
+type GatewayConnection = {
 	id: number;
-	platform?: string;
+	platform: string;
 	state: string;
 	search_space_id: number;
-	external_display_name?: string | null;
+	display_name?: string | null;
 	external_username?: string | null;
+	workspace_name?: string | null;
+	workspace_id?: string | null;
+	health_status: string;
 	suspended_reason?: string | null;
-	external_metadata?: Record<string, unknown> | null;
 };
 
 type Platform = {
@@ -53,8 +65,9 @@ export function MessagingChannelsContent() {
 	const whatsappMode = process.env.NEXT_PUBLIC_GATEWAY_WHATSAPP_INTAKE_MODE ?? "disabled";
 	const slackGatewayEnabled = process.env.NEXT_PUBLIC_GATEWAY_SLACK_ENABLED === "true";
 	const discordGatewayEnabled = process.env.NEXT_PUBLIC_GATEWAY_DISCORD_ENABLED === "true";
-	const [bindings, setBindings] = useState<Binding[]>([]);
+	const [connections, setConnections] = useState<GatewayConnection[]>([]);
 	const [platforms, setPlatforms] = useState<Platform[]>([]);
+	const [searchSpaces, setSearchSpaces] = useState<SearchSpace[]>([]);
 	const [pairing, setPairing] = useState<Pairing | null>(null);
 	const [pairingPlatform, setPairingPlatform] = useState<PairingPlatform | null>(null);
 	const [baileysHealth, setBaileysHealth] = useState<BaileysHealth | null>(null);
@@ -63,12 +76,14 @@ export function MessagingChannelsContent() {
 
 	const refresh = useCallback(async () => {
 		setLoading(true);
-		const [bindingsRes, platformsRes] = await Promise.all([
-			authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/bindings`),
+		const [connectionsRes, platformsRes, spaces] = await Promise.all([
+			authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/connections`),
 			authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/platforms`),
+			searchSpacesApiService.getSearchSpaces(),
 		]);
-		setBindings(await bindingsRes.json());
+		setConnections(await connectionsRes.json());
 		setPlatforms(await platformsRes.json());
+		setSearchSpaces(spaces);
 		setLoading(false);
 	}, []);
 
@@ -135,6 +150,31 @@ export function MessagingChannelsContent() {
 		await refresh();
 	}
 
+	async function updateConnectionSearchSpace(id: number, nextSearchSpaceId: string) {
+		const previousConnections = connections;
+		const parsedSearchSpaceId = Number(nextSearchSpaceId);
+		setConnections((current) =>
+			current.map((connection) =>
+				connection.id === id ? { ...connection, search_space_id: parsedSearchSpaceId } : connection
+			)
+		);
+		const res = await authenticatedFetch(
+			`${BACKEND_URL}/api/v1/gateway/bindings/${id}/search-space`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ search_space_id: parsedSearchSpaceId }),
+			}
+		);
+		if (!res.ok) {
+			setConnections(previousConnections);
+			toast.error("Failed to update messaging route");
+			return;
+		}
+		toast.success("Messaging route updated");
+		await refresh();
+	}
+
 	async function resume(id: number) {
 		await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/bindings/${id}/resume`, {
 			method: "POST",
@@ -147,12 +187,27 @@ export function MessagingChannelsContent() {
 	const slack = platforms.find((p) => p.platform === "slack");
 	const discord = platforms.find((p) => p.platform === "discord");
 	const baileysQr = baileysHealth?.qr || null;
-	const activeBindings = bindings.filter(
-		(binding) =>
-			binding.search_space_id === searchSpaceId &&
-			binding.external_metadata?.kind !== "slack_thread" &&
-			binding.external_metadata?.kind !== "discord_thread"
-	);
+	const currentSearchSpaceName =
+		searchSpaces.find((space) => space.id === searchSpaceId)?.name || "this search space";
+	const platformLabel = (platform: string) => {
+		switch (platform) {
+			case "discord":
+				return "Discord";
+			case "slack":
+				return "Slack";
+			case "telegram":
+				return "Telegram";
+			case "whatsapp":
+				return "WhatsApp";
+			default:
+				return platform;
+		}
+	};
+	const connectionTitle = (connection: GatewayConnection) =>
+		connection.workspace_name ||
+		connection.display_name ||
+		connection.external_username ||
+		`${platformLabel(connection.platform)} connection`;
 	const renderPairingPanel = (platform: PairingPlatform) => {
 		if (!pairing || pairingPlatform !== platform) return null;
 
@@ -221,16 +276,15 @@ export function MessagingChannelsContent() {
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="flex flex-wrap gap-2">
-							<Button onClick={installSlackGateway}>
-								{slack ? "Reconnect Slack Bot" : "Enable Slack Bot"}
-							</Button>
+							<Button onClick={installSlackGateway}>Add Slack Workspace</Button>
 							<Button variant="outline" onClick={refresh} disabled={loading}>
 								<RefreshCw className="mr-2 h-4 w-4" />
 								Refresh
 							</Button>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							Slack search remains controlled by the Slack connector in the connector popup.
+							New Slack workspace connections will route to {currentSearchSpaceName} first. You can
+							change each connection's search space below.
 						</p>
 					</CardContent>
 				</Card>
@@ -255,16 +309,15 @@ export function MessagingChannelsContent() {
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="flex flex-wrap gap-2">
-							<Button onClick={installDiscordGateway}>
-								{discord ? "Reconnect Discord Bot" : "Enable Discord Bot"}
-							</Button>
+							<Button onClick={installDiscordGateway}>Add Discord Server</Button>
 							<Button variant="outline" onClick={refresh} disabled={loading}>
 								<RefreshCw className="mr-2 h-4 w-4" />
 								Refresh
 							</Button>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							Discord search remains controlled by the Discord connector in the connector popup.
+							New Discord server connections will route to {currentSearchSpaceName} first. You can
+							change each connection's search space below.
 						</p>
 					</CardContent>
 				</Card>
@@ -329,39 +382,58 @@ export function MessagingChannelsContent() {
 
 			<Card>
 				<CardHeader>
-					<CardTitle className="text-base">Active Chats</CardTitle>
+					<CardTitle className="text-base">Connected Messaging Channels</CardTitle>
+					<p className="text-sm text-muted-foreground">
+						Choose which search space each external channel should use when messages arrive.
+					</p>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					{activeBindings.length === 0 ? (
-						<p className="text-sm text-muted-foreground">No external chats connected yet.</p>
+					{connections.length === 0 ? (
+						<p className="text-sm text-muted-foreground">No messaging channels connected yet.</p>
 					) : (
-						activeBindings.map((binding) => (
+						connections.map((connection) => (
 							<div
-								key={binding.id}
+								key={connection.id}
 								className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3"
 							>
-								<div>
-									<p className="text-sm font-medium">
-										{binding.external_display_name ||
-											binding.external_username ||
-											`Binding ${binding.id}`}
+								<div className="min-w-0">
+									<p className="text-sm font-medium">{connectionTitle(connection)}</p>
+									<p className="text-xs text-muted-foreground">
+										{platformLabel(connection.platform)}
+										{connection.external_username ? ` · ${connection.external_username}` : ""}
+										{connection.state ? ` · ${connection.state}` : ""}
 									</p>
-									<p className="text-xs text-muted-foreground">{binding.state}</p>
-									{binding.suspended_reason ? (
+									{connection.suspended_reason ? (
 										<p className="mt-1 flex items-center gap-1 text-xs text-destructive">
 											<ShieldAlert className="h-3 w-3" />
-											{binding.suspended_reason}
+											{connection.suspended_reason}
 										</p>
 									) : null}
 								</div>
-								<div className="flex gap-2">
-									{binding.state === "suspended" ? (
-										<Button size="sm" variant="outline" onClick={() => resume(binding.id)}>
+								<div className="flex flex-wrap items-center gap-2">
+									<Select
+										value={String(connection.search_space_id)}
+										onValueChange={(value) => updateConnectionSearchSpace(connection.id, value)}
+										disabled={searchSpaces.length === 0 || isPending}
+									>
+										<SelectTrigger className="w-[220px]">
+											<SelectValue placeholder="Select search space" />
+										</SelectTrigger>
+										<SelectContent>
+											{searchSpaces.map((space) => (
+												<SelectItem key={space.id} value={String(space.id)}>
+													{space.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									{connection.state === "suspended" ? (
+										<Button size="sm" variant="outline" onClick={() => resume(connection.id)}>
 											Resume
 										</Button>
 									) : null}
-									<Button size="sm" variant="destructive" onClick={() => revoke(binding.id)}>
-										Revoke
+									<Button size="sm" variant="destructive" onClick={() => revoke(connection.id)}>
+										Disconnect
 									</Button>
 								</div>
 							</div>

@@ -21,6 +21,7 @@ from app.db import (
 )
 from app.gateway.whatsapp.adapter_baileys import WhatsAppBaileysAdapter
 from app.users import current_active_user
+from app.utils.rbac import check_search_space_access
 
 router = APIRouter(prefix="/gateway/whatsapp/baileys", tags=["gateway"])
 
@@ -61,6 +62,7 @@ async def request_pairing_code(
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, Any]:
     _ensure_baileys_enabled()
+    await check_search_space_access(session, user, body.search_space_id)
     adapter = WhatsAppBaileysAdapter()
     try:
         pairing = await adapter.request_pairing_code(phone_number=body.phone_number)
