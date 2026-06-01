@@ -35,6 +35,20 @@ export interface Announcement {
 	audience: AnnouncementAudience;
 	/** If true, the user will see a toast notification for this announcement */
 	isImportant: boolean;
+	/**
+	 * If true, this announcement is shown in a blocking spotlight dialog that the
+	 * user must explicitly acknowledge ("Got it"). Until acknowledged it keeps
+	 * reappearing; once acknowledged it never shows again. Spotlight announcements
+	 * are skipped by the lightweight toast provider to avoid double notifications.
+	 */
+	spotlight?: boolean;
+	/** Optional head/banner image shown at the top of the announcement */
+	image?: {
+		/** Image source (public path or absolute URL) */
+		src: string;
+		/** Accessible alt text */
+		alt: string;
+	};
 	/** Optional CTA link */
 	link?: {
 		label: string;

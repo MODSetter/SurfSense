@@ -18,6 +18,7 @@ import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog";
+import { AnnouncementSpotlight } from "@/components/announcements/AnnouncementSpotlight";
 import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
 import {
 	AlertDialog,
@@ -909,6 +910,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			/>
 
 			<AnnouncementsDialog />
+			<AnnouncementSpotlight />
 
 			{/* Agent action log + revert dialog */}
 			<ActionLogDialog />

@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell, ExternalLink, Info, type LucideIcon, Rocket, Wrench, Zap } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,18 @@ export function AnnouncementCard({ announcement }: { announcement: AnnouncementW
 	const Icon = config.icon;
 
 	return (
-		<Card className="group relative transition-all duration-200 hover:shadow-md">
+		<Card className="group relative overflow-hidden transition-all duration-200 hover:shadow-md">
+			{announcement.image && (
+				<div className="relative aspect-video w-full overflow-hidden border-b bg-muted">
+					<Image
+						src={announcement.image.src}
+						alt={announcement.image.alt}
+						fill
+						sizes="(max-width: 768px) 95vw, 600px"
+						className="object-cover"
+					/>
+				</div>
+			)}
 			<CardHeader className="pb-3">
 				<div className="flex items-start justify-between gap-3">
 					<div className="flex items-start gap-3 min-w-0">

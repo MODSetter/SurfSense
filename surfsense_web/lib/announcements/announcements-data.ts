@@ -14,6 +14,27 @@ import type { Announcement } from "@/contracts/types/announcement.types";
  */
 export const announcements: Announcement[] = [
 	{
+		id: "2026-05-31-ai-automations",
+		title: "Introducing AI Automations",
+		description:
+			"Turn prompts into hands-off AI agent workflows. Describe an automation in plain English and SurfSense builds it, run it on a schedule, or trigger it the moment a document lands in a folder. Automations work across Notion, Slack, Google Drive, Gmail, GitHub, Linear, Jira and more.",
+		category: "feature",
+		date: "2026-05-31T00:00:00Z",
+		startTime: "2026-05-31T00:00:00Z",
+		endTime: "2026-07-15T00:00:00Z",
+		audience: "users",
+		isImportant: true,
+		spotlight: true,
+		image: {
+			src: "/announcements/automations.png",
+			alt: "Connector tiles flowing into a central AI core that triggers scheduled and event-driven automations.",
+		},
+		link: {
+			label: "See what's new",
+			url: "/changelog",
+		},
+	},
+	{
 		id: "announcement-1",
 		title: "Introducing What's New",
 		description: "All major product updates will be posted here.",
