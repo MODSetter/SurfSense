@@ -92,6 +92,13 @@ def gateway_health_check_task() -> None:
                                 cursor_state[key] = metadata[key]
                         account.cursor_state = cursor_state
                         account.bot_username = metadata.get("bot_username")
+                    elif account.platform == ExternalChatPlatform.DISCORD:
+                        cursor_state = dict(account.cursor_state or {})
+                        for key in ("bot_user_id", "bot_username", "global_name"):
+                            if key in metadata:
+                                cursor_state[key] = metadata[key]
+                        account.cursor_state = cursor_state
+                        account.bot_username = metadata.get("bot_username")
                 except Exception:
                     logger.warning(
                         "External chat health check failed platform=%s account_id=%s",
