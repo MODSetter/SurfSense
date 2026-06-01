@@ -52,6 +52,7 @@ export function MessagingChannelsContent() {
 	const searchSpaceId = Number(params.search_space_id);
 	const whatsappMode = process.env.NEXT_PUBLIC_GATEWAY_WHATSAPP_INTAKE_MODE ?? "disabled";
 	const slackGatewayEnabled = process.env.NEXT_PUBLIC_GATEWAY_SLACK_ENABLED === "true";
+	const discordGatewayEnabled = process.env.NEXT_PUBLIC_GATEWAY_DISCORD_ENABLED === "true";
 	const [bindings, setBindings] = useState<Binding[]>([]);
 	const [platforms, setPlatforms] = useState<Platform[]>([]);
 	const [pairing, setPairing] = useState<Pairing | null>(null);
@@ -109,6 +110,17 @@ export function MessagingChannelsContent() {
 		}
 	}
 
+	async function installDiscordGateway() {
+		const res = await authenticatedFetch(
+			`${BACKEND_URL}/api/v1/gateway/discord/install?search_space_id=${searchSpaceId}`
+		);
+		if (!res.ok) return;
+		const data = (await res.json()) as { auth_url?: string };
+		if (data.auth_url) {
+			window.location.href = data.auth_url;
+		}
+	}
+
 	function refreshBaileys() {
 		startTransition(async () => {
 			await refreshBaileysHealth();
@@ -133,11 +145,13 @@ export function MessagingChannelsContent() {
 	const telegram = platforms.find((p) => p.platform === "telegram");
 	const whatsapp = platforms.find((p) => p.platform === "whatsapp");
 	const slack = platforms.find((p) => p.platform === "slack");
+	const discord = platforms.find((p) => p.platform === "discord");
 	const baileysQr = baileysHealth?.qr || null;
 	const activeBindings = bindings.filter(
 		(binding) =>
 			binding.search_space_id === searchSpaceId &&
-			binding.external_metadata?.kind !== "slack_thread"
+			binding.external_metadata?.kind !== "slack_thread" &&
+			binding.external_metadata?.kind !== "discord_thread"
 	);
 	const renderPairingPanel = (platform: PairingPlatform) => {
 		if (!pairing || pairingPlatform !== platform) return null;
@@ -217,6 +231,40 @@ export function MessagingChannelsContent() {
 						</div>
 						<p className="text-xs text-muted-foreground">
 							Slack search remains controlled by the Slack connector in the connector popup.
+						</p>
+					</CardContent>
+				</Card>
+			) : null}
+
+			{discordGatewayEnabled ? (
+				<Card>
+					<CardHeader className="space-y-2">
+						<div className="flex items-center justify-between gap-3">
+							<CardTitle className="flex items-center gap-2 text-base">
+								<MessageCircle className="h-4 w-4" />
+								Discord Bot
+							</CardTitle>
+							<Badge variant={discord?.health_status === "ok" ? "default" : "secondary"}>
+								{discord ? "enabled" : "not enabled"}
+							</Badge>
+						</div>
+						<p className="text-sm text-muted-foreground">
+							Enable the SurfSense Discord bot so teammates can mention it in Discord. This is
+							separate from the Discord connector.
+						</p>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="flex flex-wrap gap-2">
+							<Button onClick={installDiscordGateway}>
+								{discord ? "Reconnect Discord Bot" : "Enable Discord Bot"}
+							</Button>
+							<Button variant="outline" onClick={refresh} disabled={loading}>
+								<RefreshCw className="mr-2 h-4 w-4" />
+								Refresh
+							</Button>
+						</div>
+						<p className="text-xs text-muted-foreground">
+							Discord search remains controlled by the Discord connector in the connector popup.
 						</p>
 					</CardContent>
 				</Card>
