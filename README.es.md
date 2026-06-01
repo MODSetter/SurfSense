@@ -76,48 +76,82 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 4. Una vez que todo esté indexado, pregunta lo que quieras (Casos de uso):
 
-   - Aplicación de Escritorio — General Assist
+   **Aplicación de Escritorio** (extras nativos, además de todo lo de abajo, no un conjunto aparte)
+
+   - General Assist: abre SurfSense al instante desde cualquier aplicación con un atajo global.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
 
-   - Aplicación de Escritorio — Quick Assist
+   - Quick Assist: selecciona texto en cualquier lugar y pide a la IA que lo explique, reescriba o actúe sobre él.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
 
-   - Aplicación de Escritorio — Screenshot Assist
+   - Screenshot Assist: captura cualquier región de tu pantalla y pregunta a la IA sobre lo que contiene.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/screenshot_assist.gif" alt="Screenshot Assist" /></p>
 
-   - Aplicación de Escritorio — Watch Local Folder
+   - Watch Local Folder: sincroniza automáticamente una carpeta local con tu base de conocimiento. Ideal para bóvedas de Obsidian.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
 
-   - Generación de videos
+   **Estudio de Entregables**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="Generación de Videos" /></p>
+   - AI Report Generator: genera informes de investigación con citas y expórtalos a PDF, DOCX, HTML, LaTeX, EPUB, ODT o texto plano.
 
-   - Búsqueda básica y citaciones
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="Búsqueda y Citación" /></p>
+   - AI Podcast Generator: convierte cualquier documento o carpeta en un pódcast de IA con dos presentadores en menos de 20 segundos.
 
-   - QNA con mención de documentos
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="AI Podcast Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="QNA con Mención de Documentos" /></p>
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="QNA con Mención de Documentos" /></p>
+   - AI Presentation & Video Maker: crea presentaciones editables y videos narrados a partir de tus fuentes.
 
-   - Generación de informes y exportaciones (PDF, DOCX, HTML, LaTeX, EPUB, ODT, texto plano)
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="AI Presentation and Video Maker" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Generación de Informes" /></p>
+   - AI Image Generator: genera imágenes de alta calidad directamente desde tus chats y documentos.
 
-   - Generación de podcasts
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="Generación de Podcasts" /></p>
+   - AI Resume Builder: redacta y da formato a un currículum listo para ATS en un PDF pulido. (próximamente)
 
-   - Generación de imágenes
+   **Búsqueda y Chat**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="Generación de Imágenes" /></p>
+   - Chat With Your PDFs & Docs: haz preguntas sobre todos tus archivos y obtén respuestas con citas en línea.
 
-   - Y más próximamente.
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Chat With Your PDFs and Docs" /></p>
+
+   - AI Search With Citations: búsqueda híbrida semántica y por palabras clave en toda tu base de conocimiento.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="AI Search With Citations" /></p>
+
+   - Collaborative AI Chat: trabaja en conversaciones de IA con tu equipo en tiempo real.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Collaborative AI Chat" /></p>
+
+   - Comments & Mentions: comenta y menciona a tus compañeros en cualquier mensaje de IA.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comments and Mentions" /></p>
+
+   **Conectores e Integraciones**
+
+   - Connect & Sync Your Tools: sincroniza Notion, Slack, Google Drive, Gmail, GitHub, Linear y más de 25 fuentes en un único corpus consultable.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Connect and Sync Your Tools" /></p>
+
+   - Chat With Uploaded Files: sube PDFs, documentos de Office, imágenes y audio. Consultables al instante.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
+
+   - Connector Write-Back: deja que el agente publique los resultados de vuelta en Notion, Slack, Linear y Drive. (próximamente)
+
+   - Obsidian & Knowledge Base Sync: mantén tu bóveda de Obsidian y tu base de conocimiento personal sincronizadas. (próximamente)
+
+   **Automatizaciones**
+
+   - AI Document Sorting: deja que la IA organice automáticamente los archivos en las carpetas correctas a medida que llegan. (próximamente)
+   - Scheduled AI Workflows: ejecuta un agente según una programación: resúmenes diarios, boletines semanales, informes recurrentes. (próximamente)
+   - Event-Triggered Automations: lanza un agente en el momento en que un documento llega a una carpeta y publica el resultado en tus herramientas. (próximamente)
+   - Chat-Built Automations: describe una automatización en lenguaje sencillo y SurfSense la crea por ti. (próximamente)
 
 
 ### Auto-Hospedado

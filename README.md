@@ -77,48 +77,82 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 4. Once everything is indexed, Ask Away (Use Cases):
 
-   - Desktop App — General Assist
+   **Desktop App** (native extras on top of everything below, not a separate feature set)
+
+   - General Assist: launch SurfSense instantly from any application with a global shortcut.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
 
-   - Desktop App — Quick Assist
+   - Quick Assist: select text anywhere, then ask AI to explain, rewrite, or act on it.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
 
-   - Desktop App — Screenshot Assist
+   - Screenshot Assist: capture any region of your screen and ask AI about what's in it.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/screenshot_assist.gif" alt="Screenshot Assist" /></p>
 
-   - Desktop App — Watch Local Folder
+   - Watch Local Folder: auto-sync a local folder to your knowledge base. Great for Obsidian vaults.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
 
-   - Video Generation
+   **Deliverable Studio**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="Video Generation" /></p>
+   - AI Report Generator: generate cited research reports and export to PDF, DOCX, HTML, LaTeX, EPUB, ODT, or plain text.
 
-   - Basic search and citation
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="Search and Citation" /></p>
+   - AI Podcast Generator: turn any document or folder into a two-host AI podcast in under 20 seconds.
 
-   - Document Mention QNA
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="AI Podcast Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Document Mention QNA" /></p>
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Document Mention QNA" /></p>
+   - AI Presentation & Video Maker: create editable slide decks and narrated video overviews from your sources.
 
-   - Report Generations and Exports (PDF, DOCX, HTML, LaTeX, EPUB, ODT, Plain Text)
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="AI Presentation and Video Maker" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Report Generation" /></p>
+   - AI Image Generator: generate high-quality images straight from your chats and documents.
 
-   - Podcast Generations
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="Podcast Generation" /></p>
+   - AI Resume Builder: draft and format an ATS-ready resume as a polished PDF. (coming soon)
 
-   - Image Generations
+   **Search & Chat**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="Image Generation" /></p>
+   - Chat With Your PDFs & Docs: ask questions across all your files and get answers with inline citations.
 
-   - And more coming soon.
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Chat With Your PDFs and Docs" /></p>
+
+   - AI Search With Citations: hybrid semantic and keyword search across your entire knowledge base.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="AI Search With Citations" /></p>
+
+   - Collaborative AI Chat: work on AI conversations with your team in real time.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Collaborative AI Chat" /></p>
+
+   - Comments & Mentions: comment and tag teammates on any AI message.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comments and Mentions" /></p>
+
+   **Connectors & Integrations**
+
+   - Connect & Sync Your Tools: sync Notion, Slack, Google Drive, Gmail, GitHub, Linear and 25+ sources into one searchable corpus.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Connect and Sync Your Tools" /></p>
+
+   - Chat With Uploaded Files: drop in PDFs, Office docs, images and audio. Instantly searchable.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
+
+   - Connector Write-Back: let the agent post results back to Notion, Slack, Linear and Drive. (coming soon)
+
+   - Obsidian & Knowledge Base Sync: keep your Obsidian vault and personal knowledge base in sync. (coming soon)
+
+   **Automations**
+
+   - AI Document Sorting: let AI automatically organize files into the right folders as they arrive. (coming soon)
+   - Scheduled AI Workflows: run an agent on a schedule: daily briefs, weekly digests, recurring reports. (coming soon)
+   - Event-Triggered Automations: fire an agent the moment a document lands in a folder, then post the result to your tools. (coming soon)
+   - Chat-Built Automations: describe an automation in plain English and SurfSense builds it for you. (coming soon)
 
 
 ### Self Hosted

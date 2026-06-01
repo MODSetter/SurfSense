@@ -76,48 +76,82 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 4. 一切索引完成后，尽管提问（使用场景）：
 
-   - 桌面应用 — General Assist
+   **桌面应用**（在以下所有功能之外的原生附加功能，并非独立的功能集）
+
+   - General Assist：通过全局快捷键，从任意应用中即刻打开 SurfSense。
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
 
-   - 桌面应用 — Quick Assist
+   - Quick Assist：在任意位置选中文本，让 AI 解释、改写或对其执行操作。
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
 
-   - 桌面应用 — Screenshot Assist
+   - Screenshot Assist：截取屏幕上任意区域，并就其中内容向 AI 提问。
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/screenshot_assist.gif" alt="Screenshot Assist" /></p>
 
-   - 桌面应用 — Watch Local Folder
+   - Watch Local Folder：将本地文件夹自动同步到你的知识库。非常适合 Obsidian 库。
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
 
-   - 视频生成
+   **成果工作室**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="视频生成" /></p>
+   - AI Report Generator：生成带引用的研究报告，并导出为 PDF、DOCX、HTML、LaTeX、EPUB、ODT 或纯文本。
 
-   - 基本搜索和引用
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="搜索和引用" /></p>
+   - AI Podcast Generator：在 20 秒内将任意文档或文件夹转换为双主持人 AI 播客。
 
-   - 文档提及问答
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="AI Podcast Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="文档提及问答" /></p>
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="文档提及问答" /></p>
+   - AI Presentation & Video Maker：根据你的资料创建可编辑的幻灯片和带旁白的视频概览。
 
-   - 报告生成和导出（PDF、DOCX、HTML、LaTeX、EPUB、ODT、纯文本）
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="AI Presentation and Video Maker" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="报告生成" /></p>
+   - AI Image Generator：直接从你的聊天和文档生成高质量图像。
 
-   - 播客生成
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="播客生成" /></p>
+   - AI Resume Builder：撰写并排版一份适配 ATS 的精美 PDF 简历。（即将推出）
 
-   - 图像生成
+   **搜索与聊天**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="图像生成" /></p>
+   - Chat With Your PDFs & Docs：跨所有文件提问，并获得带内联引用的答案。
 
-   - 更多功能即将推出。
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Chat With Your PDFs and Docs" /></p>
+
+   - AI Search With Citations：在整个知识库中进行语义与关键词的混合搜索。
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="AI Search With Citations" /></p>
+
+   - Collaborative AI Chat：与团队实时协作处理 AI 对话。
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Collaborative AI Chat" /></p>
+
+   - Comments & Mentions：在任意 AI 消息上评论并 @ 你的队友。
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comments and Mentions" /></p>
+
+   **连接器与集成**
+
+   - Connect & Sync Your Tools：将 Notion、Slack、Google Drive、Gmail、GitHub、Linear 等 25+ 数据源同步为一个可搜索的语料库。
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Connect and Sync Your Tools" /></p>
+
+   - Chat With Uploaded Files：上传 PDF、Office 文档、图像和音频。即刻可搜索。
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
+
+   - Connector Write-Back：让智能体将结果回写到 Notion、Slack、Linear 和 Drive。（即将推出）
+
+   - Obsidian & Knowledge Base Sync：让你的 Obsidian 库与个人知识库保持同步。（即将推出）
+
+   **自动化**
+
+   - AI Document Sorting：在文件到达时，让 AI 自动将其整理到正确的文件夹中。（即将推出）
+   - Scheduled AI Workflows：按计划运行智能体：每日简报、每周摘要、周期性报告。（即将推出）
+   - Event-Triggered Automations：在文档进入文件夹的那一刻触发智能体，并将结果发布到你的工具中。（即将推出）
+   - Chat-Built Automations：用通俗的语言描述一个自动化，SurfSense 就会为你构建它。（即将推出）
 
 
 ### 自托管

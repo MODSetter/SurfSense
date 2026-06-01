@@ -76,48 +76,82 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 4. Quando tudo estiver indexado, pergunte o que quiser (Casos de uso):
 
-   - Aplicativo Desktop — General Assist
+   **Aplicativo Desktop** (extras nativos, além de tudo o que está abaixo, não um conjunto separado)
+
+   - General Assist: abra o SurfSense instantaneamente de qualquer aplicativo com um atalho global.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
 
-   - Aplicativo Desktop — Quick Assist
+   - Quick Assist: selecione um texto em qualquer lugar e peça à IA para explicar, reescrever ou agir sobre ele.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
 
-   - Aplicativo Desktop — Screenshot Assist
+   - Screenshot Assist: capture qualquer região da tela e pergunte à IA sobre o que está nela.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/screenshot_assist.gif" alt="Screenshot Assist" /></p>
 
-   - Aplicativo Desktop — Watch Local Folder
+   - Watch Local Folder: sincronize automaticamente uma pasta local com sua base de conhecimento. Ótimo para cofres do Obsidian.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
 
-   - Geração de vídeos
+   **Estúdio de Entregáveis**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="Geração de Vídeos" /></p>
+   - AI Report Generator: gere relatórios de pesquisa com citações e exporte para PDF, DOCX, HTML, LaTeX, EPUB, ODT ou texto simples.
 
-   - Busca básica e citações
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="Busca e Citação" /></p>
+   - AI Podcast Generator: transforme qualquer documento ou pasta em um podcast de IA com dois apresentadores em menos de 20 segundos.
 
-   - QNA com menção de documentos
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="AI Podcast Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="QNA com Menção de Documentos" /></p>
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="QNA com Menção de Documentos" /></p>
+   - AI Presentation & Video Maker: crie apresentações editáveis e vídeos narrados a partir das suas fontes.
 
-   - Geração de relatórios e exportações (PDF, DOCX, HTML, LaTeX, EPUB, ODT, texto simples)
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="AI Presentation and Video Maker" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Geração de Relatórios" /></p>
+   - AI Image Generator: gere imagens de alta qualidade diretamente das suas conversas e documentos.
 
-   - Geração de podcasts
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="Geração de Podcasts" /></p>
+   - AI Resume Builder: monte e formate um currículo pronto para ATS em um PDF caprichado. (em breve)
 
-   - Geração de imagens
+   **Busca e Chat**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="Geração de Imagens" /></p>
+   - Chat With Your PDFs & Docs: faça perguntas sobre todos os seus arquivos e receba respostas com citações inline.
 
-   - E mais em breve.
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Chat With Your PDFs and Docs" /></p>
+
+   - AI Search With Citations: busca híbrida semântica e por palavra-chave em toda a sua base de conhecimento.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="AI Search With Citations" /></p>
+
+   - Collaborative AI Chat: trabalhe em conversas de IA com sua equipe em tempo real.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Collaborative AI Chat" /></p>
+
+   - Comments & Mentions: comente e marque colegas em qualquer mensagem de IA.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comments and Mentions" /></p>
+
+   **Conectores e Integrações**
+
+   - Connect & Sync Your Tools: sincronize Notion, Slack, Google Drive, Gmail, GitHub, Linear e mais de 25 fontes em um único acervo pesquisável.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Connect and Sync Your Tools" /></p>
+
+   - Chat With Uploaded Files: envie PDFs, documentos do Office, imagens e áudio. Pesquisáveis instantaneamente.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
+
+   - Connector Write-Back: deixe o agente publicar os resultados de volta no Notion, Slack, Linear e Drive. (em breve)
+
+   - Obsidian & Knowledge Base Sync: mantenha seu cofre do Obsidian e sua base de conhecimento pessoal sincronizados. (em breve)
+
+   **Automações**
+
+   - AI Document Sorting: deixe a IA organizar automaticamente os arquivos nas pastas certas conforme eles chegam. (em breve)
+   - Scheduled AI Workflows: execute um agente em uma programação: resumos diários, boletins semanais, relatórios recorrentes. (em breve)
+   - Event-Triggered Automations: dispare um agente no momento em que um documento chega a uma pasta e publique o resultado nas suas ferramentas. (em breve)
+   - Chat-Built Automations: descreva uma automação em linguagem simples e o SurfSense a cria para você. (em breve)
 
 
 ### Auto-Hospedado

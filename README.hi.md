@@ -76,48 +76,82 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 4. सब कुछ इंडेक्स हो जाने के बाद, कुछ भी पूछें (उपयोग के मामले):
 
-   - डेस्कटॉप ऐप — General Assist
+   **डेस्कटॉप ऐप** (नीचे दी गई सभी सुविधाओं के अलावा नेटिव एक्स्ट्रा, कोई अलग सेट नहीं)
+
+   - General Assist: किसी भी ऐप्लिकेशन से ग्लोबल शॉर्टकट के ज़रिए SurfSense तुरंत खोलें।
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
 
-   - डेस्कटॉप ऐप — Quick Assist
+   - Quick Assist: कहीं भी टेक्स्ट चुनें और AI से उसे समझाने, दोबारा लिखने या उस पर कार्रवाई करने को कहें।
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
 
-   - डेस्कटॉप ऐप — Screenshot Assist
+   - Screenshot Assist: अपनी स्क्रीन का कोई भी हिस्सा कैप्चर करें और AI से उसमें मौजूद चीज़ों के बारे में पूछें।
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/screenshot_assist.gif" alt="Screenshot Assist" /></p>
 
-   - डेस्कटॉप ऐप — Watch Local Folder
+   - Watch Local Folder: किसी लोकल फ़ोल्डर को अपने नॉलेज बेस के साथ अपने-आप सिंक करें। Obsidian vaults के लिए बढ़िया।
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
 
-   - वीडियो जनरेशन
+   **डिलीवरेबल स्टूडियो**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="वीडियो जनरेशन" /></p>
+   - AI Report Generator: उद्धरण सहित रिसर्च रिपोर्ट बनाएं और PDF, DOCX, HTML, LaTeX, EPUB, ODT या सादे टेक्स्ट में एक्सपोर्ट करें।
 
-   - बेसिक सर्च और उद्धरण
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="सर्च और उद्धरण" /></p>
+   - AI Podcast Generator: किसी भी दस्तावेज़ या फ़ोल्डर को 20 सेकंड से भी कम में दो-होस्ट वाले AI पॉडकास्ट में बदलें।
 
-   - दस्तावेज़ मेंशन QNA
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="AI Podcast Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="दस्तावेज़ मेंशन QNA" /></p>
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="दस्तावेज़ मेंशन QNA" /></p>
+   - AI Presentation & Video Maker: अपने स्रोतों से एडिट करने योग्य स्लाइड डेक और नैरेटेड वीडियो बनाएं।
 
-   - रिपोर्ट जनरेशन और एक्सपोर्ट (PDF, DOCX, HTML, LaTeX, EPUB, ODT, सादा टेक्स्ट)
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="AI Presentation and Video Maker" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="रिपोर्ट जनरेशन" /></p>
+   - AI Image Generator: अपनी चैट और दस्तावेज़ों से सीधे उच्च-गुणवत्ता वाली इमेज बनाएं।
 
-   - पॉडकास्ट जनरेशन
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="पॉडकास्ट जनरेशन" /></p>
+   - AI Resume Builder: ATS-तैयार रिज़्यूमे को एक बेहतरीन PDF के रूप में बनाएं और फ़ॉर्मेट करें। (जल्द आ रहा है)
 
-   - इमेज जनरेशन
+   **सर्च और चैट**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="इमेज जनरेशन" /></p>
+   - Chat With Your PDFs & Docs: अपनी सभी फ़ाइलों पर सवाल पूछें और इनलाइन उद्धरणों के साथ जवाब पाएं।
 
-   - और भी बहुत कुछ जल्द आ रहा है।
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Chat With Your PDFs and Docs" /></p>
+
+   - AI Search With Citations: अपने पूरे नॉलेज बेस में हाइब्रिड सेमांटिक और कीवर्ड सर्च।
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="AI Search With Citations" /></p>
+
+   - Collaborative AI Chat: अपनी टीम के साथ रियल टाइम में AI बातचीत पर काम करें।
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Collaborative AI Chat" /></p>
+
+   - Comments & Mentions: किसी भी AI संदेश पर टिप्पणी करें और टीम के साथियों को टैग करें।
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comments and Mentions" /></p>
+
+   **कनेक्टर्स और इंटीग्रेशन**
+
+   - Connect & Sync Your Tools: Notion, Slack, Google Drive, Gmail, GitHub, Linear और 25+ स्रोतों को एक खोजने योग्य कॉर्पस में सिंक करें।
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Connect and Sync Your Tools" /></p>
+
+   - Chat With Uploaded Files: PDF, Office दस्तावेज़, इमेज और ऑडियो अपलोड करें। तुरंत खोजने योग्य।
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
+
+   - Connector Write-Back: एजेंट को परिणाम वापस Notion, Slack, Linear और Drive में पोस्ट करने दें। (जल्द आ रहा है)
+
+   - Obsidian & Knowledge Base Sync: अपने Obsidian vault और व्यक्तिगत नॉलेज बेस को सिंक रखें। (जल्द आ रहा है)
+
+   **ऑटोमेशन**
+
+   - AI Document Sorting: फ़ाइलें आते ही AI को उन्हें सही फ़ोल्डरों में अपने-आप व्यवस्थित करने दें। (जल्द आ रहा है)
+   - Scheduled AI Workflows: किसी एजेंट को शेड्यूल पर चलाएं: रोज़ाना ब्रीफ़, साप्ताहिक डाइजेस्ट, आवर्ती रिपोर्ट। (जल्द आ रहा है)
+   - Event-Triggered Automations: जैसे ही कोई दस्तावेज़ किसी फ़ोल्डर में आता है, एजेंट को चलाएं और परिणाम अपने टूल में पोस्ट करें। (जल्द आ रहा है)
+   - Chat-Built Automations: सरल भाषा में किसी ऑटोमेशन का वर्णन करें और SurfSense उसे आपके लिए बना देगा। (जल्द आ रहा है)
 
 
 ### सेल्फ-होस्टेड
