@@ -160,6 +160,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
      - “把这份生成的报告作为文档保存到 Google Drive。”
 
    - Obsidian & Knowledge Base Sync：让你的 Obsidian 库与个人知识库保持同步。
+
    **自动化**
 
    - Scheduled AI Workflows：按计划运行智能体：每日简报、每周摘要、周期性报告。

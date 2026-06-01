@@ -160,6 +160,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
      - "इस जनरेट की गई रिपोर्ट को Google Drive में एक डॉक के रूप में सेव करें।"
 
    - Obsidian & Knowledge Base Sync: अपने Obsidian vault और व्यक्तिगत नॉलेज बेस को सिंक रखें।
+
    **ऑटोमेशन**
 
    - Scheduled AI Workflows: किसी एजेंट को शेड्यूल पर चलाएं: रोज़ाना ब्रीफ़, साप्ताहिक डाइजेस्ट, आवर्ती रिपोर्ट।

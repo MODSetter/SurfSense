@@ -160,6 +160,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
      - "Salve este relatório gerado no Google Drive como um documento."
 
    - Obsidian & Knowledge Base Sync: mantenha seu cofre do Obsidian e sua base de conhecimento pessoal sincronizados.
+
    **Automações**
 
    - Scheduled AI Workflows: execute um agente em uma programação: resumos diários, boletins semanais, relatórios recorrentes.

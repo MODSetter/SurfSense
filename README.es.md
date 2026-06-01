@@ -160,6 +160,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
      - "Guarda este informe generado en Google Drive como un documento."
 
    - Obsidian & Knowledge Base Sync: mantén tu bóveda de Obsidian y tu base de conocimiento personal sincronizadas.
+
    **Automatizaciones**
 
    - Scheduled AI Workflows: ejecuta un agente según una programación: resúmenes diarios, boletines semanales, informes recurrentes.
