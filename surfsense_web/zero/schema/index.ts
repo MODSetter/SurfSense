@@ -1,4 +1,5 @@
 import { createBuilder, createSchema, relationships } from "@rocicorp/zero";
+import { automationRunTable } from "./automations";
 import { chatCommentTable, chatSessionStateTable, newChatMessageTable } from "./chat";
 import { documentTable, searchSourceConnectorTable } from "./documents";
 import { folderTable } from "./folders";
@@ -36,6 +37,7 @@ export const schema = createSchema({
 		chatCommentTable,
 		chatSessionStateTable,
 		userTable,
+		automationRunTable,
 	],
 	relationships: [chatCommentRelationships, newChatMessageRelationships],
 });
