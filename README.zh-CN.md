@@ -112,7 +112,14 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
 
-   - AI Resume Builder：撰写并排版一份适配 ATS 的精美 PDF 简历。（即将推出）
+   - AI Resume Builder：根据任意职位描述定制你现有的简历，顺利通过 ATS。
+     可以试试这样的提示：
+
+     - “根据这份职位描述定制我的简历，让它通过 ATS 并赢得面试。”
+     - “匹配这份招聘启事中的关键词，为 ATS 优化我的简历。”
+     - “重写我的简历要点，突出这个岗位所需要的技能。”
+     - “将我的简历与这份职位描述对比，列出需要改进的差距。”
+     - “根据我的简历和这份职位描述，写一封相匹配的求职信。”
 
    **搜索与聊天**
 
@@ -142,15 +149,44 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
 
-   - Connector Write-Back：让智能体将结果回写到 Notion、Slack、Linear 和 Drive。（即将推出）
+   - Connector Write-Back：让智能体将结果回写到 Notion、Slack、Linear 和 Drive。
+     可以试试这样的提示：
 
-   - Obsidian & Knowledge Base Sync：让你的 Obsidian 库与个人知识库保持同步。（即将推出）
+     - “把这份研究摘要发布到我的 Notion 工作区。”
+     - “把这些会议行动项发送到我们的团队 Slack 频道。”
+     - “根据这份缺陷报告创建一个 Jira 工单。”
+     - “根据这个功能需求在 Linear 中创建一个 issue。”
+     - “把这份生成的报告作为文档保存到 Google Drive。”
 
+   - Obsidian & Knowledge Base Sync：让你的 Obsidian 库与个人知识库保持同步。
    **自动化**
 
-   - Scheduled AI Workflows：按计划运行智能体：每日简报、每周摘要、周期性报告。（即将推出）
-   - Event-Triggered Automations：在文档进入文件夹的那一刻触发智能体，并将结果发布到你的工具中。（即将推出）
-   - Chat-Built Automations：用通俗的语言描述一个自动化，SurfSense 就会为你构建它。（即将推出）
+   - Scheduled AI Workflows：按计划运行智能体：每日简报、每周摘要、周期性报告。
+     可以试试这样的提示：
+
+     - “每天早上把我知识库中新增文档的每日简报发邮件给我。”
+     - “每周五根据我的 Slack 和 Gmail 生成一份每周状态报告。”
+     - “每月运行一次竞争对手分析报告并保存到我的工作区。”
+     - “把我的 GitHub 和 Linear 活动汇总成一份每日站会更新。”
+     - “针对我关注的主题创建一份周期性的每周研究报告。”
+
+   - Event-Triggered Automations：在文档进入文件夹的那一刻触发智能体，并将结果发布到你的工具中。
+     可以试试这样的提示：
+
+     - “当一个 PDF 进入我的 Research 文件夹时，生成一份带引用的 AI 摘要。”
+     - “当新增会议记录时，把它整理成带行动项的会议纪要。”
+     - “当上传发票时，把供应商、总额和到期日提取到一张表格中。”
+     - “当一份合同进入我的 Legal 文件夹时，标记关键条款和续约日期。”
+     - “当一份简历加入 Candidates 时，根据职位描述对其进行筛选。”
+
+   - Chat-Built Automations：用通俗的语言描述一个自动化，SurfSense 就会为你构建它。
+     可以试试这样的提示：
+
+     - “创建一个 AI 智能体，每天早上把新增 Notion 页面的摘要发邮件给我。”
+     - “创建一个无代码自动化，每周把研究摘要发布到 Slack。”
+     - “设置一个 AI 笔记助手，把新增会议记录整理成纪要。”
+     - “创建一个工作流，从会议记录中提取行动项并指派负责人。”
+     - “自动化一份来自我的 Gmail 和 Google Drive 的每日邮件简报。”
 
 
 ### 自托管

@@ -112,7 +112,14 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
 
-   - AI Resume Builder: monte e formate um currículo pronto para ATS em um PDF caprichado. (em breve)
+   - AI Resume Builder: adapte seu currículo atual a qualquer descrição de vaga e supere o ATS.
+     Experimente prompts como estes:
+
+     - "Adapte meu currículo a esta descrição de vaga para passar pelo ATS e conseguir uma entrevista."
+     - "Otimize meu currículo para o ATS combinando as palavras-chave desta vaga."
+     - "Reescreva os tópicos do meu currículo para destacar as habilidades que esta vaga exige."
+     - "Compare meu currículo com esta descrição de vaga e liste as lacunas a corrigir."
+     - "Escreva uma carta de apresentação combinando com meu currículo e esta descrição de vaga."
 
    **Busca e Chat**
 
@@ -142,15 +149,44 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
 
-   - Connector Write-Back: deixe o agente publicar os resultados de volta no Notion, Slack, Linear e Drive. (em breve)
+   - Connector Write-Back: deixe o agente publicar os resultados de volta no Notion, Slack, Linear e Drive.
+     Experimente prompts como estes:
 
-   - Obsidian & Knowledge Base Sync: mantenha seu cofre do Obsidian e sua base de conhecimento pessoal sincronizados. (em breve)
+     - "Publique este resumo de pesquisa no meu espaço do Notion."
+     - "Envie estes itens de ação da reunião para o nosso canal do Slack."
+     - "Crie um ticket no Jira a partir deste relatório de bug."
+     - "Abra uma issue no Linear a partir desta solicitação de funcionalidade."
+     - "Salve este relatório gerado no Google Drive como um documento."
 
+   - Obsidian & Knowledge Base Sync: mantenha seu cofre do Obsidian e sua base de conhecimento pessoal sincronizados.
    **Automações**
 
-   - Scheduled AI Workflows: execute um agente em uma programação: resumos diários, boletins semanais, relatórios recorrentes. (em breve)
-   - Event-Triggered Automations: dispare um agente no momento em que um documento chega a uma pasta e publique o resultado nas suas ferramentas. (em breve)
-   - Chat-Built Automations: descreva uma automação em linguagem simples e o SurfSense a cria para você. (em breve)
+   - Scheduled AI Workflows: execute um agente em uma programação: resumos diários, boletins semanais, relatórios recorrentes.
+     Experimente prompts como estes:
+
+     - "Envie-me todas as manhãs um resumo diário dos novos documentos na minha base de conhecimento."
+     - "Gere um relatório de status semanal a partir do meu Slack e Gmail toda sexta-feira."
+     - "Execute um relatório mensal de análise da concorrência e salve-o no meu espaço de trabalho."
+     - "Resuma minha atividade no GitHub e Linear em uma atualização diária de standup."
+     - "Crie um relatório de pesquisa semanal recorrente sobre os temas que acompanho."
+
+   - Event-Triggered Automations: dispare um agente no momento em que um documento chega a uma pasta e publique o resultado nas suas ferramentas.
+     Experimente prompts como estes:
+
+     - "Quando um PDF chegar à minha pasta de Pesquisa, gere um resumo com IA e citações."
+     - "Quando novas notas de reunião forem adicionadas, transforme-as em atas com itens de ação."
+     - "Quando uma fatura for enviada, extraia o fornecedor, o total e a data de vencimento em uma tabela."
+     - "Quando um contrato entrar na minha pasta Jurídica, sinalize os termos-chave e as datas de renovação."
+     - "Quando um currículo for adicionado a Candidatos, avalie-o em relação à descrição da vaga."
+
+   - Chat-Built Automations: descreva uma automação em linguagem simples e o SurfSense a cria para você.
+     Experimente prompts como estes:
+
+     - "Crie um agente de IA que me envie todas as manhãs um resumo das novas páginas do Notion."
+     - "Crie uma automação sem código que publique um resumo de pesquisa semanal no Slack."
+     - "Configure um anotador com IA que transforme as novas notas de reunião em atas."
+     - "Crie um fluxo que extraia os itens de ação das notas de reunião e atribua responsáveis."
+     - "Automatize um resumo diário por e-mail a partir do meu Gmail e Google Drive."
 
 
 ### Auto-Hospedado

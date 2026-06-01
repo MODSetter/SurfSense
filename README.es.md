@@ -112,7 +112,14 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
 
-   - AI Resume Builder: redacta y da formato a un currículum listo para ATS en un PDF pulido. (próximamente)
+   - AI Resume Builder: adapta tu currículum existente a cualquier descripción de empleo y supera el ATS.
+     Prueba indicaciones como estas:
+
+     - "Adapta mi currículum a esta descripción de empleo para superar el ATS y conseguir una entrevista."
+     - "Optimiza mi currículum para ATS haciendo coincidir las palabras clave de esta oferta."
+     - "Reescribe los puntos de mi currículum para resaltar las habilidades que pide este puesto."
+     - "Compara mi currículum con esta descripción de empleo y enumera las carencias a corregir."
+     - "Escribe una carta de presentación a juego con mi currículum y esta descripción de empleo."
 
    **Búsqueda y Chat**
 
@@ -142,15 +149,44 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
 
-   - Connector Write-Back: deja que el agente publique los resultados de vuelta en Notion, Slack, Linear y Drive. (próximamente)
+   - Connector Write-Back: deja que el agente publique los resultados de vuelta en Notion, Slack, Linear y Drive.
+     Prueba indicaciones como estas:
 
-   - Obsidian & Knowledge Base Sync: mantén tu bóveda de Obsidian y tu base de conocimiento personal sincronizadas. (próximamente)
+     - "Publica este resumen de investigación en mi espacio de Notion."
+     - "Envía estos elementos de acción de la reunión a nuestro canal de Slack."
+     - "Crea un ticket de Jira a partir de este informe de error."
+     - "Abre una incidencia en Linear a partir de esta solicitud de función."
+     - "Guarda este informe generado en Google Drive como un documento."
 
+   - Obsidian & Knowledge Base Sync: mantén tu bóveda de Obsidian y tu base de conocimiento personal sincronizadas.
    **Automatizaciones**
 
-   - Scheduled AI Workflows: ejecuta un agente según una programación: resúmenes diarios, boletines semanales, informes recurrentes. (próximamente)
-   - Event-Triggered Automations: lanza un agente en el momento en que un documento llega a una carpeta y publica el resultado en tus herramientas. (próximamente)
-   - Chat-Built Automations: describe una automatización en lenguaje sencillo y SurfSense la crea por ti. (próximamente)
+   - Scheduled AI Workflows: ejecuta un agente según una programación: resúmenes diarios, boletines semanales, informes recurrentes.
+     Prueba indicaciones como estas:
+
+     - "Envíame cada mañana un resumen diario de los nuevos documentos en mi base de conocimiento."
+     - "Genera un informe de estado semanal a partir de mi Slack y Gmail cada viernes."
+     - "Ejecuta un informe mensual de análisis de la competencia y guárdalo en mi espacio de trabajo."
+     - "Resume mi actividad de GitHub y Linear en una actualización diaria de standup."
+     - "Crea un informe de investigación semanal recurrente sobre los temas que sigo."
+
+   - Event-Triggered Automations: lanza un agente en el momento en que un documento llega a una carpeta y publica el resultado en tus herramientas.
+     Prueba indicaciones como estas:
+
+     - "Cuando llegue un PDF a mi carpeta de Investigación, genera un resumen de IA con citas."
+     - "Cuando se añadan nuevas notas de reunión, conviértelas en actas con elementos de acción."
+     - "Cuando se suba una factura, extrae el proveedor, el total y la fecha de vencimiento en una tabla."
+     - "Cuando entre un contrato en mi carpeta Legal, señala los términos clave y las fechas de renovación."
+     - "Cuando se añada un currículum a Candidatos, evalúalo frente a la descripción del empleo."
+
+   - Chat-Built Automations: describe una automatización en lenguaje sencillo y SurfSense la crea por ti.
+     Prueba indicaciones como estas:
+
+     - "Crea un agente de IA que me envíe cada mañana un resumen de las nuevas páginas de Notion."
+     - "Crea una automatización sin código que publique un resumen de investigación semanal en Slack."
+     - "Configura un tomador de notas con IA que convierta las nuevas notas de reunión en actas."
+     - "Crea un flujo que extraiga los elementos de acción de las notas de reunión y asigne responsables."
+     - "Automatiza un resumen diario por correo a partir de mi Gmail y Google Drive."
 
 
 ### Auto-Hospedado

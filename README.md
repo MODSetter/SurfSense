@@ -113,7 +113,14 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
 
-   - AI Resume Builder: draft and format an ATS-ready resume as a polished PDF. (coming soon)
+   - AI Resume Builder: tailor your existing resume to any job description and beat the ATS.
+     Try prompts like these:
+
+     - "Tailor my resume to this job description so it gets past ATS and lands an interview."
+     - "Optimize my resume for ATS by matching the keywords in this job posting."
+     - "Rewrite my resume bullet points to highlight the skills this role is asking for."
+     - "Compare my resume against this job description and list the gaps to fix."
+     - "Write a matching cover letter from my resume and this job description."
 
    **Search & Chat**
 
@@ -143,15 +150,44 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
 
-   - Connector Write-Back: let the agent post results back to Notion, Slack, Linear and Drive. (coming soon)
+   - Connector Write-Back: let the agent post results back to Notion, Slack, Linear and Drive.
+     Try prompts like these:
 
-   - Obsidian & Knowledge Base Sync: keep your Obsidian vault and personal knowledge base in sync. (coming soon)
+     - "Post this research summary to my Notion workspace."
+     - "Send these meeting action items to our team Slack channel."
+     - "Create a Jira ticket from this bug report."
+     - "Open a Linear issue from this feature request."
+     - "Save this generated report to Google Drive as a doc."
 
+   - Obsidian & Knowledge Base Sync: keep your Obsidian vault and personal knowledge base in sync.
    **Automations**
 
-   - Scheduled AI Workflows: run an agent on a schedule: daily briefs, weekly digests, recurring reports. (coming soon)
-   - Event-Triggered Automations: fire an agent the moment a document lands in a folder, then post the result to your tools. (coming soon)
-   - Chat-Built Automations: describe an automation in plain English and SurfSense builds it for you. (coming soon)
+   - Scheduled AI Workflows: run an agent on a schedule: daily briefs, weekly digests, recurring reports.
+     Try prompts like these:
+
+     - "Email me a daily brief of new documents in my knowledge base every morning."
+     - "Generate a weekly status report from my Slack and Gmail every Friday."
+     - "Run a monthly competitor analysis report and save it to my workspace."
+     - "Summarize my GitHub and Linear activity into a daily standup update."
+     - "Create a recurring weekly research report on the topics I track."
+
+   - Event-Triggered Automations: fire an agent the moment a document lands in a folder, then post the result to your tools.
+     Try prompts like these:
+
+     - "When a PDF lands in my Research folder, generate a cited AI summary."
+     - "When new meeting notes are added, turn them into meeting minutes with action items."
+     - "When an invoice is uploaded, extract the vendor, total, and due date into a table."
+     - "When a contract enters my Legal folder, flag key terms and renewal dates."
+     - "When a resume is added to Candidates, screen it against the job description."
+
+   - Chat-Built Automations: describe an automation in plain English and SurfSense builds it for you.
+     Try prompts like these:
+
+     - "Build an AI agent that emails me a summary of new Notion pages each morning."
+     - "Create a no-code automation that posts a weekly research digest to Slack."
+     - "Set up an AI note taker that turns new meeting notes into minutes."
+     - "Make a workflow that extracts action items from meeting notes and assigns owners."
+     - "Automate a daily email brief from my Gmail and Google Drive."
 
 
 ### Self Hosted
