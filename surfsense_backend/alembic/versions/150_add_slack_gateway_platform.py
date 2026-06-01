@@ -1,7 +1,7 @@
 """add slack gateway platform
 
-Revision ID: 149
-Revises: 148
+Revision ID: 151
+Revises: 150
 Create Date: 2026-05-31
 """
 
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "149"
-down_revision: str | None = "148"
+revision: str = "151"
+down_revision: str | None = "150"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
