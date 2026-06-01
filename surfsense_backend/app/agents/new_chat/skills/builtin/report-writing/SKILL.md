@@ -1,7 +1,7 @@
 ---
 name: report-writing
 description: How to scope, draft, and revise a Markdown report artifact via generate_report
-allowed-tools: generate_report, search_surfsense_docs, read_file
+allowed-tools: generate_report, read_file
 ---
 
 # Report writing

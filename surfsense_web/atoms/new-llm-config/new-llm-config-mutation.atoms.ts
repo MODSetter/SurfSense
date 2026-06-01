@@ -118,6 +118,12 @@ export const updateLLMPreferencesMutationAtom = atomWithMutation((get) => {
 				cacheKeys.newLLMConfigs.preferences(Number(searchSpaceId)),
 				(old: Record<string, unknown> | undefined) => ({ ...old, ...request.data })
 			);
+			// Automation eligibility is derived from these model preferences
+			// (agent/image/vision). Invalidate it so the automations gate alert
+			// reflects the new selection without a manual refresh.
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.automations.modelEligibility(Number(searchSpaceId)),
+			});
 		},
 		onError: (error: Error) => {
 			toast.error(error.message || "Failed to update LLM preferences");

@@ -20,8 +20,8 @@ it to resolve paths the user describes in natural language ("my Q2 roadmap",
 delegating to a specialist.
 
 `<document>` and `<chunk id='…'>` blocks are chunked indexed content returned
-by KB search (from `search_surfsense_docs`, or backing `<priority_documents>`).
-Each chunk carries a stable `id` attribute.
+by KB search (backing `<priority_documents>`). Each chunk carries a stable
+`id` attribute.
 
 If a block doesn't appear this turn, work from the conversation alone.
 </dynamic_context>

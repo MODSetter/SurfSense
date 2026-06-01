@@ -11,7 +11,7 @@ import {
 	RefreshCw,
 	ScanEye,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
 	globalImageGenConfigsAtom,
@@ -135,18 +135,39 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
-	const [assignments, setAssignments] = useState(() => ({
-		agent_llm_id: preferences.agent_llm_id ?? "",
-		document_summary_llm_id: preferences.document_summary_llm_id ?? "",
-		image_generation_config_id: preferences.image_generation_config_id ?? "",
-		vision_llm_config_id: preferences.vision_llm_config_id ?? "",
+	const [assignments, setAssignments] = useState<Record<string, number | null>>(() => ({
+		agent_llm_id: preferences.agent_llm_id ?? null,
+		document_summary_llm_id: preferences.document_summary_llm_id ?? null,
+		image_generation_config_id: preferences.image_generation_config_id ?? null,
+		vision_llm_config_id: preferences.vision_llm_config_id ?? null,
 	}));
+
+	// Sync local state when preferences load/change. Without this, the selects
+	// stay on their initial (often empty) value while the query is in flight,
+	// so a saved assignment — including Auto mode (id 0) — never appears.
+	useEffect(() => {
+		setAssignments({
+			agent_llm_id: preferences.agent_llm_id ?? null,
+			document_summary_llm_id: preferences.document_summary_llm_id ?? null,
+			image_generation_config_id: preferences.image_generation_config_id ?? null,
+			vision_llm_config_id: preferences.vision_llm_config_id ?? null,
+		});
+	}, [
+		preferences.agent_llm_id,
+		preferences.document_summary_llm_id,
+		preferences.image_generation_config_id,
+		preferences.vision_llm_config_id,
+	]);
 
 	const [savingRole, setSavingRole] = useState<string | null>(null);
 
 	const handleRoleAssignment = useCallback(
 		async (prefKey: string, configId: string) => {
-			const value = configId === "unassigned" ? "" : parseInt(configId);
+			// "unassigned" clears the role (null). Every other option — including
+			// Auto mode, whose config id is 0 — must be sent as-is. Using a falsy
+			// check here (e.g. `value || undefined`) would drop id 0 and silently
+			// fail to persist Auto mode.
+			const value = configId === "unassigned" ? null : Number(configId);
 
 			setAssignments((prev) => ({ ...prev, [prefKey]: value }));
 			setSavingRole(prefKey);
@@ -154,7 +175,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			try {
 				await updatePreferences({
 					search_space_id: searchSpaceId,
-					data: { [prefKey]: value || undefined },
+					data: { [prefKey]: value },
 				});
 				toast.success("Role assignment updated");
 			} finally {
@@ -325,7 +346,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 												Configuration
 											</Label>
 											<Select
-												value={isAssigned ? currentAssignment.toString() : "unassigned"}
+												value={assignedConfig ? assignedConfig.id.toString() : "unassigned"}
 												onValueChange={(value) => handleRoleAssignment(role.prefKey, value)}
 											>
 												<SelectTrigger className="w-full h-9 md:h-10 text-xs md:text-sm">

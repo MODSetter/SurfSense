@@ -31,7 +31,7 @@ import {
 	deleteMemberMutationAtom,
 	updateMemberMutationAtom,
 } from "@/atoms/members/members-mutation.atoms";
-import { membersAtom, myAccessAtom, canPerform } from "@/atoms/members/members-query.atoms";
+import { canPerform, membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,

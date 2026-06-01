@@ -1,6 +1,5 @@
 import { IconUsersGroup } from "@tabler/icons-react";
 import {
-	BookOpen,
 	Brain,
 	File,
 	FileText,
@@ -119,8 +118,6 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <FileText {...iconProps} />;
 		case "EXTENSION":
 			return <Webhook {...iconProps} />;
-		case "SURFSENSE_DOCS":
-			return <BookOpen {...iconProps} />;
 		case "USER_MEMORY":
 		case "TEAM_MEMORY":
 			return <Brain {...iconProps} />;

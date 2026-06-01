@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import type { AnonModel, AnonQuotaResponse } from "@/contracts/types/anonymous-chat.types";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { readSSEStream } from "@/lib/chat/streaming-state";
+import { BACKEND_URL } from "@/lib/env-config";
 import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import { QuotaBar } from "./quota-bar";
 import { QuotaWarningBanner } from "./quota-warning-banner";
-import { BACKEND_URL } from "@/lib/env-config";
+
 interface Message {
 	id: string;
 	role: "user" | "assistant";
@@ -80,19 +81,16 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 				content: m.content,
 			}));
 
-			const response = await fetch(
-				`${BACKEND_URL}/api/v1/public/anon-chat/stream`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					credentials: "include",
-					body: JSON.stringify({
-						model_slug: modelSlug,
-						messages: chatHistory,
-					}),
-					signal: controller.signal,
-				}
-			);
+			const response = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/stream`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					model_slug: modelSlug,
+					messages: chatHistory,
+				}),
+				signal: controller.signal,
+			});
 
 			if (!response.ok) {
 				if (response.status === 429) {

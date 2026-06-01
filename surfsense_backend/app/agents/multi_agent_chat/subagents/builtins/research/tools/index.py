@@ -9,7 +9,6 @@ from langchain_core.tools import BaseTool
 from app.agents.new_chat.permissions import Ruleset
 
 from .scrape_webpage import create_scrape_webpage_tool
-from .search_surfsense_docs import create_search_surfsense_docs_tool
 from .web_search import create_web_search_tool
 
 NAME = "research"
@@ -27,5 +26,4 @@ def load_tools(
             available_connectors=d.get("available_connectors"),
         ),
         create_scrape_webpage_tool(firecrawl_api_key=d.get("firecrawl_api_key")),
-        create_search_surfsense_docs_tool(db_session=d["db_session"]),
     ]

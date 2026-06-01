@@ -193,11 +193,7 @@ export function SearchSpaceAvatar({
 
 	// If delete or settings handlers are provided, expose them through a dropdown menu.
 	if (onDelete || onSettings) {
-		const trigger = (
-			<DropdownMenuTrigger asChild>
-				{avatarButton(true)}
-			</DropdownMenuTrigger>
-		);
+		const trigger = <DropdownMenuTrigger asChild>{avatarButton(true)}</DropdownMenuTrigger>;
 
 		return (
 			<DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>

@@ -37,9 +37,9 @@ export default function PrivacyPolicy() {
 					</p>
 					<p className="mt-4">
 						By accessing or using the Service, you acknowledge that you have read and understood
-						this Privacy Policy. If you do not agree with our policies and practices, do not use
-						the Service. We may modify this policy from time to time; material changes will be
-						reflected by updating the "Last updated" date above.
+						this Privacy Policy. If you do not agree with our policies and practices, do not use the
+						Service. We may modify this policy from time to time; material changes will be reflected
+						by updating the "Last updated" date above.
 					</p>
 				</section>
 
@@ -71,9 +71,9 @@ export default function PrivacyPolicy() {
 							Notion, Confluence, GitHub, and others) under the scopes you authorize.
 						</li>
 						<li>
-							<strong>Billing Data</strong> includes information necessary to process payments
-							(such as transaction identifiers and credit balances). Card details are handled by
-							our payment processor and are not stored on our servers.
+							<strong>Billing Data</strong> includes information necessary to process payments (such
+							as transaction identifiers and credit balances). Card details are handled by our
+							payment processor and are not stored on our servers.
 						</li>
 						<li>
 							<strong>Technical Data</strong> includes internet protocol (IP) address, browser type
@@ -126,8 +126,8 @@ export default function PrivacyPolicy() {
 							incidents.
 						</li>
 						<li>
-							To communicate with you about product updates, security notices, support requests,
-							and (with your consent where required) marketing.
+							To communicate with you about product updates, security notices, support requests, and
+							(with your consent where required) marketing.
 						</li>
 						<li>
 							To serve and measure advertising on pages where ads are shown (currently, our free
@@ -141,8 +141,8 @@ export default function PrivacyPolicy() {
 					<h2 className="text-2xl font-semibold mb-4">4. Cookies and Tracking Technologies</h2>
 					<p>
 						We and our partners use cookies, local storage, and similar technologies to operate the
-						Service, remember your preferences, measure usage, and serve advertising. The
-						categories include:
+						Service, remember your preferences, measure usage, and serve advertising. The categories
+						include:
 					</p>
 					<ul className="list-disc pl-6 my-4 space-y-2">
 						<li>
@@ -179,9 +179,9 @@ export default function PrivacyPolicy() {
 					</p>
 					<ul className="list-disc pl-6 my-4 space-y-2">
 						<li>
-							Google, as a third-party vendor, uses cookies (including the DoubleClick DART
-							cookie) to serve ads to you based on your visits to our Service and other websites
-							on the Internet.
+							Google, as a third-party vendor, uses cookies (including the DoubleClick DART cookie)
+							to serve ads to you based on your visits to our Service and other websites on the
+							Internet.
 						</li>
 						<li>
 							Google's use of advertising cookies enables it and its partners to serve ads to you
@@ -195,14 +195,12 @@ export default function PrivacyPolicy() {
 							<a href="https://www.youronlinechoices.com/">youronlinechoices.com</a> (EU).
 						</li>
 						<li>
-							For users in the European Economic Area, the United Kingdom, and Switzerland, we
-							use a Google-certified Consent Management Platform to obtain your consent for
-							personalized advertising before such cookies are set. You may change or withdraw
-							your consent at any time through the consent banner.
+							For users in the European Economic Area, the United Kingdom, and Switzerland, we use a
+							Google-certified Consent Management Platform to obtain your consent for personalized
+							advertising before such cookies are set. You may change or withdraw your consent at
+							any time through the consent banner.
 						</li>
-						<li>
-							We do not knowingly serve personalized advertising to children. See Section 11.
-						</li>
+						<li>We do not knowingly serve personalized advertising to children. See Section 11.</li>
 					</ul>
 					<p className="mt-4">
 						For more information about how Google uses data when you use our Service, see{" "}
@@ -217,8 +215,8 @@ export default function PrivacyPolicy() {
 					<h2 className="text-2xl font-semibold mb-4">6. Data Security</h2>
 					<p>
 						We implement technical and organizational measures designed to protect your personal
-						data against accidental loss, unauthorized access, alteration, and disclosure. Access
-						to personal data is limited to personnel who need it to operate the Service.
+						data against accidental loss, unauthorized access, alteration, and disclosure. Access to
+						personal data is limited to personnel who need it to operate the Service.
 					</p>
 					<p className="mt-4">
 						No system can be guaranteed to be fully secure. We cannot guarantee that personal data
@@ -232,10 +230,10 @@ export default function PrivacyPolicy() {
 					<p>
 						We retain personal data only for as long as necessary to provide the Service and to
 						comply with our legal, accounting, and reporting obligations. Account data is retained
-						for the life of your account; you can request deletion at any time. Aggregated data
-						that no longer identifies you may be retained indefinitely for analytics and product
-						improvement purposes. Anonymous chat sessions on our free pages are not retained in
-						any user-linked database.
+						for the life of your account; you can request deletion at any time. Aggregated data that
+						no longer identifies you may be retained indefinitely for analytics and product
+						improvement purposes. Anonymous chat sessions on our free pages are not retained in any
+						user-linked database.
 					</p>
 				</section>
 
@@ -243,8 +241,7 @@ export default function PrivacyPolicy() {
 					<h2 className="text-2xl font-semibold mb-4">8. Third-Party Services</h2>
 					<p>
 						We rely on the following categories of third-party processors and providers to operate
-						the Service. Each is bound by its own privacy policy, which we encourage you to
-						review:
+						the Service. Each is bound by its own privacy policy, which we encourage you to review:
 					</p>
 					<ul className="list-disc pl-6 my-4 space-y-2">
 						<li>
@@ -261,9 +258,9 @@ export default function PrivacyPolicy() {
 							<strong>Advertising</strong>: Google AdSense (see Section 5).
 						</li>
 						<li>
-							<strong>Large language model providers</strong>: OpenAI, Anthropic, Google, and
-							other LLM providers process the prompts and content you submit to the Service in
-							order to generate responses.
+							<strong>Large language model providers</strong>: OpenAI, Anthropic, Google, and other
+							LLM providers process the prompts and content you submit to the Service in order to
+							generate responses.
 						</li>
 						<li>
 							<strong>Integration providers</strong>: When you explicitly connect a third-party
@@ -278,9 +275,7 @@ export default function PrivacyPolicy() {
 				</section>
 
 				<section className="mb-8">
-					<h2 className="text-2xl font-semibold mb-4">
-						9. Your Legal Rights (Including GDPR)
-					</h2>
+					<h2 className="text-2xl font-semibold mb-4">9. Your Legal Rights (Including GDPR)</h2>
 					<p>
 						Subject to applicable law, you have the following rights in relation to your personal
 						data:
@@ -314,17 +309,17 @@ export default function PrivacyPolicy() {
 					</p>
 					<ul className="list-disc pl-6 my-4 space-y-2">
 						<li>
-							The right to know what categories of personal information we have collected about
-							you and how it is used and shared.
+							The right to know what categories of personal information we have collected about you
+							and how it is used and shared.
 						</li>
 						<li>The right to delete personal information we have collected from you.</li>
 						<li>The right to correct inaccurate personal information.</li>
 						<li>
 							The right to opt out of the "sale" or "sharing" of personal information for
 							cross-context behavioral advertising. We do not sell personal data; however,
-							advertising cookies set by Google AdSense may be considered "sharing" under
-							California law. To opt out, you can use the consent controls described in Section 5
-							or enable a Global Privacy Control (GPC) signal in your browser, which we honor.
+							advertising cookies set by Google AdSense may be considered "sharing" under California
+							law. To opt out, you can use the consent controls described in Section 5 or enable a
+							Global Privacy Control (GPC) signal in your browser, which we honor.
 						</li>
 						<li>The right not to be discriminated against for exercising your privacy rights.</li>
 					</ul>
@@ -337,33 +332,32 @@ export default function PrivacyPolicy() {
 					<h2 className="text-2xl font-semibold mb-4">11. Children's Privacy</h2>
 					<p>
 						The Service is not directed to children under 13 (or under 16 in the EEA, UK, and
-						Switzerland). We do not knowingly collect personal data from children. If you believe
-						a child has provided us with personal data, please contact us and we will take steps
-						to delete it. We do not knowingly serve personalized advertising to children.
+						Switzerland). We do not knowingly collect personal data from children. If you believe a
+						child has provided us with personal data, please contact us and we will take steps to
+						delete it. We do not knowingly serve personalized advertising to children.
 					</p>
 				</section>
 
 				<section className="mb-8">
 					<h2 className="text-2xl font-semibold mb-4">12. Changes to This Policy</h2>
 					<p>
-						We may update this Privacy Policy from time to time to reflect changes in our
-						practices, technology, legal requirements, or for other operational reasons. When we
-						make material changes, we will update the "Last updated" date at the top of this page
-						and, where appropriate, provide additional notice (such as an in-product notification
-						or email). Your continued use of the Service after the updated policy becomes
-						effective constitutes your acceptance of the revised policy.
+						We may update this Privacy Policy from time to time to reflect changes in our practices,
+						technology, legal requirements, or for other operational reasons. When we make material
+						changes, we will update the "Last updated" date at the top of this page and, where
+						appropriate, provide additional notice (such as an in-product notification or email).
+						Your continued use of the Service after the updated policy becomes effective constitutes
+						your acceptance of the revised policy.
 					</p>
 				</section>
 
 				<section className="mb-8">
 					<h2 className="text-2xl font-semibold mb-4">13. Contact Us</h2>
 					<p>
-						If you have questions about this Privacy Policy or our privacy practices, or if you
-						want to exercise any of your rights, please contact us at:
+						If you have questions about this Privacy Policy or our privacy practices, or if you want
+						to exercise any of your rights, please contact us at:
 					</p>
 					<p className="mt-2">
-						<strong>Email:</strong>{" "}
-						<a href="mailto:rohan@surfsense.com">rohan@surfsense.com</a>
+						<strong>Email:</strong> <a href="mailto:rohan@surfsense.com">rohan@surfsense.com</a>
 					</p>
 				</section>
 			</div>

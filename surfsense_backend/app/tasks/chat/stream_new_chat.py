@@ -25,7 +25,6 @@ from uuid import UUID
 import anyio
 from langchain_core.messages import HumanMessage
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
 
 from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
@@ -55,7 +54,6 @@ from app.db import (
     NewChatThread,
     Report,
     SearchSourceConnectorType,
-    SurfsenseDocsDocument,
     async_session_maker,
     shielded_async_session,
 )
@@ -77,7 +75,6 @@ from app.tasks.chat.streaming.helpers.interrupt_inspector import (
 )
 from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
-from app.utils.surfsense_docs import surfsense_docs_public_url
 from app.utils.user_message_multimodal import build_human_message_content
 
 _background_tasks: set[asyncio.Task] = set()
@@ -196,58 +193,6 @@ def _extract_chunk_parts(chunk: Any) -> dict[str, Any]:
                 out["tool_call_chunks"].append(tcc)
 
     return out
-
-
-def format_mentioned_surfsense_docs_as_context(
-    documents: list[SurfsenseDocsDocument],
-) -> str:
-    """Format mentioned SurfSense documentation as context for the agent."""
-    if not documents:
-        return ""
-
-    context_parts = ["<mentioned_surfsense_docs>"]
-    context_parts.append(
-        "The user has explicitly mentioned the following SurfSense documentation pages. "
-        "These are official documentation about how to use SurfSense and should be used to answer questions about the application. "
-        "Use [citation:CHUNK_ID] format for citations (e.g., [citation:doc-123])."
-    )
-
-    for doc in documents:
-        public_url = surfsense_docs_public_url(doc.source)
-        metadata_json = json.dumps(
-            {"source": doc.source, "public_url": public_url}, ensure_ascii=False
-        )
-
-        context_parts.append("<document>")
-        context_parts.append("<document_metadata>")
-        context_parts.append(f"  <document_id>doc-{doc.id}</document_id>")
-        context_parts.append("  <document_type>SURFSENSE_DOCS</document_type>")
-        context_parts.append(f"  <title><![CDATA[{doc.title}]]></title>")
-        context_parts.append(f"  <url><![CDATA[{public_url}]]></url>")
-        context_parts.append(
-            f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>"
-        )
-        context_parts.append("</document_metadata>")
-        context_parts.append("")
-        context_parts.append("<document_content>")
-
-        if hasattr(doc, "chunks") and doc.chunks:
-            for chunk in doc.chunks:
-                context_parts.append(
-                    f"  <chunk id='doc-{chunk.id}'><![CDATA[{chunk.content}]]></chunk>"
-                )
-        else:
-            context_parts.append(
-                f"  <chunk id='doc-0'><![CDATA[{doc.content}]]></chunk>"
-            )
-
-        context_parts.append("</document_content>")
-        context_parts.append("</document>")
-        context_parts.append("")
-
-    context_parts.append("</mentioned_surfsense_docs>")
-
-    return "\n".join(context_parts)
 
 
 def extract_todos_from_deepagents(command_output) -> dict:
@@ -837,7 +782,6 @@ async def stream_new_chat(
     user_id: str | None = None,
     llm_config_id: int = -1,
     mentioned_document_ids: list[int] | None = None,
-    mentioned_surfsense_doc_ids: list[int] | None = None,
     mentioned_folder_ids: list[int] | None = None,
     mentioned_connector_ids: list[int] | None = None,
     mentioned_connectors: list[dict[str, Any]] | None = None,
@@ -869,7 +813,6 @@ async def stream_new_chat(
         llm_config_id: The LLM configuration ID (default: -1 for first global config)
         needs_history_bootstrap: If True, load message history from DB (for cloned chats)
         mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
-        mentioned_surfsense_doc_ids: Optional list of SurfSense doc IDs mentioned with @ in the chat
         mentioned_folder_ids: Optional list of knowledge-base folder IDs mentioned with @ (cloud mode)
         checkpoint_id: Optional checkpoint ID to rewind/fork from (for edit/reload operations)
 
@@ -1295,19 +1238,7 @@ async def stream_new_chat(
 
         # Mentioned KB documents are now handled by KnowledgeBaseSearchMiddleware
         # which merges them into the scoped filesystem with full document
-        # structure. Only SurfSense docs and report context are inlined here.
-
-        # Fetch mentioned SurfSense docs if any
-        mentioned_surfsense_docs: list[SurfsenseDocsDocument] = []
-        if mentioned_surfsense_doc_ids:
-            result = await session.execute(
-                select(SurfsenseDocsDocument)
-                .options(selectinload(SurfsenseDocsDocument.chunks))
-                .filter(
-                    SurfsenseDocsDocument.id.in_(mentioned_surfsense_doc_ids),
-                )
-            )
-            mentioned_surfsense_docs = list(result.scalars().all())
+        # structure. Only report context is inlined here.
 
         # Fetch the most recent report(s) in this thread so the LLM can
         # easily find report_id for versioning decisions, instead of
@@ -1341,10 +1272,7 @@ async def stream_new_chat(
         agent_user_query = user_query
         accepted_folder_ids: list[int] = []
         if fs_mode == FilesystemMode.CLOUD.value and (
-            mentioned_document_ids
-            or mentioned_surfsense_doc_ids
-            or mentioned_folder_ids
-            or mentioned_documents
+            mentioned_document_ids or mentioned_folder_ids or mentioned_documents
         ):
             from app.schemas.new_chat import (
                 MentionedDocumentInfo as _MentionedDocumentInfo,
@@ -1370,22 +1298,16 @@ async def stream_new_chat(
                 search_space_id=search_space_id,
                 mentioned_documents=chip_objs,
                 mentioned_document_ids=mentioned_document_ids,
-                mentioned_surfsense_doc_ids=mentioned_surfsense_doc_ids,
                 mentioned_folder_ids=mentioned_folder_ids,
             )
             agent_user_query = substitute_in_text(user_query, resolved.token_to_path)
             accepted_folder_ids = resolved.mentioned_folder_ids
 
-        # Format the user query with context (SurfSense docs + reports only).
+        # Format the user query with context (reports only).
         # Uses ``agent_user_query`` so the LLM sees backtick-wrapped paths
         # instead of bare ``@title`` tokens.
         final_query = agent_user_query
         context_parts = []
-
-        if mentioned_surfsense_docs:
-            context_parts.append(
-                format_mentioned_surfsense_docs_as_context(mentioned_surfsense_docs)
-            )
 
         if mentioned_connectors:
             connector_lines = []
@@ -1617,12 +1539,8 @@ async def stream_new_chat(
         stream_result.content_builder = AssistantContentBuilder()
 
         # Initial thinking step - analyzing the request
-        if mentioned_surfsense_docs:
-            initial_title = "Analyzing referenced content"
-            action_verb = "Analyzing"
-        else:
-            initial_title = "Understanding your request"
-            action_verb = "Processing"
+        initial_title = "Understanding your request"
+        action_verb = "Processing"
 
         processing_parts = []
         if user_query.strip():
@@ -1632,18 +1550,6 @@ async def stream_new_chat(
             processing_parts.append(f"[{len(user_image_data_urls)} image(s)]")
         else:
             processing_parts.append("(message)")
-
-        if mentioned_surfsense_docs:
-            doc_names = []
-            for doc in mentioned_surfsense_docs:
-                title = doc.title
-                if len(title) > 30:
-                    title = title[:27] + "..."
-                doc_names.append(title)
-            if len(doc_names) == 1:
-                processing_parts.append(f"[{doc_names[0]}]")
-            else:
-                processing_parts.append(f"[{len(doc_names)} docs]")
 
         initial_items = [f"{action_verb}: {' '.join(processing_parts)}"]
         initial_step_id = "thinking-1"
@@ -1664,10 +1570,10 @@ async def stream_new_chat(
             items=initial_items,
         )
 
-        # These ORM objects (with eagerly-loaded chunks) can be very large.
-        # They're only needed to build context strings already copied into
-        # final_query / langchain_messages — release them before streaming.
-        del mentioned_surfsense_docs, recent_reports
+        # These ORM objects can be large. They're only needed to build context
+        # strings already copied into final_query / langchain_messages —
+        # release them before streaming.
+        del recent_reports
         del langchain_messages, final_query
 
         # Check if this is the first assistant response so we can generate
@@ -2608,9 +2514,7 @@ async def stream_resume_chat(
         visibility = thread_visibility or ChatVisibility.PRIVATE
         from app.config import config as _app_config
 
-        chat_agent_mode = (
-            "multi" if _app_config.MULTI_AGENT_CHAT_ENABLED else "single"
-        )
+        chat_agent_mode = "multi" if _app_config.MULTI_AGENT_CHAT_ENABLED else "single"
         with contextlib.suppress(Exception):
             chat_span.set_attribute("agent.mode", chat_agent_mode)
         _t0 = time.perf_counter()

@@ -5,12 +5,16 @@ from datetime import datetime
 from email.mime.text import MIMEText
 from typing import Any
 
+from langchain.tools import ToolRuntime
 from langchain_core.tools import tool
+from langgraph.types import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
     request_approval,
 )
+from app.agents.shared.receipt import make_receipt
+from app.agents.shared.receipt_command import with_receipt
 from app.services.gmail import GmailToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -26,9 +30,10 @@ def create_send_gmail_email_tool(
         to: str,
         subject: str,
         body: str,
+        runtime: ToolRuntime,
         cc: str | None = None,
         bcc: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> Command:
         """Send an email via Gmail.
 
         Use when the user explicitly asks to send an email. This sends the
@@ -60,11 +65,34 @@ def create_send_gmail_email_tool(
         """
         logger.info(f"send_gmail_email called: to='{to}', subject='{subject}'")
 
+        def _emit(
+            payload: dict[str, Any],
+            *,
+            success: bool,
+            external_id: str | None = None,
+            error: str | None = None,
+        ) -> Command:
+            return with_receipt(
+                payload=payload,
+                receipt=make_receipt(
+                    route="gmail",
+                    type="message",
+                    operation="send",
+                    status="success" if success else "failed",
+                    external_id=external_id,
+                    preview=f"to={to}: {subject}"[:200],
+                    error=error,
+                ),
+                tool_call_id=runtime.tool_call_id,
+            )
+
         if db_session is None or search_space_id is None or user_id is None:
-            return {
-                "status": "error",
-                "message": "Gmail tool not properly configured. Please contact support.",
-            }
+            msg = "Gmail tool not properly configured. Please contact support."
+            return _emit(
+                {"status": "error", "message": msg},
+                success=False,
+                error=msg,
+            )
 
         try:
             metadata_service = GmailToolMetadataService(db_session)
@@ -74,16 +102,24 @@ def create_send_gmail_email_tool(
 
             if "error" in context:
                 logger.error(f"Failed to fetch creation context: {context['error']}")
-                return {"status": "error", "message": context["error"]}
+                return _emit(
+                    {"status": "error", "message": context["error"]},
+                    success=False,
+                    error=context["error"],
+                )
 
             accounts = context.get("accounts", [])
             if accounts and all(a.get("auth_expired") for a in accounts):
                 logger.warning("All Gmail accounts have expired authentication")
-                return {
-                    "status": "auth_error",
-                    "message": "All connected Gmail accounts need re-authentication. Please re-authenticate in your connector settings.",
-                    "connector_type": "gmail",
-                }
+                return _emit(
+                    {
+                        "status": "auth_error",
+                        "message": "All connected Gmail accounts need re-authentication. Please re-authenticate in your connector settings.",
+                        "connector_type": "gmail",
+                    },
+                    success=False,
+                    error="auth_expired",
+                )
 
             logger.info(
                 f"Requesting approval for sending Gmail email: to='{to}', subject='{subject}'"
@@ -103,10 +139,14 @@ def create_send_gmail_email_tool(
             )
 
             if result.rejected:
-                return {
-                    "status": "rejected",
-                    "message": "User declined. The email was not sent. Do not ask again or suggest alternatives.",
-                }
+                return _emit(
+                    {
+                        "status": "rejected",
+                        "message": "User declined. The email was not sent. Do not ask again or suggest alternatives.",
+                    },
+                    success=False,
+                    error="user_rejected",
+                )
 
             final_to = result.params.get("to", to)
             final_subject = result.params.get("subject", subject)
@@ -135,10 +175,14 @@ def create_send_gmail_email_tool(
                 )
                 connector = result.scalars().first()
                 if not connector:
-                    return {
-                        "status": "error",
-                        "message": "Selected Gmail connector is invalid or has been disconnected.",
-                    }
+                    msg = (
+                        "Selected Gmail connector is invalid or has been disconnected."
+                    )
+                    return _emit(
+                        {"status": "error", "message": msg},
+                        success=False,
+                        error=msg,
+                    )
                 actual_connector_id = connector.id
             else:
                 result = await db_session.execute(
@@ -150,10 +194,12 @@ def create_send_gmail_email_tool(
                 )
                 connector = result.scalars().first()
                 if not connector:
-                    return {
-                        "status": "error",
-                        "message": "No Gmail connector found. Please connect Gmail in your workspace settings.",
-                    }
+                    msg = "No Gmail connector found. Please connect Gmail in your workspace settings."
+                    return _emit(
+                        {"status": "error", "message": msg},
+                        success=False,
+                        error=msg,
+                    )
                 actual_connector_id = connector.id
 
             logger.info(
@@ -166,10 +212,12 @@ def create_send_gmail_email_tool(
             ):
                 cca_id = connector.config.get("composio_connected_account_id")
                 if not cca_id:
-                    return {
-                        "status": "error",
-                        "message": "Composio connected account ID not found for this Gmail connector.",
-                    }
+                    msg = "Composio connected account ID not found for this Gmail connector."
+                    return _emit(
+                        {"status": "error", "message": msg},
+                        success=False,
+                        error=msg,
+                    )
 
                 from app.services.composio_service import ComposioService
 
@@ -187,7 +235,11 @@ def create_send_gmail_email_tool(
                     bcc=final_bcc,
                 )
                 if error:
-                    return {"status": "error", "message": error}
+                    return _emit(
+                        {"status": "error", "message": error},
+                        success=False,
+                        error=error,
+                    )
                 sent = {"id": sent_message_id, "threadId": sent_thread_id}
             else:
                 from google.oauth2.credentials import Credentials
@@ -275,11 +327,15 @@ def create_send_gmail_email_tool(
                                 actual_connector_id,
                                 exc_info=True,
                             )
-                        return {
-                            "status": "insufficient_permissions",
-                            "connector_id": actual_connector_id,
-                            "message": "This Gmail account needs additional permissions. Please re-authenticate in connector settings.",
-                        }
+                        return _emit(
+                            {
+                                "status": "insufficient_permissions",
+                                "connector_id": actual_connector_id,
+                                "message": "This Gmail account needs additional permissions. Please re-authenticate in connector settings.",
+                            },
+                            success=False,
+                            error="insufficient_permissions",
+                        )
                     raise
 
             logger.info(
@@ -310,12 +366,16 @@ def create_send_gmail_email_tool(
                 logger.warning(f"KB sync after send failed: {kb_err}")
                 kb_message_suffix = " This email will be added to your knowledge base in the next scheduled sync."
 
-            return {
-                "status": "success",
-                "message_id": sent.get("id"),
-                "thread_id": sent.get("threadId"),
-                "message": f"Successfully sent email to '{final_to}' with subject '{final_subject}'.{kb_message_suffix}",
-            }
+            return _emit(
+                {
+                    "status": "success",
+                    "message_id": sent.get("id"),
+                    "thread_id": sent.get("threadId"),
+                    "message": f"Successfully sent email to '{final_to}' with subject '{final_subject}'.{kb_message_suffix}",
+                },
+                success=True,
+                external_id=sent.get("id"),
+            )
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt
@@ -324,9 +384,11 @@ def create_send_gmail_email_tool(
                 raise
 
             logger.error(f"Error sending Gmail email: {e}", exc_info=True)
-            return {
-                "status": "error",
-                "message": "Something went wrong while sending the email. Please try again.",
-            }
+            msg = "Something went wrong while sending the email. Please try again."
+            return _emit(
+                {"status": "error", "message": msg},
+                success=False,
+                error=str(e),
+            )
 
     return send_gmail_email

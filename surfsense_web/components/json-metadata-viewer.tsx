@@ -1,6 +1,6 @@
 import { FileJson } from "lucide-react";
 import React from "react";
-import { defaultStyles, JsonView } from "react-json-view-lite";
+import { JsonView } from "@/components/json-view";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -10,7 +10,6 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import "react-json-view-lite/dist/index.css";
 
 interface JsonMetadataViewerProps {
 	title: string;
@@ -56,13 +55,13 @@ export function JsonMetadataViewer({
 							{title} - Metadata
 						</DialogTitle>
 					</DialogHeader>
-					<div className="mt-2 sm:mt-4 p-2 sm:p-4 bg-muted/30 rounded-md text-xs sm:text-sm">
+					<div className="mt-2 sm:mt-4 p-2 sm:p-4 bg-muted/30 rounded-md text-xs sm:text-sm overflow-auto">
 						{loading ? (
 							<div className="flex items-center justify-center py-12">
 								<Spinner size="lg" className="text-muted-foreground" />
 							</div>
 						) : (
-							<JsonView data={jsonData} style={defaultStyles} />
+							<JsonView src={jsonData} collapsed={2} />
 						)}
 					</div>
 				</DialogContent>
@@ -87,8 +86,8 @@ export function JsonMetadataViewer({
 						{title} - Metadata
 					</DialogTitle>
 				</DialogHeader>
-				<div className="mt-2 sm:mt-4 p-2 sm:p-4 bg-muted/30 rounded-md text-xs sm:text-sm">
-					<JsonView data={jsonData} style={defaultStyles} />
+				<div className="mt-2 sm:mt-4 p-2 sm:p-4 bg-muted/30 rounded-md text-xs sm:text-sm overflow-auto">
+					<JsonView src={jsonData} collapsed={2} />
 				</div>
 			</DialogContent>
 		</Dialog>

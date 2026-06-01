@@ -1,5 +1,6 @@
 import {
 	IconBinaryTree,
+	IconBolt,
 	IconMessage,
 	IconMicrophone,
 	IconSearch,
@@ -709,6 +710,236 @@ const AiSortIllustration = () => (
 	</div>
 );
 
+const AutomationIllustration = () => (
+	<div className="relative flex w-full h-full min-h-[6rem] items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-indigo-50 via-violet-50 to-fuchsia-50 dark:from-indigo-950/20 dark:via-violet-950/20 dark:to-fuchsia-950/20 p-4">
+		<svg viewBox="0 0 800 200" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+			<title>
+				AI automation flow illustration showing a trigger starting an AI agent that acts across
+				connectors
+			</title>
+
+			{/* Animated flow connectors */}
+			<g
+				className="stroke-violet-500 dark:stroke-violet-400"
+				strokeWidth="2.5"
+				fill="none"
+				opacity="0.7"
+			>
+				<path d="M 215 100 L 320 100" strokeDasharray="6,6">
+					<animate
+						attributeName="stroke-dashoffset"
+						from="12"
+						to="0"
+						dur="1s"
+						repeatCount="indefinite"
+					/>
+				</path>
+				<path d="M 480 100 L 585 100" strokeDasharray="6,6">
+					<animate
+						attributeName="stroke-dashoffset"
+						from="12"
+						to="0"
+						dur="1s"
+						repeatCount="indefinite"
+					/>
+				</path>
+			</g>
+			<g className="fill-violet-500 dark:fill-violet-400" opacity="0.7">
+				<polygon points="320,100 312,95 312,105" />
+				<polygon points="585,100 577,95 577,105" />
+			</g>
+
+			{/* Trigger node */}
+			<g>
+				<rect
+					x="40"
+					y="60"
+					width="175"
+					height="80"
+					rx="14"
+					className="fill-white dark:fill-neutral-800 stroke-indigo-300 dark:stroke-indigo-700"
+					strokeWidth="2"
+				/>
+				<text
+					x="127"
+					y="50"
+					fontSize="13"
+					fontWeight="600"
+					className="fill-indigo-600 dark:fill-indigo-300"
+					textAnchor="middle"
+				>
+					Trigger
+				</text>
+				{/* Schedule chip */}
+				<g transform="translate(58, 80)">
+					<rect
+						width="64"
+						height="22"
+						rx="11"
+						className="fill-indigo-100 dark:fill-indigo-900/50"
+					/>
+					<circle
+						cx="14"
+						cy="11"
+						r="6"
+						className="fill-none stroke-indigo-500 dark:stroke-indigo-400"
+						strokeWidth="2"
+					/>
+					<line
+						x1="14"
+						y1="11"
+						x2="14"
+						y2="7"
+						className="stroke-indigo-500 dark:stroke-indigo-400"
+						strokeWidth="2"
+						strokeLinecap="round"
+					/>
+					<line
+						x1="14"
+						y1="11"
+						x2="17"
+						y2="13"
+						className="stroke-indigo-500 dark:stroke-indigo-400"
+						strokeWidth="2"
+						strokeLinecap="round"
+					/>
+					<text
+						x="38"
+						y="15"
+						fontSize="9"
+						fontWeight="500"
+						className="fill-indigo-700 dark:fill-indigo-300"
+						textAnchor="middle"
+					>
+						Cron
+					</text>
+				</g>
+				{/* Event chip */}
+				<g transform="translate(58, 108)">
+					<rect
+						width="64"
+						height="22"
+						rx="11"
+						className="fill-fuchsia-100 dark:fill-fuchsia-900/40"
+					/>
+					<path
+						d="M 13 5 L 9 13 L 14 13 L 11 19 L 18 10 L 13 10 Z"
+						className="fill-fuchsia-500 dark:fill-fuchsia-400"
+					/>
+					<text
+						x="40"
+						y="15"
+						fontSize="9"
+						fontWeight="500"
+						className="fill-fuchsia-700 dark:fill-fuchsia-300"
+						textAnchor="middle"
+					>
+						Event
+					</text>
+				</g>
+			</g>
+
+			{/* AI Agent core */}
+			<g>
+				<rect
+					x="320"
+					y="50"
+					width="160"
+					height="100"
+					rx="16"
+					className="fill-white dark:fill-neutral-800 stroke-violet-400 dark:stroke-violet-500"
+					strokeWidth="2.5"
+				/>
+				<text
+					x="400"
+					y="40"
+					fontSize="13"
+					fontWeight="600"
+					className="fill-violet-600 dark:fill-violet-300"
+					textAnchor="middle"
+				>
+					AI Agent
+				</text>
+				{/* Sparkle */}
+				<g transform="translate(400, 92)">
+					<path
+						d="M 0,-22 L 5,-7 L 20,-5 L 7,5 L 10,20 L 0,12 L -10,20 L -7,5 L -20,-5 L -5,-7 Z"
+						className="fill-violet-500 dark:fill-violet-400"
+						opacity="0.9"
+					>
+						<animateTransform
+							attributeName="transform"
+							type="rotate"
+							from="0"
+							to="360"
+							dur="12s"
+							repeatCount="indefinite"
+						/>
+					</path>
+					<circle cx="0" cy="0" r="4" className="fill-white dark:fill-violet-200">
+						<animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite" />
+					</circle>
+				</g>
+			</g>
+
+			{/* Actions across connectors */}
+			<g>
+				<rect
+					x="585"
+					y="60"
+					width="175"
+					height="80"
+					rx="14"
+					className="fill-white dark:fill-neutral-800 stroke-fuchsia-300 dark:stroke-fuchsia-700"
+					strokeWidth="2"
+				/>
+				<text
+					x="672"
+					y="50"
+					fontSize="13"
+					fontWeight="600"
+					className="fill-fuchsia-600 dark:fill-fuchsia-300"
+					textAnchor="middle"
+				>
+					Act on Connectors
+				</text>
+				<g>
+					<circle cx="618" cy="100" r="13" className="fill-indigo-100 dark:fill-indigo-900/50" />
+					<circle cx="650" cy="100" r="13" className="fill-violet-100 dark:fill-violet-900/50" />
+					<circle cx="682" cy="100" r="13" className="fill-fuchsia-100 dark:fill-fuchsia-900/50" />
+					<circle cx="714" cy="100" r="13" className="fill-pink-100 dark:fill-pink-900/40" />
+					<text
+						x="730"
+						y="104"
+						fontSize="11"
+						fontWeight="600"
+						className="fill-fuchsia-600 dark:fill-fuchsia-300"
+						textAnchor="middle"
+					>
+						25+
+					</text>
+				</g>
+			</g>
+
+			{/* Sparkle accents */}
+			<g className="opacity-60">
+				<circle cx="270" cy="70" r="2" className="fill-violet-400">
+					<animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
+				</circle>
+				<circle cx="530" cy="130" r="2" className="fill-fuchsia-400">
+					<animate
+						attributeName="opacity"
+						values="0;1;0"
+						dur="2.5s"
+						begin="0.6s"
+						repeatCount="indefinite"
+					/>
+				</circle>
+			</g>
+		</svg>
+	</div>
+);
+
 const items = [
 	{
 		title: "Find, Ask, Act",
@@ -748,5 +979,13 @@ const items = [
 		header: <AnnotationIllustration />,
 		className: "md:col-span-1",
 		icon: <IconMessage className="h-4 w-4 text-neutral-500" />,
+	},
+	{
+		title: "Automate Your Workflows",
+		description:
+			"Describe an AI agent in plain English and SurfSense builds it. Run it on a schedule or trigger it when a document lands, acting across all your connectors hands-free.",
+		header: <AutomationIllustration />,
+		className: "md:col-span-3",
+		icon: <IconBolt className="h-4 w-4 text-neutral-500" />,
 	},
 ];

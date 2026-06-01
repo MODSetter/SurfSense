@@ -4,6 +4,14 @@ import { Lock } from "lucide-react";
 import Link from "next/link";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
+import {
+	Empty,
+	EmptyContent,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@/components/ui/empty";
 
 interface GatedTabProps {
 	title: string;
@@ -11,16 +19,20 @@ interface GatedTabProps {
 }
 
 const GatedTab: FC<GatedTabProps> = ({ title, description }) => (
-	<div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
-		<div className="rounded-full bg-muted p-3">
-			<Lock className="size-5 text-muted-foreground" />
-		</div>
-		<h3 className="text-sm font-medium">{title}</h3>
-		<p className="text-xs text-muted-foreground max-w-[200px]">{description}</p>
-		<Button size="sm" asChild>
-			<Link href="/register">Create Free Account</Link>
-		</Button>
-	</div>
+	<Empty>
+		<EmptyHeader>
+			<EmptyMedia variant="icon">
+				<Lock />
+			</EmptyMedia>
+			<EmptyTitle>{title}</EmptyTitle>
+			<EmptyDescription>{description}</EmptyDescription>
+		</EmptyHeader>
+		<EmptyContent>
+			<Button size="sm" asChild>
+				<Link href="/register">Create Free Account</Link>
+			</Button>
+		</EmptyContent>
+	</Empty>
 );
 
 export const ReportsGatedPlaceholder: FC = () => (

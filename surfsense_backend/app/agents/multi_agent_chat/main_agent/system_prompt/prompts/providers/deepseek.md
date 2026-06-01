@@ -13,6 +13,6 @@ Attribution:
 
 Tool calls:
 - Parallelise independent calls.
-- Prefer **search_surfsense_docs** for SurfSense docs/product questions before **web_search** when that fits the ask.
+- For SurfSense docs/product questions, point the user to https://www.surfsense.com/docs.
 - Don’t invent paths, chunk ids, or URLs — only values from tools or the user.
 </provider_hints>

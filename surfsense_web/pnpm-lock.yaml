@@ -29,6 +29,9 @@ importers:
       '@marsidev/react-turnstile':
         specifier: ^1.5.0
         version: 1.5.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@microlink/react-json-view':
+        specifier: ^1.31.20
+        version: 1.31.20(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -326,9 +329,6 @@ importers:
       react-hook-form:
         specifier: ^7.61.1
         version: 7.71.2(react@19.2.4)
-      react-json-view-lite:
-        specifier: ^2.4.1
-        version: 2.5.0(react@19.2.4)
       react-syntax-highlighter:
         specifier: ^15.6.1
         version: 15.6.6(react@19.2.4)
@@ -2011,6 +2011,13 @@ packages:
     resolution: {integrity: sha512-3rrodrGnUpUP8F2d1aRUl8IvjqK3jegkupbOzvOokooSAO5rXk2Lr5jZe7TnPeiVGiXfmnoJ7s9uyUOHlCd8qw==}
     peerDependencies:
       mediabunny: ^1.0.0
+
+  '@microlink/react-json-view@1.31.20':
+    resolution: {integrity: sha512-gNLkGvjFDeAqVGvK3H7lfoDqetn/9lW2ugiYiJhchc7jQU1ZaKsZnt97ANluXWFfd/wifoA9TrVOTsUXwXCJwA==}
+    engines: {node: '>=17'}
+    peerDependencies:
+      react: '>= 15'
+      react-dom: '>= 15'
 
   '@monaco-editor/loader@1.7.0':
     resolution: {integrity: sha512-gIwR1HrJrrx+vfyOhYmCZ0/JcWqG5kbfG7+d3f/C1LXk2EvzAbHSg3MQ5lO2sMlo9izoAZ04shohfKLVT6crVA==}
@@ -4799,6 +4806,9 @@ packages:
   '@types/katex@0.16.8':
     resolution: {integrity: sha512-trgaNyfU+Xh2Tc+ABIb44a5AYUpicB3uwirOioeOkNPPbmgRNtcWyDeeFRzjPZENO9Vq8gvVqfhaaXWLlevVwg==}
 
+  '@types/lodash@4.17.24':
+    resolution: {integrity: sha512-gIW7lQLZbue7lRSWEFql49QJJWThrTFFeIMJdp3eH4tKoxm1OvEPg02rm4wCCSHS0cL3/Fizimb35b7k8atwsQ==}
+
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
 
@@ -5397,6 +5407,13 @@ packages:
 
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
+
+  color-string@1.9.1:
+    resolution: {integrity: sha512-shrVawQFojnZv6xM40anx4CkoDP+fZsw/ZerEMsW/pyzsRbElpsL/DBVW7q3ExxwusdNXI3lXpuhEZkzs8p5Eg==}
+
+  color@4.2.3:
+    resolution: {integrity: sha512-1rXeuUUiGGrykh+CeBdu5Ie7OJwinCgQY0bc7GCRxy5xVHy+moaqkpL/jqQq0MtQOeYcrqEz4abc5f0KtU7W4A==}
+    engines: {node: '>=12.5.0'}
 
   comma-separated-tokens@1.0.8:
     resolution: {integrity: sha512-GHuDRO12Sypu2cV70d1dkA2EUmXHgntrzbpvOB+Qy+49ypNfGgFQIC2fhhXbnyrJRynDCAARsT7Ou0M6hirpfw==}
@@ -6546,6 +6563,9 @@ packages:
   is-arrayish@0.2.1:
     resolution: {integrity: sha512-zz06S8t0ozoDXMG+ube26zeCTNXcKIPJZJi8hBrF4idCLms4CG9QtK7qBl1boi5ODzFpjswb5JPmHCbMpjaYzg==}
 
+  is-arrayish@0.3.4:
+    resolution: {integrity: sha512-m6UrgzFVUYawGBh1dUsWR5M2Clqic9RVXC/9f8ceNlv2IcO9j9J/z8UoCLPqtsPBFNzEpfR3xftohbfqDx8EQA==}
+
   is-async-function@2.1.1:
     resolution: {integrity: sha512-9dgM/cZBnNvjzaMYHVoxxfPj2QXt22Ev7SuuPrs+xav0ukGB0S6d4ydZdEiM48kLx5kDV+QBPrpVnFyefL8kkQ==}
     engines: {node: '>= 0.4'}
@@ -6958,6 +6978,9 @@ packages:
   locate-path@6.0.0:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
     engines: {node: '>=10'}
+
+  lodash-es@4.18.1:
+    resolution: {integrity: sha512-J8xewKD/Gk22OZbhpOVSwcs60zhd95ESDwezOFuA3/099925PdHJ7OFHNTGtajL3AlZkykD32HykiMo+BIBI8A==}
 
   lodash.camelcase@4.3.0:
     resolution: {integrity: sha512-TwuEnCnxbc3rAvhf/LbG7tJUDzhqXyFnv3dtzLOPgCG/hODL7WFnsbwktkD7yUV0RrreP/l1PALq/YSg6VvjlA==}
@@ -7757,6 +7780,9 @@ packages:
     resolution: {integrity: sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw==}
     hasBin: true
 
+  react-base16-styling@0.10.0:
+    resolution: {integrity: sha512-H1k2eFB6M45OaiRru3PBXkuCcn2qNmx+gzLb4a9IPMR7tMH8oBRXU5jGbPDYG1Hz+82d88ED0vjR8BmqU3pQdg==}
+
   react-compiler-runtime@1.0.0:
     resolution: {integrity: sha512-rRfjYv66HlG8896yPUDONgKzG5BxZD1nV9U6rkm+7VCuvQc903C4MjcoZR4zPw53IKSOX9wMQVpA1IAbRtzQ7w==}
     peerDependencies:
@@ -7813,11 +7839,8 @@ packages:
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
 
-  react-json-view-lite@2.5.0:
-    resolution: {integrity: sha512-tk7o7QG9oYyELWHL8xiMQ8x4WzjCzbWNyig3uexmkLb54r8jO0yH3WCWx8UZS0c49eSA4QUmG5caiRJ8fAn58g==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0
+  react-lifecycles-compat@3.0.4:
+    resolution: {integrity: sha512-fBASbA6LnOU9dOU2eW7aQ8xmYBSXUIWr+UmF9b1efZBazGNO+rcXT/icdKnYm2pTwcRylVUYwW7H1PHfLekVzA==}
 
   react-markdown@10.1.0:
     resolution: {integrity: sha512-qKxVopLT/TyA6BX3Ue5NwabOsAzm0Q7kAPwq6L+wWDwisYs7R8vZ0nRXqq6rkueboxpkjvLGU9fWifiX/ZZFxQ==}
@@ -8204,6 +8227,9 @@ packages:
 
   simple-get@4.0.1:
     resolution: {integrity: sha512-brv7p5WgH0jmQJr1ZDDfKDOSeWWg+OVypG99A/5vYGPqJ6pxiaHLy8nxtFjBA7oMa01ebA9gfh1uMCFqOuXxvA==}
+
+  simple-swizzle@0.2.4:
+    resolution: {integrity: sha512-nAu1WFPQSMNr2Zn9PGSZK9AGn4t/y97lEm+MXTtUDwfP0ksAIX4nO+6ruD9Jwut4C49SB1Ws+fbXsm/yScWOHw==}
 
   slate-dom@0.119.0:
     resolution: {integrity: sha512-foc8a2NkE+1SldDIYaoqjhVKupt8RSuvHI868rfYOcypD4we5TT7qunjRKJ852EIRh/Ql8sSTepXgXKOUJnt1w==}
@@ -10399,6 +10425,16 @@ snapshots:
   '@mediabunny/mp3-encoder@1.39.2(mediabunny@1.39.2)':
     dependencies:
       mediabunny: 1.39.2
+
+  '@microlink/react-json-view@1.31.20(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      react: 19.2.4
+      react-base16-styling: 0.10.0
+      react-dom: 19.2.4(react@19.2.4)
+      react-lifecycles-compat: 3.0.4
+      react-textarea-autosize: 8.5.9(@types/react@19.2.14)(react@19.2.4)
+    transitivePeerDependencies:
+      - '@types/react'
 
   '@monaco-editor/loader@1.7.0':
     dependencies:
@@ -13367,6 +13403,8 @@ snapshots:
 
   '@types/katex@0.16.8': {}
 
+  '@types/lodash@4.17.24': {}
+
   '@types/mdast@4.0.4':
     dependencies:
       '@types/unist': 3.0.3
@@ -13988,6 +14026,16 @@ snapshots:
       color-name: 1.1.4
 
   color-name@1.1.4: {}
+
+  color-string@1.9.1:
+    dependencies:
+      color-name: 1.1.4
+      simple-swizzle: 0.2.4
+
+  color@4.2.3:
+    dependencies:
+      color-convert: 2.0.1
+      color-string: 1.9.1
 
   comma-separated-tokens@1.0.8: {}
 
@@ -15411,6 +15459,8 @@ snapshots:
 
   is-arrayish@0.2.1: {}
 
+  is-arrayish@0.3.4: {}
+
   is-async-function@2.1.1:
     dependencies:
       async-function: 1.0.0
@@ -15745,6 +15795,8 @@ snapshots:
   locate-path@6.0.0:
     dependencies:
       p-locate: 5.0.0
+
+  lodash-es@4.18.1: {}
 
   lodash.camelcase@4.3.0: {}
 
@@ -16931,6 +16983,13 @@ snapshots:
       minimist: 1.2.8
       strip-json-comments: 2.0.1
 
+  react-base16-styling@0.10.0:
+    dependencies:
+      '@types/lodash': 4.17.24
+      color: 4.2.3
+      csstype: 3.2.3
+      lodash-es: 4.18.1
+
   react-compiler-runtime@1.0.0(react@19.2.4):
     dependencies:
       react: 19.2.4
@@ -16982,9 +17041,7 @@ snapshots:
 
   react-is@16.13.1: {}
 
-  react-json-view-lite@2.5.0(react@19.2.4):
-    dependencies:
-      react: 19.2.4
+  react-lifecycles-compat@3.0.4: {}
 
   react-markdown@10.1.0(@types/react@19.2.14)(react@19.2.4):
     dependencies:
@@ -17545,6 +17602,10 @@ snapshots:
       decompress-response: 6.0.0
       once: 1.4.0
       simple-concat: 1.0.1
+
+  simple-swizzle@0.2.4:
+    dependencies:
+      is-arrayish: 0.3.4
 
   slate-dom@0.119.0(slate@0.120.0):
     dependencies:

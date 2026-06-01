@@ -1,5 +1,4 @@
 import {
-	BookOpen,
 	Brain,
 	Calendar,
 	FileEdit,
@@ -25,6 +24,7 @@ import {
 	SearchCheck,
 	Send,
 	Trash2,
+	Workflow,
 	Wrench,
 } from "lucide-react";
 
@@ -46,7 +46,8 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 	// Web / search
 	scrape_webpage: ScanLine,
 	web_search: Globe,
-	search_surfsense_docs: BookOpen,
+	// Automations
+	create_automation: Workflow,
 	// Memory
 	update_memory: Brain,
 	// Filesystem (built-in deepagent + middleware)
@@ -149,7 +150,8 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 	// Web / search
 	scrape_webpage: "Read webpage",
 	web_search: "Search the web",
-	search_surfsense_docs: "Search knowledge base",
+	// Automations
+	create_automation: "Create automation",
 	// Memory
 	update_memory: "Update memory",
 	// Calendar

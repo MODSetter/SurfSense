@@ -42,14 +42,16 @@ Return **only** one JSON object (no markdown/prose):
   "evidence": {
     "artifact_type": "report" | "podcast" | "video_presentation" | "resume" | "image" | null,
     "artifact_id": string | null,
-    "artifact_location": string | null
+    "artifact_location": string | null,
+    "receipts": Receipt[] | null
   },
   "next_step": string | null,
   "missing_fields": string[] | null,
   "assumptions": string[] | null
 }
-Rules:
-- `status=success` -> `next_step=null`, `missing_fields=null`.
-- `status=partial|blocked|error` -> `next_step` must be non-null.
-- `status=blocked` due to missing required inputs -> `missing_fields` must be non-null.
+Route-specific rules:
+- `evidence.receipts` quotes the Receipt(s) returned by `generate_report` / `generate_podcast` / `generate_video_presentation` / `generate_resume` / `generate_image` this turn, verbatim. The Receipt's `type` enum is one of `report` | `podcast` | `video_presentation` | `resume` | `image`.
+<include snippet="output_contract_base"/>
 </output_contract>
+
+<include snippet="verifiable_handle"/>

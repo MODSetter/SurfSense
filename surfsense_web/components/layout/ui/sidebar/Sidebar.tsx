@@ -140,16 +140,26 @@ export function Sidebar({
 	const t = useTranslations("sidebar");
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
 
-	// Inbox and Documents are rendered explicitly right below New Chat. Pull
-	// them out of the nav items list so they don't also appear in the bottom
-	// NavSection. Documents is only present in navItems on mobile.
+	// Inbox, Automations, and Documents are rendered explicitly right below
+	// New Chat. Pull them out of the nav items list so they don't also appear
+	// in the bottom NavSection. Documents is only present in navItems on
+	// mobile; Automations is identified by URL suffix so the same code path
+	// works across search spaces.
 	const inboxItem = useMemo(() => navItems.find((item) => item.url === "#inbox"), [navItems]);
+	const automationsItem = useMemo(
+		() => navItems.find((item) => item.url.endsWith("/automations")),
+		[navItems]
+	);
 	const documentsItem = useMemo(
 		() => navItems.find((item) => item.url === "#documents"),
 		[navItems]
 	);
 	const footerNavItems = useMemo(
-		() => navItems.filter((item) => item.url !== "#inbox" && item.url !== "#documents"),
+		() =>
+			navItems.filter(
+				(item) =>
+					item.url !== "#inbox" && item.url !== "#documents" && !item.url.endsWith("/automations")
+			),
 		[navItems]
 	);
 
@@ -225,6 +235,16 @@ export function Sidebar({
 								"data-joyride": "inbox-sidebar",
 							} as React.ButtonHTMLAttributes<HTMLButtonElement>
 						}
+					/>
+				)}
+				{automationsItem && (
+					<SidebarButton
+						icon={automationsItem.icon}
+						label={automationsItem.title}
+						onClick={() => onNavItemClick?.(automationsItem)}
+						isCollapsed={isCollapsed}
+						isActive={automationsItem.isActive}
+						tooltipContent={isCollapsed ? automationsItem.title : undefined}
 					/>
 				)}
 				{documentsItem && (

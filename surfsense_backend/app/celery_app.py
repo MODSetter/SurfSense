@@ -189,6 +189,9 @@ celery_app = Celery(
         "app.tasks.celery_tasks.stale_notification_cleanup_task",
         "app.tasks.celery_tasks.stripe_reconciliation_task",
         "app.tasks.celery_tasks.gateway_tasks",
+        "app.automations.tasks.execute_run",
+        "app.automations.triggers.builtin.schedule.selector",
+        "app.automations.triggers.builtin.event.selector",
     ],
 )
 
@@ -249,6 +252,12 @@ celery_app.conf.update(
     },
 )
 
+# Imported late (after celery_app is built) to keep the automations triggers
+# package out of this module's top-level import graph.
+from app.automations.triggers.builtin.schedule.source import (  # noqa: E402
+    BEAT_SCHEDULE as SCHEDULE_BEAT_SCHEDULE,
+)
+
 # Configure Celery Beat schedule
 # This uses a meta-scheduler pattern: instead of creating individual Beat schedules
 # for each connector, we have ONE schedule that checks the database at the configured interval
@@ -301,4 +310,7 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour="3", minute="17"),
         "options": {"expires": 600},
     },
+    # Fire due automation schedule triggers (Beat entry owned by the schedule
+    # trigger; see app.automations.triggers.builtin.schedule.source).
+    **SCHEDULE_BEAT_SCHEDULE,
 }

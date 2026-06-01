@@ -23,12 +23,6 @@ from app.agents.new_chat.subagents.config import (
 
 
 @tool
-def search_surfsense_docs(query: str) -> str:
-    """Search the user's KB."""
-    return ""
-
-
-@tool
 def web_search(query: str) -> str:
     """Search the public web."""
     return ""
@@ -95,7 +89,6 @@ def generate_report(topic: str) -> str:
 
 
 ALL_TOOLS = [
-    search_surfsense_docs,
     web_search,
     scrape_webpage,
     read_file,
@@ -161,7 +154,7 @@ class TestReportWriterSubagent:
         names = {t.name for t in spec["tools"]}  # type: ignore[index]
         assert names == REPORT_WRITER_TOOLS & {t.name for t in ALL_TOOLS}
         assert "generate_report" in names
-        assert "search_surfsense_docs" in names
+        assert "read_file" in names
 
     def test_deny_rules_block_writes_but_allow_generate_report(self) -> None:
         spec = build_report_writer_subagent(tools=ALL_TOOLS)
@@ -272,9 +265,9 @@ class TestFilterToolsWarningSuppression:
             # Allowed set asks for two registry tools (one present, one
             # not) plus a bunch of middleware-provided names.
             _filter_tools(
-                [search_surfsense_docs],
+                [web_search],
                 allowed_names={
-                    "search_surfsense_docs",
+                    "web_search",
                     "scrape_webpage",  # legitimately missing → should warn
                     "read_file",  # mw-provided → suppressed
                     "ls",
@@ -322,7 +315,6 @@ class TestDenyPatternsCoverage:
 
     def test_deny_patterns_do_not_match_safe_read_tools(self) -> None:
         canonical_reads = [
-            "search_surfsense_docs",
             "read_file",
             "ls_tree",
             "grep",

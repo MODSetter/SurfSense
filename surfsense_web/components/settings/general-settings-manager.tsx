@@ -12,9 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { BACKEND_URL } from "@/lib/env-config";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
-import { BACKEND_URL } from "@/lib/env-config";
 
 interface GeneralSettingsManagerProps {
 	searchSpaceId: number;

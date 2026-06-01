@@ -349,6 +349,11 @@ const comparisonRows: {
 		surfSense: true,
 	},
 	{
+		feature: "AI Automations & Agents",
+		notebookLm: false,
+		surfSense: "Scheduled & event-triggered",
+	},
+	{
 		feature: "AI File Sorting",
 		notebookLm: false,
 		surfSense: true,

@@ -62,7 +62,9 @@ class EtlPipelineService:
                     return result
 
                 if category == FileCategory.AUDIO:
-                    content = await transcribe_audio(request.file_path, request.filename)
+                    content = await transcribe_audio(
+                        request.file_path, request.filename
+                    )
                     result = EtlResult(
                         markdown_content=content,
                         etl_service="AUDIO",

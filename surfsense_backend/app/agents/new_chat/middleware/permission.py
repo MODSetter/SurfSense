@@ -61,8 +61,7 @@ from app.agents.new_chat.permissions import (
     aggregate_action,
     evaluate_many,
 )
-from app.observability import metrics as ot_metrics
-from app.observability import otel as ot
+from app.observability import metrics as ot_metrics, otel as ot
 
 logger = logging.getLogger(__name__)
 

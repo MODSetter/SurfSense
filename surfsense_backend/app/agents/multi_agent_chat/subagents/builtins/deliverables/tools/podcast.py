@@ -1,11 +1,27 @@
-"""Factory for a podcast-generation tool that queues background work and returns an ID for polling."""
+"""Factory for a podcast-generation tool.
 
+Dispatches the heavy generation to Celery and then polls the podcast row
+until it reaches a terminal status (READY/FAILED). The tool always
+returns a real terminal ``Receipt`` — never a pending one. The wait is
+bounded by the existing per-invocation safety net
+(``SURFSENSE_SUBAGENT_INVOKE_TIMEOUT_SECONDS`` in multi-agent mode,
+HTTP / process lifetime in single-agent mode).
+"""
+
+import logging
 from typing import Any
 
+from langchain.tools import ToolRuntime
 from langchain_core.tools import tool
+from langgraph.types import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.shared.deliverable_wait import wait_for_deliverable
+from app.agents.shared.receipt import make_receipt
+from app.agents.shared.receipt_command import with_receipt
 from app.db import Podcast, PodcastStatus, shielded_async_session
+
+logger = logging.getLogger(__name__)
 
 
 def create_generate_podcast_tool(
@@ -19,9 +35,10 @@ def create_generate_podcast_tool(
     @tool
     async def generate_podcast(
         source_content: str,
+        runtime: ToolRuntime,
         podcast_title: str = "SurfSense Podcast",
         user_prompt: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> Command:
         """
         Generate a podcast from the provided content.
 
@@ -70,23 +87,99 @@ def create_generate_podcast_tool(
                 user_prompt=user_prompt,
             )
 
-            print(f"[generate_podcast] Created podcast {podcast_id}, task: {task.id}")
+            logger.info(
+                "[generate_podcast] Created podcast %s, task: %s",
+                podcast_id,
+                task.id,
+            )
 
-            return {
-                "status": PodcastStatus.PENDING.value,
+            # Wait until the Celery worker flips the row to a terminal
+            # state. The wait is bounded only by the subagent invoke
+            # timeout (multi-agent) or HTTP lifetime (single-agent) —
+            # see app.agents.shared.deliverable_wait for details.
+            terminal_status, columns, elapsed = await wait_for_deliverable(
+                model=Podcast,
+                row_id=podcast_id,
+                columns=[Podcast.status, Podcast.file_location],
+                terminal_statuses={PodcastStatus.READY, PodcastStatus.FAILED},
+            )
+
+            if terminal_status == PodcastStatus.READY:
+                file_location = columns[1] if columns else None
+                logger.info(
+                    "[generate_podcast] Podcast %s READY in %.2fs (file=%s)",
+                    podcast_id,
+                    elapsed,
+                    file_location,
+                )
+                payload: dict[str, Any] = {
+                    "status": PodcastStatus.READY.value,
+                    "podcast_id": podcast_id,
+                    "title": podcast_title,
+                    "file_location": file_location,
+                    "message": ("Podcast generated and saved to your podcast panel."),
+                }
+                return with_receipt(
+                    payload=payload,
+                    receipt=make_receipt(
+                        route="deliverables",
+                        type="podcast",
+                        operation="generate",
+                        status="success",
+                        external_id=str(podcast_id),
+                        preview=podcast_title,
+                    ),
+                    tool_call_id=runtime.tool_call_id,
+                )
+
+            # Only other terminal state is FAILED.
+            logger.warning(
+                "[generate_podcast] Podcast %s FAILED in %.2fs",
+                podcast_id,
+                elapsed,
+            )
+            err = "Background worker reported FAILED status for this podcast."
+            payload = {
+                "status": PodcastStatus.FAILED.value,
                 "podcast_id": podcast_id,
                 "title": podcast_title,
-                "message": "Podcast generation started. This may take a few minutes.",
+                "error": err,
             }
+            return with_receipt(
+                payload=payload,
+                receipt=make_receipt(
+                    route="deliverables",
+                    type="podcast",
+                    operation="generate",
+                    status="failed",
+                    external_id=str(podcast_id),
+                    preview=podcast_title,
+                    error=err,
+                ),
+                tool_call_id=runtime.tool_call_id,
+            )
 
         except Exception as e:
             error_message = str(e)
-            print(f"[generate_podcast] Error: {error_message}")
-            return {
+            logger.exception("[generate_podcast] Error: %s", error_message)
+            payload = {
                 "status": PodcastStatus.FAILED.value,
                 "error": error_message,
                 "title": podcast_title,
                 "podcast_id": None,
             }
+            receipt = make_receipt(
+                route="deliverables",
+                type="podcast",
+                operation="generate",
+                status="failed",
+                preview=podcast_title,
+                error=error_message,
+            )
+            return with_receipt(
+                payload=payload,
+                receipt=receipt,
+                tool_call_id=runtime.tool_call_id,
+            )
 
     return generate_podcast

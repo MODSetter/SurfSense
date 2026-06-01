@@ -70,8 +70,10 @@ export function AnnouncementToastProvider() {
 		const outerTimer = setTimeout(() => {
 			const authed = isAuthenticated();
 			const active = getActiveAnnouncements(announcements, authed);
+			// Spotlight announcements are handled by the blocking spotlight dialog,
+			// so skip them here to avoid double-notifying the user.
 			const importantUntoasted = active.filter(
-				(a) => a.isImportant && !isAnnouncementToasted(a.id)
+				(a) => a.isImportant && !a.spotlight && !isAnnouncementToasted(a.id)
 			);
 
 			for (let i = 0; i < importantUntoasted.length; i++) {

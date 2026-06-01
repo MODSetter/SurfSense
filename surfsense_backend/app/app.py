@@ -55,7 +55,7 @@ from app.rate_limiter import get_real_client_ip, limiter
 from app.routes import router as crud_router
 from app.routes.auth_routes import router as auth_router
 from app.schemas import UserCreate, UserRead, UserUpdate
-from app.tasks.surfsense_docs_indexer import seed_surfsense_docs
+from app.session_events import register_session_hooks
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
 from app.utils.perf import log_system_snapshot
 
@@ -588,13 +588,6 @@ async def lifespan(app: FastAPI):
     initialize_llm_router()
     initialize_image_gen_router()
     initialize_vision_llm_router()
-    try:
-        await asyncio.wait_for(seed_surfsense_docs(), timeout=120)
-    except TimeoutError:
-        logging.getLogger(__name__).warning(
-            "Surfsense docs seeding timed out after 120s — skipping. "
-            "Docs will be indexed on the next restart."
-        )
 
     # Phase 1.7 — JIT warmup. Bounded so a stuck warmup never delays
     # worker readiness. ``shield`` so Uvicorn cancelling startup
@@ -608,6 +601,7 @@ async def lifespan(app: FastAPI):
             "first real request will pay the full compile cost."
         )
 
+    register_session_hooks()
     log_system_snapshot("startup_complete")
     await start_gateway_inbox_worker()
     await start_byo_long_poll_supervisors()
