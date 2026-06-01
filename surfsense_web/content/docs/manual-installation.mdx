@@ -39,6 +39,15 @@ Complete all the [setup steps](/docs), including:
 
 The backend is the core of SurfSense. Follow these steps to set it up:
 
+### Optional: Messaging Channels
+
+SurfSense can expose the same backend agent through Telegram, WhatsApp, Slack,
+and Discord. For manual installs, configure the relevant channel variables in
+`surfsense_backend/.env`.
+
+See [Messaging Channels](/docs/messaging-channels) for the channel-specific
+setup guides.
+
 ### 1. Environment Configuration
 
 First, create and configure your environment variables by copying the example file:
@@ -350,7 +359,7 @@ redis-cli ping
 
 ### 6. Start Celery Worker
 
-In a new terminal window, start the Celery worker to handle background tasks:
+In a new terminal window, start the Celery worker to handle background tasks. For external chat surfaces, Celery only runs maintenance tasks; agent turns run inside the FastAPI process.
 
 **If using uv:**
 
@@ -358,9 +367,9 @@ In a new terminal window, start the Celery worker to handle background tasks:
 # Make sure you're in the surfsense_backend directory
 cd surfsense_backend
 
-# Start Celery worker (consume both default and connectors queues)
+# Start Celery worker (consume default, connectors, and external chat maintenance queues)
 DEFAULT_Q="${CELERY_TASK_DEFAULT_QUEUE:-surfsense}"
-uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors"
+uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors,${DEFAULT_Q}.gateway"
 ```
 
 **If using pip/venv:**
@@ -374,9 +383,9 @@ source .venv/bin/activate  # Linux/macOS
 # OR
 .venv\Scripts\activate     # Windows
 
-# Start Celery worker (consume both default and connectors queues)
+# Start Celery worker (consume default, connectors, and external chat maintenance queues)
 DEFAULT_Q="${CELERY_TASK_DEFAULT_QUEUE:-surfsense}"
-celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors"
+celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors,${DEFAULT_Q}.gateway"
 ```
 
 **Optional: Start Flower for monitoring Celery tasks:**
@@ -457,7 +466,7 @@ If everything is set up correctly, you should see output indicating the server i
 
 ## Zero-Cache Setup
 
-**zero-cache** is the Rocicorp Zero server that sits between PostgreSQL and the browser. It streams real-time updates (notifications, document indexing status, chat comments, collaboration indicators) to all connected clients via WebSocket. The frontend connects to it on startup — without zero-cache running, you will not see live updates and many parts of the UI will sit on stale data.
+**zero-cache** is the Rocicorp Zero server that sits between PostgreSQL and the browser. It streams real-time updates (notifications, document indexing status, chat comments, collaboration indicators) to all connected clients via WebSocket. The frontend connects to it on startup. Without zero-cache running, you will not see live updates and many parts of the UI will sit on stale data.
 
 For an overview of how Zero works and the list of synced tables, see the [Real-Time Sync with Zero](/docs/how-to/zero-sync) guide.
 
@@ -539,7 +548,7 @@ cd ../docker
 docker compose -f docker-compose.deps-only.yml up -d
 ```
 
-The deps-only stack exposes zero-cache on port `4848` (default) — keep `NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:4848` in your `surfsense_web/.env`.
+The deps-only stack exposes zero-cache on port `4848` by default. Keep `NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:4848` in your `surfsense_web/.env`.
 
 ## Frontend Setup
 
@@ -675,7 +684,7 @@ To verify your installation:
 1. Open your browser and navigate to `http://localhost:3000`
 2. Sign in with your Google account (or local credentials if `AUTH_TYPE=LOCAL`)
 3. Create a search space and try uploading a document
-4. Watch the upload status update live without refreshing — this confirms zero-cache is wired up correctly
+4. Watch the upload status update live without refreshing. This confirms zero-cache is wired up correctly
 5. Test the chat functionality with your uploaded content
 
 ## Troubleshooting

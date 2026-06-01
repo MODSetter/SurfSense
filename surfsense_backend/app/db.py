@@ -14,6 +14,7 @@ from sqlalchemy import (
     TIMESTAMP,
     BigInteger,
     Boolean,
+    CheckConstraint,
     Column,
     Enum as SQLAlchemyEnum,
     ForeignKey,
@@ -587,6 +588,58 @@ class ChatVisibility(StrEnum):
     # PUBLIC = "PUBLIC"  # Reserved for future implementation
 
 
+class ExternalChatPlatform(StrEnum):
+    TELEGRAM = "telegram"
+    WHATSAPP = "whatsapp"
+    SLACK = "slack"
+    DISCORD = "discord"
+    SIGNAL = "signal"
+
+
+class ExternalChatAccountMode(StrEnum):
+    CLOUD_SHARED = "cloud_shared"
+    SELF_HOST_BYO = "self_host_byo"
+
+
+class ExternalChatHealthStatus(StrEnum):
+    UNKNOWN = "unknown"
+    OK = "ok"
+    FAILING = "failing"
+
+
+class ExternalChatBindingState(StrEnum):
+    PENDING = "pending"
+    BOUND = "bound"
+    REVOKED = "revoked"
+    SUSPENDED = "suspended"
+
+
+class ExternalChatPeerKind(StrEnum):
+    DIRECT = "direct"
+    GROUP = "group"
+    CHANNEL = "channel"
+    UNKNOWN = "unknown"
+
+
+class ExternalChatEventKind(StrEnum):
+    MESSAGE = "message"
+    EDITED_MESSAGE = "edited_message"
+    CALLBACK_QUERY = "callback_query"
+    OTHER = "other"
+
+
+class ExternalChatEventStatus(StrEnum):
+    RECEIVED = "received"
+    PROCESSING = "processing"
+    PROCESSED = "processed"
+    IGNORED = "ignored"
+    FAILED = "failed"
+
+
+def _enum_values(enum_cls):
+    return [item.value for item in enum_cls]
+
+
 class NewChatThread(BaseModel, TimestampMixin):
     """
     Thread model for the new chat feature using assistant-ui.
@@ -659,6 +712,16 @@ class NewChatThread(BaseModel, TimestampMixin):
     # agent_llm_id changes). Unindexed: all reads are by primary key.
     pinned_llm_config_id = Column(Integer, nullable=True)
 
+    # Surface metadata for first-party SurfSense and external chat threads.
+    # Zero publishes all chat-message sources; the UI can decide which surfaces to render.
+    source = Column(Text, nullable=False, default="surfsense", server_default="surfsense")
+    external_chat_binding_id = Column(
+        BigInteger,
+        ForeignKey("external_chat_bindings.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")
     created_by = relationship("User", back_populates="new_chat_threads")
@@ -678,6 +741,11 @@ class NewChatThread(BaseModel, TimestampMixin):
         "TokenUsage",
         back_populates="thread",
         cascade="all, delete-orphan",
+    )
+    external_chat_binding = relationship(
+        "ExternalChatBinding",
+        foreign_keys=[external_chat_binding_id],
+        back_populates="threads",
     )
 
 
@@ -732,6 +800,11 @@ class NewChatMessage(BaseModel, TimestampMixin):
     # a message back to the LangGraph checkpoint that produced its turn.
     turn_id = Column(String(64), nullable=True, index=True)
 
+    # Mirrors the parent thread source for publication-level filtering.
+    # This denormalization avoids join-dependent logical replication rules.
+    source = Column(Text, nullable=False, default="surfsense", server_default="surfsense")
+    platform_metadata = Column(JSONB, nullable=True)
+
     # Relationships
     thread = relationship("NewChatThread", back_populates="messages")
     author = relationship("User")
@@ -745,6 +818,300 @@ class NewChatMessage(BaseModel, TimestampMixin):
         back_populates="message",
         uselist=False,
         cascade="all, delete-orphan",
+    )
+
+
+class ExternalChatAccount(Base, TimestampMixin):
+    __tablename__ = "external_chat_accounts"
+    __allow_unmapped__ = True
+
+    id = Column(BigInteger, primary_key=True, index=True)
+    platform = Column(
+        SQLAlchemyEnum(
+            ExternalChatPlatform,
+            name="external_chat_platform",
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+    )
+    mode = Column(
+        SQLAlchemyEnum(
+            ExternalChatAccountMode,
+            name="external_chat_account_mode",
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+    )
+    owner_user_id = Column(
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=True
+    )
+    owner_search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
+    )
+    is_system_account = Column(Boolean, nullable=False, default=False, server_default="false")
+    encrypted_credentials = Column(Text, nullable=True)
+    bot_username = Column(String(255), nullable=True)
+    webhook_secret = Column(String(64), nullable=True)
+    cursor_state = Column(JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb"))
+    health_status = Column(
+        SQLAlchemyEnum(
+            ExternalChatHealthStatus,
+            name="external_chat_health_status",
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+        default=ExternalChatHealthStatus.UNKNOWN,
+        server_default=ExternalChatHealthStatus.UNKNOWN.value,
+    )
+    last_health_check_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    suspended_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    suspended_reason = Column(Text, nullable=True)
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        server_default=text("(now() AT TIME ZONE 'utc')"),
+    )
+
+    owner = relationship("User", foreign_keys=[owner_user_id])
+    owner_search_space = relationship("SearchSpace", foreign_keys=[owner_search_space_id])
+    bindings = relationship(
+        "ExternalChatBinding",
+        back_populates="account",
+        cascade="all, delete-orphan",
+    )
+    inbound_events = relationship(
+        "ExternalChatInboundEvent",
+        back_populates="account",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "(is_system_account = true AND owner_user_id IS NULL) OR "
+            "(is_system_account = false AND owner_user_id IS NOT NULL)",
+            name="ck_external_chat_accounts_owner_shape",
+        ),
+        Index(
+            "uq_external_chat_accounts_owner_platform",
+            "owner_user_id",
+            "platform",
+            unique=True,
+            postgresql_where=text("is_system_account = false"),
+        ),
+        Index(
+            "uq_external_chat_accounts_system_platform",
+            "platform",
+            unique=True,
+            postgresql_where=text(
+                "is_system_account = true "
+                "AND NOT (cursor_state ? 'team_id') "
+                "AND NOT (cursor_state ? 'guild_id')"
+            ),
+        ),
+        Index(
+            "uq_external_chat_accounts_slack_team",
+            "platform",
+            text("(cursor_state ->> 'team_id')"),
+            unique=True,
+            postgresql_where=text(
+                "is_system_account = true AND cursor_state ? 'team_id'"
+            ),
+        ),
+        Index(
+            "uq_external_chat_accounts_discord_guild",
+            "platform",
+            text("(cursor_state ->> 'guild_id')"),
+            unique=True,
+            postgresql_where=text(
+                "is_system_account = true AND cursor_state ? 'guild_id'"
+            ),
+        ),
+        Index(
+            "uq_external_chat_accounts_webhook_secret",
+            "webhook_secret",
+            unique=True,
+            postgresql_where=text("webhook_secret IS NOT NULL"),
+        ),
+    )
+
+
+class ExternalChatBinding(Base, TimestampMixin):
+    __tablename__ = "external_chat_bindings"
+    __allow_unmapped__ = True
+
+    id = Column(BigInteger, primary_key=True, index=True)
+    account_id = Column(
+        BigInteger,
+        ForeignKey("external_chat_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    state = Column(
+        SQLAlchemyEnum(
+            ExternalChatBindingState,
+            name="external_chat_binding_state",
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+        default=ExternalChatBindingState.PENDING,
+        server_default=ExternalChatBindingState.PENDING.value,
+    )
+    pairing_code = Column(Text, nullable=True)
+    pairing_code_expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    external_peer_id = Column(Text, nullable=True)
+    external_peer_kind = Column(
+        SQLAlchemyEnum(
+            ExternalChatPeerKind,
+            name="external_chat_peer_kind",
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+        default=ExternalChatPeerKind.UNKNOWN,
+        server_default=ExternalChatPeerKind.UNKNOWN.value,
+    )
+    external_thread_id = Column(Text, nullable=True)
+    external_display_name = Column(Text, nullable=True)
+    external_username = Column(Text, nullable=True)
+    external_metadata = Column(JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb"))
+    new_chat_thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    suspended_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    suspended_reason = Column(Text, nullable=True)
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        server_default=text("(now() AT TIME ZONE 'utc')"),
+    )
+
+    account = relationship("ExternalChatAccount", back_populates="bindings")
+    user = relationship("User", foreign_keys=[user_id])
+    search_space = relationship("SearchSpace", foreign_keys=[search_space_id])
+    new_chat_thread = relationship("NewChatThread", foreign_keys=[new_chat_thread_id])
+    threads = relationship(
+        "NewChatThread",
+        back_populates="external_chat_binding",
+        foreign_keys="NewChatThread.external_chat_binding_id",
+    )
+    inbound_events = relationship(
+        "ExternalChatInboundEvent",
+        back_populates="binding",
+        foreign_keys="ExternalChatInboundEvent.external_chat_binding_id",
+    )
+
+    __table_args__ = (
+        Index(
+            "uq_external_chat_bindings_account_peer_active",
+            "account_id",
+            "external_peer_id",
+            unique=True,
+            postgresql_where=text(
+                "state IN ('bound', 'suspended') AND external_peer_id IS NOT NULL"
+            ),
+        ),
+        Index(
+            "uq_external_chat_bindings_pairing_code_pending",
+            "pairing_code",
+            unique=True,
+            postgresql_where=text("state = 'pending'"),
+        ),
+        Index("ix_external_chat_bindings_user_state", "user_id", "state"),
+        Index("ix_external_chat_bindings_search_space_state", "search_space_id", "state"),
+    )
+
+
+class ExternalChatInboundEvent(Base, TimestampMixin):
+    __tablename__ = "external_chat_inbound_events"
+    __allow_unmapped__ = True
+
+    id = Column(BigInteger, primary_key=True, index=True)
+    account_id = Column(
+        BigInteger,
+        ForeignKey("external_chat_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    external_chat_binding_id = Column(
+        BigInteger,
+        ForeignKey("external_chat_bindings.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    platform = Column(
+        SQLAlchemyEnum(
+            ExternalChatPlatform,
+            name="external_chat_platform",
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+    )
+    event_dedupe_key = Column(Text, nullable=False)
+    external_event_id = Column(Text, nullable=True)
+    external_message_id = Column(Text, nullable=True)
+    event_kind = Column(
+        SQLAlchemyEnum(
+            ExternalChatEventKind,
+            name="external_chat_event_kind",
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+    )
+    raw_payload = Column(JSONB, nullable=True)
+    request_id = Column(String(64), nullable=True)
+    status = Column(
+        SQLAlchemyEnum(
+            ExternalChatEventStatus,
+            name="external_chat_event_status",
+            values_callable=_enum_values,
+        ),
+        nullable=False,
+        default=ExternalChatEventStatus.RECEIVED,
+        server_default=ExternalChatEventStatus.RECEIVED.value,
+    )
+    attempt_count = Column(Integer, nullable=False, default=0, server_default="0")
+    last_error = Column(Text, nullable=True)
+    received_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        server_default=text("(now() AT TIME ZONE 'utc')"),
+    )
+    processed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    account = relationship("ExternalChatAccount", back_populates="inbound_events")
+    binding = relationship("ExternalChatBinding", back_populates="inbound_events")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "account_id",
+            "event_dedupe_key",
+            name="uq_external_chat_inbound_account_dedupe_key",
+        ),
+        Index("ix_external_chat_inbound_status_received_at", "status", "received_at"),
+        Index(
+            "ix_external_chat_inbound_binding_received_at",
+            "external_chat_binding_id",
+            "received_at",
+        ),
+        Index(
+            "ix_external_chat_inbound_request_id",
+            "request_id",
+            postgresql_where=text("request_id IS NOT NULL"),
+        ),
     )
 
 

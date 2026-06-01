@@ -8,6 +8,8 @@ export const newChatMessageTable = table("new_chat_messages")
 		threadId: number().from("thread_id"),
 		authorId: string().optional().from("author_id"),
 		createdAt: number().from("created_at"),
+		source: string(),
+		platformMetadata: json().optional().from("platform_metadata"),
 		// Per-turn correlation id sourced from ``configurable.turn_id``
 		// at streaming time. Required by the inline Revert button's
 		// (chat_turn_id, tool_name, position) fallback in tool-fallback.tsx

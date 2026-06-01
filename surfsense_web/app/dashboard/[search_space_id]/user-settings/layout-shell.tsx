@@ -5,6 +5,7 @@ import {
 	Keyboard,
 	KeyRound,
 	Library,
+	MessageCircle,
 	Monitor,
 	ReceiptText,
 	ShieldCheck,
@@ -29,7 +30,8 @@ export type UserSettingsTab =
 	| "agent-status"
 	| "purchases"
 	| "desktop"
-	| "hotkeys";
+	| "hotkeys"
+	| "messaging-channels";
 
 const DEFAULT_TAB: UserSettingsTab = "profile";
 
@@ -82,6 +84,11 @@ export function UserSettingsLayoutShell({ searchSpaceId, children }: UserSetting
 				value: "agent-status" as const,
 				label: "Agent Status",
 				icon: <Workflow className="h-4 w-4" />,
+			},
+			{
+				value: "messaging-channels" as const,
+				label: "Messaging Channels",
+				icon: <MessageCircle className="h-4 w-4" />,
 			},
 			{
 				value: "purchases" as const,

@@ -124,6 +124,19 @@ Uncomment the connectors you want to use. Redirect URIs follow the pattern `http
 | Microsoft (Teams & OneDrive) | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `TEAMS_REDIRECT_URI`, `ONEDRIVE_REDIRECT_URI` |
 | Dropbox | `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET`, `DROPBOX_REDIRECT_URI` |
 
+### Messaging Channels
+
+Configure these in the same `docker/.env` file when you want users to chat with
+SurfSense from external apps. See [Messaging Channels](/docs/messaging-channels)
+for full setup.
+
+| Channel | Variables |
+|---------|-----------|
+| Telegram | `TELEGRAM_SHARED_BOT_TOKEN`, `TELEGRAM_SHARED_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`, `GATEWAY_BASE_URL`, `GATEWAY_TELEGRAM_INTAKE_MODE` |
+| WhatsApp | `GATEWAY_WHATSAPP_INTAKE_MODE`, `WHATSAPP_SHARED_BUSINESS_TOKEN`, `WHATSAPP_SHARED_PHONE_NUMBER_ID`, `WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER`, `WHATSAPP_SHARED_WABA_ID`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_WEBHOOK_APP_SECRET` |
+| Slack | `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `GATEWAY_SLACK_ENABLED`, `GATEWAY_SLACK_SIGNING_SECRET`, `GATEWAY_SLACK_REDIRECT_URI` |
+| Discord | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_BOT_TOKEN`, `GATEWAY_DISCORD_ENABLED`, `GATEWAY_DISCORD_REDIRECT_URI` |
+
 ### Observability (optional)
 
 | Variable | Description |
@@ -187,9 +200,9 @@ Postgres. Before this design, a silent migration failure would leave
 
 The backend exposes two endpoints:
 
-- `GET /health` — lightweight liveness probe (always returns 200 if the
+- `GET /health`: lightweight liveness probe (always returns 200 if the
   process is up).
-- `GET /ready` — readiness probe that confirms `zero_publication` exists.
+- `GET /ready`: readiness probe that confirms `zero_publication` exists.
   Returns 503 if not. The compose `backend.healthcheck` uses `/ready` so the
   container only reports `healthy` once the schema is actually usable by
   zero-cache.
@@ -247,7 +260,7 @@ docker compose exec db psql -U surfsense -d surfsense \
 ```
 
 The default migration timeout is 900 seconds. Slow disks (Windows / WSL2)
-may need more — set `MIGRATION_TIMEOUT` in `.env` to increase it.
+may need more. Set `MIGRATION_TIMEOUT` in `.env` to increase it.
 
 ### Zero-cache stuck on `Unknown or invalid publications`
 
@@ -258,7 +271,7 @@ Error: Unknown or invalid publications. Specified: [zero_publication]. Found: []
 ```
 
 This means `zero-cache` started before `zero_publication` was created. With
-the current compose files this should be impossible — the `migrations`
+the current compose files this should be impossible. The `migrations`
 service blocks `zero-cache` from starting. If you see it, your stack
 predates the fix or you brought up `zero-cache` manually with `docker
 compose up zero-cache` before the migrations service ran.

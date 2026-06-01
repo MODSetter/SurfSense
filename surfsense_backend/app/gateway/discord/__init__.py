@@ -1,0 +1,1 @@
+"""Discord gateway platform integration."""

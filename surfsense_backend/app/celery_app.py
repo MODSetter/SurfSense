@@ -188,6 +188,7 @@ celery_app = Celery(
         "app.tasks.celery_tasks.document_reindex_tasks",
         "app.tasks.celery_tasks.stale_notification_cleanup_task",
         "app.tasks.celery_tasks.stripe_reconciliation_task",
+        "app.tasks.celery_tasks.gateway_tasks",
         "app.automations.tasks.execute_run",
         "app.automations.triggers.builtin.schedule.selector",
         "app.automations.triggers.builtin.event.selector",
@@ -245,6 +246,9 @@ celery_app.conf.update(
         "index_obsidian_attachment": {"queue": CONNECTORS_QUEUE},
         # Everything else (document processing, podcasts, reindexing,
         # schedule checker, cleanup) stays on the default fast queue.
+        "gateway.reconcile_inbox": {"queue": f"{CELERY_TASK_DEFAULT_QUEUE}.gateway"},
+        "gateway.health_check": {"queue": f"{CELERY_TASK_DEFAULT_QUEUE}.gateway"},
+        "gateway.retention_sweep": {"queue": f"{CELERY_TASK_DEFAULT_QUEUE}.gateway"},
     },
 )
 
@@ -290,6 +294,21 @@ celery_app.conf.beat_schedule = {
         "options": {
             "expires": 60,
         },
+    },
+    "gateway-reconcile-inbox": {
+        "task": "gateway.reconcile_inbox",
+        "schedule": crontab(minute="*"),
+        "options": {"expires": 60},
+    },
+    "gateway-health-check": {
+        "task": "gateway.health_check",
+        "schedule": crontab(minute="*/5"),
+        "options": {"expires": 120},
+    },
+    "gateway-retention-sweep": {
+        "task": "gateway.retention_sweep",
+        "schedule": crontab(hour="3", minute="17"),
+        "options": {"expires": 600},
     },
     # Fire due automation schedule triggers (Beat entry owned by the schedule
     # trigger; see app.automations.triggers.builtin.schedule.source).

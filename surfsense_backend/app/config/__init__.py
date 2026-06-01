@@ -541,6 +541,45 @@ class Config:
     # Backend URL to override the http to https in the OAuth redirect URI
     BACKEND_URL = os.getenv("BACKEND_URL")
 
+    # Messaging gateway (Telegram v1)
+    TELEGRAM_SHARED_BOT_TOKEN = os.getenv("TELEGRAM_SHARED_BOT_TOKEN")
+    TELEGRAM_SHARED_BOT_USERNAME = os.getenv("TELEGRAM_SHARED_BOT_USERNAME")
+    TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+    GATEWAY_BASE_URL = os.getenv("GATEWAY_BASE_URL", BACKEND_URL)
+    GATEWAY_TELEGRAM_INTAKE_MODE = os.getenv(
+        "GATEWAY_TELEGRAM_INTAKE_MODE", "webhook"
+    ).lower()
+    if GATEWAY_TELEGRAM_INTAKE_MODE not in {"webhook", "longpoll", "disabled"}:
+        raise ValueError(
+            "GATEWAY_TELEGRAM_INTAKE_MODE must be one of: webhook, longpoll, disabled"
+        )
+    WHATSAPP_SHARED_BUSINESS_TOKEN = os.getenv("WHATSAPP_SHARED_BUSINESS_TOKEN")
+    WHATSAPP_SHARED_PHONE_NUMBER_ID = os.getenv("WHATSAPP_SHARED_PHONE_NUMBER_ID")
+    WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER = os.getenv(
+        "WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER"
+    )
+    WHATSAPP_SHARED_WABA_ID = os.getenv("WHATSAPP_SHARED_WABA_ID")
+    WHATSAPP_GRAPH_API_VERSION = os.getenv("WHATSAPP_GRAPH_API_VERSION", "v25.0")
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN")
+    WHATSAPP_WEBHOOK_APP_SECRET = os.getenv("WHATSAPP_WEBHOOK_APP_SECRET")
+    WHATSAPP_BRIDGE_URL = os.getenv("WHATSAPP_BRIDGE_URL", "http://whatsapp-bridge:9929")
+    GATEWAY_WHATSAPP_INTAKE_MODE = os.getenv(
+        "GATEWAY_WHATSAPP_INTAKE_MODE", "disabled"
+    ).lower()
+    if GATEWAY_WHATSAPP_INTAKE_MODE not in {"cloud", "baileys", "disabled"}:
+        raise ValueError(
+            "GATEWAY_WHATSAPP_INTAKE_MODE must be one of: cloud, baileys, disabled"
+        )
+    GATEWAY_SLACK_CLIENT_ID = os.getenv("SLACK_CLIENT_ID")
+    GATEWAY_SLACK_CLIENT_SECRET = os.getenv("SLACK_CLIENT_SECRET")
+    GATEWAY_SLACK_ENABLED = os.getenv("GATEWAY_SLACK_ENABLED", "FALSE").upper() == "TRUE"
+    GATEWAY_SLACK_SIGNING_SECRET = os.getenv("GATEWAY_SLACK_SIGNING_SECRET")
+    GATEWAY_SLACK_REDIRECT_URI = os.getenv("GATEWAY_SLACK_REDIRECT_URI")
+    GATEWAY_DISCORD_ENABLED = (
+        os.getenv("GATEWAY_DISCORD_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    GATEWAY_DISCORD_REDIRECT_URI = os.getenv("GATEWAY_DISCORD_REDIRECT_URI")
+
     # Stripe checkout for pay-as-you-go page packs
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")

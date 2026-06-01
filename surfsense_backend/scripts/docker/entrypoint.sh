@@ -140,11 +140,11 @@ start_worker() {
     if [ -n "${CELERY_QUEUES}" ]; then
         QUEUE_ARGS="--queues=${CELERY_QUEUES}"
     else
-        # When no queues specified, consume from BOTH the default queue and
-        # the connectors queue. Without --queues, Celery only consumes from
-        # the default queue, leaving connector indexing tasks stuck.
+        # When no queues specified, consume from the default, connectors, and
+        # gateway maintenance queues. Without --queues, Celery only consumes
+        # from the default queue, leaving connector/gateway maintenance tasks stuck.
         DEFAULT_Q="${CELERY_TASK_DEFAULT_QUEUE:-surfsense}"
-        QUEUE_ARGS="--queues=${DEFAULT_Q},${DEFAULT_Q}.connectors"
+        QUEUE_ARGS="--queues=${DEFAULT_Q},${DEFAULT_Q}.connectors,${DEFAULT_Q}.gateway"
     fi
 
     echo "Starting Celery Worker (autoscale=${CELERY_MAX_WORKERS},${CELERY_MIN_WORKERS}, max-tasks-per-child=${CELERY_MAX_TASKS_PER_CHILD}, queues=${CELERY_QUEUES:-all})..."

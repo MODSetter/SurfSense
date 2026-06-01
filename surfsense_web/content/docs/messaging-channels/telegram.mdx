@@ -1,0 +1,62 @@
+---
+title: Telegram
+description: Enable SurfSense chat from Telegram
+---
+
+# Telegram Messaging Channel
+
+Telegram lets users chat with the SurfSense agent from a Telegram bot. Users pair
+their Telegram chat from **User Settings > Messaging Channels**.
+
+## Environment Variables
+
+For Docker installs, add these to `docker/.env`. For manual installs, add them to
+`surfsense_backend/.env`.
+
+```bash
+TELEGRAM_SHARED_BOT_TOKEN=123456:bot-token-from-botfather
+TELEGRAM_SHARED_BOT_USERNAME=your_bot_username
+TELEGRAM_WEBHOOK_SECRET=generate-a-long-random-secret
+GATEWAY_BASE_URL=https://api.example.com
+GATEWAY_TELEGRAM_INTAKE_MODE=webhook
+```
+
+`TELEGRAM_WEBHOOK_SECRET` must be 1-256 characters and contain only `A-Z`, `a-z`,
+`0-9`, `_`, or `-`.
+
+## Intake Modes
+
+| Mode | Use when |
+| --- | --- |
+| `webhook` | Production or any deployment with a public HTTPS backend URL |
+| `longpoll` | Single-replica self-host installs that cannot expose a public HTTPS webhook |
+| `disabled` | You do not want Telegram intake enabled |
+
+For SaaS-style or multi-replica deployments, use `webhook`. Long polling should
+only run in a single backend process.
+
+## Webhook URL
+
+Telegram webhooks use this shape:
+
+```text
+${GATEWAY_BASE_URL}/api/v1/gateway/webhooks/telegram/{account_id}
+```
+
+After deploying the backend, register the webhook:
+
+```bash
+cd surfsense_backend
+uv run python scripts/register_webhook.py
+```
+
+If switching a bot from long polling to webhooks, delete any existing Telegram
+webhook or pending `getUpdates` session before relying on the new mode.
+
+## Pairing Flow
+
+1. The user opens **User Settings > Messaging Channels**.
+2. The user starts Telegram pairing.
+3. SurfSense provides a pairing code or bot link.
+4. The user sends the pairing command to the Telegram bot.
+5. SurfSense binds that Telegram chat to the selected search space.
