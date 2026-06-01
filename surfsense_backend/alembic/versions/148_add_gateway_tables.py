@@ -1,7 +1,7 @@
 """add external chat surface tables
 
-Revision ID: 144
-Revises: 143
+Revision ID: 148
+Revises: 147
 Create Date: 2026-05-27
 
 Adds the lean external chat surface schema:
@@ -27,8 +27,8 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision: str = "144"
-down_revision: str | None = "143"
+revision: str = "148"
+down_revision: str | None = "147"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

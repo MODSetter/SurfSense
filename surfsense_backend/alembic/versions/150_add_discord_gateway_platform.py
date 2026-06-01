@@ -1,7 +1,7 @@
 """add discord gateway platform
 
-Revision ID: 146
-Revises: 145
+Revision ID: 150
+Revises: 149
 Create Date: 2026-06-01
 """
 
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "146"
-down_revision: str | None = "145"
+revision: str = "150"
+down_revision: str | None = "149"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
