@@ -570,6 +570,10 @@ class Config:
         raise ValueError(
             "GATEWAY_WHATSAPP_INTAKE_MODE must be one of: cloud, baileys, disabled"
         )
+    GATEWAY_SLACK_CLIENT_ID = os.getenv("SLACK_CLIENT_ID")
+    GATEWAY_SLACK_CLIENT_SECRET = os.getenv("SLACK_CLIENT_SECRET")
+    GATEWAY_SLACK_SIGNING_SECRET = os.getenv("GATEWAY_SLACK_SIGNING_SECRET")
+    GATEWAY_SLACK_REDIRECT_URI = os.getenv("GATEWAY_SLACK_REDIRECT_URI")
 
     # Stripe checkout for pay-as-you-go page packs
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
