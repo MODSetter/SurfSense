@@ -148,7 +148,6 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    **Automações**
 
-   - AI Document Sorting: deixe a IA organizar automaticamente os arquivos nas pastas certas conforme eles chegam. (em breve)
    - Scheduled AI Workflows: execute um agente em uma programação: resumos diários, boletins semanais, relatórios recorrentes. (em breve)
    - Event-Triggered Automations: dispare um agente no momento em que um documento chega a uma pasta e publique o resultado nas suas ferramentas. (em breve)
    - Chat-Built Automations: descreva uma automação em linguagem simples e o SurfSense a cria para você. (em breve)

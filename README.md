@@ -149,7 +149,6 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    **Automations**
 
-   - AI Document Sorting: let AI automatically organize files into the right folders as they arrive. (coming soon)
    - Scheduled AI Workflows: run an agent on a schedule: daily briefs, weekly digests, recurring reports. (coming soon)
    - Event-Triggered Automations: fire an agent the moment a document lands in a folder, then post the result to your tools. (coming soon)
    - Chat-Built Automations: describe an automation in plain English and SurfSense builds it for you. (coming soon)

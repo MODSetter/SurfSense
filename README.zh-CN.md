@@ -148,7 +148,6 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    **自动化**
 
-   - AI Document Sorting：在文件到达时，让 AI 自动将其整理到正确的文件夹中。（即将推出）
    - Scheduled AI Workflows：按计划运行智能体：每日简报、每周摘要、周期性报告。（即将推出）
    - Event-Triggered Automations：在文档进入文件夹的那一刻触发智能体，并将结果发布到你的工具中。（即将推出）
    - Chat-Built Automations：用通俗的语言描述一个自动化，SurfSense 就会为你构建它。（即将推出）

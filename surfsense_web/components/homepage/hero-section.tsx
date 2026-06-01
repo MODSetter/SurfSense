@@ -154,13 +154,6 @@ const CATEGORIES: HeroCategory[] = [
 		label: "Automations",
 		useCases: [
 			{
-				id: "sort",
-				title: "AI Document Sorting",
-				description: "Let AI automatically organize files into the right folders as they arrive.",
-				src: null,
-				comingSoon: true,
-			},
-			{
 				id: "schedule",
 				title: "Scheduled AI Workflows",
 				description: "Run an agent on a schedule: daily briefs, weekly digests, recurring reports.",
