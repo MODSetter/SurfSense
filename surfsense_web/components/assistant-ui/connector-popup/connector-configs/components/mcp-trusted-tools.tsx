@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheck, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import type { FC } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -36,7 +36,6 @@ export const MCPTrustedTools: FC<MCPTrustedToolsProps> = ({ connector }) => {
 	return (
 		<div className="space-y-4">
 			<h3 className="font-medium text-sm sm:text-base flex items-center gap-2">
-				<ShieldCheck className="h-4 w-4" />
 				Trusted Tools
 			</h3>
 
