@@ -231,13 +231,6 @@ const CATEGORIES: HeroCategory[] = [
 				src: null,
 				comingSoon: true,
 			},
-			{
-				id: "obsidian",
-				title: "Obsidian & Knowledge Base Sync",
-				description: "Keep your Obsidian vault and personal knowledge base in sync.",
-				src: null,
-				comingSoon: true,
-			},
 		],
 	},
 ];
