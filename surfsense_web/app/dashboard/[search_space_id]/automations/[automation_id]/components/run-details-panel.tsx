@@ -15,7 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { RunStepResult } from "@/contracts/types/automation.types";
+import type { RunStatus, RunStepResult } from "@/contracts/types/automation.types";
 import { useAutomationRun } from "@/hooks/use-automation-runs";
 import { cn } from "@/lib/utils";
 import { RunStepResultCard } from "./run-step-result-card";
@@ -23,44 +23,46 @@ import { RunStepResultCard } from "./run-step-result-card";
 interface RunDetailsPanelProps {
 	automationId: number;
 	runId: number;
+	/** Live step entries from Zero; rendered while the run is in-flight and
+	 * also kept as the authoritative source once it finishes. */
+	liveSteps: RunStepResult[];
+	/** Live run status from Zero. Used to hide diagnostic sections that
+	 * only make sense after the run reaches a terminal state. */
+	liveStatus: RunStatus;
 }
 
 /**
- * Expanded view of a single run. Fetches lazily — the parent only renders
- * this once the row is opened, so the list view stays cheap.
+ * Expanded view of a single run. Steps render immediately from the live
+ * Zero row so the panel updates as the run progresses; the heavy REST
+ * payload (output, artifacts, resolved inputs, run-level error) is
+ * fetched lazily and merged in when it arrives.
  *
- * We surface the run outcome readably: a run-level error first (when
- * present), then per-step cards that render the agent's markdown
- * ``final_message`` directly, and finally the structural artifacts/inputs.
- * The full ``definition_snapshot`` is omitted because it usually mirrors the
- * live definition — surfacing it would dominate the panel without informing
+ * Surfacing order is outcome-first: a run-level error (when present),
+ * then per-step cards that render the agent's markdown ``final_message``
+ * directly, and finally the structural artifacts/inputs. The full
+ * ``definition_snapshot`` is omitted because it usually mirrors the live
+ * definition — surfacing it would dominate the panel without informing
  * what the user is trying to learn ("did this work? what did it do?").
  */
-export function RunDetailsPanel({ automationId, runId }: RunDetailsPanelProps) {
-	const { data: run, isLoading, error } = useAutomationRun(automationId, runId);
+export function RunDetailsPanel({
+	automationId,
+	runId,
+	liveSteps,
+	liveStatus,
+}: RunDetailsPanelProps) {
+	const isTerminal = liveStatus !== "pending" && liveStatus !== "running";
+	// Defer the REST round-trip until the run can actually carry heavy
+	// fields — output/artifacts/error are only written at terminal mark.
+	const { data: run, isLoading, error } = useAutomationRun(automationId, runId, {
+		enabled: isTerminal,
+	});
 
-	if (isLoading) {
-		return (
-			<div className="flex flex-col gap-3 border-t border-border/60 bg-muted/20 p-4">
-				<Skeleton className="h-3 w-32" />
-				<Skeleton className="h-24 w-full" />
-			</div>
-		);
-	}
-
-	if (error || !run) {
-		return (
-			<div className="border-t border-border/60 bg-muted/20 p-4 text-xs text-muted-foreground">
-				Couldn't load run details{error?.message ? `: ${error.message}` : "."}
-			</div>
-		);
-	}
-
-	const runError = run.error && Object.keys(run.error).length > 0 ? run.error : null;
-	const hasOutput = run.output && Object.keys(run.output).length > 0;
-	const hasInputs = Object.keys(run.inputs ?? {}).length > 0;
-	const steps = run.step_results as RunStepResult[];
-	const hasDiagnostics = run.artifacts.length > 0 || hasInputs;
+	const runError = run?.error && Object.keys(run.error).length > 0 ? run.error : null;
+	const hasOutput = !!run?.output && Object.keys(run.output).length > 0;
+	const hasInputs = !!run && Object.keys(run.inputs ?? {}).length > 0;
+	const hasDiagnostics = !!run && (run.artifacts.length > 0 || hasInputs);
+	const heavyLoading = isTerminal && isLoading && !run;
+	const heavyError = isTerminal && !!error;
 
 	return (
 		<div className="flex flex-col gap-4 border-t border-border/60 bg-muted/20 p-4">
@@ -72,30 +74,40 @@ export function RunDetailsPanel({ automationId, runId }: RunDetailsPanelProps) {
 				</Section>
 			) : null}
 
-			<Section icon={GitCommitHorizontal} label={`Step results · ${steps.length}`}>
-				{steps.length === 0 ? (
-					<p className="text-xs text-muted-foreground">No steps recorded.</p>
+			<Section icon={GitCommitHorizontal} label={`Step results · ${liveSteps.length}`}>
+				{liveSteps.length === 0 ? (
+					<p className="text-xs text-muted-foreground">
+						{isTerminal ? "No steps recorded." : "Waiting for first step…"}
+					</p>
 				) : (
 					<div className="flex flex-col gap-2">
-						{steps.map((step, index) => (
+						{liveSteps.map((step, index) => (
 							<RunStepResultCard key={step.step_id ?? index} step={step} />
 						))}
 					</div>
 				)}
 			</Section>
 
-			{hasDiagnostics ? <Separator className="bg-border/60" /> : null}
-
-			{run.artifacts.length > 0 ? (
-				<Section icon={Package} label={`Artifacts · ${run.artifacts.length}`}>
-					<JsonBlock value={run.artifacts} />
-				</Section>
-			) : null}
-
-			{hasInputs ? (
-				<Section icon={Settings2} label="Resolved inputs">
-					<JsonBlock value={run.inputs} />
-				</Section>
+			{heavyLoading ? (
+				<Skeleton className="h-16 w-full" />
+			) : heavyError ? (
+				<p className="text-xs text-muted-foreground">
+					Couldn't load run details{error?.message ? `: ${error.message}` : "."}
+				</p>
+			) : hasDiagnostics ? (
+				<>
+					<Separator className="bg-border/60" />
+					{run && run.artifacts.length > 0 ? (
+						<Section icon={Package} label={`Artifacts · ${run.artifacts.length}`}>
+							<JsonBlock value={run.artifacts} />
+						</Section>
+					) : null}
+					{hasInputs ? (
+						<Section icon={Settings2} label="Resolved inputs">
+							<JsonBlock value={run?.inputs} />
+						</Section>
+					) : null}
+				</>
 			) : null}
 		</div>
 	);
