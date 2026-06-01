@@ -40,6 +40,19 @@ def slack_account_credentials(account: ExternalChatAccount) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def discord_account_credentials(account: ExternalChatAccount) -> dict:
+    """Decrypt Discord gateway credentials stored as encrypted JSON."""
+    if not account.encrypted_credentials:
+        return {}
+    raw = TokenEncryption(config.SECRET_KEY or "").decrypt_token(account.encrypted_credentials)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        # Backward-compatible fallback if a token string was stored directly.
+        return {"bot_token": raw}
+    return data if isinstance(data, dict) else {}
+
+
 async def get_or_create_system_telegram_account(
     session: AsyncSession,
 ) -> ExternalChatAccount:
@@ -104,6 +117,21 @@ async def get_slack_account_by_team(
             ExternalChatAccount.platform == ExternalChatPlatform.SLACK,
             ExternalChatAccount.is_system_account.is_(True),
             ExternalChatAccount.cursor_state["team_id"].astext == team_id,
+        )
+    )
+    return result.scalars().first()
+
+
+async def get_discord_account_by_guild(
+    session: AsyncSession,
+    *,
+    guild_id: str,
+) -> ExternalChatAccount | None:
+    result = await session.execute(
+        select(ExternalChatAccount).where(
+            ExternalChatAccount.platform == ExternalChatPlatform.DISCORD,
+            ExternalChatAccount.is_system_account.is_(True),
+            ExternalChatAccount.cursor_state["guild_id"].astext == guild_id,
         )
     )
     return result.scalars().first()

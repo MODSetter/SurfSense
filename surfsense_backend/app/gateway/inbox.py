@@ -16,6 +16,10 @@ def slack_event_dedupe_key(event_id: int | str) -> str:
     return f"slack_event:{event_id}"
 
 
+def discord_message_dedupe_key(message_id: int | str) -> str:
+    return f"discord_message:{message_id}"
+
+
 async def persist_inbound_event(
     session: AsyncSession,
     *,
