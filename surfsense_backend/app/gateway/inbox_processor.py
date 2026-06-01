@@ -21,6 +21,7 @@ from app.db import (
     ExternalChatEventStatus,
     ExternalChatInboundEvent,
     ExternalChatPeerKind,
+    ExternalChatPlatform,
     NewChatThread,
     async_session_maker,
 )
@@ -128,6 +129,86 @@ async def _mark_failed(
         await session.commit()
 
 
+async def _resolve_binding_for_event(
+    session: AsyncSession,
+    account: ExternalChatAccount,
+    parsed,
+) -> ExternalChatBinding | None:
+    if account.platform == ExternalChatPlatform.SLACK:
+        return await _resolve_slack_thread_binding(session, account, parsed)
+
+    result = await session.execute(
+        select(ExternalChatBinding).where(
+            ExternalChatBinding.account_id == account.id,
+            ExternalChatBinding.external_peer_id == parsed.external_peer_id,
+            ExternalChatBinding.state.in_(
+                [ExternalChatBindingState.BOUND, ExternalChatBindingState.SUSPENDED]
+            ),
+        )
+    )
+    return result.scalars().first()
+
+
+async def _resolve_slack_thread_binding(
+    session: AsyncSession,
+    account: ExternalChatAccount,
+    parsed,
+) -> ExternalChatBinding | None:
+    user_peer_id = parsed.metadata.get("slack_user_peer_id")
+    thread_peer_id = parsed.metadata.get("slack_thread_peer_id") or parsed.external_peer_id
+    if not user_peer_id or not thread_peer_id:
+        return None
+
+    user_result = await session.execute(
+        select(ExternalChatBinding).where(
+            ExternalChatBinding.account_id == account.id,
+            ExternalChatBinding.external_peer_id == user_peer_id,
+            ExternalChatBinding.state.in_(
+                [ExternalChatBindingState.BOUND, ExternalChatBindingState.SUSPENDED]
+            ),
+        )
+    )
+    user_binding = user_result.scalars().first()
+    if user_binding is None:
+        return None
+
+    thread_result = await session.execute(
+        select(ExternalChatBinding).where(
+            ExternalChatBinding.account_id == account.id,
+            ExternalChatBinding.external_peer_id == thread_peer_id,
+            ExternalChatBinding.state.in_(
+                [ExternalChatBindingState.BOUND, ExternalChatBindingState.SUSPENDED]
+            ),
+        )
+    )
+    thread_binding = thread_result.scalars().first()
+    if thread_binding is not None:
+        return thread_binding
+
+    thread_binding = ExternalChatBinding(
+        account_id=account.id,
+        user_id=user_binding.user_id,
+        search_space_id=user_binding.search_space_id,
+        state=ExternalChatBindingState.BOUND,
+        external_peer_id=thread_peer_id,
+        external_peer_kind=ExternalChatPeerKind.CHANNEL,
+        external_thread_id=parsed.metadata.get("thread_ts"),
+        external_display_name=parsed.metadata.get("channel_id"),
+        external_username=parsed.external_user_id,
+        external_metadata={
+            "kind": "slack_thread",
+            "team_id": parsed.metadata.get("team_id"),
+            "channel_id": parsed.metadata.get("channel_id"),
+            "thread_ts": parsed.metadata.get("thread_ts"),
+            "slack_user_id": parsed.metadata.get("slack_user_id"),
+            "user_binding_id": user_binding.id,
+        },
+    )
+    session.add(thread_binding)
+    await session.flush()
+    return thread_binding
+
+
 async def _dispatch_inbound_event(
     inbox_id: int,
     session_maker: SessionMaker,
@@ -161,18 +242,12 @@ async def _dispatch_inbound_event(
 
         _update_account_cursor(account, parsed.metadata.get("update_id"))
 
-        result = await session.execute(
-            select(ExternalChatBinding).where(
-                ExternalChatBinding.account_id == account.id,
-                ExternalChatBinding.external_peer_id == parsed.external_peer_id,
-                ExternalChatBinding.state.in_(
-                    [ExternalChatBindingState.BOUND, ExternalChatBindingState.SUSPENDED]
-                ),
-            )
-        )
-        binding = result.scalars().first()
+        binding = await _resolve_binding_for_event(session, account, parsed)
 
-        if parsed.external_peer_kind != ExternalChatPeerKind.DIRECT.value:
+        if (
+            account.platform != ExternalChatPlatform.SLACK
+            and parsed.external_peer_kind != ExternalChatPeerKind.DIRECT.value
+        ):
             if hasattr(adapter, "leave_chat"):
                 await adapter.leave_chat(external_peer_id=parsed.external_peer_id)
             event.status = ExternalChatEventStatus.IGNORED

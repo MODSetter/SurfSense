@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import (
     ChatVisibility,
-    ExternalChatBindingState,
     ExternalChatBinding,
+    ExternalChatBindingState,
     NewChatThread,
 )
 
@@ -27,12 +27,17 @@ async def get_or_create_thread_for_binding(
         if thread is not None and not thread.archived:
             return thread
 
+    source = str((binding.external_metadata or {}).get("platform") or "").strip()
+    if not source:
+        kind = str((binding.external_metadata or {}).get("kind") or "")
+        source = "slack" if kind.startswith("slack_") else "telegram"
+
     thread = NewChatThread(
-        title="Telegram chat",
+        title=f"{source.title()} chat",
         search_space_id=binding.search_space_id,
         created_by_id=binding.user_id,
         visibility=ChatVisibility.PRIVATE,
-        source="telegram",
+        source=source,
         external_chat_binding_id=binding.id,
     )
     session.add(thread)

@@ -12,6 +12,10 @@ def telegram_event_dedupe_key(update_id: int | str) -> str:
     return f"update:{update_id}"
 
 
+def slack_event_dedupe_key(event_id: int | str) -> str:
+    return f"slack_event:{event_id}"
+
+
 async def persist_inbound_event(
     session: AsyncSession,
     *,
