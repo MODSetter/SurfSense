@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { Pricing } from "@/components/pricing";
+import { FAQJsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,8 @@ const demoPlans = [
 			"500 pages included to start",
 			"$5 in premium credits for paid AI models and premium AI features",
 			"Includes access to OpenAI text, audio and image models",
+			"AI automations and agents: scheduled and event-triggered workflows",
+			"Desktop app: Quick, General and Screenshot Assist plus local folder sync",
 			"Realtime Collaborative Group Chats with teammates",
 			"Community support on Discord",
 		],
@@ -37,6 +40,7 @@ const demoPlans = [
 			"Everything in Free",
 			"Buy 1,000-page packs or $1 in premium credits at $1 each",
 			"Use premium AI models like GPT-5.4, Claude Sonnet 4.6, Gemini 2.5 Pro & 100+ more via OpenRouter",
+			"Connector write-back to Notion, Slack, Linear & Jira",
 			"Priority support on Discord",
 		],
 		description: "",
@@ -52,6 +56,7 @@ const demoPlans = [
 		billingText: "",
 		features: [
 			"Everything in Pay As You Go",
+			"Custom automation and agent workflows",
 			"On-prem or VPC deployment",
 			"Audit logs and compliance",
 			"SSO, OIDC & SAML",
@@ -159,6 +164,31 @@ const faqData: FAQSection[] = [
 		],
 	},
 	{
+		title: "Automations & Agents",
+		items: [
+			{
+				question: "What can AI automations and agents do?",
+				answer:
+					"AI automations let you run agents on your knowledge base without writing code. You can schedule recurring workflows like daily briefs, weekly status reports, and competitor analysis, or trigger an agent the moment a document lands in a folder. Agents can read across your connected tools, generate summaries and reports, and write results back to Notion, Slack, Linear, and Jira.",
+			},
+			{
+				question: "Do automations and agents cost extra?",
+				answer:
+					"No. There is no separate subscription or add-on fee for automations. Agents use the same page credits and premium credits as the rest of SurfSense. Indexing documents consumes page credits, and premium AI model usage during a workflow consumes premium credits at provider cost. If a workflow only uses free models, it does not touch your premium credits.",
+			},
+			{
+				question: "How do event-triggered automations work?",
+				answer:
+					"Event-triggered automations fire when something happens in your knowledge base, most commonly when a new document enters a folder you are watching. For example, when a PDF lands in your Research folder you can auto-generate a cited summary, or when an invoice is uploaded you can extract the vendor, total, and due date. The agent runs automatically and can post the result to your connected tools.",
+			},
+			{
+				question: "Can I build an automation without code?",
+				answer:
+					"Yes. You can describe the workflow automation you want in plain English in chat, and SurfSense builds the automation for you. For example, ask it to email you a summary of new Notion pages each morning, or post a weekly research digest to Slack, and it sets up the scheduled or event-triggered agent without any code.",
+			},
+		],
+	},
+	{
 		title: "Self-Hosting",
 		items: [
 			{
@@ -250,6 +280,7 @@ function PricingFAQ() {
 
 	return (
 		<div className="mx-auto w-full max-w-4xl overflow-hidden px-4 py-20 md:px-8 md:py-32">
+			<FAQJsonLd questions={faqData.flatMap((section) => section.items)} />
 			<div className="text-center">
 				<h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
 					Frequently Asked Questions
@@ -341,7 +372,7 @@ function PricingBasic() {
 			<Pricing
 				plans={demoPlans}
 				title="SurfSense Pricing"
-				description="Start free with 500 pages & $5 in premium credits. Pay as you go."
+				description="Start free with 500 pages & $5 in premium credits. Run AI automations and agents, and pay as you go."
 			/>
 			<PricingFAQ />
 		</>

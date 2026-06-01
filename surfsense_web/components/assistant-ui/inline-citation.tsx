@@ -51,7 +51,9 @@ export const InlineCitation: FC<InlineCitationProps> = ({ chunkId, isDocsChunk =
 						doc
 					</span>
 				</TooltipTrigger>
-				<TooltipContent>{isDocsChunk ? "Documentation reference" : "Uploaded document"}</TooltipContent>
+				<TooltipContent>
+					{isDocsChunk ? "Documentation reference" : "Uploaded document"}
+				</TooltipContent>
 			</Tooltip>
 		);
 	}

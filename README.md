@@ -42,6 +42,7 @@ NotebookLM is one of the best and most useful AI platforms out there, but once y
 - **25+ External Data Sources** - Add your sources from Google Drive, OneDrive, Dropbox, Notion, and many other external services.
 - **Real-Time Multiplayer Support** - Work easily with your team members in a shared notebook.
 - **AI File Sorting** - Automatically organize your documents into a smart folder hierarchy using AI-powered categorization by source, date, and topic.
+- **AI Automations & Agents** - Run AI agents on a schedule or trigger them the moment a document lands in a folder, then write results back to Notion, Slack, Linear, and Drive. Build no-code automations just by describing them in chat.
 - **Desktop App** - Get AI assistance in any application with Quick Assist, General Assist, Screenshot Assist, and local folder sync.
 
 ...and more to come.
@@ -77,48 +78,118 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 4. Once everything is indexed, Ask Away (Use Cases):
 
-   - Desktop App — General Assist
+   **Desktop App** (native extras on top of everything below, not a separate feature set)
+
+   - General Assist: launch SurfSense instantly from any application with a global shortcut.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
 
-   - Desktop App — Quick Assist
+   - Quick Assist: select text anywhere, then ask AI to explain, rewrite, or act on it.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
 
-   - Desktop App — Screenshot Assist
+   - Screenshot Assist: capture any region of your screen and ask AI about what's in it.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/screenshot_assist.gif" alt="Screenshot Assist" /></p>
 
-   - Desktop App — Watch Local Folder
+   - Watch Local Folder: auto-sync a local folder to your knowledge base. Great for Obsidian vaults.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
 
-   - Video Generation
+   **Deliverable Studio**
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="Video Generation" /></p>
+   - AI Report Generator: generate cited research reports and export to PDF, DOCX, HTML, LaTeX, EPUB, ODT, or plain text.
 
-   - Basic search and citation
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="Search and Citation" /></p>
+   - AI Podcast Generator: turn any document or folder into a two-host AI podcast in under 20 seconds.
 
-   - Document Mention QNA
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="AI Podcast Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Document Mention QNA" /></p>
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Document Mention QNA" /></p>
+   - AI Presentation & Video Maker: create editable slide decks and narrated video overviews from your sources.
 
-   - Report Generations and Exports (PDF, DOCX, HTML, LaTeX, EPUB, ODT, Plain Text)
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="AI Presentation and Video Maker" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Report Generation" /></p>
+   - AI Image Generator: generate high-quality images straight from your chats and documents.
 
-   - Podcast Generations
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="Podcast Generation" /></p>
+   - AI Resume Builder: tailor your existing resume to any job description and beat the ATS.
+     Try prompts like these:
 
-   - Image Generations
+     - "Tailor my resume to this job description so it gets past ATS and lands an interview."
+     - "Optimize my resume for ATS by matching the keywords in this job posting."
+     - "Rewrite my resume bullet points to highlight the skills this role is asking for."
+     - "Compare my resume against this job description and list the gaps to fix."
+     - "Write a matching cover letter from my resume and this job description."
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="Image Generation" /></p>
+   **Search & Chat**
 
-   - And more coming soon.
+   - Chat With Your PDFs & Docs: ask questions across all your files and get answers with inline citations.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Chat With Your PDFs and Docs" /></p>
+
+   - AI Search With Citations: hybrid semantic and keyword search across your entire knowledge base.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="AI Search With Citations" /></p>
+
+   - Collaborative AI Chat: work on AI conversations with your team in real time.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Collaborative AI Chat" /></p>
+
+   - Comments & Mentions: comment and tag teammates on any AI message.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comments and Mentions" /></p>
+
+   **Connectors & Integrations**
+
+   - Connect & Sync Your Tools: sync Notion, Slack, Google Drive, Gmail, GitHub, Linear and 25+ sources into one searchable corpus.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Connect and Sync Your Tools" /></p>
+
+   - Chat With Uploaded Files: drop in PDFs, Office docs, images and audio. Instantly searchable.
+
+   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
+
+   - Connector Write-Back: let the agent post results back to Notion, Slack, Linear and Drive.
+     Try prompts like these:
+
+     - "Post this research summary to my Notion workspace."
+     - "Send these meeting action items to our team Slack channel."
+     - "Create a Jira ticket from this bug report."
+     - "Open a Linear issue from this feature request."
+     - "Save this generated report to Google Drive as a doc."
+
+   - Obsidian & Knowledge Base Sync: keep your Obsidian vault and personal knowledge base in sync.
+
+   **Automations**
+
+   - Scheduled AI Workflows: run an agent on a schedule: daily briefs, weekly digests, recurring reports.
+     Try prompts like these:
+
+     - "Email me a daily brief of new documents in my knowledge base every morning."
+     - "Generate a weekly status report from my Slack and Gmail every Friday."
+     - "Run a monthly competitor analysis report and save it to my workspace."
+     - "Summarize my GitHub and Linear activity into a daily standup update."
+     - "Create a recurring weekly research report on the topics I track."
+
+   - Event-Triggered Automations: fire an agent the moment a document lands in a folder, then post the result to your tools.
+     Try prompts like these:
+
+     - "When a PDF lands in my Research folder, generate a cited AI summary."
+     - "When new meeting notes are added, turn them into meeting minutes with action items."
+     - "When an invoice is uploaded, extract the vendor, total, and due date into a table."
+     - "When a contract enters my Legal folder, flag key terms and renewal dates."
+     - "When a resume is added to Candidates, screen it against the job description."
+
+   - Chat-Built Automations: describe an automation in plain English and SurfSense builds it for you.
+     Try prompts like these:
+
+     - "Build an AI agent that emails me a summary of new Notion pages each morning."
+     - "Create a no-code automation that posts a weekly research digest to Slack."
+     - "Set up an AI note taker that turns new meeting notes into minutes."
+     - "Make a workflow that extracts action items from meeting notes and assigns owners."
+     - "Automate a daily email brief from my Gmail and Google Drive."
 
 
 ### Self Hosted
@@ -201,6 +272,7 @@ All features operate against your chosen search space, so your answers are alway
 | **Presentation Generation** | Better looking slides but not editable | Create editable, slide-based presentations |
 | **Podcast Generation** | Audio Overviews with customizable hosts and languages | Available with multiple TTS providers (NotebookLM is better here, actively improving) |
 | **AI File Sorting** | No | LLM-powered auto-categorization into source, date, category, and subcategory folders |
+| **AI Automations & Agents** | No | Scheduled AI workflows, event triggers on new documents, and chat-built no-code automations with connector write-back to Notion, Slack, Linear & Jira |
 | **Desktop App** | No | Native app with General Assist, Quick Assist, Screenshot Assist, and local folder sync |
 | **Browser Extension** | No | Cross-browser extension to save any webpage, including auth-protected pages |
 

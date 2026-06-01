@@ -41,9 +41,7 @@ async def _select_and_start(event_dict: dict[str, Any]) -> None:
             await _start_one(session, trigger=trigger, event=event)
 
 
-async def _eligible(
-    session: AsyncSession, *, event: Event
-) -> list[AutomationTrigger]:
+async def _eligible(session: AsyncSession, *, event: Event) -> list[AutomationTrigger]:
     """Enabled ``event`` triggers for this event type whose filter matches."""
     stmt = select(AutomationTrigger).where(
         AutomationTrigger.type == TriggerType.EVENT,

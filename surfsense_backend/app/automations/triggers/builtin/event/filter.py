@@ -65,8 +65,7 @@ def _match_condition(condition: Any, actual: Any) -> bool:
         return False
     if isinstance(condition, dict):
         return all(
-            _apply_operator(op, operand, actual)
-            for op, operand in condition.items()
+            _apply_operator(op, operand, actual) for op, operand in condition.items()
         )
     return actual == condition
 
