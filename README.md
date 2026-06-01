@@ -42,6 +42,7 @@ NotebookLM is one of the best and most useful AI platforms out there, but once y
 - **25+ External Data Sources** - Add your sources from Google Drive, OneDrive, Dropbox, Notion, and many other external services.
 - **Real-Time Multiplayer Support** - Work easily with your team members in a shared notebook.
 - **AI File Sorting** - Automatically organize your documents into a smart folder hierarchy using AI-powered categorization by source, date, and topic.
+- **AI Automations & Agents** - Run AI agents on a schedule or trigger them the moment a document lands in a folder, then write results back to Notion, Slack, Linear, and Drive. Build no-code automations just by describing them in chat.
 - **Desktop App** - Get AI assistance in any application with Quick Assist, General Assist, Screenshot Assist, and local folder sync.
 
 ...and more to come.
@@ -270,6 +271,7 @@ All features operate against your chosen search space, so your answers are alway
 | **Presentation Generation** | Better looking slides but not editable | Create editable, slide-based presentations |
 | **Podcast Generation** | Audio Overviews with customizable hosts and languages | Available with multiple TTS providers (NotebookLM is better here, actively improving) |
 | **AI File Sorting** | No | LLM-powered auto-categorization into source, date, category, and subcategory folders |
+| **AI Automations & Agents** | No | Scheduled AI workflows, event triggers on new documents, and chat-built no-code automations with connector write-back to Notion, Slack, Linear & Jira |
 | **Desktop App** | No | Native app with General Assist, Quick Assist, Screenshot Assist, and local folder sync |
 | **Browser Extension** | No | Cross-browser extension to save any webpage, including auth-protected pages |
 

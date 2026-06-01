@@ -41,6 +41,7 @@ NotebookLM es una de las mejores y más útiles plataformas de IA que existen, p
 - **Sin Dependencia de Proveedores** - Configura cualquier modelo LLM, de imagen, TTS y STT.
 - **25+ Fuentes de Datos Externas** - Agrega tus fuentes desde Google Drive, OneDrive, Dropbox, Notion y muchos otros servicios externos.
 - **Soporte Multijugador en Tiempo Real** - Trabaja fácilmente con los miembros de tu equipo en un notebook compartido.
+- **Automatizaciones y Agentes de IA** - Ejecuta agentes de IA según una programación o actívalos en el momento en que un documento llega a una carpeta, y luego escribe los resultados de vuelta en Notion, Slack, Linear y Drive. Crea automatizaciones sin código solo describiéndolas en el chat.
 - **Aplicación de Escritorio** - Obtén asistencia de IA en cualquier aplicación con Quick Assist, General Assist, Screenshot Assist y sincronización de carpetas locales.
 
 ...y más por venir.
@@ -268,6 +269,7 @@ Todas las funciones operan contra tu espacio de búsqueda elegido, por lo que tu
 | **Generación de Videos** | Resúmenes en video cinemáticos vía Veo 3 (solo Ultra) | Disponible (NotebookLM es mejor aquí, mejorando activamente) |
 | **Generación de Presentaciones** | Diapositivas más atractivas pero no editables | Crea presentaciones editables basadas en diapositivas |
 | **Generación de Podcasts** | Resúmenes de audio con hosts e idiomas personalizables | Disponible con múltiples proveedores TTS (NotebookLM es mejor aquí, mejorando activamente) |
+| **Automatizaciones y Agentes de IA** | No | Flujos de trabajo de IA programados, disparadores por eventos en documentos nuevos y automatizaciones sin código creadas por chat con escritura de vuelta a Notion, Slack, Linear y Jira |
 | **Aplicación de Escritorio** | No | Aplicación nativa con General Assist, Quick Assist, Screenshot Assist y sincronización de carpetas locales |
 | **Extensión de Navegador** | No | Extensión multi-navegador para guardar cualquier página web, incluyendo páginas protegidas por autenticación |
 
