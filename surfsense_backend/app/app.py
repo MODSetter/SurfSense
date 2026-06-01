@@ -41,6 +41,10 @@ from app.gateway.byo_long_poll import (
     start_byo_long_poll_supervisors,
     stop_byo_long_poll_supervisors,
 )
+from app.gateway.discord.intake import (
+    start_discord_gateway_supervisor,
+    stop_discord_gateway_supervisor,
+)
 from app.gateway.inbox_worker import (
     start_gateway_inbox_worker,
     stop_gateway_inbox_worker,
@@ -607,10 +611,12 @@ async def lifespan(app: FastAPI):
     log_system_snapshot("startup_complete")
     await start_gateway_inbox_worker()
     await start_byo_long_poll_supervisors()
+    await start_discord_gateway_supervisor()
 
     try:
         yield
     finally:
+        await stop_discord_gateway_supervisor()
         await stop_byo_long_poll_supervisors()
         await stop_gateway_inbox_worker()
         _stop_openrouter_background_refresh()
