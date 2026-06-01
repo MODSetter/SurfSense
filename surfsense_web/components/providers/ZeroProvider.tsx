@@ -7,6 +7,7 @@ import {
 } from "@rocicorp/zero/react";
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
+import { toast } from "sonner";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { getBearerToken, handleUnauthorized, refreshAccessToken } from "@/lib/auth-utils";
 import { queries } from "@/zero/queries";
@@ -18,8 +19,46 @@ function ZeroAuthSync() {
 	const zero = useZero();
 	const connectionState = useConnectionState();
 	const isRefreshingRef = useRef(false);
+	const schemaErrorShownRef = useRef(false);
 
 	useEffect(() => {
+		// Handle SchemaVersionNotSupported: the Zero Cache replica is out of sync
+		// with the Postgres publication (e.g. `user` table not in zero_publication).
+		// This used to cause an infinite reload loop (~60s cycle) because the default
+		// `onUpdateNeeded` handler calls `location.reload()`.
+		if (connectionState.name === "error" && !schemaErrorShownRef.current) {
+			const err = (connectionState as { error?: { message?: string; kind?: string } }).error;
+			const isSchemaError = err && (
+				err.kind === "SchemaVersionNotSupported" ||
+				err.message?.includes("SchemaVersionNotSupported") ||
+				err.message?.includes("not one of the replicated tables")
+			);
+
+			if (isSchemaError) {
+				schemaErrorShownRef.current = true;
+				console.error(
+					"[ZeroProvider] SchemaVersionNotSupported: The Zero Cache replica is out of sync " +
+					"with the Postgres publication. This usually means a newly added table " +
+					"(e.g. `user`) was added to `zero_publication` but Zero Cache wasn't notified " +
+					"to resync.\n" +
+					"Fix: run `docker compose stop zero-cache && docker compose up -d zero-cache` " +
+					"to force a fresh initial sync."
+				);
+				toast.error(
+					"Database schema out of sync. Please run: docker compose restart zero-cache"
+				);
+				// Do NOT trigger a reconnect loop — the schema is fundamentally broken
+				// until the user resyncs Zero Cache.
+				return;
+			}
+		}
+
+		// Reset the flag once we're connected (so we re-show the error if it happens again)
+		if (connectionState.name === "connected") {
+			schemaErrorShownRef.current = false;
+		}
+
+		// Existing auth refresh logic
 		if (connectionState.name !== "needs-auth" || isRefreshingRef.current) return;
 
 		isRefreshingRef.current = true;
