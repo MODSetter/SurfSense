@@ -15,6 +15,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { SearchSpace } from "@/contracts/types/search-space.types";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
@@ -37,6 +38,15 @@ type GatewayConnection = {
 	suspended_reason?: string | null;
 };
 
+type GatewayConfig = {
+	telegram_enabled: boolean;
+	whatsapp_intake_mode: "disabled" | "cloud" | "baileys";
+	slack_enabled: boolean;
+	discord_enabled: boolean;
+};
+
+type GatewayConfigState = GatewayConfig | null;
+
 type Pairing = {
 	binding_id: number;
 	code: string;
@@ -58,15 +68,18 @@ type BaileysHealth = {
 export function MessagingChannelsContent() {
 	const params = useParams<{ search_space_id: string }>();
 	const searchSpaceId = Number(params.search_space_id);
-	const whatsappMode = process.env.NEXT_PUBLIC_GATEWAY_WHATSAPP_INTAKE_MODE ?? "disabled";
-	const slackGatewayEnabled = process.env.NEXT_PUBLIC_GATEWAY_SLACK_ENABLED === "true";
-	const discordGatewayEnabled = process.env.NEXT_PUBLIC_GATEWAY_DISCORD_ENABLED === "true";
+	const [gatewayConfig, setGatewayConfig] = useState<GatewayConfigState>(null);
 	const [connections, setConnections] = useState<GatewayConnection[]>([]);
 	const [searchSpaces, setSearchSpaces] = useState<SearchSpace[]>([]);
 	const [pairing, setPairing] = useState<Pairing | null>(null);
 	const [pairingPlatform, setPairingPlatform] = useState<PairingPlatform | null>(null);
 	const [baileysHealth, setBaileysHealth] = useState<BaileysHealth | null>(null);
 	const [refreshingPlatform, setRefreshingPlatform] = useState<GatewayPlatform | null>(null);
+	const isGatewayConfigLoading = gatewayConfig === null;
+	const telegramGatewayEnabled = gatewayConfig?.telegram_enabled ?? false;
+	const whatsappMode = gatewayConfig?.whatsapp_intake_mode ?? "disabled";
+	const slackGatewayEnabled = gatewayConfig?.slack_enabled ?? false;
+	const discordGatewayEnabled = gatewayConfig?.discord_enabled ?? false;
 
 	const fetchConnections = useCallback(async (platform?: GatewayPlatform) => {
 		const query = platform ? `?platform=${encodeURIComponent(platform)}` : "";
@@ -74,14 +87,21 @@ export function MessagingChannelsContent() {
 		return (await res.json()) as GatewayConnection[];
 	}, []);
 
+	const fetchGatewayConfig = useCallback(async () => {
+		const res = await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/config`);
+		return (await res.json()) as GatewayConfig;
+	}, []);
+
 	const refresh = useCallback(async () => {
-		const [nextConnections, spaces] = await Promise.all([
+		const [nextConnections, spaces, nextGatewayConfig] = await Promise.all([
 			fetchConnections(),
 			searchSpacesApiService.getSearchSpaces(),
+			fetchGatewayConfig(),
 		]);
 		setConnections(nextConnections);
 		setSearchSpaces(spaces);
-	}, [fetchConnections]);
+		setGatewayConfig(nextGatewayConfig);
+	}, [fetchConnections, fetchGatewayConfig]);
 
 	useEffect(() => {
 		void refresh();
@@ -221,6 +241,11 @@ export function MessagingChannelsContent() {
 	const hasWhatsAppConnection = connections.some(
 		(connection) => connection.platform === "whatsapp" && isConnectionInActiveMode(connection)
 	);
+	const hasEnabledGateway =
+		telegramGatewayEnabled ||
+		whatsappMode !== "disabled" ||
+		slackGatewayEnabled ||
+		discordGatewayEnabled;
 	const isRefreshing = (platform: GatewayPlatform) => refreshingPlatform === platform;
 	const refreshButtonClassName = "gap-2";
 	const refreshIconClassName = (platform: GatewayPlatform) =>
@@ -252,7 +277,11 @@ export function MessagingChannelsContent() {
 		);
 
 		if (platformConnections.length === 0) {
-			return <p className="text-xs text-muted-foreground">{emptyText}</p>;
+			return (
+				<div className="flex min-h-24 items-center justify-center text-center">
+					<p className="text-xs text-muted-foreground">{emptyText}</p>
+				</div>
+			);
 		}
 
 		return (
@@ -330,40 +359,71 @@ export function MessagingChannelsContent() {
 			</div>
 		);
 	};
+	const renderGatewaySkeletons = () => (
+		<>
+			{[0, 1].map((index) => (
+				<Card key={index} className="h-full overflow-hidden border-accent bg-accent/20">
+					<CardHeader className="space-y-3 p-4">
+						<Skeleton className="h-4 w-24 bg-accent" />
+						<Skeleton className="h-3 w-3/4 bg-accent" />
+					</CardHeader>
+					<CardContent className="space-y-3 p-4 pt-0">
+						<Skeleton className="h-8 w-40 bg-accent" />
+						<Separator className="bg-accent" />
+						<Skeleton className="h-10 w-full bg-accent" />
+					</CardContent>
+				</Card>
+			))}
+		</>
+	);
 
 	return (
 		<div className="grid items-stretch gap-3 sm:grid-cols-2">
-			<Card className="order-1 group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
-				<CardHeader className="space-y-1.5 p-4 pb-2">
-					<div className="flex items-center justify-between gap-3">
-						<CardTitle className="flex items-center gap-2 text-sm">Telegram</CardTitle>
-					</div>
-					<p className="text-xs text-muted-foreground">Pair Telegram with this search space.</p>
-				</CardHeader>
-				<CardContent className="space-y-3 p-4 pt-0">
-					<div className="flex flex-wrap gap-2">
-						{hasTelegramConnection ? null : (
-							<Button size="sm" onClick={() => startPairing("telegram")}>
-								Pair Telegram Chat
-							</Button>
-						)}
-						<Button
-							size="sm"
-							variant="secondary"
-							className={refreshButtonClassName}
-							onClick={() => refreshPlatform("telegram")}
-							disabled={isRefreshing("telegram")}
-						>
-							<RefreshCw className={refreshIconClassName("telegram")} />
-							Refresh
-						</Button>
-					</div>
+			{isGatewayConfigLoading ? renderGatewaySkeletons() : null}
 
-					{hasTelegramConnection ? null : renderPairingPanel("telegram")}
-					<Separator className="bg-accent" />
-					{renderConnectionRows("telegram", "No Telegram chats connected yet.")}
-				</CardContent>
-			</Card>
+			{!isGatewayConfigLoading && !hasEnabledGateway ? (
+				<Card className="col-span-full border-accent bg-accent/20">
+					<CardHeader className="space-y-1.5 p-4">
+						<CardTitle className="text-sm">No messaging gateways enabled</CardTitle>
+					</CardHeader>
+				</Card>
+			) : null}
+
+			{telegramGatewayEnabled ? (
+				<Card className="order-1 group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
+					<CardHeader className="space-y-1.5 p-4 pb-2">
+						<div className="flex items-center justify-between gap-3">
+							<CardTitle className="flex items-center gap-2 text-sm">Telegram</CardTitle>
+						</div>
+						<p className="text-xs text-muted-foreground">
+							Connect Telegram to chat with SurfSense.
+						</p>
+					</CardHeader>
+					<CardContent className="space-y-3 p-4 pt-0">
+						<div className="flex flex-wrap gap-2">
+							{hasTelegramConnection ? null : (
+								<Button size="sm" onClick={() => startPairing("telegram")}>
+									Pair Telegram Chat
+								</Button>
+							)}
+							<Button
+								size="sm"
+								variant="secondary"
+								className={refreshButtonClassName}
+								onClick={() => refreshPlatform("telegram")}
+								disabled={isRefreshing("telegram")}
+							>
+								<RefreshCw className={refreshIconClassName("telegram")} />
+								Refresh
+							</Button>
+						</div>
+
+						{hasTelegramConnection ? null : renderPairingPanel("telegram")}
+						<Separator className="bg-accent" />
+						{renderConnectionRows("telegram", "No Telegram chats connected yet.")}
+					</CardContent>
+				</Card>
+			) : null}
 
 			{slackGatewayEnabled ? (
 				<Card className="order-4 group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
@@ -437,8 +497,8 @@ export function MessagingChannelsContent() {
 						</div>
 						<p className="text-xs text-muted-foreground">
 							{whatsappMode === "baileys"
-								? "Use the WhatsApp bridge for your own WhatsApp chat. Other chats are ignored."
-								: "Pair this search space with WhatsApp Cloud API."}
+								? 'Use "Message Yourself". Other chats are ignored.'
+								: "Connect WhatsApp to chat with Surfsense."}
 						</p>
 					</CardHeader>
 					<CardContent className="space-y-3 p-4 pt-0">

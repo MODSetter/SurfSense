@@ -188,6 +188,36 @@ def _is_inactive_whatsapp_account(account: ExternalChatAccount) -> bool:
     )
 
 
+def _telegram_gateway_enabled() -> bool:
+    return (
+        config.GATEWAY_TELEGRAM_INTAKE_MODE != "disabled"
+        and bool(config.TELEGRAM_SHARED_BOT_TOKEN)
+        and bool(config.TELEGRAM_SHARED_BOT_USERNAME)
+        and (
+            config.GATEWAY_TELEGRAM_INTAKE_MODE != "webhook"
+            or bool(config.TELEGRAM_WEBHOOK_SECRET)
+        )
+    )
+
+
+def _slack_gateway_enabled() -> bool:
+    return bool(
+        config.GATEWAY_SLACK_ENABLED
+        and config.GATEWAY_SLACK_CLIENT_ID
+        and config.GATEWAY_SLACK_CLIENT_SECRET
+        and config.GATEWAY_SLACK_SIGNING_SECRET
+    )
+
+
+def _discord_gateway_enabled() -> bool:
+    return bool(
+        config.GATEWAY_DISCORD_ENABLED
+        and config.DISCORD_CLIENT_ID
+        and config.DISCORD_CLIENT_SECRET
+        and config.DISCORD_BOT_TOKEN
+    )
+
+
 def _classify_telegram_event(payload: dict[str, Any]) -> str:
     if "message" in payload:
         return "message"
@@ -208,7 +238,7 @@ async def install_slack_gateway(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
-    if not config.GATEWAY_SLACK_CLIENT_ID:
+    if not _slack_gateway_enabled():
         raise HTTPException(status_code=500, detail="Slack gateway OAuth is not configured")
     await check_search_space_access(session, user, search_space_id)
     state = _get_state_manager().generate_secure_state(search_space_id, user.id)
@@ -242,7 +272,7 @@ async def slack_gateway_callback(
         return _slack_frontend_redirect(space_id or 0, error="slack_gateway_oauth_denied")
     if not code or state_data is None:
         raise HTTPException(status_code=400, detail="Invalid Slack gateway OAuth callback")
-    if not config.GATEWAY_SLACK_CLIENT_ID or not config.GATEWAY_SLACK_CLIENT_SECRET:
+    if not _slack_gateway_enabled():
         raise HTTPException(status_code=500, detail="Slack gateway OAuth is not configured")
 
     user_id = UUID(state_data["user_id"])
@@ -357,7 +387,7 @@ async def install_discord_gateway(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
-    if not config.DISCORD_CLIENT_ID:
+    if not _discord_gateway_enabled():
         raise HTTPException(status_code=500, detail="Discord gateway OAuth is not configured")
     await check_search_space_access(session, user, search_space_id)
     state = _get_state_manager().generate_secure_state(search_space_id, user.id)
@@ -393,10 +423,8 @@ async def discord_gateway_callback(
         return _discord_frontend_redirect(space_id or 0, error="discord_gateway_oauth_denied")
     if not code or state_data is None:
         raise HTTPException(status_code=400, detail="Invalid Discord gateway OAuth callback")
-    if not config.DISCORD_CLIENT_ID or not config.DISCORD_CLIENT_SECRET:
+    if not _discord_gateway_enabled():
         raise HTTPException(status_code=500, detail="Discord gateway OAuth is not configured")
-    if not config.DISCORD_BOT_TOKEN:
-        raise HTTPException(status_code=500, detail="Discord gateway bot token is not configured")
 
     user_id = UUID(state_data["user_id"])
     token_payload = {
@@ -518,6 +546,9 @@ async def slack_webhook(
     request: Request,
     session: AsyncSession = Depends(get_async_session),
 ) -> Response:
+    if not _slack_gateway_enabled():
+        return Response(status_code=200)
+
     body = await request.body()
     if not verify_slack_signature(
         signing_secret=config.GATEWAY_SLACK_SIGNING_SECRET or "",
@@ -594,6 +625,9 @@ async def telegram_webhook(
     account_id: int,
     session: AsyncSession = Depends(get_async_session),
 ) -> Response:
+    if not _telegram_gateway_enabled():
+        return Response(status_code=200)
+
     request_id = f"gateway_{uuid.uuid4().hex[:16]}"
     try:
         payload = await request.json()
@@ -644,6 +678,8 @@ async def start_binding(
     await check_search_space_access(session, user, body.search_space_id)
     code = generate_pairing_code()
     if body.platform == ExternalChatPlatform.TELEGRAM:
+        if not _telegram_gateway_enabled():
+            raise HTTPException(status_code=400, detail="Telegram gateway is disabled")
         account = await get_or_create_system_telegram_account(session)
         username = account.bot_username or config.TELEGRAM_SHARED_BOT_USERNAME
         if not username:
@@ -730,6 +766,8 @@ async def list_connections(
     active_whatsapp_mode = _active_whatsapp_account_mode()
     if platform == ExternalChatPlatform.WHATSAPP and active_whatsapp_mode is None:
         return []
+    if platform == ExternalChatPlatform.TELEGRAM and not _telegram_gateway_enabled():
+        return []
 
     filters = [
         ExternalChatBinding.user_id == user.id,
@@ -741,15 +779,18 @@ async def list_connections(
         filters.append(ExternalChatAccount.platform == platform)
         if platform == ExternalChatPlatform.WHATSAPP and active_whatsapp_mode is not None:
             filters.append(ExternalChatAccount.mode == active_whatsapp_mode)
-    elif active_whatsapp_mode is None:
-        filters.append(ExternalChatAccount.platform != ExternalChatPlatform.WHATSAPP)
     else:
-        filters.append(
-            or_(
-                ExternalChatAccount.platform != ExternalChatPlatform.WHATSAPP,
-                ExternalChatAccount.mode == active_whatsapp_mode,
+        if not _telegram_gateway_enabled():
+            filters.append(ExternalChatAccount.platform != ExternalChatPlatform.TELEGRAM)
+        if active_whatsapp_mode is None:
+            filters.append(ExternalChatAccount.platform != ExternalChatPlatform.WHATSAPP)
+        else:
+            filters.append(
+                or_(
+                    ExternalChatAccount.platform != ExternalChatPlatform.WHATSAPP,
+                    ExternalChatAccount.mode == active_whatsapp_mode,
+                )
             )
-        )
 
     result = await session.execute(
         select(ExternalChatBinding, ExternalChatAccount)
@@ -871,6 +912,18 @@ async def list_platforms(
         }
         for account in result.scalars()
     ]
+
+
+@router.get("/config")
+async def get_gateway_config(
+    user: User = Depends(current_active_user),
+) -> dict[str, bool | str]:
+    return {
+        "telegram_enabled": _telegram_gateway_enabled(),
+        "whatsapp_intake_mode": config.GATEWAY_WHATSAPP_INTAKE_MODE,
+        "slack_enabled": _slack_gateway_enabled(),
+        "discord_enabled": _discord_gateway_enabled(),
+    }
 
 
 @router.patch("/bindings/{binding_id}/search-space")
