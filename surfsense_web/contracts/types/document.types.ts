@@ -281,6 +281,23 @@ export const deleteDocumentResponse = z.object({
 	message: z.literal("Document deleted successfully"),
 });
 
+/**
+ * Document files (stored originals / derived artifacts)
+ */
+export const documentFileKindEnum = z.enum(["ORIGINAL", "REDACTED", "FILLED_FORM"]);
+
+export const documentFileRead = z.object({
+	id: z.number(),
+	document_id: z.number(),
+	kind: documentFileKindEnum,
+	original_filename: z.string(),
+	mime_type: z.string().nullable().optional(),
+	size_bytes: z.number(),
+	created_at: z.string(),
+});
+
+export const getDocumentFilesResponse = z.array(documentFileRead);
+
 export type Document = z.infer<typeof document>;
 export type DocumentTitleRead = z.infer<typeof documentTitleRead>;
 export type GetDocumentsRequest = z.infer<typeof getDocumentsRequest>;
@@ -314,3 +331,6 @@ export type GetDocumentChunksRequest = z.infer<typeof getDocumentChunksRequest>;
 export type GetDocumentChunksResponse = z.infer<typeof getDocumentChunksResponse>;
 export type ChunkRead = z.infer<typeof chunkRead>;
 export type ProcessingMode = z.infer<typeof processingModeEnum>;
+export type DocumentFileKind = z.infer<typeof documentFileKindEnum>;
+export type DocumentFileRead = z.infer<typeof documentFileRead>;
+export type GetDocumentFilesResponse = z.infer<typeof getDocumentFilesResponse>;
