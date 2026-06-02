@@ -121,7 +121,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	});
 
 	// Unified slide-out panel state (only one can be open at a time)
-	type SlideoutPanel = "inbox" | "shared" | "private" | null;
+	type SlideoutPanel = "inbox" | "chats" | null;
 	const [activeSlideoutPanel, setActiveSlideoutPanel] = useState<SlideoutPanel>(null);
 
 	const isInboxSidebarOpen = activeSlideoutPanel === "inbox";
@@ -304,34 +304,17 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		});
 	}, [currentChatId, searchSpaceId, threadsData?.threads, syncChatTab]);
 
-	// Transform and split chats into private and shared based on visibility
-	const { myChats, sharedChats } = useMemo(() => {
-		if (!threadsData?.threads) return { myChats: [], sharedChats: [] };
+	const chats = useMemo(() => {
+		if (!threadsData?.threads) return [];
 
-		const privateChats: ChatItem[] = [];
-		const sharedChatsList: ChatItem[] = [];
-
-		for (const thread of threadsData.threads) {
-			const chatItem: ChatItem = {
-				id: thread.id,
-				name: thread.title || `Chat ${thread.id}`,
-				url: `/dashboard/${searchSpaceId}/new-chat/${thread.id}`,
-				visibility: thread.visibility,
-				isOwnThread: thread.is_own_thread,
-				archived: thread.archived,
-			};
-
-			// Split based on visibility, not ownership:
-			// - PRIVATE chats go to "Private Chats" section
-			// - SEARCH_SPACE chats go to "Shared Chats" section
-			if (thread.visibility === "SEARCH_SPACE") {
-				sharedChatsList.push(chatItem);
-			} else {
-				privateChats.push(chatItem);
-			}
-		}
-
-		return { myChats: privateChats, sharedChats: sharedChatsList };
+		return threadsData.threads.map<ChatItem>((thread) => ({
+			id: thread.id,
+			name: thread.title || `Chat ${thread.id}`,
+			url: `/dashboard/${searchSpaceId}/new-chat/${thread.id}`,
+			visibility: thread.visibility,
+			isOwnThread: thread.is_own_thread,
+			archived: thread.archived,
+		}));
 	}, [threadsData, searchSpaceId]);
 
 	// Navigation items
@@ -599,12 +582,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		}
 	}, [router]);
 
-	const handleViewAllSharedChats = useCallback(() => {
-		setActiveSlideoutPanel((prev) => (prev === "shared" ? null : "shared"));
-	}, []);
-
-	const handleViewAllPrivateChats = useCallback(() => {
-		setActiveSlideoutPanel((prev) => (prev === "private" ? null : "private"));
+	const handleViewAllChats = useCallback(() => {
+		setActiveSlideoutPanel((prev) => (prev === "chats" ? null : "chats"));
 	}, []);
 
 	// Delete handlers
@@ -695,16 +674,14 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				searchSpace={activeSearchSpace}
 				navItems={navItems}
 				onNavItemClick={handleNavItemClick}
-				chats={myChats}
-				sharedChats={sharedChats}
+				chats={chats}
 				activeChatId={currentChatId}
 				onNewChat={handleNewChat}
 				onChatSelect={handleChatSelect}
 				onChatRename={handleChatRename}
 				onChatDelete={handleChatDelete}
 				onChatArchive={handleChatArchive}
-				onViewAllSharedChats={handleViewAllSharedChats}
-				onViewAllPrivateChats={handleViewAllPrivateChats}
+				onViewAllChats={handleViewAllChats}
 				user={{
 					email: user?.email || "",
 					name: user?.display_name || user?.email?.split("@")[0],
@@ -759,10 +736,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						markAllAsRead: statusInbox.markAllAsRead,
 					},
 				}}
-				allSharedChatsPanel={{
-					searchSpaceId,
-				}}
-				allPrivateChatsPanel={{
+				allChatsPanel={{
 					searchSpaceId,
 				}}
 				documentsPanel={{

@@ -634,13 +634,14 @@
 		"created": "创建于"
 	},
 	"sidebar": {
-		"chats": "私人对话",
+		"chats": "对话",
 		"shared_chats": "共享对话",
 		"search_chats": "搜索对话...",
 		"no_chats_found": "未找到对话",
 		"no_shared_chats": "暂无共享对话",
+		"shared_chat": "共享对话",
 		"view_all_shared_chats": "查看所有共享对话",
-		"view_all_private_chats": "查看所有私人对话",
+		"view_all_chats": "查看所有对话",
 		"show_all": "查看全部",
 		"hide": "隐藏",
 		"no_chats": "无对话",

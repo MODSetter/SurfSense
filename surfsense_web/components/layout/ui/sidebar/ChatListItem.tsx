@@ -1,6 +1,6 @@
 "use client";
 
-import { ArchiveIcon, MoreHorizontal, Pencil, RotateCcwIcon, Trash2 } from "lucide-react";
+import { ArchiveIcon, MoreHorizontal, Pencil, RotateCcwIcon, Trash2, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 interface ChatListItemProps {
 	name: string;
 	isActive?: boolean;
+	isShared?: boolean;
 	archived?: boolean;
 	dropdownOpen?: boolean;
 	onDropdownOpenChange?: (open: boolean) => void;
@@ -30,6 +31,7 @@ interface ChatListItemProps {
 export function ChatListItem({
 	name,
 	isActive,
+	isShared,
 	archived,
 	dropdownOpen: controlledOpen,
 	onDropdownOpenChange,
@@ -68,7 +70,13 @@ export function ChatListItem({
 					isActive && "bg-accent text-accent-foreground"
 				)}
 			>
-				<span className="truncate">{animatedName}</span>
+				<span className="min-w-0 flex-1 truncate">{animatedName}</span>
+				{isShared ? (
+					<Users
+						aria-label={t("shared_chat") || "Shared chat"}
+						className="h-3 w-3 shrink-0 text-muted-foreground/50"
+					/>
+				) : null}
 			</Button>
 
 			{/* Actions dropdown - trigger hidden on mobile, long-press opens it instead */}

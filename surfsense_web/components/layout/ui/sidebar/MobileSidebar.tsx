@@ -19,17 +19,14 @@ interface MobileSidebarProps {
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
-	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
-	onViewAllSharedChats?: () => void;
-	onViewAllPrivateChats?: () => void;
-	isSharedChatsPanelOpen?: boolean;
-	isPrivateChatsPanelOpen?: boolean;
+	onViewAllChats?: () => void;
+	isChatsPanelOpen?: boolean;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -69,17 +66,14 @@ export function MobileSidebar({
 	navItems,
 	onNavItemClick,
 	chats,
-	sharedChats,
 	activeChatId,
 	onNewChat,
 	onChatSelect,
 	onChatRename,
 	onChatDelete,
 	onChatArchive,
-	onViewAllSharedChats,
-	onViewAllPrivateChats,
-	isSharedChatsPanelOpen = false,
-	isPrivateChatsPanelOpen = false,
+	onViewAllChats,
+	isChatsPanelOpen = false,
 	user,
 	onSettings,
 	onManageMembers,
@@ -152,7 +146,6 @@ export function MobileSidebar({
 						navItems={navItems}
 						onNavItemClick={handleNavItemClick}
 						chats={chats}
-						sharedChats={sharedChats}
 						activeChatId={activeChatId}
 						onNewChat={() => {
 							onNewChat();
@@ -162,24 +155,15 @@ export function MobileSidebar({
 						onChatRename={onChatRename}
 						onChatDelete={onChatDelete}
 						onChatArchive={onChatArchive}
-						onViewAllSharedChats={
-							onViewAllSharedChats
+						onViewAllChats={
+							onViewAllChats
 								? () => {
 										onOpenChange(false);
-										onViewAllSharedChats();
+										onViewAllChats();
 									}
 								: undefined
 						}
-						onViewAllPrivateChats={
-							onViewAllPrivateChats
-								? () => {
-										onOpenChange(false);
-										onViewAllPrivateChats();
-									}
-								: undefined
-						}
-						isSharedChatsPanelOpen={isSharedChatsPanelOpen}
-						isPrivateChatsPanelOpen={isPrivateChatsPanelOpen}
+						isChatsPanelOpen={isChatsPanelOpen}
 						user={user}
 						onSettings={
 							onSettings

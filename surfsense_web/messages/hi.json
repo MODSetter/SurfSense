@@ -650,13 +650,14 @@
 		"created": "बनाया गया"
 	},
 	"sidebar": {
-		"chats": "निजी चैट",
+		"chats": "चैट",
 		"shared_chats": "साझा चैट",
 		"search_chats": "चैट खोजें",
 		"no_chats_found": "कोई चैट नहीं मिला",
 		"no_shared_chats": "कोई साझा चैट नहीं",
+		"shared_chat": "साझा चैट",
 		"view_all_shared_chats": "सभी साझा चैट देखें",
-		"view_all_private_chats": "सभी निजी चैट देखें",
+		"view_all_chats": "सभी चैट देखें",
 		"show_all": "सभी देखें",
 		"hide": "छिपाएँ",
 		"no_chats": "कोई चैट नहीं",

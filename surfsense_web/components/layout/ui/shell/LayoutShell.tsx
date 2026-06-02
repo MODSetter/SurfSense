@@ -27,8 +27,7 @@ import {
 	RightPanelToggleButton,
 } from "../right-panel/RightPanel";
 import {
-	AllPrivateChatsSidebarContent,
-	AllSharedChatsSidebarContent,
+	AllChatsSidebarContent,
 	DocumentsSidebar,
 	InboxSidebarContent,
 	MobileSidebar,
@@ -94,7 +93,7 @@ interface TabDataSource {
 	markAllAsRead: () => Promise<boolean>;
 }
 
-export type ActiveSlideoutPanel = "inbox" | "shared" | "private" | null;
+export type ActiveSlideoutPanel = "inbox" | "chats" | null;
 
 // Inbox-related props — per-tab data sources with independent loading/pagination
 interface InboxProps {
@@ -115,15 +114,13 @@ interface LayoutShellProps {
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
-	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
-	onViewAllSharedChats?: () => void;
-	onViewAllPrivateChats?: () => void;
+	onViewAllChats?: () => void;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -148,10 +145,7 @@ interface LayoutShellProps {
 	inbox?: InboxProps;
 	isLoadingChats?: boolean;
 	// All chats panel props
-	allSharedChatsPanel?: {
-		searchSpaceId: string;
-	};
-	allPrivateChatsPanel?: {
+	allChatsPanel?: {
 		searchSpaceId: string;
 	};
 	documentsPanel?: {
@@ -226,15 +220,13 @@ export function LayoutShell({
 	navItems,
 	onNavItemClick,
 	chats,
-	sharedChats,
 	activeChatId,
 	onNewChat,
 	onChatSelect,
 	onChatRename,
 	onChatDelete,
 	onChatArchive,
-	onViewAllSharedChats,
-	onViewAllPrivateChats,
+	onViewAllChats,
 	user,
 	onSettings,
 	onManageMembers,
@@ -256,8 +248,7 @@ export function LayoutShell({
 	onSlideoutPanelChange,
 	inbox,
 	isLoadingChats = false,
-	allSharedChatsPanel,
-	allPrivateChatsPanel,
+	allChatsPanel,
 	documentsPanel,
 	onTabSwitch,
 }: LayoutShellProps) {
@@ -288,13 +279,7 @@ export function LayoutShell({
 	const anySlideOutOpen = activeSlideoutPanel !== null;
 
 	const panelAriaLabel =
-		activeSlideoutPanel === "inbox"
-			? "Inbox"
-			: activeSlideoutPanel === "shared"
-				? "Shared Chats"
-				: activeSlideoutPanel === "private"
-					? "Private Chats"
-					: "Panel";
+		activeSlideoutPanel === "inbox" ? "Inbox" : activeSlideoutPanel === "chats" ? "Chats" : "Panel";
 
 	// Mobile layout
 	if (isMobile) {
@@ -317,17 +302,14 @@ export function LayoutShell({
 							navItems={navItems}
 							onNavItemClick={onNavItemClick}
 							chats={chats}
-							sharedChats={sharedChats}
 							activeChatId={activeChatId}
 							onNewChat={onNewChat}
 							onChatSelect={onChatSelect}
 							onChatRename={onChatRename}
 							onChatDelete={onChatDelete}
 							onChatArchive={onChatArchive}
-							onViewAllSharedChats={onViewAllSharedChats}
-							onViewAllPrivateChats={onViewAllPrivateChats}
-							isSharedChatsPanelOpen={activeSlideoutPanel === "shared"}
-							isPrivateChatsPanelOpen={activeSlideoutPanel === "private"}
+							onViewAllChats={onViewAllChats}
+							isChatsPanelOpen={activeSlideoutPanel === "chats"}
 							user={user}
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}
@@ -379,34 +361,18 @@ export function LayoutShell({
 										/>
 									</motion.div>
 								)}
-								{activeSlideoutPanel === "shared" && allSharedChatsPanel && (
+								{activeSlideoutPanel === "chats" && allChatsPanel && (
 									<motion.div
-										key="shared"
+										key="chats"
 										className="h-full flex flex-col"
 										initial={{ opacity: 0 }}
 										animate={{ opacity: 1 }}
 										exit={{ opacity: 0 }}
 										transition={{ duration: 0.15 }}
 									>
-										<AllSharedChatsSidebarContent
+										<AllChatsSidebarContent
 											onOpenChange={(open) => closeSlideout(open)}
-											searchSpaceId={allSharedChatsPanel.searchSpaceId}
-											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-										/>
-									</motion.div>
-								)}
-								{activeSlideoutPanel === "private" && allPrivateChatsPanel && (
-									<motion.div
-										key="private"
-										className="h-full flex flex-col"
-										initial={{ opacity: 0 }}
-										animate={{ opacity: 1 }}
-										exit={{ opacity: 0 }}
-										transition={{ duration: 0.15 }}
-									>
-										<AllPrivateChatsSidebarContent
-											onOpenChange={(open) => closeSlideout(open)}
-											searchSpaceId={allPrivateChatsPanel.searchSpaceId}
+											searchSpaceId={allChatsPanel.searchSpaceId}
 											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
 										/>
 									</motion.div>
@@ -478,17 +444,14 @@ export function LayoutShell({
 								navItems={navItems}
 								onNavItemClick={onNavItemClick}
 								chats={chats}
-								sharedChats={sharedChats}
 								activeChatId={activeChatId}
 								onNewChat={onNewChat}
 								onChatSelect={onChatSelect}
 								onChatRename={onChatRename}
 								onChatDelete={onChatDelete}
 								onChatArchive={onChatArchive}
-								onViewAllSharedChats={onViewAllSharedChats}
-								onViewAllPrivateChats={onViewAllPrivateChats}
-								isSharedChatsPanelOpen={activeSlideoutPanel === "shared"}
-								isPrivateChatsPanelOpen={activeSlideoutPanel === "private"}
+								onViewAllChats={onViewAllChats}
+								isChatsPanelOpen={activeSlideoutPanel === "chats"}
 								user={user}
 								onSettings={onSettings}
 								onManageMembers={onManageMembers}
@@ -554,33 +517,18 @@ export function LayoutShell({
 											/>
 										</motion.div>
 									)}
-									{activeSlideoutPanel === "shared" && allSharedChatsPanel && (
+									{activeSlideoutPanel === "chats" && allChatsPanel && (
 										<motion.div
-											key="shared"
+											key="chats"
 											className="h-full flex flex-col"
 											initial={{ opacity: 0 }}
 											animate={{ opacity: 1 }}
 											exit={{ opacity: 0 }}
 											transition={{ duration: 0.15 }}
 										>
-											<AllSharedChatsSidebarContent
+											<AllChatsSidebarContent
 												onOpenChange={(open) => closeSlideout(open)}
-												searchSpaceId={allSharedChatsPanel.searchSpaceId}
-											/>
-										</motion.div>
-									)}
-									{activeSlideoutPanel === "private" && allPrivateChatsPanel && (
-										<motion.div
-											key="private"
-											className="h-full flex flex-col"
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{ opacity: 0 }}
-											transition={{ duration: 0.15 }}
-										>
-											<AllPrivateChatsSidebarContent
-												onOpenChange={(open) => closeSlideout(open)}
-												searchSpaceId={allPrivateChatsPanel.searchSpaceId}
+												searchSpaceId={allChatsPanel.searchSpaceId}
 											/>
 										</motion.div>
 									)}

@@ -11,6 +11,7 @@ import {
 	RotateCcwIcon,
 	Search,
 	Trash2,
+	User,
 	Users,
 	X,
 } from "lucide-react";
@@ -52,21 +53,21 @@ import { formatThreadTimestamp } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
-export interface AllSharedChatsSidebarContentProps {
+export interface AllChatsSidebarContentProps {
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
 	onCloseMobileSidebar?: () => void;
 }
 
-interface AllSharedChatsSidebarProps extends AllSharedChatsSidebarContentProps {
+interface AllChatsSidebarProps extends AllChatsSidebarContentProps {
 	open: boolean;
 }
 
-export function AllSharedChatsSidebarContent({
+export function AllChatsSidebarContent({
 	onOpenChange,
 	searchSpaceId,
 	onCloseMobileSidebar,
-}: AllSharedChatsSidebarContentProps) {
+}: AllChatsSidebarContentProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
@@ -109,6 +110,7 @@ export function AllSharedChatsSidebarContent({
 		queryKey: ["all-threads", searchSpaceId],
 		queryFn: () => fetchThreads(Number(searchSpaceId)),
 		enabled: !!searchSpaceId && !isSearchMode,
+		placeholderData: () => queryClient.getQueryData(["threads", searchSpaceId, { limit: 40 }]),
 	});
 
 	const {
@@ -121,28 +123,20 @@ export function AllSharedChatsSidebarContent({
 		enabled: !!searchSpaceId && isSearchMode,
 	});
 
-	// Filter to only shared chats (SEARCH_SPACE visibility)
 	const { activeChats, archivedChats } = useMemo(() => {
 		if (isSearchMode) {
-			const sharedSearchResults = (searchData ?? []).filter(
-				(thread) => thread.visibility === "SEARCH_SPACE"
-			);
 			return {
-				activeChats: sharedSearchResults.filter((t) => !t.archived),
-				archivedChats: sharedSearchResults.filter((t) => t.archived),
+				activeChats: (searchData ?? []).filter((t) => !t.archived),
+				archivedChats: (searchData ?? []).filter((t) => t.archived),
 			};
 		}
 
 		if (!threadsData) return { activeChats: [], archivedChats: [] };
 
-		const activeShared = threadsData.threads.filter(
-			(thread) => thread.visibility === "SEARCH_SPACE"
-		);
-		const archivedShared = threadsData.archived_threads.filter(
-			(thread) => thread.visibility === "SEARCH_SPACE"
-		);
-
-		return { activeChats: activeShared, archivedChats: archivedShared };
+		return {
+			activeChats: threadsData.threads,
+			archivedChats: threadsData.archived_threads,
+		};
 	}, [threadsData, searchData, isSearchMode]);
 
 	const threads = showArchived ? archivedChats : activeChats;
@@ -264,7 +258,7 @@ export function AllSharedChatsSidebarContent({
 							<span className="sr-only">{t("close") || "Close"}</span>
 						</Button>
 					)}
-					<h2 className="text-lg font-semibold">{t("shared_chats") || "Shared Chats"}</h2>
+					<h2 className="text-lg font-semibold">{t("chats") || "Chats"}</h2>
 				</div>
 
 				<div className="relative">
@@ -362,14 +356,20 @@ export function AllSharedChatsSidebarContent({
 											onTouchMove={longPressHandlers.onTouchMove}
 											disabled={isBusy}
 											className={cn(
-												"h-auto w-full justify-start gap-2 overflow-hidden rounded-md px-2 py-1.5 text-sm text-left",
+												"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
 												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 												isActive && "bg-accent text-accent-foreground",
 												isBusy && "opacity-50 pointer-events-none"
 											)}
 										>
-											<span className="truncate">{thread.title || "New Chat"}</span>
+											<span className="min-w-0 flex-1 truncate">{thread.title || "New Chat"}</span>
+											{thread.visibility === "SEARCH_SPACE" ? (
+												<Users
+													aria-label={t("shared_chat") || "Shared chat"}
+													className="h-3 w-3 shrink-0 text-muted-foreground/50"
+												/>
+											) : null}
 										</Button>
 									) : (
 										<Tooltip delayDuration={600}>
@@ -380,14 +380,22 @@ export function AllSharedChatsSidebarContent({
 													onClick={() => handleThreadClick(thread.id)}
 													disabled={isBusy}
 													className={cn(
-														"h-auto w-full justify-start gap-2 overflow-hidden rounded-md px-2 py-1.5 text-sm text-left",
+														"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
 														"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 														"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 														isActive && "bg-accent text-accent-foreground",
 														isBusy && "opacity-50 pointer-events-none"
 													)}
 												>
-													<span className="truncate">{thread.title || "New Chat"}</span>
+													<span className="min-w-0 flex-1 truncate">
+														{thread.title || "New Chat"}
+													</span>
+													{thread.visibility === "SEARCH_SPACE" ? (
+														<Users
+															aria-label={t("shared_chat") || "Shared chat"}
+															className="h-3 w-3 shrink-0 text-muted-foreground/50"
+														/>
+													) : null}
 												</Button>
 											</TooltipTrigger>
 											<TooltipContent side="bottom" align="start">
@@ -481,15 +489,15 @@ export function AllSharedChatsSidebarContent({
 					</div>
 				) : (
 					<div className="text-center py-8">
-						<Users className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
+						<User className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
 						<p className="text-xs text-muted-foreground">
 							{showArchived
 								? t("no_archived_chats") || "No archived chats"
-								: t("no_shared_chats") || "No shared chats"}
+								: t("no_chats") || "No chats"}
 						</p>
 						{!showArchived && (
 							<p className="mt-1 text-[11px] text-muted-foreground/70">
-								Share a chat to collaborate with your team
+								{t("start_new_chat_hint") || "Start a new chat from the chat page"}
 							</p>
 						)}
 					</div>
@@ -544,21 +552,17 @@ export function AllSharedChatsSidebarContent({
 	);
 }
 
-export function AllSharedChatsSidebar({
+export function AllChatsSidebar({
 	open,
 	onOpenChange,
 	searchSpaceId,
 	onCloseMobileSidebar,
-}: AllSharedChatsSidebarProps) {
+}: AllChatsSidebarProps) {
 	const t = useTranslations("sidebar");
 
 	return (
-		<SidebarSlideOutPanel
-			open={open}
-			onOpenChange={onOpenChange}
-			ariaLabel={t("shared_chats") || "Shared Chats"}
-		>
-			<AllSharedChatsSidebarContent
+		<SidebarSlideOutPanel open={open} onOpenChange={onOpenChange} ariaLabel={t("chats") || "Chats"}>
+			<AllChatsSidebarContent
 				onOpenChange={onOpenChange}
 				searchSpaceId={searchSpaceId}
 				onCloseMobileSidebar={onCloseMobileSidebar}
