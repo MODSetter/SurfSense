@@ -26,7 +26,6 @@ export const CHAT_EXAMPLE_CATEGORIES: ChatExampleCategory[] = [
 			"Summarize the key points across all the documents in this space.",
 			"What do my files say about [topic]? Answer with citations.",
 			"Find every mention of [keyword] and list the sources.",
-			"Give me a cited briefing on the documents I added this week.",
 			"Compare these two documents and highlight the differences.",
 		],
 	},
@@ -37,7 +36,6 @@ export const CHAT_EXAMPLE_CATEGORIES: ChatExampleCategory[] = [
 			"Write a cited research report on [topic] from my documents.",
 			"Turn this folder into a two-host podcast I can listen to.",
 			"Create a slide deck and a narrated video overview from these sources.",
-			"Generate an image to illustrate [concept] for my report.",
 			"Tailor my resume to this job description so it gets past ATS and lands an interview.",
 		],
 	},
@@ -49,7 +47,6 @@ export const CHAT_EXAMPLE_CATEGORIES: ChatExampleCategory[] = [
 			"When a PDF lands in my Research folder, generate a cited AI summary.",
 			"Generate a weekly status report from my Slack and Gmail every Friday.",
 			"Build an automation that turns new meeting notes into minutes with action items.",
-			"Run a monthly competitor analysis report and save it to my workspace.",
 		],
 	},
 	{
@@ -60,7 +57,6 @@ export const CHAT_EXAMPLE_CATEGORIES: ChatExampleCategory[] = [
 			"Post this research summary to my Notion workspace.",
 			"Send these meeting action items to our team Slack channel.",
 			"Create a Jira ticket from this bug report.",
-			"Open a Linear issue from this feature request.",
 		],
 	},
 ];
