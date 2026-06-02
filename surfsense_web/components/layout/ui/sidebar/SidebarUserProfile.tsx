@@ -221,17 +221,14 @@ export function SidebarUserProfile({
 						</DropdownMenuTrigger>
 
 						<DropdownMenuContent className="w-48" side="right" align="end" sideOffset={8}>
-							<DropdownMenuLabel className="font-normal">
-								<div className="flex items-center gap-2">
-									<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
-									<div className="flex-1 min-w-0">
-										<p className="truncate text-sm font-medium">{displayName}</p>
-										<p className="truncate text-xs text-muted-foreground">{user.email}</p>
-									</div>
+							<DropdownMenuLabel className="px-2 py-1 font-normal">
+								<div className="min-w-0">
+									{/* <p className="truncate text-sm font-medium">{displayName}</p> */}
+									<p className="truncate text-xs font-semibold leading-tight text-muted-foreground">
+										{user.email}
+									</p>
 								</div>
 							</DropdownMenuLabel>
-
-							<DropdownMenuSeparator />
 
 							<DropdownMenuItem onClick={onUserSettings}>
 								<UserCog className="h-4 w-4" />
@@ -327,7 +324,7 @@ export function SidebarUserProfile({
 											</DropdownMenuItem>
 										))}
 										<DropdownMenuSeparator />
-										<p className="select-none px-2 py-1.5 text-xs text-muted-foreground/50">
+										<p className="select-none px-2 py-1 text-xs leading-tight text-muted-foreground/50">
 											v{APP_VERSION}
 										</p>
 									</DropdownMenuSubContent>
@@ -406,17 +403,14 @@ export function SidebarUserProfile({
 				</DropdownMenuTrigger>
 
 				<DropdownMenuContent className="w-48" side="top" align="center" sideOffset={4}>
-					<DropdownMenuLabel className="font-normal">
-						<div className="flex items-center gap-2">
-							<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
-							<div className="flex-1 min-w-0">
-								<p className="truncate text-sm font-medium">{displayName}</p>
-								<p className="truncate text-xs text-muted-foreground">{user.email}</p>
-							</div>
+					<DropdownMenuLabel className="px-2 py-1 font-normal">
+						<div className="min-w-0">
+							<p className="truncate text-sm font-medium">{displayName}</p>
+							<p className="truncate text-xs font-semibold leading-tight text-muted-foreground">
+								{user.email}
+							</p>
 						</div>
 					</DropdownMenuLabel>
-
-					<DropdownMenuSeparator />
 
 					<DropdownMenuItem onClick={onUserSettings}>
 						<UserCog className="h-4 w-4" />
@@ -512,7 +506,7 @@ export function SidebarUserProfile({
 									</DropdownMenuItem>
 								))}
 								<DropdownMenuSeparator />
-								<p className="select-none px-2 py-1.5 text-xs text-muted-foreground/50">
+								<p className="select-none px-2 py-1 text-xs leading-tight text-muted-foreground/50">
 									v{APP_VERSION}
 								</p>
 							</DropdownMenuSubContent>

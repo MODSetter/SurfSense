@@ -1,8 +1,8 @@
 "use client";
 import { useAtomValue } from "jotai";
-import { AlertCircle, Code2, LayoutList, Save } from "lucide-react";
-import Link from "next/link";
+import { AlertCircle, Code2, LayoutList } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import type { z } from "zod";
 import {
@@ -15,7 +15,9 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
 	type Automation,
@@ -36,7 +38,6 @@ import {
 	hasResolvedModels,
 	hydrateForm,
 } from "@/lib/automations/builder-schema";
-import { cn } from "@/lib/utils";
 import { AdvancedSection } from "./advanced-section";
 import { AutomationModelFields } from "./automation-model-fields";
 import { BasicsSection } from "./basics-section";
@@ -57,6 +58,7 @@ interface AutomationBuilderFormProps {
 	 * eligibility itself is now owned by the in-form pickers.
 	 */
 	submitDisabledReason?: string;
+	renderModeSwitcher?: (modeSwitcher: ReactNode) => ReactNode;
 }
 
 type Mode = "form" | "json";
@@ -79,6 +81,7 @@ export function AutomationBuilderForm({
 	searchSpaceId,
 	automation,
 	submitDisabledReason,
+	renderModeSwitcher,
 }: AutomationBuilderFormProps) {
 	const router = useRouter();
 	const { mutateAsync: createAutomation } = useAtomValue(createAutomationMutationAtom);
@@ -98,7 +101,7 @@ export function AutomationBuilderForm({
 			return {
 				mode: "json" as Mode,
 				form: createEmptyForm(),
-				notice: `This automation ${result.reason}, which the form can't show. Edit it as JSON below.`,
+				notice: `This automation ${result.reason}, which the form can't show. Edit it as JSON below`,
 			};
 		}
 		return { mode: "form" as Mode, form: createEmptyForm(), notice: undefined };
@@ -116,11 +119,6 @@ export function AutomationBuilderForm({
 	const [jsonNotice, setJsonNotice] = useState<string | undefined>(initial.notice);
 
 	const [submitting, setSubmitting] = useState(false);
-
-	const cancelHref =
-		mode === "edit" && automation
-			? `/dashboard/${searchSpaceId}/automations/${automation.id}`
-			: `/dashboard/${searchSpaceId}/automations`;
 
 	// Eligible models + the search-space-seeded defaults. Models are chosen per
 	// automation on create; in edit mode the backend preserves the captured
@@ -193,7 +191,7 @@ export function AutomationBuilderForm({
 		// form's own validation enforces completeness on submit.
 		const definition = jsonValue.definition;
 		if (!definition || typeof definition !== "object") {
-			return { ok: false, issues: [], notice: "Add a definition before switching to the form." };
+			return { ok: false, issues: [], notice: "Add a definition before switching to the form" };
 		}
 
 		const name =
@@ -211,7 +209,7 @@ export function AutomationBuilderForm({
 		const h = hydrateForm(name, description, definition, triggers);
 		return h.formable
 			? { ok: true, form: h.form }
-			: { ok: false, issues: [], notice: `Can't show in the form: it ${h.reason}.` };
+			: { ok: false, issues: [], notice: `Can't show in the form: it ${h.reason}` };
 	}
 
 	function validateForm(): Record<string, string> | null {
@@ -329,28 +327,44 @@ export function AutomationBuilderForm({
 			: undefined);
 	// Only gate creation; editing an existing automation isn't blocked here.
 	const submitBlocked = mode === "create" && !!effectiveDisabledReason;
+	const modeSwitcher = (
+		<Tabs
+			value={activeMode}
+			onValueChange={(value) => {
+				if (value === activeMode) return;
+				if (value === "form") switchToForm();
+				else if (value === "json") switchToJson();
+			}}
+		>
+			<TabsList className="h-6 gap-0 rounded-md bg-muted/60 p-0.5 select-none">
+				<TabsTrigger
+					value="form"
+					className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+				>
+					<LayoutList className="size-3 shrink-0" />
+					<span className="leading-none">Form</span>
+				</TabsTrigger>
+				<TabsTrigger
+					value="json"
+					className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+				>
+					<Code2 className="size-3 shrink-0" />
+					<span className="leading-none">Edit as JSON</span>
+				</TabsTrigger>
+			</TabsList>
+		</Tabs>
+	);
 
 	return (
 		<div className="space-y-4">
-			<div className="flex items-center justify-end">
-				<div className="inline-flex rounded-md border border-border/60 p-0.5">
-					<ModeButton
-						active={activeMode === "form"}
-						icon={LayoutList}
-						label="Form"
-						onClick={() => (activeMode === "form" ? undefined : switchToForm())}
-					/>
-					<ModeButton
-						active={activeMode === "json"}
-						icon={Code2}
-						label="Edit as JSON"
-						onClick={() => (activeMode === "json" ? undefined : switchToJson())}
-					/>
-				</div>
-			</div>
+			{renderModeSwitcher ? (
+				renderModeSwitcher(modeSwitcher)
+			) : (
+				<div className="flex items-center justify-end">{modeSwitcher}</div>
+			)}
 
 			{activeMode === "json" ? (
-				<Card className="border-border/60 bg-accent">
+				<Card className="rounded-md border-accent bg-accent/20">
 					<CardContent className="pt-6">
 						<JsonModePanel
 							value={jsonValue}
@@ -362,86 +376,88 @@ export function AutomationBuilderForm({
 				</Card>
 			) : (
 				<div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-					<div className="space-y-4 lg:col-span-2">
-						<Card className="border-border/60 bg-accent">
-							<CardHeader className="pb-3">
-								<CardTitle className="text-sm font-semibold">Basics</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<BasicsSection
-									name={form.name}
-									description={form.description}
-									errors={errors}
-									onChange={patchForm}
-								/>
-							</CardContent>
-						</Card>
-
-						<Card className="border-border/60 bg-accent">
-							<CardHeader className="pb-3">
-								<CardTitle className="text-sm font-semibold">Tasks</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-4">
-								<TaskList
-									tasks={form.tasks}
-									errors={errors}
-									searchSpaceId={searchSpaceId}
-									onChange={(tasks) => patchForm({ tasks })}
-								/>
-								<UnattendedToggle
-									checked={form.unattended}
-									onChange={(unattended) => patchForm({ unattended })}
-								/>
-							</CardContent>
-						</Card>
-
-						<Card className="border-border/60 bg-accent">
-							<CardHeader className="pb-3">
-								<CardTitle className="text-sm font-semibold">Schedule</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<ScheduleSection
-									schedule={form.schedule}
-									timezone={form.timezone}
-									errors={errors}
-									onScheduleChange={(schedule) => patchForm({ schedule })}
-									onTimezoneChange={(timezone) => patchForm({ timezone })}
-								/>
-							</CardContent>
-						</Card>
-
-						<Card className="border-border/60 bg-accent">
-							<CardHeader className="pb-3">
-								<CardTitle className="text-sm font-semibold">Models</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<AutomationModelFields
-									searchSpaceId={searchSpaceId}
-									value={resolvedModels}
-									onChange={(patch) => patchForm({ models: { ...form.models, ...patch } })}
-								/>
-							</CardContent>
-						</Card>
-
-						<Card className="border-border/60 bg-accent">
-							<CardHeader className="pb-3">
-								<CardTitle className="text-sm font-semibold">Settings</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<AdvancedSection
-									execution={form.execution}
-									tags={form.tags}
-									onExecutionChange={(patch) =>
-										patchForm({ execution: { ...form.execution, ...patch } })
-									}
-									onTagsChange={(tags) => patchForm({ tags })}
-								/>
-							</CardContent>
+					<div className="lg:col-span-2">
+						<Card className="rounded-md border-accent bg-accent/20">
+							<section>
+								<CardHeader className="pb-3">
+									<CardTitle className="text-sm font-semibold">Basics</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<BasicsSection
+										name={form.name}
+										description={form.description}
+										errors={errors}
+										onChange={patchForm}
+									/>
+								</CardContent>
+							</section>
+							<Separator className="mx-auto data-[orientation=horizontal]:w-[calc(100%-6rem)]" />
+							<section>
+								<CardHeader className="pb-3">
+									<CardTitle className="text-sm font-semibold">Tasks</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-4">
+									<TaskList
+										tasks={form.tasks}
+										errors={errors}
+										searchSpaceId={searchSpaceId}
+										onChange={(tasks) => patchForm({ tasks })}
+									/>
+									<UnattendedToggle
+										checked={form.unattended}
+										onChange={(unattended) => patchForm({ unattended })}
+									/>
+								</CardContent>
+							</section>
+							<Separator className="mx-auto data-[orientation=horizontal]:w-[calc(100%-6rem)]" />
+							<section>
+								<CardHeader className="pb-3">
+									<CardTitle className="text-sm font-semibold">Schedule</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<ScheduleSection
+										schedule={form.schedule}
+										timezone={form.timezone}
+										errors={errors}
+										onScheduleChange={(schedule) => patchForm({ schedule })}
+										onTimezoneChange={(timezone) => patchForm({ timezone })}
+									/>
+								</CardContent>
+							</section>
+							<Separator className="mx-auto data-[orientation=horizontal]:w-[calc(100%-6rem)]" />
+							<section>
+								<CardHeader className="pb-3">
+									<CardTitle className="text-sm font-semibold">Models</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<AutomationModelFields
+										searchSpaceId={searchSpaceId}
+										value={resolvedModels}
+										onChange={(patch) => patchForm({ models: { ...form.models, ...patch } })}
+									/>
+								</CardContent>
+							</section>
+							<Separator className="mx-auto data-[orientation=horizontal]:w-[calc(100%-6rem)]" />
+							<section>
+								<CardHeader className="pb-3">
+									<CardTitle className="text-sm font-semibold">Settings</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<AdvancedSection
+										execution={form.execution}
+										tags={form.tags}
+										onExecutionChange={(patch) =>
+											patchForm({ execution: { ...form.execution, ...patch } })
+										}
+										onTagsChange={(tags) => patchForm({ tags })}
+									/>
+								</CardContent>
+							</section>
 						</Card>
 					</div>
 
 					<div className="lg:col-span-1">
-						<Card className="border-border/60 bg-accent lg:sticky lg:top-4">
+						<Card className="rounded-md border-accent bg-accent/20 lg:sticky lg:top-4">
 							<CardHeader className="pb-3">
 								<CardTitle className="text-sm font-semibold">Summary</CardTitle>
 							</CardHeader>
@@ -461,9 +477,6 @@ export function AutomationBuilderForm({
 			)}
 
 			<div className="flex items-center justify-end gap-2">
-				<Button asChild type="button" variant="ghost" size="sm">
-					<Link href={cancelHref}>Cancel</Link>
-				</Button>
 				{submitBlocked ? (
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -476,7 +489,6 @@ export function AutomationBuilderForm({
 								className="cursor-not-allowed opacity-50"
 								onClick={(event) => event.preventDefault()}
 							>
-								<Save className="mr-2 h-4 w-4" />
 								{submitLabel}
 							</Button>
 						</TooltipTrigger>
@@ -491,42 +503,12 @@ export function AutomationBuilderForm({
 					>
 						{submitting ? (
 							<Spinner size="xs" className="mr-2" />
-						) : (
-							<Save className="mr-2 h-4 w-4" />
-						)}
+						) : null}
 						{submitLabel}
 					</Button>
 				)}
 			</div>
 		</div>
-	);
-}
-
-function ModeButton({
-	active,
-	icon: Icon,
-	label,
-	onClick,
-}: {
-	active: boolean;
-	icon: typeof Code2;
-	label: string;
-	onClick: () => void;
-}) {
-	return (
-		<button
-			type="button"
-			onClick={onClick}
-			className={cn(
-				"inline-flex items-center gap-1.5 rounded-[5px] px-2.5 py-1 text-xs font-medium transition-colors",
-				active
-					? "bg-background text-foreground shadow-sm"
-					: "text-muted-foreground hover:text-foreground"
-			)}
-		>
-			<Icon className="h-3.5 w-3.5" />
-			{label}
-		</button>
 	);
 }
 

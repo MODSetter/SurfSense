@@ -3,7 +3,7 @@
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { memo, useId } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
 	Select,
@@ -120,13 +120,12 @@ const ModelSelectField = memo(function ModelSelectField({
 			<Field label={label}>
 				<Alert variant="warning">
 					<TriangleAlert aria-hidden />
+					<AlertTitle>No eligible models</AlertTitle>
 					<AlertDescription className="block leading-5">
-						<span className="font-medium text-foreground">No eligible models.</span> Automations
-						need a premium or your own (BYOK) model. Set one up in{" "}
+						Use a premium model or your own (BYOK) model in{" "}
 						<Link href={rolesHref} className="font-medium underline underline-offset-2">
 							role settings
 						</Link>
-						.
 					</AlertDescription>
 				</Alert>
 			</Field>
@@ -155,7 +154,7 @@ const ModelSelectField = memo(function ModelSelectField({
 						<SelectValue placeholder="Select a model" />
 					)}
 				</SelectTrigger>
-				<SelectContent>
+				<SelectContent matchTriggerWidth={false} className="w-auto min-w-80 max-w-[90vw]">
 					{premium.length > 0 ? (
 						<SelectGroup>
 							<SelectLabel>Premium</SelectLabel>

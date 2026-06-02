@@ -63,7 +63,7 @@ export function AutomationsContent({ searchSpaceId }: AutomationsContentProps) {
 				/>
 				<Alert variant="destructive">
 					<AlertCircle aria-hidden />
-					<AlertDescription>Couldn't load automations. {error.message}</AlertDescription>
+					<AlertDescription>Couldn't load automations {error.message}</AlertDescription>
 				</Alert>
 			</>
 		);
