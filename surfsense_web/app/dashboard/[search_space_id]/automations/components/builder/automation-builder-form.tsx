@@ -1,6 +1,6 @@
 "use client";
 import { useAtomValue } from "jotai";
-import { Code2, LayoutList, Save } from "lucide-react";
+import { AlertCircle, Code2, LayoutList, Save } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -12,6 +12,7 @@ import {
 	updateAutomationMutationAtom,
 	updateTriggerMutationAtom,
 } from "@/atoms/automations/automations-mutation.atoms";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -452,7 +453,12 @@ export function AutomationBuilderForm({
 				</div>
 			)}
 
-			{rootError && <p className="text-right text-xs text-destructive">{rootError}</p>}
+			{rootError && (
+				<Alert variant="destructive">
+					<AlertCircle aria-hidden />
+					<AlertDescription>{rootError}</AlertDescription>
+				</Alert>
+			)}
 
 			<div className="flex items-center justify-end gap-2">
 				<Button asChild type="button" variant="ghost" size="sm">

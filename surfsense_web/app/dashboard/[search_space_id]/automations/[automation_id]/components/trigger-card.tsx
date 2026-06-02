@@ -4,6 +4,7 @@ import { AlertCircle, CalendarClock, Clock, Pencil, Save, Trash2 } from "lucide-
 import { useState } from "react";
 import { updateTriggerMutationAtom } from "@/atoms/automations/automations-mutation.atoms";
 import { JsonView } from "@/components/json-view";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
@@ -164,17 +165,19 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 							</div>
 
 							{issues.length > 0 && (
-								<div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
-									<div className="flex items-center gap-1.5 font-medium text-destructive mb-1">
-										<AlertCircle className="h-3 w-3" aria-hidden />
+								<Alert variant="destructive">
+									<AlertCircle aria-hidden />
+									<AlertTitle>
 										{issues.length === 1 ? "1 issue" : `${issues.length} issues`}
-									</div>
-									<ul className="space-y-0.5 text-destructive list-disc list-inside">
-										{issues.map((issue) => (
-											<li key={issue}>{issue}</li>
-										))}
-									</ul>
-								</div>
+									</AlertTitle>
+									<AlertDescription>
+										<ul className="list-inside list-disc">
+											{issues.map((issue) => (
+												<li key={issue}>{issue}</li>
+											))}
+										</ul>
+									</AlertDescription>
+								</Alert>
 							)}
 
 							<div className="flex items-center justify-end gap-2">

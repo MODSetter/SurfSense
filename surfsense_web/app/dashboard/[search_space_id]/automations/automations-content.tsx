@@ -1,5 +1,6 @@
 "use client";
-import { ShieldAlert } from "lucide-react";
+import { AlertCircle, ShieldAlert } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAutomations } from "@/hooks/use-automations";
 import { AutomationsEmptyState } from "./components/automations-empty-state";
 import { AutomationsHeader } from "./components/automations-header";
@@ -60,9 +61,10 @@ export function AutomationsContent({ searchSpaceId }: AutomationsContentProps) {
 					loading={false}
 					canCreate={perms.canCreate}
 				/>
-				<div className="rounded-lg border border-destructive/40 bg-destructive/5 px-6 py-8 text-center">
-					<p className="text-sm text-destructive">Couldn't load automations. {error.message}</p>
-				</div>
+				<Alert variant="destructive">
+					<AlertCircle aria-hidden />
+					<AlertDescription>Couldn't load automations. {error.message}</AlertDescription>
+				</Alert>
 			</>
 		);
 	}

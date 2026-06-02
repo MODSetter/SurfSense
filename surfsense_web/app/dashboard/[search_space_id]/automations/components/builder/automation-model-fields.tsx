@@ -3,7 +3,7 @@
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { memo, useId } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
 	Select,
@@ -118,11 +118,11 @@ const ModelSelectField = memo(function ModelSelectField({
 	if (kind.options.length === 0) {
 		return (
 			<Field label={label}>
-				<Alert>
+				<Alert variant="warning">
 					<TriangleAlert aria-hidden />
-					<AlertTitle>No eligible models</AlertTitle>
-					<AlertDescription>
-						Automations need a premium or your own (BYOK) model. Set one up in{" "}
+					<AlertDescription className="block leading-5">
+						<span className="font-medium text-foreground">No eligible models.</span> Automations
+						need a premium or your own (BYOK) model. Set one up in{" "}
 						<Link href={rolesHref} className="font-medium underline underline-offset-2">
 							role settings
 						</Link>
