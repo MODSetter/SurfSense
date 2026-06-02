@@ -57,9 +57,13 @@ export function ChatExamplePrompts({ onSelect }: ChatExamplePromptsProps) {
 					</TabsList>
 				</div>
 				{CHAT_EXAMPLE_CATEGORIES.map((category) => (
-					<TabsContent key={category.id} value={category.id} className="mt-3">
-						<ScrollArea className="max-h-48">
-							<ul className="flex flex-col gap-2 pr-2">
+					<TabsContent
+						key={category.id}
+						value={category.id}
+						className="mt-3 focus-visible:outline-none"
+					>
+						<ScrollArea className="h-[clamp(7.5rem,26vh,12rem)]">
+							<ul className="flex flex-col gap-2 pr-3">
 								{category.prompts.map((prompt) => (
 									<li key={prompt}>
 										<ExamplePromptButton prompt={prompt} onSelect={onSelect} />
