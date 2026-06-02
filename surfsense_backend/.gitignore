@@ -2,6 +2,7 @@
 .venv
 venv/
 data/
+.local_object_store/
 __pycache__/
 .flashrank_cache
 surf_new_backend.egg-info/

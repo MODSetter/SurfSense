@@ -128,6 +128,23 @@ services:
       timeout: 5s
       retries: 5
 
+  # OPTIONAL — Azurite emulates Azure Blob Storage for testing the Azure
+  # original-file backend. The default filesystem backend needs none of this.
+  # To exercise it, set in surfsense_backend/.env:
+  #   FILE_STORAGE_BACKEND=azure
+  #   AZURE_STORAGE_CONTAINER=surfsense-documents
+  #   AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:${AZURITE_BLOB_PORT:-10000}/devstoreaccount1;
+  # The backend creates blobs on upload; create the container once first
+  # (Azure CLI / Storage Explorer), then upload a document.
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.33.0
+    command: azurite-blob --blobHost 0.0.0.0 --blobPort 10000
+    ports:
+      - "${AZURITE_BLOB_PORT:-10000}:10000"
+    volumes:
+      - azurite_data:/data
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     name: surfsense-deps-postgres
@@ -137,3 +154,5 @@ volumes:
     name: surfsense-deps-redis
   zero_cache_data:
     name: surfsense-deps-zero-cache
+  azurite_data:
+    name: surfsense-deps-azurite

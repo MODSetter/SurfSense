@@ -9,7 +9,10 @@ import { isSelfHosted } from "@/lib/env-config";
 import { ConnectorCard } from "../components/connector-card";
 import {
 	COMPOSIO_CONNECTORS,
+	CONNECTOR_CATEGORY_LABELS,
+	type ConnectorCategory,
 	CRAWLERS,
+	getConnectorCategory,
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "../constants/connector-constants";
@@ -19,19 +22,6 @@ type OAuthConnector = (typeof OAUTH_CONNECTORS)[number];
 type ComposioConnector = (typeof COMPOSIO_CONNECTORS)[number];
 type OtherConnector = (typeof OTHER_CONNECTORS)[number];
 type CrawlerConnector = (typeof CRAWLERS)[number];
-
-const DOCUMENT_FILE_CONNECTOR_TYPES = new Set<string>([
-	EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
-	EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
-	EnumConnectorName.ONEDRIVE_CONNECTOR,
-	EnumConnectorName.DROPBOX_CONNECTOR,
-]);
-
-const OTHER_DOCUMENT_CONNECTOR_TYPES = new Set<string>([
-	EnumConnectorName.YOUTUBE_CONNECTOR,
-	EnumConnectorName.NOTION_CONNECTOR,
-	EnumConnectorName.AIRTABLE_CONNECTOR,
-]);
 
 /**
  * Extract the display name from a full connector name.
@@ -106,45 +96,23 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 			c.description.toLowerCase().includes(searchQuery.toLowerCase())
 	);
 
-	const nativeGoogleDriveConnectors = filteredOAuth.filter(
-		(c) => c.connectorType === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR
-	);
-	const composioGoogleDriveConnectors = filteredComposio.filter(
-		(c) => c.connectorType === EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
-	);
-	const fileStorageConnectors = filteredOAuth.filter(
-		(c) =>
-			c.connectorType === EnumConnectorName.ONEDRIVE_CONNECTOR ||
-			c.connectorType === EnumConnectorName.DROPBOX_CONNECTOR
-	);
+	const inCategory =
+		(category: ConnectorCategory) =>
+		<T extends { connectorType?: string }>(connector: T): boolean =>
+			!!connector.connectorType && getConnectorCategory(connector.connectorType) === category;
 
-	const otherDocumentYouTubeConnectors = filteredCrawlers.filter(
-		(c) => c.connectorType === EnumConnectorName.YOUTUBE_CONNECTOR
-	);
-	const otherDocumentNotionConnectors = filteredOAuth.filter(
-		(c) => c.connectorType === EnumConnectorName.NOTION_CONNECTOR
-	);
-	const otherDocumentAirtableConnectors = filteredOAuth.filter(
-		(c) => c.connectorType === EnumConnectorName.AIRTABLE_CONNECTOR
-	);
-
-	const moreIntegrationsComposio = filteredComposio.filter(
-		(c) =>
-			!DOCUMENT_FILE_CONNECTOR_TYPES.has(c.connectorType) &&
-			!OTHER_DOCUMENT_CONNECTOR_TYPES.has(c.connectorType)
-	);
-	const moreIntegrationsOAuth = filteredOAuth.filter(
-		(c) =>
-			!DOCUMENT_FILE_CONNECTOR_TYPES.has(c.connectorType) &&
-			!OTHER_DOCUMENT_CONNECTOR_TYPES.has(c.connectorType)
-	);
-	const moreIntegrationsOther = filteredOther;
-	const moreIntegrationsCrawlers = filteredCrawlers.filter(
-		(c) =>
-			!c.connectorType ||
-			(!DOCUMENT_FILE_CONNECTOR_TYPES.has(c.connectorType) &&
-				!OTHER_DOCUMENT_CONNECTOR_TYPES.has(c.connectorType))
-	);
+	const knowledgeBase = {
+		oauth: filteredOAuth.filter(inCategory("knowledge_base")),
+		composio: filteredComposio.filter(inCategory("knowledge_base")),
+		other: filteredOther.filter(inCategory("knowledge_base")),
+		crawlers: filteredCrawlers.filter(inCategory("knowledge_base")),
+	};
+	const toolsLive = {
+		oauth: filteredOAuth.filter(inCategory("tools_live")),
+		composio: filteredComposio.filter(inCategory("tools_live")),
+		other: filteredOther.filter(inCategory("tools_live")),
+		crawlers: filteredCrawlers.filter(inCategory("tools_live")),
+	};
 
 	const renderOAuthCard = (connector: OAuthConnector | ComposioConnector) => {
 		const isConnected = connectedTypes.has(connector.connectorType);
@@ -275,20 +243,18 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 		);
 	};
 
-	const hasDocumentFileConnectors =
-		nativeGoogleDriveConnectors.length > 0 ||
-		composioGoogleDriveConnectors.length > 0 ||
-		fileStorageConnectors.length > 0;
-	const hasMoreIntegrations =
-		otherDocumentYouTubeConnectors.length > 0 ||
-		otherDocumentNotionConnectors.length > 0 ||
-		otherDocumentAirtableConnectors.length > 0 ||
-		moreIntegrationsComposio.length > 0 ||
-		moreIntegrationsOAuth.length > 0 ||
-		moreIntegrationsOther.length > 0 ||
-		moreIntegrationsCrawlers.length > 0;
+	const hasKnowledgeBase =
+		knowledgeBase.oauth.length > 0 ||
+		knowledgeBase.composio.length > 0 ||
+		knowledgeBase.other.length > 0 ||
+		knowledgeBase.crawlers.length > 0;
+	const hasToolsLive =
+		toolsLive.oauth.length > 0 ||
+		toolsLive.composio.length > 0 ||
+		toolsLive.other.length > 0 ||
+		toolsLive.crawlers.length > 0;
 
-	const hasAnyResults = hasDocumentFileConnectors || hasMoreIntegrations;
+	const hasAnyResults = hasKnowledgeBase || hasToolsLive;
 
 	if (!hasAnyResults && searchQuery) {
 		return (
@@ -302,36 +268,34 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 
 	return (
 		<div className="space-y-8">
-			{/* File Storage Integrations */}
-			{hasDocumentFileConnectors && (
+			{hasKnowledgeBase && (
 				<section>
 					<div className="flex items-center gap-2 mb-4">
 						<h3 className="text-sm font-semibold text-muted-foreground">
-							File Storage Integrations
+							{CONNECTOR_CATEGORY_LABELS.knowledge_base}
 						</h3>
 					</div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{nativeGoogleDriveConnectors.map(renderOAuthCard)}
-						{composioGoogleDriveConnectors.map(renderOAuthCard)}
-						{fileStorageConnectors.map(renderOAuthCard)}
+						{knowledgeBase.oauth.map(renderOAuthCard)}
+						{knowledgeBase.composio.map(renderOAuthCard)}
+						{knowledgeBase.crawlers.map(renderCrawlerCard)}
+						{knowledgeBase.other.map(renderOtherCard)}
 					</div>
 				</section>
 			)}
 
-			{/* More Integrations */}
-			{hasMoreIntegrations && (
+			{hasToolsLive && (
 				<section>
 					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">More Integrations</h3>
+						<h3 className="text-sm font-semibold text-muted-foreground">
+							{CONNECTOR_CATEGORY_LABELS.tools_live}
+						</h3>
 					</div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{otherDocumentYouTubeConnectors.map(renderCrawlerCard)}
-						{otherDocumentNotionConnectors.map(renderOAuthCard)}
-						{otherDocumentAirtableConnectors.map(renderOAuthCard)}
-						{moreIntegrationsComposio.map(renderOAuthCard)}
-						{moreIntegrationsOAuth.map(renderOAuthCard)}
-						{moreIntegrationsOther.map(renderOtherCard)}
-						{moreIntegrationsCrawlers.map(renderCrawlerCard)}
+						{toolsLive.oauth.map(renderOAuthCard)}
+						{toolsLive.composio.map(renderOAuthCard)}
+						{toolsLive.crawlers.map(renderCrawlerCard)}
+						{toolsLive.other.map(renderOtherCard)}
 					</div>
 				</section>
 			)}

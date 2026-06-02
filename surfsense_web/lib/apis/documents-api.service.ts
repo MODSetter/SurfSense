@@ -30,6 +30,8 @@ import {
 	searchDocumentsResponse,
 	searchDocumentTitlesRequest,
 	searchDocumentTitlesResponse,
+	type DocumentFileRead,
+	getDocumentFilesResponse,
 	type UpdateDocumentRequest,
 	type UploadDocumentRequest,
 	updateDocumentRequest,
@@ -379,6 +381,14 @@ class DocumentsApiService {
 		return baseApiService.put(`/api/v1/documents/${id}`, updateDocumentResponse, {
 			body: data,
 		});
+	};
+
+	/**
+	 * List the stored files for a document (e.g. its original upload).
+	 * Used to gate the "Download original" affordance.
+	 */
+	getDocumentFiles = async (documentId: number): Promise<DocumentFileRead[]> => {
+		return baseApiService.get(`/api/v1/documents/${documentId}/files`, getDocumentFilesResponse);
 	};
 
 	listDocumentVersions = async (documentId: number) => {

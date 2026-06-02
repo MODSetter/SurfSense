@@ -243,6 +243,38 @@ export function getConnectorTitle(connectorType: string): string {
 	);
 }
 
+/**
+ * Primary way a user interacts with a connector.
+ * Drives the two top-level groupings in the connector catalog UI.
+ */
+export type ConnectorCategory = "knowledge_base" | "tools_live";
+
+export const CONNECTOR_CATEGORY_LABELS: Record<ConnectorCategory, string> = {
+	knowledge_base: "Knowledge Base",
+	tools_live: "Tools & Live Sources",
+};
+
+const KNOWLEDGE_BASE_CONNECTOR_TYPES = new Set<string>([
+	EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
+	EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+	EnumConnectorName.ONEDRIVE_CONNECTOR,
+	EnumConnectorName.DROPBOX_CONNECTOR,
+	EnumConnectorName.NOTION_CONNECTOR,
+	EnumConnectorName.CONFLUENCE_CONNECTOR,
+	EnumConnectorName.YOUTUBE_CONNECTOR,
+	EnumConnectorName.WEBCRAWLER_CONNECTOR,
+	EnumConnectorName.BOOKSTACK_CONNECTOR,
+	EnumConnectorName.GITHUB_CONNECTOR,
+	EnumConnectorName.ELASTICSEARCH_CONNECTOR,
+	EnumConnectorName.CIRCLEBACK_CONNECTOR,
+	EnumConnectorName.OBSIDIAN_CONNECTOR,
+]);
+
+/** Unmapped connectors surface under Tools & Live Sources. */
+export function getConnectorCategory(connectorType: string): ConnectorCategory {
+	return KNOWLEDGE_BASE_CONNECTOR_TYPES.has(connectorType) ? "knowledge_base" : "tools_live";
+}
+
 // Composio Toolkits (available integrations via Composio)
 export const COMPOSIO_TOOLKITS = [
 	{
