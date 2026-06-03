@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -12,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.notifications.persistence import Notification
+from app.notifications.service.metadata import apply_update, start_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +60,10 @@ class BaseNotificationHandler:
             notification.title = title
             notification.message = message
             if initial_metadata:
-                notification.notification_metadata = {
-                    **notification.notification_metadata,
-                    **initial_metadata,
-                }
+                notification.notification_metadata = apply_update(
+                    notification.notification_metadata,
+                    metadata_updates=initial_metadata,
+                )
                 # Tell SQLAlchemy the JSONB dict changed in place.
                 flag_modified(notification, "notification_metadata")
             await session.commit()
@@ -73,10 +73,7 @@ class BaseNotificationHandler:
             )
             return notification
 
-        metadata = initial_metadata or {}
-        metadata["operation_id"] = operation_id
-        metadata["status"] = "in_progress"
-        metadata["started_at"] = datetime.now(UTC).isoformat()
+        metadata = start_metadata(operation_id, initial_metadata)
 
         notification = Notification(
             user_id=user_id,
@@ -109,20 +106,10 @@ class BaseNotificationHandler:
         if message is not None:
             notification.message = message
 
-        if status is not None:
-            notification.notification_metadata["status"] = status
-            if status in ("completed", "failed"):
-                notification.notification_metadata["completed_at"] = datetime.now(
-                    UTC
-                ).isoformat()
-            # Tell SQLAlchemy the JSONB dict changed in place.
-            flag_modified(notification, "notification_metadata")
-
-        if metadata_updates:
-            notification.notification_metadata = {
-                **notification.notification_metadata,
-                **metadata_updates,
-            }
+        if status is not None or metadata_updates:
+            notification.notification_metadata = apply_update(
+                notification.notification_metadata, status, metadata_updates
+            )
             # Tell SQLAlchemy the JSONB dict changed in place.
             flag_modified(notification, "notification_metadata")
 
