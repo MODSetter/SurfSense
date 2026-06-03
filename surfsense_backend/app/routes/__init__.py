@@ -45,7 +45,7 @@ from .model_list_routes import router as model_list_router
 from .new_chat_routes import router as new_chat_router
 from .new_llm_config_routes import router as new_llm_config_router
 from .notes_routes import router as notes_router
-from .notifications_routes import router as notifications_router
+from app.notifications.api import router as notifications_router
 from .notion_add_connector_route import router as notion_add_connector_router
 from .obsidian_plugin_routes import router as obsidian_plugin_router
 from .onedrive_add_connector_route import router as onedrive_add_connector_router
