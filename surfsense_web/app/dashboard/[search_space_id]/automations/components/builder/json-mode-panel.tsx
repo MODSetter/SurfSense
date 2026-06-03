@@ -26,14 +26,13 @@ export function JsonModePanel({ value, issues, notice, onChange }: JsonModePanel
 				</Alert>
 			)}
 
-			<div className="rounded-md border border-input bg-background px-3 py-2 max-h-144 overflow-auto">
-				<JsonView
-					src={value}
-					editable
-					onChange={(next) => onChange(next as Record<string, unknown>)}
-					collapsed={false}
-				/>
-			</div>
+			<JsonView
+				src={value}
+				editable
+				onChange={(next) => onChange(next as Record<string, unknown>)}
+				collapsed={false}
+				className="max-h-144 overflow-auto rounded-md border border-accent bg-accent/20"
+			/>
 
 			{issues.length > 0 && (
 				<Alert variant="destructive">

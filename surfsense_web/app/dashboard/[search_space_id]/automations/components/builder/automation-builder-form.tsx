@@ -364,16 +364,12 @@ export function AutomationBuilderForm({
 			)}
 
 			{activeMode === "json" ? (
-				<Card className="rounded-md border-accent bg-accent/20">
-					<CardContent className="pt-6">
-						<JsonModePanel
-							value={jsonValue}
-							issues={jsonIssues}
-							notice={jsonNotice}
-							onChange={setJsonValue}
-						/>
-					</CardContent>
-				</Card>
+				<JsonModePanel
+					value={jsonValue}
+					issues={jsonIssues}
+					notice={jsonNotice}
+					onChange={setJsonValue}
+				/>
 			) : (
 				<div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
 					<div className="lg:col-span-2">

@@ -8,7 +8,6 @@ import { updateAutomationMutationAtom } from "@/atoms/automations/automations-mu
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { Automation } from "@/contracts/types/automation.types";
-import { AutomationStatusBadge } from "../../components/automation-status-badge";
 import { DeleteAutomationDialog } from "../../components/delete-automation-dialog";
 
 interface AutomationDetailHeaderProps {
@@ -70,12 +69,9 @@ export function AutomationDetailHeader({
 
 				<div className="flex items-start justify-between gap-4 flex-wrap">
 					<div className="space-y-2 min-w-0 flex-1">
-						<div className="flex items-center gap-3 flex-wrap">
-							<h1 className="text-xl md:text-2xl font-semibold text-foreground break-words">
-								{automation.name}
-							</h1>
-							<AutomationStatusBadge status={automation.status} />
-						</div>
+						<h1 className="text-xl md:text-2xl font-semibold text-foreground break-words">
+							{automation.name}
+						</h1>
 						{automation.description && (
 							<p className="text-sm text-muted-foreground max-w-3xl">{automation.description}</p>
 						)}

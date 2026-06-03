@@ -81,7 +81,7 @@ export function ScheduleSection({
 					type="button"
 					variant="ghost"
 					size="icon"
-					className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+					className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
 					aria-label="Remove schedule"
 					onClick={() => onScheduleChange(null)}
 				>
