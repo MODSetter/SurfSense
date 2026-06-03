@@ -55,7 +55,7 @@ from app.schemas import (
     SearchSourceConnectorUpdate,
 )
 from app.services.composio_service import ComposioService, get_composio_service
-from app.services.notification_service import NotificationService
+from app.notifications.service import NotificationService
 from app.users import current_active_user
 
 # NOTE: connector indexer functions are imported lazily inside each

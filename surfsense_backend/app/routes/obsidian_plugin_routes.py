@@ -43,7 +43,7 @@ from app.schemas.obsidian_plugin import (
     SyncAckItem,
     SyncBatchRequest,
 )
-from app.services.notification_service import NotificationService
+from app.notifications.service import NotificationService
 from app.services.obsidian_plugin_indexer import (
     delete_note,
     get_manifest,
