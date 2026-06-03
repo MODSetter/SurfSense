@@ -634,6 +634,7 @@
 		"created": "创建于"
 	},
 	"sidebar": {
+		"recents": "最近",
 		"chats": "对话",
 		"shared_chats": "共享对话",
 		"search_chats": "搜索对话...",

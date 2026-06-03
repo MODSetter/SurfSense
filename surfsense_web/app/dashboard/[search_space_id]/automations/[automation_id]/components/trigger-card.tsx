@@ -346,9 +346,20 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 							>
 								Cancel
 							</Button>
-							<Button type="button" size="sm" onClick={saveEdit} disabled={updating}>
-								{updating ? <Spinner size="xs" className="mr-1.5" /> : null}
-								Save
+							<Button
+								type="button"
+								size="sm"
+								onClick={saveEdit}
+								disabled={updating}
+								className="relative"
+							>
+								<span className={updating ? "opacity-0" : undefined}>Save</span>
+								{updating ? (
+									<Spinner
+										size="xs"
+										className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+									/>
+								) : null}
 							</Button>
 						</div>
 					</div>

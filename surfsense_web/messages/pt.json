@@ -650,6 +650,7 @@
 		"created": "Criado"
 	},
 	"sidebar": {
+		"recents": "Recentes",
 		"chats": "Chats",
 		"shared_chats": "Chats compartilhados",
 		"search_chats": "Pesquisar chats",

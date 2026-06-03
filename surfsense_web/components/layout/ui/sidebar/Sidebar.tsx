@@ -259,7 +259,7 @@ export function Sidebar({
 			) : (
 				<div className="flex-1 flex flex-col gap-1 pt-2 w-full min-h-0 overflow-hidden">
 					<SidebarSection
-						title={t("chats")}
+						title={t("recents")}
 						defaultOpen={true}
 						fillHeight={true}
 						alwaysShowAction={!disableTooltips && isChatsPanelOpen}
