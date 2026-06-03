@@ -495,12 +495,11 @@ export function AutomationBuilderForm({
 						type="button"
 						size="sm"
 						disabled={submitting}
+						className="relative"
 						onClick={() => (activeMode === "json" ? submitJson() : submitForm())}
 					>
-						{submitting ? (
-							<Spinner size="xs" className="mr-2" />
-						) : null}
-						{submitLabel}
+						<span className={submitting ? "opacity-0" : ""}>{submitLabel}</span>
+						{submitting && <Spinner size="xs" className="absolute" />}
 					</Button>
 				)}
 			</div>
