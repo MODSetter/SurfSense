@@ -19,7 +19,6 @@ from app.indexing_pipeline.indexing_pipeline_service import (
     IndexingPipelineService,
     PlaceholderInfo,
 )
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.notion_utils import process_blocks
 
@@ -43,7 +42,6 @@ def _build_connector_doc(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
 ) -> ConnectorDocument:
     """Map a raw Notion page dict to a ConnectorDocument."""
     page_id = page.get("page_id", "")
@@ -57,8 +55,6 @@ def _build_connector_doc(
         "connector_type": "Notion",
     }
 
-    fallback_summary = f"Notion Page: {page_title}\n\n{markdown_content}"
-
     return ConnectorDocument(
         title=page_title,
         source_markdown=markdown_content,
@@ -67,8 +63,6 @@ def _build_connector_doc(
         search_space_id=search_space_id,
         connector_id=connector_id,
         created_by_id=user_id,
-        should_summarize=enable_summary,
-        fallback_summary=fallback_summary,
         metadata=metadata,
     )
 
@@ -314,8 +308,7 @@ async def index_notion_pages(
                     connector_id=connector_id,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    enable_summary=connector.enable_summary,
-                )
+                    )
 
                 with session.no_autoflush:
                     duplicate = await check_duplicate_document_by_hash(
@@ -343,13 +336,8 @@ async def index_notion_pages(
 
         # ── Pipeline: migrate legacy docs + parallel index ────────────
         await pipeline.migrate_legacy_docs(connector_docs)
-
-        async def _get_llm(s):
-            return await get_user_long_context_llm(s, user_id, search_space_id)
-
         _, documents_indexed, documents_failed = await pipeline.index_batch_parallel(
             connector_docs,
-            _get_llm,
             max_concurrency=3,
             on_heartbeat=on_heartbeat_callback,
             heartbeat_interval=HEARTBEAT_INTERVAL_SECONDS,

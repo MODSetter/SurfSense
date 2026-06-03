@@ -21,7 +21,6 @@ from app.indexing_pipeline.indexing_pipeline_service import (
     PlaceholderInfo,
 )
 from app.services.composio_service import ComposioService
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.google_credentials import COMPOSIO_GOOGLE_CONNECTOR_TYPES
 
@@ -53,7 +52,6 @@ def _build_connector_doc(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
 ) -> ConnectorDocument:
     """Map a raw Google Calendar API event dict to a ConnectorDocument."""
     event_id = event.get("id", "")
@@ -78,8 +76,6 @@ def _build_connector_doc(
         "connector_type": "Google Calendar",
     }
 
-    fallback_summary = f"Google Calendar Event: {event_summary}\n\n{event_markdown}"
-
     return ConnectorDocument(
         title=event_summary,
         source_markdown=event_markdown,
@@ -88,8 +84,6 @@ def _build_connector_doc(
         search_space_id=search_space_id,
         connector_id=connector_id,
         created_by_id=user_id,
-        should_summarize=enable_summary,
-        fallback_summary=fallback_summary,
         metadata=metadata,
     )
 
@@ -420,8 +414,7 @@ async def index_google_calendar_events(
                     connector_id=connector_id,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    enable_summary=connector.enable_summary,
-                )
+                    )
 
                 with session.no_autoflush:
                     duplicate = await check_duplicate_document_by_hash(
@@ -448,13 +441,8 @@ async def index_google_calendar_events(
 
         # ── Pipeline: migrate legacy docs + parallel index ─────────────
         await pipeline.migrate_legacy_docs(connector_docs)
-
-        async def _get_llm(s):
-            return await get_user_long_context_llm(s, user_id, search_space_id)
-
         _, documents_indexed, documents_failed = await pipeline.index_batch_parallel(
             connector_docs,
-            _get_llm,
             max_concurrency=3,
             on_heartbeat=on_heartbeat_callback,
             heartbeat_interval=HEARTBEAT_INTERVAL_SECONDS,
