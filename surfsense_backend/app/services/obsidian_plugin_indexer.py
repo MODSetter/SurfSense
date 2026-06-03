@@ -233,18 +233,6 @@ async def _resolve_attachment_vision_llm(
     return await get_vision_llm(session, search_space_id)
 
 
-async def _resolve_summary_llm(
-    session: AsyncSession, *, user_id: str, search_space_id: int, should_summarize: bool
-):
-    """Fetch summary LLM only when indexing summary is enabled."""
-    if not should_summarize:
-        return None
-
-    from app.services.llm_service import get_user_long_context_llm
-
-    return await get_user_long_context_llm(session, user_id, search_space_id)
-
-
 def _require_extracted_attachment_content(
     *, content: str, etl_meta: dict[str, Any], path: str
 ) -> str:
@@ -349,13 +337,6 @@ async def upsert_note(
             path=payload.path,
         )
 
-    llm = await _resolve_summary_llm(
-        session,
-        user_id=str(user_id),
-        search_space_id=search_space_id,
-        should_summarize=connector.enable_summary,
-    )
-
     document_string = _build_document_string(
         payload, vault_name, content_override=content_for_index
     )
@@ -374,8 +355,6 @@ async def upsert_note(
         search_space_id=search_space_id,
         connector_id=connector.id,
         created_by_id=str(user_id),
-        should_summarize=connector.enable_summary,
-        fallback_summary=f"Obsidian Note: {payload.name}\n\n{content_for_index}",
         metadata=metadata,
     )
 
@@ -388,7 +367,7 @@ async def upsert_note(
 
     document = prepared[0]
 
-    return await pipeline.index(document, connector_doc, llm)
+    return await pipeline.index(document, connector_doc)
 
 
 async def rename_note(
