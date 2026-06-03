@@ -51,9 +51,17 @@ export function AutomationEditContent({ searchSpaceId, automationId }: Automatio
 	}
 
 	return (
-		<>
-			<AutomationEditHeader automation={automation} searchSpaceId={searchSpaceId} />
-			<AutomationBuilderForm mode="edit" searchSpaceId={searchSpaceId} automation={automation} />
-		</>
+		<AutomationBuilderForm
+			mode="edit"
+			searchSpaceId={searchSpaceId}
+			automation={automation}
+			renderModeSwitcher={(modeSwitcher) => (
+				<AutomationEditHeader
+					automation={automation}
+					searchSpaceId={searchSpaceId}
+					modeSwitcher={modeSwitcher}
+				/>
+			)}
+		/>
 	);
 }

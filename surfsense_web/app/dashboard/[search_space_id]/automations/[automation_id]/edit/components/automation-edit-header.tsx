@@ -1,15 +1,21 @@
 "use client";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import type { Automation } from "@/contracts/types/automation.types";
 
 interface AutomationEditHeaderProps {
 	automation: Automation;
 	searchSpaceId: number;
+	modeSwitcher?: ReactNode;
 }
 
-export function AutomationEditHeader({ automation, searchSpaceId }: AutomationEditHeaderProps) {
+export function AutomationEditHeader({
+	automation,
+	searchSpaceId,
+	modeSwitcher,
+}: AutomationEditHeaderProps) {
 	const detailHref = `/dashboard/${searchSpaceId}/automations/${automation.id}`;
 
 	return (
@@ -20,11 +26,11 @@ export function AutomationEditHeader({ automation, searchSpaceId }: AutomationEd
 					Back to automation
 				</Link>
 			</Button>
-			<div>
+			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h1 className="text-xl md:text-2xl font-semibold text-foreground wrap-break-word">
 					Edit automation
 				</h1>
-				<p className="text-sm text-muted-foreground mt-1">{automation.name}</p>
+				{modeSwitcher ? <div className="ml-auto">{modeSwitcher}</div> : null}
 			</div>
 		</div>
 	);

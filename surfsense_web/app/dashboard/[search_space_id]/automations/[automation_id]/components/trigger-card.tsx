@@ -1,9 +1,8 @@
 "use client";
 import { useAtomValue } from "jotai";
-import { AlertCircle, MoreHorizontal, Pencil, Save, Trash2 } from "lucide-react";
+import { AlertCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { updateTriggerMutationAtom } from "@/atoms/automations/automations-mutation.atoms";
-import { JsonView } from "@/components/json-view";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,11 +11,26 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { type Trigger, triggerUpdateRequest } from "@/contracts/types/automation.types";
 import { describeCron } from "@/lib/automations/describe-cron";
 import { formatRelativeFutureDate } from "@/lib/format-date";
+import {
+	DEFAULT_SCHEDULE,
+	fromCron,
+	type ScheduleFrequency,
+	toCron,
+} from "@/lib/automations/schedule-builder";
+import { TimezoneCombobox } from "../../components/builder/timezone-combobox";
 import { DeleteTriggerDialog } from "./delete-trigger-dialog";
 
 interface TriggerCardProps {
@@ -26,16 +40,48 @@ interface TriggerCardProps {
 	canDelete: boolean;
 }
 
+type SimpleFrequency = Extract<ScheduleFrequency, "hourly" | "daily" | "weekdays"> | "custom";
+
 interface TriggerDraft {
-	params: Record<string, unknown>;
-	static_inputs: Record<string, unknown>;
+	frequency: SimpleFrequency;
+	hour: number;
+	minute: number;
+	timezone: string;
+	cron: string;
 }
 
+const SIMPLE_FREQUENCIES = new Set<ScheduleFrequency>(["hourly", "daily", "weekdays"]);
+
 function draftFromTrigger(trigger: Trigger): TriggerDraft {
+	const cron = typeof trigger.params.cron === "string" ? trigger.params.cron : "";
+	const timezone = typeof trigger.params.timezone === "string" ? trigger.params.timezone : "UTC";
+	const model = fromCron(cron);
+	if (model && SIMPLE_FREQUENCIES.has(model.frequency)) {
+		return {
+			frequency: model.frequency as SimpleFrequency,
+			hour: model.hour,
+			minute: model.minute,
+			timezone,
+			cron,
+		};
+	}
 	return {
-		params: trigger.params,
-		static_inputs: trigger.static_inputs ?? {},
+		frequency: "custom",
+		hour: DEFAULT_SCHEDULE.hour,
+		minute: DEFAULT_SCHEDULE.minute,
+		timezone,
+		cron,
 	};
+}
+
+function pad(value: number): string {
+	return value.toString().padStart(2, "0");
+}
+
+function clampInt(raw: string, min: number, max: number): number {
+	const value = Number.parseInt(raw, 10);
+	if (Number.isNaN(value)) return min;
+	return Math.min(max, Math.max(min, value));
 }
 
 /**
@@ -44,8 +90,8 @@ function draftFromTrigger(trigger: Trigger): TriggerDraft {
  *   - compact enable toggle
  *   - dropdown actions for edit/remove
  *
- * Inline edit covers ``params`` and ``static_inputs`` — the two fields the
- * backend ``PATCH /triggers/[id]`` endpoint accepts beyond ``enabled``.
+ * Inline edit keeps schedule editing intentionally small: common frequencies,
+ * time, timezone, and raw cron only for schedules outside the simple model.
  * ``enabled`` stays on the Switch so the two surfaces don't fight.
  */
 export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: TriggerCardProps) {
@@ -82,7 +128,22 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 
 	async function saveEdit() {
 		setIssues([]);
-		const result = triggerUpdateRequest.safeParse(draft);
+		const params =
+			draft.frequency === "custom"
+				? { cron: draft.cron.trim(), timezone: draft.timezone }
+				: {
+						cron: toCron({
+							...DEFAULT_SCHEDULE,
+							frequency: draft.frequency,
+							hour: draft.hour,
+							minute: draft.minute,
+						}),
+						timezone: draft.timezone,
+					};
+		const result = triggerUpdateRequest.safeParse({
+			params,
+			static_inputs: trigger.static_inputs ?? {},
+		});
 		if (!result.success) {
 			setIssues(
 				result.error.issues.map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
@@ -169,13 +230,94 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 
 				{isEditing ? (
 					<div className="space-y-3 border-t border-border/60 px-4 py-3 text-xs">
-						<div className="rounded-md border border-input bg-background px-3 py-2 max-h-[24rem] overflow-auto">
-							<JsonView
-								src={draft}
-								editable
-								onChange={(next) => setDraft(next as TriggerDraft)}
-								collapsed={false}
-							/>
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+							<div className="space-y-1.5">
+								<label className="text-xs font-medium text-muted-foreground" htmlFor="trigger-runs">
+									Runs
+								</label>
+								<Select
+									value={draft.frequency}
+									onValueChange={(value) =>
+										setDraft((prev) => ({ ...prev, frequency: value as SimpleFrequency }))
+									}
+								>
+									<SelectTrigger id="trigger-runs" className="w-full">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="hourly">Every hour</SelectItem>
+										<SelectItem value="daily">Daily</SelectItem>
+										<SelectItem value="weekdays">Weekdays</SelectItem>
+										<SelectItem value="custom">Custom cron</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+
+							{draft.frequency === "hourly" ? (
+								<div className="space-y-1.5">
+									<label
+										className="text-xs font-medium text-muted-foreground"
+										htmlFor="trigger-minute"
+									>
+										At minute
+									</label>
+									<Input
+										id="trigger-minute"
+										type="number"
+										min={0}
+										max={59}
+										value={draft.minute}
+										onChange={(event) =>
+											setDraft((prev) => ({
+												...prev,
+												minute: clampInt(event.target.value, 0, 59),
+											}))
+										}
+									/>
+								</div>
+							) : draft.frequency !== "custom" ? (
+								<div className="space-y-1.5">
+									<label className="text-xs font-medium text-muted-foreground" htmlFor="trigger-time">
+										Time
+									</label>
+									<Input
+										id="trigger-time"
+										type="time"
+										value={`${pad(draft.hour)}:${pad(draft.minute)}`}
+										onChange={(event) => {
+											const [hour, minute] = event.target.value.split(":");
+											setDraft((prev) => ({
+												...prev,
+												hour: clampInt(hour, 0, 23),
+												minute: clampInt(minute, 0, 59),
+											}));
+										}}
+									/>
+								</div>
+							) : (
+								<div className="space-y-1.5">
+									<label className="text-xs font-medium text-muted-foreground" htmlFor="trigger-cron">
+										Schedule expression
+									</label>
+									<Input
+										id="trigger-cron"
+										value={draft.cron}
+										placeholder="0 9 * * 1-5"
+										className="font-mono"
+										onChange={(event) =>
+											setDraft((prev) => ({ ...prev, cron: event.target.value }))
+										}
+									/>
+								</div>
+							)}
+
+							<div className="space-y-1.5 sm:col-span-2">
+								<div className="text-xs font-medium text-muted-foreground">Timezone</div>
+								<TimezoneCombobox
+									value={draft.timezone}
+									onChange={(timezone) => setDraft((prev) => ({ ...prev, timezone }))}
+								/>
+							</div>
 						</div>
 
 						{issues.length > 0 && (
@@ -205,11 +347,7 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 								Cancel
 							</Button>
 							<Button type="button" size="sm" onClick={saveEdit} disabled={updating}>
-								{updating ? (
-									<Spinner size="xs" className="mr-1.5" />
-								) : (
-									<Save className="mr-1.5 h-3.5 w-3.5" />
-								)}
+								{updating ? <Spinner size="xs" className="mr-1.5" /> : null}
 								Save
 							</Button>
 						</div>
