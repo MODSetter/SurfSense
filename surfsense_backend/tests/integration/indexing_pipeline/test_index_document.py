@@ -10,9 +10,7 @@ _EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 pytestmark = pytest.mark.integration
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_sets_status_ready(
     db_session,
     db_search_space,
@@ -27,7 +25,7 @@ async def test_sets_status_ready(
     document = prepared[0]
     document_id = document.id
 
-    await service.index(document, connector_doc, llm=mocker.Mock())
+    await service.index(document, connector_doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.id == document_id)
@@ -37,16 +35,14 @@ async def test_sets_status_ready(
     assert DocumentStatus.is_state(reloaded.status, DocumentStatus.READY)
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
-async def test_content_is_summary_when_should_summarize_true(
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
+async def test_content_is_source_markdown_by_default(
     db_session,
     db_search_space,
     make_connector_document,
     mocker,
 ):
-    """Document content is set to the LLM-generated summary when should_summarize=True."""
+    """Document content is set to source_markdown by default."""
     connector_doc = make_connector_document(search_space_id=db_search_space.id)
     service = IndexingPipelineService(session=db_session)
 
@@ -54,28 +50,25 @@ async def test_content_is_summary_when_should_summarize_true(
     document = prepared[0]
     document_id = document.id
 
-    await service.index(document, connector_doc, llm=mocker.Mock())
+    await service.index(document, connector_doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.id == document_id)
     )
     reloaded = result.scalars().first()
 
-    assert reloaded.content == "Mocked summary."
+    assert reloaded.content == connector_doc.source_markdown
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
-async def test_content_is_source_markdown_when_should_summarize_false(
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
+async def test_content_is_source_markdown_when_custom_content(
     db_session,
     db_search_space,
     make_connector_document,
 ):
-    """Document content is set to source_markdown verbatim when should_summarize=False."""
+    """Document content is set to source_markdown verbatim."""
     connector_doc = make_connector_document(
         search_space_id=db_search_space.id,
-        should_summarize=False,
         source_markdown="## Raw content",
     )
     service = IndexingPipelineService(session=db_session)
@@ -84,7 +77,7 @@ async def test_content_is_source_markdown_when_should_summarize_false(
     document = prepared[0]
     document_id = document.id
 
-    await service.index(document, connector_doc, llm=None)
+    await service.index(document, connector_doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.id == document_id)
@@ -94,9 +87,7 @@ async def test_content_is_source_markdown_when_should_summarize_false(
     assert reloaded.content == "## Raw content"
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_chunks_written_to_db(
     db_session,
     db_search_space,
@@ -111,7 +102,7 @@ async def test_chunks_written_to_db(
     document = prepared[0]
     document_id = document.id
 
-    await service.index(document, connector_doc, llm=mocker.Mock())
+    await service.index(document, connector_doc)
 
     result = await db_session.execute(
         select(Chunk).filter(Chunk.document_id == document_id)
@@ -122,9 +113,7 @@ async def test_chunks_written_to_db(
     assert chunks[0].content == "Test chunk content."
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_embedding_written_to_db(
     db_session,
     db_search_space,
@@ -139,7 +128,7 @@ async def test_embedding_written_to_db(
     document = prepared[0]
     document_id = document.id
 
-    await service.index(document, connector_doc, llm=mocker.Mock())
+    await service.index(document, connector_doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.id == document_id)
@@ -150,9 +139,7 @@ async def test_embedding_written_to_db(
     assert len(reloaded.embedding) == _EMBEDDING_DIM
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_updated_at_advances_after_indexing(
     db_session,
     db_search_space,
@@ -172,7 +159,7 @@ async def test_updated_at_advances_after_indexing(
     )
     updated_at_pending = result.scalars().first().updated_at
 
-    await service.index(document, connector_doc, llm=mocker.Mock())
+    await service.index(document, connector_doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.id == document_id)
@@ -182,18 +169,15 @@ async def test_updated_at_advances_after_indexing(
     assert updated_at_ready > updated_at_pending
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_no_llm_falls_back_to_source_markdown(
     db_session,
     db_search_space,
     make_connector_document,
 ):
-    """When llm=None and no fallback_summary, content falls back to source_markdown."""
+    """Content stays deterministic source markdown without an LLM."""
     connector_doc = make_connector_document(
         search_space_id=db_search_space.id,
-        should_summarize=True,
         source_markdown="## Fallback content",
     )
     service = IndexingPipelineService(session=db_session)
@@ -202,7 +186,7 @@ async def test_no_llm_falls_back_to_source_markdown(
     document = prepared[0]
     document_id = document.id
 
-    await service.index(document, connector_doc, llm=None)
+    await service.index(document, connector_doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.id == document_id)
@@ -213,27 +197,23 @@ async def test_no_llm_falls_back_to_source_markdown(
     assert reloaded.content == "## Fallback content"
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
-async def test_fallback_summary_used_when_llm_unavailable(
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
+async def test_source_markdown_used_without_preview(
     db_session,
     db_search_space,
     make_connector_document,
 ):
-    """fallback_summary is used as content when llm=None and should_summarize=True."""
+    """Source markdown is used without fallback preview fields."""
     connector_doc = make_connector_document(
         search_space_id=db_search_space.id,
-        should_summarize=True,
         source_markdown="## Full raw content",
-        fallback_summary="Short pre-built summary.",
     )
     service = IndexingPipelineService(session=db_session)
 
     prepared = await service.prepare_for_indexing([connector_doc])
     document_id = prepared[0].id
 
-    await service.index(prepared[0], connector_doc, llm=None)
+    await service.index(prepared[0], connector_doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.id == document_id)
@@ -241,12 +221,10 @@ async def test_fallback_summary_used_when_llm_unavailable(
     reloaded = result.scalars().first()
 
     assert DocumentStatus.is_state(reloaded.status, DocumentStatus.READY)
-    assert reloaded.content == "Short pre-built summary."
+    assert reloaded.content == "## Full raw content"
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_reindex_replaces_old_chunks(
     db_session,
     db_search_space,
@@ -264,14 +242,14 @@ async def test_reindex_replaces_old_chunks(
     document = prepared[0]
     document_id = document.id
 
-    await service.index(document, connector_doc, llm=mocker.Mock())
+    await service.index(document, connector_doc)
 
     updated_doc = make_connector_document(
         search_space_id=db_search_space.id,
         source_markdown="## v2",
     )
     re_prepared = await service.prepare_for_indexing([updated_doc])
-    await service.index(re_prepared[0], updated_doc, llm=mocker.Mock())
+    await service.index(re_prepared[0], updated_doc)
 
     result = await db_session.execute(
         select(Chunk).filter(Chunk.document_id == document_id)
@@ -298,7 +276,7 @@ async def test_llm_error_sets_status_failed(
     document = prepared[0]
     document_id = document.id
 
-    await service.index(document, connector_doc, llm=mocker.Mock())
+    await service.index(document, connector_doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.id == document_id)
@@ -325,7 +303,7 @@ async def test_llm_error_leaves_no_partial_data(
     document = prepared[0]
     document_id = document.id
 
-    await service.index(document, connector_doc, llm=mocker.Mock())
+    await service.index(document, connector_doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.id == document_id)

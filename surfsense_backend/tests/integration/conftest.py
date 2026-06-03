@@ -126,20 +126,12 @@ async def db_search_space(db_session: AsyncSession, db_user: User) -> SearchSpac
 @pytest.fixture
 def patched_summarize(monkeypatch) -> AsyncMock:
     mock = AsyncMock(return_value="Mocked summary.")
-    monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.summarize_document",
-        mock,
-    )
     return mock
 
 
 @pytest.fixture
 def patched_summarize_raises(monkeypatch) -> AsyncMock:
     mock = AsyncMock(side_effect=RuntimeError("LLM unavailable"))
-    monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.summarize_document",
-        mock,
-    )
     return mock
 
 

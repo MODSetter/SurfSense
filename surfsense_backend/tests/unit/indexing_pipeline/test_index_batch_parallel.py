@@ -51,11 +51,6 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
         return await original_to_thread(func, *args, **kwargs)
 
     monkeypatch.setattr(asyncio, "to_thread", tracking_to_thread)
-
-    monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.summarize_document",
-        AsyncMock(return_value="Summary."),
-    )
     mock_chunk_hybrid = MagicMock(return_value=["chunk1"])
     mock_chunk_hybrid.__name__ = "chunk_text_hybrid"
     monkeypatch.setattr(
@@ -85,7 +80,7 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
     document.id = 1
     document.status = DocumentStatus.pending()
 
-    await pipeline.index(document, connector_doc, llm=MagicMock())
+    await pipeline.index(document, connector_doc)
 
     # Either chunker entry point satisfies the "chunking runs off the event
     # loop" contract this test guards. Routing between the two is verified
@@ -104,10 +99,6 @@ async def test_non_code_documents_use_hybrid_chunker(
     mid-row. Only documents flagged with ``should_use_code_chunker=True``
     should take the ``chunk_text`` path.
     """
-    monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.summarize_document",
-        AsyncMock(return_value="Summary."),
-    )
     mock_chunk_hybrid = MagicMock(return_value=["chunk1"])
     mock_chunk_hybrid.__name__ = "chunk_text_hybrid"
     monkeypatch.setattr(
@@ -139,7 +130,7 @@ async def test_non_code_documents_use_hybrid_chunker(
     document.id = 1
     document.status = DocumentStatus.pending()
 
-    await pipeline.index(document, connector_doc, llm=MagicMock())
+    await pipeline.index(document, connector_doc)
 
     mock_chunk_hybrid.assert_called_once()
     mock_chunk_code.assert_not_called()

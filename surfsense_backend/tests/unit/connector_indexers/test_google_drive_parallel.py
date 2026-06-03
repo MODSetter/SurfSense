@@ -66,7 +66,6 @@ async def test_single_file_returns_one_connector_document(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 1
@@ -91,7 +90,6 @@ async def test_multiple_files_all_produce_documents(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 3
@@ -119,7 +117,6 @@ async def test_one_download_exception_does_not_block_others(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 2
@@ -146,7 +143,6 @@ async def test_etl_error_counts_as_download_failure(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 1
@@ -186,7 +182,6 @@ async def test_concurrency_bounded_by_semaphore(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
         max_concurrency=2,
     )
 
@@ -226,7 +221,6 @@ async def test_heartbeat_fires_during_parallel_downloads(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
         on_heartbeat=_on_heartbeat,
     )
 
@@ -302,7 +296,7 @@ def full_scan_mocks(mock_drive_client, monkeypatch):
 
     monkeypatch.setattr(
         _mod,
-        "get_user_long_context_llm",
+        "get_agent_llm",
         AsyncMock(return_value=MagicMock()),
     )
 
@@ -333,7 +327,6 @@ async def _run_full_scan(mocks, *, max_files=500, include_subfolders=False):
         mocks["log_entry"],
         max_files,
         include_subfolders=include_subfolders,
-        enable_summary=True,
     )
 
 
@@ -489,7 +482,7 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
     )
     monkeypatch.setattr(
         _mod,
-        "get_user_long_context_llm",
+        "get_agent_llm",
         AsyncMock(return_value=MagicMock()),
     )
 
@@ -509,7 +502,6 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
         mock_task_logger,
         MagicMock(),
         max_files=500,
-        enable_summary=True,
     )
 
     assert sorted(remove_calls) == ["del1", "del2", "trash1"]
@@ -577,7 +569,6 @@ async def _run_selected(mocks, file_ids):
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
 

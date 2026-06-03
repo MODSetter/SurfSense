@@ -21,7 +21,6 @@ from app.db import (
 pytestmark = pytest.mark.integration
 
 UNIFIED_FIXTURES = (
-    "patched_summarize",
     "patched_embed_texts",
     "patched_chunk_text",
 )
@@ -787,7 +786,7 @@ class TestPipelineIntegration:
         assert len(prepared) == 1
 
         db_doc = prepared[0]
-        result = await service.index(db_doc, doc, llm=mocker.Mock())
+        result = await service.index(db_doc, doc)
         assert result is not None
 
         docs = (
