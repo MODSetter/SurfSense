@@ -15,10 +15,14 @@ from app.notifications.api.schemas import (
     MarkAllReadResponse,
     MarkReadResponse,
     NotificationListResponse,
-    NotificationResponse,
     SourceTypeItem,
     SourceTypesResponse,
     UnreadCountResponse,
+)
+from app.notifications.api.transform import (
+    parse_before_date,
+    parse_source_type,
+    to_response,
 )
 from app.notifications.constants import CATEGORY_TYPES, SYNC_WINDOW_DAYS
 from app.notifications.persistence import Notification
@@ -257,21 +261,11 @@ async def list_notifications(
 
     # source_type encodes the JSONB facet to match: 'connector:<type>' or 'doctype:<type>'.
     if source_type:
-        if source_type.startswith("connector:"):
-            connector_val = source_type[len("connector:") :]
-            source_filter = Notification.type.in_(
-                ("connector_indexing", "connector_deletion")
-            ) & (
-                Notification.notification_metadata["connector_type"].astext
-                == connector_val
-            )
-            query = query.where(source_filter)
-            count_query = count_query.where(source_filter)
-        elif source_type.startswith("doctype:"):
-            doctype_val = source_type[len("doctype:") :]
-            source_filter = Notification.type.in_(("document_processing",)) & (
-                Notification.notification_metadata["document_type"].astext
-                == doctype_val
+        parsed_source = parse_source_type(source_type)
+        if parsed_source:
+            source_filter = Notification.type.in_(parsed_source.types) & (
+                Notification.notification_metadata[parsed_source.metadata_key].astext
+                == parsed_source.value
             )
             query = query.where(source_filter)
             count_query = count_query.where(source_filter)
@@ -289,7 +283,7 @@ async def list_notifications(
 
     if before_date:
         try:
-            before_datetime = datetime.fromisoformat(before_date.replace("Z", "+00:00"))
+            before_datetime = parse_before_date(before_date)
             query = query.where(Notification.created_at < before_datetime)
             count_query = count_query.where(Notification.created_at < before_datetime)
         except ValueError:
@@ -321,26 +315,7 @@ async def list_notifications(
     if has_more:
         notifications = notifications[:limit]
 
-    items = []
-    for notification in notifications:
-        items.append(
-            NotificationResponse(
-                id=notification.id,
-                user_id=str(notification.user_id),
-                search_space_id=notification.search_space_id,
-                type=notification.type,
-                title=notification.title,
-                message=notification.message,
-                read=notification.read,
-                metadata=notification.notification_metadata or {},
-                created_at=notification.created_at.isoformat()
-                if notification.created_at
-                else "",
-                updated_at=notification.updated_at.isoformat()
-                if notification.updated_at
-                else None,
-            )
-        )
+    items = [to_response(notification) for notification in notifications]
 
     return NotificationListResponse(
         items=items,
