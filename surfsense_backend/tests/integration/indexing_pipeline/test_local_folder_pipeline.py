@@ -1271,7 +1271,7 @@ class TestIndexingProgressFlag:
         original_index = IndexingPipelineService.index
         flag_observed = []
 
-        async def patched_index(self_pipe, document, connector_doc, llm):
+        async def patched_index(self_pipe, document, connector_doc):
             folder = (
                 await db_session.execute(
                     select(Folder).where(
@@ -1283,7 +1283,7 @@ class TestIndexingProgressFlag:
             if folder:
                 meta = folder.folder_metadata or {}
                 flag_observed.append(meta.get("indexing_in_progress", False))
-            return await original_index(self_pipe, document, connector_doc, llm)
+            return await original_index(self_pipe, document, connector_doc)
 
         IndexingPipelineService.index = patched_index
         try:

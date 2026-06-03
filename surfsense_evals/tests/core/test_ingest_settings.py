@@ -4,7 +4,7 @@ Covers:
 
 * ``IngestSettings.merge`` honours operator overrides and falls back
   to per-benchmark defaults when the operator is silent.
-* ``add_ingest_settings_args`` exposes the three flag pairs and
+* ``add_ingest_settings_args`` exposes ingest settings flags and
   argparse defaults of ``None`` correctly distinguish "not passed"
   from "explicitly false".
 * ``settings_header_line`` / ``read_settings_header`` round-trip
@@ -116,12 +116,11 @@ class TestMerge:
         assert d == {
             "use_vision_llm": True,
             "processing_mode": "premium",
-            "use_vision_llm": False,
         }
 
     def test_render_label_format(self) -> None:
         s = IngestSettings(use_vision_llm=True, processing_mode="premium")
-        assert s.render_label() == "vision=on, mode=premium, summarize=on"
+        assert s.render_label() == "vision=on, mode=premium"
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +144,6 @@ class TestAddArgs:
         args = parser.parse_args([])
         assert args.use_vision_llm is None
         assert args.processing_mode is None
-        assert args.use_vision_llm is None
 
     def test_use_vision_llm_flag(self, parser: argparse.ArgumentParser) -> None:
         args = parser.parse_args(["--use-vision-llm"])
@@ -165,12 +163,6 @@ class TestAddArgs:
     ) -> None:
         with pytest.raises(SystemExit):
             parser.parse_args(["--processing-mode", "exotic"])
-
-    def test_summarize_flag_pair(self, parser: argparse.ArgumentParser) -> None:
-        on = parser.parse_args(["--should-summarize"])
-        assert on.use_vision_llm is True
-        off = parser.parse_args(["--no-summarize"])
-        assert off.use_vision_llm is False
 
     def test_vision_flags_mutually_exclusive(
         self, parser: argparse.ArgumentParser
@@ -249,19 +241,17 @@ class TestHeader:
 class TestFormatMd:
     def test_full_settings(self) -> None:
         out = format_ingest_settings_md(
-            {"use_vision_llm": True, "processing_mode": "premium", "use_vision_llm": True}
+            {"use_vision_llm": True, "processing_mode": "premium"}
         )
         assert "vision_llm=`on`" in out
         assert "processing_mode=`premium`" in out
-        assert "summarize=`on`" in out
 
     def test_default_off(self) -> None:
         out = format_ingest_settings_md(
-            {"use_vision_llm": False, "processing_mode": "basic", "use_vision_llm": False}
+            {"use_vision_llm": False, "processing_mode": "basic"}
         )
         assert "vision_llm=`off`" in out
         assert "processing_mode=`basic`" in out
-        assert "summarize=`off`" in out
 
     def test_missing_returns_re_ingest_hint(self) -> None:
         # Empty dict + None + non-mapping should all degrade gracefully.

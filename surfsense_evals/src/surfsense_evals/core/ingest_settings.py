@@ -173,14 +173,14 @@ def add_ingest_settings_args(
     *,
     defaults: IngestSettings,
 ) -> None:
-    """Attach the three ingest-settings flag pairs to ``parser``.
+    """Attach ingest-settings flags to ``parser``.
 
-    Each bool exposes a mutually exclusive ``--foo`` / ``--no-foo``
-    pair so an operator can flip either direction without restating
-    every flag. Default is ``None`` so that "operator didn't pass the
-    flag" is distinguishable from "operator explicitly passed false"
-    — ``IngestSettings.merge`` then folds in the benchmark default
-    only when the operator was silent.
+    The vision bool exposes a mutually exclusive ``--foo`` / ``--no-foo``
+    pair so an operator can flip either direction without restating every
+    flag. Default is ``None`` so that "operator didn't pass the flag" is
+    distinguishable from "operator explicitly passed false" —
+    ``IngestSettings.merge`` then folds in the benchmark default only when
+    the operator was silent.
     """
 
     settings_group = parser.add_argument_group(
@@ -276,7 +276,7 @@ def format_ingest_settings_md(settings: Any) -> str:
     mode = settings.get("processing_mode") or "basic"
     return (
         f"- SurfSense ingest settings: vision_llm=`{vision}`, "
-        f"processing_mode=`{mode}`, summarize=`{summarize}`"
+        f"processing_mode=`{mode}`"
     )
 
 

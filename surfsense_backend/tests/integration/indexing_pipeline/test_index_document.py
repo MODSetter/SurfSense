@@ -259,16 +259,14 @@ async def test_reindex_replaces_old_chunks(
     assert len(chunks) == 1
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize_raises", "patched_embed_texts", "patched_chunk_text"
-)
-async def test_llm_error_sets_status_failed(
+@pytest.mark.usefixtures("patched_embed_texts_raises", "patched_chunk_text")
+async def test_embedding_error_sets_status_failed(
     db_session,
     db_search_space,
     make_connector_document,
     mocker,
 ):
-    """Document status is FAILED when the LLM raises during indexing."""
+    """Document status is FAILED when embedding raises during indexing."""
     connector_doc = make_connector_document(search_space_id=db_search_space.id)
     service = IndexingPipelineService(session=db_session)
 
@@ -286,10 +284,8 @@ async def test_llm_error_sets_status_failed(
     assert DocumentStatus.is_state(reloaded.status, DocumentStatus.FAILED)
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize_raises", "patched_embed_texts", "patched_chunk_text"
-)
-async def test_llm_error_leaves_no_partial_data(
+@pytest.mark.usefixtures("patched_embed_texts_raises", "patched_chunk_text")
+async def test_embedding_error_leaves_no_partial_data(
     db_session,
     db_search_space,
     make_connector_document,

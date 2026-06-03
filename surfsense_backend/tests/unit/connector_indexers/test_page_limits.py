@@ -335,10 +335,6 @@ def gdrive_full_scan_mocks(monkeypatch):
     monkeypatch.setattr(
         _mod, "IndexingPipelineService", MagicMock(return_value=pipeline_mock)
     )
-    monkeypatch.setattr(
-        _mod, "get_agent_llm", AsyncMock(return_value=MagicMock())
-    )
-
     return {
         "mod": _mod,
         "session": session,
@@ -452,10 +448,6 @@ async def test_gdrive_delta_sync_skips_over_quota(monkeypatch):
     monkeypatch.setattr(
         _mod, "IndexingPipelineService", MagicMock(return_value=pipeline_mock)
     )
-    monkeypatch.setattr(
-        _mod, "get_agent_llm", AsyncMock(return_value=MagicMock())
-    )
-
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 

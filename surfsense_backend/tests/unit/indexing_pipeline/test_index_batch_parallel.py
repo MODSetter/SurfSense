@@ -183,19 +183,14 @@ async def test_batch_parallel_indexes_all_documents(
 
     index_calls = []
 
-    async def fake_index(self, document, connector_doc, llm):
+    async def fake_index(self, document, connector_doc):
         index_calls.append(document.id)
         document.status = DocumentStatus.ready()
         return document
 
     monkeypatch.setattr(IndexingPipelineService, "index", fake_index)
 
-    async def mock_get_llm(session):
-        return MagicMock()
-
-    _, indexed, failed = await pipeline.index_batch_parallel(
-        docs, mock_get_llm, max_concurrency=2
-    )
+    _, indexed, failed = await pipeline.index_batch_parallel(docs, max_concurrency=2)
 
     assert indexed == 3
     assert failed == 0
@@ -224,20 +219,15 @@ async def test_batch_parallel_one_failure_does_not_affect_others(
         _mock_session_factory(orm_by_id),
     )
 
-    async def failing_index(self, document, connector_doc, llm):
+    async def failing_index(self, document, connector_doc):
         if document.id == 2:
-            raise RuntimeError("LLM exploded")
+            raise RuntimeError("Indexing exploded")
         document.status = DocumentStatus.ready()
         return document
 
     monkeypatch.setattr(IndexingPipelineService, "index", failing_index)
 
-    async def mock_get_llm(session):
-        return MagicMock()
-
-    _, indexed, failed = await pipeline.index_batch_parallel(
-        docs, mock_get_llm, max_concurrency=4
-    )
+    _, indexed, failed = await pipeline.index_batch_parallel(docs, max_concurrency=4)
 
     assert indexed == 2
     assert failed == 1

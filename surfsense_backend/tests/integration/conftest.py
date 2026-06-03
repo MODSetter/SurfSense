@@ -1,7 +1,7 @@
 import importlib
 import sys
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
@@ -124,20 +124,18 @@ async def db_search_space(db_session: AsyncSession, db_user: User) -> SearchSpac
 
 
 @pytest.fixture
-def patched_summarize(monkeypatch) -> AsyncMock:
-    mock = AsyncMock(return_value="Mocked summary.")
-    return mock
-
-
-@pytest.fixture
-def patched_summarize_raises(monkeypatch) -> AsyncMock:
-    mock = AsyncMock(side_effect=RuntimeError("LLM unavailable"))
-    return mock
-
-
-@pytest.fixture
 def patched_embed_texts(monkeypatch) -> MagicMock:
     mock = MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts])
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+        mock,
+    )
+    return mock
+
+
+@pytest.fixture
+def patched_embed_texts_raises(monkeypatch) -> MagicMock:
+    mock = MagicMock(side_effect=RuntimeError("Embedding unavailable"))
     monkeypatch.setattr(
         "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
         mock,

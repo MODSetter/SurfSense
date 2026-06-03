@@ -32,8 +32,8 @@ async def test_sets_status_ready(db_session, db_search_space, db_user, mocker):
 @pytest.mark.usefixtures(
 "patched_embed_texts", "patched_chunk_text"
 )
-async def test_content_is_summary(db_session, db_search_space, db_user, mocker):
-    """Document content is set to the LLM-generated summary."""
+async def test_content_is_source_markdown(db_session, db_search_space, db_user, mocker):
+    """Document content is set to the extracted source markdown."""
     adapter = UploadDocumentAdapter(db_session)
     await adapter.index(
         markdown_content="## Hello\n\nSome content.",
@@ -48,7 +48,7 @@ async def test_content_is_summary(db_session, db_search_space, db_user, mocker):
     )
     document = result.scalars().first()
 
-    assert document.content == "Mocked summary."
+    assert document.content == "## Hello\n\nSome content."
 
 
 @pytest.mark.usefixtures(
@@ -79,9 +79,7 @@ async def test_chunks_written_to_db(db_session, db_search_space, db_user, mocker
     assert chunks[0].content == "Test chunk content."
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize_raises", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts_raises", "patched_chunk_text")
 async def test_raises_on_indexing_failure(db_session, db_search_space, db_user, mocker):
     """RuntimeError is raised when the indexing step fails so the caller can fire a failure notification."""
     adapter = UploadDocumentAdapter(db_session)
@@ -92,7 +90,7 @@ async def test_raises_on_indexing_failure(db_session, db_search_space, db_user, 
             etl_service="UNSTRUCTURED",
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
-                )
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +102,7 @@ async def test_raises_on_indexing_failure(db_session, db_search_space, db_user, 
 "patched_embed_texts", "patched_chunk_text"
 )
 async def test_reindex_updates_content(db_session, db_search_space, db_user, mocker):
-    """Document content is updated to the new summary after reindexing."""
+    """Document content is updated to the new source markdown after reindexing."""
     adapter = UploadDocumentAdapter(db_session)
     await adapter.index(
         markdown_content="## Original\n\nOriginal content.",
@@ -125,7 +123,7 @@ async def test_reindex_updates_content(db_session, db_search_space, db_user, moc
     await adapter.reindex(document=document)
 
     await db_session.refresh(document)
-    assert document.content == "Mocked summary."
+    assert document.content == "## Edited\n\nNew content after user edit."
 
 
 @pytest.mark.usefixtures(
@@ -256,7 +254,9 @@ async def test_reindex_clears_reindexing_flag(
 
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
-async def test_reindex_raises_on_failure(db_session, db_search_space, db_user, mocker):
+async def test_reindex_raises_on_failure(
+    db_session, db_search_space, db_user, patched_embed_texts, mocker
+):
     """RuntimeError is raised when reindexing fails so the caller can handle it."""
 
     adapter = UploadDocumentAdapter(db_session)
@@ -275,6 +275,8 @@ async def test_reindex_raises_on_failure(db_session, db_search_space, db_user, m
 
     document.source_markdown = "## Edited\n\nNew content after user edit."
     await db_session.flush()
+
+    patched_embed_texts.side_effect = RuntimeError("Embedding unavailable")
 
     with pytest.raises(RuntimeError, match=r"Embedding failed|Reindexing failed"):
         await adapter.reindex(document=document)

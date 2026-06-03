@@ -294,12 +294,6 @@ def full_scan_mocks(mock_drive_client, monkeypatch):
         MagicMock(return_value=pipeline_mock),
     )
 
-    monkeypatch.setattr(
-        _mod,
-        "get_agent_llm",
-        AsyncMock(return_value=MagicMock()),
-    )
-
     return {
         "drive_client": mock_drive_client,
         "session": mock_session,
@@ -480,12 +474,6 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
         "IndexingPipelineService",
         MagicMock(return_value=pipeline_mock),
     )
-    monkeypatch.setattr(
-        _mod,
-        "get_agent_llm",
-        AsyncMock(return_value=MagicMock()),
-    )
-
     mock_session, _ = _make_page_limit_session()
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()

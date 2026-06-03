@@ -88,20 +88,6 @@ async def test_build_connector_doc_produces_correct_fields():
     assert doc.metadata["connector_id"] == _CONNECTOR_ID
     assert doc.metadata["document_type"] == "Linear Issue"
     assert doc.metadata["connector_type"] == "Linear"
-    assert "ENG-42" in doc.deterministic_preview
-    assert markdown in doc.deterministic_preview
-
-
-async def test_build_connector_doc_summary_disabled():
-    """When enable_vision_llm is False, deterministic_content is False."""
-    doc = _build_connector_doc(
-        _make_issue(),
-        _make_formatted_issue(),
-        "# content",
-        connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
-        user_id=_USER_ID,
-    )
 
 
 # ---------------------------------------------------------------------------

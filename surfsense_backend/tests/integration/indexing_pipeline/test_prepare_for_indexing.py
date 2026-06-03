@@ -338,9 +338,7 @@ async def test_same_content_from_different_source_is_skipped(
     assert len(result.scalars().all()) == 1
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize_raises", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts_raises", "patched_chunk_text")
 async def test_failed_document_with_unchanged_content_is_requeued(
     db_session,
     db_search_space,
@@ -351,7 +349,7 @@ async def test_failed_document_with_unchanged_content_is_requeued(
     doc = make_connector_document(search_space_id=db_search_space.id)
     service = IndexingPipelineService(session=db_session)
 
-    # First run: document is created and indexing crashes → status = failed
+    # First run: document is created and indexing crashes, so status becomes failed.
     prepared = await service.prepare_for_indexing([doc])
     document_id = prepared[0].id
     await service.index(prepared[0], doc)
