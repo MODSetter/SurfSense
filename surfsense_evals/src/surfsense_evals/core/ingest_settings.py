@@ -8,15 +8,13 @@ exactly three knobs (verified at
 * ``processing_mode``     — ``"basic"`` (default) | ``"premium"``
 * ``use_vision_llm``      — ``bool`` (run vision LLM during ingest to
                             extract image content / captions / tables)
-* ``should_summarize``    — ``bool`` (generate document summary)
 
 This module gives every benchmark a uniform way to:
 
 1. Receive sensible per-benchmark defaults (text-only benchmarks
    default vision off; image-bearing benchmarks default vision on).
 2. Accept CLI overrides (``--use-vision-llm`` / ``--no-vision-llm``,
-   ``--processing-mode {basic,premium}``,
-   ``--should-summarize`` / ``--no-summarize``).
+   ``--processing-mode {basic,premium}``).
 3. Persist the *actual* settings used into the doc-map manifest and
    the run artifact so reports can show "vision=ON, mode=premium →
    65% accuracy" head-to-head with "vision=OFF, mode=basic → 52%".
@@ -71,13 +69,11 @@ class IngestSettings:
 
     use_vision_llm: bool = False
     processing_mode: str = "basic"
-    should_summarize: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "use_vision_llm": self.use_vision_llm,
             "processing_mode": self.processing_mode,
-            "should_summarize": self.should_summarize,
         }
 
     @classmethod
@@ -87,14 +83,13 @@ class IngestSettings:
         ``opts`` is the kwargs dict built by ``core.cli`` from the
         argparse namespace (see ``_cmd_ingest`` / ``_cmd_run``). Keys
         we look for: ``use_vision_llm`` (bool or None), ``processing_mode``
-        (str or None), ``should_summarize`` (bool or None). Anything
+        (str or None). Anything
         else is ignored so benchmarks can pass through their own opts.
         """
 
         return cls(
             use_vision_llm=_coerce_bool(opts.get("use_vision_llm"), defaults.use_vision_llm),
             processing_mode=_coerce_mode(opts.get("processing_mode"), defaults.processing_mode),
-            should_summarize=_coerce_bool(opts.get("should_summarize"), defaults.should_summarize),
         )
 
     def render_label(self) -> str:
@@ -102,8 +97,7 @@ class IngestSettings:
 
         return (
             f"vision={'on' if self.use_vision_llm else 'off'}, "
-            f"mode={self.processing_mode}, "
-            f"summarize={'on' if self.should_summarize else 'off'}"
+            f"mode={self.processing_mode}"
         )
 
 
@@ -217,18 +211,6 @@ def add_ingest_settings_args(
             f"Default for this benchmark: {defaults.processing_mode!r}."
         ),
     )
-    _add_bool_pair(
-        settings_group,
-        dest="should_summarize",
-        on_flag="--should-summarize",
-        off_flag="--no-summarize",
-        on_help=(
-            "Have SurfSense generate a document summary at ingest "
-            f"(default for this benchmark: "
-            f"{'on' if defaults.should_summarize else 'off'})."
-        ),
-        off_help="Skip per-document summary generation.",
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +274,6 @@ def format_ingest_settings_md(settings: Any) -> str:
         return "- SurfSense ingest settings: (not recorded — re-ingest to capture)"
     vision = "on" if settings.get("use_vision_llm") else "off"
     mode = settings.get("processing_mode") or "basic"
-    summarize = "on" if settings.get("should_summarize") else "off"
     return (
         f"- SurfSense ingest settings: vision_llm=`{vision}`, "
         f"processing_mode=`{mode}`, summarize=`{summarize}`"

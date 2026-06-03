@@ -63,7 +63,6 @@ _DESCRIPTION = "CUREv1 retrieval (single-arm SurfSense): Recall@k / MRR / nDCG@1
 _DEFAULT_INGEST_SETTINGS = IngestSettings(
     use_vision_llm=False,
     processing_mode="basic",
-    should_summarize=False,
 )
 
 

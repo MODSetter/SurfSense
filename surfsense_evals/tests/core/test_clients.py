@@ -69,7 +69,7 @@ async def test_set_llm_preferences_partial_update(respx_mock, http):
             200,
             json={
                 "agent_llm_id": -10042,
-                "document_summary_llm_id": None,
+                "agent_llm_id": None,
                 "image_generation_config_id": None,
                 "vision_llm_config_id": None,
                 "agent_llm": {

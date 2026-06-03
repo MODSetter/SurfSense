@@ -40,7 +40,7 @@ from surfsense_evals.core.ingest_settings import (
 
 class TestMerge:
     def test_silent_operator_uses_defaults(self) -> None:
-        defaults = IngestSettings(use_vision_llm=True, processing_mode="basic", should_summarize=True)
+        defaults = IngestSettings(use_vision_llm=True, processing_mode="basic")
         merged = IngestSettings.merge(defaults, {})
         assert merged == defaults
 
@@ -111,16 +111,16 @@ class TestMerge:
         assert merged.processing_mode == "basic"
 
     def test_to_dict_round_trips(self) -> None:
-        s = IngestSettings(use_vision_llm=True, processing_mode="premium", should_summarize=False)
+        s = IngestSettings(use_vision_llm=True, processing_mode="premium")
         d = s.to_dict()
         assert d == {
             "use_vision_llm": True,
             "processing_mode": "premium",
-            "should_summarize": False,
+            "use_vision_llm": False,
         }
 
     def test_render_label_format(self) -> None:
-        s = IngestSettings(use_vision_llm=True, processing_mode="premium", should_summarize=True)
+        s = IngestSettings(use_vision_llm=True, processing_mode="premium")
         assert s.render_label() == "vision=on, mode=premium, summarize=on"
 
 
@@ -136,7 +136,7 @@ class TestAddArgs:
         add_ingest_settings_args(
             p,
             defaults=IngestSettings(
-                use_vision_llm=False, processing_mode="basic", should_summarize=False
+                use_vision_llm=False, processing_mode="basic"
             ),
         )
         return p
@@ -145,7 +145,7 @@ class TestAddArgs:
         args = parser.parse_args([])
         assert args.use_vision_llm is None
         assert args.processing_mode is None
-        assert args.should_summarize is None
+        assert args.use_vision_llm is None
 
     def test_use_vision_llm_flag(self, parser: argparse.ArgumentParser) -> None:
         args = parser.parse_args(["--use-vision-llm"])
@@ -168,9 +168,9 @@ class TestAddArgs:
 
     def test_summarize_flag_pair(self, parser: argparse.ArgumentParser) -> None:
         on = parser.parse_args(["--should-summarize"])
-        assert on.should_summarize is True
+        assert on.use_vision_llm is True
         off = parser.parse_args(["--no-summarize"])
-        assert off.should_summarize is False
+        assert off.use_vision_llm is False
 
     def test_vision_flags_mutually_exclusive(
         self, parser: argparse.ArgumentParser
@@ -185,11 +185,11 @@ class TestAddArgs:
             ["--use-vision-llm", "--processing-mode", "premium"]
         )
         defaults = IngestSettings(
-            use_vision_llm=False, processing_mode="basic", should_summarize=False
+            use_vision_llm=False, processing_mode="basic"
         )
         merged = IngestSettings.merge(defaults, vars(args))
         assert merged == IngestSettings(
-            use_vision_llm=True, processing_mode="premium", should_summarize=False
+            use_vision_llm=True, processing_mode="premium"
         )
 
 
@@ -249,7 +249,7 @@ class TestHeader:
 class TestFormatMd:
     def test_full_settings(self) -> None:
         out = format_ingest_settings_md(
-            {"use_vision_llm": True, "processing_mode": "premium", "should_summarize": True}
+            {"use_vision_llm": True, "processing_mode": "premium", "use_vision_llm": True}
         )
         assert "vision_llm=`on`" in out
         assert "processing_mode=`premium`" in out
@@ -257,7 +257,7 @@ class TestFormatMd:
 
     def test_default_off(self) -> None:
         out = format_ingest_settings_md(
-            {"use_vision_llm": False, "processing_mode": "basic", "should_summarize": False}
+            {"use_vision_llm": False, "processing_mode": "basic", "use_vision_llm": False}
         )
         assert "vision_llm=`off`" in out
         assert "processing_mode=`basic`" in out

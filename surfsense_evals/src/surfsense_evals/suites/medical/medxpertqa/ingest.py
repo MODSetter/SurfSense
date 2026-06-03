@@ -208,7 +208,6 @@ async def _upload_pdfs(
         result = await docs_client.upload(
             files=batch,
             search_space_id=ctx.search_space_id,
-            should_summarize=settings.should_summarize,
             use_vision_llm=settings.use_vision_llm,
             processing_mode=settings.processing_mode,
         )
