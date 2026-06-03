@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.notifications.persistence import Notification
 from app.notifications.service.base import BaseNotificationHandler
+from app.notifications.service.messages.text import truncate
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class CommentReplyNotificationHandler(BaseNotificationHandler):
             return existing
 
         title = f"{author_name} replied in a thread"
-        message = content_preview[:100] + ("..." if len(content_preview) > 100 else "")
+        message = truncate(content_preview, 100)
 
         metadata = {
             "reply_id": reply_id,
