@@ -47,14 +47,9 @@ export function DashboardClientLayout({
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
 	const isOnboardingComplete = useCallback(() => {
-		// Check that both LLM IDs are set (including 0 for Auto mode)
-		return (
-			preferences.agent_llm_id !== null &&
-			preferences.agent_llm_id !== undefined &&
-			preferences.document_summary_llm_id !== null &&
-			preferences.document_summary_llm_id !== undefined
-		);
-	}, [preferences]);
+		// Check that the Agent LLM ID is set, including 0 for Auto mode.
+		return preferences.agent_llm_id !== null && preferences.agent_llm_id !== undefined;
+	}, [preferences.agent_llm_id]);
 
 	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
@@ -100,7 +95,6 @@ export function DashboardClientLayout({
 							search_space_id: Number(searchSpaceId),
 							data: {
 								agent_llm_id: firstGlobalConfig.id,
-								document_summary_llm_id: firstGlobalConfig.id,
 							},
 						});
 

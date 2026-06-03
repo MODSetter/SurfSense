@@ -24,7 +24,6 @@ export function useConnectorsSync(searchSpaceId: number | string | null) {
 			is_active: true,
 			last_indexed_at: c.lastIndexedAt ? new Date(c.lastIndexedAt).toISOString() : null,
 			config: (c.config as Record<string, unknown>) ?? {},
-			enable_summary: c.enableSummary,
 			periodic_indexing_enabled: c.periodicIndexingEnabled,
 			indexing_frequency_minutes: c.indexingFrequencyMinutes ?? null,
 			next_scheduled_at: c.nextScheduledAt ? new Date(c.nextScheduledAt).toISOString() : null,

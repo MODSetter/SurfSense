@@ -139,7 +139,6 @@ export function DocumentUploadTab({
 	const [files, setFiles] = useState<FileWithId[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [accordionValue, setAccordionValue] = useState<string>("");
-	const [shouldSummarize, setShouldSummarize] = useState(false);
 	const [useVisionLlm, setUseVisionLlm] = useState(false);
 	const [processingMode, setProcessingMode] = useState<ProcessingMode>("basic");
 	const [uploadDocumentMutation] = useAtom(uploadDocumentMutationAtom);
@@ -366,7 +365,6 @@ export function DocumentUploadTab({
 						search_space_id: Number(searchSpaceId),
 						relative_paths: batch.map((e) => e.relativePath),
 						root_folder_id: rootFolderId,
-						enable_summary: shouldSummarize,
 						use_vision_llm: useVisionLlm,
 						processing_mode: processingMode,
 					}
@@ -414,7 +412,6 @@ export function DocumentUploadTab({
 			{
 				files: rawFiles,
 				search_space_id: Number(searchSpaceId),
-				should_summarize: shouldSummarize,
 				use_vision_llm: useVisionLlm,
 				processing_mode: processingMode,
 			},
@@ -696,15 +693,6 @@ export function DocumentUploadTab({
 						</div>
 					)}
 
-					<div className={toggleRowClass}>
-						<div className="space-y-0.5">
-							<p className="font-medium text-sm">Enable AI Summary</p>
-							<p className="text-xs text-muted-foreground">
-								Improves search quality but adds latency
-							</p>
-						</div>
-						<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
-					</div>
 
 					<div className={toggleRowClass}>
 						<div className="space-y-0.5">
