@@ -26,7 +26,7 @@ from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 
 from app.db import Report, shielded_async_session
-from app.services.llm_service import get_document_summary_llm
+from app.services.llm_service import get_agent_llm
 
 logger = logging.getLogger(__name__)
 
@@ -547,7 +547,7 @@ def create_generate_resume_tool(
                             f"(group {report_group_id})"
                         )
 
-                llm = await get_document_summary_llm(read_session, search_space_id)
+                llm = await get_agent_llm(read_session, search_space_id)
 
             if not llm:
                 error_msg = (
