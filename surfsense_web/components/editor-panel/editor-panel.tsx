@@ -15,6 +15,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { DownloadOriginalButton } from "@/components/documents/download-original-button";
 import { VersionHistoryButton } from "@/components/documents/version-history";
 import { SourceCodeEditor } from "@/components/editor/source-code-editor";
 import {
@@ -584,6 +585,9 @@ export function EditorPanelContent({
 											documentType={editorDoc.document_type}
 										/>
 									)}
+									{!isLocalFileMode && !isMemoryMode && documentId && (
+										<DownloadOriginalButton documentId={documentId} />
+									)}
 									<Button
 										variant="ghost"
 										size="icon"
@@ -667,6 +671,9 @@ export function EditorPanelContent({
 										documentId={documentId}
 										documentType={editorDoc.document_type}
 									/>
+								)}
+								{!isLocalFileMode && !isMemoryMode && documentId && (
+									<DownloadOriginalButton documentId={documentId} />
 								)}
 								<Button
 									variant="ghost"

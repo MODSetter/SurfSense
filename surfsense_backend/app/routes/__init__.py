@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.automations.api import router as automations_router
+from app.file_storage.api import router as file_storage_router
 
 from .agent_action_log_route import router as agent_action_log_router
 from .agent_flags_route import router as agent_flags_router
@@ -126,3 +127,4 @@ router.include_router(prompts_router)
 router.include_router(memory_router)  # User personal memory (memory.md style)
 router.include_router(team_memory_router)  # Search-space team memory
 router.include_router(automations_router)  # Automations CRUD + run history
+router.include_router(file_storage_router)  # Original file metadata + download

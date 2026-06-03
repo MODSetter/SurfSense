@@ -1478,6 +1478,11 @@ class Document(BaseModel, TimestampMixin):
     chunks = relationship(
         "Chunk", back_populates="document", cascade="all, delete-orphan"
     )
+    # Original upload + future derived artifacts (redacted, filled-form).
+    # Model lives in app.file_storage.persistence to keep that feature cohesive.
+    files = relationship(
+        "DocumentFile", back_populates="document", cascade="all, delete-orphan"
+    )
 
 
 class DocumentVersion(BaseModel, TimestampMixin):
@@ -2931,6 +2936,7 @@ from app.automations.persistence import (  # noqa: E402, F401
     AutomationRun,
     AutomationTrigger,
 )
+from app.file_storage.persistence import DocumentFile  # noqa: E402, F401
 
 engine = create_async_engine(
     DATABASE_URL,

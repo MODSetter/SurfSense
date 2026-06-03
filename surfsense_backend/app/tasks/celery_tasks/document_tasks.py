@@ -118,6 +118,7 @@ async def _delete_document_background(document_id: int) -> None:
     from sqlalchemy import delete as sa_delete, select
 
     from app.db import Chunk, Document
+    from app.file_storage.service import purge_document_blobs
 
     async with get_celery_session_maker()() as session:
         batch_size = 500
@@ -132,6 +133,9 @@ async def _delete_document_background(document_id: int) -> None:
                 break
             await session.execute(sa_delete(Chunk).where(Chunk.id.in_(chunk_ids)))
             await session.commit()
+
+        # Remove stored blobs before the document_files rows cascade away.
+        await purge_document_blobs(session, document_ids=[document_id])
 
         doc = await session.get(Document, document_id)
         if doc:
@@ -166,6 +170,7 @@ async def _delete_folder_documents(
     from sqlalchemy import delete as sa_delete, select
 
     from app.db import Chunk, Document, Folder
+    from app.file_storage.service import purge_document_blobs
 
     async with get_celery_session_maker()() as session:
         batch_size = 500
@@ -181,6 +186,9 @@ async def _delete_folder_documents(
                     break
                 await session.execute(sa_delete(Chunk).where(Chunk.id.in_(chunk_ids)))
                 await session.commit()
+
+            # Remove stored blobs before the document_files rows cascade away.
+            await purge_document_blobs(session, document_ids=[doc_id])
 
             doc = await session.get(Document, doc_id)
             if doc:
@@ -214,6 +222,7 @@ async def _delete_search_space_background(search_space_id: int) -> None:
     from sqlalchemy import delete as sa_delete, select
 
     from app.db import Chunk, Document, SearchSpace
+    from app.file_storage.service import purge_document_blobs
 
     async with get_celery_session_maker()() as session:
         batch_size = 500
@@ -240,6 +249,8 @@ async def _delete_search_space_background(search_space_id: int) -> None:
             doc_ids = doc_ids_result.scalars().all()
             if not doc_ids:
                 break
+            # Remove stored blobs before the document_files rows cascade away.
+            await purge_document_blobs(session, document_ids=list(doc_ids))
             await session.execute(sa_delete(Document).where(Document.id.in_(doc_ids)))
             await session.commit()
 
