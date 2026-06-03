@@ -546,7 +546,7 @@ def create_generate_report_tool(
     Factory function to create the generate_report tool with injected dependencies.
 
     The tool generates a Markdown report inline using the search space's
-    document summary LLM, saves it to the database, and returns immediately.
+    agent LLM, saves it to the database, and returns immediately.
 
     Uses short-lived database sessions for each DB operation so no connection
     is held during the long LLM API call.

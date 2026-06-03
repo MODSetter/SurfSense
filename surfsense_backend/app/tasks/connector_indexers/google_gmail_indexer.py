@@ -2,7 +2,7 @@
 Google Gmail connector indexer.
 
 Uses the shared IndexingPipelineService for document deduplication,
-summarization, chunking, and embedding.
+chunking, and embedding.
 """
 
 from collections.abc import Awaitable, Callable

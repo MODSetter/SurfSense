@@ -2,7 +2,7 @@
 Notion connector indexer.
 
 Uses the shared IndexingPipelineService for document deduplication,
-summarization, chunking, and embedding with bounded parallel indexing.
+chunking, and embedding with bounded parallel indexing.
 """
 
 from collections.abc import Awaitable, Callable

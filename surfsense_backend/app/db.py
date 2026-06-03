@@ -2963,7 +2963,7 @@ async def shielded_async_session():
 async def setup_indexes():
     async with engine.begin() as conn:
         # Create indexes
-        # Document Summary Indexes
+        # Document embedding indexes
         await conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS document_vector_index ON documents USING hnsw (embedding public.vector_cosine_ops)"
