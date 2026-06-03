@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.notifications.persistence import Notification
 from app.notifications.service.base import BaseNotificationHandler
+from app.notifications.service.messages import page_limit as msg
 
 logger = logging.getLogger(__name__)
 
@@ -19,15 +19,6 @@ class PageLimitNotificationHandler(BaseNotificationHandler):
 
     def __init__(self):
         super().__init__("page_limit_exceeded")
-
-    def _generate_operation_id(self, document_name: str, search_space_id: int) -> str:
-        """Build a unique id for a page-limit notification."""
-        import hashlib
-
-        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
-        # Create a short hash of document name to ensure uniqueness
-        doc_hash = hashlib.md5(document_name.encode()).hexdigest()[:8]
-        return f"page_limit_{search_space_id}_{timestamp}_{doc_hash}"
 
     async def notify_page_limit_exceeded(
         self,
@@ -41,13 +32,10 @@ class PageLimitNotificationHandler(BaseNotificationHandler):
         pages_to_add: int,
     ) -> Notification:
         """Notify that a document was blocked by the page limit."""
-        operation_id = self._generate_operation_id(document_name, search_space_id)
-
-        display_name = (
-            document_name[:40] + "..." if len(document_name) > 40 else document_name
+        operation_id = msg.operation_id(document_name, search_space_id)
+        title, message = msg.summary(
+            document_name, pages_used, pages_limit, pages_to_add
         )
-        title = f"Page limit exceeded: {display_name}"
-        message = f"This document has ~{pages_to_add} page(s) but you've used {pages_used}/{pages_limit} pages. Upgrade to process more documents."
 
         metadata = {
             "operation_id": operation_id,
