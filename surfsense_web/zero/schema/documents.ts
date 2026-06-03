@@ -21,7 +21,6 @@ export const searchSourceConnectorTable = table("search_source_connectors")
 		isIndexable: boolean().from("is_indexable"),
 		lastIndexedAt: number().optional().from("last_indexed_at"),
 		config: json(),
-		enableSummary: boolean().from("enable_summary"),
 		periodicIndexingEnabled: boolean().from("periodic_indexing_enabled"),
 		indexingFrequencyMinutes: number().optional().from("indexing_frequency_minutes"),
 		nextScheduledAt: number().optional().from("next_scheduled_at"),

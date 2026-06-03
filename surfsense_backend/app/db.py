@@ -1781,9 +1781,6 @@ class SearchSpace(BaseModel, TimestampMixin):
     agent_llm_id = Column(
         Integer, nullable=True, default=0
     )  # For agent/chat operations, defaults to Auto mode
-    document_summary_llm_id = Column(
-        Integer, nullable=True, default=0
-    )  # For document summarization, defaults to Auto mode
     image_generation_config_id = Column(
         Integer, nullable=True, default=0
     )  # For image generation, defaults to Auto mode
@@ -1950,12 +1947,6 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     is_indexable = Column(Boolean, nullable=False, default=False)
     last_indexed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     config = Column(JSON, nullable=False)
-
-    # Summary generation (LLM-based) - disabled by default to save resources.
-    # When enabled, improves hybrid search quality at the cost of LLM calls.
-    enable_summary = Column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
 
     # Vision LLM for image files - disabled by default to save cost/time.
     # When enabled, images are described via a vision language model instead
