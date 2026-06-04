@@ -487,7 +487,7 @@ async def _warm_agent_jit_caches() -> None:
         )
         from langchain_core.tools import tool
 
-        from app.agents.new_chat.context import SurfSenseContextSchema
+        from app.agents.shared.context import SurfSenseContextSchema
 
         # Minimal LLM stub. ``FakeListChatModel`` satisfies
         # ``BaseChatModel`` without any network or auth — perfect for

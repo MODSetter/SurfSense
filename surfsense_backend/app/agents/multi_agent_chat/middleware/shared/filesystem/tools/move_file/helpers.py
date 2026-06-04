@@ -11,7 +11,7 @@ from langgraph.types import Command
 from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
 from app.agents.new_chat.middleware.kb_postgres_backend import KBPostgresBackend
 from app.agents.new_chat.path_resolver import DOCUMENTS_ROOT
-from app.agents.new_chat.state_reducers import _CLEAR
+from app.agents.shared.state_reducers import _CLEAR
 
 if TYPE_CHECKING:
     from ...middleware import SurfSenseFilesystemMiddleware

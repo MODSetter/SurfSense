@@ -62,7 +62,7 @@ from app.agents.new_chat.sandbox import (
     get_or_create_sandbox,
     is_sandbox_enabled,
 )
-from app.agents.new_chat.state_reducers import _CLEAR
+from app.agents.shared.state_reducers import _CLEAR
 
 logger = logging.getLogger(__name__)
 

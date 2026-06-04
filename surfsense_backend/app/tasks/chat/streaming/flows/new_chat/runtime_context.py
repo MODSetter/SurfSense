@@ -8,7 +8,7 @@ mention lists / request ids / turn ids without rebuilding the graph.
 
 from __future__ import annotations
 
-from app.agents.new_chat.context import SurfSenseContextSchema
+from app.agents.shared.context import SurfSenseContextSchema
 
 
 def build_new_chat_runtime_context(

@@ -20,7 +20,7 @@ extra fields needed to implement Postgres-backed virtual filesystem semantics:
 * ``workspace_tree_text`` — pre-rendered ``<workspace_tree>`` body for the turn.
 
 Tools mutate these fields ONLY via ``Command(update=...)`` returns; the
-reducers in :mod:`app.agents.new_chat.state_reducers` handle merging.
+reducers in :mod:`app.agents.shared.state_reducers` handle merging.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from typing import Annotated, Any, NotRequired
 from deepagents.middleware.filesystem import FilesystemState
 from typing_extensions import TypedDict
 
-from app.agents.new_chat.state_reducers import (
+from app.agents.shared.state_reducers import (
     _add_unique_reducer,
     _dict_merge_with_tombstones_reducer,
     _int_counter_merge_reducer,

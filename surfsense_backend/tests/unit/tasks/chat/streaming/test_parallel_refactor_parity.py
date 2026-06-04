@@ -30,7 +30,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.agents.new_chat.context import SurfSenseContextSchema
+from app.agents.shared.context import SurfSenseContextSchema
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat.stream_new_chat import (
     stream_new_chat as old_stream_new_chat,
@@ -98,7 +98,7 @@ def _normalize_annotation(ann: Any) -> str:
         .replace("collections.abc.", "")
         .replace("app.db.", "")
         .replace("app.agents.new_chat.filesystem_selection.", "")
-        .replace("app.agents.new_chat.context.", "")
+        .replace("app.agents.shared.context.", "")
     )
     # Unwrap ``<class 'int'>`` → ``int`` (legacy-side type objects).
     if cleaned.startswith("<class '") and cleaned.endswith("'>"):

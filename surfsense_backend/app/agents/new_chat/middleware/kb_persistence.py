@@ -54,7 +54,7 @@ from app.agents.new_chat.path_resolver import (
     safe_folder_segment,
     virtual_path_to_doc,
 )
-from app.agents.new_chat.state_reducers import _CLEAR
+from app.agents.shared.state_reducers import _CLEAR
 from app.agents.shared.receipt import Receipt, make_receipt
 from app.db import (
     AgentActionLog,
