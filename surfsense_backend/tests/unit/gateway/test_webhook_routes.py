@@ -13,6 +13,29 @@ from app.db import ExternalChatAccount, ExternalChatAccountMode, ExternalChatPla
 from app.routes import gateway_webhook_routes as routes
 
 
+@pytest.fixture(autouse=True)
+def _enable_gateways(monkeypatch):
+    """Turn on the Telegram/Slack/Discord gateway flags the routes gate on.
+
+    The routes early-return when their integration is unconfigured, so without
+    this the handlers never reach the logic these tests assert on.
+    """
+    monkeypatch.setattr(routes.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "webhook")
+    monkeypatch.setattr(routes.config, "TELEGRAM_SHARED_BOT_TOKEN", "telegram-token")
+    monkeypatch.setattr(routes.config, "TELEGRAM_SHARED_BOT_USERNAME", "surf_bot")
+    monkeypatch.setattr(routes.config, "TELEGRAM_WEBHOOK_SECRET", "telegram-webhook-secret")
+
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_ENABLED", True)
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_CLIENT_ID", "slack-client")
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_CLIENT_SECRET", "slack-secret")
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+
+    monkeypatch.setattr(routes.config, "GATEWAY_DISCORD_ENABLED", True)
+    monkeypatch.setattr(routes.config, "DISCORD_CLIENT_ID", "discord-client")
+    monkeypatch.setattr(routes.config, "DISCORD_CLIENT_SECRET", "discord-secret")
+    monkeypatch.setattr(routes.config, "DISCORD_BOT_TOKEN", "discord-bot-token")
+
+
 class RequestStub:
     def __init__(self, payload=None, *, headers=None, json_exc: Exception | None = None):
         self.headers = headers or {}
@@ -275,7 +298,7 @@ async def test_slack_webhook_ignores_self_event(monkeypatch, mocker):
 
 
 @pytest.mark.asyncio
-async def test_discord_gateway_install_returns_oauth_url(monkeypatch):
+async def test_discord_gateway_install_returns_oauth_url(monkeypatch, mocker):
     monkeypatch.setattr(routes.config, "DISCORD_CLIENT_ID", "discord-client")
     monkeypatch.setattr(
         routes.config,
@@ -283,10 +306,12 @@ async def test_discord_gateway_install_returns_oauth_url(monkeypatch):
         "http://localhost:8000/api/v1/gateway/discord/callback",
     )
     monkeypatch.setattr(routes.config, "SECRET_KEY", "test-secret")
+    monkeypatch.setattr(routes, "check_search_space_access", mocker.AsyncMock())
 
     response = await routes.install_discord_gateway(
         search_space_id=123,
         user=SimpleNamespace(id="00000000-0000-0000-0000-000000000001"),
+        session=mocker.AsyncMock(),
     )
 
     assert response["auth_url"].startswith("https://discord.com/api/oauth2/authorize?")

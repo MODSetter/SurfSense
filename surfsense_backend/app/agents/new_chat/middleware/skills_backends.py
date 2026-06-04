@@ -121,6 +121,8 @@ class BuiltinSkillsBackend(BackendProtocol):
             else ("/" + str(target.relative_to(self.root)).replace("\\", "/"))
         )
         for child in sorted(target.iterdir()):
+            if child.name == "__pycache__" or child.name.startswith("."):
+                continue
             child_virtual = (
                 target_virtual.rstrip("/") + "/" + child.name
                 if target_virtual != "/"
