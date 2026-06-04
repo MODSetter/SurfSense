@@ -11,7 +11,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 
-from app.agents.multi_agent_chat.middleware.stack import (
+from app.agents.multi_agent_chat.main_agent.middleware.stack import (
     build_main_agent_deepagent_middleware,
 )
 from app.agents.shared.context import SurfSenseContextSchema

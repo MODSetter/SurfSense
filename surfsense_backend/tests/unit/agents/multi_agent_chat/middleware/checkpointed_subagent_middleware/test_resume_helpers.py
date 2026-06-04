@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from langchain.tools import ToolRuntime
 
-from app.agents.multi_agent_chat.middleware.main_agent.checkpointed_subagent_middleware.config import (
+from app.agents.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.config import (
     consume_surfsense_resume,
     has_surfsense_resume,
 )

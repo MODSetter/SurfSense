@@ -13,7 +13,7 @@ from app.agents.shared.middleware import (
     default_skills_sources,
 )
 
-from ..shared.flags import enabled
+from app.agents.multi_agent_chat.middleware.shared.flags import enabled
 
 
 def build_skills_mw(

@@ -15,7 +15,7 @@ from app.agents.shared.plugin_loader import (
 )
 from app.db import ChatVisibility
 
-from ..shared.flags import enabled
+from app.agents.multi_agent_chat.middleware.shared.flags import enabled
 
 
 def build_plugin_middlewares(

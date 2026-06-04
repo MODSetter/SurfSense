@@ -8,7 +8,7 @@ from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.middleware import ActionLogMiddleware
 from app.agents.shared.tools.registry import BUILTIN_TOOLS
 
-from ..shared.flags import enabled
+from app.agents.multi_agent_chat.middleware.shared.flags import enabled
 
 
 def build_action_log_mw(

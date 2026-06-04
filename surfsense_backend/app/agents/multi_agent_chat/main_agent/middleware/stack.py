@@ -35,35 +35,37 @@ from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.filesystem_selection import FilesystemMode
 from app.db import ChatVisibility
 
-from .main_agent.action_log import build_action_log_mw
-from .main_agent.anonymous_doc import build_anonymous_doc_mw
-from .main_agent.busy_mutex import build_busy_mutex_mw
-from .main_agent.checkpointed_subagent_middleware import (
+from .action_log import build_action_log_mw
+from .anonymous_doc import build_anonymous_doc_mw
+from .busy_mutex import build_busy_mutex_mw
+from .checkpointed_subagent_middleware import (
     SurfSenseCheckpointedSubAgentMiddleware,
 )
-from .main_agent.checkpointed_subagent_middleware.task_description import (
+from .checkpointed_subagent_middleware.task_description import (
     TASK_TOOL_DESCRIPTION,
 )
-from .main_agent.context_editing import build_context_editing_mw
-from .main_agent.dedup_hitl import build_dedup_hitl_mw
-from .main_agent.doom_loop import build_doom_loop_mw
-from .main_agent.kb_persistence import build_kb_persistence_mw
-from .main_agent.knowledge_priority import build_knowledge_priority_mw
-from .main_agent.knowledge_tree import build_knowledge_tree_mw
-from .main_agent.noop_injection import build_noop_injection_mw
-from .main_agent.otel import build_otel_mw
-from .main_agent.plugins import build_plugin_middlewares
-from .main_agent.repair import build_repair_mw
-from .main_agent.skills import build_skills_mw
-from .shared.anthropic_cache import build_anthropic_cache_mw
-from .shared.compaction import build_compaction_mw
-from .shared.kb_context_projection import build_kb_context_projection_mw
-from .shared.memory import build_memory_mw
-from .shared.patch_tool_calls import build_patch_tool_calls_mw
-from .shared.permissions import build_permission_mw
-from .shared.resilience import build_resilience_middlewares
-from .shared.todos import build_todos_mw
-from .subagent.middleware_stack import build_subagent_middleware_stack
+from .context_editing import build_context_editing_mw
+from .dedup_hitl import build_dedup_hitl_mw
+from .doom_loop import build_doom_loop_mw
+from .kb_persistence import build_kb_persistence_mw
+from .knowledge_priority import build_knowledge_priority_mw
+from .knowledge_tree import build_knowledge_tree_mw
+from .noop_injection import build_noop_injection_mw
+from .otel import build_otel_mw
+from .plugins import build_plugin_middlewares
+from .repair import build_repair_mw
+from .skills import build_skills_mw
+from app.agents.multi_agent_chat.middleware.shared.anthropic_cache import build_anthropic_cache_mw
+from app.agents.multi_agent_chat.middleware.shared.compaction import build_compaction_mw
+from app.agents.multi_agent_chat.middleware.shared.kb_context_projection import build_kb_context_projection_mw
+from app.agents.multi_agent_chat.middleware.shared.memory import build_memory_mw
+from app.agents.multi_agent_chat.middleware.shared.patch_tool_calls import build_patch_tool_calls_mw
+from app.agents.multi_agent_chat.middleware.shared.permissions import build_permission_mw
+from app.agents.multi_agent_chat.middleware.shared.resilience import build_resilience_middlewares
+from app.agents.multi_agent_chat.middleware.shared.todos import build_todos_mw
+from app.agents.multi_agent_chat.middleware.subagent.middleware_stack import (
+    build_subagent_middleware_stack,
+)
 
 
 def build_main_agent_deepagent_middleware(

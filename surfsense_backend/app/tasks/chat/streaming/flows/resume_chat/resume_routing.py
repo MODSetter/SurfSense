@@ -41,7 +41,7 @@ async def build_resume_routing(
     ``surfsense_resume_value`` configurable; parallel siblings each pop their
     own entry so they never race.
     """
-    from app.agents.multi_agent_chat.middleware.main_agent.checkpointed_subagent_middleware.resume_routing import (
+    from app.agents.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.resume_routing import (
         build_lg_resume_map,
         collect_pending_tool_calls,
         slice_decisions_by_tool_call,
