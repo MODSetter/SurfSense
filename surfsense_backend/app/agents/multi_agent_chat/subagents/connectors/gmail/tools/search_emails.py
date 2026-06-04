@@ -69,10 +69,9 @@ def create_search_gmail_tool(
                         "message": "Composio connected account ID not found for this Gmail connector.",
                     }
 
-                from app.agents.shared.tools.gmail.search_emails import (
-                    _format_gmail_summary,
-                )
                 from app.services.composio_service import ComposioService
+
+                from ._helpers import _format_gmail_summary
 
                 (
                     messages,
@@ -98,9 +97,7 @@ def create_search_gmail_tool(
                     }
                 return {"status": "success", "emails": emails, "total": len(emails)}
 
-            from app.agents.shared.tools.gmail.search_emails import (
-                _build_credentials,
-            )
+            from ._helpers import _build_credentials
 
             creds = _build_credentials(connector)
 

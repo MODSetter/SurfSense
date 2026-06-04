@@ -1,21 +1,9 @@
-from app.agents.shared.tools.gmail.create_draft import (
-    create_create_gmail_draft_tool,
-)
-from app.agents.shared.tools.gmail.read_email import (
-    create_read_gmail_email_tool,
-)
-from app.agents.shared.tools.gmail.search_emails import (
-    create_search_gmail_tool,
-)
-from app.agents.shared.tools.gmail.send_email import (
-    create_send_gmail_email_tool,
-)
-from app.agents.shared.tools.gmail.trash_email import (
-    create_trash_gmail_email_tool,
-)
-from app.agents.shared.tools.gmail.update_draft import (
-    create_update_gmail_draft_tool,
-)
+from .create_draft import create_create_gmail_draft_tool
+from .read_email import create_read_gmail_email_tool
+from .search_emails import create_search_gmail_tool
+from .send_email import create_send_gmail_email_tool
+from .trash_email import create_trash_gmail_email_tool
+from .update_draft import create_update_gmail_draft_tool
 
 __all__ = [
     "create_create_gmail_draft_tool",

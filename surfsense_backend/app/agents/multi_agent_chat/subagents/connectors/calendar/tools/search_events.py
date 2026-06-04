@@ -5,7 +5,9 @@ from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.agents.shared.tools.gmail.search_emails import _build_credentials
+from app.agents.multi_agent_chat.subagents.connectors.gmail.tools._helpers import (
+    _build_credentials,
+)
 from app.db import SearchSourceConnector, SearchSourceConnectorType
 
 logger = logging.getLogger(__name__)
