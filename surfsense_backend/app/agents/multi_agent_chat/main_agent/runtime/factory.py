@@ -28,7 +28,6 @@ from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSel
 from app.agents.shared.llm_config import AgentConfig
 from app.agents.shared.prompt_caching import apply_litellm_prompt_caching
 from app.agents.shared.tools.invalid_tool import INVALID_TOOL_NAME, invalid_tool
-from app.agents.shared.tools.registry import build_tools_async
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 from app.services.user_tool_allowlist import (
@@ -42,6 +41,7 @@ from ..tools import (
     MAIN_AGENT_SURFSENSE_TOOL_NAMES,
     MAIN_AGENT_SURFSENSE_TOOL_NAMES_ORDERED,
 )
+from ..tools.registry import build_main_agent_tools
 from .agent_cache import build_agent_with_cache
 
 _perf_log = get_perf_logger()
@@ -212,12 +212,14 @@ async def create_multi_agent_chat_deep_agent(
         main_agent_enabled_tools = list(MAIN_AGENT_SURFSENSE_TOOL_NAMES_ORDERED)
 
     _t0 = time.perf_counter()
-    tools = await build_tools_async(
+    # Main agent builds only its own small SurfSense toolset via the SRP
+    # main-agent registry; connectors/MCP/deliverables are delegated to
+    # subagents, so no MCP loading or connector construction happens here.
+    tools = build_main_agent_tools(
         dependencies=dependencies,
         enabled_tools=main_agent_enabled_tools,
         disabled_tools=modified_disabled_tools,
         additional_tools=list(additional_tools) if additional_tools else None,
-        include_mcp_tools=False,
     )
 
     _flags: AgentFeatureFlags = get_flags()
