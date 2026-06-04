@@ -16,7 +16,7 @@ prompt at agent build time, not edited at runtime.
 Two backends are provided:
 
 * :class:`BuiltinSkillsBackend` — disk-backed read of bundled skills from
-  ``app/agents/new_chat/skills/builtin/``.
+  ``app/agents/shared/skills/builtin/``.
 * :class:`SearchSpaceSkillsBackend` — a thin read-only wrapper over
   :class:`KBPostgresBackend` that filters notes under the privileged folder
   ``/documents/_skills/``.
@@ -59,14 +59,10 @@ _MAX_SKILL_FILE_SIZE = 10 * 1024 * 1024
 def _default_builtin_root() -> Path:
     """Return the absolute path to the bundled builtin skills directory.
 
-    The skill assets still live at ``app/agents/new_chat/skills/builtin/`` (the
-    ``skills/`` tree migrates to the shared kernel in a later slice). This module
-    now lives under ``app/agents/shared/middleware/``, so we walk up to
-    ``app/agents/`` and back into ``new_chat/skills/builtin``. Once skills move,
-    this becomes ``Path(__file__).resolve().parent.parent / "skills" / "builtin"``.
+    Located at ``app/agents/shared/skills/builtin/`` relative to this module
+    (this module lives at ``app/agents/shared/middleware/skills_backends.py``).
     """
-    agents_dir = Path(__file__).resolve().parent.parent.parent
-    return (agents_dir / "new_chat" / "skills" / "builtin").resolve()
+    return (Path(__file__).resolve().parent.parent / "skills" / "builtin").resolve()
 
 
 class BuiltinSkillsBackend(BackendProtocol):

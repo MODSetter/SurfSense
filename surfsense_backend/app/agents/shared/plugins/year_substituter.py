@@ -17,7 +17,7 @@ Wire-up in ``pyproject.toml`` (illustrative; the in-repo plugin doesn't
 need this -- it's already on the import path)::
 
     [project.entry-points."surfsense.plugins"]
-    year_substituter = "app.agents.new_chat.plugins.year_substituter:make_middleware"
+    year_substituter = "app.agents.shared.plugins.year_substituter:make_middleware"
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover - type-only
     from langchain_core.messages import ToolMessage
     from langgraph.types import Command
 
-    from app.agents.new_chat.plugin_loader import PluginContext
+    from app.agents.shared.plugin_loader import PluginContext
 
 
 logger = logging.getLogger(__name__)
