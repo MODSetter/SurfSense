@@ -16,7 +16,7 @@ from app.gateway.bindings import get_or_create_thread_for_binding
 from app.gateway.hitl_filter import DEFAULT_HITL_TOOL_NAMES
 from app.gateway.thread_lock import acquire_thread_lock, release_thread_lock
 from app.observability.metrics import record_gateway_turn_latency
-from app.tasks.chat.stream_new_chat import stream_new_chat
+from app.tasks.chat.streaming.flows import stream_new_chat
 
 logger = logging.getLogger(__name__)
 

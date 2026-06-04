@@ -71,7 +71,7 @@ from app.schemas.new_chat import (
     TokenUsageSummary,
     TurnStatusResponse,
 )
-from app.tasks.chat.stream_new_chat import (
+from app.tasks.chat.streaming.flows import (
     stream_new_chat,
     stream_resume_chat,
 )
