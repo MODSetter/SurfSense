@@ -1,9 +1,5 @@
-from app.agents.shared.tools.onedrive.create_file import (
-    create_create_onedrive_file_tool,
-)
-from app.agents.shared.tools.onedrive.trash_file import (
-    create_delete_onedrive_file_tool,
-)
+from .create_file import create_create_onedrive_file_tool
+from .trash_file import create_delete_onedrive_file_tool
 
 __all__ = [
     "create_create_onedrive_file_tool",
