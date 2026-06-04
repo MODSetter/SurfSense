@@ -139,14 +139,14 @@ export function SidebarUserProfile({
 	const { locale, setLocale } = useLocaleContext();
 	const { isDesktop } = usePlatform();
 	const isDesktopViewport = useMediaQuery("(min-width: 768px)");
-	const { os, primary } = usePrimaryDownload();
+	const { os, primary, isMobileOS } = usePrimaryDownload();
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
 	const bgColor = getUserAvatarColor(user.email);
 	const initials = getUserInitials(user.email);
 	const displayName = user.name || user.email.split("@")[0];
 	const downloadUrl = primary?.url ?? GITHUB_RELEASES_URL;
 	const downloadLabel = t("download_for_os", { os });
-	const showDownloadCta = !isDesktop && isDesktopViewport;
+	const showDownloadCta = !isDesktop && !isMobileOS && isDesktopViewport;
 
 	const handleLanguageChange = (newLocale: "en" | "es" | "pt" | "hi" | "zh") => {
 		setLocale(newLocale);
@@ -331,7 +331,7 @@ export function SidebarUserProfile({
 								</DropdownMenuPortal>
 							</DropdownMenuSub>
 
-							{!isDesktop && (
+							{!isDesktop && !isMobileOS && (
 								<DropdownMenuItem asChild className="font-medium">
 									<a href={downloadUrl} target="_blank" rel="noopener noreferrer">
 										<Download className="h-4 w-4" strokeWidth={2.5} />
