@@ -20,7 +20,7 @@ from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-from app.agents.multi_agent_chat.middleware.shared.filesystem import (
+from app.agents.multi_agent_chat.shared.middleware.filesystem import (
     build_filesystem_mw,
 )
 from app.agents.shared.filesystem_backends import build_backend_resolver

@@ -3,7 +3,7 @@
 Ported from the former ``tests/unit/agents/new_chat/test_rm_rmdir_cloud.py``,
 which exercised the *dead twin* ``app.agents.shared.middleware.filesystem``.
 This drives the production decomposed tools
-(``app.agents.multi_agent_chat.middleware.shared.filesystem``) instead: it
+(``app.agents.multi_agent_chat.shared.middleware.filesystem``) instead: it
 builds the real middleware via ``build_filesystem_mw``, pulls the real ``rm`` /
 ``rmdir`` tools off it, and invokes their coroutines with a stubbed
 ``KBPostgresBackend`` + runtime so we can assert the end-of-turn staging
@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.agents.multi_agent_chat.middleware.shared.filesystem import (
+from app.agents.multi_agent_chat.shared.middleware.filesystem import (
     build_filesystem_mw,
 )
 from app.agents.shared.filesystem_backends import build_backend_resolver

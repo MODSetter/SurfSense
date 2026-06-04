@@ -9,7 +9,7 @@ from langchain_core.tools import BaseTool
 from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.middleware import ToolCallNameRepairMiddleware
 
-from app.agents.multi_agent_chat.middleware.shared.flags import enabled
+from app.agents.multi_agent_chat.shared.middleware.flags import enabled
 
 # deepagents-built-in tool names the repair pass treats as known.
 _DEEPAGENT_BUILTIN_TOOL_NAMES: frozenset[str] = frozenset(

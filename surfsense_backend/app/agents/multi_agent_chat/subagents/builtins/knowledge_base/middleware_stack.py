@@ -10,22 +10,22 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 
-from app.agents.multi_agent_chat.middleware.shared.anthropic_cache import (
+from app.agents.multi_agent_chat.shared.middleware.anthropic_cache import (
     build_anthropic_cache_mw,
 )
-from app.agents.multi_agent_chat.middleware.shared.compaction import (
+from app.agents.multi_agent_chat.shared.middleware.compaction import (
     build_compaction_mw,
 )
-from app.agents.multi_agent_chat.middleware.shared.filesystem import (
+from app.agents.multi_agent_chat.shared.middleware.filesystem import (
     build_filesystem_mw,
 )
-from app.agents.multi_agent_chat.middleware.shared.kb_context_projection import (
+from app.agents.multi_agent_chat.shared.middleware.kb_context_projection import (
     build_kb_context_projection_mw,
 )
-from app.agents.multi_agent_chat.middleware.shared.patch_tool_calls import (
+from app.agents.multi_agent_chat.shared.middleware.patch_tool_calls import (
     build_patch_tool_calls_mw,
 )
-from app.agents.multi_agent_chat.middleware.shared.permissions import (
+from app.agents.multi_agent_chat.shared.middleware.permissions import (
     build_permission_mw,
 )
 from app.agents.shared.feature_flags import AgentFeatureFlags

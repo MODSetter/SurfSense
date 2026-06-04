@@ -43,7 +43,7 @@ from app.agents.multi_agent_chat.main_agent.middleware.checkpointed_subagent_mid
 from app.agents.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.task_tool import (
     build_task_tool_with_parent_config,
 )
-from app.agents.multi_agent_chat.middleware.shared.permissions.ask.request import (
+from app.agents.multi_agent_chat.shared.middleware.permissions.ask.request import (
     request_permission_decision,
 )
 from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (

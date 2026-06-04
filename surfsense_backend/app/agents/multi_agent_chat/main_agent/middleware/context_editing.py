@@ -17,7 +17,7 @@ from app.agents.shared.middleware import (
     SpillToBackendEdit,
 )
 
-from app.agents.multi_agent_chat.middleware.shared.flags import enabled
+from app.agents.multi_agent_chat.shared.middleware.flags import enabled
 
 
 def build_context_editing_mw(

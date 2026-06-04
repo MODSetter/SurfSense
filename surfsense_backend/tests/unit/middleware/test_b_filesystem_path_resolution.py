@@ -8,7 +8,7 @@ Ported from the dead-twin suites:
 
 Both exercised ``app.agents.shared.middleware.filesystem`` (dead). This drives
 the production free functions in
-``app.agents.multi_agent_chat.middleware.shared.filesystem.middleware`` instead.
+``app.agents.multi_agent_chat.shared.middleware.filesystem.middleware`` instead.
 The functions only touch ``mw._filesystem_mode`` and ``mw._get_backend`` so we
 pass a lightweight fake ``mw`` rather than constructing the full middleware.
 """
@@ -20,13 +20,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.multi_agent_chat.middleware.shared.filesystem.middleware.mode import (
+from app.agents.multi_agent_chat.shared.middleware.filesystem.middleware.mode import (
     default_cwd,
 )
-from app.agents.multi_agent_chat.middleware.shared.filesystem.middleware.namespace_policy import (
+from app.agents.multi_agent_chat.shared.middleware.filesystem.middleware.namespace_policy import (
     check_cloud_write_namespace,
 )
-from app.agents.multi_agent_chat.middleware.shared.filesystem.middleware.path_resolution import (
+from app.agents.multi_agent_chat.shared.middleware.filesystem.middleware.path_resolution import (
     current_cwd,
     get_contract_suggested_path,
     normalize_local_mount_path,

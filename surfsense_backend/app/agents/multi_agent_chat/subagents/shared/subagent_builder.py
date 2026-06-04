@@ -11,7 +11,7 @@ from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 
-from app.agents.multi_agent_chat.middleware.shared.permissions import (
+from app.agents.multi_agent_chat.shared.middleware.permissions import (
     build_permission_mw,
 )
 from app.agents.multi_agent_chat.subagents.shared.md_file_reader import (

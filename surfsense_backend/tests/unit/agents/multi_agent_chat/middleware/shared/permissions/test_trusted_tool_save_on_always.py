@@ -14,7 +14,7 @@ from langgraph.types import Command
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from app.agents.multi_agent_chat.middleware.shared.permissions import (
+from app.agents.multi_agent_chat.shared.middleware.permissions import (
     build_permission_mw,
 )
 from app.agents.shared.feature_flags import AgentFeatureFlags

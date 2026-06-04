@@ -55,15 +55,15 @@ from .otel import build_otel_mw
 from .plugins import build_plugin_middlewares
 from .repair import build_repair_mw
 from .skills import build_skills_mw
-from app.agents.multi_agent_chat.middleware.shared.anthropic_cache import build_anthropic_cache_mw
-from app.agents.multi_agent_chat.middleware.shared.compaction import build_compaction_mw
-from app.agents.multi_agent_chat.middleware.shared.kb_context_projection import build_kb_context_projection_mw
-from app.agents.multi_agent_chat.middleware.shared.memory import build_memory_mw
-from app.agents.multi_agent_chat.middleware.shared.patch_tool_calls import build_patch_tool_calls_mw
-from app.agents.multi_agent_chat.middleware.shared.permissions import build_permission_mw
-from app.agents.multi_agent_chat.middleware.shared.resilience import build_resilience_middlewares
-from app.agents.multi_agent_chat.middleware.shared.todos import build_todos_mw
-from app.agents.multi_agent_chat.middleware.subagent.middleware_stack import (
+from app.agents.multi_agent_chat.shared.middleware.anthropic_cache import build_anthropic_cache_mw
+from app.agents.multi_agent_chat.shared.middleware.compaction import build_compaction_mw
+from app.agents.multi_agent_chat.shared.middleware.kb_context_projection import build_kb_context_projection_mw
+from app.agents.multi_agent_chat.shared.middleware.memory import build_memory_mw
+from app.agents.multi_agent_chat.shared.middleware.patch_tool_calls import build_patch_tool_calls_mw
+from app.agents.multi_agent_chat.shared.middleware.permissions import build_permission_mw
+from app.agents.multi_agent_chat.shared.middleware.resilience import build_resilience_middlewares
+from app.agents.multi_agent_chat.shared.middleware.todos import build_todos_mw
+from app.agents.multi_agent_chat.subagents.shared.middleware.middleware_stack import (
     build_subagent_middleware_stack,
 )
 

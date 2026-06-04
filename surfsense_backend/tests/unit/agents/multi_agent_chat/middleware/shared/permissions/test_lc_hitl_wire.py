@@ -16,7 +16,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 from typing_extensions import TypedDict
 
-from app.agents.multi_agent_chat.middleware.shared.permissions.ask.request import (
+from app.agents.multi_agent_chat.shared.middleware.permissions.ask.request import (
     request_permission_decision,
 )
 from app.agents.shared.permissions import Rule

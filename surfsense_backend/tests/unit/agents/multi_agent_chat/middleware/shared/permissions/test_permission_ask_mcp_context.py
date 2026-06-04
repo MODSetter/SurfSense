@@ -13,10 +13,10 @@ from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from app.agents.multi_agent_chat.middleware.shared.permissions import (
+from app.agents.multi_agent_chat.shared.middleware.permissions import (
     build_permission_mw,
 )
-from app.agents.multi_agent_chat.middleware.shared.permissions.ask.payload import (
+from app.agents.multi_agent_chat.shared.middleware.permissions.ask.payload import (
     build_permission_ask_payload,
 )
 from app.agents.shared.feature_flags import AgentFeatureFlags

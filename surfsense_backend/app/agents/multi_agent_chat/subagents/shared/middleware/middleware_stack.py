@@ -16,9 +16,13 @@ from typing import Any
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
 
-from ..shared.permissions import build_permission_mw
-from ..shared.resilience import ResilienceMiddlewares
-from ..shared.todos import build_todos_mw
+from app.agents.multi_agent_chat.shared.middleware.permissions import (
+    build_permission_mw,
+)
+from app.agents.multi_agent_chat.shared.middleware.resilience import (
+    ResilienceMiddlewares,
+)
+from app.agents.multi_agent_chat.shared.middleware.todos import build_todos_mw
 
 
 def build_subagent_middleware_stack(
