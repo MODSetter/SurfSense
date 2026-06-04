@@ -9,7 +9,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.new_chat.permissions import Ruleset
+from app.agents.shared.permissions import Ruleset
 
 from .generate_image import create_generate_image_tool
 from .podcast import create_generate_podcast_tool

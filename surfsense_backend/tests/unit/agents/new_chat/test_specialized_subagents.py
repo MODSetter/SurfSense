@@ -332,6 +332,6 @@ class TestDenyPatternsCoverage:
 
 def _wildcard_matches(pattern: str, value: str) -> bool:
     """Helper using the same matcher the rule evaluator does."""
-    from app.agents.new_chat.permissions import wildcard_match
+    from app.agents.shared.permissions import wildcard_match
 
     return wildcard_match(value, pattern)

@@ -7,7 +7,7 @@ is the streaming layer's job — this module keeps the in-memory copy only.
 
 from __future__ import annotations
 
-from app.agents.new_chat.permissions import Rule, Ruleset
+from app.agents.shared.permissions import Rule, Ruleset
 
 
 def persist_always(

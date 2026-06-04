@@ -49,7 +49,7 @@ from app.agents.multi_agent_chat.middleware.shared.permissions.ask.request impor
 from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
     request_approval,
 )
-from app.agents.new_chat.permissions import Rule
+from app.agents.shared.permissions import Rule
 
 
 class _SubState(TypedDict, total=False):

@@ -9,7 +9,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.new_chat.permissions import Ruleset
+from app.agents.shared.permissions import Ruleset
 
 from .list_channels import create_list_discord_channels_tool
 from .read_messages import create_read_discord_messages_tool

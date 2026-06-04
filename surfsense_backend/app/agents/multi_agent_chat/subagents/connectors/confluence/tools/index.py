@@ -9,7 +9,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.new_chat.permissions import Ruleset
+from app.agents.shared.permissions import Ruleset
 
 from .create_page import create_create_confluence_page_tool
 from .delete_page import create_delete_confluence_page_tool

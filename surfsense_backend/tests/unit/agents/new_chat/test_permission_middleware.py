@@ -10,7 +10,7 @@ from app.agents.new_chat.middleware.permission import (
     PermissionMiddleware,
     _normalize_permission_decision,
 )
-from app.agents.new_chat.permissions import Rule, Ruleset
+from app.agents.shared.permissions import Rule, Ruleset
 
 pytestmark = pytest.mark.unit
 

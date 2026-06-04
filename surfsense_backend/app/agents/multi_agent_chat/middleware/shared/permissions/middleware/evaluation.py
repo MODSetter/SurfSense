@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.agents.new_chat.permissions import (
+from app.agents.shared.permissions import (
     Rule,
     RuleAction,
     Ruleset,

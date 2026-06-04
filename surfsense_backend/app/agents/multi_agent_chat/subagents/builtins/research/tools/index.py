@@ -6,7 +6,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.new_chat.permissions import Ruleset
+from app.agents.shared.permissions import Ruleset
 
 from .scrape_webpage import create_scrape_webpage_tool
 from .web_search import create_web_search_tool

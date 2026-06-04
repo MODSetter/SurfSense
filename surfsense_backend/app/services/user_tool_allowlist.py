@@ -19,7 +19,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.agents.multi_agent_chat.constants import (
     CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS,
 )
-from app.agents.new_chat.permissions import Rule, Ruleset
+from app.agents.shared.permissions import Rule, Ruleset
 from app.db import SearchSourceConnector, async_session_maker
 
 logger = logging.getLogger(__name__)

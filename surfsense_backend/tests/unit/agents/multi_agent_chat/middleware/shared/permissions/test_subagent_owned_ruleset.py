@@ -27,7 +27,7 @@ from app.agents.multi_agent_chat.middleware.shared.permissions import (
     build_permission_mw,
 )
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.permissions import Rule, Ruleset
+from app.agents.shared.permissions import Rule, Ruleset
 
 
 def _kb_style_ruleset() -> Ruleset:

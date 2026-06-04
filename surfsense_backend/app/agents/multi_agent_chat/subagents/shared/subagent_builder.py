@@ -22,7 +22,7 @@ from app.agents.multi_agent_chat.subagents.shared.spec import (
     ContextHintProvider,
     SurfSenseSubagentSpec,
 )
-from app.agents.new_chat.permissions import Ruleset
+from app.agents.shared.permissions import Ruleset
 
 logger = logging.getLogger(__name__)
 

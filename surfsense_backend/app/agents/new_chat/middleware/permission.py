@@ -55,7 +55,7 @@ from app.agents.shared.errors import (
     RejectedError,
     StreamingError,
 )
-from app.agents.new_chat.permissions import (
+from app.agents.shared.permissions import (
     Rule,
     Ruleset,
     aggregate_action,

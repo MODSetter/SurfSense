@@ -12,7 +12,7 @@ from typing import Any
 from langchain_core.messages import ToolMessage
 
 from app.agents.shared.errors import StreamingError
-from app.agents.new_chat.permissions import Rule
+from app.agents.shared.permissions import Rule
 
 
 def build_deny_message(tool_call: dict[str, Any], rule: Rule) -> ToolMessage:

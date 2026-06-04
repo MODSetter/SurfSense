@@ -30,7 +30,7 @@ from app.agents.multi_agent_chat.middleware.shared.permissions import (
 )
 from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.permissions import Ruleset
+from app.agents.shared.permissions import Ruleset
 
 
 def _kb_user_allowlist(

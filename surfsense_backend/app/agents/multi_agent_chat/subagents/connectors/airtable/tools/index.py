@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.agents.new_chat.permissions import Rule, Ruleset
+from app.agents.shared.permissions import Rule, Ruleset
 
 NAME = "airtable"
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from app.agents.new_chat.middleware.permission import PermissionMiddleware
-from app.agents.new_chat.permissions import (
+from app.agents.shared.permissions import (
     Rule,
     Ruleset,
     aggregate_action,
