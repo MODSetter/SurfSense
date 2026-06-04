@@ -47,7 +47,6 @@ TOOL_CATALOG: list[ToolMetadata] = [
     ToolMetadata(name="generate_image", description="Generate images from text descriptions using AI image models"),
     ToolMetadata(name="scrape_webpage", description="Scrape and extract the main content from a webpage"),
     ToolMetadata(name="web_search", description="Search the web for real-time information using configured search engines"),
-    ToolMetadata(name="get_connected_accounts", description="Discover connected accounts for a service and their metadata"),
     ToolMetadata(name="create_automation", description="Draft an automation from an NL intent; user approves the card; tool saves"),
     ToolMetadata(name="update_memory", description="Save important long-term facts, preferences, and instructions to the (personal or team) memory"),
     ToolMetadata(name="create_notion_page", description="Create a new page in the user's Notion workspace"),
