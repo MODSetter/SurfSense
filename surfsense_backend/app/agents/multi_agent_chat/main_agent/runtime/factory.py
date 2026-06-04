@@ -23,7 +23,7 @@ from app.agents.new_chat.connector_searchable_types import (
     map_connectors_to_searchable_types,
 )
 from app.agents.shared.feature_flags import AgentFeatureFlags, get_flags
-from app.agents.new_chat.filesystem_backends import build_backend_resolver
+from app.agents.shared.filesystem_backends import build_backend_resolver
 from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.shared.llm_config import AgentConfig
 from app.agents.shared.prompt_caching import apply_litellm_prompt_caching
