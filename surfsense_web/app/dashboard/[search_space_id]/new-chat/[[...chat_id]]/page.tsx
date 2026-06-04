@@ -37,7 +37,7 @@ import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { type AgentCreatedDocument, agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
-import { removeChatTabAtom, updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
+import { removeChatTabAtom, syncChatTabAtom, updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import {
 	EditMessageDialog,
@@ -450,6 +450,7 @@ export default function NewChatPage() {
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
 	const closeEditorPanel = useSetAtom(closeEditorPanelAtom);
+	const syncChatTab = useSetAtom(syncChatTabAtom);
 	const updateChatTabTitle = useSetAtom(updateChatTabTitleAtom);
 	const removeChatTab = useSetAtom(removeChatTabAtom);
 	const setAgentCreatedDocuments = useSetAtom(agentCreatedDocumentsAtom);
@@ -726,9 +727,18 @@ export default function NewChatPage() {
 			return;
 		}
 		if (threadDetailQuery.data?.id === activeThreadId) {
-			setCurrentThread(threadDetailQuery.data);
+			const thread = threadDetailQuery.data;
+			setCurrentThread(thread);
+			syncChatTab({
+				chatId: thread.id,
+				title: thread.title,
+				chatUrl: `/dashboard/${thread.search_space_id ?? searchSpaceId}/new-chat/${thread.id}`,
+				searchSpaceId: thread.search_space_id ?? searchSpaceId,
+				visibility: thread.visibility,
+				hasComments: thread.has_comments ?? false,
+			});
 		}
-	}, [activeThreadId, threadDetailQuery.data]);
+	}, [activeThreadId, searchSpaceId, syncChatTab, threadDetailQuery.data]);
 
 	useEffect(() => {
 		const messagesResponse = threadMessagesQuery.data;
@@ -856,6 +866,7 @@ export default function NewChatPage() {
 			}
 			setCurrentThreadMetadata({
 				id: null,
+				searchSpaceId: null,
 				visibility: null,
 				hasComments: false,
 			});
@@ -869,6 +880,7 @@ export default function NewChatPage() {
 
 		setCurrentThreadMetadata({
 			id: currentThread.id,
+			searchSpaceId: currentThread.search_space_id ?? searchSpaceId,
 			visibility,
 			hasComments: currentThread.has_comments ?? false,
 		});
@@ -877,6 +889,7 @@ export default function NewChatPage() {
 		currentThread,
 		currentThreadState.id,
 		currentThreadState.visibility,
+		searchSpaceId,
 		setCurrentThreadMetadata,
 	]);
 

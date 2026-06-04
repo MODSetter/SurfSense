@@ -4,12 +4,14 @@ import { reportPanelAtom } from "./report-panel.atom";
 
 interface CurrentThreadState {
 	id: number | null;
+	searchSpaceId: number | null;
 	visibility: ChatVisibility | null;
 	hasComments: boolean;
 }
 
 interface CurrentThreadMetadataPatch {
 	id: number | null;
+	searchSpaceId?: number | null;
 	visibility?: ChatVisibility | null;
 	hasComments?: boolean;
 }
@@ -22,6 +24,7 @@ interface CurrentThreadMetadataUpdate {
 
 const initialState: CurrentThreadState = {
 	id: null,
+	searchSpaceId: null,
 	visibility: null,
 	hasComments: false,
 };
@@ -32,21 +35,33 @@ export const commentsEnabledAtom = atom(
 	(get) => get(currentThreadAtom).visibility === "SEARCH_SPACE"
 );
 
-export const setThreadVisibilityAtom = atom(null, (get, set, newVisibility: ChatVisibility) => {
-	set(currentThreadAtom, { ...get(currentThreadAtom), visibility: newVisibility });
-});
-
 export const setCurrentThreadMetadataAtom = atom(
 	null,
 	(get, set, metadata: CurrentThreadMetadataPatch) => {
 		const current = get(currentThreadAtom);
+		const isSameThread = current.id === metadata.id;
 
 		set(currentThreadAtom, {
 			...current,
 			id: metadata.id,
-			visibility: "visibility" in metadata ? (metadata.visibility ?? null) : current.visibility,
+			searchSpaceId:
+				"searchSpaceId" in metadata
+					? (metadata.searchSpaceId ?? null)
+					: isSameThread
+						? current.searchSpaceId
+						: null,
+			visibility:
+				"visibility" in metadata
+					? (metadata.visibility ?? null)
+					: isSameThread
+						? current.visibility
+						: null,
 			hasComments:
-				"hasComments" in metadata ? (metadata.hasComments ?? false) : current.hasComments,
+				"hasComments" in metadata
+					? (metadata.hasComments ?? false)
+					: isSameThread
+						? current.hasComments
+						: false,
 		});
 	}
 );

@@ -1,6 +1,5 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
 import { CreditCard, Dot, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -11,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsAnonymous } from "@/contexts/anonymous-mode";
-import { prefetchThreadData } from "@/hooks/use-thread-queries";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
@@ -72,6 +70,7 @@ interface SidebarProps {
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
+	onChatPrefetch?: (chat: ChatItem) => void;
 	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
@@ -108,6 +107,7 @@ export function Sidebar({
 	activeChatId,
 	onNewChat,
 	onChatSelect,
+	onChatPrefetch,
 	onChatRename,
 	onChatDelete,
 	onChatArchive,
@@ -134,7 +134,6 @@ export function Sidebar({
 	collapsedHeaderContent,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
-	const queryClient = useQueryClient();
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
 
 	// Inbox, Automations, and Documents are rendered explicitly right below
@@ -296,7 +295,7 @@ export function Sidebar({
 											dropdownOpen={openDropdownChatId === chat.id}
 											onDropdownOpenChange={(open) => setOpenDropdownChatId(open ? chat.id : null)}
 											onClick={() => onChatSelect(chat)}
-											onPrefetch={() => prefetchThreadData(queryClient, chat.id)}
+											onPrefetch={() => onChatPrefetch?.(chat)}
 											onRename={() => onChatRename?.(chat)}
 											onArchive={() => onChatArchive?.(chat)}
 											onDelete={() => onChatDelete?.(chat)}

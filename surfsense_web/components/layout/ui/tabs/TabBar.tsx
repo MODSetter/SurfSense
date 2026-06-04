@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 interface TabBarProps {
 	onTabSwitch?: (tab: Tab) => void;
+	onTabPrefetch?: (tab: Tab) => void;
 	onNewChat?: () => void;
 	leftActions?: React.ReactNode;
 	rightActions?: React.ReactNode;
@@ -36,6 +37,7 @@ function nextTabListScrollLeft(input: {
 
 export function TabBar({
 	onTabSwitch,
+	onTabPrefetch,
 	onNewChat,
 	leftActions,
 	rightActions,
@@ -69,6 +71,15 @@ export function TabBar({
 			onTabSwitch?.(tab);
 		},
 		[activeTabId, switchTab, onTabSwitch]
+	);
+
+	const handleTabPrefetch = useCallback(
+		(tab: Tab) => {
+			if (tab.type === "chat") {
+				onTabPrefetch?.(tab);
+			}
+		},
+		[onTabPrefetch]
 	);
 
 	const handleTabClose = useCallback(
@@ -195,7 +206,11 @@ export function TabBar({
 									type="button"
 									variant="ghost"
 									onClick={() => handleTabClick(tab)}
-									onMouseEnter={() => setHoveredTabIndex(index)}
+									onMouseEnter={() => {
+										setHoveredTabIndex(index);
+										handleTabPrefetch(tab);
+									}}
+									onFocus={() => handleTabPrefetch(tab)}
 									onMouseLeave={() => setHoveredTabIndex(null)}
 									className={cn(
 										"h-full w-full justify-start overflow-hidden px-3 text-left text-[13px] font-medium transition-colors duration-150",

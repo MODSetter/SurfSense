@@ -117,6 +117,7 @@ interface LayoutShellProps {
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
+	onChatPrefetch?: (chat: ChatItem) => void;
 	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
@@ -153,11 +154,13 @@ interface LayoutShellProps {
 		onOpenChange: (open: boolean) => void;
 	};
 	onTabSwitch?: (tab: Tab) => void;
+	onTabPrefetch?: (tab: Tab) => void;
 }
 
 function MainContentPanel({
 	isChatPage,
 	onTabSwitch,
+	onTabPrefetch,
 	onNewChat,
 	showRightPanelExpandButton = true,
 	showTopBorder = false,
@@ -165,6 +168,7 @@ function MainContentPanel({
 }: {
 	isChatPage: boolean;
 	onTabSwitch?: (tab: Tab) => void;
+	onTabPrefetch?: (tab: Tab) => void;
 	onNewChat?: () => void;
 	showRightPanelExpandButton?: boolean;
 	showTopBorder?: boolean;
@@ -179,6 +183,7 @@ function MainContentPanel({
 		>
 			<TabBar
 				onTabSwitch={onTabSwitch}
+				onTabPrefetch={onTabPrefetch}
 				onNewChat={onNewChat}
 				rightActions={showRightPanelExpandButton ? <RightPanelExpandButton /> : null}
 				className="min-w-0"
@@ -223,6 +228,7 @@ export function LayoutShell({
 	activeChatId,
 	onNewChat,
 	onChatSelect,
+	onChatPrefetch,
 	onChatRename,
 	onChatDelete,
 	onChatArchive,
@@ -251,6 +257,7 @@ export function LayoutShell({
 	allChatsPanel,
 	documentsPanel,
 	onTabSwitch,
+	onTabPrefetch,
 }: LayoutShellProps) {
 	const isMobile = useIsMobile();
 	const electronAPI = useElectronAPI();
@@ -305,6 +312,7 @@ export function LayoutShell({
 							activeChatId={activeChatId}
 							onNewChat={onNewChat}
 							onChatSelect={onChatSelect}
+							onChatPrefetch={onChatPrefetch}
 							onChatRename={onChatRename}
 							onChatDelete={onChatDelete}
 							onChatArchive={onChatArchive}
@@ -447,6 +455,7 @@ export function LayoutShell({
 								activeChatId={activeChatId}
 								onNewChat={onNewChat}
 								onChatSelect={onChatSelect}
+								onChatPrefetch={onChatPrefetch}
 								onChatRename={onChatRename}
 								onChatDelete={onChatDelete}
 								onChatArchive={onChatArchive}
@@ -551,6 +560,7 @@ export function LayoutShell({
 									<MainContentPanel
 										isChatPage={isChatPage}
 										onTabSwitch={onTabSwitch}
+										onTabPrefetch={onTabPrefetch}
 										onNewChat={onNewChat}
 										showRightPanelExpandButton={!isMacDesktop}
 										showTopBorder={isMacDesktop}

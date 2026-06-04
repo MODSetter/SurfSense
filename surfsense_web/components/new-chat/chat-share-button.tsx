@@ -77,8 +77,9 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 	});
 	const hasPublicSnapshots = (snapshotsData?.snapshots?.length ?? 0) > 0;
 
-	// Use Jotai visibility if available (synced from chat page), otherwise fall back to thread prop
-	const currentVisibility = currentThreadState.visibility ?? thread?.visibility ?? "PRIVATE";
+	// Use Jotai visibility if available (synced from chat page), otherwise fall back to thread prop.
+	// Unknown visibility should not be presented as private while thread detail is still resolving.
+	const currentVisibility = currentThreadState.visibility ?? thread?.visibility;
 
 	const handleVisibilityChange = useCallback(
 		async (newVisibility: ChatVisibility) => {
@@ -120,7 +121,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 	}, [thread, createSnapshot, queryClient]);
 
 	// Don't show if no thread (new chat that hasn't been created yet)
-	if (!thread) {
+	if (!thread || currentVisibility === undefined) {
 		return null;
 	}
 

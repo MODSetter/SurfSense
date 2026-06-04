@@ -19,8 +19,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { setCurrentThreadMetadataAtom } from "@/atoms/chat/current-thread.atom";
-import { removeChatTabAtom, syncChatTabAtom } from "@/atoms/tabs/tabs.atom";
+import { removeChatTabAtom } from "@/atoms/tabs/tabs.atom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,11 +40,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
-import { prefetchThreadData } from "@/hooks/use-thread-queries";
 import { fetchThreads, searchThreads, type ThreadListItem } from "@/lib/chat/thread-persistence";
 import { formatThreadTimestamp } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
@@ -72,8 +71,7 @@ export function AllChatsSidebarContent({
 	const queryClient = useQueryClient();
 	const isMobile = useIsMobile();
 	const removeChatTab = useSetAtom(removeChatTabAtom);
-	const syncChatTab = useSetAtom(syncChatTabAtom);
-	const setCurrentThreadMetadata = useSetAtom(setCurrentThreadMetadataAtom);
+	const { activateChatThread, prefetchChatThread } = useActivateChatThread();
 	const { mutateAsync: deleteThread } = useDeleteThread(searchSpaceId);
 	const { mutateAsync: archiveThread } = useArchiveThread(searchSpaceId);
 	const { mutateAsync: renameThread } = useRenameThread(searchSpaceId);
@@ -146,30 +144,16 @@ export function AllChatsSidebarContent({
 
 	const handleThreadClick = useCallback(
 		(thread: ThreadListItem) => {
-			const chatUrl = `/dashboard/${searchSpaceId}/new-chat/${thread.id}`;
-			syncChatTab({
-				chatId: thread.id,
-				title: thread.title || "New Chat",
-				chatUrl,
-				searchSpaceId: Number(searchSpaceId),
-			});
-			setCurrentThreadMetadata({
+			activateChatThread({
 				id: thread.id,
+				title: thread.title || "New Chat",
+				searchSpaceId,
 				visibility: thread.visibility,
-				hasComments: false,
 			});
-			router.push(chatUrl);
 			onOpenChange(false);
 			onCloseMobileSidebar?.();
 		},
-		[
-			router,
-			onOpenChange,
-			searchSpaceId,
-			onCloseMobileSidebar,
-			setCurrentThreadMetadata,
-			syncChatTab,
-		]
+		[activateChatThread, onOpenChange, searchSpaceId, onCloseMobileSidebar]
 	);
 
 	const handleDeleteThread = useCallback(
@@ -183,8 +167,23 @@ export function AllChatsSidebarContent({
 				if (currentChatId === threadId) {
 					onOpenChange(false);
 					setTimeout(() => {
-						if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
-							router.push(fallbackTab.chatUrl);
+						if (
+							fallbackTab?.type === "chat" &&
+							fallbackTab.chatUrl &&
+							fallbackTab.chatId !== undefined
+						) {
+							activateChatThread({
+								id: fallbackTab.chatId ?? null,
+								title: fallbackTab.title,
+								url: fallbackTab.chatUrl,
+								searchSpaceId: fallbackTab.searchSpaceId ?? searchSpaceId,
+								...(fallbackTab.visibility !== undefined
+									? { visibility: fallbackTab.visibility }
+									: {}),
+								...(fallbackTab.hasComments !== undefined
+									? { hasComments: fallbackTab.hasComments }
+									: {}),
+							});
 							return;
 						}
 						router.push(`/dashboard/${searchSpaceId}/new-chat`);
@@ -197,7 +196,16 @@ export function AllChatsSidebarContent({
 				setDeletingThreadId(null);
 			}
 		},
-		[deleteThread, t, currentChatId, router, onOpenChange, removeChatTab, searchSpaceId]
+		[
+			activateChatThread,
+			deleteThread,
+			t,
+			currentChatId,
+			router,
+			onOpenChange,
+			removeChatTab,
+			searchSpaceId,
+		]
 	);
 
 	const handleToggleArchive = useCallback(
@@ -362,8 +370,8 @@ export function AllChatsSidebarContent({
 												if (wasLongPress()) return;
 												handleThreadClick(thread);
 											}}
-											onMouseEnter={() => prefetchThreadData(queryClient, thread.id)}
-											onFocus={() => prefetchThreadData(queryClient, thread.id)}
+											onMouseEnter={() => prefetchChatThread(thread.id)}
+											onFocus={() => prefetchChatThread(thread.id)}
 											onTouchStart={() => {
 												pendingThreadIdRef.current = thread.id;
 												longPressHandlers.onTouchStart();
@@ -389,8 +397,8 @@ export function AllChatsSidebarContent({
 													type="button"
 													variant="ghost"
 													onClick={() => handleThreadClick(thread)}
-													onMouseEnter={() => prefetchThreadData(queryClient, thread.id)}
-													onFocus={() => prefetchThreadData(queryClient, thread.id)}
+													onMouseEnter={() => prefetchChatThread(thread.id)}
+													onFocus={() => prefetchChatThread(thread.id)}
 													disabled={isBusy}
 													className={cn(
 														"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",

@@ -1,5 +1,6 @@
 import { atom } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
+import type { ChatVisibility } from "@/lib/chat/thread-persistence";
 
 export type TabType = "chat" | "document";
 
@@ -10,6 +11,8 @@ export interface Tab {
 	/** For chat tabs */
 	chatId?: number | null;
 	chatUrl?: string;
+	visibility?: ChatVisibility;
+	hasComments?: boolean;
 	/** For document tabs */
 	documentId?: number;
 	searchSpaceId?: number;
@@ -79,11 +82,15 @@ export const syncChatTabAtom = atom(
 			title,
 			chatUrl,
 			searchSpaceId,
+			visibility,
+			hasComments,
 		}: {
 			chatId: number | null;
 			title?: string;
 			chatUrl?: string;
 			searchSpaceId: number;
+			visibility?: ChatVisibility;
+			hasComments?: boolean;
 		}
 	) => {
 		if (chatId && get(deletedChatIdsAtom).has(chatId)) {
@@ -105,6 +112,8 @@ export const syncChatTabAtom = atom(
 								title: title || t.title,
 								chatUrl: chatUrl || t.chatUrl,
 								searchSpaceId: searchSpaceId ?? t.searchSpaceId,
+								...(visibility !== undefined ? { visibility } : {}),
+								...(hasComments !== undefined ? { hasComments } : {}),
 							}
 						: t
 				),
@@ -140,6 +149,8 @@ export const syncChatTabAtom = atom(
 			chatId,
 			chatUrl,
 			searchSpaceId,
+			...(visibility !== undefined ? { visibility } : {}),
+			...(hasComments !== undefined ? { hasComments } : {}),
 		};
 
 		let updatedTabs: Tab[];
