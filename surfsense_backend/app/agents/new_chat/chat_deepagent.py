@@ -85,6 +85,9 @@ from app.agents.new_chat.plugin_loader import (
     load_allowed_plugin_names_from_env,
     load_plugin_middlewares,
 )
+from app.agents.new_chat.connector_searchable_types import (
+    map_connectors_to_searchable_types,
+)
 from app.agents.new_chat.prompt_caching import apply_litellm_prompt_caching
 from app.agents.new_chat.subagents import build_specialized_subagents
 from app.agents.new_chat.system_prompt import (
@@ -138,95 +141,6 @@ def _resolve_prompt_model_name(
         if agent_config.model_name:
             return agent_config.model_name
     return getattr(llm, "model", None)
-
-
-# =============================================================================
-# Connector Type Mapping
-# =============================================================================
-
-# Maps SearchSourceConnectorType enum values to the searchable document/connector types
-# used by pre-search middleware and web_search.
-# Live search connectors (TAVILY_API, LINKUP_API, BAIDU_SEARCH_API) are routed to
-# the web_search tool; all others are considered local/indexed data.
-_CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
-    # Live search connectors (handled by web_search tool)
-    "TAVILY_API": "TAVILY_API",
-    "LINKUP_API": "LINKUP_API",
-    "BAIDU_SEARCH_API": "BAIDU_SEARCH_API",
-    # Local/indexed connectors (handled by KB pre-search middleware)
-    "SLACK_CONNECTOR": "SLACK_CONNECTOR",
-    "TEAMS_CONNECTOR": "TEAMS_CONNECTOR",
-    "NOTION_CONNECTOR": "NOTION_CONNECTOR",
-    "GITHUB_CONNECTOR": "GITHUB_CONNECTOR",
-    "LINEAR_CONNECTOR": "LINEAR_CONNECTOR",
-    "DISCORD_CONNECTOR": "DISCORD_CONNECTOR",
-    "JIRA_CONNECTOR": "JIRA_CONNECTOR",
-    "CONFLUENCE_CONNECTOR": "CONFLUENCE_CONNECTOR",
-    "CLICKUP_CONNECTOR": "CLICKUP_CONNECTOR",
-    "GOOGLE_CALENDAR_CONNECTOR": "GOOGLE_CALENDAR_CONNECTOR",
-    "GOOGLE_GMAIL_CONNECTOR": "GOOGLE_GMAIL_CONNECTOR",
-    "GOOGLE_DRIVE_CONNECTOR": "GOOGLE_DRIVE_FILE",  # Connector type differs from document type
-    "AIRTABLE_CONNECTOR": "AIRTABLE_CONNECTOR",
-    "LUMA_CONNECTOR": "LUMA_CONNECTOR",
-    "ELASTICSEARCH_CONNECTOR": "ELASTICSEARCH_CONNECTOR",
-    "WEBCRAWLER_CONNECTOR": "CRAWLED_URL",  # Maps to document type
-    "BOOKSTACK_CONNECTOR": "BOOKSTACK_CONNECTOR",
-    "CIRCLEBACK_CONNECTOR": "CIRCLEBACK",  # Connector type differs from document type
-    "OBSIDIAN_CONNECTOR": "OBSIDIAN_CONNECTOR",
-    "DROPBOX_CONNECTOR": "DROPBOX_FILE",  # Connector type differs from document type
-    "ONEDRIVE_CONNECTOR": "ONEDRIVE_FILE",  # Connector type differs from document type
-    # Composio connectors (unified to native document types).
-    # Reverse of NATIVE_TO_LEGACY_DOCTYPE in app.db.
-    "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "GOOGLE_DRIVE_FILE",
-    "COMPOSIO_GMAIL_CONNECTOR": "GOOGLE_GMAIL_CONNECTOR",
-    "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR": "GOOGLE_CALENDAR_CONNECTOR",
-}
-
-# Document types that don't come from SearchSourceConnector but should always be searchable
-_ALWAYS_AVAILABLE_DOC_TYPES: list[str] = [
-    "EXTENSION",  # Browser extension data
-    "FILE",  # Uploaded files
-    "NOTE",  # User notes
-    "YOUTUBE_VIDEO",  # YouTube videos
-]
-
-
-def _map_connectors_to_searchable_types(
-    connector_types: list[Any],
-) -> list[str]:
-    """
-    Map SearchSourceConnectorType enums to searchable document/connector types.
-
-    This function:
-    1. Converts connector type enums to their searchable counterparts
-    2. Includes always-available document types (EXTENSION, FILE, NOTE, YOUTUBE_VIDEO)
-    3. Deduplicates while preserving order
-
-    Args:
-        connector_types: List of SearchSourceConnectorType enum values
-
-    Returns:
-        List of searchable connector/document type strings
-    """
-    result_set: set[str] = set()
-    result_list: list[str] = []
-
-    # Add always-available document types first
-    for doc_type in _ALWAYS_AVAILABLE_DOC_TYPES:
-        if doc_type not in result_set:
-            result_set.add(doc_type)
-            result_list.append(doc_type)
-
-    # Map each connector type to its searchable equivalent
-    for ct in connector_types:
-        # Handle both enum and string types
-        ct_str = ct.value if hasattr(ct, "value") else str(ct)
-        searchable = _CONNECTOR_TYPE_TO_SEARCHABLE.get(ct_str)
-        if searchable and searchable not in result_set:
-            result_set.add(searchable)
-            result_list.append(searchable)
-
-    return result_list
 
 
 # =============================================================================
@@ -361,7 +275,7 @@ async def create_surfsense_deep_agent(
                 search_space_id
             )
             if connector_types_result:
-                available_connectors = _map_connectors_to_searchable_types(
+                available_connectors = map_connectors_to_searchable_types(
                     connector_types_result
                 )
         except Exception as e:

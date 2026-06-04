@@ -19,7 +19,9 @@ from app.agents.multi_agent_chat.subagents import (
 from app.agents.multi_agent_chat.subagents.mcp_tools.index import (
     load_mcp_tools_by_connector,
 )
-from app.agents.new_chat.chat_deepagent import _map_connectors_to_searchable_types
+from app.agents.new_chat.connector_searchable_types import (
+    map_connectors_to_searchable_types,
+)
 from app.agents.new_chat.feature_flags import AgentFeatureFlags, get_flags
 from app.agents.new_chat.filesystem_backends import build_backend_resolver
 from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
@@ -90,7 +92,7 @@ async def create_multi_agent_chat_deep_agent(
         connector_types = await connector_service.get_available_connectors(
             search_space_id
         )
-        available_connectors = _map_connectors_to_searchable_types(connector_types)
+        available_connectors = map_connectors_to_searchable_types(connector_types)
 
         available_document_types = await connector_service.get_available_document_types(
             search_space_id
