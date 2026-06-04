@@ -14,7 +14,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 
 from app.agents.multi_agent_chat.subagents.shared.spec import SurfSenseSubagentSpec
-from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.shared.filesystem_selection import FilesystemMode
 from app.agents.new_chat.permissions import Rule, Ruleset
 
 from .middleware_stack import build_kb_middleware

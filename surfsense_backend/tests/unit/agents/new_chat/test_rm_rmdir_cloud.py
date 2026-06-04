@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.shared.filesystem_selection import FilesystemMode
 from app.agents.new_chat.middleware.filesystem import SurfSenseFilesystemMiddleware
 from app.agents.new_chat.middleware.kb_postgres_backend import KBPostgresBackend
 

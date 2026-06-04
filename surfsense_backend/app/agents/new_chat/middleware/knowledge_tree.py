@@ -33,7 +33,7 @@ from langchain_core.messages import SystemMessage
 from langgraph.runtime import Runtime
 from sqlalchemy import select
 
-from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.shared.filesystem_selection import FilesystemMode
 from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
 from app.agents.new_chat.path_resolver import (
     DOCUMENTS_ROOT,

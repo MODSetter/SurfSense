@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any
 
-from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.shared.filesystem_selection import FilesystemMode
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat.streaming.agent.event_loop import stream_agent_events
 from app.tasks.chat.streaming.shared.stream_result import StreamResult

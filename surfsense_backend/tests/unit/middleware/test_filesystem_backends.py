@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from app.agents.new_chat.filesystem_backends import build_backend_resolver
-from app.agents.new_chat.filesystem_selection import (
+from app.agents.shared.filesystem_selection import (
     ClientPlatform,
     FilesystemMode,
     FilesystemSelection,

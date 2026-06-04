@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.shared.filesystem_selection import FilesystemMode
 
 _CLOUD_DESCRIPTION = """Deletes a single file under `/documents/`.
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.agents.multi_agent_chat.subagents.shared.md_file_reader import read_md_file
-from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.shared.filesystem_selection import FilesystemMode
 
 
 def load_system_prompt(filesystem_mode: FilesystemMode) -> str:

@@ -1,0 +1,41 @@
+"""Filesystem mode contracts and selection helpers for chat sessions."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import StrEnum
+
+
+class FilesystemMode(StrEnum):
+    """Supported filesystem backends for agent tool execution."""
+
+    CLOUD = "cloud"
+    DESKTOP_LOCAL_FOLDER = "desktop_local_folder"
+
+
+class ClientPlatform(StrEnum):
+    """Client runtime reported by the caller."""
+
+    WEB = "web"
+    DESKTOP = "desktop"
+
+
+@dataclass(slots=True)
+class LocalFilesystemMount:
+    """Canonical mount mapping provided by desktop runtime."""
+
+    mount_id: str
+    root_path: str
+
+
+@dataclass(slots=True)
+class FilesystemSelection:
+    """Resolved filesystem selection for a single chat request."""
+
+    mode: FilesystemMode = FilesystemMode.CLOUD
+    client_platform: ClientPlatform = ClientPlatform.WEB
+    local_mounts: tuple[LocalFilesystemMount, ...] = ()
+
+    @property
+    def is_local_mode(self) -> bool:
+        return self.mode == FilesystemMode.DESKTOP_LOCAL_FOLDER

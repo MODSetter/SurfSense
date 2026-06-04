@@ -18,7 +18,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.shared.filesystem_selection import FilesystemMode
 from app.agents.new_chat.middleware.filesystem import (
     SurfSenseFilesystemMiddleware,
     _build_filesystem_system_prompt,

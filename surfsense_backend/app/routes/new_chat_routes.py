@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.agents.new_chat.filesystem_selection import (
+from app.agents.shared.filesystem_selection import (
     ClientPlatform,
     FilesystemMode,
     FilesystemSelection,

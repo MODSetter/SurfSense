@@ -32,7 +32,7 @@ from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.ask_knowledge
     build_ask_knowledge_base_tool,
 )
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.shared.filesystem_selection import FilesystemMode
 from app.db import ChatVisibility
 
 from .main_agent.action_log import build_action_log_mw

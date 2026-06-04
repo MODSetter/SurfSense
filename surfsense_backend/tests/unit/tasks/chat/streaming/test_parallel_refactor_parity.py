@@ -97,7 +97,7 @@ def _normalize_annotation(ann: Any) -> str:
         raw.replace("typing.", "")
         .replace("collections.abc.", "")
         .replace("app.db.", "")
-        .replace("app.agents.new_chat.filesystem_selection.", "")
+        .replace("app.agents.shared.filesystem_selection.", "")
         .replace("app.agents.shared.context.", "")
     )
     # Unwrap ``<class 'int'>`` → ``int`` (legacy-side type objects).

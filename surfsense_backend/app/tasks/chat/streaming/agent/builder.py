@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agents.new_chat.filesystem_selection import FilesystemSelection
+from app.agents.shared.filesystem_selection import FilesystemSelection
 from app.agents.new_chat.llm_config import AgentConfig
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService

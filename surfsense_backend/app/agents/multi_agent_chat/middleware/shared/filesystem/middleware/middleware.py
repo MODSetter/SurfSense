@@ -7,7 +7,7 @@ from typing import Any
 from deepagents import FilesystemMiddleware
 from langchain_core.tools import BaseTool
 
-from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.shared.filesystem_selection import FilesystemMode
 from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
 from app.agents.new_chat.sandbox import is_sandbox_enabled
 

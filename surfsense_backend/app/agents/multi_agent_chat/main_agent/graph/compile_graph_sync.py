@@ -16,7 +16,7 @@ from app.agents.multi_agent_chat.middleware.stack import (
 )
 from app.agents.shared.context import SurfSenseContextSchema
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.filesystem_selection import FilesystemMode
+from app.agents.shared.filesystem_selection import FilesystemMode
 from app.db import ChatVisibility
 
 
