@@ -6,7 +6,7 @@ import logging
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.middleware import ActionLogMiddleware
-from app.agents.new_chat.tools.registry import BUILTIN_TOOLS
+from app.agents.shared.tools.registry import BUILTIN_TOOLS
 
 from ..shared.flags import enabled
 

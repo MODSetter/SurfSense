@@ -61,7 +61,7 @@ def create_read_gmail_email_tool(
                         "message": "Composio connected account ID not found for this Gmail connector.",
                     }
 
-                from app.agents.new_chat.tools.gmail.search_emails import (
+                from app.agents.shared.tools.gmail.search_emails import (
                     _format_gmail_summary,
                 )
                 from app.services.composio_service import ComposioService
@@ -97,7 +97,7 @@ def create_read_gmail_email_tool(
                     "content": content,
                 }
 
-            from app.agents.new_chat.tools.gmail.search_emails import (
+            from app.agents.shared.tools.gmail.search_emails import (
                 _build_credentials,
             )
 

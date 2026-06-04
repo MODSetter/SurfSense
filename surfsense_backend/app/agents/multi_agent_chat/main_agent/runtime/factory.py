@@ -27,8 +27,8 @@ from app.agents.shared.filesystem_backends import build_backend_resolver
 from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.shared.llm_config import AgentConfig
 from app.agents.shared.prompt_caching import apply_litellm_prompt_caching
-from app.agents.new_chat.tools.invalid_tool import INVALID_TOOL_NAME, invalid_tool
-from app.agents.new_chat.tools.registry import build_tools_async
+from app.agents.shared.tools.invalid_tool import INVALID_TOOL_NAME, invalid_tool
+from app.agents.shared.tools.registry import build_tools_async
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 from app.services.user_tool_allowlist import (

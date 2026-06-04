@@ -121,7 +121,7 @@ class ToolCallNameRepairMiddleware(
         # Local import avoids a module-load cycle through the frozen single-agent
         # package (new_chat.__init__ -> chat_deepagent -> middleware shim).
         # Resolves to app.agents.shared.tools once tools migrate.
-        from app.agents.new_chat.tools.invalid_tool import INVALID_TOOL_NAME
+        from app.agents.shared.tools.invalid_tool import INVALID_TOOL_NAME
 
         if INVALID_TOOL_NAME in registered:
             original_args = call.get("args") or {}

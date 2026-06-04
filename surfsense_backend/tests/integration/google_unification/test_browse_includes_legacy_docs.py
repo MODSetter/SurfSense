@@ -17,7 +17,7 @@ async def test_browse_recent_documents_with_list_type_returns_both(
     committed_google_data, patched_shielded_session
 ):
     """_browse_recent_documents returns docs of all types when given a list."""
-    from app.agents.new_chat.tools.knowledge_base import _browse_recent_documents
+    from app.agents.shared.tools.knowledge_base import _browse_recent_documents
 
     space_id = committed_google_data["search_space_id"]
 

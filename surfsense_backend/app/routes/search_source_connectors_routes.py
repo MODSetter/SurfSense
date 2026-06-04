@@ -675,7 +675,7 @@ async def delete_search_source_connector(
         await session.commit()
 
         if is_mcp:
-            from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+            from app.agents.shared.tools.mcp_tool import invalidate_mcp_tools_cache
 
             invalidate_mcp_tools_cache(search_space_id)
 
@@ -2687,7 +2687,7 @@ async def create_mcp_connector(
             f"for user {user.id} in search space {search_space_id}"
         )
 
-        from app.agents.new_chat.tools.mcp_tools_cache import (
+        from app.agents.shared.tools.mcp_tools_cache import (
             refresh_mcp_tools_cache_for_connector,
         )
 
@@ -2867,7 +2867,7 @@ async def update_mcp_connector(
 
         logger.info(f"Updated MCP connector {connector_id}")
 
-        from app.agents.new_chat.tools.mcp_tools_cache import (
+        from app.agents.shared.tools.mcp_tools_cache import (
             refresh_mcp_tools_cache_for_connector,
         )
 
@@ -2927,7 +2927,7 @@ async def delete_mcp_connector(
         await session.delete(connector)
         await session.commit()
 
-        from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+        from app.agents.shared.tools.mcp_tool import invalidate_mcp_tools_cache
 
         invalidate_mcp_tools_cache(search_space_id)
 
@@ -2966,7 +2966,7 @@ async def test_mcp_server_connection(
         Connection status and list of available tools
     """
     try:
-        from app.agents.new_chat.tools.mcp_client import (
+        from app.agents.shared.tools.mcp_client import (
             test_mcp_connection,
             test_mcp_http_connection,
         )
@@ -3157,7 +3157,7 @@ async def trust_mcp_tool(
     connectors (``LINEAR_CONNECTOR``, ``JIRA_CONNECTOR``, ...) — the
     storage primitive is the same JSON list under ``config.trusted_tools``.
     """
-    from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+    from app.agents.shared.tools.mcp_tool import invalidate_mcp_tools_cache
     from app.services.user_tool_allowlist import add_user_trust
 
     try:
@@ -3197,7 +3197,7 @@ async def untrust_mcp_tool(
 
     The tool will require HITL approval again on subsequent calls.
     """
-    from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+    from app.agents.shared.tools.mcp_tool import invalidate_mcp_tools_cache
     from app.services.user_tool_allowlist import remove_user_trust
 
     try:

@@ -3,7 +3,7 @@
 Wraps every tool call via :meth:`AgentMiddleware.awrap_tool_call` and writes
 a row to :class:`~app.db.AgentActionLog` after the tool returns. Tools opt
 into reversibility by declaring a ``reverse`` callable on their
-:class:`~app.agents.new_chat.tools.registry.ToolDefinition`; the rendered
+:class:`~app.agents.shared.tools.registry.ToolDefinition`; the rendered
 descriptor is persisted in ``reverse_descriptor`` for use by
 ``/api/threads/{thread_id}/revert/{action_id}``.
 
@@ -42,7 +42,7 @@ if TYPE_CHECKING:  # pragma: no cover - type-only
     # Type-only import: keeping it lazy avoids a module-load cycle through the
     # frozen single-agent package (new_chat.__init__ -> chat_deepagent ->
     # middleware shim). Resolves to app.agents.shared.tools once tools migrate.
-    from app.agents.new_chat.tools.registry import ToolDefinition
+    from app.agents.shared.tools.registry import ToolDefinition
 
 
 logger = logging.getLogger(__name__)

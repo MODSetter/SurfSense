@@ -137,10 +137,10 @@ def install(active_patches: list[Any]) -> None:
     """Patch production MCP streamable-HTTP boundaries exactly once."""
     targets = [
         (
-            "app.agents.new_chat.tools.mcp_tool.streamablehttp_client",
+            "app.agents.shared.tools.mcp_tool.streamablehttp_client",
             _fake_streamablehttp_client,
         ),
-        ("app.agents.new_chat.tools.mcp_tool.ClientSession", _FakeClientSession),
+        ("app.agents.shared.tools.mcp_tool.ClientSession", _FakeClientSession),
     ]
     for target, replacement in targets:
         p = patch(target, replacement)

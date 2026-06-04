@@ -32,7 +32,7 @@ from app.agents.shared.middleware import (
     RetryAfterMiddleware,
     create_surfsense_compaction_middleware,
 )
-from app.agents.new_chat.tools.web_search import create_web_search_tool
+from app.agents.shared.tools.web_search import create_web_search_tool
 
 # Cap how much of an uploaded document we inline into the system prompt. The
 # upload endpoint allows files up to several MB, but the doc is re-sent on

@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage
 from app.agents.shared.middleware.tool_call_repair import (
     ToolCallNameRepairMiddleware,
 )
-from app.agents.new_chat.tools.invalid_tool import INVALID_TOOL_NAME
+from app.agents.shared.tools.invalid_tool import INVALID_TOOL_NAME
 
 pytestmark = pytest.mark.unit
 

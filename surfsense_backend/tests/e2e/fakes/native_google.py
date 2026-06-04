@@ -429,9 +429,9 @@ def install(active_patches: list[Any]) -> None:
         ("app.connectors.google_drive.client.build", _fake_build),
         ("app.connectors.google_gmail_connector.build", _fake_build),
         ("app.connectors.google_calendar_connector.build", _fake_build),
-        ("app.agents.new_chat.tools.google_calendar.create_event.build", _fake_build),
-        ("app.agents.new_chat.tools.google_calendar.update_event.build", _fake_build),
-        ("app.agents.new_chat.tools.google_calendar.delete_event.build", _fake_build),
+        ("app.agents.shared.tools.google_calendar.create_event.build", _fake_build),
+        ("app.agents.shared.tools.google_calendar.update_event.build", _fake_build),
+        ("app.agents.shared.tools.google_calendar.delete_event.build", _fake_build),
         ("googleapiclient.http.MediaIoBaseDownload", _FakeMediaIoBaseDownload),
         (
             "app.connectors.google_drive.client._build_thread_http",

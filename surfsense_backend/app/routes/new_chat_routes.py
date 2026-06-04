@@ -1668,7 +1668,7 @@ async def list_agent_tools(
 
     Hidden (WIP) tools are excluded from the response.
     """
-    from app.agents.new_chat.tools.registry import BUILTIN_TOOLS
+    from app.agents.shared.tools.registry import BUILTIN_TOOLS
 
     return [
         AgentToolInfo(

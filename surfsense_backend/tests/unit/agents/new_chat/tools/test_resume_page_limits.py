@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pypdf
 import pytest
 
-from app.agents.new_chat.tools import resume as resume_tool
+from app.agents.shared.tools import resume as resume_tool
 
 pytestmark = pytest.mark.unit
 

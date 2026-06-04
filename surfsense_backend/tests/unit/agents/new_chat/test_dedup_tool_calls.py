@@ -93,7 +93,7 @@ def test_no_agent_tools_means_no_dedup() -> None:
 
     Coverage for the previously hardcoded native HITL tools now lives on
     each :class:`ToolDefinition.dedup_key` in
-    :mod:`app.agents.new_chat.tools.registry`, which is wired through to
+    :mod:`app.agents.shared.tools.registry`, which is wired through to
     ``tool.metadata`` by :func:`build_tools`.
     """
     mw = DedupHITLToolCallsMiddleware(agent_tools=None)
@@ -116,7 +116,7 @@ def test_registry_propagates_dedup_key_to_tool_metadata() -> None:
     the constructed tool's ``metadata`` so :class:`DedupHITLToolCallsMiddleware`
     can pick it up at agent build time.
     """
-    from app.agents.new_chat.tools.registry import (
+    from app.agents.shared.tools.registry import (
         BUILTIN_TOOLS,
         wrap_dedup_key_by_arg_name,
     )
