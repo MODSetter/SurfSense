@@ -17,6 +17,8 @@ def build_new_chat_runtime_context(
     mentioned_document_ids: list[int] | None,
     accepted_folder_ids: list[int],
     mentioned_folder_ids: list[int] | None,
+    mentioned_connector_ids: list[int] | None,
+    mentioned_connectors: list[dict[str, object]] | None,
     request_id: str | None,
     turn_id: str,
 ) -> SurfSenseContextSchema:
@@ -26,11 +28,16 @@ def build_new_chat_runtime_context(
     ``mentioned_folder_ids`` from the request: the resolver drops chips that
     pointed at deleted folders or folders the caller can't see, so middlewares
     only get authorized ids.
+
+    Connector mentions are set on the schema for legacy parity even though no
+    middleware reads them yet.
     """
     return SurfSenseContextSchema(
         search_space_id=search_space_id,
         mentioned_document_ids=list(mentioned_document_ids or []),
         mentioned_folder_ids=list(accepted_folder_ids or mentioned_folder_ids or []),
+        mentioned_connector_ids=list(mentioned_connector_ids or []),
+        mentioned_connectors=list(mentioned_connectors or []),
         request_id=request_id,
         turn_id=turn_id,
     )

@@ -124,6 +124,8 @@ async def stream_new_chat(
     llm_config_id: int = -1,
     mentioned_document_ids: list[int] | None = None,
     mentioned_folder_ids: list[int] | None = None,
+    mentioned_connector_ids: list[int] | None = None,
+    mentioned_connectors: list[dict[str, Any]] | None = None,
     mentioned_documents: list[dict[str, Any]] | None = None,
     checkpoint_id: str | None = None,
     needs_history_bootstrap: bool = False,
@@ -272,6 +274,7 @@ async def stream_new_chat(
                         selected_llm_config_id=0,
                         requires_image_input=requires_image_input,
                         requested_llm_config_id=requested_llm_config_id,
+                        force_repin_free=True,
                     )
                     if pin_fallback.error is not None:
                         message, error_code, error_kind = pin_fallback.error
@@ -367,12 +370,6 @@ async def stream_new_chat(
             mentioned_documents=mentioned_documents,
             background_tasks=_background_tasks,
         )
-        persist_asst_task = spawn_persist_assistant_shell_task(
-            chat_id=chat_id,
-            user_id=user_id,
-            turn_id=stream_result.turn_id,
-            background_tasks=_background_tasks,
-        )
 
         _t0 = time.perf_counter()
         connector_service, firecrawl_api_key = await setup_connector_and_firecrawl(
@@ -435,6 +432,7 @@ async def stream_new_chat(
             user_image_data_urls=user_image_data_urls,
             mentioned_document_ids=mentioned_document_ids,
             mentioned_folder_ids=mentioned_folder_ids,
+            mentioned_connectors=mentioned_connectors,
             mentioned_documents=mentioned_documents,
             needs_history_bootstrap=needs_history_bootstrap,
             thread_visibility=visibility,
@@ -523,6 +521,14 @@ async def stream_new_chat(
             {"message_id": user_message_id, "turn_id": stream_result.turn_id},
         )
 
+        # Spawned only after the user row is confirmed, so a user-persist
+        # failure can't orphan an assistant shell on the same turn.
+        persist_asst_task = spawn_persist_assistant_shell_task(
+            chat_id=chat_id,
+            user_id=user_id,
+            turn_id=stream_result.turn_id,
+            background_tasks=_background_tasks,
+        )
         assistant_message_id = await await_persist_task(
             persist_asst_task,
             chat_id=chat_id,
@@ -588,6 +594,8 @@ async def stream_new_chat(
             mentioned_document_ids=mentioned_document_ids,
             accepted_folder_ids=accepted_folder_ids,
             mentioned_folder_ids=mentioned_folder_ids,
+            mentioned_connector_ids=mentioned_connector_ids,
+            mentioned_connectors=mentioned_connectors,
             request_id=request_id,
             turn_id=stream_result.turn_id,
         )

@@ -9,9 +9,9 @@ Pipeline:
      can resolve ``report_id`` for versioning without spelunking history.
   3. **@-mention resolve** (cloud mode) — substitute ``@title`` tokens in the
      query with canonical ``\`/documents/...\``` paths the LLM expects.
-  4. **Context block render** — XML-wrap recent reports, prepend to the
-     rewritten query, optionally prefix with display name for SEARCH_SPACE
-     visibility.
+  4. **Context block render** — XML-wrap @-mentioned connectors and recent
+     reports, prepend to the rewritten query, optionally prefix with display
+     name for SEARCH_SPACE visibility.
   5. **HumanMessage** — multimodal content if images are attached.
 
 Returns the assembled ``input_state`` dict plus side-channel data the
@@ -62,6 +62,7 @@ async def build_new_chat_input_state(
     user_image_data_urls: list[str] | None,
     mentioned_document_ids: list[int] | None,
     mentioned_folder_ids: list[int] | None,
+    mentioned_connectors: list[dict[str, Any]] | None,
     mentioned_documents: list[dict[str, Any]] | None,
     needs_history_bootstrap: bool,
     thread_visibility: ChatVisibility,
@@ -111,6 +112,7 @@ async def build_new_chat_input_state(
     final_query = _render_query_with_context(
         agent_user_query=agent_user_query,
         recent_reports=recent_reports,
+        mentioned_connectors=mentioned_connectors,
     )
 
     if thread_visibility == ChatVisibility.SEARCH_SPACE and current_user_display_name:
@@ -193,13 +195,55 @@ async def _resolve_mentions_for_query(
     return agent_user_query, accepted_folder_ids
 
 
+def _render_connector_block(mentioned_connectors: list[dict[str, Any]]) -> str | None:
+    """Render the ``<mentioned_connectors>`` block, or ``None`` when empty.
+
+    Malformed entries (non-dict, or missing id/type) are skipped.
+    """
+    connector_lines: list[str] = []
+    for connector in mentioned_connectors:
+        if not isinstance(connector, dict):
+            continue
+        connector_id = connector.get("id")
+        connector_type = connector.get("connector_type") or connector.get(
+            "document_type"
+        )
+        account_name = connector.get("account_name") or connector.get("title")
+        if connector_id is None or connector_type is None:
+            continue
+        connector_lines.append(
+            f'  - connector_id={connector_id}, connector_type="{connector_type}", '
+            f'account_name="{account_name or ""}"'
+        )
+    if not connector_lines:
+        return None
+    return (
+        "<mentioned_connectors>\n"
+        "The user selected these exact connector accounts with @. "
+        "These entries are selection metadata, not retrieved connector content. "
+        "When a connector-backed tool needs an account, use the matching "
+        "connector_id from this list if the tool supports connector_id:\n"
+        + "\n".join(connector_lines)
+        + "\n</mentioned_connectors>"
+    )
+
+
 def _render_query_with_context(
     *,
     agent_user_query: str,
     recent_reports: list[Report],
+    mentioned_connectors: list[dict[str, Any]] | None,
 ) -> str:
-    """Prepend recent-reports XML block to the user query."""
+    """Prepend the ``<mentioned_connectors>`` then ``<report_context>`` blocks.
+
+    Order is load-bearing for legacy parity.
+    """
     context_parts: list[str] = []
+
+    if mentioned_connectors:
+        connector_block = _render_connector_block(mentioned_connectors)
+        if connector_block:
+            context_parts.append(connector_block)
 
     if recent_reports:
         report_lines: list[str] = []

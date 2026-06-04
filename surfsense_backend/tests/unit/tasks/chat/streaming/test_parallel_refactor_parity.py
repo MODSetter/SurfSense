@@ -241,11 +241,14 @@ def test_image_capability_blocks_known_text_only_models() -> None:
 
 
 def test_new_chat_runtime_context_prefers_accepted_folder_ids() -> None:
+    """Post-resolve accepted folder ids win over the raw requested ids."""
     ctx = build_new_chat_runtime_context(
         search_space_id=7,
         mentioned_document_ids=[1, 2],
         accepted_folder_ids=[10],
         mentioned_folder_ids=[20, 30],
+        mentioned_connector_ids=None,
+        mentioned_connectors=None,
         request_id="req",
         turn_id="t1",
     )
@@ -258,15 +261,39 @@ def test_new_chat_runtime_context_prefers_accepted_folder_ids() -> None:
 
 
 def test_new_chat_runtime_context_falls_back_to_mentioned_folder_ids() -> None:
+    """With no accepted ids, the raw requested folder ids flow through."""
     ctx = build_new_chat_runtime_context(
         search_space_id=7,
         mentioned_document_ids=None,
         accepted_folder_ids=[],
         mentioned_folder_ids=[20, 30],
+        mentioned_connector_ids=None,
+        mentioned_connectors=None,
         request_id=None,
         turn_id="t2",
     )
     assert list(ctx.mentioned_folder_ids) == [20, 30]
+
+
+def test_new_chat_runtime_context_propagates_connector_mentions() -> None:
+    """@-selected connector ids/accounts ride onto the runtime context schema.
+
+    Parity with the legacy ``stream_new_chat`` runtime context, which set both
+    ``mentioned_connector_ids`` and ``mentioned_connectors`` on the schema.
+    """
+    connectors = [{"id": 5, "connector_type": "SLACK_CONNECTOR", "title": "acme"}]
+    ctx = build_new_chat_runtime_context(
+        search_space_id=7,
+        mentioned_document_ids=None,
+        accepted_folder_ids=[],
+        mentioned_folder_ids=None,
+        mentioned_connector_ids=[5],
+        mentioned_connectors=connectors,
+        request_id=None,
+        turn_id="t3",
+    )
+    assert list(ctx.mentioned_connector_ids) == [5]
+    assert list(ctx.mentioned_connectors) == connectors
 
 
 def test_resume_chat_runtime_context_empty_mention_lists() -> None:
