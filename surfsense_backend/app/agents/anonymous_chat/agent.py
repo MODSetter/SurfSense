@@ -27,7 +27,7 @@ from langchain.agents.middleware import (
 from langchain_core.language_models import BaseChatModel
 from langgraph.types import Checkpointer
 
-from app.agents.new_chat.context import SurfSenseContextSchema
+from app.agents.shared.context import SurfSenseContextSchema
 from app.agents.shared.middleware import (
     RetryAfterMiddleware,
     create_surfsense_compaction_middleware,
