@@ -35,8 +35,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.shared.middleware.dedup_tool_calls import dedup_key_full_args
 from app.agents.shared.tools.hitl import request_approval
-from app.agents.shared.tools.mcp_client import MCPClient
-from app.agents.shared.tools.mcp_tools_cache import (
+from app.agents.shared.tools.mcp.client import MCPClient
+from app.agents.shared.tools.mcp.cache import (
     CachedMCPTools,
     read_cached_tools,
     write_cached_tools,
