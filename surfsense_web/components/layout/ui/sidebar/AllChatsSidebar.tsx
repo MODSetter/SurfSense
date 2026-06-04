@@ -359,17 +359,12 @@ export function AllChatsSidebarContent({
 												"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
 												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+												thread.visibility === "SEARCH_SPACE" && "pr-9",
 												isActive && "bg-accent text-accent-foreground",
 												isBusy && "opacity-50 pointer-events-none"
 											)}
 										>
 											<span className="min-w-0 flex-1 truncate">{thread.title || "New Chat"}</span>
-											{thread.visibility === "SEARCH_SPACE" ? (
-												<Users
-													aria-label={t("shared_chat") || "Shared chat"}
-													className="h-3 w-3 shrink-0 text-muted-foreground/50"
-												/>
-											) : null}
 										</Button>
 									) : (
 										<Tooltip delayDuration={600}>
@@ -383,6 +378,7 @@ export function AllChatsSidebarContent({
 														"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
 														"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 														"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+														thread.visibility === "SEARCH_SPACE" && "pr-9",
 														isActive && "bg-accent text-accent-foreground",
 														isBusy && "opacity-50 pointer-events-none"
 													)}
@@ -390,12 +386,6 @@ export function AllChatsSidebarContent({
 													<span className="min-w-0 flex-1 truncate">
 														{thread.title || "New Chat"}
 													</span>
-													{thread.visibility === "SEARCH_SPACE" ? (
-														<Users
-															aria-label={t("shared_chat") || "Shared chat"}
-															className="h-3 w-3 shrink-0 text-muted-foreground/50"
-														/>
-													) : null}
 												</Button>
 											</TooltipTrigger>
 											<TooltipContent side="bottom" align="start">
@@ -414,34 +404,50 @@ export function AllChatsSidebarContent({
 												: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
 											isMobile
 												? "opacity-0"
-												: openDropdownId === thread.id
+												: thread.visibility === "SEARCH_SPACE" || openDropdownId === thread.id
 													? "opacity-100"
 													: "opacity-0 group-hover/item:opacity-100"
 										)}
 									>
-										<DropdownMenu
-											open={openDropdownId === thread.id}
-											onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
-										>
-											<DropdownMenuTrigger asChild>
-												<Button
-													variant="ghost"
-													size="icon"
+										<div className="relative h-6 w-6">
+											{thread.visibility === "SEARCH_SPACE" ? (
+												<Users
+													aria-label={t("shared_chat") || "Shared chat"}
 													className={cn(
-														"pointer-events-auto h-6 w-6 hover:bg-transparent",
-														openDropdownId === thread.id && "bg-accent hover:bg-accent"
+														"absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 text-muted-foreground/50",
+														!isMobile &&
+															(openDropdownId === thread.id
+																? "opacity-0"
+																: "opacity-100 group-hover/item:opacity-0")
 													)}
-													disabled={isBusy}
-												>
-													{isDeleting ? (
-														<Spinner size="xs" />
-													) : (
-														<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-													)}
-													<span className="sr-only">{t("more_options") || "More options"}</span>
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end" className="w-40 z-80">
+												/>
+											) : null}
+											<DropdownMenu
+												open={openDropdownId === thread.id}
+												onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
+											>
+												<DropdownMenuTrigger asChild>
+													<Button
+														variant="ghost"
+														size="icon"
+														className={cn(
+															"pointer-events-auto h-6 w-6 hover:bg-transparent",
+															openDropdownId === thread.id && "bg-accent hover:bg-accent",
+															!isMobile &&
+																openDropdownId !== thread.id &&
+																"opacity-0 group-hover/item:opacity-100"
+														)}
+														disabled={isBusy}
+													>
+														{isDeleting ? (
+															<Spinner size="xs" />
+														) : (
+															<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+														)}
+														<span className="sr-only">{t("more_options") || "More options"}</span>
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align="end" className="w-40 z-80">
 												{!thread.archived && (
 													<DropdownMenuItem
 														onClick={() => handleStartRename(thread.id, thread.title || "New Chat")}
@@ -470,8 +476,9 @@ export function AllChatsSidebarContent({
 													<Trash2 className="mr-2 h-4 w-4" />
 													<span>{t("delete") || "Delete"}</span>
 												</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
+												</DropdownMenuContent>
+											</DropdownMenu>
+										</div>
 									</div>
 								</div>
 							);
@@ -534,16 +541,17 @@ export function AllChatsSidebarContent({
 						<Button
 							onClick={handleConfirmRename}
 							disabled={isRenaming || !newTitle.trim()}
-							className="gap-2"
+							className="relative"
 						>
+							<span className={isRenaming ? "opacity-0" : undefined}>
+								{t("rename") || "Rename"}
+							</span>
 							{isRenaming ? (
-								<>
-									<Spinner size="xs" />
-									<span>{t("renaming") || "Renaming"}</span>
-								</>
-							) : (
-								<span>{t("rename") || "Rename"}</span>
-							)}
+								<Spinner
+									size="xs"
+									className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+								/>
+							) : null}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

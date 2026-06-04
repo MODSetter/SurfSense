@@ -704,7 +704,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				}
 				workspacePanelContentClassName={
 					isAutomationsPage
-						? "max-w-none"
+						? "max-w-none select-none"
 						: isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage
 							? "max-w-5xl"
 							: undefined
@@ -815,7 +815,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							<span className={isRenamingChat ? "opacity-0" : ""}>
 								{tSidebar("rename") || "Rename"}
 							</span>
-							{isRenamingChat && <Spinner size="sm" className="absolute" />}
+							{isRenamingChat && (
+								<Spinner
+									size="sm"
+									className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+								/>
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
