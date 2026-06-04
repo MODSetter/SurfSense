@@ -100,13 +100,11 @@ from .onedrive import (
 from .podcast import create_generate_podcast_tool
 from .report import create_generate_report_tool
 from .resume import create_generate_resume_tool
-from .scrape_webpage import create_scrape_webpage_tool
 from .teams import (
     create_list_teams_channels_tool,
     create_read_teams_messages_tool,
     create_send_teams_message_tool,
 )
-from .update_memory import create_update_memory_tool, create_update_team_memory_tool
 from .video_presentation import create_generate_video_presentation_tool
 from .web_search import create_web_search_tool
 
@@ -168,6 +166,36 @@ def _build_create_automation_tool(deps: dict[str, Any]) -> BaseTool:
         search_space_id=deps["search_space_id"],
         user_id=deps["user_id"],
         llm=deps["llm"],
+    )
+
+
+def _build_scrape_webpage_tool(deps: dict[str, Any]) -> BaseTool:
+    # ``scrape_webpage`` is owned by the main agent (its sole live consumer);
+    # deferred import keeps this catalog free of a ``multi_agent_chat`` cycle.
+    from app.agents.multi_agent_chat.main_agent.tools.scrape_webpage import (
+        create_scrape_webpage_tool,
+    )
+
+    return create_scrape_webpage_tool(firecrawl_api_key=deps.get("firecrawl_api_key"))
+
+
+def _build_update_memory_tool(deps: dict[str, Any]) -> BaseTool:
+    # ``update_memory`` is owned by the main agent; deferred import (see above).
+    from app.agents.multi_agent_chat.main_agent.tools.update_memory import (
+        create_update_memory_tool,
+        create_update_team_memory_tool,
+    )
+
+    if deps["thread_visibility"] == ChatVisibility.SEARCH_SPACE:
+        return create_update_team_memory_tool(
+            search_space_id=deps["search_space_id"],
+            db_session=deps["db_session"],
+            llm=deps.get("llm"),
+        )
+    return create_update_memory_tool(
+        user_id=deps["user_id"],
+        db_session=deps["db_session"],
+        llm=deps.get("llm"),
     )
 
 
@@ -242,9 +270,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     ToolDefinition(
         name="scrape_webpage",
         description="Scrape and extract the main content from a webpage",
-        factory=lambda deps: create_scrape_webpage_tool(
-            firecrawl_api_key=deps.get("firecrawl_api_key"),
-        ),
+        factory=_build_scrape_webpage_tool,
         requires=[],  # firecrawl_api_key is optional
     ),
     # Web search tool — real-time web search via SearXNG + user-configured engines
@@ -293,19 +319,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     ToolDefinition(
         name="update_memory",
         description="Save important long-term facts, preferences, and instructions to the (personal or team) memory",
-        factory=lambda deps: (
-            create_update_team_memory_tool(
-                search_space_id=deps["search_space_id"],
-                db_session=deps["db_session"],
-                llm=deps.get("llm"),
-            )
-            if deps["thread_visibility"] == ChatVisibility.SEARCH_SPACE
-            else create_update_memory_tool(
-                user_id=deps["user_id"],
-                db_session=deps["db_session"],
-                llm=deps.get("llm"),
-            )
-        ),
+        factory=_build_update_memory_tool,
         requires=[
             "user_id",
             "search_space_id",

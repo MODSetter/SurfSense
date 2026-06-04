@@ -23,13 +23,14 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.shared.tools.scrape_webpage import create_scrape_webpage_tool
-from app.agents.shared.tools.update_memory import (
+from app.agents.shared.tools.web_search import create_web_search_tool
+from app.db import ChatVisibility
+
+from .scrape_webpage import create_scrape_webpage_tool
+from .update_memory import (
     create_update_memory_tool,
     create_update_team_memory_tool,
 )
-from app.agents.shared.tools.web_search import create_web_search_tool
-from app.db import ChatVisibility
 
 
 def _build_scrape_webpage_tool(deps: dict[str, Any]) -> BaseTool:
