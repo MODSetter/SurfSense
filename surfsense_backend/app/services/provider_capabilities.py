@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 # class-body init time. ``app.agents.shared.llm_config`` re-exports
 # this constant under the historical ``PROVIDER_MAP`` name; placing the
 # map there directly would re-introduce the
-# ``app.config -> ... -> app.agents.shared.tools.generate_image ->
+# ``app.config -> ... -> deliverables/tools/generate_image ->
 # app.config`` cycle that prompted the move.
 _PROVIDER_PREFIX_MAP: dict[str, str] = {
     "OPENAI": "openai",

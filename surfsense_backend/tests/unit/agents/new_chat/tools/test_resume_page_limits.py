@@ -1,15 +1,56 @@
-"""Unit tests for resume page-limit helpers and enforcement flow."""
+"""Unit tests for resume page-limit helpers and enforcement flow.
+
+Targets the live deliverables resume tool. The tool returns a
+``Command`` (payload JSON-encoded in ``update["messages"][0].content``
+plus a receipt), so flow tests invoke it via a ToolCall dict and unwrap
+the payload.
+"""
 
 import io
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pypdf
 import pytest
+from langchain.tools import ToolRuntime
 
-from app.agents.shared.tools import resume as resume_tool
+from app.agents.multi_agent_chat.subagents.builtins.deliverables.tools import (
+    resume as resume_tool,
+)
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def _silence_progress_events(monkeypatch):
+    """The live tool emits ``dispatch_custom_event`` progress updates that
+    require a langgraph run context; neutralize them for direct unit calls."""
+    monkeypatch.setattr(resume_tool, "dispatch_custom_event", lambda *a, **k: None)
+
+
+def _runtime(tool_call_id: str = "call-1") -> ToolRuntime:
+    """Minimal ToolRuntime; the resume tool only reads ``tool_call_id``."""
+    return ToolRuntime(
+        state={},
+        context=None,
+        config={},
+        stream_writer=None,
+        tool_call_id=tool_call_id,
+        store=None,
+    )
+
+
+async def _invoke(tool, args: dict) -> dict:
+    """Drive a Command-returning tool and return its decoded payload.
+
+    These tools take an injected ``ToolRuntime`` and return a
+    ``Command``; invoke the raw coroutine with a hand-built runtime
+    (the repo's pattern for unit-testing such tools) and decode the
+    ToolMessage payload.
+    """
+    command = await tool.coroutine(runtime=_runtime(), **args)
+    return json.loads(command.update["messages"][0].content)
 
 
 class _FakeReport:
@@ -108,7 +149,7 @@ async def test_generate_resume_defaults_to_one_page_target(monkeypatch) -> None:
     monkeypatch.setattr(resume_tool, "_count_pdf_pages", lambda _pdf: 1)
 
     tool = resume_tool.create_generate_resume_tool(search_space_id=1, thread_id=1)
-    result = await tool.ainvoke({"user_info": "Jane Doe experience"})
+    result = await _invoke(tool, {"user_info": "Jane Doe experience"})
 
     assert result["status"] == "ready"
     assert prompts
@@ -138,7 +179,7 @@ async def test_generate_resume_compresses_when_over_limit(monkeypatch) -> None:
     monkeypatch.setattr(resume_tool, "_count_pdf_pages", lambda _pdf: next(page_counts))
 
     tool = resume_tool.create_generate_resume_tool(search_space_id=1, thread_id=1)
-    result = await tool.ainvoke({"user_info": "Jane Doe experience", "max_pages": 1})
+    result = await _invoke(tool, {"user_info": "Jane Doe experience", "max_pages": 1})
 
     assert result["status"] == "ready"
     assert write_session.added, "Expected successful report write"
@@ -173,7 +214,7 @@ async def test_generate_resume_returns_ready_when_target_not_met(monkeypatch) ->
     monkeypatch.setattr(resume_tool, "_count_pdf_pages", lambda _pdf: next(page_counts))
 
     tool = resume_tool.create_generate_resume_tool(search_space_id=1, thread_id=1)
-    result = await tool.ainvoke({"user_info": "Jane Doe experience", "max_pages": 1})
+    result = await _invoke(tool, {"user_info": "Jane Doe experience", "max_pages": 1})
 
     assert result["status"] == "ready"
     assert "could not fit the target" in (result["message"] or "").lower()
@@ -206,7 +247,7 @@ async def test_generate_resume_fails_when_hard_limit_exceeded(monkeypatch) -> No
     monkeypatch.setattr(resume_tool, "_count_pdf_pages", lambda _pdf: next(page_counts))
 
     tool = resume_tool.create_generate_resume_tool(search_space_id=1, thread_id=1)
-    result = await tool.ainvoke({"user_info": "Jane Doe experience", "max_pages": 1})
+    result = await _invoke(tool, {"user_info": "Jane Doe experience", "max_pages": 1})
 
     assert result["status"] == "failed"
     assert "hard page limit" in (result["error"] or "").lower()

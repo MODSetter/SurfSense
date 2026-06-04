@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain.tools import ToolRuntime
 
 pytestmark = pytest.mark.unit
 
@@ -90,7 +91,9 @@ async def test_global_openrouter_image_gen_sets_api_base_when_config_empty():
 async def test_generate_image_tool_global_sets_api_base_when_config_empty():
     """Same defense at the agent tool entry point — both surfaces share
     the same OpenRouter config payloads."""
-    from app.agents.shared.tools import generate_image as gi_module
+    from app.agents.multi_agent_chat.subagents.builtins.deliverables.tools import (
+        generate_image as gi_module,
+    )
 
     cfg = {
         "id": -20_001,
@@ -150,7 +153,19 @@ async def test_generate_image_tool_global_sets_api_base_when_config_empty():
         tool = gi_module.create_generate_image_tool(
             search_space_id=1, db_session=MagicMock()
         )
-        await tool.ainvoke({"prompt": "a cat", "n": 1})
+        # The live tool takes an injected ToolRuntime and returns a Command;
+        # drive the raw coroutine with a minimal runtime (the tool only reads
+        # ``tool_call_id``). We assert on what was forwarded to litellm, not
+        # on the return value.
+        runtime = ToolRuntime(
+            state={},
+            context=None,
+            config={},
+            stream_writer=None,
+            tool_call_id="call-1",
+            store=None,
+        )
+        await tool.coroutine(prompt="a cat", n=1, runtime=runtime)
 
     assert captured.get("api_base") == "https://openrouter.ai/api/v1"
     assert captured["model"] == "openrouter/openai/gpt-image-1"
