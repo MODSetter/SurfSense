@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.new_chat.errors import BusyError
+from app.agents.shared.errors import BusyError
 from app.agents.new_chat.middleware.busy_mutex import (
     BusyMutexMiddleware,
     end_turn,

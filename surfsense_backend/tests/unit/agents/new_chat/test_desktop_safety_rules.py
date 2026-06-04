@@ -93,7 +93,7 @@ class TestPermissionMiddlewareIntegration:
     def test_middleware_raises_interrupt_for_rm_in_desktop_mode(self) -> None:
         from langchain_core.messages import AIMessage
 
-        from app.agents.new_chat.errors import RejectedError
+        from app.agents.shared.errors import RejectedError
 
         mw = PermissionMiddleware(rulesets=[SURFSENSE_DEFAULTS, DESKTOP_SAFETY_RULESET])
         # Stub the interrupt to a "reject" decision so we can assert the

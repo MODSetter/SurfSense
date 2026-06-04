@@ -11,7 +11,7 @@ from typing import Any
 
 from langchain_core.messages import ToolMessage
 
-from app.agents.new_chat.errors import StreamingError
+from app.agents.shared.errors import StreamingError
 from app.agents.new_chat.permissions import Rule
 
 

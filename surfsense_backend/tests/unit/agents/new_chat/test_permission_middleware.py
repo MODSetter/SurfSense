@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 
-from app.agents.new_chat.errors import CorrectedError, RejectedError
+from app.agents.shared.errors import CorrectedError, RejectedError
 from app.agents.new_chat.middleware.permission import (
     PermissionMiddleware,
     _normalize_permission_decision,

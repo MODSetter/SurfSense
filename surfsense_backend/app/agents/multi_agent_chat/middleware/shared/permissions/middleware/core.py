@@ -26,7 +26,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langgraph.runtime import Runtime
 
-from app.agents.new_chat.errors import CorrectedError, RejectedError
+from app.agents.shared.errors import CorrectedError, RejectedError
 from app.agents.new_chat.permissions import Ruleset
 from app.services.user_tool_allowlist import TrustedToolSaver
 

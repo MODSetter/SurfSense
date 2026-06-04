@@ -50,7 +50,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 
-from app.agents.new_chat.errors import (
+from app.agents.shared.errors import (
     CorrectedError,
     RejectedError,
     StreamingError,

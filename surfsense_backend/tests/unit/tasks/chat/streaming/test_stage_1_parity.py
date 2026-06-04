@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from app.agents.new_chat.errors import BusyError
+from app.agents.shared.errors import BusyError
 from app.agents.new_chat.middleware.busy_mutex import request_cancel, reset_cancel
 from app.tasks.chat.stream_new_chat import (
     _classify_stream_exception as old_classify,

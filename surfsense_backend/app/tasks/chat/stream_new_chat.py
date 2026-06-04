@@ -30,7 +30,7 @@ from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
 from app.agents.new_chat.context import SurfSenseContextSchema
-from app.agents.new_chat.errors import BusyError
+from app.agents.shared.errors import BusyError
 from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.new_chat.llm_config import (
     AgentConfig,

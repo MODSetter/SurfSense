@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 import app.tasks.chat.stream_new_chat as stream_new_chat_module
-from app.agents.new_chat.errors import BusyError
+from app.agents.shared.errors import BusyError
 from app.agents.new_chat.middleware.busy_mutex import request_cancel, reset_cancel
 from app.tasks.chat.stream_new_chat import (
     StreamResult,

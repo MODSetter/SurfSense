@@ -20,7 +20,7 @@ What this provides:
   tools can poll to abort cooperatively. The event is reset between
   turns. Tools should check ``runtime.context.cancel_event.is_set()``
   in tight inner loops.
-- A typed :class:`~app.agents.new_chat.errors.BusyError` raised when a
+- A typed :class:`~app.agents.shared.errors.BusyError` raised when a
   second turn arrives while the lock is held.
 
 Note: SurfSense's ``stream_new_chat`` is the call site that should
@@ -46,7 +46,7 @@ from langchain.agents.middleware.types import (
 from langgraph.config import get_config
 from langgraph.runtime import Runtime
 
-from app.agents.new_chat.errors import BusyError
+from app.agents.shared.errors import BusyError
 
 logger = logging.getLogger(__name__)
 
