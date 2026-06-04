@@ -18,8 +18,6 @@ class UploadDocumentAdapter:
         etl_service: str,
         search_space_id: int,
         user_id: str,
-        llm,
-        should_summarize: bool = False,
     ) -> None:
         connector_doc = ConnectorDocument(
             title=filename,
@@ -29,9 +27,7 @@ class UploadDocumentAdapter:
             search_space_id=search_space_id,
             created_by_id=user_id,
             connector_id=None,
-            should_summarize=should_summarize,
             should_use_code_chunker=False,
-            fallback_summary=markdown_content[:4000],
             metadata={
                 "FILE_NAME": filename,
                 "ETL_SERVICE": etl_service,
@@ -43,7 +39,7 @@ class UploadDocumentAdapter:
         if not documents:
             raise RuntimeError("prepare_for_indexing returned no documents")
 
-        indexed = await self._service.index(documents[0], connector_doc, llm)
+        indexed = await self._service.index(documents[0], connector_doc)
 
         if not DocumentStatus.is_state(indexed.status, DocumentStatus.READY):
             raise RuntimeError(indexed.status.get("reason", "Indexing failed"))
@@ -51,7 +47,7 @@ class UploadDocumentAdapter:
         indexed.content_needs_reindexing = False
         await self._session.commit()
 
-    async def reindex(self, document: Document, llm) -> None:
+    async def reindex(self, document: Document) -> None:
         """Re-index an existing document after its source_markdown has been updated."""
         if not document.source_markdown:
             raise RuntimeError("Document has no source_markdown to reindex")
@@ -66,15 +62,13 @@ class UploadDocumentAdapter:
             search_space_id=document.search_space_id,
             created_by_id=str(document.created_by_id),
             connector_id=document.connector_id,
-            should_summarize=True,
             should_use_code_chunker=False,
-            fallback_summary=document.source_markdown[:4000],
             metadata=metadata,
         )
 
         document.content_hash = compute_content_hash(connector_doc)
 
-        indexed = await self._service.index(document, connector_doc, llm)
+        indexed = await self._service.index(document, connector_doc)
 
         if not DocumentStatus.is_state(indexed.status, DocumentStatus.READY):
             raise RuntimeError(indexed.status.get("reason", "Reindexing failed"))

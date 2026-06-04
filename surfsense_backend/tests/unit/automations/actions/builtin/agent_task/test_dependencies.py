@@ -14,8 +14,8 @@ from typing import Any
 
 import pytest
 
-import app.automations.actions.agent_task.dependencies as deps_mod
-from app.automations.actions.agent_task.dependencies import (
+import app.automations.actions.builtin.agent_task.dependencies as deps_mod
+from app.automations.actions.builtin.agent_task.dependencies import (
     DependencyError,
     build_dependencies,
 )

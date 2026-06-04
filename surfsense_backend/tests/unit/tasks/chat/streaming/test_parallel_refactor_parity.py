@@ -246,6 +246,8 @@ def test_new_chat_runtime_context_prefers_accepted_folder_ids() -> None:
         mentioned_document_ids=[1, 2],
         accepted_folder_ids=[10],
         mentioned_folder_ids=[20, 30],
+        mentioned_connector_ids=None,
+        mentioned_connectors=None,
         request_id="req",
         turn_id="t1",
     )
@@ -263,6 +265,8 @@ def test_new_chat_runtime_context_falls_back_to_mentioned_folder_ids() -> None:
         mentioned_document_ids=None,
         accepted_folder_ids=[],
         mentioned_folder_ids=[20, 30],
+        mentioned_connector_ids=None,
+        mentioned_connectors=None,
         request_id=None,
         turn_id="t2",
     )

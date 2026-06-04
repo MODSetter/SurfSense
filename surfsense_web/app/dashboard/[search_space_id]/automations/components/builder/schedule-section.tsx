@@ -1,5 +1,5 @@
 "use client";
-import { CalendarClock, CalendarOff, Plus, X } from "lucide-react";
+import { CalendarClock, CalendarOff, Dot, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -70,17 +70,18 @@ export function ScheduleSection({
 
 	return (
 		<div className="space-y-3">
-			<div className="flex items-start justify-between gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
+			<div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-accent px-3 py-2">
 				<div className="flex items-center gap-2 text-sm min-w-0">
 					<CalendarClock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
 					<span className="font-medium text-foreground truncate">{label}</span>
-					<span className="text-muted-foreground shrink-0">· {timezone}</span>
+					<Dot className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+					<span className="text-muted-foreground shrink-0">{timezone}</span>
 				</div>
 				<Button
 					type="button"
 					variant="ghost"
 					size="icon"
-					className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+					className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
 					aria-label="Remove schedule"
 					onClick={() => onScheduleChange(null)}
 				>
@@ -135,7 +136,7 @@ function PresetEditor({ model, onChange, onSwitchToCron }: PresetEditorProps) {
 						<SelectTrigger className="w-full">
 							<SelectValue />
 						</SelectTrigger>
-						<SelectContent>
+						<SelectContent matchTriggerWidth={false} className="w-auto min-w-64">
 							{FREQUENCY_OPTIONS.map((option) => (
 								<SelectItem key={option.value} value={option.value}>
 									{option.label}

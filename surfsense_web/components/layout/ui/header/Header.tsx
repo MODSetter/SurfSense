@@ -8,7 +8,7 @@ import { activeTabAtom } from "@/atoms/tabs/tabs.atom";
 import { ActionLogButton } from "@/components/agent-action-log/action-log-button";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ChatShareButton } from "@/components/new-chat/chat-share-button";
-import type { ChatVisibility, ThreadRecord } from "@/lib/chat/thread-persistence";
+import type { ThreadRecord } from "@/lib/chat/thread-persistence";
 
 interface HeaderProps {
 	mobileMenuTrigger?: React.ReactNode;
@@ -26,6 +26,14 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const currentThreadState = useAtomValue(currentThreadAtom);
 
 	const hasThread = isChatPage && !isDocumentTab && currentThreadState.id !== null;
+	const activeSearchSpaceId = searchSpaceId ? Number(searchSpaceId) : null;
+	const canRenderShareButton =
+		hasThread &&
+		currentThreadState.id !== null &&
+		currentThreadState.visibility !== null &&
+		currentThreadState.searchSpaceId !== null &&
+		activeSearchSpaceId !== null &&
+		currentThreadState.searchSpaceId === activeSearchSpaceId;
 
 	// Free chat pages have their own header with model selector; only render mobile trigger
 	if (isFreePage) {
@@ -37,21 +45,24 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 		);
 	}
 
-	const threadForButton: ThreadRecord | null =
-		hasThread && currentThreadState.id !== null
-			? {
-					id: currentThreadState.id,
-					visibility: currentThreadState.visibility ?? "PRIVATE",
-					created_by_id: null,
-					search_space_id: 0,
-					title: "",
-					archived: false,
-					created_at: "",
-					updated_at: "",
-				}
-			: null;
-
-	const handleVisibilityChange = (_visibility: ChatVisibility) => {};
+	let threadForButton: ThreadRecord | null = null;
+	if (
+		canRenderShareButton &&
+		currentThreadState.id !== null &&
+		currentThreadState.visibility !== null &&
+		currentThreadState.searchSpaceId !== null
+	) {
+		threadForButton = {
+			id: currentThreadState.id,
+			visibility: currentThreadState.visibility,
+			created_by_id: null,
+			search_space_id: currentThreadState.searchSpaceId,
+			title: "",
+			archived: false,
+			created_at: "",
+			updated_at: "",
+		};
+	}
 
 	return (
 		<header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60 px-4">
@@ -66,9 +77,7 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 			{/* Right side - Actions */}
 			<div className="ml-auto flex items-center gap-2">
 				{hasThread && <ActionLogButton threadId={currentThreadState.id} />}
-				{hasThread && (
-					<ChatShareButton thread={threadForButton} onVisibilityChange={handleVisibilityChange} />
-				)}
+				{threadForButton && <ChatShareButton thread={threadForButton} />}
 			</div>
 		</header>
 	);

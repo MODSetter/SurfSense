@@ -35,22 +35,26 @@ export function TimezoneCombobox({ value, onChange }: TimezoneComboboxProps) {
 					variant="outline"
 					role="combobox"
 					aria-expanded={open}
-					className="w-full justify-between font-normal"
+					className="w-full justify-between border-popover-border bg-transparent font-normal hover:bg-transparent"
 				>
 					<span className="truncate">{value || "Select timezone"}</span>
 					<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 				</Button>
 			</PopoverTrigger>
-			<PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-				<Command>
+			<PopoverContent
+				className="w-[calc(var(--radix-popover-trigger-width)/3)] min-w-72 max-w-[90vw] overflow-hidden border border-popover-border p-0"
+				align="start"
+			>
+				<Command className="bg-popover">
 					<CommandInput placeholder="Search timezone..." />
 					<CommandList>
 						<CommandEmpty>No timezone found.</CommandEmpty>
-						<CommandGroup>
+						<CommandGroup className="p-0">
 							{timezones.map((tz) => (
 								<CommandItem
 									key={tz}
 									value={tz}
+									className="rounded-none px-3"
 									onSelect={() => {
 										onChange(tz);
 										setOpen(false);

@@ -118,15 +118,14 @@ const ModelSelectField = memo(function ModelSelectField({
 	if (kind.options.length === 0) {
 		return (
 			<Field label={label}>
-				<Alert>
+				<Alert variant="warning">
 					<TriangleAlert aria-hidden />
 					<AlertTitle>No eligible models</AlertTitle>
-					<AlertDescription>
-						Automations need a premium or your own (BYOK) model. Set one up in{" "}
+					<AlertDescription className="block leading-5">
+						Use a premium model or your own (BYOK) model in{" "}
 						<Link href={rolesHref} className="font-medium underline underline-offset-2">
 							role settings
 						</Link>
-						.
 					</AlertDescription>
 				</Alert>
 			</Field>
@@ -155,7 +154,7 @@ const ModelSelectField = memo(function ModelSelectField({
 						<SelectValue placeholder="Select a model" />
 					)}
 				</SelectTrigger>
-				<SelectContent>
+				<SelectContent matchTriggerWidth={false} className="w-auto min-w-80 max-w-[90vw]">
 					{premium.length > 0 ? (
 						<SelectGroup>
 							<SelectLabel>Premium</SelectLabel>

@@ -9,12 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import Document, DocumentType
 from app.schemas import ExtensionDocumentContent
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 
@@ -123,26 +122,8 @@ async def add_extension_received_document(
                     f"Content changed for URL {content.metadata.VisitedWebPageURL}. Updating document."
                 )
 
-        # Get user's long context LLM (needed for both create and update)
-        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
-        if not user_llm:
-            raise RuntimeError(
-                f"No long context LLM configured for user {user_id} in search space {search_space_id}"
-            )
-
-        # Generate summary with metadata
-        document_metadata = {
-            "session_id": content.metadata.BrowsingSessionId,
-            "url": content.metadata.VisitedWebPageURL,
-            "title": content.metadata.VisitedWebPageTitle,
-            "referrer": content.metadata.VisitedWebPageReffererURL,
-            "timestamp": content.metadata.VisitedWebPageDateWithTimeInISOString,
-            "duration_ms": content.metadata.VisitedWebPageVisitDurationInMilliseconds,
-            "document_type": "Browser Extension Capture",
-        }
-        summary_content, summary_embedding = await generate_document_summary(
-            combined_document_string, user_llm, document_metadata
-        )
+        summary_content = combined_document_string
+        summary_embedding = embed_text(summary_content)
 
         # Process chunks
         chunks = await create_document_chunks(content.pageContent)

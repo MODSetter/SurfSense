@@ -82,7 +82,6 @@ export const useConnectorDialog = () => {
 	const [isStartingIndexing, setIsStartingIndexing] = useState(false);
 	const [periodicEnabled, setPeriodicEnabled] = useState(false);
 	const [frequencyMinutes, setFrequencyMinutes] = useState("1440");
-	const [enableSummary, setEnableSummary] = useState(false);
 	const [enableVisionLlm, setEnableVisionLlm] = useState(false);
 
 	// Edit mode state
@@ -418,7 +417,6 @@ export const useConnectorDialog = () => {
 					periodic_indexing_enabled: false,
 					indexing_frequency_minutes: null,
 					next_scheduled_at: null,
-					enable_summary: false,
 					enable_vision_llm: false,
 				},
 				queryParams: {
@@ -520,7 +518,6 @@ export const useConnectorDialog = () => {
 						connector_type: connectorData.connector_type as EnumConnectorName,
 						is_active: true,
 						next_scheduled_at: connectorData.next_scheduled_at as string | null,
-						enable_summary: false,
 						enable_vision_llm: false,
 					},
 					queryParams: {
@@ -657,8 +654,7 @@ export const useConnectorDialog = () => {
 									setConnectorConfig(connector.config || {});
 									setPeriodicEnabled(false);
 									setFrequencyMinutes("1440");
-									setEnableSummary(connector.enable_summary ?? false);
-									setEnableVisionLlm(connector.enable_vision_llm ?? false);
+													setEnableVisionLlm(connector.enable_vision_llm ?? false);
 									setStartDate(undefined);
 									setEndDate(undefined);
 
@@ -806,14 +802,13 @@ export const useConnectorDialog = () => {
 				const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
-				// Update connector with summary, periodic sync settings, and config changes
-				if (enableSummary || enableVisionLlm || periodicEnabled || indexingConnectorConfig) {
+				// Update connector with vision, periodic sync settings, and config changes
+				if (enableVisionLlm || periodicEnabled || indexingConnectorConfig) {
 					const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : undefined;
 					await updateConnector({
 						id: indexingConfig.connectorId,
 						data: {
-							enable_summary: enableSummary,
-							enable_vision_llm: enableVisionLlm,
+								enable_vision_llm: enableVisionLlm,
 							...(periodicEnabled && {
 								periodic_indexing_enabled: true,
 								indexing_frequency_minutes: frequency,
@@ -940,7 +935,6 @@ export const useConnectorDialog = () => {
 			updateConnector,
 			periodicEnabled,
 			frequencyMinutes,
-			enableSummary,
 			enableVisionLlm,
 			indexingConnectorConfig,
 			setIsOpen,
@@ -1005,7 +999,6 @@ export const useConnectorDialog = () => {
 			setConnectorName(connector.name);
 			setPeriodicEnabled(!connector.is_indexable ? false : connector.periodic_indexing_enabled);
 			setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
-			setEnableSummary(connector.enable_summary ?? false);
 			setEnableVisionLlm(connector.enable_vision_llm ?? false);
 			setStartDate(undefined);
 			setEndDate(undefined);
@@ -1084,7 +1077,6 @@ export const useConnectorDialog = () => {
 					id: editingConnector.id,
 					data: {
 						name: connectorName || editingConnector.name,
-						enable_summary: enableSummary,
 						enable_vision_llm: enableVisionLlm,
 						periodic_indexing_enabled: !editingConnector.is_indexable ? false : periodicEnabled,
 						indexing_frequency_minutes: !editingConnector.is_indexable ? null : frequency,
@@ -1219,7 +1211,6 @@ export const useConnectorDialog = () => {
 			updateConnector,
 			periodicEnabled,
 			frequencyMinutes,
-			enableSummary,
 			enableVisionLlm,
 			getFrequencyLabel,
 			connectorConfig,
@@ -1380,7 +1371,6 @@ export const useConnectorDialog = () => {
 					setEndDate(undefined);
 					setPeriodicEnabled(false);
 					setFrequencyMinutes("1440");
-					setEnableSummary(false);
 					setEnableVisionLlm(false);
 				}
 			}
@@ -1417,7 +1407,6 @@ export const useConnectorDialog = () => {
 		isDisconnecting,
 		periodicEnabled,
 		frequencyMinutes,
-		enableSummary,
 		enableVisionLlm,
 		searchSpaceId,
 		allConnectors,
@@ -1432,7 +1421,6 @@ export const useConnectorDialog = () => {
 		setEndDate,
 		setPeriodicEnabled,
 		setFrequencyMinutes,
-		setEnableSummary,
 		setEnableVisionLlm,
 		setConnectorName,
 

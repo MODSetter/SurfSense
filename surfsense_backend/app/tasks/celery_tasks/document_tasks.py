@@ -765,7 +765,6 @@ def process_file_upload_with_document_task(
     filename: str,
     search_space_id: int,
     user_id: str,
-    should_summarize: bool = False,
     use_vision_llm: bool = False,
     processing_mode: str = "basic",
 ):
@@ -782,7 +781,6 @@ def process_file_upload_with_document_task(
         filename: Original filename
         search_space_id: ID of the search space
         user_id: ID of the user
-        should_summarize: Whether to generate an LLM summary
     """
     import traceback
 
@@ -814,7 +812,6 @@ def process_file_upload_with_document_task(
                 filename,
                 search_space_id,
                 user_id,
-                should_summarize=should_summarize,
                 use_vision_llm=use_vision_llm,
                 processing_mode=processing_mode,
             )
@@ -850,7 +847,6 @@ async def _process_file_with_document(
     filename: str,
     search_space_id: int,
     user_id: str,
-    should_summarize: bool = False,
     use_vision_llm: bool = False,
     processing_mode: str = "basic",
 ):
@@ -954,7 +950,6 @@ async def _process_file_with_document(
                 task_logger=task_logger,
                 log_entry=log_entry,
                 notification=notification,
-                should_summarize=should_summarize,
                 use_vision_llm=use_vision_llm,
                 processing_mode=processing_mode,
             )
@@ -1258,7 +1253,6 @@ def index_local_folder_task(
     exclude_patterns: list[str] | None = None,
     file_extensions: list[str] | None = None,
     root_folder_id: int | None = None,
-    enable_summary: bool = False,
     target_file_paths: list[str] | None = None,
 ):
     """Celery task to index a local folder. Config is passed directly — no connector row."""
@@ -1271,7 +1265,6 @@ def index_local_folder_task(
             exclude_patterns=exclude_patterns,
             file_extensions=file_extensions,
             root_folder_id=root_folder_id,
-            enable_summary=enable_summary,
             target_file_paths=target_file_paths,
         )
     )
@@ -1285,7 +1278,6 @@ async def _index_local_folder_async(
     exclude_patterns: list[str] | None = None,
     file_extensions: list[str] | None = None,
     root_folder_id: int | None = None,
-    enable_summary: bool = False,
     target_file_paths: list[str] | None = None,
 ):
     """Run local folder indexing with notification + heartbeat."""
@@ -1343,8 +1335,7 @@ async def _index_local_folder_async(
                 exclude_patterns=exclude_patterns,
                 file_extensions=file_extensions,
                 root_folder_id=root_folder_id,
-                enable_summary=enable_summary,
-                target_file_paths=target_file_paths,
+                    target_file_paths=target_file_paths,
                 on_heartbeat_callback=_heartbeat_progress
                 if (is_batch or is_full_scan)
                 else None,
@@ -1400,7 +1391,6 @@ def index_uploaded_folder_files_task(
     user_id: str,
     folder_name: str,
     root_folder_id: int,
-    enable_summary: bool,
     file_mappings: list[dict],
     use_vision_llm: bool = False,
     processing_mode: str = "basic",
@@ -1412,7 +1402,6 @@ def index_uploaded_folder_files_task(
             user_id=user_id,
             folder_name=folder_name,
             root_folder_id=root_folder_id,
-            enable_summary=enable_summary,
             file_mappings=file_mappings,
             use_vision_llm=use_vision_llm,
             processing_mode=processing_mode,
@@ -1425,7 +1414,6 @@ async def _index_uploaded_folder_files_async(
     user_id: str,
     folder_name: str,
     root_folder_id: int,
-    enable_summary: bool,
     file_mappings: list[dict],
     use_vision_llm: bool = False,
     processing_mode: str = "basic",
@@ -1475,8 +1463,7 @@ async def _index_uploaded_folder_files_async(
                 user_id=user_id,
                 folder_name=folder_name,
                 root_folder_id=root_folder_id,
-                enable_summary=enable_summary,
-                file_mappings=file_mappings,
+                    file_mappings=file_mappings,
                 on_heartbeat_callback=_heartbeat_progress,
                 use_vision_llm=use_vision_llm,
                 processing_mode=processing_mode,
@@ -1563,12 +1550,10 @@ async def _ai_sort_search_space_async(search_space_id: int, user_id: str):
     t_start = time.perf_counter()
     try:
         from app.services.ai_file_sort_service import ai_sort_all_documents
-        from app.services.llm_service import get_document_summary_llm
+        from app.services.llm_service import get_agent_llm
 
         async with get_celery_session_maker()() as session:
-            llm = await get_document_summary_llm(
-                session, search_space_id, disable_streaming=True
-            )
+            llm = await get_agent_llm(session, search_space_id, disable_streaming=True)
             if llm is None:
                 logger.warning(
                     "No LLM configured for search_space=%d, skipping AI sort",
@@ -1604,7 +1589,7 @@ def ai_sort_document_task(self, search_space_id: int, user_id: str, document_id:
 async def _ai_sort_document_async(search_space_id: int, user_id: str, document_id: int):
     from app.db import Document
     from app.services.ai_file_sort_service import ai_sort_document
-    from app.services.llm_service import get_document_summary_llm
+    from app.services.llm_service import get_agent_llm
 
     async with get_celery_session_maker()() as session:
         document = await session.get(Document, document_id)
@@ -1612,9 +1597,7 @@ async def _ai_sort_document_async(search_space_id: int, user_id: str, document_i
             logger.warning("Document %d not found, skipping AI sort", document_id)
             return
 
-        llm = await get_document_summary_llm(
-            session, search_space_id, disable_streaming=True
-        )
+        llm = await get_agent_llm(session, search_space_id, disable_streaming=True)
         if llm is None:
             logger.warning(
                 "No LLM for search_space=%d, skipping AI sort of doc=%d",

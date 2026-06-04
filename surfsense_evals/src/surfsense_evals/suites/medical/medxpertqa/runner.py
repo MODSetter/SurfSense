@@ -169,7 +169,6 @@ _DESCRIPTION = (
 _DEFAULT_INGEST_SETTINGS = IngestSettings(
     use_vision_llm=True,
     processing_mode="basic",
-    should_summarize=False,
 )
 
 

@@ -17,12 +17,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from app.db import Document, DocumentStatus, DocumentType
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 from app.utils.proxy_config import get_requests_proxies
@@ -355,40 +354,8 @@ async def add_youtube_video_document(
             await session.commit()
             return document
 
-        # Get LLM for summary generation
-        await task_logger.log_task_progress(
-            log_entry,
-            f"Preparing for summary generation: {video_data.get('title', 'YouTube Video')}",
-            {"stage": "llm_setup"},
-        )
-
-        # Get user's long context LLM
-        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
-        if not user_llm:
-            raise RuntimeError(
-                f"No long context LLM configured for user {user_id} in search space {search_space_id}"
-            )
-
-        # Generate summary
-        await task_logger.log_task_progress(
-            log_entry,
-            f"Generating summary for video: {video_data.get('title', 'YouTube Video')}",
-            {"stage": "summary_generation"},
-        )
-
-        # Generate summary with metadata
-        document_metadata_for_summary = {
-            "url": url,
-            "video_id": video_id,
-            "title": video_data.get("title", "YouTube Video"),
-            "author": video_data.get("author_name", "Unknown"),
-            "thumbnail": video_data.get("thumbnail_url", ""),
-            "document_type": "YouTube Video Document",
-            "has_transcript": "No captions available" not in transcript_text,
-        }
-        summary_content, summary_embedding = await generate_document_summary(
-            combined_document_string, user_llm, document_metadata_for_summary
-        )
+        summary_content = combined_document_string
+        summary_embedding = embed_text(summary_content)
 
         # Process chunks
         await task_logger.log_task_progress(

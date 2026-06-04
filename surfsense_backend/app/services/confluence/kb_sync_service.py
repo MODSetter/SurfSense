@@ -9,7 +9,6 @@ from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 
@@ -65,29 +64,11 @@ class ConfluenceKBSyncService:
             if dup:
                 content_hash = unique_hash
 
-            from app.services.llm_service import get_user_long_context_llm
 
-            user_llm = await get_user_long_context_llm(
-                self.db_session,
-                user_id,
-                search_space_id,
-                disable_streaming=True,
-            )
 
-            doc_metadata_for_summary = {
-                "page_title": page_title,
-                "space_id": space_id,
-                "document_type": "Confluence Page",
-                "connector_type": "Confluence",
-            }
 
-            if user_llm:
-                summary_content, summary_embedding = await generate_document_summary(
-                    page_content, user_llm, doc_metadata_for_summary
-                )
-            else:
-                summary_content = f"Confluence Page: {page_title}\n\n{page_content}"
-                summary_embedding = embed_text(summary_content)
+            summary_content = f"Confluence Page: {page_title}\n\n{page_content}"
+            summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(page_content)
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -185,25 +166,10 @@ class ConfluenceKBSyncService:
 
             space_id = (document.document_metadata or {}).get("space_id", "")
 
-            from app.services.llm_service import get_user_long_context_llm
 
-            user_llm = await get_user_long_context_llm(
-                self.db_session, user_id, search_space_id, disable_streaming=True
-            )
 
-            if user_llm:
-                doc_meta = {
-                    "page_title": page_title,
-                    "space_id": space_id,
-                    "document_type": "Confluence Page",
-                    "connector_type": "Confluence",
-                }
-                summary_content, summary_embedding = await generate_document_summary(
-                    page_content, user_llm, doc_meta
-                )
-            else:
-                summary_content = f"Confluence Page: {page_title}\n\n{page_content}"
-                summary_embedding = embed_text(summary_content)
+            summary_content = f"Confluence Page: {page_title}\n\n{page_content}"
+            summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(page_content)
 

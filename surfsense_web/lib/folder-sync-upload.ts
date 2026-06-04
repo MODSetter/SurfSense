@@ -16,7 +16,6 @@ export interface FolderSyncParams {
 	searchSpaceId: number;
 	excludePatterns: string[];
 	fileExtensions: string[];
-	enableSummary: boolean;
 	processingMode?: "basic" | "premium";
 	rootFolderId?: number | null;
 	onProgress?: (progress: FolderSyncProgress) => void;
@@ -62,8 +61,7 @@ async function uploadBatchesWithConcurrency(
 		folderName: string;
 		searchSpaceId: number;
 		rootFolderId: number | null;
-		enableSummary: boolean;
-		processingMode?: "basic" | "premium";
+			processingMode?: "basic" | "premium";
 		signal?: AbortSignal;
 		onBatchComplete?: (filesInBatch: number) => void;
 	}
@@ -100,7 +98,6 @@ async function uploadBatchesWithConcurrency(
 						search_space_id: params.searchSpaceId,
 						relative_paths: batch.map((e) => e.relativePath),
 						root_folder_id: resolvedRootFolderId,
-						enable_summary: params.enableSummary,
 						processing_mode: params.processingMode,
 					},
 					params.signal
@@ -147,7 +144,6 @@ export async function uploadFolderScan(params: FolderSyncParams): Promise<number
 		searchSpaceId,
 		excludePatterns,
 		fileExtensions,
-		enableSummary,
 		processingMode,
 		signal,
 	} = params;
@@ -193,8 +189,7 @@ export async function uploadFolderScan(params: FolderSyncParams): Promise<number
 			folderName,
 			searchSpaceId,
 			rootFolderId: rootFolderId ?? null,
-			enableSummary,
-			processingMode,
+				processingMode,
 			signal,
 			onBatchComplete: (count) => {
 				uploaded += count;

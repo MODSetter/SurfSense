@@ -12,7 +12,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
 import { type FolderSyncProgress, uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 
@@ -46,7 +45,6 @@ export function FolderWatchDialog({
 	initialFolder,
 }: FolderWatchDialogProps) {
 	const [selectedFolder, setSelectedFolder] = useState<SelectedFolder | null>(null);
-	const [shouldSummarize, setShouldSummarize] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
 	const [progress, setProgress] = useState<FolderSyncProgress | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
@@ -91,7 +89,6 @@ export function FolderWatchDialog({
 				searchSpaceId,
 				excludePatterns: DEFAULT_EXCLUDE_PATTERNS,
 				fileExtensions: supportedExtensions,
-				enableSummary: shouldSummarize,
 				onProgress: setProgress,
 				signal: controller.signal,
 			});
@@ -108,7 +105,6 @@ export function FolderWatchDialog({
 
 			toast.success(`Watching folder: ${selectedFolder.name}`);
 			setSelectedFolder(null);
-			setShouldSummarize(false);
 			setProgress(null);
 			onOpenChange(false);
 			onSuccess?.();
@@ -126,7 +122,6 @@ export function FolderWatchDialog({
 	}, [
 		selectedFolder,
 		searchSpaceId,
-		shouldSummarize,
 		supportedExtensions,
 		onOpenChange,
 		onSuccess,
@@ -136,8 +131,7 @@ export function FolderWatchDialog({
 		(nextOpen: boolean) => {
 			if (!nextOpen && !submitting) {
 				setSelectedFolder(null);
-				setShouldSummarize(false);
-				setProgress(null);
+					setProgress(null);
 			}
 			onOpenChange(nextOpen);
 		},
@@ -206,15 +200,6 @@ export function FolderWatchDialog({
 
 					{selectedFolder && (
 						<>
-							<div className="flex items-center justify-between rounded-lg bg-slate-400/5 dark:bg-white/5 p-3">
-								<div className="space-y-0.5">
-									<p className="font-medium text-sm">Enable AI Summary</p>
-									<p className="text-xs text-muted-foreground">
-										Improves search quality but adds latency
-									</p>
-								</div>
-								<Switch checked={shouldSummarize} onCheckedChange={setShouldSummarize} />
-							</div>
 
 							{progressLabel && (
 								<div className="rounded-lg bg-slate-400/5 dark:bg-white/5 px-3 py-2">

@@ -35,7 +35,7 @@ from langchain_core.tools import tool
 
 from app.db import Report, shielded_async_session
 from app.services.connector_service import ConnectorService
-from app.services.llm_service import get_document_summary_llm
+from app.services.llm_service import get_agent_llm
 
 logger = logging.getLogger(__name__)
 
@@ -565,7 +565,7 @@ def create_generate_report_tool(
     Factory function to create the generate_report tool with injected dependencies.
 
     The tool generates a Markdown report inline using the search space's
-    document summary LLM, saves it to the database, and returns immediately.
+    agent LLM, saves it to the database, and returns immediately.
 
     Uses short-lived database sessions for each DB operation so no connection
     is held during the long LLM API call.
@@ -768,7 +768,7 @@ def create_generate_report_tool(
                             "creating standalone report"
                         )
 
-                llm = await get_document_summary_llm(read_session, search_space_id)
+                llm = await get_agent_llm(read_session, search_space_id)
             # read_session closed — connection returned to pool
 
             if not llm:

@@ -83,7 +83,6 @@ class LlmPreferences:
     """
 
     agent_llm_id: int | None
-    document_summary_llm_id: int | None
     image_generation_config_id: int | None
     vision_llm_config_id: int | None
     agent_llm: dict[str, Any] | None
@@ -93,7 +92,6 @@ class LlmPreferences:
     def from_payload(cls, payload: dict[str, Any]) -> LlmPreferences:
         return cls(
             agent_llm_id=payload.get("agent_llm_id"),
-            document_summary_llm_id=payload.get("document_summary_llm_id"),
             image_generation_config_id=payload.get("image_generation_config_id"),
             vision_llm_config_id=payload.get("vision_llm_config_id"),
             agent_llm=payload.get("agent_llm"),
@@ -154,7 +152,6 @@ class SearchSpaceClient:
         search_space_id: int,
         *,
         agent_llm_id: int | None = None,
-        document_summary_llm_id: int | None = None,
         image_generation_config_id: int | None = None,
         vision_llm_config_id: int | None = None,
     ) -> LlmPreferences:
@@ -167,8 +164,6 @@ class SearchSpaceClient:
         body: dict[str, Any] = {}
         if agent_llm_id is not None:
             body["agent_llm_id"] = agent_llm_id
-        if document_summary_llm_id is not None:
-            body["document_summary_llm_id"] = document_summary_llm_id
         if image_generation_config_id is not None:
             body["image_generation_config_id"] = image_generation_config_id
         if vision_llm_config_id is not None:

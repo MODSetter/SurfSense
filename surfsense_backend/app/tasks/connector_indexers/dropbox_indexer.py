@@ -27,7 +27,6 @@ from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnector
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
-from app.services.llm_service import get_user_long_context_llm
 from app.services.page_limit_service import PageLimitService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
@@ -126,7 +125,6 @@ def _build_connector_doc(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
 ) -> ConnectorDocument:
     file_id = file.get("id", "")
     file_name = file.get("name", "Unknown")
@@ -138,8 +136,6 @@ def _build_connector_doc(
         "connector_type": "Dropbox",
     }
 
-    fallback_summary = f"File: {file_name}\n\n{markdown[:4000]}"
-
     return ConnectorDocument(
         title=file_name,
         source_markdown=markdown,
@@ -148,8 +144,6 @@ def _build_connector_doc(
         search_space_id=search_space_id,
         connector_id=connector_id,
         created_by_id=user_id,
-        should_summarize=enable_summary,
-        fallback_summary=fallback_summary,
         metadata=metadata,
     )
 
@@ -161,7 +155,6 @@ async def _download_files_parallel(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     max_concurrency: int = 3,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
@@ -191,7 +184,6 @@ async def _download_files_parallel(
                 connector_id=connector_id,
                 search_space_id=search_space_id,
                 user_id=user_id,
-                enable_summary=enable_summary,
             )
             async with hb_lock:
                 completed_count += 1
@@ -223,7 +215,6 @@ async def _download_and_index(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
 ) -> tuple[int, int]:
@@ -234,7 +225,6 @@ async def _download_and_index(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
     )
@@ -243,13 +233,8 @@ async def _download_and_index(
     batch_failed = 0
     if connector_docs:
         pipeline = IndexingPipelineService(session)
-
-        async def _get_llm(s):
-            return await get_user_long_context_llm(s, user_id, search_space_id)
-
         _, batch_indexed, batch_failed = await pipeline.index_batch_parallel(
             connector_docs,
-            _get_llm,
             max_concurrency=3,
             on_heartbeat=on_heartbeat,
         )
@@ -289,7 +274,6 @@ async def _index_with_delta_sync(
     log_entry: object,
     max_files: int,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-    enable_summary: bool = True,
     vision_llm=None,
 ) -> tuple[int, int, int, str]:
     """Delta sync using Dropbox cursor-based change tracking.
@@ -361,7 +345,6 @@ async def _index_with_delta_sync(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
     )
@@ -388,7 +371,6 @@ async def _index_full_scan(
     include_subfolders: bool = True,
     incremental_sync: bool = True,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-    enable_summary: bool = True,
     vision_llm=None,
 ) -> tuple[int, int, int]:
     """Full scan indexing of a folder.
@@ -473,7 +455,6 @@ async def _index_full_scan(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
     )
@@ -502,7 +483,6 @@ async def _index_selected_files(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     incremental_sync: bool = True,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
@@ -563,7 +543,6 @@ async def _index_selected_files(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
     )
@@ -629,7 +608,6 @@ async def index_dropbox_files(
             )
             return 0, 0, error_msg, 0
 
-        connector_enable_summary = getattr(connector, "enable_summary", True)
         connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
         vision_llm = None
         if connector_enable_vision_llm:
@@ -664,7 +642,6 @@ async def index_dropbox_files(
                 connector_id=connector_id,
                 search_space_id=search_space_id,
                 user_id=user_id,
-                enable_summary=connector_enable_summary,
                 incremental_sync=incremental_sync,
                 vision_llm=vision_llm,
             )
@@ -700,7 +677,6 @@ async def index_dropbox_files(
                     task_logger,
                     log_entry,
                     max_files,
-                    enable_summary=connector_enable_summary,
                     vision_llm=vision_llm,
                 )
                 folder_cursors[folder_path] = new_cursor
@@ -720,7 +696,6 @@ async def index_dropbox_files(
                     max_files,
                     include_subfolders,
                     incremental_sync=incremental_sync,
-                    enable_summary=connector_enable_summary,
                     vision_llm=vision_llm,
                 )
                 total_unsupported += unsup

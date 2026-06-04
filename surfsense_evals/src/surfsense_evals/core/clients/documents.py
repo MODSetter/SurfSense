@@ -110,7 +110,6 @@ class DocumentsClient:
         files: Iterable[Path],
         *,
         search_space_id: int,
-        should_summarize: bool = False,
         use_vision_llm: bool = False,
         processing_mode: str = "basic",
     ) -> FileUploadResult:
@@ -149,7 +148,6 @@ class DocumentsClient:
                 f"{self._base}/api/v1/documents/fileupload",
                 data={
                     "search_space_id": str(search_space_id),
-                    "should_summarize": "true" if should_summarize else "false",
                     "use_vision_llm": "true" if use_vision_llm else "false",
                     "processing_mode": processing_mode,
                 },

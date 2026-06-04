@@ -69,6 +69,13 @@ def _signed_slack_request(payload: dict, *, secret: str = "signing-secret") -> R
     )
 
 
+def _enable_slack_gateway(monkeypatch):
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_ENABLED", True)
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_CLIENT_ID", "client-id")
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_CLIENT_SECRET", "client-secret")
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+
+
 async def _call_webhook(*, request: RequestStub, account_id: int, session):
     return await routes.telegram_webhook(
         request=request,
@@ -207,7 +214,7 @@ def test_verify_slack_signature_accepts_valid_signature():
 
 @pytest.mark.asyncio
 async def test_slack_webhook_url_verification(monkeypatch, mocker):
-    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+    _enable_slack_gateway(monkeypatch)
     request = _signed_slack_request({"type": "url_verification", "challenge": "abc123"})
 
     response = await routes.slack_webhook(request=request, session=mocker.AsyncMock())
@@ -218,7 +225,7 @@ async def test_slack_webhook_url_verification(monkeypatch, mocker):
 
 @pytest.mark.asyncio
 async def test_slack_webhook_persists_event(monkeypatch, mocker):
-    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+    _enable_slack_gateway(monkeypatch)
     session = mocker.AsyncMock()
     monkeypatch.setattr(routes, "get_slack_account_by_team", mocker.AsyncMock(return_value=_slack_account()))
     persist = mocker.AsyncMock(return_value=100)
@@ -248,7 +255,7 @@ async def test_slack_webhook_persists_event(monkeypatch, mocker):
 
 @pytest.mark.asyncio
 async def test_slack_webhook_ignores_self_event(monkeypatch, mocker):
-    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+    _enable_slack_gateway(monkeypatch)
     session = mocker.AsyncMock()
     monkeypatch.setattr(routes, "get_slack_account_by_team", mocker.AsyncMock(return_value=_slack_account()))
     persist = mocker.AsyncMock(return_value=100)
@@ -275,7 +282,7 @@ async def test_slack_webhook_ignores_self_event(monkeypatch, mocker):
 
 
 @pytest.mark.asyncio
-async def test_discord_gateway_install_returns_oauth_url(monkeypatch):
+async def test_discord_gateway_install_returns_oauth_url(monkeypatch, mocker):
     monkeypatch.setattr(routes.config, "DISCORD_CLIENT_ID", "discord-client")
     monkeypatch.setattr(
         routes.config,
@@ -283,10 +290,12 @@ async def test_discord_gateway_install_returns_oauth_url(monkeypatch):
         "http://localhost:8000/api/v1/gateway/discord/callback",
     )
     monkeypatch.setattr(routes.config, "SECRET_KEY", "test-secret")
+    monkeypatch.setattr(routes, "check_search_space_access", mocker.AsyncMock())
 
     response = await routes.install_discord_gateway(
         search_space_id=123,
         user=SimpleNamespace(id="00000000-0000-0000-0000-000000000001"),
+        session=mocker.AsyncMock(),
     )
 
     assert response["auth_url"].startswith("https://discord.com/api/oauth2/authorize?")

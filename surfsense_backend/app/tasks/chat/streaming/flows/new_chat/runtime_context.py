@@ -8,6 +8,8 @@ mention lists / request ids / turn ids without rebuilding the graph.
 
 from __future__ import annotations
 
+from typing import Any
+
 from app.agents.new_chat.context import SurfSenseContextSchema
 
 
@@ -17,6 +19,8 @@ def build_new_chat_runtime_context(
     mentioned_document_ids: list[int] | None,
     accepted_folder_ids: list[int],
     mentioned_folder_ids: list[int] | None,
+    mentioned_connector_ids: list[int] | None,
+    mentioned_connectors: list[dict[str, Any]] | None,
     request_id: str | None,
     turn_id: str,
 ) -> SurfSenseContextSchema:
@@ -31,6 +35,8 @@ def build_new_chat_runtime_context(
         search_space_id=search_space_id,
         mentioned_document_ids=list(mentioned_document_ids or []),
         mentioned_folder_ids=list(accepted_folder_ids or mentioned_folder_ids or []),
+        mentioned_connector_ids=list(mentioned_connector_ids or []),
+        mentioned_connectors=list(mentioned_connectors or []),
         request_id=request_id,
         turn_id=turn_id,
     )
