@@ -899,7 +899,7 @@ const Composer: FC = () => {
 			<div className="flex w-full flex-col">
 				<div
 					className={cn(
-						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-shadow dark:shadow-black/10",
+						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input/20 bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-input/60 focus-within:border-input/60 dark:shadow-black/10",
 						connectToolsTrayVisible && "rounded-b-3xl shadow-none dark:shadow-none"
 					)}
 				>

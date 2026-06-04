@@ -1,24 +1,21 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import { Earth, User, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
+import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { createPublicChatSnapshotMutationAtom } from "@/atoms/public-chat-snapshots/public-chat-snapshots-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useUpdateThreadVisibility } from "@/hooks/use-thread-mutations";
 import { chatThreadsApiService } from "@/lib/apis/chat-threads-api.service";
-import {
-	type ChatVisibility,
-	type ThreadRecord,
-	updateThreadVisibility,
-} from "@/lib/chat/thread-persistence";
+import type { ChatVisibility, ThreadRecord } from "@/lib/chat/thread-persistence";
 import { cn } from "@/lib/utils";
 
 interface ChatShareButtonProps {
@@ -54,7 +51,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 
 	// Use Jotai atom for visibility (single source of truth)
 	const currentThreadState = useAtomValue(currentThreadAtom);
-	const setThreadVisibility = useSetAtom(setThreadVisibilityAtom);
+	const { mutateAsync: updateVisibility } = useUpdateThreadVisibility(thread?.search_space_id ?? 0);
 
 	// Snapshot creation mutation
 	const { mutateAsync: createSnapshot, isPending: isCreatingSnapshot } = useAtomValue(
@@ -90,30 +87,23 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				return;
 			}
 
-			// Update Jotai atom immediately for instant UI feedback
-			setThreadVisibility(newVisibility);
-
 			try {
-				await updateThreadVisibility(thread.id, newVisibility);
-
-				// Refetch threads list to update sidebar
-				await queryClient.refetchQueries({
-					predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "threads",
+				const updatedThread = await updateVisibility({
+					thread,
+					visibility: newVisibility,
 				});
 
-				onVisibilityChange?.(newVisibility);
+				onVisibilityChange?.(updatedThread.visibility);
 				toast.success(
 					newVisibility === "SEARCH_SPACE" ? "Chat shared with search space" : "Chat is now private"
 				);
 				setOpen(false);
 			} catch (error) {
 				console.error("Failed to update visibility:", error);
-				// Revert Jotai state on error
-				setThreadVisibility(thread.visibility ?? "PRIVATE");
 				toast.error("Failed to update sharing settings");
 			}
 		},
-		[thread, currentVisibility, onVisibilityChange, queryClient, setThreadVisibility]
+		[thread, currentVisibility, onVisibilityChange, updateVisibility]
 	);
 
 	const handleCreatePublicLink = useCallback(async () => {

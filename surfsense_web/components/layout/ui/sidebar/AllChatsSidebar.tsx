@@ -43,12 +43,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
-import {
-	deleteThread,
-	fetchThreads,
-	searchThreads,
-	updateThread,
-} from "@/lib/chat/thread-persistence";
+import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
+import { fetchThreads, searchThreads } from "@/lib/chat/thread-persistence";
 import { formatThreadTimestamp } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
@@ -74,6 +70,9 @@ export function AllChatsSidebarContent({
 	const queryClient = useQueryClient();
 	const isMobile = useIsMobile();
 	const removeChatTab = useSetAtom(removeChatTabAtom);
+	const { mutateAsync: deleteThread } = useDeleteThread(searchSpaceId);
+	const { mutateAsync: archiveThread } = useArchiveThread(searchSpaceId);
+	const { mutateAsync: renameThread } = useRenameThread(searchSpaceId);
 
 	const currentChatId = Array.isArray(params.chat_id)
 		? Number(params.chat_id[0])
@@ -154,12 +153,9 @@ export function AllChatsSidebarContent({
 		async (threadId: number) => {
 			setDeletingThreadId(threadId);
 			try {
-				await deleteThread(threadId);
+				await deleteThread({ threadId });
 				const fallbackTab = removeChatTab(threadId);
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
-				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 
 				if (currentChatId === threadId) {
 					onOpenChange(false);
@@ -178,22 +174,19 @@ export function AllChatsSidebarContent({
 				setDeletingThreadId(null);
 			}
 		},
-		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange, removeChatTab]
+		[deleteThread, t, currentChatId, router, onOpenChange, removeChatTab, searchSpaceId]
 	);
 
 	const handleToggleArchive = useCallback(
 		async (threadId: number, currentlyArchived: boolean) => {
 			setArchivingThreadId(threadId);
 			try {
-				await updateThread(threadId, { archived: !currentlyArchived });
+				await archiveThread({ threadId, archived: !currentlyArchived });
 				toast.success(
 					currentlyArchived
 						? t("chat_unarchived") || "Chat restored"
 						: t("chat_archived") || "Chat archived"
 				);
-				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			} catch (error) {
 				console.error("Error archiving thread:", error);
 				toast.error(t("error_archiving_chat") || "Failed to archive chat");
@@ -201,7 +194,7 @@ export function AllChatsSidebarContent({
 				setArchivingThreadId(null);
 			}
 		},
-		[queryClient, searchSpaceId, t]
+		[archiveThread, t]
 	);
 
 	const handleStartRename = useCallback((threadId: number, title: string) => {
@@ -214,14 +207,12 @@ export function AllChatsSidebarContent({
 		if (!renamingThread || !newTitle.trim()) return;
 		setIsRenaming(true);
 		try {
-			await updateThread(renamingThread.id, { title: newTitle.trim() });
-			toast.success(t("chat_renamed") || "Chat renamed");
-			queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
-			queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
-			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
-			queryClient.invalidateQueries({
-				queryKey: ["threads", searchSpaceId, "detail", String(renamingThread.id)],
+			await renameThread({
+				threadId: renamingThread.id,
+				title: newTitle.trim(),
+				previousTitle: renamingThread.title,
 			});
+			toast.success(t("chat_renamed") || "Chat renamed");
 		} catch (error) {
 			console.error("Error renaming thread:", error);
 			toast.error(t("error_renaming_chat") || "Failed to rename chat");
@@ -231,7 +222,7 @@ export function AllChatsSidebarContent({
 			setRenamingThread(null);
 			setNewTitle("");
 		}
-	}, [renamingThread, newTitle, queryClient, searchSpaceId, t]);
+	}, [renamingThread, newTitle, renameThread, t]);
 
 	const handleClearSearch = useCallback(() => {
 		setSearchQuery("");
@@ -448,34 +439,36 @@ export function AllChatsSidebarContent({
 													</Button>
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end" className="w-40 z-80">
-												{!thread.archived && (
-													<DropdownMenuItem
-														onClick={() => handleStartRename(thread.id, thread.title || "New Chat")}
-													>
-														<Pencil className="mr-2 h-4 w-4" />
-														<span>{t("rename") || "Rename"}</span>
-													</DropdownMenuItem>
-												)}
-												<DropdownMenuItem
-													onClick={() => handleToggleArchive(thread.id, thread.archived)}
-													disabled={isArchiving}
-												>
-													{thread.archived ? (
-														<>
-															<RotateCcwIcon className="mr-2 h-4 w-4" />
-															<span>{t("unarchive") || "Restore"}</span>
-														</>
-													) : (
-														<>
-															<ArchiveIcon className="mr-2 h-4 w-4" />
-															<span>{t("archive") || "Archive"}</span>
-														</>
+													{!thread.archived && (
+														<DropdownMenuItem
+															onClick={() =>
+																handleStartRename(thread.id, thread.title || "New Chat")
+															}
+														>
+															<Pencil className="mr-2 h-4 w-4" />
+															<span>{t("rename") || "Rename"}</span>
+														</DropdownMenuItem>
 													)}
-												</DropdownMenuItem>
-												<DropdownMenuItem onClick={() => handleDeleteThread(thread.id)}>
-													<Trash2 className="mr-2 h-4 w-4" />
-													<span>{t("delete") || "Delete"}</span>
-												</DropdownMenuItem>
+													<DropdownMenuItem
+														onClick={() => handleToggleArchive(thread.id, thread.archived)}
+														disabled={isArchiving}
+													>
+														{thread.archived ? (
+															<>
+																<RotateCcwIcon className="mr-2 h-4 w-4" />
+																<span>{t("unarchive") || "Restore"}</span>
+															</>
+														) : (
+															<>
+																<ArchiveIcon className="mr-2 h-4 w-4" />
+																<span>{t("archive") || "Archive"}</span>
+															</>
+														)}
+													</DropdownMenuItem>
+													<DropdownMenuItem onClick={() => handleDeleteThread(thread.id)}>
+														<Trash2 className="mr-2 h-4 w-4" />
+														<span>{t("delete") || "Delete"}</span>
+													</DropdownMenuItem>
 												</DropdownMenuContent>
 											</DropdownMenu>
 										</div>

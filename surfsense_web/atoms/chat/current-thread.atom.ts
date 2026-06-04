@@ -8,6 +8,18 @@ interface CurrentThreadState {
 	hasComments: boolean;
 }
 
+interface CurrentThreadMetadataPatch {
+	id: number | null;
+	visibility?: ChatVisibility | null;
+	hasComments?: boolean;
+}
+
+interface CurrentThreadMetadataUpdate {
+	id: number;
+	visibility?: ChatVisibility | null;
+	hasComments?: boolean;
+}
+
 const initialState: CurrentThreadState = {
 	id: null,
 	visibility: null,
@@ -23,6 +35,37 @@ export const commentsEnabledAtom = atom(
 export const setThreadVisibilityAtom = atom(null, (get, set, newVisibility: ChatVisibility) => {
 	set(currentThreadAtom, { ...get(currentThreadAtom), visibility: newVisibility });
 });
+
+export const setCurrentThreadMetadataAtom = atom(
+	null,
+	(get, set, metadata: CurrentThreadMetadataPatch) => {
+		const current = get(currentThreadAtom);
+
+		set(currentThreadAtom, {
+			...current,
+			id: metadata.id,
+			visibility: "visibility" in metadata ? (metadata.visibility ?? null) : current.visibility,
+			hasComments:
+				"hasComments" in metadata ? (metadata.hasComments ?? false) : current.hasComments,
+		});
+	}
+);
+
+export const patchCurrentThreadMetadataAtom = atom(
+	null,
+	(get, set, patch: CurrentThreadMetadataUpdate) => {
+		const current = get(currentThreadAtom);
+		if (current.id !== patch.id) {
+			return;
+		}
+
+		set(currentThreadAtom, {
+			...current,
+			visibility: "visibility" in patch ? (patch.visibility ?? null) : current.visibility,
+			hasComments: "hasComments" in patch ? (patch.hasComments ?? false) : current.hasComments,
+		});
+	}
+);
 
 export const resetCurrentThreadAtom = atom(null, (_, set) => {
 	set(currentThreadAtom, initialState);

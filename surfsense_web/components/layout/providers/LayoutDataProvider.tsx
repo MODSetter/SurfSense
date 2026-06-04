@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, Inbox, LibraryBig, Workflow } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
@@ -44,10 +44,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { getLoginPath, logout } from "@/lib/auth-utils";
-import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
+import { fetchThreads } from "@/lib/chat/thread-persistence";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
@@ -77,7 +78,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const router = useRouter();
 	const params = useParams();
 	const pathname = usePathname();
-	const queryClient = useQueryClient();
 	const { theme, setTheme } = useTheme();
 	const isMobile = useIsMobile();
 
@@ -96,6 +96,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
 	const syncChatTab = useSetAtom(syncChatTabAtom);
 	const removeChatTab = useSetAtom(removeChatTabAtom);
+	const { mutateAsync: archiveThread } = useArchiveThread(searchSpaceId);
+	const { mutateAsync: deleteThread } = useDeleteThread(searchSpaceId);
+	const { mutateAsync: renameThread } = useRenameThread(searchSpaceId);
 
 	// Key used to force-remount the page component (e.g. after deleting the active chat
 	// when the router is out of sync due to replaceState)
@@ -542,18 +545,14 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				: tSidebar("chat_unarchived") || "Chat restored";
 
 			try {
-				await updateThread(chat.id, { archived: newArchivedState });
+				await archiveThread({ threadId: chat.id, archived: newArchivedState });
 				toast.success(successMessage);
-				// Invalidate queries to refresh UI (React Query will only refetch active queries)
-				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
 			} catch (error) {
 				console.error("Error archiving thread:", error);
 				toast.error(tSidebar("error_archiving_chat") || "Failed to archive chat");
 			}
 		},
-		[queryClient, searchSpaceId, tSidebar]
+		[archiveThread, tSidebar]
 	);
 
 	const handleSettings = useCallback(() => {
@@ -591,9 +590,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		if (!chatToDelete) return;
 		setIsDeletingChat(true);
 		try {
-			await deleteThread(chatToDelete.id);
+			await deleteThread({ threadId: chatToDelete.id });
 			const fallbackTab = removeChatTab(chatToDelete.id);
-			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			if (currentChatId === chatToDelete.id) {
 				resetCurrentThread();
 				if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
@@ -617,7 +615,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		}
 	}, [
 		chatToDelete,
-		queryClient,
+		deleteThread,
 		searchSpaceId,
 		resetCurrentThread,
 		currentChatId,
@@ -632,11 +630,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		if (!chatToRename || !newChatTitle.trim()) return;
 		setIsRenamingChat(true);
 		try {
-			await updateThread(chatToRename.id, { title: newChatTitle.trim() });
+			await renameThread({
+				threadId: chatToRename.id,
+				title: newChatTitle.trim(),
+				previousTitle: chatToRename.name,
+			});
 			toast.success(tSidebar("chat_renamed") || "Chat renamed");
-			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
-			queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
-			queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
 		} catch (error) {
 			console.error("Error renaming thread:", error);
 			toast.error(tSidebar("error_renaming_chat") || "Failed to rename chat");
@@ -646,7 +645,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			setChatToRename(null);
 			setNewChatTitle("");
 		}
-	}, [chatToRename, newChatTitle, queryClient, searchSpaceId, tSidebar]);
+	}, [chatToRename, newChatTitle, renameThread, tSidebar]);
 
 	// Detect if we're on the chat page (needs overflow-hidden for chat's own scroll)
 	const isChatPage = pathname?.includes("/new-chat") ?? false;

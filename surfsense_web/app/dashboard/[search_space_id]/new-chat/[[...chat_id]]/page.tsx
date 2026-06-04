@@ -18,6 +18,7 @@ import { disabledToolsAtom } from "@/atoms/agent-tools/agent-tools.atoms";
 import {
 	clearTargetCommentIdAtom,
 	currentThreadAtom,
+	setCurrentThreadMetadataAtom,
 	setTargetCommentIdAtom,
 } from "@/atoms/chat/current-thread.atom";
 import {
@@ -375,7 +376,8 @@ export default function NewChatPage() {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
-	const setCurrentThreadState = useSetAtom(currentThreadAtom);
+	const currentThreadState = useAtomValue(currentThreadAtom);
+	const setCurrentThreadMetadata = useSetAtom(setCurrentThreadMetadataAtom);
 	const setPremiumAlertForThread = useSetAtom(setPremiumAlertForThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
@@ -772,13 +774,31 @@ export default function NewChatPage() {
 
 	// Sync current thread state to atom
 	useEffect(() => {
-		setCurrentThreadState((prev) => ({
-			...prev,
-			id: currentThread?.id ?? null,
-			visibility: currentThread?.visibility ?? null,
-			hasComments: currentThread?.has_comments ?? false,
-		}));
-	}, [currentThread, setCurrentThreadState]);
+		if (!currentThread) {
+			setCurrentThreadMetadata({
+				id: null,
+				visibility: null,
+				hasComments: false,
+			});
+			return;
+		}
+
+		const visibility =
+			currentThreadState.id === currentThread.id && currentThreadState.visibility !== null
+				? currentThreadState.visibility
+				: currentThread.visibility;
+
+		setCurrentThreadMetadata({
+			id: currentThread.id,
+			visibility,
+			hasComments: currentThread.has_comments ?? false,
+		});
+	}, [
+		currentThread,
+		currentThreadState.id,
+		currentThreadState.visibility,
+		setCurrentThreadMetadata,
+	]);
 
 	// Cleanup on unmount - abort any in-flight requests
 	useEffect(() => {
