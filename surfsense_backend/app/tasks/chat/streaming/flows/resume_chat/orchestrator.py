@@ -24,10 +24,8 @@ from uuid import UUID
 import anyio
 
 from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
-from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.shared.middleware.busy_mutex import end_turn
-from app.config import config as _app_config
 from app.db import ChatVisibility, async_session_maker
 from app.observability import otel as ot
 from app.services.chat_session_state_service import set_ai_responding
@@ -326,16 +324,11 @@ async def stream_resume_chat(
         )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
-        use_multi_agent = bool(_app_config.MULTI_AGENT_CHAT_ENABLED)
-        chat_agent_mode = "multi" if use_multi_agent else "single"
+        chat_agent_mode = "multi"
         set_agent_mode(chat_span, chat_agent_mode)
 
         _t0 = time.perf_counter()
-        agent_factory = (
-            create_multi_agent_chat_deep_agent
-            if use_multi_agent
-            else create_surfsense_deep_agent
-        )
+        agent_factory = create_multi_agent_chat_deep_agent
         agent = await build_main_agent_for_thread(
             agent_factory,
             llm=llm,

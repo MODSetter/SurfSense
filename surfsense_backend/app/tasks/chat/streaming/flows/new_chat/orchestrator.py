@@ -30,10 +30,8 @@ from typing import Any, Literal
 import anyio
 
 from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
-from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.shared.middleware.busy_mutex import end_turn
-from app.config import config as _app_config
 from app.db import ChatVisibility, async_session_maker
 from app.observability import otel as ot
 from app.services.new_streaming_service import VercelStreamingService
@@ -387,16 +385,11 @@ async def stream_new_chat(
         )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
-        use_multi_agent = bool(_app_config.MULTI_AGENT_CHAT_ENABLED)
-        chat_agent_mode = "multi" if use_multi_agent else "single"
+        chat_agent_mode = "multi"
         set_agent_mode(chat_span, chat_agent_mode)
 
         _t0 = time.perf_counter()
-        agent_factory = (
-            create_multi_agent_chat_deep_agent
-            if use_multi_agent
-            else create_surfsense_deep_agent
-        )
+        agent_factory = create_multi_agent_chat_deep_agent
         # Build the agent inline. Provider 429s surface through the in-stream
         # recovery loop below, which repins the thread to an eligible
         # alternative config and rebuilds the agent before the user sees any

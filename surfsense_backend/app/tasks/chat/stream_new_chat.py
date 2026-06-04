@@ -27,7 +27,6 @@ from langchain_core.messages import HumanMessage
 from sqlalchemy.future import select
 
 from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
-from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.shared.checkpointer import get_checkpointer
 from app.agents.shared.context import SurfSenseContextSchema
 from app.agents.shared.errors import BusyError
@@ -1181,19 +1180,12 @@ async def stream_new_chat(
         )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
-        from app.config import config as _app_config
-
-        use_multi_agent = bool(_app_config.MULTI_AGENT_CHAT_ENABLED)
-        chat_agent_mode = "multi" if use_multi_agent else "single"
+        chat_agent_mode = "multi"
         with contextlib.suppress(Exception):
             chat_span.set_attribute("agent.mode", chat_agent_mode)
 
         _t0 = time.perf_counter()
-        agent_factory = (
-            create_multi_agent_chat_deep_agent
-            if use_multi_agent
-            else create_surfsense_deep_agent
-        )
+        agent_factory = create_multi_agent_chat_deep_agent
         # Build the agent inline. Provider 429s surface through the
         # in-stream recovery loop below (``_is_provider_rate_limited``),
         # which repins the thread to an eligible alternative config and
@@ -2512,17 +2504,11 @@ async def stream_resume_chat(
         )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
-        from app.config import config as _app_config
-
-        chat_agent_mode = "multi" if _app_config.MULTI_AGENT_CHAT_ENABLED else "single"
+        chat_agent_mode = "multi"
         with contextlib.suppress(Exception):
             chat_span.set_attribute("agent.mode", chat_agent_mode)
         _t0 = time.perf_counter()
-        agent_factory = (
-            create_multi_agent_chat_deep_agent
-            if _app_config.MULTI_AGENT_CHAT_ENABLED
-            else create_surfsense_deep_agent
-        )
+        agent_factory = create_multi_agent_chat_deep_agent
         # Build the agent inline. Provider 429s are handled by the
         # in-stream recovery loop, which repins to an eligible
         # alternative config and rebuilds the agent before the user sees
