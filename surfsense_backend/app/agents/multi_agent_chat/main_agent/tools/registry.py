@@ -5,15 +5,13 @@ connector integrations, MCP, and deliverables are delegated to ``task``
 subagents (see :mod:`app.agents.multi_agent_chat.main_agent.tools.index`).
 
 This module is the *building* counterpart to that name list: it owns the
-factories for those few tools and nothing else. It is deliberately decoupled
-from :mod:`app.agents.shared.tools.registry` (the app-wide ``BUILTIN_TOOLS``
-metadata catalog, which imports every connector) so the main agent's tool
+factories for those few tools and nothing else, so the main agent's tool
 surface stays self-contained and connector-free.
 
-The ``BUILTIN_TOOLS`` catalog still exists and is still used elsewhere for
-tool *metadata* — the ``/agent/tools`` listing endpoint and the action-log
-revert/dedup resolvers (which must cover subagent-executed connector tools).
-This registry only governs what the main agent actually builds and binds.
+Tool *display* metadata for the whole app (the ``/agent/tools`` listing
+endpoint) lives separately in :mod:`app.agents.shared.tools.catalog`, a
+pure-data module that imports no connectors. This registry only governs what
+the main agent actually builds and binds.
 """
 
 from __future__ import annotations
@@ -71,8 +69,7 @@ def _build_update_memory_tool(deps: dict[str, Any]) -> BaseTool:
     )
 
 
-# Ordered to match the historical binding order produced by the shared
-# ``build_tools`` (which iterated ``BUILTIN_TOOLS`` in declaration order):
+# Ordered to match the historical main-agent binding order:
 # scrape_webpage, web_search, create_automation, update_memory.
 # Each entry is ``(factory, required_dependency_names)``.
 _MAIN_AGENT_TOOL_FACTORIES: dict[

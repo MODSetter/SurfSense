@@ -1,6 +1,9 @@
 """Middleware components for the SurfSense new chat agent."""
 
-from app.agents.shared.middleware.action_log import ActionLogMiddleware
+from app.agents.shared.middleware.action_log import (
+    ActionLogMiddleware,
+    ToolDefinition,
+)
 from app.agents.shared.middleware.anonymous_document import (
     AnonymousDocumentMiddleware,
 )
@@ -76,6 +79,7 @@ __all__ = [
     "SpillingContextEditingMiddleware",
     "SurfSenseCompactionMiddleware",
     "ToolCallNameRepairMiddleware",
+    "ToolDefinition",
     "build_skills_backend_factory",
     "commit_staged_filesystem_state",
     "create_surfsense_compaction_middleware",

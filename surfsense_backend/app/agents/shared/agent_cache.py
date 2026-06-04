@@ -113,12 +113,11 @@ def tools_signature(
       MCP tools loaded for the user changes, gating rules flip, etc.).
     * The available connectors / document types for the search space
       change (new connector added, last connector removed, new document
-      type indexed). Because :func:`get_connector_gated_tools` derives
-      ``modified_disabled_tools`` from ``available_connectors``, the
-      tool surface is technically already covered — but we hash the
-      connector list separately so an empty-list "no tools changed"
-      situation still rotates the key when, say, the user re-adds a
-      connector that gates a tool we were already not exposing.
+      type indexed). Connector gating derives disabled tools from
+      ``available_connectors``, so the tool surface is technically already
+      covered — but we hash the connector list separately so an empty-list
+      "no tools changed" situation still rotates the key when, say, the user
+      re-adds a connector that gates a tool we were already not exposing.
 
     Stays stable across:
 

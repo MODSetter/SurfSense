@@ -6,7 +6,6 @@ import logging
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.middleware import ActionLogMiddleware
-from app.agents.shared.tools.registry import BUILTIN_TOOLS
 
 from app.agents.multi_agent_chat.shared.middleware.flags import enabled
 
@@ -21,12 +20,13 @@ def build_action_log_mw(
     if not enabled(flags, "enable_action_log") or thread_id is None:
         return None
     try:
-        tool_defs_by_name = {td.name: td for td in BUILTIN_TOOLS}
+        # No built-in tool declares a ``reverse`` callable yet, so the action
+        # log runs without a tool_definitions map. Reversibility is opt-in per
+        # tool via ``ToolDefinition.reverse`` and can be wired here when used.
         return ActionLogMiddleware(
             thread_id=thread_id,
             search_space_id=search_space_id,
             user_id=user_id,
-            tool_definitions=tool_defs_by_name,
         )
     except Exception:  # pragma: no cover - defensive
         logging.warning(

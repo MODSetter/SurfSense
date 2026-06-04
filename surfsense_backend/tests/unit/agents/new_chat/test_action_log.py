@@ -12,7 +12,7 @@ from langchain_core.tools import tool
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.middleware.action_log import ActionLogMiddleware
-from app.agents.shared.tools.registry import ToolDefinition
+from app.agents.shared.middleware.action_log import ToolDefinition
 
 
 @dataclass

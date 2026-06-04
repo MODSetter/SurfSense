@@ -9,12 +9,12 @@ the duplicate call is stripped from the AIMessage that gets checkpointed.
 That means it is also safe across LangGraph ``interrupt()`` boundaries:
 the removed call will never appear on graph resume.
 
-Dedup-key resolution order:
+Dedup-key resolution order (read from each tool's own ``metadata``):
 
-1. :class:`ToolDefinition.dedup_key` — callable provided by the registry
-   entry. This is the canonical mechanism.
-2. ``tool.metadata["hitl_dedup_key"]`` — string with a primary arg name;
-   used by MCP / Composio tools whose schemas the registry doesn't see.
+1. ``tool.metadata["dedup_key"]`` — callable mapping the args dict to a
+   stable signature string. This is the canonical mechanism.
+2. ``tool.metadata["hitl_dedup_key"]`` — string naming a primary arg;
+   used by MCP / Composio tools that only expose a single key field.
 
 A tool with no resolver from either path simply opts out of dedup.
 """
@@ -39,17 +39,10 @@ DedupResolver = Callable[[dict[str, Any]], str]
 def wrap_dedup_key_by_arg_name(arg_name: str) -> DedupResolver:
     """Adapt a string-arg name into a :data:`DedupResolver`.
 
-    Convenience helper used by registry entries that just want to dedupe
-    on a single arg's lowercased value (the most common case for native
-    HITL tools like ``send_gmail_email`` keyed on ``subject``).
-
-    Example::
-
-        ToolDefinition(
-            name="send_gmail_email",
-            ...,
-            dedup_key=wrap_dedup_key_by_arg_name("subject"),
-        )
+    Convenience helper for tools that just want to dedupe on a single arg's
+    lowercased value (the most common case for HITL tools like
+    ``send_gmail_email`` keyed on ``subject``). Set the result on the tool's
+    ``metadata["dedup_key"]``.
     """
 
     def _resolver(args: dict[str, Any]) -> str:
@@ -84,9 +77,8 @@ class DedupHITLToolCallsMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
     The dedup-resolver map is built from two sources, in priority order:
 
-    1. ``tool.metadata["dedup_key"]`` — callable provided by the registry's
-       ``ToolDefinition.dedup_key``. Receives the args dict and returns
-       a string signature. This is the canonical mechanism.
+    1. ``tool.metadata["dedup_key"]`` — callable that receives the args dict
+       and returns a string signature. This is the canonical mechanism.
     2. ``tool.metadata["hitl_dedup_key"]`` — string with a primary arg
        name; primarily used by MCP / Composio tools.
     """

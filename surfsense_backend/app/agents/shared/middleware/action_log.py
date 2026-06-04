@@ -3,8 +3,8 @@
 Wraps every tool call via :meth:`AgentMiddleware.awrap_tool_call` and writes
 a row to :class:`~app.db.AgentActionLog` after the tool returns. Tools opt
 into reversibility by declaring a ``reverse`` callable on their
-:class:`~app.agents.shared.tools.registry.ToolDefinition`; the rendered
-descriptor is persisted in ``reverse_descriptor`` for use by
+:class:`ToolDefinition`; the rendered descriptor is persisted in
+``reverse_descriptor`` for use by
 ``/api/threads/{thread_id}/revert/{action_id}``.
 
 Design points:
@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware import AgentMiddleware
@@ -39,13 +40,33 @@ if TYPE_CHECKING:  # pragma: no cover - type-only
     from langchain.agents.middleware.types import ToolCallRequest
     from langgraph.types import Command
 
-    # Type-only import: ToolDefinition is only referenced in annotations, and a
-    # runtime import would close a module-load cycle (tools.registry imports
-    # shared.middleware.dedup_tool_calls).
-    from app.agents.shared.tools.registry import ToolDefinition
-
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ToolDefinition:
+    """Reversibility descriptor consumed by :class:`ActionLogMiddleware`.
+
+    Only ``name`` and ``reverse`` are read by the middleware; the remaining
+    fields let callers and tests describe a tool declaratively. A tool is
+    marked reversible in the action log when ``reverse`` is set and renders a
+    descriptor without raising.
+
+    Attributes:
+        name: Unique identifier for the tool.
+        description: Human-readable description of what the tool does.
+        factory: Optional callable that builds the tool (unused by the
+            middleware; retained for declarative call sites/tests).
+        reverse: Optional callable that, given the tool's ``(args, result)``,
+            returns a ``ReverseDescriptor`` describing the inverse invocation.
+
+    """
+
+    name: str
+    description: str = ""
+    factory: Callable[[dict[str, Any]], Any] | None = None
+    reverse: Callable[[dict[str, Any], Any], dict[str, Any]] | None = None
 
 
 # Cap for the persisted ``args`` JSON to avoid bloating the action log with

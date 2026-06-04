@@ -1668,7 +1668,7 @@ async def list_agent_tools(
 
     Hidden (WIP) tools are excluded from the response.
     """
-    from app.agents.shared.tools.registry import BUILTIN_TOOLS
+    from app.agents.shared.tools.catalog import TOOL_CATALOG
 
     return [
         AgentToolInfo(
@@ -1676,7 +1676,7 @@ async def list_agent_tools(
             description=t.description,
             enabled_by_default=t.enabled_by_default,
         )
-        for t in BUILTIN_TOOLS
+        for t in TOOL_CATALOG
         if not t.hidden
     ]
 

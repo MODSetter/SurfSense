@@ -118,9 +118,8 @@ class ToolCallNameRepairMiddleware(
                 return call
 
         # Stage 2 — invalid fallback
-        # Local import avoids a module-load cycle: tools.registry imports
-        # shared.middleware (dedup_tool_calls), so importing tools at module
-        # scope here would close the loop.
+        # Local import keeps the middleware module import-light and avoids any
+        # tools <-> middleware import-order coupling at module scope.
         from app.agents.shared.tools.invalid_tool import INVALID_TOOL_NAME
 
         if INVALID_TOOL_NAME in registered:

@@ -18,19 +18,16 @@ from .knowledge_base import (
     format_documents_for_context,
     search_knowledge_base_async,
 )
+from .catalog import TOOL_CATALOG, ToolMetadata
 from .podcast import create_generate_podcast_tool
-from .registry import (
-    BUILTIN_TOOLS,
-    ToolDefinition,
-)
 from .video_presentation import create_generate_video_presentation_tool
 
 __all__ = [
-    # Registry
-    "BUILTIN_TOOLS",
+    # Tool catalog (display metadata)
+    "TOOL_CATALOG",
     # Knowledge base utilities
     "CONNECTOR_DESCRIPTIONS",
-    "ToolDefinition",
+    "ToolMetadata",
     # Tool factories
     "create_generate_image_tool",
     "create_generate_podcast_tool",
