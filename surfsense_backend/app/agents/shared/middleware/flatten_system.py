@@ -40,7 +40,7 @@ the multi-block redistribution path.
 Placement: innermost on the system-message-mutation chain, after every
 appender (``todo``/``filesystem``/``skills``/``subagents``) and after
 summarization, but before ``noop``/``retry``/``fallback`` so each retry
-attempt sees a flattened payload. See ``chat_deepagent.py``.
+attempt sees a flattened payload.
 
 Idempotent: a string-content system message is left untouched. A list
 that contains anything other than plain text blocks (e.g. an image) is

@@ -22,10 +22,6 @@ from .podcast import create_generate_podcast_tool
 from .registry import (
     BUILTIN_TOOLS,
     ToolDefinition,
-    build_tools,
-    get_all_tool_names,
-    get_default_enabled_tools,
-    get_tool_by_name,
 )
 from .video_presentation import create_generate_video_presentation_tool
 
@@ -35,14 +31,10 @@ __all__ = [
     # Knowledge base utilities
     "CONNECTOR_DESCRIPTIONS",
     "ToolDefinition",
-    "build_tools",
     # Tool factories
     "create_generate_image_tool",
     "create_generate_podcast_tool",
     "create_generate_video_presentation_tool",
     "format_documents_for_context",
-    "get_all_tool_names",
-    "get_default_enabled_tools",
-    "get_tool_by_name",
     "search_knowledge_base_async",
 ]

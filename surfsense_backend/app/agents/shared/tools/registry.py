@@ -87,7 +87,6 @@ from .luma import (
     create_list_luma_events_tool,
     create_read_luma_event_tool,
 )
-from .mcp_tool import load_mcp_tools
 from .notion import (
     create_create_notion_page_tool,
     create_delete_notion_page_tool,
@@ -330,8 +329,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     ),
     # =========================================================================
     # NOTION TOOLS - create, update, delete pages
-    # Auto-disabled when no Notion connector is configured (see chat_deepagent.py)
-    # =========================================================================
+    # Auto-disabled when no Notion connector is configured    # =========================================================================
     ToolDefinition(
         name="create_notion_page",
         description="Create a new page in the user's Notion workspace",
@@ -370,8 +368,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     ),
     # =========================================================================
     # GOOGLE DRIVE TOOLS - create files, delete files
-    # Auto-disabled when no Google Drive connector is configured (see chat_deepagent.py)
-    # =========================================================================
+    # Auto-disabled when no Google Drive connector is configured    # =========================================================================
     ToolDefinition(
         name="create_google_drive_file",
         description="Create a new Google Doc or Google Sheet in Google Drive",
@@ -398,8 +395,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     ),
     # =========================================================================
     # DROPBOX TOOLS - create and trash files
-    # Auto-disabled when no Dropbox connector is configured (see chat_deepagent.py)
-    # =========================================================================
+    # Auto-disabled when no Dropbox connector is configured    # =========================================================================
     ToolDefinition(
         name="create_dropbox_file",
         description="Create a new file in Dropbox",
@@ -426,8 +422,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     ),
     # =========================================================================
     # ONEDRIVE TOOLS - create and trash files
-    # Auto-disabled when no OneDrive connector is configured (see chat_deepagent.py)
-    # =========================================================================
+    # Auto-disabled when no OneDrive connector is configured    # =========================================================================
     ToolDefinition(
         name="create_onedrive_file",
         description="Create a new file in Microsoft OneDrive",
@@ -579,8 +574,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     ),
     # =========================================================================
     # CONFLUENCE TOOLS - create, update, delete pages
-    # Auto-disabled when no Confluence connector is configured (see chat_deepagent.py)
-    # =========================================================================
+    # Auto-disabled when no Confluence connector is configured    # =========================================================================
     ToolDefinition(
         name="create_confluence_page",
         description="Create a new page in the user's Confluence space",
@@ -736,14 +730,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
 # =============================================================================
 
 
-def get_tool_by_name(name: str) -> ToolDefinition | None:
-    """Get a tool definition by its name."""
-    for tool_def in BUILTIN_TOOLS:
-        if tool_def.name == name:
-            return tool_def
-    return None
-
-
 def get_connector_gated_tools(
     available_connectors: list[str] | None,
 ) -> list[str]:
@@ -755,222 +741,3 @@ def get_connector_gated_tools(
         if tool_def.required_connector and tool_def.required_connector not in available:
             disabled.append(tool_def.name)
     return disabled
-
-
-def get_all_tool_names() -> list[str]:
-    """Get names of all registered tools."""
-    return [tool_def.name for tool_def in BUILTIN_TOOLS]
-
-
-def get_default_enabled_tools() -> list[str]:
-    """Get names of tools that are enabled by default (excludes hidden tools)."""
-    return [tool_def.name for tool_def in BUILTIN_TOOLS if tool_def.enabled_by_default]
-
-
-def build_tools(
-    dependencies: dict[str, Any],
-    enabled_tools: list[str] | None = None,
-    disabled_tools: list[str] | None = None,
-    additional_tools: list[BaseTool] | None = None,
-) -> list[BaseTool]:
-    """Build the list of tools for the agent.
-
-    Args:
-        dependencies: Dict containing all possible dependencies:
-            - search_space_id: The search space ID
-            - db_session: Database session
-            - connector_service: Connector service instance
-            - firecrawl_api_key: Optional Firecrawl API key
-        enabled_tools: Explicit list of tool names to enable. If None, uses defaults.
-        disabled_tools: List of tool names to disable (applied after enabled_tools).
-        additional_tools: Extra tools to add (e.g., custom tools not in registry).
-
-    Returns:
-        List of configured tool instances ready for the agent.
-
-    Example:
-        # Use all default tools
-        tools = build_tools(deps)
-
-        # Use only specific tools
-        tools = build_tools(deps, enabled_tools=["generate_report"])
-
-        # Use defaults but disable podcast
-        tools = build_tools(deps, disabled_tools=["generate_podcast"])
-
-        # Add custom tools
-        tools = build_tools(deps, additional_tools=[my_custom_tool])
-
-    """
-    # Determine which tools to enable
-    if enabled_tools is not None:
-        tool_names_to_use = set(enabled_tools)
-    else:
-        tool_names_to_use = set(get_default_enabled_tools())
-
-    # Apply disabled list
-    if disabled_tools:
-        tool_names_to_use -= set(disabled_tools)
-
-    # Build the tools (skip hidden/WIP tools unconditionally)
-    tools: list[BaseTool] = []
-    for tool_def in BUILTIN_TOOLS:
-        if tool_def.hidden or tool_def.name not in tool_names_to_use:
-            continue
-
-        # Check that all required dependencies are provided
-        missing_deps = [dep for dep in tool_def.requires if dep not in dependencies]
-        if missing_deps:
-            msg = f"Tool '{tool_def.name}' requires dependencies: {missing_deps}"
-            raise ValueError(
-                msg,
-            )
-
-        # Create the tool
-        tool = tool_def.factory(dependencies)
-        # Propagate the registry-level metadata so middleware (e.g.
-        # ``DedupHITLToolCallsMiddleware``) and the action-log/revert
-        # pipeline can pick the resolvers up via ``tool.metadata`` without
-        # re-importing :data:`BUILTIN_TOOLS`.
-        if tool_def.dedup_key is not None or tool_def.reverse is not None:
-            existing_meta = getattr(tool, "metadata", None) or {}
-            merged_meta = dict(existing_meta)
-            if tool_def.dedup_key is not None:
-                merged_meta.setdefault("dedup_key", tool_def.dedup_key)
-            if tool_def.reverse is not None:
-                merged_meta.setdefault("reverse", tool_def.reverse)
-            try:
-                tool.metadata = merged_meta
-            except Exception:
-                logger.debug(
-                    "Tool %s rejected metadata mutation; relying on registry lookup",
-                    tool_def.name,
-                )
-        tools.append(tool)
-
-    # Add any additional custom tools
-    if additional_tools:
-        tools.extend(additional_tools)
-
-    return tools
-
-
-async def build_tools_async(
-    dependencies: dict[str, Any],
-    enabled_tools: list[str] | None = None,
-    disabled_tools: list[str] | None = None,
-    additional_tools: list[BaseTool] | None = None,
-    include_mcp_tools: bool = True,
-) -> list[BaseTool]:
-    """Async version of build_tools that also loads MCP tools from database.
-
-    Design Note:
-    This function exists because MCP tools require database queries to load
-    user configs, while built-in tools are created synchronously from static
-    code.
-
-    Alternative: We could make build_tools() itself async and always query
-    the database, but that would force async everywhere even when only using
-    built-in tools. The current design keeps the simple case (static tools
-    only) synchronous while supporting dynamic database-loaded tools through
-    this async wrapper.
-
-    Phase 1.3: built-in tool construction (CPU; runs in a thread pool to
-    avoid event-loop stalls) and MCP tool loading (HTTP/DB I/O; runs on
-    the event loop) are kicked off concurrently. Cold-path savings are
-    bounded by the slower of the two — typically MCP at ~200ms-1.7s —
-    so the parallelization recovers the ~50-200ms previously spent
-    serially on built-in construction.
-
-    Args:
-        dependencies: Dict containing all possible dependencies
-        enabled_tools: Explicit list of tool names to enable. If None, uses defaults.
-        disabled_tools: List of tool names to disable (applied after enabled_tools).
-        additional_tools: Extra tools to add (e.g., custom tools not in registry).
-        include_mcp_tools: Whether to load user's MCP tools from database.
-
-    Returns:
-        List of configured tool instances ready for the agent, including MCP tools.
-
-    """
-    import asyncio
-    import time
-
-    _perf_log = logging.getLogger("surfsense.perf")
-    _perf_log.setLevel(logging.DEBUG)
-
-    can_load_mcp = (
-        include_mcp_tools
-        and "db_session" in dependencies
-        and "search_space_id" in dependencies
-    )
-
-    # Built-in tool construction is synchronous + CPU-only. Off-loop it so
-    # MCP's HTTP/DB I/O can fire concurrently. ``build_tools`` is pure
-    # function over its inputs — safe to thread-shift.
-    _t0 = time.perf_counter()
-    builtin_task = asyncio.create_task(
-        asyncio.to_thread(
-            build_tools, dependencies, enabled_tools, disabled_tools, additional_tools
-        )
-    )
-
-    mcp_task: asyncio.Task | None = None
-    if can_load_mcp:
-        mcp_task = asyncio.create_task(
-            load_mcp_tools(
-                dependencies["db_session"],
-                dependencies["search_space_id"],
-            )
-        )
-
-    # Surface failures from each task independently so a flaky MCP
-    # endpoint never poisons built-in tool registration. ``return_exceptions``
-    # gives us per-task exceptions instead of dropping the second result
-    # when the first raises.
-    if mcp_task is not None:
-        builtin_result, mcp_result = await asyncio.gather(
-            builtin_task, mcp_task, return_exceptions=True
-        )
-    else:
-        builtin_result = await builtin_task
-        mcp_result = None
-
-    if isinstance(builtin_result, BaseException):
-        raise builtin_result  # built-in registration failure is non-recoverable
-    tools: list[BaseTool] = builtin_result
-    _perf_log.info(
-        "[build_tools_async] Built-in tools in %.3fs (%d tools, parallel)",
-        time.perf_counter() - _t0,
-        len(tools),
-    )
-
-    if mcp_task is not None:
-        if isinstance(mcp_result, BaseException):
-            # ``return_exceptions=True`` captures the exception out-of-band,
-            # so ``sys.exc_info()`` is empty here. Pass the captured
-            # exception via ``exc_info=`` to get a real traceback.
-            logging.error(
-                "Failed to load MCP tools: %s", mcp_result, exc_info=mcp_result
-            )
-        else:
-            mcp_tools = mcp_result or []
-            _perf_log.info(
-                "[build_tools_async] MCP tools loaded in %.3fs (%d tools, parallel)",
-                time.perf_counter() - _t0,
-                len(mcp_tools),
-            )
-            tools.extend(mcp_tools)
-            logging.info(
-                "Registered %d MCP tools: %s",
-                len(mcp_tools),
-                [t.name for t in mcp_tools],
-            )
-
-    logging.info(
-        "Total tools for agent: %d — %s",
-        len(tools),
-        [t.name for t in tools],
-    )
-
-    return tools

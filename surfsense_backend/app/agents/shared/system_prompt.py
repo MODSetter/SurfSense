@@ -7,8 +7,8 @@ composer module docstring for credits). This module preserves the public
 function surface (``build_surfsense_system_prompt`` /
 ``build_configurable_system_prompt`` /
 ``get_default_system_instructions`` / ``SURFSENSE_SYSTEM_PROMPT``) so
-that existing call sites — `chat_deepagent.py`, anonymous chat routes,
-and the configurable-prompt admin path — keep working without churn.
+that existing call sites — the multi-agent chat factory, anonymous chat
+routes, and the configurable-prompt admin path — keep working without churn.
 
 For new call sites prefer importing ``compose_system_prompt`` directly
 from :mod:`app.agents.shared.prompts.composer`.
