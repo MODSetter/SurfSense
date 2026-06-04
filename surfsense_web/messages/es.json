@@ -650,13 +650,15 @@
 		"created": "Creado"
 	},
 	"sidebar": {
-		"chats": "Chats privados",
+		"recents": "Recientes",
+		"chats": "Chats",
 		"shared_chats": "Chats compartidos",
 		"search_chats": "Buscar chats",
 		"no_chats_found": "No se encontraron chats",
 		"no_shared_chats": "No hay chats compartidos",
+		"shared_chat": "Chat compartido",
 		"view_all_shared_chats": "Ver todos los chats compartidos",
-		"view_all_private_chats": "Ver todos los chats privados",
+		"view_all_chats": "Ver todos los chats",
 		"show_all": "Ver todo",
 		"hide": "Ocultar",
 		"no_chats": "Sin chats",

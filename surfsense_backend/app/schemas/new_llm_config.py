@@ -221,9 +221,6 @@ class LLMPreferencesRead(BaseModel):
     agent_llm_id: int | None = Field(
         None, description="ID of the LLM config to use for agent/chat tasks"
     )
-    document_summary_llm_id: int | None = Field(
-        None, description="ID of the LLM config to use for document summarization"
-    )
     image_generation_config_id: int | None = Field(
         None, description="ID of the image generation config to use"
     )
@@ -233,9 +230,6 @@ class LLMPreferencesRead(BaseModel):
     )
     agent_llm: dict[str, Any] | None = Field(
         None, description="Full config for agent LLM"
-    )
-    document_summary_llm: dict[str, Any] | None = Field(
-        None, description="Full config for document summary LLM"
     )
     image_generation_config: dict[str, Any] | None = Field(
         None, description="Full config for image generation"
@@ -252,9 +246,6 @@ class LLMPreferencesUpdate(BaseModel):
 
     agent_llm_id: int | None = Field(
         None, description="ID of the LLM config to use for agent/chat tasks"
-    )
-    document_summary_llm_id: int | None = Field(
-        None, description="ID of the LLM config to use for document summarization"
     )
     image_generation_config_id: int | None = Field(
         None, description="ID of the image generation config to use"

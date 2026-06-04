@@ -1,5 +1,5 @@
 "use client";
-import { MessageSquarePlus, SquarePen, Workflow } from "lucide-react";
+import { Workflow } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -28,16 +28,14 @@ export function AutomationsEmptyState({ searchSpaceId, canCreate }: AutomationsE
 			{canCreate ? (
 				<div className="mt-6 flex items-center justify-center gap-2 flex-wrap">
 					<Button asChild>
-						<Link href={`/dashboard/${searchSpaceId}/new-chat`}>
-							<MessageSquarePlus className="mr-2 h-4 w-4" />
-							Create via chat
-						</Link>
+						<Link href={`/dashboard/${searchSpaceId}/new-chat`}>Create via chat</Link>
 					</Button>
-					<Button asChild variant="outline">
-						<Link href={`/dashboard/${searchSpaceId}/automations/new`}>
-							<SquarePen className="mr-2 h-4 w-4" />
-							Create manually
-						</Link>
+					<Button
+						asChild
+						variant="ghost"
+						className="h-10 justify-start rounded-md bg-muted px-3 text-sm hover:bg-accent"
+					>
+						<Link href={`/dashboard/${searchSpaceId}/automations/new`}>Create manually</Link>
 					</Button>
 				</div>
 			) : (

@@ -619,7 +619,6 @@ function AuthenticatedDocumentsSidebarBase({
 					searchSpaceId,
 					excludePatterns: matched.excludePatterns ?? DEFAULT_EXCLUDE_PATTERNS,
 					fileExtensions: matched.fileExtensions ?? Array.from(getSupportedExtensionsSet()),
-					enableSummary: false,
 					rootFolderId: folder.id,
 				});
 				toast.success(`Re-scan complete: ${matched.name}`);

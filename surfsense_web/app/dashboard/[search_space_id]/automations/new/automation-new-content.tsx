@@ -38,9 +38,12 @@ export function AutomationNewContent({ searchSpaceId }: AutomationNewContentProp
 	}
 
 	return (
-		<>
-			<AutomationNewHeader searchSpaceId={searchSpaceId} />
-			<AutomationBuilderForm mode="create" searchSpaceId={searchSpaceId} />
-		</>
+		<AutomationBuilderForm
+			mode="create"
+			searchSpaceId={searchSpaceId}
+			renderModeSwitcher={(modeSwitcher) => (
+				<AutomationNewHeader searchSpaceId={searchSpaceId} modeSwitcher={modeSwitcher} />
+			)}
+		/>
 	);
 }

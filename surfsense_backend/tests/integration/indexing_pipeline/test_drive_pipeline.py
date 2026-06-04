@@ -25,8 +25,6 @@ def _drive_doc(
         search_space_id=search_space_id,
         connector_id=connector_id,
         created_by_id=user_id,
-        should_summarize=True,
-        fallback_summary=f"File: {unique_id}.pdf",
         metadata={
             "google_drive_file_id": unique_id,
             "google_drive_file_name": f"{unique_id}.pdf",
@@ -36,7 +34,7 @@ def _drive_doc(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+"patched_embed_texts", "patched_chunk_text"
 )
 async def test_drive_pipeline_creates_ready_document(
     db_session, db_search_space, db_connector, db_user, mocker
@@ -54,7 +52,7 @@ async def test_drive_pipeline_creates_ready_document(
     prepared = await service.prepare_for_indexing([doc])
     assert len(prepared) == 1
 
-    await service.index(prepared[0], doc, llm=mocker.Mock())
+    await service.index(prepared[0], doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.search_space_id == space_id)
@@ -67,7 +65,7 @@ async def test_drive_pipeline_creates_ready_document(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+"patched_embed_texts", "patched_chunk_text"
 )
 async def test_drive_legacy_doc_migrated(
     db_session, db_search_space, db_connector, db_user, mocker

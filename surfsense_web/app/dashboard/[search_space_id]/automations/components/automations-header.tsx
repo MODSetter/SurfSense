@@ -1,5 +1,4 @@
 "use client";
-import { MessageSquarePlus, SquarePen } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -41,17 +40,16 @@ export function AutomationsHeader({
 			</div>
 			{canCreate && showCreateCta && (
 				<div className="flex items-center gap-2">
-					<Button asChild size="sm" variant="outline">
-						<Link href={`/dashboard/${searchSpaceId}/automations/new`}>
-							<SquarePen className="mr-2 h-4 w-4" />
-							Create manually
-						</Link>
+					<Button
+						asChild
+						size="sm"
+						variant="ghost"
+						className="justify-start rounded-md bg-muted px-3 hover:bg-accent"
+					>
+						<Link href={`/dashboard/${searchSpaceId}/automations/new`}>Create manually</Link>
 					</Button>
 					<Button asChild size="sm">
-						<Link href={`/dashboard/${searchSpaceId}/new-chat`}>
-							<MessageSquarePlus className="mr-2 h-4 w-4" />
-							Create via chat
-						</Link>
+						<Link href={`/dashboard/${searchSpaceId}/new-chat`}>Create via chat</Link>
 					</Button>
 				</div>
 			)}

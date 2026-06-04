@@ -54,6 +54,17 @@ USER_COLS = [
     "premium_credit_micros_used",
 ]
 
+AUTOMATION_RUN_COLS = [
+    "id",
+    "automation_id",
+    "trigger_id",
+    "status",
+    "step_results",
+    "started_at",
+    "finished_at",
+    "created_at",
+]
+
 def _has_zero_version(conn, table: str) -> bool:
     return (
         conn.execute(
@@ -150,7 +161,8 @@ def _build_set_table_ddl(
         f"new_chat_messages, "
         f"chat_comments, "
         f"chat_session_state, "
-        f'"user" ({_cols(user_cols)})'
+        f'"user" ({_cols(user_cols)}), '
+        f"automation_runs ({_cols(AUTOMATION_RUN_COLS)})"
     )
 
 
@@ -523,7 +535,7 @@ def downgrade() -> None:
     if exists:
         documents_has_zero_ver = _has_zero_version(conn, "documents")
         user_has_zero_ver = _has_zero_version(conn, "user")
-        # Restore the publication shape from migration 143.
+        # Restore the publication shape from migration 148.
         doc_cols = DOCUMENT_COLS + (['"_0_version"'] if documents_has_zero_ver else [])
         user_cols = USER_COLS + (['"_0_version"'] if user_has_zero_ver else [])
         ddl = (
@@ -535,7 +547,8 @@ def downgrade() -> None:
             f"new_chat_messages, "
             f"chat_comments, "
             f"chat_session_state, "
-            f'"user" ({_cols(user_cols)})'
+            f'"user" ({_cols(user_cols)}), '
+            f"automation_runs ({_cols(AUTOMATION_RUN_COLS)})"
         )
         tx = conn.begin_nested() if conn.in_transaction() else conn.begin()
         with tx:

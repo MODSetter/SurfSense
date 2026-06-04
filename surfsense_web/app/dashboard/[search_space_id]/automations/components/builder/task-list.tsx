@@ -53,11 +53,10 @@ export function TaskList({ tasks, errors, searchSpaceId, onChange }: TaskListPro
 
 			<Button
 				type="button"
-				variant="outline"
 				size="sm"
 				onClick={() => onChange([...tasks, emptyTask()])}
 			>
-				<Plus className="mr-1.5 h-4 w-4" />
+				<Plus className="h-4 w-4" />
 				Add task
 			</Button>
 		</div>

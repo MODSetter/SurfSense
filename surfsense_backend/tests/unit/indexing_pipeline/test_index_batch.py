@@ -37,12 +37,10 @@ async def test_calls_prepare_then_index_per_document(pipeline, make_connector_do
     orm2 = MagicMock(spec=Document)
     orm2.unique_identifier_hash = compute_unique_identifier_hash(doc2)
 
-    mock_llm = MagicMock()
-
     pipeline.prepare_for_indexing = AsyncMock(return_value=[orm1, orm2])
-    pipeline.index = AsyncMock(side_effect=lambda doc, cdoc, llm: doc)
+    pipeline.index = AsyncMock(side_effect=lambda doc, cdoc: doc)
 
-    results = await pipeline.index_batch([doc1, doc2], mock_llm)
+    results = await pipeline.index_batch([doc1, doc2])
 
     pipeline.prepare_for_indexing.assert_awaited_once_with([doc1, doc2])
     assert pipeline.index.await_count == 2
@@ -53,7 +51,7 @@ async def test_empty_input_returns_empty(pipeline):
     """Empty connector_docs list returns empty result."""
     pipeline.prepare_for_indexing = AsyncMock(return_value=[])
 
-    results = await pipeline.index_batch([], MagicMock())
+    results = await pipeline.index_batch([])
 
     assert results == []
 
@@ -74,7 +72,7 @@ async def test_skips_document_without_matching_connector_doc(
     pipeline.prepare_for_indexing = AsyncMock(return_value=[orphan_orm])
     pipeline.index = AsyncMock()
 
-    results = await pipeline.index_batch([doc1], MagicMock())
+    results = await pipeline.index_batch([doc1])
 
     pipeline.index.assert_not_awaited()
     assert results == []

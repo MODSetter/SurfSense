@@ -180,7 +180,6 @@ async def _run_gdrive_selected(mocks, file_ids):
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
 
@@ -336,10 +335,6 @@ def gdrive_full_scan_mocks(monkeypatch):
     monkeypatch.setattr(
         _mod, "IndexingPipelineService", MagicMock(return_value=pipeline_mock)
     )
-    monkeypatch.setattr(
-        _mod, "get_user_long_context_llm", AsyncMock(return_value=MagicMock())
-    )
-
     return {
         "mod": _mod,
         "session": session,
@@ -366,7 +361,6 @@ async def _run_gdrive_full_scan(mocks, max_files=500):
         MagicMock(),
         max_files,
         include_subfolders=False,
-        enable_summary=True,
     )
 
 
@@ -454,10 +448,6 @@ async def test_gdrive_delta_sync_skips_over_quota(monkeypatch):
     monkeypatch.setattr(
         _mod, "IndexingPipelineService", MagicMock(return_value=pipeline_mock)
     )
-    monkeypatch.setattr(
-        _mod, "get_user_long_context_llm", AsyncMock(return_value=MagicMock())
-    )
-
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
@@ -473,7 +463,6 @@ async def test_gdrive_delta_sync_skips_over_quota(monkeypatch):
         mock_task_logger,
         MagicMock(),
         max_files=500,
-        enable_summary=True,
     )
 
     call_files = download_mock.call_args[0][1]
@@ -539,7 +528,6 @@ async def _run_onedrive_selected(mocks, file_ids):
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
 
@@ -641,7 +629,6 @@ async def _run_dropbox_selected(mocks, file_paths):
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
 

@@ -51,11 +51,6 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
         return await original_to_thread(func, *args, **kwargs)
 
     monkeypatch.setattr(asyncio, "to_thread", tracking_to_thread)
-
-    monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.summarize_document",
-        AsyncMock(return_value="Summary."),
-    )
     mock_chunk_hybrid = MagicMock(return_value=["chunk1"])
     mock_chunk_hybrid.__name__ = "chunk_text_hybrid"
     monkeypatch.setattr(
@@ -85,7 +80,7 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
     document.id = 1
     document.status = DocumentStatus.pending()
 
-    await pipeline.index(document, connector_doc, llm=MagicMock())
+    await pipeline.index(document, connector_doc)
 
     # Either chunker entry point satisfies the "chunking runs off the event
     # loop" contract this test guards. Routing between the two is verified
@@ -104,10 +99,6 @@ async def test_non_code_documents_use_hybrid_chunker(
     mid-row. Only documents flagged with ``should_use_code_chunker=True``
     should take the ``chunk_text`` path.
     """
-    monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.summarize_document",
-        AsyncMock(return_value="Summary."),
-    )
     mock_chunk_hybrid = MagicMock(return_value=["chunk1"])
     mock_chunk_hybrid.__name__ = "chunk_text_hybrid"
     monkeypatch.setattr(
@@ -139,7 +130,7 @@ async def test_non_code_documents_use_hybrid_chunker(
     document.id = 1
     document.status = DocumentStatus.pending()
 
-    await pipeline.index(document, connector_doc, llm=MagicMock())
+    await pipeline.index(document, connector_doc)
 
     mock_chunk_hybrid.assert_called_once()
     mock_chunk_code.assert_not_called()
@@ -192,19 +183,14 @@ async def test_batch_parallel_indexes_all_documents(
 
     index_calls = []
 
-    async def fake_index(self, document, connector_doc, llm):
+    async def fake_index(self, document, connector_doc):
         index_calls.append(document.id)
         document.status = DocumentStatus.ready()
         return document
 
     monkeypatch.setattr(IndexingPipelineService, "index", fake_index)
 
-    async def mock_get_llm(session):
-        return MagicMock()
-
-    _, indexed, failed = await pipeline.index_batch_parallel(
-        docs, mock_get_llm, max_concurrency=2
-    )
+    _, indexed, failed = await pipeline.index_batch_parallel(docs, max_concurrency=2)
 
     assert indexed == 3
     assert failed == 0
@@ -233,20 +219,15 @@ async def test_batch_parallel_one_failure_does_not_affect_others(
         _mock_session_factory(orm_by_id),
     )
 
-    async def failing_index(self, document, connector_doc, llm):
+    async def failing_index(self, document, connector_doc):
         if document.id == 2:
-            raise RuntimeError("LLM exploded")
+            raise RuntimeError("Indexing exploded")
         document.status = DocumentStatus.ready()
         return document
 
     monkeypatch.setattr(IndexingPipelineService, "index", failing_index)
 
-    async def mock_get_llm(session):
-        return MagicMock()
-
-    _, indexed, failed = await pipeline.index_batch_parallel(
-        docs, mock_get_llm, max_concurrency=4
-    )
+    _, indexed, failed = await pipeline.index_batch_parallel(docs, max_concurrency=4)
 
     assert indexed == 2
     assert failed == 1

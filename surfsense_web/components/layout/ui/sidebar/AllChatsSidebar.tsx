@@ -11,6 +11,7 @@ import {
 	RotateCcwIcon,
 	Search,
 	Trash2,
+	User,
 	Users,
 	X,
 } from "lucide-react";
@@ -39,40 +40,41 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
-import {
-	deleteThread,
-	fetchThreads,
-	searchThreads,
-	updateThread,
-} from "@/lib/chat/thread-persistence";
+import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
+import { fetchThreads, searchThreads, type ThreadListItem } from "@/lib/chat/thread-persistence";
 import { formatThreadTimestamp } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
-export interface AllSharedChatsSidebarContentProps {
+export interface AllChatsSidebarContentProps {
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
 	onCloseMobileSidebar?: () => void;
 }
 
-interface AllSharedChatsSidebarProps extends AllSharedChatsSidebarContentProps {
+interface AllChatsSidebarProps extends AllChatsSidebarContentProps {
 	open: boolean;
 }
 
-export function AllSharedChatsSidebarContent({
+export function AllChatsSidebarContent({
 	onOpenChange,
 	searchSpaceId,
 	onCloseMobileSidebar,
-}: AllSharedChatsSidebarContentProps) {
+}: AllChatsSidebarContentProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
 	const queryClient = useQueryClient();
 	const isMobile = useIsMobile();
 	const removeChatTab = useSetAtom(removeChatTabAtom);
+	const { activateChatThread, prefetchChatThread } = useActivateChatThread();
+	const { mutateAsync: deleteThread } = useDeleteThread(searchSpaceId);
+	const { mutateAsync: archiveThread } = useArchiveThread(searchSpaceId);
+	const { mutateAsync: renameThread } = useRenameThread(searchSpaceId);
 
 	const currentChatId = Array.isArray(params.chat_id)
 		? Number(params.chat_id[0])
@@ -109,6 +111,7 @@ export function AllSharedChatsSidebarContent({
 		queryKey: ["all-threads", searchSpaceId],
 		queryFn: () => fetchThreads(Number(searchSpaceId)),
 		enabled: !!searchSpaceId && !isSearchMode,
+		placeholderData: () => queryClient.getQueryData(["threads", searchSpaceId, { limit: 40 }]),
 	});
 
 	const {
@@ -121,57 +124,66 @@ export function AllSharedChatsSidebarContent({
 		enabled: !!searchSpaceId && isSearchMode,
 	});
 
-	// Filter to only shared chats (SEARCH_SPACE visibility)
 	const { activeChats, archivedChats } = useMemo(() => {
 		if (isSearchMode) {
-			const sharedSearchResults = (searchData ?? []).filter(
-				(thread) => thread.visibility === "SEARCH_SPACE"
-			);
 			return {
-				activeChats: sharedSearchResults.filter((t) => !t.archived),
-				archivedChats: sharedSearchResults.filter((t) => t.archived),
+				activeChats: (searchData ?? []).filter((t) => !t.archived),
+				archivedChats: (searchData ?? []).filter((t) => t.archived),
 			};
 		}
 
 		if (!threadsData) return { activeChats: [], archivedChats: [] };
 
-		const activeShared = threadsData.threads.filter(
-			(thread) => thread.visibility === "SEARCH_SPACE"
-		);
-		const archivedShared = threadsData.archived_threads.filter(
-			(thread) => thread.visibility === "SEARCH_SPACE"
-		);
-
-		return { activeChats: activeShared, archivedChats: archivedShared };
+		return {
+			activeChats: threadsData.threads,
+			archivedChats: threadsData.archived_threads,
+		};
 	}, [threadsData, searchData, isSearchMode]);
 
 	const threads = showArchived ? archivedChats : activeChats;
 
 	const handleThreadClick = useCallback(
-		(threadId: number) => {
-			router.push(`/dashboard/${searchSpaceId}/new-chat/${threadId}`);
+		(thread: ThreadListItem) => {
+			activateChatThread({
+				id: thread.id,
+				title: thread.title || "New Chat",
+				searchSpaceId,
+				visibility: thread.visibility,
+			});
 			onOpenChange(false);
 			onCloseMobileSidebar?.();
 		},
-		[router, onOpenChange, searchSpaceId, onCloseMobileSidebar]
+		[activateChatThread, onOpenChange, searchSpaceId, onCloseMobileSidebar]
 	);
 
 	const handleDeleteThread = useCallback(
 		async (threadId: number) => {
 			setDeletingThreadId(threadId);
 			try {
-				await deleteThread(threadId);
+				await deleteThread({ threadId });
 				const fallbackTab = removeChatTab(threadId);
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
-				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 
 				if (currentChatId === threadId) {
 					onOpenChange(false);
 					setTimeout(() => {
-						if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
-							router.push(fallbackTab.chatUrl);
+						if (
+							fallbackTab?.type === "chat" &&
+							fallbackTab.chatUrl &&
+							fallbackTab.chatId !== undefined
+						) {
+							activateChatThread({
+								id: fallbackTab.chatId ?? null,
+								title: fallbackTab.title,
+								url: fallbackTab.chatUrl,
+								searchSpaceId: fallbackTab.searchSpaceId ?? searchSpaceId,
+								...(fallbackTab.visibility !== undefined
+									? { visibility: fallbackTab.visibility }
+									: {}),
+								...(fallbackTab.hasComments !== undefined
+									? { hasComments: fallbackTab.hasComments }
+									: {}),
+							});
 							return;
 						}
 						router.push(`/dashboard/${searchSpaceId}/new-chat`);
@@ -184,22 +196,28 @@ export function AllSharedChatsSidebarContent({
 				setDeletingThreadId(null);
 			}
 		},
-		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange, removeChatTab]
+		[
+			activateChatThread,
+			deleteThread,
+			t,
+			currentChatId,
+			router,
+			onOpenChange,
+			removeChatTab,
+			searchSpaceId,
+		]
 	);
 
 	const handleToggleArchive = useCallback(
 		async (threadId: number, currentlyArchived: boolean) => {
 			setArchivingThreadId(threadId);
 			try {
-				await updateThread(threadId, { archived: !currentlyArchived });
+				await archiveThread({ threadId, archived: !currentlyArchived });
 				toast.success(
 					currentlyArchived
 						? t("chat_unarchived") || "Chat restored"
 						: t("chat_archived") || "Chat archived"
 				);
-				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			} catch (error) {
 				console.error("Error archiving thread:", error);
 				toast.error(t("error_archiving_chat") || "Failed to archive chat");
@@ -207,7 +225,7 @@ export function AllSharedChatsSidebarContent({
 				setArchivingThreadId(null);
 			}
 		},
-		[queryClient, searchSpaceId, t]
+		[archiveThread, t]
 	);
 
 	const handleStartRename = useCallback((threadId: number, title: string) => {
@@ -220,14 +238,12 @@ export function AllSharedChatsSidebarContent({
 		if (!renamingThread || !newTitle.trim()) return;
 		setIsRenaming(true);
 		try {
-			await updateThread(renamingThread.id, { title: newTitle.trim() });
-			toast.success(t("chat_renamed") || "Chat renamed");
-			queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
-			queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
-			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
-			queryClient.invalidateQueries({
-				queryKey: ["threads", searchSpaceId, "detail", String(renamingThread.id)],
+			await renameThread({
+				threadId: renamingThread.id,
+				title: newTitle.trim(),
+				previousTitle: renamingThread.title,
 			});
+			toast.success(t("chat_renamed") || "Chat renamed");
 		} catch (error) {
 			console.error("Error renaming thread:", error);
 			toast.error(t("error_renaming_chat") || "Failed to rename chat");
@@ -237,7 +253,7 @@ export function AllSharedChatsSidebarContent({
 			setRenamingThread(null);
 			setNewTitle("");
 		}
-	}, [renamingThread, newTitle, queryClient, searchSpaceId, t]);
+	}, [renamingThread, newTitle, renameThread, t]);
 
 	const handleClearSearch = useCallback(() => {
 		setSearchQuery("");
@@ -264,7 +280,7 @@ export function AllSharedChatsSidebarContent({
 							<span className="sr-only">{t("close") || "Close"}</span>
 						</Button>
 					)}
-					<h2 className="text-lg font-semibold">{t("shared_chats") || "Shared Chats"}</h2>
+					<h2 className="text-lg font-semibold">{t("chats") || "Chats"}</h2>
 				</div>
 
 				<div className="relative">
@@ -352,8 +368,10 @@ export function AllSharedChatsSidebarContent({
 											variant="ghost"
 											onClick={() => {
 												if (wasLongPress()) return;
-												handleThreadClick(thread.id);
+												handleThreadClick(thread);
 											}}
+											onMouseEnter={() => prefetchChatThread(thread.id)}
+											onFocus={() => prefetchChatThread(thread.id)}
 											onTouchStart={() => {
 												pendingThreadIdRef.current = thread.id;
 												longPressHandlers.onTouchStart();
@@ -362,14 +380,15 @@ export function AllSharedChatsSidebarContent({
 											onTouchMove={longPressHandlers.onTouchMove}
 											disabled={isBusy}
 											className={cn(
-												"h-auto w-full justify-start gap-2 overflow-hidden rounded-md px-2 py-1.5 text-sm text-left",
+												"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
 												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+												thread.visibility === "SEARCH_SPACE" && "pr-9",
 												isActive && "bg-accent text-accent-foreground",
 												isBusy && "opacity-50 pointer-events-none"
 											)}
 										>
-											<span className="truncate">{thread.title || "New Chat"}</span>
+											<span className="min-w-0 flex-1 truncate">{thread.title || "New Chat"}</span>
 										</Button>
 									) : (
 										<Tooltip delayDuration={600}>
@@ -377,17 +396,22 @@ export function AllSharedChatsSidebarContent({
 												<Button
 													type="button"
 													variant="ghost"
-													onClick={() => handleThreadClick(thread.id)}
+													onClick={() => handleThreadClick(thread)}
+													onMouseEnter={() => prefetchChatThread(thread.id)}
+													onFocus={() => prefetchChatThread(thread.id)}
 													disabled={isBusy}
 													className={cn(
-														"h-auto w-full justify-start gap-2 overflow-hidden rounded-md px-2 py-1.5 text-sm text-left",
+														"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
 														"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 														"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+														thread.visibility === "SEARCH_SPACE" && "pr-9",
 														isActive && "bg-accent text-accent-foreground",
 														isBusy && "opacity-50 pointer-events-none"
 													)}
 												>
-													<span className="truncate">{thread.title || "New Chat"}</span>
+													<span className="min-w-0 flex-1 truncate">
+														{thread.title || "New Chat"}
+													</span>
 												</Button>
 											</TooltipTrigger>
 											<TooltipContent side="bottom" align="start">
@@ -406,64 +430,83 @@ export function AllSharedChatsSidebarContent({
 												: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
 											isMobile
 												? "opacity-0"
-												: openDropdownId === thread.id
+												: thread.visibility === "SEARCH_SPACE" || openDropdownId === thread.id
 													? "opacity-100"
 													: "opacity-0 group-hover/item:opacity-100"
 										)}
 									>
-										<DropdownMenu
-											open={openDropdownId === thread.id}
-											onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
-										>
-											<DropdownMenuTrigger asChild>
-												<Button
-													variant="ghost"
-													size="icon"
+										<div className="relative h-6 w-6">
+											{thread.visibility === "SEARCH_SPACE" ? (
+												<Users
+													aria-label={t("shared_chat") || "Shared chat"}
 													className={cn(
-														"pointer-events-auto h-6 w-6 hover:bg-transparent",
-														openDropdownId === thread.id && "bg-accent hover:bg-accent"
+														"absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 text-muted-foreground/50",
+														!isMobile &&
+															(openDropdownId === thread.id
+																? "opacity-0"
+																: "opacity-100 group-hover/item:opacity-0")
 													)}
-													disabled={isBusy}
-												>
-													{isDeleting ? (
-														<Spinner size="xs" />
-													) : (
-														<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-													)}
-													<span className="sr-only">{t("more_options") || "More options"}</span>
-												</Button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end" className="w-40 z-80">
-												{!thread.archived && (
-													<DropdownMenuItem
-														onClick={() => handleStartRename(thread.id, thread.title || "New Chat")}
+												/>
+											) : null}
+											<DropdownMenu
+												open={openDropdownId === thread.id}
+												onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
+											>
+												<DropdownMenuTrigger asChild>
+													<Button
+														variant="ghost"
+														size="icon"
+														className={cn(
+															"pointer-events-auto h-6 w-6 hover:bg-transparent",
+															openDropdownId === thread.id && "bg-accent hover:bg-accent",
+															!isMobile &&
+																openDropdownId !== thread.id &&
+																"opacity-0 group-hover/item:opacity-100"
+														)}
+														disabled={isBusy}
 													>
-														<Pencil className="mr-2 h-4 w-4" />
-														<span>{t("rename") || "Rename"}</span>
-													</DropdownMenuItem>
-												)}
-												<DropdownMenuItem
-													onClick={() => handleToggleArchive(thread.id, thread.archived)}
-													disabled={isArchiving}
-												>
-													{thread.archived ? (
-														<>
-															<RotateCcwIcon className="mr-2 h-4 w-4" />
-															<span>{t("unarchive") || "Restore"}</span>
-														</>
-													) : (
-														<>
-															<ArchiveIcon className="mr-2 h-4 w-4" />
-															<span>{t("archive") || "Archive"}</span>
-														</>
+														{isDeleting ? (
+															<Spinner size="xs" />
+														) : (
+															<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+														)}
+														<span className="sr-only">{t("more_options") || "More options"}</span>
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align="end" className="w-40 z-80">
+													{!thread.archived && (
+														<DropdownMenuItem
+															onClick={() =>
+																handleStartRename(thread.id, thread.title || "New Chat")
+															}
+														>
+															<Pencil className="mr-2 h-4 w-4" />
+															<span>{t("rename") || "Rename"}</span>
+														</DropdownMenuItem>
 													)}
-												</DropdownMenuItem>
-												<DropdownMenuItem onClick={() => handleDeleteThread(thread.id)}>
-													<Trash2 className="mr-2 h-4 w-4" />
-													<span>{t("delete") || "Delete"}</span>
-												</DropdownMenuItem>
-											</DropdownMenuContent>
-										</DropdownMenu>
+													<DropdownMenuItem
+														onClick={() => handleToggleArchive(thread.id, thread.archived)}
+														disabled={isArchiving}
+													>
+														{thread.archived ? (
+															<>
+																<RotateCcwIcon className="mr-2 h-4 w-4" />
+																<span>{t("unarchive") || "Restore"}</span>
+															</>
+														) : (
+															<>
+																<ArchiveIcon className="mr-2 h-4 w-4" />
+																<span>{t("archive") || "Archive"}</span>
+															</>
+														)}
+													</DropdownMenuItem>
+													<DropdownMenuItem onClick={() => handleDeleteThread(thread.id)}>
+														<Trash2 className="mr-2 h-4 w-4" />
+														<span>{t("delete") || "Delete"}</span>
+													</DropdownMenuItem>
+												</DropdownMenuContent>
+											</DropdownMenu>
+										</div>
 									</div>
 								</div>
 							);
@@ -481,15 +524,15 @@ export function AllSharedChatsSidebarContent({
 					</div>
 				) : (
 					<div className="text-center py-8">
-						<Users className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
+						<User className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
 						<p className="text-xs text-muted-foreground">
 							{showArchived
 								? t("no_archived_chats") || "No archived chats"
-								: t("no_shared_chats") || "No shared chats"}
+								: t("no_chats") || "No chats"}
 						</p>
 						{!showArchived && (
 							<p className="mt-1 text-[11px] text-muted-foreground/70">
-								Share a chat to collaborate with your team
+								{t("start_new_chat_hint") || "Start a new chat from the chat page"}
 							</p>
 						)}
 					</div>
@@ -526,16 +569,17 @@ export function AllSharedChatsSidebarContent({
 						<Button
 							onClick={handleConfirmRename}
 							disabled={isRenaming || !newTitle.trim()}
-							className="gap-2"
+							className="relative"
 						>
+							<span className={isRenaming ? "opacity-0" : undefined}>
+								{t("rename") || "Rename"}
+							</span>
 							{isRenaming ? (
-								<>
-									<Spinner size="xs" />
-									<span>{t("renaming") || "Renaming"}</span>
-								</>
-							) : (
-								<span>{t("rename") || "Rename"}</span>
-							)}
+								<Spinner
+									size="xs"
+									className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+								/>
+							) : null}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -544,21 +588,17 @@ export function AllSharedChatsSidebarContent({
 	);
 }
 
-export function AllSharedChatsSidebar({
+export function AllChatsSidebar({
 	open,
 	onOpenChange,
 	searchSpaceId,
 	onCloseMobileSidebar,
-}: AllSharedChatsSidebarProps) {
+}: AllChatsSidebarProps) {
 	const t = useTranslations("sidebar");
 
 	return (
-		<SidebarSlideOutPanel
-			open={open}
-			onOpenChange={onOpenChange}
-			ariaLabel={t("shared_chats") || "Shared Chats"}
-		>
-			<AllSharedChatsSidebarContent
+		<SidebarSlideOutPanel open={open} onOpenChange={onOpenChange} ariaLabel={t("chats") || "Chats"}>
+			<AllChatsSidebarContent
 				onOpenChange={onOpenChange}
 				searchSpaceId={searchSpaceId}
 				onCloseMobileSidebar={onCloseMobileSidebar}

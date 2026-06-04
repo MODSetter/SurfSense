@@ -103,7 +103,7 @@ def init_worker(**kwargs):
     """Initialize the LLM Router and Image Gen Router when a Celery worker process starts.
 
     This ensures the Auto mode (LiteLLM Router) is available for background tasks
-    like document summarization and image generation.
+    like agent workflows and image generation.
     """
     from app.observability.bootstrap import init_otel
 

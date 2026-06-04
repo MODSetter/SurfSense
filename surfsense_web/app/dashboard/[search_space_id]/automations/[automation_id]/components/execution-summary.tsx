@@ -15,8 +15,8 @@ export function ExecutionSummary({ execution }: ExecutionSummaryProps) {
 		<dl className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-xs">
 			<Item label="Timeout" value={`${execution.timeout_seconds}s`} />
 			<Item label="Max retries" value={String(execution.max_retries)} />
-			<Item label="Retry backoff" value={execution.retry_backoff} />
-			<Item label="Concurrency" value={execution.concurrency} />
+			<Item label="Retry backoff" value={formatEnumValue(execution.retry_backoff)} />
+			<Item label="Concurrency" value={formatEnumValue(execution.concurrency)} />
 			{execution.on_failure.length > 0 && (
 				<Item
 					label="On failure"
@@ -25,6 +25,11 @@ export function ExecutionSummary({ execution }: ExecutionSummaryProps) {
 			)}
 		</dl>
 	);
+}
+
+function formatEnumValue(value: string): string {
+	const text = value.replace(/_/g, " ");
+	return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function Item({ label, value }: { label: string; value: string }) {

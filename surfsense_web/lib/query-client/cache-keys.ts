@@ -19,10 +19,8 @@ function stableEntries(obj: Record<string, unknown> | null | undefined): unknown
 export const cacheKeys = {
 	// New chat threads (assistant-ui)
 	threads: {
-		list: (searchSpaceId: number) => ["threads", searchSpaceId] as const,
 		detail: (threadId: number) => ["threads", "detail", threadId] as const,
-		search: (searchSpaceId: number, query: string) =>
-			["threads", "search", searchSpaceId, query] as const,
+		messages: (threadId: number) => ["threads", "messages", threadId] as const,
 	},
 	documents: {
 		globalQueryParams: (queries: GetDocumentsRequest["queryParams"]) =>

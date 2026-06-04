@@ -1,5 +1,4 @@
-export { AllPrivateChatsSidebar, AllPrivateChatsSidebarContent } from "./AllPrivateChatsSidebar";
-export { AllSharedChatsSidebar, AllSharedChatsSidebarContent } from "./AllSharedChatsSidebar";
+export { AllChatsSidebar, AllChatsSidebarContent } from "./AllChatsSidebar";
 export { ChatListItem } from "./ChatListItem";
 export { DocumentsSidebar } from "./DocumentsSidebar";
 export { InboxSidebar, InboxSidebarContent } from "./InboxSidebar";

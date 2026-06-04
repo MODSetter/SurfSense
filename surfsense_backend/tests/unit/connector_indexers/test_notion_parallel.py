@@ -41,7 +41,6 @@ async def test_build_connector_doc_produces_correct_fields():
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert doc.title == "My Notion Page"
@@ -51,29 +50,11 @@ async def test_build_connector_doc_produces_correct_fields():
     assert doc.search_space_id == _SEARCH_SPACE_ID
     assert doc.connector_id == _CONNECTOR_ID
     assert doc.created_by_id == _USER_ID
-    assert doc.should_summarize is True
     assert doc.metadata["page_title"] == "My Notion Page"
     assert doc.metadata["page_id"] == "abc-123"
     assert doc.metadata["connector_id"] == _CONNECTOR_ID
     assert doc.metadata["document_type"] == "Notion Page"
     assert doc.metadata["connector_type"] == "Notion"
-    assert doc.fallback_summary is not None
-    assert "My Notion Page" in doc.fallback_summary
-    assert markdown in doc.fallback_summary
-
-
-async def test_build_connector_doc_summary_disabled():
-    """When enable_summary is False, should_summarize is False."""
-    doc = _build_connector_doc(
-        _make_page(),
-        "# content",
-        connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
-        user_id=_USER_ID,
-        enable_summary=False,
-    )
-
-    assert doc.should_summarize is False
 
 
 # ---------------------------------------------------------------------------
@@ -81,10 +62,9 @@ async def test_build_connector_doc_summary_disabled():
 # ---------------------------------------------------------------------------
 
 
-def _mock_connector(enable_summary: bool = True):
+def _mock_connector():
     c = MagicMock()
     c.config = {"access_token": "tok"}
-    c.enable_summary = enable_summary
     c.last_indexed_at = None
     return c
 

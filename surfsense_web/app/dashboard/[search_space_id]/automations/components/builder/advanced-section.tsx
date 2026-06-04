@@ -58,7 +58,7 @@ export function AdvancedSection({
 	return (
 		<div className="space-y-4">
 			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<Field label="Timeout (seconds)" hint="Wall-clock cap for the whole run.">
+				<Field label="Timeout (seconds)" hint="Wall-clock cap for the whole run">
 					<Input
 						type="number"
 						min={1}
@@ -68,7 +68,7 @@ export function AdvancedSection({
 						}
 					/>
 				</Field>
-				<Field label="Max retries" hint="Per-step retry budget.">
+				<Field label="Max retries" hint="Per-step retry budget">
 					<Input
 						type="number"
 						min={0}
@@ -86,7 +86,7 @@ export function AdvancedSection({
 						<SelectTrigger className="w-full">
 							<SelectValue />
 						</SelectTrigger>
-						<SelectContent>
+						<SelectContent matchTriggerWidth={false} className="w-auto min-w-48">
 							{BACKOFF_OPTIONS.map((option) => (
 								<SelectItem key={option.value} value={option.value}>
 									{option.label}
@@ -105,7 +105,7 @@ export function AdvancedSection({
 						<SelectTrigger className="w-full">
 							<SelectValue />
 						</SelectTrigger>
-						<SelectContent>
+						<SelectContent matchTriggerWidth={false} className="w-auto min-w-64">
 							{CONCURRENCY_OPTIONS.map((option) => (
 								<SelectItem key={option.value} value={option.value}>
 									{option.label}

@@ -1,20 +1,15 @@
-"""
-Unified document save/update logic for file processors.
-"""
+"""Unified document save/update logic for file processors."""
 
-import asyncio
 import logging
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import Document, DocumentStatus, DocumentType
-from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
-    generate_document_summary,
 )
 
 from ._helpers import (
@@ -23,59 +18,6 @@ from ._helpers import (
     handle_existing_document_update,
 )
 from .base import get_current_timestamp, safe_set_chunks
-
-# ---------------------------------------------------------------------------
-# Summary generation
-# ---------------------------------------------------------------------------
-
-
-async def _generate_summary(
-    markdown_content: str,
-    file_name: str,
-    etl_service: str,
-    user_llm,
-    enable_summary: bool,
-) -> tuple[str, list[float]]:
-    """
-    Generate a document summary and embedding.
-
-    Docling uses its own large-document summary strategy; other ETL services
-    use the standard ``generate_document_summary`` helper.
-    """
-    if not enable_summary:
-        summary = f"File: {file_name}\n\n{markdown_content[:4000]}"
-        return summary, await asyncio.to_thread(embed_text, summary)
-
-    if etl_service == "DOCLING":
-        from app.services.docling_service import create_docling_service
-
-        docling_service = create_docling_service()
-        summary_text = await docling_service.process_large_document_summary(
-            content=markdown_content, llm=user_llm, document_title=file_name
-        )
-
-        meta = {
-            "file_name": file_name,
-            "etl_service": etl_service,
-            "document_type": "File Document",
-        }
-        parts = ["# DOCUMENT METADATA"]
-        for key, value in meta.items():
-            if value:
-                formatted_key = key.replace("_", " ").title()
-                parts.append(f"**{formatted_key}:** {value}")
-
-        enhanced = "\n".join(parts) + "\n\n# DOCUMENT SUMMARY\n\n" + summary_text
-        return enhanced, await asyncio.to_thread(embed_text, enhanced)
-
-    # Standard summary (Unstructured / LlamaCloud / others)
-    meta = {
-        "file_name": file_name,
-        "etl_service": etl_service,
-        "document_type": "File Document",
-    }
-    return await generate_document_summary(markdown_content, user_llm, meta)
-
 
 # ---------------------------------------------------------------------------
 # Unified save function
@@ -90,7 +32,6 @@ async def save_file_document(
     user_id: str,
     etl_service: str,
     connector: dict | None = None,
-    enable_summary: bool = True,
 ) -> Document | None:
     """
     Process and store a file document with deduplication and migration support.
@@ -106,7 +47,6 @@ async def save_file_document(
         user_id: ID of the user
         etl_service: Name of the ETL service (UNSTRUCTURED, LLAMACLOUD, DOCLING)
         connector: Optional connector info for Google Drive files
-        enable_summary: Whether to generate an AI summary
 
     Returns:
         Document object if successful, None if duplicate detected
@@ -133,24 +73,16 @@ async def save_file_document(
             if should_skip:
                 return doc
 
-        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
-        if not user_llm:
-            raise RuntimeError(
-                f"No long context LLM configured for user {user_id} "
-                f"in search space {search_space_id}"
-            )
-
-        summary_content, summary_embedding = await _generate_summary(
-            markdown_content, file_name, etl_service, user_llm, enable_summary
-        )
+        document_content = f"File: {file_name}\n\n{markdown_content[:4000]}"
+        document_embedding = embed_text(document_content)
         chunks = await create_document_chunks(markdown_content)
         doc_metadata = {"FILE_NAME": file_name, "ETL_SERVICE": etl_service}
 
         if existing_document:
             existing_document.title = file_name
-            existing_document.content = summary_content
+            existing_document.content = document_content
             existing_document.content_hash = content_hash
-            existing_document.embedding = summary_embedding
+            existing_document.embedding = document_embedding
             existing_document.document_metadata = doc_metadata
             await safe_set_chunks(session, existing_document, chunks)
             existing_document.source_markdown = markdown_content
@@ -171,8 +103,8 @@ async def save_file_document(
             title=file_name,
             document_type=doc_type,
             document_metadata=doc_metadata,
-            content=summary_content,
-            embedding=summary_embedding,
+            content=document_content,
+            embedding=document_embedding,
             chunks=chunks,
             content_hash=content_hash,
             unique_identifier_hash=primary_hash,

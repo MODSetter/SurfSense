@@ -15,13 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.webcrawler_connector import WebCrawlerConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 from app.utils.webcrawler_utils import parse_webcrawler_urls
@@ -372,29 +370,10 @@ async def index_crawled_urls(
                         documents_skipped += 1
                         continue
 
-                # Generate summary with LLM
-                user_llm = await get_user_long_context_llm(
-                    session, user_id, search_space_id
-                )
+                # Select deterministic document content
 
-                if user_llm and connector.enable_summary:
-                    document_metadata_for_summary = {
-                        "url": url,
-                        "title": title,
-                        "description": description,
-                        "language": language,
-                        "document_type": "Crawled URL",
-                        "crawler_type": crawler_type,
-                    }
-                    (
-                        summary_content,
-                        summary_embedding,
-                    ) = await generate_document_summary(
-                        structured_document, user_llm, document_metadata_for_summary
-                    )
-                else:
-                    summary_content = f"Crawled URL: {title}\n\nURL: {url}\n\n{content}"
-                    summary_embedding = embed_text(summary_content)
+                summary_content = f"Crawled URL: {title}\n\nURL: {url}\n\n{content}"
+                summary_embedding = embed_text(summary_content)
 
                 # Process chunks
                 chunks = await create_document_chunks(content)

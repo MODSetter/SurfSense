@@ -617,9 +617,6 @@ async def get_llm_preferences(
 
         # Get full config objects for each role
         agent_llm = await _get_llm_config_by_id(session, search_space.agent_llm_id)
-        document_summary_llm = await _get_llm_config_by_id(
-            session, search_space.document_summary_llm_id
-        )
         image_generation_config = await _get_image_gen_config_by_id(
             session, search_space.image_generation_config_id
         )
@@ -629,11 +626,9 @@ async def get_llm_preferences(
 
         return LLMPreferencesRead(
             agent_llm_id=search_space.agent_llm_id,
-            document_summary_llm_id=search_space.document_summary_llm_id,
             image_generation_config_id=search_space.image_generation_config_id,
             vision_llm_config_id=search_space.vision_llm_config_id,
             agent_llm=agent_llm,
-            document_summary_llm=document_summary_llm,
             image_generation_config=image_generation_config,
             vision_llm_config=vision_llm_config,
         )
@@ -707,9 +702,6 @@ async def update_llm_preferences(
 
         # Get full config objects for response
         agent_llm = await _get_llm_config_by_id(session, search_space.agent_llm_id)
-        document_summary_llm = await _get_llm_config_by_id(
-            session, search_space.document_summary_llm_id
-        )
         image_generation_config = await _get_image_gen_config_by_id(
             session, search_space.image_generation_config_id
         )
@@ -719,11 +711,9 @@ async def update_llm_preferences(
 
         return LLMPreferencesRead(
             agent_llm_id=search_space.agent_llm_id,
-            document_summary_llm_id=search_space.document_summary_llm_id,
             image_generation_config_id=search_space.image_generation_config_id,
             vision_llm_config_id=search_space.vision_llm_config_id,
             agent_llm=agent_llm,
-            document_summary_llm=document_summary_llm,
             image_generation_config=image_generation_config,
             vision_llm_config=vision_llm_config,
         )

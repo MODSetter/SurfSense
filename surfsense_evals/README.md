@@ -137,15 +137,14 @@ Notes:
 - `--skip-unanswerable` (run) — drop unanswerable questions
 - `--docs <a.pdf>,<b.pdf>` (run) — scope to specific docs
 
-## Ingestion knobs (vision LLM, processing mode, summarize)
+## Ingestion knobs (vision LLM, processing mode)
 
-The harness exposes `POST /api/v1/documents/fileupload`'s three knobs on every `ingest` subcommand:
+The harness exposes `POST /api/v1/documents/fileupload`'s ingest knobs on every `ingest` subcommand:
 
 | Flag pair                                  | Effect                                                                                  |
 |--------------------------------------------|-----------------------------------------------------------------------------------------|
 | `--use-vision-llm` / `--no-vision-llm`     | Walk every embedded image in the PDF and inline image-derived text at the image's position (see below). |
 | `--processing-mode {basic,premium}`        | `premium` carries a 10× page multiplier and routes to a stronger ETL (e.g. LlamaCloud). |
-| `--should-summarize` / `--no-summarize`    | Generate a per-document summary at ingest.                                              |
 
 The "Default ingest" column in the benchmarks table is what runs if you don't pass any flag. Whatever was actually used is recorded as a `__settings__` header in the doc map (`data/<suite>/maps/<benchmark>_*_map.jsonl`) and as `extra.ingest_settings` in `run_artifact.json`, then surfaced in the report — no need to hunt through CLI history.
 

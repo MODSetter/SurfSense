@@ -18,7 +18,6 @@ def test_valid_document_created_with_required_fields():
         connector_id=42,
         created_by_id="00000000-0000-0000-0000-000000000001",
     )
-    assert doc.should_summarize is True
     assert doc.should_use_code_chunker is False
     assert doc.metadata == {}
     assert doc.connector_id == 42

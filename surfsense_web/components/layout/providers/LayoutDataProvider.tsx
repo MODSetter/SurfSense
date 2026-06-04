@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, Inbox, LibraryBig, Workflow } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
@@ -41,13 +41,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { getLoginPath, logout } from "@/lib/auth-utils";
-import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
+import { fetchThreads } from "@/lib/chat/thread-persistence";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
@@ -77,7 +79,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const router = useRouter();
 	const params = useParams();
 	const pathname = usePathname();
-	const queryClient = useQueryClient();
 	const { theme, setTheme } = useTheme();
 	const isMobile = useIsMobile();
 
@@ -96,6 +97,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
 	const syncChatTab = useSetAtom(syncChatTabAtom);
 	const removeChatTab = useSetAtom(removeChatTabAtom);
+	const { activateChatThread, prefetchChatThread } = useActivateChatThread();
+	const { mutateAsync: archiveThread } = useArchiveThread(searchSpaceId);
+	const { mutateAsync: deleteThread } = useDeleteThread(searchSpaceId);
+	const { mutateAsync: renameThread } = useRenameThread(searchSpaceId);
 
 	// Key used to force-remount the page component (e.g. after deleting the active chat
 	// when the router is out of sync due to replaceState)
@@ -121,7 +126,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	});
 
 	// Unified slide-out panel state (only one can be open at a time)
-	type SlideoutPanel = "inbox" | "shared" | "private" | null;
+	type SlideoutPanel = "inbox" | "chats" | null;
 	const [activeSlideoutPanel, setActiveSlideoutPanel] = useState<SlideoutPanel>(null);
 
 	const isInboxSidebarOpen = activeSlideoutPanel === "inbox";
@@ -301,37 +306,21 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			title: chatId ? (thread?.title ?? undefined) : "New Chat",
 			chatUrl,
 			searchSpaceId: Number(searchSpaceId),
+			...(thread?.visibility !== undefined ? { visibility: thread.visibility } : {}),
 		});
 	}, [currentChatId, searchSpaceId, threadsData?.threads, syncChatTab]);
 
-	// Transform and split chats into private and shared based on visibility
-	const { myChats, sharedChats } = useMemo(() => {
-		if (!threadsData?.threads) return { myChats: [], sharedChats: [] };
+	const chats = useMemo(() => {
+		if (!threadsData?.threads) return [];
 
-		const privateChats: ChatItem[] = [];
-		const sharedChatsList: ChatItem[] = [];
-
-		for (const thread of threadsData.threads) {
-			const chatItem: ChatItem = {
-				id: thread.id,
-				name: thread.title || `Chat ${thread.id}`,
-				url: `/dashboard/${searchSpaceId}/new-chat/${thread.id}`,
-				visibility: thread.visibility,
-				isOwnThread: thread.is_own_thread,
-				archived: thread.archived,
-			};
-
-			// Split based on visibility, not ownership:
-			// - PRIVATE chats go to "Private Chats" section
-			// - SEARCH_SPACE chats go to "Shared Chats" section
-			if (thread.visibility === "SEARCH_SPACE") {
-				sharedChatsList.push(chatItem);
-			} else {
-				privateChats.push(chatItem);
-			}
-		}
-
-		return { myChats: privateChats, sharedChats: sharedChatsList };
+		return threadsData.threads.map<ChatItem>((thread) => ({
+			id: thread.id,
+			name: thread.title || `Chat ${thread.id}`,
+			url: `/dashboard/${searchSpaceId}/new-chat/${thread.id}`,
+			visibility: thread.visibility,
+			isOwnThread: thread.is_own_thread,
+			archived: thread.archived,
+		}));
 	}, [threadsData, searchSpaceId]);
 
 	// Navigation items
@@ -478,12 +467,34 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const handleTabSwitch = useCallback(
 		(tab: Tab) => {
 			if (tab.type === "chat") {
-				const url = tab.chatUrl || `/dashboard/${searchSpaceId}/new-chat`;
-				router.push(url);
+				activateChatThread({
+					id: tab.chatId ?? null,
+					title: tab.title,
+					url: tab.chatUrl,
+					searchSpaceId: tab.searchSpaceId ?? searchSpaceId,
+					...(tab.visibility !== undefined ? { visibility: tab.visibility } : {}),
+					...(tab.hasComments !== undefined ? { hasComments: tab.hasComments } : {}),
+				});
 			}
 			// Document tabs are handled in-place by LayoutShell — no navigation needed
 		},
-		[router, searchSpaceId]
+		[activateChatThread, searchSpaceId]
+	);
+
+	const handleTabPrefetch = useCallback(
+		(tab: Tab) => {
+			if (tab.type === "chat") {
+				prefetchChatThread(tab.chatId);
+			}
+		},
+		[prefetchChatThread]
+	);
+
+	const handleChatPrefetch = useCallback(
+		(chat: ChatItem) => {
+			prefetchChatThread(chat.id);
+		},
+		[prefetchChatThread]
 	);
 
 	const handleNavItemClick = useCallback(
@@ -535,9 +546,15 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	const handleChatSelect = useCallback(
 		(chat: ChatItem) => {
-			router.push(chat.url);
+			activateChatThread({
+				id: chat.id,
+				title: chat.name,
+				url: chat.url,
+				searchSpaceId,
+				...(chat.visibility !== undefined ? { visibility: chat.visibility } : {}),
+			});
 		},
-		[router]
+		[activateChatThread, searchSpaceId]
 	);
 
 	const handleChatDelete = useCallback((chat: ChatItem) => {
@@ -559,18 +576,14 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				: tSidebar("chat_unarchived") || "Chat restored";
 
 			try {
-				await updateThread(chat.id, { archived: newArchivedState });
+				await archiveThread({ threadId: chat.id, archived: newArchivedState });
 				toast.success(successMessage);
-				// Invalidate queries to refresh UI (React Query will only refetch active queries)
-				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
 			} catch (error) {
 				console.error("Error archiving thread:", error);
 				toast.error(tSidebar("error_archiving_chat") || "Failed to archive chat");
 			}
 		},
-		[queryClient, searchSpaceId, tSidebar]
+		[archiveThread, tSidebar]
 	);
 
 	const handleSettings = useCallback(() => {
@@ -599,12 +612,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		}
 	}, [router]);
 
-	const handleViewAllSharedChats = useCallback(() => {
-		setActiveSlideoutPanel((prev) => (prev === "shared" ? null : "shared"));
-	}, []);
-
-	const handleViewAllPrivateChats = useCallback(() => {
-		setActiveSlideoutPanel((prev) => (prev === "private" ? null : "private"));
+	const handleViewAllChats = useCallback(() => {
+		setActiveSlideoutPanel((prev) => (prev === "chats" ? null : "chats"));
 	}, []);
 
 	// Delete handlers
@@ -612,13 +621,21 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		if (!chatToDelete) return;
 		setIsDeletingChat(true);
 		try {
-			await deleteThread(chatToDelete.id);
+			await deleteThread({ threadId: chatToDelete.id });
 			const fallbackTab = removeChatTab(chatToDelete.id);
-			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			if (currentChatId === chatToDelete.id) {
 				resetCurrentThread();
 				if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
-					router.push(fallbackTab.chatUrl);
+					activateChatThread({
+						id: fallbackTab.chatId ?? null,
+						title: fallbackTab.title,
+						url: fallbackTab.chatUrl,
+						searchSpaceId: fallbackTab.searchSpaceId ?? searchSpaceId,
+						...(fallbackTab.visibility !== undefined ? { visibility: fallbackTab.visibility } : {}),
+						...(fallbackTab.hasComments !== undefined
+							? { hasComments: fallbackTab.hasComments }
+							: {}),
+					});
 				} else {
 					const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
 					if (isOutOfSync) {
@@ -638,7 +655,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		}
 	}, [
 		chatToDelete,
-		queryClient,
+		deleteThread,
 		searchSpaceId,
 		resetCurrentThread,
 		currentChatId,
@@ -646,6 +663,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		params?.chat_id,
 		router,
 		removeChatTab,
+		activateChatThread,
 	]);
 
 	// Rename handler
@@ -653,11 +671,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		if (!chatToRename || !newChatTitle.trim()) return;
 		setIsRenamingChat(true);
 		try {
-			await updateThread(chatToRename.id, { title: newChatTitle.trim() });
+			await renameThread({
+				threadId: chatToRename.id,
+				title: newChatTitle.trim(),
+				previousTitle: chatToRename.name,
+			});
 			toast.success(tSidebar("chat_renamed") || "Chat renamed");
-			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
-			queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
-			queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
 		} catch (error) {
 			console.error("Error renaming thread:", error);
 			toast.error(tSidebar("error_renaming_chat") || "Failed to rename chat");
@@ -667,7 +686,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			setChatToRename(null);
 			setNewChatTitle("");
 		}
-	}, [chatToRename, newChatTitle, queryClient, searchSpaceId, tSidebar]);
+	}, [chatToRename, newChatTitle, renameThread, tSidebar]);
 
 	// Detect if we're on the chat page (needs overflow-hidden for chat's own scroll)
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
@@ -695,16 +714,15 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				searchSpace={activeSearchSpace}
 				navItems={navItems}
 				onNavItemClick={handleNavItemClick}
-				chats={myChats}
-				sharedChats={sharedChats}
+				chats={chats}
 				activeChatId={currentChatId}
 				onNewChat={handleNewChat}
 				onChatSelect={handleChatSelect}
+				onChatPrefetch={handleChatPrefetch}
 				onChatRename={handleChatRename}
 				onChatDelete={handleChatDelete}
 				onChatArchive={handleChatArchive}
-				onViewAllSharedChats={handleViewAllSharedChats}
-				onViewAllPrivateChats={handleViewAllPrivateChats}
+				onViewAllChats={handleViewAllChats}
 				user={{
 					email: user?.email || "",
 					name: user?.display_name || user?.email?.split("@")[0],
@@ -727,7 +745,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				}
 				workspacePanelContentClassName={
 					isAutomationsPage
-						? "max-w-none"
+						? "max-w-none select-none"
 						: isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage
 							? "max-w-5xl"
 							: undefined
@@ -759,10 +777,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						markAllAsRead: statusInbox.markAllAsRead,
 					},
 				}}
-				allSharedChatsPanel={{
-					searchSpaceId,
-				}}
-				allPrivateChatsPanel={{
+				allChatsPanel={{
 					searchSpaceId,
 				}}
 				documentsPanel={{
@@ -770,6 +785,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					onOpenChange: setIsDocumentsSidebarOpen,
 				}}
 				onTabSwitch={handleTabSwitch}
+				onTabPrefetch={handleTabPrefetch}
 			>
 				<Fragment key={chatResetKey}>{children}</Fragment>
 			</LayoutShell>
@@ -841,7 +857,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							<span className={isRenamingChat ? "opacity-0" : ""}>
 								{tSidebar("rename") || "Rename"}
 							</span>
-							{isRenamingChat && <Spinner size="sm" className="absolute" />}
+							{isRenamingChat && (
+								<Spinner
+									size="sm"
+									className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+								/>
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

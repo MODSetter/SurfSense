@@ -70,8 +70,7 @@ export interface ChatsSectionProps {
 	activeChatId?: number | null;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllSharedChats?: () => void;
-	onViewAllPrivateChats?: () => void;
+	onViewAllChats?: () => void;
 	searchSpaceId?: string;
 }
 
@@ -96,13 +95,11 @@ export interface SidebarProps {
 	searchSpaceId?: string;
 	navItems: NavItem[];
 	chats: ChatItem[];
-	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllSharedChats?: () => void;
-	onViewAllPrivateChats?: () => void;
+	onViewAllChats?: () => void;
 	user: User;
 	theme?: string;
 	onSettings?: () => void;

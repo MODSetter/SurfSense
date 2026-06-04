@@ -25,11 +25,10 @@ from app.db import (
     SearchSourceConnectorType,
     SearchSpace,
 )
-from app.services.llm_service import get_document_summary_llm
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 
@@ -176,34 +175,8 @@ async def add_circleback_meeting_document(
         # PHASE 3: Process the document content
         # =======================================================================
 
-        # Get LLM for generating summary
-        llm = await get_document_summary_llm(session, search_space_id)
-        if not llm:
-            logger.warning(
-                f"No LLM configured for search space {search_space_id}. Using content as summary."
-            )
-            # Use first 1000 chars as summary if no LLM available
-            summary_content = (
-                markdown_content[:1000] + "..."
-                if len(markdown_content) > 1000
-                else markdown_content
-            )
-            summary_embedding = None
-        else:
-            # Generate summary with metadata
-            summary_metadata = {
-                "meeting_name": meeting_name,
-                "meeting_id": meeting_id,
-                "document_type": "Circleback Meeting",
-                **{
-                    k: v
-                    for k, v in metadata.items()
-                    if isinstance(v, str | int | float | bool)
-                },
-            }
-            summary_content, summary_embedding = await generate_document_summary(
-                markdown_content, llm, summary_metadata
-            )
+        summary_content = markdown_content
+        summary_embedding = embed_text(summary_content)
 
         # Process chunks
         chunks = await create_document_chunks(markdown_content)
@@ -224,8 +197,7 @@ async def add_circleback_meeting_document(
         document.title = meeting_name
         document.content = summary_content
         document.content_hash = content_hash
-        if summary_embedding is not None:
-            document.embedding = summary_embedding
+        document.embedding = summary_embedding
         document.document_metadata = document_metadata
         await safe_set_chunks(session, document, chunks)
         document.source_markdown = markdown_content
