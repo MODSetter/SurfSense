@@ -21,9 +21,6 @@ from app.agents.shared.middleware.doom_loop import DoomLoopMiddleware
 from app.agents.shared.middleware.file_intent import (
     FileIntentMiddleware,
 )
-from app.agents.shared.middleware.filesystem import (
-    SurfSenseFilesystemMiddleware,
-)
 from app.agents.shared.middleware.flatten_system import (
     FlattenSystemMessageMiddleware,
 )
@@ -78,7 +75,6 @@ __all__ = [
     "SpillToBackendEdit",
     "SpillingContextEditingMiddleware",
     "SurfSenseCompactionMiddleware",
-    "SurfSenseFilesystemMiddleware",
     "ToolCallNameRepairMiddleware",
     "build_skills_backend_factory",
     "commit_staged_filesystem_state",
