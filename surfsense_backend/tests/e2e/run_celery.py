@@ -212,11 +212,11 @@ def _patch_llm_bindings() -> None:
 
     chat_targets = [
         (
-            "app.agents.new_chat.llm_config.create_chat_litellm_from_agent_config",
+            "app.agents.shared.llm_config.create_chat_litellm_from_agent_config",
             fake_create_chat_litellm_from_agent_config,
         ),
         (
-            "app.agents.new_chat.llm_config.create_chat_litellm_from_config",
+            "app.agents.shared.llm_config.create_chat_litellm_from_config",
             fake_create_chat_litellm_from_config,
         ),
         (

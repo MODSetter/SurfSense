@@ -28,7 +28,7 @@ https://github.com/BerriAI/litellm/issues/20485 — the litellm-side fix
 in PR #15395 covers the litellm transformer but does not protect us
 when the OpenRouter SaaS itself does the redistribution.)
 
-A separate fix in :mod:`app.agents.new_chat.prompt_caching` (switching
+A separate fix in :mod:`app.agents.shared.prompt_caching` (switching
 the first injection point from ``role: system`` to ``index: 0``)
 neutralises the *primary* cause of the same 400 — multiple
 ``SystemMessage``\ s injected by ``before_agent`` middlewares

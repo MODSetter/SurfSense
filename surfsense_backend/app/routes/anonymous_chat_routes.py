@@ -236,7 +236,7 @@ async def stream_anonymous_chat(
             detail="No-login mode is not enabled.",
         )
 
-    from app.agents.new_chat.llm_config import (
+    from app.agents.shared.llm_config import (
         AgentConfig,
         create_chat_litellm_from_agent_config,
     )

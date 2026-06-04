@@ -53,7 +53,7 @@ logger = logging.getLogger(__name__)
 #
 # Owned here because ``app.services.provider_capabilities`` is the
 # only edge that's safe to call from ``app.config``'s YAML loader at
-# class-body init time. ``app.agents.new_chat.llm_config`` re-exports
+# class-body init time. ``app.agents.shared.llm_config`` re-exports
 # this constant under the historical ``PROVIDER_MAP`` name; placing the
 # map there directly would re-introduce the
 # ``app.config -> ... -> app.agents.new_chat.tools.generate_image ->

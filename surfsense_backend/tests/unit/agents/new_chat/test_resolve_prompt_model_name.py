@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 
 from app.agents.new_chat.chat_deepagent import _resolve_prompt_model_name
-from app.agents.new_chat.llm_config import AgentConfig
+from app.agents.shared.llm_config import AgentConfig
 
 pytestmark = pytest.mark.unit
 

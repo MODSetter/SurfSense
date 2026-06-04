@@ -39,7 +39,7 @@ def _is_premium_global(kind: ModelKind, config_id: int) -> bool:
 
     cfg: dict | None = None
     if kind == "llm":
-        from app.agents.new_chat.llm_config import load_global_llm_config_by_id
+        from app.agents.shared.llm_config import load_global_llm_config_by_id
 
         cfg = load_global_llm_config_by_id(config_id)
     elif kind == "image":

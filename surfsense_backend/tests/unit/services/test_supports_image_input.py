@@ -227,7 +227,7 @@ global_llm_configs:
 
 
 def test_agent_config_from_yaml_explicit_overrides_resolver():
-    from app.agents.new_chat.llm_config import AgentConfig
+    from app.agents.shared.llm_config import AgentConfig
 
     cfg_text_only = AgentConfig.from_yaml_config(
         {
@@ -256,7 +256,7 @@ def test_agent_config_from_yaml_explicit_overrides_resolver():
 def test_agent_config_from_yaml_unannotated_uses_resolver():
     """Without an explicit YAML key, AgentConfig defers to the catalog
     resolver — for ``gpt-4o`` LiteLLM's map says supports_vision=True."""
-    from app.agents.new_chat.llm_config import AgentConfig
+    from app.agents.shared.llm_config import AgentConfig
 
     cfg = AgentConfig.from_yaml_config(
         {
@@ -275,7 +275,7 @@ def test_agent_config_auto_mode_supports_image_input():
     so users can keep their selection on Auto with a vision-capable
     deployment somewhere in the pool. The router's own `allowed_fails`
     handles non-vision deployments via fallback."""
-    from app.agents.new_chat.llm_config import AgentConfig
+    from app.agents.shared.llm_config import AgentConfig
 
     auto = AgentConfig.from_auto_mode()
     assert auto.supports_image_input is True
