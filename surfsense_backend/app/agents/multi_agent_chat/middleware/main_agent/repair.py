@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from langchain_core.tools import BaseTool
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.middleware import ToolCallNameRepairMiddleware
+from app.agents.shared.middleware import ToolCallNameRepairMiddleware
 
 from ..shared.flags import enabled
 

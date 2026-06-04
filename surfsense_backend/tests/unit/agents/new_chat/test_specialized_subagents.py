@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from langchain_core.tools import tool
 
-from app.agents.new_chat.middleware.permission import PermissionMiddleware
+from app.agents.shared.middleware.permission import PermissionMiddleware
 from app.agents.new_chat.subagents import (
     build_connector_negotiator_subagent,
     build_explore_subagent,
@@ -140,7 +140,7 @@ class TestExploreSubagent:
     def test_includes_dedup_and_patch_middleware(self) -> None:
         from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
 
-        from app.agents.new_chat.middleware import DedupHITLToolCallsMiddleware
+        from app.agents.shared.middleware import DedupHITLToolCallsMiddleware
 
         spec = build_explore_subagent(tools=ALL_TOOLS)
         types = {type(m) for m in spec["middleware"]}  # type: ignore[index]

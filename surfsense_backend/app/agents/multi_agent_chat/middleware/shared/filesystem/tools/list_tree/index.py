@@ -10,7 +10,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, StructuredTool
 
 from app.agents.shared.filesystem_state import SurfSenseFilesystemState
-from app.agents.new_chat.middleware.kb_postgres_backend import KBPostgresBackend
+from app.agents.shared.middleware.kb_postgres_backend import KBPostgresBackend
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.path_resolution import resolve_list_target_path

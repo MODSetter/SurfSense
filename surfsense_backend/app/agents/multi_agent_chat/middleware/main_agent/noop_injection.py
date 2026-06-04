@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.middleware import NoopInjectionMiddleware
+from app.agents.shared.middleware import NoopInjectionMiddleware
 
 from ..shared.flags import enabled
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.middleware import KnowledgeBasePersistenceMiddleware
+from app.agents.shared.middleware import KnowledgeBasePersistenceMiddleware
 
 
 def build_kb_persistence_mw(

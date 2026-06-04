@@ -12,7 +12,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.middleware.kb_persistence import (
+from app.agents.shared.middleware.kb_persistence import (
     commit_staged_filesystem_state,
 )
 from app.services.new_streaming_service import VercelStreamingService

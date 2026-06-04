@@ -32,7 +32,7 @@ import anyio
 from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
-from app.agents.new_chat.middleware.busy_mutex import end_turn
+from app.agents.shared.middleware.busy_mutex import end_turn
 from app.config import config as _app_config
 from app.db import ChatVisibility, async_session_maker
 from app.observability import otel as ot

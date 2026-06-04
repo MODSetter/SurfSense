@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock
 import numpy as np
 import pytest
 
-from app.agents.new_chat.middleware import kb_persistence
+from app.agents.shared.middleware import kb_persistence
 from app.db import Document
 
 

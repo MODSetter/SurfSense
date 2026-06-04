@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.agents.new_chat.middleware import kb_persistence
+from app.agents.shared.middleware import kb_persistence
 
 pytestmark = pytest.mark.unit
 

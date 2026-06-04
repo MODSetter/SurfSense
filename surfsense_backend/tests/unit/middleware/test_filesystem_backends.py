@@ -9,7 +9,7 @@ from app.agents.shared.filesystem_selection import (
     FilesystemSelection,
     LocalFilesystemMount,
 )
-from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
+from app.agents.shared.middleware.multi_root_local_folder_backend import (
     MultiRootLocalFolderBackend,
 )
 

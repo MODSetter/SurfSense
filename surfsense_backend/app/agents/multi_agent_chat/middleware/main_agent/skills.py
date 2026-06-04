@@ -8,7 +8,7 @@ from deepagents.middleware.skills import SkillsMiddleware
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.middleware import (
+from app.agents.shared.middleware import (
     build_skills_backend_factory,
     default_skills_sources,
 )

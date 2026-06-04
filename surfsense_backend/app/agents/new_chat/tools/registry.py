@@ -43,7 +43,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.new_chat.middleware.dedup_tool_calls import (
+from app.agents.shared.middleware.dedup_tool_calls import (
     wrap_dedup_key_by_arg_name,
 )
 from app.db import ChatVisibility

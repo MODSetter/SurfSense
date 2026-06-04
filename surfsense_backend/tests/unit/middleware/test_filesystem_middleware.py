@@ -19,7 +19,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.middleware.filesystem import (
+from app.agents.shared.middleware.filesystem import (
     SurfSenseFilesystemMiddleware,
     _build_filesystem_system_prompt,
     _build_tool_descriptions,

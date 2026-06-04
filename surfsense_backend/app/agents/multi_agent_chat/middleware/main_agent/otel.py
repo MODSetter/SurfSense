@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.middleware import OtelSpanMiddleware
+from app.agents.shared.middleware import OtelSpanMiddleware
 
 from ..shared.flags import enabled
 

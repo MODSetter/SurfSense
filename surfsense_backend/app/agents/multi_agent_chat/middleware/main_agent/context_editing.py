@@ -11,7 +11,7 @@ from app.agents.multi_agent_chat.main_agent.context_prune.prune_tool_names impor
     safe_exclude_tools,
 )
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.middleware import (
+from app.agents.shared.middleware import (
     ClearToolUsesEdit,
     SpillingContextEditingMiddleware,
     SpillToBackendEdit,

@@ -34,11 +34,15 @@ from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.messages import ToolMessage
 
 from app.agents.shared.feature_flags import get_flags
-from app.agents.new_chat.tools.registry import ToolDefinition
 
 if TYPE_CHECKING:  # pragma: no cover - type-only
     from langchain.agents.middleware.types import ToolCallRequest
     from langgraph.types import Command
+
+    # Type-only import: keeping it lazy avoids a module-load cycle through the
+    # frozen single-agent package (new_chat.__init__ -> chat_deepagent ->
+    # middleware shim). Resolves to app.agents.shared.tools once tools migrate.
+    from app.agents.new_chat.tools.registry import ToolDefinition
 
 
 logger = logging.getLogger(__name__)

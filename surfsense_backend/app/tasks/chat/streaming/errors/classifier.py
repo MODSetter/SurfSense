@@ -8,7 +8,7 @@ import time
 from typing import Any, Literal
 
 from app.agents.shared.errors import BusyError
-from app.agents.new_chat.middleware.busy_mutex import (
+from app.agents.shared.middleware.busy_mutex import (
     get_cancel_state,
     is_cancel_requested,
 )

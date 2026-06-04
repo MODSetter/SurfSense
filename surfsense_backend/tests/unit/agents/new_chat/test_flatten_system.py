@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from app.agents.new_chat.middleware.flatten_system import (
+from app.agents.shared.middleware.flatten_system import (
     FlattenSystemMessageMiddleware,
     _flatten_text_blocks,
     _flattened_request,

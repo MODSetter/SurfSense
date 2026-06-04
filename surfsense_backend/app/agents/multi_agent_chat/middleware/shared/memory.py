@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.agents.new_chat.middleware import MemoryInjectionMiddleware
+from app.agents.shared.middleware import MemoryInjectionMiddleware
 from app.db import ChatVisibility
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.middleware import AnonymousDocumentMiddleware
+from app.agents.shared.middleware import AnonymousDocumentMiddleware
 
 
 def build_anonymous_doc_mw(

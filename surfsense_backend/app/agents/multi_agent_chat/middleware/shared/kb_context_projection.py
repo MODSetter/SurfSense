@@ -10,7 +10,7 @@ from langchain_core.messages import SystemMessage
 from langgraph.runtime import Runtime
 
 from app.agents.shared.filesystem_state import SurfSenseFilesystemState
-from app.agents.new_chat.middleware.knowledge_search import _render_priority_message
+from app.agents.shared.middleware.knowledge_search import _render_priority_message
 from app.utils.perf import get_perf_logger
 
 _perf_log = get_perf_logger()

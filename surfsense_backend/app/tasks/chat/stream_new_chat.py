@@ -40,12 +40,12 @@ from app.agents.shared.llm_config import (
     load_global_llm_config_by_id,
 )
 from app.agents.shared.mention_resolver import resolve_mentions, substitute_in_text
-from app.agents.new_chat.middleware.busy_mutex import (
+from app.agents.shared.middleware.busy_mutex import (
     end_turn,
     get_cancel_state,
     is_cancel_requested,
 )
-from app.agents.new_chat.middleware.kb_persistence import (
+from app.agents.shared.middleware.kb_persistence import (
     commit_staged_filesystem_state,
 )
 from app.db import (

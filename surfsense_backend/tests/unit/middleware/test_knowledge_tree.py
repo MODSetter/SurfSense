@@ -9,7 +9,7 @@ contract cannot silently regress.
 
 from __future__ import annotations
 
-from app.agents.new_chat.middleware.knowledge_tree import KnowledgeTreeMiddleware
+from app.agents.shared.middleware.knowledge_tree import KnowledgeTreeMiddleware
 from app.agents.shared.path_resolver import DOCUMENTS_ROOT
 
 

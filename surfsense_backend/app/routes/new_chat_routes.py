@@ -30,7 +30,7 @@ from app.agents.shared.filesystem_selection import (
     FilesystemSelection,
     LocalFilesystemMount,
 )
-from app.agents.new_chat.middleware.busy_mutex import (
+from app.agents.shared.middleware.busy_mutex import (
     get_cancel_state,
     is_cancel_requested,
     manager,

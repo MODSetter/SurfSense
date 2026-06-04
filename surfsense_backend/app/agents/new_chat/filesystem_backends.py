@@ -10,8 +10,8 @@ from deepagents.backends.state import StateBackend
 from langgraph.prebuilt.tool_node import ToolRuntime
 
 from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
-from app.agents.new_chat.middleware.kb_postgres_backend import KBPostgresBackend
-from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
+from app.agents.shared.middleware.kb_postgres_backend import KBPostgresBackend
+from app.agents.shared.middleware.multi_root_local_folder_backend import (
     MultiRootLocalFolderBackend,
 )
 

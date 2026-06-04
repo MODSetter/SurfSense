@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import AIMessage
 
-from app.agents.new_chat.middleware.doom_loop import DoomLoopMiddleware, _signature
+from app.agents.shared.middleware.doom_loop import DoomLoopMiddleware, _signature
 
 pytestmark = pytest.mark.unit
 

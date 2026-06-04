@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 import numpy as np
 import pytest
 
-from app.agents.new_chat.middleware.knowledge_search import search_knowledge_base
+from app.agents.shared.middleware.knowledge_search import search_knowledge_base
 
 from .conftest import DUMMY_EMBEDDING
 
@@ -27,11 +27,11 @@ async def test_search_knowledge_base_applies_date_filters(
         yield db_session
 
     monkeypatch.setattr(
-        "app.agents.new_chat.middleware.knowledge_search.shielded_async_session",
+        "app.agents.shared.middleware.knowledge_search.shielded_async_session",
         fake_shielded_async_session,
     )
     monkeypatch.setattr(
-        "app.agents.new_chat.middleware.knowledge_search.embed_texts",
+        "app.agents.shared.middleware.knowledge_search.embed_texts",
         lambda texts: [np.array(DUMMY_EMBEDDING) for _ in texts],
     )
 

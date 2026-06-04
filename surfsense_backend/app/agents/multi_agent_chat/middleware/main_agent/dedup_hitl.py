@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 from langchain_core.tools import BaseTool
 
-from app.agents.new_chat.middleware import DedupHITLToolCallsMiddleware
+from app.agents.shared.middleware import DedupHITLToolCallsMiddleware
 
 
 def build_dedup_hitl_mw(tools: Sequence[BaseTool]) -> DedupHITLToolCallsMiddleware:

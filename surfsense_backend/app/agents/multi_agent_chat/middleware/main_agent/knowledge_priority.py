@@ -5,7 +5,7 @@ from __future__ import annotations
 from langchain_core.language_models import BaseChatModel
 
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.middleware import KnowledgePriorityMiddleware
+from app.agents.shared.middleware import KnowledgePriorityMiddleware
 from app.services.llm_service import get_planner_llm
 
 

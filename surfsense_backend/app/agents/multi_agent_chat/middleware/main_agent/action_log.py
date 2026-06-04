@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.middleware import ActionLogMiddleware
+from app.agents.shared.middleware import ActionLogMiddleware
 from app.agents.new_chat.tools.registry import BUILTIN_TOOLS
 
 from ..shared.flags import enabled

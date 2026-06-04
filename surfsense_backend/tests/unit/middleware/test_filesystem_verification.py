@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.middleware.filesystem import SurfSenseFilesystemMiddleware
-from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
+from app.agents.shared.middleware.filesystem import SurfSenseFilesystemMiddleware
+from app.agents.shared.middleware.multi_root_local_folder_backend import (
     MultiRootLocalFolderBackend,
 )
 

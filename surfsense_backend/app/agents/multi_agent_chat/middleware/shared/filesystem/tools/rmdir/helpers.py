@@ -14,7 +14,7 @@ from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 
 from app.agents.shared.filesystem_state import SurfSenseFilesystemState
-from app.agents.new_chat.middleware.kb_postgres_backend import KBPostgresBackend
+from app.agents.shared.middleware.kb_postgres_backend import KBPostgresBackend
 from app.agents.shared.path_resolver import DOCUMENTS_ROOT
 from app.agents.shared.state_reducers import _CLEAR
 

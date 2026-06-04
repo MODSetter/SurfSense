@@ -11,7 +11,7 @@ from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.middleware.action_log import ActionLogMiddleware
+from app.agents.shared.middleware.action_log import ActionLogMiddleware
 from app.agents.new_chat.tools.registry import ToolDefinition
 
 
@@ -58,7 +58,7 @@ def _disabled_flags() -> AgentFeatureFlags:
 def patch_get_flags():
     def _patch(flags: AgentFeatureFlags):
         return patch(
-            "app.agents.new_chat.middleware.action_log.get_flags",
+            "app.agents.shared.middleware.action_log.get_flags",
             return_value=flags,
         )
 
@@ -360,7 +360,7 @@ class TestActionLogDispatch:
             patch_get_flags(_enabled_flags()),
             patch("app.db.shielded_async_session", side_effect=lambda: factory()),
             patch(
-                "app.agents.new_chat.middleware.action_log.adispatch_custom_event",
+                "app.agents.shared.middleware.action_log.adispatch_custom_event",
                 dispatch_mock,
             ),
         ):
@@ -395,7 +395,7 @@ class TestActionLogDispatch:
             patch_get_flags(_enabled_flags()),
             patch("app.db.shielded_async_session", side_effect=_exploding_session),
             patch(
-                "app.agents.new_chat.middleware.action_log.adispatch_custom_event",
+                "app.agents.shared.middleware.action_log.adispatch_custom_event",
                 dispatch_mock,
             ),
         ):

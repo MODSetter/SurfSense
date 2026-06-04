@@ -1,7 +1,7 @@
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app.agents.new_chat.middleware.file_intent import (
+from app.agents.shared.middleware.file_intent import (
     FileIntentMiddleware,
     FileOperationIntent,
     _fallback_path,

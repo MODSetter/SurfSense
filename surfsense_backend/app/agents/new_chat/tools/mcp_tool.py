@@ -33,7 +33,7 @@ from sqlalchemy import cast, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.new_chat.middleware.dedup_tool_calls import dedup_key_full_args
+from app.agents.shared.middleware.dedup_tool_calls import dedup_key_full_args
 from app.agents.new_chat.tools.hitl import request_approval
 from app.agents.new_chat.tools.mcp_client import MCPClient
 from app.agents.new_chat.tools.mcp_tools_cache import (

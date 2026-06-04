@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.middleware import BusyMutexMiddleware
+from app.agents.shared.middleware import BusyMutexMiddleware
 
 from ..shared.flags import enabled
 

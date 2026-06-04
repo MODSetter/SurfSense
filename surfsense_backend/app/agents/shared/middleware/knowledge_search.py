@@ -634,7 +634,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         if not flags.enable_kb_planner_runnable or flags.disable_new_agent_stack:
             return None
 
-        from app.agents.new_chat.middleware.retry_after import RetryAfterMiddleware
+        from app.agents.shared.middleware.retry_after import RetryAfterMiddleware
 
         try:
             self._planner = create_agent(

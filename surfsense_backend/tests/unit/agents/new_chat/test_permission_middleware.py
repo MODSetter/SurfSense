@@ -6,7 +6,7 @@ import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 
 from app.agents.shared.errors import CorrectedError, RejectedError
-from app.agents.new_chat.middleware.permission import (
+from app.agents.shared.middleware.permission import (
     PermissionMiddleware,
     _normalize_permission_decision,
 )
