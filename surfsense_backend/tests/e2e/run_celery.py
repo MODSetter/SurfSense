@@ -220,11 +220,11 @@ def _patch_llm_bindings() -> None:
             fake_create_chat_litellm_from_config,
         ),
         (
-            "app.tasks.chat.stream_new_chat.create_chat_litellm_from_agent_config",
+            "app.tasks.chat.streaming.flows.shared.llm_bundle.create_chat_litellm_from_agent_config",
             fake_create_chat_litellm_from_agent_config,
         ),
         (
-            "app.tasks.chat.stream_new_chat.create_chat_litellm_from_config",
+            "app.tasks.chat.streaming.flows.shared.llm_bundle.create_chat_litellm_from_config",
             fake_create_chat_litellm_from_config,
         ),
     ]

@@ -356,7 +356,8 @@ async def stream_anonymous_chat(
         from app.db import shielded_async_session
         from app.services.new_streaming_service import VercelStreamingService
         from app.services.token_tracking_service import start_turn
-        from app.tasks.chat.stream_new_chat import StreamResult, _stream_agent_events
+        from app.tasks.chat.streaming.agent.event_loop import stream_agent_events
+        from app.tasks.chat.streaming.shared.stream_result import StreamResult
 
         accumulator = start_turn()
         streaming_service = VercelStreamingService()
@@ -419,7 +420,7 @@ async def stream_anonymous_chat(
 
                 stream_result = StreamResult()
 
-                async for sse in _stream_agent_events(
+                async for sse in stream_agent_events(
                     agent=agent,
                     config=langgraph_config,
                     input_data=input_state,
