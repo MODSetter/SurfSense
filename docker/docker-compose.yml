@@ -144,25 +144,25 @@ services:
       retries: 30
       start_period: 200s
 
-  whatsapp-bridge:
-    build: ../surfsense_backend/scripts/whatsapp-bridge
-    profiles:
-      - whatsapp
-    expose:
-      - "9929"
-    volumes:
-      - whatsapp_sessions:/data/sessions
-    environment:
-      PORT: 9929
-      WHATSAPP_MODE: ${WHATSAPP_MODE:-self-chat}
-      WHATSAPP_SESSION_DIR: /data/sessions
-    mem_limit: 512m
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9929/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
+  # whatsapp-bridge:
+  #   build: ../surfsense_backend/scripts/whatsapp-bridge
+  #   profiles:
+  #     - whatsapp
+  #   expose:
+  #     - "9929"
+  #   volumes:
+  #     - whatsapp_sessions:/data/sessions
+  #   environment:
+  #     PORT: 9929
+  #     WHATSAPP_MODE: ${WHATSAPP_MODE:-self-chat}
+  #     WHATSAPP_SESSION_DIR: /data/sessions
+  #   mem_limit: 512m
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "wget", "-qO-", "http://localhost:9929/health"]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 5
 
   celery_worker:
     image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
