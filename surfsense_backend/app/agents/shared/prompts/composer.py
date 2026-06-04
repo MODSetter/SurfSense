@@ -2,7 +2,7 @@
 Prompt composer for the SurfSense ``new_chat`` agent.
 
 This module assembles the agent's system prompt from the markdown fragments
-under :mod:`app.agents.new_chat.prompts`. It replaces the monolithic
+under :mod:`app.agents.shared.prompts`. It replaces the monolithic
 ``system_prompt.py`` with a clean, fragment-based composition:
 
 ::
@@ -119,7 +119,7 @@ def detect_provider_variant(model_name: str | None) -> ProviderVariant:
 # -----------------------------------------------------------------------------
 
 
-_PROMPTS_PACKAGE = "app.agents.new_chat.prompts"
+_PROMPTS_PACKAGE = "app.agents.shared.prompts"
 
 
 def _read_fragment(subpath: str) -> str:

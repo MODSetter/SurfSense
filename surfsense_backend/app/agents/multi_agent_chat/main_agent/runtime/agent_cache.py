@@ -10,7 +10,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 
-from app.agents.new_chat.agent_cache import (
+from app.agents.shared.agent_cache import (
     flags_signature,
     get_cache,
     stable_hash,

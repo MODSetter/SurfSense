@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.agents.new_chat.system_prompt import get_default_system_instructions
+from app.agents.shared.system_prompt import get_default_system_instructions
 from app.config import config
 from app.db import (
     NewLLMConfig,

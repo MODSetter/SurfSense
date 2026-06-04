@@ -19,7 +19,7 @@ from app.agents.multi_agent_chat.subagents import (
 from app.agents.multi_agent_chat.subagents.mcp_tools.index import (
     load_mcp_tools_by_connector,
 )
-from app.agents.new_chat.connector_searchable_types import (
+from app.agents.shared.connector_searchable_types import (
     map_connectors_to_searchable_types,
 )
 from app.agents.shared.feature_flags import AgentFeatureFlags, get_flags
