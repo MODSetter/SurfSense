@@ -11,7 +11,7 @@ from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 
-from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
+from app.agents.shared.filesystem_state import SurfSenseFilesystemState
 from app.agents.new_chat.middleware.kb_postgres_backend import KBPostgresBackend
 
 from ...middleware.async_dispatch import run_async_blocking

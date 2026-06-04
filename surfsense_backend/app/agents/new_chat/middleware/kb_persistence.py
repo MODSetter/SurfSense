@@ -47,8 +47,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.shared.feature_flags import get_flags
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
-from app.agents.new_chat.path_resolver import (
+from app.agents.shared.filesystem_state import SurfSenseFilesystemState
+from app.agents.shared.path_resolver import (
     DOCUMENTS_ROOT,
     parse_documents_path,
     safe_folder_segment,

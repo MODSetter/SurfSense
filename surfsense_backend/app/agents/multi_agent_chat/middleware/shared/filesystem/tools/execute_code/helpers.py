@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING
 from daytona.common.errors import DaytonaError
 from langchain.tools import ToolRuntime
 
-from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
-from app.agents.new_chat.sandbox import (
+from app.agents.shared.filesystem_state import SurfSenseFilesystemState
+from app.agents.shared.sandbox import (
     _evict_sandbox_cache,
     delete_sandbox,
     get_or_create_sandbox,

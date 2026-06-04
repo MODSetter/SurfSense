@@ -43,8 +43,8 @@ from sqlalchemy import select
 
 from app.agents.shared.feature_flags import get_flags
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
-from app.agents.new_chat.path_resolver import (
+from app.agents.shared.filesystem_state import SurfSenseFilesystemState
+from app.agents.shared.path_resolver import (
     PathIndex,
     build_path_index,
     doc_to_virtual_path,

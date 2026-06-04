@@ -22,7 +22,7 @@ from app.agents.new_chat.mention_resolver import (
     resolve_mentions,
     substitute_in_text,
 )
-from app.agents.new_chat.path_resolver import DOCUMENTS_ROOT, PathIndex
+from app.agents.shared.path_resolver import DOCUMENTS_ROOT, PathIndex
 from app.schemas.new_chat import MentionedDocumentInfo
 
 pytestmark = pytest.mark.unit

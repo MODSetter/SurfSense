@@ -38,7 +38,7 @@ from typing import Any, Literal
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.new_chat.path_resolver import (
+from app.agents.shared.path_resolver import (
     DOCUMENTS_ROOT,
     safe_filename,
     safe_folder_segment,

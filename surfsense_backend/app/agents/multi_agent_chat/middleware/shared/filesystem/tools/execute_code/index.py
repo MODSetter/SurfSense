@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Annotated
 from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, StructuredTool
 
-from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
+from app.agents.shared.filesystem_state import SurfSenseFilesystemState
 
 from ...middleware.async_dispatch import run_async_blocking
 from .description import select_description

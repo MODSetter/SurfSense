@@ -476,7 +476,7 @@ async def _revert_turns_for_regenerate(
 
 def _try_delete_sandbox(thread_id: int) -> None:
     """Fire-and-forget sandbox + local file deletion so the HTTP response isn't blocked."""
-    from app.agents.new_chat.sandbox import (
+    from app.agents.shared.sandbox import (
         delete_local_sandbox_files,
         delete_sandbox,
         is_sandbox_enabled,

@@ -47,7 +47,7 @@ from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
+from app.agents.shared.filesystem_state import SurfSenseFilesystemState
 from app.agents.new_chat.middleware.kb_postgres_backend import (
     KBPostgresBackend,
     paginate_listing,
@@ -55,8 +55,8 @@ from app.agents.new_chat.middleware.kb_postgres_backend import (
 from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
     MultiRootLocalFolderBackend,
 )
-from app.agents.new_chat.path_resolver import DOCUMENTS_ROOT
-from app.agents.new_chat.sandbox import (
+from app.agents.shared.path_resolver import DOCUMENTS_ROOT
+from app.agents.shared.sandbox import (
     _evict_sandbox_cache,
     delete_sandbox,
     get_or_create_sandbox,

@@ -8,8 +8,8 @@ from deepagents import FilesystemMiddleware
 from langchain_core.tools import BaseTool
 
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
-from app.agents.new_chat.sandbox import is_sandbox_enabled
+from app.agents.shared.filesystem_state import SurfSenseFilesystemState
+from app.agents.shared.sandbox import is_sandbox_enabled
 
 from ..system_prompt import build_system_prompt
 from ..tools import (

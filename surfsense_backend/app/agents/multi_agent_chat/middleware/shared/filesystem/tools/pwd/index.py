@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, StructuredTool
 
-from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
+from app.agents.shared.filesystem_state import SurfSenseFilesystemState
 
 from ...middleware.path_resolution import current_cwd
 from .description import select_description

@@ -9,7 +9,7 @@ from deepagents.backends.utils import validate_path
 from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, StructuredTool
 
-from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
+from app.agents.shared.filesystem_state import SurfSenseFilesystemState
 from app.agents.new_chat.middleware.kb_postgres_backend import KBPostgresBackend
 
 from ...middleware.async_dispatch import run_async_blocking

@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 
 from langchain.tools import ToolRuntime
 
-from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
-from app.agents.new_chat.path_resolver import DOCUMENTS_ROOT
+from app.agents.shared.filesystem_state import SurfSenseFilesystemState
+from app.agents.shared.path_resolver import DOCUMENTS_ROOT
 
 from ..shared.paths import TEMP_PREFIX, basename
 from .mode import is_cloud

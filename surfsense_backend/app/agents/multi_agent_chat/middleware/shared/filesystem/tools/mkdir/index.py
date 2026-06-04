@@ -11,8 +11,8 @@ from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 
-from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
-from app.agents.new_chat.path_resolver import DOCUMENTS_ROOT
+from app.agents.shared.filesystem_state import SurfSenseFilesystemState
+from app.agents.shared.path_resolver import DOCUMENTS_ROOT
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.mode import is_cloud
