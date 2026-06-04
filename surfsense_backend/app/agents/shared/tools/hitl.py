@@ -44,8 +44,8 @@ logger = logging.getLogger(__name__)
 # change is "no interrupt fires".
 #
 # To re-enable prompting, the future per-search-space rules table
-# (``agent_permission_rules``) takes precedence — see the ``# (future)``
-# layer-3 comment in :mod:`app.agents.new_chat.chat_deepagent`.
+# (``agent_permission_rules``) takes precedence in the permission ruleset
+# layering assembled by the agent factory.
 DEFAULT_AUTO_APPROVED_TOOLS: frozenset[str] = frozenset(
     {
         "create_gmail_draft",

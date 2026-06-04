@@ -8,7 +8,7 @@ per-thread overrides, and no auto-deny synthesis.
 
 This middleware ports OpenCode's ``packages/opencode/src/permission/index.ts``
 ruleset model on top of SurfSense's existing ``interrupt({type, action,
-context})`` payload shape (see ``app/agents/new_chat/tools/hitl.py``) so
+context})`` payload shape (see ``app/agents/shared/tools/hitl.py``) so
 the frontend keeps working unchanged.
 
 Operation:
@@ -85,7 +85,7 @@ def _default_pattern_resolver(name: str) -> PatternResolver:
 # Translation from the LangChain HITL envelope (what ``stream_resume_chat``
 # sends) to SurfSense's legacy ``decision_type`` shape. ``edit`` keeps the
 # original tool args — tools needing argument edits should use
-# ``request_approval`` from ``app/agents/new_chat/tools/hitl.py``.
+# ``request_approval`` from ``app/agents/shared/tools/hitl.py``.
 _LC_TYPE_TO_PERMISSION_DECISION: dict[str, str] = {
     "approve": "once",
     "reject": "reject",

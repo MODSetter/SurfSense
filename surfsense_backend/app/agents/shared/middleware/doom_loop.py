@@ -16,7 +16,7 @@ This ships **OFF by default** until the frontend explicitly handles
 ``context.permission == "doom_loop"`` interrupts.
 
 Wire format: uses SurfSense's existing ``interrupt()`` payload shape
-(see ``app/agents/new_chat/tools/hitl.py``):
+(see ``app/agents/shared/tools/hitl.py``):
 
     {
         "type": "permission_ask",

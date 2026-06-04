@@ -1,10 +1,10 @@
 """Shared poll-until-terminal helper for Celery-backed deliverables.
 
-Lives in ``app.agents.shared`` (neutral package, no dependencies on either
-``new_chat`` or ``multi_agent_chat``) so both the flat single-agent tools
-under ``app/agents/new_chat/tools/`` and the multi-agent subagent tools
-under ``app/agents/multi_agent_chat/subagents/builtins/deliverables/tools/``
-can import it without creating a circular dependency.
+Lives in ``app.agents.shared`` (neutral kernel package, no dependency on
+``multi_agent_chat``) so both the shared tools under ``app/agents/shared/tools/``
+and the multi-agent subagent tools under
+``app/agents/multi_agent_chat/subagents/builtins/deliverables/tools/`` can import
+it without creating a circular dependency.
 
 Background
 ----------

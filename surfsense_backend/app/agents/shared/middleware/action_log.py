@@ -39,9 +39,9 @@ if TYPE_CHECKING:  # pragma: no cover - type-only
     from langchain.agents.middleware.types import ToolCallRequest
     from langgraph.types import Command
 
-    # Type-only import: keeping it lazy avoids a module-load cycle through the
-    # frozen single-agent package (new_chat.__init__ -> chat_deepagent ->
-    # middleware shim). Resolves to app.agents.shared.tools once tools migrate.
+    # Type-only import: ToolDefinition is only referenced in annotations, and a
+    # runtime import would close a module-load cycle (tools.registry imports
+    # shared.middleware.dedup_tool_calls).
     from app.agents.shared.tools.registry import ToolDefinition
 
 

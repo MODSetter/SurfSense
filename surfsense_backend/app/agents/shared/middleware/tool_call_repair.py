@@ -118,9 +118,9 @@ class ToolCallNameRepairMiddleware(
                 return call
 
         # Stage 2 — invalid fallback
-        # Local import avoids a module-load cycle through the frozen single-agent
-        # package (new_chat.__init__ -> chat_deepagent -> middleware shim).
-        # Resolves to app.agents.shared.tools once tools migrate.
+        # Local import avoids a module-load cycle: tools.registry imports
+        # shared.middleware (dedup_tool_calls), so importing tools at module
+        # scope here would close the loop.
         from app.agents.shared.tools.invalid_tool import INVALID_TOOL_NAME
 
         if INVALID_TOOL_NAME in registered:
