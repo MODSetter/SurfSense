@@ -15,8 +15,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.agents.new_chat import mention_resolver
-from app.agents.new_chat.mention_resolver import (
+from app.agents.shared import mention_resolver
+from app.agents.shared.mention_resolver import (
     ResolvedMention,
     ResolvedMentionSet,
     resolve_mentions,

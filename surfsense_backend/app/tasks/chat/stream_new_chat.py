@@ -28,7 +28,7 @@ from sqlalchemy.future import select
 
 from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
-from app.agents.new_chat.checkpointer import get_checkpointer
+from app.agents.shared.checkpointer import get_checkpointer
 from app.agents.shared.context import SurfSenseContextSchema
 from app.agents.shared.errors import BusyError
 from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
@@ -39,7 +39,7 @@ from app.agents.shared.llm_config import (
     load_agent_config,
     load_global_llm_config_by_id,
 )
-from app.agents.new_chat.mention_resolver import resolve_mentions, substitute_in_text
+from app.agents.shared.mention_resolver import resolve_mentions, substitute_in_text
 from app.agents.new_chat.middleware.busy_mutex import (
     end_turn,
     get_cancel_state,

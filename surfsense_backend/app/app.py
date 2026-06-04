@@ -23,7 +23,7 @@ from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from app.agents.new_chat.checkpointer import (
+from app.agents.shared.checkpointer import (
     close_checkpointer,
     setup_checkpointer_tables,
 )

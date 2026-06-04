@@ -1934,7 +1934,7 @@ async def regenerate_response(
     """
     from langchain_core.messages import HumanMessage
 
-    from app.agents.new_chat.checkpointer import get_checkpointer
+    from app.agents.shared.checkpointer import get_checkpointer
 
     try:
         # Verify thread exists and user has permission

@@ -352,7 +352,7 @@ async def stream_anonymous_chat(
         from langchain_core.messages import AIMessage, HumanMessage
 
         from app.agents.new_chat.anonymous_agent import create_anonymous_chat_agent
-        from app.agents.new_chat.checkpointer import get_checkpointer
+        from app.agents.shared.checkpointer import get_checkpointer
         from app.db import shielded_async_session
         from app.services.new_streaming_service import VercelStreamingService
         from app.services.token_tracking_service import start_turn
