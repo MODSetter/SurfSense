@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import { useState } from "react";
 import { BuyPagesContent } from "@/components/settings/buy-pages-content";
 import { BuyTokensContent } from "@/components/settings/buy-tokens-content";
@@ -17,12 +16,7 @@ export default function BuyMorePage() {
 	const [activeTab, setActiveTab] = useState<TabId>("pages");
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.3 }}
-			className="w-full select-none"
-		>
+		<div className="w-full select-none">
 			<Tabs
 				value={activeTab}
 				onValueChange={(value) => {
@@ -49,6 +43,6 @@ export default function BuyMorePage() {
 					<BuyTokensContent />
 				</TabsContent>
 			</Tabs>
-		</motion.div>
+		</div>
 	);
 }
