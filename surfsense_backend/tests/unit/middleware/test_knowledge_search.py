@@ -5,7 +5,7 @@ import json
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app.agents.new_chat.document_xml import build_document_xml as _build_document_xml
+from app.agents.shared.document_xml import build_document_xml as _build_document_xml
 from app.agents.new_chat.middleware.knowledge_search import (
     KBSearchPlan,
     KnowledgeBaseSearchMiddleware,

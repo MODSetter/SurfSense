@@ -692,7 +692,7 @@ async def search_knowledge_base_raw_async(
     # Preserve the public signature for compatibility even if values are unused.
     _ = (db_session, connector_service)
 
-    from app.agents.new_chat.utils import resolve_date_range
+    from app.agents.shared.utils import resolve_date_range
 
     resolved_start_date, resolved_end_date = resolve_date_range(
         start_date=start_date,

@@ -49,7 +49,7 @@ from app.agents.shared.path_resolver import (
     build_path_index,
     doc_to_virtual_path,
 )
-from app.agents.new_chat.utils import parse_date_or_datetime, resolve_date_range
+from app.agents.shared.utils import parse_date_or_datetime, resolve_date_range
 from app.db import (
     NATIVE_TO_LEGACY_DOCTYPE,
     Chunk,
