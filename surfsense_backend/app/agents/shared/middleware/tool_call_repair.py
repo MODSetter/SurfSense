@@ -120,7 +120,9 @@ class ToolCallNameRepairMiddleware(
         # Stage 2 — invalid fallback
         # Local import keeps the middleware module import-light and avoids any
         # tools <-> middleware import-order coupling at module scope.
-        from app.agents.shared.tools.invalid_tool import INVALID_TOOL_NAME
+        from app.agents.multi_agent_chat.main_agent.tools.invalid_tool import (
+            INVALID_TOOL_NAME,
+        )
 
         if INVALID_TOOL_NAME in registered:
             original_args = call.get("args") or {}

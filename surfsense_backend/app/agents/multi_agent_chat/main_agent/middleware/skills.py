@@ -6,14 +6,11 @@ import logging
 
 from deepagents.middleware.skills import SkillsMiddleware
 
+from app.agents.multi_agent_chat.shared.middleware.flags import enabled
 from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.shared.middleware import (
-    build_skills_backend_factory,
-    default_skills_sources,
-)
 
-from app.agents.multi_agent_chat.shared.middleware.flags import enabled
+from ..skills.backends import build_skills_backend_factory, default_skills_sources
 
 
 def build_skills_mw(

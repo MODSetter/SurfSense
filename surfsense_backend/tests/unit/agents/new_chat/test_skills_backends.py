@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from app.agents.shared.middleware.skills_backends import (
+from app.agents.multi_agent_chat.main_agent.skills.backends import (
     SKILLS_BUILTIN_PREFIX,
     SKILLS_SPACE_PREFIX,
     BuiltinSkillsBackend,

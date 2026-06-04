@@ -10,18 +10,18 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 
-from app.agents.shared.agent_cache import (
+from app.agents.shared.feature_flags import AgentFeatureFlags
+from app.agents.shared.filesystem_selection import FilesystemMode
+from app.db import ChatVisibility
+
+from ..graph.compile_graph_sync import build_compiled_agent_graph_sync
+from .agent_cache_store import (
     flags_signature,
     get_cache,
     stable_hash,
     system_prompt_hash,
     tools_signature,
 )
-from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.shared.filesystem_selection import FilesystemMode
-from app.db import ChatVisibility
-
-from ..graph.compile_graph_sync import build_compiled_agent_graph_sync
 
 
 def mcp_signature(mcp_tools_by_agent: dict[str, list[BaseTool]]) -> str:

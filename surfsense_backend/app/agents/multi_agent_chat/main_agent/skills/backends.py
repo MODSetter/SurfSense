@@ -59,10 +59,10 @@ _MAX_SKILL_FILE_SIZE = 10 * 1024 * 1024
 def _default_builtin_root() -> Path:
     """Return the absolute path to the bundled builtin skills directory.
 
-    Located at ``app/agents/shared/skills/builtin/`` relative to this module
-    (this module lives at ``app/agents/shared/middleware/skills_backends.py``).
+    Located at ``builtin/`` next to this module (this module lives at
+    ``app/agents/multi_agent_chat/main_agent/skills/backends.py``).
     """
-    return (Path(__file__).resolve().parent.parent / "skills" / "builtin").resolve()
+    return (Path(__file__).resolve().parent / "builtin").resolve()
 
 
 class BuiltinSkillsBackend(BackendProtocol):

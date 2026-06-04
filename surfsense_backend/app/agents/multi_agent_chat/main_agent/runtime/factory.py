@@ -19,15 +19,11 @@ from app.agents.multi_agent_chat.subagents import (
 from app.agents.multi_agent_chat.subagents.mcp_tools.index import (
     load_mcp_tools_by_connector,
 )
-from app.agents.shared.connector_searchable_types import (
-    map_connectors_to_searchable_types,
-)
 from app.agents.shared.feature_flags import AgentFeatureFlags, get_flags
 from app.agents.shared.filesystem_backends import build_backend_resolver
 from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.shared.llm_config import AgentConfig
 from app.agents.shared.prompt_caching import apply_litellm_prompt_caching
-from app.agents.shared.tools.invalid_tool import INVALID_TOOL_NAME, invalid_tool
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 from app.services.user_tool_allowlist import (
@@ -41,8 +37,10 @@ from ..tools import (
     MAIN_AGENT_SURFSENSE_TOOL_NAMES,
     MAIN_AGENT_SURFSENSE_TOOL_NAMES_ORDERED,
 )
+from ..tools.invalid_tool import INVALID_TOOL_NAME, invalid_tool
 from ..tools.registry import build_main_agent_tools
 from .agent_cache import build_agent_with_cache
+from .connector_searchable_types import map_connectors_to_searchable_types
 
 _perf_log = get_perf_logger()
 

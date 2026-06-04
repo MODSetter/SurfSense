@@ -7,15 +7,15 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 
+from app.agents.multi_agent_chat.shared.middleware.flags import enabled
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.shared.plugin_loader import (
+from app.db import ChatVisibility
+
+from ..plugins.loader import (
     PluginContext,
     load_allowed_plugin_names_from_env,
     load_plugin_middlewares,
 )
-from app.db import ChatVisibility
-
-from app.agents.multi_agent_chat.shared.middleware.flags import enabled
 
 
 def build_plugin_middlewares(

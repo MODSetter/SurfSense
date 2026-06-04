@@ -45,12 +45,6 @@ from app.agents.shared.middleware.noop_injection import NoopInjectionMiddleware
 from app.agents.shared.middleware.otel_span import OtelSpanMiddleware
 from app.agents.shared.middleware.permission import PermissionMiddleware
 from app.agents.shared.middleware.retry_after import RetryAfterMiddleware
-from app.agents.shared.middleware.skills_backends import (
-    BuiltinSkillsBackend,
-    SearchSpaceSkillsBackend,
-    build_skills_backend_factory,
-    default_skills_sources,
-)
 from app.agents.shared.middleware.tool_call_repair import (
     ToolCallNameRepairMiddleware,
 )
@@ -58,7 +52,6 @@ from app.agents.shared.middleware.tool_call_repair import (
 __all__ = [
     "ActionLogMiddleware",
     "AnonymousDocumentMiddleware",
-    "BuiltinSkillsBackend",
     "BusyMutexMiddleware",
     "ClearToolUsesEdit",
     "DedupHITLToolCallsMiddleware",
@@ -74,14 +67,11 @@ __all__ = [
     "OtelSpanMiddleware",
     "PermissionMiddleware",
     "RetryAfterMiddleware",
-    "SearchSpaceSkillsBackend",
     "SpillToBackendEdit",
     "SpillingContextEditingMiddleware",
     "SurfSenseCompactionMiddleware",
     "ToolCallNameRepairMiddleware",
     "ToolDefinition",
-    "build_skills_backend_factory",
     "commit_staged_filesystem_state",
     "create_surfsense_compaction_middleware",
-    "default_skills_sources",
 ]
