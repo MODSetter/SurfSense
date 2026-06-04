@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.new_chat.feature_flags import (
+from app.agents.shared.feature_flags import (
     AgentFeatureFlags,
     reload_for_tests,
 )

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.shared.feature_flags import AgentFeatureFlags
 
 from ..shared.permissions import build_permission_mw
 from ..shared.resilience import ResilienceMiddlewares

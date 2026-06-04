@@ -33,7 +33,7 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.messages import ToolMessage
 
-from app.agents.new_chat.feature_flags import get_flags
+from app.agents.shared.feature_flags import get_flags
 from app.agents.new_chat.tools.registry import ToolDefinition
 
 if TYPE_CHECKING:  # pragma: no cover - type-only

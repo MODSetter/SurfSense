@@ -10,7 +10,7 @@ import pytest
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.middleware.action_log import ActionLogMiddleware
 from app.agents.new_chat.tools.registry import ToolDefinition
 

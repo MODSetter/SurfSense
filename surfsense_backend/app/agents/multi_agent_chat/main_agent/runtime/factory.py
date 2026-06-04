@@ -22,7 +22,7 @@ from app.agents.multi_agent_chat.subagents.mcp_tools.index import (
 from app.agents.new_chat.connector_searchable_types import (
     map_connectors_to_searchable_types,
 )
-from app.agents.new_chat.feature_flags import AgentFeatureFlags, get_flags
+from app.agents.shared.feature_flags import AgentFeatureFlags, get_flags
 from app.agents.new_chat.filesystem_backends import build_backend_resolver
 from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.new_chat.llm_config import AgentConfig

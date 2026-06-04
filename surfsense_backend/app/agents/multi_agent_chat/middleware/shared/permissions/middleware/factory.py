@@ -27,7 +27,7 @@ from collections.abc import Sequence
 
 from langchain_core.tools import BaseTool
 
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.permissions import Rule, Ruleset
 from app.services.user_tool_allowlist import TrustedToolSaver
 

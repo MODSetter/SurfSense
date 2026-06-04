@@ -41,7 +41,7 @@ from litellm import token_counter
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 
-from app.agents.new_chat.feature_flags import get_flags
+from app.agents.shared.feature_flags import get_flags
 from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.agents.new_chat.filesystem_state import SurfSenseFilesystemState
 from app.agents.new_chat.path_resolver import (

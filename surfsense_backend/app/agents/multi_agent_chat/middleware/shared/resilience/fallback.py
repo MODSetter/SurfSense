@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.middleware.scoped_model_fallback import (
     ScopedModelFallbackMiddleware,
 )

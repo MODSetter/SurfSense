@@ -6,7 +6,7 @@ import logging
 
 from deepagents.middleware.skills import SkillsMiddleware
 
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.agents.new_chat.middleware import (
     build_skills_backend_factory,

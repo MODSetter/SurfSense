@@ -7,7 +7,7 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.plugin_loader import (
     PluginContext,
     load_allowed_plugin_names_from_env,

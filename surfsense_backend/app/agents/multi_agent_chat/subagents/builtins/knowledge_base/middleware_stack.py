@@ -28,7 +28,7 @@ from app.agents.multi_agent_chat.middleware.shared.patch_tool_calls import (
 from app.agents.multi_agent_chat.middleware.shared.permissions import (
     build_permission_mw,
 )
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.agents.new_chat.permissions import Ruleset
 

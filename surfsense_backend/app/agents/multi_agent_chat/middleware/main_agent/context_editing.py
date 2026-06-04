@@ -10,7 +10,7 @@ from langchain_core.tools import BaseTool
 from app.agents.multi_agent_chat.main_agent.context_prune.prune_tool_names import (
     safe_exclude_tools,
 )
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.middleware import (
     ClearToolUsesEdit,
     SpillingContextEditingMiddleware,

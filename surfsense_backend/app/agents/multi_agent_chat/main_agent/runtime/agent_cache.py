@@ -17,7 +17,7 @@ from app.agents.new_chat.agent_cache import (
     system_prompt_hash,
     tools_signature,
 )
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.filesystem_selection import FilesystemMode
 from app.db import ChatVisibility
 

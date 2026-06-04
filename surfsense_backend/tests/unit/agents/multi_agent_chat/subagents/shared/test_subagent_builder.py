@@ -25,7 +25,7 @@ from app.agents.multi_agent_chat.middleware.shared.permissions.middleware.core i
 from app.agents.multi_agent_chat.subagents.shared.subagent_builder import (
     pack_subagent,
 )
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.permissions import Rule, Ruleset, evaluate
 
 

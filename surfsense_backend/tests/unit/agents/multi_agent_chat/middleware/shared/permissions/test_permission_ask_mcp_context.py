@@ -19,7 +19,7 @@ from app.agents.multi_agent_chat.middleware.shared.permissions import (
 from app.agents.multi_agent_chat.middleware.shared.permissions.ask.payload import (
     build_permission_ask_payload,
 )
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.new_chat.permissions import Rule, Ruleset
 
 
