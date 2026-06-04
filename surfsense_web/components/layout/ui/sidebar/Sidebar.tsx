@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { CreditCard, Dot, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsAnonymous } from "@/contexts/anonymous-mode";
+import { prefetchThreadData } from "@/hooks/use-thread-queries";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
@@ -132,6 +134,7 @@ export function Sidebar({
 	collapsedHeaderContent,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
+	const queryClient = useQueryClient();
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
 
 	// Inbox, Automations, and Documents are rendered explicitly right below
@@ -293,6 +296,7 @@ export function Sidebar({
 											dropdownOpen={openDropdownChatId === chat.id}
 											onDropdownOpenChange={(open) => setOpenDropdownChatId(open ? chat.id : null)}
 											onClick={() => onChatSelect(chat)}
+											onPrefetch={() => prefetchThreadData(queryClient, chat.id)}
 											onRename={() => onChatRename?.(chat)}
 											onArchive={() => onChatArchive?.(chat)}
 											onDelete={() => onChatDelete?.(chat)}

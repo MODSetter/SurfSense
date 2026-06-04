@@ -115,17 +115,23 @@ function searchThreadsQueryFilter(searchSpaceId: SearchSpaceKey) {
 	};
 }
 
-function threadDetailQueryFilter(searchSpaceId: SearchSpaceKey, threadId: number) {
+function threadDetailQueryFilter(threadId: number) {
 	return {
 		predicate: ({ queryKey }: { queryKey: QueryKey }) =>
 			Array.isArray(queryKey) &&
-			((queryKey[0] === "threads" &&
-				queryKey[1] === "detail" &&
-				Number(queryKey[2]) === threadId) ||
-				(queryKey[0] === "threads" &&
-					isSameSearchSpace(queryKey[1], searchSpaceId) &&
-					queryKey[2] === "detail" &&
-					Number(queryKey[3]) === threadId)),
+			queryKey[0] === "threads" &&
+			queryKey[1] === "detail" &&
+			Number(queryKey[2]) === threadId,
+	};
+}
+
+function threadMessagesQueryFilter(threadId: number) {
+	return {
+		predicate: ({ queryKey }: { queryKey: QueryKey }) =>
+			Array.isArray(queryKey) &&
+			queryKey[0] === "threads" &&
+			queryKey[1] === "messages" &&
+			Number(queryKey[2]) === threadId,
 	};
 }
 
@@ -155,13 +161,10 @@ export function patchThreadEverywhere(
 		return patchThreadListItems(old, threadId, patch);
 	});
 
-	queryClient.setQueriesData<ThreadRecord>(
-		threadDetailQueryFilter(searchSpaceId, threadId),
-		(old) => {
-			if (!old) return old;
-			return patchThreadRecord(old, threadId, patch);
-		}
-	);
+	queryClient.setQueriesData<ThreadRecord>(threadDetailQueryFilter(threadId), (old) => {
+		if (!old) return old;
+		return patchThreadRecord(old, threadId, patch);
+	});
 }
 
 export function replaceThreadEverywhere(
@@ -198,7 +201,8 @@ export function removeThreadEverywhere(
 		if (!isThreadListItemArray(old)) return old;
 		return old.filter((thread) => thread.id !== threadId);
 	});
-	queryClient.removeQueries(threadDetailQueryFilter(searchSpaceId, threadId));
+	queryClient.removeQueries(threadDetailQueryFilter(threadId));
+	queryClient.removeQueries(threadMessagesQueryFilter(threadId));
 }
 
 export function moveThreadArchiveState(
@@ -239,11 +243,8 @@ export function moveThreadArchiveState(
 		if (!isThreadListItemArray(old)) return old;
 		return old.map((thread) => (thread.id === threadId ? { ...thread, archived } : thread));
 	});
-	queryClient.setQueriesData<ThreadRecord>(
-		threadDetailQueryFilter(searchSpaceId, threadId),
-		(old) => {
-			if (!old || old.id !== threadId) return old;
-			return { ...old, archived };
-		}
-	);
+	queryClient.setQueriesData<ThreadRecord>(threadDetailQueryFilter(threadId), (old) => {
+		if (!old || old.id !== threadId) return old;
+		return { ...old, archived };
+	});
 }

@@ -23,6 +23,7 @@ interface ChatListItemProps {
 	dropdownOpen?: boolean;
 	onDropdownOpenChange?: (open: boolean) => void;
 	onClick?: () => void;
+	onPrefetch?: () => void;
 	onRename?: () => void;
 	onArchive?: () => void;
 	onDelete?: () => void;
@@ -35,6 +36,7 @@ export function ChatListItem({
 	dropdownOpen: controlledOpen,
 	onDropdownOpenChange,
 	onClick,
+	onPrefetch,
 	onRename,
 	onArchive,
 	onDelete,
@@ -61,6 +63,8 @@ export function ChatListItem({
 				type="button"
 				variant="ghost"
 				onClick={handleClick}
+				onMouseEnter={onPrefetch}
+				onFocus={onPrefetch}
 				{...(isMobile ? longPressHandlers : {})}
 				className={cn(
 					"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",

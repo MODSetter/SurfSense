@@ -8,7 +8,11 @@ import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
+import {
+	currentThreadAtom,
+	resetCurrentThreadAtom,
+	setCurrentThreadMetadataAtom,
+} from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
@@ -94,6 +98,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
 	const currentThreadState = useAtomValue(currentThreadAtom);
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
+	const setCurrentThreadMetadata = useSetAtom(setCurrentThreadMetadataAtom);
 	const syncChatTab = useSetAtom(syncChatTabAtom);
 	const removeChatTab = useSetAtom(removeChatTabAtom);
 	const { mutateAsync: archiveThread } = useArchiveThread(searchSpaceId);
@@ -521,9 +526,20 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	const handleChatSelect = useCallback(
 		(chat: ChatItem) => {
+			syncChatTab({
+				chatId: chat.id,
+				title: chat.name,
+				chatUrl: chat.url,
+				searchSpaceId: Number(searchSpaceId),
+			});
+			setCurrentThreadMetadata({
+				id: chat.id,
+				visibility: chat.visibility ?? "PRIVATE",
+				hasComments: false,
+			});
 			router.push(chat.url);
 		},
-		[router]
+		[router, searchSpaceId, setCurrentThreadMetadata, syncChatTab]
 	);
 
 	const handleChatDelete = useCallback((chat: ChatItem) => {

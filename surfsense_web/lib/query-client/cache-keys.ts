@@ -21,6 +21,7 @@ export const cacheKeys = {
 	threads: {
 		list: (searchSpaceId: number) => ["threads", searchSpaceId] as const,
 		detail: (threadId: number) => ["threads", "detail", threadId] as const,
+		messages: (threadId: number) => ["threads", "messages", threadId] as const,
 		search: (searchSpaceId: number, query: string) =>
 			["threads", "search", searchSpaceId, query] as const,
 	},

@@ -19,7 +19,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { removeChatTabAtom } from "@/atoms/tabs/tabs.atom";
+import { setCurrentThreadMetadataAtom } from "@/atoms/chat/current-thread.atom";
+import { removeChatTabAtom, syncChatTabAtom } from "@/atoms/tabs/tabs.atom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,7 +45,8 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
-import { fetchThreads, searchThreads } from "@/lib/chat/thread-persistence";
+import { prefetchThreadData } from "@/hooks/use-thread-queries";
+import { fetchThreads, searchThreads, type ThreadListItem } from "@/lib/chat/thread-persistence";
 import { formatThreadTimestamp } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
@@ -70,6 +72,8 @@ export function AllChatsSidebarContent({
 	const queryClient = useQueryClient();
 	const isMobile = useIsMobile();
 	const removeChatTab = useSetAtom(removeChatTabAtom);
+	const syncChatTab = useSetAtom(syncChatTabAtom);
+	const setCurrentThreadMetadata = useSetAtom(setCurrentThreadMetadataAtom);
 	const { mutateAsync: deleteThread } = useDeleteThread(searchSpaceId);
 	const { mutateAsync: archiveThread } = useArchiveThread(searchSpaceId);
 	const { mutateAsync: renameThread } = useRenameThread(searchSpaceId);
@@ -141,12 +145,31 @@ export function AllChatsSidebarContent({
 	const threads = showArchived ? archivedChats : activeChats;
 
 	const handleThreadClick = useCallback(
-		(threadId: number) => {
-			router.push(`/dashboard/${searchSpaceId}/new-chat/${threadId}`);
+		(thread: ThreadListItem) => {
+			const chatUrl = `/dashboard/${searchSpaceId}/new-chat/${thread.id}`;
+			syncChatTab({
+				chatId: thread.id,
+				title: thread.title || "New Chat",
+				chatUrl,
+				searchSpaceId: Number(searchSpaceId),
+			});
+			setCurrentThreadMetadata({
+				id: thread.id,
+				visibility: thread.visibility,
+				hasComments: false,
+			});
+			router.push(chatUrl);
 			onOpenChange(false);
 			onCloseMobileSidebar?.();
 		},
-		[router, onOpenChange, searchSpaceId, onCloseMobileSidebar]
+		[
+			router,
+			onOpenChange,
+			searchSpaceId,
+			onCloseMobileSidebar,
+			setCurrentThreadMetadata,
+			syncChatTab,
+		]
 	);
 
 	const handleDeleteThread = useCallback(
@@ -337,8 +360,10 @@ export function AllChatsSidebarContent({
 											variant="ghost"
 											onClick={() => {
 												if (wasLongPress()) return;
-												handleThreadClick(thread.id);
+												handleThreadClick(thread);
 											}}
+											onMouseEnter={() => prefetchThreadData(queryClient, thread.id)}
+											onFocus={() => prefetchThreadData(queryClient, thread.id)}
 											onTouchStart={() => {
 												pendingThreadIdRef.current = thread.id;
 												longPressHandlers.onTouchStart();
@@ -363,7 +388,9 @@ export function AllChatsSidebarContent({
 												<Button
 													type="button"
 													variant="ghost"
-													onClick={() => handleThreadClick(thread.id)}
+													onClick={() => handleThreadClick(thread)}
+													onMouseEnter={() => prefetchThreadData(queryClient, thread.id)}
+													onFocus={() => prefetchThreadData(queryClient, thread.id)}
 													disabled={isBusy}
 													className={cn(
 														"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",

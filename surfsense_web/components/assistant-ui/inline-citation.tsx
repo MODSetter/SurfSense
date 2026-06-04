@@ -3,7 +3,7 @@
 import { useSetAtom } from "jotai";
 import { FileText } from "lucide-react";
 import type { FC } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { openCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { useCitationMetadata } from "@/components/assistant-ui/citation-metadata-context";
 import { CitationPanelContent } from "@/components/citation-panel/citation-panel";
@@ -120,12 +120,14 @@ interface UrlCitationProps {
  * page title and snippet (extracted deterministically from web_search tool results).
  */
 export const UrlCitation: FC<UrlCitationProps> = ({ url }) => {
+	const reactId = useId();
+	const citationInstanceId = `url-cite-${reactId.replace(/:/g, "")}`;
 	const domain = tryGetHostname(url) ?? url;
 	const meta = useCitationMetadata(url);
 
 	return (
 		<Citation
-			id={`url-cite-${url}`}
+			id={citationInstanceId}
 			href={url}
 			title={meta?.title || domain}
 			snippet={meta?.snippet}
