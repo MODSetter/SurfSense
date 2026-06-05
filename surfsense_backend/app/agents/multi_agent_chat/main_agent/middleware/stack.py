@@ -20,6 +20,24 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 
+from app.agents.multi_agent_chat.shared.middleware.anthropic_cache import (
+    build_anthropic_cache_mw,
+)
+from app.agents.multi_agent_chat.shared.middleware.compaction import build_compaction_mw
+from app.agents.multi_agent_chat.shared.middleware.kb_context_projection import (
+    build_kb_context_projection_mw,
+)
+from app.agents.multi_agent_chat.shared.middleware.memory import build_memory_mw
+from app.agents.multi_agent_chat.shared.middleware.patch_tool_calls import (
+    build_patch_tool_calls_mw,
+)
+from app.agents.multi_agent_chat.shared.middleware.permissions import (
+    build_permission_mw,
+)
+from app.agents.multi_agent_chat.shared.middleware.resilience import (
+    build_resilience_middlewares,
+)
+from app.agents.multi_agent_chat.shared.middleware.todos import build_todos_mw
 from app.agents.multi_agent_chat.subagents import (
     build_subagents,
     get_subagents_to_exclude,
@@ -31,12 +49,15 @@ from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.agent import 
 from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.ask_knowledge_base_tool import (
     build_ask_knowledge_base_tool,
 )
+from app.agents.multi_agent_chat.subagents.shared.middleware.middleware_stack import (
+    build_subagent_middleware_stack,
+)
 from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.filesystem_selection import FilesystemMode
 from app.db import ChatVisibility
 
 from .action_log import build_action_log_mw
-from .anonymous_doc import build_anonymous_doc_mw
+from .anonymous_document import build_anonymous_doc_mw
 from .busy_mutex import build_busy_mutex_mw
 from .checkpointed_subagent_middleware import (
     SurfSenseCheckpointedSubAgentMiddleware,
@@ -51,21 +72,10 @@ from .kb_persistence import build_kb_persistence_mw
 from .knowledge_priority import build_knowledge_priority_mw
 from .knowledge_tree import build_knowledge_tree_mw
 from .noop_injection import build_noop_injection_mw
-from .otel import build_otel_mw
+from .otel_span import build_otel_mw
 from .plugins import build_plugin_middlewares
-from .repair import build_repair_mw
 from .skills import build_skills_mw
-from app.agents.multi_agent_chat.shared.middleware.anthropic_cache import build_anthropic_cache_mw
-from app.agents.multi_agent_chat.shared.middleware.compaction import build_compaction_mw
-from app.agents.multi_agent_chat.shared.middleware.kb_context_projection import build_kb_context_projection_mw
-from app.agents.multi_agent_chat.shared.middleware.memory import build_memory_mw
-from app.agents.multi_agent_chat.shared.middleware.patch_tool_calls import build_patch_tool_calls_mw
-from app.agents.multi_agent_chat.shared.middleware.permissions import build_permission_mw
-from app.agents.multi_agent_chat.shared.middleware.resilience import build_resilience_middlewares
-from app.agents.multi_agent_chat.shared.middleware.todos import build_todos_mw
-from app.agents.multi_agent_chat.subagents.shared.middleware.middleware_stack import (
-    build_subagent_middleware_stack,
-)
+from .tool_call_repair import build_repair_mw
 
 
 def build_main_agent_deepagent_middleware(

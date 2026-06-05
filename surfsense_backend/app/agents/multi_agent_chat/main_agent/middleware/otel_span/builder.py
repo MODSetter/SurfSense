@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.shared.middleware import OtelSpanMiddleware
-
 from app.agents.multi_agent_chat.shared.middleware.flags import enabled
+from app.agents.shared.feature_flags import AgentFeatureFlags
+
+from .middleware import OtelSpanMiddleware
 
 
 def build_otel_mw(flags: AgentFeatureFlags) -> OtelSpanMiddleware | None:

@@ -5,10 +5,10 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import AIMessage
 
-from app.agents.multi_agent_chat.main_agent.tools.invalid_tool import INVALID_TOOL_NAME
-from app.agents.shared.middleware.tool_call_repair import (
+from app.agents.multi_agent_chat.main_agent.middleware.tool_call_repair.middleware import (
     ToolCallNameRepairMiddleware,
 )
+from app.agents.multi_agent_chat.main_agent.tools.invalid_tool import INVALID_TOOL_NAME
 
 pytestmark = pytest.mark.unit
 

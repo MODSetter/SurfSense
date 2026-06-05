@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 
-from app.agents.shared.middleware.otel_span import (
+from app.agents.multi_agent_chat.main_agent.middleware.otel_span.middleware import (
     OtelSpanMiddleware,
     _annotate_model_response,
     _annotate_tool_result,
@@ -206,13 +206,13 @@ class TestMiddlewareIntegration:
         duration_calls: list[dict[str, Any]] = []
         token_calls: list[dict[str, Any]] = []
         monkeypatch.setattr(
-            "app.agents.shared.middleware.otel_span.ot_metrics.record_model_call_duration",
+            "app.agents.multi_agent_chat.main_agent.middleware.otel_span.middleware.ot_metrics.record_model_call_duration",
             lambda duration_ms, **attrs: duration_calls.append(
                 {"duration_ms": duration_ms, **attrs}
             ),
         )
         monkeypatch.setattr(
-            "app.agents.shared.middleware.otel_span.ot_metrics.record_model_token_usage",
+            "app.agents.multi_agent_chat.main_agent.middleware.otel_span.middleware.ot_metrics.record_model_token_usage",
             lambda **attrs: token_calls.append(attrs),
         )
 
@@ -257,11 +257,11 @@ class TestMiddlewareIntegration:
 
         errors: list[str] = []
         monkeypatch.setattr(
-            "app.agents.shared.middleware.otel_span.ot_metrics.record_tool_call_error",
+            "app.agents.multi_agent_chat.main_agent.middleware.otel_span.middleware.ot_metrics.record_tool_call_error",
             lambda *, tool_name: errors.append(tool_name),
         )
         monkeypatch.setattr(
-            "app.agents.shared.middleware.otel_span.ot_metrics.record_tool_call_duration",
+            "app.agents.multi_agent_chat.main_agent.middleware.otel_span.middleware.ot_metrics.record_tool_call_duration",
             lambda *args, **kwargs: None,
         )
 

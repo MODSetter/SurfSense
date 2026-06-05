@@ -5,7 +5,8 @@ from __future__ import annotations
 from langchain_core.language_models import BaseChatModel
 
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.shared.middleware import KnowledgeTreeMiddleware
+
+from .middleware import KnowledgeTreeMiddleware
 
 
 def build_knowledge_tree_mw(

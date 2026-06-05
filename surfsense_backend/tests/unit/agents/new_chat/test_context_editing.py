@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from app.agents.shared.middleware.context_editing import (
+from app.agents.multi_agent_chat.main_agent.middleware.context_editing.middleware import (
     SpillToBackendEdit,
     _build_spill_placeholder,
 )

@@ -10,14 +10,14 @@ from langchain_core.tools import BaseTool
 from app.agents.multi_agent_chat.main_agent.context_prune.prune_tool_names import (
     safe_exclude_tools,
 )
+from app.agents.multi_agent_chat.shared.middleware.flags import enabled
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.shared.middleware import (
+
+from .middleware import (
     ClearToolUsesEdit,
     SpillingContextEditingMiddleware,
     SpillToBackendEdit,
 )
-
-from app.agents.multi_agent_chat.shared.middleware.flags import enabled
 
 
 def build_context_editing_mw(

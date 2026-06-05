@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.shared.middleware import NoopInjectionMiddleware
-
 from app.agents.multi_agent_chat.shared.middleware.flags import enabled
+from app.agents.shared.feature_flags import AgentFeatureFlags
+
+from .middleware import NoopInjectionMiddleware
 
 
 def build_noop_injection_mw(flags: AgentFeatureFlags) -> NoopInjectionMiddleware | None:
