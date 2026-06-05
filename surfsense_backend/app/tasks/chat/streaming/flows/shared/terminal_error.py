@@ -14,7 +14,7 @@ import traceback
 from collections.abc import Iterator
 from typing import Any, Literal
 
-from app.agents.chat.multi_agent_chat.shared.errors import BusyError
+from app.agents.chat.runtime.errors import BusyError
 from app.observability import metrics as ot_metrics, otel as ot
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat.streaming.errors.classifier import classify_stream_exception

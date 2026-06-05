@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
-from app.agents.chat.multi_agent_chat.shared.path_resolver import DOCUMENTS_ROOT
+from app.agents.chat.runtime.path_resolver import DOCUMENTS_ROOT
 
 
 def is_cloud(mode: FilesystemMode) -> bool:

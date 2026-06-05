@@ -11,7 +11,7 @@ from langgraph.types import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat.multi_agent_chat import create_multi_agent_chat_deep_agent
-from app.agents.chat.multi_agent_chat.shared.mention_resolver import (
+from app.agents.chat.runtime.mention_resolver import (
     resolve_mentions,
     substitute_in_text,
 )

@@ -68,7 +68,7 @@ from typing import TYPE_CHECKING, Any
 from langchain_core.language_models import BaseChatModel
 
 if TYPE_CHECKING:
-    from app.agents.chat.multi_agent_chat.shared.llm_config import AgentConfig
+    from app.agents.chat.runtime.llm_config import AgentConfig
 
 logger = logging.getLogger(__name__)
 

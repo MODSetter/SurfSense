@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.agents.chat.multi_agent_chat.shared.path_resolver import (
+from app.agents.chat.runtime.path_resolver import (
     DOCUMENTS_ROOT,
     PathIndex,
     doc_to_virtual_path,

@@ -47,12 +47,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import get_flags
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
-from app.agents.chat.multi_agent_chat.shared.path_resolver import (
-    DOCUMENTS_ROOT,
-    parse_documents_path,
-    safe_folder_segment,
-    virtual_path_to_doc,
-)
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import (
     Receipt,
     make_receipt,
@@ -61,6 +55,12 @@ from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
 from app.agents.chat.multi_agent_chat.shared.state.reducers import _CLEAR
+from app.agents.chat.runtime.path_resolver import (
+    DOCUMENTS_ROOT,
+    parse_documents_path,
+    safe_folder_segment,
+    virtual_path_to_doc,
+)
 from app.db import (
     AgentActionLog,
     Chunk,

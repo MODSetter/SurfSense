@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.chat.multi_agent_chat.shared.errors import BusyError
 from app.agents.chat.multi_agent_chat.shared.middleware.busy_mutex import (
     BusyMutexMiddleware,
     end_turn,
@@ -14,6 +13,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.busy_mutex import (
     request_cancel,
     reset_cancel,
 )
+from app.agents.chat.runtime.errors import BusyError
 
 pytestmark = pytest.mark.unit
 

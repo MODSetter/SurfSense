@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.multi_agent_chat.shared.path_resolver import (
+from app.agents.chat.runtime.path_resolver import (
     DOCUMENTS_ROOT,
     build_path_index,
     doc_to_virtual_path,
