@@ -55,9 +55,49 @@ SurfSense publishes CPU and CUDA backend image variants. The frontend image is n
 
 All backend variants are published for `linux/amd64` and `linux/arm64`. CUDA on `linux/arm64` is best-effort.
 
-<Callout type="warn">
-`SURFSENSE_VARIANT` only selects the GPU-built backend image. GPU device access is added separately in Phase 3.
+<Callout type="info">
+GPU acceleration needs two settings: `SURFSENSE_VARIANT` selects the CUDA image, and `COMPOSE_FILE` enables the GPU device overlay. The host must have the NVIDIA Container Toolkit installed.
 </Callout>
+
+### NVIDIA GPU Acceleration
+
+For most NVIDIA systems, add these values to `.env` to use the CUDA 12.8 image:
+
+```dotenv
+SURFSENSE_VARIANT=cuda
+COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml
+SURFSENSE_GPU_COUNT=1
+```
+
+Use `SURFSENSE_VARIANT=cuda126` for older NVIDIA driver stacks or older GPUs that need the CUDA 12.6 fallback image.
+
+On Windows, use `;` instead of `:` in `COMPOSE_FILE` inside `.env`:
+
+```dotenv
+COMPOSE_FILE=docker-compose.yml;docker-compose.gpu.yml
+```
+
+To switch variants later, edit `SURFSENSE_VARIANT` and `COMPOSE_FILE` in `.env`, then run:
+
+```bash
+docker compose pull
+docker compose up -d --wait
+```
+
+### Automatic Updates
+
+Manual Docker Compose installs do not start Watchtower automatically. To enable external automatic updates, run Watchtower separately:
+
+```bash
+docker run -d --name watchtower \
+  --restart unless-stopped \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  nickfedor/watchtower \
+  --label-enable \
+  --interval 86400
+```
+
+SurfSense containers are labeled for Watchtower, so `--label-enable` limits updates to the SurfSense services.
 
 ### Ports
 
