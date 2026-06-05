@@ -9,13 +9,11 @@ from app.agents.shared.middleware.kb_persistence import (
     KnowledgeBasePersistenceMiddleware,
     commit_staged_filesystem_state,
 )
-from app.agents.shared.middleware.permission import PermissionMiddleware
 from app.agents.shared.middleware.retry_after import RetryAfterMiddleware
 
 __all__ = [
     "BusyMutexMiddleware",
     "KnowledgeBasePersistenceMiddleware",
-    "PermissionMiddleware",
     "RetryAfterMiddleware",
     "SurfSenseCompactionMiddleware",
     "commit_staged_filesystem_state",

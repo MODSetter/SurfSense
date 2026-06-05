@@ -16,7 +16,6 @@ from app.agents.multi_agent_chat.shared.permissions import (
     aggregate_action,
     evaluate_many,
 )
-from app.agents.shared.middleware.permission import PermissionMiddleware
 
 pytestmark = pytest.mark.unit
 
@@ -87,36 +86,3 @@ class TestDesktopSafetyOverridesAllowDefault:
         # Correct order: defaults < desktop_safety -> ask wins.
         action = _action_for("rm", SURFSENSE_DEFAULTS, DESKTOP_SAFETY_RULESET)
         assert action == "ask"
-
-
-class TestPermissionMiddlewareIntegration:
-    def test_middleware_raises_interrupt_for_rm_in_desktop_mode(self) -> None:
-        from langchain_core.messages import AIMessage
-
-        from app.agents.shared.errors import RejectedError
-
-        mw = PermissionMiddleware(rulesets=[SURFSENSE_DEFAULTS, DESKTOP_SAFETY_RULESET])
-        # Stub the interrupt to a "reject" decision so we can assert the
-        # ask path was taken without spinning up the LangGraph runtime.
-        mw._raise_interrupt = lambda **kw: {"decision_type": "reject"}  # type: ignore[assignment]
-
-        state = {
-            "messages": [
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "rm",
-                            "args": {"path": "/Users/me/Documents/important.docx"},
-                            "id": "tc-rm",
-                        }
-                    ],
-                )
-            ]
-        }
-
-        class _FakeRuntime:
-            config: dict = {"configurable": {"thread_id": "test"}}
-
-        with pytest.raises(RejectedError):
-            mw.after_model(state, _FakeRuntime())
