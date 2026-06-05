@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.agents.shared.permissions import Rule, Ruleset
+from app.agents.multi_agent_chat.shared.permissions import Rule, Ruleset
 
 NAME = "slack"
 

@@ -19,7 +19,7 @@ from typing_extensions import TypedDict
 from app.agents.multi_agent_chat.shared.middleware.permissions.ask.request import (
     request_permission_decision,
 )
-from app.agents.shared.permissions import Rule
+from app.agents.multi_agent_chat.shared.permissions import Rule
 
 
 class _State(TypedDict, total=False):

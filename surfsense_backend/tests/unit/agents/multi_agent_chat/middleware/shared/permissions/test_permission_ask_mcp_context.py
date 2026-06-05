@@ -19,8 +19,8 @@ from app.agents.multi_agent_chat.shared.middleware.permissions import (
 from app.agents.multi_agent_chat.shared.middleware.permissions.ask.payload import (
     build_permission_ask_payload,
 )
+from app.agents.multi_agent_chat.shared.permissions import Rule, Ruleset
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.shared.permissions import Rule, Ruleset
 
 
 class _NoArgs(BaseModel):

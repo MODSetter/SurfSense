@@ -5,12 +5,12 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 
+from app.agents.multi_agent_chat.shared.permissions import Rule, Ruleset
 from app.agents.shared.errors import CorrectedError, RejectedError
 from app.agents.shared.middleware.permission import (
     PermissionMiddleware,
     _normalize_permission_decision,
 )
-from app.agents.shared.permissions import Rule, Ruleset
 
 pytestmark = pytest.mark.unit
 

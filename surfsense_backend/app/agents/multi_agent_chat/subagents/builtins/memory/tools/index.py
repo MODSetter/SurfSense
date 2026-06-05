@@ -6,7 +6,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.shared.permissions import Ruleset
+from app.agents.multi_agent_chat.shared.permissions import Ruleset
 from app.db import ChatVisibility
 
 from .update_memory import create_update_memory_tool, create_update_team_memory_tool

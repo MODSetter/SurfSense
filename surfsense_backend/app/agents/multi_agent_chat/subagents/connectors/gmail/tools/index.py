@@ -9,7 +9,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.shared.permissions import Ruleset
+from app.agents.multi_agent_chat.shared.permissions import Ruleset
 
 from .create_draft import create_create_gmail_draft_tool
 from .read_email import create_read_gmail_email_tool

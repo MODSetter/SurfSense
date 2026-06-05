@@ -6,6 +6,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
+from app.agents.multi_agent_chat.shared.permissions import Rule
 from app.agents.multi_agent_chat.subagents.shared.hitl.wire import (
     LC_DECISION_APPROVE,
     LC_DECISION_EDIT,
@@ -13,7 +14,6 @@ from app.agents.multi_agent_chat.subagents.shared.hitl.wire import (
     SURFSENSE_DECISION_APPROVE_ALWAYS,
     build_lc_hitl_payload,
 )
-from app.agents.shared.permissions import Rule
 
 PERMISSION_ASK_INTERRUPT_TYPE = "permission_ask"
 

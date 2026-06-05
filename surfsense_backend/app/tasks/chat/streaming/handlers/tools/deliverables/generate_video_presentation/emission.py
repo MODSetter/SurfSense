@@ -21,7 +21,7 @@ def iter_completion_emission_frames(
     # ``ready`` is the live success status now that the tool waits for the
     # Celery worker to reach a terminal state. ``pending`` is retained as a
     # legacy branch for old saved chats that pre-date the wait-for-terminal
-    # change (see ``app.agents.shared.deliverable_wait``).
+    # change (see ``app.agents.multi_agent_chat.subagents.builtins.deliverables.deliverable_wait``).
     if status == "ready":
         yield ctx.streaming_service.format_terminal_info(
             f"Video presentation generated successfully: {out.get('title', 'Presentation')}",

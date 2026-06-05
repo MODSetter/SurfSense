@@ -50,16 +50,16 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 
-from app.agents.shared.errors import (
-    CorrectedError,
-    RejectedError,
-    StreamingError,
-)
-from app.agents.shared.permissions import (
+from app.agents.multi_agent_chat.shared.permissions import (
     Rule,
     Ruleset,
     aggregate_action,
     evaluate_many,
+)
+from app.agents.shared.errors import (
+    CorrectedError,
+    RejectedError,
+    StreamingError,
 )
 from app.observability import metrics as ot_metrics, otel as ot
 

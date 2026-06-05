@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.shared.permissions import (
+from app.agents.multi_agent_chat.shared.permissions import (
     Rule,
     Ruleset,
     aggregate_action,

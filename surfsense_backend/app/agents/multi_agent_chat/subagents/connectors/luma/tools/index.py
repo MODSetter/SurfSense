@@ -9,7 +9,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.shared.permissions import Ruleset
+from app.agents.multi_agent_chat.shared.permissions import Ruleset
 
 from .create_event import create_create_luma_event_tool
 from .list_events import create_list_luma_events_tool

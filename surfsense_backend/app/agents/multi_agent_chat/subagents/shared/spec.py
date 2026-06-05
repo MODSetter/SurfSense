@@ -8,7 +8,7 @@ from typing import Any
 
 from deepagents import SubAgent
 
-from app.agents.shared.permissions import Ruleset
+from app.agents.multi_agent_chat.shared.permissions import Ruleset
 
 # A context-hint provider receives the parent-agent ``runtime.state`` mapping
 # and the ``description`` the orchestrator wrote, and returns a short string

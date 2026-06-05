@@ -46,10 +46,10 @@ from app.agents.multi_agent_chat.main_agent.middleware.checkpointed_subagent_mid
 from app.agents.multi_agent_chat.shared.middleware.permissions.ask.request import (
     request_permission_decision,
 )
+from app.agents.multi_agent_chat.shared.permissions import Rule
 from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
     request_approval,
 )
-from app.agents.shared.permissions import Rule
 
 
 class _SubState(TypedDict, total=False):

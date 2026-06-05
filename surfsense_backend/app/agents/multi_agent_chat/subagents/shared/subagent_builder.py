@@ -14,6 +14,7 @@ from langchain_core.tools import BaseTool
 from app.agents.multi_agent_chat.shared.middleware.permissions import (
     build_permission_mw,
 )
+from app.agents.multi_agent_chat.shared.permissions import Ruleset
 from app.agents.multi_agent_chat.subagents.shared.md_file_reader import (
     read_shared_snippet,
 )
@@ -22,7 +23,6 @@ from app.agents.multi_agent_chat.subagents.shared.spec import (
     ContextHintProvider,
     SurfSenseSubagentSpec,
 )
-from app.agents.shared.permissions import Ruleset
 
 logger = logging.getLogger(__name__)
 

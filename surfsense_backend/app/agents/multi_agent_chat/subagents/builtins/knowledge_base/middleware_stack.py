@@ -28,9 +28,9 @@ from app.agents.multi_agent_chat.shared.middleware.patch_tool_calls import (
 from app.agents.multi_agent_chat.shared.middleware.permissions import (
     build_permission_mw,
 )
+from app.agents.multi_agent_chat.shared.permissions import Ruleset
 from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.shared.permissions import Ruleset
 
 
 def _kb_user_allowlist(

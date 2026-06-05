@@ -9,7 +9,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.shared.permissions import Ruleset
+from app.agents.multi_agent_chat.shared.permissions import Ruleset
 
 from .create_file import create_create_google_drive_file_tool
 from .trash_file import create_delete_google_drive_file_tool
