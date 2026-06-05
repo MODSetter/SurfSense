@@ -17,9 +17,6 @@ from app.agents.shared.middleware.context_editing import (
     SpillingContextEditingMiddleware,
     SpillToBackendEdit,
 )
-from app.agents.shared.middleware.dedup_tool_calls import (
-    DedupHITLToolCallsMiddleware,
-)
 from app.agents.shared.middleware.doom_loop import DoomLoopMiddleware
 from app.agents.shared.middleware.kb_persistence import (
     KnowledgeBasePersistenceMiddleware,
@@ -47,7 +44,6 @@ __all__ = [
     "AnonymousDocumentMiddleware",
     "BusyMutexMiddleware",
     "ClearToolUsesEdit",
-    "DedupHITLToolCallsMiddleware",
     "DoomLoopMiddleware",
     "KnowledgeBasePersistenceMiddleware",
     "KnowledgePriorityMiddleware",
