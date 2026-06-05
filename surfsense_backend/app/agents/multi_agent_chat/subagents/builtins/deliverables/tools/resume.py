@@ -14,8 +14,8 @@ from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 from langgraph.types import Command
 
-from app.agents.shared.receipt import make_receipt
-from app.agents.shared.receipt_command import with_receipt
+from app.agents.multi_agent_chat.shared.receipts.command import with_receipt
+from app.agents.multi_agent_chat.shared.receipts.receipt import make_receipt
 from app.db import Report, shielded_async_session
 from app.services.llm_service import get_document_summary_llm
 

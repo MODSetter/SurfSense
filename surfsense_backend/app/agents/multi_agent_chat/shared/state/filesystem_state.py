@@ -30,6 +30,7 @@ from typing import Annotated, Any, NotRequired
 from deepagents.middleware.filesystem import FilesystemState
 from typing_extensions import TypedDict
 
+from app.agents.multi_agent_chat.shared.receipts.receipt import Receipt
 from app.agents.multi_agent_chat.shared.state.reducers import (
     _add_unique_reducer,
     _dict_merge_with_tombstones_reducer,
@@ -37,7 +38,6 @@ from app.agents.multi_agent_chat.shared.state.reducers import (
     _list_append_reducer,
     _replace_reducer,
 )
-from app.agents.shared.receipt import Receipt
 
 
 class PendingMove(TypedDict, total=False):
@@ -190,7 +190,7 @@ class SurfSenseFilesystemState(FilesystemState):
 
     Each mutating tool (deliverables, every connector, KB writes via the
     persistence middleware) wraps its native return into a
-    :class:`~app.agents.shared.receipt.Receipt`
+    :class:`~app.agents.multi_agent_chat.shared.receipts.receipt.Receipt`
     and returns it under the ``"receipt"`` key alongside its existing
     payload. The subagent's tool-call middleware folds the receipt into
     this list, and ``_return_command_with_state_update`` in

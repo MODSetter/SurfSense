@@ -45,6 +45,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.multi_agent_chat.shared.receipts.receipt import Receipt, make_receipt
 from app.agents.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
@@ -57,7 +58,6 @@ from app.agents.shared.path_resolver import (
     safe_folder_segment,
     virtual_path_to_doc,
 )
-from app.agents.shared.receipt import Receipt, make_receipt
 from app.db import (
     AgentActionLog,
     Chunk,

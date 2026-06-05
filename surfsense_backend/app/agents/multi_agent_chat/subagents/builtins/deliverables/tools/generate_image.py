@@ -11,8 +11,8 @@ from litellm import aimage_generation
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.shared.receipt import make_receipt
-from app.agents.shared.receipt_command import with_receipt
+from app.agents.multi_agent_chat.shared.receipts.command import with_receipt
+from app.agents.multi_agent_chat.shared.receipts.receipt import make_receipt
 from app.config import config
 from app.db import (
     ImageGeneration,

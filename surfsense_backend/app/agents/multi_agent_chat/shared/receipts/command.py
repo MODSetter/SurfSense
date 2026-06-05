@@ -24,7 +24,7 @@ from typing import Any
 from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 
-from app.agents.shared.receipt import Receipt
+from app.agents.multi_agent_chat.shared.receipts.receipt import Receipt
 
 
 def _content_to_text(payload: dict[str, Any] | str) -> str:

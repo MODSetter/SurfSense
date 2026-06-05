@@ -6,11 +6,11 @@ from langchain_core.tools import tool
 from langgraph.types import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.multi_agent_chat.shared.receipts.command import with_receipt
+from app.agents.multi_agent_chat.shared.receipts.receipt import make_receipt
 from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
     request_approval,
 )
-from app.agents.shared.receipt import make_receipt
-from app.agents.shared.receipt_command import with_receipt
 from app.connectors.notion_history import NotionAPIError, NotionHistoryConnector
 from app.services.notion.tool_metadata_service import NotionToolMetadataService
 
