@@ -21,7 +21,9 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 
 This creates a `./surfsense/` directory with `docker-compose.yml`, `docker-compose.gpu.yml`, and `.env`, then runs `docker compose up -d --wait`.
 
-If an NVIDIA GPU and NVIDIA Container Toolkit are detected, the installer prompts for the backend variant. Non-interactive installs default to CPU unless you pass an explicit flag.
+If an NVIDIA GPU and NVIDIA Container Toolkit are detected, the installer asks whether to use GPU acceleration and chooses the compatible backend image automatically. Non-interactive installs default to CPU unless you pass an explicit flag.
+
+Interactive installs also ask whether to enable automatic daily updates with Watchtower, noting that updates may download several GB in the background.
 
 ### GPU options
 
@@ -48,7 +50,7 @@ PowerShell:
 
 The installer writes the same `.env` settings you would configure manually: `SURFSENSE_VARIANT` selects the backend image and `COMPOSE_FILE` enables the GPU overlay.
 
-To skip Watchtower (e.g. in production where you manage updates yourself):
+To skip Watchtower (e.g. in production where you manage updates yourself, or to avoid large background image downloads):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash -s -- --no-watchtower

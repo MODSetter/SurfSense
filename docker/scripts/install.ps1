@@ -64,6 +64,28 @@ function Invoke-NativeSafe {
     }
 }
 
+function Resolve-WatchtowerPreference {
+    if ($NoWatchtower -or $Quiet -or -not [Environment]::UserInteractive) {
+        return
+    }
+
+    Write-Host ""
+    Write-Host "Automatic updates" -ForegroundColor Cyan
+    $choice = Read-Host "Enable automatic daily updates with Watchtower? (may download several GB in the background) [Y/n]"
+
+    switch ($choice) {
+        "" { $script:SetupWatchtower = $true }
+        { $_ -match '^(?i)y(es)?$' } { $script:SetupWatchtower = $true }
+        { $_ -match '^(?i)n(o)?$' } { $script:SetupWatchtower = $false }
+        default {
+            Write-Warn "Unrecognized choice '$choice'; enabling Watchtower by default. Use -NoWatchtower to skip it."
+            $script:SetupWatchtower = $true
+        }
+    }
+}
+
+Resolve-WatchtowerPreference
+
 # ── Pre-flight checks ──────────────────────────────────────────────────────
 
 Write-Step "Checking prerequisites"

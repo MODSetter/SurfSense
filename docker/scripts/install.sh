@@ -40,6 +40,7 @@ MIGRATION_MODE=false
 SETUP_WATCHTOWER=true
 WATCHTOWER_INTERVAL=86400
 WATCHTOWER_CONTAINER="watchtower"
+WATCHTOWER_EXPLICIT=false
 REQUESTED_VARIANT=""
 VARIANT_EXPLICIT=false
 GPU_COUNT=""
@@ -48,7 +49,7 @@ QUIET=false
 # ── Parse flags ─────────────────────────────────────────────────────────────
 for arg in "$@"; do
     case "$arg" in
-        --no-watchtower) SETUP_WATCHTOWER=false ;;
+        --no-watchtower) SETUP_WATCHTOWER=false; WATCHTOWER_EXPLICIT=true ;;
         --watchtower-interval=*) WATCHTOWER_INTERVAL="${arg#*=}" ;;
         --variant=*) REQUESTED_VARIANT="${arg#*=}"; VARIANT_EXPLICIT=true ;;
         --gpu) REQUESTED_VARIANT="cuda"; VARIANT_EXPLICIT=true ;;
@@ -79,6 +80,26 @@ esac
 if [[ -n "${GPU_COUNT}" && ! "${GPU_COUNT}" =~ ^([0-9]+|all)$ ]]; then
     error "Invalid --gpu-count='${GPU_COUNT}'. Use a number or 'all'."
 fi
+
+resolve_watchtower_preference() {
+    if $WATCHTOWER_EXPLICIT || $QUIET || [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
+        return 0
+    fi
+
+    local choice
+    echo "" > /dev/tty
+    printf "${BOLD}${CYAN}Automatic updates${NC}\n" > /dev/tty
+    printf "Enable automatic daily updates with Watchtower? (may download several GB in the background) [Y/n]: " > /dev/tty
+    read -r choice < /dev/tty || choice=""
+
+    case "$choice" in
+        ""|[Yy]|[Yy][Ee][Ss]) SETUP_WATCHTOWER=true ;;
+        [Nn]|[Nn][Oo]) SETUP_WATCHTOWER=false ;;
+        *) warn "Unrecognized choice '${choice}', enabling Watchtower by default. Use --no-watchtower to skip it." >&2; SETUP_WATCHTOWER=true ;;
+    esac
+}
+
+resolve_watchtower_preference
 
 # ── Pre-flight checks ────────────────────────────────────────────────────────
 
