@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
-from app.agents.chat.multi_agent_chat.shared.middleware.busy_mutex import (
+from app.agents.chat.multi_agent_chat.shared.middleware.flags import enabled
+
+from .middleware import (
     BusyMutexMiddleware,
 )
-from app.agents.chat.multi_agent_chat.shared.middleware.flags import enabled
 
 
 def build_busy_mutex_mw(flags: AgentFeatureFlags) -> BusyMutexMiddleware | None:

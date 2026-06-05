@@ -7,7 +7,7 @@ import logging
 import time
 from typing import Any, Literal
 
-from app.agents.chat.multi_agent_chat.shared.middleware.busy_mutex import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import (
     get_cancel_state,
     is_cancel_requested,
 )

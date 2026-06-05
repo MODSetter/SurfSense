@@ -17,7 +17,7 @@ from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.multi_agent_chat.shared.middleware.busy_mutex import end_turn
+from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import end_turn
 from app.observability import otel as ot
 from app.services.auto_model_pin_service import (
     mark_runtime_cooldown,

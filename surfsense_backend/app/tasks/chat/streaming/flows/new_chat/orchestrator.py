@@ -30,11 +30,11 @@ from typing import Any, Literal
 import anyio
 
 from app.agents.chat.multi_agent_chat import create_multi_agent_chat_deep_agent
+from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import end_turn
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
     FilesystemMode,
     FilesystemSelection,
 )
-from app.agents.chat.multi_agent_chat.shared.middleware.busy_mutex import end_turn
 from app.db import ChatVisibility, async_session_maker
 from app.observability import otel as ot
 from app.services.new_streaming_service import VercelStreamingService

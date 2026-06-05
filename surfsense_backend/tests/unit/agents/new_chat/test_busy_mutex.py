@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.chat.multi_agent_chat.shared.middleware.busy_mutex import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import (
     BusyMutexMiddleware,
     end_turn,
     get_cancel_event,
