@@ -6,7 +6,7 @@ shared by every sensitive tool (native connectors and MCP tools alike).
 
 Usage inside a tool::
 
-    from app.agents.shared.tools.hitl import request_approval
+    from app.agents.multi_agent_chat.shared.tools.hitl import request_approval
 
     result = request_approval(
         action_type="gmail_email_send",

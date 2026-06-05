@@ -33,14 +33,16 @@ from sqlalchemy import cast, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.shared.middleware.dedup_tool_calls import dedup_key_full_args
-from app.agents.shared.tools.hitl import request_approval
-from app.agents.shared.tools.mcp.cache import (
+from app.agents.multi_agent_chat.shared.middleware.dedup_tool_calls import (
+    dedup_key_full_args,
+)
+from app.agents.multi_agent_chat.shared.tools.hitl import request_approval
+from app.agents.multi_agent_chat.shared.tools.mcp.cache import (
     CachedMCPTools,
     read_cached_tools,
     write_cached_tools,
 )
-from app.agents.shared.tools.mcp.client import MCPClient
+from app.agents.multi_agent_chat.shared.tools.mcp.client import MCPClient
 from app.db import SearchSourceConnector
 from app.services.mcp_oauth.registry import MCP_SERVICES, get_service_by_connector_type
 from app.utils.perf import get_perf_logger

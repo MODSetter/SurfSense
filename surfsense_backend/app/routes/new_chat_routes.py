@@ -1668,7 +1668,7 @@ async def list_agent_tools(
 
     Hidden (WIP) tools are excluded from the response.
     """
-    from app.agents.shared.tools.catalog import TOOL_CATALOG
+    from app.agents.multi_agent_chat.shared.tools.catalog import TOOL_CATALOG
 
     return [
         AgentToolInfo(

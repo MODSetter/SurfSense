@@ -112,7 +112,9 @@ def refresh_mcp_tools_cache_for_connector(
     when an event loop is available. Neither path raises.
     """
     try:
-        from app.agents.shared.tools.mcp.tool import invalidate_mcp_tools_cache
+        from app.agents.multi_agent_chat.shared.tools.mcp.tool import (
+            invalidate_mcp_tools_cache,
+        )
 
         invalidate_mcp_tools_cache(search_space_id)
     except Exception:
@@ -133,7 +135,9 @@ def refresh_mcp_tools_cache_for_connector(
 
 
 async def _run_connector_prefetch(connector_id: int) -> None:
-    from app.agents.shared.tools.mcp.tool import discover_single_mcp_connector
+    from app.agents.multi_agent_chat.shared.tools.mcp.tool import (
+        discover_single_mcp_connector,
+    )
 
     try:
         await discover_single_mcp_connector(connector_id)

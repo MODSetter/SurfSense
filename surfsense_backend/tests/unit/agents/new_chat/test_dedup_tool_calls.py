@@ -115,7 +115,9 @@ def test_full_args_dedup_keeps_distinct_calls_sharing_a_field() -> None:
 
     With :func:`dedup_key_full_args` only fully identical arg dicts dedup.
     """
-    from app.agents.shared.middleware.dedup_tool_calls import dedup_key_full_args
+    from app.agents.multi_agent_chat.shared.middleware.dedup_tool_calls import (
+        dedup_key_full_args,
+    )
 
     tool = _make_tool("createJiraIssue", dedup_key=dedup_key_full_args)
     mw = DedupHITLToolCallsMiddleware(agent_tools=[tool])
@@ -157,7 +159,9 @@ def test_full_args_dedup_keeps_distinct_calls_sharing_a_field() -> None:
 
 
 def test_full_args_dedup_drops_only_exact_duplicates() -> None:
-    from app.agents.shared.middleware.dedup_tool_calls import dedup_key_full_args
+    from app.agents.multi_agent_chat.shared.middleware.dedup_tool_calls import (
+        dedup_key_full_args,
+    )
 
     tool = _make_tool("createJiraIssue", dedup_key=dedup_key_full_args)
     mw = DedupHITLToolCallsMiddleware(agent_tools=[tool])

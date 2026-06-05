@@ -29,7 +29,7 @@ from langchain.agents.middleware import AgentMiddleware, AgentState
 from langchain_core.tools import BaseTool
 from langgraph.runtime import Runtime
 
-from app.agents.shared.middleware.dedup_tool_calls import (
+from app.agents.multi_agent_chat.shared.middleware.dedup_tool_calls import (
     DedupResolver,
     wrap_dedup_key_by_arg_name,
 )

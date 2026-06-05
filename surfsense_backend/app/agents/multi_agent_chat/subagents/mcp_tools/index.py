@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.multi_agent_chat.constants import (
     CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS,
 )
-from app.agents.shared.tools.mcp.tool import load_mcp_tools
+from app.agents.multi_agent_chat.shared.tools.mcp.tool import load_mcp_tools
 from app.db import SearchSourceConnector
 
 logger = logging.getLogger(__name__)

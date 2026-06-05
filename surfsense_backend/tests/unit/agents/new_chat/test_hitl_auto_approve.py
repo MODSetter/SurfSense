@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.shared.tools.hitl import (
+from app.agents.multi_agent_chat.shared.tools.hitl import (
     DEFAULT_AUTO_APPROVED_TOOLS,
     HITLResult,
     request_approval,

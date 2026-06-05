@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.shared.tools.mcp.cache import (
+from app.agents.multi_agent_chat.shared.tools.mcp.cache import (
     CachedMCPToolDef,
     CachedMCPTools,
     read_cached_tools,

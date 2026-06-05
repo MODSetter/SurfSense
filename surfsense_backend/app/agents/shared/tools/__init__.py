@@ -1,14 +1,5 @@
-"""Cross-agent shared tools and tool metadata.
+"""Cross-agent shared tools.
 
-Tool *implementations* live with the agents that own them (e.g. deliverable
-generators and their knowledge-base search helper under
-``subagents/builtins/deliverables/tools``). This package holds only the
-genuinely shared piece: the display-metadata catalog.
+Only genuinely cross-agent tool code lives here (currently web_search, imported
+directly from its module).
 """
-
-from .catalog import TOOL_CATALOG, ToolMetadata
-
-__all__ = [
-    "TOOL_CATALOG",
-    "ToolMetadata",
-]

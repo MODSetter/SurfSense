@@ -9,7 +9,7 @@ factories for those few tools and nothing else, so the main agent's tool
 surface stays self-contained and connector-free.
 
 Tool *display* metadata for the whole app (the ``/agent/tools`` listing
-endpoint) lives separately in :mod:`app.agents.shared.tools.catalog`, a
+endpoint) lives separately in :mod:`app.agents.multi_agent_chat.shared.tools.catalog`, a
 pure-data module that imports no connectors. This registry only governs what
 the main agent actually builds and binds.
 """
