@@ -94,7 +94,7 @@ Respond ONLY with the structured summary. Do not include any text before or afte
 PROTECTED_SYSTEM_PREFIXES: tuple[str, ...] = (
     "<priority_documents>",  # KnowledgePriorityMiddleware
     "<workspace_tree>",  # KnowledgeTreeMiddleware
-    "<file_operation_contract>",  # FileIntentMiddleware
+    "<file_operation_contract>",  # reserved file-operation contract prefix
     "<user_memory>",  # MemoryInjectionMiddleware
     "<team_memory>",  # MemoryInjectionMiddleware
     "<user_name>",  # MemoryInjectionMiddleware

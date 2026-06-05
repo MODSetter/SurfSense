@@ -10,7 +10,7 @@ from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.document_
 )
 from app.agents.shared.middleware.knowledge_search import (
     KBSearchPlan,
-    KnowledgeBaseSearchMiddleware,
+    KnowledgePriorityMiddleware,
     _normalize_optional_date_range,
     _parse_kb_search_plan_response,
     _render_recent_conversation,
@@ -203,7 +203,7 @@ class FakeBudgetLLM:
         return sum(len(msg.get("content", "")) for msg in messages)
 
 
-class TestKnowledgeBaseSearchMiddlewarePlanner:
+class TestKnowledgePriorityMiddlewarePlanner:
     @pytest.fixture(autouse=True)
     def _disable_planner_runnable(self, monkeypatch):
         # ``FakeLLM`` is a duck-typed mock; ``create_agent`` (used when the
@@ -273,7 +273,7 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
                 }
             )
         )
-        middleware = KnowledgeBaseSearchMiddleware(llm=llm, search_space_id=37)
+        middleware = KnowledgePriorityMiddleware(llm=llm, search_space_id=37)
 
         result = await middleware.abefore_agent(
             {
@@ -307,7 +307,7 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             fake_search_knowledge_base,
         )
 
-        middleware = KnowledgeBaseSearchMiddleware(
+        middleware = KnowledgePriorityMiddleware(
             llm=FakeLLM("not json"),
             search_space_id=37,
         )
@@ -336,7 +336,7 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             fake_search_knowledge_base,
         )
 
-        middleware = KnowledgeBaseSearchMiddleware(
+        middleware = KnowledgePriorityMiddleware(
             llm=FakeLLM(
                 json.dumps(
                     {
@@ -395,7 +395,7 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
                 }
             )
         )
-        middleware = KnowledgeBaseSearchMiddleware(llm=llm, search_space_id=42)
+        middleware = KnowledgePriorityMiddleware(llm=llm, search_space_id=42)
 
         result = await middleware.abefore_agent(
             {"messages": [HumanMessage(content="what's my latest file?")]},
@@ -442,7 +442,7 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
                 }
             )
         )
-        middleware = KnowledgeBaseSearchMiddleware(llm=llm, search_space_id=42)
+        middleware = KnowledgePriorityMiddleware(llm=llm, search_space_id=42)
 
         await middleware.abefore_agent(
             {"messages": [HumanMessage(content="find the quarterly revenue report")]},
@@ -559,7 +559,7 @@ class TestKnowledgePriorityMentionDrain:
             fake_search_knowledge_base,
         )
 
-        middleware = KnowledgeBaseSearchMiddleware(
+        middleware = KnowledgePriorityMiddleware(
             llm=self._planner_llm(),
             search_space_id=42,
             mentioned_document_ids=[1, 2, 3],
@@ -609,7 +609,7 @@ class TestKnowledgePriorityMentionDrain:
 
         # Simulate a cached middleware instance whose closure was seeded
         # by a previous turn's cache-miss build (mentions=[1,2,3]).
-        middleware = KnowledgeBaseSearchMiddleware(
+        middleware = KnowledgePriorityMiddleware(
             llm=self._planner_llm(),
             search_space_id=42,
             mentioned_document_ids=[1, 2, 3],
@@ -652,7 +652,7 @@ class TestKnowledgePriorityMentionDrain:
             fake_search_knowledge_base,
         )
 
-        middleware = KnowledgeBaseSearchMiddleware(
+        middleware = KnowledgePriorityMiddleware(
             llm=self._planner_llm(),
             search_space_id=42,
             mentioned_document_ids=[7, 8],

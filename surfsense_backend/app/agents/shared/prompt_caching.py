@@ -78,14 +78,12 @@ logger = logging.getLogger(__name__)
 # blocks; we use 2 here, leaving headroom for Phase-2 tool caching.
 #
 # IMPORTANT: ``index: 0`` (not ``role: system``). The deepagent stack's
-# ``before_agent`` middlewares (priority, tree, memory, file-intent,
-# anonymous-doc) insert ``SystemMessage`` instances into
-# ``state["messages"]`` that accumulate across turns. With
-# ``role: system`` the LiteLLM hook would tag *every* one of them with
-# ``cache_control`` and overflow Anthropic's 4-block limit. ``index: 0``
-# always targets the langchain-prepended ``request.system_message``
-# (which our ``FlattenSystemMessageMiddleware`` reduces to a single text
-# block), giving us exactly one stable cache breakpoint.
+# ``before_agent`` middlewares (priority, tree, memory, anonymous-doc)
+# insert ``SystemMessage`` instances into ``state["messages"]`` that
+# accumulate across turns. With ``role: system`` the LiteLLM hook would
+# tag *every* one of them with ``cache_control`` and overflow Anthropic's
+# 4-block limit. ``index: 0`` always targets the langchain-prepended
+# ``request.system_message``, giving us exactly one stable cache breakpoint.
 _DEFAULT_INJECTION_POINTS: tuple[dict[str, Any], ...] = (
     {"location": "message", "index": 0},
     {"location": "message", "index": -1},

@@ -1049,12 +1049,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         return priority, matched_chunk_ids
 
 
-# Backwards-compatible alias for any external imports.
-KnowledgeBaseSearchMiddleware = KnowledgePriorityMiddleware
-
-
 __all__ = [
-    "KnowledgeBaseSearchMiddleware",
     "KnowledgePriorityMiddleware",
     "browse_recent_documents",
     "fetch_mentioned_documents",

@@ -50,8 +50,8 @@ class SurfSenseContextSchema:
             (cloud filesystem mode). Surfaced as ``[USER-MENTIONED]``
             entries in ``<priority_documents>`` so the agent prioritises
             walking those folders with ``ls`` / ``find_documents``.
-        file_operation_contract: One-shot file operation contract emitted
-            by ``FileIntentMiddleware`` for the upcoming turn.
+        file_operation_contract: One-shot file operation contract for the
+            upcoming turn (reserved; not currently populated).
         turn_id / request_id: Correlation IDs surfaced by the streaming
             task; populated for telemetry.
 

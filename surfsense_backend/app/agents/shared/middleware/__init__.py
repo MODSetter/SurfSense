@@ -21,18 +21,11 @@ from app.agents.shared.middleware.dedup_tool_calls import (
     DedupHITLToolCallsMiddleware,
 )
 from app.agents.shared.middleware.doom_loop import DoomLoopMiddleware
-from app.agents.shared.middleware.file_intent import (
-    FileIntentMiddleware,
-)
-from app.agents.shared.middleware.flatten_system import (
-    FlattenSystemMessageMiddleware,
-)
 from app.agents.shared.middleware.kb_persistence import (
     KnowledgeBasePersistenceMiddleware,
     commit_staged_filesystem_state,
 )
 from app.agents.shared.middleware.knowledge_search import (
-    KnowledgeBaseSearchMiddleware,
     KnowledgePriorityMiddleware,
 )
 from app.agents.shared.middleware.knowledge_tree import (
@@ -56,10 +49,7 @@ __all__ = [
     "ClearToolUsesEdit",
     "DedupHITLToolCallsMiddleware",
     "DoomLoopMiddleware",
-    "FileIntentMiddleware",
-    "FlattenSystemMessageMiddleware",
     "KnowledgeBasePersistenceMiddleware",
-    "KnowledgeBaseSearchMiddleware",
     "KnowledgePriorityMiddleware",
     "KnowledgeTreeMiddleware",
     "MemoryInjectionMiddleware",
