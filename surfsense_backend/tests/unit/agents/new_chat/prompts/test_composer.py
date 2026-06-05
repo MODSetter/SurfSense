@@ -6,12 +6,12 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.agents.shared.prompts.composer import (
+from app.db import ChatVisibility
+from app.prompts.system_prompt_composer.composer import (
     ALL_TOOL_NAMES_ORDERED,
     compose_system_prompt,
     detect_provider_variant,
 )
-from app.db import ChatVisibility
 
 pytestmark = pytest.mark.unit
 
@@ -64,7 +64,7 @@ class TestProviderVariantDetection:
         ``gpt-5`` reasoning regex first. Codex is the more specialised
         prompt and mirrors OpenCode's dispatch order.
         """
-        from app.agents.shared.prompts.composer import detect_provider_variant
+        from app.prompts.system_prompt_composer.composer import detect_provider_variant
 
         assert detect_provider_variant("openai:gpt-5-codex") == "openai_codex"
         assert detect_provider_variant("openai:gpt-5") == "openai_reasoning"

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.shared.checkpointer import get_checkpointer
+from app.agents.runtime.checkpointer import get_checkpointer
 from app.db import SearchSourceConnectorType
 from app.services.connector_service import ConnectorService
 
@@ -33,7 +33,7 @@ async def setup_connector_and_firecrawl(
 async def get_chat_checkpointer():
     """Resolve the PostgreSQL checkpointer for persistent conversation memory.
 
-    Thin wrapper around ``app.agents.shared.checkpointer.get_checkpointer`` so
+    Thin wrapper around ``app.agents.runtime.checkpointer.get_checkpointer`` so
     flow orchestrators can rely on a streaming-local symbol and we have a hook
     point if the checkpointer source ever needs to vary per flow.
     """

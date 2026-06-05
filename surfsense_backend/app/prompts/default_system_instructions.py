@@ -1,5 +1,5 @@
 """
-Thin compatibility wrapper around :mod:`app.agents.shared.prompts.composer`.
+Thin compatibility wrapper around :mod:`app.prompts.system_prompt_composer.composer`.
 
 The composer split the previous monolithic prompt string into a fragment
 tree under ``prompts/`` plus a model-family dispatch step (see the
@@ -11,7 +11,7 @@ that existing call sites — the multi-agent chat factory, anonymous chat
 routes, and the configurable-prompt admin path — keep working without churn.
 
 For new call sites prefer importing ``compose_system_prompt`` directly
-from :mod:`app.agents.shared.prompts.composer`.
+from :mod:`app.prompts.system_prompt_composer.composer`.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 
 from app.db import ChatVisibility
 
-from .prompts.composer import (
+from .system_prompt_composer.composer import (
     _read_fragment,
     compose_system_prompt,
     detect_provider_variant,
@@ -55,7 +55,7 @@ def build_surfsense_system_prompt(
 ) -> str:
     """Build the default SurfSense system prompt (citations on, defaults).
 
-    See :func:`app.agents.shared.prompts.composer.compose_system_prompt`
+    See :func:`app.prompts.system_prompt_composer.composer.compose_system_prompt`
     for full parameter docs.
     """
     return compose_system_prompt(
@@ -84,7 +84,7 @@ def build_configurable_system_prompt(
 ) -> str:
     """Build a configurable SurfSense system prompt (NewLLMConfig path).
 
-    See :func:`app.agents.shared.prompts.composer.compose_system_prompt`
+    See :func:`app.prompts.system_prompt_composer.composer.compose_system_prompt`
     for full parameter docs.
     """
     return compose_system_prompt(
@@ -108,7 +108,9 @@ def get_default_system_instructions() -> str:
     The output reflects the current fragment tree, not a baked-in constant.
     """
     resolved_today = datetime.now(UTC).date().isoformat()
-    from .prompts.composer import _build_system_instructions  # local import
+    from .system_prompt_composer.composer import (
+        _build_system_instructions,  # local import
+    )
 
     return _build_system_instructions(
         visibility=ChatVisibility.PRIVATE,
