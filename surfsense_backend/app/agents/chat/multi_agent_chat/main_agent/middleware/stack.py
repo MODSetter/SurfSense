@@ -20,6 +20,9 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 
+from app.agents.chat.multi_agent_chat.main_agent.middleware.memory import (
+    build_memory_mw,
+)
 from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.agents.chat.multi_agent_chat.shared.middleware.anthropic_cache import (
@@ -31,7 +34,6 @@ from app.agents.chat.multi_agent_chat.shared.middleware.compaction import (
 from app.agents.chat.multi_agent_chat.shared.middleware.kb_context_projection import (
     build_kb_context_projection_mw,
 )
-from app.agents.chat.multi_agent_chat.shared.middleware.memory import build_memory_mw
 from app.agents.chat.multi_agent_chat.shared.middleware.patch_tool_calls import (
     build_patch_tool_calls_mw,
 )

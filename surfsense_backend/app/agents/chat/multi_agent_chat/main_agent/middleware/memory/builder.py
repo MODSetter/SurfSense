@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.db import ChatVisibility
 
-from .memory_injection import MemoryInjectionMiddleware
+from .middleware import MemoryInjectionMiddleware
 
 
 def build_memory_mw(
