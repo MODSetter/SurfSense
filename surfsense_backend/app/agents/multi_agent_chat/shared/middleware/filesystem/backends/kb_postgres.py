@@ -42,7 +42,9 @@ from langchain.tools import ToolRuntime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.shared.document_xml import build_document_xml
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.document_xml import (
+    build_document_xml,
+)
 from app.agents.shared.path_resolver import (
     DOCUMENTS_ROOT,
     build_path_index,

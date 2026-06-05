@@ -15,7 +15,9 @@ from deepagents.backends.protocol import (
     WriteResult,
 )
 
-from app.agents.shared.middleware.local_folder_backend import LocalFolderBackend
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.local_folder import (
+    LocalFolderBackend,
+)
 
 _INVALID_PATH = "invalid_path"
 _FILE_NOT_FOUND = "file_not_found"

@@ -10,10 +10,12 @@ from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.kb_postgres import (
+    KBPostgresBackend,
+)
 from app.agents.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
-from app.agents.shared.middleware.kb_postgres_backend import KBPostgresBackend
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.path_resolution import resolve_relative

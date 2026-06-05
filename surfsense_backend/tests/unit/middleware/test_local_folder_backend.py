@@ -2,7 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from app.agents.shared.middleware.local_folder_backend import LocalFolderBackend
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.local_folder import (
+    LocalFolderBackend,
+)
 
 pytestmark = pytest.mark.unit
 

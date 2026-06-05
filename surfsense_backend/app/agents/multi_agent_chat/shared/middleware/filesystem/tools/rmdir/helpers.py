@@ -13,11 +13,13 @@ from langchain.tools import ToolRuntime
 from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.kb_postgres import (
+    KBPostgresBackend,
+)
 from app.agents.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
 from app.agents.multi_agent_chat.shared.state.reducers import _CLEAR
-from app.agents.shared.middleware.kb_postgres_backend import KBPostgresBackend
 from app.agents.shared.path_resolver import DOCUMENTS_ROOT
 
 from ...middleware.path_resolution import current_cwd

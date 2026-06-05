@@ -2,15 +2,17 @@ from pathlib import Path
 
 import pytest
 
-from app.agents.shared.filesystem_backends import build_backend_resolver
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.multi_root_local_folder import (
+    MultiRootLocalFolderBackend,
+)
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.resolver import (
+    build_backend_resolver,
+)
 from app.agents.shared.filesystem_selection import (
     ClientPlatform,
     FilesystemMode,
     FilesystemSelection,
     LocalFilesystemMount,
-)
-from app.agents.shared.middleware.multi_root_local_folder_backend import (
-    MultiRootLocalFolderBackend,
 )
 
 pytestmark = pytest.mark.unit

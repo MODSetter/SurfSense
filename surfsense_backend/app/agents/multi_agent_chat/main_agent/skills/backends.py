@@ -47,7 +47,9 @@ from deepagents.backends.state import StateBackend
 if TYPE_CHECKING:
     from langchain.tools import ToolRuntime
 
-    from app.agents.shared.middleware.kb_postgres_backend import KBPostgresBackend
+    from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.kb_postgres import (
+        KBPostgresBackend,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -308,7 +310,7 @@ def build_skills_backend_factory(
         # Imported lazily to avoid a hard dependency at module import time:
         # ``KBPostgresBackend`` pulls in DB models, which are unnecessary for
         # the unit-tested builtin path.
-        from app.agents.shared.middleware.kb_postgres_backend import (
+        from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.kb_postgres import (
             KBPostgresBackend,
         )
 

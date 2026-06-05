@@ -12,6 +12,9 @@ from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.resolver import (
+    build_backend_resolver,
+)
 from app.agents.multi_agent_chat.subagents import (
     get_subagents_to_exclude,
     main_prompt_registry_subagent_lines,
@@ -20,7 +23,6 @@ from app.agents.multi_agent_chat.subagents.mcp_tools.index import (
     load_mcp_tools_by_connector,
 )
 from app.agents.shared.feature_flags import AgentFeatureFlags, get_flags
-from app.agents.shared.filesystem_backends import build_backend_resolver
 from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.shared.llm_config import AgentConfig
 from app.agents.shared.prompt_caching import apply_litellm_prompt_caching

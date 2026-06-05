@@ -26,7 +26,9 @@ from langgraph.checkpoint.memory import InMemorySaver
 from app.agents.multi_agent_chat.shared.middleware.filesystem import (
     build_filesystem_mw,
 )
-from app.agents.shared.filesystem_backends import build_backend_resolver
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.resolver import (
+    build_backend_resolver,
+)
 from app.agents.shared.filesystem_selection import (
     FilesystemMode,
     FilesystemSelection,

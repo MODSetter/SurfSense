@@ -9,11 +9,13 @@ from deepagents.backends.protocol import BackendProtocol
 from deepagents.backends.state import StateBackend
 from langgraph.prebuilt.tool_node import ToolRuntime
 
-from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
-from app.agents.shared.middleware.kb_postgres_backend import KBPostgresBackend
-from app.agents.shared.middleware.multi_root_local_folder_backend import (
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.kb_postgres import (
+    KBPostgresBackend,
+)
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.multi_root_local_folder import (
     MultiRootLocalFolderBackend,
 )
+from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
 
 
 @lru_cache(maxsize=64)

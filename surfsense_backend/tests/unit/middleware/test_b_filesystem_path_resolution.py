@@ -20,6 +20,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.multi_root_local_folder import (
+    MultiRootLocalFolderBackend,
+)
 from app.agents.multi_agent_chat.shared.middleware.filesystem.middleware.mode import (
     default_cwd,
 )
@@ -33,9 +36,6 @@ from app.agents.multi_agent_chat.shared.middleware.filesystem.middleware.path_re
     resolve_relative,
 )
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.shared.middleware.multi_root_local_folder_backend import (
-    MultiRootLocalFolderBackend,
-)
 
 pytestmark = pytest.mark.unit
 
