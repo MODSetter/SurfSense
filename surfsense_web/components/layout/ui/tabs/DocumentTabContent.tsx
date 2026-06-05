@@ -2,7 +2,7 @@
 
 import { Download, FileQuestionMark, FileText, Pencil, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { SourceCodeEditor } from "@/components/editor/source-code-editor";
@@ -24,6 +24,7 @@ interface DocumentContent {
 	chunk_count?: number;
 	truncated?: boolean;
 	viewer_mode?: ViewerMode;
+	editor_plate_max_bytes?: number;
 }
 
 function DocumentSkeleton() {
@@ -55,6 +56,20 @@ interface DocumentTabContentProps {
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
 type ViewerMode = "plate" | "monaco";
 
+function getUtf8ByteSize(value: string): number {
+	return new TextEncoder().encode(value).byteLength;
+}
+
+function formatBytes(bytes: number): string {
+	if (bytes >= 1024 * 1024) {
+		return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+	}
+	if (bytes >= 1024) {
+		return `${Math.round(bytes / 1024)}KB`;
+	}
+	return `${bytes}B`;
+}
+
 export function DocumentTabContent({ documentId, searchSpaceId, title }: DocumentTabContentProps) {
 	const [doc, setDoc] = useState<DocumentContent | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -68,8 +83,13 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 	const changeCountRef = useRef(0);
 	const router = useRouter();
 
-	const isLargeDocument = (doc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
+	const plateMaxBytes = doc?.editor_plate_max_bytes ?? LARGE_DOCUMENT_THRESHOLD;
+	const isLargeDocument = (doc?.content_size_bytes ?? 0) > plateMaxBytes;
 	const viewerMode: ViewerMode = doc?.viewer_mode ?? (isLargeDocument ? "monaco" : "plate");
+	const activeMarkdown = editedMarkdown ?? doc?.source_markdown ?? "";
+	const activeMarkdownSizeBytes = useMemo(() => getUtf8ByteSize(activeMarkdown), [activeMarkdown]);
+	const isNearPlateLimit = activeMarkdownSizeBytes >= plateMaxBytes * 0.9;
+	const isOverPlateLimit = activeMarkdownSizeBytes > plateMaxBytes;
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -92,8 +112,6 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 				const url = new URL(
 					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
 				);
-				url.searchParams.set("max_length", String(LARGE_DOCUMENT_THRESHOLD));
-
 				const response = await authenticatedFetch(url.toString(), { method: "GET" });
 
 				if (controller.signal.aborted) return;
@@ -165,14 +183,19 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 
 			setDoc((prev) => (prev ? { ...prev, source_markdown: markdownRef.current } : prev));
 			setEditedMarkdown(null);
-			toast.success("Document saved! Reindexing in background...");
+			const savedSizeBytes = getUtf8ByteSize(markdownRef.current);
+			if (savedSizeBytes > plateMaxBytes) {
+				toast.success("Document saved. It will reopen in raw markdown mode.");
+			} else {
+				toast.success("Document saved! Reindexing in background...");
+			}
 		} catch (err) {
 			console.error("Error saving document:", err);
 			toast.error(err instanceof Error ? err.message : "Failed to save document");
 		} finally {
 			setSaving(false);
 		}
-	}, [documentId, searchSpaceId]);
+	}, [documentId, plateMaxBytes, searchSpaceId]);
 
 	if (isLoading) return <DocumentSkeleton />;
 
@@ -232,20 +255,32 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 						Done editing
 					</Button>
 				</div>
-				<div className="flex-1 overflow-hidden">
-					<PlateEditor
-						key={`edit-${documentId}`}
-						preset="full"
-						markdown={doc.source_markdown}
-						onMarkdownChange={handleMarkdownChange}
-						readOnly={false}
-						placeholder="Start writing..."
-						editorVariant="default"
-						onSave={handleSave}
-						hasUnsavedChanges={editedMarkdown !== null}
-						isSaving={saving}
-						defaultEditing={true}
-					/>
+				<div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+					{isNearPlateLimit && (
+						<Alert className="m-4 mb-0 shrink-0">
+							<FileText className="size-4" />
+							<AlertDescription>
+								{isOverPlateLimit
+									? `This document is ${formatBytes(activeMarkdownSizeBytes)}, above the rich editor limit of ${formatBytes(plateMaxBytes)}. You can save, but it will reopen in raw markdown mode.`
+									: `This document is approaching the rich editor limit (${formatBytes(activeMarkdownSizeBytes)} of ${formatBytes(plateMaxBytes)}).`}
+							</AlertDescription>
+						</Alert>
+					)}
+					<div className="min-h-0 flex-1 overflow-hidden">
+						<PlateEditor
+							key={`edit-${documentId}`}
+							preset="full"
+							markdown={doc.source_markdown}
+							onMarkdownChange={handleMarkdownChange}
+							readOnly={false}
+							placeholder="Start writing..."
+							editorVariant="default"
+							onSave={handleSave}
+							hasUnsavedChanges={editedMarkdown !== null}
+							isSaving={saving}
+							defaultEditing={true}
+						/>
+					</div>
 				</div>
 			</div>
 		);

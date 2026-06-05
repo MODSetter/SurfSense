@@ -45,6 +45,7 @@ export type EditorContent = {
 	chunk_count: number;
 	truncated: boolean;
 	viewer_mode?: "plate" | "monaco";
+	editor_plate_max_bytes?: number;
 };
 
 // Same endpoint the UI hits when a user opens a document in the dashboard.

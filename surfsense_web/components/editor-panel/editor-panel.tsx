@@ -12,7 +12,7 @@ import {
 	XIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { DownloadOriginalButton } from "@/components/documents/download-original-button";
@@ -52,6 +52,7 @@ interface EditorContent {
 	chunk_count?: number;
 	truncated?: boolean;
 	viewer_mode?: ViewerMode;
+	editor_plate_max_bytes?: number;
 }
 
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
@@ -114,6 +115,20 @@ function EditorPanelSkeleton() {
 	);
 }
 
+function getUtf8ByteSize(value: string): number {
+	return new TextEncoder().encode(value).byteLength;
+}
+
+function formatBytes(bytes: number): string {
+	if (bytes >= 1024 * 1024) {
+		return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+	}
+	if (bytes >= 1024) {
+		return `${Math.round(bytes / 1024)}KB`;
+	}
+	return `${bytes}B`;
+}
+
 export function EditorPanelContent({
 	kind = "document",
 	documentId,
@@ -169,7 +184,8 @@ export function EditorPanelContent({
 		[electronAPI, searchSpaceId]
 	);
 
-	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
+	const plateMaxBytes = editorDoc?.editor_plate_max_bytes ?? LARGE_DOCUMENT_THRESHOLD;
+	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > plateMaxBytes;
 	const viewerMode: ViewerMode = isMemoryMode
 		? "plate"
 		: (editorDoc?.viewer_mode ?? (isLargeDocument ? "monaco" : "plate"));
@@ -248,8 +264,6 @@ export function EditorPanelContent({
 				const url = new URL(
 					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
 				);
-				url.searchParams.set("max_length", String(LARGE_DOCUMENT_THRESHOLD));
-
 				const response = await authenticatedFetch(url.toString(), { method: "GET" });
 
 				if (controller.signal.aborted) return;
@@ -407,7 +421,12 @@ export function EditorPanelContent({
 				setEditorDoc((prev) => (prev ? { ...prev, source_markdown: markdownRef.current } : prev));
 				setEditedMarkdown(null);
 				if (!options?.silent) {
-					toast.success("Document saved! Reindexing in background...");
+					const savedSizeBytes = getUtf8ByteSize(markdownRef.current);
+					if (savedSizeBytes > plateMaxBytes) {
+						toast.success("Document saved. It will reopen in raw markdown mode.");
+					} else {
+						toast.success("Document saved! Reindexing in background...");
+					}
 				}
 				return true;
 			} catch (err) {
@@ -428,6 +447,7 @@ export function EditorPanelContent({
 			localFilePath,
 			memoryLimits,
 			memoryScope,
+			plateMaxBytes,
 			resolveLocalVirtualPath,
 			searchSpaceId,
 		]
@@ -447,6 +467,11 @@ export function EditorPanelContent({
 	const showEditingActions = isEditableType && isEditing;
 	const localFileLanguage = inferMonacoLanguageFromPath(localFilePath);
 	const activeMarkdown = editedMarkdown ?? editorDoc?.source_markdown ?? "";
+	const activeMarkdownSizeBytes = useMemo(() => getUtf8ByteSize(activeMarkdown), [activeMarkdown]);
+	const isNearPlateLimit = activeMarkdownSizeBytes >= plateMaxBytes * 0.9;
+	const isOverPlateLimit = activeMarkdownSizeBytes > plateMaxBytes;
+	const showPlateSizeWarning =
+		showEditingActions && !isMemoryMode && !isLocalFileMode && isNearPlateLimit;
 	const memoryLimitState = isMemoryMode
 		? getMemoryLimitState(activeMarkdown.length, memoryLimits)
 		: null;
@@ -773,6 +798,16 @@ export function EditorPanelContent({
 				) : renderInPlateEditor ? (
 					// Editable doc (FILE/NOTE) — Plate editing UX.
 					<div className="flex h-full min-h-0 flex-col">
+						{showPlateSizeWarning && (
+							<Alert className="m-4 mb-0 shrink-0">
+								<FileText className="size-4" />
+								<AlertDescription>
+									{isOverPlateLimit
+										? `This document is ${formatBytes(activeMarkdownSizeBytes)}, above the rich editor limit of ${formatBytes(plateMaxBytes)}. You can save, but it will reopen in raw markdown mode.`
+										: `This document is approaching the rich editor limit (${formatBytes(activeMarkdownSizeBytes)} of ${formatBytes(plateMaxBytes)}).`}
+								</AlertDescription>
+							</Alert>
+						)}
 						<div className="flex-1 min-h-0 overflow-hidden">
 							<PlateEditor
 								key={`${
