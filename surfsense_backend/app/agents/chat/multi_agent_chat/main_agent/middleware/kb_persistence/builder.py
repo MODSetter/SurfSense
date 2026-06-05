@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
-from app.agents.chat.multi_agent_chat.shared.middleware.kb_persistence import (
+
+from .middleware import (
     KnowledgeBasePersistenceMiddleware,
 )
 

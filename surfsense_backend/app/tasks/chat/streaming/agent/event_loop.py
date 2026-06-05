@@ -11,10 +11,10 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
-from app.agents.chat.multi_agent_chat.shared.middleware.kb_persistence import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.kb_persistence import (
     commit_staged_filesystem_state,
 )
+from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat.streaming.contract.file_contract import (
     contract_enforcement_active,
