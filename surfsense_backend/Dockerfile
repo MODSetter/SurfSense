@@ -61,15 +61,25 @@ COPY pyproject.toml uv.lock ./
 # Exporting the lock to requirements.txt and feeding it to `uv pip install`
 # pins every transitive package to the exact version captured in uv.lock.
 #
-# Note on torch/CUDA: we do NOT install torch from a separate cu* index here.
-# PyPI's torch wheels for Linux x86_64 already ship CUDA-enabled and pull
-# nvidia-cudnn-cu13, nvidia-nccl-cu13, triton, etc. as install deps (all
-# captured in uv.lock). If a specific CUDA version is needed, wire it through
-# [tool.uv.sources] in pyproject.toml so the lock stays the source of truth.
+# Note on torch/CUDA: the export must always select either the cpu or CUDA
+# extra declared in pyproject.toml. A no-extra export would resolve torch from
+# PyPI on Linux, which currently pulls CUDA-enabled wheels and nvidia-* deps.
+# Keep CUDA version selection in [tool.uv.sources] so uv.lock remains the
+# source of truth. The install step also needs the matching PyTorch index,
+# because requirements.txt preserves the +cpu/+cu wheel pins but not uv's
+# package source metadata.
+ARG USE_CUDA=false
+ARG CUDA_EXTRA=cu128
 RUN pip install --no-cache-dir uv && \
+    if [ "$USE_CUDA" = "true" ]; then EXTRA="$CUDA_EXTRA"; else EXTRA="cpu"; fi && \
+    TORCH_INDEX="https://download.pytorch.org/whl/${EXTRA}" && \
     uv export --frozen --no-dev --no-hashes --no-emit-project \
+        --extra "$EXTRA" \
         --format requirements-txt -o /tmp/requirements.txt && \
-    uv pip install --system --no-cache-dir -r /tmp/requirements.txt && \
+    uv pip install --system --no-cache-dir \
+        --index "$TORCH_INDEX" \
+        --index-strategy unsafe-best-match \
+        -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
 

@@ -92,6 +92,10 @@ dependencies = [
     "croniter>=2.0.0",
 ]
 
+[project.optional-dependencies]
+cpu = ["torch==2.11.0", "torchvision==0.26.0"]
+cu128 = ["torch==2.11.0", "torchvision==0.26.0"]
+
 [dependency-groups]
 dev = [
     "ruff>=0.12.5",
@@ -100,6 +104,29 @@ dev = [
     "pytest-mock>=3.14",
     "httpx>=0.28.1",
 ]
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cu128" }]]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu128", extra = "cu128", marker = "sys_platform == 'linux'" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu128", extra = "cu128", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
