@@ -7,6 +7,8 @@
 # To pass flags, save and run locally:
 #   .\install.ps1 -NoWatchtower
 #   .\install.ps1 -WatchtowerInterval 3600
+#   .\install.ps1 -Variant cuda
+#   .\install.ps1 -Variant cuda -GpuCount all
 #
 # Handles two cases automatically:
 #   1. Fresh install        — no prior SurfSense data detected
@@ -17,7 +19,11 @@
 
 param(
     [switch]$NoWatchtower,
-    [int]$WatchtowerInterval = 86400
+    [int]$WatchtowerInterval = 86400,
+    [ValidateSet("cpu", "cuda", "cuda126")]
+    [string]$Variant,
+    [string]$GpuCount,
+    [switch]$Quiet
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,6 +39,11 @@ $MigrationDoneFile  = "$InstallDir\.migration_done"
 $MigrationMode      = $false
 $SetupWatchtower    = -not $NoWatchtower
 $WatchtowerContainer = "watchtower"
+
+if ($GpuCount -and $GpuCount -notmatch '^([0-9]+|all)$') {
+    Write-Host "[SurfSense] ERROR: Invalid -GpuCount '$GpuCount'. Use a number or 'all'." -ForegroundColor Red
+    exit 1
+}
 
 # ── Output helpers ──────────────────────────────────────────────────────────
 
@@ -97,101 +108,7 @@ function Wait-ForPostgres {
     Write-Ok "PostgreSQL is ready."
 }
 
-# ── Stack health helpers ────────────────────────────────────────────────────
-
-function Get-ComposeServices {
-    Push-Location $InstallDir
-    try {
-        $raw = Invoke-NativeSafe { docker compose ps -a --format json 2>$null }
-    } finally {
-        Pop-Location
-    }
-    if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
-
-    # Compose v2.21+ emits a JSON array; older versions emit one object per line.
-    try {
-        $parsed = $raw | ConvertFrom-Json
-        if ($parsed -is [System.Collections.IEnumerable] -and -not ($parsed -is [string])) {
-            return @($parsed)
-        }
-        return @($parsed)
-    } catch {
-        $services = @()
-        foreach ($line in ($raw -split "`r?`n")) {
-            $line = $line.Trim()
-            if (-not $line) { continue }
-            try { $services += ($line | ConvertFrom-Json) } catch { }
-        }
-        return $services
-    }
-}
-
-function Wait-StackHealthy {
-    param([int]$TimeoutSec = 300)
-
-    $deadline = (Get-Date).AddSeconds($TimeoutSec)
-    $lastReport = ""
-
-    while ((Get-Date) -lt $deadline) {
-        $services = Get-ComposeServices
-        if (-not $services -or $services.Count -eq 0) {
-            Start-Sleep -Seconds 3
-            continue
-        }
-
-        $bad = @()
-        $waiting = @()
-        $good = @()
-
-        foreach ($svc in $services) {
-            $name = $svc.Service
-            $state = $svc.State
-            $health = if ($svc.PSObject.Properties.Name -contains 'Health') { $svc.Health } else { '' }
-            $exit = if ($svc.PSObject.Properties.Name -contains 'ExitCode') { $svc.ExitCode } else { $null }
-
-            if ($name -eq 'migrations') {
-                if ($state -eq 'exited' -and $exit -eq 0) { $good += $name }
-                elseif ($state -eq 'exited') { $bad += "${name} (exit=${exit})" }
-                else { $waiting += "${name} (${state})" }
-                continue
-            }
-
-            if ($state -eq 'running') {
-                if ([string]::IsNullOrEmpty($health) -or $health -eq 'healthy') {
-                    $good += $name
-                } elseif ($health -eq 'starting') {
-                    $waiting += "${name} (starting)"
-                } elseif ($health -eq 'unhealthy') {
-                    $bad += "${name} (unhealthy)"
-                } else {
-                    $waiting += "${name} (${health})"
-                }
-            } elseif ($state -eq 'restarting') {
-                $bad += "${name} (restarting)"
-            } elseif ($state -eq 'exited') {
-                $bad += "${name} (exited, code=${exit})"
-            } else {
-                $waiting += "${name} (${state})"
-            }
-        }
-
-        if ($bad.Count -gt 0) {
-            return @{ Ok = $false; Reason = 'failure'; Bad = $bad; Waiting = $waiting; Good = $good }
-        }
-        if ($waiting.Count -eq 0) {
-            return @{ Ok = $true; Reason = 'all_healthy'; Good = $good }
-        }
-
-        $report = "Waiting on: " + ($waiting -join ', ')
-        if ($report -ne $lastReport) {
-            Write-Info $report
-            $lastReport = $report
-        }
-        Start-Sleep -Seconds 5
-    }
-
-    return @{ Ok = $false; Reason = 'timeout'; Bad = $bad; Waiting = $waiting; Good = $good }
-}
+# ── Stack startup helper ────────────────────────────────────────────────────
 
 function Test-StaleZeroCacheVolume {
     $raw = Invoke-NativeSafe { docker volume ls --format '{{.Name}}' 2>$null }
@@ -221,19 +138,9 @@ function Invoke-StaleZeroCacheCleanup {
     Write-Ok "Removed surfsense-zero-cache volume; zero-cache will re-sync on next start."
 }
 
-function Write-Err-NoExit {
-    param([string]$Message)
-    Write-Host "[ERROR] $Message" -ForegroundColor Red
-}
-
 function Invoke-StackFailureReport {
-    param([hashtable]$Result)
-
     Write-Host ""
-    Write-Err-NoExit "Stack did not reach a healthy state."
-    if ($Result.Bad.Count -gt 0) { Write-Host ("  Failed: " + ($Result.Bad -join ', ')) }
-    if ($Result.Waiting.Count -gt 0) { Write-Host ("  Stuck:  " + ($Result.Waiting -join ', ')) }
-
+    Write-Host "[ERROR] Stack did not reach a healthy state." -ForegroundColor Red
     Write-Host ""
     Write-Info "Recent logs from migrations / zero-cache / backend:"
     Push-Location $InstallDir
@@ -247,10 +154,150 @@ function Invoke-StackFailureReport {
     Write-Host "Recovery hints:" -ForegroundColor Yellow
     Write-Host "  1. Inspect migrations:   cd $InstallDir; docker compose logs migrations"
     Write-Host "  2. Verify publication:   cd $InstallDir; docker compose exec db psql -U surfsense -d surfsense -c 'SELECT pubname FROM pg_publication;'"
-    Write-Host "  3. Hard reset zero db:   cd $InstallDir; docker compose down; docker volume rm surfsense-zero-cache; docker compose up -d"
+    Write-Host "  3. Hard reset zero db:   cd $InstallDir; docker compose down; docker volume rm surfsense-zero-cache; docker compose up -d --wait"
     Write-Host ""
     exit 1
 }
+
+function Invoke-ComposeUpWait {
+    Push-Location $InstallDir
+    try {
+        Invoke-NativeSafe { docker compose up -d --wait }
+    } finally {
+        Pop-Location
+    }
+    if ($LASTEXITCODE -ne 0) {
+        Invoke-StackFailureReport
+    }
+}
+
+# ── Variant and .env helpers ────────────────────────────────────────────────
+
+function Set-EnvValue {
+    param([string]$Path, [string]$Key, [string]$Value)
+    $lines = @()
+    if (Test-Path $Path) {
+        $lines = @(Get-Content $Path)
+    }
+    $updated = $false
+    $newLines = foreach ($line in $lines) {
+        if ($line -match "^$([regex]::Escape($Key))=") {
+            $updated = $true
+            "$Key=$Value"
+        } else {
+            $line
+        }
+    }
+    if (-not $updated) {
+        $newLines += "$Key=$Value"
+    }
+    Set-Content -Path $Path -Value $newLines
+}
+
+function Remove-EnvValue {
+    param([string]$Path, [string]$Key)
+    if (-not (Test-Path $Path)) { return }
+    $newLines = Get-Content $Path | Where-Object { $_ -notmatch "^$([regex]::Escape($Key))=" }
+    Set-Content -Path $Path -Value $newLines
+}
+
+function Test-NvidiaGpu {
+    if (-not (Get-Command nvidia-smi -ErrorAction SilentlyContinue)) { return $false }
+    Invoke-NativeSafe { nvidia-smi *>$null } | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Test-NvidiaRuntime {
+    $info = Invoke-NativeSafe { docker info 2>$null }
+    if ($info -match 'nvidia') { return $true }
+    if (Get-Command nvidia-ctk -ErrorAction SilentlyContinue) { return $true }
+    if (Get-Command nvidia-container-runtime -ErrorAction SilentlyContinue) { return $true }
+    return $false
+}
+
+function Get-RecommendedVariant {
+    $driver = (Invoke-NativeSafe { nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>$null } | Select-Object -First 1)
+    $major = 0
+    if ($driver -match '^(\d+)') {
+        $major = [int]$Matches[1]
+    }
+    if ($major -gt 0 -and $major -lt 570) {
+        return "cuda126"
+    }
+    return "cuda"
+}
+
+function Resolve-Variant {
+    $hasGpu = Test-NvidiaGpu
+    $hasRuntime = $false
+    $recommended = "cpu"
+
+    if ($hasGpu) {
+        $recommended = Get-RecommendedVariant
+        $hasRuntime = Test-NvidiaRuntime
+    }
+
+    if ($Variant) {
+        if ($Variant -eq "cpu") { return "cpu" }
+        if (-not $hasGpu) {
+            Write-Warn "No NVIDIA GPU detected; falling back to CPU variant."
+            return "cpu"
+        }
+        if (-not $hasRuntime) {
+            Write-Warn "NVIDIA GPU detected, but NVIDIA Container Toolkit was not detected; falling back to CPU variant."
+            Write-Warn "Install the toolkit before enabling SurfSense GPU acceleration."
+            return "cpu"
+        }
+        return $Variant
+    }
+
+    if ($hasGpu -and -not $hasRuntime) {
+        Write-Warn "NVIDIA GPU detected, but NVIDIA Container Toolkit was not detected; using CPU variant."
+    }
+
+    if ($hasGpu -and $hasRuntime -and -not $Quiet -and [Environment]::UserInteractive) {
+        Write-Host ""
+        Write-Host "SurfSense detected an NVIDIA GPU." -ForegroundColor Cyan
+        $choice = Read-Host "Use GPU acceleration? [Y/n]"
+        switch ($choice) {
+            "" { return $recommended }
+            { $_ -match '^(?i)y(es)?$' } { return $recommended }
+            { $_ -match '^(?i)n(o)?$' } { return "cpu" }
+            default {
+                Write-Warn "Unrecognized choice '$choice'; using CPU variant."
+                return "cpu"
+            }
+        }
+    }
+
+    return "cpu"
+}
+
+function Set-VariantEnv {
+    param([string]$Path, [string]$SelectedVariant, [bool]$AllowExistingUpdate)
+
+    if ((Test-Path $Path) -and -not $AllowExistingUpdate) {
+        Write-Warn ".env already exists - keeping your existing configuration."
+        Write-Info "To change variants later, edit SURFSENSE_VARIANT and COMPOSE_FILE in $Path, then run docker compose up -d --wait."
+        return
+    }
+
+    if ($SelectedVariant -eq "cpu") {
+        Set-EnvValue -Path $Path -Key "SURFSENSE_VARIANT" -Value ""
+        Remove-EnvValue -Path $Path -Key "COMPOSE_FILE"
+        Remove-EnvValue -Path $Path -Key "SURFSENSE_GPU_COUNT"
+    } else {
+        Set-EnvValue -Path $Path -Key "SURFSENSE_VARIANT" -Value $SelectedVariant
+        Set-EnvValue -Path $Path -Key "COMPOSE_FILE" -Value "docker-compose.yml;docker-compose.gpu.yml"
+        if ($GpuCount) {
+            Set-EnvValue -Path $Path -Key "SURFSENSE_GPU_COUNT" -Value $GpuCount
+        }
+    }
+
+    Remove-EnvValue -Path $Path -Key "COMPOSE_PROFILES"
+}
+
+$SelectedVariant = Resolve-Variant
 
 # ── Download files ──────────────────────────────────────────────────────────
 
@@ -262,6 +309,7 @@ New-Item -ItemType Directory -Path "$InstallDir\searxng" -Force | Out-Null
 
 $Files = @(
     @{ Src = "docker/docker-compose.yml";                Dest = "docker-compose.yml" }
+    @{ Src = "docker/docker-compose.gpu.yml";            Dest = "docker-compose.gpu.yml" }
     @{ Src = "docker/.env.example";                      Dest = ".env.example" }
     @{ Src = "docker/postgresql.conf";                   Dest = "postgresql.conf" }
     @{ Src = "docker/scripts/migrate-database.ps1";      Dest = "scripts/migrate-database.ps1" }
@@ -339,9 +387,15 @@ if (-not (Test-Path $envPath)) {
     $content = $content -replace 'SECRET_KEY=replace_me_with_a_random_string', "SECRET_KEY=$SecretKey"
     Set-Content -Path $envPath -Value $content -NoNewline
 
+    Set-VariantEnv -Path $envPath -SelectedVariant $SelectedVariant -AllowExistingUpdate $false
     Write-Info "Created $envPath"
 } else {
-    Write-Warn ".env already exists - keeping your existing configuration."
+    if ($PSBoundParameters.ContainsKey('Variant')) {
+        Set-VariantEnv -Path $envPath -SelectedVariant $SelectedVariant -AllowExistingUpdate $true
+        Write-Info "Updated SurfSense image variant in existing $envPath"
+    } else {
+        Set-VariantEnv -Path $envPath -SelectedVariant $SelectedVariant -AllowExistingUpdate $false
+    }
 }
 
 # ── Start containers ────────────────────────────────────────────────────────
@@ -405,31 +459,15 @@ if ($MigrationMode) {
     }
 
     Write-Step "Starting all SurfSense services"
-    Push-Location $InstallDir
-    Invoke-NativeSafe { docker compose up -d }
-    Pop-Location
-    Write-Ok "All containers started; waiting for stack to become healthy..."
-
-    $waitResult = Wait-StackHealthy -TimeoutSec 300
-    if (-not $waitResult.Ok) {
-        Invoke-StackFailureReport -Result $waitResult
-    }
-    Write-Ok "All services healthy."
+    Invoke-ComposeUpWait
+    Write-Ok "All services started and healthy."
 
     Remove-Item $KeyFile -ErrorAction SilentlyContinue
 
 } else {
     Write-Step "Starting SurfSense"
-    Push-Location $InstallDir
-    Invoke-NativeSafe { docker compose up -d }
-    Pop-Location
-    Write-Ok "All containers started; waiting for stack to become healthy..."
-
-    $waitResult = Wait-StackHealthy -TimeoutSec 300
-    if (-not $waitResult.Ok) {
-        Invoke-StackFailureReport -Result $waitResult
-    }
-    Write-Ok "All services healthy."
+    Invoke-ComposeUpWait
+    Write-Ok "All services started and healthy."
 }
 
 # ── Watchtower (auto-update) ────────────────────────────────────────────────
@@ -461,7 +499,7 @@ if ($SetupWatchtower) {
         if ($LASTEXITCODE -eq 0) {
             Write-Ok "Watchtower started - labeled SurfSense containers will auto-update."
         } else {
-            Write-Warn "Could not start Watchtower. You can set it up manually or use: docker compose pull; docker compose up -d"
+            Write-Warn "Could not start Watchtower. You can set it up manually or use: docker compose pull; docker compose up -d --wait"
         }
     }
 } else {
@@ -488,6 +526,9 @@ Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.
 
 $versionDisplay = (Get-Content $envPath | Select-String '^SURFSENSE_VERSION=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
 if (-not $versionDisplay) { $versionDisplay = "latest" }
+$variantDisplay = (Get-Content $envPath | Select-String '^SURFSENSE_VARIANT=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
+if (-not $variantDisplay) { $variantDisplay = "cpu" }
+$wtHours = [math]::Floor($WatchtowerInterval / 3600)
 Write-Host "         OSS Alternative to NotebookLM for Teams  [$versionDisplay]" -ForegroundColor Yellow
 Write-Host ("=" * 62) -ForegroundColor Cyan
 Write-Host ""
@@ -497,13 +538,14 @@ Write-Info "  Backend:   http://localhost:8929"
 Write-Info "  API Docs:  http://localhost:8929/docs"
 Write-Info ""
 Write-Info "  Config:    $InstallDir\.env"
+Write-Info "  Variant:   $variantDisplay"
 Write-Info "  Logs:      cd $InstallDir; docker compose logs -f"
 Write-Info "  Stop:      cd $InstallDir; docker compose down"
-Write-Info "  Update:    cd $InstallDir; docker compose pull; docker compose up -d"
+Write-Info "  Update:    cd $InstallDir; docker compose pull; docker compose up -d --wait"
 Write-Info ""
 
 if ($SetupWatchtower) {
-    Write-Info "  Watchtower: auto-updates every ${wtHours}h (stop: docker rm -f $WatchtowerContainer)"
+    Write-Info "  Watchtower: auto-updates every ${wtHours}h (disable: docker rm -f $WatchtowerContainer)"
 } else {
     Write-Warn "  Watchtower skipped. For auto-updates, re-run without -NoWatchtower."
 }

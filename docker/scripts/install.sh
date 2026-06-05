@@ -8,6 +8,11 @@
 # Flags:
 #   --no-watchtower              Skip automatic Watchtower setup
 #   --watchtower-interval=SECS   Check interval in seconds (default: 86400 = 24h)
+#   --variant=cpu|cuda|cuda126   Select backend image variant
+#   --gpu                        Alias for --variant=cuda
+#   --cpu                        Alias for --variant=cpu
+#   --gpu-count=N|all            Number of GPUs to reserve when GPU is enabled
+#   --quiet                      Skip interactive prompts
 #
 # Handles two cases automatically:
 #   1. Fresh install        — no prior SurfSense data detected
@@ -35,12 +40,21 @@ MIGRATION_MODE=false
 SETUP_WATCHTOWER=true
 WATCHTOWER_INTERVAL=86400
 WATCHTOWER_CONTAINER="watchtower"
+REQUESTED_VARIANT=""
+VARIANT_EXPLICIT=false
+GPU_COUNT=""
+QUIET=false
 
 # ── Parse flags ─────────────────────────────────────────────────────────────
 for arg in "$@"; do
     case "$arg" in
         --no-watchtower) SETUP_WATCHTOWER=false ;;
         --watchtower-interval=*) WATCHTOWER_INTERVAL="${arg#*=}" ;;
+        --variant=*) REQUESTED_VARIANT="${arg#*=}"; VARIANT_EXPLICIT=true ;;
+        --gpu) REQUESTED_VARIANT="cuda"; VARIANT_EXPLICIT=true ;;
+        --cpu) REQUESTED_VARIANT="cpu"; VARIANT_EXPLICIT=true ;;
+        --gpu-count=*) GPU_COUNT="${arg#*=}" ;;
+        --quiet) QUIET=true ;;
     esac
 done
 
@@ -56,6 +70,15 @@ success() { printf "${GREEN}[SurfSense]${NC} %s\n"       "$1"; }
 warn()    { printf "${YELLOW}[SurfSense]${NC} %s\n"      "$1"; }
 error()   { printf "${RED}[SurfSense]${NC} ERROR: %s\n"  "$1" >&2; exit 1; }
 step()    { printf "\n${BOLD}${CYAN}── %s${NC}\n"        "$1"; }
+
+case "${REQUESTED_VARIANT}" in
+    ""|cpu|cuda|cuda126) ;;
+    *) error "Invalid --variant='${REQUESTED_VARIANT}'. Use cpu, cuda, or cuda126." ;;
+esac
+
+if [[ -n "${GPU_COUNT}" && ! "${GPU_COUNT}" =~ ^([0-9]+|all)$ ]]; then
+    error "Invalid --gpu-count='${GPU_COUNT}'. Use a number or 'all'."
+fi
 
 # ── Pre-flight checks ────────────────────────────────────────────────────────
 
@@ -97,126 +120,11 @@ wait_for_pg() {
     success "PostgreSQL is ready."
 }
 
-# ── Stack health helpers ─────────────────────────────────────────────────────
-
-# Enumerate compose services for project `surfsense` as `service|state|health|exitcode`
-# lines. Uses `docker inspect` so we don't depend on `jq`, `python3`, or the
-# exact ordering of fields in `docker compose ps --format json` output.
-get_compose_services() {
-    local containers
-    containers=$(docker ps -a --filter "label=com.docker.compose.project=surfsense" --format '{{.Names}}' 2>/dev/null) || true
-    [[ -z "$containers" ]] && return 0
-
-    while IFS= read -r container; do
-        [[ -z "$container" ]] && continue
-        local svc state health code
-        svc=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$container" 2>/dev/null || echo "")
-        state=$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null || echo "unknown")
-        health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container" 2>/dev/null || echo "")
-        code=$(docker inspect -f '{{.State.ExitCode}}' "$container" 2>/dev/null || echo "")
-        [[ -z "$svc" ]] && continue
-        printf '%s|%s|%s|%s\n' "$svc" "$state" "$health" "$code"
-    done <<< "$containers"
-}
-
-# Globals populated by wait_stack_healthy / consumed by stack_failure_report.
-STACK_BAD=()
-STACK_WAITING=()
-STACK_GOOD=()
-STACK_TIMEOUT=false
-
-wait_stack_healthy() {
-    local timeout_sec=${1:-300}
-    local deadline=$(($(date +%s) + timeout_sec))
-    local last_report=""
-    local bad=()
-    local waiting=()
-    local good=()
-
-    while [[ $(date +%s) -lt $deadline ]]; do
-        local lines
-        lines=$(get_compose_services)
-        if [[ -z "$lines" ]]; then
-            sleep 3
-            continue
-        fi
-
-        bad=()
-        waiting=()
-        good=()
-
-        while IFS='|' read -r name state health code; do
-            [[ -z "$name" ]] && continue
-            if [[ "$name" == "migrations" ]]; then
-                if [[ "$state" == "exited" && "$code" == "0" ]]; then
-                    good+=("$name")
-                elif [[ "$state" == "exited" ]]; then
-                    bad+=("${name} (exit=${code})")
-                else
-                    waiting+=("${name} (${state})")
-                fi
-                continue
-            fi
-
-            if [[ "$state" == "running" ]]; then
-                if [[ -z "$health" || "$health" == "healthy" ]]; then
-                    good+=("$name")
-                elif [[ "$health" == "starting" ]]; then
-                    waiting+=("${name} (starting)")
-                elif [[ "$health" == "unhealthy" ]]; then
-                    bad+=("${name} (unhealthy)")
-                else
-                    waiting+=("${name} (${health})")
-                fi
-            elif [[ "$state" == "restarting" ]]; then
-                bad+=("${name} (restarting)")
-            elif [[ "$state" == "exited" ]]; then
-                bad+=("${name} (exited, code=${code})")
-            else
-                waiting+=("${name} (${state})")
-            fi
-        done <<< "$lines"
-
-        if (( ${#bad[@]} > 0 )); then
-            STACK_BAD=("${bad[@]}")
-            STACK_WAITING=("${waiting[@]}")
-            STACK_GOOD=("${good[@]}")
-            return 1
-        fi
-        if (( ${#waiting[@]} == 0 )); then
-            STACK_GOOD=("${good[@]}")
-            return 0
-        fi
-
-        local report="Waiting on: ${waiting[*]}"
-        if [[ "$report" != "$last_report" ]]; then
-            info "$report"
-            last_report="$report"
-        fi
-        sleep 5
-    done
-
-    # bad/waiting/good are declared at function scope so referencing them is
-    # safe even if the polling loop never executed its body.
-    STACK_BAD=()
-    [[ ${#bad[@]} -gt 0 ]] && STACK_BAD=("${bad[@]}")
-    STACK_WAITING=()
-    [[ ${#waiting[@]} -gt 0 ]] && STACK_WAITING=("${waiting[@]}")
-    STACK_GOOD=()
-    [[ ${#good[@]} -gt 0 ]] && STACK_GOOD=("${good[@]}")
-    STACK_TIMEOUT=true
-    return 1
-}
+# ── Stack startup helper ─────────────────────────────────────────────────────
 
 stack_failure_report() {
     echo ""
     echo -e "\033[31m[ERROR]\033[0m Stack did not reach a healthy state."
-    if (( ${#STACK_BAD[@]} > 0 )) && [[ -n "${STACK_BAD[0]}" ]]; then
-        echo "  Failed: ${STACK_BAD[*]}"
-    fi
-    if (( ${#STACK_WAITING[@]} > 0 )) && [[ -n "${STACK_WAITING[0]}" ]]; then
-        echo "  Stuck:  ${STACK_WAITING[*]}"
-    fi
     echo ""
     info "Recent logs from migrations / zero-cache / backend:"
     (cd "${INSTALL_DIR}" && ${DC} logs --tail=60 migrations zero-cache backend 2>&1) || true
@@ -224,9 +132,18 @@ stack_failure_report() {
     echo "Recovery hints:"
     echo "  1. Inspect migrations:   cd ${INSTALL_DIR} && ${DC} logs migrations"
     echo "  2. Verify publication:   cd ${INSTALL_DIR} && ${DC} exec db psql -U surfsense -d surfsense -c 'SELECT pubname FROM pg_publication;'"
-    echo "  3. Hard reset zero db:   cd ${INSTALL_DIR} && ${DC} down && docker volume rm surfsense-zero-cache && ${DC} up -d"
+    echo "  3. Hard reset zero db:   cd ${INSTALL_DIR} && ${DC} down && docker volume rm surfsense-zero-cache && ${DC} up -d --wait"
     echo ""
     exit 1
+}
+
+compose_up_wait() {
+    local service="${1:-}"
+    if [[ -n "$service" ]]; then
+        (cd "${INSTALL_DIR}" && ${DC} up -d --wait "$service") < /dev/null
+    else
+        (cd "${INSTALL_DIR}" && ${DC} up -d --wait) < /dev/null
+    fi
 }
 
 # True if `surfsense-zero-cache` exists but `surfsense-zero-init` does not.
@@ -254,6 +171,144 @@ invoke_stale_zero_cache_cleanup() {
     success "Removed surfsense-zero-cache volume; zero-cache will re-sync on next start."
 }
 
+# ── Variant and .env helpers ─────────────────────────────────────────────────
+
+set_env_value() {
+    local file="$1"
+    local key="$2"
+    local value="$3"
+    local tmp
+    tmp=$(mktemp)
+
+    if grep -q "^${key}=" "$file" 2>/dev/null; then
+        awk -v key="$key" -v value="$value" 'BEGIN { prefix = key "=" } $0 ~ "^" prefix { print prefix value; next } { print }' "$file" > "$tmp"
+    else
+        cp "$file" "$tmp"
+        printf '\n%s=%s\n' "$key" "$value" >> "$tmp"
+    fi
+    mv "$tmp" "$file"
+}
+
+remove_env_value() {
+    local file="$1"
+    local key="$2"
+    local tmp
+    tmp=$(mktemp)
+    awk -v key="$key" 'BEGIN { prefix = key "=" } $0 !~ "^" prefix { print }' "$file" > "$tmp"
+    mv "$tmp" "$file"
+}
+
+version_major() {
+    printf '%s' "$1" | cut -d. -f1
+}
+
+recommend_cuda_variant() {
+    local driver_version driver_major
+    driver_version=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -n 1 | tr -d '[:space:]' || true)
+    driver_major=$(version_major "$driver_version")
+
+    # CUDA 12.8 generally requires an R570+ driver. Use CUDA 12.6 as the
+    # compatibility fallback for older 12.x driver stacks and GPUs.
+    if [[ "$driver_major" =~ ^[0-9]+$ && "$driver_major" -lt 570 ]]; then
+        printf 'cuda126'
+    else
+        printf 'cuda'
+    fi
+}
+
+gpu_runtime_available() {
+    docker info 2>/dev/null | grep -qi 'nvidia' \
+        || command -v nvidia-ctk >/dev/null 2>&1 \
+        || command -v nvidia-container-runtime >/dev/null 2>&1
+}
+
+host_has_nvidia_gpu() {
+    command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1
+}
+
+resolve_variant() {
+    local detected_variant="cpu"
+    local has_gpu=false
+    local has_runtime=false
+
+    if host_has_nvidia_gpu; then
+        has_gpu=true
+        detected_variant=$(recommend_cuda_variant)
+        if gpu_runtime_available; then
+            has_runtime=true
+        fi
+    fi
+
+    if $VARIANT_EXPLICIT; then
+        if [[ "$REQUESTED_VARIANT" == "cpu" ]]; then
+            printf 'cpu'
+            return 0
+        fi
+        if ! $has_gpu; then
+            warn "No NVIDIA GPU detected; falling back to CPU variant." >&2
+            printf 'cpu'
+            return 0
+        fi
+        if ! $has_runtime; then
+            warn "NVIDIA GPU detected, but NVIDIA Container Toolkit was not detected; falling back to CPU variant." >&2
+            warn "Install the toolkit before enabling SurfSense GPU acceleration." >&2
+            printf 'cpu'
+            return 0
+        fi
+        printf '%s' "$REQUESTED_VARIANT"
+        return 0
+    fi
+
+    if $has_gpu && ! $has_runtime; then
+        warn "NVIDIA GPU detected, but NVIDIA Container Toolkit was not detected; using CPU variant." >&2
+    fi
+
+    if $has_gpu && $has_runtime && ! $QUIET && [[ -r /dev/tty && -w /dev/tty ]]; then
+        local choice
+        echo "" > /dev/tty
+        printf "${BOLD}${CYAN}SurfSense detected an NVIDIA GPU.${NC}\n" > /dev/tty
+        printf "Use GPU acceleration? [Y/n]: " > /dev/tty
+        read -r choice < /dev/tty || choice=""
+        case "$choice" in
+            "") printf '%s' "$detected_variant" ;;
+            [Yy]|[Yy][Ee][Ss]) printf '%s' "$detected_variant" ;;
+            [Nn]|[Nn][Oo]) printf 'cpu' ;;
+            *) warn "Unrecognized choice '${choice}', using CPU variant." >&2; printf 'cpu' ;;
+        esac
+        return 0
+    fi
+
+    printf 'cpu'
+}
+
+apply_variant_env() {
+    local env_file="$1"
+    local variant="$2"
+    local allow_existing_update="$3"
+
+    if [[ -f "$env_file" && "$allow_existing_update" != "true" ]]; then
+        warn ".env already exists — keeping your existing configuration."
+        info "To change variants later, edit SURFSENSE_VARIANT and COMPOSE_FILE in ${env_file}, then run ${DC} up -d --wait."
+        return 0
+    fi
+
+    if [[ "$variant" == "cpu" ]]; then
+        set_env_value "$env_file" "SURFSENSE_VARIANT" ""
+        remove_env_value "$env_file" "COMPOSE_FILE"
+        remove_env_value "$env_file" "SURFSENSE_GPU_COUNT"
+    else
+        set_env_value "$env_file" "SURFSENSE_VARIANT" "$variant"
+        set_env_value "$env_file" "COMPOSE_FILE" "docker-compose.yml:docker-compose.gpu.yml"
+        if [[ -n "$GPU_COUNT" ]]; then
+            set_env_value "$env_file" "SURFSENSE_GPU_COUNT" "$GPU_COUNT"
+        fi
+    fi
+
+    remove_env_value "$env_file" "COMPOSE_PROFILES"
+}
+
+SELECTED_VARIANT=$(resolve_variant)
+
 # ── Download files ───────────────────────────────────────────────────────────
 
 step "Downloading SurfSense files"
@@ -263,6 +318,7 @@ mkdir -p "${INSTALL_DIR}/searxng"
 
 FILES=(
     "docker/docker-compose.yml:docker-compose.yml"
+    "docker/docker-compose.gpu.yml:docker-compose.gpu.yml"
     "docker/.env.example:.env.example"
     "docker/postgresql.conf:postgresql.conf"
     "docker/scripts/migrate-database.sh:scripts/migrate-database.sh"
@@ -336,9 +392,15 @@ if [ ! -f "${INSTALL_DIR}/.env" ]; then
     else
         sed -i "s|SECRET_KEY=replace_me_with_a_random_string|SECRET_KEY=${SECRET_KEY}|" "${INSTALL_DIR}/.env"
     fi
+    apply_variant_env "${INSTALL_DIR}/.env" "$SELECTED_VARIANT" "false"
     info "Created ${INSTALL_DIR}/.env"
 else
-    warn ".env already exists — keeping your existing configuration."
+    if $VARIANT_EXPLICIT; then
+        apply_variant_env "${INSTALL_DIR}/.env" "$SELECTED_VARIANT" "true"
+        info "Updated SurfSense image variant in existing ${INSTALL_DIR}/.env"
+    else
+        apply_variant_env "${INSTALL_DIR}/.env" "$SELECTED_VARIANT" "false"
+    fi
 fi
 
 # ── Start containers ─────────────────────────────────────────────────────────
@@ -401,26 +463,20 @@ if $MIGRATION_MODE; then
     fi
 
     step "Starting all SurfSense services"
-    (cd "${INSTALL_DIR}" && ${DC} up -d) < /dev/null
-    success "All containers started; waiting for stack to become healthy..."
-
-    if ! wait_stack_healthy 300; then
+    if ! compose_up_wait; then
         stack_failure_report
     fi
-    success "All services healthy."
+    success "All services started and healthy."
 
     # Key file is no longer needed — SECRET_KEY is now in .env
     rm -f "${KEY_FILE}"
 
 else
     step "Starting SurfSense"
-    (cd "${INSTALL_DIR}" && ${DC} up -d) < /dev/null
-    success "All containers started; waiting for stack to become healthy..."
-
-    if ! wait_stack_healthy 300; then
+    if ! compose_up_wait; then
         stack_failure_report
     fi
-    success "All services healthy."
+    success "All services started and healthy."
 fi
 
 # ── Watchtower (auto-update) ─────────────────────────────────────────────────
@@ -445,7 +501,7 @@ if $SETUP_WATCHTOWER; then
             --label-enable \
             --interval "${WATCHTOWER_INTERVAL}" >/dev/null 2>&1 < /dev/null \
             && success "Watchtower started — labeled SurfSense containers will auto-update." \
-            || warn "Could not start Watchtower. You can set it up manually or use: docker compose pull && docker compose up -d"
+            || warn "Could not start Watchtower. You can set it up manually or use: docker compose pull && docker compose up -d --wait"
     fi
 else
     info "Skipping Watchtower setup (--no-watchtower flag)."
@@ -471,6 +527,8 @@ Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.
 EOF
 _version_display=$(grep '^SURFSENSE_VERSION=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
 _version_display="${_version_display:-latest}"
+_variant_display=$(grep '^SURFSENSE_VARIANT=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
+_variant_display="${_variant_display:-cpu}"
 printf "         OSS Alternative to NotebookLM for Teams  ${YELLOW}[%s]${NC}\n" "${_version_display}"
 printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n\n"
 
@@ -479,13 +537,14 @@ info "  Backend:   http://localhost:8929"
 info "  API Docs:  http://localhost:8929/docs"
 info ""
 info "  Config:    ${INSTALL_DIR}/.env"
+info "  Variant:   ${_variant_display}"
 info "  Logs:      cd ${INSTALL_DIR} && ${DC} logs -f"
 info "  Stop:      cd ${INSTALL_DIR} && ${DC} down"
-info "  Update:    cd ${INSTALL_DIR} && ${DC} pull && ${DC} up -d"
+info "  Update:    cd ${INSTALL_DIR} && ${DC} pull && ${DC} up -d --wait"
 info ""
 
 if $SETUP_WATCHTOWER; then
-    info "  Watchtower: auto-updates every $((WATCHTOWER_INTERVAL / 3600))h (stop: docker rm -f ${WATCHTOWER_CONTAINER})"
+    info "  Watchtower: auto-updates every $((WATCHTOWER_INTERVAL / 3600))h (disable: docker rm -f ${WATCHTOWER_CONTAINER})"
 else
     warn "  Watchtower skipped. For auto-updates, re-run without --no-watchtower."
 fi
