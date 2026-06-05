@@ -5,8 +5,8 @@ from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.agents.chat.multi_agent_chat.subagents.connectors.gmail.tools._helpers import (
-    _build_credentials,
+from app.agents.chat.multi_agent_chat.subagents.connectors.google_auth import (
+    build_credentials as _build_credentials,
 )
 from app.db import SearchSourceConnector, SearchSourceConnectorType
 

@@ -1,61 +1,26 @@
-"""Shared helpers for Gmail connector tools.
+"""Gmail-specific helpers for the Gmail connector tools.
 
-Credential construction (``_build_credentials``) is also reused by the
-Calendar connector tools, since both are Google OAuth backed.
+Google OAuth credential construction lives in
+``app.agents.chat.multi_agent_chat.subagents.connectors.google_auth`` (shared
+with the Calendar connector). It is re-exported here under the legacy private
+names so the existing Gmail tools keep importing it from this module.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
-from app.db import SearchSourceConnector
+from app.agents.chat.multi_agent_chat.subagents.connectors.google_auth import (
+    build_credentials as _build_credentials,
+    get_token_encryption as _get_token_encryption,
+)
 
-_token_encryption_cache: object | None = None
-
-
-def _get_token_encryption():
-    global _token_encryption_cache
-    if _token_encryption_cache is None:
-        from app.config import config
-        from app.utils.oauth_security import TokenEncryption
-
-        if not config.SECRET_KEY:
-            raise RuntimeError("SECRET_KEY not configured for token decryption.")
-        _token_encryption_cache = TokenEncryption(config.SECRET_KEY)
-    return _token_encryption_cache
-
-
-def _build_credentials(connector: SearchSourceConnector):
-    """Build Google OAuth Credentials from a connector's stored config.
-
-    Handles both native OAuth connectors (with encrypted tokens) and
-    Composio-backed connectors. Shared by Gmail and Calendar tools.
-    """
-    from app.utils.google_credentials import COMPOSIO_GOOGLE_CONNECTOR_TYPES
-
-    if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
-        raise ValueError("Composio connectors must use Composio tool execution.")
-
-    from google.oauth2.credentials import Credentials
-
-    cfg = dict(connector.config)
-    if cfg.get("_token_encrypted"):
-        enc = _get_token_encryption()
-        for key in ("token", "refresh_token", "client_secret"):
-            if cfg.get(key):
-                cfg[key] = enc.decrypt_token(cfg[key])
-
-    exp = (cfg.get("expiry") or "").replace("Z", "")
-    return Credentials(
-        token=cfg.get("token"),
-        refresh_token=cfg.get("refresh_token"),
-        token_uri=cfg.get("token_uri"),
-        client_id=cfg.get("client_id"),
-        client_secret=cfg.get("client_secret"),
-        scopes=cfg.get("scopes", []),
-        expiry=datetime.fromisoformat(exp) if exp else None,
-    )
+__all__ = [
+    "_build_credentials",
+    "_format_gmail_summary",
+    "_get_token_encryption",
+    "_gmail_headers",
+]
 
 
 def _gmail_headers(message: dict[str, Any]) -> dict[str, str]:
