@@ -23,6 +23,10 @@ from langchain_core.tools import StructuredTool
 from langgraph.errors import GraphInterrupt
 from langgraph.types import Command, Interrupt
 
+from app.agents.chat.multi_agent_chat.subagents.shared.invocation import (
+    EXCLUDED_STATE_KEYS,
+    subagent_invoke_config,
+)
 from app.agents.chat.multi_agent_chat.subagents.shared.spec import (
     SURF_CONTEXT_HINT_PROVIDER_KEY,
     ContextHintProvider,
@@ -34,13 +38,11 @@ from .config import (
     consume_surfsense_resume,
     drain_parent_null_resume,
     has_surfsense_resume,
-    subagent_invoke_config,
 )
 from .constants import (
     DEFAULT_SUBAGENT_BATCH_CONCURRENCY,
     DEFAULT_SUBAGENT_BILLABLE_THRESHOLD,
     DEFAULT_SUBAGENT_INVOKE_TIMEOUT_SECONDS,
-    EXCLUDED_STATE_KEYS,
     MAX_SUBAGENT_BATCH_SIZE,
 )
 from .propagation import wrap_with_tool_call_id

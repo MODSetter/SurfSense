@@ -10,11 +10,9 @@ from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
 from langgraph.types import Command
 
-from app.agents.chat.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.config import (
-    subagent_invoke_config,
-)
-from app.agents.chat.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.constants import (
+from app.agents.chat.multi_agent_chat.subagents.shared.invocation import (
     EXCLUDED_STATE_KEYS,
+    subagent_invoke_config,
 )
 
 from .prompts import load_readonly_description

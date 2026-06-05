@@ -1,23 +1,13 @@
-"""Constants shared by the checkpointed subagent middleware."""
+"""Tuning constants for the checkpointed subagent middleware.
+
+``EXCLUDED_STATE_KEYS`` and ``DEFAULT_SUBAGENT_RECURSION_LIMIT`` are part of the
+subagent-invocation contract shared with subagents and now live in
+``app.agents.chat.multi_agent_chat.subagents.shared.invocation``.
+"""
 
 from __future__ import annotations
 
 import os
-
-# Mirror of deepagents.middleware.subagents._EXCLUDED_STATE_KEYS.
-EXCLUDED_STATE_KEYS = frozenset(
-    {
-        "messages",
-        "todos",
-        "structured_response",
-        "skills_metadata",
-        "memory_contents",
-    }
-)
-
-# Match the parent graph's budget; the LangGraph default of 25 trips on
-# multi-step subagent runs.
-DEFAULT_SUBAGENT_RECURSION_LIMIT = 10_000
 
 
 def _read_timeout_env(name: str, default: float) -> float:
