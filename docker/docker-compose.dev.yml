@@ -217,21 +217,6 @@ services:
       celery_worker:
         condition: service_started
 
-  # flower:
-  #   build: *backend-build
-  #   ports:
-  #     - "${FLOWER_PORT:-5555}:5555"
-  #   env_file:
-  #     - ../surfsense_backend/.env
-  #   environment:
-  #     - CELERY_BROKER_URL=${REDIS_URL:-redis://redis:6379/0}
-  #     - CELERY_RESULT_BACKEND=${REDIS_URL:-redis://redis:6379/0}
-  #     - PYTHONPATH=/app
-  #   command: celery -A app.celery_app flower --port=5555
-  #   depends_on:
-  #     - redis
-  #     - celery_worker
-
   zero-cache:
     image: rocicorp/zero:1.4.0
     ports:

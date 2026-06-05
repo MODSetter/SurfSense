@@ -218,22 +218,6 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
     restart: unless-stopped
 
-  # flower:
-  #   image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
-  #   ports:
-  #     - "${FLOWER_PORT:-5555}:5555"
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
-  #     CELERY_RESULT_BACKEND: ${REDIS_URL:-redis://redis:6379/0}
-  #     PYTHONPATH: /app
-  #   command: celery -A app.celery_app flower --port=5555
-  #   depends_on:
-  #     - redis
-  #     - celery_worker
-  #   restart: unless-stopped
-
   zero-cache:
     image: rocicorp/zero:1.4.0
     ports:
