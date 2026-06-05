@@ -10,7 +10,7 @@ from langchain_core.messages import (
     ToolMessage,
 )
 
-from app.agents.shared.middleware.compaction import (
+from app.agents.chat.shared.middleware.compaction import (
     PROTECTED_SYSTEM_PREFIXES,
     _is_protected_system_message,
     _sanitize_message_content,
@@ -72,7 +72,7 @@ class TestPartitionMessages:
         # SurfSenseCompactionMiddleware without a real model, but the
         # override path needs ``_lc_helper`` to delegate to. We mock
         # that with a simple slicing partitioner equivalent to the real one.
-        from app.agents.shared.middleware.compaction import (
+        from app.agents.chat.shared.middleware.compaction import (
             SurfSenseCompactionMiddleware,
         )
 

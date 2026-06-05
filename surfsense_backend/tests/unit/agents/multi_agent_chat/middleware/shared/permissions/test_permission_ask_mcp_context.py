@@ -13,14 +13,14 @@ from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
-from app.agents.multi_agent_chat.shared.middleware.permissions import (
+from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
+from app.agents.chat.multi_agent_chat.shared.middleware.permissions import (
     build_permission_mw,
 )
-from app.agents.multi_agent_chat.shared.middleware.permissions.ask.payload import (
+from app.agents.chat.multi_agent_chat.shared.middleware.permissions.ask.payload import (
     build_permission_ask_payload,
 )
-from app.agents.multi_agent_chat.shared.permissions import Rule, Ruleset
+from app.agents.chat.multi_agent_chat.shared.permissions import Rule, Ruleset
 
 
 class _NoArgs(BaseModel):

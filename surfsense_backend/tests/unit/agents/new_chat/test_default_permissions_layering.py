@@ -17,7 +17,7 @@ caused two production-painful behaviors:
   read-only tool calls, raising ``RejectedError("ls")``.
 * Mutating connector tools got *double* prompted — once via the
   middleware ``ask`` and again via the per-tool ``interrupt()`` in
-  ``app.agents.multi_agent_chat.shared.tools.hitl``.
+  ``app.agents.chat.multi_agent_chat.shared.tools.hitl``.
 
 These tests pin the layering so a refactor that drops the default
 ruleset fails loud.
@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.multi_agent_chat.shared.permissions import (
+from app.agents.chat.multi_agent_chat.shared.permissions import (
     Rule,
     Ruleset,
     aggregate_action,

@@ -6,7 +6,7 @@ import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
 
-from app.agents.multi_agent_chat.main_agent.middleware.dedup_hitl import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.dedup_hitl import (
     DedupHITLToolCallsMiddleware,
 )
 
@@ -115,7 +115,7 @@ def test_full_args_dedup_keeps_distinct_calls_sharing_a_field() -> None:
 
     With :func:`dedup_key_full_args` only fully identical arg dicts dedup.
     """
-    from app.agents.multi_agent_chat.shared.middleware.dedup_tool_calls import (
+    from app.agents.chat.multi_agent_chat.shared.middleware.dedup_tool_calls import (
         dedup_key_full_args,
     )
 
@@ -159,7 +159,7 @@ def test_full_args_dedup_keeps_distinct_calls_sharing_a_field() -> None:
 
 
 def test_full_args_dedup_drops_only_exact_duplicates() -> None:
-    from app.agents.multi_agent_chat.shared.middleware.dedup_tool_calls import (
+    from app.agents.chat.multi_agent_chat.shared.middleware.dedup_tool_calls import (
         dedup_key_full_args,
     )
 

@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.multi_agent_chat.constants import (
+from app.agents.chat.multi_agent_chat.constants import (
     SUBAGENT_TO_REQUIRED_CONNECTOR_MAP,
 )
-from app.agents.multi_agent_chat.subagents.registry import (
+from app.agents.chat.multi_agent_chat.subagents.registry import (
     SUBAGENT_BUILDERS_BY_NAME,
 )
 

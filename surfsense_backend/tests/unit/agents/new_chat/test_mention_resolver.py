@@ -15,14 +15,17 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.agents.multi_agent_chat.shared.mention_resolver import (
+from app.agents.chat.multi_agent_chat.shared import mention_resolver
+from app.agents.chat.multi_agent_chat.shared.mention_resolver import (
     ResolvedMention,
     ResolvedMentionSet,
     resolve_mentions,
     substitute_in_text,
 )
-from app.agents.multi_agent_chat.shared.path_resolver import DOCUMENTS_ROOT, PathIndex
-from app.agents.multi_agent_chat.shared import mention_resolver
+from app.agents.chat.multi_agent_chat.shared.path_resolver import (
+    DOCUMENTS_ROOT,
+    PathIndex,
+)
 from app.schemas.new_chat import MentionedDocumentInfo
 
 pytestmark = pytest.mark.unit

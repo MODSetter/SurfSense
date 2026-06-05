@@ -22,7 +22,7 @@ from dataclasses import asdict
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.agents.multi_agent_chat.shared.feature_flags import (
+from app.agents.chat.multi_agent_chat.shared.feature_flags import (
     AgentFeatureFlags,
     get_flags,
 )

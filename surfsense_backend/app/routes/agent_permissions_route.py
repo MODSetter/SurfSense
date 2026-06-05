@@ -30,7 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.multi_agent_chat.shared.feature_flags import get_flags
+from app.agents.chat.multi_agent_chat.shared.feature_flags import get_flags
 from app.db import (
     AgentPermissionRule,
     NewChatThread,

@@ -10,11 +10,11 @@ import pytest
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 
-from app.agents.multi_agent_chat.main_agent.middleware.action_log.middleware import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.action_log.middleware import (
     ActionLogMiddleware,
     ToolDefinition,
 )
-from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
+from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 
 
 @dataclass
@@ -60,7 +60,7 @@ def _disabled_flags() -> AgentFeatureFlags:
 def patch_get_flags():
     def _patch(flags: AgentFeatureFlags):
         return patch(
-            "app.agents.multi_agent_chat.main_agent.middleware.action_log.middleware.get_flags",
+            "app.agents.chat.multi_agent_chat.main_agent.middleware.action_log.middleware.get_flags",
             return_value=flags,
         )
 
@@ -362,7 +362,7 @@ class TestActionLogDispatch:
             patch_get_flags(_enabled_flags()),
             patch("app.db.shielded_async_session", side_effect=lambda: factory()),
             patch(
-                "app.agents.multi_agent_chat.main_agent.middleware.action_log.middleware.adispatch_custom_event",
+                "app.agents.chat.multi_agent_chat.main_agent.middleware.action_log.middleware.adispatch_custom_event",
                 dispatch_mock,
             ),
         ):
@@ -397,7 +397,7 @@ class TestActionLogDispatch:
             patch_get_flags(_enabled_flags()),
             patch("app.db.shielded_async_session", side_effect=_exploding_session),
             patch(
-                "app.agents.multi_agent_chat.main_agent.middleware.action_log.middleware.adispatch_custom_event",
+                "app.agents.chat.multi_agent_chat.main_agent.middleware.action_log.middleware.adispatch_custom_event",
                 dispatch_mock,
             ),
         ):

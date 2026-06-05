@@ -7,7 +7,7 @@ can rely on ``runtime.context`` always being populated.
 
 from __future__ import annotations
 
-from app.agents.shared.context import SurfSenseContextSchema
+from app.agents.chat.shared.context import SurfSenseContextSchema
 
 
 def build_resume_chat_runtime_context(

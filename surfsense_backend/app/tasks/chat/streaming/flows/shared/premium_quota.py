@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from app.agents.multi_agent_chat.shared.llm_config import AgentConfig
+from app.agents.chat.multi_agent_chat.shared.llm_config import AgentConfig
 from app.db import shielded_async_session
 
 if TYPE_CHECKING:

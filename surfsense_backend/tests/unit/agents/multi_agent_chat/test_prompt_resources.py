@@ -14,14 +14,14 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.multi_agent_chat.main_agent.system_prompt.builder.load_md import (
+from app.agents.chat.multi_agent_chat.main_agent.system_prompt.builder.load_md import (
     read_prompt_md,
 )
-from app.agents.multi_agent_chat.subagents.registry import (
+from app.agents.chat.multi_agent_chat.subagents.registry import (
     SUBAGENT_BUILDERS_BY_NAME,
     _route_resource_package,
 )
-from app.agents.multi_agent_chat.subagents.shared.md_file_reader import (
+from app.agents.chat.multi_agent_chat.subagents.shared.md_file_reader import (
     read_md_file,
     read_shared_snippet,
 )

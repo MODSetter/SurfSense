@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from langchain.tools import ToolRuntime
 
-from app.agents.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.config import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.config import (
     subagent_invoke_config,
 )
 

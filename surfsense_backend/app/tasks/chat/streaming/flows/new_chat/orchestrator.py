@@ -29,12 +29,12 @@ from typing import Any, Literal
 
 import anyio
 
-from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
-from app.agents.multi_agent_chat.shared.filesystem_selection import (
+from app.agents.chat.multi_agent_chat import create_multi_agent_chat_deep_agent
+from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
     FilesystemMode,
     FilesystemSelection,
 )
-from app.agents.multi_agent_chat.shared.middleware.busy_mutex import end_turn
+from app.agents.chat.multi_agent_chat.shared.middleware.busy_mutex import end_turn
 from app.db import ChatVisibility, async_session_maker
 from app.observability import otel as ot
 from app.services.new_streaming_service import VercelStreamingService
@@ -829,7 +829,7 @@ async def stream_new_chat(
         # downloadable after the Daytona sandbox auto-deletes.
         if stream_result and stream_result.sandbox_files:
             with contextlib.suppress(Exception):
-                from app.agents.multi_agent_chat.shared.sandbox import (
+                from app.agents.chat.multi_agent_chat.shared.sandbox import (
                     is_sandbox_enabled,
                     persist_and_delete_sandbox,
                 )

@@ -16,7 +16,7 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
+from app.agents.chat.multi_agent_chat import create_multi_agent_chat_deep_agent
 from app.services.connector_service import ConnectorService
 from tests.integration.harness import (
     ScriptedTurn,

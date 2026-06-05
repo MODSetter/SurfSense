@@ -15,7 +15,7 @@ import pypdf
 import pytest
 from langchain.tools import ToolRuntime
 
-from app.agents.multi_agent_chat.subagents.builtins.deliverables.tools import (
+from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
     resume as resume_tool,
 )
 

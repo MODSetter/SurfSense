@@ -1,9 +1,9 @@
 """Cloud-mode ``rm``/``rmdir`` staging tests for the LIVE filesystem middleware.
 
 Ported from the former ``tests/unit/agents/new_chat/test_rm_rmdir_cloud.py``,
-which exercised the *dead twin* ``app.agents.shared.middleware.filesystem``.
+which exercised the *dead twin* ``app.agents.chat.shared.middleware.filesystem``.
 This drives the production decomposed tools
-(``app.agents.multi_agent_chat.shared.middleware.filesystem``) instead: it
+(``app.agents.chat.multi_agent_chat.shared.middleware.filesystem``) instead: it
 builds the real middleware via ``build_filesystem_mw``, pulls the real ``rm`` /
 ``rmdir`` tools off it, and invokes their coroutines with a stubbed
 ``KBPostgresBackend`` + runtime so we can assert the end-of-turn staging
@@ -19,20 +19,20 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.agents.multi_agent_chat.shared.filesystem_selection import (
+from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
     FilesystemMode,
     FilesystemSelection,
 )
-from app.agents.multi_agent_chat.shared.middleware.filesystem import (
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem import (
     build_filesystem_mw,
 )
-from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.kb_postgres import (
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.kb_postgres import (
     KBPostgresBackend,
 )
-from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.resolver import (
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.resolver import (
     build_backend_resolver,
 )
-from app.agents.multi_agent_chat.shared.state.reducers import _CLEAR
+from app.agents.chat.multi_agent_chat.shared.state.reducers import _CLEAR
 
 pytestmark = pytest.mark.unit
 

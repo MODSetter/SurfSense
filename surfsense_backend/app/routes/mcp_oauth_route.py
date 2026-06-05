@@ -665,7 +665,7 @@ def _refresh_mcp_cache(connector_id: int, space_id: int) -> None:
     isolated from the OAuth response flow.
     """
     try:
-        from app.agents.multi_agent_chat.shared.tools.mcp.cache import (
+        from app.agents.chat.multi_agent_chat.shared.tools.mcp.cache import (
             refresh_mcp_tools_cache_for_connector,
         )
 

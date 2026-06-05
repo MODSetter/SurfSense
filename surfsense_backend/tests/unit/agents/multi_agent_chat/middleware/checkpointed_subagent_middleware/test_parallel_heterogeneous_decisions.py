@@ -40,12 +40,12 @@ from langgraph.graph.message import add_messages
 from langgraph.types import Command, Send, interrupt
 from typing_extensions import TypedDict
 
-from app.agents.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.resume_routing import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.resume_routing import (
     build_lg_resume_map,
     collect_pending_tool_calls,
     slice_decisions_by_tool_call,
 )
-from app.agents.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.task_tool import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.task_tool import (
     build_task_tool_with_parent_config,
 )
 

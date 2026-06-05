@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.multi_agent_chat.shared.state.reducers import (
+from app.agents.chat.multi_agent_chat.shared.state.reducers import (
     _CLEAR,
     _add_unique_reducer,
     _dict_merge_with_tombstones_reducer,

@@ -6,9 +6,9 @@ Ported from the dead-twin suites:
 * ``tests/unit/middleware/test_filesystem_verification.py`` (desktop
   multi-root mount-prefix normalization)
 
-Both exercised ``app.agents.shared.middleware.filesystem`` (dead). This drives
+Both exercised ``app.agents.chat.shared.middleware.filesystem`` (dead). This drives
 the production free functions in
-``app.agents.multi_agent_chat.shared.middleware.filesystem.middleware`` instead.
+``app.agents.chat.multi_agent_chat.shared.middleware.filesystem.middleware`` instead.
 The functions only touch ``mw._filesystem_mode`` and ``mw._get_backend`` so we
 pass a lightweight fake ``mw`` rather than constructing the full middleware.
 """
@@ -20,17 +20,17 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
-from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.multi_root_local_folder import (
+from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.multi_root_local_folder import (
     MultiRootLocalFolderBackend,
 )
-from app.agents.multi_agent_chat.shared.middleware.filesystem.middleware.mode import (
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.middleware.mode import (
     default_cwd,
 )
-from app.agents.multi_agent_chat.shared.middleware.filesystem.middleware.namespace_policy import (
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.middleware.namespace_policy import (
     check_cloud_write_namespace,
 )
-from app.agents.multi_agent_chat.shared.middleware.filesystem.middleware.path_resolution import (
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.middleware.path_resolution import (
     current_cwd,
     get_contract_suggested_path,
     normalize_local_mount_path,

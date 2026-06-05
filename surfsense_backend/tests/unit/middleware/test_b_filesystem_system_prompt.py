@@ -2,7 +2,7 @@
 
 Ported from ``TestModeSpecificPrompts`` in the former
 ``tests/unit/middleware/test_filesystem_middleware.py`` (which exercised the
-dead twin ``app.agents.shared.middleware.filesystem._build_filesystem_system_prompt``).
+dead twin ``app.agents.chat.shared.middleware.filesystem._build_filesystem_system_prompt``).
 
 These drive the production ``build_system_prompt`` so the prompt the model
 actually receives stays mode-scoped: cloud rules don't leak into desktop
@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
-from app.agents.multi_agent_chat.shared.middleware.filesystem.system_prompt import (
+from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.system_prompt import (
     build_system_prompt,
 )
 

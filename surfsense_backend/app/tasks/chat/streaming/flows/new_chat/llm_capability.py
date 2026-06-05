@@ -15,7 +15,7 @@ tells the user what to change.
 
 from __future__ import annotations
 
-from app.agents.multi_agent_chat.shared.llm_config import AgentConfig
+from app.agents.chat.multi_agent_chat.shared.llm_config import AgentConfig
 from app.observability import otel as ot
 
 

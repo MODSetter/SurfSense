@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app.agents.multi_agent_chat.main_agent.middleware.noop_injection.middleware import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.noop_injection.middleware import (
     NOOP_TOOL_NAME,
     NoopInjectionMiddleware,
     _last_ai_has_tool_calls,

@@ -16,10 +16,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.agents.multi_agent_chat.constants import (
+from app.agents.chat.multi_agent_chat.constants import (
     CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS,
 )
-from app.agents.multi_agent_chat.shared.permissions import Rule, Ruleset
+from app.agents.chat.multi_agent_chat.shared.permissions import Rule, Ruleset
 from app.db import SearchSourceConnector, async_session_maker
 
 logger = logging.getLogger(__name__)

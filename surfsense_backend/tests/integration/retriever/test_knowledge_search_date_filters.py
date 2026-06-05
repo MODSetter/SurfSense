@@ -8,8 +8,8 @@ from datetime import UTC, datetime, timedelta
 import numpy as np
 import pytest
 
-from app.agents.multi_agent_chat.shared.middleware import knowledge_search as ks
-from app.agents.multi_agent_chat.shared.middleware.knowledge_search import (
+from app.agents.chat.multi_agent_chat.shared.middleware import knowledge_search as ks
+from app.agents.chat.multi_agent_chat.shared.middleware.knowledge_search import (
     search_knowledge_base,
 )
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.shared.middleware.retry_after import (
+from app.agents.chat.shared.middleware.retry_after import (
     RetryAfterMiddleware,
     _extract_retry_after_seconds,
     _is_non_retryable,

@@ -204,7 +204,9 @@ async def validate_llm_config(
         if litellm_params:
             litellm_kwargs.update(litellm_params)
 
-        from app.agents.multi_agent_chat.shared.llm_config import SanitizedChatLiteLLM
+        from app.agents.chat.multi_agent_chat.shared.llm_config import (
+            SanitizedChatLiteLLM,
+        )
 
         llm = SanitizedChatLiteLLM(**litellm_kwargs)
 
@@ -379,7 +381,7 @@ async def get_search_space_llm_instance(
             if disable_streaming:
                 litellm_kwargs["disable_streaming"] = True
 
-            from app.agents.multi_agent_chat.shared.llm_config import (
+            from app.agents.chat.multi_agent_chat.shared.llm_config import (
                 SanitizedChatLiteLLM,
             )
 
@@ -460,7 +462,9 @@ async def get_search_space_llm_instance(
         if disable_streaming:
             litellm_kwargs["disable_streaming"] = True
 
-        from app.agents.multi_agent_chat.shared.llm_config import SanitizedChatLiteLLM
+        from app.agents.chat.multi_agent_chat.shared.llm_config import (
+            SanitizedChatLiteLLM,
+        )
 
         return SanitizedChatLiteLLM(**litellm_kwargs)
 
@@ -582,7 +586,7 @@ async def get_vision_llm(
             if global_cfg.get("litellm_params"):
                 litellm_kwargs.update(global_cfg["litellm_params"])
 
-            from app.agents.multi_agent_chat.shared.llm_config import (
+            from app.agents.chat.multi_agent_chat.shared.llm_config import (
                 SanitizedChatLiteLLM,
             )
 
@@ -638,7 +642,9 @@ async def get_vision_llm(
         if vision_cfg.litellm_params:
             litellm_kwargs.update(vision_cfg.litellm_params)
 
-        from app.agents.multi_agent_chat.shared.llm_config import SanitizedChatLiteLLM
+        from app.agents.chat.multi_agent_chat.shared.llm_config import (
+            SanitizedChatLiteLLM,
+        )
 
         return SanitizedChatLiteLLM(**litellm_kwargs)
 
@@ -683,7 +689,7 @@ def get_planner_llm() -> ChatLiteLLM | None:
     Callers MUST fall back to their chat LLM when this returns ``None`` so
     deployments without a planner config keep working unchanged.
     """
-    from app.agents.multi_agent_chat.shared.llm_config import (
+    from app.agents.chat.multi_agent_chat.shared.llm_config import (
         create_chat_litellm_from_config,
     )
 

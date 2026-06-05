@@ -1,10 +1,10 @@
 """Real-behavior tests for the LIVE knowledge-base filesystem middleware (B).
 
-These exercise ``app.agents.multi_agent_chat.shared.middleware.filesystem`` —
+These exercise ``app.agents.chat.multi_agent_chat.shared.middleware.filesystem`` —
 the decomposed middleware + tools that production actually mounts on the
 knowledge_base subagent (via ``build_filesystem_mw``). The previous
 ``tests/unit/middleware/test_filesystem_*.py`` suite asserts a *dead twin*
-(``app.agents.shared.middleware.filesystem``) that is never instantiated, so the
+(``app.agents.chat.shared.middleware.filesystem``) that is never instantiated, so the
 live tool path had no real coverage.
 
 Strategy: mount the production ``build_filesystem_mw`` on a minimal
@@ -23,15 +23,15 @@ from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-from app.agents.multi_agent_chat.shared.filesystem_selection import (
+from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
     FilesystemMode,
     FilesystemSelection,
     LocalFilesystemMount,
 )
-from app.agents.multi_agent_chat.shared.middleware.filesystem import (
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem import (
     build_filesystem_mw,
 )
-from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.resolver import (
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.resolver import (
     build_backend_resolver,
 )
 from tests.integration.harness import ScriptedTurn, build_scripted_harness

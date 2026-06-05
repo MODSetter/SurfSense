@@ -91,7 +91,7 @@ async def test_global_openrouter_image_gen_sets_api_base_when_config_empty():
 async def test_generate_image_tool_global_sets_api_base_when_config_empty():
     """Same defense at the agent tool entry point — both surfaces share
     the same OpenRouter config payloads."""
-    from app.agents.multi_agent_chat.subagents.builtins.deliverables.tools import (
+    from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
         generate_image as gi_module,
     )
 
