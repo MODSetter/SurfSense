@@ -45,9 +45,11 @@ from app.agents.multi_agent_chat.shared.date_filters import (
     parse_date_or_datetime,
     resolve_date_range,
 )
+from app.agents.multi_agent_chat.shared.state.filesystem_state import (
+    SurfSenseFilesystemState,
+)
 from app.agents.shared.feature_flags import get_flags
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.shared.filesystem_state import SurfSenseFilesystemState
 from app.agents.shared.path_resolver import (
     PathIndex,
     build_path_index,

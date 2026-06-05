@@ -6,7 +6,7 @@ participate in the verification teaching from
 ``multi_agent_chat/subagents/shared/snippets/verifiable_handle.md`` those
 tools now also need to write a :class:`Receipt` into the parent's
 ``state['receipts']`` list (declared on
-:class:`~app.agents.shared.filesystem_state.SurfSenseFilesystemState`
+:class:`~app.agents.multi_agent_chat.shared.state.filesystem_state.SurfSenseFilesystemState`
 and backed by the append reducer).
 
 :func:`with_receipt` wraps both behaviours: it returns the tool payload as
@@ -51,7 +51,7 @@ def with_receipt(
     """Return a Command that ships ``payload`` as a ToolMessage AND appends ``receipt``.
 
     The append happens via the ``_list_append_reducer`` on the ``receipts``
-    field of :class:`~app.agents.shared.filesystem_state.SurfSenseFilesystemState`,
+    field of :class:`~app.agents.multi_agent_chat.shared.state.filesystem_state.SurfSenseFilesystemState`,
     so concurrent subagent batches (item 4 in the plan) won't clobber each
     other's receipts.
     """

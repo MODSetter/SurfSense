@@ -7,8 +7,10 @@ from typing import TYPE_CHECKING
 
 from langchain.tools import ToolRuntime
 
+from app.agents.multi_agent_chat.shared.state.filesystem_state import (
+    SurfSenseFilesystemState,
+)
 from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.shared.filesystem_state import SurfSenseFilesystemState
 from app.agents.shared.middleware.multi_root_local_folder_backend import (
     MultiRootLocalFolderBackend,
 )

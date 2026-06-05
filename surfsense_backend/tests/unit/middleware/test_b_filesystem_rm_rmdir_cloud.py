@@ -22,10 +22,10 @@ import pytest
 from app.agents.multi_agent_chat.shared.middleware.filesystem import (
     build_filesystem_mw,
 )
+from app.agents.multi_agent_chat.shared.state.reducers import _CLEAR
 from app.agents.shared.filesystem_backends import build_backend_resolver
 from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
 from app.agents.shared.middleware.kb_postgres_backend import KBPostgresBackend
-from app.agents.shared.state_reducers import _CLEAR
 
 pytestmark = pytest.mark.unit
 

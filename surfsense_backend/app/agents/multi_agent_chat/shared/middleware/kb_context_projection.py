@@ -9,7 +9,9 @@ from langchain.agents.middleware import AgentMiddleware, AgentState
 from langchain_core.messages import SystemMessage
 from langgraph.runtime import Runtime
 
-from app.agents.shared.filesystem_state import SurfSenseFilesystemState
+from app.agents.multi_agent_chat.shared.state.filesystem_state import (
+    SurfSenseFilesystemState,
+)
 from app.agents.shared.middleware.knowledge_search import _render_priority_message
 from app.utils.perf import get_perf_logger
 
