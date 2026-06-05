@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from app.agents.shared.middleware import MemoryInjectionMiddleware
 from app.db import ChatVisibility
+
+from .memory_injection import MemoryInjectionMiddleware
 
 
 def build_memory_mw(

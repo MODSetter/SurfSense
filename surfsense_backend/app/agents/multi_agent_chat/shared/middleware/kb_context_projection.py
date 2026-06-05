@@ -12,8 +12,9 @@ from langgraph.runtime import Runtime
 from app.agents.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
-from app.agents.shared.middleware.knowledge_search import _render_priority_message
 from app.utils.perf import get_perf_logger
+
+from .knowledge_search import _render_priority_message
 
 _perf_log = get_perf_logger()
 

@@ -5,11 +5,11 @@ from __future__ import annotations
 import logging
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.shared.middleware.scoped_model_fallback import (
-    ScopedModelFallbackMiddleware,
-)
 
 from ..flags import enabled
+from .scoped_model_fallback import (
+    ScopedModelFallbackMiddleware,
+)
 
 
 def build_fallback_mw(

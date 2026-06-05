@@ -8,7 +8,10 @@ from datetime import UTC, datetime, timedelta
 import numpy as np
 import pytest
 
-from app.agents.shared.middleware.knowledge_search import search_knowledge_base
+from app.agents.multi_agent_chat.shared.middleware import knowledge_search as ks
+from app.agents.multi_agent_chat.shared.middleware.knowledge_search import (
+    search_knowledge_base,
+)
 
 from .conftest import DUMMY_EMBEDDING
 
@@ -26,13 +29,9 @@ async def test_search_knowledge_base_applies_date_filters(
     async def fake_shielded_async_session():
         yield db_session
 
+    monkeypatch.setattr(ks, "shielded_async_session", fake_shielded_async_session)
     monkeypatch.setattr(
-        "app.agents.shared.middleware.knowledge_search.shielded_async_session",
-        fake_shielded_async_session,
-    )
-    monkeypatch.setattr(
-        "app.agents.shared.middleware.knowledge_search.embed_texts",
-        lambda texts: [np.array(DUMMY_EMBEDDING) for _ in texts],
+        ks, "embed_texts", lambda texts: [np.array(DUMMY_EMBEDDING) for _ in texts]
     )
 
     space_id = seed_date_filtered_docs["search_space"].id

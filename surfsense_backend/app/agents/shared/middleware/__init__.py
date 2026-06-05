@@ -9,20 +9,12 @@ from app.agents.shared.middleware.kb_persistence import (
     KnowledgeBasePersistenceMiddleware,
     commit_staged_filesystem_state,
 )
-from app.agents.shared.middleware.knowledge_search import (
-    KnowledgePriorityMiddleware,
-)
-from app.agents.shared.middleware.memory_injection import (
-    MemoryInjectionMiddleware,
-)
 from app.agents.shared.middleware.permission import PermissionMiddleware
 from app.agents.shared.middleware.retry_after import RetryAfterMiddleware
 
 __all__ = [
     "BusyMutexMiddleware",
     "KnowledgeBasePersistenceMiddleware",
-    "KnowledgePriorityMiddleware",
-    "MemoryInjectionMiddleware",
     "PermissionMiddleware",
     "RetryAfterMiddleware",
     "SurfSenseCompactionMiddleware",

@@ -87,7 +87,7 @@ class RateLimitError(Exception):
 def _build_agent(primary: BaseChatModel, fallback: BaseChatModel):
     from langchain.agents import create_agent
 
-    from app.agents.shared.middleware.scoped_model_fallback import (
+    from app.agents.multi_agent_chat.shared.middleware.resilience.scoped_model_fallback import (
         ScopedModelFallbackMiddleware,
     )
 

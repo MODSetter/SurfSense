@@ -12,13 +12,13 @@ from langchain.agents.middleware import (
 
 from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.middleware import RetryAfterMiddleware
-from app.agents.shared.middleware.scoped_model_fallback import (
-    ScopedModelFallbackMiddleware,
-)
 
 from .fallback import build_fallback_mw
 from .model_call_limit import build_model_call_limit_mw
 from .retry import build_retry_mw
+from .scoped_model_fallback import (
+    ScopedModelFallbackMiddleware,
+)
 from .tool_call_limit import build_tool_call_limit_mw
 
 

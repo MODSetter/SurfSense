@@ -5,10 +5,11 @@ import json
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
+from app.agents.multi_agent_chat.shared.middleware import knowledge_search as ks
 from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.document_xml import (
     build_document_xml as _build_document_xml,
 )
-from app.agents.shared.middleware.knowledge_search import (
+from app.agents.multi_agent_chat.shared.middleware.knowledge_search import (
     KBSearchPlan,
     KnowledgePriorityMiddleware,
     _normalize_optional_date_range,
@@ -260,7 +261,7 @@ class TestKnowledgePriorityMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.search_knowledge_base",
+            ks, "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -303,7 +304,7 @@ class TestKnowledgePriorityMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.search_knowledge_base",
+            ks, "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -332,7 +333,7 @@ class TestKnowledgePriorityMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.search_knowledge_base",
+            ks, "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -377,11 +378,11 @@ class TestKnowledgePriorityMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.browse_recent_documents",
+            ks, "browse_recent_documents",
             fake_browse_recent_documents,
         )
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.search_knowledge_base",
+            ks, "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -424,11 +425,11 @@ class TestKnowledgePriorityMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.browse_recent_documents",
+            ks, "browse_recent_documents",
             fake_browse_recent_documents,
         )
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.search_knowledge_base",
+            ks, "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -551,11 +552,11 @@ class TestKnowledgePriorityMentionDrain:
             return []
 
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.fetch_mentioned_documents",
+            ks, "fetch_mentioned_documents",
             fake_fetch_mentioned_documents,
         )
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.search_knowledge_base",
+            ks, "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -599,11 +600,11 @@ class TestKnowledgePriorityMentionDrain:
             return []
 
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.fetch_mentioned_documents",
+            ks, "fetch_mentioned_documents",
             fake_fetch_mentioned_documents,
         )
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.search_knowledge_base",
+            ks, "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -644,11 +645,11 @@ class TestKnowledgePriorityMentionDrain:
             return []
 
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.fetch_mentioned_documents",
+            ks, "fetch_mentioned_documents",
             fake_fetch_mentioned_documents,
         )
         monkeypatch.setattr(
-            "app.agents.shared.middleware.knowledge_search.search_knowledge_base",
+            ks, "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
