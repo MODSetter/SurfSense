@@ -15,8 +15,9 @@ from dataclasses import dataclass
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Document, Log, Notification
-from app.services.notification_service import NotificationService
+from app.db import Document, Log
+from app.notifications.persistence import Notification
+from app.notifications.service import NotificationService
 from app.services.task_logging_service import TaskLoggingService
 
 from ._helpers import update_document_from_connector

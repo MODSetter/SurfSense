@@ -7,11 +7,11 @@ import logging
 import time
 from typing import Any, Literal
 
-from app.agents.new_chat.errors import BusyError
-from app.agents.new_chat.middleware.busy_mutex import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import (
     get_cancel_state,
     is_cancel_requested,
 )
+from app.agents.chat.runtime.errors import BusyError
 
 TURN_CANCELLING_INITIAL_DELAY_MS = 200
 TURN_CANCELLING_BACKOFF_FACTOR = 2

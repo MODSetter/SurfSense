@@ -33,7 +33,8 @@ from sqlalchemy.future import select
 
 from app.celery_app import celery_app
 from app.config import config
-from app.db import Document, DocumentStatus, Notification
+from app.db import Document, DocumentStatus
+from app.notifications.persistence import Notification
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)

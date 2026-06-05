@@ -553,6 +553,49 @@ class FakeChatLLM(BaseChatModel):
         latest_tool_name = getattr(latest_tool, "name", None)
         latest_tool_text = _content_to_text(latest_tool.content) if latest_tool else ""
 
+        # Marker unique to a connector subagent's prompt: the main agent must
+        # delegate via ``task``; only the subagent has connector tools registered.
+        in_connector_subagent = (
+            "specialist for the user's connected" in _messages_to_text(messages)
+        )
+
+        # Main agent: delegate live-tool connector work to its subagent (which
+        # then runs the real tools below). Indexed connectors are absent here.
+        if not in_connector_subagent and latest_tool is None:
+            connector_delegations = (
+                ("gmail", ("gmail", "email", "message", GMAIL_CANARY_SUBJECT)),
+                ("calendar", ("calendar", "event", "meeting", CALENDAR_CANARY_SUMMARY)),
+                (
+                    "jira",
+                    (
+                        "jira",
+                        "atlassian",
+                        JIRA_CANARY_SUMMARY,
+                        JIRA_CANARY_KEY,
+                        "surfsense-e2e.atlassian.net",
+                        "fake-jira-cloud-001",
+                    ),
+                ),
+                ("linear", ("linear", "issue", LINEAR_CANARY_TITLE)),
+                ("slack", ("slack", SLACK_CANARY_TOKEN)),
+                ("clickup", ("clickup", CLICKUP_CANARY_TITLE)),
+            )
+            for subagent_type, needles in connector_delegations:
+                if _contains_any(latest_human, needles):
+                    return AIMessage(
+                        content="",
+                        tool_calls=[
+                            {
+                                "name": "task",
+                                "args": {
+                                    "subagent_type": subagent_type,
+                                    "description": latest_human,
+                                },
+                                "id": f"call_e2e_task_{subagent_type}",
+                            }
+                        ],
+                    )
+
         if (
             latest_tool_name == "search_gmail"
             and GMAIL_CANARY_MESSAGE_ID in latest_tool_text

@@ -14,7 +14,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.new_chat.llm_config import (
+from app.agents.chat.runtime.llm_config import (
     AgentConfig,
     create_chat_litellm_from_agent_config,
     create_chat_litellm_from_config,

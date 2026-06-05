@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from app.agents.multi_agent_chat.middleware.main_agent.checkpointed_subagent_middleware.resume import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.resume import (
     get_first_pending_subagent_interrupt,
 )
 

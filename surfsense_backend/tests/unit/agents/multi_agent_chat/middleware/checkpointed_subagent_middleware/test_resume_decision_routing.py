@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.multi_agent_chat.middleware.main_agent.checkpointed_subagent_middleware.resume_routing import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.resume_routing import (
     collect_pending_tool_calls,
     slice_decisions_by_tool_call,
 )

@@ -2,8 +2,10 @@ import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
 
-from app.agents.new_chat.middleware.dedup_tool_calls import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.dedup_hitl import (
     DedupHITLToolCallsMiddleware,
+)
+from app.agents.chat.multi_agent_chat.shared.middleware.dedup_tool_calls import (
     wrap_dedup_key_by_arg_name,
 )
 

@@ -1,6 +1,6 @@
 """Unit tests for live tool-call argument streaming.
 
-Pins the wire format that ``_stream_agent_events`` emits:
+Pins the wire format that ``stream_agent_events`` emits:
 ``tool-input-start`` → ``tool-input-delta``... → ``tool-input-available`` →
 ``tool-output-available``, keyed consistently with LangChain ``tool_call.id``
 when the model streams indexed chunks.
@@ -20,11 +20,13 @@ from typing import Any
 import pytest
 
 from app.services.new_streaming_service import VercelStreamingService
-from app.tasks.chat.stream_new_chat import (
-    StreamResult,
-    _legacy_match_lc_id,
-    _stream_agent_events,
+from app.tasks.chat.streaming.agent.event_loop import (
+    stream_agent_events as _stream_agent_events,
 )
+from app.tasks.chat.streaming.helpers.tool_call_matching import (
+    match_buffered_langchain_tool_call_id as _legacy_match_lc_id,
+)
+from app.tasks.chat.streaming.shared.stream_result import StreamResult
 
 pytestmark = pytest.mark.unit
 

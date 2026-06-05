@@ -8,9 +8,7 @@ mention lists / request ids / turn ids without rebuilding the graph.
 
 from __future__ import annotations
 
-from typing import Any
-
-from app.agents.new_chat.context import SurfSenseContextSchema
+from app.agents.chat.shared.context import SurfSenseContextSchema
 
 
 def build_new_chat_runtime_context(
@@ -20,7 +18,7 @@ def build_new_chat_runtime_context(
     accepted_folder_ids: list[int],
     mentioned_folder_ids: list[int] | None,
     mentioned_connector_ids: list[int] | None,
-    mentioned_connectors: list[dict[str, Any]] | None,
+    mentioned_connectors: list[dict[str, object]] | None,
     request_id: str | None,
     turn_id: str,
 ) -> SurfSenseContextSchema:
@@ -30,6 +28,9 @@ def build_new_chat_runtime_context(
     ``mentioned_folder_ids`` from the request: the resolver drops chips that
     pointed at deleted folders or folders the caller can't see, so middlewares
     only get authorized ids.
+
+    Connector mentions are set on the schema for legacy parity even though no
+    middleware reads them yet.
     """
     return SurfSenseContextSchema(
         search_space_id=search_space_id,

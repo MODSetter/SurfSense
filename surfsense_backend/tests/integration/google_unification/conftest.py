@@ -239,7 +239,7 @@ def patched_shielded_session(async_engine, monkeypatch):
             yield session
 
     monkeypatch.setattr(
-        "app.agents.new_chat.tools.knowledge_base.shielded_async_session",
+        "app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.knowledge_base.shielded_async_session",
         _test_shielded,
     )
 

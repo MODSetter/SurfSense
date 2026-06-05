@@ -9,9 +9,9 @@ Pipeline:
      can resolve ``report_id`` for versioning without spelunking history.
   3. **@-mention resolve** (cloud mode) — substitute ``@title`` tokens in the
      query with canonical ``\`/documents/...\``` paths the LLM expects.
-  4. **Context block render** — XML-wrap recent reports, prepend to the
-     rewritten query, optionally prefix with display name for SEARCH_SPACE
-     visibility.
+  4. **Context block render** — XML-wrap @-mentioned connectors and recent
+     reports, prepend to the rewritten query, optionally prefix with display
+     name for SEARCH_SPACE visibility.
   5. **HumanMessage** — multimodal content if images are attached.
 
 Returns the assembled ``input_state`` dict plus side-channel data the
@@ -28,8 +28,11 @@ from langchain_core.messages import HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.agents.new_chat.filesystem_selection import FilesystemMode
-from app.agents.new_chat.mention_resolver import resolve_mentions, substitute_in_text
+from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
+from app.agents.chat.runtime.mention_resolver import (
+    resolve_mentions,
+    substitute_in_text,
+)
 from app.db import (
     ChatVisibility,
     NewChatThread,
@@ -201,7 +204,10 @@ def _render_query_with_context(
     mentioned_connectors: list[dict[str, Any]] | None,
     recent_reports: list[Report],
 ) -> str:
-    """Prepend connector/report XML context blocks to the user query."""
+    """Prepend the ``<mentioned_connectors>`` then ``<report_context>`` blocks.
+
+    Order is load-bearing for legacy parity.
+    """
     context_parts: list[str] = []
 
     connector_context = _render_mentioned_connectors(mentioned_connectors)

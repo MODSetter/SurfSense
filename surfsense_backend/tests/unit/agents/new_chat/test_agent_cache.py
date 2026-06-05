@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from app.agents.new_chat.agent_cache import (
+from app.agents.chat.multi_agent_chat.main_agent.runtime.agent_cache_store import (
     flags_signature,
     reload_for_tests,
     stable_hash,

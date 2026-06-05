@@ -2051,60 +2051,6 @@ class Log(BaseModel, TimestampMixin):
     search_space = relationship("SearchSpace", back_populates="logs")
 
 
-class Notification(BaseModel, TimestampMixin):
-    __tablename__ = "notifications"
-    __table_args__ = (
-        # Composite index for unread-count queries that filter by
-        # (user_id, read, type) and order by created_at.
-        Index(
-            "ix_notifications_user_read_type_created",
-            "user_id",
-            "read",
-            "type",
-            "created_at",
-        ),
-        # Covers the common list query: user_id + search_space_id + created_at DESC
-        Index(
-            "ix_notifications_user_space_created",
-            "user_id",
-            "search_space_id",
-            "created_at",
-        ),
-    )
-
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    search_space_id = Column(
-        Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
-    )
-    type = Column(
-        String(50), nullable=False, index=True
-    )  # 'connector_indexing', 'document_processing', etc.
-    title = Column(String(200), nullable=False)
-    message = Column(Text, nullable=False)
-    read = Column(
-        Boolean, nullable=False, default=False, server_default=text("false"), index=True
-    )
-    notification_metadata = Column("metadata", JSONB, nullable=True, default={})
-    updated_at = Column(
-        TIMESTAMP(timezone=True),
-        nullable=True,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        index=True,
-    )
-
-    user = relationship("User", back_populates="notifications")
-    search_space = relationship("SearchSpace", back_populates="notifications")
-
-
 class UserIncentiveTask(BaseModel, TimestampMixin):
     """
     Tracks completed incentive tasks for users.
@@ -2928,6 +2874,7 @@ from app.automations.persistence import (  # noqa: E402, F401
     AutomationTrigger,
 )
 from app.file_storage.persistence import DocumentFile  # noqa: E402, F401
+from app.notifications.persistence import Notification  # noqa: E402, F401
 
 engine = create_async_engine(
     DATABASE_URL,

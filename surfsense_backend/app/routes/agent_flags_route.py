@@ -22,7 +22,10 @@ from dataclasses import asdict
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.agents.new_chat.feature_flags import AgentFeatureFlags, get_flags
+from app.agents.chat.multi_agent_chat.shared.feature_flags import (
+    AgentFeatureFlags,
+    get_flags,
+)
 from app.config import config
 from app.db import User
 from app.users import current_active_user

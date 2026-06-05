@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
+from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 from app.routes import agent_revert_route
 from app.services.revert_service import RevertOutcome
 
