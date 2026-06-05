@@ -35,12 +35,29 @@ All configuration lives in a single `docker/.env` file (or `surfsense/.env` if y
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `SURFSENSE_VERSION` | Image tag to deploy. Use `latest`, a clean version (e.g. `0.0.14`), or a specific build (e.g. `0.0.14.1`) | `latest` |
+| `SURFSENSE_VARIANT` | Backend image variant. Leave empty for CPU, set `cuda` for CUDA 12.8, or `cuda126` for CUDA 12.6. | *(empty)* |
 | `AUTH_TYPE` | Authentication method: `LOCAL` (email/password) or `GOOGLE` (OAuth) | `LOCAL` |
 | `ETL_SERVICE` | Document parsing: `DOCLING` (local), `UNSTRUCTURED`, or `LLAMACLOUD` | `DOCLING` |
 | `EMBEDDING_MODEL` | Embedding model for vector search | `sentence-transformers/all-MiniLM-L6-v2` |
 | `TTS_SERVICE` | Text-to-speech provider for podcasts | `local/kokoro` |
 | `STT_SERVICE` | Speech-to-text provider for audio files | `local/base` |
 | `REGISTRATION_ENABLED` | Allow new user registrations | `TRUE` |
+
+### Image Variants
+
+SurfSense publishes CPU and CUDA backend image variants. The frontend image is not variant-specific.
+
+| Backend tag | Use case | `SURFSENSE_VARIANT` |
+|-------------|----------|---------------------|
+| `:latest` | CPU-only default | *(empty)* |
+| `:latest-cuda` | NVIDIA CUDA 12.8 backend image | `cuda` |
+| `:latest-cuda126` | NVIDIA CUDA 12.6 backend image for older driver stacks | `cuda126` |
+
+All backend variants are published for `linux/amd64` and `linux/arm64`. CUDA on `linux/arm64` is best-effort.
+
+<Callout type="warn">
+`SURFSENSE_VARIANT` only selects the GPU-built backend image. GPU device access is added separately in Phase 3.
+</Callout>
 
 ### Ports
 
