@@ -41,21 +41,10 @@ router = APIRouter()
 EDITOR_PLATE_MAX_BYTES = 5 * 1024 * 1024
 
 
-def _truncate_utf8(text: str, max_bytes: int) -> str:
-    encoded = text.encode("utf-8")
-    if len(encoded) <= max_bytes:
-        return text
-    return encoded[:max_bytes].decode("utf-8", errors="ignore")
-
-
 @router.get("/search-spaces/{search_space_id}/documents/{document_id}/editor-content")
 async def get_editor_content(
     search_space_id: int,
     document_id: int,
-    max_length: int | None = Query(
-        None,
-        description="Truncate source_markdown to this many UTF-8 bytes. Defaults to the Plate editor byte limit.",
-    ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -95,20 +84,13 @@ async def get_editor_content(
     def _build_response(md: str) -> dict:
         size_bytes = len(md.encode("utf-8"))
         viewer_mode = "monaco" if size_bytes > EDITOR_PLATE_MAX_BYTES else "plate"
-        content_limit = max_length if max_length is not None else EDITOR_PLATE_MAX_BYTES
-        truncated = False
-        output_md = md
-        if size_bytes > content_limit:
-            output_md = _truncate_utf8(md, content_limit)
-            truncated = True
         return {
             "document_id": document.id,
             "title": document.title,
             "document_type": document.document_type.value,
-            "source_markdown": output_md,
+            "source_markdown": md,
             "content_size_bytes": size_bytes,
             "chunk_count": chunk_count,
-            "truncated": truncated,
             "viewer_mode": viewer_mode,
             "editor_plate_max_bytes": EDITOR_PLATE_MAX_BYTES,
             "updated_at": document.updated_at.isoformat()

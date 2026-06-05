@@ -22,7 +22,6 @@ interface DocumentContent {
 	source_markdown: string;
 	content_size_bytes?: number;
 	chunk_count?: number;
-	truncated?: boolean;
 	viewer_mode?: ViewerMode;
 	editor_plate_max_bytes?: number;
 }
