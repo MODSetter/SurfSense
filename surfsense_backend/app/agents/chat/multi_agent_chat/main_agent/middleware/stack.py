@@ -53,6 +53,9 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.knowledge_base.agent im
 from app.agents.chat.multi_agent_chat.subagents.builtins.knowledge_base.ask_knowledge_base_tool import (
     build_ask_knowledge_base_tool,
 )
+from app.agents.chat.multi_agent_chat.subagents.middleware_stack import (
+    build_subagent_middleware_stack,
+)
 from app.db import ChatVisibility
 
 from .action_log import build_action_log_mw
@@ -74,9 +77,6 @@ from .noop_injection import build_noop_injection_mw
 from .otel_span import build_otel_mw
 from .plugins import build_plugin_middlewares
 from .skills import build_skills_mw
-from .subagent_stack import (
-    build_subagent_middleware_stack,
-)
 from .tool_call_repair import build_repair_mw
 
 
