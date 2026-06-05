@@ -9,7 +9,7 @@ newly-promoted rules apply to subsequent calls.
 
 from __future__ import annotations
 
-from app.agents.chat.multi_agent_chat.shared.permissions import (
+from app.agents.chat.multi_agent_chat.shared.permissions.model import (
     Ruleset,
     aggregate_action,
     evaluate_many,

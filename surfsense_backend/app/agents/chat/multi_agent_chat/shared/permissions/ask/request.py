@@ -16,7 +16,7 @@ from typing import Any
 from langchain_core.tools import BaseTool
 from langgraph.types import interrupt
 
-from app.agents.chat.multi_agent_chat.shared.permissions import Rule
+from app.agents.chat.multi_agent_chat.shared.permissions.model import Rule
 from app.observability import metrics as ot_metrics, otel as ot
 
 from .decision import normalize_permission_decision

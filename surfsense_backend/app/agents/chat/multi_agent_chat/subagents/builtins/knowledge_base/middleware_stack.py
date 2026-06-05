@@ -27,10 +27,10 @@ from app.agents.chat.multi_agent_chat.shared.middleware.kb_context_projection im
 from app.agents.chat.multi_agent_chat.shared.middleware.patch_tool_calls import (
     build_patch_tool_calls_mw,
 )
-from app.agents.chat.multi_agent_chat.shared.middleware.permissions import (
+from app.agents.chat.multi_agent_chat.shared.permissions import (
+    Ruleset,
     build_permission_mw,
 )
-from app.agents.chat.multi_agent_chat.shared.permissions import Ruleset
 
 
 def _kb_user_allowlist(

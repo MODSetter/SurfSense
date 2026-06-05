@@ -6,7 +6,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.chat.multi_agent_chat.shared.permissions import Rule
+from app.agents.chat.multi_agent_chat.shared.permissions.model import Rule
 from app.agents.chat.multi_agent_chat.subagents.shared.hitl.wire import (
     LC_DECISION_APPROVE,
     LC_DECISION_EDIT,

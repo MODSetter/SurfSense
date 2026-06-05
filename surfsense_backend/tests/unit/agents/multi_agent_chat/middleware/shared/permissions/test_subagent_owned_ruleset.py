@@ -24,10 +24,11 @@ from langgraph.types import Command
 from typing_extensions import TypedDict
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
-from app.agents.chat.multi_agent_chat.shared.middleware.permissions import (
+from app.agents.chat.multi_agent_chat.shared.permissions import (
+    Rule,
+    Ruleset,
     build_permission_mw,
 )
-from app.agents.chat.multi_agent_chat.shared.permissions import Rule, Ruleset
 
 
 def _kb_style_ruleset() -> Ruleset:

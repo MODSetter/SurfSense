@@ -35,13 +35,13 @@ from app.agents.chat.multi_agent_chat.shared.middleware.memory import build_memo
 from app.agents.chat.multi_agent_chat.shared.middleware.patch_tool_calls import (
     build_patch_tool_calls_mw,
 )
-from app.agents.chat.multi_agent_chat.shared.middleware.permissions import (
-    build_permission_mw,
-)
 from app.agents.chat.multi_agent_chat.shared.middleware.resilience import (
     build_resilience_middlewares,
 )
 from app.agents.chat.multi_agent_chat.shared.middleware.todos import build_todos_mw
+from app.agents.chat.multi_agent_chat.shared.permissions import (
+    build_permission_mw,
+)
 from app.agents.chat.multi_agent_chat.subagents import (
     build_subagents,
     get_subagents_to_exclude,

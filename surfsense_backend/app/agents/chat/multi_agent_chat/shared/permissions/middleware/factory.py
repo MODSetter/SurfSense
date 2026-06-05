@@ -28,7 +28,7 @@ from collections.abc import Sequence
 from langchain_core.tools import BaseTool
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
-from app.agents.chat.multi_agent_chat.shared.permissions import Rule, Ruleset
+from app.agents.chat.multi_agent_chat.shared.permissions.model import Rule, Ruleset
 from app.services.user_tool_allowlist import TrustedToolSaver
 
 from .core import PermissionMiddleware

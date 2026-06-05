@@ -15,13 +15,13 @@ from __future__ import annotations
 from typing import Any
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
-from app.agents.chat.multi_agent_chat.shared.middleware.permissions import (
-    build_permission_mw,
-)
 from app.agents.chat.multi_agent_chat.shared.middleware.resilience import (
     ResilienceMiddlewares,
 )
 from app.agents.chat.multi_agent_chat.shared.middleware.todos import build_todos_mw
+from app.agents.chat.multi_agent_chat.shared.permissions import (
+    build_permission_mw,
+)
 
 
 def build_subagent_middleware_stack(
