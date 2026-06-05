@@ -53,6 +53,27 @@ function Write-Warn    { param([string]$Msg) Write-Host "[SurfSense] " -Foregrou
 function Write-Step    { param([string]$Msg) Write-Host "`n-- $Msg" -ForegroundColor Cyan }
 function Write-Err     { param([string]$Msg) Write-Host "[SurfSense] ERROR: $Msg" -ForegroundColor Red; exit 1 }
 
+function Show-Banner {
+    Write-Host ""
+    Write-Host @"
+
+
+███████╗██╗   ██╗██████╗ ███████╗███████╗███████╗███╗   ██╗███████╗███████╗
+██╔════╝██║   ██║██╔══██╗██╔════╝██╔════╝██╔════╝████╗  ██║██╔════╝██╔════╝
+███████╗██║   ██║██████╔╝█████╗  ███████╗█████╗  ██╔██╗ ██║███████╗█████╗  
+╚════██║██║   ██║██╔══██╗██╔══╝  ╚════██║██╔══╝  ██║╚██╗██║╚════██║██╔══╝  
+███████║╚██████╔╝██║  ██║██║     ███████║███████╗██║ ╚████║███████║███████╗
+╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝╚══════╝
+                                                                           
+
+"@ -ForegroundColor White
+    Write-Host "         OSS Alternative to NotebookLM for Teams" -ForegroundColor Yellow
+    Write-Host ("=" * 62) -ForegroundColor Cyan
+    Write-Info "This installer will create $InstallDir\ and start SurfSense with Docker Compose."
+}
+
+Show-Banner
+
 function Invoke-NativeSafe {
     param([scriptblock]$Command)
     $previousErrorActionPreference = $ErrorActionPreference
@@ -531,29 +552,12 @@ if ($SetupWatchtower) {
 # ── Done ────────────────────────────────────────────────────────────────────
 
 Write-Host ""
-Write-Host @"
-
-
- .d8888b.                    .d888 .d8888b.                                      
-d88P  Y88b                  d88P" d88P  Y88b                                     
-Y88b.                       888   Y88b.                                          
- "Y888b.   888  888 888d888 888888 "Y888b.    .d88b.  88888b.  .d8888b   .d88b.  
-    "Y88b. 888  888 888P"   888       "Y88b. d8P  Y8b 888 "88b 88K      d8P  Y8b 
-      "888 888  888 888     888         "888 88888888 888  888 "Y8888b. 88888888 
-Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.     
- "Y8888P"   "Y88888 888     888    "Y8888P"   "Y8888  888  888  88888P'  "Y8888  
-
-
-"@ -ForegroundColor White
-
 $versionDisplay = (Get-Content $envPath | Select-String '^SURFSENSE_VERSION=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
 if (-not $versionDisplay) { $versionDisplay = "latest" }
 $variantDisplay = (Get-Content $envPath | Select-String '^SURFSENSE_VARIANT=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
 if (-not $variantDisplay) { $variantDisplay = "cpu" }
 $wtHours = [math]::Floor($WatchtowerInterval / 3600)
-Write-Host "         OSS Alternative to NotebookLM for Teams  [$versionDisplay]" -ForegroundColor Yellow
-Write-Host ("=" * 62) -ForegroundColor Cyan
-Write-Host ""
+Write-Step "SurfSense is now installed [$versionDisplay]"
 
 Write-Info "  Frontend:  http://localhost:3929"
 Write-Info "  Backend:   http://localhost:8929"

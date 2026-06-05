@@ -72,6 +72,28 @@ warn()    { printf "${YELLOW}[SurfSense]${NC} %s\n"      "$1"; }
 error()   { printf "${RED}[SurfSense]${NC} ERROR: %s\n"  "$1" >&2; exit 1; }
 step()    { printf "\n${BOLD}${CYAN}── %s${NC}\n"        "$1"; }
 
+show_banner() {
+    echo ""
+    printf '\033[1;37m'
+    cat << 'EOF'
+
+
+███████╗██╗   ██╗██████╗ ███████╗███████╗███████╗███╗   ██╗███████╗███████╗
+██╔════╝██║   ██║██╔══██╗██╔════╝██╔════╝██╔════╝████╗  ██║██╔════╝██╔════╝
+███████╗██║   ██║██████╔╝█████╗  ███████╗█████╗  ██╔██╗ ██║███████╗█████╗  
+╚════██║██║   ██║██╔══██╗██╔══╝  ╚════██║██╔══╝  ██║╚██╗██║╚════██║██╔══╝  
+███████║╚██████╔╝██║  ██║██║     ███████║███████╗██║ ╚████║███████║███████╗
+╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝╚══════╝
+                                                                           
+
+EOF
+    printf "${YELLOW}         OSS Alternative to NotebookLM for Teams${NC}\n"
+    printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n"
+    info "This installer will create ${INSTALL_DIR}/ and start SurfSense with Docker Compose."
+}
+
+show_banner
+
 case "${REQUESTED_VARIANT}" in
     ""|cpu|cuda|cuda126) ;;
     *) error "Invalid --variant='${REQUESTED_VARIANT}'. Use cpu, cuda, or cuda126." ;;
@@ -531,27 +553,11 @@ fi
 # ── Done ─────────────────────────────────────────────────────────────────────
 
 echo ""
-printf '\033[1;37m'
-cat << 'EOF'
-
-
- .d8888b.                    .d888 .d8888b.                                      
-d88P  Y88b                  d88P" d88P  Y88b                                     
-Y88b.                       888   Y88b.                                          
- "Y888b.   888  888 888d888 888888 "Y888b.    .d88b.  88888b.  .d8888b   .d88b.  
-    "Y88b. 888  888 888P"   888       "Y88b. d8P  Y8b 888 "88b 88K      d8P  Y8b 
-      "888 888  888 888     888         "888 88888888 888  888 "Y8888b. 88888888 
-Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.     
- "Y8888P"   "Y88888 888     888    "Y8888P"   "Y8888  888  888  88888P'  "Y8888  
-
-
-EOF
 _version_display=$(grep '^SURFSENSE_VERSION=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
 _version_display="${_version_display:-latest}"
 _variant_display=$(grep '^SURFSENSE_VARIANT=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
 _variant_display="${_variant_display:-cpu}"
-printf "         OSS Alternative to NotebookLM for Teams  ${YELLOW}[%s]${NC}\n" "${_version_display}"
-printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n\n"
+step "SurfSense is now installed [${_version_display}]"
 
 info "  Frontend:  http://localhost:3929"
 info "  Backend:   http://localhost:8929"
