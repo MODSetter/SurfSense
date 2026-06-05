@@ -8,7 +8,9 @@ from deepagents import FilesystemMiddleware
 from langchain_core.tools import BaseTool
 
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
-from app.agents.chat.multi_agent_chat.shared.sandbox import is_sandbox_enabled
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox import (
+    is_sandbox_enabled,
+)
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )

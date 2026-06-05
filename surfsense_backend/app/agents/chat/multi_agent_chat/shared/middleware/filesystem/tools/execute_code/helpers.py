@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from daytona.common.errors import DaytonaError
 from langchain.tools import ToolRuntime
 
-from app.agents.chat.multi_agent_chat.shared.sandbox import (
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox import (
     _evict_sandbox_cache,
     delete_sandbox,
     get_or_create_sandbox,

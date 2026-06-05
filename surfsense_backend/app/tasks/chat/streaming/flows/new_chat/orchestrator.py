@@ -829,7 +829,7 @@ async def stream_new_chat(
         # downloadable after the Daytona sandbox auto-deletes.
         if stream_result and stream_result.sandbox_files:
             with contextlib.suppress(Exception):
-                from app.agents.chat.multi_agent_chat.shared.sandbox import (
+                from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox import (
                     is_sandbox_enabled,
                     persist_and_delete_sandbox,
                 )
