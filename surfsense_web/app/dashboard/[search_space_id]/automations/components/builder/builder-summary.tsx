@@ -1,5 +1,5 @@
 "use client";
-import { CalendarClock, CheckCircle2, ListOrdered, type LucideIcon, XCircle } from "lucide-react";
+import { Dot } from "lucide-react";
 import { type BuilderForm, scheduleToCron } from "@/lib/automations/builder-schema";
 import { describeCron } from "@/lib/automations/describe-cron";
 
@@ -12,85 +12,70 @@ interface BuilderSummaryProps {
  * chat ``AutomationDraftPreview`` so the two creation paths feel consistent.
  */
 export function BuilderSummary({ form }: BuilderSummaryProps) {
-	const scheduleLabel = form.schedule
-		? `${describeCron(scheduleToCron(form.schedule))} · ${form.timezone}`
-		: "No schedule — won't run automatically";
+	const automationName = form.name.trim() || "Untitled automation";
+	const scheduleDescription = form.schedule ? describeCron(scheduleToCron(form.schedule)) : null;
+	const taskCountLabel = `${form.tasks.length} task${form.tasks.length === 1 ? "" : "s"}`;
+	const visibleTasks = form.tasks.slice(0, 2);
+	const hiddenTaskCount = form.tasks.length - visibleTasks.length;
 
 	return (
-		<div className="space-y-4 text-sm">
-			<div className="space-y-1">
-				<p className="font-medium text-foreground">{form.name.trim() || "Untitled automation"}</p>
-				{form.description?.trim() && (
-					<p className="text-xs text-muted-foreground">{form.description.trim()}</p>
-				)}
+		<div className="flex flex-col gap-4 text-sm">
+			<div className="flex flex-col gap-1">
+				<p className="truncate text-sm font-semibold text-muted-foreground" title={automationName}>
+					{automationName}
+				</p>
 			</div>
 
-			<Section icon={CalendarClock} label="Schedule">
-				<p className="text-xs text-foreground">{scheduleLabel}</p>
-			</Section>
+			<div className="h-px bg-border/60" />
 
-			<Section
-				icon={ListOrdered}
-				label={`Tasks · ${form.tasks.length} step${form.tasks.length === 1 ? "" : "s"}`}
-			>
-				<ol className="space-y-1.5 text-xs">
-					{form.tasks.map((task, index) => (
-						<li key={task.id} className="flex items-start gap-2">
-							<span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground shrink-0 mt-0.5">
-								{index + 1}
-							</span>
-							<span className="min-w-0 flex-1 space-y-1">
-								<span className="block text-foreground line-clamp-2">
-									{task.query.trim() || (
-										<span className="text-muted-foreground">No instructions yet</span>
-									)}
+			<div className="flex flex-col gap-3">
+				<SummaryRow label="Schedule">
+					{scheduleDescription ? (
+						<span className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+							<span>{scheduleDescription}</span>
+							<Dot className="size-4 text-muted-foreground" aria-hidden />
+							<span>{form.timezone}</span>
+						</span>
+					) : (
+						<span>No schedule — won't run automatically</span>
+					)}
+				</SummaryRow>
+
+				<SummaryRow label={taskCountLabel}>
+					<ol className="ml-4 space-y-1">
+						{visibleTasks.map((task, index) => (
+							<li key={task.id} className="flex gap-2">
+								<span className="shrink-0 text-muted-foreground">{index + 1}.</span>
+								<span className="line-clamp-1 min-w-0">
+									{task.query.trim() || "No instructions yet"}
 								</span>
-								{task.mentions.length > 0 && (
-									<span className="flex flex-wrap gap-1">
-										{task.mentions.map((mention) => (
-											<span
-												key={`${mention.kind}:${mention.id}`}
-												className="inline-flex max-w-[140px] items-center truncate rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary/70"
-											>
-												@{mention.title}
-											</span>
-										))}
-									</span>
-								)}
-							</span>
-						</li>
-					))}
-				</ol>
-			</Section>
+							</li>
+						))}
+						{hiddenTaskCount > 0 && (
+							<li className="text-muted-foreground">+{hiddenTaskCount} more tasks</li>
+						)}
+					</ol>
+				</SummaryRow>
 
-			<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-				{form.unattended ? (
-					<CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" aria-hidden />
-				) : (
-					<XCircle className="h-3.5 w-3.5" aria-hidden />
-				)}
-				{form.unattended ? "Runs without approval prompts" : "Will reject approval prompts"}
+				<SummaryRow label="Approvals">
+					{form.unattended ? "Runs without approval prompts" : "Approval prompts are rejected"}
+				</SummaryRow>
 			</div>
 		</div>
 	);
 }
 
-function Section({
-	icon: Icon,
+function SummaryRow({
 	label,
 	children,
 }: {
-	icon: LucideIcon;
 	label: string;
 	children: React.ReactNode;
 }) {
 	return (
-		<div className="space-y-1.5">
-			<div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-				<Icon className="h-3 w-3" aria-hidden />
-				{label}
-			</div>
-			{children}
+		<div className="flex flex-col gap-1 text-xs">
+			<div className="font-medium text-muted-foreground">{label}</div>
+			<div className="text-foreground">{children}</div>
 		</div>
 	);
 }

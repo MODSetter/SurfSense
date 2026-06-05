@@ -236,35 +236,36 @@ export function TeamContent({ searchSpaceId }: TeamContentProps) {
 	if (accessLoading || membersLoading) {
 		return (
 			<div className="space-y-4 md:space-y-6">
-				<div className="flex items-center gap-2 flex-wrap">
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						aria-disabled="true"
-						tabIndex={-1}
-						className="pointer-events-none gap-1.5 md:gap-2 text-xs md:text-sm bg-black text-white dark:bg-white dark:text-black"
-					>
-						<UserPlus className="h-3.5 w-3.5 md:h-4 md:w-4" />
-						Invite members
-					</Button>
-					<Button
-						type="button"
-						variant="secondary"
-						size="sm"
-						aria-disabled="true"
-						tabIndex={-1}
-						className="pointer-events-none gap-1.5 md:gap-2 text-xs md:text-sm"
-					>
-						<Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 rotate-315" />
-						Active invites
-						<span className="inline-flex items-center justify-center h-4 md:h-5 min-w-4 md:min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200">
-							<Skeleton className="h-2.5 w-2.5 rounded-sm bg-neutral-500/60" />
-						</span>
-					</Button>
-					<div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground whitespace-nowrap">
-						<Skeleton className="h-3 w-2 rounded-sm" />
-						members
+				<div className="flex items-center justify-between gap-4 flex-wrap">
+					<div className="flex items-baseline gap-3">
+						<h1 className="text-xl md:text-2xl font-semibold text-foreground">Members</h1>
+					</div>
+					<div className="flex items-center gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							aria-disabled="true"
+							tabIndex={-1}
+							className="pointer-events-none gap-1.5 md:gap-2 text-xs md:text-sm bg-black text-white dark:bg-white dark:text-black"
+						>
+							<UserPlus className="h-3.5 w-3.5 md:h-4 md:w-4" />
+							Invite members
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							aria-disabled="true"
+							tabIndex={-1}
+							className="pointer-events-none gap-1.5 md:gap-2 rounded-md bg-muted px-3 text-xs md:text-sm hover:bg-accent"
+						>
+							<Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 rotate-315" />
+							Active invites
+							<span className="inline-flex items-center justify-center h-4 md:h-5 min-w-4 md:min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200">
+								<Skeleton className="h-2.5 w-2.5 rounded-sm bg-neutral-500/60" />
+							</span>
+						</Button>
 					</div>
 				</div>
 				<div className="rounded-lg border border-border/60 bg-accent overflow-hidden">
@@ -319,51 +320,54 @@ export function TeamContent({ searchSpaceId }: TeamContentProps) {
 
 	return (
 		<div className="space-y-4 md:space-y-6">
-			<div className="flex items-center gap-2 flex-wrap">
-				{canInvite &&
-					(rolesLoading ? (
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							aria-disabled="true"
-							tabIndex={-1}
-							className="pointer-events-none gap-1.5 md:gap-2 text-xs md:text-sm bg-black text-white dark:bg-white dark:text-black"
-						>
-							<UserPlus className="h-3.5 w-3.5 md:h-4 md:w-4" />
-							Invite members
-						</Button>
-					) : (
-						<CreateInviteDialog
-							roles={roles}
-							onCreateInvite={handleCreateInvite}
-							searchSpaceId={searchSpaceId}
-						/>
-					))}
-				{canInvite &&
-					(invitesLoading ? (
-						<Button
-							type="button"
-							variant="secondary"
-							size="sm"
-							aria-disabled="true"
-							tabIndex={-1}
-							className="pointer-events-none gap-1.5 md:gap-2 text-xs md:text-sm"
-						>
-							<Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 rotate-315" />
-							Active invites
-							<span className="inline-flex items-center justify-center h-4 md:h-5 min-w-4 md:min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200">
-								<Skeleton className="h-2.5 w-2.5 rounded-sm bg-neutral-500/60" />
-							</span>
-						</Button>
-					) : (
-						activeInvites.length > 0 && (
+			<div className="flex items-center justify-between gap-4 flex-wrap">
+				<div className="flex items-baseline gap-3">
+					<h1 className="text-xl md:text-2xl font-semibold text-foreground">Members</h1>
+					<p className="text-sm text-muted-foreground whitespace-nowrap">
+						{members.length} {members.length === 1 ? "member" : "members"}
+					</p>
+				</div>
+				{canInvite && (
+					<div className="flex items-center gap-2">
+						{rolesLoading ? (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								aria-disabled="true"
+								tabIndex={-1}
+								className="pointer-events-none gap-1.5 md:gap-2 text-xs md:text-sm bg-black text-white dark:bg-white dark:text-black"
+							>
+								<UserPlus className="h-3.5 w-3.5 md:h-4 md:w-4" />
+								Invite members
+							</Button>
+						) : (
+							<CreateInviteDialog
+								roles={roles}
+								onCreateInvite={handleCreateInvite}
+								searchSpaceId={searchSpaceId}
+							/>
+						)}
+						{invitesLoading ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								aria-disabled="true"
+								tabIndex={-1}
+								className="pointer-events-none gap-1.5 md:gap-2 rounded-md bg-muted px-3 text-xs md:text-sm hover:bg-accent"
+							>
+								<Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 rotate-315" />
+								Active invites
+								<span className="inline-flex items-center justify-center h-4 md:h-5 min-w-4 md:min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200">
+									<Skeleton className="h-2.5 w-2.5 rounded-sm bg-neutral-500/60" />
+								</span>
+							</Button>
+						) : (
 							<AllInvitesDialog invites={activeInvites} onRevokeInvite={handleRevokeInvite} />
-						)
-					))}
-				<p className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">
-					{members.length} {members.length === 1 ? "member" : "members"}
-				</p>
+						)}
+					</div>
+				)}
 			</div>
 
 			<div className="rounded-lg border border-border/60 bg-accent overflow-hidden">
@@ -859,7 +863,11 @@ function AllInvitesDialog({
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<Button variant="secondary" size="sm" className="gap-1.5 md:gap-2 text-xs md:text-sm">
+				<Button
+					variant="ghost"
+					size="sm"
+					className="gap-1.5 md:gap-2 rounded-md bg-muted px-3 text-xs md:text-sm hover:bg-accent"
+				>
 					<Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 rotate-315" />
 					Active invites
 					<span className="inline-flex items-center justify-center h-4 md:h-5 min-w-4 md:min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200 text-[10px] md:text-xs font-medium">

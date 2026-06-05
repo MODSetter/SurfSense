@@ -65,7 +65,6 @@ async def test_single_file_returns_one_connector_document(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 1
@@ -91,7 +90,6 @@ async def test_multiple_files_all_produce_documents(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 3
@@ -119,7 +117,6 @@ async def test_one_download_exception_does_not_block_others(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 2
@@ -146,7 +143,6 @@ async def test_etl_error_counts_as_download_failure(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 1
@@ -185,7 +181,6 @@ async def test_concurrency_bounded_by_semaphore(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
         max_concurrency=2,
     )
 
@@ -225,7 +220,6 @@ async def test_heartbeat_fires_during_parallel_downloads(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
         on_heartbeat=_on_heartbeat,
     )
 

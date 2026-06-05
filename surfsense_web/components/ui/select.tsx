@@ -43,9 +43,12 @@ function SelectTrigger({
 function SelectContent({
 	className,
 	children,
+	matchTriggerWidth = true,
 	position = "popper",
 	...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: React.ComponentProps<typeof SelectPrimitive.Content> & {
+	matchTriggerWidth?: boolean;
+}) {
 	return (
 		<SelectPrimitive.Portal>
 			<SelectPrimitive.Content
@@ -64,6 +67,7 @@ function SelectContent({
 					className={cn(
 						"p-1",
 						position === "popper" &&
+							matchTriggerWidth &&
 							"h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
 					)}
 				>

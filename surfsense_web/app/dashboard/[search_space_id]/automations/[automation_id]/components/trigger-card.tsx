@@ -1,15 +1,36 @@
 "use client";
 import { useAtomValue } from "jotai";
-import { AlertCircle, CalendarClock, Clock, Pencil, Save, Trash2 } from "lucide-react";
+import { AlertCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { updateTriggerMutationAtom } from "@/atoms/automations/automations-mutation.atoms";
-import { JsonView } from "@/components/json-view";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { type Trigger, triggerUpdateRequest } from "@/contracts/types/automation.types";
 import { describeCron } from "@/lib/automations/describe-cron";
-import { formatRelativeDate, formatRelativeFutureDate } from "@/lib/format-date";
+import { formatRelativeFutureDate } from "@/lib/format-date";
+import {
+	DEFAULT_SCHEDULE,
+	fromCron,
+	type ScheduleFrequency,
+	toCron,
+} from "@/lib/automations/schedule-builder";
+import { TimezoneCombobox } from "../../components/builder/timezone-combobox";
 import { DeleteTriggerDialog } from "./delete-trigger-dialog";
 
 interface TriggerCardProps {
@@ -19,27 +40,58 @@ interface TriggerCardProps {
 	canDelete: boolean;
 }
 
+type SimpleFrequency = Extract<ScheduleFrequency, "hourly" | "daily" | "weekdays"> | "custom";
+
 interface TriggerDraft {
-	params: Record<string, unknown>;
-	static_inputs: Record<string, unknown>;
+	frequency: SimpleFrequency;
+	hour: number;
+	minute: number;
+	timezone: string;
+	cron: string;
 }
 
+const SIMPLE_FREQUENCIES = new Set<ScheduleFrequency>(["hourly", "daily", "weekdays"]);
+
 function draftFromTrigger(trigger: Trigger): TriggerDraft {
+	const cron = typeof trigger.params.cron === "string" ? trigger.params.cron : "";
+	const timezone = typeof trigger.params.timezone === "string" ? trigger.params.timezone : "UTC";
+	const model = fromCron(cron);
+	if (model && SIMPLE_FREQUENCIES.has(model.frequency)) {
+		return {
+			frequency: model.frequency as SimpleFrequency,
+			hour: model.hour,
+			minute: model.minute,
+			timezone,
+			cron,
+		};
+	}
 	return {
-		params: trigger.params,
-		static_inputs: trigger.static_inputs ?? {},
+		frequency: "custom",
+		hour: DEFAULT_SCHEDULE.hour,
+		minute: DEFAULT_SCHEDULE.minute,
+		timezone,
+		cron,
 	};
+}
+
+function pad(value: number): string {
+	return value.toString().padStart(2, "0");
+}
+
+function clampInt(raw: string, min: number, max: number): number {
+	const value = Number.parseInt(raw, 10);
+	if (Number.isNaN(value)) return min;
+	return Math.min(max, Math.max(min, value));
 }
 
 /**
  * One trigger row in the Triggers section of the detail page. Renders:
- *   - type icon + human-readable schedule + timezone
- *   - last_fired_at / next_fire_at hints
- *   - static_inputs as formatted JSON (when present)
- *   - enable toggle + remove button + inline edit (each gated independently)
+ *   - human-readable schedule
+ *   - compact enable toggle
+ *   - dropdown actions for edit/remove
  *
- * Inline edit covers ``params`` and ``static_inputs`` — the two fields the
- * backend ``PATCH /triggers/[id]`` endpoint accepts beyond ``enabled``.
+ * Inline edit keeps schedule editing intentionally small: common frequencies,
+ * time, timezone, and raw cron only for schedules outside the simple model.
  * ``enabled`` stays on the Switch so the two surfaces don't fight.
  */
 export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: TriggerCardProps) {
@@ -51,10 +103,9 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 	const [issues, setIssues] = useState<string[]>([]);
 
 	const cron = typeof trigger.params.cron === "string" ? trigger.params.cron : undefined;
-	const tz = typeof trigger.params.timezone === "string" ? trigger.params.timezone : "UTC";
 	const human = cron ? describeCron(cron) : trigger.type;
-	const triggerLabel = cron ? `${human} · ${tz}` : trigger.type;
-	const hasStaticInputs = Object.keys(trigger.static_inputs ?? {}).length > 0;
+	const triggerLabel = human;
+	const showActions = (canUpdate && !isEditing) || canDelete;
 
 	async function handleToggle(checked: boolean) {
 		await updateTrigger({
@@ -77,7 +128,22 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 
 	async function saveEdit() {
 		setIssues([]);
-		const result = triggerUpdateRequest.safeParse(draft);
+		const params =
+			draft.frequency === "custom"
+				? { cron: draft.cron.trim(), timezone: draft.timezone }
+				: {
+						cron: toCron({
+							...DEFAULT_SCHEDULE,
+							frequency: draft.frequency,
+							hour: draft.hour,
+							minute: draft.minute,
+						}),
+						timezone: draft.timezone,
+					};
+		const result = triggerUpdateRequest.safeParse({
+			params,
+			static_inputs: trigger.static_inputs ?? {},
+		});
 		if (!result.success) {
 			setIssues(
 				result.error.issues.map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
@@ -98,134 +164,206 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 
 	return (
 		<>
-			<div className="rounded-md border border-border/60 overflow-hidden">
-				<div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-border/60">
-					<div className="flex items-center gap-3 min-w-0">
-						<CalendarClock className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-						<div className="min-w-0">
-							<div className="flex items-center gap-2 text-sm">
-								<span className="font-medium text-foreground">{human}</span>
-								<span className="text-muted-foreground">· {tz}</span>
-							</div>
-							{cron && <code className="text-xs font-mono text-muted-foreground">{cron}</code>}
-						</div>
-					</div>
+			<div className="rounded-md border border-border/60 bg-background/30">
+				<div className="flex items-center justify-between gap-3 px-4 py-3">
+					<div className="min-w-0 truncate text-sm font-medium text-foreground">{human}</div>
 
-					<div className="flex items-center gap-2 shrink-0">
+					<div className="flex shrink-0 items-center gap-2">
 						{canUpdate && (
-							<div className="flex items-center gap-2">
-								<span className="text-xs text-muted-foreground">
-									{trigger.enabled ? "Enabled" : "Off"}
-								</span>
-								<Switch
-									checked={trigger.enabled}
-									onCheckedChange={handleToggle}
-									disabled={updating || isEditing}
-									aria-label={trigger.enabled ? "Disable trigger" : "Enable trigger"}
-								/>
-							</div>
+							<Switch
+								checked={trigger.enabled}
+								onCheckedChange={handleToggle}
+								disabled={updating || isEditing}
+								aria-label={trigger.enabled ? "Disable trigger" : "Enable trigger"}
+								className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span[data-state=checked]]:translate-x-4"
+							/>
 						)}
-						{canUpdate && !isEditing && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 text-muted-foreground"
-								onClick={startEdit}
-								aria-label="Edit trigger"
-							>
-								<Pencil className="h-4 w-4" />
-							</Button>
-						)}
-						{canDelete && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 text-muted-foreground hover:text-destructive"
-								onClick={() => setDeleteOpen(true)}
-								disabled={isEditing}
-								aria-label="Remove trigger"
-							>
-								<Trash2 className="h-4 w-4" />
-							</Button>
+						{showActions && (
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-6 w-6 hover:bg-transparent"
+										disabled={isEditing}
+										aria-label="Trigger actions"
+									>
+										<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end" className="w-32 z-80">
+									{canUpdate && !isEditing && (
+										<DropdownMenuItem onSelect={startEdit}>
+											<Pencil className="mr-2 h-4 w-4" />
+											Edit
+										</DropdownMenuItem>
+									)}
+									{canDelete && (
+										<DropdownMenuItem onSelect={() => setDeleteOpen(true)}>
+											<Trash2 className="mr-2 h-4 w-4" />
+											Delete
+										</DropdownMenuItem>
+									)}
+								</DropdownMenuContent>
+							</DropdownMenu>
 						)}
 					</div>
 				</div>
 
-				<div className="px-4 py-3 space-y-3 text-xs">
-					{isEditing ? (
-						<>
-							<div className="rounded-md border border-input bg-background px-3 py-2 max-h-[24rem] overflow-auto">
-								<JsonView
-									src={draft}
-									editable
-									onChange={(next) => setDraft(next as TriggerDraft)}
-									collapsed={false}
-								/>
+				{!isEditing && trigger.next_fire_at ? (
+					<div className="flex items-center gap-3 border-t border-border/60 px-4 py-3 text-sm">
+						<div className="inline-flex items-center gap-1.5 text-muted-foreground">
+							<span>Next fire:</span>
+						</div>
+						<div
+							className={
+								trigger.enabled
+									? "min-w-0 truncate font-medium text-foreground"
+									: "min-w-0 truncate text-muted-foreground"
+							}
+							title={new Date(trigger.next_fire_at).toLocaleString()}
+						>
+							{formatRelativeFutureDate(trigger.next_fire_at)}
+						</div>
+					</div>
+				) : null}
+
+				{isEditing ? (
+					<div className="space-y-3 border-t border-border/60 px-4 py-3 text-xs">
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+							<div className="space-y-1.5">
+								<label className="text-xs font-medium text-muted-foreground" htmlFor="trigger-runs">
+									Runs
+								</label>
+								<Select
+									value={draft.frequency}
+									onValueChange={(value) =>
+										setDraft((prev) => ({ ...prev, frequency: value as SimpleFrequency }))
+									}
+								>
+									<SelectTrigger id="trigger-runs" className="w-full">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="hourly">Every hour</SelectItem>
+										<SelectItem value="daily">Daily</SelectItem>
+										<SelectItem value="weekdays">Weekdays</SelectItem>
+										<SelectItem value="custom">Custom cron</SelectItem>
+									</SelectContent>
+								</Select>
 							</div>
 
-							{issues.length > 0 && (
-								<div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
-									<div className="flex items-center gap-1.5 font-medium text-destructive mb-1">
-										<AlertCircle className="h-3 w-3" aria-hidden />
-										{issues.length === 1 ? "1 issue" : `${issues.length} issues`}
-									</div>
-									<ul className="space-y-0.5 text-destructive list-disc list-inside">
+							{draft.frequency === "hourly" ? (
+								<div className="space-y-1.5">
+									<label
+										className="text-xs font-medium text-muted-foreground"
+										htmlFor="trigger-minute"
+									>
+										At minute
+									</label>
+									<Input
+										id="trigger-minute"
+										type="number"
+										min={0}
+										max={59}
+										value={draft.minute}
+										onChange={(event) =>
+											setDraft((prev) => ({
+												...prev,
+												minute: clampInt(event.target.value, 0, 59),
+											}))
+										}
+									/>
+								</div>
+							) : draft.frequency !== "custom" ? (
+								<div className="space-y-1.5">
+									<label className="text-xs font-medium text-muted-foreground" htmlFor="trigger-time">
+										Time
+									</label>
+									<Input
+										id="trigger-time"
+										type="time"
+										value={`${pad(draft.hour)}:${pad(draft.minute)}`}
+										onChange={(event) => {
+											const [hour, minute] = event.target.value.split(":");
+											setDraft((prev) => ({
+												...prev,
+												hour: clampInt(hour, 0, 23),
+												minute: clampInt(minute, 0, 59),
+											}));
+										}}
+									/>
+								</div>
+							) : (
+								<div className="space-y-1.5">
+									<label className="text-xs font-medium text-muted-foreground" htmlFor="trigger-cron">
+										Schedule expression
+									</label>
+									<Input
+										id="trigger-cron"
+										value={draft.cron}
+										placeholder="0 9 * * 1-5"
+										className="font-mono"
+										onChange={(event) =>
+											setDraft((prev) => ({ ...prev, cron: event.target.value }))
+										}
+									/>
+								</div>
+							)}
+
+							<div className="space-y-1.5 sm:col-span-2">
+								<div className="text-xs font-medium text-muted-foreground">Timezone</div>
+								<TimezoneCombobox
+									value={draft.timezone}
+									onChange={(timezone) => setDraft((prev) => ({ ...prev, timezone }))}
+								/>
+							</div>
+						</div>
+
+						{issues.length > 0 && (
+							<Alert variant="destructive">
+								<AlertCircle aria-hidden />
+								<AlertTitle>
+									{issues.length === 1 ? "1 issue" : `${issues.length} issues`}
+								</AlertTitle>
+								<AlertDescription>
+									<ul className="list-inside list-disc">
 										{issues.map((issue) => (
 											<li key={issue}>{issue}</li>
 										))}
 									</ul>
-								</div>
-							)}
+								</AlertDescription>
+							</Alert>
+						)}
 
-							<div className="flex items-center justify-end gap-2">
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									onClick={cancelEdit}
-									disabled={updating}
-								>
-									Cancel
-								</Button>
-								<Button type="button" size="sm" onClick={saveEdit} disabled={updating}>
-									{updating ? (
-										<Spinner size="xs" className="mr-1.5" />
-									) : (
-										<Save className="mr-1.5 h-3.5 w-3.5" />
-									)}
-									Save
-								</Button>
-							</div>
-						</>
-					) : (
-						<>
-							{(trigger.last_fired_at || trigger.next_fire_at) && (
-								<dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1">
-									{trigger.next_fire_at && (
-										<TimeRow
-											label="Next fire"
-											iso={trigger.next_fire_at}
-											tense="future"
-											highlight={trigger.enabled}
-										/>
-									)}
-									{trigger.last_fired_at && (
-										<TimeRow label="Last fired" iso={trigger.last_fired_at} tense="past" />
-									)}
-								</dl>
-							)}
-
-							{hasStaticInputs && (
-								<div>
-									<div className="text-muted-foreground mb-1">Static inputs</div>
-									<div className="rounded-md bg-muted/40 px-3 py-2 overflow-auto">
-										<JsonView src={trigger.static_inputs} collapsed={1} />
-									</div>
-								</div>
-							)}
-						</>
-					)}
-				</div>
+						<div className="flex items-center justify-end gap-2">
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onClick={cancelEdit}
+								disabled={updating}
+							>
+								Cancel
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								onClick={saveEdit}
+								disabled={updating}
+								className="relative"
+							>
+								<span className={updating ? "opacity-0" : undefined}>Save</span>
+								{updating ? (
+									<Spinner
+										size="xs"
+										className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+									/>
+								) : null}
+							</Button>
+						</div>
+					</div>
+				) : null}
 			</div>
 
 			{canDelete && (
@@ -237,38 +375,6 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 					triggerLabel={triggerLabel}
 				/>
 			)}
-		</>
-	);
-}
-
-function TimeRow({
-	label,
-	iso,
-	tense,
-	highlight = false,
-}: {
-	label: string;
-	iso: string;
-	tense: "past" | "future";
-	highlight?: boolean;
-}) {
-	const formatted = tense === "future" ? formatRelativeFutureDate(iso) : formatRelativeDate(iso);
-	return (
-		<>
-			<dt className="text-muted-foreground inline-flex items-center gap-1.5 whitespace-nowrap">
-				<Clock className="h-3 w-3" aria-hidden />
-				{label}
-			</dt>
-			<dd
-				className={
-					highlight
-						? "text-foreground font-medium min-w-0 truncate"
-						: "text-muted-foreground min-w-0 truncate"
-				}
-				title={new Date(iso).toLocaleString()}
-			>
-				{formatted}
-			</dd>
 		</>
 	);
 }

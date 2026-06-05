@@ -14,7 +14,6 @@ from app.indexing_pipeline.indexing_pipeline_service import (
     IndexingPipelineService,
     PlaceholderInfo,
 )
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 
 from .base import (
@@ -36,7 +35,6 @@ def _build_connector_doc(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
 ) -> ConnectorDocument:
     """Map a raw Confluence page dict to a ConnectorDocument."""
     page_id = page.get("id", "")
@@ -54,10 +52,6 @@ def _build_connector_doc(
         "connector_type": "Confluence",
     }
 
-    fallback_summary = (
-        f"Confluence Page: {page_title}\n\nSpace ID: {space_id}\n\n{full_content}"
-    )
-
     return ConnectorDocument(
         title=page_title,
         source_markdown=full_content,
@@ -66,8 +60,6 @@ def _build_connector_doc(
         search_space_id=search_space_id,
         connector_id=connector_id,
         created_by_id=user_id,
-        should_summarize=enable_summary,
-        fallback_summary=fallback_summary,
         metadata=metadata,
     )
 
@@ -268,8 +260,7 @@ async def index_confluence_pages(
                     connector_id=connector_id,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    enable_summary=connector.enable_summary,
-                )
+                    )
 
                 with session.no_autoflush:
                     duplicate_by_content = await check_duplicate_document_by_hash(
@@ -297,12 +288,8 @@ async def index_confluence_pages(
 
         await pipeline.migrate_legacy_docs(connector_docs)
 
-        async def _get_llm(s: AsyncSession):
-            return await get_user_long_context_llm(s, user_id, search_space_id)
-
         _, documents_indexed, documents_failed = await pipeline.index_batch_parallel(
             connector_docs,
-            _get_llm,
             max_concurrency=3,
             on_heartbeat=on_heartbeat_callback,
             heartbeat_interval=HEARTBEAT_INTERVAL_SECONDS,

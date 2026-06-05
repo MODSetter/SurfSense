@@ -48,7 +48,6 @@ _DESCRIPTION = "MIRAGE (7,663 medical MCQs) — single-arm SurfSense per-task ac
 _DEFAULT_INGEST_SETTINGS = IngestSettings(
     use_vision_llm=False,
     processing_mode="basic",
-    should_summarize=False,
 )
 
 

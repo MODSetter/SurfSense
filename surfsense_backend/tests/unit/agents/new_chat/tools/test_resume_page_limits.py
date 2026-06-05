@@ -142,7 +142,7 @@ async def test_generate_resume_defaults_to_one_page_target(monkeypatch) -> None:
     llm = SimpleNamespace(ainvoke=AsyncMock(side_effect=_llm_invoke))
     monkeypatch.setattr(
         resume_tool,
-        "get_document_summary_llm",
+        "get_agent_llm",
         AsyncMock(return_value=llm),
     )
     monkeypatch.setattr(resume_tool, "_compile_typst", lambda _source: b"pdf")
@@ -171,7 +171,7 @@ async def test_generate_resume_compresses_when_over_limit(monkeypatch) -> None:
     llm = SimpleNamespace(ainvoke=AsyncMock(side_effect=responses))
     monkeypatch.setattr(
         resume_tool,
-        "get_document_summary_llm",
+        "get_agent_llm",
         AsyncMock(return_value=llm),
     )
     monkeypatch.setattr(resume_tool, "_compile_typst", lambda _source: b"pdf")
@@ -206,7 +206,7 @@ async def test_generate_resume_returns_ready_when_target_not_met(monkeypatch) ->
     llm = SimpleNamespace(ainvoke=AsyncMock(side_effect=responses))
     monkeypatch.setattr(
         resume_tool,
-        "get_document_summary_llm",
+        "get_agent_llm",
         AsyncMock(return_value=llm),
     )
     monkeypatch.setattr(resume_tool, "_compile_typst", lambda _source: b"pdf")
@@ -239,7 +239,7 @@ async def test_generate_resume_fails_when_hard_limit_exceeded(monkeypatch) -> No
     llm = SimpleNamespace(ainvoke=AsyncMock(side_effect=responses))
     monkeypatch.setattr(
         resume_tool,
-        "get_document_summary_llm",
+        "get_agent_llm",
         AsyncMock(return_value=llm),
     )
     monkeypatch.setattr(resume_tool, "_compile_typst", lambda _source: b"pdf")

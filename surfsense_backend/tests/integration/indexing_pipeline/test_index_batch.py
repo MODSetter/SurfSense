@@ -10,7 +10,7 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+"patched_embed_texts", "patched_chunk_text"
 )
 async def test_index_batch_creates_ready_documents(
     db_session, db_search_space, make_connector_document, mocker
@@ -33,7 +33,7 @@ async def test_index_batch_creates_ready_documents(
     ]
 
     service = IndexingPipelineService(session=db_session)
-    results = await service.index_batch(docs, llm=mocker.Mock())
+    results = await service.index_batch(docs)
 
     assert len(results) == 2
 
@@ -50,10 +50,10 @@ async def test_index_batch_creates_ready_documents(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
+"patched_embed_texts", "patched_chunk_text"
 )
 async def test_index_batch_empty_returns_empty(db_session, mocker):
     """index_batch with empty input returns an empty list."""
     service = IndexingPipelineService(session=db_session)
-    results = await service.index_batch([], llm=mocker.Mock())
+    results = await service.index_batch([])
     assert results == []

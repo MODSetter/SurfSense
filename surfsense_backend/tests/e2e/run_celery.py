@@ -183,23 +183,23 @@ def _patch_llm_bindings() -> None:
         fake_create_chat_litellm_from_agent_config,
         fake_create_chat_litellm_from_config,
     )
-    from tests.e2e.fakes.llm import fake_get_user_long_context_llm
+    from tests.e2e.fakes.llm import fake_get_agent_llm
 
     targets = [
-        "app.services.llm_service.get_user_long_context_llm",
-        "app.tasks.connector_indexers.confluence_indexer.get_user_long_context_llm",
-        "app.tasks.connector_indexers.google_drive_indexer.get_user_long_context_llm",
-        "app.tasks.connector_indexers.google_gmail_indexer.get_user_long_context_llm",
-        "app.tasks.connector_indexers.notion_indexer.get_user_long_context_llm",
-        "app.tasks.connector_indexers.onedrive_indexer.get_user_long_context_llm",
-        "app.tasks.connector_indexers.dropbox_indexer.get_user_long_context_llm",
-        "app.tasks.connector_indexers.local_folder_indexer.get_user_long_context_llm",
-        "app.tasks.document_processors._save.get_user_long_context_llm",
-        "app.tasks.document_processors.markdown_processor.get_user_long_context_llm",
+        "app.services.llm_service.get_agent_llm",
+        "app.tasks.connector_indexers.confluence_indexer.get_agent_llm",
+        "app.tasks.connector_indexers.google_drive_indexer.get_agent_llm",
+        "app.tasks.connector_indexers.google_gmail_indexer.get_agent_llm",
+        "app.tasks.connector_indexers.notion_indexer.get_agent_llm",
+        "app.tasks.connector_indexers.onedrive_indexer.get_agent_llm",
+        "app.tasks.connector_indexers.dropbox_indexer.get_agent_llm",
+        "app.tasks.connector_indexers.local_folder_indexer.get_agent_llm",
+        "app.tasks.document_processors._save.get_agent_llm",
+        "app.tasks.document_processors.markdown_processor.get_agent_llm",
     ]
     for target in targets:
         try:
-            p = patch(target, fake_get_user_long_context_llm)
+            p = patch(target, fake_get_agent_llm)
             p.start()
             _active_patches.append(p)
             logger.info("[fake-llm] patched %s in celery worker", target)

@@ -54,10 +54,7 @@ export default function OnboardPage() {
 
 	// Check if onboarding is already complete (including 0 for Auto mode)
 	const isOnboardingComplete =
-		preferences.agent_llm_id !== null &&
-		preferences.agent_llm_id !== undefined &&
-		preferences.document_summary_llm_id !== null &&
-		preferences.document_summary_llm_id !== undefined;
+		preferences.agent_llm_id !== null && preferences.agent_llm_id !== undefined;
 
 	useEffect(() => {
 		if (!preferencesLoading && isOnboardingComplete) {
@@ -83,7 +80,6 @@ export default function OnboardPage() {
 						search_space_id: searchSpaceId,
 						data: {
 							agent_llm_id: firstGlobalConfig.id,
-							document_summary_llm_id: firstGlobalConfig.id,
 						},
 					});
 
@@ -120,7 +116,6 @@ export default function OnboardPage() {
 				search_space_id: searchSpaceId,
 				data: {
 					agent_llm_id: newConfig.id,
-					document_summary_llm_id: newConfig.id,
 				},
 			});
 

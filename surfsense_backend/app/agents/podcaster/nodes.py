@@ -31,9 +31,7 @@ async def create_podcast_transcript(
 
     llm = await get_agent_llm(state.db_session, search_space_id)
     if not llm:
-        error_message = (
-            f"No document summary LLM configured for search space {search_space_id}"
-        )
+        error_message = f"No agent LLM configured for search space {search_space_id}"
         print(error_message)
         raise RuntimeError(error_message)
 

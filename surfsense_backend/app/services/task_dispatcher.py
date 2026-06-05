@@ -18,7 +18,6 @@ class TaskDispatcher(Protocol):
         filename: str,
         search_space_id: int,
         user_id: str,
-        should_summarize: bool = False,
         use_vision_llm: bool = False,
         processing_mode: str = "basic",
     ) -> None: ...
@@ -35,7 +34,6 @@ class CeleryTaskDispatcher:
         filename: str,
         search_space_id: int,
         user_id: str,
-        should_summarize: bool = False,
         use_vision_llm: bool = False,
         processing_mode: str = "basic",
     ) -> None:
@@ -49,7 +47,6 @@ class CeleryTaskDispatcher:
             filename=filename,
             search_space_id=search_space_id,
             user_id=user_id,
-            should_summarize=should_summarize,
             use_vision_llm=use_vision_llm,
             processing_mode=processing_mode,
         )

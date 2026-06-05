@@ -53,7 +53,11 @@ export function RunDetailsPanel({
 	const isTerminal = liveStatus !== "pending" && liveStatus !== "running";
 	// Defer the REST round-trip until the run can actually carry heavy
 	// fields — output/artifacts/error are only written at terminal mark.
-	const { data: run, isLoading, error } = useAutomationRun(automationId, runId, {
+	const {
+		data: run,
+		isLoading,
+		error,
+	} = useAutomationRun(automationId, runId, {
 		enabled: isTerminal,
 	});
 

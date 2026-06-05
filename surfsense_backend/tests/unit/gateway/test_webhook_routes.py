@@ -92,6 +92,13 @@ def _signed_slack_request(payload: dict, *, secret: str = "signing-secret") -> R
     )
 
 
+def _enable_slack_gateway(monkeypatch):
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_ENABLED", True)
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_CLIENT_ID", "client-id")
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_CLIENT_SECRET", "client-secret")
+    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+
+
 async def _call_webhook(*, request: RequestStub, account_id: int, session):
     return await routes.telegram_webhook(
         request=request,
@@ -230,7 +237,7 @@ def test_verify_slack_signature_accepts_valid_signature():
 
 @pytest.mark.asyncio
 async def test_slack_webhook_url_verification(monkeypatch, mocker):
-    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+    _enable_slack_gateway(monkeypatch)
     request = _signed_slack_request({"type": "url_verification", "challenge": "abc123"})
 
     response = await routes.slack_webhook(request=request, session=mocker.AsyncMock())
@@ -241,7 +248,7 @@ async def test_slack_webhook_url_verification(monkeypatch, mocker):
 
 @pytest.mark.asyncio
 async def test_slack_webhook_persists_event(monkeypatch, mocker):
-    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+    _enable_slack_gateway(monkeypatch)
     session = mocker.AsyncMock()
     monkeypatch.setattr(routes, "get_slack_account_by_team", mocker.AsyncMock(return_value=_slack_account()))
     persist = mocker.AsyncMock(return_value=100)
@@ -271,7 +278,7 @@ async def test_slack_webhook_persists_event(monkeypatch, mocker):
 
 @pytest.mark.asyncio
 async def test_slack_webhook_ignores_self_event(monkeypatch, mocker):
-    monkeypatch.setattr(routes.config, "GATEWAY_SLACK_SIGNING_SECRET", "signing-secret")
+    _enable_slack_gateway(monkeypatch)
     session = mocker.AsyncMock()
     monkeypatch.setattr(routes, "get_slack_account_by_team", mocker.AsyncMock(return_value=_slack_account()))
     persist = mocker.AsyncMock(return_value=100)

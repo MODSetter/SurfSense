@@ -67,17 +67,15 @@ interface SidebarProps {
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
-	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
+	onChatPrefetch?: (chat: ChatItem) => void;
 	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
-	onViewAllSharedChats?: () => void;
-	onViewAllPrivateChats?: () => void;
-	isSharedChatsPanelOpen?: boolean;
-	isPrivateChatsPanelOpen?: boolean;
+	onViewAllChats?: () => void;
+	isChatsPanelOpen?: boolean;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -106,17 +104,15 @@ export function Sidebar({
 	navItems,
 	onNavItemClick,
 	chats,
-	sharedChats = [],
 	activeChatId,
 	onNewChat,
 	onChatSelect,
+	onChatPrefetch,
 	onChatRename,
 	onChatDelete,
 	onChatArchive,
-	onViewAllSharedChats,
-	onViewAllPrivateChats,
-	isSharedChatsPanelOpen = false,
-	isPrivateChatsPanelOpen = false,
+	onViewAllChats,
+	isChatsPanelOpen = false,
 	user,
 	onSettings,
 	onManageMembers,
@@ -264,73 +260,20 @@ export function Sidebar({
 				<div className="flex-1 w-full" />
 			) : (
 				<div className="flex-1 flex flex-col gap-1 pt-2 w-full min-h-0 overflow-hidden">
-					{/* Shared Chats Section - takes only space needed, max 50% */}
 					<SidebarSection
-						title={t("shared_chats")}
-						defaultOpen={true}
-						fillHeight={false}
-						className="shrink-0 max-h-[50%] flex flex-col"
-						alwaysShowAction={!disableTooltips && isSharedChatsPanelOpen}
-						action={
-							onViewAllSharedChats ? (
-								<Button
-									type="button"
-									variant="ghost"
-									onClick={onViewAllSharedChats}
-									className="h-auto cursor-pointer whitespace-nowrap bg-transparent p-0 text-xs font-medium text-muted-foreground/60 transition-colors hover:bg-transparent hover:text-muted-foreground"
-								>
-									{!disableTooltips && isSharedChatsPanelOpen ? t("hide") : t("show_all")}
-								</Button>
-							) : undefined
-						}
-					>
-						{isLoadingChats ? (
-							<ChatListSkeletonRows />
-						) : sharedChats.length > 0 ? (
-							<div className="relative min-h-0 flex-1">
-								<div
-									className={`flex flex-col gap-0.5 max-h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? "pb-2" : ""}`}
-								>
-									{sharedChats.slice(0, 20).map((chat) => (
-										<ChatListItem
-											key={chat.id}
-											name={chat.name}
-											isActive={chat.id === activeChatId}
-											archived={chat.archived}
-											dropdownOpen={openDropdownChatId === chat.id}
-											onDropdownOpenChange={(open) => setOpenDropdownChatId(open ? chat.id : null)}
-											onClick={() => onChatSelect(chat)}
-											onRename={() => onChatRename?.(chat)}
-											onArchive={() => onChatArchive?.(chat)}
-											onDelete={() => onChatDelete?.(chat)}
-										/>
-									))}
-								</div>
-								{/* Gradient fade indicator when more than 4 items */}
-								{sharedChats.length > 4 && (
-									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-sidebar/80 to-transparent" />
-								)}
-							</div>
-						) : (
-							<p className="px-2 py-1 text-sm text-muted-foreground/60">{t("no_shared_chats")}</p>
-						)}
-					</SidebarSection>
-
-					{/* Private Chats Section - fills remaining space */}
-					<SidebarSection
-						title={t("chats")}
+						title={t("recents")}
 						defaultOpen={true}
 						fillHeight={true}
-						alwaysShowAction={!disableTooltips && isPrivateChatsPanelOpen}
+						alwaysShowAction={!disableTooltips && isChatsPanelOpen}
 						action={
-							onViewAllPrivateChats ? (
+							onViewAllChats ? (
 								<Button
 									type="button"
 									variant="ghost"
-									onClick={onViewAllPrivateChats}
+									onClick={onViewAllChats}
 									className="h-auto cursor-pointer whitespace-nowrap bg-transparent p-0 text-xs font-medium text-muted-foreground/60 transition-colors hover:bg-transparent hover:text-muted-foreground"
 								>
-									{!disableTooltips && isPrivateChatsPanelOpen ? t("hide") : t("show_all")}
+									{!disableTooltips && isChatsPanelOpen ? t("hide") : t("show_all")}
 								</Button>
 							) : undefined
 						}
@@ -347,10 +290,12 @@ export function Sidebar({
 											key={chat.id}
 											name={chat.name}
 											isActive={chat.id === activeChatId}
+											isShared={chat.visibility === "SEARCH_SPACE"}
 											archived={chat.archived}
 											dropdownOpen={openDropdownChatId === chat.id}
 											onDropdownOpenChange={(open) => setOpenDropdownChatId(open ? chat.id : null)}
 											onClick={() => onChatSelect(chat)}
+											onPrefetch={() => onChatPrefetch?.(chat)}
 											onRename={() => onChatRename?.(chat)}
 											onArchive={() => onChatArchive?.(chat)}
 											onDelete={() => onChatDelete?.(chat)}

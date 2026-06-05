@@ -1,5 +1,5 @@
 "use client";
-import { Activity, CalendarDays, Workflow } from "lucide-react";
+import { CalendarDays, Info, Workflow } from "lucide-react";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { AutomationSummary } from "@/contracts/types/automation.types";
 import { AutomationRow } from "./automation-row";
@@ -37,7 +37,7 @@ export function AutomationsTable({
 						</TableHead>
 						<TableHead className="border-r border-border/60 w-32">
 							<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
-								<Activity size={14} className="opacity-60 text-muted-foreground" />
+								<Info size={14} className="opacity-60 text-muted-foreground" />
 								Status
 							</span>
 						</TableHead>

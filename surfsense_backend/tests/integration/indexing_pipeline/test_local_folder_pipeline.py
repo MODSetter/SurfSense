@@ -21,7 +21,6 @@ from app.db import (
 pytestmark = pytest.mark.integration
 
 UNIFIED_FIXTURES = (
-    "patched_summarize",
     "patched_embed_texts",
     "patched_chunk_text",
 )
@@ -787,7 +786,7 @@ class TestPipelineIntegration:
         assert len(prepared) == 1
 
         db_doc = prepared[0]
-        result = await service.index(db_doc, doc, llm=mocker.Mock())
+        result = await service.index(db_doc, doc)
         assert result is not None
 
         docs = (
@@ -1272,7 +1271,7 @@ class TestIndexingProgressFlag:
         original_index = IndexingPipelineService.index
         flag_observed = []
 
-        async def patched_index(self_pipe, document, connector_doc, llm):
+        async def patched_index(self_pipe, document, connector_doc):
             folder = (
                 await db_session.execute(
                     select(Folder).where(
@@ -1284,7 +1283,7 @@ class TestIndexingProgressFlag:
             if folder:
                 meta = folder.folder_metadata or {}
                 flag_observed.append(meta.get("indexing_in_progress", False))
-            return await original_index(self_pipe, document, connector_doc, llm)
+            return await original_index(self_pipe, document, connector_doc)
 
         IndexingPipelineService.index = patched_index
         try:

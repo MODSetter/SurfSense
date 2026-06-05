@@ -12,6 +12,7 @@ import {
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { JsonView } from "@/components/json-view";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { automationCreateRequest } from "@/contracts/types/automation.types";
 import type { HitlDecision, InterruptResult } from "@/features/chat-messages/hitl";
@@ -351,19 +352,21 @@ function JsonEditor({ initialValue, onSave, onCancel }: JsonEditorProps) {
 				/>
 			</div>
 			{issues.length > 0 && (
-				<div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
-					<div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
-						<AlertCircle className="h-3.5 w-3.5" aria-hidden />
+				<Alert variant="destructive">
+					<AlertCircle aria-hidden />
+					<AlertTitle>
 						{issues.length} issue{issues.length === 1 ? "" : "s"}
-					</div>
-					<ul className="mt-1.5 space-y-0.5 text-xs text-destructive/90 list-disc list-inside">
-						{issues.map((issue) => (
-							<li key={issue} className="font-mono">
-								{issue}
-							</li>
-						))}
-					</ul>
-				</div>
+					</AlertTitle>
+					<AlertDescription>
+						<ul className="list-inside list-disc">
+							{issues.map((issue) => (
+								<li key={issue} className="font-mono">
+									{issue}
+								</li>
+							))}
+						</ul>
+					</AlertDescription>
+				</Alert>
 			)}
 			<div className="flex items-center justify-end gap-2">
 				<Button type="button" variant="ghost" size="sm" onClick={onCancel}>

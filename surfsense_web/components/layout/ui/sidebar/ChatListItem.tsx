@@ -18,10 +18,12 @@ import { cn } from "@/lib/utils";
 interface ChatListItemProps {
 	name: string;
 	isActive?: boolean;
+	isShared?: boolean;
 	archived?: boolean;
 	dropdownOpen?: boolean;
 	onDropdownOpenChange?: (open: boolean) => void;
 	onClick?: () => void;
+	onPrefetch?: () => void;
 	onRename?: () => void;
 	onArchive?: () => void;
 	onDelete?: () => void;
@@ -34,6 +36,7 @@ export function ChatListItem({
 	dropdownOpen: controlledOpen,
 	onDropdownOpenChange,
 	onClick,
+	onPrefetch,
 	onRename,
 	onArchive,
 	onDelete,
@@ -60,6 +63,8 @@ export function ChatListItem({
 				type="button"
 				variant="ghost"
 				onClick={handleClick}
+				onMouseEnter={onPrefetch}
+				onFocus={onPrefetch}
 				{...(isMobile ? longPressHandlers : {})}
 				className={cn(
 					"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
@@ -68,7 +73,7 @@ export function ChatListItem({
 					isActive && "bg-accent text-accent-foreground"
 				)}
 			>
-				<span className="truncate">{animatedName}</span>
+				<span className="min-w-0 flex-1 truncate">{animatedName}</span>
 			</Button>
 
 			{/* Actions dropdown - trigger hidden on mobile, long-press opens it instead */}

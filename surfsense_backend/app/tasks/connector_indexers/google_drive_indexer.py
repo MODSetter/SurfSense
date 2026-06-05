@@ -40,7 +40,6 @@ from app.indexing_pipeline.indexing_pipeline_service import (
     PlaceholderInfo,
 )
 from app.services.composio_service import ComposioService
-from app.services.llm_service import get_user_long_context_llm
 from app.services.page_limit_service import PageLimitService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
@@ -381,7 +380,6 @@ def _build_connector_doc(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
 ) -> ConnectorDocument:
     """Build a ConnectorDocument from Drive file metadata + extracted markdown."""
     file_id = file.get("id", "")
@@ -394,8 +392,6 @@ def _build_connector_doc(
         "connector_type": "Google Drive",
     }
 
-    fallback_summary = f"File: {file_name}\n\n{markdown[:4000]}"
-
     return ConnectorDocument(
         title=file_name,
         source_markdown=markdown,
@@ -404,8 +400,6 @@ def _build_connector_doc(
         search_space_id=search_space_id,
         connector_id=connector_id,
         created_by_id=user_id,
-        should_summarize=enable_summary,
-        fallback_summary=fallback_summary,
         metadata=metadata,
     )
 
@@ -461,7 +455,6 @@ async def _download_files_parallel(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     max_concurrency: int = 3,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
@@ -494,7 +487,6 @@ async def _download_files_parallel(
                 connector_id=connector_id,
                 search_space_id=search_space_id,
                 user_id=user_id,
-                enable_summary=enable_summary,
             )
             async with hb_lock:
                 completed_count += 1
@@ -525,7 +517,6 @@ async def _process_single_file(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool = True,
     vision_llm=None,
 ) -> tuple[int, int, int]:
     """Download, extract, and index a single Drive file via the pipeline.
@@ -561,8 +552,7 @@ async def _process_single_file(
             connector_id=connector_id,
             search_space_id=search_space_id,
             user_id=user_id,
-            enable_summary=enable_summary,
-        )
+            )
 
         pipeline = IndexingPipelineService(session)
         documents = await pipeline.prepare_for_indexing([doc])
@@ -578,10 +568,7 @@ async def _process_single_file(
             connector_doc = doc_map.get(document.unique_identifier_hash)
             if not connector_doc:
                 continue
-            user_llm = await get_user_long_context_llm(
-                session, user_id, search_space_id
-            )
-            await pipeline.index(document, connector_doc, user_llm)
+            await pipeline.index(document, connector_doc)
 
         await page_limit_service.update_page_usage(
             user_id, estimated_pages, allow_exceed=True
@@ -636,7 +623,6 @@ async def _download_and_index(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
 ) -> tuple[int, int]:
@@ -650,7 +636,6 @@ async def _download_and_index(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
     )
@@ -659,13 +644,8 @@ async def _download_and_index(
     batch_failed = 0
     if connector_docs:
         pipeline = IndexingPipelineService(session)
-
-        async def _get_llm(s):
-            return await get_user_long_context_llm(s, user_id, search_space_id)
-
         _, batch_indexed, batch_failed = await pipeline.index_batch_parallel(
             connector_docs,
-            _get_llm,
             max_concurrency=3,
             on_heartbeat=on_heartbeat,
         )
@@ -681,7 +661,6 @@ async def _index_selected_files(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
 ) -> tuple[int, int, int, list[str]]:
@@ -746,7 +725,6 @@ async def _index_selected_files(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
     )
@@ -781,7 +759,6 @@ async def _index_full_scan(
     max_files: int,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-    enable_summary: bool = True,
     vision_llm=None,
 ) -> tuple[int, int, int]:
     """Full scan indexing of a folder.
@@ -911,7 +888,6 @@ async def _index_full_scan(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
     )
@@ -946,7 +922,6 @@ async def _index_with_delta_sync(
     max_files: int,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-    enable_summary: bool = True,
     vision_llm=None,
 ) -> tuple[int, int, int]:
     """Delta sync using change tracking.
@@ -1054,7 +1029,6 @@ async def _index_with_delta_sync(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
     )
@@ -1142,7 +1116,6 @@ async def index_google_drive_files(
             )
             return 0, 0, client_error, 0
 
-        connector_enable_summary = getattr(connector, "enable_summary", True)
         connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
         vision_llm = None
         if connector_enable_vision_llm:
@@ -1189,7 +1162,6 @@ async def index_google_drive_files(
                 max_files,
                 include_subfolders,
                 on_heartbeat_callback,
-                connector_enable_summary,
                 vision_llm=vision_llm,
             )
             documents_unsupported += du
@@ -1208,7 +1180,6 @@ async def index_google_drive_files(
                 max_files,
                 include_subfolders,
                 on_heartbeat_callback,
-                connector_enable_summary,
                 vision_llm=vision_llm,
             )
             documents_indexed += ri
@@ -1234,7 +1205,6 @@ async def index_google_drive_files(
                 max_files,
                 include_subfolders,
                 on_heartbeat_callback,
-                connector_enable_summary,
                 vision_llm=vision_llm,
             )
 
@@ -1346,7 +1316,6 @@ async def index_google_drive_single_file(
             )
             return 0, client_error
 
-        connector_enable_summary = getattr(connector, "enable_summary", True)
         connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
         vision_llm = None
         if connector_enable_vision_llm:
@@ -1370,7 +1339,6 @@ async def index_google_drive_single_file(
             connector_id,
             search_space_id,
             user_id,
-            connector_enable_summary,
             vision_llm=vision_llm,
         )
         await session.commit()
@@ -1467,7 +1435,6 @@ async def index_google_drive_selected_files(
             )
             return 0, 0, [error_msg]
 
-        connector_enable_summary = getattr(connector, "enable_summary", True)
         connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
         vision_llm = None
         if connector_enable_vision_llm:
@@ -1481,7 +1448,6 @@ async def index_google_drive_selected_files(
             connector_id=connector_id,
             search_space_id=search_space_id,
             user_id=user_id,
-            enable_summary=connector_enable_summary,
             on_heartbeat=on_heartbeat_callback,
             vision_llm=vision_llm,
         )

@@ -27,7 +27,7 @@ export function AutomationTriggersSection({
 			<CardHeader className="pb-4">
 				<CardTitle className="text-base font-semibold">Triggers</CardTitle>
 				<p className="text-xs text-muted-foreground">
-					When this automation fires. v1 supports scheduled triggers only.
+					When this automation runs
 				</p>
 			</CardHeader>
 			<CardContent>
