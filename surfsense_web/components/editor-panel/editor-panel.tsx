@@ -51,10 +51,12 @@ interface EditorContent {
 	content_size_bytes?: number;
 	chunk_count?: number;
 	truncated?: boolean;
+	viewer_mode?: ViewerMode;
 }
 
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
 type EditorRenderMode = "rich_markdown" | "source_code";
+type ViewerMode = "plate" | "monaco";
 
 type AgentFilesystemMount = {
 	mount: string;
@@ -168,6 +170,9 @@ export function EditorPanelContent({
 	);
 
 	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
+	const viewerMode: ViewerMode = isMemoryMode
+		? "plate"
+		: (editorDoc?.viewer_mode ?? (isLargeDocument ? "monaco" : "plate"));
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -432,12 +437,10 @@ export function EditorPanelContent({
 		? (isMemoryMode ||
 				editorRenderMode === "source_code" ||
 				EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
-			!isLargeDocument
+			viewerMode === "plate"
 		: false;
-	// Render through PlateEditor for editable doc types (FILE/NOTE).
-	// Everything else (large docs, non-editable types) falls back to the
-	// lightweight `MarkdownViewer` — Plate is heavy on multi-MB docs and
-	// non-editable types don't benefit from its editing UX.
+	// Render through PlateEditor only when the backend says the rich editor is safe.
+	// Monaco mode is a raw markdown safety path for large documents.
 	const renderInPlateEditor = isEditableType;
 	const hasUnsavedChanges = editedMarkdown !== null;
 	const showDesktopHeader = !!onClose;
@@ -492,14 +495,14 @@ export function EditorPanelContent({
 		}
 	}, [documentId, editorDoc?.title, searchSpaceId]);
 
-	const largeDocAlert = isLargeDocument && !isLocalFileMode && editorDoc && (
-		<Alert className="mb-4">
+	const largeDocAlert = viewerMode === "monaco" && !isLocalFileMode && editorDoc && (
+		<Alert className="m-4 shrink-0">
 			<FileText className="size-4" />
 			<AlertDescription className="flex items-center justify-between gap-4">
 				<span>
 					This document is too large for the editor (
 					{Math.round((editorDoc.content_size_bytes ?? 0) / 1024 / 1024)}MB,{" "}
-					{editorDoc.chunk_count ?? 0} chunks). Showing a preview below.
+					{editorDoc.chunk_count ?? 0} chunks). Showing raw markdown below.
 				</span>
 				<Button
 					variant="outline"
@@ -753,12 +756,19 @@ export function EditorPanelContent({
 							}}
 						/>
 					</div>
-				) : isLargeDocument && !isLocalFileMode ? (
-					// Large doc — fast Streamdown preview + download CTA.
-					// Plate is heavy on multi-MB docs.
-					<div className="h-full overflow-y-auto px-5 py-4">
+				) : viewerMode === "monaco" && !isLocalFileMode ? (
+					// Large doc — raw markdown in Monaco. Rich renderers are intentionally skipped.
+					<div className="flex h-full min-h-0 flex-col">
 						{largeDocAlert}
-						<MarkdownViewer content={editorDoc.source_markdown} enableCitations />
+						<div className="min-h-0 flex-1 overflow-hidden">
+							<SourceCodeEditor
+								path={`${editorDoc.title || "document"}.md`}
+								language="markdown"
+								value={editorDoc.source_markdown}
+								readOnly
+								onChange={() => {}}
+							/>
+						</div>
 					</div>
 				) : renderInPlateEditor ? (
 					// Editable doc (FILE/NOTE) — Plate editing UX.
