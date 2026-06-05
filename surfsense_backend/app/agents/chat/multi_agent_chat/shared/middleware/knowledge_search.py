@@ -594,14 +594,9 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         inject_system_message: bool = True,  # For backwards compatibility
     ) -> None:
         self.llm = llm
-        # The planner LLM handles short, structured internal tasks (query
-        # rewriting, date extraction, recency classification). When an
-        # operator marks a global config ``is_planner: true`` we route
-        # those calls to a cheap/fast model (e.g. gpt-4o-mini, Haiku, Azure
-        # gpt-5.x-nano) instead of the user's chat LLM — those classification
-        # tasks don't need frontier-tier capability. Falls back to the chat
-        # LLM when no planner config is wired up so deployments without one
-        # keep working unchanged.
+        # Cheap model for structured internal tasks (query rewrite, date
+        # extraction, recency classification) when one is configured; falls back
+        # to the chat LLM otherwise.
         self.planner_llm = planner_llm or llm
         self.search_space_id = search_space_id
         self.filesystem_mode = filesystem_mode
@@ -610,26 +605,17 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         self.top_k = top_k
         self.mentioned_document_ids = mentioned_document_ids or []
         self.inject_system_message = inject_system_message
-        # Build the kb-planner private Runnable ONCE here so we don't pay
-        # the ``create_agent`` compile cost (50-200ms) on every turn.
-        # Disabled by default behind ``enable_kb_planner_runnable``; when
-        # off the planner falls back to the legacy ``planner_llm.ainvoke``
-        # path.
+        # Compiled lazily and memoized to avoid the per-turn create_agent cost.
         self._planner: Runnable | None = None
         self._planner_compile_failed = False
 
     def _build_kb_planner_runnable(self) -> Runnable | None:
-        """Compile the kb-planner private :class:`Runnable` once.
+        """Lazily compile and memoize the kb-planner Runnable.
 
-        Returns ``None`` when the feature flag is disabled, when the LLM is
-        unavailable, or when ``create_agent`` raises (we fall back to the
-        legacy ``planner_llm.ainvoke`` path in that case). Compilation happens
-        lazily on first call, then memoized via ``self._planner``.
-
-        The compiled agent is constructed without tools — the planner's
-        contract is "answer with structured JSON" — but it inherits the
-        :class:`RetryAfterMiddleware` so transient rate-limit errors
-        from the planner LLM call don't fail the whole turn.
+        Returns ``None`` (and the caller falls back to ``planner_llm.ainvoke``)
+        when the flag is off, the LLM is missing, or ``create_agent`` raises.
+        Built without tools but with RetryAfterMiddleware so a transient
+        rate-limit on the planner call doesn't fail the whole turn.
         """
         if self._planner is not None or self._planner_compile_failed:
             return self._planner
@@ -677,10 +663,8 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         loop = asyncio.get_running_loop()
         t0 = loop.time()
 
-        # Prefer the compiled-once planner Runnable when enabled; otherwise
-        # fall back to ``planner_llm.ainvoke``. The ``surfsense:internal``
-        # tag is preserved on both paths so ``_stream_agent_events`` still
-        # suppresses the planner's intermediate events from the UI.
+        # Both paths tag surfsense:internal so the planner's intermediate
+        # events stay suppressed from the UI.
         planner = self._build_kb_planner_runnable()
         try:
             if planner is not None:
@@ -819,32 +803,16 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             user_text=user_text,
         )
 
-        # Per-turn ``mentioned_document_ids`` flow:
-        # 1. Preferred path (Phase 1.5+): read from ``runtime.context`` — the
-        #    streaming task supplies a fresh :class:`SurfSenseContextSchema`
-        #    on every ``astream_events`` call, so this list is naturally
-        #    scoped to the current turn. Allows cross-turn graph reuse via
-        #    ``agent_cache``.
-        # 2. Legacy fallback (cache disabled / context not propagated): the
-        #    constructor-injected ``self.mentioned_document_ids`` list. We
-        #    drain it after the first read so a cached graph (no Phase 1.5
-        #    wiring) doesn't keep replaying the same mentions on every
-        #    turn.
+        # Prefer per-turn mentions from runtime.context (lets a cached graph
+        # serve different turns); fall back to the constructor closure, draining
+        # it after one read so stale mentions can't replay.
         #
-        # CRITICAL: distinguish "context absent" (legacy caller, no field at
-        # all) from "context provided but empty" (turn with no mentions).
-        # ``ctx_mentions`` is a ``list[int]``; an empty list is falsy in
-        # Python, so a naive ``if ctx_mentions:`` would fall through to the
-        # legacy closure on every no-mention follow-up turn — replaying the
-        # mentions baked in by turn 1's cache-miss build. Always drain the
-        # closure once the runtime path has fired so a cached middleware
-        # instance can never resurrect stale state.
+        # CRITICAL: test ``ctx_mentions is not None``, not truthiness — an empty
+        # list means "this turn has no mentions", not "use the closure".
         mention_ids: list[int] = []
         ctx = getattr(runtime, "context", None) if runtime is not None else None
         ctx_mentions = getattr(ctx, "mentioned_document_ids", None) if ctx else None
         if ctx_mentions is not None:
-            # Runtime path is authoritative — even an empty list means
-            # "this turn has no mentions", NOT "look at the closure".
             mention_ids = list(ctx_mentions)
             if self.mentioned_document_ids:
                 self.mentioned_document_ids = []
@@ -852,12 +820,8 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             mention_ids = list(self.mentioned_document_ids)
             self.mentioned_document_ids = []
 
-        # Folder mentions live alongside doc mentions on the runtime
-        # context. They never feed hybrid search (folders aren't
-        # embedded) — they're surfaced purely as ``[USER-MENTIONED]``
-        # priority entries so the agent walks the folder with ``ls`` /
-        # ``find_documents`` instead of ignoring it. Cloud filesystem
-        # mode only.
+        # Folder mentions aren't embedded, so they skip hybrid search and are
+        # surfaced only as [USER-MENTIONED] entries. Cloud mode only.
         folder_mention_ids: list[int] = []
         if (
             ctx is not None
@@ -939,14 +903,10 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     async def _materialize_folder_priority(
         self, folder_ids: list[int]
     ) -> list[dict[str, Any]]:
-        """Resolve user-mentioned folder ids to ``<priority_documents>`` entries.
+        """Resolve mentioned folder ids to canonical-path priority entries.
 
-        Each entry uses the canonical ``/documents/Folder/Sub/`` virtual
-        path (matching ``KnowledgeTreeMiddleware`` and the agent's
-        ``ls`` adapter) and is flagged ``mentioned=True`` so the
-        rendered line carries ``[USER-MENTIONED]``. ``score`` is left
-        ``None`` so the renderer prints ``n/a`` — folders aren't
-        ranked, the agent decides which children to read.
+        Flagged ``mentioned=True`` with ``score=None`` (folders aren't ranked;
+        the agent decides which children to read).
         """
         if not folder_ids:
             return []

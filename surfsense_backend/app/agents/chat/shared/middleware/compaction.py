@@ -1,26 +1,13 @@
-"""
-SurfSense compaction middleware.
+"""SurfSense compaction middleware.
 
-Subclasses :class:`deepagents.middleware.summarization.SummarizationMiddleware`
-to add SurfSense-specific behavior:
+Extends ``SummarizationMiddleware`` with three SurfSense behaviors:
 
-1. **Structured summary template** (OpenCode-style ``## Goal / Constraints /
-   Progress / Key Decisions / Next Steps / Critical Context / Relevant Files``)
-   — see :data:`SURFSENSE_SUMMARY_PROMPT` below. The base
-   ``SummarizationMiddleware`` only ships a freeform "summarize this"
-   prompt; the structured template is ported from OpenCode's
-   ``compaction.ts``.
-2. **Protect SurfSense-specific SystemMessages** so injected hints
-   (``<priority_documents>``, ``<workspace_tree>``, ``<file_operation_contract>``,
-   ``<user_memory>``, ``<team_memory>``, ``<user_name>``, ``<memory_warning>``)
-   are *not* summarized away and are kept verbatim in the post-summary
-   message list. Mirrors OpenCode's ``PRUNE_PROTECTED_TOOLS`` philosophy
-   (some message types are part of the agent's contract and must survive
-   compaction unchanged).
-3. **Sanitize ``content=None``** when feeding messages into ``get_buffer_string``
-   (Azure OpenAI / LiteLLM defense — when a provider streams an AIMessage
-   containing only tool_calls and no text, ``content`` can be ``None`` and
-   ``get_buffer_string`` crashes iterating over ``None``). SurfSense-specific.
+1. A structured summary template (:data:`SURFSENSE_SUMMARY_PROMPT`) instead of
+   the base freeform prompt.
+2. Protected SystemMessages (injected hints like ``<priority_documents>``) are
+   kept verbatim instead of being summarized away.
+3. ``content=None`` is sanitized before ``get_buffer_string`` (some providers
+   stream tool-only AIMessages with ``None`` content, which would crash it).
 """
 
 from __future__ import annotations
@@ -43,9 +30,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Structured summary template ported from OpenCode's
-# ``opencode/packages/opencode/src/session/compaction.ts:40-75``. Kept as a
-# module-level constant so unit tests can assert on its sections.
+# Module-level constant so unit tests can assert on its sections.
 SURFSENSE_SUMMARY_PROMPT = """<role>
 SurfSense Conversation Compaction Assistant
 </role>
@@ -114,13 +99,10 @@ def _is_protected_system_message(msg: AnyMessage) -> bool:
 
 
 def _sanitize_message_content(msg: AnyMessage) -> AnyMessage:
-    """Return ``msg`` with ``content=None`` coerced to ``""``.
+    """Return a copy of ``msg`` with ``content=None`` coerced to ``""``.
 
-    Folds in the historical defense from ``safe_summarization.py`` —
-    ``get_buffer_string`` reads ``m.text`` which iterates ``self.content``,
-    so a ``None`` content (Azure OpenAI / LiteLLM streaming a tool-only
-    AIMessage) explodes. We return a copy with empty string content so
-    downstream consumers see an empty body without mutating the original.
+    ``get_buffer_string`` reads ``m.text`` (iterating ``content``), so a
+    tool-only AIMessage with ``None`` content would crash it.
     """
     if getattr(msg, "content", "not-missing") is not None:
         return msg
@@ -159,20 +141,11 @@ class SurfSenseCompactionMiddleware(SummarizationMiddleware):
         conversation_messages: list[AnyMessage],
         cutoff_index: int,
     ) -> tuple[list[AnyMessage], list[AnyMessage]]:
-        """Split messages but always preserve SurfSense protected SystemMessages.
+        """Split messages, always preserving protected SystemMessages.
 
-        Mirrors OpenCode's ``PRUNE_PROTECTED_TOOLS`` philosophy
-        (``opencode/packages/opencode/src/session/compaction.ts``): some
-        message types are always kept verbatim because they are part of the
-        agent's working contract, not transient output.
-
-        Also opens a ``compaction.run`` OTel span (no-op when OTel is off)
-        so dashboards can count compaction events and message-volume
-        without having to instrument upstream callers.
+        Also opens a ``compaction.run`` OTel span (no-op when OTel is off) here,
+        since partitioning is the first call once summarization is decided.
         """
-        # Opening a span here is appropriate because partitioning is the
-        # first call SummarizationMiddleware makes when it has decided to
-        # summarize; we record the volume and then close as a normal span.
         with ot.compaction_span(
             reason="auto",
             messages_in=len(conversation_messages),
@@ -191,20 +164,15 @@ class SurfSenseCompactionMiddleware(SummarizationMiddleware):
                 else:
                     kept_for_summary.append(msg)
 
-            # Place protected blocks at the *front* of preserved_messages so
-            # they keep their original ordering relative to the summary
-            # HumanMessage that precedes the rest of the preserved tail.
+            # Protected blocks go at the front of preserved_messages to keep
+            # ordering relative to the summary HumanMessage.
             return kept_for_summary, [*protected, *preserved_messages]
 
     def _filter_summary_messages(  # type: ignore[override]
         self, messages: list[AnyMessage]
     ) -> list[AnyMessage]:
-        """Filter previous summaries AND sanitize ``content=None``.
-
-        Folds the ``safe_summarization.py`` defense in: when the buffer
-        builder iterates ``m.text`` over ``None`` it explodes; sanitizing
-        here covers both the sync and async offload paths.
-        """
+        """Filter previous summaries and sanitize ``content=None`` (covers the
+        sync and async offload paths)."""
         filtered = super()._filter_summary_messages(messages)
         return [_sanitize_message_content(m) for m in filtered]
 

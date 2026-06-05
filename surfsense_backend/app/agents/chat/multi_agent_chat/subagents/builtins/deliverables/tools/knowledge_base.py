@@ -241,23 +241,12 @@ def _normalize_connectors(
     connectors_to_search: list[str] | None,
     available_connectors: list[str] | None = None,
 ) -> list[str]:
+    """Normalize model-supplied connectors to canonical ConnectorService types.
+
+    Maps user-facing aliases (e.g. WEBCRAWLER_CONNECTOR), drops unknowns, and
+    constrains to ``available_connectors`` when given. Empty input defaults to
+    all available connectors (minus live-search ones).
     """
-    Normalize connectors provided by the model.
-
-    - Accepts user-facing enums like WEBCRAWLER_CONNECTOR and maps them to canonical
-      ConnectorService types.
-    - Drops unknown values.
-    - If available_connectors is provided, only includes connectors from that list.
-    - If connectors_to_search is None/empty, defaults to available_connectors or all.
-
-    Args:
-        connectors_to_search: List of connectors requested by the model
-        available_connectors: List of connectors actually available in the search space
-
-    Returns:
-        List of normalized connector strings to search
-    """
-    # Determine the set of valid connectors to consider
     valid_set = (
         set(available_connectors) if available_connectors else set(_ALL_CONNECTORS)
     )
@@ -276,18 +265,16 @@ def _normalize_connectors(
         c = (raw or "").strip().upper()
         if not c:
             continue
-        # Map user-facing aliases to canonical names
         if c == "WEBCRAWLER_CONNECTOR":
             c = "CRAWLED_URL"
         normalized.append(c)
 
-    # de-dupe while preserving order + filter to valid connectors
+    # De-dupe (order-preserving), keeping only known + available connectors.
     seen: set[str] = set()
     out: list[str] = []
     for c in normalized:
         if c in seen:
             continue
-        # Only include if it's a known connector AND available
         if c not in _ALL_CONNECTORS:
             continue
         if c not in valid_set:
@@ -295,7 +282,7 @@ def _normalize_connectors(
         seen.add(c)
         out.append(c)
 
-    # Fallback to all available if nothing matched
+    # Nothing matched: fall back to all available.
     if not out:
         base = (
             list(available_connectors)
@@ -377,39 +364,17 @@ def format_documents_for_context(
     max_chunk_chars: int = _MAX_CHUNK_CHARS,
     max_chunks_per_doc: int = 0,
 ) -> str:
-    """
-    Format retrieved documents into a readable context string for the LLM.
+    """Format retrieved documents into an XML context string for the LLM.
 
-    Documents are added in order (highest relevance first) until the character
-    budget is reached.  Individual chunks are capped at ``max_chunk_chars`` and
-    each document is limited to a dynamically computed chunk cap so a single
-    large document cannot monopolize the output while still maximising the use
-    of available context space.
-
-    Args:
-        documents: List of document dictionaries from connector search
-        max_chars: Approximate character budget for the entire output.
-        max_chunk_chars: Per-chunk character cap (content is tail-truncated).
-        max_chunks_per_doc: Maximum chunks per document.  ``0`` (default) means
-            auto-compute per document using a rank-adaptive formula so
-            higher-ranked documents receive more chunks.
-
-    Returns:
-        Formatted string with document contents and metadata
+    Documents are emitted highest-relevance first until ``max_chars`` is hit.
+    ``max_chunks_per_doc=0`` auto-computes a rank-adaptive cap so top results get
+    more chunks and no single large document monopolizes the budget.
     """
     if not documents:
         return ""
 
-    # Group chunks by document id (preferred) to produce the XML structure.
-    #
-    # IMPORTANT: ConnectorService returns **document-grouped** results of the form:
-    #   {
-    #     "document": {...},
-    #     "chunks": [{"chunk_id": 123, "content": "..."}, ...],
-    #     "source": "NOTION_CONNECTOR" | "FILE" | ...
-    #   }
-    #
-    # We must preserve chunk_id so citations like [citation:123] are possible.
+    # Group chunks by document id, preserving chunk_id so [citation:123] works.
+    # ConnectorService returns document-grouped results ({document, chunks, source}).
     grouped: dict[str, dict[str, Any]] = {}
 
     for doc in documents:
@@ -430,7 +395,7 @@ def format_documents_for_context(
             or "UNKNOWN"
         )
 
-        # Document identity (prefer document_id; otherwise fall back to type+title+url)
+        # Identity: prefer document_id, else type+title+url.
         document_id_val = document_info.get("id")
         title = (
             document_info.get("title") or metadata.get("title") or "Untitled Document"
@@ -460,7 +425,7 @@ def format_documents_for_context(
                 "chunks": [],
             }
 
-        # Prefer document-grouped chunks if available
+        # Prefer document-grouped chunks when present.
         chunks_list = doc.get("chunks") if isinstance(doc, dict) else None
         if isinstance(chunks_list, list) and chunks_list:
             for ch in chunks_list:
@@ -492,7 +457,6 @@ def format_documents_for_context(
         "BAIDU_SEARCH_API",
     }
 
-    # Render XML expected by citation instructions, respecting the char budget.
     parts: list[str] = []
     total_chars = 0
     total_docs = len(grouped)
@@ -594,30 +558,11 @@ async def search_knowledge_base_async(
     available_document_types: list[str] | None = None,
     max_input_tokens: int | None = None,
 ) -> str:
-    """
-    Search the user's knowledge base for relevant documents.
+    """Search the knowledge base across connectors and return formatted results.
 
-    This is the async implementation that searches across multiple connectors.
-
-    Args:
-        query: The search query
-        search_space_id: The user's search space ID
-        db_session: Database session
-        connector_service: Initialized connector service
-        connectors_to_search: Optional list of connector types to search. If omitted, searches all.
-        top_k: Number of results per connector
-        start_date: Optional start datetime (UTC) for filtering documents
-        end_date: Optional end datetime (UTC) for filtering documents
-        available_connectors: Optional list of connectors actually available in the search space.
-                            If provided, only these connectors will be searched.
-        available_document_types: Optional list of document types that actually have indexed
-                                data. When provided, local connectors whose document type is
-                                absent are skipped entirely (no embedding / DB round-trip).
-        max_input_tokens: Model context window size (tokens).  Used to dynamically
-                         size the output so it fits within the model's limits.
-
-    Returns:
-        Formatted string with search results
+    ``available_document_types`` lets local connectors with no indexed data be
+    skipped (no embedding / DB round-trip), and ``max_input_tokens`` sizes the
+    output to the model's context window.
     """
     perf = get_perf_logger()
     t0 = time.perf_counter()

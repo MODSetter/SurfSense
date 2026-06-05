@@ -196,13 +196,8 @@ def _strip_wrapping_code_fences(text: str) -> str:
 
 def _extract_metadata(content: str) -> dict[str, Any]:
     """Extract metadata from generated Markdown content."""
-    # Count section headings
     headings = re.findall(r"^(#{1,6})\s+(.+)$", content, re.MULTILINE)
-
-    # Word count
     word_count = len(content.split())
-
-    # Character count
     char_count = len(content)
 
     return {
@@ -227,12 +222,11 @@ def _parse_sections(content: str) -> list[dict[str, str]]:
     in_code_block = False
 
     for line in lines:
-        # Track code blocks to avoid matching headings inside them
+        # Track fences so headings inside code blocks aren't treated as splits.
         stripped = line.strip()
         if stripped.startswith("```"):
             in_code_block = not in_code_block
 
-        # Only split on # or ## headings (not ### or deeper) and only outside code blocks
         is_section_heading = (
             not in_code_block
             and re.match(r"^#{1,2}\s+", line)
@@ -240,7 +234,6 @@ def _parse_sections(content: str) -> list[dict[str, str]]:
         )
 
         if is_section_heading:
-            # Save previous section
             if current_heading or current_body_lines:
                 sections.append(
                     {
@@ -253,7 +246,6 @@ def _parse_sections(content: str) -> list[dict[str, str]]:
         else:
             current_body_lines.append(line)
 
-    # Save last section
     if current_heading or current_body_lines:
         sections.append(
             {
@@ -292,7 +284,6 @@ async def _revise_with_sections(
     Unchanged sections are kept byte-for-byte identical.
     Returns the revised content, or None to trigger full-document revision fallback.
     """
-    # Parse report into sections
     sections = _parse_sections(parent_content)
     if len(sections) < 2:
         logger.info(
@@ -300,7 +291,6 @@ async def _revise_with_sections(
         )
         return None
 
-    # Build a sections listing for the LLM
     sections_listing = ""
     for i, sec in enumerate(sections):
         heading = sec["heading"] or "(preamble — content before first heading)"
@@ -352,11 +342,9 @@ async def _revise_with_sections(
         )
         return None
 
-    # Compute total operations for progress tracking
     total_ops = len(modify_indices) + len(add_sections)
     current_op = 0
 
-    # Emit plan summary
     parts = []
     if modify_indices:
         parts.append(
@@ -394,7 +382,6 @@ async def _revise_with_sections(
         current_op += 1
         sec = sections[idx]
 
-        # Extract plain section name (strip markdown heading markers)
         section_name = (
             re.sub(r"^#+\s*", "", sec["heading"]).strip()
             if sec["heading"]
@@ -412,7 +399,6 @@ async def _revise_with_sections(
             f"{sec['heading']}\n\n{sec['body']}" if sec["heading"] else sec["body"]
         )
 
-        # Build context from surrounding sections
         context_parts = []
         if idx > 0:
             prev = sections[idx - 1]
@@ -442,7 +428,6 @@ async def _revise_with_sections(
         revised_text = resp.content
         if revised_text and isinstance(revised_text, str):
             revised_text = _strip_wrapping_code_fences(revised_text).strip()
-            # Parse the LLM output back into heading + body
             revised_parsed = _parse_sections(revised_text)
             if revised_parsed:
                 revised_sections[idx] = revised_parsed[0]
@@ -465,7 +450,6 @@ async def _revise_with_sections(
         heading = add_info.get("heading", "## New Section")
         description = add_info.get("description", "")
 
-        # Extract plain section name for progress display
         plain_heading = re.sub(r"^#+\s*", "", heading).strip()
         dispatch_custom_event(
             "report_progress",
@@ -475,7 +459,6 @@ async def _revise_with_sections(
             },
         )
 
-        # Build context from the surrounding sections at the insertion point
         ctx_parts = []
         if 0 <= after_idx < len(revised_sections):
             before_sec = revised_sections[after_idx]
@@ -542,36 +525,13 @@ def create_generate_report_tool(
     available_connectors: list[str] | None = None,
     available_document_types: list[str] | None = None,
 ):
-    """
-    Factory function to create the generate_report tool with injected dependencies.
+    """Create the generate_report tool with injected dependencies.
 
-    The tool generates a Markdown report inline using the search space's
-    document summary LLM, saves it to the database, and returns immediately.
-
-    Uses short-lived database sessions for each DB operation so no connection
-    is held during the long LLM API call.
-
-    Generation strategies:
-      - New reports: single-shot generation (1 LLM call)
-      - Revisions (targeted edits): section-level (unchanged sections preserved)
-      - Revisions (global changes): full-document revision fallback
-
-    Source strategies:
-      - "provided"/"conversation": use only the supplied source_content
-      - "kb_search": search the knowledge base internally using targeted queries
-      - "auto": use source_content if sufficient, otherwise fall back to KB search
-
-    Args:
-        search_space_id: The user's search space ID
-        thread_id: The chat thread ID for associating the report
-        connector_service: Optional connector service for internal KB search.
-            When provided, the tool can search the knowledge base internally
-            (used by the "kb_search" and "auto" source strategies).
-        available_connectors: Optional list of connector types available in the
-            search space (used to scope internal KB searches).
-
-    Returns:
-        A configured tool function for generating reports
+    Uses short-lived DB sessions per operation so no connection is held during
+    the long LLM call. Generation: new reports are single-shot; revisions try
+    section-level first (unchanged sections preserved) and fall back to full-doc.
+    Source strategies: provided/conversation (use source_content), kb_search
+    (internal KB queries), auto (KB search only when source_content is thin).
     """
 
     @tool
@@ -693,7 +653,7 @@ def create_generate_report_tool(
         Returns:
             Dict with status, report_id, title, word_count, and message.
         """
-        # Initialize version tracking variables (used by _save_failed_report closure)
+        # Shared with the _save_failed_report closure.
         parent_report_content: str | None = None
         report_group_id: int | None = None
 
@@ -733,7 +693,7 @@ def create_generate_report_tool(
                     session.add(failed_report)
                     await session.commit()
                     await session.refresh(failed_report)
-                    # If this is a new group (v1 failed), set group to self
+                    # New group (v1 failed): point the group at itself.
                     if not failed_report.report_group_id:
                         failed_report.report_group_id = failed_report.id
                         await session.commit()
@@ -749,8 +709,8 @@ def create_generate_report_tool(
 
         try:
             # ── Phase 1: READ (short-lived session) ──────────────────────
-            # Fetch parent report and LLM config, then close the session
-            # so no DB connection is held during the long LLM call.
+            # Fetch parent report + LLM config, then release the connection
+            # before the long LLM call.
             async with shielded_async_session() as read_session:
                 if parent_report_id:
                     parent_report = await read_session.get(Report, parent_report_id)
@@ -768,7 +728,6 @@ def create_generate_report_tool(
                         )
 
                 llm = await get_document_summary_llm(read_session, search_space_id)
-            # read_session closed — connection returned to pool
 
             if not llm:
                 error_msg = (
@@ -785,7 +744,6 @@ def create_generate_report_tool(
                     error=error_msg,
                 )
 
-            # Build the user instructions string
             user_instructions_section = ""
             if user_instructions:
                 user_instructions_section = (
@@ -829,7 +787,7 @@ def create_generate_report_tool(
                 try:
                     from .knowledge_base import search_knowledge_base_async
 
-                    # Run all queries in parallel, each with its own session
+                    # Each query gets its own short-lived session.
                     async def _run_single_query(q: str) -> str:
                         async with shielded_async_session() as kb_session:
                             kb_connector_svc = ConnectorService(
@@ -849,7 +807,6 @@ def create_generate_report_tool(
                         *[_run_single_query(q) for q in search_queries[:5]]
                     )
 
-                    # Merge non-empty results into source_content
                     kb_text_parts = [r for r in kb_results if r and r.strip()]
                     if kb_text_parts:
                         kb_combined = "\n\n---\n\n".join(kb_text_parts)
@@ -903,9 +860,9 @@ def create_generate_report_tool(
                     "provided. Using source_content as-is."
                 )
 
-            capped_source = effective_source[:100000]  # Cap source content
+            capped_source = effective_source[:100000]
 
-            # Length constraint — only when user explicitly asks for brevity
+            # Length constraint only when the user explicitly asked for brevity.
             length_instruction = ""
             if report_style == "brief":
                 length_instruction = (
@@ -920,11 +877,8 @@ def create_generate_report_tool(
             report_content: str | None = None
 
             if parent_report_content:
-                # ─── REVISION MODE ───────────────────────────────────────
-                # Strategy: Try section-level revision first (preserves
-                # unchanged sections byte-for-byte). Falls back to full-
-                # document revision if section identification fails or if
-                # all sections need changes.
+                # Revision mode: section-level first (preserves untouched
+                # sections), falling back to full-doc revision.
                 dispatch_custom_event(
                     "report_progress",
                     {
@@ -946,7 +900,6 @@ def create_generate_report_tool(
                 )
 
                 if report_content is None:
-                    # Fallback: full-document revision
                     dispatch_custom_event(
                         "report_progress",
                         {"phase": "writing", "message": "Rewriting your full report"},
@@ -969,9 +922,7 @@ def create_generate_report_tool(
                     report_content = response.content
 
             else:
-                # ─── NEW REPORT MODE ─────────────────────────────────────
-                # Single-shot generation: one LLM call produces the full
-                # report. Fast, globally coherent, and cost-efficient.
+                # New report: single-shot generation (one LLM call).
                 dispatch_custom_event(
                     "report_progress",
                     {"phase": "writing", "message": "Writing your report"},
@@ -990,8 +941,6 @@ def create_generate_report_tool(
                 )
                 response = await llm.ainvoke([HumanMessage(content=prompt)])
                 report_content = response.content
-
-            # ── Validate LLM output ──────────────────────────────────────
 
             if not report_content or not isinstance(report_content, str):
                 error_msg = "LLM returned empty or invalid content"
@@ -1029,14 +978,12 @@ def create_generate_report_tool(
                 if report_content.rstrip().endswith("---"):
                     report_content = report_content.rstrip()[:-3].rstrip()
 
-            # Append exactly one standard disclaimer
+            # Append exactly one standard footer.
             report_content += "\n\n---\n\n" + _REPORT_FOOTER
 
-            # Extract metadata (includes "status": "ready")
             metadata = _extract_metadata(report_content)
 
             # ── Phase 3: WRITE (short-lived session) ─────────────────────
-            # Save the report to the database, then close the session.
             async with shielded_async_session() as write_session:
                 report = Report(
                     title=topic,
@@ -1051,14 +998,13 @@ def create_generate_report_tool(
                 await write_session.commit()
                 await write_session.refresh(report)
 
-                # If this is a brand-new report (v1), set report_group_id = own id
+                # Brand-new report (v1): point the group at itself.
                 if not report.report_group_id:
                     report.report_group_id = report.id
                     await write_session.commit()
 
                 saved_report_id = report.id
                 saved_group_id = report.report_group_id
-            # write_session closed — connection returned to pool
 
             logger.info(
                 f"[generate_report] Created report {saved_report_id} "

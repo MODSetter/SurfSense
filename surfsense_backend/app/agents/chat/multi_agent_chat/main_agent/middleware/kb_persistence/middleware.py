@@ -1,33 +1,19 @@
 """End-of-turn persistence for the cloud-mode SurfSense filesystem.
 
-This middleware runs ``aafter_agent`` once per turn (cloud only). It commits
-all staged folder creations, file moves, content writes/edits, file deletes
-(``rm``), and directory deletes (``rmdir``) to Postgres in a single ordered
-pass:
+Runs ``aafter_agent`` once per turn (cloud only), committing staged folder
+creates, moves, writes/edits, and ``rm``/``rmdir`` to Postgres in one ordered
+pass. Order matters: moves resolve before writes (so write-then-move lands at
+the final path), and file deletes run before directory deletes (so a same-turn
+``rm /a/x.md`` + ``rmdir /a`` works).
 
-1. Materialize ``staged_dirs`` into ``Folder`` rows.
-2. Apply ``pending_moves`` in order (chained moves resolved via
-   ``doc_id_by_path``).
-3. Normalize ``dirty_paths`` through ``pending_moves`` so write-then-move
-   sequences commit at the final path. Paths queued for ``rm`` this turn
-   are dropped here so a write+rm sequence doesn't recreate the doc.
-4. Commit content writes / edits for ``/documents/*`` paths, skipping
-   ``temp_*`` basenames.
-5. Apply ``pending_deletes`` (``rm``) — file deletes run BEFORE directory
-   deletes so a same-turn ``rm /a/x.md`` + ``rmdir /a`` sequence works.
-6. Apply ``pending_dir_deletes`` (``rmdir``); re-verifies emptiness against
-   the post-step-5 DB state.
+When ``flags.enable_action_log`` is on, each destructive op also snapshots a
+``DocumentRevision`` / ``FolderRevision`` for revert. For ``rm``/``rmdir`` the
+snapshot and DELETE share a SAVEPOINT, so a failed snapshot aborts the delete
+rather than making the data silently irreversible.
 
-When ``flags.enable_action_log`` is on every destructive op also writes a
-``DocumentRevision`` / ``FolderRevision`` snapshot bound to the
-originating ``AgentActionLog`` row via ``tool_call_id``. ``rm``/``rmdir``
-share a single ``SAVEPOINT`` with their snapshot — if the snapshot fails
-the DELETE rolls back and we surface the error rather than silently
-making the data irreversible.
-
-The commit body is exposed as a free function ``commit_staged_filesystem_state``
-so the optional stream-task fallback (``stream_new_chat.py``) can call the
-exact same routine when ``aafter_agent`` was skipped (e.g. client disconnect).
+The commit body is a free function (``commit_staged_filesystem_state``) so the
+stream-task fallback can run the identical routine when ``aafter_agent`` was
+skipped (e.g. client disconnect).
 """
 
 from __future__ import annotations
@@ -216,11 +202,9 @@ async def _create_document(
         virtual_path,
         search_space_id,
     )
-    # Filesystem-parity invariant: the only thing that *must* be unique is
-    # the path. Two notes can legitimately share content (e.g. ``cp a b``).
-    # Guard against the path-derived ``unique_identifier_hash`` constraint
-    # so we surface a clean ValueError instead of letting the INSERT poison
-    # the session with an IntegrityError.
+    # Pre-check the path-derived unique_identifier_hash so a duplicate path
+    # surfaces as a clean ValueError instead of an INSERT IntegrityError that
+    # poisons the session. Content is intentionally not unique (cp a b).
     path_collision = await session.execute(
         select(Document.id).where(
             Document.search_space_id == search_space_id,
@@ -232,13 +216,6 @@ async def _create_document(
             f"a document already exists at path '{virtual_path}' "
             "(unique_identifier_hash collision)"
         )
-    # ``content_hash`` is intentionally NOT checked for uniqueness here.
-    # In a real filesystem two files at different paths can hold identical
-    # bytes, and the agent's ``write_file`` path needs that semantic to
-    # support copy/duplicate operations. The hash remains useful as a
-    # change-detection hint for connector indexers, which still consult it
-    # via :func:`check_duplicate_document` but do so with a non-unique
-    # lookup (``.first()``).
     content_hash = generate_content_hash(content, search_space_id)
     doc = Document(
         title=title,
@@ -435,15 +412,9 @@ async def _mark_action_reversible(
 ) -> None:
     """Flip ``agent_action_log.reversible = TRUE`` for ``action_id``.
 
-    Best-effort: caller may invoke from inside a SAVEPOINT and treat
-    failure as a soft demotion (snapshot persists, just no Revert button).
-
-    Callers should also call ``_dispatch_reversibility_update`` (defined
-    below) AFTER the enclosing SAVEPOINT block exits successfully so the
-    chat tool card can light up its Revert button without
-    re-fetching ``GET /threads/.../actions``. Dispatching from inside the
-    SAVEPOINT would risk emitting "reversible=true" for rows whose
-    update gets rolled back if the surrounding destructive op fails.
+    Pair with ``_dispatch_reversibility_update`` *after* the enclosing
+    SAVEPOINT commits, so the UI never sees ``reversible=true`` for a row whose
+    update later rolls back.
     """
     if action_id is None:
         return
@@ -455,22 +426,11 @@ async def _mark_action_reversible(
 
 
 async def _dispatch_reversibility_update(action_id: int | None) -> None:
-    """Best-effort dispatch of an ``action_log_updated`` custom event.
+    """Emit an ``action_log_updated`` SSE event so the Revert button lights up.
 
-    Surfaces the post-SAVEPOINT reversibility flip to the SSE layer so
-    the chat tool card can flip its Revert button live. Defensive:
-    failures are logged at debug level and swallowed; the
-    REST endpoint ``GET /threads/.../actions`` is still authoritative.
-
-    .. warning::
-        Inside :func:`commit_staged_filesystem_state` we DEFER all
-        dispatches until the outer ``session.commit()`` succeeds — see
-        the ``deferred_dispatches`` queue in that function. Dispatching
-        from inside a SAVEPOINT block while the outer transaction is
-        still pending would emit ``reversible=true`` for rows whose
-        snapshots get rolled back if the outer commit fails. Direct
-        callers (e.g. the optional stream-task fallback) that own the
-        full session lifetime can still call this helper inline.
+    Best-effort (failures swallowed; the REST actions endpoint is
+    authoritative). Inside :func:`commit_staged_filesystem_state` this is
+    deferred until after the outer commit via ``deferred_dispatches``.
     """
     if action_id is None:
         return
@@ -489,12 +449,9 @@ async def _dispatch_reversibility_update(action_id: int | None) -> None:
 # ---------------------------------------------------------------------------
 # Snapshot helpers
 # ---------------------------------------------------------------------------
-#
-# Best-effort helpers swallow + log so a snapshot failure can never break
-# the destructive op for non-destructive tools (write/edit/move/mkdir).
-# Strict helpers run inside the SAME ``begin_nested()`` SAVEPOINT as the
-# destructive DELETE — failure aborts the savepoint and leaves the doc /
-# folder intact, so revertable ops never become irreversible silently.
+# Best-effort variants (write/edit/move/mkdir) swallow failures. Strict
+# variants (rm/rmdir) share the destructive op's SAVEPOINT so a snapshot
+# failure aborts the delete instead of making it silently irreversible.
 
 
 def _doc_revision_payload(
@@ -704,15 +661,9 @@ async def commit_staged_filesystem_state(
 ) -> dict[str, Any] | None:
     """Commit all staged filesystem changes; return the state delta for reducers.
 
-    Shared between :class:`KnowledgeBasePersistenceMiddleware.aafter_agent`
-    and the optional stream-task fallback.
-
-    When ``flags.enable_action_log`` is on every destructive op also writes
-    a ``DocumentRevision`` / ``FolderRevision`` snapshot bound to the
-    originating ``AgentActionLog`` row via ``tool_call_id``. Snapshot
-    durability is best-effort for non-destructive ops and STRICT for
-    ``rm``/``rmdir`` (snapshot + DELETE share a SAVEPOINT — snapshot
-    failure aborts the delete).
+    Shared between :class:`KnowledgeBasePersistenceMiddleware.aafter_agent` and
+    the stream-task fallback. See the module docstring for ordering and the
+    action-log snapshot/revert semantics.
     """
     if filesystem_mode != FilesystemMode.CLOUD:
         return None
@@ -771,8 +722,7 @@ async def commit_staged_filesystem_state(
     flags = get_flags()
     snapshot_enabled = flags.enable_action_log
 
-    # De-duplicate pending deletes per-path while preserving the latest
-    # tool_call_id (the one the user is most likely to revert via the UI).
+    # De-dup deletes per-path, keeping the latest tool_call_id (likeliest revert).
     file_delete_paths: dict[str, str] = {}
     for entry in pending_deletes:
         if not isinstance(entry, dict):
@@ -796,22 +746,14 @@ async def commit_staged_filesystem_state(
     applied_moves: list[dict[str, Any]] = []
     doc_id_path_tombstones: dict[str, int | None] = {}
     tree_changed = False
-    # Reversibility-flip dispatches are deferred until AFTER the outer
-    # ``session.commit()`` succeeds. Dispatching from inside the
-    # SAVEPOINT chain while the outer transaction is still pending
-    # would emit ``reversible=true`` for rows whose snapshots get rolled
-    # back if the final commit raises. Snapshot helpers append on
-    # success; we drain this list after commit and silently abandon it
-    # on rollback so the UI stays consistent with durable state.
+    # Reversibility-flip dispatches are drained only after the outer commit
+    # succeeds (and abandoned on rollback), so the UI never sees reversible=true
+    # for a snapshot that didn't durably land.
     deferred_dispatches: list[int] = []
 
     try:
         async with shielded_async_session() as session:
-            # ------------------------------------------------------------------
-            # Resolve action-id bindings up front. One SELECT per turn for all
-            # tool_call_ids, NOT one per op — important because a turn that
-            # touches 50 paths would otherwise issue 50 lookups.
-            # ------------------------------------------------------------------
+            # Resolve all action-id bindings in one SELECT per turn, not per op.
             action_id_by_call: dict[str, int] = {}
             if snapshot_enabled and thread_id is not None:
                 tool_call_ids: set[str] = set()
@@ -844,10 +786,7 @@ async def commit_staged_filesystem_state(
                 next(iter(action_id_by_call), None) if action_id_by_call else None
             )
 
-            # ------------------------------------------------------------------
-            # 1. staged_dirs -> Folder rows. Snapshot post-flush so the new
-            # folder_id is available for the FK.
-            # ------------------------------------------------------------------
+            # 1. staged_dirs -> Folder rows (snapshot post-flush for the FK).
             for folder_path in staged_dirs:
                 if not isinstance(folder_path, str):
                     continue
@@ -868,7 +807,6 @@ async def commit_staged_filesystem_state(
                     tcid = staged_dir_tool_calls.get(folder_path)
                     action_id = _action_id_for(tcid)
                     if action_id is not None:
-                        # Re-read the folder for the snapshot.
                         result = await session.execute(
                             select(Folder).where(Folder.id == folder_id)
                         )
@@ -883,16 +821,13 @@ async def commit_staged_filesystem_state(
                                 deferred_dispatches=deferred_dispatches,
                             )
 
-            # ------------------------------------------------------------------
-            # 2. pending_moves. Snapshot pre-move (in-place restore on revert).
-            # ------------------------------------------------------------------
+            # 2. pending_moves (snapshot pre-move for in-place restore on revert).
             for move in pending_moves:
                 source = str(move.get("source") or "")
                 if snapshot_enabled and source:
                     tcid = str(move.get("tool_call_id") or "")
                     action_id = _action_id_for(tcid)
                     if action_id is not None:
-                        # Resolve the doc to snapshot BEFORE we mutate it.
                         doc_id_pre = doc_id_by_path.get(source)
                         document_pre: Document | None = None
                         if doc_id_pre is not None:
@@ -942,10 +877,8 @@ async def commit_staged_filesystem_state(
                     path = move_alias[path]
                 return path
 
-            # ------------------------------------------------------------------
-            # 3. dirty_paths -> writes/edits. Skip any path queued for ``rm``
-            # this turn so a write+rm sequence doesn't recreate the doc.
-            # ------------------------------------------------------------------
+            # 3. dirty_paths -> writes/edits. Paths queued for rm this turn are
+            # skipped so a write+rm sequence doesn't recreate the doc.
             kb_dirty_seen: set[str] = set()
             kb_dirty: list[str] = []
             kb_dirty_origin: dict[str, str] = {}
@@ -974,9 +907,7 @@ async def commit_staged_filesystem_state(
                     continue
                 content = "\n".join(file_data.get("content") or [])
                 doc_id = doc_id_by_path.get(path)
-                # Path ↔ tool_call_id binding: the dirty_paths list dedupes via
-                # _add_unique_reducer, so we look up the latest tool_call_id by
-                # path (or by the un-renamed origin).
+                # Look up tool_call_id by final path or its pre-rename origin.
                 origin = kb_dirty_origin.get(path, path)
                 tcid = dirty_path_tool_calls.get(path) or dirty_path_tool_calls.get(
                     origin
@@ -984,12 +915,9 @@ async def commit_staged_filesystem_state(
                 action_id = _action_id_for(tcid)
 
                 if doc_id is None:
-                    # The in-memory ``doc_id_by_path`` is per-thread and starts
-                    # empty in every new chat. If the agent writes to a path
-                    # that already exists in the DB (e.g. a previous chat's
-                    # ``notes.md``), we must NOT try to INSERT — it would hit
-                    # ``unique_identifier_hash`` (path-derived). Look up the
-                    # existing doc and update it in place instead.
+                    # doc_id_by_path is per-thread and empty in a new chat, so a
+                    # write to a path already in the DB must update in place, not
+                    # INSERT (which would hit the path-derived unique hash).
                     existing = await virtual_path_to_doc(
                         session,
                         search_space_id=search_space_id,
@@ -1038,12 +966,9 @@ async def commit_staged_filesystem_state(
                             }
                         )
                 else:
-                    # Fresh create. Wrap each create in a SAVEPOINT so a
-                    # residual ``IntegrityError`` (e.g. a deployment that
-                    # hasn't run migration 133 yet, where
-                    # ``documents.content_hash`` still carries its legacy
-                    # global UNIQUE constraint) rolls back only this one
-                    # create instead of poisoning the whole turn.
+                    # Fresh create, wrapped in a SAVEPOINT so a residual
+                    # IntegrityError (e.g. pre-migration-133 content_hash UNIQUE)
+                    # rolls back only this create, not the whole turn.
                     placeholder_revision_id: int | None = None
                     if snapshot_enabled and action_id is not None:
                         placeholder_revision_id = await _snapshot_document_pre_create(
@@ -1066,8 +991,7 @@ async def commit_staged_filesystem_state(
                         logger.warning(
                             "kb_persistence: skipping %s create: %s", path, exc
                         )
-                        # Roll back the placeholder revision since the create
-                        # never happened.
+                        # Create never happened; drop its placeholder revision.
                         if placeholder_revision_id is not None:
                             await session.execute(
                                 delete(DocumentRevision).where(
@@ -1114,19 +1038,14 @@ async def commit_staged_filesystem_state(
                     )
                     tree_changed = True
 
-            # ------------------------------------------------------------------
-            # 4. pending_deletes -> ``rm``. STRICT durability: snapshot + DELETE
-            # share a SAVEPOINT. If the snapshot insert fails, the DELETE
-            # rolls back too and we surface the error rather than silently
-            # making the data irreversible.
-            # ------------------------------------------------------------------
+            # 4. pending_deletes -> rm. Strict: snapshot + DELETE share a
+            # SAVEPOINT, so a failed snapshot rolls the delete back too.
             for raw_path, tcid in file_delete_paths.items():
                 final = _final_path(raw_path)
                 if not final.startswith(DOCUMENTS_ROOT + "/"):
                     continue
                 action_id = _action_id_for(tcid)
 
-                # Resolve the doc.
                 doc_id_for_delete = doc_id_by_path.get(final)
                 document_to_delete: Document | None = None
                 if doc_id_for_delete is not None:
@@ -1155,7 +1074,6 @@ async def commit_staged_filesystem_state(
 
                 try:
                     async with session.begin_nested():
-                        # Strict: snapshot first; failure aborts the delete.
                         if snapshot_enabled and action_id is not None:
                             chunks = await _load_chunks_for_snapshot(
                                 session, doc_id=doc_pk
@@ -1184,10 +1102,7 @@ async def commit_staged_filesystem_state(
                     )
                     continue
 
-                # B1 — SAVEPOINT released. Defer the reversibility-flip
-                # dispatch until AFTER the outer commit succeeds so we
-                # never tell the UI a row is reversible if its snapshot
-                # gets rolled back.
+                # Defer the reversibility flip until after the outer commit.
                 if snapshot_enabled and action_id is not None:
                     deferred_dispatches.append(int(action_id))
 
@@ -1206,11 +1121,8 @@ async def commit_staged_filesystem_state(
                 )
                 tree_changed = True
 
-            # ------------------------------------------------------------------
-            # 5. pending_dir_deletes -> ``rmdir``. STRICT durability + final
-            # emptiness check (after step 4's deletes have run, an "empty
-            # mid-turn" directory really IS empty in DB now).
-            # ------------------------------------------------------------------
+            # 5. pending_dir_deletes -> rmdir. Strict, and re-checks emptiness
+            # against post-step-4 DB state.
             for raw_path, tcid in dir_delete_paths.items():
                 final = _final_path(raw_path)
                 if not final.startswith(DOCUMENTS_ROOT + "/"):
@@ -1231,7 +1143,6 @@ async def commit_staged_filesystem_state(
                     )
                     continue
 
-                # Re-check emptiness against in-DB state.
                 docs_in_folder = await session.execute(
                     select(Document.id)
                     .where(Document.folder_id == folder_id)
@@ -1296,10 +1207,7 @@ async def commit_staged_filesystem_state(
                     )
                     continue
 
-                # B1 — SAVEPOINT released. Defer the reversibility-flip
-                # dispatch until AFTER the outer commit succeeds so we
-                # never tell the UI a row is reversible if its snapshot
-                # gets rolled back.
+                # Defer the reversibility flip until after the outer commit.
                 if snapshot_enabled and action_id is not None:
                     deferred_dispatches.append(int(action_id))
 
@@ -1319,18 +1227,13 @@ async def commit_staged_filesystem_state(
         logger.exception(
             "kb_persistence: commit failed (search_space=%s)", search_space_id
         )
-        # Outer commit raised — every SAVEPOINT-released change above
-        # (snapshots + reversibility flips) is now rolled back. Drop
-        # the deferred SSE dispatches so the UI stays consistent with
-        # durable state.
+        # Outer commit raised: everything above rolled back, so drop the
+        # deferred dispatches.
         deferred_dispatches.clear()
         return None
 
-    # Outer commit succeeded; flush deferred reversibility-flip
-    # dispatches now so the chat tool card can light up its Revert
-    # button without re-fetching ``GET /threads/.../actions``. De-dup
-    # to avoid emitting the same id twice (e.g. write-then-rm in the
-    # same turn dispatches once for each snapshot site).
+    # Commit succeeded; flush deferred reversibility flips (de-duped, since
+    # write-then-rm in one turn appends an id per snapshot site).
     if deferred_dispatches and dispatch_events:
         for action_id in dict.fromkeys(deferred_dispatches):
             try:
@@ -1376,9 +1279,8 @@ async def commit_staged_filesystem_state(
         p for p in files if isinstance(p, str) and _basename(p).startswith(_TEMP_PREFIX)
     ]
 
-    # Tombstone every committed-delete path so a stale ``state["files"]`` entry
-    # (which als_info would otherwise interpret as content) cannot survive into
-    # the next turn and make a now-empty folder look non-empty.
+    # Tombstone committed-delete paths so a stale state["files"] entry can't
+    # survive into the next turn and make a now-empty folder look non-empty.
     deleted_file_paths = [
         str(payload.get("virtualPath") or "")
         for payload in committed_deletes
@@ -1399,11 +1301,8 @@ async def commit_staged_filesystem_state(
         "dirty_path_tool_calls": {_CLEAR: True},
     }
 
-    # Emit one Receipt per committed mutation, folded into ``state['receipts']``
-    # via ``_list_append_reducer``. The receipts surface what actually committed
-    # (post-savepoint) rather than what the LLM intended; the orchestrator uses
-    # them as ground truth in the ``<verification>`` teaching. KB writes do not
-    # have public verifiable URLs, so ``verifiable_url`` stays unset.
+    # One Receipt per committed mutation: ground truth (post-savepoint) for the
+    # orchestrator's <verification> teaching. KB writes have no public URL.
     receipts: list[Receipt] = []
 
     def _kb_receipt(
@@ -1444,8 +1343,6 @@ async def commit_staged_filesystem_state(
             external_id=payload.get("id"),
         )
     for payload in applied_moves:
-        # ``applied_moves`` rows carry the destination ``virtualPath`` because
-        # the move has already landed in the DB by the time we reach this code.
         path = str(payload.get("virtualPath") or "")
         _kb_receipt(
             type="file",
@@ -1485,9 +1382,7 @@ async def commit_staged_filesystem_state(
     if tree_changed:
         delta["tree_version"] = int(state_dict.get("tree_version") or 0) + 1
 
-    # Avoid 'unused' lint when turn_id_for_revision was only useful for
-    # diagnostic purposes inside the SAVEPOINT chain above.
-    _ = turn_id_for_revision
+    _ = turn_id_for_revision  # diagnostic-only; silence unused lint
 
     logger.info(
         "kb_persistence: commit (search_space=%s) creates=%d updates=%d "

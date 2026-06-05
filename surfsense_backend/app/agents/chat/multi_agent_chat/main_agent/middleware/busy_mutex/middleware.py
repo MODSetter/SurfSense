@@ -1,32 +1,12 @@
-"""
-BusyMutexMiddleware — per-thread asyncio lock + cancel token.
+"""Per-thread asyncio lock + cooperative cancel token, keyed by ``thread_id``.
 
-LangChain has no built-in concept of "this thread is already running a
-turn — refuse the second concurrent request". Without it, a user
-double-clicking "send" or refreshing the page mid-stream can spawn two
-turns racing on the same checkpoint, producing duplicated tool calls
-and mangled state.
+Refuses a second concurrent turn on the same thread (e.g. double-clicked
+"send") that would otherwise race on the same checkpoint and duplicate tool
+calls. Also exposes a per-thread cancel event that long-running tools poll
+via ``runtime.context.cancel_event.is_set()`` to abort cooperatively.
 
-Ported from OpenCode's ``Stream.scoped(AbortController)`` pattern: a
-single-process, in-memory lock + cooperative cancellation token keyed by
-``thread_id``. For multi-worker deployments a distributed lock backend
-(Redis or PostgreSQL advisory locks) is a phase-2 follow-up.
-
-What this provides:
-- A ``WeakValueDictionary[str, asyncio.Lock]`` keyed by ``thread_id``;
-  acquiring the lock during ``before_agent`` blocks any concurrent
-  prompt on the same thread until release.
-- A per-thread ``asyncio.Event`` (``cancel_event``) that long-running
-  tools can poll to abort cooperatively. The event is reset between
-  turns. Tools should check ``runtime.context.cancel_event.is_set()``
-  in tight inner loops.
-- A typed :class:`~app.agents.chat.runtime.errors.BusyError` raised when a
-  second turn arrives while the lock is held.
-
-Note: SurfSense's ``stream_new_chat`` is the call site that should
-acquire/release. Wiring this as middleware means the contract is
-explicit and the lock manager is shared with subagents that compile
-their own ``create_agent`` runnables.
+Process-local and in-memory; multi-worker deployments need a distributed lock
+(Redis / PostgreSQL advisory locks) as a follow-up.
 """
 
 from __future__ import annotations
@@ -152,9 +132,8 @@ class _ThreadLockManager:
         return True
 
 
-# Module-level singleton — process-local but reused across all agent
-# instances built in this process. Subagents created in nested
-# ``create_agent`` calls also get this so locks are coherent.
+# Process-local singleton shared across all agents/subagents built in this
+# process so per-thread locks stay coherent.
 manager = _ThreadLockManager()
 
 
@@ -266,7 +245,6 @@ class BusyMutexMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Respo
         await lock.acquire()
         epoch = manager.bump_turn_epoch(thread_id)
         self._held_locks[thread_id] = (lock, epoch)
-        # Reset the cancel event so this turn starts fresh
         reset_cancel(thread_id)
         return None
 
@@ -289,17 +267,14 @@ class BusyMutexMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Respo
             return None
         if lock.locked():
             lock.release()
-        # Always clear cancel event between turns so a stale signal
-        # doesn't leak into the next request.
+        # Clear cancel event so a stale signal doesn't leak into the next turn.
         reset_cancel(thread_id)
         return None
 
-    # Provide sync no-ops because the middleware base class allows them
     def before_agent(  # type: ignore[override]
         self, state: AgentState[Any], runtime: Runtime[ContextT]
     ) -> dict[str, Any] | None:
-        # Sync path: no asyncio.Lock to acquire. Best we can do is reject
-        # if anyone else is in flight.
+        # Sync path can't await an asyncio.Lock; only reject if one is in flight.
         thread_id = self._thread_id(runtime)
         if thread_id is None:
             if self._require_thread_id:

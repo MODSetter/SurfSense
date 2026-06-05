@@ -82,13 +82,10 @@ _T = TypeVar("_T")
 async def _ainvoke_with_timeout[T](
     coro: Awaitable[_T], *, subagent_type: str, started_at: float
 ) -> _T:
-    """Apply :data:`DEFAULT_SUBAGENT_INVOKE_TIMEOUT_SECONDS` to ``coro``.
+    """Apply the subagent invoke timeout to ``coro`` (non-positive disables it).
 
-    A non-positive timeout disables the cap (configurable via the
-    ``SURFSENSE_SUBAGENT_INVOKE_TIMEOUT_SECONDS`` env var). On expiry the
-    underlying task is cancelled and :class:`SubagentInvokeTimeoutError` is
-    raised — the caller wraps it into a synthetic ToolMessage so the
-    orchestrator can decide what to do.
+    On expiry the task is cancelled and :class:`SubagentInvokeTimeoutError` is
+    raised for the caller to turn into a synthetic ToolMessage.
     """
     timeout = DEFAULT_SUBAGENT_INVOKE_TIMEOUT_SECONDS
     if timeout <= 0:
@@ -151,12 +148,9 @@ def build_task_tool_with_parent_config(
     subagent_graphs: dict[str, Runnable] = {
         spec["name"]: spec["runnable"] for spec in subagents
     }
-    # Per-subagent context-hint providers (see ``SurfSenseSubagentSpec``).
-    # The mapping is sparse: only routes that opted in via ``pack_subagent``
-    # appear here, and the value is invoked once per ``task(...)`` call to
-    # generate a short string prepended to the subagent's first
-    # ``HumanMessage``. Failures are logged and swallowed — a broken hint
-    # provider must never prevent the underlying task from running.
+    # Sparse map of opt-in context-hint providers; each runs once per task()
+    # call to prepend a string to the subagent's first HumanMessage. Failures
+    # are swallowed so a broken hint never blocks the task.
     subagent_hint_providers: dict[str, ContextHintProvider] = {
         spec["name"]: provider
         for spec in subagents
@@ -178,24 +172,18 @@ def build_task_tool_with_parent_config(
     def _billable_call_update(
         subagent_type: str, runtime: ToolRuntime
     ) -> dict[str, Any]:
-        """Build the per-call ``billable_calls`` delta + an optional warning.
+        """Build the per-call ``billable_calls`` delta plus an optional soft-cap warning.
 
-        The orchestrator's ``billable_calls`` map is summed by
-        :func:`_int_counter_merge_reducer`, so we always emit
-        ``{subagent_type: 1}`` and let the reducer accumulate. If the
-        cumulative count *after* this call would cross the configured
-        threshold, we also slip a soft ``messages`` entry into the update
-        so the orchestrator can read it on its next step and self-limit.
-        Returning a plain ``dict`` (vs. an extra :class:`Command`) keeps
-        the helper composable with the existing single/batch return paths.
+        Always emits ``{subagent_type: 1}`` (a reducer accumulates it); when this
+        call would cross the threshold, also adds a soft ``messages`` entry so the
+        orchestrator self-limits on its next step.
         """
         delta: dict[str, Any] = {"billable_calls": {subagent_type: 1}}
         threshold = DEFAULT_SUBAGENT_BILLABLE_THRESHOLD
         if threshold <= 0:
             return delta
         prior = runtime.state.get("billable_calls") or {}
-        # ``prior`` may be a plain dict or a reducer-managed mapping; only
-        # int values are counted so a malformed checkpoint can't crash us.
+        # Count int values only so a malformed checkpoint can't crash us.
         prior_total = sum(v for v in prior.values() if isinstance(v, int))
         new_total = prior_total + 1
         if prior_total < threshold <= new_total:
@@ -214,8 +202,7 @@ def build_task_tool_with_parent_config(
         """Merge the per-call billable counter (and warning) into ``cmd``."""
         delta = _billable_call_update(subagent_type, runtime)
         warn_text = delta.pop("_billable_warn_text", None)
-        # ``cmd.update`` may be a dict or LangGraph ``UpdateDict``; defensively
-        # copy so we don't mutate state shared across other tool returns.
+        # Copy so we don't mutate state shared with other tool returns.
         update = dict(getattr(cmd, "update", {}) or {})
         for key, value in delta.items():
             update[key] = value
@@ -228,14 +215,10 @@ def build_task_tool_with_parent_config(
         return Command(update=update)
 
     def _safe_message_text(msg: Any) -> str:
-        """Pull text out of a BaseMessage without trusting the ``.text`` property.
+        """Pull text out of a BaseMessage without using the ``.text`` property.
 
-        ``BaseMessage.text`` walks ``content_blocks`` and crashes with
-        ``TypeError: 'NoneType' object is not iterable`` when ``content`` is
-        ``None`` (common for tool-call AIMessages whose payload is purely
-        structured). ``getattr(msg, "text", None)`` does not catch this
-        because Python evaluates the property body before falling back to
-        the default. Read ``content`` directly and coerce defensively.
+        ``.text`` crashes when ``content`` is ``None`` (common for tool-call
+        AIMessages), and ``getattr`` won't catch it, so read ``content`` directly.
         """
         try:
             content = getattr(msg, "content", None)
@@ -258,23 +241,18 @@ def build_task_tool_with_parent_config(
         return str(content)
 
     def _build_tool_trace(messages: list[Any]) -> list[dict[str, Any]]:
-        """Compress the subagent's message stream into a compact tool trace.
+        """Compress the subagent's messages into a compact tool trace.
 
-        Each entry is ``{"tool": <name>, "status": "ok"|"error", "preview":
-        <≤120 chars>}`` so the orchestrator can show "this is what your
-        specialist actually did" without dumping the full message stream
-        back through the prompt. The list is attached to the returned
-        ToolMessage's ``additional_kwargs`` (under ``"surf_tool_trace"``);
-        the LLM never sees it, but UI / observability code can pluck it
-        out of the checkpoint.
+        Entries (``{tool, status, preview}``) ride on the ToolMessage's
+        ``additional_kwargs["surf_tool_trace"]`` for UI/observability; the LLM
+        never sees them.
         """
         trace: list[dict[str, Any]] = []
         for msg in messages:
             tool_name = getattr(msg, "name", None)
             tool_call_id_attr = getattr(msg, "tool_call_id", None)
             if not tool_name and not tool_call_id_attr:
-                # Only ToolMessages have either field; skip AIMessage /
-                # HumanMessage / SystemMessage frames.
+                # Only ToolMessages carry either field.
                 continue
             status = getattr(msg, "status", None) or "ok"
             preview = _safe_message_text(msg).strip().replace("\n", " ")
@@ -308,8 +286,7 @@ def build_task_tool_with_parent_config(
             )
             raise ValueError(msg)
         message_text = _safe_message_text(messages[-1]).rstrip()
-        # Tool-trace is purely observability — wrap defensively so a single
-        # malformed frame never bubbles up and kills the whole user turn.
+        # Trace is observability-only; never let a bad frame kill the turn.
         try:
             tool_trace = _build_tool_trace(messages)
         except Exception:
@@ -320,10 +297,7 @@ def build_task_tool_with_parent_config(
             tool_trace = []
         tool_msg = ToolMessage(message_text, tool_call_id=tool_call_id)
         if tool_trace:
-            # ``additional_kwargs`` is a free-form dict on BaseMessage; using
-            # a ``surf_`` prefix avoids collision with provider-specific keys
-            # (e.g. Anthropic's ``cache_control``). The LLM doesn't see it;
-            # consumers (UI, observability) read it off the checkpoint.
+            # surf_ prefix avoids collision with provider keys (e.g. cache_control).
             tool_msg.additional_kwargs["surf_tool_trace"] = tool_trace
         return Command(
             update={
@@ -361,9 +335,7 @@ def build_task_tool_with_parent_config(
         }
         hint = _resolve_context_hint(subagent_type, description, runtime)
         if hint:
-            # Prepend as a tagged block so the subagent prompt can pattern-match
-            # on the section (and a future change can lift it into its own
-            # ``SystemMessage`` if needed).
+            # Tagged block so the subagent prompt can pattern-match the section.
             payload = f"<context_hint>\n{hint}\n</context_hint>\n\n{description}"
         else:
             payload = description
@@ -374,16 +346,12 @@ def build_task_tool_with_parent_config(
         results: list[tuple[int, str, dict | str, dict | None]],
         runtime: ToolRuntime,
     ) -> Command:
-        """Combine per-child results into one Command with a combined ToolMessage.
+        """Combine per-child results into one Command with an aggregate ToolMessage.
 
-        ``results`` is a list of ``(task_index, subagent_type,
-        payload_or_error_text, child_state_update)`` tuples — preserving the
-        input order so the orchestrator can map each block back to the task
-        it dispatched. State updates are merged by reducer for keys outside
-        :data:`EXCLUDED_STATE_KEYS`; everything else (``messages``, ``todos``,
-        etc.) is replaced by the synthesized aggregate ToolMessage. Every
-        child also contributes a ``billable_calls`` increment so cost
-        accounting matches single-mode dispatch.
+        ``results`` tuples are ``(task_index, subagent_type, payload_or_error,
+        child_state_update)``; output blocks are sorted by index so the LLM can
+        map them back to dispatch order, and each child contributes a
+        ``billable_calls`` increment to match single-mode accounting.
         """
         results.sort(key=lambda r: r[0])
         merged_state: dict[str, Any] = {}
@@ -424,8 +392,8 @@ def build_task_tool_with_parent_config(
                 }
             )
             if state_update:
-                # Naive merge: later tasks win on scalar collisions; reducer-backed
-                # fields (``receipts``, ``files`` etc.) accumulate at apply time.
+                # Later tasks win on scalar collisions; reducer-backed fields
+                # accumulate at apply time.
                 merged_state.update(state_update)
         aggregate = "\n\n".join(message_blocks)
         aggregate_msg = ToolMessage(
@@ -469,11 +437,9 @@ def build_task_tool_with_parent_config(
     ) -> tuple[int, str, dict | str, dict | None]:
         """Run one child of a batched ``task`` call under the concurrency cap.
 
-        Errors are returned as plain text in slot 2 so a single child's
-        failure does not abort the whole batch. ``GraphInterrupt`` from a
-        batched child is currently treated as a hard failure for that child
-        only — batched HITL is intentionally out of scope for the v1
-        rollout (see plan tier 2 item 4 risks).
+        Errors are returned as text (slot 2) so one child's failure doesn't abort
+        the batch. A child's ``GraphInterrupt`` is a hard failure for that child:
+        batched HITL is intentionally out of scope.
         """
         async with semaphore:
             if subagent_type not in subagent_graphs:
@@ -507,8 +473,7 @@ def build_task_tool_with_parent_config(
                 )
                 return (task_index, subagent_type, str(exc), None)
             except GraphInterrupt:
-                # Batched HITL is unsupported in v1 — surface as a failure
-                # for this child so the rest of the batch still completes.
+                # Batched HITL unsupported; fail this child so the batch finishes.
                 logger.warning(
                     "Batch child %d (%s) raised GraphInterrupt; batched HITL "
                     "is not supported. Re-dispatch this task as a single "
@@ -545,14 +510,11 @@ def build_task_tool_with_parent_config(
             return (task_index, subagent_type, result, child_state_update)
 
     def _coerce_batch_arg(tasks: Any) -> list[dict] | str:
-        """Rescue common LLM-side malformations of the ``tasks`` argument.
+        """Rescue common LLM malformations of the ``tasks`` argument.
 
-        Some providers serialise an array argument as a JSON-encoded string,
-        and small models occasionally hand back a single ``{description,
-        subagent_type}`` dict instead of a one-element array. Both are
-        recovered here with a WARN log so the issue is visible in metrics
-        but the user's turn still completes; truly broken shapes return a
-        plain string that the caller surfaces as the tool error.
+        Recovers a JSON-encoded array string and a single dict (instead of a
+        1-element array), logging a WARN. Unrecoverable shapes return a string
+        the caller surfaces as the tool error.
         """
         if isinstance(tasks, list):
             return tasks
@@ -587,13 +549,10 @@ def build_task_tool_with_parent_config(
     async def _adispatch_batch(
         tasks: list[dict], runtime: ToolRuntime
     ) -> Command | str:
-        """Fan-out helper for the ``tasks`` array shape.
+        """Fan out the ``tasks`` array (size- and concurrency-capped).
 
-        Bounded by :data:`MAX_SUBAGENT_BATCH_SIZE` and concurrency-capped
-        at :data:`DEFAULT_SUBAGENT_BATCH_CONCURRENCY`. Returns a single
-        :class:`Command` that the LLM sees as one ToolMessage per child,
-        prefixed with ``[task <index>]`` so it can map back to the input
-        order.
+        Returns one Command; the LLM sees one ``[task <index>]``-prefixed block
+        per child, in input order.
         """
         if not tasks:
             return "tasks: array is empty; nothing to dispatch."
@@ -703,17 +662,16 @@ def build_task_tool_with_parent_config(
         if pending_value is not None:
             resume_value = consume_surfsense_resume(runtime)
             if resume_value is None:
-                # Bridge invariant: a queued resume must accompany any pending
-                # subagent interrupt. Fall-through replay would silently re-prompt
-                # the user; raise so the streaming layer surfaces a clear error.
+                # A pending interrupt must have a queued resume; otherwise replay
+                # would silently re-prompt the user. Raise instead.
                 raise RuntimeError(
                     f"Subagent {subagent_type!r} has a pending interrupt but no "
                     "surfsense_resume_value on config; resume bridge is broken."
                 )
             expected = hitlrequest_action_count(pending_value)
             resume_value = fan_out_decisions_to_match(resume_value, expected)
-            # Prevent the parent's resume payload from leaking into subagent
-            # interrupts via langgraph's parent_scratchpad fallback.
+            # Stop the parent's resume leaking into subagent interrupts via
+            # langgraph's parent_scratchpad fallback.
             drain_parent_null_resume(runtime)
             with ot.subagent_invoke_span(
                 subagent_type=subagent_type, path=invoke_path
@@ -829,10 +787,8 @@ def build_task_tool_with_parent_config(
         ] = None,
     ) -> str | Command:
         atask_start = time.perf_counter()
-        # Kill switch: when ops flips the spawn-paused flag for this
-        # workspace, every ``task(...)`` invocation (single- or batch-mode)
-        # short-circuits with a clear ToolMessage so the orchestrator can
-        # tell the user what happened and stop hammering downstream APIs.
+        # Ops kill switch: short-circuit every task() call for this workspace
+        # so the orchestrator stops hammering downstream APIs.
         if await is_spawn_paused(search_space_id):
             logger.warning(
                 "[hitl_route] atask SPAWN_PAUSED: search_space_id=%s tool_call_id=%s",
@@ -923,8 +879,8 @@ def build_task_tool_with_parent_config(
                     )
                 expected = hitlrequest_action_count(pending_value)
                 resume_value = fan_out_decisions_to_match(resume_value, expected)
-                # Prevent the parent's resume payload from leaking into subagent
-                # interrupts via langgraph's parent_scratchpad fallback.
+                # Stop the parent's resume leaking into subagent interrupts via
+                # langgraph's parent_scratchpad fallback.
                 drain_parent_null_resume(runtime)
                 with ot.subagent_invoke_span(
                     subagent_type=subagent_type, path=invoke_path

@@ -23,7 +23,6 @@ def extract_domain(url: str) -> str:
     try:
         parsed = urlparse(url)
         domain = parsed.netloc
-        # Remove 'www.' prefix if present
         if domain.startswith("www."):
             domain = domain[4:]
         return domain
@@ -47,14 +46,13 @@ def truncate_content(content: str, max_length: int = 50000) -> tuple[str, bool]:
     if len(content) <= max_length:
         return content, False
 
-    # Try to truncate at a sentence boundary
+    # Prefer truncating at a sentence/paragraph boundary.
     truncated = content[:max_length]
     last_period = truncated.rfind(".")
     last_newline = truncated.rfind("\n\n")
 
-    # Use the later of the two boundaries, or just truncate
     boundary = max(last_period, last_newline)
-    if boundary > max_length * 0.8:  # Only use boundary if it's not too far back
+    if boundary > max_length * 0.8:  # only if the boundary isn't too far back
         truncated = content[: boundary + 1]
 
     return truncated + "\n\n[Content truncated...]", True
@@ -105,8 +103,8 @@ async def _scrape_youtube_video(
             http_client.proxies.update(residential_proxies)
         ytt_api = YouTubeTranscriptApi(http_client=http_client)
 
-        # List all available transcripts and pick the first one
-        # (the video's primary language) instead of defaulting to English
+        # Pick the first transcript (video's primary language) rather than
+        # defaulting to English.
         transcript_list = ytt_api.list(video_id)
         transcript = next(iter(transcript_list))
         captions = transcript.fetch()
@@ -128,10 +126,8 @@ async def _scrape_youtube_video(
         logger.warning(f"[scrape_webpage] No transcript for video {video_id}: {e}")
         transcript_text = f"No captions available for this video. Error: {e!s}"
 
-    # Build combined content
     content = f"# {title}\n\n**Author:** {author}\n**Video ID:** {video_id}\n\n## Transcript\n\n{transcript_text}"
 
-    # Truncate if needed
     content, was_truncated = truncate_content(content, max_length)
     word_count = len(content.split())
 
@@ -206,20 +202,16 @@ def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
         scrape_id = generate_scrape_id(url)
         domain = extract_domain(url)
 
-        # Validate and normalize URL
         if not url.startswith(("http://", "https://")):
             url = f"https://{url}"
 
         try:
-            # Check if this is a YouTube URL and use transcript API instead
+            # YouTube URLs use the transcript API instead of crawling.
             video_id = get_youtube_video_id(url)
             if video_id:
                 return await _scrape_youtube_video(url, video_id, max_length)
 
-            # Create webcrawler connector
             connector = WebCrawlerConnector(firecrawl_api_key=firecrawl_api_key)
-
-            # Crawl the URL
             result, error = await connector.crawl_url(url, formats=["markdown"])
 
             if error:
@@ -244,28 +236,21 @@ def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
                     "error": "No content returned from crawler",
                 }
 
-            # Extract content and metadata
             content = result.get("content", "")
             metadata = result.get("metadata", {})
 
-            # Get title from metadata
             title = metadata.get("title", "")
             if not title:
                 title = domain or url.split("/")[-1] or "Webpage"
 
-            # Get description from metadata
             description = metadata.get("description", "")
             if not description and content:
-                # Use first paragraph as description
                 first_para = content.split("\n\n")[0] if content else ""
                 description = (
                     first_para[:300] + "..." if len(first_para) > 300 else first_para
                 )
 
-            # Truncate content if needed
             content, was_truncated = truncate_content(content, max_length)
-
-            # Calculate word count
             word_count = len(content.split())
 
             return {

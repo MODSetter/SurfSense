@@ -1,37 +1,9 @@
-"""
-Feature flags for the SurfSense new_chat agent stack.
+"""Feature flags for the SurfSense new_chat agent stack.
 
-These flags gate the newer agent middleware (some ported from OpenCode,
-some sourced from ``langchain.agents.middleware`` / ``deepagents``, some
-SurfSense-native). Most shipped agent-stack upgrades default ON so Docker
-image updates work even when older installs do not have newly introduced
-environment variables. Risky/experimental integrations stay default OFF,
-and the master kill-switch can still disable everything new.
-
-All new middleware checks its flag at agent build time. If the master
-kill-switch ``SURFSENSE_DISABLE_NEW_AGENT_STACK`` is set, every new
-middleware is disabled regardless of its individual flag. This gives
-operators a single switch to revert to pre-port behavior.
-
-Examples
---------
-
-Defaults:
-
-    SURFSENSE_ENABLE_CONTEXT_EDITING=true
-    SURFSENSE_ENABLE_COMPACTION_V2=true
-    SURFSENSE_ENABLE_RETRY_AFTER=true
-    SURFSENSE_ENABLE_MODEL_FALLBACK=false
-    SURFSENSE_ENABLE_MODEL_CALL_LIMIT=true
-    SURFSENSE_ENABLE_TOOL_CALL_LIMIT=true
-    SURFSENSE_ENABLE_TOOL_CALL_REPAIR=true
-    SURFSENSE_ENABLE_PERMISSION=true
-    SURFSENSE_ENABLE_DOOM_LOOP=true
-    SURFSENSE_ENABLE_LLM_TOOL_SELECTOR=false  # adds a per-turn LLM call
-
-Master kill-switch (overrides everything else):
-
-    SURFSENSE_DISABLE_NEW_AGENT_STACK=true
+Flags are resolved at agent build time. Most upgrades default ON so Docker
+updates work without operators adding new env vars; risky integrations stay
+OFF. The master kill-switch ``SURFSENSE_DISABLE_NEW_AGENT_STACK`` forces every
+flag below to False for a one-switch rollback to pre-port behavior.
 """
 
 from __future__ import annotations
@@ -93,39 +65,14 @@ class AgentFeatureFlags:
     # Observability — OTel (orthogonal; also requires OTEL_EXPORTER_OTLP_ENDPOINT)
     enable_otel: bool = False
 
-    # Performance — compiled-agent cache (Phase 1 + Phase 2).
-    # When ON, ``create_surfsense_deep_agent`` reuses a previously-compiled
-    # graph if the cache key matches (LLM config + thread + tool surface +
-    # flags + system prompt + filesystem mode). Cuts per-turn agent-build
-    # wall clock from ~4-5s to <50µs on cache hits.
-    #
-    # SAFETY (Phase 2 unblocked this default-on):
-    # All connector mutation tools (``tools/notion``, ``tools/gmail``,
-    # ``tools/google_drive``, ``tools/dropbox``, ``tools/onedrive``,
-    # ``tools/google_calendar``, ``tools/confluence``, ``tools/discord``,
-    # ``tools/teams``, ``tools/luma``, ``connected_accounts``,
-    # ``update_memory``) now acquire fresh
-    # short-lived ``AsyncSession`` instances per call via
-    # :data:`async_session_maker`. The factory still accepts ``db_session``
-    # for registry compatibility but ``del``'s it immediately — see any
-    # of those files' factory docstrings for the rationale. The ``llm``
-    # closure is per-(provider, model, config_id) which is already in
-    # the cache key, so the LLM is safe to share across cached hits of
-    # the same key. The KB priority middleware reads
-    # ``mentioned_document_ids`` from ``runtime.context`` (Phase 1.5),
-    # not its constructor closure, so the same compiled agent serves
-    # turns with different mention lists correctly.
-    #
-    # Rollback: set ``SURFSENSE_ENABLE_AGENT_CACHE=false`` in the
-    # environment if a regression surfaces. The path is exercised by
-    # the ``tests/unit/agents/new_chat/test_agent_cache_*`` suite.
+    # Performance — reuse a compiled agent graph when the cache key matches
+    # (~4-5s -> <50µs per turn). Safe to default-on because mutation tools take
+    # fresh short-lived sessions per call and per-turn context (mentions, etc.)
+    # is read from runtime.context, not the constructor closure. Rollback via
+    # SURFSENSE_ENABLE_AGENT_CACHE=false.
     enable_agent_cache: bool = True
-    # Phase 1 (deferred — measure first): pre-build & share the
-    # general-purpose subagent ``CompiledSubAgent`` across cold-cache
-    # misses. Only helps when the outer cache MISSES (cache hits already
-    # reuse the entire SubAgentMiddleware-compiled graph). Off by default
-    # until we have data showing cold misses are frequent enough to
-    # justify the extra global state.
+    # Deferred: only helps on outer-cache MISSES, so off until data shows cold
+    # misses are frequent enough to justify the extra global state.
     enable_agent_cache_share_gp_subagent: bool = False
 
     @classmethod

@@ -92,15 +92,9 @@ class SanitizedChatLiteLLM(ChatLiteLLM):
             yield chunk
 
 
-# Provider mapping for LiteLLM model string construction.
-#
-# Single source of truth lives in
-# :mod:`app.services.provider_capabilities` so the YAML loader (which
-# runs during ``app.config`` class-body init) can resolve provider
-# prefixes without dragging the agent / tools tree into module load
-# order. Re-exported here under the historical ``PROVIDER_MAP`` name
-# so existing callers (``llm_router_service``, ``image_gen_router_service``,
-# tests) keep working unchanged.
+# Re-exported under the historical name ``PROVIDER_MAP``. Source of truth lives
+# in provider_capabilities so the YAML loader can resolve prefixes during
+# app.config init without importing the agent/tools tree.
 from app.services.provider_capabilities import (  # noqa: E402
     _PROVIDER_PREFIX_MAP as PROVIDER_MAP,
 )
@@ -157,25 +151,14 @@ class AgentConfig:
     anonymous_enabled: bool = False
     quota_reserve_tokens: int | None = None
 
-    # Capability flag: best-effort True for the chat selector / catalog.
-    # Resolved via :func:`provider_capabilities.derive_supports_image_input`
-    # which prefers OpenRouter's ``architecture.input_modalities`` and
-    # otherwise consults LiteLLM's authoritative model map. Default True
-    # is the conservative-allow stance — the streaming-task safety net
-    # (``is_known_text_only_chat_model``) is the *only* place a False
-    # actually blocks a request. Setting this to False here without an
-    # authoritative source would silently hide vision-capable models
-    # (the regression we're fixing).
+    # Default-allow: only the streaming safety net (is_known_text_only_chat_model)
+    # actually blocks on False, so defaulting False would silently hide
+    # vision-capable models. Resolved via derive_supports_image_input.
     supports_image_input: bool = True
 
     @classmethod
     def from_auto_mode(cls) -> "AgentConfig":
-        """
-        Create an AgentConfig for Auto mode (LiteLLM Router load balancing).
-
-        Returns:
-            AgentConfig instance configured for Auto mode
-        """
+        """Build an AgentConfig for Auto mode (LiteLLM Router load balancing)."""
         return cls(
             provider="AUTO",
             model_name="auto",
@@ -193,27 +176,15 @@ class AgentConfig:
             is_premium=False,
             anonymous_enabled=False,
             quota_reserve_tokens=None,
-            # Auto routes across the configured pool, which usually
-            # contains at least one vision-capable deployment; the router
-            # will surface a 404 from a non-vision deployment as a normal
-            # ``allowed_fails`` event and fail over rather than blocking
-            # the request outright.
+            # Auto fails over across the pool, so a non-vision deployment's 404
+            # is just an allowed_fails event rather than a hard block.
             supports_image_input=True,
         )
 
     @classmethod
     def from_new_llm_config(cls, config) -> "AgentConfig":
-        """
-        Create an AgentConfig from a NewLLMConfig database model.
-
-        Args:
-            config: NewLLMConfig database model instance
-
-        Returns:
-            AgentConfig instance
-        """
-        # Lazy import to avoid pulling provider_capabilities (and its
-        # transitive litellm import) into module-init order.
+        """Build an AgentConfig from a NewLLMConfig database model."""
+        # Lazy import: keeps provider_capabilities (and litellm) out of init order.
         from app.services.provider_capabilities import derive_supports_image_input
 
         provider_value = (
@@ -245,10 +216,8 @@ class AgentConfig:
             is_premium=False,
             anonymous_enabled=False,
             quota_reserve_tokens=None,
-            # BYOK rows have no operator-curated capability flag, so we
-            # ask LiteLLM (default-allow on unknown). The streaming
-            # safety net still blocks if the model is *explicitly*
-            # marked text-only.
+            # BYOK rows have no curated flag; ask LiteLLM (default-allow on
+            # unknown). The streaming safety net still blocks explicit text-only.
             supports_image_input=derive_supports_image_input(
                 provider=provider_value,
                 model_name=config.model_name,
@@ -259,25 +228,14 @@ class AgentConfig:
 
     @classmethod
     def from_yaml_config(cls, yaml_config: dict) -> "AgentConfig":
+        """Build an AgentConfig from a YAML configuration dictionary.
+
+        Supports the same prompt fields as NewLLMConfig (system_instructions,
+        use_default_system_instructions, citations_enabled).
         """
-        Create an AgentConfig from a YAML configuration dictionary.
-
-        YAML configs now support the same prompt configuration fields as NewLLMConfig:
-        - system_instructions: Custom system instructions (empty string uses defaults)
-        - use_default_system_instructions: Whether to use default instructions
-        - citations_enabled: Whether citations are enabled
-
-        Args:
-            yaml_config: Configuration dictionary from YAML file
-
-        Returns:
-            AgentConfig instance
-        """
-        # Lazy import to avoid pulling provider_capabilities (and its
-        # transitive litellm import) into module-init order.
+        # Lazy import: keeps provider_capabilities (and litellm) out of init order.
         from app.services.provider_capabilities import derive_supports_image_input
 
-        # Get system instructions from YAML, default to empty string
         system_instructions = yaml_config.get("system_instructions", "")
 
         provider = yaml_config.get("provider", "").upper()
@@ -290,13 +248,8 @@ class AgentConfig:
             else None
         )
 
-        # Explicit YAML override wins; otherwise derive from LiteLLM /
-        # OpenRouter modalities. The YAML loader already populates this
-        # field, but this method is also called from
-        # ``load_global_llm_config_by_id``'s file fallback (hot reload),
-        # so we re-derive here for safety. The bool() coercion preserves
-        # the loader's behaviour for explicit ``true`` / ``false``
-        # strings that PyYAML may surface.
+        # Explicit YAML override wins; otherwise re-derive (the hot-reload file
+        # fallback reaches this method without the loader having populated it).
         if "supports_image_input" in yaml_config:
             supports_image_input = bool(yaml_config.get("supports_image_input"))
         else:
@@ -314,7 +267,6 @@ class AgentConfig:
             api_base=yaml_config.get("api_base"),
             custom_provider=custom_provider,
             litellm_params=yaml_config.get("litellm_params"),
-            # Prompt configuration from YAML (with defaults for backwards compatibility)
             system_instructions=system_instructions if system_instructions else None,
             use_default_system_instructions=yaml_config.get(
                 "use_default_system_instructions", True
@@ -332,20 +284,10 @@ class AgentConfig:
 
 
 def load_llm_config_from_yaml(llm_config_id: int = -1) -> dict | None:
-    """
-    Load a specific LLM config from global_llm_config.yaml.
-
-    Args:
-        llm_config_id: The id of the config to load (default: -1)
-
-    Returns:
-        LLM config dict or None if not found
-    """
-    # Get the config file path
+    """Load a specific LLM config from global_llm_config.yaml."""
     base_dir = Path(__file__).resolve().parent.parent.parent.parent
     config_file = base_dir / "app" / "config" / "global_llm_config.yaml"
 
-    # Fallback to example file if main config doesn't exist
     if not config_file.exists():
         config_file = base_dir / "app" / "config" / "global_llm_config.example.yaml"
         if not config_file.exists():
@@ -368,24 +310,17 @@ def load_llm_config_from_yaml(llm_config_id: int = -1) -> dict | None:
 
 
 def load_global_llm_config_by_id(llm_config_id: int) -> dict | None:
-    """
-    Load a global LLM config by ID, checking in-memory configs first.
+    """Load a global LLM config by ID, checking in-memory configs first.
 
-    This handles both static YAML configs and dynamically injected configs
-    (e.g. OpenRouter integration models that only exist in memory).
-
-    Args:
-        llm_config_id: The negative ID of the global config to load
-
-    Returns:
-        LLM config dict or None if not found
+    In-memory covers both static YAML and dynamically injected configs (e.g.
+    OpenRouter integration models that only exist in memory).
     """
     from app.config import config as app_config
 
     for cfg in app_config.GLOBAL_LLM_CONFIGS:
         if cfg.get("id") == llm_config_id:
             return cfg
-    # Fallback to YAML file read (covers edge cases like hot-reload)
+    # Fallback to YAML file read (covers hot-reload edge cases).
     return load_llm_config_from_yaml(llm_config_id)
 
 
@@ -393,17 +328,7 @@ async def load_new_llm_config_from_db(
     session: AsyncSession,
     config_id: int,
 ) -> "AgentConfig | None":
-    """
-    Load a NewLLMConfig from the database by ID.
-
-    Args:
-        session: AsyncSession for database access
-        config_id: The ID of the NewLLMConfig to load
-
-    Returns:
-        AgentConfig instance or None if not found
-    """
-    # Import here to avoid circular imports
+    """Load a NewLLMConfig from the database by ID."""
     from app.db import NewLLMConfig
 
     try:
@@ -426,26 +351,13 @@ async def load_agent_llm_config_for_search_space(
     session: AsyncSession,
     search_space_id: int,
 ) -> "AgentConfig | None":
+    """Load the agent LLM config for a search space via its agent_llm_id.
+
+    Positive id -> DB; negative -> YAML; None -> first global config (-1).
     """
-    Load the agent LLM configuration for a search space.
-
-    This loads the LLM config based on the search space's agent_llm_id setting:
-    - Positive ID: Load from NewLLMConfig database table
-    - Negative ID: Load from YAML global configs
-    - None: Falls back to first global config (id=-1)
-
-    Args:
-        session: AsyncSession for database access
-        search_space_id: The search space ID
-
-    Returns:
-        AgentConfig instance or None if not found
-    """
-    # Import here to avoid circular imports
     from app.db import SearchSpace
 
     try:
-        # Get the search space to check its agent_llm_id preference
         result = await session.execute(
             select(SearchSpace).filter(SearchSpace.id == search_space_id)
         )
@@ -455,12 +367,9 @@ async def load_agent_llm_config_for_search_space(
             print(f"Error: SearchSpace with id {search_space_id} not found")
             return None
 
-        # Use agent_llm_id from search space, fallback to -1 (first global config)
         config_id = (
             search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
         )
-
-        # Load the config using the unified loader
         return await load_agent_config(session, config_id, search_space_id)
     except Exception as e:
         print(f"Error loading agent LLM config for search space {search_space_id}: {e}")
@@ -472,23 +381,7 @@ async def load_agent_config(
     config_id: int,
     search_space_id: int | None = None,
 ) -> "AgentConfig | None":
-    """
-    Load an agent configuration, supporting Auto mode, YAML, and database configs.
-
-    This is the main entry point for loading configurations:
-    - ID 0: Auto mode (uses LiteLLM Router for load balancing)
-    - Negative IDs: Load from YAML file (global configs)
-    - Positive IDs: Load from NewLLMConfig database table
-
-    Args:
-        session: AsyncSession for database access
-        config_id: The config ID (0 for Auto, negative for YAML, positive for database)
-        search_space_id: Optional search space ID for context
-
-    Returns:
-        AgentConfig instance or None if not found
-    """
-    # Auto mode (ID 0) - use LiteLLM Router
+    """Main config loader: id 0 -> Auto mode; negative -> YAML; positive -> DB."""
     if is_auto_mode(config_id):
         if not LLMRouterService.is_initialized():
             print("Error: Auto mode requested but LLM Router not initialized")
@@ -496,33 +389,22 @@ async def load_agent_config(
         return AgentConfig.from_auto_mode()
 
     if config_id < 0:
-        # Check in-memory configs first (includes static YAML + dynamic OpenRouter)
+        # In-memory covers static YAML + dynamic OpenRouter configs.
         from app.config import config as app_config
 
         for cfg in app_config.GLOBAL_LLM_CONFIGS:
             if cfg.get("id") == config_id:
                 return AgentConfig.from_yaml_config(cfg)
-        # Fallback to YAML file read for safety
         yaml_config = load_llm_config_from_yaml(config_id)
         if yaml_config:
             return AgentConfig.from_yaml_config(yaml_config)
         return None
     else:
-        # Load from database (NewLLMConfig)
         return await load_new_llm_config_from_db(session, config_id)
 
 
 def create_chat_litellm_from_config(llm_config: dict) -> ChatLiteLLM | None:
-    """
-    Create a ChatLiteLLM instance from a global LLM config dictionary.
-
-    Args:
-        llm_config: LLM configuration dictionary from YAML
-
-    Returns:
-        ChatLiteLLM instance or None on error
-    """
-    # Build the model string
+    """Create a ChatLiteLLM instance from a global LLM config dictionary."""
     if llm_config.get("custom_provider"):
         model_string = f"{llm_config['custom_provider']}/{llm_config['model_name']}"
     else:
@@ -530,27 +412,20 @@ def create_chat_litellm_from_config(llm_config: dict) -> ChatLiteLLM | None:
         provider_prefix = PROVIDER_MAP.get(provider, provider.lower())
         model_string = f"{provider_prefix}/{llm_config['model_name']}"
 
-    # Create ChatLiteLLM instance with streaming enabled
     litellm_kwargs = {
         "model": model_string,
         "api_key": llm_config.get("api_key"),
-        "streaming": True,  # Enable streaming for real-time token streaming
+        "streaming": True,
     }
-
-    # Add optional parameters
     if llm_config.get("api_base"):
         litellm_kwargs["api_base"] = llm_config["api_base"]
-
-    # Add any additional litellm parameters
     if llm_config.get("litellm_params"):
         litellm_kwargs.update(llm_config["litellm_params"])
 
     llm = SanitizedChatLiteLLM(**litellm_kwargs)
     _attach_model_profile(llm, model_string)
-    # Configure LiteLLM-native prompt caching (cache_control_injection_points
-    # for Anthropic/Bedrock/Vertex/Gemini/Azure-AI/OpenRouter/Databricks/etc.).
-    # ``agent_config=None`` here — the YAML path doesn't have provider intent
-    # in a structured form, so we set only the universal injection points.
+    # agent_config=None: the YAML path lacks structured provider intent, so set
+    # only the universal cache_control_injection_points.
     apply_litellm_prompt_caching(llm)
     return llm
 
@@ -558,19 +433,7 @@ def create_chat_litellm_from_config(llm_config: dict) -> ChatLiteLLM | None:
 def create_chat_litellm_from_agent_config(
     agent_config: AgentConfig,
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
-    """
-    Create a ChatLiteLLM or ChatLiteLLMRouter instance from an AgentConfig.
-
-    For Auto mode configs, returns a ChatLiteLLMRouter that uses LiteLLM Router
-    for automatic load balancing across available providers.
-
-    Args:
-        agent_config: AgentConfig instance
-
-    Returns:
-        ChatLiteLLM or ChatLiteLLMRouter instance, or None on error
-    """
-    # Handle Auto mode - return ChatLiteLLMRouter
+    """Create a ChatLiteLLM (or, for Auto mode, a load-balancing router) from config."""
     if agent_config.is_auto_mode:
         if not LLMRouterService.is_initialized():
             print("Error: Auto mode requested but LLM Router not initialized")
@@ -578,19 +441,14 @@ def create_chat_litellm_from_agent_config(
         try:
             router_llm = get_auto_mode_llm()
             if router_llm is not None:
-                # Universal cache_control_injection_points only — auto-mode
-                # fans out across providers, so OpenAI-only kwargs (e.g.
-                # ``prompt_cache_key``) are left off here. ``drop_params``
-                # would strip them at the provider boundary anyway, but
-                # there's no point setting them when we don't know the
-                # destination.
+                # Universal injection points only: auto-mode fans out across
+                # providers, so provider-specific kwargs have no known target.
                 apply_litellm_prompt_caching(router_llm, agent_config=agent_config)
             return router_llm
         except Exception as e:
             print(f"Error creating ChatLiteLLMRouter: {e}")
             return None
 
-    # Build the model string
     if agent_config.custom_provider:
         model_string = f"{agent_config.custom_provider}/{agent_config.model_name}"
     else:
@@ -599,26 +457,19 @@ def create_chat_litellm_from_agent_config(
         )
         model_string = f"{provider_prefix}/{agent_config.model_name}"
 
-    # Create ChatLiteLLM instance with streaming enabled
     litellm_kwargs = {
         "model": model_string,
         "api_key": agent_config.api_key,
-        "streaming": True,  # Enable streaming for real-time token streaming
+        "streaming": True,
     }
-
-    # Add optional parameters
     if agent_config.api_base:
         litellm_kwargs["api_base"] = agent_config.api_base
-
-    # Add any additional litellm parameters
     if agent_config.litellm_params:
         litellm_kwargs.update(agent_config.litellm_params)
 
     llm = SanitizedChatLiteLLM(**litellm_kwargs)
     _attach_model_profile(llm, model_string)
-    # Build-time prompt caching: sets ``cache_control_injection_points`` for
-    # all providers and (for OpenAI/DeepSeek/xAI) ``prompt_cache_retention``.
-    # Per-thread ``prompt_cache_key`` is layered on later in
-    # ``create_surfsense_deep_agent`` once ``thread_id`` is known.
+    # Build-time caching only; the per-thread prompt_cache_key is layered on
+    # later in create_surfsense_deep_agent once thread_id is known.
     apply_litellm_prompt_caching(llm, agent_config=agent_config)
     return llm

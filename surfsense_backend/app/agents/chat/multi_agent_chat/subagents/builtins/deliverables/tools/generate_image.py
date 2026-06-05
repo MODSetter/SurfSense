@@ -75,7 +75,7 @@ def create_generate_image_tool(
     captured model), use this config id instead of reading the search space's
     live ``image_generation_config_id``.
     """
-    del db_session  # use a fresh per-call session, see below
+    del db_session  # tool uses a fresh per-call session instead
 
     @tool
     async def generate_image(
@@ -140,17 +140,12 @@ def create_generate_image_tool(
                         or IMAGE_GEN_AUTO_MODE_ID
                     )
 
-                # Build generation kwargs
-                # NOTE: size, quality, and style are intentionally NOT passed.
-                # Different models support different values for these params
-                # (e.g. DALL-E 3 wants "hd"/"standard" for quality while
-                # gpt-image-1 wants "high"/"medium"/"low"; size options also
-                # differ). Letting the model use its own defaults avoids errors.
+                # size/quality/style are intentionally omitted: valid values
+                # differ per model, so we let each model use its own defaults.
                 gen_kwargs: dict[str, Any] = {}
                 if n is not None and n > 1:
                     gen_kwargs["n"] = n
 
-                # Call litellm based on config type
                 if is_image_gen_auto_mode(config_id):
                     if not ImageGenRouterService.is_initialized():
                         err = (
@@ -224,17 +219,13 @@ def create_generate_image_tool(
                         prompt=prompt, model=model_string, **gen_kwargs
                     )
 
-                # Parse the response and store in DB
                 response_dict = (
                     response.model_dump()
                     if hasattr(response, "model_dump")
                     else dict(response)
                 )
 
-                # Generate a random access token for this image
                 access_token = generate_image_token()
-
-                # Save to image_generations table for history
                 db_image_gen = ImageGeneration(
                     prompt=prompt,
                     model=getattr(response, "_hidden_params", {}).get("model"),
@@ -249,7 +240,6 @@ def create_generate_image_tool(
                 await session.refresh(db_image_gen)
                 db_image_gen_id = db_image_gen.id
 
-            # Extract image URLs from response
             images = response_dict.get("data", [])
             if not images:
                 return _failed(
@@ -260,11 +250,8 @@ def create_generate_image_tool(
             first_image = images[0]
             revised_prompt = first_image.get("revised_prompt", prompt)
 
-            # Resolve image URL:
-            # - If the API returned a URL, use it directly.
-            # - If the API returned b64_json (e.g. gpt-image-1), serve the
-            #   image through our backend endpoint to avoid bloating the
-            #   LLM context with megabytes of base64 data.
+            # b64_json (e.g. gpt-image-1) is served via our backend endpoint so
+            # megabytes of base64 don't bloat the LLM context.
             if first_image.get("url"):
                 image_url = first_image["url"]
             elif first_image.get("b64_json"):

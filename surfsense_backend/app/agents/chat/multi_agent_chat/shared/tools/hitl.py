@@ -30,22 +30,11 @@ from langgraph.types import interrupt
 logger = logging.getLogger(__name__)
 
 
-# Tools that mirror the safety profile of ``write_file`` against the
-# SurfSense KB: each call creates ONE artifact in the user's own workspace
-# with no external visibility (drafts aren't sent; new files aren't shared
-# unless the user shares them later). These are auto-approved by default
-# so the agent can compose drafts and seed scratch files without a popup
-# on every call.
-#
-# Members of this set still call ``request_approval`` exactly as before;
-# the function returns immediately with ``decision_type="auto_approved"``
-# and the original params untouched. This preserves the call-site shape
-# (logging, metadata fetching, account fallbacks) so the only behavior
-# change is "no interrupt fires".
-#
-# To re-enable prompting, the future per-search-space rules table
-# (``agent_permission_rules``) takes precedence in the permission ruleset
-# layering assembled by the agent factory.
+# Low-stakes creation tools auto-approved by default: each creates one
+# artifact in the user's own workspace with no external visibility (drafts
+# aren't sent; new files aren't shared). They still call ``request_approval``,
+# which returns ``decision_type="auto_approved"`` without firing an interrupt.
+# Per-search-space ``agent_permission_rules`` can re-enable prompting.
 DEFAULT_AUTO_APPROVED_TOOLS: frozenset[str] = frozenset(
     {
         "create_gmail_draft",
@@ -150,10 +139,6 @@ def request_approval(
         return HITLResult(rejected=False, decision_type="trusted", params=dict(params))
 
     if tool_name in DEFAULT_AUTO_APPROVED_TOOLS:
-        # Default policy: low-stakes creation tools (drafts + new-file
-        # creates) skip HITL because they're as recoverable as a local
-        # ``write_file`` against the SurfSense KB. The user can still
-        # delete the artifact in <30s if it's wrong.
         logger.info(
             "Tool '%s' is in DEFAULT_AUTO_APPROVED_TOOLS — skipping HITL",
             tool_name,

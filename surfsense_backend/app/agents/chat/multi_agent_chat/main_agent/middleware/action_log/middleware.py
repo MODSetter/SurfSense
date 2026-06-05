@@ -1,25 +1,15 @@
 """Append-only action-log middleware for the SurfSense agent.
 
-Wraps every tool call via :meth:`AgentMiddleware.awrap_tool_call` and writes
-a row to :class:`~app.db.AgentActionLog` after the tool returns. Tools opt
-into reversibility by declaring a ``reverse`` callable on their
-:class:`ToolDefinition`; the rendered descriptor is persisted in
-``reverse_descriptor`` for use by
+Wraps every tool call and writes a row to :class:`~app.db.AgentActionLog`
+after the tool returns. Tools opt into reversibility via a ``reverse``
+callable on their :class:`ToolDefinition`; the rendered descriptor powers
 ``/api/threads/{thread_id}/revert/{action_id}``.
 
-Design points:
-
-* **Defensive.** Logging never blocks the agent. We catch every exception
-  on the DB write path and emit a warning; the tool's ``ToolMessage``
-  result is always returned untouched.
-* **Lightweight payload.** Only the tool ``name`` + ``args`` (capped) +
-  ``result_id`` + ``reverse_descriptor`` are stored. Tool output text
-  remains in the LangGraph checkpoint / spilled tool-output files.
-* **Best-effort reversibility.** We invoke ``reverse(args, result_obj)``
-  with the parsed JSON result when the tool's content is a JSON object;
-  otherwise the raw text is passed. Exceptions in the reverse callable
-  are swallowed and logged — a failed descriptor render simply means the
-  action is NOT marked reversible.
+Logging is fully defensive — DB-write failures are swallowed so the tool's
+result is always returned untouched. Only metadata (name, capped args,
+result_id, reverse_descriptor) is stored; tool output stays in the
+checkpoint. Reversibility is best-effort: a reverse callable that raises
+just leaves the action non-reversible.
 """
 
 from __future__ import annotations
@@ -203,11 +193,9 @@ class ActionLogMiddleware(AgentMiddleware):
             )
             return
 
-        # Surface a side-channel SSE event so the chat tool card can
-        # render a Revert button immediately after the row is durable.
-        # ``stream_new_chat`` translates this into a
-        # ``data-action-log`` SSE event. We DO NOT include the
-        # ``reverse_descriptor`` payload here; only a presence flag.
+        # Side-channel event (relayed by ``stream_new_chat`` as a
+        # ``data-action-log`` SSE) so the tool card can show a Revert button
+        # once the row is durable. Carries a presence flag, not the descriptor.
         try:
             await adispatch_custom_event(
                 "action_log",
