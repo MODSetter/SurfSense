@@ -27,7 +27,9 @@ from litellm import get_model_info
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.shared.prompt_caching import apply_litellm_prompt_caching
+from app.agents.multi_agent_chat.shared.prompt_caching import (
+    apply_litellm_prompt_caching,
+)
 from app.services.llm_router_service import (
     AUTO_MODE_ID,
     ChatLiteLLMRouter,

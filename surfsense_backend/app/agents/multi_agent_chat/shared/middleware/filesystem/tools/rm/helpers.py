@@ -15,11 +15,11 @@ from langgraph.types import Command
 from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.kb_postgres import (
     KBPostgresBackend,
 )
+from app.agents.multi_agent_chat.shared.path_resolver import DOCUMENTS_ROOT
 from app.agents.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
 from app.agents.multi_agent_chat.shared.state.reducers import _CLEAR
-from app.agents.shared.path_resolver import DOCUMENTS_ROOT
 
 if TYPE_CHECKING:
     from ...middleware import SurfSenseFilesystemMiddleware

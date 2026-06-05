@@ -61,7 +61,7 @@ async def test_get_vision_llm_global_openrouter_sets_api_base():
             return_value=cfg,
         ),
         patch(
-            "app.agents.shared.llm_config.SanitizedChatLiteLLM",
+            "app.agents.multi_agent_chat.shared.llm_config.SanitizedChatLiteLLM",
             new=FakeSanitized,
         ),
     ):

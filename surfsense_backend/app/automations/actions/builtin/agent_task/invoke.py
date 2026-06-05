@@ -11,8 +11,11 @@ from langgraph.types import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
+from app.agents.multi_agent_chat.shared.mention_resolver import (
+    resolve_mentions,
+    substitute_in_text,
+)
 from app.agents.shared.context import SurfSenseContextSchema
-from app.agents.shared.mention_resolver import resolve_mentions, substitute_in_text
 from app.db import ChatVisibility, async_session_maker
 from app.schemas.new_chat import MentionedDocumentInfo
 

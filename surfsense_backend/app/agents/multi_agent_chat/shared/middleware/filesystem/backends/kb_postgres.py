@@ -45,7 +45,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.document_xml import (
     build_document_xml,
 )
-from app.agents.shared.path_resolver import (
+from app.agents.multi_agent_chat.shared.path_resolver import (
     DOCUMENTS_ROOT,
     build_path_index,
     doc_to_virtual_path,

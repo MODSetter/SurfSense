@@ -11,8 +11,8 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.shared.middleware.kb_persistence import (
+from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
+from app.agents.multi_agent_chat.shared.middleware.kb_persistence import (
     commit_staged_filesystem_state,
 )
 from app.services.new_streaming_service import VercelStreamingService

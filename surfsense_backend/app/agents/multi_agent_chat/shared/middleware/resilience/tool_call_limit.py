@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from langchain.agents.middleware import ToolCallLimitMiddleware
 
-from app.agents.shared.feature_flags import AgentFeatureFlags
+from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 
 from ..flags import enabled
 

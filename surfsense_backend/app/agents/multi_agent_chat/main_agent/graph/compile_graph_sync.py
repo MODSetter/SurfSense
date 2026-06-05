@@ -14,9 +14,9 @@ from langgraph.types import Checkpointer
 from app.agents.multi_agent_chat.main_agent.middleware.stack import (
     build_main_agent_deepagent_middleware,
 )
+from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
+from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.agents.shared.context import SurfSenseContextSchema
-from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.shared.filesystem_selection import FilesystemMode
 from app.db import ChatVisibility
 
 

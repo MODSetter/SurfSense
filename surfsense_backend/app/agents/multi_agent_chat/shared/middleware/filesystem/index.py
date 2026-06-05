@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agents.shared.filesystem_selection import FilesystemMode
+from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 
 from .middleware import SurfSenseFilesystemMiddleware
 

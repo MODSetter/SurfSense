@@ -11,8 +11,8 @@ from typing import Any
 
 from langchain_core.messages import ToolMessage
 
+from app.agents.multi_agent_chat.shared.errors import StreamingError
 from app.agents.multi_agent_chat.shared.permissions import Rule
-from app.agents.shared.errors import StreamingError
 
 
 def build_deny_message(tool_call: dict[str, Any], rule: Rule) -> ToolMessage:

@@ -33,15 +33,15 @@ from langchain_core.messages import SystemMessage
 from langgraph.runtime import Runtime
 from sqlalchemy import select
 
-from app.agents.multi_agent_chat.shared.state.filesystem_state import (
-    SurfSenseFilesystemState,
-)
-from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.shared.path_resolver import (
+from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
+from app.agents.multi_agent_chat.shared.path_resolver import (
     DOCUMENTS_ROOT,
     PathIndex,
     build_path_index,
     doc_to_virtual_path,
+)
+from app.agents.multi_agent_chat.shared.state.filesystem_state import (
+    SurfSenseFilesystemState,
 )
 from app.db import Document, shielded_async_session
 from app.utils.perf import get_perf_logger

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from app.agents.shared.feature_flags import AgentFeatureFlags
+from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 
 from ..flags import enabled
 from .scoped_model_fallback import (

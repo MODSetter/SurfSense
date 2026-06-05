@@ -34,7 +34,7 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain_core.callbacks import adispatch_custom_event
 from langchain_core.messages import ToolMessage
 
-from app.agents.shared.feature_flags import get_flags
+from app.agents.multi_agent_chat.shared.feature_flags import get_flags
 
 if TYPE_CHECKING:  # pragma: no cover - type-only
     from langchain.agents.middleware.types import ToolCallRequest

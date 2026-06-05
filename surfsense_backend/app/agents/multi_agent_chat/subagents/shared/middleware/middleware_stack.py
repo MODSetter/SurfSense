@@ -14,8 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agents.shared.feature_flags import AgentFeatureFlags
-
+from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 from app.agents.multi_agent_chat.shared.middleware.permissions import (
     build_permission_mw,
 )

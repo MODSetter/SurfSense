@@ -51,7 +51,10 @@ async def download_sandbox_file(
 ):
     """Download a file from the Daytona sandbox associated with a chat thread."""
 
-    from app.agents.shared.sandbox import get_or_create_sandbox, is_sandbox_enabled
+    from app.agents.multi_agent_chat.shared.sandbox import (
+        get_or_create_sandbox,
+        is_sandbox_enabled,
+    )
 
     if not is_sandbox_enabled():
         raise HTTPException(status_code=404, detail="Sandbox is not enabled")
@@ -71,7 +74,7 @@ async def download_sandbox_file(
         "You don't have permission to access files in this thread",
     )
 
-    from app.agents.shared.sandbox import get_local_sandbox_file
+    from app.agents.multi_agent_chat.shared.sandbox import get_local_sandbox_file
 
     # Prefer locally-persisted copy (sandbox may already be deleted)
     local_content = get_local_sandbox_file(thread_id, path)

@@ -19,6 +19,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.agents.multi_agent_chat.shared.filesystem_selection import (
+    FilesystemMode,
+    FilesystemSelection,
+)
 from app.agents.multi_agent_chat.shared.middleware.filesystem import (
     build_filesystem_mw,
 )
@@ -29,7 +33,6 @@ from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.resolver 
     build_backend_resolver,
 )
 from app.agents.multi_agent_chat.shared.state.reducers import _CLEAR
-from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
 
 pytestmark = pytest.mark.unit
 

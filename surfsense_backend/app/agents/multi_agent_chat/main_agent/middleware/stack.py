@@ -20,6 +20,8 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 
+from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
+from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.agents.multi_agent_chat.shared.middleware.anthropic_cache import (
     build_anthropic_cache_mw,
 )
@@ -52,8 +54,6 @@ from app.agents.multi_agent_chat.subagents.builtins.knowledge_base.ask_knowledge
 from app.agents.multi_agent_chat.subagents.shared.middleware.middleware_stack import (
     build_subagent_middleware_stack,
 )
-from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.shared.filesystem_selection import FilesystemMode
 from app.db import ChatVisibility
 
 from .action_log import build_action_log_mw

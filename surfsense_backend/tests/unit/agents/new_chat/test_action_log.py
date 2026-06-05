@@ -14,7 +14,7 @@ from app.agents.multi_agent_chat.main_agent.middleware.action_log.middleware imp
     ActionLogMiddleware,
     ToolDefinition,
 )
-from app.agents.shared.feature_flags import AgentFeatureFlags
+from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 
 
 @dataclass

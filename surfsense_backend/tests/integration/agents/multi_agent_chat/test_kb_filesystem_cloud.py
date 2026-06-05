@@ -20,13 +20,16 @@ from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
+from app.agents.multi_agent_chat.shared.filesystem_selection import (
+    FilesystemMode,
+    FilesystemSelection,
+)
 from app.agents.multi_agent_chat.shared.middleware.filesystem import (
     build_filesystem_mw,
 )
 from app.agents.multi_agent_chat.shared.middleware.filesystem.backends.resolver import (
     build_backend_resolver,
 )
-from app.agents.shared.filesystem_selection import FilesystemMode, FilesystemSelection
 from tests.integration.harness import ScriptedTurn, build_scripted_harness
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]

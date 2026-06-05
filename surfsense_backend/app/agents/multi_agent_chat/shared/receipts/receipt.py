@@ -23,7 +23,7 @@ the receipt into the parent's ``receipts`` state via the append reducer.
 
 The KB write path is the one exception: file-tool calls cannot emit a
 durable receipt because the actual DB writes happen end-of-turn inside
-:class:`app.agents.shared.middleware.kb_persistence.KnowledgeBasePersistenceMiddleware`.
+:class:`app.agents.multi_agent_chat.shared.middleware.kb_persistence.KnowledgeBasePersistenceMiddleware`.
 KB tools therefore emit a *provisional* receipt with ``status="pending"``;
 the persistence middleware flips it to ``"success"`` or ``"failed"``
 before returning control to the parent.

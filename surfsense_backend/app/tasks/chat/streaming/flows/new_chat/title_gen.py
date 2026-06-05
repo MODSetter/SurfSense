@@ -30,7 +30,7 @@ from app.prompts import TITLE_GENERATION_PROMPT
 from app.services.new_streaming_service import VercelStreamingService
 
 if TYPE_CHECKING:
-    from app.agents.shared.llm_config import AgentConfig
+    from app.agents.multi_agent_chat.shared.llm_config import AgentConfig
     from app.services.token_tracking_service import TokenAccumulator
 
 

@@ -7,11 +7,11 @@ from typing import Any
 from deepagents import FilesystemMiddleware
 from langchain_core.tools import BaseTool
 
+from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
+from app.agents.multi_agent_chat.shared.sandbox import is_sandbox_enabled
 from app.agents.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
-from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.shared.sandbox import is_sandbox_enabled
 
 from ..system_prompt import build_system_prompt
 from ..tools import (

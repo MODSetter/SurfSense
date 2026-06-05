@@ -10,6 +10,8 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 
+from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
+from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.agents.multi_agent_chat.shared.middleware.anthropic_cache import (
     build_anthropic_cache_mw,
 )
@@ -29,8 +31,6 @@ from app.agents.multi_agent_chat.shared.middleware.permissions import (
     build_permission_mw,
 )
 from app.agents.multi_agent_chat.shared.permissions import Ruleset
-from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.shared.filesystem_selection import FilesystemMode
 
 
 def _kb_user_allowlist(

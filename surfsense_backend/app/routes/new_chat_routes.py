@@ -24,13 +24,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.agents.shared.filesystem_selection import (
+from app.agents.multi_agent_chat.shared.filesystem_selection import (
     ClientPlatform,
     FilesystemMode,
     FilesystemSelection,
     LocalFilesystemMount,
 )
-from app.agents.shared.middleware.busy_mutex import (
+from app.agents.multi_agent_chat.shared.middleware.busy_mutex import (
     get_cancel_state,
     is_cancel_requested,
     manager,
@@ -476,7 +476,7 @@ async def _revert_turns_for_regenerate(
 
 def _try_delete_sandbox(thread_id: int) -> None:
     """Fire-and-forget sandbox + local file deletion so the HTTP response isn't blocked."""
-    from app.agents.shared.sandbox import (
+    from app.agents.multi_agent_chat.shared.sandbox import (
         delete_local_sandbox_files,
         delete_sandbox,
         is_sandbox_enabled,

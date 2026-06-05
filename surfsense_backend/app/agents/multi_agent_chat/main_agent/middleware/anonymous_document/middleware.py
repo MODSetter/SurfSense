@@ -24,10 +24,13 @@ from typing import Any
 from langchain.agents.middleware import AgentMiddleware, AgentState
 from langgraph.runtime import Runtime
 
+from app.agents.multi_agent_chat.shared.path_resolver import (
+    DOCUMENTS_ROOT,
+    safe_filename,
+)
 from app.agents.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
-from app.agents.shared.path_resolver import DOCUMENTS_ROOT, safe_filename
 
 logger = logging.getLogger(__name__)
 

@@ -28,8 +28,11 @@ from langchain_core.messages import HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.agents.shared.filesystem_selection import FilesystemMode
-from app.agents.shared.mention_resolver import resolve_mentions, substitute_in_text
+from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
+from app.agents.multi_agent_chat.shared.mention_resolver import (
+    resolve_mentions,
+    substitute_in_text,
+)
 from app.db import (
     ChatVisibility,
     NewChatThread,

@@ -7,8 +7,8 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 
+from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 from app.agents.multi_agent_chat.shared.middleware.flags import enabled
-from app.agents.shared.feature_flags import AgentFeatureFlags
 from app.db import ChatVisibility
 
 from ..plugins.loader import (

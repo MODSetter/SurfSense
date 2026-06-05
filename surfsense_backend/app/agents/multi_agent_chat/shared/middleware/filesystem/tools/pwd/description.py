@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.agents.shared.filesystem_selection import FilesystemMode
+from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 
 _DESCRIPTION = """Prints the current working directory."""
 

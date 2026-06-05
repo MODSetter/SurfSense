@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import pytest
 
+from app.agents.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.agents.multi_agent_chat.shared.middleware.filesystem.system_prompt import (
     build_system_prompt,
 )
-from app.agents.shared.filesystem_selection import FilesystemMode
 
 pytestmark = pytest.mark.unit
 

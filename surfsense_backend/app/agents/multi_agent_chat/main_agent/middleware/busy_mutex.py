@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from app.agents.shared.feature_flags import AgentFeatureFlags
-from app.agents.shared.middleware import BusyMutexMiddleware
-
+from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
+from app.agents.multi_agent_chat.shared.middleware.busy_mutex import BusyMutexMiddleware
 from app.agents.multi_agent_chat.shared.middleware.flags import enabled
 
 

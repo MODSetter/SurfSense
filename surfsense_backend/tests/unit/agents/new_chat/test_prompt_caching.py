@@ -1,5 +1,5 @@
 r"""Tests for ``apply_litellm_prompt_caching`` in
-:mod:`app.agents.shared.prompt_caching`.
+:mod:`app.agents.multi_agent_chat.shared.prompt_caching`.
 
 The helper replaces the legacy ``AnthropicPromptCachingMiddleware`` (which
 never activated for our LiteLLM stack) with LiteLLM-native multi-provider
@@ -34,8 +34,10 @@ from typing import Any
 
 import pytest
 
-from app.agents.shared.llm_config import AgentConfig
-from app.agents.shared.prompt_caching import apply_litellm_prompt_caching
+from app.agents.multi_agent_chat.shared.llm_config import AgentConfig
+from app.agents.multi_agent_chat.shared.prompt_caching import (
+    apply_litellm_prompt_caching,
+)
 
 pytestmark = pytest.mark.unit
 

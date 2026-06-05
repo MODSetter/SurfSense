@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.agents.shared.feature_flags import AgentFeatureFlags
+from app.agents.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 from app.agents.shared.middleware import RetryAfterMiddleware
 
 from ..flags import enabled
