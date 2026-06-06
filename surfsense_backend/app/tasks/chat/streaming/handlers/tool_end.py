@@ -26,7 +26,7 @@ def _unwrap_command_output(raw_output: Any) -> Any:
     """Replace a ``Command`` from a tool return with its inner ``ToolMessage``.
 
     Tools that participate in receipt-style state writes (see
-    ``app.agents.shared.receipt_command.with_receipt``) return a
+    ``app.agents.chat.multi_agent_chat.shared.receipts.command.with_receipt``) return a
     ``Command(update={"messages": [ToolMessage(...)], "receipts": [...]})``.
     LangChain's ``on_tool_end`` event surfaces that ``Command`` verbatim as
     ``data.output``, which the rest of this handler can't introspect: it has

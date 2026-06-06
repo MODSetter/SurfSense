@@ -12,7 +12,7 @@ import {
 	XIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { DownloadOriginalButton } from "@/components/documents/download-original-button";
@@ -50,11 +50,13 @@ interface EditorContent {
 	source_markdown: string;
 	content_size_bytes?: number;
 	chunk_count?: number;
-	truncated?: boolean;
+	viewer_mode?: ViewerMode;
+	editor_plate_max_bytes?: number;
 }
 
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
 type EditorRenderMode = "rich_markdown" | "source_code";
+type ViewerMode = "plate" | "monaco";
 
 type AgentFilesystemMount = {
 	mount: string;
@@ -112,6 +114,20 @@ function EditorPanelSkeleton() {
 	);
 }
 
+function getUtf8ByteSize(value: string): number {
+	return new TextEncoder().encode(value).byteLength;
+}
+
+function formatBytes(bytes: number): string {
+	if (bytes >= 1024 * 1024) {
+		return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+	}
+	if (bytes >= 1024) {
+		return `${Math.round(bytes / 1024)}KB`;
+	}
+	return `${bytes}B`;
+}
+
 export function EditorPanelContent({
 	kind = "document",
 	documentId,
@@ -167,7 +183,11 @@ export function EditorPanelContent({
 		[electronAPI, searchSpaceId]
 	);
 
-	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > LARGE_DOCUMENT_THRESHOLD;
+	const plateMaxBytes = editorDoc?.editor_plate_max_bytes ?? LARGE_DOCUMENT_THRESHOLD;
+	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > plateMaxBytes;
+	const viewerMode: ViewerMode = isMemoryMode
+		? "plate"
+		: (editorDoc?.viewer_mode ?? (isLargeDocument ? "monaco" : "plate"));
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -243,8 +263,6 @@ export function EditorPanelContent({
 				const url = new URL(
 					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
 				);
-				url.searchParams.set("max_length", String(LARGE_DOCUMENT_THRESHOLD));
-
 				const response = await authenticatedFetch(url.toString(), { method: "GET" });
 
 				if (controller.signal.aborted) return;
@@ -402,7 +420,12 @@ export function EditorPanelContent({
 				setEditorDoc((prev) => (prev ? { ...prev, source_markdown: markdownRef.current } : prev));
 				setEditedMarkdown(null);
 				if (!options?.silent) {
-					toast.success("Document saved! Reindexing in background...");
+					const savedSizeBytes = getUtf8ByteSize(markdownRef.current);
+					if (savedSizeBytes > plateMaxBytes) {
+						toast.success("Document saved. It will reopen in raw markdown mode.");
+					} else {
+						toast.success("Document saved! Reindexing in background...");
+					}
 				}
 				return true;
 			} catch (err) {
@@ -423,6 +446,7 @@ export function EditorPanelContent({
 			localFilePath,
 			memoryLimits,
 			memoryScope,
+			plateMaxBytes,
 			resolveLocalVirtualPath,
 			searchSpaceId,
 		]
@@ -432,18 +456,21 @@ export function EditorPanelContent({
 		? (isMemoryMode ||
 				editorRenderMode === "source_code" ||
 				EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
-			!isLargeDocument
+			viewerMode === "plate"
 		: false;
-	// Render through PlateEditor for editable doc types (FILE/NOTE).
-	// Everything else (large docs, non-editable types) falls back to the
-	// lightweight `MarkdownViewer` — Plate is heavy on multi-MB docs and
-	// non-editable types don't benefit from its editing UX.
+	// Render through PlateEditor only when the backend says the rich editor is safe.
+	// Monaco mode is a raw markdown safety path for large documents.
 	const renderInPlateEditor = isEditableType;
 	const hasUnsavedChanges = editedMarkdown !== null;
 	const showDesktopHeader = !!onClose;
 	const showEditingActions = isEditableType && isEditing;
 	const localFileLanguage = inferMonacoLanguageFromPath(localFilePath);
 	const activeMarkdown = editedMarkdown ?? editorDoc?.source_markdown ?? "";
+	const activeMarkdownSizeBytes = useMemo(() => getUtf8ByteSize(activeMarkdown), [activeMarkdown]);
+	const isNearPlateLimit = activeMarkdownSizeBytes >= plateMaxBytes * 0.9;
+	const isOverPlateLimit = activeMarkdownSizeBytes > plateMaxBytes;
+	const showPlateSizeWarning =
+		showEditingActions && !isMemoryMode && !isLocalFileMode && isNearPlateLimit;
 	const memoryLimitState = isMemoryMode
 		? getMemoryLimitState(activeMarkdown.length, memoryLimits)
 		: null;
@@ -492,14 +519,14 @@ export function EditorPanelContent({
 		}
 	}, [documentId, editorDoc?.title, searchSpaceId]);
 
-	const largeDocAlert = isLargeDocument && !isLocalFileMode && editorDoc && (
-		<Alert className="mb-4">
+	const largeDocAlert = viewerMode === "monaco" && !isLocalFileMode && editorDoc && (
+		<Alert className="m-4 shrink-0">
 			<FileText className="size-4" />
 			<AlertDescription className="flex items-center justify-between gap-4">
 				<span>
 					This document is too large for the editor (
 					{Math.round((editorDoc.content_size_bytes ?? 0) / 1024 / 1024)}MB,{" "}
-					{editorDoc.chunk_count ?? 0} chunks). Showing a preview below.
+					{editorDoc.chunk_count ?? 0} chunks). Showing raw markdown below.
 				</span>
 				<Button
 					variant="outline"
@@ -753,16 +780,33 @@ export function EditorPanelContent({
 							}}
 						/>
 					</div>
-				) : isLargeDocument && !isLocalFileMode ? (
-					// Large doc — fast Streamdown preview + download CTA.
-					// Plate is heavy on multi-MB docs.
-					<div className="h-full overflow-y-auto px-5 py-4">
+				) : viewerMode === "monaco" && !isLocalFileMode ? (
+					// Large doc — raw markdown in Monaco. Rich renderers are intentionally skipped.
+					<div className="flex h-full min-h-0 flex-col">
 						{largeDocAlert}
-						<MarkdownViewer content={editorDoc.source_markdown} enableCitations />
+						<div className="min-h-0 flex-1 overflow-hidden">
+							<SourceCodeEditor
+								path={`${editorDoc.title || "document"}.md`}
+								language="markdown"
+								value={editorDoc.source_markdown}
+								readOnly
+								onChange={() => {}}
+							/>
+						</div>
 					</div>
 				) : renderInPlateEditor ? (
 					// Editable doc (FILE/NOTE) — Plate editing UX.
 					<div className="flex h-full min-h-0 flex-col">
+						{showPlateSizeWarning && (
+							<Alert className="m-4 mb-0 shrink-0">
+								<FileText className="size-4" />
+								<AlertDescription>
+									{isOverPlateLimit
+										? `This document is ${formatBytes(activeMarkdownSizeBytes)}, above the rich editor limit of ${formatBytes(plateMaxBytes)}. You can save, but it will reopen in raw markdown mode.`
+										: `This document is approaching the rich editor limit (${formatBytes(activeMarkdownSizeBytes)} of ${formatBytes(plateMaxBytes)}).`}
+								</AlertDescription>
+							</Alert>
+						)}
 						<div className="flex-1 min-h-0 overflow-hidden">
 							<PlateEditor
 								key={`${

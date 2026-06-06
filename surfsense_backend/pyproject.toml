@@ -230,10 +230,11 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
+pythonpath = ["."]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short -x --strict-markers -ra --durations=5"
+addopts = "-v --tb=short -x --strict-markers -ra --durations=5 --import-mode=importlib"
 markers = [
     "unit: pure logic tests, no DB or external services",
     "integration: tests that require a real PostgreSQL database"

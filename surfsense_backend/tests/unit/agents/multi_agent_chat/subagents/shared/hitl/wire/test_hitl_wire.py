@@ -18,7 +18,7 @@ These tests pin the shape:
 
 from __future__ import annotations
 
-from app.agents.multi_agent_chat.subagents.shared.hitl.wire import (
+from app.agents.chat.multi_agent_chat.subagents.shared.hitl.wire import (
     LC_DECISION_APPROVE,
     LC_DECISION_EDIT,
     LC_DECISION_REJECT,

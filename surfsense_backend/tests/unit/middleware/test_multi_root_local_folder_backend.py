@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from app.agents.new_chat.middleware.multi_root_local_folder_backend import (
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.multi_root_local_folder import (
     MultiRootLocalFolderBackend,
 )
 

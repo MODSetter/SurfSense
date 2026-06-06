@@ -29,11 +29,12 @@ from typing import Any, Literal
 
 import anyio
 
-from app.agents.multi_agent_chat import create_multi_agent_chat_deep_agent
-from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
-from app.agents.new_chat.filesystem_selection import FilesystemMode, FilesystemSelection
-from app.agents.new_chat.middleware.busy_mutex import end_turn
-from app.config import config as _app_config
+from app.agents.chat.multi_agent_chat import create_multi_agent_chat_deep_agent
+from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import end_turn
+from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
+    FilesystemMode,
+    FilesystemSelection,
+)
 from app.db import ChatVisibility, async_session_maker
 from app.observability import otel as ot
 from app.services.new_streaming_service import VercelStreamingService
@@ -274,6 +275,7 @@ async def stream_new_chat(
                         selected_llm_config_id=0,
                         requires_image_input=requires_image_input,
                         requested_llm_config_id=requested_llm_config_id,
+                        force_repin_free=True,
                     )
                     if pin_fallback.error is not None:
                         message, error_code, error_kind = pin_fallback.error
@@ -369,12 +371,6 @@ async def stream_new_chat(
             mentioned_documents=mentioned_documents,
             background_tasks=_background_tasks,
         )
-        persist_asst_task = spawn_persist_assistant_shell_task(
-            chat_id=chat_id,
-            user_id=user_id,
-            turn_id=stream_result.turn_id,
-            background_tasks=_background_tasks,
-        )
 
         _t0 = time.perf_counter()
         connector_service, firecrawl_api_key = await setup_connector_and_firecrawl(
@@ -392,16 +388,11 @@ async def stream_new_chat(
         )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
-        use_multi_agent = bool(_app_config.MULTI_AGENT_CHAT_ENABLED)
-        chat_agent_mode = "multi" if use_multi_agent else "single"
+        chat_agent_mode = "multi"
         set_agent_mode(chat_span, chat_agent_mode)
 
         _t0 = time.perf_counter()
-        agent_factory = (
-            create_multi_agent_chat_deep_agent
-            if use_multi_agent
-            else create_surfsense_deep_agent
-        )
+        agent_factory = create_multi_agent_chat_deep_agent
         # Build the agent inline. Provider 429s surface through the in-stream
         # recovery loop below, which repins the thread to an eligible
         # alternative config and rebuilds the agent before the user sees any
@@ -526,6 +517,14 @@ async def stream_new_chat(
             {"message_id": user_message_id, "turn_id": stream_result.turn_id},
         )
 
+        # Spawned only after the user row is confirmed, so a user-persist
+        # failure can't orphan an assistant shell on the same turn.
+        persist_asst_task = spawn_persist_assistant_shell_task(
+            chat_id=chat_id,
+            user_id=user_id,
+            turn_id=stream_result.turn_id,
+            background_tasks=_background_tasks,
+        )
         assistant_message_id = await await_persist_task(
             persist_asst_task,
             chat_id=chat_id,
@@ -830,7 +829,7 @@ async def stream_new_chat(
         # downloadable after the Daytona sandbox auto-deletes.
         if stream_result and stream_result.sandbox_files:
             with contextlib.suppress(Exception):
-                from app.agents.new_chat.sandbox import (
+                from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox import (
                     is_sandbox_enabled,
                     persist_and_delete_sandbox,
                 )

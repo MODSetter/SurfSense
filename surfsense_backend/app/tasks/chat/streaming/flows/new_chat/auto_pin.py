@@ -50,8 +50,14 @@ async def resolve_initial_auto_pin(
     selected_llm_config_id: int,
     requires_image_input: bool,
     requested_llm_config_id: int,
+    force_repin_free: bool = False,
 ) -> AutoPinResult:
-    """Run the resolver and classify any ``ValueError`` for the SSE error path."""
+    """Run the resolver and classify any ``ValueError`` for the SSE error path.
+
+    ``force_repin_free`` forces a fresh re-pin to a free-tier config (used on
+    the premium-quota-exhausted fallback so an out-of-quota user isn't repinned
+    onto another paid model).
+    """
     try:
         pinned = await resolve_or_get_pinned_llm_config_id(
             session,
@@ -60,6 +66,7 @@ async def resolve_initial_auto_pin(
             user_id=user_id,
             selected_llm_config_id=selected_llm_config_id,
             requires_image_input=requires_image_input,
+            force_repin_free=force_repin_free,
         )
         ot.add_event(
             "model.pin.resolved",

@@ -51,7 +51,9 @@ async def mint_test_token(
         raise HTTPException(status_code=403, detail="invalid e2e mint secret")
     async with async_session_maker() as session:
         result = await session.execute(select(User).where(User.email == body.email))
-        user = result.scalar_one_or_none()
+        # ``.unique()`` is required because the User mapper eager-loads a
+        # collection (oauth_accounts) via joined load.
+        user = result.unique().scalar_one_or_none()
     if user is None:
         raise HTTPException(
             status_code=404, detail=f"e2e user {body.email!r} not seeded"

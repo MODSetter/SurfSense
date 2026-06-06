@@ -44,7 +44,7 @@ def patched_globals(monkeypatch: pytest.MonkeyPatch):
         -2: {"id": -2, "billing_tier": "free"},
     }
     monkeypatch.setattr(
-        "app.agents.new_chat.llm_config.load_global_llm_config_by_id",
+        "app.agents.chat.runtime.llm_config.load_global_llm_config_by_id",
         lambda cid: llm_configs.get(cid),
     )
 

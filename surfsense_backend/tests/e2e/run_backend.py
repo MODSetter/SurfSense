@@ -72,8 +72,6 @@ def _load_dotenv_and_set_env_defaults() -> None:
     """
     from dotenv import load_dotenv
 
-    load_dotenv()
-
     os.environ.setdefault(
         "DATABASE_URL",
         "postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense",
@@ -137,6 +135,11 @@ def _load_dotenv_and_set_env_defaults() -> None:
     )
     os.environ["SLACK_CLIENT_ID"] = "fake-slack-mcp-client-id"
     os.environ["SLACK_CLIENT_SECRET"] = "fake-slack-mcp-client-secret"
+
+    # Load .env last so the E2E defaults above win over a developer's .env
+    # (e.g. AUTH_TYPE=GOOGLE), while an explicitly exported shell var still
+    # beats both: setdefault respects it and load_dotenv() never overrides.
+    load_dotenv()
 
 
 def _install_synthetic_global_llm_config() -> None:
@@ -239,19 +242,19 @@ def _patch_llm_bindings() -> None:
 
     chat_targets = [
         (
-            "app.agents.new_chat.llm_config.create_chat_litellm_from_agent_config",
+            "app.agents.chat.runtime.llm_config.create_chat_litellm_from_agent_config",
             fake_create_chat_litellm_from_agent_config,
         ),
         (
-            "app.agents.new_chat.llm_config.create_chat_litellm_from_config",
+            "app.agents.chat.runtime.llm_config.create_chat_litellm_from_config",
             fake_create_chat_litellm_from_config,
         ),
         (
-            "app.tasks.chat.stream_new_chat.create_chat_litellm_from_agent_config",
+            "app.tasks.chat.streaming.flows.shared.llm_bundle.create_chat_litellm_from_agent_config",
             fake_create_chat_litellm_from_agent_config,
         ),
         (
-            "app.tasks.chat.stream_new_chat.create_chat_litellm_from_config",
+            "app.tasks.chat.streaming.flows.shared.llm_bundle.create_chat_litellm_from_config",
             fake_create_chat_litellm_from_config,
         ),
     ]

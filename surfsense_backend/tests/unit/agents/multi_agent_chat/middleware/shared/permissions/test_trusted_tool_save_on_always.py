@@ -14,11 +14,12 @@ from langgraph.types import Command
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from app.agents.multi_agent_chat.middleware.shared.permissions import (
+from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
+from app.agents.chat.multi_agent_chat.shared.permissions import (
+    Rule,
+    Ruleset,
     build_permission_mw,
 )
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.permissions import Rule, Ruleset
 
 
 class _NoArgs(BaseModel):

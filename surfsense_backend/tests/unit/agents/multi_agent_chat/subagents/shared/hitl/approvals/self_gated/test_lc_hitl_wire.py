@@ -22,7 +22,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 from typing_extensions import TypedDict
 
-from app.agents.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
+from app.agents.chat.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
     request_approval,
 )
 

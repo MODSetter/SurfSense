@@ -24,17 +24,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.agents.new_chat.filesystem_selection import (
-    ClientPlatform,
-    FilesystemMode,
-    FilesystemSelection,
-    LocalFilesystemMount,
-)
-from app.agents.new_chat.middleware.busy_mutex import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import (
     get_cancel_state,
     is_cancel_requested,
     manager,
     request_cancel,
+)
+from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
+    ClientPlatform,
+    FilesystemMode,
+    FilesystemSelection,
+    LocalFilesystemMount,
 )
 from app.config import config
 from app.db import (
@@ -71,7 +71,7 @@ from app.schemas.new_chat import (
     TokenUsageSummary,
     TurnStatusResponse,
 )
-from app.tasks.chat.stream_new_chat import (
+from app.tasks.chat.streaming.flows import (
     stream_new_chat,
     stream_resume_chat,
 )
@@ -476,7 +476,7 @@ async def _revert_turns_for_regenerate(
 
 def _try_delete_sandbox(thread_id: int) -> None:
     """Fire-and-forget sandbox + local file deletion so the HTTP response isn't blocked."""
-    from app.agents.new_chat.sandbox import (
+    from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox import (
         delete_local_sandbox_files,
         delete_sandbox,
         is_sandbox_enabled,
@@ -1668,7 +1668,7 @@ async def list_agent_tools(
 
     Hidden (WIP) tools are excluded from the response.
     """
-    from app.agents.new_chat.tools.registry import BUILTIN_TOOLS
+    from app.agents.chat.multi_agent_chat.shared.tools.catalog import TOOL_CATALOG
 
     return [
         AgentToolInfo(
@@ -1676,7 +1676,7 @@ async def list_agent_tools(
             description=t.description,
             enabled_by_default=t.enabled_by_default,
         )
-        for t in BUILTIN_TOOLS
+        for t in TOOL_CATALOG
         if not t.hidden
     ]
 
@@ -1934,7 +1934,7 @@ async def regenerate_response(
     """
     from langchain_core.messages import HumanMessage
 
-    from app.agents.new_chat.checkpointer import get_checkpointer
+    from app.agents.chat.runtime.checkpointer import get_checkpointer
 
     try:
         # Verify thread exists and user has permission

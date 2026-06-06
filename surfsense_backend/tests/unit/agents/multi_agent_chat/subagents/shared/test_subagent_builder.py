@@ -19,14 +19,14 @@ from langchain_core.language_models.fake_chat_models import (
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
-from app.agents.multi_agent_chat.middleware.shared.permissions.middleware.core import (
+from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
+from app.agents.chat.multi_agent_chat.shared.permissions import Rule, Ruleset, evaluate
+from app.agents.chat.multi_agent_chat.shared.permissions.middleware.core import (
     PermissionMiddleware,
 )
-from app.agents.multi_agent_chat.subagents.shared.subagent_builder import (
+from app.agents.chat.multi_agent_chat.subagents.shared.subagent_builder import (
     pack_subagent,
 )
-from app.agents.new_chat.feature_flags import AgentFeatureFlags
-from app.agents.new_chat.permissions import Rule, Ruleset, evaluate
 
 
 class RateLimitError(Exception):
