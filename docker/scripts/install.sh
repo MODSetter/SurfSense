@@ -189,31 +189,6 @@ compose_up_wait() {
     fi
 }
 
-# True if `surfsense-zero-cache` exists but `surfsense-zero-init` does not.
-# That signals an install that predates the migrations-service fix; the old
-# replica may be half-initialized and would block zero-cache on next start.
-test_stale_zero_cache_volume() {
-    local has_zc has_zi
-    has_zc=$(docker volume ls --format '{{.Name}}' 2>/dev/null | grep -Fx 'surfsense-zero-cache' || true)
-    has_zi=$(docker volume ls --format '{{.Name}}' 2>/dev/null | grep -Fx 'surfsense-zero-init' || true)
-    [[ -n "$has_zc" && -z "$has_zi" ]]
-}
-
-invoke_stale_zero_cache_cleanup() {
-    if ! test_stale_zero_cache_volume; then
-        return 0
-    fi
-    warn "Detected pre-existing 'surfsense-zero-cache' volume from an install that"
-    warn "predates the migrations-service fix. It may contain a half-initialized"
-    warn "SQLite replica that would block zero-cache from starting."
-    warn "The volume will be removed in 5 seconds; press Ctrl+C to cancel."
-    sleep 5
-
-    (cd "${INSTALL_DIR}" && ${DC} down --remove-orphans 2>/dev/null) || true
-    docker volume rm surfsense-zero-cache 2>/dev/null || true
-    success "Removed surfsense-zero-cache volume; zero-cache will re-sync on next start."
-}
-
 # ── Variant and .env helpers ─────────────────────────────────────────────────
 
 set_env_value() {
@@ -447,8 +422,6 @@ else
 fi
 
 # ── Start containers ─────────────────────────────────────────────────────────
-
-invoke_stale_zero_cache_cleanup
 
 if $MIGRATION_MODE; then
     # Read DB credentials from .env (fall back to defaults from docker-compose.yml)

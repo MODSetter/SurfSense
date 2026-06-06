@@ -153,34 +153,6 @@ function Wait-ForPostgres {
 
 # ── Stack startup helper ────────────────────────────────────────────────────
 
-function Test-StaleZeroCacheVolume {
-    $raw = Invoke-NativeSafe { docker volume ls --format '{{.Name}}' 2>$null }
-    if ([string]::IsNullOrWhiteSpace($raw)) { return $false }
-    $names = $raw -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
-    $hasZeroCache = $names -contains 'surfsense-zero-cache'
-    $hasZeroInit = $names -contains 'surfsense-zero-init'
-    # Pre-fix installs created surfsense-zero-cache but never surfsense-zero-init.
-    # Such a volume may hold a half-initialized SQLite replica from an earlier
-    # crash-loop. Wiping it forces zero-cache to do a fresh initial sync.
-    return ($hasZeroCache -and -not $hasZeroInit)
-}
-
-function Invoke-StaleZeroCacheCleanup {
-    if (-not (Test-StaleZeroCacheVolume)) { return }
-
-    Write-Warn "Detected pre-existing 'surfsense-zero-cache' volume from an install that"
-    Write-Warn "predates the migrations-service fix. It may contain a half-initialized"
-    Write-Warn "SQLite replica that would block zero-cache from starting."
-    Write-Warn "The volume will be removed in 5 seconds; press Ctrl+C to cancel."
-    Start-Sleep -Seconds 5
-
-    Push-Location $InstallDir
-    Invoke-NativeSafe { docker compose down --remove-orphans 2>$null } | Out-Null
-    Pop-Location
-    Invoke-NativeSafe { docker volume rm surfsense-zero-cache 2>$null } | Out-Null
-    Write-Ok "Removed surfsense-zero-cache volume; zero-cache will re-sync on next start."
-}
-
 function Invoke-StackFailureReport {
     Write-Host ""
     Write-Host "[ERROR] Stack did not reach a healthy state." -ForegroundColor Red
@@ -442,8 +414,6 @@ if (-not (Test-Path $envPath)) {
 }
 
 # ── Start containers ────────────────────────────────────────────────────────
-
-Invoke-StaleZeroCacheCleanup
 
 if ($MigrationMode) {
     $envContent = Get-Content $envPath

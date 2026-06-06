@@ -327,11 +327,13 @@ Symptom (in `docker compose logs zero-cache`):
 Error: Unknown or invalid publications. Specified: [zero_publication]. Found: []
 ```
 
-This means `zero-cache` started before `zero_publication` was created. With
-the current compose files this should be impossible. The `migrations`
-service blocks `zero-cache` from starting. If you see it, your stack
-predates the fix or you brought up `zero-cache` manually with `docker
-compose up zero-cache` before the migrations service ran.
+This means `zero-cache` started before `zero_publication` was created or the
+publication does not match SurfSense's canonical Zero shape. With the current
+compose files this should be impossible: the `migrations` service blocks
+`zero-cache` from starting and verifies the publication before exiting
+successfully. If you see it, your stack predates the fix or you brought up
+`zero-cache` manually with `docker compose up zero-cache` before the migrations
+service ran.
 
 Recovery:
 
@@ -341,18 +343,13 @@ docker volume rm surfsense-zero-cache   # wipe half-built SQLite replica
 docker compose up -d                    # migrations runs first, then zero-cache
 ```
 
-The install script (`install.ps1` / `install.sh`) detects this case
-automatically: if it finds a `surfsense-zero-cache` volume from a previous
-install with no matching `surfsense-zero-init` volume, it removes the stale
-volume before bringing the stack up.
-
 ### Zero-cache crashes with `_zero.tableMetadata` errors
 
 This indicates a half-initialized SQLite replica left behind by a previous
-crash. The `migrations` service writes a marker file on a shared volume
-(`surfsense-zero-init`) when the publication oid changes; zero-cache wipes
-its replica and re-syncs on next start. If the marker mechanism somehow did
-not trigger, run the recovery one-liner above.
+crash. Zero's own event triggers and `ZERO_AUTO_RESET` handle schema and
+replication halts automatically. If the local SQLite replica is wedged, run the
+recovery one-liner above to wipe `surfsense-zero-cache`; zero-cache will
+re-sync from Postgres on the next start.
 
 ### Ensuring `wal_level = logical`
 

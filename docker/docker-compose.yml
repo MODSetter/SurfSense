@@ -29,10 +29,9 @@ services:
 
   # Short-lived schema runner. Executes `alembic upgrade head` and verifies
   # that the `zero_publication` Postgres logical-replication publication
-  # exists, then exits 0. Downstream services (backend, celery_*, zero-cache)
-  # gate on this with `condition: service_completed_successfully` so a failed
-  # migration halts the whole stack instead of silently producing a half-built
-  # system that crash-loops zero-cache on missing publications.
+  # matches the canonical shape, then exits 0. Downstream services gate on this
+  # with `condition: service_completed_successfully` so a failed migration halts
+  # the whole stack instead of booting zero-cache against a drifted publication.
   migrations:
     image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
     env_file:
@@ -42,8 +41,6 @@ services:
       PYTHONPATH: /app
       SERVICE_ROLE: migrate
       MIGRATION_TIMEOUT: ${MIGRATION_TIMEOUT:-900}
-    volumes:
-      - zero_init:/zero-init
     depends_on:
       db:
         condition: service_healthy
@@ -231,6 +228,7 @@ services:
       ZERO_REPLICA_FILE: /data/zero.db
       ZERO_ADMIN_PASSWORD: ${ZERO_ADMIN_PASSWORD:-surfsense-zero-admin}
       ZERO_APP_PUBLICATIONS: ${ZERO_APP_PUBLICATIONS:-zero_publication}
+      ZERO_AUTO_RESET: ${ZERO_AUTO_RESET:-true}
       ZERO_NUM_SYNC_WORKERS: ${ZERO_NUM_SYNC_WORKERS:-4}
       ZERO_UPSTREAM_MAX_CONNS: ${ZERO_UPSTREAM_MAX_CONNS:-20}
       ZERO_CVR_MAX_CONNS: ${ZERO_CVR_MAX_CONNS:-30}
@@ -238,16 +236,8 @@ services:
       ZERO_MUTATE_URL: ${ZERO_MUTATE_URL:-http://frontend:3000/api/zero/mutate}
     volumes:
       - zero_cache_data:/data
-      - zero_init:/zero-init
-    # Wrapper: if the migrations service flagged a publication change via
-    # /zero-init/needs_reset, wipe the SQLite replica before starting so
-    # zero-cache does a clean initial sync. Recovers from the half-built
-    # replica state (`_zero.tableMetadata` missing) caused by earlier crashes.
-    entrypoint: ["sh", "-c"]
-    # Pass the script as a single list element so Compose does not tokenize it.
-    command:
-      - 'if [ -f /zero-init/needs_reset ]; then echo "[zero-init] publication change detected; wiping replica file(s) under /data" && rm -f /data/zero.db /data/zero.db-shm /data/zero.db-wal && rm -f /zero-init/needs_reset; fi; exec zero-cache'
     restart: unless-stopped
+    stop_grace_period: 300s
     depends_on:
       db:
         condition: service_healthy
@@ -258,6 +248,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 600s
 
   frontend:
     image: ghcr.io/modsetter/surfsense-web:${SURFSENSE_VERSION:-latest}
@@ -289,7 +280,5 @@ volumes:
     name: surfsense-shared-temp
   zero_cache_data:
     name: surfsense-zero-cache
-  zero_init:
-    name: surfsense-zero-init
   whatsapp_sessions:
     name: surfsense-whatsapp-sessions
