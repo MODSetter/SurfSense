@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - dev
+    tags:
+      - 'v*'
+      - 'beta-v*'
     paths:
       - 'surfsense_backend/**'
       - 'surfsense_web/**'
@@ -26,10 +29,11 @@ permissions:
 jobs:
   tag_release:
     runs-on: ubuntu-latest
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event_name == 'workflow_dispatch'
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/beta-v')
     outputs:
       new_tag: ${{ steps.tag_version.outputs.next_version }}
       commit_sha: ${{ steps.tag_version.outputs.commit_sha }}
+      is_release_tag: ${{ steps.tag_version.outputs.is_release_tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -42,31 +46,57 @@ jobs:
       - name: Read app version and calculate next Docker build version
         id: tag_version
         run: |
-          APP_VERSION=$(tr -d '[:space:]' < VERSION)
-          echo "App version from VERSION file: $APP_VERSION"
+          if [[ "$GITHUB_REF" == refs/tags/beta-v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/beta-v}"
+            NEXT_VERSION="beta-${VERSION}"
+            IS_RELEASE_TAG="true"
 
-          if [ -z "$APP_VERSION" ]; then
-            echo "Error: Could not read version from VERSION file"
-            exit 1
-          fi
+            if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+              echo "::error::Version '$VERSION' is not valid semver (expected X.Y.Z). Fix your tag name."
+              exit 1
+            fi
 
-          git fetch --tags
+            echo "Docker beta release version from git tag: $NEXT_VERSION"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            NEXT_VERSION="${GITHUB_REF#refs/tags/v}"
+            IS_RELEASE_TAG="true"
 
-          LATEST_BUILD_TAG=$(git tag --list "${APP_VERSION}.*" --sort='-v:refname' | head -n 1)
+            if ! echo "$NEXT_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+              echo "::error::Version '$NEXT_VERSION' is not valid semver (expected X.Y.Z). Fix your tag name."
+              exit 1
+            fi
 
-          if [ -z "$LATEST_BUILD_TAG" ]; then
-            echo "No previous Docker build tag found for version ${APP_VERSION}. Starting with ${APP_VERSION}.1"
-            NEXT_VERSION="${APP_VERSION}.1"
+            echo "Docker release version from git tag: $NEXT_VERSION"
           else
-            echo "Latest Docker build tag found: $LATEST_BUILD_TAG"
-            BUILD_NUMBER=$(echo "$LATEST_BUILD_TAG" | rev | cut -d. -f1 | rev)
-            NEXT_BUILD=$((BUILD_NUMBER + 1))
-            NEXT_VERSION="${APP_VERSION}.${NEXT_BUILD}"
+            APP_VERSION=$(tr -d '[:space:]' < VERSION)
+            echo "App version from VERSION file: $APP_VERSION"
+
+            if [ -z "$APP_VERSION" ]; then
+              echo "Error: Could not read version from VERSION file"
+              exit 1
+            fi
+
+            git fetch --tags
+
+            LATEST_BUILD_TAG=$(git tag --list "${APP_VERSION}.*" --sort='-v:refname' | head -n 1)
+
+            if [ -z "$LATEST_BUILD_TAG" ]; then
+              echo "No previous Docker build tag found for version ${APP_VERSION}. Starting with ${APP_VERSION}.1"
+              NEXT_VERSION="${APP_VERSION}.1"
+            else
+              echo "Latest Docker build tag found: $LATEST_BUILD_TAG"
+              BUILD_NUMBER=$(echo "$LATEST_BUILD_TAG" | rev | cut -d. -f1 | rev)
+              NEXT_BUILD=$((BUILD_NUMBER + 1))
+              NEXT_VERSION="${APP_VERSION}.${NEXT_BUILD}"
+            fi
+
+            IS_RELEASE_TAG="false"
+            echo "Calculated next Docker version: $NEXT_VERSION"
           fi
 
-          echo "Calculated next Docker version: $NEXT_VERSION"
           echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
           echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "is_release_tag=$IS_RELEASE_TAG" >> $GITHUB_OUTPUT
 
   build:
     needs: tag_release
@@ -307,11 +337,11 @@ jobs:
           images: ${{ steps.image.outputs.name }}
           tags: |
             type=raw,value=${{ needs.tag_release.outputs.new_tag }},enable=${{ needs.tag_release.outputs.new_tag != '' }}
-            type=raw,value=${{ steps.appver.outputs.app_version }},enable=${{ needs.tag_release.outputs.new_tag != '' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch) }}
+            type=raw,value=${{ steps.appver.outputs.app_version }},enable=${{ needs.tag_release.outputs.new_tag != '' && needs.tag_release.outputs.is_release_tag != 'true' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch) }}
             type=ref,event=branch
             type=sha,prefix=git-
           flavor: |
-            latest=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch }}
+            latest=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch || startsWith(github.ref, 'refs/tags/v') }}
             ${{ matrix.tag_suffix != '' && format('suffix={0},onlatest=true', matrix.tag_suffix) || '' }}
 
       - name: Create manifest list and push
@@ -336,7 +366,7 @@ jobs:
   finalize_release:
     runs-on: ubuntu-latest
     needs: [tag_release, create_manifest]
-    if: ${{ success() && needs.tag_release.outputs.new_tag != '' }}
+    if: ${{ success() && needs.tag_release.outputs.new_tag != '' && needs.tag_release.outputs.is_release_tag != 'true' }}
     permissions:
       contents: write
     steps:
