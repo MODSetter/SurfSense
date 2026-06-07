@@ -1,3 +1,4 @@
+# syntax=docker.io/docker/dockerfile:1
 # =============================================================================
 # SurfSense Backend — Multi-stage Dockerfile
 # =============================================================================
@@ -104,7 +105,9 @@ RUN printf '%s\n' \
     | python || true
 
 ARG EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-RUN python -c "from chonkie import AutoEmbeddings; AutoEmbeddings.get_embeddings('${EMBEDDING_MODEL}')"
+RUN --mount=type=secret,id=HF_TOKEN \
+    HF_TOKEN="$(cat /run/secrets/HF_TOKEN 2>/dev/null || true)" \
+    python -c "from chonkie import AutoEmbeddings; AutoEmbeddings.get_embeddings('${EMBEDDING_MODEL}')"
 
 # Install Playwright browsers (the playwright python package itself is in deps)
 RUN playwright install chromium --with-deps

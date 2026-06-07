@@ -193,6 +193,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           cache-from: type=registry,ref=${{ steps.image.outputs.name }}:buildcache-${{ matrix.variant }}-${{ matrix.suffix }}
           cache-to: type=registry,ref=${{ steps.image.outputs.name }}:buildcache-${{ matrix.variant }}-${{ matrix.suffix }},mode=max,image-manifest=true,oci-mediatypes=true
+          secrets: |
+            HF_TOKEN=${{ secrets.HF_TOKEN }}
           provenance: false
           build-args: |
             ${{ matrix.image == 'backend' && format('USE_CUDA={0}', matrix.use_cuda) || '' }}
