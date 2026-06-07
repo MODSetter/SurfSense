@@ -27,7 +27,7 @@ permissions:
   packages: write
 
 jobs:
-  tag_release:
+  compute_version:
     runs-on: ubuntu-latest
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/beta-v')
     outputs:
@@ -99,8 +99,8 @@ jobs:
           echo "is_release_tag=$IS_RELEASE_TAG" >> $GITHUB_OUTPUT
 
   build:
-    needs: tag_release
-    if: always() && (needs.tag_release.result == 'success' || needs.tag_release.result == 'skipped')
+    needs: compute_version
+    if: always() && (needs.compute_version.result == 'success' || needs.compute_version.result == 'skipped')
     runs-on: ${{ matrix.os }}
     permissions:
       packages: write
@@ -223,8 +223,8 @@ jobs:
   # Release-only; skipped on dev so the tolerant create_manifest path is kept.
   verify_digests:
     runs-on: ubuntu-latest
-    needs: [tag_release, build]
-    if: ${{ always() && needs.tag_release.result == 'success' && needs.tag_release.outputs.new_tag != '' }}
+    needs: [compute_version, build]
+    if: ${{ always() && needs.compute_version.result == 'success' && needs.compute_version.outputs.new_tag != '' }}
     steps:
       - name: Download all digests
         uses: actions/download-artifact@v8
@@ -253,7 +253,7 @@ jobs:
 
   create_manifest:
     runs-on: ubuntu-latest
-    needs: [tag_release, build, verify_digests]
+    needs: [compute_version, build, verify_digests]
     if: ${{ !cancelled() && needs.verify_digests.result != 'failure' }}
     permissions:
       packages: write
@@ -323,7 +323,7 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         id: appver
         run: |
-          VERSION_TAG="${{ needs.tag_release.outputs.new_tag }}"
+          VERSION_TAG="${{ needs.compute_version.outputs.new_tag }}"
           if [ -n "$VERSION_TAG" ]; then
             APP_VERSION=$(echo "$VERSION_TAG" | rev | cut -d. -f2- | rev)
           else
@@ -338,8 +338,8 @@ jobs:
         with:
           images: ${{ steps.image.outputs.name }}
           tags: |
-            type=raw,value=${{ needs.tag_release.outputs.new_tag }},enable=${{ needs.tag_release.outputs.new_tag != '' }}
-            type=raw,value=${{ steps.appver.outputs.app_version }},enable=${{ needs.tag_release.outputs.new_tag != '' && needs.tag_release.outputs.is_release_tag != 'true' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch) }}
+            type=raw,value=${{ needs.compute_version.outputs.new_tag }},enable=${{ needs.compute_version.outputs.new_tag != '' }}
+            type=raw,value=${{ steps.appver.outputs.app_version }},enable=${{ needs.compute_version.outputs.new_tag != '' && needs.compute_version.outputs.is_release_tag != 'true' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch) }}
             type=ref,event=branch
             type=sha,prefix=git-
           flavor: |
@@ -367,8 +367,8 @@ jobs:
   # Push the git tag only after build, gate, and manifest publish all succeed.
   finalize_release:
     runs-on: ubuntu-latest
-    needs: [tag_release, create_manifest]
-    if: ${{ success() && needs.tag_release.outputs.new_tag != '' && needs.tag_release.outputs.is_release_tag != 'true' }}
+    needs: [compute_version, create_manifest]
+    if: ${{ success() && needs.compute_version.outputs.new_tag != '' && needs.compute_version.outputs.is_release_tag != 'true' }}
     permissions:
       contents: write
     steps:
@@ -384,8 +384,8 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-          NEXT_TAG="${{ needs.tag_release.outputs.new_tag }}"
-          COMMIT_SHA="${{ needs.tag_release.outputs.commit_sha }}"
+          NEXT_TAG="${{ needs.compute_version.outputs.new_tag }}"
+          COMMIT_SHA="${{ needs.compute_version.outputs.commit_sha }}"
           echo "Tagging commit $COMMIT_SHA with $NEXT_TAG"
 
           git tag -a "$NEXT_TAG" "$COMMIT_SHA" -m "Docker build $NEXT_TAG"
@@ -394,7 +394,7 @@ jobs:
 
       - name: Verify tag push
         run: |
-          echo "Checking if tag ${{ needs.tag_release.outputs.new_tag }} exists remotely..."
+          echo "Checking if tag ${{ needs.compute_version.outputs.new_tag }} exists remotely..."
           sleep 5
-          git ls-remote --tags origin | grep "refs/tags/${{ needs.tag_release.outputs.new_tag }}" || (echo "Tag push verification failed!" && exit 1)
+          git ls-remote --tags origin | grep "refs/tags/${{ needs.compute_version.outputs.new_tag }}" || (echo "Tag push verification failed!" && exit 1)
           echo "Tag successfully pushed."
