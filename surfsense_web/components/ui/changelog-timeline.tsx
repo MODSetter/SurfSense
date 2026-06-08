@@ -49,11 +49,11 @@ export const ChangelogTimeline = ({
 								key={`${entry.version}-${entry.date}`}
 								className="relative flex flex-col gap-4 md:flex-row md:gap-16"
 							>
-								<div className="top-8 flex h-min w-64 shrink-0 items-center gap-4 md:sticky">
+								<div className="top-8 flex h-min w-64 shrink-0 flex-col items-start gap-3 md:sticky">
+									<time className="text-xs font-medium text-muted-foreground">{entry.date}</time>
 									<Badge variant="secondary" className="text-xs">
 										{entry.version}
 									</Badge>
-									<time className="text-xs font-medium text-muted-foreground">{entry.date}</time>
 								</div>
 								<div className="flex flex-col">
 									<h2 className="mb-3 text-lg leading-tight font-bold text-foreground/90 md:text-2xl">
