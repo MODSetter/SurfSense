@@ -5,12 +5,16 @@ import type { Context } from "@/types/zero";
 import { queries } from "@/zero/queries";
 import { schema } from "@/zero/schema";
 
-function getBackendBaseUrl() {
-	const base = process.env.FASTAPI_BACKEND_INTERNAL_URL || "http://localhost:8000";
-	return base.endsWith("/") ? base.slice(0, -1) : base;
-}
-
-const backendURL = getBackendBaseUrl();
+// This route is invoked server-to-server by zero-cache (via ZERO_QUERY_URL),
+// so it must reach the backend over the internal Docker network
+// (e.g. http://backend:8000). The browser-facing NEXT_PUBLIC_FASTAPI_BACKEND_URL
+// (e.g. http://localhost:8929) does NOT resolve from inside the frontend
+// container and would make every authenticated Zero query fail with a 503.
+const backendURL = (
+	process.env.FASTAPI_BACKEND_INTERNAL_URL ||
+	BACKEND_URL ||
+	"http://localhost:8000"
+).replace(/\/$/, "");
 
 async function authenticateRequest(
 	request: Request

@@ -254,13 +254,15 @@ const ThreadWelcome: FC = () => {
 
 	return (
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
-			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center">
-				<h1 className="aui-thread-welcome-message-inner text-3xl md:text-[2.625rem] select-none">
-					{greeting}
-				</h1>
-			</div>
-			<div className="w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
-				<Composer />
+			<div className="my-auto flex w-full flex-col items-center gap-6 py-6 sm:contents sm:my-0 sm:gap-0 sm:py-0">
+				<div className="aui-thread-welcome-message flex flex-col items-center text-center sm:absolute sm:bottom-[calc(50%+5rem)] sm:left-0 sm:right-0">
+					<h1 className="aui-thread-welcome-message-inner text-3xl md:text-[2.625rem] select-none">
+						{greeting}
+					</h1>
+				</div>
+				<div className="w-full flex items-start justify-center sm:absolute sm:top-[calc(50%-3.5rem)] sm:left-0 sm:right-0">
+					<Composer />
+				</div>
 			</div>
 		</div>
 	);
