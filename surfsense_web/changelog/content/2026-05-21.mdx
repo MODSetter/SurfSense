@@ -1,0 +1,48 @@
+---
+title: "SurfSense v0.0.25: Faster Agents, Lower LLM Cost, Better Citations & Memory Editing"
+description: "SurfSense v0.0.25 improves agent speed and lowers LLM cost, fixes citations, adds document-panel memory editing, centralizes backend URL handling, and updates CI workflow versions and test triggers."
+date: "2026-05-21"
+version: "0.0.25"
+---
+
+## What's New in v0.0.25
+
+v0.0.25 focuses on making SurfSense agents faster, cheaper to run, and easier to trust. Agent turns now do less unnecessary LLM work, citations are improved, memory extraction gets more useful, and users can edit memory directly from the document panel. The release also cleans up backend URL handling across the web app and tightens CI triggers.
+
+### Faster, Lower-Cost Agents
+
+- **Faster Agent Turns**: Agent execution was optimized so common turns finish with less waiting.
+- **Lower LLM Cost**: The agent runtime now avoids more unnecessary model calls, reducing token spend for complex workflows.
+- **Improved Agent Speed**: Follow-up runtime improvements make chat feel more responsive, especially in agent-heavy paths.
+- **Better Citations**: Citation behavior was fixed and improved so answers remain easier to verify against source documents.
+
+### Memory Editing
+
+- **Improved Memory Extraction**: SurfSense extracts durable memory more cleanly, keeping useful context while avoiding unnecessary noise.
+- **Document-Panel Memory Editing**: Users can now edit memory from the document panel, bringing memory management closer to the context that created it.
+- **More Practical Long-Term Context**: Cleaner memory updates make future chats more personalized without making memory harder to control.
+
+### Backend URL Cleanup
+
+- **Centralized BACKEND_URL Usage**: Inline environment reads were replaced with a shared BACKEND_URL path across key frontend areas.
+- **Connector Form Consistency**: Connector forms and hooks now use the same backend URL contract.
+- **Editor, Chat, Dashboard & Settings Cleanup**: Core app surfaces now rely on the shared backend URL helper instead of scattered environment access.
+- **Tool UI Generator Cleanup**: Tool UI generators also moved to the centralized backend URL flow.
+
+### No longer broken
+
+- Fixed citation behavior in agent responses
+- Updated CI workflow versions
+- Scoped test triggers so CI runs are better targeted
+- Removed scattered inline process.env reads from frontend runtime paths
+
+### Developers
+
+- Agent execution was tuned to reduce LLM calls and improve response latency
+- BACKEND_URL was adopted consistently across lib code, connector forms, hooks, editor, chat, dashboard, settings, and tool UI generators
+- CI workflows were refreshed with updated versions and narrower trigger scopes
+- Memory extraction logic was refined to support cleaner editing and retrieval flows
+
+v0.0.25 makes SurfSense agents more efficient and easier to inspect. Faster turns, lower LLM cost, better citations, and more direct memory editing all move SurfSense toward a smoother day-to-day AI knowledge workspace.
+
+SurfSense connects all your knowledge sources in one place.

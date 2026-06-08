@@ -1,0 +1,63 @@
+---
+title: "SurfSense v0.0.24: UI Revamp, Multi-Agent Timeline, Live Subagents & E2E Testing"
+description: "SurfSense v0.0.24 ships a major UI revamp, hierarchical multi-agent timelines, live subagent streaming, inline and parallel human approvals, stronger multi-agent delegation, citation improvements, and a full E2E test harness."
+date: "2026-05-20"
+version: "0.0.24"
+---
+
+## What's New in v0.0.24
+
+v0.0.24 is a major product and runtime release for SurfSense. The interface gets a broad **UI revamp**, multi-agent chat gains a hierarchical timeline with **live subagent streaming**, and human approvals become more natural with inline and parallel approval flows. Behind the scenes, this release also introduces a full E2E test harness and hardens Docker build migrations.
+
+### UI Revamp
+
+- **Refreshed Product Interface**: SurfSense gets a cleaner, more polished UI across key chat and dashboard surfaces.
+- **Improved Mentioned Document Chips**: Mentioned document chips behave more reliably and feel better in active chat workflows.
+- **Consistent Mobile Behavior**: Slide-out panels now share the same mobile breakpoint logic used elsewhere in the app.
+- **Better Error Toast Ownership**: Mutations that own their own error UX no longer also trigger noisy global error toasts.
+- **Clickable Media Accessibility**: Media cards now include accessible labels for better keyboard and screen-reader use.
+
+### Multi-Agent Chat, Reworked
+
+- **Hierarchical Timeline**: Multi-agent chat now presents work in a clearer timeline, making it easier to understand what the main agent and subagents are doing.
+- **Live Subagent Streaming**: Subagent work can stream into the interface live instead of appearing only after completion.
+- **Inline HITL Approvals**: Human-in-the-loop approval cards now fit directly into the chat flow.
+- **Parallel Task Delegation**: Multi-agent tasks can be delegated in parallel, letting independent work proceed at the same time.
+- **Parallel Human Approvals**: Approval requests can be handled in parallel when multiple subagent actions need review.
+- **Knowledge Base Specialist**: Delegation now uses an orchestrator-only main agent with a dedicated knowledge base specialist for retrieval-heavy work.
+
+### Testing & Release Confidence
+
+- **E2E Test Suite**: SurfSense now includes an end-to-end test suite for critical product flows.
+- **E2E CI**: The E2E suite is wired into CI so regressions can be caught earlier.
+- **Docker Migration Hardening**: Docker build migrations were hardened to make self-hosted upgrades safer.
+- **Unit and Integration Test Fixes**: Test reliability improved across backend and frontend paths.
+
+### Citations & Logs
+
+- **Citation Panel Reset Fixes**: Citation panels now reset expanded state correctly when the active chunk changes.
+- **Log Cache Invalidation**: Log mutations now invalidate all relevant log cache keys.
+- **Canonical Log Types**: Log hooks now use shared canonical log types from the contracts layer.
+- **Stable Cache Key Ordering**: Cache key ordering was made stable to reduce subtle invalidation bugs.
+
+### No longer broken
+
+- Fixed redundant auth token storage writes
+- Centralized redirect path storage in authentication flows
+- Fixed stale zero-cache replica behavior
+- Fixed citation panel expanded state when switching chunks
+- Fixed log cache invalidation after log mutations
+- Suppressed global error toasts when a mutation provides its own error handling
+
+### Developers
+
+- Multi-agent chat architecture and streaming runtime were rewritten for timeline-first execution
+- Parallel delegation and parallel HITL approval paths were added to the agent runtime
+- Shared helpers were extracted for chat sidebar timestamp formatting and domain parsing
+- Editor documentation now matches the Mod+Shift+S save shortcut
+- The blog was hidden from the navbar until publication readiness
+- Full E2E harness coverage was added around key chat and product workflows
+
+v0.0.24 makes multi-agent SurfSense easier to trust and easier to follow. With a clearer UI, live subagent streaming, parallel approvals, and a real E2E safety net, this release turns the multi-agent runtime into a more visible and dependable part of everyday knowledge work.
+
+SurfSense connects all your knowledge sources in one place.

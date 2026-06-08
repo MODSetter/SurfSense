@@ -1,12 +1,11 @@
 ---
-title: "SurfSense v0.0.12 - New Main UI, Real-time Collaboration and Comments"
+title: "SurfSense v0.0.12: New Main UI, Real-time Collaboration and Comments"
 description: "SurfSense v0.0.12 transforms the platform with a redesigned chat-first interface, real-time collaboration features, comment threads with @mentions, and instant notifications powered by ElectricSQL + PGlite."
 date: "2026-01-26"
-tags: ["UX", "UI", "Real-time chat", "Collaboration", "Comments"]
 version: "0.0.12"
 ---
 
-<img src="/changelog/0.0.12/header.gif" alt="SurfSense v0.0.12 - New Main UI, Real-time Collaboration and Comments" className="rounded-lg w-full" />
+<img src="/changelog/0.0.12/header.gif" alt="SurfSense v0.0.12: New Main UI, Real-time Collaboration and Comments" className="rounded-lg w-full" />
 
 ## What's New in v0.0.12
 
@@ -54,34 +53,23 @@ This release brings major improvements to **collaboration and user experience**.
 - **5-Minute Periodic Syncing**: Near-real-time updates option
 - **Real-Time UI Updates**: See connector indexing progress without page refreshes
 
-<Accordion type="multiple" className="w-full not-prose">
-  <AccordionItem value="item-1">
-    <AccordionTrigger>Bug Fixes</AccordionTrigger>
-    <AccordionContent className="flex flex-col gap-4 text-balance">
-      <ul className="list-disc space-y-2 pl-4">
-        <li>Syncs with no new content now show "Already up to date!" instead of falsely reporting failures</li>
-        <li>Restored missing indexing options page for Google Drive connector</li>
-        <li>File mention picker now handles large document counts with server-side search and pagination</li>
-        <li>Reasoning steps no longer overlap with chat input field</li>
-        <li>File upload modal is now scrollable when adding many files</li>
-        <li>OAuth connectors now display properly on mobile devices</li>
-      </ul>
-    </AccordionContent>
-  </AccordionItem>
-  <AccordionItem value="item-2">
-    <AccordionTrigger>Technical Improvements</AccordionTrigger>
-    <AccordionContent className="flex flex-col gap-4 text-balance">
-      <ul className="list-disc space-y-2 pl-4">
-        <li>Made Alembic migrations idempotent for safer deployments</li>
-        <li>Migrations now work on fresh databases from scratch</li>
-        <li>Major refactoring of chat components for better maintainability</li>
-        <li>Streamlined sidebar and connector page code</li>
-        <li>Fixed legacy route handling</li>
-        <li>Fixed hardcoded Docker values for complex deployments</li>
-      </ul>
-    </AccordionContent>
-  </AccordionItem>
-</Accordion>
+### No longer broken
+
+- Syncs with no new content now show "Already up to date!" instead of falsely reporting failures
+- Restored missing indexing options page for Google Drive connector
+- File mention picker now handles large document counts with server-side search and pagination
+- Reasoning steps no longer overlap with chat input field
+- File upload modal is now scrollable when adding many files
+- OAuth connectors now display properly on mobile devices
+
+### Developers
+
+- Made Alembic migrations idempotent for safer deployments
+- Migrations now work on fresh databases from scratch
+- Major refactoring of chat components for better maintainability
+- Streamlined sidebar and connector page code
+- Fixed legacy route handling
+- Fixed hardcoded Docker values for complex deployments
 
 This release transforms SurfSense into a truly collaborative, real-time platform with a redesigned interface that puts chat front and center. The addition of comments, @mentions, and live collaboration features makes it easier than ever for teams to work together without leaving the app.
 

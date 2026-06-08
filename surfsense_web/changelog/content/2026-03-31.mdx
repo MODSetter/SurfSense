@@ -1,8 +1,7 @@
 ---
-title: "SurfSense v0.0.14 - Dropbox, OneDrive, Agent Approvals, Reports & Self-Hosted Docker"
+title: "SurfSense v0.0.14: Dropbox, OneDrive, Agent Approvals, Reports & Self-Hosted Docker"
 description: "SurfSense v0.0.14 is a massive release: new Dropbox and Microsoft OneDrive connectors, human-in-the-loop approvals across Gmail, Google Calendar, Jira, Confluence, Linear, and Notion, a full report generation system with multi-format export, a faster real-time sync engine, a new desktop app, one-command self-hosted Docker install, and built-in private web search."
 date: "2026-03-31"
-tags: ["Connectors", "Approvals", "Reports", "Desktop App", "Docker", "Dropbox", "OneDrive"]
 version: "0.0.14"
 ---
 
@@ -93,39 +92,28 @@ SurfSense now treats every sensitive AI action as an explicit, reviewable step. 
 
 - **MiniMax**: Complete MiniMax LLM integration joins the growing list of supported models.
 
-<Accordion type="multiple" className="w-full not-prose">
-  <AccordionItem value="item-1">
-    <AccordionTrigger>Bug Fixes</AccordionTrigger>
-    <AccordionContent className="flex flex-col gap-4 text-balance">
-      <ul className="list-disc space-y-2 pl-4">
-        <li>Fixed citations for live connectors</li>
-        <li>Fixed Google Drive handling of failed documents and unsupported file types</li>
-        <li>Fixed Dropbox path retrieval and error handling during indexing</li>
-        <li>Fixed a build failure in the roles manager page</li>
-        <li>Re-enabled legacy AI image handling so older chats still render correctly</li>
-        <li>Fixed sign-in state syncing between the desktop app and web app</li>
-        <li>Fixed nested button accessibility issues across the roles manager, link toolbar, and hero section</li>
-        <li>Fixed several memory leaks (onboarding tour, Spotlight, register page)</li>
-        <li>Fixed Google Calendar event update behavior</li>
-        <li>Smoother client-side navigation in several places</li>
-      </ul>
-    </AccordionContent>
-  </AccordionItem>
-  <AccordionItem value="item-2">
-    <AccordionTrigger>Performance & Reliability</AccordionTrigger>
-    <AccordionContent className="flex flex-col gap-4 text-balance">
-      <ul className="list-disc space-y-2 pl-4">
-        <li>Large document migrations now run in batches to reduce memory usage</li>
-        <li>Smoother streaming in chat thanks to batched UI updates</li>
-        <li>Rate limiting now falls back gracefully when the cache is unavailable</li>
-        <li>Better error tracking and referral attribution</li>
-        <li>Smaller page bundles for the web app, with heavy editors loaded only when needed</li>
-        <li>End-to-end tests for the document upload pipeline</li>
-        <li>Health check endpoint and safer default rate limits</li>
-      </ul>
-    </AccordionContent>
-  </AccordionItem>
-</Accordion>
+### No longer broken
+
+- Fixed citations for live connectors
+- Fixed Google Drive handling of failed documents and unsupported file types
+- Fixed Dropbox path retrieval and error handling during indexing
+- Fixed a build failure in the roles manager page
+- Re-enabled legacy AI image handling so older chats still render correctly
+- Fixed sign-in state syncing between the desktop app and web app
+- Fixed nested button accessibility issues across the roles manager, link toolbar, and hero section
+- Fixed several memory leaks (onboarding tour, Spotlight, register page)
+- Fixed Google Calendar event update behavior
+- Smoother client-side navigation in several places
+
+### Improvements
+
+- Large document migrations now run in batches to reduce memory usage
+- Smoother streaming in chat thanks to batched UI updates
+- Rate limiting now falls back gracefully when the cache is unavailable
+- Better error tracking and referral attribution
+- Smaller page bundles for the web app, with heavy editors loaded only when needed
+- End-to-end tests for the document upload pipeline
+- Health check endpoint and safer default rate limits
 
 v0.0.14 is one of the largest SurfSense releases to date. If you're looking for a **NotebookLM alternative** or comparing **free alternatives to ChatGPT** that you can actually self-host, this release is built for you.
 
