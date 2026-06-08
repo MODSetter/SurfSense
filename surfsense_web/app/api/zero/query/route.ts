@@ -1,12 +1,16 @@
 import { mustGetQuery } from "@rocicorp/zero";
 import { handleQueryRequest } from "@rocicorp/zero/server";
 import { NextResponse } from "next/server";
-import { BACKEND_URL } from "@/lib/env-config";
 import type { Context } from "@/types/zero";
 import { queries } from "@/zero/queries";
 import { schema } from "@/zero/schema";
 
-const backendURL = BACKEND_URL;
+function getBackendBaseUrl() {
+	const base = process.env.FASTAPI_BACKEND_INTERNAL_URL || "http://localhost:8000";
+	return base.endsWith("/") ? base.slice(0, -1) : base;
+}
+
+const backendURL = getBackendBaseUrl();
 
 async function authenticateRequest(
 	request: Request

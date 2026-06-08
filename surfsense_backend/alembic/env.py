@@ -3,6 +3,7 @@ import os
 import sys
 from logging.config import fileConfig
 
+import sqlalchemy as sa
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -35,6 +36,9 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
+
+MIGRATION_ADVISORY_LOCK_NAMESPACE = "surfsense"
+MIGRATION_ADVISORY_LOCK_NAME = "alembic_migrations"
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -73,8 +77,22 @@ def do_run_migrations(connection: Connection) -> None:
         transaction_per_migration=True,
     )
 
-    with context.begin_transaction():
-        context.run_migrations()
+    lock_params = {
+        "namespace": MIGRATION_ADVISORY_LOCK_NAMESPACE,
+        "name": MIGRATION_ADVISORY_LOCK_NAME,
+    }
+    connection.execute(
+        sa.text("SELECT pg_advisory_lock(hashtext(:namespace), hashtext(:name))"),
+        lock_params,
+    )
+    try:
+        with context.begin_transaction():
+            context.run_migrations()
+    finally:
+        connection.execute(
+            sa.text("SELECT pg_advisory_unlock(hashtext(:namespace), hashtext(:name))"),
+            lock_params,
+        )
 
 
 async def run_async_migrations() -> None:

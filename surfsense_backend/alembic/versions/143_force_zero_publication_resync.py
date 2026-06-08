@@ -47,7 +47,6 @@ depends_on: str | Sequence[str] | None = None
 
 PUBLICATION_NAME = "zero_publication"
 
-# Must stay in sync with the column lists in migrations 117 / 139 / 140.
 DOCUMENT_COLS = [
     "id",
     "title",

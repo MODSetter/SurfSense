@@ -114,6 +114,7 @@ services:
       - ZERO_REPLICA_FILE=/data/zero.db
       - ZERO_ADMIN_PASSWORD=${ZERO_ADMIN_PASSWORD:-surfsense-zero-admin}
       - ZERO_APP_PUBLICATIONS=${ZERO_APP_PUBLICATIONS:-zero_publication}
+      - ZERO_AUTO_RESET=${ZERO_AUTO_RESET:-true}
       - ZERO_NUM_SYNC_WORKERS=${ZERO_NUM_SYNC_WORKERS:-4}
       - ZERO_UPSTREAM_MAX_CONNS=${ZERO_UPSTREAM_MAX_CONNS:-20}
       - ZERO_CVR_MAX_CONNS=${ZERO_CVR_MAX_CONNS:-30}
@@ -122,11 +123,13 @@ services:
     volumes:
       - zero_cache_data:/data
     restart: unless-stopped
+    stop_grace_period: 300s
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4848/keepalive"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 600s
 
   # OPTIONAL — Azurite emulates Azure Blob Storage for testing the Azure
   # original-file backend. The default filesystem backend needs none of this.
