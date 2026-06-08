@@ -177,6 +177,8 @@ async def _run_discord_gateway() -> None:
 
 async def start_discord_gateway_supervisor() -> None:
     global _shutdown_event, _task
+    if not config.GATEWAY_ENABLED:
+        return
     if not config.GATEWAY_DISCORD_ENABLED:
         return
     if _task is not None and not _task.done():

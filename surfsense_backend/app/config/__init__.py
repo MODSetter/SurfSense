@@ -542,6 +542,9 @@ class Config:
     BACKEND_URL = os.getenv("BACKEND_URL")
 
     # Messaging gateway (Telegram v1)
+    # Global master switch: when FALSE, no gateway supervisors/workers start and all
+    # gateway HTTP routes return 404, regardless of the per-channel flags below.
+    GATEWAY_ENABLED = os.getenv("GATEWAY_ENABLED", "TRUE").upper() == "TRUE"
     TELEGRAM_SHARED_BOT_TOKEN = os.getenv("TELEGRAM_SHARED_BOT_TOKEN")
     TELEGRAM_SHARED_BOT_USERNAME = os.getenv("TELEGRAM_SHARED_BOT_USERNAME")
     TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET")
