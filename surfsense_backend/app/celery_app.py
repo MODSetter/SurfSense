@@ -1,7 +1,6 @@
 """Celery application configuration and setup."""
 
 import contextlib
-import os
 import time
 
 from celery import Celery
@@ -18,6 +17,8 @@ try:
     from opentelemetry import trace
 except ImportError:  # pragma: no cover - optional OTel dependency
     trace = None  # type: ignore[assignment]
+
+from app.config import config
 
 # Load environment variables
 load_dotenv()
@@ -124,16 +125,16 @@ def init_worker(**kwargs):
     initialize_vision_llm_router()
 
 
-# Get Celery configuration from environment
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
-CELERY_TASK_DEFAULT_QUEUE = os.getenv("CELERY_TASK_DEFAULT_QUEUE", "surfsense")
+# Celery configuration, sourced from the central Config singleton
+CELERY_BROKER_URL = config.CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = config.CELERY_RESULT_BACKEND
+CELERY_TASK_DEFAULT_QUEUE = config.CELERY_TASK_DEFAULT_QUEUE
 
-# Get schedule checker interval from environment
+# Schedule checker interval
 # Format: "<number><unit>" where unit is 'm' (minutes) or 'h' (hours)
 # Examples: "1m" (every minute), "5m" (every 5 minutes), "1h" (every hour)
-SCHEDULE_CHECKER_INTERVAL = os.getenv("SCHEDULE_CHECKER_INTERVAL", "2m")
-STRIPE_RECONCILIATION_INTERVAL = os.getenv("STRIPE_RECONCILIATION_INTERVAL", "10m")
+SCHEDULE_CHECKER_INTERVAL = config.SCHEDULE_CHECKER_INTERVAL
+STRIPE_RECONCILIATION_INTERVAL = config.STRIPE_RECONCILIATION_INTERVAL
 
 
 def parse_schedule_interval(interval: str) -> dict:

@@ -1,5 +1,4 @@
 import asyncio
-import os
 import time
 from datetime import datetime
 from threading import Lock
@@ -12,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from tavily import TavilyClient
 
+from app.config import config
 from app.db import (
     NATIVE_TO_LEGACY_DOCTYPE,
     Chunk,
@@ -2856,9 +2856,7 @@ class ConnectorService:
 # bounded and the alternative (cross-replica fanout) is not worth the
 # coupling here.
 
-_DISCOVERY_TTL_SECONDS: float = float(
-    os.getenv("SURFSENSE_CONNECTOR_DISCOVERY_TTL_SECONDS", "30")
-)
+_DISCOVERY_TTL_SECONDS: float = config.CONNECTOR_DISCOVERY_TTL_SECONDS
 
 # Per-search-space caches. Keyed by ``search_space_id``; value is
 # ``(expires_at_monotonic, payload)``. Plain dicts protected by a lock —
