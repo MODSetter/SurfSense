@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time as _perf_time
 from typing import Any
 
 from deepagents import FilesystemMiddleware
@@ -14,6 +15,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox impor
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.utils.perf import get_perf_logger
 
 from ..system_prompt import build_system_prompt
 from ..tools import (
@@ -33,6 +35,8 @@ from ..tools import (
 from ..tools.glob.description import select_description as glob_description
 from ..tools.grep.description import select_description as grep_description
 from .read_only_policy import READ_ONLY_TOOL_NAMES
+
+_perf_log = get_perf_logger()
 
 
 class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
@@ -60,16 +64,22 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
             is_sandbox_enabled() and thread_id is not None and not read_only
         )
 
+        _t0 = _perf_time.perf_counter()
         system_prompt = build_system_prompt(
             filesystem_mode,
             sandbox_available=self._sandbox_available,
         )
+        _t_prompt = _perf_time.perf_counter() - _t0
 
+        _t0 = _perf_time.perf_counter()
         super().__init__(
             backend=backend,
             system_prompt=system_prompt,
             tool_token_limit_before_evict=tool_token_limit_before_evict,
         )
+        _t_super = _perf_time.perf_counter() - _t0
+
+        _t0 = _perf_time.perf_counter()
         self.tools = [t for t in self.tools if t.name != "execute"]
         self.tools.append(create_mkdir_tool(self))
         self.tools.append(create_cd_tool(self))
@@ -83,6 +93,15 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
 
         if read_only:
             self.tools = [t for t in self.tools if t.name in READ_ONLY_TOOL_NAMES]
+        _t_tools = _perf_time.perf_counter() - _t0
+        _perf_log.info(
+            "[fs_middleware_init] ro=%s system_prompt=%.3fs super_init=%.3fs "
+            "surf_tools=%.3fs",
+            read_only,
+            _t_prompt,
+            _t_super,
+            _t_tools,
+        )
 
     # ----------------------------------------- base-class tool overrides
 

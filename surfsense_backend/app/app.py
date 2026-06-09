@@ -571,6 +571,41 @@ async def _warm_agent_jit_caches() -> None:
         )
 
 
+async def _warm_embedding_model() -> None:
+    """Pre-load/JIT the embedding model so the first KB search is fast.
+
+    With lazy KB retrieval (OpenCode-style), the main agent no longer embeds
+    on every turn — it calls the on-demand ``search_knowledge_base`` tool only
+    when it needs KB content, and that tool's first ``embed_texts`` call in a
+    fresh process pays the model's one-time load/JIT (local sentence-transformer
+    warm or API client init). Doing one throwaway embed at startup moves that
+    cost off the first real search.
+
+    Safety: behind the embedding global lock (run in a worker thread), bounded
+    by the caller's ``asyncio.wait_for``, and non-fatal — on any failure we log
+    and swallow so the worst case is the first real search pays the cold cost.
+    """
+    import time as _time
+
+    logger = logging.getLogger(__name__)
+    t0 = _time.perf_counter()
+    try:
+        from app.utils.document_converters import embed_texts
+
+        await asyncio.to_thread(embed_texts, ["warmup"])
+        logger.info(
+            "[startup] Embedding model warmup completed in %.3fs",
+            _time.perf_counter() - t0,
+        )
+    except Exception:
+        logger.warning(
+            "[startup] Embedding model warmup failed in %.3fs (non-fatal — first "
+            "KB search will pay the cold embed cost)",
+            _time.perf_counter() - t0,
+            exc_info=True,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Tune GC: lower gen-2 threshold so long-lived garbage is collected
@@ -599,6 +634,16 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).warning(
             "[startup] Agent JIT warmup hit timeout/error — skipping; "
             "first real request will pay the full compile cost."
+        )
+
+    # Phase 2 — embedding warmup so the first lazy ``search_knowledge_base``
+    # call doesn't pay the cold embed-model load. Bounded + non-fatal.
+    try:
+        await asyncio.wait_for(asyncio.shield(_warm_embedding_model()), timeout=20)
+    except (TimeoutError, Exception):  # pragma: no cover - defensive
+        logging.getLogger(__name__).warning(
+            "[startup] Embedding warmup hit timeout/error — skipping; "
+            "first KB search will pay the cold embed cost."
         )
 
     register_session_hooks()

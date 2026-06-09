@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Sequence
 from typing import Any
 
@@ -18,6 +19,9 @@ from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFl
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.agents.chat.shared.context import SurfSenseContextSchema
 from app.db import ChatVisibility
+from app.utils.perf import get_perf_logger
+
+_perf_log = get_perf_logger()
 
 
 def build_compiled_agent_graph_sync(
@@ -43,6 +47,7 @@ def build_compiled_agent_graph_sync(
     disabled_tools: list[str] | None = None,
 ):
     """Sync compile: middleware + ``create_agent`` (run via ``asyncio.to_thread``)."""
+    mw_start = time.perf_counter()
     main_agent_middleware = build_main_agent_deepagent_middleware(
         llm=llm,
         tools=tools,
@@ -63,7 +68,9 @@ def build_compiled_agent_graph_sync(
         mcp_tools_by_agent=mcp_tools_by_agent,
         disabled_tools=disabled_tools,
     )
+    mw_elapsed = time.perf_counter() - mw_start
 
+    create_start = time.perf_counter()
     agent = create_agent(
         llm,
         system_prompt=final_system_prompt,
@@ -71,6 +78,15 @@ def build_compiled_agent_graph_sync(
         middleware=main_agent_middleware,
         context_schema=SurfSenseContextSchema,
         checkpointer=checkpointer,
+    )
+    create_elapsed = time.perf_counter() - create_start
+    _perf_log.info(
+        "[graph_compile] middleware_build=%.3fs main_create_agent=%.3fs "
+        "total=%.3fs mw_count=%d",
+        mw_elapsed,
+        create_elapsed,
+        mw_elapsed + create_elapsed,
+        len(main_agent_middleware),
     )
     return agent.with_config(
         {

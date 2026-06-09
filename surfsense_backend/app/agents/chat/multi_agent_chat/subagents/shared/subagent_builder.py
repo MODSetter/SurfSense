@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time as _perf_time
 from typing import Any, cast
 
 from deepagents import SubAgent
@@ -23,8 +24,10 @@ from app.agents.chat.multi_agent_chat.subagents.shared.spec import (
     ContextHintProvider,
     SurfSenseSubagentSpec,
 )
+from app.utils.perf import get_perf_logger
 
 logger = logging.getLogger(__name__)
+_perf_log = get_perf_logger()
 
 # ``<include snippet="NAME"/>`` directive. Matches an XML-style self-closing
 # tag whose ``snippet`` attribute names a file in ``shared/snippets/``.
@@ -110,18 +113,30 @@ def pack_subagent(
         msg = f"Subagent {name!r}: system_prompt is empty"
         raise ValueError(msg)
 
+    _t0 = _perf_time.perf_counter()
     system_prompt = _resolve_includes(system_prompt, subagent_name=name)
+    _t_resolve = _perf_time.perf_counter() - _t0
 
     flags = dependencies["flags"]
     user_allowlist = _user_allowlist_for(dependencies, name)
     subagent_rulesets: list[Ruleset] = [ruleset]
     if user_allowlist is not None:
         subagent_rulesets.append(user_allowlist)
+    _t0 = _perf_time.perf_counter()
     per_subagent_perm = build_permission_mw(
         flags=flags,
         subagent_rulesets=subagent_rulesets,
         tools=tools,
         trusted_tool_saver=dependencies.get("trusted_tool_saver"),
+    )
+    _t_perm = _perf_time.perf_counter() - _t0
+    _perf_log.info(
+        "[pack_subagent] name=%s tools=%d resolve_includes=%.3fs "
+        "build_permission_mw=%.3fs",
+        name,
+        len(tools),
+        _t_resolve,
+        _t_perm,
     )
 
     prepended: list[Any] = []

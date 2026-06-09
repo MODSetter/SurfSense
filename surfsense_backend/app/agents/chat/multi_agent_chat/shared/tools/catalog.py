@@ -61,6 +61,10 @@ TOOL_CATALOG: list[ToolMetadata] = [
         description="Generate images from text descriptions using AI image models",
     ),
     ToolMetadata(
+        name="search_knowledge_base",
+        description="Search the user's knowledge base with hybrid semantic + keyword retrieval",
+    ),
+    ToolMetadata(
         name="scrape_webpage",
         description="Scrape and extract the main content from a webpage",
     ),

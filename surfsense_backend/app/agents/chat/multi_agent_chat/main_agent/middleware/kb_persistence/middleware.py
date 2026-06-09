@@ -26,6 +26,7 @@ from typing import Any
 from fractional_indexing import generate_key_between
 from langchain.agents.middleware import AgentMiddleware, AgentState
 from langchain_core.callbacks import adispatch_custom_event, dispatch_custom_event
+from langgraph.config import get_config
 from langgraph.runtime import Runtime
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
@@ -1436,8 +1437,32 @@ class KnowledgeBasePersistenceMiddleware(AgentMiddleware):  # type: ignore[type-
             search_space_id=self.search_space_id,
             created_by_id=self.created_by_id,
             filesystem_mode=self.filesystem_mode,
-            thread_id=self.thread_id,
+            thread_id=self._resolve_thread_id(),
         )
+
+    def _resolve_thread_id(self) -> int | None:
+        """Resolve the live thread id from the active ``RunnableConfig``.
+
+        ``aafter_agent`` only receives a ``Runtime`` (which does NOT carry the
+        config), so we read ``configurable.thread_id`` via
+        :func:`langgraph.config.get_config` — the same node-context pattern used
+        by ``BusyMutexMiddleware``. Resolving at runtime (rather than using the
+        value captured at ``__init__``) lets one cached compiled graph commit
+        staged writes against the correct thread across many chats. Falls back
+        to the constructor value for legacy/test runtimes.
+        """
+        try:
+            config = get_config()
+        except Exception:
+            config = None
+        if isinstance(config, dict):
+            value = (config.get("configurable") or {}).get("thread_id")
+            if value is not None:
+                try:
+                    return int(value)
+                except (TypeError, ValueError):
+                    return None
+        return self.thread_id
 
 
 __all__ = [

@@ -624,6 +624,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         top_k: int = 10,
         mentioned_document_ids: list[int] | None = None,
         inject_system_message: bool = True,  # For backwards compatibility
+        mentions_only: bool = False,
     ) -> None:
         self.llm = llm
         # Cheap model for structured internal tasks (query rewrite, date
@@ -637,6 +638,10 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         self.top_k = top_k
         self.mentioned_document_ids = mentioned_document_ids or []
         self.inject_system_message = inject_system_message
+        # Lazy mode: skip the planner LLM + embedding + hybrid search and only
+        # surface explicit @-mentions. The agent retrieves topical KB content on
+        # demand via the ``search_knowledge_base`` tool instead.
+        self.mentions_only = mentions_only
         # Compiled lazily and memoized to avoid the per-turn create_agent cost.
         self._planner: Runnable | None = None
         self._planner_compile_failed = False
@@ -825,15 +830,6 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         runtime: Runtime[Any] | None = None,
     ) -> dict[str, Any]:
         t0 = asyncio.get_event_loop().time()
-        (
-            planned_query,
-            start_date,
-            end_date,
-            is_recency,
-        ) = await self._plan_search_inputs(
-            messages=messages,
-            user_text=user_text,
-        )
 
         # Prefer per-turn mentions from runtime.context (lets a cached graph
         # serve different turns); fall back to the constructor closure, draining
@@ -864,36 +860,58 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             if ctx_folders:
                 folder_mention_ids = list(ctx_folders)
 
+        # Lazy mode: skip the planner LLM + embedding + hybrid search entirely.
+        # With no explicit mentions there is nothing cheap to surface, so we bail
+        # out early and let the agent decide to call ``search_knowledge_base``.
+        if self.mentions_only:
+            if not mention_ids and not folder_mention_ids:
+                return None
+            planned_query = user_text
+            start_date = end_date = None
+            is_recency = False
+            search_results: list[dict[str, Any]] = []
+            _search_phase_elapsed = 0.0
+        else:
+            (
+                planned_query,
+                start_date,
+                end_date,
+                is_recency,
+            ) = await self._plan_search_inputs(
+                messages=messages,
+                user_text=user_text,
+            )
+
+            _t_search_phase = time.perf_counter()
+            if is_recency:
+                doc_types = _resolve_search_types(
+                    self.available_connectors, self.available_document_types
+                )
+                search_results = await browse_recent_documents(
+                    search_space_id=self.search_space_id,
+                    document_type=doc_types,
+                    top_k=self.top_k,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            else:
+                search_results = await search_knowledge_base(
+                    query=planned_query,
+                    search_space_id=self.search_space_id,
+                    available_connectors=self.available_connectors,
+                    available_document_types=self.available_document_types,
+                    top_k=self.top_k,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            _search_phase_elapsed = time.perf_counter() - _t_search_phase
+
         mentioned_results: list[dict[str, Any]] = []
         if mention_ids:
             mentioned_results = await fetch_mentioned_documents(
                 document_ids=mention_ids,
                 search_space_id=self.search_space_id,
             )
-
-        _t_search_phase = time.perf_counter()
-        if is_recency:
-            doc_types = _resolve_search_types(
-                self.available_connectors, self.available_document_types
-            )
-            search_results = await browse_recent_documents(
-                search_space_id=self.search_space_id,
-                document_type=doc_types,
-                top_k=self.top_k,
-                start_date=start_date,
-                end_date=end_date,
-            )
-        else:
-            search_results = await search_knowledge_base(
-                query=planned_query,
-                search_space_id=self.search_space_id,
-                available_connectors=self.available_connectors,
-                available_document_types=self.available_document_types,
-                top_k=self.top_k,
-                start_date=start_date,
-                end_date=end_date,
-            )
-        _search_phase_elapsed = time.perf_counter() - _t_search_phase
 
         seen_doc_ids: set[int] = set()
         merged: list[dict[str, Any]] = []

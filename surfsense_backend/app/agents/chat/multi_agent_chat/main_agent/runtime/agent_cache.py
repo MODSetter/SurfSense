@@ -91,10 +91,18 @@ async def build_agent_with_cache(
     # Every per-request value any middleware closes over at __init__ must be in
     # the key, otherwise a hit will leak state across threads. Bump the schema
     # version when the component list changes shape.
+    #
+    # Cross-thread reuse: when enabled, ``thread_id`` is dropped from the key so
+    # one compiled graph serves all of a user's (same space/config/visibility)
+    # chats. This is only safe because ActionLog, KB-persistence, and the
+    # deliverables tools now resolve the chat thread from the live
+    # RunnableConfig instead of a constructor closure; the schema tag is bumped
+    # so v2 (per-thread) entries are never confused with v3 (shared) ones.
+    cross_thread = flags.enable_cross_thread_agent_cache
     cache_key = stable_hash(
-        "multi-agent-v2",
+        "multi-agent-v3" if cross_thread else "multi-agent-v2",
         config_id,
-        thread_id,
+        None if cross_thread else thread_id,
         user_id,
         search_space_id,
         visibility,

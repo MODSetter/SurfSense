@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Annotated
 
 from langchain.tools import BaseTool, ToolRuntime
@@ -39,7 +40,28 @@ def _wrap_result(result: dict, tool_call_id: str) -> Command:
     )
 
 
-def build_ask_knowledge_base_tool(kb_readonly_runnable: Runnable) -> BaseTool:
+def build_ask_knowledge_base_tool(
+    kb_readonly: Runnable | Callable[[], Runnable],
+) -> BaseTool:
+    """Build the ``ask_knowledge_base`` tool backed by the read-only KB graph.
+
+    ``kb_readonly`` may be a pre-compiled ``Runnable`` or a zero-arg factory
+    that compiles it on first use. Passing a factory defers the ~0.3-0.8s
+    ``create_agent`` cost of the read-only knowledge_base graph until a subagent
+    actually calls ``ask_knowledge_base``, keeping it off the cold agent-build
+    (time-to-first-token) path. The factory result is memoized.
+    """
+    _cache: dict[str, Runnable] = {}
+
+    def _resolve() -> Runnable:
+        if not callable(kb_readonly) or isinstance(kb_readonly, Runnable):
+            return kb_readonly  # type: ignore[return-value]
+        cached = _cache.get("runnable")
+        if cached is None:
+            cached = kb_readonly()
+            _cache["runnable"] = cached
+        return cached
+
     def ask_knowledge_base(
         query: Annotated[
             str,
@@ -52,7 +74,7 @@ def build_ask_knowledge_base_tool(kb_readonly_runnable: Runnable) -> BaseTool:
             raise ValueError("Tool call ID is required for ask_knowledge_base")
         sub_state = _forward_state(runtime, query)
         sub_config = subagent_invoke_config(runtime)
-        result = kb_readonly_runnable.invoke(sub_state, config=sub_config)
+        result = _resolve().invoke(sub_state, config=sub_config)
         return _wrap_result(result, runtime.tool_call_id)
 
     async def aask_knowledge_base(
@@ -67,7 +89,7 @@ def build_ask_knowledge_base_tool(kb_readonly_runnable: Runnable) -> BaseTool:
             raise ValueError("Tool call ID is required for ask_knowledge_base")
         sub_state = _forward_state(runtime, query)
         sub_config = subagent_invoke_config(runtime)
-        result = await kb_readonly_runnable.ainvoke(sub_state, config=sub_config)
+        result = await _resolve().ainvoke(sub_state, config=sub_config)
         return _wrap_result(result, runtime.tool_call_id)
 
     return StructuredTool.from_function(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time as _perf_time
 from typing import Any, Protocol
 
 from deepagents import SubAgent
@@ -72,6 +73,9 @@ from app.agents.chat.multi_agent_chat.subagents.shared.md_file_reader import (
     read_md_file,
 )
 from app.agents.chat.multi_agent_chat.subagents.shared.spec import SurfSenseSubagentSpec
+from app.utils.perf import get_perf_logger
+
+_perf_log = get_perf_logger()
 
 
 class SubagentBuilder(Protocol):
@@ -192,19 +196,25 @@ def build_subagents(
     if exclude:
         excluded.extend(exclude)
     disabled_names = frozenset(disabled_tools or ())
+    _timings: list[tuple[str, float]] = []
     for name in sorted(SUBAGENT_BUILDERS_BY_NAME):
         if name in excluded:
             continue
         builder = SUBAGENT_BUILDERS_BY_NAME[name]
+        _t0 = _perf_time.perf_counter()
         result = builder(
             dependencies=dependencies,
             model=model,
             middleware_stack=middleware_stack,
             mcp_tools=mcp.get(name),
         )
+        _timings.append((name, _perf_time.perf_counter() - _t0))
         spec = result.spec
         _filter_disabled_tools_in_place(spec, disabled_names)
         if ask_kb_tool is not None:
             _inject_ask_kb_tool_in_place(spec, ask_kb_tool)
         specs.append(spec)
+    if _timings:
+        _detail = " ".join(f"{n}={dt:.3f}s" for n, dt in _timings)
+        _perf_log.info("[build_subagents.detail] %s", _detail)
     return specs
