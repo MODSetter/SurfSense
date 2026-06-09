@@ -10,6 +10,7 @@ Uses 2-phase document status updates for real-time UI feedback:
 """
 
 import asyncio
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -630,11 +631,16 @@ async def index_teams_messages(
                 try:
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
+                    # Commit now so the failed status survives a later rollback or
+                    # crash; otherwise the doc stays stuck in pending/processing.
+                    await session.commit()
                 except Exception as status_error:
                     logger.error(
                         "Failed to update document status to failed: %s",
                         str(status_error),
                     )
+                    with contextlib.suppress(Exception):
+                        await session.rollback()
                 documents_failed += 1
                 continue
 
