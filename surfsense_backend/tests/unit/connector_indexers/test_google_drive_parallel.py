@@ -69,7 +69,7 @@ async def test_single_file_returns_one_connector_document(
     )
 
     assert len(docs) == 1
-    assert failed == 0
+    assert failed == []
     assert docs[0].title == "test.txt"
     assert docs[0].unique_id == "f1"
 
@@ -93,7 +93,7 @@ async def test_multiple_files_all_produce_documents(
     )
 
     assert len(docs) == 3
-    assert failed == 0
+    assert failed == []
     assert {d.unique_id for d in docs} == {"f0", "f1", "f2"}
 
 
@@ -120,7 +120,7 @@ async def test_one_download_exception_does_not_block_others(
     )
 
     assert len(docs) == 2
-    assert failed == 1
+    assert len(failed) == 1
     assert {d.unique_id for d in docs} == {"f0", "f2"}
 
 
@@ -146,7 +146,7 @@ async def test_etl_error_counts_as_download_failure(
     )
 
     assert len(docs) == 1
-    assert failed == 1
+    assert len(failed) == 1
 
 
 async def test_concurrency_bounded_by_semaphore(
@@ -186,7 +186,7 @@ async def test_concurrency_bounded_by_semaphore(
     )
 
     assert len(docs) == 6
-    assert failed == 0
+    assert failed == []
     assert peak <= 2, f"Peak concurrency was {peak}, expected <= 2"
 
 
@@ -225,7 +225,7 @@ async def test_heartbeat_fires_during_parallel_downloads(
     )
 
     assert len(docs) == 3
-    assert failed == 0
+    assert failed == []
     assert len(heartbeat_calls) >= 1, "Heartbeat should have fired at least once"
 
 
@@ -281,7 +281,7 @@ def full_scan_mocks(mock_drive_client, monkeypatch):
 
     monkeypatch.setattr(_mod, "_should_skip_file", _fake_skip)
 
-    download_mock = AsyncMock(return_value=([], 0))
+    download_mock = AsyncMock(return_value=([], []))
     monkeypatch.setattr(_mod, "_download_files_parallel", download_mock)
 
     batch_mock = AsyncMock(return_value=([], 0, 0))
@@ -350,7 +350,7 @@ async def test_full_scan_three_phase_counts(full_scan_mocks, monkeypatch):
     )
 
     mock_docs = [MagicMock(), MagicMock()]
-    full_scan_mocks["download_mock"].return_value = (mock_docs, 0)
+    full_scan_mocks["download_mock"].return_value = (mock_docs, [])
     full_scan_mocks["batch_mock"].return_value = ([], 2, 0)
 
     indexed, skipped, _unsupported = await _run_full_scan(full_scan_mocks)
@@ -376,7 +376,7 @@ async def test_full_scan_respects_max_files(full_scan_mocks, monkeypatch):
         AsyncMock(return_value=(page_files, None, None)),
     )
 
-    full_scan_mocks["download_mock"].return_value = ([], 0)
+    full_scan_mocks["download_mock"].return_value = ([], [])
     full_scan_mocks["batch_mock"].return_value = ([], 0, 0)
 
     await _run_full_scan(full_scan_mocks, max_files=3)
@@ -400,7 +400,7 @@ async def test_full_scan_uses_max_concurrency_3_for_indexing(
     )
 
     mock_docs = [MagicMock()]
-    full_scan_mocks["download_mock"].return_value = (mock_docs, 0)
+    full_scan_mocks["download_mock"].return_value = (mock_docs, [])
     full_scan_mocks["batch_mock"].return_value = ([], 1, 0)
 
     await _run_full_scan(full_scan_mocks)
@@ -462,7 +462,7 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
     )
 
     mock_docs = [MagicMock(), MagicMock()]
-    download_mock = AsyncMock(return_value=(mock_docs, 0))
+    download_mock = AsyncMock(return_value=(mock_docs, []))
     monkeypatch.setattr(_mod, "_download_files_parallel", download_mock)
 
     batch_mock = AsyncMock(return_value=([], 2, 0))
