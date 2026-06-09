@@ -1,3 +1,5 @@
+import contextlib
+import logging
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -5,6 +7,8 @@ from sqlalchemy.orm import object_session
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.db import Document, DocumentStatus
+
+logger = logging.getLogger(__name__)
 
 
 async def rollback_and_persist_failure(
@@ -18,14 +22,28 @@ async def rollback_and_persist_failure(
     try:
         await session.rollback()
     except Exception:
-        return  # Session is completely dead; nothing further we can do.
+        # Session is completely dead; surface it but never raise.
+        logger.warning(
+            "Rollback failed; cannot persist failed status for document %s",
+            getattr(document, "id", "unknown"),
+            exc_info=True,
+        )
+        return
     try:
         await session.refresh(document)
         document.updated_at = datetime.now(UTC)
         document.status = DocumentStatus.failed(message)
         await session.commit()
     except Exception:
-        pass  # Best-effort; document will be retried on the next sync.
+        # Best-effort: the document stays non-ready and is retried next sync.
+        # Log it so a permanently-stuck document is at least traceable.
+        logger.warning(
+            "Could not persist failed status for document %s; will retry next sync",
+            getattr(document, "id", "unknown"),
+            exc_info=True,
+        )
+        with contextlib.suppress(Exception):
+            await session.rollback()
 
 
 def attach_chunks_to_document(document: Document, chunks: list) -> None:
