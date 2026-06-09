@@ -26,6 +26,7 @@ from app.connectors.dropbox.file_types import should_skip_file as skip_item
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
+from app.indexing_pipeline.exceptions import safe_exception_message
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.services.page_limit_service import PageLimitService
 from app.services.task_logging_service import TaskLoggingService
@@ -113,7 +114,12 @@ async def _should_skip_file(
         logger.info(f"Rename-only update: '{old_name}' -> '{file_name}'")
         return True, f"File renamed: '{old_name}' -> '{file_name}'"
 
-    if not DocumentStatus.is_state(existing.status, DocumentStatus.READY):
+    state = DocumentStatus.get_state(existing.status)
+    if state in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
+        # Stuck placeholder/in-progress doc (e.g. worker died mid-index): re-index
+        # instead of skipping, otherwise it never recovers.
+        return False, None
+    if state != DocumentStatus.READY:
         return True, "skipped (previously failed)"
     return True, "unchanged"
 
@@ -210,7 +216,7 @@ async def _download_files_parallel(
             continue
         file_id = file.get("id")
         if isinstance(outcome, Exception):
-            reason = f"Download/ETL error: {outcome}"
+            reason = f"Download/ETL error: {safe_exception_message(outcome)}"
             logger.warning(
                 "Download/ETL exception for %s: %s",
                 file.get("name", "Unknown"),
