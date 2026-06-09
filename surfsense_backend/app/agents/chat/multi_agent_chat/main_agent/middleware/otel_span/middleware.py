@@ -24,6 +24,7 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, ToolMessage
 
 from app.observability import metrics as ot_metrics, otel as ot
+from app.utils.perf import get_perf_logger
 
 if TYPE_CHECKING:  # pragma: no cover — type-only
     from langchain.agents.middleware.types import (
@@ -34,6 +35,7 @@ if TYPE_CHECKING:  # pragma: no cover — type-only
     from langgraph.types import Command
 
 logger = logging.getLogger(__name__)
+_perf_log = get_perf_logger()
 
 
 class OtelSpanMiddleware(AgentMiddleware):
@@ -60,7 +62,23 @@ class OtelSpanMiddleware(AgentMiddleware):
         handler: Callable[[ModelRequest], Awaitable[ModelResponse | AIMessage | Any]],
     ) -> ModelResponse | AIMessage | Any:
         if not ot.is_enabled():
-            return await handler(request)
+            # Always emit a [PERF] line for the model step even when OTel is
+            # disabled. This isolates provider/model latency from the agent's
+            # pre-flight (before_agent KB-priority/memory/tree) work, which is
+            # the usual culprit when the multi-agent path feels slow to start.
+            # ``perf_counter`` at entry doubles as the "before_agent finished /
+            # model call started" marker on the first step of a turn.
+            model_id, _provider = _resolve_model_attrs(request)
+            _t0 = time.perf_counter()
+            _perf_log.info("[model_call] start model=%s", model_id)
+            try:
+                return await handler(request)
+            finally:
+                _perf_log.info(
+                    "[model_call] done model=%s elapsed=%.3fs",
+                    model_id,
+                    time.perf_counter() - _t0,
+                )
 
         model_id, provider = _resolve_model_attrs(request)
         t0 = time.perf_counter()
