@@ -1,6 +1,7 @@
 import { mustGetQuery } from "@rocicorp/zero";
 import { handleQueryRequest } from "@rocicorp/zero/server";
 import { NextResponse } from "next/server";
+import { BACKEND_URL } from "@/lib/env-config";
 import type { Context } from "@/types/zero";
 import { queries } from "@/zero/queries";
 import { schema } from "@/zero/schema";
