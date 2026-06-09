@@ -1,30 +1,33 @@
 """
 WebCrawler Connector Module
 
-A module for crawling web pages and extracting content using Firecrawl,
-plain HTTP+Trafilatura, or Playwright.  Provides a unified interface for
-web scraping.
+A module for crawling web pages and extracting content using Firecrawl or
+Scrapling's tiered fetchers, with Trafilatura for HTML -> markdown extraction.
+Provides a unified interface for web scraping.
 
 Fallback order:
-  1. Firecrawl  (if API key is configured)
-  2. HTTP + Trafilatura  (lightweight, works on any event loop)
-  3. Playwright / Chromium  (runs in a thread to avoid event-loop limitations)
+  1. Firecrawl                 (if API key is configured)
+  2. Scrapling AsyncFetcher    (fast static HTTP, no browser subprocess)
+  3. Scrapling DynamicFetcher  (full browser, run in a thread)
+  4. Scrapling StealthyFetcher (anti-bot stealth browser, run in a thread)
 """
 
 import asyncio
 import logging
+import time
 from typing import Any
 
-import httpx
 import trafilatura
 import validators
-from fake_useragent import UserAgent
 from firecrawl import AsyncFirecrawlApp
-from playwright.sync_api import sync_playwright
+from scrapling.fetchers import AsyncFetcher, DynamicFetcher, StealthyFetcher
 
-from app.utils.proxy_config import get_playwright_proxy, get_residential_proxy_url
+from app.utils.proxy import get_proxy_url
 
 logger = logging.getLogger(__name__)
+
+# Prefix for performance/timing log lines so they are easy to grep/filter.
+_PERF = "[webcrawler][perf]"
 
 
 class WebCrawlerConnector:
@@ -36,8 +39,8 @@ class WebCrawlerConnector:
 
         Args:
             firecrawl_api_key: Firecrawl API key (optional). If provided, Firecrawl will be tried first
-                             and Chromium will be used as fallback if Firecrawl fails. If not provided,
-                             Chromium will be used directly.
+                             and Scrapling will be used as fallback if Firecrawl fails. If not provided,
+                             Scrapling fetchers are used directly.
         """
         self.firecrawl_api_key = firecrawl_api_key
         self.use_firecrawl = bool(firecrawl_api_key)
@@ -60,8 +63,9 @@ class WebCrawlerConnector:
 
         Fallback order:
           1. Firecrawl (if API key configured)
-          2. Plain HTTP + Trafilatura (lightweight, no subprocess)
-          3. Playwright / Chromium (needs subprocess-capable event loop)
+          2. Scrapling AsyncFetcher (fast static HTTP, no subprocess)
+          3. Scrapling DynamicFetcher (full browser, run in a thread)
+          4. Scrapling StealthyFetcher (anti-bot stealth browser, run in a thread)
 
         Args:
             url: URL to crawl
@@ -74,8 +78,8 @@ class WebCrawlerConnector:
                 - metadata: Page metadata (title, description, etc.)
                 - source: Original URL
                 - crawler_type: Type of crawler used
-            # Validate URL
         """
+        total_start = time.perf_counter()
         try:
             if not validators.url(url):
                 return None, f"Invalid URL: {url}"
@@ -84,47 +88,127 @@ class WebCrawlerConnector:
 
             # --- 1. Firecrawl (premium, if configured) ---
             if self.use_firecrawl:
+                tier_start = time.perf_counter()
                 try:
                     logger.info(f"[webcrawler] Using Firecrawl for: {url}")
-                    return await self._crawl_with_firecrawl(url, formats), None
+                    result = await self._crawl_with_firecrawl(url, formats)
+                    self._log_tier_outcome("firecrawl", url, tier_start, "success")
+                    self._log_total(url, "firecrawl", total_start)
+                    return result, None
                 except Exception as exc:
                     errors.append(f"Firecrawl: {exc!s}")
-                    logger.warning(f"[webcrawler] Firecrawl failed for {url}: {exc!s}")
+                    self._log_tier_outcome("firecrawl", url, tier_start, "error", exc)
 
-            # --- 2. HTTP + Trafilatura (no subprocess required) ---
+            # --- 2. Scrapling AsyncFetcher (fast static HTTP) ---
+            tier_start = time.perf_counter()
             try:
-                logger.info(f"[webcrawler] Using HTTP+Trafilatura for: {url}")
-                result = await self._crawl_with_http(url)
+                logger.info(f"[webcrawler] Using Scrapling AsyncFetcher for: {url}")
+                result = await self._crawl_with_async_fetcher(url)
                 if result:
+                    self._log_tier_outcome("scrapling-static", url, tier_start, "success")
+                    self._log_total(url, "scrapling-static", total_start)
                     return result, None
-                errors.append("HTTP+Trafilatura: empty extraction")
+                errors.append("Scrapling static: empty extraction")
+                self._log_tier_outcome("scrapling-static", url, tier_start, "empty")
             except Exception as exc:
-                errors.append(f"HTTP+Trafilatura: {exc!s}")
-                logger.warning(
-                    f"[webcrawler] HTTP+Trafilatura failed for {url}: {exc!s}"
-                )
+                errors.append(f"Scrapling static: {exc!s}")
+                self._log_tier_outcome("scrapling-static", url, tier_start, "error", exc)
 
-            # --- 3. Playwright / Chromium (full browser, last resort) ---
+            # --- 3. Scrapling DynamicFetcher (full browser) ---
+            tier_start = time.perf_counter()
             try:
-                logger.info(f"[webcrawler] Using Chromium+Trafilatura for: {url}")
-                return await self._crawl_with_chromium(url), None
+                logger.info(f"[webcrawler] Using Scrapling DynamicFetcher for: {url}")
+                result = await self._crawl_with_dynamic(url)
+                if result:
+                    self._log_tier_outcome("scrapling-dynamic", url, tier_start, "success")
+                    self._log_total(url, "scrapling-dynamic", total_start)
+                    return result, None
+                errors.append("Scrapling dynamic: empty extraction")
+                self._log_tier_outcome("scrapling-dynamic", url, tier_start, "empty")
             except NotImplementedError:
                 errors.append(
-                    "Chromium: event loop does not support subprocesses "
+                    "Scrapling dynamic: event loop does not support subprocesses "
                     "(common on Windows with uvicorn --reload)"
                 )
-                logger.warning(
-                    f"[webcrawler] Chromium unavailable for {url}: "
-                    "current event loop does not support subprocesses"
+                self._log_tier_outcome(
+                    "scrapling-dynamic", url, tier_start, "unavailable"
                 )
             except Exception as exc:
-                errors.append(f"Chromium: {exc!s}")
-                logger.warning(f"[webcrawler] Chromium failed for {url}: {exc!s}")
+                errors.append(f"Scrapling dynamic: {exc!s}")
+                self._log_tier_outcome("scrapling-dynamic", url, tier_start, "error", exc)
 
+            # --- 4. Scrapling StealthyFetcher (anti-bot, last resort) ---
+            tier_start = time.perf_counter()
+            try:
+                logger.info(f"[webcrawler] Using Scrapling StealthyFetcher for: {url}")
+                result = await self._crawl_with_stealthy(url)
+                if result:
+                    self._log_tier_outcome("scrapling-stealthy", url, tier_start, "success")
+                    self._log_total(url, "scrapling-stealthy", total_start)
+                    return result, None
+                errors.append("Scrapling stealthy: empty extraction")
+                self._log_tier_outcome("scrapling-stealthy", url, tier_start, "empty")
+            except NotImplementedError:
+                errors.append(
+                    "Scrapling stealthy: event loop does not support subprocesses "
+                    "(common on Windows with uvicorn --reload)"
+                )
+                self._log_tier_outcome(
+                    "scrapling-stealthy", url, tier_start, "unavailable"
+                )
+            except Exception as exc:
+                errors.append(f"Scrapling stealthy: {exc!s}")
+                self._log_tier_outcome(
+                    "scrapling-stealthy", url, tier_start, "error", exc
+                )
+
+            self._log_total(url, "none", total_start)
             return None, f"All crawl methods failed for {url}. {'; '.join(errors)}"
 
         except Exception as e:
+            self._log_total(url, "error", total_start)
             return None, f"Error crawling URL {url}: {e!s}"
+
+    @staticmethod
+    def _log_tier_outcome(
+        tier: str,
+        url: str,
+        tier_start: float,
+        outcome: str,
+        exc: Exception | None = None,
+    ) -> None:
+        """Log how long a single tier took and how it ended."""
+        elapsed_ms = (time.perf_counter() - tier_start) * 1000
+        if outcome == "error":
+            logger.warning(
+                "%s tier=%s url=%s elapsed_ms=%.1f outcome=error error=%s",
+                _PERF,
+                tier,
+                url,
+                elapsed_ms,
+                exc,
+            )
+        else:
+            logger.info(
+                "%s tier=%s url=%s elapsed_ms=%.1f outcome=%s",
+                _PERF,
+                tier,
+                url,
+                elapsed_ms,
+                outcome,
+            )
+
+    @staticmethod
+    def _log_total(url: str, selected: str, total_start: float) -> None:
+        """Log the total time spent across all attempted tiers."""
+        total_ms = (time.perf_counter() - total_start) * 1000
+        logger.info(
+            "%s url=%s selected=%s total_ms=%.1f",
+            _PERF,
+            url,
+            selected,
+            total_ms,
+        )
 
     async def _crawl_with_firecrawl(
         self, url: str, formats: list[str] | None = None
@@ -177,52 +261,172 @@ class WebCrawlerConnector:
             "crawler_type": "firecrawl",
         }
 
-    async def _crawl_with_http(self, url: str) -> dict[str, Any] | None:
+    async def _crawl_with_async_fetcher(self, url: str) -> dict[str, Any] | None:
         """
-        Crawl URL using a plain HTTP request + Trafilatura content extraction.
+        Crawl URL using Scrapling's AsyncFetcher (static HTTP) + Trafilatura.
 
-        This method avoids launching a browser subprocess, making it safe to
-        call from any asyncio event loop (including Windows SelectorEventLoop
-        which does not support ``create_subprocess_exec``).
-
-        Returns ``None`` when Trafilatura cannot extract meaningful content
-        (e.g. JS-rendered SPAs) so the caller can fall through to Chromium.
+        AsyncFetcher is httpx/curl_cffi based and does not launch a browser
+        subprocess, making it safe to call from any asyncio event loop. Returns
+        ``None`` when Trafilatura cannot extract meaningful content (e.g. JS
+        rendered SPAs) so the caller can fall through to the browser tiers.
         """
-        ua = UserAgent()
-        user_agent = ua.random
-        proxy_url = get_residential_proxy_url()
+        fetch_start = time.perf_counter()
+        page = await AsyncFetcher.get(
+            url,
+            stealthy_headers=True,
+            proxy=get_proxy_url(),
+            timeout=20,
+        )
+        fetch_ms = (time.perf_counter() - fetch_start) * 1000
 
-        async with httpx.AsyncClient(
-            timeout=20.0,
-            follow_redirects=True,
-            proxy=proxy_url,
-            headers={
-                "User-Agent": user_agent,
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
-            },
-        ) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            raw_html = response.text
-
-        if not raw_html or len(raw_html.strip()) == 0:
+        status = getattr(page, "status", None)
+        if status is not None and status >= 400:
+            logger.info(
+                "%s tier=scrapling-static url=%s fetch_ms=%.1f status=%s outcome=http_error",
+                _PERF,
+                url,
+                fetch_ms,
+                status,
+            )
             return None
 
-        extracted_content = trafilatura.extract(
-            raw_html,
-            output_format="markdown",
-            include_comments=False,
-            include_tables=True,
-            include_images=True,
-            include_links=True,
+        return self._build_result(
+            page.html_content,
+            url,
+            "scrapling-static",
+            allow_raw_fallback=False,
+            fetch_ms=fetch_ms,
+            status=status,
         )
 
-        if not extracted_content or len(extracted_content.strip()) == 0:
+    async def _crawl_with_dynamic(self, url: str) -> dict[str, Any] | None:
+        """
+        Crawl URL using Scrapling's DynamicFetcher (full browser) + Trafilatura.
+
+        Runs the sync fetch in a worker thread so it works on any event loop,
+        including Windows ``SelectorEventLoop`` which cannot spawn subprocesses.
+        """
+        return await asyncio.to_thread(self._crawl_with_dynamic_sync, url)
+
+    def _crawl_with_dynamic_sync(self, url: str) -> dict[str, Any] | None:
+        """Synchronous DynamicFetcher crawl executed in a worker thread."""
+        fetch_start = time.perf_counter()
+        page = DynamicFetcher.fetch(
+            url,
+            headless=True,
+            network_idle=True,
+            timeout=30000,
+            proxy=get_proxy_url(),
+        )
+        fetch_ms = (time.perf_counter() - fetch_start) * 1000
+        return self._build_result(
+            page.html_content,
+            url,
+            "scrapling-dynamic",
+            allow_raw_fallback=False,
+            fetch_ms=fetch_ms,
+            status=getattr(page, "status", None),
+        )
+
+    async def _crawl_with_stealthy(self, url: str) -> dict[str, Any] | None:
+        """
+        Crawl URL using Scrapling's StealthyFetcher (Camoufox) + Trafilatura.
+
+        Last-resort tier with anti-bot features. Runs the sync fetch in a worker
+        thread for the same event-loop-safety reasons as DynamicFetcher. Falls
+        back to the raw HTML when Trafilatura extraction is empty.
+        """
+        return await asyncio.to_thread(self._crawl_with_stealthy_sync, url)
+
+    def _crawl_with_stealthy_sync(self, url: str) -> dict[str, Any] | None:
+        """Synchronous StealthyFetcher crawl executed in a worker thread."""
+        fetch_start = time.perf_counter()
+        page = StealthyFetcher.fetch(
+            url,
+            headless=True,
+            network_idle=True,
+            block_ads=True,
+            proxy=get_proxy_url(),
+        )
+        fetch_ms = (time.perf_counter() - fetch_start) * 1000
+        return self._build_result(
+            page.html_content,
+            url,
+            "scrapling-stealthy",
+            allow_raw_fallback=True,
+            fetch_ms=fetch_ms,
+            status=getattr(page, "status", None),
+        )
+
+    def _build_result(
+        self,
+        raw_html: str | None,
+        url: str,
+        crawler_type: str,
+        *,
+        allow_raw_fallback: bool,
+        fetch_ms: float | None = None,
+        status: int | None = None,
+    ) -> dict[str, Any] | None:
+        """
+        Extract markdown + metadata from raw HTML using Trafilatura.
+
+        Args:
+            raw_html: Raw HTML source from a fetcher.
+            url: Original URL (used as the metadata source/title fallback).
+            crawler_type: Identifier of the tier that produced the HTML.
+            allow_raw_fallback: When True, return the raw HTML as content if
+                Trafilatura cannot extract anything (used by the last-resort
+                stealthy tier). When False, return ``None`` so the caller can
+                fall through to the next tier.
+            fetch_ms: Time spent fetching the page (for perf logging).
+            status: HTTP status code returned by the fetcher (for perf logging).
+
+        Returns:
+            Result dict (content/metadata/crawler_type) or ``None``.
+        """
+        html_len = len(raw_html) if raw_html else 0
+
+        if not raw_html or len(raw_html.strip()) == 0:
+            self._log_build(
+                crawler_type, url, fetch_ms, 0.0, status, html_len, 0, "empty_html"
+            )
             return None
 
-        trafilatura_metadata = trafilatura.extract_metadata(raw_html)
+        extract_start = time.perf_counter()
+        extracted_content: str | None = None
+        trafilatura_metadata = None
+
+        try:
+            extracted_content = trafilatura.extract(
+                raw_html,
+                output_format="markdown",
+                include_comments=False,
+                include_tables=True,
+                include_images=True,
+                include_links=True,
+            )
+            trafilatura_metadata = trafilatura.extract_metadata(raw_html)
+
+            if extracted_content and len(extracted_content.strip()) == 0:
+                extracted_content = None
+        except Exception:
+            extracted_content = None
+
+        extract_ms = (time.perf_counter() - extract_start) * 1000
+
+        if not extracted_content and not allow_raw_fallback:
+            self._log_build(
+                crawler_type,
+                url,
+                fetch_ms,
+                extract_ms,
+                status,
+                html_len,
+                0,
+                "no_extraction",
+            )
+            return None
 
         metadata: dict[str, str] = {"source": url}
         if trafilatura_metadata:
@@ -236,104 +440,50 @@ class WebCrawlerConnector:
                 metadata["date"] = trafilatura_metadata.date
         metadata.setdefault("title", url)
 
-        return {
-            "content": extracted_content,
-            "metadata": metadata,
-            "crawler_type": "http",
-        }
-
-    async def _crawl_with_chromium(self, url: str) -> dict[str, Any]:
-        """
-        Crawl URL using Playwright with Trafilatura for content extraction.
-        Falls back to raw HTML if Trafilatura extraction fails.
-
-        Runs the sync Playwright API in a thread so it works on any event
-        loop, including Windows ``SelectorEventLoop`` which cannot spawn
-        subprocesses.
-
-        Args:
-            url: URL to crawl
-
-        Returns:
-            Dict containing crawled content and metadata
-
-        Raises:
-            Exception: If crawling fails
-        """
-        return await asyncio.to_thread(self._crawl_with_chromium_sync, url)
-
-    def _crawl_with_chromium_sync(self, url: str) -> dict[str, Any]:
-        """Synchronous Playwright crawl executed in a worker thread."""
-        ua = UserAgent()
-        user_agent = ua.random
-
-        playwright_proxy = get_playwright_proxy()
-
-        with sync_playwright() as p:
-            launch_kwargs: dict = {"headless": True}
-            if playwright_proxy:
-                launch_kwargs["proxy"] = playwright_proxy
-            browser = p.chromium.launch(**launch_kwargs)
-            context = browser.new_context(user_agent=user_agent)
-            page = context.new_page()
-
-            try:
-                page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                raw_html = page.content()
-                page_title = page.title()
-            finally:
-                browser.close()
-
-        if not raw_html:
-            raise ValueError(f"Failed to load content from {url}")
-
-        base_metadata = {"title": page_title} if page_title else {}
-
-        extracted_content = None
-        trafilatura_metadata = None
-
-        try:
-            extracted_content = trafilatura.extract(
-                raw_html,
-                output_format="markdown",
-                include_comments=False,
-                include_tables=True,
-                include_images=True,
-                include_links=True,
-            )
-
-            trafilatura_metadata = trafilatura.extract_metadata(raw_html)
-
-            if not extracted_content or len(extracted_content.strip()) == 0:
-                extracted_content = None
-
-        except Exception:
-            extracted_content = None
-
-        metadata = {
-            "source": url,
-            "title": (
-                trafilatura_metadata.title
-                if trafilatura_metadata and trafilatura_metadata.title
-                else base_metadata.get("title", url)
-            ),
-        }
-
-        if trafilatura_metadata:
-            if trafilatura_metadata.description:
-                metadata["description"] = trafilatura_metadata.description
-            if trafilatura_metadata.author:
-                metadata["author"] = trafilatura_metadata.author
-            if trafilatura_metadata.date:
-                metadata["date"] = trafilatura_metadata.date
-
-        metadata.update(base_metadata)
+        content = extracted_content if extracted_content else raw_html
+        self._log_build(
+            crawler_type,
+            url,
+            fetch_ms,
+            extract_ms,
+            status,
+            html_len,
+            len(content),
+            "extracted" if extracted_content else "raw_fallback",
+        )
 
         return {
-            "content": extracted_content if extracted_content else raw_html,
+            "content": content,
             "metadata": metadata,
-            "crawler_type": "chromium",
+            "crawler_type": crawler_type,
         }
+
+    @staticmethod
+    def _log_build(
+        crawler_type: str,
+        url: str,
+        fetch_ms: float | None,
+        extract_ms: float,
+        status: int | None,
+        html_len: int,
+        content_len: int,
+        outcome: str,
+    ) -> None:
+        """Emit a detailed perf line splitting fetch vs Trafilatura extraction."""
+        fetch_repr = f"{fetch_ms:.1f}" if fetch_ms is not None else "n/a"
+        logger.info(
+            "%s tier=%s url=%s status=%s fetch_ms=%s extract_ms=%.1f "
+            "html_len=%d content_len=%d outcome=%s",
+            _PERF,
+            crawler_type,
+            url,
+            status,
+            fetch_repr,
+            extract_ms,
+            html_len,
+            content_len,
+            outcome,
+        )
 
     def format_to_structured_document(
         self, crawl_result: dict[str, Any], exclude_metadata: bool = False

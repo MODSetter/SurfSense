@@ -916,8 +916,13 @@ class Config:
         AZURE_DI_ENDPOINT = os.getenv("AZURE_DI_ENDPOINT")
         AZURE_DI_KEY = os.getenv("AZURE_DI_KEY")
 
+    # Proxy provider selection. Maps to a ProxyProvider implementation registered
+    # in app/utils/proxy/registry.py. Add new vendors there and switch via this var.
+    PROXY_PROVIDER = os.getenv("PROXY_PROVIDER", "anonymous_proxies")
+
     # Residential Proxy Configuration (anonymous-proxies.net)
     # Used for web crawling and YouTube transcript fetching to avoid IP bans.
+    # Consumed by the "anonymous_proxies" proxy provider.
     RESIDENTIAL_PROXY_USERNAME = os.getenv("RESIDENTIAL_PROXY_USERNAME")
     RESIDENTIAL_PROXY_PASSWORD = os.getenv("RESIDENTIAL_PROXY_PASSWORD")
     RESIDENTIAL_PROXY_HOSTNAME = os.getenv("RESIDENTIAL_PROXY_HOSTNAME")
