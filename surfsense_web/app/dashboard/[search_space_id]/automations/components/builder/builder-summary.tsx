@@ -65,13 +65,7 @@ export function BuilderSummary({ form }: BuilderSummaryProps) {
 	);
 }
 
-function SummaryRow({
-	label,
-	children,
-}: {
-	label: string;
-	children: React.ReactNode;
-}) {
+function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
 	return (
 		<div className="flex flex-col gap-1 text-xs">
 			<div className="font-medium text-muted-foreground">{label}</div>

@@ -64,4 +64,3 @@ def resume_binding(binding: ExternalChatBinding) -> None:
     binding.state = ExternalChatBindingState.BOUND
     binding.suspended_at = None
     binding.suspended_reason = None
-

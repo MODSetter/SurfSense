@@ -89,13 +89,7 @@ export function AutomationDefinitionSection({ definition }: AutomationDefinition
 	);
 }
 
-function Field({
-	label,
-	children,
-}: {
-	label: React.ReactNode;
-	children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
 	return (
 		<div className="space-y-2">
 			<div className="text-sm font-medium text-muted-foreground">{label}</div>

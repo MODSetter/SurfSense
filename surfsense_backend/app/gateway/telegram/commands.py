@@ -54,7 +54,9 @@ async def handle_start_command(
     return True
 
 
-async def handle_help_command(*, adapter: TelegramAdapter, event: ParsedInboundEvent) -> bool:
+async def handle_help_command(
+    *, adapter: TelegramAdapter, event: ParsedInboundEvent
+) -> bool:
     if not event.external_peer_id:
         return True
     await adapter.send_message(external_peer_id=event.external_peer_id, text=HELP_TEXT)

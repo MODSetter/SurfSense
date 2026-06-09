@@ -81,7 +81,9 @@ class TestCwdDefaults:
 class TestRelativePathResolution:
     def test_relative_path_resolves_against_cwd(self):
         assert (
-            resolve_relative(_mw(), "notes.md", _runtime({"cwd": "/documents/projects"}))
+            resolve_relative(
+                _mw(), "notes.md", _runtime({"cwd": "/documents/projects"})
+            )
             == "/documents/projects/notes.md"
         )
 
@@ -281,7 +283,11 @@ class TestNormalizeLocalMountPath:
             _desktop_mw(backend),
             "/brand-new-note.md",
             _runtime(
-                {"file_operation_contract": {"suggested_path": "/root_b/notes/context.md"}}
+                {
+                    "file_operation_contract": {
+                        "suggested_path": "/root_b/notes/context.md"
+                    }
+                }
             ),
         )
         assert resolved == "/root_b/brand-new-note.md"

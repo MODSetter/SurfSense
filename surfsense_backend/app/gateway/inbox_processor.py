@@ -128,7 +128,9 @@ async def process_inbound_event(
             event.status = ExternalChatEventStatus.PROCESSED
             event.processed_at = datetime.now(UTC)
             await session.commit()
-            record_gateway_inbox_processed(platform=event.platform.value, status="processed")
+            record_gateway_inbox_processed(
+                platform=event.platform.value, status="processed"
+            )
 
 
 async def _mark_failed(
@@ -173,7 +175,9 @@ async def _resolve_slack_thread_binding(
     parsed,
 ) -> ExternalChatBinding | None:
     user_peer_id = parsed.metadata.get("slack_user_peer_id")
-    thread_peer_id = parsed.metadata.get("slack_thread_peer_id") or parsed.external_peer_id
+    thread_peer_id = (
+        parsed.metadata.get("slack_thread_peer_id") or parsed.external_peer_id
+    )
     if not user_peer_id or not thread_peer_id:
         return None
 
@@ -233,7 +237,9 @@ async def _resolve_discord_thread_binding(
     parsed,
 ) -> ExternalChatBinding | None:
     user_peer_id = parsed.metadata.get("discord_user_peer_id")
-    thread_peer_id = parsed.metadata.get("discord_thread_peer_id") or parsed.external_peer_id
+    thread_peer_id = (
+        parsed.metadata.get("discord_thread_peer_id") or parsed.external_peer_id
+    )
     if not user_peer_id or not thread_peer_id:
         return None
 
@@ -357,7 +363,11 @@ async def _dispatch_inbound_event(
                 return
 
         if binding is None:
-            if bundle.auto_bind_owner and account.owner_user_id and account.owner_search_space_id:
+            if (
+                bundle.auto_bind_owner
+                and account.owner_user_id
+                and account.owner_search_space_id
+            ):
                 binding = ExternalChatBinding(
                     account_id=account.id,
                     user_id=account.owner_user_id,
@@ -385,7 +395,9 @@ async def _dispatch_inbound_event(
         event.external_chat_binding_id = binding.id
 
         if cmd == "/help":
-            handled = await bundle.commands.handle_help_command(adapter=adapter, event=parsed)
+            handled = await bundle.commands.handle_help_command(
+                adapter=adapter, event=parsed
+            )
             if handled:
                 event.status = ExternalChatEventStatus.PROCESSED
                 await session.commit()

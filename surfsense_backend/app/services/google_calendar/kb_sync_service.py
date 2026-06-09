@@ -89,9 +89,6 @@ class GoogleCalendarKBSyncService:
                 )
                 content_hash = unique_hash
 
-
-
-
             summary_content = (
                 f"Google Calendar Event: {event_summary}\n\n{indexable_content}"
             )
@@ -251,9 +248,6 @@ class GoogleCalendarKBSyncService:
 
             if not indexable_content:
                 return {"status": "error", "message": "Event produced empty content"}
-
-
-
 
             summary_content = (
                 f"Google Calendar Event: {event_summary}\n\n{indexable_content}"

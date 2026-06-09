@@ -35,9 +35,7 @@ export const MCPTrustedTools: FC<MCPTrustedToolsProps> = ({ connector }) => {
 
 	return (
 		<div className="space-y-4">
-			<h3 className="font-medium text-sm sm:text-base flex items-center gap-2">
-				Trusted Tools
-			</h3>
+			<h3 className="font-medium text-sm sm:text-base flex items-center gap-2">Trusted Tools</h3>
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-4">
 				<p className="text-[10px] sm:text-xs text-muted-foreground">

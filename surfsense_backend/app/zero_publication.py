@@ -110,7 +110,9 @@ def _format_table_entry(conn: Connection, table: str) -> str:
 def build_set_table_sql(conn: Connection) -> str:
     """Build the canonical plain SET TABLE statement for Zero's event triggers."""
 
-    table_list = ", ".join(_format_table_entry(conn, table) for table in ZERO_PUBLICATION)
+    table_list = ", ".join(
+        _format_table_entry(conn, table) for table in ZERO_PUBLICATION
+    )
     return f"ALTER PUBLICATION {_quote_identifier(PUBLICATION_NAME)} SET TABLE {table_list}"
 
 
@@ -175,7 +177,9 @@ def verify_publication(conn: Connection) -> list[str]:
 
         actual_columns = actual[table]
         actual_key = sorted(actual_columns) if actual_columns is not None else None
-        expected_key = sorted(expected_columns) if expected_columns is not None else None
+        expected_key = (
+            sorted(expected_columns) if expected_columns is not None else None
+        )
         if actual_key != expected_key:
             mismatches.append(
                 f"{table}: expected columns {expected_columns or 'ALL'}, "
@@ -196,6 +200,7 @@ async def _verify_cli() -> int:
 
     engine = create_async_engine(database_url)
     async with engine.connect() as async_conn:
+
         def run_verify(sync_conn: Connection) -> list[str]:
             return verify_publication(sync_conn)
 
@@ -215,7 +220,9 @@ async def _verify_cli() -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Manage SurfSense's Zero publication")
-    parser.add_argument("--verify", action="store_true", help="verify zero_publication shape")
+    parser.add_argument(
+        "--verify", action="store_true", help="verify zero_publication shape"
+    )
     args = parser.parse_args()
 
     if args.verify:

@@ -15,4 +15,3 @@ def test_chunk_message_preserves_content_and_limits_size():
     assert "".join(chunks) == text
     assert len(chunks) > 1
     assert all(len(chunk.encode("utf-16-le")) // 2 <= 4096 for chunk in chunks)
-

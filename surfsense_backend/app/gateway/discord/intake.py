@@ -39,7 +39,9 @@ def _message_reference_payload(message: discord.Message) -> dict[str, Any] | Non
     }
 
 
-def _serialize_message(message: discord.Message, *, bot_user_id: str | None) -> dict[str, Any]:
+def _serialize_message(
+    message: discord.Message, *, bot_user_id: str | None
+) -> dict[str, Any]:
     guild = message.guild
     channel = message.channel
     thread_id = str(channel.id) if isinstance(channel, discord.Thread) else None
@@ -62,8 +64,7 @@ def _serialize_message(message: discord.Message, *, bot_user_id: str | None) -> 
                 "bot": message.author.bot,
             },
             "mentions": [
-                {"id": str(user.id), "username": user.name}
-                for user in message.mentions
+                {"id": str(user.id), "username": user.name} for user in message.mentions
             ],
             "message_reference": _message_reference_payload(message),
             "created_at": message.created_at.isoformat()
@@ -73,7 +74,9 @@ def _serialize_message(message: discord.Message, *, bot_user_id: str | None) -> 
     }
 
 
-async def _persist_message(message: discord.Message, *, bot_user_id: str | None) -> None:
+async def _persist_message(
+    message: discord.Message, *, bot_user_id: str | None
+) -> None:
     if message.guild is None:
         return
     guild_id = str(message.guild.id)
@@ -82,7 +85,9 @@ async def _persist_message(message: discord.Message, *, bot_user_id: str | None)
     async with async_session_maker() as session:
         account = await get_discord_account_by_guild(session, guild_id=guild_id)
         if account is None:
-            logger.info("Ignoring Discord message for uninstalled guild_id=%s", guild_id)
+            logger.info(
+                "Ignoring Discord message for uninstalled guild_id=%s", guild_id
+            )
             return
 
         inbox_id = await persist_inbound_event(
@@ -144,7 +149,9 @@ def _build_client() -> discord.Client:
         try:
             await _persist_message(message, bot_user_id=bot_user_id)
         except Exception:
-            logger.exception("Discord gateway failed to persist message_id=%s", message.id)
+            logger.exception(
+                "Discord gateway failed to persist message_id=%s", message.id
+            )
 
     return client
 

@@ -33,9 +33,7 @@ def _drive_doc(
     )
 
 
-@pytest.mark.usefixtures(
-"patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_drive_pipeline_creates_ready_document(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -64,9 +62,7 @@ async def test_drive_pipeline_creates_ready_document(
     assert DocumentStatus.is_state(row.status, DocumentStatus.READY)
 
 
-@pytest.mark.usefixtures(
-"patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_drive_legacy_doc_migrated(
     db_session, db_search_space, db_connector, db_user, mocker
 ):

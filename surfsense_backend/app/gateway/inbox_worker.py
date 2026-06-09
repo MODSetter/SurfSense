@@ -55,4 +55,3 @@ async def stop_gateway_inbox_worker() -> None:
     with suppress(TimeoutError, asyncio.CancelledError):
         await asyncio.wait_for(_task, timeout=10)
     _task = None
-

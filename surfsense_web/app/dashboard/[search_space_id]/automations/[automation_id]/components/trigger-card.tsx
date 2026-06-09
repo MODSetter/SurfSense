@@ -23,13 +23,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { type Trigger, triggerUpdateRequest } from "@/contracts/types/automation.types";
 import { describeCron } from "@/lib/automations/describe-cron";
-import { formatRelativeFutureDate } from "@/lib/format-date";
 import {
 	DEFAULT_SCHEDULE,
 	fromCron,
 	type ScheduleFrequency,
 	toCron,
 } from "@/lib/automations/schedule-builder";
+import { formatRelativeFutureDate } from "@/lib/format-date";
 import { TimezoneCombobox } from "../../components/builder/timezone-combobox";
 import { DeleteTriggerDialog } from "./delete-trigger-dialog";
 
@@ -277,7 +277,10 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 								</div>
 							) : draft.frequency !== "custom" ? (
 								<div className="space-y-1.5">
-									<label className="text-xs font-medium text-muted-foreground" htmlFor="trigger-time">
+									<label
+										className="text-xs font-medium text-muted-foreground"
+										htmlFor="trigger-time"
+									>
 										Time
 									</label>
 									<Input
@@ -296,7 +299,10 @@ export function TriggerCard({ trigger, automationId, canUpdate, canDelete }: Tri
 								</div>
 							) : (
 								<div className="space-y-1.5">
-									<label className="text-xs font-medium text-muted-foreground" htmlFor="trigger-cron">
+									<label
+										className="text-xs font-medium text-muted-foreground"
+										htmlFor="trigger-cron"
+									>
 										Schedule expression
 									</label>
 									<Input

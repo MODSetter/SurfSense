@@ -41,7 +41,9 @@ async def main() -> int:
         await session.commit()
         account_id = int(account.id)
 
-    webhook_url = f"{base_url.rstrip('/')}/api/v1/gateway/webhooks/telegram/{account_id}"
+    webhook_url = (
+        f"{base_url.rstrip('/')}/api/v1/gateway/webhooks/telegram/{account_id}"
+    )
     bot = Bot(token=token)
     ok = await bot.set_webhook(
         url=webhook_url,
@@ -58,4 +60,3 @@ async def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(asyncio.run(main()))
-

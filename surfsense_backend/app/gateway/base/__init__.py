@@ -1,2 +1,1 @@
 """Base gateway interfaces."""
-

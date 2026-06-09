@@ -49,7 +49,9 @@ class TelegramStreamTranslator(BaseStreamTranslator):
     async def translate(self, events: AsyncIterator[GatewayStreamEvent]) -> None:
         async for event in events:
             if event.type in {"text-delta", "text_delta", "text"}:
-                self._buffer += str(event.data.get("text") or event.data.get("delta") or "")
+                self._buffer += str(
+                    event.data.get("text") or event.data.get("delta") or ""
+                )
                 await self._maybe_flush()
             elif event.type in {"data-interrupt-request", "interrupt"}:
                 await self._handle_hitl_interrupt()
@@ -159,7 +161,9 @@ class TelegramStreamTranslator(BaseStreamTranslator):
         )
         if chat_wait:
             record_gateway_rate_limit_hit(bucket="tg:chat")
-        global_wait = await wait_for_token("tg:global", capacity=25, refill_per_sec=25.0)
+        global_wait = await wait_for_token(
+            "tg:global", capacity=25, refill_per_sec=25.0
+        )
         if global_wait:
             record_gateway_rate_limit_hit(bucket="tg:global")
 
@@ -168,4 +172,3 @@ class TelegramStreamTranslator(BaseStreamTranslator):
             await self._flush(final=False)
         await self._send_text(HITL_UNSUPPORTED_MESSAGE)
         record_gateway_hitl_aborted(platform="telegram")
-

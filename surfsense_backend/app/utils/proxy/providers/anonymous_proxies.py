@@ -34,9 +34,9 @@ class AnonymousProxiesProvider(ProxyProvider):
             "l": Config.RESIDENTIAL_PROXY_LOCATION,
             "t": Config.RESIDENTIAL_PROXY_TYPE,
         }
-        return base64.b64encode(
-            json.dumps(password_dict).encode("utf-8")
-        ).decode("utf-8")
+        return base64.b64encode(json.dumps(password_dict).encode("utf-8")).decode(
+            "utf-8"
+        )
 
     def get_proxy_url(self) -> str | None:
         username = Config.RESIDENTIAL_PROXY_USERNAME

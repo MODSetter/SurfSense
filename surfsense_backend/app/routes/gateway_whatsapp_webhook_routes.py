@@ -79,7 +79,9 @@ async def whatsapp_webhook(
 
 def _verify_signature(raw_body: bytes, header_signature: str | None) -> None:
     if not config.WHATSAPP_WEBHOOK_APP_SECRET:
-        raise HTTPException(status_code=500, detail="WhatsApp app secret is not configured")
+        raise HTTPException(
+            status_code=500, detail="WhatsApp app secret is not configured"
+        )
     received = (header_signature or "").removeprefix("sha256=")
     expected = hmac.new(
         config.WHATSAPP_WEBHOOK_APP_SECRET.encode(),
@@ -87,7 +89,9 @@ def _verify_signature(raw_body: bytes, header_signature: str | None) -> None:
         hashlib.sha256,
     ).hexdigest()
     if not received or not hmac.compare_digest(received, expected):
-        raise HTTPException(status_code=403, detail="Invalid WhatsApp webhook signature")
+        raise HTTPException(
+            status_code=403, detail="Invalid WhatsApp webhook signature"
+        )
 
 
 async def _process_payload(session: AsyncSession, payload: dict[str, Any]) -> None:
@@ -114,7 +118,9 @@ async def _process_messages_change(
     change: dict[str, Any],
     value: dict[str, Any],
 ) -> None:
-    statuses = [status for status in value.get("statuses") or [] if isinstance(status, dict)]
+    statuses = [
+        status for status in value.get("statuses") or [] if isinstance(status, dict)
+    ]
     for status in statuses:
         record_gateway_outbound(
             platform="whatsapp",

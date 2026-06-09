@@ -61,7 +61,7 @@ async function uploadBatchesWithConcurrency(
 		folderName: string;
 		searchSpaceId: number;
 		rootFolderId: number | null;
-			processingMode?: "basic" | "premium";
+		processingMode?: "basic" | "premium";
 		signal?: AbortSignal;
 		onBatchComplete?: (filesInBatch: number) => void;
 	}
@@ -189,7 +189,7 @@ export async function uploadFolderScan(params: FolderSyncParams): Promise<number
 			folderName,
 			searchSpaceId,
 			rootFolderId: rootFolderId ?? null,
-				processingMode,
+			processingMode,
 			signal,
 			onBatchComplete: (count) => {
 				uploaded += count;

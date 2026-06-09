@@ -202,7 +202,9 @@ class IndexingPipelineService:
 
         await self.session.commit()
 
-    async def index_batch(self, connector_docs: list[ConnectorDocument]) -> list[Document]:
+    async def index_batch(
+        self, connector_docs: list[ConnectorDocument]
+    ) -> list[Document]:
         """Convenience method: prepare_for_indexing then index each document.
 
         Indexers that need heartbeat callbacks or custom per-document logic
@@ -347,7 +349,9 @@ class IndexingPipelineService:
             await self.session.rollback()
             return []
 
-    async def index(self, document: Document, connector_doc: ConnectorDocument) -> Document:
+    async def index(
+        self, document: Document, connector_doc: ConnectorDocument
+    ) -> Document:
         """
         Run deterministic content storage, embedding, and chunking for a document.
         """

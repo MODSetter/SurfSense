@@ -308,12 +308,8 @@ def load_openrouter_integration_settings() -> dict | None:
                 "anonymous_enabled_free instead. Both new flags have been "
                 "seeded from the legacy value for back-compat."
             )
-            settings.setdefault(
-                "anonymous_enabled_paid", settings["anonymous_enabled"]
-            )
-            settings.setdefault(
-                "anonymous_enabled_free", settings["anonymous_enabled"]
-            )
+            settings.setdefault("anonymous_enabled_paid", settings["anonymous_enabled"])
+            settings.setdefault("anonymous_enabled_free", settings["anonymous_enabled"])
 
         # Image generation + vision LLM emission are opt-in (issue L).
         # OpenRouter's catalogue contains hundreds of image / vision
@@ -622,7 +618,9 @@ class Config:
     WHATSAPP_GRAPH_API_VERSION = os.getenv("WHATSAPP_GRAPH_API_VERSION", "v25.0")
     WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN")
     WHATSAPP_WEBHOOK_APP_SECRET = os.getenv("WHATSAPP_WEBHOOK_APP_SECRET")
-    WHATSAPP_BRIDGE_URL = os.getenv("WHATSAPP_BRIDGE_URL", "http://whatsapp-bridge:9929")
+    WHATSAPP_BRIDGE_URL = os.getenv(
+        "WHATSAPP_BRIDGE_URL", "http://whatsapp-bridge:9929"
+    )
     GATEWAY_WHATSAPP_INTAKE_MODE = os.getenv(
         "GATEWAY_WHATSAPP_INTAKE_MODE", "disabled"
     ).lower()
@@ -632,7 +630,9 @@ class Config:
         )
     GATEWAY_SLACK_CLIENT_ID = os.getenv("SLACK_CLIENT_ID")
     GATEWAY_SLACK_CLIENT_SECRET = os.getenv("SLACK_CLIENT_SECRET")
-    GATEWAY_SLACK_ENABLED = os.getenv("GATEWAY_SLACK_ENABLED", "FALSE").upper() == "TRUE"
+    GATEWAY_SLACK_ENABLED = (
+        os.getenv("GATEWAY_SLACK_ENABLED", "FALSE").upper() == "TRUE"
+    )
     GATEWAY_SLACK_SIGNING_SECRET = os.getenv("GATEWAY_SLACK_SIGNING_SECRET")
     GATEWAY_SLACK_REDIRECT_URI = os.getenv("GATEWAY_SLACK_REDIRECT_URI")
     GATEWAY_DISCORD_ENABLED = (

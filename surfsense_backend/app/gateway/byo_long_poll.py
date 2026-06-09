@@ -58,8 +58,10 @@ async def _whatsapp_baileys_supervisor() -> None:
                 async with async_session_maker() as session:
                     result = await session.execute(
                         select(ExternalChatAccount).where(
-                            ExternalChatAccount.platform == ExternalChatPlatform.WHATSAPP,
-                            ExternalChatAccount.mode == ExternalChatAccountMode.SELF_HOST_BYO,
+                            ExternalChatAccount.platform
+                            == ExternalChatPlatform.WHATSAPP,
+                            ExternalChatAccount.mode
+                            == ExternalChatAccountMode.SELF_HOST_BYO,
                             ExternalChatAccount.is_system_account.is_(False),
                             ExternalChatAccount.suspended_at.is_(None),
                         )
@@ -128,7 +130,9 @@ async def start_byo_long_poll_supervisors() -> None:
             )
             _tasks.add(task)
             task.add_done_callback(_tasks.discard)
-            logger.info("Started BYO Telegram long-poll supervisor account_id=%s", account.id)
+            logger.info(
+                "Started BYO Telegram long-poll supervisor account_id=%s", account.id
+            )
 
     if config.GATEWAY_WHATSAPP_INTAKE_MODE == "baileys":
         task = asyncio.create_task(
@@ -151,9 +155,12 @@ async def stop_byo_long_poll_supervisors() -> None:
         task.cancel()
     if tasks:
         try:
-            await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=10)
+            await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True), timeout=10
+            )
         except TimeoutError:
-            logger.warning("Timed out waiting for BYO Telegram long-poll supervisors to stop")
+            logger.warning(
+                "Timed out waiting for BYO Telegram long-poll supervisors to stop"
+            )
     _tasks.clear()
     _shutdown_event = None
-

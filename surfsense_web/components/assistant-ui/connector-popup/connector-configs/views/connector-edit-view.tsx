@@ -278,7 +278,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 						{/* Vision toggle (Obsidian is plugin-push, non-indexable by design) */}
 						{showsVisionToggle && (
-							<VisionLLMConfig enabled={enableVisionLlm} onEnabledChange={onEnableVisionLlmChange} />
+							<VisionLLMConfig
+								enabled={enableVisionLlm}
+								onEnabledChange={onEnableVisionLlmChange}
+							/>
 						)}
 
 						{/* Date-range and periodic sync stay indexable-only */}
@@ -310,11 +313,13 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 									connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
 								const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
 								const selectedFolders =
-									(connector.config?.selected_folders as Array<{ id: string; name: string }> | undefined) ||
-									[];
+									(connector.config?.selected_folders as
+										| Array<{ id: string; name: string }>
+										| undefined) || [];
 								const selectedFiles =
-									(connector.config?.selected_files as Array<{ id: string; name: string }> | undefined) ||
-									[];
+									(connector.config?.selected_files as
+										| Array<{ id: string; name: string }>
+										| undefined) || [];
 								const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
 								const isDisabled = requiresFolderSelection && !hasItemsSelected;
 

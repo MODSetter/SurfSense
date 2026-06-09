@@ -25,4 +25,3 @@ class BaseStreamTranslator(ABC):
     @abstractmethod
     async def translate(self, events: AsyncIterator[GatewayStreamEvent]) -> None:
         """Consume agent stream events and emit platform messages."""
-

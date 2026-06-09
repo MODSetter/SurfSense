@@ -41,7 +41,9 @@ class WhatsAppCloudStreamTranslator(BaseStreamTranslator):
             if event.type in {"text-delta", "text_delta", "text"}:
                 if not self._typing_sent:
                     await self._send_typing_indicator()
-                self._buffer += str(event.data.get("text") or event.data.get("delta") or "")
+                self._buffer += str(
+                    event.data.get("text") or event.data.get("delta") or ""
+                )
             elif event.type in {"data-interrupt-request", "interrupt"}:
                 await self._handle_hitl_interrupt()
                 return

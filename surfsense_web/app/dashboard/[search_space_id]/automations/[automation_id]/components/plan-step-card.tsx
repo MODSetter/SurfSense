@@ -77,8 +77,10 @@ function getStepDetails(step: PlanStep): { label: string; value: string }[] {
 
 	if (step.when) details.push({ label: "Runs when", value: step.when });
 	if (step.output_as) details.push({ label: "Saves output as", value: step.output_as });
-	if (step.max_retries != null) details.push({ label: "Max retries", value: String(step.max_retries) });
-	if (step.timeout_seconds != null) details.push({ label: "Timeout", value: `${step.timeout_seconds}s` });
+	if (step.max_retries != null)
+		details.push({ label: "Max retries", value: String(step.max_retries) });
+	if (step.timeout_seconds != null)
+		details.push({ label: "Timeout", value: `${step.timeout_seconds}s` });
 
 	return details;
 }

@@ -105,14 +105,18 @@ class WebCrawlerConnector:
                 logger.info(f"[webcrawler] Using Scrapling AsyncFetcher for: {url}")
                 result = await self._crawl_with_async_fetcher(url)
                 if result:
-                    self._log_tier_outcome("scrapling-static", url, tier_start, "success")
+                    self._log_tier_outcome(
+                        "scrapling-static", url, tier_start, "success"
+                    )
                     self._log_total(url, "scrapling-static", total_start)
                     return result, None
                 errors.append("Scrapling static: empty extraction")
                 self._log_tier_outcome("scrapling-static", url, tier_start, "empty")
             except Exception as exc:
                 errors.append(f"Scrapling static: {exc!s}")
-                self._log_tier_outcome("scrapling-static", url, tier_start, "error", exc)
+                self._log_tier_outcome(
+                    "scrapling-static", url, tier_start, "error", exc
+                )
 
             # --- 3. Scrapling DynamicFetcher (full browser) ---
             tier_start = time.perf_counter()
@@ -120,7 +124,9 @@ class WebCrawlerConnector:
                 logger.info(f"[webcrawler] Using Scrapling DynamicFetcher for: {url}")
                 result = await self._crawl_with_dynamic(url)
                 if result:
-                    self._log_tier_outcome("scrapling-dynamic", url, tier_start, "success")
+                    self._log_tier_outcome(
+                        "scrapling-dynamic", url, tier_start, "success"
+                    )
                     self._log_total(url, "scrapling-dynamic", total_start)
                     return result, None
                 errors.append("Scrapling dynamic: empty extraction")
@@ -135,7 +141,9 @@ class WebCrawlerConnector:
                 )
             except Exception as exc:
                 errors.append(f"Scrapling dynamic: {exc!s}")
-                self._log_tier_outcome("scrapling-dynamic", url, tier_start, "error", exc)
+                self._log_tier_outcome(
+                    "scrapling-dynamic", url, tier_start, "error", exc
+                )
 
             # --- 4. Scrapling StealthyFetcher (anti-bot, last resort) ---
             tier_start = time.perf_counter()
@@ -143,7 +151,9 @@ class WebCrawlerConnector:
                 logger.info(f"[webcrawler] Using Scrapling StealthyFetcher for: {url}")
                 result = await self._crawl_with_stealthy(url)
                 if result:
-                    self._log_tier_outcome("scrapling-stealthy", url, tier_start, "success")
+                    self._log_tier_outcome(
+                        "scrapling-stealthy", url, tier_start, "success"
+                    )
                     self._log_total(url, "scrapling-stealthy", total_start)
                     return result, None
                 errors.append("Scrapling stealthy: empty extraction")

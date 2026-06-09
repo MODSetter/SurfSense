@@ -552,7 +552,7 @@ async def _process_single_file(
             connector_id=connector_id,
             search_space_id=search_space_id,
             user_id=user_id,
-            )
+        )
 
         pipeline = IndexingPipelineService(session)
         documents = await pipeline.prepare_for_indexing([doc])

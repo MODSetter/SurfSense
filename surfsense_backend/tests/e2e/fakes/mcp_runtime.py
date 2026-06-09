@@ -140,7 +140,10 @@ def install(active_patches: list[Any]) -> None:
             "app.agents.chat.multi_agent_chat.shared.tools.mcp.tool.streamablehttp_client",
             _fake_streamablehttp_client,
         ),
-        ("app.agents.chat.multi_agent_chat.shared.tools.mcp.tool.ClientSession", _FakeClientSession),
+        (
+            "app.agents.chat.multi_agent_chat.shared.tools.mcp.tool.ClientSession",
+            _FakeClientSession,
+        ),
     ]
     for target, replacement in targets:
         p = patch(target, replacement)

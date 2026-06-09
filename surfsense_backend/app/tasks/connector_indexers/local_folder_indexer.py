@@ -568,7 +568,7 @@ async def index_local_folder(
                         folder_path=folder_path,
                         folder_name=folder_name,
                         target_file_path=target_file_paths[0],
-                                root_folder_id=root_folder_id,
+                        root_folder_id=root_folder_id,
                         task_logger=task_logger,
                         log_entry=log_entry,
                     )
@@ -580,7 +580,7 @@ async def index_local_folder(
                     folder_path=folder_path,
                     folder_name=folder_name,
                     target_file_paths=target_file_paths,
-                        root_folder_id=root_folder_id,
+                    root_folder_id=root_folder_id,
                     on_progress_callback=on_heartbeat_callback,
                 )
                 if err:
@@ -766,7 +766,7 @@ async def index_local_folder(
                     folder_name=folder_name,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    )
+                )
                 connector_docs.append(doc)
                 file_meta_map[unique_identifier] = {
                     "relative_path": relative_path,
@@ -983,7 +983,7 @@ async def _index_batch_files(
                         folder_path=folder_path,
                         folder_name=folder_name,
                         target_file_path=file_path,
-                                root_folder_id=root_folder_id,
+                        root_folder_id=root_folder_id,
                         task_logger=task_logger,
                         log_entry=log_entry,
                     )
@@ -1111,7 +1111,7 @@ async def _index_single_file(
             folder_name=folder_name,
             search_space_id=search_space_id,
             user_id=user_id,
-            )
+        )
 
         if root_folder_id:
             connector_doc.folder_id = await _resolve_folder_for_file(
@@ -1396,7 +1396,7 @@ async def index_uploaded_files(
                     folder_name=folder_name,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    )
+                )
 
                 connector_doc.folder_id = await _resolve_folder_for_file(
                     session,

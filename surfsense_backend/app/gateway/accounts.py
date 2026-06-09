@@ -31,7 +31,9 @@ def slack_account_credentials(account: ExternalChatAccount) -> dict:
     """Decrypt Slack gateway credentials stored as encrypted JSON."""
     if not account.encrypted_credentials:
         return {}
-    raw = TokenEncryption(config.SECRET_KEY or "").decrypt_token(account.encrypted_credentials)
+    raw = TokenEncryption(config.SECRET_KEY or "").decrypt_token(
+        account.encrypted_credentials
+    )
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
@@ -44,7 +46,9 @@ def discord_account_credentials(account: ExternalChatAccount) -> dict:
     """Decrypt Discord gateway credentials stored as encrypted JSON."""
     if not account.encrypted_credentials:
         return {}
-    raw = TokenEncryption(config.SECRET_KEY or "").decrypt_token(account.encrypted_credentials)
+    raw = TokenEncryption(config.SECRET_KEY or "").decrypt_token(
+        account.encrypted_credentials
+    )
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
@@ -135,4 +139,3 @@ async def get_discord_account_by_guild(
         )
     )
     return result.scalars().first()
-

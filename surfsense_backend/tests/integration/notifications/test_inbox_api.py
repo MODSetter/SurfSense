@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import SearchSpace, User
+from app.db import User
 from app.notifications.persistence import Notification
 
 pytestmark = pytest.mark.integration

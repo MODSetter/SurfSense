@@ -8,7 +8,12 @@ import uuid
 
 from sqlalchemy import text
 
-from app.db import ExternalChatPlatform, ExternalChatAccount, async_session_maker, engine
+from app.db import (
+    ExternalChatAccount,
+    ExternalChatPlatform,
+    async_session_maker,
+    engine,
+)
 from app.gateway.inbox import persist_inbound_event, telegram_event_dedupe_key
 from app.gateway.telegram.adapter import TelegramAdapter
 from app.observability.metrics import record_gateway_byo_longpoll_running_delta
@@ -39,7 +44,9 @@ async def _run_telegram_account(account_id: int, token: str) -> None:
                 account = await session.get(ExternalChatAccount, account_id)
                 offset = None
                 if account is not None:
-                    offset = int((account.cursor_state or {}).get("last_update_id", 0)) + 1
+                    offset = (
+                        int((account.cursor_state or {}).get("last_update_id", 0)) + 1
+                    )
 
             async for update in adapter.fetch_updates(offset=offset):
                 request_id = f"gateway_{uuid.uuid4().hex[:16]}"
@@ -58,8 +65,11 @@ async def _run_telegram_account(account_id: int, token: str) -> None:
                     )
                     await session.commit()
                     if inbox_id is not None:
-                        logger.debug("Persisted Telegram polling update inbox_id=%s", inbox_id)
+                        logger.debug(
+                            "Persisted Telegram polling update inbox_id=%s", inbox_id
+                        )
         finally:
             record_gateway_byo_longpoll_running_delta(-1, account_id=account_id)
-            await conn.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": lock_key})
-
+            await conn.execute(
+                text("SELECT pg_advisory_unlock(:key)"), {"key": lock_key}
+            )

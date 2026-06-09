@@ -137,7 +137,10 @@ class TestPluginLoaderIsolation:
             _FakeEntryPoint("crashing", crashing_factory),
             _FakeEntryPoint("ok", year_substituter_factory),
         ]
-        with patch("app.agents.chat.multi_agent_chat.main_agent.plugins.loader.entry_points", return_value=eps):
+        with patch(
+            "app.agents.chat.multi_agent_chat.main_agent.plugins.loader.entry_points",
+            return_value=eps,
+        ):
             result = load_plugin_middlewares(
                 _ctx(), allowed_plugin_names={"crashing", "ok"}
             )

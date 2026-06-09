@@ -101,12 +101,21 @@ export function AutomationDetailHeader({
 								disabled={updating}
 								className="relative justify-start rounded-md bg-muted px-3 hover:bg-accent"
 							>
-								<span className={updating ? "inline-flex items-center whitespace-nowrap opacity-0" : "inline-flex items-center whitespace-nowrap"}>
+								<span
+									className={
+										updating
+											? "inline-flex items-center whitespace-nowrap opacity-0"
+											: "inline-flex items-center whitespace-nowrap"
+									}
+								>
 									<PauseIcon className="mr-1 h-4 w-4" />
 									{pauseLabel}
 								</span>
 								{updating && (
-									<Spinner size="xs" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+									<Spinner
+										size="xs"
+										className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+									/>
 								)}
 							</Button>
 						)}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -53,10 +54,8 @@ class LocalFileBackend(StorageBackend):
         path = self._path_for(key)
 
         def _unlink() -> None:
-            try:
+            with contextlib.suppress(FileNotFoundError):
                 path.unlink()
-            except FileNotFoundError:
-                pass
 
         await asyncio.to_thread(_unlink)
 
