@@ -414,7 +414,7 @@ async def index_google_calendar_events(
                     connector_id=connector_id,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    )
+                )
 
                 with session.no_autoflush:
                     duplicate = await check_duplicate_document_by_hash(

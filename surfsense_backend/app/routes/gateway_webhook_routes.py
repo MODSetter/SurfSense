@@ -119,21 +119,35 @@ def _discord_redirect_uri() -> str:
     return f"{base.rstrip('/')}/api/v1/gateway/discord/callback"
 
 
-def _slack_frontend_redirect(space_id: int, *, success: bool = False, error: str | None = None) -> RedirectResponse:
-    qs = "slack_gateway=connected" if success else f"error={error or 'slack_gateway_failed'}"
+def _slack_frontend_redirect(
+    space_id: int, *, success: bool = False, error: str | None = None
+) -> RedirectResponse:
+    qs = (
+        "slack_gateway=connected"
+        if success
+        else f"error={error or 'slack_gateway_failed'}"
+    )
     return RedirectResponse(
         url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/user-settings?{qs}"
     )
 
 
-def _discord_frontend_redirect(space_id: int, *, success: bool = False, error: str | None = None) -> RedirectResponse:
-    qs = "discord_gateway=connected" if success else f"error={error or 'discord_gateway_failed'}"
+def _discord_frontend_redirect(
+    space_id: int, *, success: bool = False, error: str | None = None
+) -> RedirectResponse:
+    qs = (
+        "discord_gateway=connected"
+        if success
+        else f"error={error or 'discord_gateway_failed'}"
+    )
     return RedirectResponse(
         url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/user-settings?{qs}"
     )
 
 
-def verify_slack_signature(*, signing_secret: str, timestamp: str | None, signature: str | None, body: bytes) -> bool:
+def verify_slack_signature(
+    *, signing_secret: str, timestamp: str | None, signature: str | None, body: bytes
+) -> bool:
     if not signing_secret or not timestamp or not signature:
         return False
     try:
@@ -239,7 +253,9 @@ async def install_slack_gateway(
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
     if not _slack_gateway_enabled():
-        raise HTTPException(status_code=500, detail="Slack gateway OAuth is not configured")
+        raise HTTPException(
+            status_code=500, detail="Slack gateway OAuth is not configured"
+        )
     await check_search_space_access(session, user, search_space_id)
     state = _get_state_manager().generate_secure_state(search_space_id, user.id)
     auth_params = {
@@ -269,11 +285,17 @@ async def slack_gateway_callback(
         state_data = None
 
     if error:
-        return _slack_frontend_redirect(space_id or 0, error="slack_gateway_oauth_denied")
+        return _slack_frontend_redirect(
+            space_id or 0, error="slack_gateway_oauth_denied"
+        )
     if not code or state_data is None:
-        raise HTTPException(status_code=400, detail="Invalid Slack gateway OAuth callback")
+        raise HTTPException(
+            status_code=400, detail="Invalid Slack gateway OAuth callback"
+        )
     if not _slack_gateway_enabled():
-        raise HTTPException(status_code=500, detail="Slack gateway OAuth is not configured")
+        raise HTTPException(
+            status_code=500, detail="Slack gateway OAuth is not configured"
+        )
 
     user_id = UUID(state_data["user_id"])
     token_payload = {
@@ -300,7 +322,9 @@ async def slack_gateway_callback(
     team = token_json.get("team") or {}
     team_id = team.get("id")
     if not bot_token or not team_id:
-        raise HTTPException(status_code=400, detail="Slack gateway OAuth returned incomplete data")
+        raise HTTPException(
+            status_code=400, detail="Slack gateway OAuth returned incomplete data"
+        )
 
     bot_user_id = token_json.get("bot_user_id")
     app_id = token_json.get("app_id")
@@ -388,7 +412,9 @@ async def install_discord_gateway(
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
     if not _discord_gateway_enabled():
-        raise HTTPException(status_code=500, detail="Discord gateway OAuth is not configured")
+        raise HTTPException(
+            status_code=500, detail="Discord gateway OAuth is not configured"
+        )
     await check_search_space_access(session, user, search_space_id)
     state = _get_state_manager().generate_secure_state(search_space_id, user.id)
     auth_params = {
@@ -420,11 +446,17 @@ async def discord_gateway_callback(
         state_data = None
 
     if error:
-        return _discord_frontend_redirect(space_id or 0, error="discord_gateway_oauth_denied")
+        return _discord_frontend_redirect(
+            space_id or 0, error="discord_gateway_oauth_denied"
+        )
     if not code or state_data is None:
-        raise HTTPException(status_code=400, detail="Invalid Discord gateway OAuth callback")
+        raise HTTPException(
+            status_code=400, detail="Invalid Discord gateway OAuth callback"
+        )
     if not _discord_gateway_enabled():
-        raise HTTPException(status_code=500, detail="Discord gateway OAuth is not configured")
+        raise HTTPException(
+            status_code=500, detail="Discord gateway OAuth is not configured"
+        )
 
     user_id = UUID(state_data["user_id"])
     token_payload = {
@@ -535,7 +567,10 @@ async def discord_gateway_callback(
         elif binding.user_id == user_id:
             binding.search_space_id = space_id
             binding.external_username = discord_username or binding.external_username
-            binding.external_metadata = {**(binding.external_metadata or {}), **metadata}
+            binding.external_metadata = {
+                **(binding.external_metadata or {}),
+                **metadata,
+            }
 
     await session.commit()
     return _discord_frontend_redirect(space_id, success=True)
@@ -614,7 +649,9 @@ async def _resolve_webhook_account(
     if account is None or account.platform != ExternalChatPlatform.TELEGRAM:
         raise HTTPException(status_code=404, detail="Gateway account not found")
     expected_secret = account.webhook_secret or ""
-    if not expected_secret or not hmac.compare_digest(header_secret or "", expected_secret):
+    if not expected_secret or not hmac.compare_digest(
+        header_secret or "", expected_secret
+    ):
         raise HTTPException(status_code=403, detail="Invalid Telegram webhook secret")
     return account
 
@@ -654,7 +691,9 @@ async def telegram_webhook(
             event_dedupe_key=telegram_event_dedupe_key(update_id),
             external_event_id=str(update_id),
             external_message_id=(
-                str(message["message_id"]) if message.get("message_id") is not None else None
+                str(message["message_id"])
+                if message.get("message_id") is not None
+                else None
             ),
             event_kind=_classify_telegram_event(payload),
             raw_payload=payload,
@@ -739,7 +778,10 @@ async def list_bindings(
 ) -> list[dict[str, Any]]:
     result = await session.execute(
         select(ExternalChatBinding, ExternalChatAccount)
-        .join(ExternalChatAccount, ExternalChatBinding.account_id == ExternalChatAccount.id)
+        .join(
+            ExternalChatAccount,
+            ExternalChatBinding.account_id == ExternalChatAccount.id,
+        )
         .where(ExternalChatBinding.user_id == user.id)
     )
     return [
@@ -777,13 +819,20 @@ async def list_connections(
     ]
     if platform is not None:
         filters.append(ExternalChatAccount.platform == platform)
-        if platform == ExternalChatPlatform.WHATSAPP and active_whatsapp_mode is not None:
+        if (
+            platform == ExternalChatPlatform.WHATSAPP
+            and active_whatsapp_mode is not None
+        ):
             filters.append(ExternalChatAccount.mode == active_whatsapp_mode)
     else:
         if not _telegram_gateway_enabled():
-            filters.append(ExternalChatAccount.platform != ExternalChatPlatform.TELEGRAM)
+            filters.append(
+                ExternalChatAccount.platform != ExternalChatPlatform.TELEGRAM
+            )
         if active_whatsapp_mode is None:
-            filters.append(ExternalChatAccount.platform != ExternalChatPlatform.WHATSAPP)
+            filters.append(
+                ExternalChatAccount.platform != ExternalChatPlatform.WHATSAPP
+            )
         else:
             filters.append(
                 or_(
@@ -794,7 +843,10 @@ async def list_connections(
 
     result = await session.execute(
         select(ExternalChatBinding, ExternalChatAccount)
-        .join(ExternalChatAccount, ExternalChatBinding.account_id == ExternalChatAccount.id)
+        .join(
+            ExternalChatAccount,
+            ExternalChatBinding.account_id == ExternalChatAccount.id,
+        )
         .where(*filters)
     )
 
@@ -828,7 +880,9 @@ async def list_connections(
                 baileys_account_ids.add(int(account.id))
                 route_type = "account"
                 connection_id = account.id
-                search_space_id = account.owner_search_space_id or binding.search_space_id
+                search_space_id = (
+                    account.owner_search_space_id or binding.search_space_id
+                )
                 display_name = "WhatsApp Bridge"
 
         connections.append(
@@ -853,9 +907,8 @@ async def list_connections(
             }
         )
 
-    if (
-        active_whatsapp_mode == ExternalChatAccountMode.SELF_HOST_BYO
-        and (platform is None or platform == ExternalChatPlatform.WHATSAPP)
+    if active_whatsapp_mode == ExternalChatAccountMode.SELF_HOST_BYO and (
+        platform is None or platform == ExternalChatPlatform.WHATSAPP
     ):
         account_result = await session.execute(
             select(ExternalChatAccount).where(
@@ -940,7 +993,9 @@ async def update_binding_search_space(
         ExternalChatBindingState.BOUND,
         ExternalChatBindingState.SUSPENDED,
     }:
-        raise HTTPException(status_code=400, detail="Only active bindings can be routed")
+        raise HTTPException(
+            status_code=400, detail="Only active bindings can be routed"
+        )
     account = await session.get(ExternalChatAccount, binding.account_id)
     if account is None or _is_inactive_whatsapp_account(account):
         raise HTTPException(status_code=404, detail="Binding not found")
@@ -1062,4 +1117,3 @@ async def resume_external_chat_binding(
     binding.updated_at = datetime.now(UTC)
     await session.commit()
     return {"ok": True}
-

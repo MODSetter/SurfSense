@@ -33,7 +33,9 @@ class BaileysPairRequest(BaseModel):
 
 def _ensure_baileys_enabled() -> None:
     if config.GATEWAY_WHATSAPP_INTAKE_MODE != "baileys":
-        raise HTTPException(status_code=404, detail="WhatsApp Baileys gateway is disabled")
+        raise HTTPException(
+            status_code=404, detail="WhatsApp Baileys gateway is disabled"
+        )
     if config.is_cloud():
         raise HTTPException(
             status_code=403,

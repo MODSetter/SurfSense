@@ -62,9 +62,10 @@ class BasePlatformAdapter(ABC):
     async def validate_credentials(self) -> dict[str, Any]:
         """Validate configured credentials and return account metadata."""
 
-    async def fetch_updates(self, *, offset: int | None) -> AsyncIterator[dict[str, Any]]:
+    async def fetch_updates(
+        self, *, offset: int | None
+    ) -> AsyncIterator[dict[str, Any]]:
         """Yield provider updates for long-polling adapters."""
         if False:
             yield {}  # pragma: no cover
         raise NotImplementedError("This adapter does not support long-polling")
-

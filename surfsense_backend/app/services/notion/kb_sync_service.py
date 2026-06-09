@@ -72,9 +72,6 @@ class NotionKBSyncService:
                 )
                 content_hash = unique_hash
 
-
-
-
             summary_content = f"Notion Page: {page_title}\n\n{markdown_content}"
             summary_embedding = embed_text(summary_content)
 
@@ -224,7 +221,6 @@ class NotionKBSyncService:
             logger.debug(
                 f"Final content length: {len(full_content)} chars, verified={content_verified}"
             )
-
 
             logger.debug("Generating summary and embeddings")
 

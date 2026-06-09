@@ -654,7 +654,7 @@ export const useConnectorDialog = () => {
 									setConnectorConfig(connector.config || {});
 									setPeriodicEnabled(false);
 									setFrequencyMinutes("1440");
-													setEnableVisionLlm(connector.enable_vision_llm ?? false);
+									setEnableVisionLlm(connector.enable_vision_llm ?? false);
 									setStartDate(undefined);
 									setEndDate(undefined);
 
@@ -808,7 +808,7 @@ export const useConnectorDialog = () => {
 					await updateConnector({
 						id: indexingConfig.connectorId,
 						data: {
-								enable_vision_llm: enableVisionLlm,
+							enable_vision_llm: enableVisionLlm,
 							...(periodicEnabled && {
 								periodic_indexing_enabled: true,
 								indexing_frequency_minutes: frequency,

@@ -25,6 +25,7 @@ from app.db import (
     User,
     get_async_session,
 )
+from app.notifications.service import NotificationService
 from app.schemas.obsidian_plugin import (
     ALLOWED_ATTACHMENT_EXTENSIONS,
     ATTACHMENT_MIME_TYPES,
@@ -43,7 +44,6 @@ from app.schemas.obsidian_plugin import (
     SyncAckItem,
     SyncBatchRequest,
 )
-from app.notifications.service import NotificationService
 from app.services.obsidian_plugin_indexer import (
     delete_note,
     get_manifest,

@@ -41,7 +41,9 @@ class SlackStreamTranslator(BaseStreamTranslator):
     async def translate(self, events: AsyncIterator[GatewayStreamEvent]) -> None:
         async for event in events:
             if event.type in {"text-delta", "text_delta", "text"}:
-                self._buffer += str(event.data.get("text") or event.data.get("delta") or "")
+                self._buffer += str(
+                    event.data.get("text") or event.data.get("delta") or ""
+                )
             elif event.type in {"data-interrupt-request", "interrupt"}:
                 await self._handle_hitl_interrupt()
                 return
@@ -53,7 +55,9 @@ class SlackStreamTranslator(BaseStreamTranslator):
     async def _flush_final(self) -> None:
         if not self._buffer:
             return
-        for chunk in split_text_message(self._buffer, max_chars=SLACK_MAX_MESSAGE_CHARS):
+        for chunk in split_text_message(
+            self._buffer, max_chars=SLACK_MAX_MESSAGE_CHARS
+        ):
             await self._send_text(chunk)
 
     async def _send_text(self, text: str) -> PlatformSendResult:

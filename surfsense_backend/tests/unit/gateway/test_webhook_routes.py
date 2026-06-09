@@ -23,7 +23,9 @@ def _enable_gateways(monkeypatch):
     monkeypatch.setattr(routes.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "webhook")
     monkeypatch.setattr(routes.config, "TELEGRAM_SHARED_BOT_TOKEN", "telegram-token")
     monkeypatch.setattr(routes.config, "TELEGRAM_SHARED_BOT_USERNAME", "surf_bot")
-    monkeypatch.setattr(routes.config, "TELEGRAM_WEBHOOK_SECRET", "telegram-webhook-secret")
+    monkeypatch.setattr(
+        routes.config, "TELEGRAM_WEBHOOK_SECRET", "telegram-webhook-secret"
+    )
 
     monkeypatch.setattr(routes.config, "GATEWAY_SLACK_ENABLED", True)
     monkeypatch.setattr(routes.config, "GATEWAY_SLACK_CLIENT_ID", "slack-client")
@@ -37,7 +39,9 @@ def _enable_gateways(monkeypatch):
 
 
 class RequestStub:
-    def __init__(self, payload=None, *, headers=None, json_exc: Exception | None = None):
+    def __init__(
+        self, payload=None, *, headers=None, json_exc: Exception | None = None
+    ):
         self.headers = headers or {}
         self._payload = payload
         self._json_exc = json_exc
@@ -70,7 +74,9 @@ def _slack_account() -> ExternalChatAccount:
     )
 
 
-def _signed_slack_request(payload: dict, *, secret: str = "signing-secret") -> RequestStub:
+def _signed_slack_request(
+    payload: dict, *, secret: str = "signing-secret"
+) -> RequestStub:
     body = json.dumps(payload).encode()
     timestamp = str(int(time.time()))
     digest = hmac.new(
@@ -195,7 +201,9 @@ async def test_telegram_webhook_persists_for_fastapi_inbox_worker(mocker, monkey
 async def test_telegram_webhook_commits_dedup_without_enqueue(mocker, monkeypatch):
     session = mocker.AsyncMock()
     session.get.return_value = _account()
-    monkeypatch.setattr(routes, "persist_inbound_event", mocker.AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        routes, "persist_inbound_event", mocker.AsyncMock(return_value=None)
+    )
 
     request = RequestStub(
         {"update_id": 10, "message": {"message_id": 7}},
@@ -250,7 +258,11 @@ async def test_slack_webhook_url_verification(monkeypatch, mocker):
 async def test_slack_webhook_persists_event(monkeypatch, mocker):
     _enable_slack_gateway(monkeypatch)
     session = mocker.AsyncMock()
-    monkeypatch.setattr(routes, "get_slack_account_by_team", mocker.AsyncMock(return_value=_slack_account()))
+    monkeypatch.setattr(
+        routes,
+        "get_slack_account_by_team",
+        mocker.AsyncMock(return_value=_slack_account()),
+    )
     persist = mocker.AsyncMock(return_value=100)
     monkeypatch.setattr(routes, "persist_inbound_event", persist)
     payload = {
@@ -280,7 +292,11 @@ async def test_slack_webhook_persists_event(monkeypatch, mocker):
 async def test_slack_webhook_ignores_self_event(monkeypatch, mocker):
     _enable_slack_gateway(monkeypatch)
     session = mocker.AsyncMock()
-    monkeypatch.setattr(routes, "get_slack_account_by_team", mocker.AsyncMock(return_value=_slack_account()))
+    monkeypatch.setattr(
+        routes,
+        "get_slack_account_by_team",
+        mocker.AsyncMock(return_value=_slack_account()),
+    )
     persist = mocker.AsyncMock(return_value=100)
     monkeypatch.setattr(routes, "persist_inbound_event", persist)
     request = _signed_slack_request(
@@ -331,4 +347,3 @@ def test_discord_gateway_callback_does_not_create_search_source_connector():
     callback_source = inspect.getsource(routes.discord_gateway_callback)
 
     assert "SearchSourceConnector" not in callback_source
-

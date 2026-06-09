@@ -8,18 +8,19 @@ transcript directly via the YouTubeTranscriptApi instead of crawling the page.
 
 import hashlib
 import logging
+import time
 from typing import Any
 from urllib.parse import urlparse
 
-import aiohttp
 from fake_useragent import UserAgent
 from langchain_core.tools import tool
 from requests import Session
+from scrapling.fetchers import AsyncFetcher
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from app.connectors.webcrawler_connector import WebCrawlerConnector
 from app.tasks.document_processors.youtube_processor import get_youtube_video_id
-from app.utils.proxy_config import get_requests_proxies
+from app.utils.proxy import get_proxy_url, get_requests_proxies
 
 logger = logging.getLogger(__name__)
 
@@ -85,15 +86,20 @@ async def _scrape_youtube_video(
     oembed_url = "https://www.youtube.com/oembed"
 
     try:
-        async with (
-            aiohttp.ClientSession() as http_session,
-            http_session.get(
-                oembed_url,
-                params=params,
-                proxy=residential_proxies["http"] if residential_proxies else None,
-            ) as response,
-        ):
-            video_data = await response.json()
+        oembed_fetch_start = time.perf_counter()
+        oembed_page = await AsyncFetcher.get(
+            oembed_url,
+            params=params,
+            proxy=get_proxy_url(),
+            stealthy_headers=True,
+        )
+        logger.info(
+            "[scrape_webpage][perf] source=oembed video=%s status=%s fetch_ms=%.1f",
+            video_id,
+            getattr(oembed_page, "status", None),
+            (time.perf_counter() - oembed_fetch_start) * 1000,
+        )
+        video_data = oembed_page.json()
     except Exception:
         video_data = {}
 
@@ -102,6 +108,7 @@ async def _scrape_youtube_video(
 
     # --- Transcript via YouTubeTranscriptApi ---
     try:
+        transcript_fetch_start = time.perf_counter()
         ua = UserAgent()
         http_client = Session()
         http_client.headers.update({"User-Agent": ua.random})
@@ -115,6 +122,11 @@ async def _scrape_youtube_video(
         transcript = next(iter(transcript_list))
         captions = transcript.fetch()
 
+        logger.info(
+            "[scrape_webpage][perf] source=transcript video=%s fetch_ms=%.1f",
+            video_id,
+            (time.perf_counter() - transcript_fetch_start) * 1000,
+        )
         logger.info(
             f"[scrape_webpage] Fetched transcript for {video_id} "
             f"in {transcript.language} ({transcript.language_code})"

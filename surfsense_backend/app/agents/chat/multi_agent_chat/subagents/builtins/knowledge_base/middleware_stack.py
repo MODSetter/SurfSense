@@ -6,6 +6,7 @@ The KB-owned :class:`PermissionMiddleware` slot is what enforces
 
 from __future__ import annotations
 
+import time as _perf_time
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
@@ -31,6 +32,9 @@ from app.agents.chat.multi_agent_chat.shared.permissions import (
     Ruleset,
     build_permission_mw,
 )
+from app.utils.perf import get_perf_logger
+
+_perf_log = get_perf_logger()
 
 
 def _kb_user_allowlist(
@@ -93,25 +97,62 @@ def build_kb_middleware(
         user_allowlist = _kb_user_allowlist(dependencies, subagent_name)
         if user_allowlist is not None:
             rulesets.append(user_allowlist)
+        _t0 = _perf_time.perf_counter()
         permission_mw = build_permission_mw(
             flags=flags,
             subagent_rulesets=rulesets,
             trusted_tool_saver=dependencies.get("trusted_tool_saver"),
         )
+        _t_perm = _perf_time.perf_counter() - _t0
+    else:
+        _t_perm = 0.0
+
+    _t0 = _perf_time.perf_counter()
+    kb_ctx_mw = build_kb_context_projection_mw()
+    _t_ctx = _perf_time.perf_counter() - _t0
+
+    _t0 = _perf_time.perf_counter()
+    fs_mw = build_filesystem_mw(
+        backend_resolver=dependencies["backend_resolver"],
+        filesystem_mode=filesystem_mode,
+        search_space_id=dependencies["search_space_id"],
+        user_id=dependencies.get("user_id"),
+        thread_id=dependencies.get("thread_id"),
+        read_only=read_only,
+    )
+    _t_fs = _perf_time.perf_counter() - _t0
+
+    _t0 = _perf_time.perf_counter()
+    compaction_mw = build_compaction_mw(llm)
+    _t_comp = _perf_time.perf_counter() - _t0
+
+    _t0 = _perf_time.perf_counter()
+    patch_mw = build_patch_tool_calls_mw()
+    _t_patch = _perf_time.perf_counter() - _t0
+
+    _t0 = _perf_time.perf_counter()
+    cache_mw = build_anthropic_cache_mw()
+    _t_cache = _perf_time.perf_counter() - _t0
+
+    _perf_log.info(
+        "[kb_middleware] name=%s ro=%s ctx=%.3fs filesystem=%.3fs "
+        "compaction=%.3fs patch=%.3fs anthropic_cache=%.3fs permission=%.3fs",
+        subagent_name,
+        read_only,
+        _t_ctx,
+        _t_fs,
+        _t_comp,
+        _t_patch,
+        _t_cache,
+        _t_perm,
+    )
     return [
         mws["todos"],
-        build_kb_context_projection_mw(),
-        build_filesystem_mw(
-            backend_resolver=dependencies["backend_resolver"],
-            filesystem_mode=filesystem_mode,
-            search_space_id=dependencies["search_space_id"],
-            user_id=dependencies.get("user_id"),
-            thread_id=dependencies.get("thread_id"),
-            read_only=read_only,
-        ),
-        build_compaction_mw(llm),
-        build_patch_tool_calls_mw(),
+        kb_ctx_mw,
+        fs_mw,
+        compaction_mw,
+        patch_mw,
         *([permission_mw] if permission_mw is not None else []),
         *resilience_mws,
-        build_anthropic_cache_mw(),
+        cache_mw,
     ]

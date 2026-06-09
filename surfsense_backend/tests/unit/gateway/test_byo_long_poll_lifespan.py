@@ -5,8 +5,7 @@ import asyncio
 import pytest
 import pytest_asyncio
 
-from app.gateway import byo_long_poll
-from app.gateway import runner
+from app.gateway import byo_long_poll, runner
 
 
 class ScalarResult:
@@ -48,7 +47,9 @@ async def test_start_byo_long_poll_noops_when_mode_is_webhook(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_start_byo_long_poll_noops_when_no_byo_accounts(mocker, monkeypatch):
-    monkeypatch.setattr(byo_long_poll.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "longpoll")
+    monkeypatch.setattr(
+        byo_long_poll.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "longpoll"
+    )
     session = mocker.AsyncMock()
     session.execute.return_value = ScalarResult([])
     monkeypatch.setattr(
@@ -63,8 +64,12 @@ async def test_start_byo_long_poll_noops_when_no_byo_accounts(mocker, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_start_byo_long_poll_spawns_one_supervisor_per_account(mocker, monkeypatch):
-    monkeypatch.setattr(byo_long_poll.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "longpoll")
+async def test_start_byo_long_poll_spawns_one_supervisor_per_account(
+    mocker, monkeypatch
+):
+    monkeypatch.setattr(
+        byo_long_poll.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "longpoll"
+    )
     accounts = [mocker.Mock(id=1), mocker.Mock(id=2)]
     session = mocker.AsyncMock()
     session.execute.return_value = ScalarResult(accounts)
@@ -73,7 +78,9 @@ async def test_start_byo_long_poll_spawns_one_supervisor_per_account(mocker, mon
         "async_session_maker",
         lambda: SessionContext(session),
     )
-    monkeypatch.setattr(byo_long_poll, "account_token", lambda account: f"token-{account.id}")
+    monkeypatch.setattr(
+        byo_long_poll, "account_token", lambda account: f"token-{account.id}"
+    )
 
     async def forever(_account_id: int, _token: str) -> None:
         await asyncio.Event().wait()
@@ -108,7 +115,9 @@ async def test_supervisor_retries_after_run_returns(mocker, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_shutdown_cancels_running_supervisors(mocker, monkeypatch):
-    monkeypatch.setattr(byo_long_poll.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "longpoll")
+    monkeypatch.setattr(
+        byo_long_poll.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "longpoll"
+    )
     session = mocker.AsyncMock()
     session.execute.return_value = ScalarResult([mocker.Mock(id=1)])
     monkeypatch.setattr(
@@ -130,7 +139,9 @@ async def test_shutdown_cancels_running_supervisors(mocker, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_run_telegram_account_persists_for_fastapi_inbox_worker(mocker, monkeypatch):
+async def test_run_telegram_account_persists_for_fastapi_inbox_worker(
+    mocker, monkeypatch
+):
     class ConnectionContext:
         async def __aenter__(self):
             conn = mocker.AsyncMock()
@@ -169,4 +180,3 @@ async def test_run_telegram_account_persists_for_fastapi_inbox_worker(mocker, mo
     second_session.commit.assert_awaited_once()
     persist.assert_awaited_once()
     assert persist.await_args.kwargs["request_id"].startswith("gateway_")
-

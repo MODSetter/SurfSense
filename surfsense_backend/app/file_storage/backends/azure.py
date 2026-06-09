@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import AsyncIterator
 
 from app.file_storage.backends.base import StorageBackend
@@ -43,10 +44,8 @@ class AzureBlobBackend(StorageBackend):
 
         async with self._service() as service:
             blob = service.get_blob_client(self._container, key)
-            try:
+            with contextlib.suppress(ResourceNotFoundError):
                 await blob.delete_blob()
-            except ResourceNotFoundError:
-                pass
 
     async def exists(self, key: str) -> bool:
         async with self._service() as service:

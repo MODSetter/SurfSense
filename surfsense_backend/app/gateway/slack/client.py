@@ -15,7 +15,9 @@ class SlackGatewayClient:
     def __init__(self, bot_token: str) -> None:
         self.bot_token = bot_token
 
-    async def api_call(self, method: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def api_call(
+        self, method: str, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
                 f"{SLACK_API}/{method}",
@@ -55,7 +57,9 @@ class SlackGatewayClient:
         ts: str,
         text: str,
     ) -> PlatformSendResult:
-        data = await self.api_call("chat.update", {"channel": channel, "ts": ts, "text": text})
+        data = await self.api_call(
+            "chat.update", {"channel": channel, "ts": ts, "text": text}
+        )
         return PlatformSendResult(
             external_message_id=str(data.get("ts") or ts),
             raw_response=data,

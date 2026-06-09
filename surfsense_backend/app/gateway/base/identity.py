@@ -16,4 +16,3 @@ def hash_external_id(value: str | int | None) -> str | None:
     if not normalized:
         return None
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
-

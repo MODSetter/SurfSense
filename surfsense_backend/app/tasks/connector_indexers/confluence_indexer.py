@@ -260,7 +260,7 @@ async def index_confluence_pages(
                     connector_id=connector_id,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    )
+                )
 
                 with session.no_autoflush:
                     duplicate_by_content = await check_duplicate_document_by_hash(

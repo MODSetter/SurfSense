@@ -47,7 +47,9 @@ async def test_new_mention_truncates_long_preview(
     db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
 ):
     """A long comment preview is truncated in the mention message."""
-    notification = await _notify(db_session, db_user, db_search_space, preview="x" * 150)
+    notification = await _notify(
+        db_session, db_user, db_search_space, preview="x" * 150
+    )
 
     assert notification.message == "x" * 100 + "..."
 

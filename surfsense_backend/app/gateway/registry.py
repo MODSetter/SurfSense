@@ -186,4 +186,6 @@ def resolve_platform_bundle(account: ExternalChatAccount) -> PlatformBundle:
             auto_bind_owner=False,
         )
 
-    raise RuntimeError(f"unsupported_gateway_platform:{account.platform.value}:{account.mode.value}")
+    raise RuntimeError(
+        f"unsupported_gateway_platform:{account.platform.value}:{account.mode.value}"
+    )

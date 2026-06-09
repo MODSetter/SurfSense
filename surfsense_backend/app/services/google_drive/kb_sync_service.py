@@ -73,12 +73,7 @@ class GoogleDriveKBSyncService:
                 )
                 content_hash = unique_hash
 
-
-
-
-            summary_content = (
-                f"Google Drive File: {file_name}\n\n{indexable_content}"
-            )
+            summary_content = f"Google Drive File: {file_name}\n\n{indexable_content}"
             summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(indexable_content)

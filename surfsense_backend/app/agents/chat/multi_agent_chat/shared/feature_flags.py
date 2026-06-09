@@ -55,6 +55,13 @@ class AgentFeatureFlags:
     enable_specialized_subagents: bool = True
     enable_kb_planner_runnable: bool = True
 
+    # KB retrieval mode — when False (default), the main agent retrieves KB
+    # content lazily via the on-demand ``search_knowledge_base`` tool and the
+    # expensive per-turn pre-injection (planner LLM + embed + hybrid search,
+    # ~2.3s) is skipped; explicit @-mentions are still surfaced cheaply. Set
+    # True to restore the original eager ``<priority_documents>`` pre-injection.
+    enable_kb_priority_preinjection: bool = False
+
     # Snapshot / revert
     enable_action_log: bool = True
     enable_revert_route: bool = True
@@ -71,6 +78,14 @@ class AgentFeatureFlags:
     # is read from runtime.context, not the constructor closure. Rollback via
     # SURFSENSE_ENABLE_AGENT_CACHE=false.
     enable_agent_cache: bool = True
+    # Reuse one compiled graph across a returning user's *new* chats by dropping
+    # ``thread_id`` from the agent_cache key. Safe because every middleware/tool
+    # that needs the chat thread now resolves it from the live RunnableConfig
+    # (ActionLog, KB-persistence, deliverables) rather than a constructor
+    # closure, and mutation tools open fresh per-call sessions. Turns a
+    # returning user's cold first turn into a cache hit (cold == warm).
+    # Rollback via SURFSENSE_ENABLE_CROSS_THREAD_AGENT_CACHE=false.
+    enable_cross_thread_agent_cache: bool = True
     # Deferred: only helps on outer-cache MISSES, so off until data shows cold
     # misses are frequent enough to justify the extra global state.
     enable_agent_cache_share_gp_subagent: bool = False
@@ -104,11 +119,14 @@ class AgentFeatureFlags:
                 enable_skills=False,
                 enable_specialized_subagents=False,
                 enable_kb_planner_runnable=False,
+                # Full rollback restores the original eager KB pre-injection.
+                enable_kb_priority_preinjection=True,
                 enable_action_log=False,
                 enable_revert_route=False,
                 enable_plugin_loader=False,
                 enable_otel=False,
                 enable_agent_cache=False,
+                enable_cross_thread_agent_cache=False,
                 enable_agent_cache_share_gp_subagent=False,
             )
 
@@ -141,6 +159,9 @@ class AgentFeatureFlags:
             enable_kb_planner_runnable=_env_bool(
                 "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE", True
             ),
+            enable_kb_priority_preinjection=_env_bool(
+                "SURFSENSE_ENABLE_KB_PRIORITY_PREINJECTION", False
+            ),
             # Snapshot / revert
             enable_action_log=_env_bool("SURFSENSE_ENABLE_ACTION_LOG", True),
             enable_revert_route=_env_bool("SURFSENSE_ENABLE_REVERT_ROUTE", True),
@@ -150,6 +171,9 @@ class AgentFeatureFlags:
             enable_otel=_env_bool("SURFSENSE_ENABLE_OTEL", False),
             # Performance
             enable_agent_cache=_env_bool("SURFSENSE_ENABLE_AGENT_CACHE", True),
+            enable_cross_thread_agent_cache=_env_bool(
+                "SURFSENSE_ENABLE_CROSS_THREAD_AGENT_CACHE", True
+            ),
             enable_agent_cache_share_gp_subagent=_env_bool(
                 "SURFSENSE_ENABLE_AGENT_CACHE_SHARE_GP_SUBAGENT", False
             ),

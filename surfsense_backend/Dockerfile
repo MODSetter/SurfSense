@@ -109,8 +109,10 @@ RUN --mount=type=secret,id=HF_TOKEN \
     HF_TOKEN="$(cat /run/secrets/HF_TOKEN 2>/dev/null || true)" \
     python -c "from chonkie import AutoEmbeddings; AutoEmbeddings.get_embeddings('${EMBEDDING_MODEL}')"
 
-# Install Playwright browsers (the playwright python package itself is in deps)
-RUN playwright install chromium --with-deps
+# Install Scrapling's browser engines (patchright Chromium + Camoufox).
+# Scrapling pulls playwright/patchright via the `fetchers` extra; `scrapling install`
+# downloads the matching browser binaries used by DynamicFetcher/StealthyFetcher.
+RUN scrapling install
 
 # Shared temp directory for file uploads between API and Worker containers.
 # Python's tempfile module uses TMPDIR, so uploaded files land here.

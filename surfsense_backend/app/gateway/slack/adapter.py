@@ -38,7 +38,9 @@ class SlackAdapter(BasePlatformAdapter):
         slack_user_id = str(event.get("user") or "")
         message_ts = str(event.get("ts") or "")
         thread_ts = str(event.get("thread_ts") or message_ts)
-        bot_user_id = self.bot_user_id or str(raw_payload.get("authorizations", [{}])[0].get("user_id") or "")
+        bot_user_id = self.bot_user_id or str(
+            raw_payload.get("authorizations", [{}])[0].get("user_id") or ""
+        )
 
         if not channel_id or not slack_user_id or not message_ts:
             return ParsedInboundEvent(

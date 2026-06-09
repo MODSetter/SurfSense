@@ -83,9 +83,6 @@ class LinearKBSyncService:
                 )
                 content_hash = unique_hash
 
-
-
-
             summary_content = (
                 f"Linear Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
             )
@@ -206,8 +203,6 @@ class LinearKBSyncService:
             priority = issue_raw.get("priorityLabel", "Unknown")
             comment_count = len(formatted_issue.get("comments", []))
             formatted_issue.get("description", "")
-
-
 
             summary_content = (
                 f"Linear Issue {issue_identifier}: {issue_title}\n\n{issue_content}"

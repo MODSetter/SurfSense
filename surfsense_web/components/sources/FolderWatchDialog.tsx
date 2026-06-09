@@ -119,19 +119,13 @@ export function FolderWatchDialog({
 			setSubmitting(false);
 			setProgress(null);
 		}
-	}, [
-		selectedFolder,
-		searchSpaceId,
-		supportedExtensions,
-		onOpenChange,
-		onSuccess,
-	]);
+	}, [selectedFolder, searchSpaceId, supportedExtensions, onOpenChange, onSuccess]);
 
 	const handleOpenChange = useCallback(
 		(nextOpen: boolean) => {
 			if (!nextOpen && !submitting) {
 				setSelectedFolder(null);
-					setProgress(null);
+				setProgress(null);
 			}
 			onOpenChange(nextOpen);
 		},
@@ -200,7 +194,6 @@ export function FolderWatchDialog({
 
 					{selectedFolder && (
 						<>
-
 							{progressLabel && (
 								<div className="rounded-lg bg-slate-400/5 dark:bg-white/5 px-3 py-2">
 									<p className="text-xs text-muted-foreground">{progressLabel}</p>

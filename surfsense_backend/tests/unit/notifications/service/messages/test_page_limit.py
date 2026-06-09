@@ -16,7 +16,9 @@ def test_operation_id_encodes_search_space():
 
 def test_summary_title_and_message():
     """The summary states the document and the used/limit page counts."""
-    title, message = msg.summary("short.pdf", pages_used=95, pages_limit=100, pages_to_add=10)
+    title, message = msg.summary(
+        "short.pdf", pages_used=95, pages_limit=100, pages_to_add=10
+    )
     assert title == "Page limit exceeded: short.pdf"
     assert message == (
         "This document has ~10 page(s) but you've used 95/100 pages. "

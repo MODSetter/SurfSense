@@ -9,5 +9,6 @@ def test_process_inbound_event_task_is_noop_guard(mocker):
     assert gateway_tasks.process_inbound_event_task.run(123) is None
 
     warning.assert_called_once()
-    assert "FastAPI owns external chat agent turn processing" in warning.call_args.args[0]
-
+    assert (
+        "FastAPI owns external chat agent turn processing" in warning.call_args.args[0]
+    )

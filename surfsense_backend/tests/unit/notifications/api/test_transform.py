@@ -50,18 +50,18 @@ class TestParseBeforeDate:
 
 
 def _notification(**overrides) -> Notification:
-    defaults = dict(
-        id=1,
-        user_id=uuid.uuid4(),
-        search_space_id=3,
-        type="document_processing",
-        title="Title",
-        message="Message",
-        read=False,
-        notification_metadata={"k": "v"},
-        created_at=datetime(2024, 1, 1, tzinfo=UTC),
-        updated_at=datetime(2024, 1, 2, tzinfo=UTC),
-    )
+    defaults = {
+        "id": 1,
+        "user_id": uuid.uuid4(),
+        "search_space_id": 3,
+        "type": "document_processing",
+        "title": "Title",
+        "message": "Message",
+        "read": False,
+        "notification_metadata": {"k": "v"},
+        "created_at": datetime(2024, 1, 1, tzinfo=UTC),
+        "updated_at": datetime(2024, 1, 2, tzinfo=UTC),
+    }
     defaults.update(overrides)
     return Notification(**defaults)
 

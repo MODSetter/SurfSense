@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import ExternalChatBindingState, ExternalChatBinding
+from app.db import ExternalChatBinding, ExternalChatBindingState
 
 PAIRING_CODE_TTL = timedelta(minutes=10)
 
@@ -51,4 +51,3 @@ async def redeem_pairing_code(
     binding.external_username = external_username
     binding.external_metadata = external_metadata or {}
     return binding
-

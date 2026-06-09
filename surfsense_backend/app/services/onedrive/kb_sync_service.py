@@ -72,9 +72,6 @@ class OneDriveKBSyncService:
                 )
                 content_hash = unique_hash
 
-
-
-
             summary_content = f"OneDrive File: {file_name}\n\n{indexable_content}"
             summary_embedding = await asyncio.to_thread(embed_text, summary_content)
 

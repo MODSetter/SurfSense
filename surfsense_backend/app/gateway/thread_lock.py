@@ -36,5 +36,6 @@ def release_thread_lock(thread_id: int) -> None:
     try:
         _redis().delete(_lock_key(thread_id))
     except redis.RedisError as exc:
-        logger.warning("Failed to release gateway thread lock for %s: %s", thread_id, exc)
-
+        logger.warning(
+            "Failed to release gateway thread lock for %s: %s", thread_id, exc
+        )

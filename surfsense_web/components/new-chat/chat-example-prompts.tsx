@@ -2,9 +2,9 @@
 
 import {
 	FilePlus2,
+	type LucideIcon,
 	Search,
 	Settings2,
-	type LucideIcon,
 	WandSparkles,
 	Workflow,
 	X,
@@ -55,7 +55,31 @@ export function ChatExamplePrompts({ onSelect }: ChatExamplePromptsProps) {
 
 	return (
 		<div className="mt-2 w-full select-none sm:mt-3">
-			{activeCategory ? null : (
+			{activeCategory ? (
+				<div>
+					<div className="flex items-center gap-2 px-0.5 pb-2">
+						<Button
+							type="button"
+							variant="secondary"
+							onClick={() => setActiveCategoryId(null)}
+							className="h-8 rounded-lg bg-muted px-3 text-xs font-medium text-muted-foreground shadow-sm shadow-black/5 hover:bg-foreground/10 hover:text-foreground dark:shadow-black/10 sm:h-10 sm:rounded-xl sm:px-4 sm:text-sm"
+						>
+							<X aria-hidden="true" className="size-3.5 sm:size-4" />
+							Back
+						</Button>
+						<span className="text-sm font-medium text-foreground">{activeCategory.label}</span>
+					</div>
+					<ScrollArea className="h-[clamp(7.5rem,26vh,12rem)]">
+						<ul className="flex flex-col gap-2 pr-3">
+							{activeCategory.prompts.map((prompt) => (
+								<li key={prompt}>
+									<ExamplePromptButton prompt={prompt} onSelect={onSelect} />
+								</li>
+							))}
+						</ul>
+					</ScrollArea>
+				</div>
+			) : (
 				<div className="pb-1">
 					<div className="mx-auto flex max-w-full flex-wrap items-center justify-center gap-1.5 px-0.5 sm:gap-2">
 						{CHAT_EXAMPLE_CATEGORIES.map((category) => {
@@ -76,24 +100,7 @@ export function ChatExamplePrompts({ onSelect }: ChatExamplePromptsProps) {
 						})}
 					</div>
 				</div>
-				{CHAT_EXAMPLE_CATEGORIES.map((category) => (
-					<TabsContent
-						key={category.id}
-						value={category.id}
-						className="mt-3 focus-visible:outline-none"
-					>
-						<ScrollArea className="h-[clamp(7.5rem,26vh,12rem)]">
-							<ul className="flex flex-col gap-2 pr-3">
-								{category.prompts.map((prompt) => (
-									<li key={prompt}>
-										<ExamplePromptButton prompt={prompt} onSelect={onSelect} />
-									</li>
-								))}
-							</ul>
-						</ScrollArea>
-					</TabsContent>
-				))}
-			</Tabs>
+			)}
 		</div>
 	);
 }

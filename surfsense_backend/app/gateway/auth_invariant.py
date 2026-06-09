@@ -52,4 +52,3 @@ async def assert_authorization_invariant(
         await _fail(session, binding, f"rbac_{exc.status_code}")
 
     return user
-

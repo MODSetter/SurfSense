@@ -32,9 +32,7 @@ def _dropbox_doc(
     )
 
 
-@pytest.mark.usefixtures(
-"patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_dropbox_pipeline_creates_ready_document(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -63,9 +61,7 @@ async def test_dropbox_pipeline_creates_ready_document(
     assert DocumentStatus.is_state(row.status, DocumentStatus.READY)
 
 
-@pytest.mark.usefixtures(
-"patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_dropbox_duplicate_content_skipped(
     db_session, db_search_space, db_connector, db_user, mocker
 ):

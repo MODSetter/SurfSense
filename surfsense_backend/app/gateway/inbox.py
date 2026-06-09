@@ -51,4 +51,3 @@ async def persist_inbound_event(
     )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
-

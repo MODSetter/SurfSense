@@ -64,9 +64,6 @@ class ConfluenceKBSyncService:
             if dup:
                 content_hash = unique_hash
 
-
-
-
             summary_content = f"Confluence Page: {page_title}\n\n{page_content}"
             summary_embedding = embed_text(summary_content)
 
@@ -165,8 +162,6 @@ class ConfluenceKBSyncService:
                 return {"status": "error", "message": "Page produced empty content"}
 
             space_id = (document.document_metadata or {}).get("space_id", "")
-
-
 
             summary_content = f"Confluence Page: {page_title}\n\n{page_content}"
             summary_embedding = embed_text(summary_content)
