@@ -1,0 +1,30 @@
+services:
+  backend:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: ${SURFSENSE_GPU_DRIVER:-nvidia}
+              count: ${SURFSENSE_GPU_COUNT:-1}
+              capabilities:
+                - gpu
+
+  celery_worker:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: ${SURFSENSE_GPU_DRIVER:-nvidia}
+              count: ${SURFSENSE_GPU_COUNT:-1}
+              capabilities:
+                - gpu
+
+  celery_beat:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: ${SURFSENSE_GPU_DRIVER:-nvidia}
+              count: ${SURFSENSE_GPU_COUNT:-1}
+              capabilities:
+                - gpu

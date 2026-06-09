@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AdUnit } from "@/components/ads/ad-unit";
 import { ADSENSE_SLOTS } from "@/components/ads/adsense-config";
-import { AdSenseScript } from "@/components/ads/adsense-script";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -159,7 +158,6 @@ export default async function FreeHubPage() {
 
 	return (
 		<div className="min-h-screen pt-20">
-			<AdSenseScript />
 			<JsonLd
 				data={{
 					"@context": "https://schema.org",

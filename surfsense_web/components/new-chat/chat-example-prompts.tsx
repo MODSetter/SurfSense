@@ -76,36 +76,24 @@ export function ChatExamplePrompts({ onSelect }: ChatExamplePromptsProps) {
 						})}
 					</div>
 				</div>
-			)}
-
-			{activeCategory ? (
-				<div className="overflow-hidden rounded-lg border border-input bg-muted shadow-sm shadow-black/5 dark:shadow-black/10 sm:rounded-xl">
-					<div className="flex items-center justify-between gap-2 px-3 py-2 sm:gap-3 sm:px-4 sm:py-3">
-						<div className="flex min-w-0 items-center gap-2 text-xs font-medium text-foreground sm:text-sm">
-							<span className="truncate">{activeCategory.label}</span>
-						</div>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							onClick={() => setActiveCategoryId(null)}
-							aria-label="Close example prompts"
-							className="size-7 shrink-0 rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground sm:size-8"
-						>
-							<X aria-hidden="true" className="size-3.5 sm:size-4" />
-						</Button>
-					</div>
-					<ScrollArea className="max-h-52 sm:max-h-64">
-						<ul className="divide-y px-2 pb-2 sm:px-3 sm:pb-3">
-							{activeCategory.prompts.map((prompt) => (
-								<li key={prompt} className="py-0.5 sm:py-1">
-									<ExamplePromptButton prompt={prompt} onSelect={onSelect} />
-								</li>
-							))}
-						</ul>
-					</ScrollArea>
-				</div>
-			) : null}
+				{CHAT_EXAMPLE_CATEGORIES.map((category) => (
+					<TabsContent
+						key={category.id}
+						value={category.id}
+						className="mt-3 focus-visible:outline-none"
+					>
+						<ScrollArea className="h-[clamp(7.5rem,26vh,12rem)]">
+							<ul className="flex flex-col gap-2 pr-3">
+								{category.prompts.map((prompt) => (
+									<li key={prompt}>
+										<ExamplePromptButton prompt={prompt} onSelect={onSelect} />
+									</li>
+								))}
+							</ul>
+						</ScrollArea>
+					</TabsContent>
+				))}
+			</Tabs>
 		</div>
 	);
 }

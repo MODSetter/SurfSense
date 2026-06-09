@@ -1,12 +1,20 @@
 import { mustGetQuery } from "@rocicorp/zero";
 import { handleQueryRequest } from "@rocicorp/zero/server";
 import { NextResponse } from "next/server";
-import { BACKEND_URL } from "@/lib/env-config";
 import type { Context } from "@/types/zero";
 import { queries } from "@/zero/queries";
 import { schema } from "@/zero/schema";
 
-const backendURL = BACKEND_URL;
+// This route is invoked server-to-server by zero-cache (via ZERO_QUERY_URL),
+// so it must reach the backend over the internal Docker network
+// (e.g. http://backend:8000). The browser-facing NEXT_PUBLIC_FASTAPI_BACKEND_URL
+// (e.g. http://localhost:8929) does NOT resolve from inside the frontend
+// container and would make every authenticated Zero query fail with a 503.
+const backendURL = (
+	process.env.FASTAPI_BACKEND_INTERNAL_URL ||
+	BACKEND_URL ||
+	"http://localhost:8000"
+).replace(/\/$/, "");
 
 async function authenticateRequest(
 	request: Request
