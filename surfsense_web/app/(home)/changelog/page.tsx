@@ -24,8 +24,6 @@ const source = loader({
 });
 
 interface ChangelogData {
-	title: string;
-	description: string;
 	date: string;
 	version?: string;
 	body: ComponentType<{ components?: MDXComponents }>;
@@ -50,8 +48,6 @@ export default async function ChangelogPage() {
 		return {
 			version: changelog.data.version ? `Version ${changelog.data.version}` : "Release",
 			date: formatDate(date),
-			title: changelog.data.title,
-			description: changelog.data.description,
 			content: <MDX components={getMDXComponents()} />,
 		};
 	});

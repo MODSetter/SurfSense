@@ -9,7 +9,7 @@ export const docs = defineDocs({
 export const changelog = defineDocs({
 	dir: "changelog/content",
 	docs: {
-		schema: frontmatterSchema.extend({
+		schema: frontmatterSchema.omit({ title: true, description: true }).extend({
 			date: z.string(),
 			version: z.string().optional(),
 		}),
