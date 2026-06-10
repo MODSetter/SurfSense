@@ -17,10 +17,14 @@
 #      into the new PostgreSQL 17 stack. The user runs one command for both.
 # =============================================================================
 
+# NOTE: Do not use [ValidateSet()] (or other validation attributes without a
+# valid default) on these params. When the script is piped into iex, PowerShell
+# applies the attributes to variables in the caller's scope, and an empty
+# $Variant fails ValidateSet with a ValidationMetadataException. Validate
+# manually below instead.
 param(
     [switch]$NoWatchtower,
     [int]$WatchtowerInterval = 86400,
-    [ValidateSet("cpu", "cuda", "cuda126")]
     [string]$Variant,
     [string]$GpuCount,
     [switch]$Quiet
@@ -39,6 +43,11 @@ $MigrationDoneFile  = "$InstallDir\.migration_done"
 $MigrationMode      = $false
 $SetupWatchtower    = -not $NoWatchtower
 $WatchtowerContainer = "watchtower"
+
+if ($Variant -and $Variant -notin @("cpu", "cuda", "cuda126")) {
+    Write-Host "[SurfSense] ERROR: Invalid -Variant '$Variant'. Use 'cpu', 'cuda', or 'cuda126'." -ForegroundColor Red
+    exit 1
+}
 
 if ($GpuCount -and $GpuCount -notmatch '^([0-9]+|all)$') {
     Write-Host "[SurfSense] ERROR: Invalid -GpuCount '$GpuCount'. Use a number or 'all'." -ForegroundColor Red
