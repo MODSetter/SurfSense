@@ -351,7 +351,7 @@ async def load_agent_llm_config_for_search_space(
     session: AsyncSession,
     search_space_id: int,
 ) -> "AgentConfig | None":
-    """Load the agent LLM config for a search space via its agent_llm_id.
+    """Load the chat model config for a search space via its agent_llm_id.
 
     Positive id -> DB; negative -> YAML; None -> first global config (-1).
     """
@@ -372,7 +372,7 @@ async def load_agent_llm_config_for_search_space(
         )
         return await load_agent_config(session, config_id, search_space_id)
     except Exception as e:
-        print(f"Error loading agent LLM config for search space {search_space_id}: {e}")
+        print(f"Error loading chat model config for search space {search_space_id}: {e}")
         return None
 
 
