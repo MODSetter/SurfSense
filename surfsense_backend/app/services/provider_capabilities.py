@@ -46,6 +46,8 @@ from collections.abc import Iterable
 
 import litellm
 
+from app.services.model_resolver import NATIVE_PROVIDER_PREFIX
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,40 +60,7 @@ logger = logging.getLogger(__name__)
 # map there directly would re-introduce the
 # ``app.config -> ... -> deliverables/tools/generate_image ->
 # app.config`` cycle that prompted the move.
-_PROVIDER_PREFIX_MAP: dict[str, str] = {
-    "OPENAI": "openai",
-    "ANTHROPIC": "anthropic",
-    "GROQ": "groq",
-    "COHERE": "cohere",
-    "GOOGLE": "gemini",
-    "OLLAMA": "ollama_chat",
-    "MISTRAL": "mistral",
-    "AZURE_OPENAI": "azure",
-    "OPENROUTER": "openrouter",
-    "XAI": "xai",
-    "BEDROCK": "bedrock",
-    "VERTEX_AI": "vertex_ai",
-    "TOGETHER_AI": "together_ai",
-    "FIREWORKS_AI": "fireworks_ai",
-    "DEEPSEEK": "openai",
-    "ALIBABA_QWEN": "openai",
-    "MOONSHOT": "openai",
-    "ZHIPU": "openai",
-    "GITHUB_MODELS": "github",
-    "REPLICATE": "replicate",
-    "PERPLEXITY": "perplexity",
-    "ANYSCALE": "anyscale",
-    "DEEPINFRA": "deepinfra",
-    "CEREBRAS": "cerebras",
-    "SAMBANOVA": "sambanova",
-    "AI21": "ai21",
-    "CLOUDFLARE": "cloudflare",
-    "DATABRICKS": "databricks",
-    "COMETAPI": "cometapi",
-    "HUGGINGFACE": "huggingface",
-    "MINIMAX": "openai",
-    "CUSTOM": "custom",
-}
+_PROVIDER_PREFIX_MAP = NATIVE_PROVIDER_PREFIX
 
 
 def _candidate_model_strings(

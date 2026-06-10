@@ -7,8 +7,9 @@
 # NOTE: The example API keys below are placeholders and won't work.
 # Replace them with your actual API keys to enable global configurations.
 #
-# These configurations will be available to all users as a convenient option
-# Users can choose to use these global configs or add their own
+# These configurations are materialized as server-owned GLOBAL connections/models
+# and become available on the Models page. Users can choose hosted/global models
+# or add their own BYOK/local connections.
 #
 # AUTO MODE (Recommended):
 # - Auto mode (ID: 0) uses LiteLLM Router to automatically load balance across all global configs
@@ -16,9 +17,12 @@
 # - New users are automatically assigned Auto mode by default
 # - Configure router_settings below to customize the load balancing behavior
 #
-# Structure matches NewLLMConfig:
-# - Model configuration (provider, model_name, api_key, etc.)
-# - Prompt configuration (system_instructions, citations_enabled)
+# Static config shape:
+# - Connection fields: provider, api_key, api_base, api_version
+# - Model fields: model_name, billing_tier, rpm/tpm, litellm_params
+# - Prompt defaults: system_instructions, citations_enabled
+# IDs share one GLOBAL model namespace across chat, vision, and image generation.
+# Suggested ranges: chat -1..-999, vision -1001..-1999, image -2001..-2999.
 #
 # COST-BASED PREMIUM CREDITS:
 # Each premium config bills the user's USD-credit balance based on the
@@ -327,7 +331,7 @@ openrouter_integration:
   quota_reserve_tokens: 4000
   # id_offset: base negative ID for dynamically generated configs.
   # Model IDs are derived deterministically via BLAKE2b so they survive
-  # catalogue churn. Must not overlap with your static global_llm_configs IDs.
+  # catalogue churn. Must not overlap with any static GLOBAL model IDs.
   id_offset: -10000
   # refresh_interval_hours: how often to re-fetch models from OpenRouter (0 = startup only)
   refresh_interval_hours: 24
@@ -351,8 +355,8 @@ openrouter_integration:
 
   # Image generation + vision LLM emission are OPT-IN. OpenRouter's catalogue
   # contains hundreds of image- and vision-capable models; turning these on
-  # injects them into the global Image-Generation / Vision-LLM model
-  # selectors alongside any static configs. Tier (free/premium) is derived
+  # injects them into the global image-generation / vision model lists
+  # alongside any static configs. Tier (free/premium) is derived
   # per model the same way it is for chat (`:free` suffix or zero pricing).
   # When a user picks a premium image/vision model the call debits the
   # shared $5 USD-cost-based premium credit pool — so leaving these off
@@ -384,7 +388,7 @@ image_generation_router_settings:
 
 global_image_generation_configs:
   # Example: OpenAI DALL-E 3
-  - id: -1
+  - id: -2001
     name: "Global DALL-E 3"
     description: "OpenAI's DALL-E 3 for high-quality image generation"
     provider: "OPENAI"
@@ -395,7 +399,7 @@ global_image_generation_configs:
     litellm_params: {}
 
   # Example: OpenAI GPT Image 1
-  - id: -2
+  - id: -2002
     name: "Global GPT Image 1"
     description: "OpenAI's GPT Image 1 model"
     provider: "OPENAI"
@@ -406,7 +410,7 @@ global_image_generation_configs:
     litellm_params: {}
 
   # Example: Azure OpenAI DALL-E 3
-  - id: -3
+  - id: -2003
     name: "Global Azure DALL-E 3"
     description: "Azure-hosted DALL-E 3 deployment"
     provider: "AZURE_OPENAI"
@@ -419,7 +423,7 @@ global_image_generation_configs:
       base_model: "dall-e-3"
 
   # Example: OpenRouter Gemini Image Generation
-  # - id: -4
+  # - id: -2004
   #   name: "Global Gemini Image Gen"
   #   description: "Google Gemini image generation via OpenRouter"
   #   provider: "OPENROUTER"
@@ -448,7 +452,7 @@ vision_llm_router_settings:
 
 global_vision_llm_configs:
   # Example: OpenAI GPT-4o (recommended for vision)
-  - id: -1
+  - id: -1001
     name: "Global GPT-4o Vision"
     description: "OpenAI's GPT-4o with strong vision capabilities"
     provider: "OPENAI"
@@ -462,7 +466,7 @@ global_vision_llm_configs:
       max_tokens: 1000
 
   # Example: Google Gemini 2.0 Flash
-  - id: -2
+  - id: -1002
     name: "Global Gemini 2.0 Flash"
     description: "Google's fast vision model with large context"
     provider: "GOOGLE"
@@ -476,7 +480,7 @@ global_vision_llm_configs:
       max_tokens: 1000
 
   # Example: Anthropic Claude 3.5 Sonnet
-  - id: -3
+  - id: -1003
     name: "Global Claude 3.5 Sonnet Vision"
     description: "Anthropic's Claude 3.5 Sonnet with vision support"
     provider: "ANTHROPIC"
@@ -490,7 +494,7 @@ global_vision_llm_configs:
       max_tokens: 1000
 
   # Example: Azure OpenAI GPT-4o
-  # - id: -4
+  # - id: -1004
   #   name: "Global Azure GPT-4o Vision"
   #   description: "Azure-hosted GPT-4o for vision analysis"
   #   provider: "AZURE_OPENAI"
@@ -507,8 +511,9 @@ global_vision_llm_configs:
 
 # Notes:
 # - ID 0 is reserved for "Auto" mode - uses LiteLLM Router for load balancing
-# - Use negative IDs to distinguish global configs from user configs (NewLLMConfig in DB)
-# - IDs should be unique and sequential (e.g., -1, -2, -3, etc.)
+# - Use negative IDs to distinguish global models from BYOK/local DB models
+# - IDs must be unique across chat, vision, and image generation configs
+# - Suggested static ranges: chat -1..-999, vision -1001..-1999, image -2001..-2999
 # - The 'api_key' field will not be exposed to users via API
 # - system_instructions: Custom prompt or empty string to use defaults
 # - use_default_system_instructions: true = use SURFSENSE_SYSTEM_INSTRUCTIONS when system_instructions is empty
@@ -519,7 +524,7 @@ global_vision_llm_configs:
 #
 #
 # IMAGE GENERATION NOTES:
-# - Image generation configs use the same ID scheme as LLM configs (negative for global)
+# - Image generation configs use the shared GLOBAL ID namespace
 # - Supported models: dall-e-2, dall-e-3, gpt-image-1 (OpenAI), azure/* (Azure),
 #   bedrock/* (AWS), vertex_ai/* (Google), recraft/* (Recraft), openrouter/* (OpenRouter)
 # - The router uses litellm.aimage_generation() for async image generation
@@ -527,7 +532,7 @@ global_vision_llm_configs:
 #   TPM (tokens per minute) does not apply since image APIs are billed/rate-limited per request, not per token.
 #
 # VISION LLM NOTES:
-# - Vision configs use the same ID scheme (negative for global, positive for user DB)
+# - Vision configs use the shared GLOBAL ID namespace
 # - Only use vision-capable models (GPT-4o, Gemini, Claude 3, etc.)
 # - Lower temperature (0.3) is recommended for accurate screenshot analysis
 # - Lower max_tokens (1000) is sufficient since autocomplete produces short suggestions

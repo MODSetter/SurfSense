@@ -229,7 +229,7 @@ class LLMPreferencesRead(BaseModel):
         description="ID of the vision LLM config to use for vision/screenshot analysis",
     )
     agent_llm: dict[str, Any] | None = Field(
-        None, description="Full config for agent LLM"
+        None, description="Full config for chat model"
     )
     image_generation_config: dict[str, Any] | None = Field(
         None, description="Full config for image generation"

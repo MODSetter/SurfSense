@@ -389,8 +389,26 @@ def initialize_openrouter_integration():
                     )
             except Exception as e:
                 print(f"Warning: Failed to inject OpenRouter vision-LLM configs: {e}")
+
+        refresh_global_model_catalog()
     except Exception as e:
         print(f"Warning: Failed to initialize OpenRouter integration: {e}")
+
+
+def materialize_global_configs():
+    from app.services.global_model_catalog import materialize_global_model_catalog
+
+    return materialize_global_model_catalog(
+        chat_configs=getattr(config, "GLOBAL_LLM_CONFIGS", []),
+        vision_configs=getattr(config, "GLOBAL_VISION_LLM_CONFIGS", []),
+        image_configs=getattr(config, "GLOBAL_IMAGE_GEN_CONFIGS", []),
+    )
+
+
+def refresh_global_model_catalog():
+    connections, models = materialize_global_configs()
+    config.GLOBAL_CONNECTIONS = connections
+    config.GLOBAL_MODELS = models
 
 
 def initialize_pricing_registration():
@@ -723,7 +741,7 @@ class Config:
         os.getenv("QUOTA_DEFAULT_IMAGE_RESERVE_MICROS", "50000")
     )
 
-    # Per-podcast reservation (in micro-USD). One agent LLM call generating
+    # Per-podcast reservation (in micro-USD). One chat model call generating
     # a transcript, typically 5k-20k completion tokens. $0.20 covers a long
     # premium-model run. Tune via env.
     QUOTA_DEFAULT_PODCAST_RESERVE_MICROS = int(
@@ -848,6 +866,19 @@ class Config:
 
     # Router settings for Vision LLM Auto mode
     VISION_LLM_ROUTER_SETTINGS = load_vision_llm_router_settings()
+
+    # Virtual GLOBAL connection/model catalog. This is server-only metadata
+    # derived from global_llm_config.yaml; GLOBAL keys are not stored in DB.
+    from app.services.global_model_catalog import (
+        materialize_global_model_catalog as _materialize_global_model_catalog,
+    )
+
+    GLOBAL_CONNECTIONS, GLOBAL_MODELS = _materialize_global_model_catalog(
+        chat_configs=GLOBAL_LLM_CONFIGS,
+        vision_configs=GLOBAL_VISION_LLM_CONFIGS,
+        image_configs=GLOBAL_IMAGE_GEN_CONFIGS,
+    )
+    del _materialize_global_model_catalog
 
     # OpenRouter Integration settings (optional)
     OPENROUTER_INTEGRATION_SETTINGS = load_openrouter_integration_settings()
