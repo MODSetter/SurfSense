@@ -48,8 +48,8 @@ import { cn } from "@/lib/utils";
 const ROLE_DESCRIPTIONS = {
 	agent: {
 		icon: Bot,
-		title: "Agent LLM",
-		description: "Primary LLM for chat interactions and agent operations",
+		title: "Chat model",
+		description: "Primary model for chat interactions and agent operations",
 		color: "text-muted-foreground",
 		bgColor: "bg-muted",
 		prefKey: "agent_llm_id" as const,

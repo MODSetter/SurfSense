@@ -5,9 +5,6 @@ import {
 	Bot,
 	CircleUser,
 	Earth,
-	ImageIcon,
-	ListChecks,
-	ScanEye,
 	UserKey,
 } from "lucide-react";
 import Link from "next/link";
@@ -20,10 +17,7 @@ import { cn } from "@/lib/utils";
 
 export type SearchSpaceSettingsTab =
 	| "general"
-	| "roles"
 	| "models"
-	| "image-models"
-	| "vision-models"
 	| "team-roles"
 	| "prompts"
 	| "public-links";
@@ -58,24 +52,9 @@ export function SearchSpaceSettingsLayoutShell({
 				icon: <CircleUser className="h-4 w-4" />,
 			},
 			{
-				value: "roles" as const,
-				label: t("nav_role_assignments"),
-				icon: <ListChecks className="h-4 w-4" />,
-			},
-			{
 				value: "models" as const,
-				label: t("nav_agent_models"),
+				label: t("nav_models"),
 				icon: <Bot className="h-4 w-4" />,
-			},
-			{
-				value: "image-models" as const,
-				label: t("nav_image_models"),
-				icon: <ImageIcon className="h-4 w-4" />,
-			},
-			{
-				value: "vision-models" as const,
-				label: t("nav_vision_models"),
-				icon: <ScanEye className="h-4 w-4" />,
 			},
 			{
 				value: "team-roles" as const,
