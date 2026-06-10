@@ -4,15 +4,6 @@ export default function BlogPostLoading() {
 	return (
 		<div className="min-h-screen relative pt-20">
 			<div className="max-w-3xl mx-auto px-6 lg:px-10 pt-10 pb-20">
-				{/* Breadcrumb */}
-				<div className="flex items-center gap-2 mb-8">
-					<Skeleton className="h-4 w-10" />
-					<Skeleton className="h-4 w-3" />
-					<Skeleton className="h-4 w-10" />
-					<Skeleton className="h-4 w-3" />
-					<Skeleton className="h-4 w-40" />
-				</div>
-
 				{/* Tags */}
 				<div className="flex flex-wrap gap-2 mb-4">
 					<Skeleton className="h-6 w-16 rounded-full" />

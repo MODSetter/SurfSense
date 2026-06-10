@@ -32,15 +32,6 @@ export default function FreeModelLoading() {
 			{/* SEO section skeleton */}
 			<div className="border-t bg-background">
 				<div className="container mx-auto px-4 py-10 max-w-3xl">
-					{/* Breadcrumb */}
-					<div className="flex items-center gap-2 mb-6">
-						<Skeleton className="h-4 w-10" />
-						<Skeleton className="h-4 w-3" />
-						<Skeleton className="h-4 w-24" />
-						<Skeleton className="h-4 w-3" />
-						<Skeleton className="h-4 w-32" />
-					</div>
-
 					<Skeleton className="h-7 w-3/4 mb-2" />
 					<Skeleton className="h-4 w-full mb-1" />
 					<Skeleton className="h-4 w-2/3 mb-8" />

@@ -1,0 +1,46 @@
+---
+date: "2026-05-06"
+version: "0.0.23"
+---
+
+## What's New in v0.0.23
+
+v0.0.23 introduces the next major step for SurfSense chat: **opt-in multi-agent orchestration** with bundled human approval. Agents can now coordinate work through a more modular runtime, while improvements to memory extraction, prompt caching, subagent resilience, and document chunking make the system more dependable for complex knowledge tasks.
+
+### Multi-Agent Chat
+
+- **Opt-In Multi-Agent Mode**: Users can enable a multi-agent chat path when a task benefits from delegation.
+- **Bundled Human Approval**: Human-in-the-loop approval is integrated into the multi-agent experience, so sensitive steps can be reviewed before execution.
+- **Agent Orchestration**: SurfSense can coordinate multiple agent roles during a chat turn, opening the door to more specialized reasoning and tool use.
+- **Subagent Resilience**: Runtime improvements make delegated work more robust when individual subagent paths fail or need recovery.
+
+### Agent Runtime Improvements
+
+- **Modular Middleware Stack**: Agent execution now flows through a more modular middleware architecture.
+- **Agent and Prompt Caching**: Repeated agent setup and prompt work can be cached, reducing waste across complex runs.
+- **Unit Test Coverage**: New tests lock in behavior around the agent middleware and caching improvements.
+- **Memory Extraction Cleanup**: Memory extraction is more streamlined, keeping durable memory useful without collecting unnecessary noise.
+
+### Better Document Understanding
+
+- **Table-Aware Chunking**: The hybrid text chunker now understands tables better and avoids splitting documents in the middle of rows.
+- **Cleaner Retrieval Context**: Better chunk boundaries improve the quality of document snippets agents receive during search and reasoning.
+
+### No longer broken
+
+- Fixed Stripe webhook handling
+- Fixed Stripe routes used by billing flows
+- Fixed metadata extraction from Stripe checkout sessions
+- Improved memory extraction behavior for cleaner long-term memory updates
+
+### Developers
+
+- Multi-agent orchestration primitives were added to the chat runtime
+- Agent middleware was reorganized into a more composable stack
+- Prompt and agent caches were introduced to reduce repeated setup work
+- The hybrid chunker gained table-aware logic to preserve row integrity
+- New unit tests cover middleware, caching, and subagent resilience paths
+
+v0.0.23 lays the groundwork for SurfSense's multi-agent future. With orchestration, approval, caching, and better document chunking, SurfSense is better prepared for complex research, retrieval, and action-heavy workflows.
+
+SurfSense connects all your knowledge sources in one place.

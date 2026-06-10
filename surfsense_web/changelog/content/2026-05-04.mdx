@@ -1,0 +1,35 @@
+---
+date: "2026-05-04"
+version: "0.0.21"
+---
+
+## What's New in v0.0.21
+
+v0.0.21 is a focused reliability release for SurfSense agents and chat infrastructure. It adds agent-side caches, fixes invalid prompt cache configuration paths, moves chat persistence to the server, and closes security leaks in manual authentication endpoints.
+
+### Agent Reliability
+
+- **Agent Caches**: SurfSense agents now use dedicated caches to reduce repeated work and make longer conversations more stable.
+- **Prompt Cache Fixes**: Invalid prompt cache configurations are now handled correctly instead of creating brittle runtime behavior.
+- **More Reliable Runtime State**: The caching improvements give agent turns a cleaner foundation for repeated tool use and prompt execution.
+
+### Server-Side Chat Persistence
+
+- **Chat Persistence Moved Server-Side**: Chat state persistence now lives on the server, reducing fragile client-side assumptions and improving consistency across sessions.
+- **Cleaner Chat Continuity**: Server-owned persistence gives SurfSense a stronger base for future multi-agent and long-running chat work.
+
+### No longer broken
+
+- Fixed Docker deployment issues found after the previous platform upgrade
+- Fixed manual authentication endpoint leaks
+- Fixed invalid prompt cache configuration handling
+
+### Developers
+
+- Chat persistence responsibility moved from the frontend into backend-managed flows
+- Agent cache plumbing was introduced as groundwork for faster, more resilient agent turns
+- Security handling around manual auth routes was tightened
+
+v0.0.21 keeps the momentum from the connector and desktop releases while strengthening the foundation: safer authentication, more reliable Docker behavior, and better server-owned chat state.
+
+SurfSense connects all your knowledge sources in one place.

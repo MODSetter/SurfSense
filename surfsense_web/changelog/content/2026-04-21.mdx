@@ -1,0 +1,60 @@
+---
+date: "2026-04-21"
+version: "0.0.19"
+---
+
+## What's New in v0.0.19
+
+v0.0.19 brings a new **AI resume builder** into SurfSense, giving users a practical way to turn structured information into polished, previewable PDF outputs. This release also improves the anonymous chat experience across cross-site deployments, adds desktop startup options, strengthens accessibility, and tightens several dashboard interactions for a faster, cleaner product experience.
+
+### Resume Builder
+
+Turn your knowledge and profile details into export-ready resume documents.
+
+- **AI Resume Generation**: A new resume generation tool can produce structured resume content from user information and report prompts.
+- **Typst-Based PDF Output**: Resume reports now support Typst-powered PDF generation, giving users a cleaner path from generated content to shareable documents.
+- **PDF Preview Experience**: A built-in PDF viewer lets users preview generated resumes directly in SurfSense before exporting.
+- **Resume Tool UI**: A dedicated resume generation interface tracks loading, success, and error states so users understand exactly what is happening during generation.
+- **Public Report Preview Endpoint**: Generated resume previews can be accessed through a public report endpoint when needed for sharing and preview workflows.
+
+### Anonymous Chat & Web Experience
+
+- **Cross-Site Anonymous Chat Cookies**: Anonymous chat cookies now adapt their SameSite and Secure settings based on deployment context, making hosted and cross-domain setups more reliable.
+- **Better Anonymous Chat History**: Message history handling in anonymous chat is more dependable, especially when users move between public chat states.
+- **Safer Form Inputs**: Login, registration, profile, search space, and role forms now enforce sensible max-length limits directly in the UI.
+- **Cleaner Page Landmarks**: Home and free-chat pages no longer nest main landmarks, improving HTML semantics and screen-reader navigation.
+- **SEO Metadata Refresh**: Titles and descriptions across key pages now better communicate SurfSense's open-source, privacy-focused positioning.
+
+### Desktop App
+
+- **Launch at Startup**: The desktop app now supports auto-launch settings, including options for starting minimized to the tray.
+- **Desktop Analytics Events**: Desktop activation, quitting, folder watching, deep links, connector setup, and update-related actions now emit richer analytics events.
+- **Windows Signing Workflow**: The desktop release pipeline gained Windows signing support for production builds.
+
+### UI & Performance
+
+- **Faster Dashboard Startup**: Document tab content now lazy-loads to reduce the initial dashboard bundle.
+- **More Stable Theme Toggle**: The theme toggle uses a functional state update, keeping callbacks stable and safer under concurrent rendering.
+- **Cleaner Dialog Reset Behavior**: Dialog reset logic moved into open-change handlers, reducing effect-driven UI churn.
+- **Model Selector Polish**: Model selector reset behavior now runs from event handlers for a cleaner settings experience.
+
+### No longer broken
+
+- Fixed scroll-to-citation timers continuing after the source detail panel closes or unmounts
+- Removed unused source-detail-panel state that caused unnecessary re-renders
+- Fixed anonymous chat message history behavior
+- Improved resume generation error handling, loading states, and template validation
+- Removed an unnecessary Windows signing publisherName argument
+- Improved HTTP exception handling so unexpected 500 responses are sanitized while useful server errors remain visible
+
+### Developers
+
+- Reports gained content type support for resume-specific output handling
+- PDF handling moved from react-pdf to pdfjs-dist for better control over loading and rendering
+- Desktop analytics bridge and IPC channels now support identification and event capture
+- Rate limiting now extracts real client IPs more accurately behind Cloudflare-style proxies
+- New contributors landed fixes across accessibility, dialog state, and dashboard performance
+
+v0.0.19 expands SurfSense beyond search and chat into deliverable creation. With the new **AI resume builder**, PDF previews, stronger anonymous chat behavior, and desktop startup controls, SurfSense becomes more useful both in the browser and as a daily desktop companion.
+
+SurfSense connects all your knowledge sources in one place.

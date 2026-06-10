@@ -186,7 +186,7 @@ function MagazineSearchGrid({
 						type="search"
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
-						placeholder="Search by title or topic…"
+						placeholder="Search"
 						className="w-full rounded-full bg-white py-3 pr-4 pl-12 text-sm text-neutral-800 shadow-sm ring-1 shadow-black/10 ring-black/10 transition outline-none placeholder:text-neutral-400 focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200/80 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-neutral-500 dark:focus:ring-neutral-700/50"
 					/>
 				</label>

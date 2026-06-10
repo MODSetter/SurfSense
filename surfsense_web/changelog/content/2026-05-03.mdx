@@ -1,0 +1,63 @@
+---
+date: "2026-05-03"
+version: "0.0.20"
+---
+
+## What's New in v0.0.20
+
+v0.0.20 is a platform-wide upgrade for connectors, desktop workflows, and chat. SurfSense now supports **live connector tools** through MCP OAuth and native APIs, adds an **Obsidian vault sync plugin**, introduces local file editing in the desktop app, and makes chat smarter with thread-level model pinning, structured errors, and live usage visibility.
+
+### Live Connector Tools
+
+Connectors are no longer just places to index data. They can now expose live actions to SurfSense agents.
+
+- **Live Tools via MCP OAuth**: SurfSense can discover and use connector tools through MCP OAuth, bringing external services directly into agent workflows.
+- **Native Connector APIs**: Connectors can expose native API-backed actions where MCP is not the right fit.
+- **OAuth Trust Improvements**: MCP OAuth flows now handle trust, 401 recovery, and connector UX more cleanly.
+- **Parallel Tool Discovery**: Connector tool discovery can run in parallel, reducing setup latency for tool-rich integrations.
+- **Long Indexing Stability**: Connector indexing refreshes Redis heartbeats during long Phase 1 runs so large imports do not look stale.
+
+### Desktop Knowledge Work
+
+- **Obsidian Vault Sync**: A new Obsidian sync plugin helps bring local vault knowledge into SurfSense.
+- **Swappable Desktop Filesystem**: The desktop app gained a swappable filesystem architecture for safer local-file workflows.
+- **Local File Editing**: Monaco-powered editing lets desktop users open and edit local files directly from SurfSense.
+- **Screenshot Assist**: Desktop screenshot capture gives agents more context from the user's screen when needed.
+- **Linux RPM Builds**: The desktop build pipeline now includes an RPM target for Linux users.
+
+### Smarter Chat & Models
+
+- **Thread-Level Model Pinning**: Chat threads can automatically pin models for more consistent long-running conversations.
+- **Structured Chat Errors**: Chat failures now surface cleaner, more actionable error states.
+- **Unified Streaming Flow**: Streaming state was reworked for a smoother viewport and mention experience.
+- **Auto-Pin Quality Scoring**: Model auto-pinning now uses quality scoring to make better routing decisions.
+- **Live Usage Sidebar**: OpenRouter tier refactors and usage visibility make model cost and capacity easier to understand.
+
+### Docs, Marketing & Performance
+
+- **Internal Backend URL Config**: Self-hosters can configure internal backend URLs and host gateway behavior more clearly.
+- **Ollama Docs**: Documentation now covers Ollama-oriented local model setups.
+- **Baidu Search Guide**: Added setup guidance for the Baidu Search connector.
+- **Marketing Route Skeletons**: Async marketing routes now show loading skeletons instead of blank waits.
+- **Leaner Docs Bundles**: Docs pages now avoid a full lucide barrel import for better bundle performance.
+
+### No longer broken
+
+- Fixed Docker zero-cache issues
+- Fixed multiple agent runtime bugs and temporarily blocked an unstable GitHub Copilot custom provider path
+- Fixed resume page limit functionality
+- Deduplicated anonymous chat uploads through the anonymous chat API service
+- Improved mentioned document handling in chat
+- Moved duplicate tag checks in the HITL edit panel into functional state updates
+
+### Developers
+
+- Agent harness internals were updated for the next generation of tool-heavy chat turns
+- LLM role manager reset behavior now uses keyed state instead of manual effect resets
+- Blog search now derives results during render instead of syncing duplicate state through effects
+- A diagnostic notary-status workflow was added for desktop release troubleshooting
+- Announcements gained SEO metadata through a server layout
+
+v0.0.20 makes SurfSense feel more connected, more local, and more agentic. Whether you are syncing an **Obsidian** vault, editing desktop files, giving agents live connector tools, or tracking model usage in chat, this release pushes SurfSense closer to a full knowledge-work operating layer.
+
+SurfSense connects all your knowledge sources in one place.

@@ -898,7 +898,7 @@ const Composer: FC = () => {
 					</>
 				) : null}
 			</Popover>
-			<div className="flex w-full flex-col">
+			<div className="relative flex w-full flex-col">
 				<div
 					className={cn(
 						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input/20 bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-input/60 focus-within:border-input/60 dark:shadow-black/10",
@@ -935,7 +935,9 @@ const Composer: FC = () => {
 					onVisibleChange={setConnectToolsTrayVisible}
 				/>
 				{isThreadEmpty && isComposerInputEmpty ? (
-					<ChatExamplePrompts onSelect={handleExampleSelect} />
+					<div className="absolute top-full left-0 right-0 z-20">
+						<ChatExamplePrompts onSelect={handleExampleSelect} />
+					</div>
 				) : null}
 			</div>
 		</ComposerPrimitive.Root>

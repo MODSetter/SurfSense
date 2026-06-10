@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FreeChatPage } from "@/components/free-chat/free-chat-page";
-import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -192,15 +191,7 @@ export default async function FreeModelPage({ params }: PageProps) {
 			{/* SEO content: in DOM for crawlers, clipped by parent overflow-hidden */}
 			<div className="border-t bg-background">
 				<article className="container mx-auto px-4 py-10 max-w-3xl">
-					<BreadcrumbNav
-						items={[
-							{ name: "Home", href: "/" },
-							{ name: "Free AI Chat", href: "/free" },
-							{ name: model.name, href: `/free/${model.seo_slug}` },
-						]}
-					/>
-
-					<header className="mt-6 mb-6">
+					<header className="mb-6">
 						<h1 className="text-2xl font-bold mb-2">Chat with {model.name} Free, No Login</h1>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Use <strong>{model.name}</strong> free online without login or sign-up. No account, no

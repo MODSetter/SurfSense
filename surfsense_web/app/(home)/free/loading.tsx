@@ -4,13 +4,6 @@ export default function FreeChatLoading() {
 	return (
 		<div className="min-h-screen pt-20">
 			<article className="container mx-auto px-4 pb-20">
-				{/* Breadcrumb */}
-				<div className="flex items-center gap-2 mb-8">
-					<Skeleton className="h-4 w-10" />
-					<Skeleton className="h-4 w-3" />
-					<Skeleton className="h-4 w-24" />
-				</div>
-
 				{/* Hero section */}
 				<section className="mt-8 text-center max-w-3xl mx-auto space-y-4">
 					<Skeleton className="h-12 w-3/4 mx-auto" />

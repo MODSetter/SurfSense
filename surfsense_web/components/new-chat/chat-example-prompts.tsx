@@ -2,9 +2,9 @@
 
 import {
 	FilePlus2,
-	type LucideIcon,
 	Search,
 	Settings2,
+	type LucideIcon,
 	WandSparkles,
 	Workflow,
 	X,
@@ -55,31 +55,7 @@ export function ChatExamplePrompts({ onSelect }: ChatExamplePromptsProps) {
 
 	return (
 		<div className="mt-2 w-full select-none sm:mt-3">
-			{activeCategory ? (
-				<div>
-					<div className="flex items-center gap-2 px-0.5 pb-2">
-						<Button
-							type="button"
-							variant="secondary"
-							onClick={() => setActiveCategoryId(null)}
-							className="h-8 rounded-lg bg-muted px-3 text-xs font-medium text-muted-foreground shadow-sm shadow-black/5 hover:bg-foreground/10 hover:text-foreground dark:shadow-black/10 sm:h-10 sm:rounded-xl sm:px-4 sm:text-sm"
-						>
-							<X aria-hidden="true" className="size-3.5 sm:size-4" />
-							Back
-						</Button>
-						<span className="text-sm font-medium text-foreground">{activeCategory.label}</span>
-					</div>
-					<ScrollArea className="h-[clamp(7.5rem,26vh,12rem)]">
-						<ul className="flex flex-col gap-2 pr-3">
-							{activeCategory.prompts.map((prompt) => (
-								<li key={prompt}>
-									<ExamplePromptButton prompt={prompt} onSelect={onSelect} />
-								</li>
-							))}
-						</ul>
-					</ScrollArea>
-				</div>
-			) : (
+			{activeCategory ? null : (
 				<div className="pb-1">
 					<div className="mx-auto flex max-w-full flex-wrap items-center justify-center gap-1.5 px-0.5 sm:gap-2">
 						{CHAT_EXAMPLE_CATEGORIES.map((category) => {
@@ -101,6 +77,35 @@ export function ChatExamplePrompts({ onSelect }: ChatExamplePromptsProps) {
 					</div>
 				</div>
 			)}
+
+			{activeCategory ? (
+				<div className="overflow-hidden rounded-lg border border-input/20 bg-muted shadow-sm shadow-black/5 dark:shadow-black/10 sm:rounded-xl">
+					<div className="flex items-center justify-between gap-2 px-3 py-2 sm:gap-3 sm:px-4 sm:py-3">
+						<div className="flex min-w-0 items-center gap-2 text-xs font-medium text-muted-foreground sm:text-sm">
+							<span className="truncate">{activeCategory.label}</span>
+						</div>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							onClick={() => setActiveCategoryId(null)}
+							aria-label="Close example prompts"
+							className="size-7 shrink-0 rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground sm:size-8"
+						>
+							<X aria-hidden="true" className="size-3.5 sm:size-4" />
+						</Button>
+					</div>
+					<ScrollArea className="max-h-52 sm:max-h-64">
+						<ul className="divide-y px-2 pb-2 sm:px-3 sm:pb-3">
+							{activeCategory.prompts.map((prompt) => (
+								<li key={prompt} className="py-0.5 sm:py-1">
+									<ExamplePromptButton prompt={prompt} onSelect={onSelect} />
+								</li>
+							))}
+						</ul>
+					</ScrollArea>
+				</div>
+			) : null}
 		</div>
 	);
 }

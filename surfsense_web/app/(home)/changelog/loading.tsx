@@ -8,12 +8,6 @@ export default function ChangelogLoading() {
 				<div className="max-w-5xl mx-auto relative">
 					<div className="p-6 flex items-center justify-between">
 						<div>
-							{/* Breadcrumb */}
-							<div className="flex items-center gap-2 mb-4">
-								<Skeleton className="h-4 w-10" />
-								<Skeleton className="h-4 w-3" />
-								<Skeleton className="h-4 w-20" />
-							</div>
 							<Skeleton className="h-10 w-48 mb-2" />
 							<Skeleton className="h-4 w-80" />
 						</div>
