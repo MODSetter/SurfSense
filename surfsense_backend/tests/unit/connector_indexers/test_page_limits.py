@@ -325,7 +325,7 @@ def gdrive_full_scan_mocks(monkeypatch):
         _mod, "_should_skip_file", AsyncMock(return_value=(False, None))
     )
 
-    download_mock = AsyncMock(return_value=([], 0))
+    download_mock = AsyncMock(return_value=([], []))
     monkeypatch.setattr(_mod, "_download_files_parallel", download_mock)
 
     batch_mock = AsyncMock(return_value=([], 0, 0))
@@ -377,7 +377,7 @@ async def test_gdrive_full_scan_skips_over_quota(gdrive_full_scan_mocks, monkeyp
         "get_files_in_folder",
         AsyncMock(return_value=(page_files, None, None)),
     )
-    m["download_mock"].return_value = ([], 0)
+    m["download_mock"].return_value = ([], [])
     m["batch_mock"].return_value = ([], 2, 0)
 
     _indexed, skipped, _unsup = await _run_gdrive_full_scan(m)
@@ -403,7 +403,7 @@ async def test_gdrive_full_scan_deducts_after_indexing(
         AsyncMock(return_value=(page_files, None, None)),
     )
     mock_docs = [MagicMock() for _ in range(3)]
-    m["download_mock"].return_value = (mock_docs, 0)
+    m["download_mock"].return_value = (mock_docs, [])
     m["batch_mock"].return_value = ([], 3, 0)
 
     await _run_gdrive_full_scan(m)
@@ -438,7 +438,7 @@ async def test_gdrive_delta_sync_skips_over_quota(monkeypatch):
         _mod, "_should_skip_file", AsyncMock(return_value=(False, None))
     )
 
-    download_mock = AsyncMock(return_value=([], 0))
+    download_mock = AsyncMock(return_value=([], []))
     monkeypatch.setattr(_mod, "_download_files_parallel", download_mock)
 
     batch_mock = AsyncMock(return_value=([], 2, 0))
