@@ -44,6 +44,16 @@ from .image_generation import (
     ImageGenerationRead,
 )
 from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
+from .model_connections import (
+    ConnectionCreate,
+    ConnectionRead,
+    ConnectionUpdate,
+    ModelRead,
+    ModelRolesRead,
+    ModelRolesUpdate,
+    ModelUpdate,
+    VerifyConnectionResponse,
+)
 from .new_chat import (
     ChatMessage,
     NewChatMessageAppend,

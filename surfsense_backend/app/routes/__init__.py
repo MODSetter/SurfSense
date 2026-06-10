@@ -42,6 +42,7 @@ from .linear_add_connector_route import router as linear_add_connector_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
 from .mcp_oauth_route import router as mcp_oauth_router
+from .model_connections_routes import router as model_connections_router
 from .memory_routes import router as memory_router
 from .model_list_routes import router as model_list_router
 from .new_chat_routes import router as new_chat_router
@@ -117,6 +118,7 @@ router.include_router(confluence_add_connector_router)
 router.include_router(clickup_add_connector_router)
 router.include_router(dropbox_add_connector_router)
 router.include_router(new_llm_config_router)  # LLM configs with prompt configuration
+router.include_router(model_connections_router)  # Connection-centric model catalog
 router.include_router(model_list_router)  # Dynamic model catalogue from OpenRouter
 router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks

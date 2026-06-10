@@ -280,6 +280,23 @@ class VisionProvider(StrEnum):
     CUSTOM = "CUSTOM"
 
 
+class ConnectionProtocol(StrEnum):
+    OLLAMA = "OLLAMA"
+    OPENAI_COMPATIBLE = "OPENAI_COMPATIBLE"
+    NATIVE = "NATIVE"
+
+
+class ConnectionScope(StrEnum):
+    GLOBAL = "GLOBAL"
+    SEARCH_SPACE = "SEARCH_SPACE"
+    USER = "USER"
+
+
+class ModelSource(StrEnum):
+    DISCOVERED = "DISCOVERED"
+    MANUAL = "MANUAL"
+
+
 class LogLevel(StrEnum):
     DEBUG = "DEBUG"
     INFO = "INFO"
@@ -1642,6 +1659,79 @@ class Report(BaseModel, TimestampMixin):
     thread = relationship("NewChatThread")
 
 
+class Connection(BaseModel, TimestampMixin):
+    __tablename__ = "connections"
+
+    protocol = Column(SQLAlchemyEnum(ConnectionProtocol), nullable=False, index=True)
+    native_provider = Column(String(100), nullable=True, index=True)
+    base_url = Column(String(500), nullable=True)
+    api_key = Column(String, nullable=True)
+    extra = Column(JSONB, nullable=False, default=dict, server_default="{}")
+    scope = Column(SQLAlchemyEnum(ConnectionScope), nullable=False, index=True)
+    enabled = Column(Boolean, nullable=False, default=True, server_default="true")
+
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
+    )
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=True
+    )
+
+    last_verified_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    last_status = Column(String(50), nullable=True)
+    last_error = Column(Text, nullable=True)
+
+    search_space = relationship("SearchSpace", back_populates="connections")
+    user = relationship("User", back_populates="connections")
+    models = relationship(
+        "Model",
+        back_populates="connection",
+        order_by="Model.id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "(scope = 'GLOBAL' AND search_space_id IS NULL AND user_id IS NULL) OR "
+            "(scope = 'SEARCH_SPACE' AND search_space_id IS NOT NULL AND user_id IS NOT NULL) OR "
+            "(scope = 'USER' AND user_id IS NOT NULL)",
+            name="ck_connections_scope_owner",
+        ),
+    )
+
+
+class Model(BaseModel, TimestampMixin):
+    __tablename__ = "models"
+
+    connection_id = Column(
+        Integer, ForeignKey("connections.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    model_id = Column(String(255), nullable=False)
+    display_name = Column(String(255), nullable=True)
+    source = Column(
+        SQLAlchemyEnum(ModelSource),
+        nullable=False,
+        default=ModelSource.DISCOVERED,
+        server_default=ModelSource.DISCOVERED.value,
+    )
+    capabilities = Column(JSONB, nullable=False, default=dict, server_default="{}")
+    capabilities_declared = Column(JSONB, nullable=False, default=dict, server_default="{}")
+    capabilities_verified = Column(JSONB, nullable=False, default=dict, server_default="{}")
+    capabilities_override = Column(JSONB, nullable=False, default=dict, server_default="{}")
+    embedding_dimension = Column(Integer, nullable=True)
+    enabled = Column(Boolean, nullable=False, default=True, server_default="true")
+    billing_tier = Column(String(50), nullable=True, index=True)
+    catalog = Column(JSONB, nullable=False, default=dict, server_default="{}")
+
+    connection = relationship("Connection", back_populates="models")
+
+    __table_args__ = (
+        UniqueConstraint("connection_id", "model_id", name="uq_models_connection_model_id"),
+        Index("ix_models_model_id", "model_id"),
+    )
+
+
 class ImageGenerationConfig(BaseModel, TimestampMixin):
     """
     Dedicated configuration table for image generation models.
@@ -1794,11 +1884,27 @@ class SearchSpace(BaseModel, TimestampMixin):
     #   - Positive IDs: Custom configs from DB (NewLLMConfig table)
     agent_llm_id = Column(
         Integer, nullable=True, default=0
-    )  # For agent/chat operations, defaults to Auto mode
+    )  # For chat operations, defaults to Auto mode
     image_generation_config_id = Column(
         Integer, nullable=True, default=0
     )  # For image generation, defaults to Auto mode
     vision_llm_config_id = Column(
+        Integer, nullable=True, default=0
+    )  # For vision/screenshot analysis, defaults to Auto mode
+
+    # New connection/model role bindings. These supersede the legacy config
+    # columns above without removing them in this PR.
+    # Note: ID values preserve the existing convention:
+    #   - 0: Auto mode
+    #   - Negative IDs: Global virtual models from global_llm_config.yaml
+    #   - Positive IDs: User/search-space models from the models table
+    chat_model_id = Column(
+        Integer, nullable=True, default=0
+    )  # For agent/chat operations, defaults to Auto mode
+    image_gen_model_id = Column(
+        Integer, nullable=True, default=0
+    )  # For image generation, defaults to Auto mode when eligible
+    vision_model_id = Column(
         Integer, nullable=True, default=0
     )  # For vision/screenshot analysis, defaults to Auto mode
 
@@ -1888,6 +1994,13 @@ class SearchSpace(BaseModel, TimestampMixin):
         back_populates="search_space",
         order_by="VisionLLMConfig.id",
         cascade="all, delete-orphan",
+    )
+    connections = relationship(
+        "Connection",
+        back_populates="search_space",
+        order_by="Connection.id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     automations = relationship(
@@ -2429,6 +2542,11 @@ if config.AUTH_TYPE == "GOOGLE":
             back_populates="user",
             passive_deletes=True,
         )
+        connections = relationship(
+            "Connection",
+            back_populates="user",
+            passive_deletes=True,
+        )
 
         # Automations created by this user
         automations = relationship(
@@ -2565,6 +2683,11 @@ else:
 
         vision_llm_configs = relationship(
             "VisionLLMConfig",
+            back_populates="user",
+            passive_deletes=True,
+        )
+        connections = relationship(
+            "Connection",
             back_populates="user",
             passive_deletes=True,
         )
