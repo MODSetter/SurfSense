@@ -5,8 +5,10 @@ import {
 	connectionListResponse,
 	connectionRead,
 	connectionUpdateRequest,
+	type ModelCreateRequest,
 	type ModelRoles,
 	type ModelUpdateRequest,
+	modelCreateRequest,
 	modelListResponse,
 	modelRead,
 	modelRoles,
@@ -58,6 +60,16 @@ class ModelConnectionsApiService {
 
 	discoverModels = async (id: number) => {
 		return baseApiService.post(`/api/v1/model-connections/${id}/discover`, modelListResponse);
+	};
+
+	addManualModel = async (connectionId: number, request: ModelCreateRequest) => {
+		const parsed = modelCreateRequest.safeParse(request);
+		if (!parsed.success) {
+			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
+		}
+		return baseApiService.post(`/api/v1/model-connections/${connectionId}/models`, modelRead, {
+			body: parsed.data,
+		});
 	};
 
 	updateModel = async (id: number, request: ModelUpdateRequest) => {

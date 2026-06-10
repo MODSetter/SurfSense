@@ -48,6 +48,7 @@ from .model_connections import (
     ConnectionCreate,
     ConnectionRead,
     ConnectionUpdate,
+    ModelCreate,
     ModelRead,
     ModelRolesRead,
     ModelRolesUpdate,

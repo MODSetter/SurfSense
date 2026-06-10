@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import type {
 	ConnectionCreateRequest,
 	ConnectionUpdateRequest,
+	ModelCreateRequest,
 	ModelRoles,
 	ModelUpdateRequest,
 } from "@/contracts/types/model-connections.types";
@@ -67,8 +68,17 @@ export const verifyModelConnectionMutationAtom = atomWithMutation((get) => {
 		mutationKey: ["model-connections", "verify"],
 		mutationFn: (id: number) => modelConnectionsApiService.verifyConnection(id),
 		onSuccess: (result) => {
-			if (result.ok) toast.success("Connection verified");
-			else toast.error(result.message || "Connection failed");
+			if (result.ok) {
+				toast.success("Connection verified");
+			} else {
+				// Non-fatal: many providers lack a /models endpoint yet still serve
+				// chat. Guide the user to add model IDs manually instead of alarming.
+				toast.warning(
+					result.message
+						? `${result.message} Chat may still work — add model IDs manually.`
+						: "Couldn't list models. Chat may still work — add model IDs manually."
+				);
+			}
 			invalidateModelConnections(searchSpaceId);
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to verify connection"),
@@ -85,6 +95,20 @@ export const discoverConnectionModelsMutationAtom = atomWithMutation((get) => {
 			invalidateModelConnections(searchSpaceId);
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to discover models"),
+	};
+});
+
+export const addManualModelMutationAtom = atomWithMutation((get) => {
+	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	return {
+		mutationKey: ["models", "add-manual"],
+		mutationFn: ({ connectionId, data }: { connectionId: number; data: ModelCreateRequest }) =>
+			modelConnectionsApiService.addManualModel(connectionId, data),
+		onSuccess: () => {
+			toast.success("Model added");
+			invalidateModelConnections(searchSpaceId);
+		},
+		onError: (error: Error) => toast.error(error.message || "Failed to add model"),
 	};
 });
 

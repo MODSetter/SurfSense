@@ -122,6 +122,17 @@ def _litellm_capabilities(model_string: str, model_id: str) -> dict[str, bool]:
     return capabilities
 
 
+def _allowlist(conn: Connection) -> set[str]:
+    """Per-connection model-id allowlist stored in ``extra.model_ids``.
+
+    Empty/absent means "no restriction" (discover everything), mirroring
+    OpenWebUI's behaviour. A non-empty list restricts discovery to those ids —
+    essential for providers like OpenRouter that expose hundreds of models.
+    """
+    raw = (conn.extra or {}).get("model_ids") or []
+    return {str(item).strip() for item in raw if str(item).strip()}
+
+
 def derive_capabilities(conn: Connection, model_id: str, metadata: dict | None = None) -> dict[str, bool]:
     metadata = metadata or {}
     if conn.protocol == ConnectionProtocol.OLLAMA:
@@ -140,13 +151,15 @@ def derive_capabilities(conn: Connection, model_id: str, metadata: dict | None =
 
 
 async def discover_models(conn: Connection) -> list[dict[str, Any]]:
+    allowlist = _allowlist(conn)
+
     if conn.protocol == ConnectionProtocol.OLLAMA:
         url = f"{conn.base_url.rstrip('/')}/api/tags"
         async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as client:
             response = await client.get(url, headers=_auth_headers(conn))
         response.raise_for_status()
         models = response.json().get("models", [])
-        return [
+        results = [
             {
                 "model_id": item.get("model") or item.get("name"),
                 "display_name": item.get("name") or item.get("model"),
@@ -157,14 +170,13 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
             for item in models
             if item.get("model") or item.get("name")
         ]
-
-    if conn.protocol == ConnectionProtocol.OPENAI_COMPATIBLE:
+    elif conn.protocol == ConnectionProtocol.OPENAI_COMPATIBLE:
         url = f"{ensure_v1(conn.base_url)}/models"
         async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as client:
             response = await client.get(url, headers=_auth_headers(conn))
         response.raise_for_status()
         models = response.json().get("data", [])
-        return [
+        results = [
             {
                 "model_id": item.get("id"),
                 "display_name": item.get("name") or item.get("id"),
@@ -175,9 +187,13 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
             for item in models
             if item.get("id")
         ]
+    else:
+        # Native providers rely on curated/global catalog entries or manual rows.
+        return []
 
-    # Native providers rely on curated/global catalog entries or manual rows.
-    return []
+    if allowlist:
+        results = [item for item in results if item["model_id"] in allowlist]
+    return results
 
 
 async def test_model(conn: Connection, model: Model) -> VerifyResult:

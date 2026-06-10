@@ -10,6 +10,7 @@ from app.db import (
     Connection,
     ConnectionScope,
     Model,
+    ModelSource,
     Permission,
     SearchSpace,
     User,
@@ -19,6 +20,7 @@ from app.schemas import (
     ConnectionCreate,
     ConnectionRead,
     ConnectionUpdate,
+    ModelCreate,
     ModelRead,
     ModelRolesRead,
     ModelRolesUpdate,
@@ -26,6 +28,7 @@ from app.schemas import (
     VerifyConnectionResponse,
 )
 from app.services.model_connection_service import (
+    derive_capabilities,
     discover_models,
     persist_verification,
     test_model,
@@ -252,6 +255,41 @@ async def discover_connection_models(
     await session.commit()
     await session.refresh(conn)
     return [_model_read(model) for model in conn.models]
+
+
+@router.post("/model-connections/{connection_id}/models", response_model=ModelRead)
+async def add_manual_model(
+    connection_id: int,
+    data: ModelCreate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    conn = await _load_connection(session, connection_id)
+    await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_UPDATE.value)
+
+    model_id = data.model_id.strip()
+    if not model_id:
+        raise HTTPException(status_code=400, detail="model_id is required")
+    if any(existing.model_id == model_id for existing in conn.models):
+        raise HTTPException(status_code=400, detail="Model already exists on this connection")
+
+    capabilities = derive_capabilities(conn, model_id)
+    model = Model(
+        connection_id=conn.id,
+        model_id=model_id,
+        display_name=data.display_name or None,
+        source=ModelSource.MANUAL,
+        capabilities=capabilities,
+        capabilities_declared=capabilities,
+        capabilities_verified={},
+        capabilities_override={},
+        enabled=True,
+        catalog={},
+    )
+    session.add(model)
+    await session.commit()
+    await session.refresh(model)
+    return _model_read(model)
 
 
 @router.put("/models/{model_id}", response_model=ModelRead)

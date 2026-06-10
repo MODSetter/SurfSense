@@ -1,12 +1,14 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
-import { CheckCircle2, PlugZap, RefreshCcw, XCircle } from "lucide-react";
+import { CheckCircle2, PlugZap, Plus, RefreshCcw, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
+	addManualModelMutationAtom,
 	createModelConnectionMutationAtom,
 	discoverConnectionModelsMutationAtom,
 	testModelMutationAtom,
+	updateModelConnectionMutationAtom,
 	updateModelMutationAtom,
 	updateModelRolesMutationAtom,
 	verifyModelConnectionMutationAtom,
@@ -46,9 +48,16 @@ type Preset = {
 };
 
 const PRESETS: Preset[] = [
+	{ id: "custom", label: "OpenAI-compatible (any URL)", protocol: "OPENAI_COMPATIBLE" },
 	{ id: "openai", label: "OpenAI", protocol: "NATIVE", nativeProvider: "OPENAI" },
 	{ id: "anthropic", label: "Anthropic", protocol: "NATIVE", nativeProvider: "ANTHROPIC" },
-	{ id: "openrouter", label: "OpenRouter", protocol: "NATIVE", nativeProvider: "OPENROUTER" },
+	{
+		id: "openrouter",
+		label: "OpenRouter",
+		protocol: "NATIVE",
+		nativeProvider: "OPENROUTER",
+		baseUrl: "https://openrouter.ai/api/v1",
+	},
 	{
 		id: "ollama",
 		label: "Ollama",
@@ -84,6 +93,22 @@ const PRESETS: Preset[] = [
 		baseUrl: "http://host.docker.internal:8000/v1",
 		local: true,
 	},
+];
+
+// Free-text URL hints (datalist), mirroring OpenWebUI. These never restrict
+// what the user can type — any OpenAI-compatible endpoint works.
+const URL_SUGGESTIONS = [
+	"https://api.openai.com/v1",
+	"https://api.anthropic.com/v1",
+	"https://openrouter.ai/api/v1",
+	"https://generativelanguage.googleapis.com/v1beta/openai",
+	"https://api.groq.com/openai/v1",
+	"https://api.mistral.ai/v1",
+	"https://api.deepseek.com/v1",
+	"https://api.x.ai/v1",
+	"http://host.docker.internal:11434",
+	"http://host.docker.internal:1234/v1",
+	"http://host.docker.internal:8000/v1",
 ];
 
 function modelLabel(model: ModelRead) {
@@ -123,22 +148,183 @@ function flattenModels(connections: ConnectionRead[]) {
 	);
 }
 
+function ConnectionCard({ connection }: { connection: ConnectionRead }) {
+	const verifyConnection = useAtomValue(verifyModelConnectionMutationAtom);
+	const discoverModels = useAtomValue(discoverConnectionModelsMutationAtom);
+	const updateConnection = useAtomValue(updateModelConnectionMutationAtom);
+	const addManualModel = useAtomValue(addManualModelMutationAtom);
+	const updateModel = useAtomValue(updateModelMutationAtom);
+	const testModel = useAtomValue(testModelMutationAtom);
+
+	const allowlist = Array.isArray(connection.extra?.model_ids)
+		? (connection.extra.model_ids as string[])
+		: [];
+	const [allowlistText, setAllowlistText] = useState(allowlist.join(", "));
+	const [manualModelId, setManualModelId] = useState("");
+
+	const providerLabel = connection.native_provider || connection.protocol;
+	const isLocal = connection.protocol === "OLLAMA" || !connection.base_url?.startsWith("https");
+
+	function saveAllowlist() {
+		const ids = allowlistText
+			.split(",")
+			.map((value) => value.trim())
+			.filter(Boolean);
+		updateConnection.mutate({
+			id: connection.id,
+			data: { extra: { ...(connection.extra ?? {}), model_ids: ids } },
+		});
+	}
+
+	function addModel() {
+		const modelId = manualModelId.trim();
+		if (!modelId) return;
+		addManualModel.mutate(
+			{ connectionId: connection.id, data: { model_id: modelId } },
+			{ onSuccess: () => setManualModelId("") }
+		);
+	}
+
+	return (
+		<div className="rounded-lg border p-4">
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<div>
+					<div className="flex items-center gap-2 font-medium">
+						{getProviderIcon(providerLabel, { className: "size-4" })}
+						{providerLabel}
+					</div>
+					<div className="text-sm text-muted-foreground">
+						{connection.base_url || "Provider default endpoint"}
+					</div>
+				</div>
+				<div className="flex flex-wrap items-center gap-2">
+					<StatusBadge connection={connection} />
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => verifyConnection.mutate(connection.id)}
+					>
+						Test
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => discoverModels.mutate(connection.id)}
+					>
+						<RefreshCcw className="mr-2 h-4 w-4" /> Discover
+					</Button>
+				</div>
+			</div>
+
+			{connection.last_status && connection.last_status !== "OK" ? (
+				<p className="mt-2 text-sm text-amber-600 dark:text-amber-500">
+					{connection.last_error || "Could not list models."} Chat may still work — add model
+					IDs manually below.
+				</p>
+			) : null}
+
+			{!isLocal ? (
+				<div className="mt-4 space-y-1">
+					<Label className="text-xs">Model IDs filter (optional)</Label>
+					<div className="flex gap-2">
+						<Input
+							value={allowlistText}
+							onChange={(event) => setAllowlistText(event.target.value)}
+							placeholder="Comma-separated, e.g. anthropic/claude-sonnet-4-5, google/gemini-2.5-pro"
+						/>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={saveAllowlist}
+							disabled={updateConnection.isPending}
+						>
+							Save filter
+						</Button>
+					</div>
+					<p className="text-xs text-muted-foreground">
+						Leave empty to discover all models. Recommended for providers with large catalogs
+						(e.g. OpenRouter).
+					</p>
+				</div>
+			) : null}
+
+			<div className="mt-4 flex gap-2">
+				<Input
+					value={manualModelId}
+					onChange={(event) => setManualModelId(event.target.value)}
+					onKeyDown={(event) => {
+						if (event.key === "Enter") {
+							event.preventDefault();
+							addModel();
+						}
+					}}
+					placeholder="Add a model ID manually (for providers without /models)"
+				/>
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={addModel}
+					disabled={addManualModel.isPending || !manualModelId.trim()}
+				>
+					<Plus className="mr-2 h-4 w-4" /> Add model
+				</Button>
+			</div>
+
+			<div className="mt-4 grid gap-2">
+				{connection.models.map((model) => (
+					<div
+						key={model.id}
+						className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2"
+					>
+						<div>
+							<div className="flex items-center gap-2 text-sm font-medium">
+								{getProviderIcon(providerLabel, { className: "size-4" })}
+								{modelLabel(model)}
+								{model.source === "MANUAL" ? (
+									<Badge variant="outline" className="text-[10px]">
+										manual
+									</Badge>
+								) : null}
+							</div>
+							<div className="text-xs text-muted-foreground">
+								{["chat", "vision", "image_gen"]
+									.filter((key) => Boolean(model.capabilities?.[key]))
+									.join(", ") || "No verified capabilities"}
+							</div>
+						</div>
+						<div className="flex gap-2">
+							<Button variant="outline" size="sm" onClick={() => testModel.mutate(model.id)}>
+								Test
+							</Button>
+							<Button
+								variant={model.enabled ? "secondary" : "outline"}
+								size="sm"
+								onClick={() =>
+									updateModel.mutate({ id: model.id, data: { enabled: !model.enabled } })
+								}
+							>
+								{model.enabled ? "Enabled" : "Enable"}
+							</Button>
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
 export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: number }) {
 	const [{ data: globalConnections = [] }] = useAtom(globalModelConnectionsAtom);
 	const [{ data: connections = [] }] = useAtom(modelConnectionsAtom);
 	const [{ data: roles }] = useAtom(modelRolesAtom);
 	const createConnection = useAtomValue(createModelConnectionMutationAtom);
-	const verifyConnection = useAtomValue(verifyModelConnectionMutationAtom);
-	const discoverModels = useAtomValue(discoverConnectionModelsMutationAtom);
-	const updateModel = useAtomValue(updateModelMutationAtom);
-	const testModel = useAtomValue(testModelMutationAtom);
 	const updateRoles = useAtomValue(updateModelRolesMutationAtom);
 
 	const visiblePresets = useMemo(
 		() => PRESETS.filter((preset) => !(isCloud() && preset.local)),
 		[]
 	);
-	const [presetId, setPresetId] = useState(visiblePresets[0]?.id ?? "openai");
+	const [presetId, setPresetId] = useState(visiblePresets[0]?.id ?? "custom");
 	const preset = visiblePresets.find((item) => item.id === presetId) ?? visiblePresets[0];
 	const [baseUrl, setBaseUrl] = useState(preset?.baseUrl ?? "");
 	const [apiKey, setApiKey] = useState("");
@@ -157,16 +343,19 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 
 	function handleCreate() {
 		if (!preset) return;
-		createConnection.mutate({
-			protocol: preset.protocol,
-			native_provider: preset.nativeProvider,
-			base_url: baseUrl || null,
-			api_key: apiKey || null,
-			scope: "SEARCH_SPACE",
-			search_space_id: searchSpaceId,
-			extra: {},
-			enabled: true,
-		});
+		createConnection.mutate(
+			{
+				protocol: preset.protocol,
+				native_provider: preset.nativeProvider,
+				base_url: baseUrl || null,
+				api_key: apiKey || null,
+				scope: "SEARCH_SPACE",
+				search_space_id: searchSpaceId,
+				extra: {},
+				enabled: true,
+			},
+			{ onSuccess: () => setApiKey("") }
+		);
 	}
 
 	function renderModelOption(model: ModelRead & { connectionName: string; provider: string }) {
@@ -192,7 +381,7 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 				<CardContent className="space-y-6">
 					<div className="grid gap-3 md:grid-cols-[220px_1fr_1fr_auto]">
 						<div className="space-y-2">
-							<Label>Preset</Label>
+							<Label>Provider</Label>
 							<Select value={presetId} onValueChange={onPresetChange}>
 								<SelectTrigger>
 									<SelectValue />
@@ -217,7 +406,13 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 								value={baseUrl}
 								onChange={(event) => setBaseUrl(event.target.value)}
 								placeholder="https://api.example.com/v1"
+								list="model-conn-url-suggestions"
 							/>
+							<datalist id="model-conn-url-suggestions">
+								{URL_SUGGESTIONS.map((url) => (
+									<option key={url} value={url} />
+								))}
+							</datalist>
 						</div>
 						<div className="space-y-2">
 							<Label>API Key</Label>
@@ -239,85 +434,16 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 							Local URLs are tested from the backend container. Use host.docker.internal instead of
 							localhost.
 						</p>
+					) : preset?.protocol === "OPENAI_COMPATIBLE" ? (
+						<p className="text-xs text-muted-foreground">
+							Works with any OpenAI-compatible endpoint (OpenRouter, Together, Groq, vLLM, LM
+							Studio…). After adding, hit Discover to list models.
+						</p>
 					) : null}
 
 					<div className="space-y-3">
 						{connections.map((connection) => (
-							<div key={connection.id} className="rounded-lg border p-4">
-								<div className="flex flex-wrap items-center justify-between gap-3">
-									<div>
-										<div className="flex items-center gap-2 font-medium">
-											{getProviderIcon(connection.native_provider || connection.protocol, {
-												className: "size-4",
-											})}
-											{connection.native_provider || connection.protocol}
-										</div>
-										<div className="text-sm text-muted-foreground">
-											{connection.base_url || "Provider default endpoint"}
-										</div>
-									</div>
-									<div className="flex flex-wrap items-center gap-2">
-										<StatusBadge connection={connection} />
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => verifyConnection.mutate(connection.id)}
-										>
-											Test
-										</Button>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => discoverModels.mutate(connection.id)}
-										>
-											<RefreshCcw className="mr-2 h-4 w-4" /> Discover
-										</Button>
-									</div>
-								</div>
-								{connection.last_error ? (
-									<p className="mt-2 text-sm text-destructive">{connection.last_error}</p>
-								) : null}
-								<div className="mt-4 grid gap-2">
-									{connection.models.map((model) => (
-										<div
-											key={model.id}
-											className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2"
-										>
-											<div>
-												<div className="flex items-center gap-2 text-sm font-medium">
-													{getProviderIcon(connection.native_provider || connection.protocol, {
-														className: "size-4",
-													})}
-													{modelLabel(model)}
-												</div>
-												<div className="text-xs text-muted-foreground">
-													{["chat", "vision", "image_gen"]
-														.filter((key) => Boolean(model.capabilities?.[key]))
-														.join(", ") || "No verified capabilities"}
-												</div>
-											</div>
-											<div className="flex gap-2">
-												<Button
-													variant="outline"
-													size="sm"
-													onClick={() => testModel.mutate(model.id)}
-												>
-													Test
-												</Button>
-												<Button
-													variant={model.enabled ? "secondary" : "outline"}
-													size="sm"
-													onClick={() =>
-														updateModel.mutate({ id: model.id, data: { enabled: !model.enabled } })
-													}
-												>
-													{model.enabled ? "Enabled" : "Enable"}
-												</Button>
-											</div>
-										</div>
-									))}
-								</div>
-							</div>
+							<ConnectionCard key={connection.id} connection={connection} />
 						))}
 					</div>
 				</CardContent>
