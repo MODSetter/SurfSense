@@ -57,9 +57,9 @@ class AutomationService:
         else:
             search_space = await self._assert_models_billable(payload.search_space_id)
             payload.definition.models = AutomationModels(
-                agent_llm_id=search_space.agent_llm_id or 0,
-                image_generation_config_id=search_space.image_generation_config_id or 0,
-                vision_llm_config_id=search_space.vision_llm_config_id or 0,
+                chat_model_id=search_space.chat_model_id or 0,
+                image_gen_model_id=search_space.image_gen_model_id or 0,
+                vision_model_id=search_space.vision_model_id or 0,
             )
 
         automation = Automation(
@@ -225,9 +225,9 @@ class AutomationService:
         """
         try:
             assert_models_billable(
-                agent_llm_id=models.agent_llm_id,
-                image_generation_config_id=models.image_generation_config_id,
-                vision_llm_config_id=models.vision_llm_config_id,
+                chat_model_id=models.chat_model_id,
+                image_gen_model_id=models.image_gen_model_id,
+                vision_model_id=models.vision_model_id,
             )
         except AutomationModelPolicyError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc

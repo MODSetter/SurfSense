@@ -24,70 +24,45 @@ from typing import TYPE_CHECKING, Literal
 if TYPE_CHECKING:
     from app.db import SearchSpace
 
-ModelKind = Literal["llm", "image", "vision"]
+ModelKind = Literal["chat", "image", "vision"]
 
 _KIND_LABEL: dict[ModelKind, str] = {
-    "llm": "agent LLM",
+    "chat": "chat model",
     "image": "image generation model",
     "vision": "vision model",
 }
 
 
-def _is_premium_global(kind: ModelKind, config_id: int) -> bool:
-    """Return True if a negative (global) config id is a premium tier model."""
+def _is_premium_global(model_id: int) -> bool:
+    """Return True if a negative (global) model id is a premium tier model."""
     from app.config import config as app_config
 
-    cfg: dict | None = None
-    if kind == "llm":
-        from app.agents.chat.runtime.llm_config import (
-            load_global_llm_config_by_id,
-        )
-
-        cfg = load_global_llm_config_by_id(config_id)
-    elif kind == "image":
-        cfg = next(
-            (
-                c
-                for c in app_config.GLOBAL_IMAGE_GEN_CONFIGS
-                if c.get("id") == config_id
-            ),
-            None,
-        )
-    else:  # vision
-        cfg = next(
-            (
-                c
-                for c in app_config.GLOBAL_VISION_LLM_CONFIGS
-                if c.get("id") == config_id
-            ),
-            None,
-        )
-
-    if not cfg:
+    model = next((m for m in app_config.GLOBAL_MODELS if m.get("id") == model_id), None)
+    if not model:
         return False
-    return str(cfg.get("billing_tier", "free")).lower() == "premium"
+    return str(model.get("billing_tier", "free")).lower() == "premium"
 
 
-def _classify(kind: ModelKind, config_id: int | None) -> tuple[bool, str]:
-    """Classify a resolved config id as allowed or blocked.
+def _classify(kind: ModelKind, model_id: int | None) -> tuple[bool, str]:
+    """Classify a resolved model id as allowed or blocked.
 
     Returns ``(allowed, reason)``; ``reason`` is empty when allowed.
     """
     label = _KIND_LABEL[kind]
 
-    if config_id is None or config_id == 0:
+    if model_id is None or model_id == 0:
         return (
             False,
             f"The {label} is set to Auto mode. Automations require an explicit "
             "premium model or your own (BYOK) model so every run is billable.",
         )
 
-    if config_id > 0:
-        # Positive id → user-owned BYOK config. Always allowed.
+    if model_id > 0:
+        # Positive id -> user/search-space BYOK model. Always allowed.
         return True, ""
 
-    # Negative id → global config. Allowed only if premium.
-    if _is_premium_global(kind, config_id):
+    # Negative id -> global model. Allowed only if premium.
+    if _is_premium_global(model_id):
         return True, ""
 
     return (
@@ -99,27 +74,27 @@ def _classify(kind: ModelKind, config_id: int | None) -> tuple[bool, str]:
 
 def get_model_eligibility(
     *,
-    agent_llm_id: int | None,
-    image_generation_config_id: int | None,
-    vision_llm_config_id: int | None,
+    chat_model_id: int | None,
+    image_gen_model_id: int | None,
+    vision_model_id: int | None,
 ) -> dict:
-    """Return ``{"allowed": bool, "violations": [...]}`` for explicit config ids.
+    """Return ``{"allowed": bool, "violations": [...]}`` for explicit model ids.
 
     The ID-based core shared by both the search-space path (creation/eligibility)
     and the captured-snapshot path (runtime backstop). Each violation is
     ``{"kind", "config_id", "reason"}``.
     """
     checks: list[tuple[ModelKind, int | None]] = [
-        ("llm", agent_llm_id),
-        ("image", image_generation_config_id),
-        ("vision", vision_llm_config_id),
+        ("chat", chat_model_id),
+        ("image", image_gen_model_id),
+        ("vision", vision_model_id),
     ]
 
     violations: list[dict] = []
     for kind, config_id in checks:
         allowed, reason = _classify(kind, config_id)
         if not allowed:
-            violations.append({"kind": kind, "config_id": config_id, "reason": reason})
+            violations.append({"kind": kind, "model_id": config_id, "reason": reason})
 
     return {"allowed": not violations, "violations": violations}
 
@@ -131,9 +106,9 @@ def get_automation_model_eligibility(search_space: SearchSpace) -> dict:
     wrapper over :func:`get_model_eligibility`.
     """
     return get_model_eligibility(
-        agent_llm_id=search_space.agent_llm_id,
-        image_generation_config_id=search_space.image_generation_config_id,
-        vision_llm_config_id=search_space.vision_llm_config_id,
+        chat_model_id=search_space.chat_model_id,
+        image_gen_model_id=search_space.image_gen_model_id,
+        vision_model_id=search_space.vision_model_id,
     )
 
 
@@ -150,9 +125,9 @@ class AutomationModelPolicyError(Exception):
 
 def assert_models_billable(
     *,
-    agent_llm_id: int | None,
-    image_generation_config_id: int | None,
-    vision_llm_config_id: int | None,
+    chat_model_id: int | None,
+    image_gen_model_id: int | None,
+    vision_model_id: int | None,
 ) -> None:
     """Raise :class:`AutomationModelPolicyError` if any explicit id is not billable.
 
@@ -160,9 +135,9 @@ def assert_models_billable(
     captured model snapshot.
     """
     result = get_model_eligibility(
-        agent_llm_id=agent_llm_id,
-        image_generation_config_id=image_generation_config_id,
-        vision_llm_config_id=vision_llm_config_id,
+        chat_model_id=chat_model_id,
+        image_gen_model_id=image_gen_model_id,
+        vision_model_id=vision_model_id,
     )
     if not result["allowed"]:
         raise AutomationModelPolicyError(result["violations"])
