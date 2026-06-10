@@ -1,53 +1,27 @@
 "use client";
 
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
+import { Bot, Check, ChevronDown, ImageOff, Search, Settings2, Zap } from "lucide-react";
+import { useMemo, useState } from "react";
+import { updateModelRolesMutationAtom } from "@/atoms/model-connections/model-connections-mutation.atoms";
 import {
-	Bot,
-	Check,
-	ChevronDown,
-	ChevronLeft,
-	ChevronRight,
-	ChevronUp,
-	ImageIcon,
-	Layers,
-	Pencil,
-	Plus,
-	ScanEye,
-	Search,
-	Zap,
-} from "lucide-react";
-import type React from "react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
-import {
-	globalImageGenConfigsAtom,
-	imageGenConfigsAtom,
-} from "@/atoms/image-gen-config/image-gen-config-query.atoms";
-import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
-import {
-	globalNewLLMConfigsAtom,
-	llmPreferencesAtom,
-	newLLMConfigsAtom,
-} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import {
-	globalVisionLLMConfigsAtom,
-	visionLLMConfigsAtom,
-} from "@/atoms/vision-llm-config/vision-llm-config-query.atoms";
+	globalModelConnectionsAtom,
+	modelConnectionsAtom,
+	modelRolesAtom,
+} from "@/atoms/model-connections/model-connections-query.atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Drawer,
 	DrawerContent,
-	DrawerHandle,
 	DrawerHeader,
 	DrawerTitle,
 	DrawerTrigger,
 } from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { ConnectionRead, ModelRead } from "@/contracts/types/model-connections.types";
 import type {
 	GlobalImageGenConfig,
 	GlobalNewLLMConfig,
@@ -60,272 +34,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 
-// ─── Helpers ────────────────────────────────────────────────────────
-
-const PROVIDER_NAMES: Record<string, string> = {
-	OPENAI: "OpenAI",
-	ANTHROPIC: "Anthropic",
-	GOOGLE: "Google",
-	AZURE: "Azure",
-	AZURE_OPENAI: "Azure OpenAI",
-	AWS_BEDROCK: "AWS Bedrock",
-	BEDROCK: "Bedrock",
-	DEEPSEEK: "DeepSeek",
-	MISTRAL: "Mistral",
-	COHERE: "Cohere",
-	GITHUB_MODELS: "GitHub Models",
-	GROQ: "Groq",
-	OLLAMA: "Ollama",
-	TOGETHER_AI: "Together AI",
-	FIREWORKS_AI: "Fireworks AI",
-	REPLICATE: "Replicate",
-	HUGGINGFACE: "HuggingFace",
-	PERPLEXITY: "Perplexity",
-	XAI: "xAI",
-	OPENROUTER: "OpenRouter",
-	CEREBRAS: "Cerebras",
-	SAMBANOVA: "SambaNova",
-	VERTEX_AI: "Vertex AI",
-	MINIMAX: "MiniMax",
-	MOONSHOT: "Moonshot",
-	ZHIPU: "Zhipu",
-	DEEPINFRA: "DeepInfra",
-	CLOUDFLARE: "Cloudflare",
-	DATABRICKS: "Databricks",
-	NSCALE: "NScale",
-	RECRAFT: "Recraft",
-	XINFERENCE: "XInference",
-	CUSTOM: "Custom",
-	AI21: "AI21",
-	ALIBABA_QWEN: "Qwen",
-	ANYSCALE: "Anyscale",
-	COMETAPI: "CometAPI",
-};
-
-// Provider keys valid per model type, matching backend enums
-// (LiteLLMProvider, ImageGenProvider, VisionProvider in db.py)
-const LLM_PROVIDER_KEYS: string[] = [
-	"OPENAI",
-	"ANTHROPIC",
-	"GOOGLE",
-	"AZURE_OPENAI",
-	"BEDROCK",
-	"VERTEX_AI",
-	"GROQ",
-	"DEEPSEEK",
-	"XAI",
-	"MISTRAL",
-	"COHERE",
-	"OPENROUTER",
-	"TOGETHER_AI",
-	"FIREWORKS_AI",
-	"REPLICATE",
-	"PERPLEXITY",
-	"OLLAMA",
-	"CEREBRAS",
-	"SAMBANOVA",
-	"DEEPINFRA",
-	"AI21",
-	"ALIBABA_QWEN",
-	"MOONSHOT",
-	"ZHIPU",
-	"MINIMAX",
-	"HUGGINGFACE",
-	"CLOUDFLARE",
-	"DATABRICKS",
-	"ANYSCALE",
-	"COMETAPI",
-	"GITHUB_MODELS",
-	"CUSTOM",
-];
-
-const IMAGE_PROVIDER_KEYS: string[] = [
-	"OPENAI",
-	"AZURE_OPENAI",
-	"GOOGLE",
-	"VERTEX_AI",
-	"BEDROCK",
-	"RECRAFT",
-	"OPENROUTER",
-	"XINFERENCE",
-	"NSCALE",
-];
-
-const VISION_PROVIDER_KEYS: string[] = [
-	"OPENAI",
-	"ANTHROPIC",
-	"GOOGLE",
-	"AZURE_OPENAI",
-	"VERTEX_AI",
-	"BEDROCK",
-	"XAI",
-	"OPENROUTER",
-	"OLLAMA",
-	"GROQ",
-	"TOGETHER_AI",
-	"FIREWORKS_AI",
-	"DEEPSEEK",
-	"MISTRAL",
-	"CUSTOM",
-];
-
-const PROVIDER_KEYS_BY_TAB: Record<string, string[]> = {
-	llm: LLM_PROVIDER_KEYS,
-	image: IMAGE_PROVIDER_KEYS,
-	vision: VISION_PROVIDER_KEYS,
-};
-
-function formatProviderName(provider: string): string {
-	const key = provider.toUpperCase();
-	return (
-		PROVIDER_NAMES[key] ??
-		provider.charAt(0).toUpperCase() + provider.slice(1).toLowerCase().replace(/_/g, " ")
-	);
-}
-
-function normalizeText(input: string): string {
-	return input
-		.normalize("NFD")
-		.replace(/\p{Diacritic}/gu, "")
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, " ")
-		.trim();
-}
-
-interface ConfigBase {
-	id: number;
-	name: string;
-	model_name: string;
-	provider: string;
-}
-
-function filterAndScore<T extends ConfigBase>(
-	configs: T[],
-	selectedProvider: string,
-	searchQuery: string
-): T[] {
-	let result = configs;
-
-	if (selectedProvider !== "all") {
-		result = result.filter((c) => c.provider.toUpperCase() === selectedProvider);
-	}
-
-	if (!searchQuery.trim()) return result;
-
-	const normalized = normalizeText(searchQuery);
-	const tokens = normalized.split(/\s+/).filter(Boolean);
-
-	const scored = result.map((c) => {
-		const aggregate = normalizeText([c.name, c.model_name, c.provider].join(" "));
-		let score = 0;
-		if (aggregate.includes(normalized)) score += 5;
-		for (const token of tokens) {
-			if (aggregate.includes(token)) score += 1;
-		}
-		return { config: c, score };
-	});
-
-	return scored
-		.filter((s) => s.score > 0)
-		.sort((a, b) => b.score - a.score)
-		.map((s) => s.config);
-}
-
-interface DisplayItem {
-	config: ConfigBase & Record<string, unknown>;
-	isGlobal: boolean;
-	isAutoMode: boolean;
-}
-
-const TruncatedNameWithTooltip: React.FC<{
-	text: string;
-	className?: string;
-	enableTooltip: boolean;
-}> = ({ text, className, enableTooltip }) => {
-	const textRef = useRef<HTMLSpanElement>(null);
-	const openTimerRef = useRef<number | undefined>(undefined);
-	const [isTruncated, setIsTruncated] = useState(false);
-	const [open, setOpen] = useState(false);
-
-	const recalcTruncation = useCallback(() => {
-		const el = textRef.current;
-		if (!el) return;
-		setIsTruncated(el.scrollWidth > el.clientWidth + 1);
-	}, []);
-
-	useEffect(() => {
-		if (!enableTooltip) return;
-		const el = textRef.current;
-		if (!el) return;
-
-		const raf = requestAnimationFrame(recalcTruncation);
-		recalcTruncation();
-
-		const observer = new ResizeObserver(recalcTruncation);
-		observer.observe(el);
-		if (el.parentElement) observer.observe(el.parentElement);
-		window.addEventListener("resize", recalcTruncation);
-
-		return () => {
-			cancelAnimationFrame(raf);
-			observer.disconnect();
-			window.removeEventListener("resize", recalcTruncation);
-		};
-	}, [enableTooltip, recalcTruncation]);
-
-	useEffect(() => {
-		// Recompute when row text changes.
-		void text;
-		requestAnimationFrame(recalcTruncation);
-	}, [text, recalcTruncation]);
-
-	useEffect(
-		() => () => {
-			if (openTimerRef.current) window.clearTimeout(openTimerRef.current);
-		},
-		[]
-	);
-
-	if (!enableTooltip) {
-		return (
-			<span ref={textRef} className={cn("block max-w-full", className)}>
-				{text}
-			</span>
-		);
-	}
-
-	const handleOpenChange = (nextOpen: boolean) => {
-		if (openTimerRef.current) {
-			window.clearTimeout(openTimerRef.current);
-			openTimerRef.current = undefined;
-		}
-		if (!nextOpen) {
-			setOpen(false);
-			return;
-		}
-		if (!isTruncated) return;
-		openTimerRef.current = window.setTimeout(() => {
-			setOpen(true);
-			openTimerRef.current = undefined;
-		}, 220);
-	};
-
-	return (
-		<Tooltip open={open} onOpenChange={handleOpenChange}>
-			<TooltipTrigger asChild>
-				<span ref={textRef} className={cn("block max-w-full", className)}>
-					{text}
-				</span>
-			</TooltipTrigger>
-			<TooltipContent side="top" align="start">
-				{text}
-			</TooltipContent>
-		</Tooltip>
-	);
-};
-
-// ─── Component ──────────────────────────────────────────────────────
-
 interface ModelSelectorProps {
 	onEditLLM: (config: NewLLMConfigPublic | GlobalNewLLMConfig, isGlobal: boolean) => void;
 	onAddNewLLM: (provider?: string) => void;
@@ -336,1113 +44,207 @@ interface ModelSelectorProps {
 	className?: string;
 }
 
+type ChatModel = ModelRead & {
+	connectionId: number;
+	connectionLabel: string;
+	provider: string;
+};
+
+function modelName(model: ModelRead) {
+	return model.display_name || model.model_id;
+}
+
+function connectionLabel(connection: ConnectionRead) {
+	if (connection.scope === "GLOBAL") return "Hosted";
+	return connection.native_provider || connection.protocol;
+}
+
+function flattenChatModels(connections: ConnectionRead[]) {
+	return connections.flatMap((connection) =>
+		connection.models
+			.filter((model) => model.enabled && Boolean(model.capabilities?.chat))
+			.map((model) => ({
+				...model,
+				connectionId: connection.id,
+				connectionLabel: connectionLabel(connection),
+				provider: connection.native_provider || connection.protocol,
+			}))
+	);
+}
+
+function groupedModels(models: ChatModel[]) {
+	return models.reduce<Record<string, ChatModel[]>>((groups, model) => {
+		const key = model.connectionLabel;
+		if (!groups[key]) groups[key] = [];
+		groups[key].push(model);
+		return groups;
+	}, {});
+}
+
 export function ModelSelector({
-	onEditLLM,
 	onAddNewLLM,
+	onEditLLM,
 	onEditImage,
 	onAddNewImage,
 	onEditVision,
 	onAddNewVision,
 	className,
 }: ModelSelectorProps) {
-	const [open, setOpen] = useState(false);
-	const [activeTab, setActiveTab] = useState<"llm" | "image" | "vision">("llm");
-	const [searchQuery, setSearchQuery] = useState("");
-	const [selectedProvider, setSelectedProvider] = useState<string>("all");
-	const [focusedIndex, setFocusedIndex] = useState(-1);
-	const [modelScrollPos, setModelScrollPos] = useState<"top" | "middle" | "bottom">("top");
-	const [sidebarScrollPos, setSidebarScrollPos] = useState<"top" | "middle" | "bottom">("top");
-	const providerSidebarRef = useRef<HTMLDivElement>(null);
-	const modelListRef = useRef<HTMLDivElement>(null);
-	const searchInputRef = useRef<HTMLInputElement>(null);
+	void onEditLLM;
+	void onEditImage;
+	void onAddNewImage;
+	void onEditVision;
+	void onAddNewVision;
+
 	const isMobile = useIsMobile();
-
-	const handleOpenChange = useCallback(
-		(next: boolean) => {
-			if (next) {
-				setSearchQuery("");
-				setSelectedProvider("all");
-				if (!isMobile) {
-					requestAnimationFrame(() => searchInputRef.current?.focus());
-				}
-			}
-			setOpen(next);
-		},
-		[isMobile]
+	const [open, setOpen] = useState(false);
+	const [search, setSearch] = useState("");
+	const [{ data: globalConnections = [], isLoading: globalLoading }] = useAtom(
+		globalModelConnectionsAtom
 	);
+	const [{ data: connections = [], isLoading: connectionsLoading }] = useAtom(modelConnectionsAtom);
+	const [{ data: roles }] = useAtom(modelRolesAtom);
+	const updateRoles = useAtomValue(updateModelRolesMutationAtom);
 
-	const handleTabChange = useCallback(
-		(next: "llm" | "image" | "vision") => {
-			setActiveTab(next);
-			setSelectedProvider("all");
-			setSearchQuery("");
-			setFocusedIndex(-1);
-			setModelScrollPos("top");
-			if (open && !isMobile) {
-				requestAnimationFrame(() => searchInputRef.current?.focus());
-			}
-		},
-		[open, isMobile]
-	);
-
-	const handleModelListScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-		const el = e.currentTarget;
-		const atTop = el.scrollTop <= 2;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-		setModelScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
-	}, []);
-
-	const handleSidebarScroll = useCallback(
-		(e: React.UIEvent<HTMLDivElement>) => {
-			const el = e.currentTarget;
-			if (isMobile) {
-				const atStart = el.scrollLeft <= 2;
-				const atEnd = el.scrollWidth - el.scrollLeft - el.clientWidth <= 2;
-				setSidebarScrollPos(atStart ? "top" : atEnd ? "bottom" : "middle");
-			} else {
-				const atTop = el.scrollTop <= 2;
-				const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-				setSidebarScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
-			}
-		},
-		[isMobile]
-	);
-
-	const scrollProviderSidebar = useCallback(
-		(direction: "backward" | "forward") => {
-			const el = providerSidebarRef.current;
-			if (!el) return;
-			const delta = isMobile
-				? Math.max(56, Math.floor(el.clientWidth * 0.5))
-				: Math.max(44, Math.floor(el.clientHeight * 0.4));
-
-			if (isMobile) {
-				el.scrollBy({
-					left: direction === "backward" ? -delta : delta,
-					behavior: "smooth",
-				});
-				return;
-			}
-
-			el.scrollBy({
-				top: direction === "backward" ? -delta : delta,
-				behavior: "smooth",
-			});
-		},
-		[isMobile]
-	);
-
-	// Cmd/Ctrl+M shortcut (desktop only)
-	useEffect(() => {
-		if (isMobile) return;
-		const handler = (e: KeyboardEvent) => {
-			if ((e.metaKey || e.ctrlKey) && e.key === "m") {
-				e.preventDefault();
-				// setOpen((prev) => !prev);
-				handleOpenChange(!open);
-			}
-		};
-		document.addEventListener("keydown", handler);
-		return () => document.removeEventListener("keydown", handler);
-	}, [isMobile, open, handleOpenChange]);
-
-	// ─── Data ───
-	const { data: llmUserConfigs, isLoading: llmUserLoading } = useAtomValue(newLLMConfigsAtom);
-	const { data: llmGlobalConfigs, isLoading: llmGlobalLoading } =
-		useAtomValue(globalNewLLMConfigsAtom);
-	const { data: preferences, isLoading: prefsLoading } = useAtomValue(llmPreferencesAtom);
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
-	const { data: imageGlobalConfigs, isLoading: imageGlobalLoading } =
-		useAtomValue(globalImageGenConfigsAtom);
-	const { data: imageUserConfigs, isLoading: imageUserLoading } = useAtomValue(imageGenConfigsAtom);
-	const { data: visionGlobalConfigs, isLoading: visionGlobalLoading } = useAtomValue(
-		globalVisionLLMConfigsAtom
-	);
-	const { data: visionUserConfigs, isLoading: visionUserLoading } =
-		useAtomValue(visionLLMConfigsAtom);
-
-	// Pending image attachments on the composer. Used to surface an
-	// amber "No image" hint on chat models the catalog reports as
-	// non-vision (`supports_image_input=false`) when the next message
-	// will carry an image. The hint is purely advisory: selection,
-	// focus, and click handling are unaffected. The backend's safety
-	// net (`is_known_text_only_chat_model`) is the actual block, and
-	// it only fires when LiteLLM *explicitly* marks a model as
-	// text-only — so a model that's secretly capable but hasn't been
-	// annotated will still flow through to the provider.
-	const pendingUserImageUrls = useAtomValue(pendingUserImageDataUrlsAtom);
-	const hasPendingImages = pendingUserImageUrls.length > 0;
-
-	const isLoading =
-		llmUserLoading ||
-		llmGlobalLoading ||
-		prefsLoading ||
-		imageGlobalLoading ||
-		imageUserLoading ||
-		visionGlobalLoading ||
-		visionUserLoading;
-
-	// ─── Current selected configs ───
-	const currentLLMConfig = useMemo(() => {
-		if (!preferences) return null;
-		const id = preferences.agent_llm_id;
-		if (id === null || id === undefined) return null;
-		if (id <= 0) return llmGlobalConfigs?.find((c) => c.id === id) ?? null;
-		return llmUserConfigs?.find((c) => c.id === id) ?? null;
-	}, [preferences, llmGlobalConfigs, llmUserConfigs]);
-
-	const isLLMAutoMode =
-		currentLLMConfig && "is_auto_mode" in currentLLMConfig && currentLLMConfig.is_auto_mode;
-
-	const currentImageConfig = useMemo(() => {
-		if (!preferences) return null;
-		const id = preferences.image_generation_config_id;
-		if (id === null || id === undefined) return null;
-		return (
-			imageGlobalConfigs?.find((c) => c.id === id) ??
-			imageUserConfigs?.find((c) => c.id === id) ??
-			null
+	const chatModels = useMemo(() => {
+		const normalized = search.trim().toLowerCase();
+		const models = flattenChatModels([...globalConnections, ...connections]);
+		if (!normalized) return models;
+		return models.filter((model) =>
+			[modelName(model), model.model_id, model.connectionLabel]
+				.join(" ")
+				.toLowerCase()
+				.includes(normalized)
 		);
-	}, [preferences, imageGlobalConfigs, imageUserConfigs]);
+	}, [globalConnections, connections, search]);
 
-	const isImageAutoMode =
-		currentImageConfig && "is_auto_mode" in currentImageConfig && currentImageConfig.is_auto_mode;
+	const selected = chatModels.find((model) => model.id === roles?.chat_model_id);
+	const groups = groupedModels(chatModels);
+	const loading = globalLoading || connectionsLoading;
 
-	const currentVisionConfig = useMemo(() => {
-		if (!preferences) return null;
-		const id = preferences.vision_llm_config_id;
-		if (id === null || id === undefined) return null;
-		return (
-			visionGlobalConfigs?.find((c) => c.id === id) ??
-			visionUserConfigs?.find((c) => c.id === id) ??
-			null
-		);
-	}, [preferences, visionGlobalConfigs, visionUserConfigs]);
+	function selectModel(modelId: number) {
+		updateRoles.mutate({ chat_model_id: modelId });
+		setOpen(false);
+	}
 
-	const isVisionAutoMode =
-		currentVisionConfig &&
-		"is_auto_mode" in currentVisionConfig &&
-		currentVisionConfig.is_auto_mode;
-
-	// ─── Filtered configs (separate global / user for section headers) ───
-	const filteredLLMGlobal = useMemo(
-		() => filterAndScore(llmGlobalConfigs ?? [], selectedProvider, searchQuery),
-		[llmGlobalConfigs, selectedProvider, searchQuery]
-	);
-	const filteredLLMUser = useMemo(
-		() => filterAndScore(llmUserConfigs ?? [], selectedProvider, searchQuery),
-		[llmUserConfigs, selectedProvider, searchQuery]
-	);
-	const filteredImageGlobal = useMemo(
-		() => filterAndScore(imageGlobalConfigs ?? [], selectedProvider, searchQuery),
-		[imageGlobalConfigs, selectedProvider, searchQuery]
-	);
-	const filteredImageUser = useMemo(
-		() => filterAndScore(imageUserConfigs ?? [], selectedProvider, searchQuery),
-		[imageUserConfigs, selectedProvider, searchQuery]
-	);
-	const filteredVisionGlobal = useMemo(
-		() => filterAndScore(visionGlobalConfigs ?? [], selectedProvider, searchQuery),
-		[visionGlobalConfigs, selectedProvider, searchQuery]
-	);
-	const filteredVisionUser = useMemo(
-		() => filterAndScore(visionUserConfigs ?? [], selectedProvider, searchQuery),
-		[visionUserConfigs, selectedProvider, searchQuery]
-	);
-
-	// Combined display list for keyboard navigation
-	const currentDisplayItems: DisplayItem[] = useMemo(() => {
-		const toItems = (configs: ConfigBase[], isGlobal: boolean): DisplayItem[] =>
-			configs.map((c) => ({
-				config: c as ConfigBase & Record<string, unknown>,
-				isGlobal,
-				isAutoMode:
-					isGlobal && "is_auto_mode" in c && !!(c as Record<string, unknown>).is_auto_mode,
-			}));
-
-		const sortGlobalItems = (items: DisplayItem[]): DisplayItem[] =>
-			[...items].sort((a, b) => {
-				if (a.isAutoMode !== b.isAutoMode) return a.isAutoMode ? -1 : 1;
-				const aPremium = !!(a.config as Record<string, unknown>).is_premium;
-				const bPremium = !!(b.config as Record<string, unknown>).is_premium;
-				if (aPremium !== bPremium) return aPremium ? 1 : -1;
-				return 0;
-			});
-
-		switch (activeTab) {
-			case "llm":
-				return [
-					...sortGlobalItems(toItems(filteredLLMGlobal, true)),
-					...toItems(filteredLLMUser, false),
-				];
-			case "image":
-				return [
-					...sortGlobalItems(toItems(filteredImageGlobal, true)),
-					...toItems(filteredImageUser, false),
-				];
-			case "vision":
-				return [
-					...sortGlobalItems(toItems(filteredVisionGlobal, true)),
-					...toItems(filteredVisionUser, false),
-				];
-		}
-	}, [
-		activeTab,
-		filteredLLMGlobal,
-		filteredLLMUser,
-		filteredImageGlobal,
-		filteredImageUser,
-		filteredVisionGlobal,
-		filteredVisionUser,
-	]);
-
-	// ─── Provider sidebar data ───
-	// Collect which providers actually have configured models for the active tab
-	const configuredProviderSet = useMemo(() => {
-		const configs =
-			activeTab === "llm"
-				? [...(llmGlobalConfigs ?? []), ...(llmUserConfigs ?? [])]
-				: activeTab === "image"
-					? [...(imageGlobalConfigs ?? []), ...(imageUserConfigs ?? [])]
-					: [...(visionGlobalConfigs ?? []), ...(visionUserConfigs ?? [])];
-		const set = new Set<string>();
-		for (const c of configs) {
-			if (c.provider) set.add(c.provider.toUpperCase());
-		}
-		return set;
-	}, [
-		activeTab,
-		llmGlobalConfigs,
-		llmUserConfigs,
-		imageGlobalConfigs,
-		imageUserConfigs,
-		visionGlobalConfigs,
-		visionUserConfigs,
-	]);
-
-	// Show only providers valid for the active tab; configured ones first
-	const activeProviders = useMemo(() => {
-		const tabKeys = PROVIDER_KEYS_BY_TAB[activeTab] ?? LLM_PROVIDER_KEYS;
-		const configured = tabKeys.filter((p) => configuredProviderSet.has(p));
-		const unconfigured = tabKeys.filter((p) => !configuredProviderSet.has(p));
-		return ["all", ...configured, ...unconfigured];
-	}, [activeTab, configuredProviderSet]);
-
-	const providerModelCounts = useMemo(() => {
-		const allConfigs =
-			activeTab === "llm"
-				? [...(llmGlobalConfigs ?? []), ...(llmUserConfigs ?? [])]
-				: activeTab === "image"
-					? [...(imageGlobalConfigs ?? []), ...(imageUserConfigs ?? [])]
-					: [...(visionGlobalConfigs ?? []), ...(visionUserConfigs ?? [])];
-		const counts: Record<string, number> = { all: allConfigs.length };
-		for (const c of allConfigs) {
-			const p = c.provider.toUpperCase();
-			counts[p] = (counts[p] || 0) + 1;
-		}
-		return counts;
-	}, [
-		activeTab,
-		llmGlobalConfigs,
-		llmUserConfigs,
-		imageGlobalConfigs,
-		imageUserConfigs,
-		visionGlobalConfigs,
-		visionUserConfigs,
-	]);
-
-	// ─── Selection handlers ───
-	const handleSelectLLM = useCallback(
-		async (config: NewLLMConfigPublic | GlobalNewLLMConfig) => {
-			if (currentLLMConfig?.id === config.id) {
-				setOpen(false);
-				return;
-			}
-			if (!searchSpaceId) {
-				toast.error("No search space selected");
-				return;
-			}
-			try {
-				await updatePreferences({
-					search_space_id: Number(searchSpaceId),
-					data: { agent_llm_id: config.id },
-				});
-				toast.success(`Switched to ${config.name}`);
-				setOpen(false);
-			} catch {
-				toast.error("Failed to switch model");
-			}
-		},
-		[currentLLMConfig, searchSpaceId, updatePreferences]
-	);
-
-	const handleSelectImage = useCallback(
-		async (configId: number) => {
-			if (currentImageConfig?.id === configId) {
-				setOpen(false);
-				return;
-			}
-			if (!searchSpaceId) {
-				toast.error("No search space selected");
-				return;
-			}
-			try {
-				await updatePreferences({
-					search_space_id: Number(searchSpaceId),
-					data: { image_generation_config_id: configId },
-				});
-				toast.success("Image model updated");
-				setOpen(false);
-			} catch {
-				toast.error("Failed to switch image model");
-			}
-		},
-		[currentImageConfig, searchSpaceId, updatePreferences]
-	);
-
-	const handleSelectVision = useCallback(
-		async (configId: number) => {
-			if (currentVisionConfig?.id === configId) {
-				setOpen(false);
-				return;
-			}
-			if (!searchSpaceId) {
-				toast.error("No search space selected");
-				return;
-			}
-			try {
-				await updatePreferences({
-					search_space_id: Number(searchSpaceId),
-					data: { vision_llm_config_id: configId },
-				});
-				toast.success("Vision model updated");
-				setOpen(false);
-			} catch {
-				toast.error("Failed to switch vision model");
-			}
-		},
-		[currentVisionConfig, searchSpaceId, updatePreferences]
-	);
-
-	const handleSelectItem = useCallback(
-		(item: DisplayItem) => {
-			switch (activeTab) {
-				case "llm":
-					handleSelectLLM(item.config as NewLLMConfigPublic | GlobalNewLLMConfig);
-					break;
-				case "image":
-					handleSelectImage(item.config.id);
-					break;
-				case "vision":
-					handleSelectVision(item.config.id);
-					break;
-			}
-		},
-		[activeTab, handleSelectLLM, handleSelectImage, handleSelectVision]
-	);
-
-	const handleEditItem = useCallback(
-		(e: React.MouseEvent, item: DisplayItem) => {
-			e.stopPropagation();
-			setOpen(false);
-			switch (activeTab) {
-				case "llm":
-					onEditLLM(item.config as NewLLMConfigPublic | GlobalNewLLMConfig, item.isGlobal);
-					break;
-				case "image":
-					onEditImage?.(item.config as ImageGenerationConfig | GlobalImageGenConfig, item.isGlobal);
-					break;
-				case "vision":
-					onEditVision?.(item.config as VisionLLMConfig | GlobalVisionLLMConfig, item.isGlobal);
-					break;
-			}
-		},
-		[activeTab, onEditLLM, onEditImage, onEditVision]
-	);
-
-	// ─── Keyboard navigation ───
-	// biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery and selectedProvider are intentional triggers to reset focus
-	useEffect(() => {
-		setFocusedIndex(-1);
-	}, [searchQuery, selectedProvider]);
-
-	useEffect(() => {
-		if (focusedIndex < 0 || !modelListRef.current) return;
-		const items = modelListRef.current.querySelectorAll("[data-model-index]");
-		items[focusedIndex]?.scrollIntoView({
-			block: "nearest",
-			behavior: "smooth",
-		});
-	}, [focusedIndex]);
-
-	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent<HTMLInputElement>) => {
-			const count = currentDisplayItems.length;
-
-			// Arrow Left/Right cycle provider filters
-			if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-				e.preventDefault();
-				const providers = activeProviders;
-				const idx = providers.indexOf(selectedProvider);
-				let next: number;
-				if (e.key === "ArrowLeft") {
-					next = idx > 0 ? idx - 1 : providers.length - 1;
-				} else {
-					next = idx < providers.length - 1 ? idx + 1 : 0;
-				}
-				setSelectedProvider(providers[next]);
-				if (providerSidebarRef.current) {
-					const buttons = providerSidebarRef.current.querySelectorAll("button");
-					buttons[next]?.scrollIntoView({
-						block: "nearest",
-						inline: "nearest",
-						behavior: "smooth",
-					});
-				}
-				return;
-			}
-
-			if (count === 0) return;
-
-			switch (e.key) {
-				case "ArrowDown":
-					e.preventDefault();
-					setFocusedIndex((prev) => (prev < count - 1 ? prev + 1 : 0));
-					break;
-				case "ArrowUp":
-					e.preventDefault();
-					setFocusedIndex((prev) => (prev > 0 ? prev - 1 : count - 1));
-					break;
-				case "Enter":
-					e.preventDefault();
-					if (focusedIndex >= 0 && focusedIndex < count) {
-						handleSelectItem(currentDisplayItems[focusedIndex]);
-					}
-					break;
-				case "Home":
-					e.preventDefault();
-					setFocusedIndex(0);
-					break;
-				case "End":
-					e.preventDefault();
-					setFocusedIndex(count - 1);
-					break;
-			}
-		},
-		[currentDisplayItems, focusedIndex, activeProviders, selectedProvider, handleSelectItem]
-	);
-
-	// ─── Render: Provider sidebar ───
-	const renderProviderSidebar = () => {
-		const configuredCount = configuredProviderSet.size;
-
-		return (
-			<div
-				className={cn(
-					"shrink-0 border-popover-border flex relative",
-					isMobile ? "flex-row items-center border-b" : "flex-col w-10 border-r"
-				)}
-			>
-				{!isMobile && (
-					<div
-						className={cn(
-							"absolute top-0 left-0 right-0 z-10 h-5 flex items-center justify-center transition-all duration-200 ease-out",
-							sidebarScrollPos === "top"
-								? "opacity-0 -translate-y-1 pointer-events-none"
-								: "opacity-100 translate-y-0 pointer-events-auto"
-						)}
-					>
-						<Button
-							type="button"
-							variant="ghost"
-							aria-label="Scroll providers up"
-							onClick={() => scrollProviderSidebar("backward")}
-							className="h-4 w-4 rounded-sm p-0 text-muted-foreground/90 hover:bg-accent hover:text-accent-foreground"
-						>
-							<ChevronUp className="size-3" />
-						</Button>
-					</div>
-				)}
-				{isMobile && (
-					<div
-						className={cn(
-							"absolute left-0 top-0 bottom-0 z-10 w-5 flex items-center justify-center transition-all duration-200 ease-out pointer-events-none",
-							sidebarScrollPos === "top" ? "opacity-0 -translate-x-1" : "opacity-100 translate-x-0"
-						)}
-					>
-						<ChevronLeft className="size-3 text-muted-foreground" />
-					</div>
-				)}
-				<div
-					ref={providerSidebarRef}
-					onScroll={handleSidebarScroll}
-					className={cn(
-						isMobile
-							? "flex flex-row gap-0.5 px-1 py-1.5 overflow-x-auto [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar-track]:bg-transparent"
-							: "flex flex-col gap-0.5 p-1 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent"
-					)}
-					style={
-						isMobile
-							? {
-									maskImage: `linear-gradient(to right, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 24px, black calc(100% - 24px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
-									WebkitMaskImage: `linear-gradient(to right, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 24px, black calc(100% - 24px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
-								}
-							: {
-									maskImage: `linear-gradient(to bottom, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 32px, black calc(100% - 32px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
-									WebkitMaskImage: `linear-gradient(to bottom, ${sidebarScrollPos === "top" ? "black" : "transparent"}, black 32px, black calc(100% - 32px), ${sidebarScrollPos === "bottom" ? "black" : "transparent"})`,
-								}
-					}
+	const content = (
+		<div className="flex max-h-[min(520px,80vh)] flex-col">
+			<div className="border-b p-3">
+				<div className="relative">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						value={search}
+						onChange={(event) => setSearch(event.target.value)}
+						placeholder="Search chat models..."
+						className="pl-9"
+					/>
+				</div>
+			</div>
+			<div className="overflow-y-auto p-2">
+				<button
+					type="button"
+					className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-accent"
+					onClick={() => selectModel(0)}
 				>
-					{activeProviders.map((provider, idx) => {
-						const isAll = provider === "all";
-						const isActive = selectedProvider === provider;
-						const count = providerModelCounts[provider] || 0;
-						const isConfigured = isAll || configuredProviderSet.has(provider);
-
-						// Separator between configured and unconfigured providers
-						// idx 0 is "all", configured run from 1..configuredCount, unconfigured start at configuredCount+1
-						const showSeparator = !isAll && idx === configuredCount + 1 && configuredCount > 0;
-
-						return (
-							<Fragment key={provider}>
-								{showSeparator &&
-									(isMobile ? (
-										<div className="w-px h-5 bg-popover-border shrink-0 self-center mx-0.5" />
-									) : (
-										<div className="h-px w-5 bg-popover-border mx-auto my-0.5" />
-									))}
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											type="button"
-											variant="ghost"
-											onClick={() => setSelectedProvider(provider)}
-											tabIndex={-1}
-											className={cn(
-												"relative h-auto rounded-md transition-all duration-150",
-												isMobile ? "p-2 shrink-0" : "p-1.5 w-full",
-												isActive
-													? "bg-primary/10 text-primary"
-													: isConfigured
-														? "hover:bg-accent text-muted-foreground hover:text-accent-foreground"
-														: "opacity-50 hover:opacity-80 hover:bg-accent/40 text-muted-foreground"
-											)}
-										>
-											{isAll ? (
-												<Layers className="size-4" />
-											) : (
-												getProviderIcon(provider, {
-													className: "size-4",
-												})
-											)}
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent side={isMobile ? "bottom" : "right"}>
-										{isAll ? "All Models" : formatProviderName(provider)}
-										{isConfigured ? ` (${count})` : " (not configured)"}
-									</TooltipContent>
-								</Tooltip>
-							</Fragment>
-						);
-					})}
-				</div>
-				{!isMobile && (
-					<div
-						className={cn(
-							"absolute bottom-0 left-0 right-0 z-10 h-5 flex items-center justify-center transition-all duration-200 ease-out",
-							sidebarScrollPos === "bottom"
-								? "opacity-0 translate-y-1 pointer-events-none"
-								: "opacity-100 translate-y-0 pointer-events-auto"
-						)}
-					>
-						<Button
-							type="button"
-							variant="ghost"
-							aria-label="Scroll providers down"
-							onClick={() => scrollProviderSidebar("forward")}
-							className="h-4 w-4 rounded-sm p-0 text-muted-foreground/90 hover:bg-accent hover:text-accent-foreground"
-						>
-							<ChevronDown className="size-3" />
-						</Button>
-					</div>
-				)}
-				{isMobile && (
-					<div
-						className={cn(
-							"absolute right-0 top-0 bottom-0 z-10 w-5 flex items-center justify-center transition-all duration-200 ease-out pointer-events-none",
-							sidebarScrollPos === "bottom"
-								? "opacity-0 translate-x-1"
-								: "opacity-100 translate-x-0"
-						)}
-					>
-						<ChevronRight className="size-3 text-muted-foreground" />
-					</div>
-				)}
-			</div>
-		);
-	};
-
-	// ─── Render: Model card ───
-	const getSelectedId = () => {
-		switch (activeTab) {
-			case "llm":
-				return currentLLMConfig?.id;
-			case "image":
-				return currentImageConfig?.id;
-			case "vision":
-				return currentVisionConfig?.id;
-		}
-	};
-
-	const renderModelCard = (item: DisplayItem, index: number) => {
-		const { config, isAutoMode } = item;
-		const isSelected = getSelectedId() === config.id;
-		const isFocused = focusedIndex === index;
-		const hasCitations = "citations_enabled" in config && !!config.citations_enabled;
-		const hasPremiumStatus = "is_premium" in config && !isAutoMode;
-		const isPremium = hasPremiumStatus && !!(config as Record<string, unknown>).is_premium;
-		// Chat-tab only: surface an amber "No image" hint when the
-		// composer carries images and the catalog reports the model as
-		// non-vision. This is purely advisory — selection is *not*
-		// blocked. The backend's narrow safety net
-		// (`is_known_text_only_chat_model`) is the source of truth for
-		// rejecting image turns, and it only fires when LiteLLM
-		// explicitly marks the model as text-only. A model surfaced as
-		// `supports_image_input=false` here may still be capable in
-		// practice (unknown / unmapped LiteLLM entry), so we let the
-		// user pick it and the provider response decide.
-		const isImageIncompatibleChatModel =
-			activeTab === "llm" &&
-			hasPendingImages &&
-			"supports_image_input" in config &&
-			(config as Record<string, unknown>).supports_image_input === false;
-
-		return (
-			<div
-				key={`${activeTab}-${item.isGlobal ? "g" : "u"}-${config.id}`}
-				data-model-index={index}
-				role="option"
-				tabIndex={isMobile ? -1 : 0}
-				aria-selected={isSelected}
-				title={
-					isImageIncompatibleChatModel
-						? "This model is reported as text-only. You can still pick it; the provider may reject image turns."
-						: undefined
-				}
-				onClick={() => handleSelectItem(item)}
-				onKeyDown={
-					isMobile
-						? undefined
-						: (e) => {
-								if (e.key === "Enter" || e.key === " ") {
-									e.preventDefault();
-									handleSelectItem(item);
-								}
-							}
-				}
-				onMouseEnter={() => setFocusedIndex(index)}
-				className={cn(
-					"group flex items-center gap-2.5 px-3 py-2 rounded-xl",
-					"transition-colors duration-150 mx-2 cursor-pointer",
-					"hover:bg-accent hover:text-accent-foreground",
-					isFocused && "bg-accent text-accent-foreground",
-					isSelected && "bg-accent text-accent-foreground"
-				)}
-			>
-				{/* Provider icon */}
-				<div className="shrink-0">
-					{getProviderIcon(config.provider as string, {
-						isAutoMode,
-						className: "size-5",
-					})}
-				</div>
-
-				{/* Model info */}
-				<div className="flex-1 min-w-0">
-					<div className="flex items-center gap-1.5">
-						<TruncatedNameWithTooltip
-							text={config.name}
-							enableTooltip={!isMobile}
-							className="font-medium text-sm truncate"
-						/>
-						{isAutoMode && (
-							<Badge
-								variant="secondary"
-								className="text-[9px] px-1 py-0 h-3.5 bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 border-0"
-							>
-								Recommended
-							</Badge>
-						)}
-						{isImageIncompatibleChatModel && (
-							<Badge
-								variant="secondary"
-								className="text-[9px] px-1 py-0 h-3.5 bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 border-0"
-							>
-								No image
-							</Badge>
-						)}
-					</div>
-					{isAutoMode ? (
-						<div className="flex items-center gap-1.5 mt-0.5">
-							<span className="text-xs text-muted-foreground truncate">Auto Mode</span>
+					<div className="flex items-center gap-3">
+						<div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+							<Zap className="h-4 w-4" />
 						</div>
-					) : (
-						(hasPremiumStatus || hasCitations) && (
-							<div className="flex items-center gap-1.5 mt-0.5">
-								{hasPremiumStatus && (
-									<Badge
-										variant="secondary"
-										className={cn(
-											"text-[10px] px-1.5 py-0.5 border-0",
-											isPremium
-												? "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300"
-												: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
-										)}
-									>
-										{isPremium ? "Premium" : "Free"}
-									</Badge>
-								)}
-								{hasCitations && (
-									<Badge
-										variant="secondary"
-										className="text-[10px] px-1.5 py-0.5 border-0 bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200"
-									>
-										Citations
-									</Badge>
-								)}
+						<div>
+							<div className="font-medium">Auto</div>
+							<div className="text-xs text-muted-foreground">Use the hosted/global router</div>
+						</div>
+					</div>
+					{(roles?.chat_model_id ?? 0) === 0 ? <Check className="h-4 w-4" /> : null}
+				</button>
+				{loading ? (
+					<div className="flex items-center justify-center py-8">
+						<Spinner />
+					</div>
+				) : Object.keys(groups).length === 0 ? (
+					<div className="px-3 py-8 text-center text-sm text-muted-foreground">
+						No enabled chat models. Add or enable models in Settings.
+					</div>
+				) : (
+					Object.entries(groups).map(([connection, models]) => (
+						<div key={connection} className="mt-3">
+							<div className="px-3 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+								{connection}
 							</div>
-						)
-					)}
-				</div>
-
-				{/* Actions */}
-				<div className="flex items-center gap-1 shrink-0">
-					{!isAutoMode && (
-						<Button
-							variant="ghost"
-							size="icon"
-							className="size-7 rounded-md hover:bg-accent hover:text-accent-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-							onClick={(e) => handleEditItem(e, item)}
-						>
-							<Pencil className="size-3.5 text-muted-foreground" />
-						</Button>
-					)}
-					{isSelected && (
-						<div className="size-7 grid place-items-center shrink-0">
-							<Check className="size-4" />
-						</div>
-					)}
-				</div>
-			</div>
-		);
-	};
-
-	// ─── Render: Full content ───
-	const renderContent = () => {
-		const globalItems = currentDisplayItems.filter((i) => i.isGlobal);
-		const userItems = currentDisplayItems.filter((i) => !i.isGlobal);
-		const globalStartIdx = 0;
-		const userStartIdx = globalItems.length;
-
-		const addHandler =
-			activeTab === "llm" ? onAddNewLLM : activeTab === "image" ? onAddNewImage : onAddNewVision;
-		const addLabel =
-			activeTab === "llm"
-				? "Add Model"
-				: activeTab === "image"
-					? "Add Image Model"
-					: "Add Vision Model";
-
-		return (
-			<div className="flex flex-col w-full overflow-hidden">
-				{/* Tab header */}
-				<div className="border-b border-popover-border">
-					<div className="w-full grid grid-cols-3 h-11">
-						{(
-							[
-								{
-									value: "llm" as const,
-									icon: Zap,
-									label: "LLM",
-								},
-								{
-									value: "image" as const,
-									icon: ImageIcon,
-									label: "Image",
-								},
-								{
-									value: "vision" as const,
-									icon: ScanEye,
-									label: "Vision",
-								},
-							] as const
-						).map(({ value, icon: Icon, label }) => (
-							<Button
-								key={value}
-								type="button"
-								variant="ghost"
-								// onClick={() => setActiveTab(value)}
-								onClick={() => handleTabChange(value)}
-								className={cn(
-									"h-auto rounded-none px-0 py-0 gap-1.5 text-sm font-medium transition-all duration-200 border-b-[1.5px] hover:bg-transparent",
-									activeTab === value
-										? "border-foreground dark:border-white text-foreground"
-										: "border-transparent text-muted-foreground hover:text-accent-foreground"
-								)}
-							>
-								<Icon className="size-3.5" />
-								{label}
-							</Button>
-						))}
-					</div>
-				</div>
-
-				{/* Two-pane layout */}
-				<div className={cn("flex", isMobile ? "flex-col h-[60vh]" : "flex-row h-[380px]")}>
-					{/* Provider sidebar */}
-					{renderProviderSidebar()}
-
-					{/* Main content */}
-					<div className="flex flex-col min-w-0 min-h-0 flex-1 overflow-hidden">
-						{/* Search */}
-						<div className="relative">
-							<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground/100 pointer-events-none" />
-							<input
-								ref={searchInputRef}
-								placeholder="Search models"
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
-								onKeyDown={isMobile ? undefined : handleKeyDown}
-								role="combobox"
-								aria-expanded={true}
-								aria-controls="model-selector-list"
-								className={cn(
-									"w-full pl-8 pr-3 py-2.5 text-sm bg-transparent",
-									"focus:outline-none",
-									"placeholder:text-muted-foreground"
-								)}
-							/>
-						</div>
-
-						{/* Provider header when filtered */}
-						{selectedProvider !== "all" && (
-							<div className="flex items-center gap-2 px-3 py-1.5">
-								{getProviderIcon(selectedProvider, {
-									className: "size-4",
-								})}
-								<span className="text-sm font-medium">{formatProviderName(selectedProvider)}</span>
-								<span className="text-xs text-muted-foreground ml-auto">
-									{configuredProviderSet.has(selectedProvider)
-										? `${providerModelCounts[selectedProvider] || 0} models`
-										: "Not configured"}
-								</span>
-							</div>
-						)}
-
-						{/* Model list */}
-						<div
-							id="model-selector-list"
-							ref={modelListRef}
-							role="listbox"
-							className="overflow-y-auto flex-1 py-1 space-y-1 flex flex-col"
-							onScroll={handleModelListScroll}
-							style={{
-								maskImage: `linear-gradient(to bottom, ${modelScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${modelScrollPos === "bottom" ? "black" : "transparent"})`,
-								WebkitMaskImage: `linear-gradient(to bottom, ${modelScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${modelScrollPos === "bottom" ? "black" : "transparent"})`,
-							}}
-						>
-							{currentDisplayItems.length === 0 ? (
-								<div className="flex-1 flex flex-col items-center justify-center gap-3 px-4">
-									{selectedProvider !== "all" && !configuredProviderSet.has(selectedProvider) ? (
-										<>
-											<div className="opacity-40">
-												{getProviderIcon(selectedProvider, {
-													className: "size-10",
-												})}
-											</div>
-											<p className="text-sm font-medium text-muted-foreground">
-												No {formatProviderName(selectedProvider)} models configured
-											</p>
-											<p className="text-xs text-muted-foreground/60 text-center">
-												Add a model with this provider to get started
-											</p>
-											{addHandler && (
-												<Button
-													variant="secondary"
-													size="sm"
-													className="mt-1"
-													onClick={() => {
-														setOpen(false);
-														addHandler(selectedProvider !== "all" ? selectedProvider : undefined);
-													}}
-												>
-													{addLabel}
-												</Button>
-											)}
-										</>
-									) : searchQuery ? (
-										<>
-											<Search className="size-8 text-muted-foreground" />
-											<p className="text-sm text-muted-foreground">No models found</p>
-											<p className="text-xs text-muted-foreground/60">
-												Try a different search term
-											</p>
-										</>
-									) : (
-										<>
-											<p className="text-sm font-medium text-muted-foreground">
-												No models configured
-											</p>
-											<p className="text-xs text-muted-foreground/60 text-center">
-												Configure models in your search space settings
-											</p>
-										</>
-									)}
-								</div>
-							) : (
-								<>
-									{globalItems.length > 0 && (
-										<>
-											<div className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold text-muted-foreground tracking-wider">
-												Global Models
-											</div>
-											{globalItems.map((item, i) => renderModelCard(item, globalStartIdx + i))}
-										</>
-									)}
-									{globalItems.length > 0 && userItems.length > 0 && (
-										<div className="my-1.5 mx-4 h-px bg-popover-border" />
-									)}
-									{userItems.length > 0 && (
-										<>
-											<div className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold text-muted-foreground tracking-wider">
-												Your Configurations
-											</div>
-											{userItems.map((item, i) => renderModelCard(item, userStartIdx + i))}
-										</>
-									)}
-								</>
-							)}
-						</div>
-
-						{/* Add model button */}
-						{addHandler && (
-							<div className="p-2">
-								<Button
-									variant="ghost"
-									size="sm"
-									className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent hover:text-accent-foreground "
-									onClick={() => {
-										setOpen(false);
-										addHandler(selectedProvider !== "all" ? selectedProvider : undefined);
-									}}
+							{models.map((model) => (
+								<button
+									type="button"
+									key={model.id}
+									className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-accent"
+									onClick={() => selectModel(model.id)}
 								>
-									<Plus className="size-4 text-primary" />
-									<span className="text-sm font-medium">{addLabel}</span>
-								</Button>
-							</div>
-						)}
-					</div>
-				</div>
+									<div className="min-w-0">
+										<div className="flex items-center gap-2 truncate font-medium">
+											{getProviderIcon(model.provider, { className: "size-4 shrink-0" })}
+											<span className="truncate">{modelName(model)}</span>
+										</div>
+										<div className="truncate text-xs text-muted-foreground">{model.model_id}</div>
+									</div>
+									<div className="ml-3 flex items-center gap-2">
+										{!model.capabilities?.vision ? (
+											<Badge variant="outline" className="gap-1">
+												<ImageOff className="h-3 w-3" /> No image
+											</Badge>
+										) : null}
+										{roles?.chat_model_id === model.id ? <Check className="h-4 w-4" /> : null}
+									</div>
+								</button>
+							))}
+						</div>
+					))
+				)}
 			</div>
-		);
-	};
+			<div className="border-t p-3">
+				<Button variant="outline" className="w-full justify-start" onClick={() => onAddNewLLM()}>
+					<Settings2 className="mr-2 h-4 w-4" /> Manage model connections
+				</Button>
+			</div>
+		</div>
+	);
 
-	// ─── Trigger button ───
-	const triggerButton = (
+	const trigger = (
 		<Button
+			type="button"
 			variant="ghost"
 			size="sm"
-			role="combobox"
-			aria-expanded={open}
-			className={cn(
-				"h-8 gap-2 px-3 text-sm bg-muted shadow-xs hover:bg-accent hover:text-accent-foreground border-0 select-none",
-				className
-			)}
+			className={cn("h-8 gap-2 rounded-full px-3 text-muted-foreground", className)}
 		>
-			{isLoading ? (
-				<>
-					<Spinner size="sm" className="text-muted-foreground" />
-					<span className="text-muted-foreground hidden md:inline">Loading</span>
-				</>
+			{selected ? (
+				getProviderIcon(selected.provider, { className: "size-4" })
 			) : (
-				<>
-					{/* LLM */}
-					{currentLLMConfig ? (
-						<>
-							{getProviderIcon(currentLLMConfig.provider, {
-								isAutoMode: isLLMAutoMode ?? false,
-							})}
-							<span className="max-w-[100px] md:max-w-[120px] truncate hidden md:inline">
-								{currentLLMConfig.name}
-							</span>
-						</>
-					) : (
-						<>
-							<Bot className="size-4 text-muted-foreground" />
-							<span className="text-muted-foreground hidden md:inline">Select Model</span>
-						</>
-					)}
-					<div className="h-4 w-px bg-border/60 dark:bg-white/10 mx-0.5" />
-					{/* Image */}
-					{currentImageConfig ? (
-						<>
-							{getProviderIcon(currentImageConfig.provider, {
-								isAutoMode: isImageAutoMode ?? false,
-							})}
-							<span className="max-w-[80px] md:max-w-[100px] truncate hidden md:inline">
-								{currentImageConfig.name}
-							</span>
-						</>
-					) : (
-						<ImageIcon className="size-4 text-muted-foreground" />
-					)}
-					<div className="h-4 w-px bg-border/60 dark:bg-white/10 mx-0.5" />
-					{/* Vision */}
-					{currentVisionConfig ? (
-						<>
-							{getProviderIcon(currentVisionConfig.provider, {
-								isAutoMode: isVisionAutoMode ?? false,
-							})}
-							<span className="max-w-[80px] md:max-w-[100px] truncate hidden md:inline">
-								{currentVisionConfig.name}
-							</span>
-						</>
-					) : (
-						<ScanEye className="size-4 text-muted-foreground" />
-					)}
-				</>
+				<Bot className="h-4 w-4" />
 			)}
-			<ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0" />
+			<span className="max-w-[180px] truncate text-sm">
+				{selected ? modelName(selected) : "Auto"}
+			</span>
+			<ChevronDown className="h-3.5 w-3.5" />
 		</Button>
 	);
 
-	// ─── Shell: Drawer on mobile, Popover on desktop ───
 	if (isMobile) {
 		return (
-			<Drawer open={open} onOpenChange={handleOpenChange}>
-				<DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
-				<DrawerContent className="max-h-[85vh]">
-					<DrawerHandle />
-					<DrawerHeader className="pb-0">
-						<DrawerTitle>Select Model</DrawerTitle>
+			<Drawer open={open} onOpenChange={setOpen}>
+				<DrawerTrigger asChild>{trigger}</DrawerTrigger>
+				<DrawerContent>
+					<DrawerHeader>
+						<DrawerTitle>Select Chat Model</DrawerTitle>
 					</DrawerHeader>
-					<div className="flex-1 overflow-hidden">{renderContent()}</div>
+					{content}
 				</DrawerContent>
 			</Drawer>
 		);
 	}
 
 	return (
-		<Popover open={open} onOpenChange={handleOpenChange}>
-			<PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
-			<PopoverContent
-				className="w-[300px] md:w-[380px] p-0 rounded-lg shadow-lg overflow-hidden select-none"
-				align="start"
-				sideOffset={8}
-				onCloseAutoFocus={(e) => e.preventDefault()}
-			>
-				{renderContent()}
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>{trigger}</PopoverTrigger>
+			<PopoverContent align="start" className="w-[420px] p-0">
+				{content}
 			</PopoverContent>
 		</Popover>
 	);
