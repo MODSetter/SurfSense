@@ -26,6 +26,12 @@ RUN pnpm i --frozen-lockfile
 FROM base AS builder
 WORKDIR /app
 
+# git is required by the fumadocs-mdx lastModified plugin during `next build`.
+# The .git directory is dockerignored, so git commands exit non-zero and the
+# plugin falls back gracefully — but the binary itself must exist to avoid
+# "spawn git ENOENT" failures.
+RUN apk add --no-cache git
+
 # Enable pnpm
 RUN corepack enable pnpm
 
