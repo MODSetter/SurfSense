@@ -57,9 +57,9 @@ export const createAutomationMutationAtom = atomWithMutation(() => ({
 			task_count: variables.definition.plan.length,
 			trigger_type: variables.triggers?.[0]?.type ?? "none",
 			has_schedule: (variables.triggers?.length ?? 0) > 0,
-			agent_llm_id: variables.definition.models?.agent_llm_id,
-			image_generation_config_id: variables.definition.models?.image_generation_config_id,
-			vision_llm_config_id: variables.definition.models?.vision_llm_config_id,
+			chat_model_id: variables.definition.models?.chat_model_id,
+			image_gen_model_id: variables.definition.models?.image_gen_model_id,
+			vision_model_id: variables.definition.models?.vision_model_id,
 			tags_count: variables.definition.metadata?.tags?.length,
 		});
 	},

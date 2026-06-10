@@ -130,7 +130,7 @@ export function AutomationBuilderForm({
 	// data into state, so there's no flicker/loop and the user's pick is sticky.
 	const resolvedModels = useMemo<BuilderModels>(
 		() => ({
-			agentLlmId: form.models.agentLlmId || eligibleModels.llm.defaultId || 0,
+			chatModelId: form.models.chatModelId || eligibleModels.llm.defaultId || 0,
 			imageConfigId: form.models.imageConfigId || eligibleModels.image.defaultId || 0,
 			visionConfigId: form.models.visionConfigId || eligibleModels.vision.defaultId || 0,
 		}),

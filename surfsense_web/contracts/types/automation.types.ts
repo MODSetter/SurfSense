@@ -63,9 +63,9 @@ export type Inputs = z.infer<typeof inputs>;
 // Captured model snapshot (server-managed). Set at create time and preserved
 // across edits so runs are insulated from later chat/search-space model changes.
 export const automationModels = z.object({
-	agent_llm_id: z.number().int().default(0),
-	image_generation_config_id: z.number().int().default(0),
-	vision_llm_config_id: z.number().int().default(0),
+	chat_model_id: z.number().int().default(0),
+	image_gen_model_id: z.number().int().default(0),
+	vision_model_id: z.number().int().default(0),
 });
 export type AutomationModels = z.infer<typeof automationModels>;
 

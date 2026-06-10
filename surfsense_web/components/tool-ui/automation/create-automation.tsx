@@ -113,7 +113,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const eligibleModels = useAutomationEligibleModels();
 	const [modelSelection, setModelSelection] = useState<AutomationModelSelection>({
-		agentLlmId: 0,
+		chatModelId: 0,
 		imageConfigId: 0,
 		visionConfigId: 0,
 	});
@@ -121,7 +121,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 	// default. No effect seeds async hook data into state.
 	const resolvedModels = useMemo<AutomationModelSelection>(
 		() => ({
-			agentLlmId: modelSelection.agentLlmId || eligibleModels.llm.defaultId || 0,
+			chatModelId: modelSelection.chatModelId || eligibleModels.llm.defaultId || 0,
 			imageConfigId: modelSelection.imageConfigId || eligibleModels.image.defaultId || 0,
 			visionConfigId: modelSelection.visionConfigId || eligibleModels.vision.defaultId || 0,
 		}),
@@ -133,7 +133,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 		]
 	);
 	const modelsResolved =
-		resolvedModels.agentLlmId !== 0 &&
+		resolvedModels.chatModelId !== 0 &&
 		resolvedModels.imageConfigId !== 0 &&
 		resolvedModels.visionConfigId !== 0;
 
@@ -147,9 +147,9 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 			definition: {
 				...baseDefinition,
 				models: {
-					agent_llm_id: resolvedModels.agentLlmId,
-					image_generation_config_id: resolvedModels.imageConfigId,
-					vision_llm_config_id: resolvedModels.visionConfigId,
+					chat_model_id: resolvedModels.chatModelId,
+					image_gen_model_id: resolvedModels.imageConfigId,
+					vision_model_id: resolvedModels.visionConfigId,
 				},
 			},
 		};
@@ -162,9 +162,9 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 			trigger_type:
 				(triggers[0] as { type?: string } | undefined)?.type ??
 				(triggers.length ? undefined : "none"),
-			agent_llm_id: resolvedModels.agentLlmId,
-			image_generation_config_id: resolvedModels.imageConfigId,
-			vision_llm_config_id: resolvedModels.visionConfigId,
+			chat_model_id: resolvedModels.chatModelId,
+			image_gen_model_id: resolvedModels.imageConfigId,
+			vision_model_id: resolvedModels.visionConfigId,
 		});
 		onDecision({
 			type: "edit",
