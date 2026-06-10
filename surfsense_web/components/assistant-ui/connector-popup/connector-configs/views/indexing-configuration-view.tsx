@@ -177,7 +177,10 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 
 						{/* Vision toggle (Obsidian is plugin-push, non-indexable by design) */}
 						{showsVisionToggle && (
-							<VisionLLMConfig enabled={enableVisionLlm} onEnabledChange={onEnableVisionLlmChange} />
+							<VisionLLMConfig
+								enabled={enableVisionLlm}
+								onEnabledChange={onEnableVisionLlmChange}
+							/>
 						)}
 
 						{/* Date-range and periodic sync stay indexable-only */}

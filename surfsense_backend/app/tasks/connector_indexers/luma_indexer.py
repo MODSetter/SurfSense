@@ -7,6 +7,7 @@ Implements 2-phase document status updates for real-time UI feedback:
 """
 
 import asyncio
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
@@ -440,9 +441,7 @@ async def index_luma_events(
                 summary_content = (
                     f"Luma Event: {item['event_name']}\n\n{item['event_markdown']}"
                 )
-                summary_embedding = await asyncio.to_thread(
-                    embed_text, summary_content
-                )
+                summary_embedding = await asyncio.to_thread(embed_text, summary_content)
 
                 chunks = await create_document_chunks(item["event_markdown"])
 
@@ -487,10 +486,15 @@ async def index_luma_events(
                 try:
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
+                    # Commit now so the failed status survives a later rollback or
+                    # crash; otherwise the doc stays stuck in pending/processing.
+                    await session.commit()
                 except Exception as status_error:
                     logger.error(
                         f"Failed to update document status to failed: {status_error}"
                     )
+                    with contextlib.suppress(Exception):
+                        await session.rollback()
                 skipped_events.append(
                     f"{item.get('event_name', 'Unknown')} (processing error)"
                 )

@@ -106,4 +106,3 @@ async def retry_plaintext_on_bad_markdown(call, *args, **kwargs) -> PlatformSend
             raise
         kwargs["parse_mode"] = None
         return await call(*args, **kwargs)
-

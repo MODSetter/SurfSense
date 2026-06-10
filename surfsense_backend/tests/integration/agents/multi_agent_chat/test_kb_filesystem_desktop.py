@@ -45,9 +45,7 @@ def _build_desktop_fs_mw(root: Path):
     """Build the production filesystem middleware bound to a real local folder."""
     selection = FilesystemSelection(
         mode=FilesystemMode.DESKTOP_LOCAL_FOLDER,
-        local_mounts=(
-            LocalFilesystemMount(mount_id=_MOUNT_ID, root_path=str(root)),
-        ),
+        local_mounts=(LocalFilesystemMount(mount_id=_MOUNT_ID, root_path=str(root)),),
     )
     resolver = build_backend_resolver(selection)
     return build_filesystem_mw(
@@ -157,7 +155,7 @@ async def test_write_then_ls_lists_file(tmp_path: Path):
 
 async def test_edit_file_rewrites_on_disk(tmp_path: Path):
     """edit_file applies a real string replacement to the on-disk file."""
-    result = await _run(
+    await _run(
         tmp_path,
         [
             ScriptedTurn(

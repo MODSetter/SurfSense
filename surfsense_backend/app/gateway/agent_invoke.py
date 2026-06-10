@@ -21,7 +21,9 @@ from app.tasks.chat.streaming.flows import stream_new_chat
 logger = logging.getLogger(__name__)
 
 
-async def _events_from_sse(chunks: AsyncIterator[str]) -> AsyncIterator[GatewayStreamEvent]:
+async def _events_from_sse(
+    chunks: AsyncIterator[str],
+) -> AsyncIterator[GatewayStreamEvent]:
     saw_text = False
     async for chunk in chunks:
         for raw_line in chunk.splitlines():
@@ -98,4 +100,3 @@ async def call_agent_for_gateway(
         record_gateway_turn_latency(0, platform=platform_label)
     finally:
         release_thread_lock(thread.id)
-

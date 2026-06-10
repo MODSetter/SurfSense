@@ -9,8 +9,8 @@ from uuid import UUID
 
 from app.celery_app import celery_app
 from app.config import config
-from app.observability import metrics as ot_metrics
 from app.notifications.service import NotificationService
+from app.observability import metrics as ot_metrics
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 from app.tasks.connector_indexers.local_folder_indexer import (
@@ -1335,7 +1335,7 @@ async def _index_local_folder_async(
                 exclude_patterns=exclude_patterns,
                 file_extensions=file_extensions,
                 root_folder_id=root_folder_id,
-                    target_file_paths=target_file_paths,
+                target_file_paths=target_file_paths,
                 on_heartbeat_callback=_heartbeat_progress
                 if (is_batch or is_full_scan)
                 else None,
@@ -1463,7 +1463,7 @@ async def _index_uploaded_folder_files_async(
                 user_id=user_id,
                 folder_name=folder_name,
                 root_folder_id=root_folder_id,
-                    file_mappings=file_mappings,
+                file_mappings=file_mappings,
                 on_heartbeat_callback=_heartbeat_progress,
                 use_vision_llm=use_vision_llm,
                 processing_mode=processing_mode,

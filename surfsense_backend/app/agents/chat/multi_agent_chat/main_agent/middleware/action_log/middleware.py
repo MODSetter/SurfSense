@@ -108,18 +108,32 @@ class ActionLogMiddleware(AgentMiddleware):
         self._user_id = user_id
         self._tool_definitions = dict(tool_definitions or {})
 
-    def _enabled(self) -> bool:
+    def _enabled(self, thread_id: int | None) -> bool:
         flags = get_flags()
         if flags.disable_new_agent_stack:
             return False
-        return bool(flags.enable_action_log) and self._thread_id is not None
+        return bool(flags.enable_action_log) and thread_id is not None
+
+    def _resolve_thread_id(self, request: ToolCallRequest) -> int | None:
+        """Resolve the live thread id, preferring the runtime config.
+
+        Reading ``configurable.thread_id`` from the active ``RunnableConfig``
+        (rather than the value captured at ``__init__``) lets a single cached
+        compiled graph safely serve many threads — without it, a cache hit
+        would attribute action-log rows to whichever thread first built the
+        graph. Falls back to the constructor value for legacy/test runtimes
+        that don't surface a config.
+        """
+        resolved = _resolve_thread_id(request)
+        return resolved if resolved is not None else self._thread_id
 
     async def awrap_tool_call(
         self,
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
     ) -> ToolMessage | Command[Any]:
-        if not self._enabled():
+        thread_id = self._resolve_thread_id(request)
+        if not self._enabled(thread_id):
             return await handler(request)
 
         result: ToolMessage | Command[Any]
@@ -134,10 +148,16 @@ class ActionLogMiddleware(AgentMiddleware):
                 request=request,
                 result=None,
                 error_payload=error_payload,
+                thread_id=thread_id,
             )
             raise
 
-        await self._record(request=request, result=result, error_payload=None)
+        await self._record(
+            request=request,
+            result=result,
+            error_payload=None,
+            thread_id=thread_id,
+        )
         return result
 
     async def _record(
@@ -146,6 +166,7 @@ class ActionLogMiddleware(AgentMiddleware):
         request: ToolCallRequest,
         result: ToolMessage | Command[Any] | None,
         error_payload: dict[str, Any] | None,
+        thread_id: int | None,
     ) -> None:
         """Persist one ``agent_action_log`` row. Defensive: never raises."""
         try:
@@ -164,7 +185,7 @@ class ActionLogMiddleware(AgentMiddleware):
             chat_turn_id = _resolve_chat_turn_id(request)
 
             row = AgentActionLog(
-                thread_id=self._thread_id,
+                thread_id=thread_id,
                 user_id=self._user_id,
                 search_space_id=self._search_space_id,
                 # ``turn_id`` is the deprecated alias of ``tool_call_id``
@@ -348,6 +369,36 @@ def _resolve_chat_turn_id(request: Any) -> str | None:
     except Exception:  # pragma: no cover - defensive
         pass
     return None
+
+
+def _resolve_thread_id(request: Any) -> int | None:
+    """Return ``configurable.thread_id`` (as int) for this request, if accessible.
+
+    Mirrors :func:`_resolve_chat_turn_id`: ``ToolRuntime.config`` is exposed by
+    LangGraph at ``request.runtime.config``, and the chat thread id lives at
+    ``configurable.thread_id`` (a stringified ``chat_id`` at the main-graph
+    level). Returns ``None`` when absent or unparseable so the caller can fall
+    back to the constructor value.
+    """
+    try:
+        runtime = getattr(request, "runtime", None)
+        if runtime is None:
+            return None
+        config = getattr(runtime, "config", None)
+        if not isinstance(config, dict):
+            return None
+        configurable = config.get("configurable")
+        if not isinstance(configurable, dict):
+            return None
+        value = configurable.get("thread_id")
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+    except Exception:  # pragma: no cover - defensive
+        return None
 
 
 def _resolve_message_id(request: Any) -> str | None:

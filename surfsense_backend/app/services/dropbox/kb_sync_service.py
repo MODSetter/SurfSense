@@ -71,9 +71,6 @@ class DropboxKBSyncService:
                 )
                 content_hash = unique_hash
 
-
-
-
             summary_content = f"Dropbox File: {file_name}\n\n{indexable_content}"
             summary_embedding = embed_text(summary_content)
 

@@ -32,7 +32,9 @@ export function AutomationNewHeader({ searchSpaceId, modeSwitcher }: AutomationN
 						Configure the task, schedule, and execution settings for this automation.
 					</p>
 				</div>
-				{modeSwitcher ? <div className="ml-auto hidden shrink-0 md:block">{modeSwitcher}</div> : null}
+				{modeSwitcher ? (
+					<div className="ml-auto hidden shrink-0 md:block">{modeSwitcher}</div>
+				) : null}
 			</div>
 		</div>
 	);

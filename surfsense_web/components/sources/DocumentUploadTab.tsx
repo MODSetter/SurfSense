@@ -693,7 +693,6 @@ export function DocumentUploadTab({
 						</div>
 					)}
 
-
 					<div className={toggleRowClass}>
 						<div className="space-y-0.5">
 							<p className="font-medium text-sm">Enable Vision LLM</p>

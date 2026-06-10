@@ -21,6 +21,9 @@ from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receip
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.deliverable_wait import (
     wait_for_deliverable,
 )
+from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thread_resolver import (
+    resolve_root_thread_id,
+)
 from app.db import Podcast, PodcastStatus, shielded_async_session
 
 logger = logging.getLogger(__name__)
@@ -71,7 +74,7 @@ def create_generate_podcast_tool(
                     title=podcast_title,
                     status=PodcastStatus.PENDING,
                     search_space_id=search_space_id,
-                    thread_id=thread_id,
+                    thread_id=resolve_root_thread_id(runtime, thread_id),
                 )
                 session.add(podcast)
                 await session.commit()

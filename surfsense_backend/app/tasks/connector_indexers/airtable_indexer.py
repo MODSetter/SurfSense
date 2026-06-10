@@ -6,6 +6,7 @@ Implements real-time document status updates using a two-phase approach:
 - Phase 2: Process each document one by one (pending → processing → ready/failed)
 """
 
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 
@@ -432,10 +433,15 @@ async def index_airtable_records(
                     try:
                         document.status = DocumentStatus.failed(str(e))
                         document.updated_at = get_current_timestamp()
+                        # Commit now so the failed status survives a later rollback or
+                        # crash; otherwise the doc stays stuck in pending/processing.
+                        await session.commit()
                     except Exception as status_error:
                         logger.error(
                             f"Failed to update document status to failed: {status_error}"
                         )
+                        with contextlib.suppress(Exception):
+                            await session.rollback()
                     documents_failed += 1
                     continue
 

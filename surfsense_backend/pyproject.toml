@@ -25,7 +25,6 @@ dependencies = [
     "notion-client>=2.3.0",
     "numpy>=1.24.0",
     "pgvector>=0.3.6",
-    "playwright>=1.50.0",
     "pypdf>=5.1.0",
     "python-ffmpeg>=2.0.12",
     "rerankers[flashrank]>=0.7.1",
@@ -90,6 +89,7 @@ dependencies = [
     "opentelemetry-instrumentation-logging>=0.61b0",
     "python-telegram-bot>=22.7",
     "croniter>=2.0.0",
+    "scrapling[fetchers]>=0.4.9",
 ]
 
 [project.optional-dependencies]

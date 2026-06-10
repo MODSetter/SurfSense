@@ -32,9 +32,7 @@ async def test_new_document_is_persisted_with_pending_status(
     assert reloaded.source_markdown == doc.source_markdown
 
 
-@pytest.mark.usefixtures(
-"patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_unchanged_ready_document_is_skipped(
     db_session,
     db_search_space,
@@ -55,9 +53,7 @@ async def test_unchanged_ready_document_is_skipped(
     assert results == []
 
 
-@pytest.mark.usefixtures(
-"patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_title_only_change_updates_title_in_db(
     db_session,
     db_search_space,

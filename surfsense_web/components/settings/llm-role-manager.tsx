@@ -138,7 +138,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	useEffect(() => {
 		setAssignments({
 			agent_llm_id: preferences.agent_llm_id ?? null,
-				image_generation_config_id: preferences.image_generation_config_id ?? null,
+			image_generation_config_id: preferences.image_generation_config_id ?? null,
 			vision_llm_config_id: preferences.vision_llm_config_id ?? null,
 		});
 	}, [

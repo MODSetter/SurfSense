@@ -714,7 +714,9 @@ class NewChatThread(BaseModel, TimestampMixin):
 
     # Surface metadata for first-party SurfSense and external chat threads.
     # Zero publishes all chat-message sources; the UI can decide which surfaces to render.
-    source = Column(Text, nullable=False, default="surfsense", server_default="surfsense")
+    source = Column(
+        Text, nullable=False, default="surfsense", server_default="surfsense"
+    )
     external_chat_binding_id = Column(
         BigInteger,
         ForeignKey("external_chat_bindings.id", ondelete="SET NULL"),
@@ -802,7 +804,9 @@ class NewChatMessage(BaseModel, TimestampMixin):
 
     # Mirrors the parent thread source for publication-level filtering.
     # This denormalization avoids join-dependent logical replication rules.
-    source = Column(Text, nullable=False, default="surfsense", server_default="surfsense")
+    source = Column(
+        Text, nullable=False, default="surfsense", server_default="surfsense"
+    )
     platform_metadata = Column(JSONB, nullable=True)
 
     # Relationships
@@ -848,11 +852,15 @@ class ExternalChatAccount(Base, TimestampMixin):
     owner_search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
     )
-    is_system_account = Column(Boolean, nullable=False, default=False, server_default="false")
+    is_system_account = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     encrypted_credentials = Column(Text, nullable=True)
     bot_username = Column(String(255), nullable=True)
     webhook_secret = Column(String(64), nullable=True)
-    cursor_state = Column(JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb"))
+    cursor_state = Column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
     health_status = Column(
         SQLAlchemyEnum(
             ExternalChatHealthStatus,
@@ -875,7 +883,9 @@ class ExternalChatAccount(Base, TimestampMixin):
     )
 
     owner = relationship("User", foreign_keys=[owner_user_id])
-    owner_search_space = relationship("SearchSpace", foreign_keys=[owner_search_space_id])
+    owner_search_space = relationship(
+        "SearchSpace", foreign_keys=[owner_search_space_id]
+    )
     bindings = relationship(
         "ExternalChatBinding",
         back_populates="account",
@@ -980,7 +990,9 @@ class ExternalChatBinding(Base, TimestampMixin):
     external_thread_id = Column(Text, nullable=True)
     external_display_name = Column(Text, nullable=True)
     external_username = Column(Text, nullable=True)
-    external_metadata = Column(JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb"))
+    external_metadata = Column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
     new_chat_thread_id = Column(
         Integer,
         ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
@@ -1030,7 +1042,9 @@ class ExternalChatBinding(Base, TimestampMixin):
             postgresql_where=text("state = 'pending'"),
         ),
         Index("ix_external_chat_bindings_user_state", "user_id", "state"),
-        Index("ix_external_chat_bindings_search_space_state", "search_space_id", "state"),
+        Index(
+            "ix_external_chat_bindings_search_space_state", "search_space_id", "state"
+        ),
     )
 
 

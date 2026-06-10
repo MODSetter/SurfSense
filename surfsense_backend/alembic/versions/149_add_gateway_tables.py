@@ -65,6 +65,7 @@ AUTOMATION_RUN_COLS = [
     "created_at",
 ]
 
+
 def _has_zero_version(conn, table: str) -> bool:
     return (
         conn.execute(
@@ -190,7 +191,8 @@ def upgrade() -> None:
         "external_chat_peer_kind", ("direct", "group", "channel", "unknown")
     )
     external_chat_event_kind_enum = _create_enum(
-        "external_chat_event_kind", ("message", "edited_message", "callback_query", "other")
+        "external_chat_event_kind",
+        ("message", "edited_message", "callback_query", "other"),
     )
     external_chat_event_status_enum = _create_enum(
         "external_chat_event_status",
@@ -205,7 +207,12 @@ def upgrade() -> None:
             sa.Column("mode", external_chat_account_mode_enum, nullable=False),
             sa.Column("owner_user_id", postgresql.UUID(as_uuid=True), nullable=True),
             sa.Column("owner_search_space_id", sa.Integer(), nullable=True),
-            sa.Column("is_system_account", sa.Boolean(), nullable=False, server_default="false"),
+            sa.Column(
+                "is_system_account",
+                sa.Boolean(),
+                nullable=False,
+                server_default="false",
+            ),
             sa.Column("encrypted_credentials", sa.Text(), nullable=True),
             sa.Column("bot_username", sa.String(255), nullable=True),
             sa.Column("webhook_secret", sa.String(64), nullable=True),
@@ -221,7 +228,9 @@ def upgrade() -> None:
                 nullable=False,
                 server_default="unknown",
             ),
-            sa.Column("last_health_check_at", sa.TIMESTAMP(timezone=True), nullable=True),
+            sa.Column(
+                "last_health_check_at", sa.TIMESTAMP(timezone=True), nullable=True
+            ),
             sa.Column("suspended_at", sa.TIMESTAMP(timezone=True), nullable=True),
             sa.Column("suspended_reason", sa.Text(), nullable=True),
             sa.Column(
@@ -285,7 +294,9 @@ def upgrade() -> None:
                 server_default="pending",
             ),
             sa.Column("pairing_code", sa.Text(), nullable=True),
-            sa.Column("pairing_code_expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
+            sa.Column(
+                "pairing_code_expires_at", sa.TIMESTAMP(timezone=True), nullable=True
+            ),
             sa.Column("external_peer_id", sa.Text(), nullable=True),
             sa.Column(
                 "external_peer_kind",
@@ -327,7 +338,9 @@ def upgrade() -> None:
                 ["account_id"], ["external_chat_accounts.id"], ondelete="CASCADE"
             ),
             sa.ForeignKeyConstraint(["user_id"], ["user.id"], ondelete="CASCADE"),
-            sa.ForeignKeyConstraint(["search_space_id"], ["searchspaces.id"], ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(
+                ["search_space_id"], ["searchspaces.id"], ondelete="CASCADE"
+            ),
             sa.ForeignKeyConstraint(
                 ["new_chat_thread_id"], ["new_chat_threads.id"], ondelete="SET NULL"
             ),
@@ -386,7 +399,9 @@ def upgrade() -> None:
                 nullable=False,
                 server_default="received",
             ),
-            sa.Column("attempt_count", sa.Integer(), nullable=False, server_default="0"),
+            sa.Column(
+                "attempt_count", sa.Integer(), nullable=False, server_default="0"
+            ),
             sa.Column("last_error", sa.Text(), nullable=True),
             sa.Column(
                 "received_at",
@@ -405,7 +420,9 @@ def upgrade() -> None:
                 ["account_id"], ["external_chat_accounts.id"], ondelete="CASCADE"
             ),
             sa.ForeignKeyConstraint(
-                ["external_chat_binding_id"], ["external_chat_bindings.id"], ondelete="SET NULL"
+                ["external_chat_binding_id"],
+                ["external_chat_bindings.id"],
+                ondelete="SET NULL",
             ),
             sa.UniqueConstraint(
                 "account_id",
@@ -445,7 +462,9 @@ def upgrade() -> None:
             sa.Column("external_chat_binding_id", sa.BigInteger(), nullable=True),
         )
     if not _constraint_exists(
-        conn, "new_chat_threads", "fk_new_chat_threads_external_chat_external_chat_binding_id"
+        conn,
+        "new_chat_threads",
+        "fk_new_chat_threads_external_chat_external_chat_binding_id",
     ):
         op.create_foreign_key(
             "fk_new_chat_threads_external_chat_external_chat_binding_id",
@@ -455,7 +474,9 @@ def upgrade() -> None:
             ["id"],
             ondelete="SET NULL",
         )
-    op.create_index("ix_new_chat_threads_source", "new_chat_threads", ["source"], if_not_exists=True)
+    op.create_index(
+        "ix_new_chat_threads_source", "new_chat_threads", ["source"], if_not_exists=True
+    )
     op.create_index(
         "ix_new_chat_threads_external_chat_binding_id",
         "new_chat_threads",
@@ -472,7 +493,11 @@ def upgrade() -> None:
     if not _column_exists(conn, "new_chat_messages", "platform_metadata"):
         op.add_column(
             "new_chat_messages",
-            sa.Column("platform_metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+            sa.Column(
+                "platform_metadata",
+                postgresql.JSONB(astext_type=sa.Text()),
+                nullable=True,
+            ),
         )
     op.create_index(
         "ix_new_chat_messages_source",
@@ -553,11 +578,15 @@ def downgrade() -> None:
         tx = conn.begin_nested() if conn.in_transaction() else conn.begin()
         with tx:
             conn.execute(
-                sa.text(f"COMMENT ON PUBLICATION {PUBLICATION_NAME} IS 'pre-144-downgrade'")
+                sa.text(
+                    f"COMMENT ON PUBLICATION {PUBLICATION_NAME} IS 'pre-144-downgrade'"
+                )
             )
             conn.execute(sa.text(ddl))
             conn.execute(
-                sa.text(f"COMMENT ON PUBLICATION {PUBLICATION_NAME} IS 'post-144-downgrade'")
+                sa.text(
+                    f"COMMENT ON PUBLICATION {PUBLICATION_NAME} IS 'post-144-downgrade'"
+                )
             )
 
     if _column_exists(conn, "new_chat_messages", "source"):
@@ -567,10 +596,14 @@ def downgrade() -> None:
     _drop_column_if_exists("new_chat_messages", "platform_metadata")
     _drop_column_if_exists("new_chat_messages", "source")
 
-    _drop_index_if_exists("ix_new_chat_threads_external_chat_binding_id", "new_chat_threads")
+    _drop_index_if_exists(
+        "ix_new_chat_threads_external_chat_binding_id", "new_chat_threads"
+    )
     _drop_index_if_exists("ix_new_chat_threads_source", "new_chat_threads")
     if _constraint_exists(
-        conn, "new_chat_threads", "fk_new_chat_threads_external_chat_external_chat_binding_id"
+        conn,
+        "new_chat_threads",
+        "fk_new_chat_threads_external_chat_external_chat_binding_id",
     ):
         op.drop_constraint(
             "fk_new_chat_threads_external_chat_external_chat_binding_id",
@@ -583,8 +616,12 @@ def downgrade() -> None:
     _drop_index_if_exists(
         "ix_external_chat_inbound_binding_received_at", "external_chat_inbound_events"
     )
-    _drop_index_if_exists("ix_external_chat_inbound_request_id", "external_chat_inbound_events")
-    _drop_index_if_exists("ix_external_chat_inbound_status_received_at", "external_chat_inbound_events")
+    _drop_index_if_exists(
+        "ix_external_chat_inbound_request_id", "external_chat_inbound_events"
+    )
+    _drop_index_if_exists(
+        "ix_external_chat_inbound_status_received_at", "external_chat_inbound_events"
+    )
     if _table_exists(conn, "external_chat_inbound_events"):
         op.drop_table("external_chat_inbound_events")
 
@@ -606,9 +643,15 @@ def downgrade() -> None:
     if _table_exists(conn, "external_chat_bindings"):
         op.drop_table("external_chat_bindings")
 
-    _drop_index_if_exists("uq_external_chat_accounts_system_platform", "external_chat_accounts")
-    _drop_index_if_exists("uq_external_chat_accounts_owner_platform", "external_chat_accounts")
-    _drop_index_if_exists("uq_external_chat_accounts_webhook_secret", "external_chat_accounts")
+    _drop_index_if_exists(
+        "uq_external_chat_accounts_system_platform", "external_chat_accounts"
+    )
+    _drop_index_if_exists(
+        "uq_external_chat_accounts_owner_platform", "external_chat_accounts"
+    )
+    _drop_index_if_exists(
+        "uq_external_chat_accounts_webhook_secret", "external_chat_accounts"
+    )
     if _table_exists(conn, "external_chat_accounts"):
         op.drop_table("external_chat_accounts")
 

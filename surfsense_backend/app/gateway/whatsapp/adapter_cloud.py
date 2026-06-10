@@ -54,7 +54,9 @@ class WhatsAppCloudAdapter(BasePlatformAdapter):
             username=None,
             metadata={
                 "phone_number_id": _metadata(raw_payload).get("phone_number_id"),
-                "display_phone_number": _metadata(raw_payload).get("display_phone_number"),
+                "display_phone_number": _metadata(raw_payload).get(
+                    "display_phone_number"
+                ),
                 "timestamp": message.get("timestamp"),
                 "message_type": message.get("type"),
             },
@@ -96,7 +98,9 @@ def _changes(raw_payload: dict[str, Any]) -> list[dict[str, Any]]:
     for entry in raw_payload.get("entry") or []:
         if isinstance(entry, dict):
             changes.extend(
-                change for change in (entry.get("changes") or []) if isinstance(change, dict)
+                change
+                for change in (entry.get("changes") or [])
+                if isinstance(change, dict)
             )
     return changes
 

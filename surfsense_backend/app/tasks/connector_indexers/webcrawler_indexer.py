@@ -318,9 +318,7 @@ async def index_crawled_urls(
                     continue
 
                 # Format content as structured document for summary generation
-                structured_document = crawler.format_to_structured_document(
-                    crawl_result
-                )
+                crawler.format_to_structured_document(crawl_result)
 
                 # Generate content hash using a version WITHOUT metadata
                 structured_document_for_hash = crawler.format_to_structured_document(
@@ -332,8 +330,8 @@ async def index_crawled_urls(
 
                 # Extract useful metadata
                 title = metadata.get("title", url)
-                description = metadata.get("description", "")
-                language = metadata.get("language", "")
+                metadata.get("description", "")
+                metadata.get("language", "")
 
                 # Update title immediately for better UX
                 document.title = title

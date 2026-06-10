@@ -67,13 +67,13 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
-import os
 import time
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from app.config import config
 from app.utils.perf import get_perf_logger
 
 logger = logging.getLogger(__name__)
@@ -328,8 +328,8 @@ def _short(key: str, n: int = 16) -> str:
 # Module-level singleton
 # ---------------------------------------------------------------------------
 
-_DEFAULT_MAXSIZE = int(os.getenv("SURFSENSE_AGENT_CACHE_MAXSIZE", "256"))
-_DEFAULT_TTL = float(os.getenv("SURFSENSE_AGENT_CACHE_TTL_SECONDS", "1800"))
+_DEFAULT_MAXSIZE = config.AGENT_CACHE_MAXSIZE
+_DEFAULT_TTL = config.AGENT_CACHE_TTL_SECONDS
 
 _cache: _AgentCache = _AgentCache(maxsize=_DEFAULT_MAXSIZE, ttl_seconds=_DEFAULT_TTL)
 

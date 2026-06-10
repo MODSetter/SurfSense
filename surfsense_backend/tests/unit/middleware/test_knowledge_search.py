@@ -261,7 +261,8 @@ class TestKnowledgePriorityMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            ks, "search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -304,7 +305,8 @@ class TestKnowledgePriorityMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            ks, "search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -333,7 +335,8 @@ class TestKnowledgePriorityMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            ks, "search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -378,11 +381,13 @@ class TestKnowledgePriorityMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            ks, "browse_recent_documents",
+            ks,
+            "browse_recent_documents",
             fake_browse_recent_documents,
         )
         monkeypatch.setattr(
-            ks, "search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -425,11 +430,13 @@ class TestKnowledgePriorityMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            ks, "browse_recent_documents",
+            ks,
+            "browse_recent_documents",
             fake_browse_recent_documents,
         )
         monkeypatch.setattr(
-            ks, "search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -552,11 +559,13 @@ class TestKnowledgePriorityMentionDrain:
             return []
 
         monkeypatch.setattr(
-            ks, "fetch_mentioned_documents",
+            ks,
+            "fetch_mentioned_documents",
             fake_fetch_mentioned_documents,
         )
         monkeypatch.setattr(
-            ks, "search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -600,11 +609,13 @@ class TestKnowledgePriorityMentionDrain:
             return []
 
         monkeypatch.setattr(
-            ks, "fetch_mentioned_documents",
+            ks,
+            "fetch_mentioned_documents",
             fake_fetch_mentioned_documents,
         )
         monkeypatch.setattr(
-            ks, "search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -645,11 +656,13 @@ class TestKnowledgePriorityMentionDrain:
             return []
 
         monkeypatch.setattr(
-            ks, "fetch_mentioned_documents",
+            ks,
+            "fetch_mentioned_documents",
             fake_fetch_mentioned_documents,
         )
         monkeypatch.setattr(
-            ks, "search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 

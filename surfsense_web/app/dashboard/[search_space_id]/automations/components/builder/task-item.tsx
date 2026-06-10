@@ -1,11 +1,7 @@
 "use client";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { ChevronDown, ChevronRight, ChevronUp, Trash2 } from "lucide-react";
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-} from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { BuilderTask } from "@/lib/automations/builder-schema";
@@ -105,7 +101,7 @@ export function TaskItem({
 				<AccordionItem value="advanced" className="border-b-0">
 					<AccordionPrimitive.Header className="flex">
 						<AccordionPrimitive.Trigger className="group flex flex-1 items-center justify-between rounded-md py-1.5 text-left text-xs font-medium text-muted-foreground outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50">
-						Advanced
+							Advanced
 							<ChevronRight className="pointer-events-none size-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
 						</AccordionPrimitive.Trigger>
 					</AccordionPrimitive.Header>

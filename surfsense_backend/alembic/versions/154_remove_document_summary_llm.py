@@ -67,8 +67,12 @@ def _has_zero_version(conn, table: str) -> bool:
 
 
 def _set_table_ddl(conn) -> str:
-    doc_cols = DOCUMENT_COLS + (['"_0_version"'] if _has_zero_version(conn, "documents") else [])
-    user_cols = USER_COLS + (['"_0_version"'] if _has_zero_version(conn, "user") else [])
+    doc_cols = DOCUMENT_COLS + (
+        ['"_0_version"'] if _has_zero_version(conn, "documents") else []
+    )
+    user_cols = USER_COLS + (
+        ['"_0_version"'] if _has_zero_version(conn, "user") else []
+    )
     tables = [
         "notifications",
         f"documents ({', '.join(doc_cols)})",
@@ -94,9 +98,13 @@ def _resync_zero_publication(tag: str) -> None:
 
     tx = conn.begin_nested() if conn.in_transaction() else conn.begin()
     with tx:
-        conn.execute(sa.text(f"COMMENT ON PUBLICATION {PUBLICATION_NAME} IS 'pre-{tag}'"))
+        conn.execute(
+            sa.text(f"COMMENT ON PUBLICATION {PUBLICATION_NAME} IS 'pre-{tag}'")
+        )
         conn.execute(sa.text(_set_table_ddl(conn)))
-        conn.execute(sa.text(f"COMMENT ON PUBLICATION {PUBLICATION_NAME} IS 'post-{tag}'"))
+        conn.execute(
+            sa.text(f"COMMENT ON PUBLICATION {PUBLICATION_NAME} IS 'post-{tag}'")
+        )
 
 
 def upgrade() -> None:
@@ -117,7 +125,12 @@ def downgrade() -> None:
     if not _column_exists(conn, "searchspaces", "document_summary_llm_id"):
         op.add_column(
             "searchspaces",
-            sa.Column("document_summary_llm_id", sa.Integer(), nullable=True, server_default="0"),
+            sa.Column(
+                "document_summary_llm_id",
+                sa.Integer(),
+                nullable=True,
+                server_default="0",
+            ),
         )
 
     if not _column_exists(conn, "search_source_connectors", "enable_summary"):

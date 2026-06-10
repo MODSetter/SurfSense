@@ -209,9 +209,6 @@ async def create_multi_agent_chat_deep_agent(
 
     modified_disabled_tools = list(disabled_tools) if disabled_tools else []
 
-    if "search_knowledge_base" not in modified_disabled_tools:
-        modified_disabled_tools.append("search_knowledge_base")
-
     if enabled_tools is not None:
         main_agent_enabled_tools = [
             n for n in enabled_tools if n in MAIN_AGENT_SURFSENSE_TOOL_NAMES

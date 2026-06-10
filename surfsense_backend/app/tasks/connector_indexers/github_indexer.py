@@ -9,6 +9,7 @@ Implements 2-phase document status updates for real-time UI feedback:
 - Phase 2: Process each document: pending → processing → ready/failed
 """
 
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -413,10 +414,15 @@ async def index_github_repos(
                 try:
                     document.status = DocumentStatus.failed(str(repo_err))
                     document.updated_at = get_current_timestamp()
+                    # Commit now so the failed status survives a later rollback or
+                    # crash; otherwise the doc stays stuck in pending/processing.
+                    await session.commit()
                 except Exception as status_error:
                     logger.error(
                         f"Failed to update document status to failed: {status_error}"
                     )
+                    with contextlib.suppress(Exception):
+                        await session.rollback()
                 errors.append(f"Failed processing {repo_full_name}: {repo_err}")
                 documents_failed += 1
                 continue

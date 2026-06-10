@@ -1,7 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.automations.api import router as automations_router
 from app.file_storage.api import router as file_storage_router
+from app.gateway import require_gateway_enabled
+from app.notifications.api import router as notifications_router
 
 from .agent_action_log_route import router as agent_action_log_router
 from .agent_flags_route import router as agent_flags_router
@@ -45,7 +47,6 @@ from .model_list_routes import router as model_list_router
 from .new_chat_routes import router as new_chat_router
 from .new_llm_config_routes import router as new_llm_config_router
 from .notes_routes import router as notes_router
-from app.notifications.api import router as notifications_router
 from .notion_add_connector_route import router as notion_add_connector_router
 from .obsidian_plugin_routes import router as obsidian_plugin_router
 from .onedrive_add_connector_route import router as onedrive_add_connector_router
@@ -73,9 +74,14 @@ router.include_router(editor_router)
 router.include_router(export_router)
 router.include_router(documents_router)
 router.include_router(folders_router)
-router.include_router(gateway_router)
-router.include_router(gateway_whatsapp_webhook_router)
-router.include_router(gateway_whatsapp_baileys_router)
+_gateway_enabled_dep = [Depends(require_gateway_enabled)]
+router.include_router(gateway_router, dependencies=_gateway_enabled_dep)
+router.include_router(
+    gateway_whatsapp_webhook_router, dependencies=_gateway_enabled_dep
+)
+router.include_router(
+    gateway_whatsapp_baileys_router, dependencies=_gateway_enabled_dep
+)
 router.include_router(notes_router)
 router.include_router(new_chat_router)  # Chat with assistant-ui persistence
 router.include_router(agent_revert_router)  # POST /threads/{id}/revert/{action_id}

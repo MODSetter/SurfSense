@@ -6,6 +6,7 @@ import asyncio
 import logging
 from contextlib import suppress
 
+from app.config import config
 from app.gateway.inbox_processor import claim_next_inbound_event, process_inbound_event
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,8 @@ async def _process_inbox_forever() -> None:
 
 async def start_gateway_inbox_worker() -> None:
     global _task
+    if not config.GATEWAY_ENABLED:
+        return
     if _task is not None and not _task.done():
         return
     _task = asyncio.create_task(_process_inbox_forever(), name="gateway-inbox-worker")
@@ -52,4 +55,3 @@ async def stop_gateway_inbox_worker() -> None:
     with suppress(TimeoutError, asyncio.CancelledError):
         await asyncio.wait_for(_task, timeout=10)
     _task = None
-

@@ -8,7 +8,9 @@ from app.gateway import inbox_worker
 
 
 @pytest.mark.asyncio
-async def test_inbox_worker_claims_and_processes_in_fastapi_process(mocker, monkeypatch):
+async def test_inbox_worker_claims_and_processes_in_fastapi_process(
+    mocker, monkeypatch
+):
     claim = mocker.AsyncMock(return_value=7)
     process = mocker.AsyncMock(side_effect=asyncio.CancelledError)
     monkeypatch.setattr(inbox_worker, "claim_next_inbound_event", claim)
@@ -42,4 +44,3 @@ async def test_start_stop_gateway_inbox_worker(mocker, monkeypatch):
 
     assert stopped.is_set()
     assert inbox_worker._task is None
-

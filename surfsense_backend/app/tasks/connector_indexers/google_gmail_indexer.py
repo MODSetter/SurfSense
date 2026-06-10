@@ -29,6 +29,7 @@ from .base import (
     check_duplicate_document_by_hash,
     get_connector_by_id,
     logger,
+    mark_connector_documents_failed,
     update_connector_last_indexed,
 )
 
@@ -444,7 +445,7 @@ async def index_google_gmail_messages(
                     connector_id=connector_id,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    )
+                )
 
                 with session.no_autoflush:
                     duplicate = await check_duplicate_document_by_hash(
@@ -478,6 +479,23 @@ async def index_google_gmail_messages(
             on_heartbeat=on_heartbeat_callback,
             heartbeat_interval=HEARTBEAT_INTERVAL_SECONDS,
         )
+
+        # Placeholders for items skipped above (empty/duplicate/unbuildable) would
+        # otherwise stay stuck in 'pending' and undeletable. Fail them so they're
+        # recoverable. Leaves already-ready docs untouched.
+        indexed_ids = {doc.unique_id for doc in connector_docs}
+        stuck_placeholders = [
+            (p.unique_id, "Skipped during sync: no indexable content")
+            for p in placeholders
+            if p.unique_id and p.unique_id not in indexed_ids
+        ]
+        if stuck_placeholders:
+            await mark_connector_documents_failed(
+                session,
+                document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
+                search_space_id=search_space_id,
+                failures=stuck_placeholders,
+            )
 
         # ── Finalize ──────────────────────────────────────────────────
         await update_connector_last_indexed(session, connector, update_last_indexed)

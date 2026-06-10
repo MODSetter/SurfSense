@@ -14,7 +14,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-import os
 import shutil
 import threading
 from pathlib import Path
@@ -28,6 +27,10 @@ from daytona import (
 from daytona.common.errors import DaytonaError
 from deepagents.backends.protocol import ExecuteResponse
 from langchain_daytona import DaytonaSandbox
+
+# Aliased to avoid clashing with the local ``config = DaytonaConfig(...)``
+# variable used inside ``_get_client``.
+from app.config import config as app_config
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +76,7 @@ SANDBOX_DOCUMENTS_ROOT = "/home/daytona/documents"
 
 
 def is_sandbox_enabled() -> bool:
-    return os.environ.get("DAYTONA_SANDBOX_ENABLED", "FALSE").upper() == "TRUE"
+    return app_config.DAYTONA_SANDBOX_ENABLED
 
 
 def _get_client() -> Daytona:
@@ -81,9 +84,9 @@ def _get_client() -> Daytona:
     with _client_lock:
         if _daytona_client is None:
             config = DaytonaConfig(
-                api_key=os.environ.get("DAYTONA_API_KEY", ""),
-                api_url=os.environ.get("DAYTONA_API_URL", "https://app.daytona.io/api"),
-                target=os.environ.get("DAYTONA_TARGET", "us"),
+                api_key=app_config.DAYTONA_API_KEY,
+                api_url=app_config.DAYTONA_API_URL,
+                target=app_config.DAYTONA_TARGET,
             )
             _daytona_client = Daytona(config)
         return _daytona_client
@@ -92,7 +95,7 @@ def _get_client() -> Daytona:
 def _sandbox_create_params(
     labels: dict[str, str],
 ) -> CreateSandboxFromSnapshotParams:
-    snapshot_id = os.environ.get("DAYTONA_SNAPSHOT_ID") or None
+    snapshot_id = app_config.DAYTONA_SNAPSHOT_ID
     return CreateSandboxFromSnapshotParams(
         language="python",
         labels=labels,
@@ -302,7 +305,7 @@ async def delete_sandbox(thread_id: int | str) -> None:
 
 
 def _get_sandbox_files_dir() -> Path:
-    return Path(os.environ.get("SANDBOX_FILES_DIR", "sandbox_files"))
+    return Path(app_config.SANDBOX_FILES_DIR)
 
 
 def _local_path_for(thread_id: int | str, sandbox_path: str) -> Path:

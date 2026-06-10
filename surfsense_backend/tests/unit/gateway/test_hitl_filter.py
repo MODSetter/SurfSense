@@ -12,4 +12,3 @@ def test_filter_hitl_tools_removes_known_approval_tools():
     filtered = filter_hitl_tools(tools)
 
     assert [getattr(tool, "name", tool) for tool in filtered] == ["search", "summarize"]
-

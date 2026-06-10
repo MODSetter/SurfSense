@@ -165,9 +165,7 @@ def downgrade() -> None:
     tx = conn.begin_nested() if conn.in_transaction() else conn.begin()
     with tx:
         conn.execute(
-            sa.text(
-                f"COMMENT ON PUBLICATION {PUBLICATION_NAME} IS 'pre-148-downgrade'"
-            )
+            sa.text(f"COMMENT ON PUBLICATION {PUBLICATION_NAME} IS 'pre-148-downgrade'")
         )
         conn.execute(sa.text(ddl))
         conn.execute(

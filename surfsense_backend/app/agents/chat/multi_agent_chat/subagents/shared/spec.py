@@ -26,6 +26,16 @@ ContextHintProvider = Callable[[Mapping[str, Any], str], str | None]
 # The prefix avoids any collision with future deepagents fields.
 SURF_CONTEXT_HINT_PROVIDER_KEY = "surf_context_hint_provider"
 
+# Custom key carrying a zero-arg callable that builds the full deepagents
+# ``SubAgent`` spec dict on demand. A descriptor dict carrying only
+# ``name`` / ``description`` / this key lets the checkpointed subagent
+# middleware register a subagent's catalog entry cheaply while deferring the
+# expensive spec construction (e.g. the knowledge_base filesystem middleware,
+# which builds ~13 tool schemas at ~150ms each) until the first
+# ``task(name)`` call. Most turns never invoke a subagent, so this keeps the
+# cost off the cold agent-build / time-to-first-token path.
+SURF_LAZY_SPEC_FACTORY_KEY = "surf_lazy_spec_factory"
+
 
 @dataclass(frozen=True, slots=True)
 class SurfSenseSubagentSpec:
@@ -54,6 +64,7 @@ class SurfSenseSubagentSpec:
 
 __all__ = [
     "SURF_CONTEXT_HINT_PROVIDER_KEY",
+    "SURF_LAZY_SPEC_FACTORY_KEY",
     "ContextHintProvider",
     "SurfSenseSubagentSpec",
 ]

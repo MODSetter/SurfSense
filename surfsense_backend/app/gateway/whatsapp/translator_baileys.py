@@ -42,7 +42,9 @@ class WhatsAppBaileysStreamTranslator(BaseStreamTranslator):
         await self._send_typing_indicator()
         async for event in events:
             if event.type in {"text-delta", "text_delta", "text"}:
-                self._buffer += str(event.data.get("text") or event.data.get("delta") or "")
+                self._buffer += str(
+                    event.data.get("text") or event.data.get("delta") or ""
+                )
                 await self._maybe_flush()
             elif event.type in {"data-interrupt-request", "interrupt"}:
                 await self._handle_hitl_interrupt()
@@ -86,7 +88,9 @@ class WhatsAppBaileysStreamTranslator(BaseStreamTranslator):
         if not isinstance(self.adapter, WhatsAppBaileysAdapter):
             return
         try:
-            await self.adapter.send_typing_indicator(external_peer_id=self.external_peer_id)
+            await self.adapter.send_typing_indicator(
+                external_peer_id=self.external_peer_id
+            )
             record_gateway_outbound(platform="whatsapp", kind="typing", status="sent")
         except Exception:
             logger.debug("WhatsApp Baileys typing indicator failed", exc_info=True)

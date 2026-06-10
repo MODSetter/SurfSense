@@ -32,9 +32,13 @@ def _split_at_boundary(text: str, max_units: int) -> tuple[str, str]:
         end -= 1
 
     candidate = text[:end]
-    boundary = max(candidate.rfind("\n\n"), candidate.rfind(". "), candidate.rfind("\n"))
+    boundary = max(
+        candidate.rfind("\n\n"), candidate.rfind(". "), candidate.rfind("\n")
+    )
     if boundary > max(200, end // 2):
-        end = boundary + (2 if candidate[boundary : boundary + 2] in {"\n\n", ". "} else 1)
+        end = boundary + (
+            2 if candidate[boundary : boundary + 2] in {"\n\n", ". "} else 1
+        )
 
     return text[:end], text[end:]
 
@@ -56,4 +60,3 @@ def chunk_message(
             chunks.append(chunk)
         return chunks
     return split_text_message(text, max_chars=max_units)
-

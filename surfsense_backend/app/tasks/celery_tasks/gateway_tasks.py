@@ -46,7 +46,8 @@ def reconcile_inbox_task() -> None:
             result = await session.execute(
                 update(ExternalChatInboundEvent)
                 .where(
-                    ExternalChatInboundEvent.status == ExternalChatEventStatus.PROCESSING,
+                    ExternalChatInboundEvent.status
+                    == ExternalChatEventStatus.PROCESSING,
                     ExternalChatInboundEvent.received_at < stale_threshold,
                 )
                 .values(
@@ -163,4 +164,3 @@ async def enqueue_telegram_update(account_id: int, raw_update: dict) -> int | No
         )
         await session.commit()
         return inbox_id
-

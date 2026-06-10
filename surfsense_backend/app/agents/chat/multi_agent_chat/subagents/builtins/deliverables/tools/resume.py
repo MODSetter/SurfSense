@@ -16,6 +16,9 @@ from langgraph.types import Command
 
 from app.agents.chat.multi_agent_chat.shared.receipts.command import with_receipt
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receipt
+from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thread_resolver import (
+    resolve_root_thread_id,
+)
 from app.db import Report, shielded_async_session
 from app.services.llm_service import get_agent_llm
 
@@ -529,7 +532,7 @@ def create_generate_resume_tool(
                         },
                         report_style="resume",
                         search_space_id=search_space_id,
-                        thread_id=thread_id,
+                        thread_id=resolve_root_thread_id(runtime, thread_id),
                         report_group_id=report_group_id,
                     )
                     session.add(failed)
@@ -817,7 +820,7 @@ def create_generate_resume_tool(
                     report_metadata=metadata,
                     report_style="resume",
                     search_space_id=search_space_id,
-                    thread_id=thread_id,
+                    thread_id=resolve_root_thread_id(runtime, thread_id),
                     report_group_id=report_group_id,
                 )
                 write_session.add(report)

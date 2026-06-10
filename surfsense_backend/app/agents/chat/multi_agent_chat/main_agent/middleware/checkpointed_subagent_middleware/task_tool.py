@@ -12,7 +12,7 @@ import asyncio
 import json
 import logging
 import time
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, NoReturn, TypeVar
 
 from deepagents.middleware.subagents import TASK_TOOL_DESCRIPTION
@@ -143,11 +143,28 @@ def build_task_tool_with_parent_config(
     task_description: str | None = None,
     *,
     search_space_id: int | None = None,
+    resolve_subagent: Callable[[str], Runnable] | None = None,
 ) -> BaseTool:
-    """Upstream ``_build_task_tool`` + parent ``runtime.config`` propagation + resume bridging."""
-    subagent_graphs: dict[str, Runnable] = {
-        spec["name"]: spec["runnable"] for spec in subagents
-    }
+    """Upstream ``_build_task_tool`` + parent ``runtime.config`` propagation + resume bridging.
+
+    ``subagents`` are lightweight descriptors (``name``/``description`` + the
+    optional context-hint provider); the actual compiled graph is fetched
+    lazily via ``resolve_subagent(name)`` so subagent ``create_agent`` cost is
+    paid on first ``task(name)`` use rather than at graph-build time.
+
+    For backward compatibility (and tests), ``resolve_subagent`` may be omitted
+    when every descriptor already carries a pre-compiled ``runnable``; in that
+    case a trivial dict-backed resolver is used.
+    """
+    subagent_names: set[str] = {spec["name"] for spec in subagents}
+    if resolve_subagent is None:
+        _eager_graphs: dict[str, Runnable] = {
+            spec["name"]: spec["runnable"] for spec in subagents if "runnable" in spec
+        }
+
+        def resolve_subagent(name: str) -> Runnable:
+            return _eager_graphs[name]
+
     # Sparse map of opt-in context-hint providers; each runs once per task()
     # call to prepend a string to the subagent's first HumanMessage. Failures
     # are swallowed so a broken hint never blocks the task.
@@ -329,7 +346,7 @@ def build_task_tool_with_parent_config(
     def _validate_and_prepare_state(
         subagent_type: str, description: str, runtime: ToolRuntime
     ) -> tuple[Runnable, dict]:
-        subagent = subagent_graphs[subagent_type]
+        subagent = resolve_subagent(subagent_type)
         subagent_state = {
             k: v for k, v in runtime.state.items() if k not in EXCLUDED_STATE_KEYS
         }
@@ -442,8 +459,8 @@ def build_task_tool_with_parent_config(
         batched HITL is intentionally out of scope.
         """
         async with semaphore:
-            if subagent_type not in subagent_graphs:
-                allowed_types = ", ".join([f"`{k}`" for k in subagent_graphs])
+            if subagent_type not in subagent_names:
+                allowed_types = ", ".join([f"`{k}`" for k in subagent_names])
                 return (
                     task_index,
                     subagent_type,
@@ -618,8 +635,8 @@ def build_task_tool_with_parent_config(
                 "task: must provide either single-mode (`description`+`subagent_type`) "
                 "or batch-mode (`tasks`)."
             )
-        if subagent_type not in subagent_graphs:
-            allowed_types = ", ".join([f"`{k}`" for k in subagent_graphs])
+        if subagent_type not in subagent_names:
+            allowed_types = ", ".join([f"`{k}`" for k in subagent_names])
             return (
                 f"We cannot invoke subagent {subagent_type} because it does not exist, "
                 f"the only allowed types are {allowed_types}"
@@ -827,8 +844,8 @@ def build_task_tool_with_parent_config(
             subagent_type,
             runtime.tool_call_id,
         )
-        if subagent_type not in subagent_graphs:
-            allowed_types = ", ".join([f"`{k}`" for k in subagent_graphs])
+        if subagent_type not in subagent_names:
+            allowed_types = ", ".join([f"`{k}`" for k in subagent_names])
             return (
                 f"We cannot invoke subagent {subagent_type} because it does not exist, "
                 f"the only allowed types are {allowed_types}"

@@ -38,4 +38,3 @@ async def test_redeem_pairing_code_binds_pending_row(mocker):
     assert binding.state == ExternalChatBindingState.BOUND
     assert binding.external_peer_id == "telegram:123"
     assert binding.pairing_code is None
-

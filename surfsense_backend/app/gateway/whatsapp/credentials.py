@@ -18,8 +18,7 @@ class WhatsAppCredentials(TypedDict, total=False):
 
 def load_system_whatsapp_credentials() -> WhatsAppCredentials:
     if not (
-        config.WHATSAPP_SHARED_BUSINESS_TOKEN
-        and config.WHATSAPP_SHARED_PHONE_NUMBER_ID
+        config.WHATSAPP_SHARED_BUSINESS_TOKEN and config.WHATSAPP_SHARED_PHONE_NUMBER_ID
     ):
         raise RuntimeError("whatsapp_system_credentials_not_configured")
 

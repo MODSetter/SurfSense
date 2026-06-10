@@ -36,7 +36,8 @@ class WhatsAppBaileysAdapter(BasePlatformAdapter):
             external_user_id=sender_id or None,
             text=str(body) if body is not None else None,
             raw_payload=raw_payload,
-            display_name=str(raw_payload.get("chatName") or sender_id or chat_id) or None,
+            display_name=str(raw_payload.get("chatName") or sender_id or chat_id)
+            or None,
             username=None,
             metadata={
                 "sender_id": sender_id,
@@ -92,7 +93,9 @@ class WhatsAppBaileysAdapter(BasePlatformAdapter):
             response.raise_for_status()
             return response.json()
 
-    async def fetch_updates(self, *, offset: int | None) -> AsyncIterator[dict[str, Any]]:
+    async def fetch_updates(
+        self, *, offset: int | None
+    ) -> AsyncIterator[dict[str, Any]]:
         async with httpx.AsyncClient(timeout=35) as client:
             response = await client.get(f"{self.bridge_url}/messages")
             response.raise_for_status()

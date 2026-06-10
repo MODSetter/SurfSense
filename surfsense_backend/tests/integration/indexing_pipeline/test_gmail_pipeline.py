@@ -36,9 +36,7 @@ def _gmail_doc(
     )
 
 
-@pytest.mark.usefixtures(
-"patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_gmail_pipeline_creates_ready_document(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -68,9 +66,7 @@ async def test_gmail_pipeline_creates_ready_document(
     assert row.source_markdown == doc.source_markdown
 
 
-@pytest.mark.usefixtures(
-"patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_gmail_legacy_doc_migrated_then_reused(
     db_session, db_search_space, db_connector, db_user, mocker
 ):

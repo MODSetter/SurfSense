@@ -51,9 +51,7 @@ class TelegramAdapter(BasePlatformAdapter):
             "channel": "channel",
         }.get(chat_type, "unknown")
         display_name = chat.get("title") or " ".join(
-            part
-            for part in (sender.get("first_name"), sender.get("last_name"))
-            if part
+            part for part in (sender.get("first_name"), sender.get("last_name")) if part
         )
 
         return ParsedInboundEvent(
@@ -62,14 +60,21 @@ class TelegramAdapter(BasePlatformAdapter):
             external_peer_id=str(chat["id"]) if chat.get("id") is not None else None,
             external_peer_kind=peer_kind,
             external_message_id=(
-                str(message["message_id"]) if message.get("message_id") is not None else None
+                str(message["message_id"])
+                if message.get("message_id") is not None
+                else None
             ),
-            external_user_id=str(sender["id"]) if sender.get("id") is not None else None,
+            external_user_id=str(sender["id"])
+            if sender.get("id") is not None
+            else None,
             text=message.get("text") or message.get("caption"),
             raw_payload=raw_payload,
             display_name=display_name or None,
             username=sender.get("username") or chat.get("username"),
-            metadata={"chat_type": chat_type, "update_id": raw_payload.get("update_id")},
+            metadata={
+                "chat_type": chat_type,
+                "update_id": raw_payload.get("update_id"),
+            },
         )
 
     async def send_message(
@@ -108,7 +113,8 @@ class TelegramAdapter(BasePlatformAdapter):
     async def leave_chat(self, *, external_peer_id: str) -> None:
         await self.client.leave_chat(chat_id=external_peer_id)
 
-    async def fetch_updates(self, *, offset: int | None) -> AsyncIterator[dict[str, Any]]:
+    async def fetch_updates(
+        self, *, offset: int | None
+    ) -> AsyncIterator[dict[str, Any]]:
         async for update in self.client.get_updates(offset=offset):
             yield update
-

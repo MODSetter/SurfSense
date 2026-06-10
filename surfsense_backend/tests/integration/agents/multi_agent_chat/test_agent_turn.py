@@ -135,8 +135,6 @@ async def test_agent_checkpoint_round_trips_across_turns(
         {"messages": [HumanMessage(content="second turn")]}, config
     )
 
-    texts = [
-        m.content for m in second["messages"] if isinstance(m, HumanMessage)
-    ]
+    texts = [m.content for m in second["messages"] if isinstance(m, HumanMessage)]
     assert "remember apple" in texts, "turn 1 history not reloaded from checkpoint"
     assert len(second["messages"]) > len(first["messages"])

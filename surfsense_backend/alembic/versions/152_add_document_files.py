@@ -63,8 +63,7 @@ def upgrade() -> None:
         "ON document_files(search_space_id);"
     )
     op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_document_files_kind "
-        "ON document_files(kind);"
+        "CREATE INDEX IF NOT EXISTS ix_document_files_kind ON document_files(kind);"
     )
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_document_files_created_by_id "

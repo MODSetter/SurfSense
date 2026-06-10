@@ -13,7 +13,7 @@ import { schema } from "@/zero/schema";
 // container and would make every authenticated Zero query fail with a 503.
 const backendURL = (
 	process.env.FASTAPI_BACKEND_INTERNAL_URL ||
-	BACKEND_URL ||
+	process.env.BACKEND_URL ||
 	"http://localhost:8000"
 ).replace(/\/$/, "");
 

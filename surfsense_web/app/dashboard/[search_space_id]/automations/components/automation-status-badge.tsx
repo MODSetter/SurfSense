@@ -8,19 +8,14 @@ interface AutomationStatusBadgeProps {
 }
 
 // Small borderless status pills, matching model-selector badges.
-const STATUS_STYLES: Record<
-	AutomationStatus,
-	{ label: string; classes: string }
-> = {
+const STATUS_STYLES: Record<AutomationStatus, { label: string; classes: string }> = {
 	active: {
 		label: "Active",
-		classes:
-			"bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+		classes: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
 	},
 	paused: {
 		label: "Paused",
-		classes:
-			"bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+		classes: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
 	},
 	archived: {
 		label: "Archived",

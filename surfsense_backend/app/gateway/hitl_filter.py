@@ -32,4 +32,3 @@ def filter_hitl_tools(
         return None
     blocked = blocked_names or DEFAULT_HITL_TOOL_NAMES
     return [tool for tool in toolkit if (_tool_name(tool) or "") not in blocked]
-

@@ -94,12 +94,10 @@ Edit the `.env` file and set the following variables:
 | STT_SERVICE                | Speech-to-Text API provider for Audio Files (e.g., `local/base`, `openai/whisper-1`). See [supported providers](https://docs.litellm.ai/docs/audio_transcription#supported-providers)                   |
 | STT_SERVICE_API_KEY        | (Optional if local) API key for the Speech-to-Text service                                                                                                                                                    |
 | STT_SERVICE_API_BASE       | (Optional) Custom API base URL for the Speech-to-Text service                                                                                                                      |
-| FIRECRAWL_API_KEY          | (Optional) API key for Firecrawl service for web crawling                                                                                                                                 |
 | ETL_SERVICE                | Document parsing service: `UNSTRUCTURED` (supports 34+ formats), `LLAMACLOUD` (supports 50+ formats including legacy document types), or `DOCLING` (local processing, supports PDF, Office docs, images, HTML, CSV)                                                  |
 | UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing (required if ETL_SERVICE=UNSTRUCTURED)                                                                                           |
 | LLAMA_CLOUD_API_KEY        | API key for LlamaCloud service for document parsing (required if ETL_SERVICE=LLAMACLOUD)                                                                                                  |
-| CELERY_BROKER_URL          | Redis connection URL for Celery broker (e.g., `redis://localhost:6379/0`)                                                                                                                |
-| CELERY_RESULT_BACKEND      | Redis connection URL for Celery result backend (e.g., `redis://localhost:6379/0`)                                                                                                        |
+| REDIS_URL                  | Single Redis connection URL for the Celery broker, result backend, and app cache (e.g., `redis://localhost:6379/0`). Optionally override per use with `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, or `REDIS_APP_URL`. |
 | SCHEDULE_CHECKER_INTERVAL  | (Optional) How often to check for scheduled connector tasks. Format: `<number><unit>` where unit is `m` (minutes) or `h` (hours). Examples: `1m`, `5m`, `1h`, `2h` (default: `1m`)                  |
 | REGISTRATION_ENABLED       | (Optional) Enable or disable new user registration (e.g., `TRUE` or `FALSE`, default: `TRUE`)                                                                                                       |
 | PAGES_LIMIT                | (Optional) Maximum pages limit per user for ETL services (default: `999999999` for unlimited in OSS version)                                                                                        |
@@ -690,7 +688,7 @@ To verify your installation:
 ## Troubleshooting
 
 - **Database Connection Issues**: Verify your PostgreSQL server is running and pgvector is properly installed
-- **Redis Connection Issues**: Ensure Redis server is running (`redis-cli ping` should return `PONG`). Check that `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` are correctly set in your `.env` file
+- **Redis Connection Issues**: Ensure Redis server is running (`redis-cli ping` should return `PONG`). Check that `REDIS_URL` is correctly set in your `.env` file
 - **Celery Worker Issues**: Make sure the Celery worker is running in a separate terminal. Check worker logs for any errors
 - **Authentication Problems**: Check your Google OAuth configuration and ensure redirect URIs are set correctly
 - **LLM Errors**: Confirm your LLM API keys are valid and the selected models are accessible
