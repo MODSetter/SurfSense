@@ -114,13 +114,6 @@ class SearchSourceConnectorType(StrEnum):
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
 
 
-class PodcastStatus(StrEnum):
-    PENDING = "pending"
-    GENERATING = "generating"
-    READY = "ready"
-    FAILED = "failed"
-
-
 class VideoPresentationStatus(StrEnum):
     PENDING = "pending"
     GENERATING = "generating"
@@ -1536,41 +1529,6 @@ class Chunk(BaseModel, TimestampMixin):
     document = relationship("Document", back_populates="chunks")
 
 
-class Podcast(BaseModel, TimestampMixin):
-    """Podcast model for storing generated podcasts."""
-
-    __tablename__ = "podcasts"
-
-    title = Column(String(500), nullable=False)
-    podcast_transcript = Column(JSONB, nullable=True)
-    file_location = Column(Text, nullable=True)
-    status = Column(
-        SQLAlchemyEnum(
-            PodcastStatus,
-            name="podcast_status",
-            create_type=False,
-            values_callable=lambda x: [e.value for e in x],
-        ),
-        nullable=False,
-        default=PodcastStatus.READY,
-        server_default="ready",
-        index=True,
-    )
-
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
-    )
-    search_space = relationship("SearchSpace", back_populates="podcasts")
-
-    thread_id = Column(
-        Integer,
-        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    thread = relationship("NewChatThread")
-
-
 class VideoPresentation(BaseModel, TimestampMixin):
     """Video presentation model for storing AI-generated video presentations.
 
@@ -2889,6 +2847,10 @@ from app.automations.persistence import (  # noqa: E402, F401
 )
 from app.file_storage.persistence import DocumentFile  # noqa: E402, F401
 from app.notifications.persistence import Notification  # noqa: E402, F401
+from app.podcasts.persistence import (  # noqa: E402, F401
+    Podcast,
+    PodcastStatus,
+)
 
 engine = create_async_engine(
     DATABASE_URL,
