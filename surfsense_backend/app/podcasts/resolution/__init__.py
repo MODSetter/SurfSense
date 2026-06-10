@@ -1,8 +1,8 @@
 """Resolution: deterministic default chains for a fresh brief.
 
-Turns weak signals (detected language, last-used preferences) into concrete
-language and voice defaults, so the brief gate opens pre-filled and most users
-approve without editing.
+Turns the user's last-used preferences into concrete language and voice
+defaults, so the brief gate opens pre-filled and most users approve without
+editing.
 """
 
 from __future__ import annotations

@@ -1,10 +1,9 @@
 """Resolve the brief's language without spending tokens at the gate.
 
-The chain mirrors the agreed policy: prefer a language detected from the source,
-fall back to what the user last chose, and finally default to English (which the
-user can still override in the brief). Detection itself is performed upstream
-where an LLM is available and passed in as :attr:`LanguageContext.detected`, so
-this layer stays pure and deterministic.
+The chain mirrors the agreed policy: reuse the language the user last chose, and
+otherwise default to English (which the user can still override in the brief). We
+deliberately never guess the language from the source content — proposing a
+language the user did not ask for is worse than a predictable default.
 """
 
 from __future__ import annotations
@@ -20,7 +19,6 @@ DEFAULT_LANGUAGE = "en"
 class LanguageContext:
     """Signals available when proposing a language for a fresh podcast."""
 
-    detected: str | None = None
     last_used: str | None = None
 
 
@@ -30,13 +28,6 @@ class LanguageResolver(ABC):
     @abstractmethod
     def resolve(self, context: LanguageContext) -> str | None:
         """Return a language tag, or ``None`` to defer to the next resolver."""
-
-
-class DetectedLanguage(LanguageResolver):
-    """Use the language detected from the source, when confident enough."""
-
-    def resolve(self, context: LanguageContext) -> str | None:
-        return context.detected
 
 
 class LastUsedLanguage(LanguageResolver):
@@ -55,7 +46,6 @@ class DefaultLanguage(LanguageResolver):
 
 # Order encodes the policy; prepend stronger signals here as they appear.
 DEFAULT_LANGUAGE_CHAIN: tuple[LanguageResolver, ...] = (
-    DetectedLanguage(),
     LastUsedLanguage(),
     DefaultLanguage(),
 )

@@ -1,15 +1,14 @@
-"""Brief-planning nodes: detect the language, then propose a full spec.
+"""Brief-planning node: propose a full spec from deterministic defaults.
 
-Only ``detect_language`` spends tokens, and only a small sample of source text;
-``propose_spec`` is pure resolution. Together they open the brief gate pre-filled
-so the common case needs no edits.
+``propose_spec`` is pure resolution — it never spends tokens. It reuses the
+user's last-used language/voices when available and otherwise falls back to
+English, so the brief gate opens pre-filled and the common case needs no edits.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from app.config import config as app_config
@@ -28,21 +27,14 @@ from app.podcasts.schemas import (
     normalize_language_tag,
 )
 from app.podcasts.voices import (
-    VoiceCatalog,
     TtsProvider,
+    VoiceCatalog,
     get_voice_catalog,
     provider_from_service,
 )
-from app.services.llm_service import get_agent_llm
 
-from ..prompts import detect_language_prompt
-from ..structured import StructuredOutputError, invoke_json
 from .config import BriefConfig
-from .detection import DetectedLanguage
 from .state import BriefState
-
-# Only the head of the source is needed to judge language; this caps tokens.
-_DETECTION_SAMPLE_CHARS = 4000
 
 # Default role per speaker slot; extra speakers beyond the list fall back to guest.
 _ROLE_BY_SLOT = (
@@ -54,30 +46,6 @@ _ROLE_BY_SLOT = (
 )
 
 
-async def detect_language(
-    state: BriefState, config: RunnableConfig
-) -> dict[str, Any]:
-    """Detect the source language; defer (``None``) on any uncertainty."""
-    brief = BriefConfig.from_runnable_config(config)
-    llm = await get_agent_llm(state.db_session, brief.search_space_id)
-    if llm is None:
-        return {"detected_language": None}
-
-    sample = (state.source_content or "")[:_DETECTION_SAMPLE_CHARS].strip()
-    if not sample:
-        return {"detected_language": None}
-
-    messages = [
-        SystemMessage(content=detect_language_prompt()),
-        HumanMessage(content=f"<source_content>{sample}</source_content>"),
-    ]
-    try:
-        detected = await invoke_json(llm, messages, DetectedLanguage)
-    except StructuredOutputError:
-        return {"detected_language": None}
-    return {"detected_language": detected.language}
-
-
 def propose_spec(state: BriefState, config: RunnableConfig) -> dict[str, Any]:
     """Build a complete :class:`PodcastSpec` from the resolved defaults."""
     brief = BriefConfig.from_runnable_config(config)
@@ -85,7 +53,6 @@ def propose_spec(state: BriefState, config: RunnableConfig) -> dict[str, Any]:
     catalog = get_voice_catalog()
 
     language = _supported_language(
-        detected=state.detected_language,
         last_used=brief.last_used_language,
         provider=provider,
         catalog=catalog,
@@ -128,12 +95,11 @@ def _active_provider() -> TtsProvider:
 
 def _supported_language(
     *,
-    detected: str | None,
     last_used: str | None,
     provider: TtsProvider,
     catalog: VoiceCatalog,
 ) -> str:
-    raw = resolve_language(LanguageContext(detected=detected, last_used=last_used))
+    raw = resolve_language(LanguageContext(last_used=last_used))
     try:
         language = normalize_language_tag(raw)
     except ValueError:

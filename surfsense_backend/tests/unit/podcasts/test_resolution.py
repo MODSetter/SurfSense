@@ -2,8 +2,9 @@
 
 Resolution is what lets most briefs need no edits: it proposes a sensible
 language and a distinct voice per speaker. These tests state the policy
-("detected wins, else last-used, else English"; "two speakers should sound
+("reuse what the user last chose, else English"; "two speakers should sound
 like two people") through the public resolver functions and the real catalog.
+We never guess the language from source content.
 """
 
 from __future__ import annotations
@@ -22,13 +23,8 @@ from app.podcasts.voices import TtsProvider, get_voice_catalog
 pytestmark = pytest.mark.unit
 
 
-def test_detected_language_is_preferred_over_everything():
-    context = LanguageContext(detected="es", last_used="fr")
-    assert resolve_language(context) == "es"
-
-
-def test_falls_back_to_last_used_when_nothing_detected():
-    context = LanguageContext(detected=None, last_used="fr")
+def test_last_used_language_is_reused():
+    context = LanguageContext(last_used="fr")
     assert resolve_language(context) == "fr"
 
 

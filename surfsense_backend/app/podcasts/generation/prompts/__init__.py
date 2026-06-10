@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from .detect_language import detect_language_prompt
 from .draft_segment import draft_segment_prompt
 from .plan_outline import plan_outline_prompt
 from .speakers import render_speaker_roster
 
 __all__ = [
-    "detect_language_prompt",
     "draft_segment_prompt",
     "plan_outline_prompt",
     "render_speaker_roster",

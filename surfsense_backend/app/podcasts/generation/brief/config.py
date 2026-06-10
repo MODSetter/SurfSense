@@ -16,7 +16,6 @@ DEFAULT_MAX_MINUTES = 20
 class BriefConfig:
     """Signals used to propose a brief; everything here is non-LLM context."""
 
-    search_space_id: int
     speaker_count: int = DEFAULT_SPEAKER_COUNT
     min_minutes: int = DEFAULT_MIN_MINUTES
     max_minutes: int = DEFAULT_MAX_MINUTES

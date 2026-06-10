@@ -30,7 +30,7 @@ _LANGUAGE_TAG = re.compile(r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
 def normalize_language_tag(value: str) -> str:
     """Validate and canonicalise a BCP-47 tag (lowercased primary subtag).
 
-    Shared with the generation layer so detected and user-entered languages are
+    Shared with the generation layer so resolved and user-entered languages are
     normalised identically before they reach a :class:`PodcastSpec`.
     """
     cleaned = value.strip()
