@@ -1,4 +1,4 @@
-"""Schemas for Stripe-backed page purchases."""
+"""Schemas for Stripe-backed credit purchases."""
 
 import uuid
 from datetime import datetime
@@ -8,27 +8,59 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.db import PagePurchaseStatus
 
 
-class CreateCheckoutSessionRequest(BaseModel):
-    """Request body for creating a page-purchase checkout session."""
+class CreateCreditCheckoutSessionRequest(BaseModel):
+    """Request body for creating a credit-purchase checkout session."""
 
     quantity: int = Field(ge=1, le=100)
     search_space_id: int = Field(ge=1)
 
 
-class CreateCheckoutSessionResponse(BaseModel):
+class CreateCreditCheckoutSessionResponse(BaseModel):
     """Response containing the Stripe-hosted checkout URL."""
 
     checkout_url: str
 
 
-class StripeStatusResponse(BaseModel):
-    """Response describing Stripe page-buying availability."""
+class CreditPurchaseRead(BaseModel):
+    """Serialized credit purchase record.
 
-    page_buying_enabled: bool
+    ``credit_micros_granted`` is in micro-USD (1_000_000 = $1.00).
+    """
+
+    id: uuid.UUID
+    stripe_checkout_session_id: str
+    stripe_payment_intent_id: str | None = None
+    quantity: int
+    credit_micros_granted: int
+    amount_total: int | None = None
+    currency: str | None = None
+    source: str = "checkout"
+    status: str
+    completed_at: datetime | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CreditPurchaseHistoryResponse(BaseModel):
+    """Response containing the user's credit purchases."""
+
+    purchases: list[CreditPurchaseRead]
+
+
+class CreditStripeStatusResponse(BaseModel):
+    """Response describing credit-buying availability and current balance.
+
+    ``credit_micros_balance`` is in micro-USD; the FE divides by 1_000_000
+    to display USD.
+    """
+
+    credit_buying_enabled: bool
+    credit_micros_balance: int = 0
 
 
 class PagePurchaseRead(BaseModel):
-    """Serialized page-purchase record for purchase history."""
+    """Serialized legacy page-purchase record (read-only history)."""
 
     id: uuid.UUID
     stripe_checkout_session_id: str
@@ -45,9 +77,50 @@ class PagePurchaseRead(BaseModel):
 
 
 class PagePurchaseHistoryResponse(BaseModel):
-    """Response containing the authenticated user's page purchases."""
+    """Response containing the authenticated user's legacy page purchases."""
 
     purchases: list[PagePurchaseRead]
+
+
+class AutoReloadSettingsResponse(BaseModel):
+    """Auto-reload configuration + saved-card state for the settings UI.
+
+    All ``*_micros`` fields are micro-USD (1_000_000 == $1.00). ``feature_enabled``
+    reflects the server-side ``AUTO_RELOAD_ENABLED`` flag; when it is false the
+    UI should hide / disable the auto-reload controls entirely.
+    """
+
+    feature_enabled: bool
+    enabled: bool = False
+    threshold_micros: int | None = None
+    amount_micros: int | None = None
+    min_amount_micros: int
+    has_payment_method: bool = False
+    failed_at: datetime | None = None
+
+
+class UpdateAutoReloadSettingsRequest(BaseModel):
+    """Update auto-reload preferences.
+
+    Enabling requires a saved card (set up via /stripe/auto-reload/setup) plus a
+    positive threshold and an amount of at least ``AUTO_RELOAD_MIN_AMOUNT_MICROS``.
+    """
+
+    enabled: bool
+    threshold_micros: int | None = Field(default=None, ge=0)
+    amount_micros: int | None = Field(default=None, ge=0)
+
+
+class CreateAutoReloadSetupSessionRequest(BaseModel):
+    """Request body for starting the save-a-card (SetupIntent) checkout."""
+
+    search_space_id: int = Field(ge=1)
+
+
+class CreateAutoReloadSetupSessionResponse(BaseModel):
+    """Response containing the Stripe-hosted setup (save-card) checkout URL."""
+
+    checkout_url: str
 
 
 class StripeWebhookResponse(BaseModel):
@@ -66,64 +139,6 @@ class FinalizeCheckoutResponse(BaseModel):
     endpoint until it sees ``completed`` or a final ``failed``.
     """
 
-    purchase_type: str  # "page_packs" | "premium_tokens"
-    status: str  # PagePurchaseStatus / PremiumTokenPurchaseStatus value
-    pages_limit: int | None = None
-    pages_used: int | None = None
-    pages_granted: int | None = None
-    premium_credit_micros_limit: int | None = None
-    premium_credit_micros_used: int | None = None
-    premium_credit_micros_granted: int | None = None
-
-
-class CreateTokenCheckoutSessionRequest(BaseModel):
-    """Request body for creating a premium token purchase checkout session."""
-
-    quantity: int = Field(ge=1, le=100)
-    search_space_id: int = Field(ge=1)
-
-
-class CreateTokenCheckoutSessionResponse(BaseModel):
-    """Response containing the Stripe-hosted checkout URL."""
-
-    checkout_url: str
-
-
-class TokenPurchaseRead(BaseModel):
-    """Serialized premium credit purchase record.
-
-    ``credit_micros_granted`` is in micro-USD (1_000_000 = $1.00). The
-    schema name kept ``Token`` for API back-compat with pinned clients.
-    """
-
-    id: uuid.UUID
-    stripe_checkout_session_id: str
-    stripe_payment_intent_id: str | None = None
-    quantity: int
-    credit_micros_granted: int
-    amount_total: int | None = None
-    currency: str | None = None
     status: str
-    completed_at: datetime | None = None
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class TokenPurchaseHistoryResponse(BaseModel):
-    """Response containing the user's premium credit purchases."""
-
-    purchases: list[TokenPurchaseRead]
-
-
-class TokenStripeStatusResponse(BaseModel):
-    """Response describing premium-credit-buying availability and balance.
-
-    All ``premium_credit_micros_*`` fields are in micro-USD; the FE
-    divides by 1_000_000 to display USD.
-    """
-
-    token_buying_enabled: bool
-    premium_credit_micros_used: int = 0
-    premium_credit_micros_limit: int = 0
-    premium_credit_micros_remaining: int = 0
+    credit_micros_balance: int = 0
+    credit_micros_granted: int | None = None

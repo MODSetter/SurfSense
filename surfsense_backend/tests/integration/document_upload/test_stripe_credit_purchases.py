@@ -1,3 +1,10 @@
+"""Integration tests for Stripe credit-pack purchases.
+
+Buying credit packs tops up ``user.credit_micros_balance``. Legacy page-pack
+buying has been removed; these tests exercise the credit checkout session,
+webhook fulfillment (idempotent), and the reconciliation fallback.
+"""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -18,6 +25,8 @@ from tests.utils.helpers import TEST_EMAIL, TEST_PASSWORD, auth_headers
 pytestmark = pytest.mark.integration
 
 _ASYNCPG_URL = TEST_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+
+_CREDIT_MICROS_PER_UNIT = 1_000_000
 
 
 async def _execute(query: str, *args) -> None:
@@ -42,10 +51,12 @@ async def _get_user_id(email: str) -> str:
     return str(row["id"])
 
 
-async def _get_pages_limit(email: str) -> int:
-    row = await _fetchrow('SELECT pages_limit FROM "user" WHERE email = $1', email)
+async def _get_balance(email: str) -> int:
+    row = await _fetchrow(
+        'SELECT credit_micros_balance FROM "user" WHERE email = $1', email
+    )
     assert row is not None, f"User {email!r} not found"
-    return row["pages_limit"]
+    return row["credit_micros_balance"]
 
 
 def _extract_access_token(response: httpx.Response) -> str | None:
@@ -101,10 +112,23 @@ def headers(auth_token: str) -> dict[str, str]:
 
 
 @pytest.fixture(autouse=True)
-async def _cleanup_page_purchases():
-    await _execute("DELETE FROM page_purchases")
+async def _cleanup_credit_purchases():
+    await _execute("DELETE FROM credit_purchases")
     yield
-    await _execute("DELETE FROM page_purchases")
+    await _execute("DELETE FROM credit_purchases")
+
+
+def _configure_credit_buying(monkeypatch) -> None:
+    monkeypatch.setattr(stripe_routes.config, "STRIPE_CREDIT_BUYING_ENABLED", True)
+    monkeypatch.setattr(
+        stripe_routes.config, "STRIPE_CREDIT_PRICE_ID", "price_credit_1"
+    )
+    monkeypatch.setattr(
+        stripe_routes.config, "STRIPE_CREDIT_MICROS_PER_UNIT", _CREDIT_MICROS_PER_UNIT
+    )
+    monkeypatch.setattr(
+        stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
+    )
 
 
 class _FakeCreateStripeClient:
@@ -152,18 +176,19 @@ class _FakeReconciliationStripeClient:
 
 
 class TestStripeCheckoutSessionCreation:
-    async def test_get_status_reflects_backend_toggle(
+    async def test_credit_status_reflects_backend_toggle(
         self, client, headers, monkeypatch
     ):
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", False)
-        disabled_response = await client.get("/api/v1/stripe/status", headers=headers)
-        assert disabled_response.status_code == 200, disabled_response.text
-        assert disabled_response.json() == {"page_buying_enabled": False}
+        monkeypatch.setattr(stripe_routes.config, "STRIPE_CREDIT_BUYING_ENABLED", False)
+        disabled = await client.get("/api/v1/stripe/credit-status", headers=headers)
+        assert disabled.status_code == 200, disabled.text
+        assert disabled.json()["credit_buying_enabled"] is False
+        assert "credit_micros_balance" in disabled.json()
 
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", True)
-        enabled_response = await client.get("/api/v1/stripe/status", headers=headers)
-        assert enabled_response.status_code == 200, enabled_response.text
-        assert enabled_response.json() == {"page_buying_enabled": True}
+        monkeypatch.setattr(stripe_routes.config, "STRIPE_CREDIT_BUYING_ENABLED", True)
+        enabled = await client.get("/api/v1/stripe/credit-status", headers=headers)
+        assert enabled.status_code == 200, enabled.text
+        assert enabled.json()["credit_buying_enabled"] is True
 
     async def test_create_checkout_session_records_pending_purchase(
         self,
@@ -182,14 +207,10 @@ class TestStripeCheckoutSessionCreation:
         fake_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: fake_client)
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
-        monkeypatch.setattr(
-            stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
-        )
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGES_PER_UNIT", 1000)
+        _configure_credit_buying(monkeypatch)
 
         response = await client.post(
-            "/api/v1/stripe/create-checkout-session",
+            "/api/v1/stripe/create-credit-checkout-session",
             headers=headers,
             json={"quantity": 2, "search_space_id": search_space_id},
         )
@@ -199,7 +220,7 @@ class TestStripeCheckoutSessionCreation:
         assert fake_client.last_params is not None
         assert fake_client.last_params["mode"] == "payment"
         assert fake_client.last_params["line_items"] == [
-            {"price": "price_pages_1000", "quantity": 2}
+            {"price": "price_credit_1", "quantity": 2}
         ]
         assert (
             fake_client.last_params["success_url"]
@@ -210,19 +231,21 @@ class TestStripeCheckoutSessionCreation:
             fake_client.last_params["cancel_url"]
             == f"http://localhost:3000/dashboard/{search_space_id}/purchase-cancel"
         )
+        assert fake_client.last_params["metadata"]["purchase_type"] == "credits"
 
         purchase = await _fetchrow(
             """
-            SELECT quantity, pages_granted, status
-            FROM page_purchases
+            SELECT quantity, credit_micros_granted, status, source
+            FROM credit_purchases
             WHERE stripe_checkout_session_id = $1
             """,
             checkout_session.id,
         )
         assert purchase is not None
         assert purchase["quantity"] == 2
-        assert purchase["pages_granted"] == 2000
+        assert purchase["credit_micros_granted"] == 2 * _CREDIT_MICROS_PER_UNIT
         assert purchase["status"] == "PENDING"
+        assert purchase["source"] == "checkout"
 
     async def test_create_checkout_session_returns_503_when_buying_disabled(
         self,
@@ -231,34 +254,34 @@ class TestStripeCheckoutSessionCreation:
         search_space_id: int,
         monkeypatch,
     ):
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGE_BUYING_ENABLED", False)
+        monkeypatch.setattr(stripe_routes.config, "STRIPE_CREDIT_BUYING_ENABLED", False)
 
         response = await client.post(
-            "/api/v1/stripe/create-checkout-session",
+            "/api/v1/stripe/create-credit-checkout-session",
             headers=headers,
             json={"quantity": 2, "search_space_id": search_space_id},
         )
 
         assert response.status_code == 503, response.text
         assert (
-            response.json()["detail"] == "Page purchases are temporarily unavailable."
+            response.json()["detail"] == "Credit purchases are temporarily unavailable."
         )
 
-        purchase_count = await _fetchrow("SELECT COUNT(*) AS count FROM page_purchases")
-        assert purchase_count is not None
-        assert purchase_count["count"] == 0
+        count = await _fetchrow("SELECT COUNT(*) AS count FROM credit_purchases")
+        assert count is not None
+        assert count["count"] == 0
 
 
 class TestStripeWebhookFulfillment:
-    async def test_webhook_grants_pages_once(
+    async def test_webhook_grants_credit_once(
         self,
         client,
         headers,
         search_space_id: int,
-        page_limits,
+        credits,
         monkeypatch,
     ):
-        await page_limits.set(pages_used=0, pages_limit=100)
+        await credits.set(balance_micros=5_000_000)
 
         checkout_session = SimpleNamespace(
             id="cs_test_webhook_123",
@@ -270,21 +293,16 @@ class TestStripeWebhookFulfillment:
         create_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
-        monkeypatch.setattr(
-            stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
-        )
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGES_PER_UNIT", 1000)
+        _configure_credit_buying(monkeypatch)
 
         create_response = await client.post(
-            "/api/v1/stripe/create-checkout-session",
+            "/api/v1/stripe/create-credit-checkout-session",
             headers=headers,
             json={"quantity": 3, "search_space_id": search_space_id},
         )
         assert create_response.status_code == 200, create_response.text
 
-        initial_limit = await _get_pages_limit(TEST_EMAIL)
-        assert initial_limit == 100
+        assert await _get_balance(TEST_EMAIL) == 5_000_000
 
         user_id = await _get_user_id(TEST_EMAIL)
         webhook_checkout_session = SimpleNamespace(
@@ -296,7 +314,8 @@ class TestStripeWebhookFulfillment:
             metadata={
                 "user_id": user_id,
                 "quantity": "3",
-                "pages_per_unit": "1000",
+                "credit_micros_per_unit": str(_CREDIT_MICROS_PER_UNIT),
+                "purchase_type": "credits",
             },
         )
         event = SimpleNamespace(
@@ -315,13 +334,12 @@ class TestStripeWebhookFulfillment:
         )
         assert first_response.status_code == 200, first_response.text
 
-        updated_limit = await _get_pages_limit(TEST_EMAIL)
-        assert updated_limit == 3100
+        assert await _get_balance(TEST_EMAIL) == 5_000_000 + 3 * _CREDIT_MICROS_PER_UNIT
 
         purchase = await _fetchrow(
             """
             SELECT status, amount_total, currency, stripe_payment_intent_id
-            FROM page_purchases
+            FROM credit_purchases
             WHERE stripe_checkout_session_id = $1
             """,
             checkout_session.id,
@@ -339,7 +357,8 @@ class TestStripeWebhookFulfillment:
         )
         assert second_response.status_code == 200, second_response.text
 
-        assert await _get_pages_limit(TEST_EMAIL) == 3100
+        # Idempotent: a duplicate webhook does not double-grant.
+        assert await _get_balance(TEST_EMAIL) == 5_000_000 + 3 * _CREDIT_MICROS_PER_UNIT
 
 
 class TestStripeReconciliation:
@@ -348,10 +367,10 @@ class TestStripeReconciliation:
         client,
         headers,
         search_space_id: int,
-        page_limits,
+        credits,
         monkeypatch,
     ):
-        await page_limits.set(pages_used=220, pages_limit=150)
+        await credits.set(balance_micros=1_000_000)
 
         checkout_session = SimpleNamespace(
             id="cs_test_reconcile_paid_123",
@@ -363,19 +382,15 @@ class TestStripeReconciliation:
         create_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
-        monkeypatch.setattr(
-            stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
-        )
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGES_PER_UNIT", 1000)
+        _configure_credit_buying(monkeypatch)
 
         create_response = await client.post(
-            "/api/v1/stripe/create-checkout-session",
+            "/api/v1/stripe/create-credit-checkout-session",
             headers=headers,
             json={"quantity": 3, "search_space_id": search_space_id},
         )
         assert create_response.status_code == 200, create_response.text
-        assert await _get_pages_limit(TEST_EMAIL) == 150
+        assert await _get_balance(TEST_EMAIL) == 1_000_000
 
         reconciled_session = SimpleNamespace(
             id=checkout_session.id,
@@ -402,15 +417,15 @@ class TestStripeReconciliation:
             20,
         )
 
-        await stripe_reconciliation_task._reconcile_pending_page_purchases()
+        await stripe_reconciliation_task._reconcile_pending_credit_purchases()
 
         assert reconcile_client.requested_ids == [checkout_session.id]
-        assert await _get_pages_limit(TEST_EMAIL) == 3220
+        assert await _get_balance(TEST_EMAIL) == 1_000_000 + 3 * _CREDIT_MICROS_PER_UNIT
 
         purchase = await _fetchrow(
             """
             SELECT status, amount_total, currency, stripe_payment_intent_id
-            FROM page_purchases
+            FROM credit_purchases
             WHERE stripe_checkout_session_id = $1
             """,
             checkout_session.id,
@@ -426,10 +441,10 @@ class TestStripeReconciliation:
         client,
         headers,
         search_space_id: int,
-        page_limits,
+        credits,
         monkeypatch,
     ):
-        await page_limits.set(pages_used=0, pages_limit=500)
+        await credits.set(balance_micros=500_000)
 
         checkout_session = SimpleNamespace(
             id="cs_test_reconcile_expired_123",
@@ -441,14 +456,10 @@ class TestStripeReconciliation:
         create_client = _FakeCreateStripeClient(checkout_session)
 
         monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_PRICE_ID", "price_pages_1000")
-        monkeypatch.setattr(
-            stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
-        )
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_PAGES_PER_UNIT", 1000)
+        _configure_credit_buying(monkeypatch)
 
         create_response = await client.post(
-            "/api/v1/stripe/create-checkout-session",
+            "/api/v1/stripe/create-credit-checkout-session",
             headers=headers,
             json={"quantity": 1, "search_space_id": search_space_id},
         )
@@ -479,14 +490,14 @@ class TestStripeReconciliation:
             20,
         )
 
-        await stripe_reconciliation_task._reconcile_pending_page_purchases()
+        await stripe_reconciliation_task._reconcile_pending_credit_purchases()
 
-        assert await _get_pages_limit(TEST_EMAIL) == 500
+        assert await _get_balance(TEST_EMAIL) == 500_000
 
         purchase = await _fetchrow(
             """
             SELECT status
-            FROM page_purchases
+            FROM credit_purchases
             WHERE stripe_checkout_session_id = $1
             """,
             checkout_session.id,

@@ -1,4 +1,10 @@
-"""Stripe routes for pay-as-you-go page purchases."""
+"""Stripe routes for the unified credit wallet.
+
+Buying credit packs ($1 == 1_000_000 micro-USD by default) tops up
+``user.credit_micros_balance``. The same balance is debited for ETL page
+processing and premium model calls. Legacy page-pack buying has been removed;
+``page_purchases`` history is still readable via ``GET /stripe/purchases``.
+"""
 
 from __future__ import annotations
 
@@ -14,24 +20,24 @@ from stripe import SignatureVerificationError, StripeClient, StripeError
 
 from app.config import config
 from app.db import (
+    CreditPurchase,
+    CreditPurchaseStatus,
     PagePurchase,
-    PagePurchaseStatus,
-    PremiumTokenPurchase,
-    PremiumTokenPurchaseStatus,
     User,
     get_async_session,
 )
 from app.schemas.stripe import (
-    CreateCheckoutSessionRequest,
-    CreateCheckoutSessionResponse,
-    CreateTokenCheckoutSessionRequest,
-    CreateTokenCheckoutSessionResponse,
+    AutoReloadSettingsResponse,
+    CreateAutoReloadSetupSessionRequest,
+    CreateAutoReloadSetupSessionResponse,
+    CreateCreditCheckoutSessionRequest,
+    CreateCreditCheckoutSessionResponse,
+    CreditPurchaseHistoryResponse,
+    CreditStripeStatusResponse,
     FinalizeCheckoutResponse,
     PagePurchaseHistoryResponse,
-    StripeStatusResponse,
     StripeWebhookResponse,
-    TokenPurchaseHistoryResponse,
-    TokenStripeStatusResponse,
+    UpdateAutoReloadSettingsRequest,
 )
 from app.users import current_active_user
 
@@ -50,11 +56,11 @@ def get_stripe_client() -> StripeClient:
     return StripeClient(config.STRIPE_SECRET_KEY)
 
 
-def _ensure_page_buying_enabled() -> None:
-    if not config.STRIPE_PAGE_BUYING_ENABLED:
+def _ensure_credit_buying_enabled() -> None:
+    if not config.STRIPE_CREDIT_BUYING_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Page purchases are temporarily unavailable.",
+            detail="Credit purchases are temporarily unavailable.",
         )
 
 
@@ -79,13 +85,62 @@ def _get_checkout_urls(search_space_id: int) -> tuple[str, str]:
     return success_url, cancel_url
 
 
-def _get_required_stripe_price_id() -> str:
-    if not config.STRIPE_PRICE_ID:
+def _get_required_credit_price_id() -> str:
+    if not config.STRIPE_CREDIT_PRICE_ID:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="STRIPE_PRICE_ID is not configured.",
+            detail="STRIPE_CREDIT_PRICE_ID is not configured.",
         )
-    return config.STRIPE_PRICE_ID
+    return config.STRIPE_CREDIT_PRICE_ID
+
+
+def _ensure_auto_reload_enabled() -> None:
+    if not config.AUTO_RELOAD_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Auto-reload is not available.",
+        )
+
+
+async def _get_or_create_stripe_customer(
+    stripe_client: StripeClient, db_session: AsyncSession, user: User
+) -> str:
+    """Return the user's Stripe Customer id, creating + persisting one if needed.
+
+    A Customer object is required to save and later reuse a card off-session
+    (Stripe: save-and-reuse). New checkouts attach to this customer so the same
+    saved card powers both manual top-ups and auto-reload.
+    """
+    if user.stripe_customer_id:
+        return user.stripe_customer_id
+
+    customer = stripe_client.v1.customers.create(
+        params={
+            "email": user.email,
+            "metadata": {"user_id": str(user.id)},
+        }
+    )
+    customer_id = str(customer.id)
+
+    # Persist on the live row with a lock to avoid two concurrent checkouts
+    # creating duplicate customers.
+    locked = (
+        (
+            await db_session.execute(
+                select(User).where(User.id == user.id).with_for_update(of=User)
+            )
+        )
+        .unique()
+        .scalar_one_or_none()
+    )
+    if locked is not None:
+        if locked.stripe_customer_id:
+            # Another request won the race; reuse theirs.
+            customer_id = locked.stripe_customer_id
+        else:
+            locked.stripe_customer_id = customer_id
+            await db_session.commit()
+    return customer_id
 
 
 def _normalize_optional_string(value: Any) -> str | None:
@@ -110,14 +165,9 @@ def _get_metadata(checkout_session: Any) -> dict[str, str]:
     if metadata is None:
         return {}
 
-    # 1. Plain dict (older SDKs that subclassed dict, JSON-decoded events
-    #    in tests, etc.).
     if isinstance(metadata, dict):
         return {str(k): str(v) for k, v in metadata.items()}
 
-    # 2. Modern Stripe SDK: every ``StripeObject`` has ``to_dict()``.
-    #    ``recursive=False`` is correct because Stripe metadata values
-    #    are always primitive strings.
     to_dict = getattr(metadata, "to_dict", None)
     if callable(to_dict):
         try:
@@ -130,8 +180,6 @@ def _get_metadata(checkout_session: Any) -> dict[str, str]:
                 getattr(checkout_session, "id", "?"),
             )
 
-    # 3. Last-resort: read the SDK's private ``_data`` backing dict.
-    #    Stable across stripe-python 6.x -> 15.x.
     inner = getattr(metadata, "_data", None)
     if isinstance(inner, dict):
         return {str(k): str(v) for k, v in inner.items()}
@@ -144,166 +192,50 @@ def _get_metadata(checkout_session: Any) -> dict[str, str]:
     return {}
 
 
-# Canonical purchase_type metadata values. ``premium_credit`` was emitted
-# by an earlier release of ``create_token_checkout_session`` so it's still
-# accepted on the read side for backward compat with in-flight sessions.
-_PURCHASE_TYPE_TOKEN_VALUES = frozenset({"premium_tokens", "premium_credit"})
+# Canonical purchase_type metadata value is ``credits``. ``premium_tokens`` and
+# ``premium_credit`` were emitted by earlier releases so they're still accepted
+# on the read side for any in-flight checkout sessions.
+_PURCHASE_TYPE_CREDIT_VALUES = frozenset(
+    {"credits", "premium_tokens", "premium_credit"}
+)
 
 
-def _is_token_purchase(metadata: dict[str, str]) -> bool:
-    """Return True for premium-credit (a.k.a. premium_token) purchases."""
-    return metadata.get("purchase_type", "page_packs") in _PURCHASE_TYPE_TOKEN_VALUES
+def _is_credit_purchase(metadata: dict[str, str]) -> bool:
+    """Return True for a credit purchase (default for all live checkouts)."""
+    return metadata.get("purchase_type", "credits") in _PURCHASE_TYPE_CREDIT_VALUES
 
 
-async def _get_or_create_purchase_from_checkout_session(
-    db_session: AsyncSession,
-    checkout_session: Any,
-) -> PagePurchase | None:
-    """Look up a PagePurchase by checkout session ID (with FOR UPDATE lock).
-
-    If the row doesn't exist yet (e.g. the webhook arrived before the API
-    response committed), create one from the Stripe session metadata.
-    """
-    checkout_session_id = str(checkout_session.id)
-    purchase = (
-        await db_session.execute(
-            select(PagePurchase)
-            .where(PagePurchase.stripe_checkout_session_id == checkout_session_id)
-            .with_for_update()
-        )
-    ).scalar_one_or_none()
-    if purchase is not None:
-        return purchase
-
-    metadata = _get_metadata(checkout_session)
-    user_id = metadata.get("user_id")
-    quantity = int(metadata.get("quantity", "0"))
-    pages_per_unit = int(metadata.get("pages_per_unit", "0"))
-
-    if not user_id or quantity <= 0 or pages_per_unit <= 0:
-        logger.error(
-            "Skipping Stripe fulfillment for session %s due to incomplete metadata: %s",
-            checkout_session_id,
-            metadata,
-        )
-        return None
-
-    purchase = PagePurchase(
-        user_id=uuid.UUID(user_id),
-        stripe_checkout_session_id=checkout_session_id,
-        stripe_payment_intent_id=_normalize_optional_string(
-            getattr(checkout_session, "payment_intent", None)
-        ),
-        quantity=quantity,
-        pages_granted=quantity * pages_per_unit,
-        amount_total=getattr(checkout_session, "amount_total", None),
-        currency=getattr(checkout_session, "currency", None),
-        status=PagePurchaseStatus.PENDING,
-    )
-    db_session.add(purchase)
-    await db_session.flush()
-    return purchase
-
-
-async def _mark_purchase_failed(
+async def _mark_credit_purchase_failed(
     db_session: AsyncSession, checkout_session_id: str
 ) -> StripeWebhookResponse:
     purchase = (
         await db_session.execute(
-            select(PagePurchase)
-            .where(PagePurchase.stripe_checkout_session_id == checkout_session_id)
+            select(CreditPurchase)
+            .where(CreditPurchase.stripe_checkout_session_id == checkout_session_id)
             .with_for_update()
         )
     ).scalar_one_or_none()
 
-    if purchase is not None and purchase.status == PagePurchaseStatus.PENDING:
-        purchase.status = PagePurchaseStatus.FAILED
+    if purchase is not None and purchase.status == CreditPurchaseStatus.PENDING:
+        purchase.status = CreditPurchaseStatus.FAILED
         await db_session.commit()
 
     return StripeWebhookResponse()
 
 
-async def _mark_token_purchase_failed(
-    db_session: AsyncSession, checkout_session_id: str
-) -> StripeWebhookResponse:
-    purchase = (
-        await db_session.execute(
-            select(PremiumTokenPurchase)
-            .where(
-                PremiumTokenPurchase.stripe_checkout_session_id == checkout_session_id
-            )
-            .with_for_update()
-        )
-    ).scalar_one_or_none()
-
-    if purchase is not None and purchase.status == PremiumTokenPurchaseStatus.PENDING:
-        purchase.status = PremiumTokenPurchaseStatus.FAILED
-        await db_session.commit()
-
-    return StripeWebhookResponse()
-
-
-async def _fulfill_completed_purchase(
+async def _fulfill_completed_credit_purchase(
     db_session: AsyncSession, checkout_session: Any
 ) -> StripeWebhookResponse:
-    """Grant pages to the user after a confirmed Stripe payment.
+    """Grant credit to the user after a confirmed Stripe payment.
 
-    Uses SELECT ... FOR UPDATE on both the PagePurchase and User rows to
+    Uses ``SELECT ... FOR UPDATE`` on both the CreditPurchase and User rows to
     prevent double-granting when Stripe retries the webhook concurrently.
     """
-    purchase = await _get_or_create_purchase_from_checkout_session(
-        db_session, checkout_session
-    )
-    if purchase is None:
-        return StripeWebhookResponse()
-
-    if purchase.status == PagePurchaseStatus.COMPLETED:
-        return StripeWebhookResponse()
-
-    user = (
-        (
-            await db_session.execute(
-                select(User).where(User.id == purchase.user_id).with_for_update(of=User)
-            )
-        )
-        .unique()
-        .scalar_one_or_none()
-    )
-    if user is None:
-        logger.error(
-            "Skipping Stripe fulfillment for session %s because user %s was not found.",
-            purchase.stripe_checkout_session_id,
-            purchase.user_id,
-        )
-        return StripeWebhookResponse()
-
-    purchase.status = PagePurchaseStatus.COMPLETED
-    purchase.completed_at = datetime.now(UTC)
-    purchase.amount_total = getattr(checkout_session, "amount_total", None)
-    purchase.currency = getattr(checkout_session, "currency", None)
-    purchase.stripe_payment_intent_id = _normalize_optional_string(
-        getattr(checkout_session, "payment_intent", None)
-    )
-    # pages_used can exceed pages_limit when a document's final page count is
-    # determined after processing. Base the new limit on the higher of the two
-    # so the purchased pages are fully usable above the current high-water mark.
-    user.pages_limit = max(user.pages_used, user.pages_limit) + purchase.pages_granted
-
-    await db_session.commit()
-    return StripeWebhookResponse()
-
-
-async def _fulfill_completed_token_purchase(
-    db_session: AsyncSession, checkout_session: Any
-) -> StripeWebhookResponse:
-    """Grant premium tokens to the user after a confirmed Stripe payment."""
     checkout_session_id = str(checkout_session.id)
     purchase = (
         await db_session.execute(
-            select(PremiumTokenPurchase)
-            .where(
-                PremiumTokenPurchase.stripe_checkout_session_id == checkout_session_id
-            )
+            select(CreditPurchase)
+            .where(CreditPurchase.stripe_checkout_session_id == checkout_session_id)
             .with_for_update()
         )
     ).scalar_one_or_none()
@@ -312,10 +244,8 @@ async def _fulfill_completed_token_purchase(
         metadata = _get_metadata(checkout_session)
         user_id = metadata.get("user_id")
         quantity = int(metadata.get("quantity", "0"))
-        # Read the new metadata key first, fall back to the legacy one so
-        # in-flight checkout sessions created before the cost-credits
-        # release still fulfil correctly (the unit is numerically the
-        # same: $1 buys 1_000_000 micro-USD == 1_000_000 tokens).
+        # Read the new metadata key first, fall back to legacy ones so
+        # in-flight checkout sessions created before the rename still fulfil.
         credit_micros_per_unit = int(
             metadata.get("credit_micros_per_unit")
             or metadata.get("tokens_per_unit", "0")
@@ -323,13 +253,13 @@ async def _fulfill_completed_token_purchase(
 
         if not user_id or quantity <= 0 or credit_micros_per_unit <= 0:
             logger.error(
-                "Skipping token fulfillment for session %s: incomplete metadata %s",
+                "Skipping credit fulfillment for session %s: incomplete metadata %s",
                 checkout_session_id,
                 metadata,
             )
             return StripeWebhookResponse()
 
-        purchase = PremiumTokenPurchase(
+        purchase = CreditPurchase(
             user_id=uuid.UUID(user_id),
             stripe_checkout_session_id=checkout_session_id,
             stripe_payment_intent_id=_normalize_optional_string(
@@ -339,12 +269,13 @@ async def _fulfill_completed_token_purchase(
             credit_micros_granted=quantity * credit_micros_per_unit,
             amount_total=getattr(checkout_session, "amount_total", None),
             currency=getattr(checkout_session, "currency", None),
-            status=PremiumTokenPurchaseStatus.PENDING,
+            source="checkout",
+            status=CreditPurchaseStatus.PENDING,
         )
         db_session.add(purchase)
         await db_session.flush()
 
-    if purchase.status == PremiumTokenPurchaseStatus.COMPLETED:
+    if purchase.status == CreditPurchaseStatus.COMPLETED:
         return StripeWebhookResponse()
 
     user = (
@@ -358,45 +289,188 @@ async def _fulfill_completed_token_purchase(
     )
     if user is None:
         logger.error(
-            "Skipping token fulfillment for session %s: user %s not found",
+            "Skipping credit fulfillment for session %s: user %s not found",
             purchase.stripe_checkout_session_id,
             purchase.user_id,
         )
         return StripeWebhookResponse()
 
-    purchase.status = PremiumTokenPurchaseStatus.COMPLETED
+    purchase.status = CreditPurchaseStatus.COMPLETED
     purchase.completed_at = datetime.now(UTC)
     purchase.amount_total = getattr(checkout_session, "amount_total", None)
     purchase.currency = getattr(checkout_session, "currency", None)
     purchase.stripe_payment_intent_id = _normalize_optional_string(
         getattr(checkout_session, "payment_intent", None)
     )
-    # Top up the user's credit balance by the granted micro-USD amount.
-    # ``max(used, limit)`` clamps the case where the legacy code wrote a
-    # used value above the limit (e.g. underbilling rounding) so adding
-    # ``credit_micros_granted`` always lifts the limit by the full pack
-    # size rather than disappearing into past overuse.
-    user.premium_credit_micros_limit = (
-        max(user.premium_credit_micros_used, user.premium_credit_micros_limit)
-        + purchase.credit_micros_granted
+    # Add the granted micro-USD directly to the spendable wallet balance.
+    user.credit_micros_balance = (
+        user.credit_micros_balance + purchase.credit_micros_granted
     )
 
     await db_session.commit()
     return StripeWebhookResponse()
 
 
-@router.post("/create-checkout-session", response_model=CreateCheckoutSessionResponse)
-async def create_checkout_session(
-    body: CreateCheckoutSessionRequest,
+async def _handle_setup_session_completed(
+    stripe_client: StripeClient,
+    db_session: AsyncSession,
+    checkout_session: Any,
+) -> StripeWebhookResponse:
+    """Persist the saved card from a completed ``mode=setup`` checkout session.
+
+    The setup session saves a card on the customer (Stripe save-and-reuse). We
+    pull the resulting payment method off the SetupIntent and store it as the
+    user's ``auto_reload_payment_method_id`` so the off-session charge can use
+    it. Auto-reload itself is only armed once the user enables it via the
+    settings endpoint.
+    """
+    metadata = _get_metadata(checkout_session)
+    user_id = metadata.get("user_id")
+    if not user_id:
+        logger.warning(
+            "Setup session %s completed without user_id metadata",
+            getattr(checkout_session, "id", "?"),
+        )
+        return StripeWebhookResponse()
+
+    setup_intent_id = _normalize_optional_string(
+        getattr(checkout_session, "setup_intent", None)
+    )
+    payment_method_id: str | None = None
+    if setup_intent_id:
+        try:
+            setup_intent = stripe_client.v1.setup_intents.retrieve(setup_intent_id)
+            payment_method_id = _normalize_optional_string(
+                getattr(setup_intent, "payment_method", None)
+            )
+        except StripeError:
+            logger.exception(
+                "Failed to retrieve setup intent %s for session %s",
+                setup_intent_id,
+                getattr(checkout_session, "id", "?"),
+            )
+
+    if not payment_method_id:
+        logger.warning(
+            "Setup session %s completed without a payment method",
+            getattr(checkout_session, "id", "?"),
+        )
+        return StripeWebhookResponse()
+
+    user = (
+        (
+            await db_session.execute(
+                select(User)
+                .where(User.id == uuid.UUID(user_id))
+                .with_for_update(of=User)
+            )
+        )
+        .unique()
+        .scalar_one_or_none()
+    )
+    if user is None:
+        return StripeWebhookResponse()
+
+    customer_id = _normalize_optional_string(
+        getattr(checkout_session, "customer", None)
+    )
+    if customer_id and not user.stripe_customer_id:
+        user.stripe_customer_id = customer_id
+    user.auto_reload_payment_method_id = payment_method_id
+    await db_session.commit()
+
+    # Make this the customer's default for future off-session charges.
+    if user.stripe_customer_id:
+        try:
+            stripe_client.v1.customers.update(
+                user.stripe_customer_id,
+                params={
+                    "invoice_settings": {"default_payment_method": payment_method_id}
+                },
+            )
+        except StripeError:
+            logger.warning(
+                "Failed to set default payment method for customer %s",
+                user.stripe_customer_id,
+                exc_info=True,
+            )
+
+    return StripeWebhookResponse()
+
+
+async def _reconcile_auto_reload_payment_intent(
+    db_session: AsyncSession,
+    payment_intent: Any,
+    *,
+    succeeded: bool,
+) -> StripeWebhookResponse:
+    """Backstop for the off-session auto-reload charge via webhook.
+
+    The Celery task confirms the PaymentIntent synchronously and grants credit
+    inline, but the ``payment_intent.succeeded`` / ``payment_intent.payment_failed``
+    webhook acts as a safety net. We locate the matching ``auto_reload``
+    CreditPurchase by payment-intent id and only transition PENDING rows so we
+    never double-grant.
+    """
+    payment_intent_id = str(payment_intent.id)
+    purchase = (
+        await db_session.execute(
+            select(CreditPurchase)
+            .where(CreditPurchase.stripe_payment_intent_id == payment_intent_id)
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+
+    if purchase is None or purchase.status != CreditPurchaseStatus.PENDING:
+        return StripeWebhookResponse()
+
+    if succeeded:
+        user = (
+            (
+                await db_session.execute(
+                    select(User)
+                    .where(User.id == purchase.user_id)
+                    .with_for_update(of=User)
+                )
+            )
+            .unique()
+            .scalar_one_or_none()
+        )
+        if user is None:
+            return StripeWebhookResponse()
+        purchase.status = CreditPurchaseStatus.COMPLETED
+        purchase.completed_at = datetime.now(UTC)
+        user.credit_micros_balance = (
+            user.credit_micros_balance + purchase.credit_micros_granted
+        )
+    else:
+        purchase.status = CreditPurchaseStatus.FAILED
+
+    await db_session.commit()
+    return StripeWebhookResponse()
+
+
+@router.post(
+    "/create-credit-checkout-session",
+    response_model=CreateCreditCheckoutSessionResponse,
+)
+async def create_credit_checkout_session(
+    body: CreateCreditCheckoutSessionRequest,
     user: User = Depends(current_active_user),
     db_session: AsyncSession = Depends(get_async_session),
-) -> CreateCheckoutSessionResponse:
-    """Create a Stripe Checkout Session for buying page packs."""
-    _ensure_page_buying_enabled()
+) -> CreateCreditCheckoutSessionResponse:
+    """Create a Stripe Checkout Session for buying credit packs.
+
+    Each pack grants ``STRIPE_CREDIT_MICROS_PER_UNIT`` micro-USD of credit
+    (default 1_000_000 = $1.00). The balance is debited at the actual provider
+    cost reported by LiteLLM (premium calls) or ``MICROS_PER_PAGE`` per page
+    (ETL), so $1 of credit always buys $1 worth of usage at cost.
+    """
+    _ensure_credit_buying_enabled()
     stripe_client = get_stripe_client()
-    price_id = _get_required_stripe_price_id()
+    price_id = _get_required_credit_price_id()
     success_url, cancel_url = _get_checkout_urls(body.search_space_id)
-    pages_granted = body.quantity * config.STRIPE_PAGES_PER_UNIT
+    credit_micros_granted = body.quantity * config.STRIPE_CREDIT_MICROS_PER_UNIT
 
     try:
         checkout_session = stripe_client.v1.checkout.sessions.create(
@@ -415,14 +489,14 @@ async def create_checkout_session(
                 "metadata": {
                     "user_id": str(user.id),
                     "quantity": str(body.quantity),
-                    "pages_per_unit": str(config.STRIPE_PAGES_PER_UNIT),
-                    "purchase_type": "page_packs",
+                    "credit_micros_per_unit": str(config.STRIPE_CREDIT_MICROS_PER_UNIT),
+                    "purchase_type": "credits",
                 },
             }
         )
     except StripeError as exc:
         logger.exception(
-            "Failed to create Stripe checkout session for user %s", user.id
+            "Failed to create credit checkout session for user %s", user.id
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -437,28 +511,23 @@ async def create_checkout_session(
         )
 
     db_session.add(
-        PagePurchase(
+        CreditPurchase(
             user_id=user.id,
             stripe_checkout_session_id=str(checkout_session.id),
             stripe_payment_intent_id=_normalize_optional_string(
                 getattr(checkout_session, "payment_intent", None)
             ),
             quantity=body.quantity,
-            pages_granted=pages_granted,
+            credit_micros_granted=credit_micros_granted,
             amount_total=getattr(checkout_session, "amount_total", None),
             currency=getattr(checkout_session, "currency", None),
-            status=PagePurchaseStatus.PENDING,
+            source="checkout",
+            status=CreditPurchaseStatus.PENDING,
         )
     )
     await db_session.commit()
 
-    return CreateCheckoutSessionResponse(checkout_url=checkout_url)
-
-
-@router.get("/status", response_model=StripeStatusResponse)
-async def get_stripe_status() -> StripeStatusResponse:
-    """Return page-buying availability for frontend feature gating."""
-    return StripeStatusResponse(page_buying_enabled=config.STRIPE_PAGE_BUYING_ENABLED)
+    return CreateCreditCheckoutSessionResponse(checkout_url=checkout_url)
 
 
 @router.post("/webhook", response_model=StripeWebhookResponse)
@@ -466,7 +535,7 @@ async def stripe_webhook(
     request: Request,
     db_session: AsyncSession = Depends(get_async_session),
 ) -> StripeWebhookResponse:
-    """Handle Stripe webhooks and grant purchased pages after payment."""
+    """Handle Stripe webhooks and grant purchased credit after payment."""
     if not config.STRIPE_WEBHOOK_SECRET:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -518,12 +587,37 @@ async def stripe_webhook(
                 )
                 return StripeWebhookResponse()
 
+            # mode=setup sessions carry no line items / payment; they save a
+            # card for off-session auto-reload.
+            if getattr(checkout_session, "mode", None) == "setup":
+                return await _handle_setup_session_completed(
+                    stripe_client, db_session, checkout_session
+                )
+
             metadata = _get_metadata(checkout_session)
-            if _is_token_purchase(metadata):
-                return await _fulfill_completed_token_purchase(
+            if _is_credit_purchase(metadata):
+                return await _fulfill_completed_credit_purchase(
                     db_session, checkout_session
                 )
-            return await _fulfill_completed_purchase(db_session, checkout_session)
+            # Legacy page-pack purchase: page buying is removed, so log and
+            # ignore rather than fulfilling.
+            logger.info(
+                "Ignoring non-credit checkout session %s (purchase_type=%s); "
+                "page buying is removed.",
+                getattr(checkout_session, "id", "?"),
+                metadata.get("purchase_type"),
+            )
+            return StripeWebhookResponse()
+
+        if event.type == "payment_intent.succeeded":
+            return await _reconcile_auto_reload_payment_intent(
+                db_session, event.data.object, succeeded=True
+            )
+
+        if event.type == "payment_intent.payment_failed":
+            return await _reconcile_auto_reload_payment_intent(
+                db_session, event.data.object, succeeded=False
+            )
 
         if event.type in {
             "checkout.session.async_payment_failed",
@@ -531,16 +625,12 @@ async def stripe_webhook(
         }:
             checkout_session = event.data.object
             metadata = _get_metadata(checkout_session)
-            if _is_token_purchase(metadata):
-                return await _mark_token_purchase_failed(
+            if _is_credit_purchase(metadata):
+                return await _mark_credit_purchase_failed(
                     db_session, str(checkout_session.id)
                 )
-            return await _mark_purchase_failed(db_session, str(checkout_session.id))
+            return StripeWebhookResponse()
     except Exception:
-        # Re-raise so FastAPI returns 500 and Stripe retries this delivery.
-        # Logging here gives us a structured trail with event id + type so
-        # future webhook bugs surface immediately in the logs without
-        # having to grep by request_id.
         logger.exception(
             "Stripe webhook handler failed for event id=%s type=%s — Stripe will retry",
             getattr(event, "id", "?"),
@@ -557,24 +647,17 @@ async def finalize_checkout(
     user: User = Depends(current_active_user),
     db_session: AsyncSession = Depends(get_async_session),
 ) -> FinalizeCheckoutResponse:
-    """Synchronously fulfil a checkout session from the success page.
+    """Synchronously fulfil a credit checkout session from the success page.
 
     Solves the webhook-vs-redirect race: the user lands on
     ``/dashboard/<id>/purchase-success?session_id=cs_...`` typically a
-    few hundred ms after paying, but Stripe's
-    ``checkout.session.completed`` webhook can take 5-30s+ to arrive.
-    Calling this endpoint on success-page mount fulfils the purchase
-    immediately by retrieving the session from Stripe's API and
-    invoking the same idempotent helpers the webhook uses.
-
-    Idempotency: if the webhook has already fulfilled this purchase
-    (status=COMPLETED), the helpers short-circuit and we just return
-    the latest balance. Concurrent webhook + finalize calls are safe
-    because both acquire ``SELECT ... FOR UPDATE`` on the purchase row.
+    few hundred ms after paying, but Stripe's ``checkout.session.completed``
+    webhook can take 5-30s+ to arrive. Calling this endpoint on success-page
+    mount fulfils the purchase immediately via the same idempotent helper the
+    webhook uses.
 
     Authorization: the session's ``client_reference_id`` must match the
-    authenticated user's id. This prevents a user from finalising
-    someone else's checkout session if they happen to know the id.
+    authenticated user's id.
     """
     stripe_client = get_stripe_client()
 
@@ -592,9 +675,6 @@ async def finalize_checkout(
             detail="Checkout session not found.",
         ) from exc
 
-    # Authorization check: the user finalising must be the user who
-    # initiated the checkout. ``client_reference_id`` is set in
-    # ``create_checkout_session`` / ``create_token_checkout_session``.
     client_reference_id = getattr(checkout_session, "client_reference_id", None)
     if client_reference_id != str(user.id):
         logger.warning(
@@ -608,107 +688,73 @@ async def finalize_checkout(
             detail="This checkout session does not belong to you.",
         )
 
-    metadata = _get_metadata(checkout_session)
-    is_token = _is_token_purchase(metadata)
     payment_status = getattr(checkout_session, "payment_status", None)
     session_status = getattr(checkout_session, "status", None)
-
-    # Defensive fallback: if metadata can't be read for any reason
-    # (extraction failure, manually-created session in Stripe dashboard,
-    # SDK upgrade breaking ``to_dict``, etc.) we'd otherwise route every
-    # purchase to the page_packs handler and get stuck. Resolve the
-    # purchase_type by checking which table actually has the row keyed
-    # by this Stripe session id.
-    if not metadata:
-        existing_token_purchase = (
-            await db_session.execute(
-                select(PremiumTokenPurchase.id).where(
-                    PremiumTokenPurchase.stripe_checkout_session_id
-                    == str(checkout_session.id)
-                )
-            )
-        ).scalar_one_or_none()
-        if existing_token_purchase is not None:
-            is_token = True
-        else:
-            existing_page_purchase = (
-                await db_session.execute(
-                    select(PagePurchase.id).where(
-                        PagePurchase.stripe_checkout_session_id
-                        == str(checkout_session.id)
-                    )
-                )
-            ).scalar_one_or_none()
-            if existing_page_purchase is None:
-                logger.error(
-                    "finalize_checkout: no purchase row in either table "
-                    "and metadata is empty for session=%s user=%s",
-                    session_id,
-                    user.id,
-                )
-                # Fall through; downstream path will short-circuit on
-                # missing-row + empty-metadata.
-        logger.info(
-            "finalize_checkout: recovered purchase_type=%s for session=%s "
-            "via DB fallback (metadata was empty)",
-            "premium_tokens" if is_token else "page_packs",
-            session_id,
-        )
-
     is_paid = payment_status in {"paid", "no_payment_required"}
     is_expired = session_status == "expired"
 
     if is_paid:
-        if is_token:
-            await _fulfill_completed_token_purchase(db_session, checkout_session)
-        else:
-            await _fulfill_completed_purchase(db_session, checkout_session)
+        await _fulfill_completed_credit_purchase(db_session, checkout_session)
     elif is_expired:
-        if is_token:
-            await _mark_token_purchase_failed(db_session, str(checkout_session.id))
-        else:
-            await _mark_purchase_failed(db_session, str(checkout_session.id))
-    # Otherwise (e.g. payment_status="unpaid", session_status="open"),
-    # leave the purchase row alone — frontend will keep polling and the
-    # webhook will eventually win the race.
+        await _mark_credit_purchase_failed(db_session, str(checkout_session.id))
+    # Otherwise leave the row alone — frontend keeps polling and the webhook
+    # will eventually win the race.
 
-    # Refresh the user row so the response reflects any update applied
-    # by the fulfilment helpers in this same session.
     await db_session.refresh(user)
-
-    if is_token:
-        purchase = (
-            await db_session.execute(
-                select(PremiumTokenPurchase).where(
-                    PremiumTokenPurchase.stripe_checkout_session_id
-                    == str(checkout_session.id)
-                )
-            )
-        ).scalar_one_or_none()
-        return FinalizeCheckoutResponse(
-            purchase_type="premium_tokens",
-            status=purchase.status.value if purchase else "pending",
-            premium_credit_micros_limit=user.premium_credit_micros_limit,
-            premium_credit_micros_used=user.premium_credit_micros_used,
-            premium_credit_micros_granted=(
-                purchase.credit_micros_granted if purchase else None
-            ),
-        )
 
     purchase = (
         await db_session.execute(
-            select(PagePurchase).where(
-                PagePurchase.stripe_checkout_session_id == str(checkout_session.id)
+            select(CreditPurchase).where(
+                CreditPurchase.stripe_checkout_session_id == str(checkout_session.id)
             )
         )
     ).scalar_one_or_none()
     return FinalizeCheckoutResponse(
-        purchase_type="page_packs",
         status=purchase.status.value if purchase else "pending",
-        pages_limit=user.pages_limit,
-        pages_used=user.pages_used,
-        pages_granted=purchase.pages_granted if purchase else None,
+        credit_micros_balance=user.credit_micros_balance,
+        credit_micros_granted=(purchase.credit_micros_granted if purchase else None),
     )
+
+
+@router.get("/credit-status", response_model=CreditStripeStatusResponse)
+async def get_credit_status(
+    user: User = Depends(current_active_user),
+) -> CreditStripeStatusResponse:
+    """Return credit-buying availability and current balance for the frontend.
+
+    ``credit_micros_balance`` is in micro-USD (1_000_000 = $1.00); the FE
+    divides by 1M when displaying.
+    """
+    return CreditStripeStatusResponse(
+        credit_buying_enabled=config.STRIPE_CREDIT_BUYING_ENABLED,
+        credit_micros_balance=user.credit_micros_balance,
+    )
+
+
+@router.get("/credit-purchases", response_model=CreditPurchaseHistoryResponse)
+async def get_credit_purchases(
+    user: User = Depends(current_active_user),
+    db_session: AsyncSession = Depends(get_async_session),
+    offset: int = 0,
+    limit: int = 50,
+) -> CreditPurchaseHistoryResponse:
+    """Return the authenticated user's credit purchase history."""
+    limit = min(limit, 100)
+    purchases = (
+        (
+            await db_session.execute(
+                select(CreditPurchase)
+                .where(CreditPurchase.user_id == user.id)
+                .order_by(CreditPurchase.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    return CreditPurchaseHistoryResponse(purchases=purchases)
 
 
 @router.get("/purchases", response_model=PagePurchaseHistoryResponse)
@@ -718,7 +764,10 @@ async def get_page_purchases(
     offset: int = 0,
     limit: int = 50,
 ) -> PagePurchaseHistoryResponse:
-    """Return the authenticated user's page-purchase history."""
+    """Return the authenticated user's legacy page-purchase history (read-only).
+
+    Page buying is removed; this endpoint stays for historical records.
+    """
     limit = min(limit, 100)
     purchases = (
         (
@@ -737,163 +786,152 @@ async def get_page_purchases(
     return PagePurchaseHistoryResponse(purchases=purchases)
 
 
-# =============================================================================
-# Premium Token Purchase Routes
-# =============================================================================
+def _auto_reload_settings_response(user: User) -> AutoReloadSettingsResponse:
+    return AutoReloadSettingsResponse(
+        feature_enabled=config.AUTO_RELOAD_ENABLED,
+        enabled=bool(user.auto_reload_enabled),
+        threshold_micros=user.auto_reload_threshold_micros,
+        amount_micros=user.auto_reload_amount_micros,
+        min_amount_micros=config.AUTO_RELOAD_MIN_AMOUNT_MICROS,
+        has_payment_method=bool(user.auto_reload_payment_method_id),
+        failed_at=user.auto_reload_failed_at,
+    )
 
 
-def _ensure_token_buying_enabled() -> None:
-    if not config.STRIPE_TOKEN_BUYING_ENABLED:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Premium token purchases are temporarily unavailable.",
-        )
+@router.post(
+    "/auto-reload/setup",
+    response_model=CreateAutoReloadSetupSessionResponse,
+)
+async def create_auto_reload_setup_session(
+    body: CreateAutoReloadSetupSessionRequest,
+    user: User = Depends(current_active_user),
+    db_session: AsyncSession = Depends(get_async_session),
+) -> CreateAutoReloadSetupSessionResponse:
+    """Start a ``mode=setup`` checkout session to save a card for auto-reload.
 
-
-def _get_token_checkout_urls(search_space_id: int) -> tuple[str, str]:
+    Uses a SetupIntent (no immediate charge) attached to the user's Stripe
+    Customer so the card can later be charged off-session. On completion the
+    webhook stores the resulting payment method on the user.
+    """
+    _ensure_auto_reload_enabled()
+    _ensure_credit_buying_enabled()
+    stripe_client = get_stripe_client()
     if not config.NEXT_FRONTEND_URL:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="NEXT_FRONTEND_URL is not configured.",
         )
+    customer_id = await _get_or_create_stripe_customer(stripe_client, db_session, user)
+
     base_url = config.NEXT_FRONTEND_URL.rstrip("/")
-    # See ``_get_checkout_urls`` for why session_id is appended.
     success_url = (
-        f"{base_url}/dashboard/{search_space_id}/purchase-success"
-        f"?session_id={{CHECKOUT_SESSION_ID}}"
+        f"{base_url}/dashboard/{body.search_space_id}/user-settings/purchases"
+        f"?auto_reload_setup=success"
     )
-    cancel_url = f"{base_url}/dashboard/{search_space_id}/purchase-cancel"
-    return success_url, cancel_url
-
-
-def _get_required_token_price_id() -> str:
-    if not config.STRIPE_PREMIUM_TOKEN_PRICE_ID:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="STRIPE_PREMIUM_TOKEN_PRICE_ID is not configured.",
-        )
-    return config.STRIPE_PREMIUM_TOKEN_PRICE_ID
-
-
-@router.post("/create-token-checkout-session")
-async def create_token_checkout_session(
-    body: CreateTokenCheckoutSessionRequest,
-    user: User = Depends(current_active_user),
-    db_session: AsyncSession = Depends(get_async_session),
-):
-    """Create a Stripe Checkout Session for buying premium credit packs.
-
-    Each pack grants ``STRIPE_CREDIT_MICROS_PER_UNIT`` micro-USD of
-    credit (default 1_000_000 = $1.00). The user's balance is debited
-    at the actual provider cost reported by LiteLLM at finalize time,
-    so $1 of credit always buys $1 worth of provider usage at cost.
-    """
-    _ensure_token_buying_enabled()
-    stripe_client = get_stripe_client()
-    price_id = _get_required_token_price_id()
-    success_url, cancel_url = _get_token_checkout_urls(body.search_space_id)
-    credit_micros_granted = body.quantity * config.STRIPE_CREDIT_MICROS_PER_UNIT
+    cancel_url = (
+        f"{base_url}/dashboard/{body.search_space_id}/user-settings/purchases"
+        f"?auto_reload_setup=cancel"
+    )
 
     try:
         checkout_session = stripe_client.v1.checkout.sessions.create(
             params={
-                "mode": "payment",
+                "mode": "setup",
                 "success_url": success_url,
                 "cancel_url": cancel_url,
-                "line_items": [
-                    {
-                        "price": price_id,
-                        "quantity": body.quantity,
-                    }
-                ],
+                "customer": customer_id,
                 "client_reference_id": str(user.id),
-                "customer_email": user.email,
                 "metadata": {
                     "user_id": str(user.id),
-                    "quantity": str(body.quantity),
-                    "credit_micros_per_unit": str(config.STRIPE_CREDIT_MICROS_PER_UNIT),
-                    # Canonical value matched by ``_is_token_purchase``.
-                    # The legacy ``"premium_credit"`` is still accepted on
-                    # the read side for any in-flight sessions started
-                    # before this rename.
-                    "purchase_type": "premium_tokens",
+                    "purchase_type": "auto_reload_setup",
                 },
             }
         )
     except StripeError as exc:
-        logger.exception("Failed to create token checkout session for user %s", user.id)
+        logger.exception(
+            "Failed to create auto-reload setup session for user %s", user.id
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to create Stripe checkout session.",
+            detail="Unable to create Stripe setup session.",
         ) from exc
 
     checkout_url = getattr(checkout_session, "url", None)
     if not checkout_url:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Stripe checkout session did not return a URL.",
+            detail="Stripe setup session did not return a URL.",
         )
 
-    db_session.add(
-        PremiumTokenPurchase(
-            user_id=user.id,
-            stripe_checkout_session_id=str(checkout_session.id),
-            stripe_payment_intent_id=_normalize_optional_string(
-                getattr(checkout_session, "payment_intent", None)
-            ),
-            quantity=body.quantity,
-            credit_micros_granted=credit_micros_granted,
-            amount_total=getattr(checkout_session, "amount_total", None),
-            currency=getattr(checkout_session, "currency", None),
-            status=PremiumTokenPurchaseStatus.PENDING,
-        )
-    )
-    await db_session.commit()
-
-    return CreateTokenCheckoutSessionResponse(checkout_url=checkout_url)
+    return CreateAutoReloadSetupSessionResponse(checkout_url=checkout_url)
 
 
-@router.get("/token-status")
-async def get_token_status(
+@router.get("/auto-reload", response_model=AutoReloadSettingsResponse)
+async def get_auto_reload_settings(
     user: User = Depends(current_active_user),
-):
-    """Return token-buying availability and current premium credit quota for frontend.
-
-    Values are in micro-USD (1_000_000 = $1.00); the FE divides by 1M
-    when displaying. The route name is preserved for back-compat with
-    pinned client deployments.
-    """
-    used = user.premium_credit_micros_used
-    limit = user.premium_credit_micros_limit
-    return TokenStripeStatusResponse(
-        token_buying_enabled=config.STRIPE_TOKEN_BUYING_ENABLED,
-        premium_credit_micros_used=used,
-        premium_credit_micros_limit=limit,
-        premium_credit_micros_remaining=max(0, limit - used),
-    )
+) -> AutoReloadSettingsResponse:
+    """Return the user's auto-reload configuration and saved-card state."""
+    return _auto_reload_settings_response(user)
 
 
-@router.get("/token-purchases")
-async def get_token_purchases(
+@router.put("/auto-reload", response_model=AutoReloadSettingsResponse)
+async def update_auto_reload_settings(
+    body: UpdateAutoReloadSettingsRequest,
     user: User = Depends(current_active_user),
     db_session: AsyncSession = Depends(get_async_session),
-    offset: int = 0,
-    limit: int = 50,
-):
-    """Return the authenticated user's premium token purchase history."""
-    limit = min(limit, 100)
-    purchases = (
+) -> AutoReloadSettingsResponse:
+    """Update auto-reload preferences.
+
+    Enabling requires a saved card plus a positive threshold and an amount of
+    at least ``AUTO_RELOAD_MIN_AMOUNT_MICROS``. Disabling always succeeds and
+    clears any prior failure flag.
+    """
+    _ensure_auto_reload_enabled()
+
+    locked = (
         (
             await db_session.execute(
-                select(PremiumTokenPurchase)
-                .where(PremiumTokenPurchase.user_id == user.id)
-                .order_by(PremiumTokenPurchase.created_at.desc())
-                .offset(offset)
-                .limit(limit)
+                select(User).where(User.id == user.id).with_for_update(of=User)
             )
         )
-        .scalars()
-        .all()
+        .unique()
+        .scalar_one()
     )
 
-    return TokenPurchaseHistoryResponse(purchases=purchases)
+    if body.enabled:
+        if not locked.auto_reload_payment_method_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Add a payment method before enabling auto-reload.",
+            )
+        if not body.threshold_micros or body.threshold_micros <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A positive low-balance threshold is required.",
+            )
+        if (
+            body.amount_micros is None
+            or body.amount_micros < config.AUTO_RELOAD_MIN_AMOUNT_MICROS
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Reload amount must be at least "
+                    f"{config.AUTO_RELOAD_MIN_AMOUNT_MICROS} micro-USD."
+                ),
+            )
+        locked.auto_reload_enabled = True
+        locked.auto_reload_threshold_micros = body.threshold_micros
+        locked.auto_reload_amount_micros = body.amount_micros
+        # Re-enabling clears the prior failure flag so the user can retry.
+        locked.auto_reload_failed_at = None
+    else:
+        locked.auto_reload_enabled = False
+        if body.threshold_micros is not None:
+            locked.auto_reload_threshold_micros = body.threshold_micros
+        if body.amount_micros is not None:
+            locked.auto_reload_amount_micros = body.amount_micros
+
+    await db_session.commit()
+    await db_session.refresh(locked)
+    return _auto_reload_settings_response(locked)

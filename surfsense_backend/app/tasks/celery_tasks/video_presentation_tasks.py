@@ -174,11 +174,10 @@ async def _generate_video_presentation(
                     )
             except QuotaInsufficientError as exc:
                 logger.info(
-                    "VideoPresentation %s denied: out of premium credits "
-                    "(used=%d/%d remaining=%d)",
+                    "VideoPresentation %s denied: out of credits "
+                    "(balance=%d remaining=%d)",
                     video_pres.id,
-                    exc.used_micros,
-                    exc.limit_micros,
+                    exc.balance_micros,
                     exc.remaining_micros,
                 )
                 video_pres.status = VideoPresentationStatus.FAILED

@@ -12,6 +12,7 @@ CATEGORY_TYPES: dict[str, tuple[str, ...]] = {
         "connector_indexing",
         "connector_deletion",
         "document_processing",
-        "page_limit_exceeded",
+        "insufficient_credits",
+        "auto_reload_failed",
     ),
 }

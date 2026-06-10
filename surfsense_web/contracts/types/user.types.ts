@@ -6,8 +6,7 @@ export const user = z.object({
 	is_active: z.boolean(),
 	is_superuser: z.boolean(),
 	is_verified: z.boolean(),
-	pages_limit: z.number(),
-	pages_used: z.number(),
+	credit_micros_balance: z.number(),
 	display_name: z.string().nullish(),
 	avatar_url: z.string().nullish(),
 });

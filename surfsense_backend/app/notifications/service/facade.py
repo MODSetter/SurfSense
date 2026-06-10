@@ -10,11 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.notifications.persistence import Notification
 from app.notifications.service.handlers import (
+    AutoReloadFailedNotificationHandler,
     CommentReplyNotificationHandler,
     ConnectorIndexingNotificationHandler,
     DocumentProcessingNotificationHandler,
+    InsufficientCreditsNotificationHandler,
     MentionNotificationHandler,
-    PageLimitNotificationHandler,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,8 @@ class NotificationService:
     document_processing = DocumentProcessingNotificationHandler()
     mention = MentionNotificationHandler()
     comment_reply = CommentReplyNotificationHandler()
-    page_limit = PageLimitNotificationHandler()
+    insufficient_credits = InsufficientCreditsNotificationHandler()
+    auto_reload_failed = AutoReloadFailedNotificationHandler()
 
     @staticmethod
     async def create_notification(

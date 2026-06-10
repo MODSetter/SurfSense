@@ -1,13 +1,12 @@
-"""Premium credit (USD micro-units) reserve / finalize / release lifecycle.
+"""Credit wallet (USD micro-units) reserve / finalize / release lifecycle.
 
-Both ``stream_new_chat`` and ``stream_resume_chat`` reserve premium credits up
-front (so a single LLM call can't run away with the budget), then finalize the
-actual provider cost reported by LiteLLM when the turn completes successfully,
-or release the reservation on the cancellation / interrupted-without-finalize
-paths.
+Both ``stream_new_chat`` and ``stream_resume_chat`` reserve credits up front (so
+a single LLM call can't run away with the budget), then finalize the actual
+provider cost reported by LiteLLM when the turn completes successfully, or
+release the reservation on the cancellation / interrupted-without-finalize paths.
 
-State is held by the orchestrator as a simple ``PremiumReservation`` tuple
-so reservation, fallback-on-denied, finalize, and release can all be reasoned
+State is held by the orchestrator as a simple ``CreditReservation`` so
+reservation, fallback-on-denied, finalize, and release can all be reasoned
 about from one place.
 """
 
@@ -27,8 +26,8 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class PremiumReservation:
-    """Active premium-credit reservation for one turn.
+class CreditReservation:
+    """Active credit reservation for one turn.
 
     ``request_id`` is the per-reservation idempotency key (also passed to
     ``finalize``/``release`` so racing branches resolve to the same row).
@@ -41,15 +40,15 @@ class PremiumReservation:
     allowed: bool
 
 
-def needs_premium_quota(agent_config: AgentConfig | None, user_id: str | None) -> bool:
+def needs_credit_quota(agent_config: AgentConfig | None, user_id: str | None) -> bool:
     return bool(agent_config is not None and user_id and agent_config.is_premium)
 
 
-async def reserve_premium(
+async def reserve_credit(
     *,
     agent_config: AgentConfig,
     user_id: str,
-) -> PremiumReservation:
+) -> CreditReservation:
     """Reserve estimated micros up front; returns the reservation handle."""
     from app.services.token_quota_service import (
         TokenQuotaService,
@@ -68,22 +67,22 @@ async def reserve_premium(
         quota_reserve_tokens=agent_config.quota_reserve_tokens,
     )
     async with shielded_async_session() as quota_session:
-        quota_result = await TokenQuotaService.premium_reserve(
+        quota_result = await TokenQuotaService.credit_reserve(
             db_session=quota_session,
             user_id=UUID(user_id),
             request_id=request_id,
             reserve_micros=reserve_amount_micros,
         )
-    return PremiumReservation(
+    return CreditReservation(
         request_id=request_id,
         reserved_micros=reserve_amount_micros,
         allowed=quota_result.allowed,
     )
 
 
-async def finalize_premium(
+async def finalize_credit(
     *,
-    reservation: PremiumReservation,
+    reservation: CreditReservation,
     user_id: str,
     accumulator: TokenAccumulator,
 ) -> None:
@@ -96,7 +95,7 @@ async def finalize_premium(
         from app.services.token_quota_service import TokenQuotaService
 
         async with shielded_async_session() as quota_session:
-            await TokenQuotaService.premium_finalize(
+            await TokenQuotaService.credit_finalize(
                 db_session=quota_session,
                 user_id=UUID(user_id),
                 request_id=reservation.request_id,
@@ -105,15 +104,15 @@ async def finalize_premium(
             )
     except Exception:
         logging.getLogger(__name__).warning(
-            "Failed to finalize premium quota for user %s",
+            "Failed to finalize credit quota for user %s",
             user_id,
             exc_info=True,
         )
 
 
-async def release_premium(
+async def release_credit(
     *,
-    reservation: PremiumReservation,
+    reservation: CreditReservation,
     user_id: str,
 ) -> None:
     """Release the reservation on cancellation paths; never raises."""
@@ -121,12 +120,12 @@ async def release_premium(
         from app.services.token_quota_service import TokenQuotaService
 
         async with shielded_async_session() as quota_session:
-            await TokenQuotaService.premium_release(
+            await TokenQuotaService.credit_release(
                 db_session=quota_session,
                 user_id=UUID(user_id),
                 reserved_micros=reservation.reserved_micros,
             )
     except Exception:
         logging.getLogger(__name__).warning(
-            "Failed to release premium quota for user %s", user_id
+            "Failed to release credit quota for user %s", user_id
         )

@@ -10,7 +10,8 @@ NotificationType = Literal[
     "document_processing",
     "new_mention",
     "comment_reply",
-    "page_limit_exceeded",
+    "insufficient_credits",
+    "auto_reload_failed",
 ]
 
 NotificationCategory = Literal["comments", "status"]
