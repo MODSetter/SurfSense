@@ -3,29 +3,17 @@ from typing import Any
 
 from litellm import Router
 
-from app.services.provider_api_base import resolve_api_base
+from app.services.model_resolver import (
+    NATIVE_PROVIDER_PREFIX,
+    native_connection_from_config,
+    to_litellm,
+)
 
 logger = logging.getLogger(__name__)
 
 VISION_AUTO_MODE_ID = 0
 
-VISION_PROVIDER_MAP = {
-    "OPENAI": "openai",
-    "ANTHROPIC": "anthropic",
-    "GOOGLE": "gemini",
-    "AZURE_OPENAI": "azure",
-    "VERTEX_AI": "vertex_ai",
-    "BEDROCK": "bedrock",
-    "XAI": "xai",
-    "OPENROUTER": "openrouter",
-    "OLLAMA": "ollama_chat",
-    "GROQ": "groq",
-    "TOGETHER_AI": "together_ai",
-    "FIREWORKS_AI": "fireworks_ai",
-    "DEEPSEEK": "openai",
-    "MISTRAL": "mistral",
-    "CUSTOM": "custom",
-}
+VISION_PROVIDER_MAP = NATIVE_PROVIDER_PREFIX
 
 
 class VisionLLMRouterService:
@@ -110,32 +98,11 @@ class VisionLLMRouterService:
             if not config.get("model_name") or not config.get("api_key"):
                 return None
 
-            provider = config.get("provider", "").upper()
-            if config.get("custom_provider"):
-                provider_prefix = config["custom_provider"]
-                model_string = f"{provider_prefix}/{config['model_name']}"
-            else:
-                provider_prefix = VISION_PROVIDER_MAP.get(provider, provider.lower())
-                model_string = f"{provider_prefix}/{config['model_name']}"
-
-            litellm_params: dict[str, Any] = {
-                "model": model_string,
-                "api_key": config.get("api_key"),
-            }
-
-            api_base = resolve_api_base(
-                provider=provider,
-                provider_prefix=provider_prefix,
-                config_api_base=config.get("api_base"),
+            model_string, resolved_kwargs = to_litellm(
+                native_connection_from_config(config),
+                config["model_name"],
             )
-            if api_base:
-                litellm_params["api_base"] = api_base
-
-            if config.get("api_version"):
-                litellm_params["api_version"] = config["api_version"]
-
-            if config.get("litellm_params"):
-                litellm_params.update(config["litellm_params"])
+            litellm_params: dict[str, Any] = {"model": model_string, **resolved_kwargs}
 
             deployment: dict[str, Any] = {
                 "model_name": "auto",

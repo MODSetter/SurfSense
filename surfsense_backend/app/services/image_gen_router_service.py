@@ -20,7 +20,11 @@ from typing import Any
 from litellm import Router
 from litellm.utils import ImageResponse
 
-from app.services.provider_api_base import resolve_api_base
+from app.services.model_resolver import (
+    NATIVE_PROVIDER_PREFIX,
+    native_connection_from_config,
+    to_litellm,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +34,7 @@ IMAGE_GEN_AUTO_MODE_ID = 0
 # Provider mapping for LiteLLM model string construction.
 # Only includes providers that support image generation.
 # See: https://docs.litellm.ai/docs/image_generation#supported-providers
-IMAGE_GEN_PROVIDER_MAP = {
-    "OPENAI": "openai",
-    "AZURE_OPENAI": "azure",
-    "GOOGLE": "gemini",  # Google AI Studio
-    "VERTEX_AI": "vertex_ai",
-    "BEDROCK": "bedrock",  # AWS Bedrock
-    "RECRAFT": "recraft",
-    "OPENROUTER": "openrouter",
-    "XINFERENCE": "xinference",
-    "NSCALE": "nscale",
-}
+IMAGE_GEN_PROVIDER_MAP = NATIVE_PROVIDER_PREFIX
 
 
 class ImageGenRouterService:
@@ -153,38 +147,11 @@ class ImageGenRouterService:
             if not config.get("model_name") or not config.get("api_key"):
                 return None
 
-            # Build model string
-            provider = config.get("provider", "").upper()
-            if config.get("custom_provider"):
-                provider_prefix = config["custom_provider"]
-            else:
-                provider_prefix = IMAGE_GEN_PROVIDER_MAP.get(provider, provider.lower())
-            model_string = f"{provider_prefix}/{config['model_name']}"
-
-            # Build litellm params
-            litellm_params: dict[str, Any] = {
-                "model": model_string,
-                "api_key": config.get("api_key"),
-            }
-
-            # Resolve ``api_base`` so deployments don't silently inherit
-            # ``AZURE_OPENAI_ENDPOINT`` / ``OPENAI_API_BASE`` and 404 against
-            # the wrong provider (see ``provider_api_base`` docstring).
-            api_base = resolve_api_base(
-                provider=provider,
-                provider_prefix=provider_prefix,
-                config_api_base=config.get("api_base"),
+            model_string, resolved_kwargs = to_litellm(
+                native_connection_from_config(config),
+                config["model_name"],
             )
-            if api_base:
-                litellm_params["api_base"] = api_base
-
-            # Add api_version (required for Azure)
-            if config.get("api_version"):
-                litellm_params["api_version"] = config["api_version"]
-
-            # Add any additional litellm parameters
-            if config.get("litellm_params"):
-                litellm_params.update(config["litellm_params"])
+            litellm_params: dict[str, Any] = {"model": model_string, **resolved_kwargs}
 
             # All configs use same alias "auto" for unified routing
             deployment: dict[str, Any] = {

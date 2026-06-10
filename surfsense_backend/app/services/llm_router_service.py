@@ -30,6 +30,11 @@ from litellm.exceptions import (
 )
 from pydantic import Field
 
+from app.services.model_resolver import (
+    NATIVE_PROVIDER_PREFIX,
+    native_connection_from_config,
+    to_litellm,
+)
 from app.utils.perf import get_perf_logger
 
 litellm.json_logs = False
@@ -96,52 +101,8 @@ def _sanitize_content(content: Any) -> Any:
 # Special ID for Auto mode - uses router for load balancing
 AUTO_MODE_ID = 0
 
-# Provider mapping for LiteLLM model string construction
-PROVIDER_MAP = {
-    "OPENAI": "openai",
-    "ANTHROPIC": "anthropic",
-    "GROQ": "groq",
-    "COHERE": "cohere",
-    "GOOGLE": "gemini",
-    "OLLAMA": "ollama_chat",
-    "MISTRAL": "mistral",
-    "AZURE_OPENAI": "azure",
-    "OPENROUTER": "openrouter",
-    "COMETAPI": "cometapi",
-    "XAI": "xai",
-    "BEDROCK": "bedrock",
-    "AWS_BEDROCK": "bedrock",  # Legacy support
-    "VERTEX_AI": "vertex_ai",
-    "TOGETHER_AI": "together_ai",
-    "FIREWORKS_AI": "fireworks_ai",
-    "REPLICATE": "replicate",
-    "PERPLEXITY": "perplexity",
-    "ANYSCALE": "anyscale",
-    "DEEPINFRA": "deepinfra",
-    "CEREBRAS": "cerebras",
-    "SAMBANOVA": "sambanova",
-    "AI21": "ai21",
-    "CLOUDFLARE": "cloudflare",
-    "DATABRICKS": "databricks",
-    "DEEPSEEK": "openai",
-    "ALIBABA_QWEN": "openai",
-    "MOONSHOT": "openai",
-    "ZHIPU": "openai",
-    "GITHUB_MODELS": "github",
-    "HUGGINGFACE": "huggingface",
-    "MINIMAX": "openai",
-    "CUSTOM": "custom",
-}
-
-
-# ``PROVIDER_DEFAULT_API_BASE`` and ``PROVIDER_KEY_DEFAULT_API_BASE`` were
-# hoisted to ``app.services.provider_api_base`` so vision and image-gen
-# call sites can share the exact same defense (OpenRouter / Groq / etc.
-# 404-ing against an inherited Azure endpoint). Re-exported here for
-# backward compatibility with any external import.
-from app.services.provider_api_base import (  # noqa: E402
-    resolve_api_base,
-)
+# Historical export kept for callers that still import PROVIDER_MAP.
+PROVIDER_MAP = NATIVE_PROVIDER_PREFIX
 
 
 class LLMRouterService:
@@ -420,38 +381,11 @@ class LLMRouterService:
             if not config.get("model_name") or not config.get("api_key"):
                 return None
 
-            # Build model string
-            provider = config.get("provider", "").upper()
-            if config.get("custom_provider"):
-                provider_prefix = config["custom_provider"]
-                model_string = f"{provider_prefix}/{config['model_name']}"
-            else:
-                provider_prefix = PROVIDER_MAP.get(provider, provider.lower())
-                model_string = f"{provider_prefix}/{config['model_name']}"
-
-            # Build litellm params
-            litellm_params = {
-                "model": model_string,
-                "api_key": config.get("api_key"),
-            }
-
-            # Resolve ``api_base``. Config value wins; otherwise apply a
-            # provider-aware default so the deployment does not silently
-            # inherit unrelated env vars (e.g. ``AZURE_API_BASE``) and route
-            # requests to the wrong endpoint.  See ``provider_api_base``
-            # docstring for the motivating bug (OpenRouter models 404-ing
-            # against an Azure endpoint).
-            api_base = resolve_api_base(
-                provider=provider,
-                provider_prefix=provider_prefix,
-                config_api_base=config.get("api_base"),
+            model_string, resolved_kwargs = to_litellm(
+                native_connection_from_config(config),
+                config["model_name"],
             )
-            if api_base:
-                litellm_params["api_base"] = api_base
-
-            # Add any additional litellm parameters
-            if config.get("litellm_params"):
-                litellm_params.update(config["litellm_params"])
+            litellm_params = {"model": model_string, **resolved_kwargs}
 
             # Extract rate limits if provided
             deployment = {

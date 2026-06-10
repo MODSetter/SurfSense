@@ -450,10 +450,10 @@ async def _resolve_agent_billing_for_search_space(
     thread_id: int | None = None,
 ) -> tuple[UUID, str, str]:
     """Resolve ``(owner_user_id, billing_tier, base_model)`` for the search-space
-    agent LLM.
+    chat model.
 
     Used by Celery tasks (podcast generation, video presentation) to bill the
-    search-space owner's premium credit pool when the agent LLM is premium.
+    search-space owner's premium credit pool when the chat model is premium.
 
     Resolution rules mirror chat at ``stream_new_chat.py:2294-2351``:
 
