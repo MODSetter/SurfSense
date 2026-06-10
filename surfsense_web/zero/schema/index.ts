@@ -4,6 +4,7 @@ import { chatCommentTable, chatSessionStateTable, newChatMessageTable } from "./
 import { documentTable, searchSourceConnectorTable } from "./documents";
 import { folderTable } from "./folders";
 import { notificationTable } from "./inbox";
+import { podcastTable } from "./podcasts";
 import { userTable } from "./user";
 
 const chatCommentRelationships = relationships(chatCommentTable, ({ one }) => ({
@@ -38,6 +39,7 @@ export const schema = createSchema({
 		chatSessionStateTable,
 		userTable,
 		automationRunTable,
+		podcastTable,
 	],
 	relationships: [chatCommentRelationships, newChatMessageRelationships],
 });
