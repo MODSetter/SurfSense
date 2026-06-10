@@ -44,6 +44,11 @@ export const cacheKeys = {
 		global: () => ["new-llm-configs", "global"] as const,
 		modelList: () => ["models", "catalogue"] as const,
 	},
+	modelConnections: {
+		all: (searchSpaceId: number) => ["model-connections", searchSpaceId] as const,
+		global: () => ["model-connections", "global"] as const,
+		roles: (searchSpaceId: number) => ["model-roles", searchSpaceId] as const,
+	},
 	imageGenConfigs: {
 		all: (searchSpaceId: number) => ["image-gen-configs", searchSpaceId] as const,
 		byId: (configId: number) => ["image-gen-configs", "detail", configId] as const,
