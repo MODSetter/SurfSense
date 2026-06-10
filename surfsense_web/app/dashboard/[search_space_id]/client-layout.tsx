@@ -4,15 +4,15 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
-import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
+import { updateModelRolesMutationAtom } from "@/atoms/model-connections/model-connections-mutation.atoms";
 import {
-	globalNewLLMConfigsAtom,
-	llmPreferencesAtom,
-} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+	globalModelConnectionsAtom,
+	modelRolesAtom,
+} from "@/atoms/model-connections/model-connections-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
 import { LayoutDataProvider } from "@/components/layout";
@@ -21,7 +21,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useFolderSync } from "@/hooks/use-folder-sync";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { isLlmOnboardingComplete } from "@/lib/onboarding";
 
 export function DashboardClientLayout({
 	children,
@@ -38,18 +37,27 @@ export function DashboardClientLayout({
 	const setPendingUserImageUrls = useSetAtom(pendingUserImageDataUrlsAtom);
 
 	const {
-		data: preferences = {},
+		data: modelRoles = {},
 		isFetching: loading,
 		error,
-		refetch: refetchPreferences,
-	} = useAtomValue(llmPreferencesAtom);
-	const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
-		useAtomValue(globalNewLLMConfigsAtom);
-	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
+		refetch: refetchModelRoles,
+	} = useAtomValue(modelRolesAtom);
+	const { data: globalConnections = [], isFetching: globalConfigsLoading } = useAtomValue(
+		globalModelConnectionsAtom
+	);
+	const { mutateAsync: updateModelRoles } = useAtomValue(updateModelRolesMutationAtom);
+
+	const firstGlobalChatModel = useMemo(() => {
+		for (const connection of globalConnections) {
+			const model = connection.models.find((item) => item.enabled && item.capabilities?.chat);
+			if (model) return model;
+		}
+		return null;
+	}, [globalConnections]);
 
 	const isOnboardingComplete = useCallback(() => {
-		return isLlmOnboardingComplete(preferences.agent_llm_id, globalConfigs.length > 0);
-	}, [preferences.agent_llm_id, globalConfigs.length]);
+		return (modelRoles.chat_model_id ?? 0) !== 0 || Boolean(firstGlobalChatModel);
+	}, [modelRoles.chat_model_id, firstGlobalChatModel]);
 
 	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
@@ -84,24 +92,18 @@ export function DashboardClientLayout({
 				return;
 			}
 
-			if (globalConfigs.length > 0 && !hasAttemptedAutoConfig.current) {
+			if (firstGlobalChatModel && !hasAttemptedAutoConfig.current) {
 				hasAttemptedAutoConfig.current = true;
 				setIsAutoConfiguring(true);
 
 				const autoConfigureWithGlobal = async () => {
 					try {
-						const firstGlobalConfig = globalConfigs[0];
-						await updatePreferences({
-							search_space_id: Number(searchSpaceId),
-							data: {
-								agent_llm_id: firstGlobalConfig.id,
-							},
-						});
+						await updateModelRoles({ chat_model_id: firstGlobalChatModel.id });
 
-						await refetchPreferences();
+						await refetchModelRoles();
 
 						toast.success("AI configured automatically!", {
-							description: `Using ${firstGlobalConfig.name}. Customize in Settings.`,
+							description: `Using ${firstGlobalChatModel.display_name || firstGlobalChatModel.model_id}. Customize in Settings.`,
 						});
 
 						setHasCheckedOnboarding(true);
@@ -128,12 +130,12 @@ export function DashboardClientLayout({
 		isOnboardingPage,
 		isOwner,
 		isAutoConfiguring,
-		globalConfigs,
+		firstGlobalChatModel,
 		router,
 		searchSpaceId,
 		hasCheckedOnboarding,
-		updatePreferences,
-		refetchPreferences,
+		updateModelRoles,
+		refetchModelRoles,
 	]);
 
 	const electronAPI = useElectronAPI();

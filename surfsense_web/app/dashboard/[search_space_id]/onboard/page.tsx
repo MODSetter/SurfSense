@@ -2,193 +2,99 @@
 
 import { useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { updateModelRolesMutationAtom } from "@/atoms/model-connections/model-connections-mutation.atoms";
 import {
-	createNewLLMConfigMutationAtom,
-	updateLLMPreferencesMutationAtom,
-} from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
-import {
-	globalNewLLMConfigsAtom,
-	llmPreferencesAtom,
-} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+	globalModelConnectionsAtom,
+	modelRolesAtom,
+} from "@/atoms/model-connections/model-connections-query.atoms";
 import { Logo } from "@/components/Logo";
-import { LLMConfigForm, type LLMConfigFormData } from "@/components/shared/llm-config-form";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
-import { isLlmOnboardingComplete } from "@/lib/onboarding";
 
 export default function OnboardPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
-	// Queries
-	const {
-		data: globalConfigs = [],
-		isFetching: globalConfigsLoading,
-		isSuccess: globalConfigsLoaded,
-	} = useAtomValue(globalNewLLMConfigsAtom);
-	const { data: preferences = {}, isFetching: preferencesLoading } =
-		useAtomValue(llmPreferencesAtom);
-
-	// Mutations
-	const { mutateAsync: createConfig, isPending: isCreating } = useAtomValue(
-		createNewLLMConfigMutationAtom
+	const { data: globalConnections = [], isFetching: globalLoading } = useAtomValue(
+		globalModelConnectionsAtom
 	);
-	const { mutateAsync: updatePreferences, isPending: isUpdatingPreferences } = useAtomValue(
-		updateLLMPreferencesMutationAtom
-	);
-
-	// State
+	const { data: roles = {}, isFetching: rolesLoading } = useAtomValue(modelRolesAtom);
+	const { mutateAsync: updateRoles, isPending } = useAtomValue(updateModelRolesMutationAtom);
 	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
 	const hasAttemptedAutoConfig = useRef(false);
 
-	// Check authentication
 	useEffect(() => {
-		const token = getBearerToken();
-		if (!token) {
-			redirectToLogin();
-		}
+		if (!getBearerToken()) redirectToLogin();
 	}, []);
 
-	const isOnboardingComplete = isLlmOnboardingComplete(
-		preferences.agent_llm_id,
-		globalConfigs.length > 0
-	);
-
-	useEffect(() => {
-		if (!preferencesLoading && globalConfigsLoaded && isOnboardingComplete) {
-			router.push(`/dashboard/${searchSpaceId}/new-chat`);
+	const firstGlobalChatModel = useMemo(() => {
+		for (const connection of globalConnections) {
+			const model = connection.models.find((item) => item.enabled && item.capabilities?.chat);
+			if (model) return model;
 		}
-	}, [preferencesLoading, globalConfigsLoaded, isOnboardingComplete, router, searchSpaceId]);
+		return null;
+	}, [globalConnections]);
+
+	const isComplete = (roles.chat_model_id ?? 0) !== 0 || Boolean(firstGlobalChatModel);
 
 	useEffect(() => {
-		const autoConfigureWithGlobal = async () => {
-			if (hasAttemptedAutoConfig.current) return;
-			if (globalConfigsLoading || preferencesLoading) return;
-			if (!globalConfigsLoaded) return;
-			if (isOnboardingComplete) return;
+		if (globalLoading || rolesLoading || hasAttemptedAutoConfig.current) return;
+		if ((roles.chat_model_id ?? 0) !== 0) {
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
+			return;
+		}
+		if (!firstGlobalChatModel) return;
 
-			if (globalConfigs.length > 0) {
-				hasAttemptedAutoConfig.current = true;
-				setIsAutoConfiguring(true);
-
-				try {
-					const firstGlobalConfig = globalConfigs[0];
-
-					await updatePreferences({
-						search_space_id: searchSpaceId,
-						data: {
-							agent_llm_id: firstGlobalConfig.id,
-						},
-					});
-
-					toast.success("AI configured automatically!", {
-						description: `Using ${firstGlobalConfig.name}. You can customize this later in Settings.`,
-					});
-
-					router.push(`/dashboard/${searchSpaceId}/new-chat`);
-				} catch (error) {
-					console.error("Auto-configuration failed:", error);
-					toast.error("Auto-configuration failed. Please add a configuration manually.");
-					setIsAutoConfiguring(false);
-				}
-			}
-		};
-
-		autoConfigureWithGlobal();
+		hasAttemptedAutoConfig.current = true;
+		setIsAutoConfiguring(true);
+		updateRoles({ chat_model_id: firstGlobalChatModel.id })
+			.then(() => {
+				toast.success("AI configured automatically", {
+					description: `Using ${firstGlobalChatModel.display_name || firstGlobalChatModel.model_id}.`,
+				});
+				router.push(`/dashboard/${searchSpaceId}/new-chat`);
+			})
+			.catch((error) => {
+				console.error("Auto-configuration failed:", error);
+				toast.error("Auto-configuration failed. Add a connection manually.");
+				setIsAutoConfiguring(false);
+			});
 	}, [
-		globalConfigs,
-		globalConfigsLoading,
-		globalConfigsLoaded,
-		preferencesLoading,
-		isOnboardingComplete,
-		updatePreferences,
-		searchSpaceId,
+		firstGlobalChatModel,
+		globalLoading,
+		roles.chat_model_id,
+		rolesLoading,
 		router,
+		searchSpaceId,
+		updateRoles,
 	]);
 
-	const handleSubmit = async (formData: LLMConfigFormData) => {
-		try {
-			const newConfig = await createConfig(formData);
-
-			await updatePreferences({
-				search_space_id: searchSpaceId,
-				data: {
-					agent_llm_id: newConfig.id,
-				},
-			});
-
-			toast.success("Configuration created!", {
-				description: "Redirecting to chat...",
-			});
-
-			router.push(`/dashboard/${searchSpaceId}/new-chat`);
-		} catch (error) {
-			console.error("Failed to create config:", error);
-			if (error instanceof Error) {
-				toast.error(error.message || "Failed to create configuration");
-			}
-		}
-	};
-
-	const isSubmitting = isCreating || isUpdatingPreferences;
-
-	const isLoading = globalConfigsLoading || preferencesLoading || isAutoConfiguring;
+	const isLoading = globalLoading || rolesLoading || isAutoConfiguring || isPending;
 	useGlobalLoadingEffect(isLoading);
 
-	if (isLoading) {
-		return null;
-	}
-
-	if (globalConfigs.length > 0 && !isAutoConfiguring) {
-		return null;
-	}
+	if (isLoading || isComplete) return null;
 
 	return (
-		<div className="h-screen flex flex-col items-center p-4 bg-main-panel select-none overflow-hidden">
-			<div className="w-full max-w-lg flex flex-col min-h-0 h-full gap-6 py-8">
-				{/* Header */}
-				<div className="text-center space-y-3 shrink-0">
-					<Logo className="w-12 h-12 mx-auto" />
-					<div className="space-y-1">
-						<h1 className="text-2xl font-semibold tracking-tight">Configure Your AI</h1>
-						<p className="text-sm text-muted-foreground">
-							Add your LLM provider to get started with SurfSense
-						</p>
-					</div>
+		<div className="flex h-screen select-none flex-col items-center justify-center bg-main-panel p-4">
+			<div className="w-full max-w-md space-y-6 rounded-xl border bg-main-panel p-8 text-center">
+				<Logo className="mx-auto h-12 w-12" />
+				<div className="space-y-2">
+					<h1 className="text-2xl font-semibold tracking-tight">Connect a Model</h1>
+					<p className="text-sm text-muted-foreground">
+						Add one connection, discover its models, then choose a chat model for this search space.
+					</p>
 				</div>
-
-				{/* Form card */}
-				<div className="rounded-xl border bg-main-panel flex-1 min-h-0 overflow-y-auto px-6 py-6">
-					<LLMConfigForm
-						searchSpaceId={searchSpaceId}
-						onSubmit={handleSubmit}
-						mode="create"
-						showAdvanced={true}
-						formId="onboard-config-form"
-						initialData={{
-							citations_enabled: true,
-							use_default_system_instructions: true,
-						}}
-					/>
-				</div>
-
-				{/* Footer */}
-				<div className="text-center space-y-4 shrink-0">
-					<Button
-						type="submit"
-						form="onboard-config-form"
-						disabled={isSubmitting}
-						className="relative text-sm h-9 min-w-[180px]"
-					>
-						<span className={isSubmitting ? "opacity-0" : ""}>Start Using SurfSense</span>
-						{isSubmitting && <Spinner size="sm" className="absolute" />}
-					</Button>
-					<p className="text-xs text-muted-foreground">You can add more configurations later</p>
-				</div>
+				<Button
+					className="min-w-[180px]"
+					onClick={() => router.push(`/dashboard/${searchSpaceId}/search-space-settings/models`)}
+				>
+					Open Models Settings
+				</Button>
+				{isPending ? <Spinner size="sm" /> : null}
 			</div>
 		</div>
 	);

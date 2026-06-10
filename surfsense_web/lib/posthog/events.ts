@@ -609,9 +609,9 @@ interface AutomationCreatedProps {
 	task_count?: number;
 	trigger_type?: string;
 	has_schedule?: boolean;
-	agent_llm_id?: number;
-	image_generation_config_id?: number;
-	vision_llm_config_id?: number;
+	chat_model_id?: number;
+	image_gen_model_id?: number;
+	vision_model_id?: number;
 	tags_count?: number;
 }
 
@@ -705,9 +705,9 @@ interface AutomationChatDecisionProps {
 	edited?: boolean;
 	task_count?: number;
 	trigger_type?: string;
-	agent_llm_id?: number;
-	image_generation_config_id?: number;
-	vision_llm_config_id?: number;
+	chat_model_id?: number;
+	image_gen_model_id?: number;
+	vision_model_id?: number;
 }
 
 export function trackAutomationChatApproved(props: AutomationChatDecisionProps) {
