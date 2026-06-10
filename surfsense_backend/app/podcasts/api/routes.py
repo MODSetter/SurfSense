@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import config as app_config
 from app.db import (
     Permission,
     SearchSpace,
@@ -23,6 +24,7 @@ from app.db import (
     User,
     get_async_session,
 )
+from app.podcasts.generation.brief import propose_brief
 from app.podcasts.persistence import Podcast, PodcastRepository
 from app.podcasts.service import (
     InvalidTransition,
@@ -33,11 +35,9 @@ from app.podcasts.service import (
 from app.podcasts.storage import open_audio_stream, purge_audio
 from app.podcasts.tasks import (
     draft_transcript_task,
-    propose_brief_task,
     render_audio_task,
 )
 from app.podcasts.voices import get_voice_catalog, provider_from_service
-from app.config import config as app_config
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 
@@ -118,15 +118,24 @@ async def create_podcast(
 ):
     await _require(session, user, body.search_space_id, Permission.PODCASTS_CREATE)
 
-    podcast = await PodcastService(session).create(
+    service = PodcastService(session)
+    podcast = await service.create(
         title=body.title,
         search_space_id=body.search_space_id,
         thread_id=body.thread_id,
     )
     podcast.source_content = body.source_content
-    await session.commit()
 
-    propose_brief_task.delay(podcast.id, body.search_space_id)
+    spec = await propose_brief(
+        session,
+        search_space_id=body.search_space_id,
+        speaker_count=body.speaker_count,
+        min_minutes=body.min_minutes,
+        max_minutes=body.max_minutes,
+        focus=body.focus,
+    )
+    await service.attach_brief(podcast, spec)
+    await session.commit()
     return PodcastDetail.of(podcast)
 
 
