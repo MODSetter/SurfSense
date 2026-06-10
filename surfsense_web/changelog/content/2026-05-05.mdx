@@ -1,0 +1,27 @@
+---
+date: "2026-05-05"
+version: "0.0.22"
+---
+
+## What's New in v0.0.22
+
+v0.0.22 is a compact backend performance release. The headline change is **24-hour CORS preflight response caching**, which helps browsers avoid repeated preflight work when calling SurfSense APIs from approved origins.
+
+### API Performance
+
+- **24-Hour CORS Preflight Cache**: SurfSense now caches CORS preflight responses for 24 hours, reducing repeated OPTIONS traffic in browser-based deployments.
+- **Smoother Hosted Usage**: Cloud and cross-origin setups benefit from less repetitive browser negotiation before API calls.
+- **Better Self-Hosted Behavior**: Self-hosted deployments with separate frontend and backend origins get a cleaner default API experience.
+
+### No longer broken
+
+- No user-facing bug fixes in this release; this was a focused API performance and release maintenance update
+
+### Developers
+
+- CORS preflight responses now advertise a 24-hour cache window
+- Release metadata and versioning were advanced for v0.0.22
+
+v0.0.22 is small by design, but it improves the everyday feel of SurfSense API calls in browser and self-hosted environments by cutting down redundant CORS preflight traffic.
+
+SurfSense connects all your knowledge sources in one place.

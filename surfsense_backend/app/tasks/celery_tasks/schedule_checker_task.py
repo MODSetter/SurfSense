@@ -6,7 +6,8 @@ from datetime import UTC, datetime
 from sqlalchemy.future import select
 
 from app.celery_app import celery_app
-from app.db import Notification, SearchSourceConnector, SearchSourceConnectorType
+from app.db import SearchSourceConnector, SearchSourceConnectorType
+from app.notifications.persistence import Notification
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 from app.utils.indexing_locks import is_connector_indexing_locked
 

@@ -2,7 +2,7 @@
 Google Gmail connector indexer.
 
 Uses the shared IndexingPipelineService for document deduplication,
-summarization, chunking, and embedding.
+chunking, and embedding.
 """
 
 from collections.abc import Awaitable, Callable
@@ -21,7 +21,6 @@ from app.indexing_pipeline.indexing_pipeline_service import (
     PlaceholderInfo,
 )
 from app.services.composio_service import ComposioService
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.google_credentials import COMPOSIO_GOOGLE_CONNECTOR_TYPES
 
@@ -30,6 +29,7 @@ from .base import (
     check_duplicate_document_by_hash,
     get_connector_by_id,
     logger,
+    mark_connector_documents_failed,
     update_connector_last_indexed,
 )
 
@@ -105,7 +105,6 @@ def _build_connector_doc(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
 ) -> ConnectorDocument:
     """Map a raw Gmail API message dict to a ConnectorDocument."""
     message_id = message.get("id", "")
@@ -138,12 +137,6 @@ def _build_connector_doc(
         "connector_type": "Google Gmail",
     }
 
-    fallback_summary = (
-        f"Google Gmail Message: {subject}\n\n"
-        f"From: {sender}\nDate: {date_str}\n\n"
-        f"{markdown_content}"
-    )
-
     return ConnectorDocument(
         title=subject,
         source_markdown=markdown_content,
@@ -152,8 +145,6 @@ def _build_connector_doc(
         search_space_id=search_space_id,
         connector_id=connector_id,
         created_by_id=user_id,
-        should_summarize=enable_summary,
-        fallback_summary=fallback_summary,
         metadata=metadata,
     )
 
@@ -454,7 +445,6 @@ async def index_google_gmail_messages(
                     connector_id=connector_id,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    enable_summary=connector.enable_summary,
                 )
 
                 with session.no_autoflush:
@@ -483,17 +473,29 @@ async def index_google_gmail_messages(
 
         # ── Pipeline: migrate legacy docs + parallel index ─────────────
         await pipeline.migrate_legacy_docs(connector_docs)
-
-        async def _get_llm(s):
-            return await get_user_long_context_llm(s, user_id, search_space_id)
-
         _, documents_indexed, documents_failed = await pipeline.index_batch_parallel(
             connector_docs,
-            _get_llm,
             max_concurrency=3,
             on_heartbeat=on_heartbeat_callback,
             heartbeat_interval=HEARTBEAT_INTERVAL_SECONDS,
         )
+
+        # Placeholders for items skipped above (empty/duplicate/unbuildable) would
+        # otherwise stay stuck in 'pending' and undeletable. Fail them so they're
+        # recoverable. Leaves already-ready docs untouched.
+        indexed_ids = {doc.unique_id for doc in connector_docs}
+        stuck_placeholders = [
+            (p.unique_id, "Skipped during sync: no indexable content")
+            for p in placeholders
+            if p.unique_id and p.unique_id not in indexed_ids
+        ]
+        if stuck_placeholders:
+            await mark_connector_documents_failed(
+                session,
+                document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
+                search_space_id=search_space_id,
+                failures=stuck_placeholders,
+            )
 
         # ── Finalize ──────────────────────────────────────────────────
         await update_connector_last_indexed(session, connector, update_last_indexed)

@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { blog } from "@/.source/server";
-import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { ArticleJsonLd, FAQJsonLd } from "@/components/seo/json-ld";
 import { extractFaqFromBlogPost } from "@/lib/blog-faq";
 import { formatDate } from "@/lib/utils";
@@ -99,15 +98,6 @@ export default async function BlogPostPage(props: { params: Promise<{ slug: stri
 			/>
 			{faqEntries.length > 0 && <FAQJsonLd questions={faqEntries} />}
 			<div className="max-w-3xl mx-auto px-6 lg:px-10 pt-10 pb-20">
-				<BreadcrumbNav
-					items={[
-						{ name: "Home", href: "/" },
-						{ name: "Blog", href: "/blog" },
-						{ name: page.data.title, href: `/blog/${slug}` },
-					]}
-					className="mb-8"
-				/>
-
 				{page.data.image && (
 					<div className="relative aspect-2/1 overflow-hidden rounded-2xl mb-8">
 						<Image

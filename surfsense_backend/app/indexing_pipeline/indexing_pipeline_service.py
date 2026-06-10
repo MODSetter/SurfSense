@@ -31,7 +31,6 @@ from app.indexing_pipeline.document_persistence import (
     attach_chunks_to_document,
     rollback_and_persist_failure,
 )
-from app.indexing_pipeline.document_summarizer import summarize_document
 from app.indexing_pipeline.exceptions import (
     EMBEDDING_ERRORS,
     PERMANENT_LLM_ERRORS,
@@ -204,7 +203,7 @@ class IndexingPipelineService:
         await self.session.commit()
 
     async def index_batch(
-        self, connector_docs: list[ConnectorDocument], llm
+        self, connector_docs: list[ConnectorDocument]
     ) -> list[Document]:
         """Convenience method: prepare_for_indexing then index each document.
 
@@ -218,7 +217,7 @@ class IndexingPipelineService:
             connector_doc = doc_map.get(document.unique_identifier_hash)
             if connector_doc is None:
                 continue
-            result = await self.index(document, connector_doc, llm)
+            result = await self.index(document, connector_doc)
             results.append(result)
         return results
 
@@ -351,10 +350,10 @@ class IndexingPipelineService:
             return []
 
     async def index(
-        self, document: Document, connector_doc: ConnectorDocument, llm
+        self, document: Document, connector_doc: ConnectorDocument
     ) -> Document:
         """
-        Run summarization, embedding, and chunking for a document and persist the results.
+        Run deterministic content storage, embedding, and chunking for a document.
         """
         ctx = PipelineLogContext(
             connector_id=connector_doc.connector_id,
@@ -379,20 +378,7 @@ class IndexingPipelineService:
             document.status = DocumentStatus.processing()
             await self.session.commit()
 
-            t_step = time.perf_counter()
-            if connector_doc.should_summarize and llm is not None:
-                content = await summarize_document(
-                    connector_doc.source_markdown, llm, connector_doc.metadata
-                )
-                perf.info(
-                    "[indexing] summarize_document doc=%d in %.3fs",
-                    document.id,
-                    time.perf_counter() - t_step,
-                )
-            elif connector_doc.should_summarize and connector_doc.fallback_summary:
-                content = connector_doc.fallback_summary
-            else:
-                content = connector_doc.source_markdown
+            content = connector_doc.source_markdown
 
             await self.session.execute(
                 delete(Chunk).where(Chunk.document_id == document.id)
@@ -523,7 +509,6 @@ class IndexingPipelineService:
     async def index_batch_parallel(
         self,
         connector_docs: list[ConnectorDocument],
-        get_llm: Callable[[AsyncSession], Awaitable],
         *,
         max_concurrency: int = 4,
         on_heartbeat: Callable[[int], Awaitable[None]] | None = None,
@@ -532,8 +517,8 @@ class IndexingPipelineService:
         """Index documents in parallel with bounded concurrency.
 
         Phase 1 (serial): prepare_for_indexing using self.session.
-        Phase 2 (parallel): index each document in an isolated session,
-        bounded by a semaphore to avoid overwhelming APIs/DB.
+        Phase 2 (parallel): index each document in an isolated session, bounded
+        by a semaphore to avoid overwhelming embedding APIs/DB.
         """
         logger = logging.getLogger(__name__)
         perf = get_perf_logger()
@@ -577,9 +562,8 @@ class IndexingPipelineService:
                                 failed_count += 1
                             return document
 
-                        llm = await get_llm(isolated_session)
                         iso_pipeline = IndexingPipelineService(isolated_session)
-                        result = await iso_pipeline.index(refetched, connector_doc, llm)
+                        result = await iso_pipeline.index(refetched, connector_doc)
 
                         async with lock:
                             if DocumentStatus.is_state(

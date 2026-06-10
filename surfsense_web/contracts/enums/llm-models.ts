@@ -1528,14 +1528,20 @@ export const LLM_MODELS: LLMModel[] = [
 
 	// MiniMax
 	{
-		value: "MiniMax-M2.5",
-		label: "MiniMax M2.5",
+		value: "MiniMax-M3",
+		label: "MiniMax M3",
+		provider: "MINIMAX",
+		contextWindow: "512K",
+	},
+	{
+		value: "MiniMax-M2.7",
+		label: "MiniMax M2.7",
 		provider: "MINIMAX",
 		contextWindow: "204K",
 	},
 	{
-		value: "MiniMax-M2.5-highspeed",
-		label: "MiniMax M2.5 Highspeed",
+		value: "MiniMax-M2.7-highspeed",
+		label: "MiniMax M2.7 Highspeed",
 		provider: "MINIMAX",
 		contextWindow: "204K",
 	},

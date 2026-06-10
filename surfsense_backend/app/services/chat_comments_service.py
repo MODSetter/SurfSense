@@ -20,6 +20,7 @@ from app.db import (
     User,
     has_permission,
 )
+from app.notifications.service import NotificationService
 from app.schemas.chat_comments import (
     AuthorResponse,
     CommentBatchResponse,
@@ -31,7 +32,6 @@ from app.schemas.chat_comments import (
     MentionListResponse,
     MentionResponse,
 )
-from app.services.notification_service import NotificationService
 from app.utils.chat_comments import parse_mentions, render_mentions
 from app.utils.rbac import check_permission, get_user_permissions
 

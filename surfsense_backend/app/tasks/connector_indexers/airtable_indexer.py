@@ -6,6 +6,7 @@ Implements real-time document status updates using a two-phase approach:
 - Phase 2: Process each document one by one (pending → processing → ready/failed)
 """
 
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 
@@ -14,13 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.airtable_history import AirtableHistoryConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 
@@ -394,29 +393,10 @@ async def index_airtable_records(
                     document.status = DocumentStatus.processing()
                     await session.commit()
 
-                    # Heavy processing (LLM, embeddings, chunks)
-                    user_llm = await get_user_long_context_llm(
-                        session, user_id, search_space_id
-                    )
+                    # Heavy processing (embeddings, chunks)
 
-                    if user_llm and connector.enable_summary:
-                        document_metadata_for_summary = {
-                            "record_id": item["record_id"],
-                            "created_time": item["record"].get("CREATED_TIME()", ""),
-                            "document_type": "Airtable Record",
-                            "connector_type": "Airtable",
-                        }
-                        (
-                            summary_content,
-                            summary_embedding,
-                        ) = await generate_document_summary(
-                            item["markdown_content"],
-                            user_llm,
-                            document_metadata_for_summary,
-                        )
-                    else:
-                        summary_content = f"Airtable Record: {item['record_id']}\n\n{item['markdown_content']}"
-                        summary_embedding = embed_text(summary_content)
+                    summary_content = f"Airtable Record: {item['record_id']}\n\n{item['markdown_content']}"
+                    summary_embedding = embed_text(summary_content)
 
                     chunks = await create_document_chunks(item["markdown_content"])
 
@@ -453,10 +433,15 @@ async def index_airtable_records(
                     try:
                         document.status = DocumentStatus.failed(str(e))
                         document.updated_at = get_current_timestamp()
+                        # Commit now so the failed status survives a later rollback or
+                        # crash; otherwise the doc stays stuck in pending/processing.
+                        await session.commit()
                     except Exception as status_error:
                         logger.error(
                             f"Failed to update document status to failed: {status_error}"
                         )
+                        with contextlib.suppress(Exception):
+                            await session.rollback()
                     documents_failed += 1
                     continue
 

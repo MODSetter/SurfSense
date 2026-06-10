@@ -11,7 +11,6 @@ import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
-import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
 import {
 	type IndexingConfigState,
@@ -35,7 +34,6 @@ interface IndexingConfigurationViewProps {
 	endDate: Date | undefined;
 	periodicEnabled: boolean;
 	frequencyMinutes: string;
-	enableSummary: boolean;
 	enableVisionLlm: boolean;
 	isStartingIndexing: boolean;
 	isFromOAuth?: boolean;
@@ -43,7 +41,6 @@ interface IndexingConfigurationViewProps {
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
 	onFrequencyChange: (frequency: string) => void;
-	onEnableSummaryChange: (enabled: boolean) => void;
 	onEnableVisionLlmChange: (enabled: boolean) => void;
 	onConfigChange?: (config: Record<string, unknown>) => void;
 	onStartIndexing: () => void;
@@ -57,7 +54,6 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	endDate,
 	periodicEnabled,
 	frequencyMinutes,
-	enableSummary,
 	enableVisionLlm,
 	isStartingIndexing,
 	isFromOAuth = false,
@@ -65,7 +61,6 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	onEndDateChange,
 	onPeriodicEnabledChange,
 	onFrequencyChange,
-	onEnableSummaryChange,
 	onEnableVisionLlmChange,
 	onConfigChange,
 	onStartIndexing,
@@ -78,9 +73,11 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 		() => (connector ? getConnectorConfigComponent(connector.connector_type) : null),
 		[connector]
 	);
-	const showsAiToggles =
-		(connector?.is_indexable ?? false) ||
-		connector?.connector_type === EnumConnectorName.OBSIDIAN_CONNECTOR;
+	const showsVisionToggle =
+		!isLive &&
+		((connector?.is_indexable ?? false) ||
+			connector?.connector_type === EnumConnectorName.OBSIDIAN_CONNECTOR) &&
+		VISION_LLM_CONNECTOR_TYPES.has(config.connectorType);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const [hasMoreContent, setHasMoreContent] = useState(false);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -178,56 +175,48 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 							<ConnectorConfigComponent connector={connector} onConfigChange={onConfigChange} />
 						)}
 
-						{/* Summary + vision toggles (Obsidian is plugin-push, non-indexable by design) */}
-						{showsAiToggles && !isLive && (
-							<>
-								{/* AI Summary toggle */}
-								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
-
-								{/* Vision LLM toggle for file/attachment connectors */}
-								{VISION_LLM_CONNECTOR_TYPES.has(config.connectorType) && (
-									<VisionLLMConfig
-										enabled={enableVisionLlm}
-										onEnabledChange={onEnableVisionLlmChange}
-									/>
-								)}
-
-								{/* Date-range and periodic sync stay indexable-only */}
-								{connector?.is_indexable &&
-									config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
-									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
-									config.connectorType !== "DROPBOX_CONNECTOR" &&
-									config.connectorType !== "ONEDRIVE_CONNECTOR" &&
-									config.connectorType !== "WEBCRAWLER_CONNECTOR" &&
-									config.connectorType !== "GITHUB_CONNECTOR" && (
-										<DateRangeSelector
-											startDate={startDate}
-											endDate={endDate}
-											onStartDateChange={onStartDateChange}
-											onEndDateChange={onEndDateChange}
-											allowFutureDates={
-												config.connectorType === "GOOGLE_CALENDAR_CONNECTOR" ||
-												config.connectorType === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR" ||
-												config.connectorType === "LUMA_CONNECTOR"
-											}
-											lastIndexedAt={connector?.last_indexed_at}
-										/>
-									)}
-
-								{connector?.is_indexable &&
-									config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
-									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
-									config.connectorType !== "DROPBOX_CONNECTOR" &&
-									config.connectorType !== "ONEDRIVE_CONNECTOR" && (
-										<PeriodicSyncConfig
-											enabled={periodicEnabled}
-											frequencyMinutes={frequencyMinutes}
-											onEnabledChange={onPeriodicEnabledChange}
-											onFrequencyChange={onFrequencyChange}
-										/>
-									)}
-							</>
+						{/* Vision toggle (Obsidian is plugin-push, non-indexable by design) */}
+						{showsVisionToggle && (
+							<VisionLLMConfig
+								enabled={enableVisionLlm}
+								onEnabledChange={onEnableVisionLlmChange}
+							/>
 						)}
+
+						{/* Date-range and periodic sync stay indexable-only */}
+						{connector?.is_indexable &&
+							config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
+							config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
+							config.connectorType !== "DROPBOX_CONNECTOR" &&
+							config.connectorType !== "ONEDRIVE_CONNECTOR" &&
+							config.connectorType !== "WEBCRAWLER_CONNECTOR" &&
+							config.connectorType !== "GITHUB_CONNECTOR" && (
+								<DateRangeSelector
+									startDate={startDate}
+									endDate={endDate}
+									onStartDateChange={onStartDateChange}
+									onEndDateChange={onEndDateChange}
+									allowFutureDates={
+										config.connectorType === "GOOGLE_CALENDAR_CONNECTOR" ||
+										config.connectorType === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR" ||
+										config.connectorType === "LUMA_CONNECTOR"
+									}
+									lastIndexedAt={connector?.last_indexed_at}
+								/>
+							)}
+
+						{connector?.is_indexable &&
+							config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
+							config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
+							config.connectorType !== "DROPBOX_CONNECTOR" &&
+							config.connectorType !== "ONEDRIVE_CONNECTOR" && (
+								<PeriodicSyncConfig
+									enabled={periodicEnabled}
+									frequencyMinutes={frequencyMinutes}
+									onEnabledChange={onPeriodicEnabledChange}
+									onFrequencyChange={onFrequencyChange}
+								/>
+							)}
 
 						{/* Info box - hidden for live connectors */}
 						{connector?.is_indexable && !isLive && (

@@ -38,14 +38,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+EDITOR_PLATE_MAX_BYTES = 5 * 1024 * 1024
+
 
 @router.get("/search-spaces/{search_space_id}/documents/{document_id}/editor-content")
 async def get_editor_content(
     search_space_id: int,
     document_id: int,
-    max_length: int | None = Query(
-        None, description="Truncate source_markdown to this many characters"
-    ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -84,19 +83,16 @@ async def get_editor_content(
 
     def _build_response(md: str) -> dict:
         size_bytes = len(md.encode("utf-8"))
-        truncated = False
-        output_md = md
-        if max_length is not None and size_bytes > max_length:
-            output_md = md[:max_length]
-            truncated = True
+        viewer_mode = "monaco" if size_bytes > EDITOR_PLATE_MAX_BYTES else "plate"
         return {
             "document_id": document.id,
             "title": document.title,
             "document_type": document.document_type.value,
-            "source_markdown": output_md,
+            "source_markdown": md,
             "content_size_bytes": size_bytes,
             "chunk_count": chunk_count,
-            "truncated": truncated,
+            "viewer_mode": viewer_mode,
+            "editor_plate_max_bytes": EDITOR_PLATE_MAX_BYTES,
             "updated_at": document.updated_at.isoformat()
             if document.updated_at
             else None,

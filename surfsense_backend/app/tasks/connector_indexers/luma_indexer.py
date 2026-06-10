@@ -7,6 +7,7 @@ Implements 2-phase document status updates for real-time UI feedback:
 """
 
 import asyncio
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
@@ -16,13 +17,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.luma_connector import LumaConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 
@@ -437,38 +436,12 @@ async def index_luma_events(
                 document.status = DocumentStatus.processing()
                 await session.commit()
 
-                # Heavy processing (LLM, embeddings, chunks)
-                user_llm = await get_user_long_context_llm(
-                    session, user_id, search_space_id
-                )
+                # Heavy processing (embeddings, chunks)
 
-                if user_llm and connector.enable_summary:
-                    document_metadata_for_summary = {
-                        "event_id": item["event_id"],
-                        "event_name": item["event_name"],
-                        "event_url": item["event_url"],
-                        "start_at": item["start_at"],
-                        "end_at": item["end_at"],
-                        "timezone": item["timezone"],
-                        "location": item["location"] or "No location",
-                        "city": item["city"],
-                        "hosts": item["host_names"],
-                        "document_type": "Luma Event",
-                        "connector_type": "Luma",
-                    }
-                    (
-                        summary_content,
-                        summary_embedding,
-                    ) = await generate_document_summary(
-                        item["event_markdown"], user_llm, document_metadata_for_summary
-                    )
-                else:
-                    summary_content = (
-                        f"Luma Event: {item['event_name']}\n\n{item['event_markdown']}"
-                    )
-                    summary_embedding = await asyncio.to_thread(
-                        embed_text, summary_content
-                    )
+                summary_content = (
+                    f"Luma Event: {item['event_name']}\n\n{item['event_markdown']}"
+                )
+                summary_embedding = await asyncio.to_thread(embed_text, summary_content)
 
                 chunks = await create_document_chunks(item["event_markdown"])
 
@@ -513,10 +486,15 @@ async def index_luma_events(
                 try:
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
+                    # Commit now so the failed status survives a later rollback or
+                    # crash; otherwise the doc stays stuck in pending/processing.
+                    await session.commit()
                 except Exception as status_error:
                     logger.error(
                         f"Failed to update document status to failed: {status_error}"
                     )
+                    with contextlib.suppress(Exception):
+                        await session.rollback()
                 skipped_events.append(
                     f"{item.get('event_name', 'Unknown')} (processing error)"
                 )

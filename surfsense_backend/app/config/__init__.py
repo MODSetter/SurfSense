@@ -1,5 +1,7 @@
+import copy
 import os
 import shutil
+from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -15,6 +17,37 @@ load_dotenv(env_file)
 
 os.environ.setdefault("OR_APP_NAME", "SurfSense")
 os.environ.setdefault("OR_SITE_URL", "https://surfsense.com")
+
+
+@lru_cache(maxsize=8)
+def _read_global_config_yaml(path_str: str) -> dict:
+    """Read and parse ``global_llm_config.yaml`` once per resolved path.
+
+    Cached so the seven ``load_*`` helpers (and their re-invocations during
+    startup) don't re-open and re-parse the same file repeatedly. Keyed on the
+    resolved path string so tests that monkeypatch ``BASE_DIR`` to a unique
+    ``tmp_path`` still get a fresh parse. Callers MUST treat the returned dict
+    as read-only and deep-copy any section they intend to mutate.
+    """
+    f = Path(path_str)
+    if not f.exists():
+        return {}
+    try:
+        with open(f, encoding="utf-8") as fh:
+            return yaml.safe_load(fh) or {}
+    except Exception as e:
+        print(f"Warning: Failed to read global_llm_config.yaml: {e}")
+        return {}
+
+
+def _global_config_data() -> dict:
+    """Return the parsed global config YAML for the current ``BASE_DIR``.
+
+    ``BASE_DIR`` is read at call time (not bound at import) so a
+    ``monkeypatch.setattr(config, "BASE_DIR", tmp_path)`` is honored.
+    """
+    path = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
+    return _read_global_config_yaml(str(path))
 
 
 def is_ffmpeg_installed():
@@ -35,17 +68,15 @@ def load_global_llm_configs():
     Returns:
         list: List of global LLM config dictionaries, or empty list if file doesn't exist
     """
-    # Try main config file first
-    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
-
-    if not global_config_file.exists():
+    data = _global_config_data()
+    if not data:
         # No global configs available
         return []
 
     try:
-        with open(global_config_file, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            configs = data.get("global_llm_configs", [])
+        # Deep-copy so the in-place mutations below (setdefault, scoring
+        # stamps) never leak into the cached YAML structure.
+        configs = copy.deepcopy(data.get("global_llm_configs", []))
 
         # Lazy import keeps the `app.config` -> `app.services` edge one-way
         # and matches the `provider_api_base` pattern used elsewhere.
@@ -145,18 +176,14 @@ def load_router_settings():
         "cooldown_time": 60,
     }
 
-    # Try main config file first
-    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
-
-    if not global_config_file.exists():
+    data = _global_config_data()
+    if not data:
         return default_settings
 
     try:
-        with open(global_config_file, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            settings = data.get("router_settings", {})
-            # Merge with defaults
-            return {**default_settings, **settings}
+        settings = data.get("router_settings", {})
+        # Merge with defaults
+        return {**default_settings, **settings}
     except Exception as e:
         print(f"Warning: Failed to load router settings: {e}")
         return default_settings
@@ -169,38 +196,32 @@ def load_global_image_gen_configs():
     Returns:
         list: List of global image generation config dictionaries, or empty list
     """
-    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
-
-    if not global_config_file.exists():
+    data = _global_config_data()
+    if not data:
         return []
 
     try:
-        with open(global_config_file, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            configs = data.get("global_image_generation_configs", []) or []
-            for cfg in configs:
-                if isinstance(cfg, dict):
-                    cfg.setdefault("billing_tier", "free")
-            return configs
+        configs = copy.deepcopy(data.get("global_image_generation_configs", []) or [])
+        for cfg in configs:
+            if isinstance(cfg, dict):
+                cfg.setdefault("billing_tier", "free")
+        return configs
     except Exception as e:
         print(f"Warning: Failed to load global image generation configs: {e}")
         return []
 
 
 def load_global_vision_llm_configs():
-    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
-
-    if not global_config_file.exists():
+    data = _global_config_data()
+    if not data:
         return []
 
     try:
-        with open(global_config_file, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            configs = data.get("global_vision_llm_configs", []) or []
-            for cfg in configs:
-                if isinstance(cfg, dict):
-                    cfg.setdefault("billing_tier", "free")
-            return configs
+        configs = copy.deepcopy(data.get("global_vision_llm_configs", []) or [])
+        for cfg in configs:
+            if isinstance(cfg, dict):
+                cfg.setdefault("billing_tier", "free")
+        return configs
     except Exception as e:
         print(f"Warning: Failed to load global vision LLM configs: {e}")
         return []
@@ -214,16 +235,13 @@ def load_vision_llm_router_settings():
         "cooldown_time": 60,
     }
 
-    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
-
-    if not global_config_file.exists():
+    data = _global_config_data()
+    if not data:
         return default_settings
 
     try:
-        with open(global_config_file, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            settings = data.get("vision_llm_router_settings", {})
-            return {**default_settings, **settings}
+        settings = data.get("vision_llm_router_settings", {})
+        return {**default_settings, **settings}
     except Exception as e:
         print(f"Warning: Failed to load vision LLM router settings: {e}")
         return default_settings
@@ -243,16 +261,13 @@ def load_image_gen_router_settings():
         "cooldown_time": 60,
     }
 
-    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
-
-    if not global_config_file.exists():
+    data = _global_config_data()
+    if not data:
         return default_settings
 
     try:
-        with open(global_config_file, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            settings = data.get("image_generation_router_settings", {})
-            return {**default_settings, **settings}
+        settings = data.get("image_generation_router_settings", {})
+        return {**default_settings, **settings}
     except Exception as e:
         print(f"Warning: Failed to load image generation router settings: {e}")
         return default_settings
@@ -268,49 +283,44 @@ def load_openrouter_integration_settings() -> dict | None:
     Returns:
         dict with settings if present and enabled, None otherwise
     """
-    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
-
-    if not global_config_file.exists():
+    data = _global_config_data()
+    if not data:
         return None
 
     try:
-        with open(global_config_file, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            settings = data.get("openrouter_integration")
-            if not settings or not settings.get("enabled"):
-                return None
+        # Deep-copy so the setdefault back-compat seeding below never mutates
+        # the cached YAML structure.
+        settings = copy.deepcopy(data.get("openrouter_integration"))
+        if not settings or not settings.get("enabled"):
+            return None
 
-            if "billing_tier" in settings:
-                print(
-                    "Warning: openrouter_integration.billing_tier is deprecated; "
-                    "tier is now derived per model from OpenRouter data "
-                    "(':free' suffix or zero pricing). Remove this key."
-                )
+        if "billing_tier" in settings:
+            print(
+                "Warning: openrouter_integration.billing_tier is deprecated; "
+                "tier is now derived per model from OpenRouter data "
+                "(':free' suffix or zero pricing). Remove this key."
+            )
 
-            if "anonymous_enabled" in settings:
-                print(
-                    "Warning: openrouter_integration.anonymous_enabled is "
-                    "deprecated; use anonymous_enabled_paid and/or "
-                    "anonymous_enabled_free instead. Both new flags have been "
-                    "seeded from the legacy value for back-compat."
-                )
-                settings.setdefault(
-                    "anonymous_enabled_paid", settings["anonymous_enabled"]
-                )
-                settings.setdefault(
-                    "anonymous_enabled_free", settings["anonymous_enabled"]
-                )
+        if "anonymous_enabled" in settings:
+            print(
+                "Warning: openrouter_integration.anonymous_enabled is "
+                "deprecated; use anonymous_enabled_paid and/or "
+                "anonymous_enabled_free instead. Both new flags have been "
+                "seeded from the legacy value for back-compat."
+            )
+            settings.setdefault("anonymous_enabled_paid", settings["anonymous_enabled"])
+            settings.setdefault("anonymous_enabled_free", settings["anonymous_enabled"])
 
-            # Image generation + vision LLM emission are opt-in (issue L).
-            # OpenRouter's catalogue contains hundreds of image / vision
-            # capable models; auto-injecting all of them into every
-            # deployment would explode the model selector and surprise
-            # operators upgrading from prior versions. Default to False so
-            # admins must explicitly turn them on.
-            settings.setdefault("image_generation_enabled", False)
-            settings.setdefault("vision_enabled", False)
+        # Image generation + vision LLM emission are opt-in (issue L).
+        # OpenRouter's catalogue contains hundreds of image / vision
+        # capable models; auto-injecting all of them into every
+        # deployment would explode the model selector and surprise
+        # operators upgrading from prior versions. Default to False so
+        # admins must explicitly turn them on.
+        settings.setdefault("image_generation_enabled", False)
+        settings.setdefault("vision_enabled", False)
 
-            return settings
+        return settings
     except Exception as e:
         print(f"Warning: Failed to load OpenRouter integration settings: {e}")
         return None
@@ -415,7 +425,9 @@ def initialize_llm_router():
     static YAML configs and dynamic OpenRouter models.
     """
     all_configs = config.GLOBAL_LLM_CONFIGS
-    router_settings = load_router_settings()
+    # Reuse the router settings already parsed at Config construction instead
+    # of re-reading the YAML here.
+    router_settings = config.ROUTER_SETTINGS
 
     if not all_configs:
         print("Info: No global LLM configs found, Auto mode will not be available")
@@ -439,7 +451,10 @@ def initialize_image_gen_router():
     This should be called during application startup.
     """
     image_gen_configs = load_global_image_gen_configs()
-    router_settings = load_image_gen_router_settings()
+    # Reuse the router settings already parsed at Config construction. The
+    # *configs* list is intentionally re-read from YAML (it must exclude the
+    # OpenRouter-injected dynamic models held in config.GLOBAL_IMAGE_GEN_CONFIGS).
+    router_settings = config.IMAGE_GEN_ROUTER_SETTINGS
 
     if not image_gen_configs:
         print(
@@ -462,7 +477,10 @@ def initialize_image_gen_router():
 
 def initialize_vision_llm_router():
     vision_configs = load_global_vision_llm_configs()
-    router_settings = load_vision_llm_router_settings()
+    # Reuse the router settings already parsed at Config construction. The
+    # *configs* list is intentionally re-read from YAML (it must exclude the
+    # OpenRouter-injected dynamic models held in config.GLOBAL_VISION_LLM_CONFIGS).
+    router_settings = config.VISION_LLM_ROUTER_SETTINGS
 
     if not vision_configs:
         print(
@@ -524,14 +542,49 @@ class Config:
     DATABASE_URL = os.getenv("DATABASE_URL")
 
     # Celery / Redis
-    CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-    CELERY_RESULT_BACKEND = os.getenv(
-        "CELERY_RESULT_BACKEND", "redis://localhost:6379/0"
-    )
+    # Redis (single endpoint for Celery broker, result backend, and app cache).
+    # Legacy CELERY_BROKER_URL / CELERY_RESULT_BACKEND / REDIS_APP_URL still
+    # override individually when you need to split Redis across instances.
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", REDIS_URL)
+    CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", REDIS_URL)
     CELERY_TASK_DEFAULT_QUEUE = os.getenv("CELERY_TASK_DEFAULT_QUEUE", "surfsense")
     REDIS_APP_URL = os.getenv("REDIS_APP_URL", CELERY_BROKER_URL)
     CONNECTOR_INDEXING_LOCK_TTL_SECONDS = int(
         os.getenv("CONNECTOR_INDEXING_LOCK_TTL_SECONDS", str(8 * 60 * 60))
+    )
+
+    # Celery beat scheduling intervals (format: "<number><unit>", e.g. "2m", "1h")
+    SCHEDULE_CHECKER_INTERVAL = os.getenv("SCHEDULE_CHECKER_INTERVAL", "2m")
+    STRIPE_RECONCILIATION_INTERVAL = os.getenv("STRIPE_RECONCILIATION_INTERVAL", "10m")
+
+    # File storage (local filesystem by default; Azure Blob optional)
+    FILE_STORAGE_BACKEND = os.getenv("FILE_STORAGE_BACKEND", "local").strip().lower()
+    AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+    AZURE_STORAGE_CONTAINER = os.getenv("AZURE_STORAGE_CONTAINER")
+    FILE_STORAGE_LOCAL_PATH = os.getenv(
+        "FILE_STORAGE_LOCAL_PATH", str(BASE_DIR / ".local_object_store")
+    )
+
+    # Daytona sandbox (code execution / filesystem sandbox)
+    DAYTONA_SANDBOX_ENABLED = (
+        os.getenv("DAYTONA_SANDBOX_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    DAYTONA_API_KEY = os.getenv("DAYTONA_API_KEY", "")
+    DAYTONA_API_URL = os.getenv("DAYTONA_API_URL", "https://app.daytona.io/api")
+    DAYTONA_TARGET = os.getenv("DAYTONA_TARGET", "us")
+    DAYTONA_SNAPSHOT_ID = os.getenv("DAYTONA_SNAPSHOT_ID") or None
+    SANDBOX_FILES_DIR = os.getenv("SANDBOX_FILES_DIR", "sandbox_files")
+
+    # Agent cache (in-process LRU+TTL cache for built agents)
+    AGENT_CACHE_MAXSIZE = int(os.getenv("SURFSENSE_AGENT_CACHE_MAXSIZE", "256"))
+    AGENT_CACHE_TTL_SECONDS = float(
+        os.getenv("SURFSENSE_AGENT_CACHE_TTL_SECONDS", "1800")
+    )
+
+    # Connector discovery cache TTL
+    CONNECTOR_DISCOVERY_TTL_SECONDS = float(
+        os.getenv("SURFSENSE_CONNECTOR_DISCOVERY_TTL_SECONDS", "30")
     )
 
     # Platform web search (SearXNG)
@@ -540,6 +593,52 @@ class Config:
     NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL")
     # Backend URL to override the http to https in the OAuth redirect URI
     BACKEND_URL = os.getenv("BACKEND_URL")
+
+    # Messaging gateway (Telegram v1)
+    # Global master switch: when FALSE, no gateway supervisors/workers start and all
+    # gateway HTTP routes return 404, regardless of the per-channel flags below.
+    GATEWAY_ENABLED = os.getenv("GATEWAY_ENABLED", "TRUE").upper() == "TRUE"
+    TELEGRAM_SHARED_BOT_TOKEN = os.getenv("TELEGRAM_SHARED_BOT_TOKEN")
+    TELEGRAM_SHARED_BOT_USERNAME = os.getenv("TELEGRAM_SHARED_BOT_USERNAME")
+    TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+    GATEWAY_BASE_URL = os.getenv("GATEWAY_BASE_URL", BACKEND_URL)
+    GATEWAY_TELEGRAM_INTAKE_MODE = os.getenv(
+        "GATEWAY_TELEGRAM_INTAKE_MODE", "webhook"
+    ).lower()
+    if GATEWAY_TELEGRAM_INTAKE_MODE not in {"webhook", "longpoll", "disabled"}:
+        raise ValueError(
+            "GATEWAY_TELEGRAM_INTAKE_MODE must be one of: webhook, longpoll, disabled"
+        )
+    WHATSAPP_SHARED_BUSINESS_TOKEN = os.getenv("WHATSAPP_SHARED_BUSINESS_TOKEN")
+    WHATSAPP_SHARED_PHONE_NUMBER_ID = os.getenv("WHATSAPP_SHARED_PHONE_NUMBER_ID")
+    WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER = os.getenv(
+        "WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER"
+    )
+    WHATSAPP_SHARED_WABA_ID = os.getenv("WHATSAPP_SHARED_WABA_ID")
+    WHATSAPP_GRAPH_API_VERSION = os.getenv("WHATSAPP_GRAPH_API_VERSION", "v25.0")
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN")
+    WHATSAPP_WEBHOOK_APP_SECRET = os.getenv("WHATSAPP_WEBHOOK_APP_SECRET")
+    WHATSAPP_BRIDGE_URL = os.getenv(
+        "WHATSAPP_BRIDGE_URL", "http://whatsapp-bridge:9929"
+    )
+    GATEWAY_WHATSAPP_INTAKE_MODE = os.getenv(
+        "GATEWAY_WHATSAPP_INTAKE_MODE", "disabled"
+    ).lower()
+    if GATEWAY_WHATSAPP_INTAKE_MODE not in {"cloud", "baileys", "disabled"}:
+        raise ValueError(
+            "GATEWAY_WHATSAPP_INTAKE_MODE must be one of: cloud, baileys, disabled"
+        )
+    GATEWAY_SLACK_CLIENT_ID = os.getenv("SLACK_CLIENT_ID")
+    GATEWAY_SLACK_CLIENT_SECRET = os.getenv("SLACK_CLIENT_SECRET")
+    GATEWAY_SLACK_ENABLED = (
+        os.getenv("GATEWAY_SLACK_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    GATEWAY_SLACK_SIGNING_SECRET = os.getenv("GATEWAY_SLACK_SIGNING_SECRET")
+    GATEWAY_SLACK_REDIRECT_URI = os.getenv("GATEWAY_SLACK_REDIRECT_URI")
+    GATEWAY_DISCORD_ENABLED = (
+        os.getenv("GATEWAY_DISCORD_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    GATEWAY_DISCORD_REDIRECT_URI = os.getenv("GATEWAY_DISCORD_REDIRECT_URI")
 
     # Stripe checkout for pay-as-you-go page packs
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
@@ -606,9 +705,6 @@ class Config:
 
     # Anonymous / no-login mode settings
     NOLOGIN_MODE_ENABLED = os.getenv("NOLOGIN_MODE_ENABLED", "FALSE").upper() == "TRUE"
-    MULTI_AGENT_CHAT_ENABLED = (
-        os.getenv("MULTI_AGENT_CHAT_ENABLED", "FALSE").upper() == "TRUE"
-    )
     ANON_TOKEN_LIMIT = int(os.getenv("ANON_TOKEN_LIMIT", "500000"))
     ANON_TOKEN_WARNING_THRESHOLD = int(
         os.getenv("ANON_TOKEN_WARNING_THRESHOLD", "400000")
@@ -820,8 +916,13 @@ class Config:
         AZURE_DI_ENDPOINT = os.getenv("AZURE_DI_ENDPOINT")
         AZURE_DI_KEY = os.getenv("AZURE_DI_KEY")
 
+    # Proxy provider selection. Maps to a ProxyProvider implementation registered
+    # in app/utils/proxy/registry.py. Add new vendors there and switch via this var.
+    PROXY_PROVIDER = os.getenv("PROXY_PROVIDER", "anonymous_proxies")
+
     # Residential Proxy Configuration (anonymous-proxies.net)
     # Used for web crawling and YouTube transcript fetching to avoid IP bans.
+    # Consumed by the "anonymous_proxies" proxy provider.
     RESIDENTIAL_PROXY_USERNAME = os.getenv("RESIDENTIAL_PROXY_USERNAME")
     RESIDENTIAL_PROXY_PASSWORD = os.getenv("RESIDENTIAL_PROXY_PASSWORD")
     RESIDENTIAL_PROXY_HOSTNAME = os.getenv("RESIDENTIAL_PROXY_HOSTNAME")

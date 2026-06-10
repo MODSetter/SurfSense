@@ -178,7 +178,6 @@ _TEXT_ONLY_HINTS = ("gpt-5.4-mini", "gpt-3.5", "text-only", "instruct-")
 _DEFAULT_INGEST_SETTINGS = IngestSettings(
     use_vision_llm=True,
     processing_mode="basic",
-    should_summarize=False,
 )
 
 

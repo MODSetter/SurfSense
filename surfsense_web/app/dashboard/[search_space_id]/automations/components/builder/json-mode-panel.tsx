@@ -1,6 +1,7 @@
 "use client";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, TriangleAlert } from "lucide-react";
 import { JsonView } from "@/components/json-view";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface JsonModePanelProps {
 	value: Record<string, unknown>;
@@ -19,32 +20,32 @@ export function JsonModePanel({ value, issues, notice, onChange }: JsonModePanel
 	return (
 		<div className="space-y-4">
 			{notice && (
-				<div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-					{notice}
-				</div>
+				<Alert variant="warning">
+					<TriangleAlert aria-hidden />
+					<AlertDescription>{notice}</AlertDescription>
+				</Alert>
 			)}
 
-			<div className="rounded-md border border-input bg-background px-3 py-2 max-h-144 overflow-auto">
-				<JsonView
-					src={value}
-					editable
-					onChange={(next) => onChange(next as Record<string, unknown>)}
-					collapsed={false}
-				/>
-			</div>
+			<JsonView
+				src={value}
+				editable
+				onChange={(next) => onChange(next as Record<string, unknown>)}
+				collapsed={false}
+				className="max-h-144 overflow-auto rounded-md border border-accent bg-accent/20"
+			/>
 
 			{issues.length > 0 && (
-				<div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
-					<div className="flex items-center gap-1.5 text-xs font-medium text-destructive mb-1.5">
-						<AlertCircle className="h-3.5 w-3.5" aria-hidden />
-						{issues.length === 1 ? "1 issue" : `${issues.length} issues`}
-					</div>
-					<ul className="space-y-0.5 text-xs text-destructive list-disc list-inside">
-						{issues.map((issue) => (
-							<li key={issue}>{issue}</li>
-						))}
-					</ul>
-				</div>
+				<Alert variant="destructive">
+					<AlertCircle aria-hidden />
+					<AlertTitle>{issues.length === 1 ? "1 issue" : `${issues.length} issues`}</AlertTitle>
+					<AlertDescription>
+						<ul className="list-inside list-disc">
+							{issues.map((issue) => (
+								<li key={issue}>{issue}</li>
+							))}
+						</ul>
+					</AlertDescription>
+				</Alert>
 			)}
 		</div>
 	);

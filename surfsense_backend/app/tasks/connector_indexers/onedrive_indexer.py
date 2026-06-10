@@ -26,13 +26,14 @@ from app.connectors.onedrive.file_types import should_skip_file as skip_item
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
+from app.indexing_pipeline.exceptions import safe_exception_message
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
-from app.services.llm_service import get_user_long_context_llm
 from app.services.page_limit_service import PageLimitService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
     check_document_by_unique_identifier,
     get_connector_by_id,
+    mark_connector_documents_failed,
     update_connector_last_indexed,
 )
 
@@ -120,7 +121,12 @@ async def _should_skip_file(
         logger.info(f"Rename-only update: '{old_name}' -> '{file_name}'")
         return True, f"File renamed: '{old_name}' -> '{file_name}'"
 
-    if not DocumentStatus.is_state(existing.status, DocumentStatus.READY):
+    state = DocumentStatus.get_state(existing.status)
+    if state in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
+        # Stuck placeholder/in-progress doc (e.g. worker died mid-index): re-index
+        # instead of skipping, otherwise it never recovers.
+        return False, None
+    if state != DocumentStatus.READY:
         return True, "skipped (previously failed)"
     return True, "unchanged"
 
@@ -133,7 +139,6 @@ def _build_connector_doc(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
 ) -> ConnectorDocument:
     file_id = file.get("id", "")
     file_name = file.get("name", "Unknown")
@@ -145,8 +150,6 @@ def _build_connector_doc(
         "connector_type": "OneDrive",
     }
 
-    fallback_summary = f"File: {file_name}\n\n{markdown[:4000]}"
-
     return ConnectorDocument(
         title=file_name,
         source_markdown=markdown,
@@ -155,8 +158,6 @@ def _build_connector_doc(
         search_space_id=search_space_id,
         connector_id=connector_id,
         created_by_id=user_id,
-        should_summarize=enable_summary,
-        fallback_summary=fallback_summary,
         metadata=metadata,
     )
 
@@ -168,19 +169,23 @@ async def _download_files_parallel(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     max_concurrency: int = 3,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
-) -> tuple[list[ConnectorDocument], int]:
-    """Download and ETL files in parallel. Returns (docs, failed_count)."""
+) -> tuple[list[ConnectorDocument], list[tuple[str, str]]]:
+    """Download and ETL files in parallel.
+
+    Returns (docs, failed_files), where failed_files is a list of
+    (file_id, reason) so callers can mark those placeholders failed.
+    """
     results: list[ConnectorDocument] = []
     sem = asyncio.Semaphore(max_concurrency)
     last_heartbeat = time.time()
     completed_count = 0
     hb_lock = asyncio.Lock()
 
-    async def _download_one(file: dict) -> ConnectorDocument | None:
+    async def _download_one(file: dict) -> ConnectorDocument | str:
+        # ConnectorDocument on success; failure reason string otherwise.
         nonlocal last_heartbeat, completed_count
         async with sem:
             markdown, od_metadata, error = await download_and_extract_content(
@@ -190,7 +195,7 @@ async def _download_files_parallel(
                 file_name = file.get("name", "Unknown")
                 reason = error or "empty content"
                 logger.warning(f"Download/ETL failed for {file_name}: {reason}")
-                return None
+                return f"Download/ETL failed: {reason}"
             doc = _build_connector_doc(
                 file,
                 markdown,
@@ -198,7 +203,6 @@ async def _download_files_parallel(
                 connector_id=connector_id,
                 search_space_id=search_space_id,
                 user_id=user_id,
-                enable_summary=enable_summary,
             )
             async with hb_lock:
                 completed_count += 1
@@ -212,14 +216,28 @@ async def _download_files_parallel(
     tasks = [_download_one(f) for f in files]
     outcomes = await asyncio.gather(*tasks, return_exceptions=True)
 
-    failed = 0
-    for outcome in outcomes:
-        if isinstance(outcome, Exception) or outcome is None:
-            failed += 1
-        else:
+    failed_files: list[tuple[str, str]] = []
+    for file, outcome in zip(files, outcomes, strict=False):
+        if isinstance(outcome, ConnectorDocument):
             results.append(outcome)
+            continue
+        file_id = file.get("id")
+        if isinstance(outcome, Exception):
+            reason = f"Download/ETL error: {safe_exception_message(outcome)}"
+            logger.warning(
+                "Download/ETL exception for %s: %s",
+                file.get("name", "Unknown"),
+                outcome,
+                exc_info=outcome,
+            )
+        elif isinstance(outcome, str):
+            reason = outcome
+        else:
+            reason = "Download or extraction failed"
+        if file_id:
+            failed_files.append((file_id, reason))
 
-    return results, failed
+    return results, failed_files
 
 
 async def _download_and_index(
@@ -230,38 +248,40 @@ async def _download_and_index(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
 ) -> tuple[int, int]:
     """Parallel download then parallel indexing. Returns (batch_indexed, total_failed)."""
-    connector_docs, download_failed = await _download_files_parallel(
+    connector_docs, failed_files = await _download_files_parallel(
         onedrive_client,
         files,
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
     )
+
+    # Fail rows for files whose download/ETL failed, so they don't stay stuck.
+    if failed_files:
+        await mark_connector_documents_failed(
+            session,
+            document_type=DocumentType.ONEDRIVE_FILE,
+            search_space_id=search_space_id,
+            failures=failed_files,
+        )
 
     batch_indexed = 0
     batch_failed = 0
     if connector_docs:
         pipeline = IndexingPipelineService(session)
-
-        async def _get_llm(s):
-            return await get_user_long_context_llm(s, user_id, search_space_id)
-
         _, batch_indexed, batch_failed = await pipeline.index_batch_parallel(
             connector_docs,
-            _get_llm,
             max_concurrency=3,
             on_heartbeat=on_heartbeat,
         )
 
-    return batch_indexed, download_failed + batch_failed
+    return batch_indexed, len(failed_files) + batch_failed
 
 
 async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):
@@ -294,7 +314,6 @@ async def _index_selected_files(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
 ) -> tuple[int, int, int, list[str]]:
@@ -345,7 +364,6 @@ async def _index_selected_files(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
     )
@@ -379,7 +397,6 @@ async def _index_full_scan(
     max_files: int,
     include_subfolders: bool = True,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-    enable_summary: bool = True,
     vision_llm=None,
 ) -> tuple[int, int, int]:
     """Full scan indexing of a folder.
@@ -454,7 +471,6 @@ async def _index_full_scan(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
     )
@@ -487,7 +503,6 @@ async def _index_with_delta_sync(
     log_entry: object,
     max_files: int,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-    enable_summary: bool = True,
     vision_llm=None,
 ) -> tuple[int, int, int, str | None]:
     """Delta sync using OneDrive change tracking.
@@ -579,7 +594,6 @@ async def _index_with_delta_sync(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
     )
@@ -651,7 +665,6 @@ async def index_onedrive_files(
             )
             return 0, 0, error_msg, 0
 
-        connector_enable_summary = getattr(connector, "enable_summary", True)
         connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
         vision_llm = None
         if connector_enable_vision_llm:
@@ -681,7 +694,6 @@ async def index_onedrive_files(
                 connector_id=connector_id,
                 search_space_id=search_space_id,
                 user_id=user_id,
-                enable_summary=connector_enable_summary,
                 vision_llm=vision_llm,
             )
             total_indexed += indexed
@@ -711,7 +723,6 @@ async def index_onedrive_files(
                     task_logger,
                     log_entry,
                     max_files,
-                    enable_summary=connector_enable_summary,
                     vision_llm=vision_llm,
                 )
                 total_indexed += indexed
@@ -738,7 +749,6 @@ async def index_onedrive_files(
                     log_entry,
                     max_files,
                     include_subfolders,
-                    enable_summary=connector_enable_summary,
                     vision_llm=vision_llm,
                 )
                 total_indexed += ri
@@ -758,7 +768,6 @@ async def index_onedrive_files(
                     log_entry,
                     max_files,
                     include_subfolders,
-                    enable_summary=connector_enable_summary,
                     vision_llm=vision_llm,
                 )
                 total_indexed += indexed

@@ -3,7 +3,7 @@
 import { Inbox, LibraryBig } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import { useAnnouncements } from "@/hooks/use-announcements";
@@ -110,15 +110,13 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 			navItems={navItems}
 			onNavItemClick={handleNavItemClick}
 			chats={[]}
-			sharedChats={[]}
 			activeChatId={null}
 			onNewChat={resetChat}
 			onChatSelect={handleChatSelect}
 			onChatRename={gatedAction("rename chats")}
 			onChatDelete={gatedAction("delete chats")}
 			onChatArchive={gatedAction("archive chats")}
-			onViewAllSharedChats={gatedAction("view shared chats")}
-			onViewAllPrivateChats={gatedAction("view chat history")}
+			onViewAllChats={gatedAction("view chat history")}
 			user={{
 				email: "Guest",
 				name: "Guest",
@@ -137,7 +135,7 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 				onOpenChange: setIsDocsSidebarOpen,
 			}}
 		>
-			<Fragment>{children}</Fragment>
+			{children}
 		</LayoutShell>
 	);
 }

@@ -114,6 +114,7 @@ services:
       - ZERO_REPLICA_FILE=/data/zero.db
       - ZERO_ADMIN_PASSWORD=${ZERO_ADMIN_PASSWORD:-surfsense-zero-admin}
       - ZERO_APP_PUBLICATIONS=${ZERO_APP_PUBLICATIONS:-zero_publication}
+      - ZERO_AUTO_RESET=${ZERO_AUTO_RESET:-true}
       - ZERO_NUM_SYNC_WORKERS=${ZERO_NUM_SYNC_WORKERS:-4}
       - ZERO_UPSTREAM_MAX_CONNS=${ZERO_UPSTREAM_MAX_CONNS:-20}
       - ZERO_CVR_MAX_CONNS=${ZERO_CVR_MAX_CONNS:-30}
@@ -122,11 +123,30 @@ services:
     volumes:
       - zero_cache_data:/data
     restart: unless-stopped
+    stop_grace_period: 300s
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4848/keepalive"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 600s
+
+  # OPTIONAL — Azurite emulates Azure Blob Storage for testing the Azure
+  # original-file backend. The default filesystem backend needs none of this.
+  # To exercise it, set in surfsense_backend/.env:
+  #   FILE_STORAGE_BACKEND=azure
+  #   AZURE_STORAGE_CONTAINER=surfsense-documents
+  #   AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:${AZURITE_BLOB_PORT:-10000}/devstoreaccount1;
+  # The backend creates blobs on upload; create the container once first
+  # (Azure CLI / Storage Explorer), then upload a document.
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.33.0
+    command: azurite-blob --blobHost 0.0.0.0 --blobPort 10000
+    ports:
+      - "${AZURITE_BLOB_PORT:-10000}:10000"
+    volumes:
+      - azurite_data:/data
+    restart: unless-stopped
 
 volumes:
   postgres_data:
@@ -137,3 +157,5 @@ volumes:
     name: surfsense-deps-redis
   zero_cache_data:
     name: surfsense-deps-zero-cache
+  azurite_data:
+    name: surfsense-deps-azurite

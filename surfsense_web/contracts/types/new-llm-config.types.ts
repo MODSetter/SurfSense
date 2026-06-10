@@ -384,11 +384,9 @@ export const getGlobalVisionLLMConfigsResponse = z.array(globalVisionLLMConfig);
 
 export const llmPreferences = z.object({
 	agent_llm_id: z.union([z.number(), z.null()]).optional(),
-	document_summary_llm_id: z.union([z.number(), z.null()]).optional(),
 	image_generation_config_id: z.union([z.number(), z.null()]).optional(),
 	vision_llm_config_id: z.union([z.number(), z.null()]).optional(),
 	agent_llm: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
-	document_summary_llm: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
 	image_generation_config: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
 	vision_llm_config: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
 });
@@ -409,7 +407,6 @@ export const updateLLMPreferencesRequest = z.object({
 	search_space_id: z.number(),
 	data: llmPreferences.pick({
 		agent_llm_id: true,
-		document_summary_llm_id: true,
 		image_generation_config_id: true,
 		vision_llm_config_id: true,
 	}),

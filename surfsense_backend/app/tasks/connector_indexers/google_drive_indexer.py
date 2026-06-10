@@ -35,17 +35,18 @@ from app.connectors.google_drive.file_types import (
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
+from app.indexing_pipeline.exceptions import safe_exception_message
 from app.indexing_pipeline.indexing_pipeline_service import (
     IndexingPipelineService,
     PlaceholderInfo,
 )
 from app.services.composio_service import ComposioService
-from app.services.llm_service import get_user_long_context_llm
 from app.services.page_limit_service import PageLimitService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
     check_document_by_unique_identifier,
     get_connector_by_id,
+    mark_connector_documents_failed,
     update_connector_last_indexed,
 )
 from app.utils.google_credentials import COMPOSIO_GOOGLE_CONNECTOR_TYPES
@@ -368,7 +369,12 @@ async def _should_skip_file(
         logger.info(f"Rename-only update: '{old_name}' → '{file_name}'")
         return True, f"File renamed: '{old_name}' → '{file_name}'"
 
-    if not DocumentStatus.is_state(existing.status, DocumentStatus.READY):
+    state = DocumentStatus.get_state(existing.status)
+    if state in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
+        # Stuck placeholder/in-progress doc (e.g. worker died mid-index): re-index
+        # instead of skipping, otherwise it never recovers.
+        return False, None
+    if state != DocumentStatus.READY:
         return True, "skipped (previously failed)"
     return True, "unchanged"
 
@@ -381,7 +387,6 @@ def _build_connector_doc(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
 ) -> ConnectorDocument:
     """Build a ConnectorDocument from Drive file metadata + extracted markdown."""
     file_id = file.get("id", "")
@@ -394,8 +399,6 @@ def _build_connector_doc(
         "connector_type": "Google Drive",
     }
 
-    fallback_summary = f"File: {file_name}\n\n{markdown[:4000]}"
-
     return ConnectorDocument(
         title=file_name,
         source_markdown=markdown,
@@ -404,8 +407,6 @@ def _build_connector_doc(
         search_space_id=search_space_id,
         connector_id=connector_id,
         created_by_id=user_id,
-        should_summarize=enable_summary,
-        fallback_summary=fallback_summary,
         metadata=metadata,
     )
 
@@ -461,14 +462,14 @@ async def _download_files_parallel(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     max_concurrency: int = 3,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
-) -> tuple[list[ConnectorDocument], int]:
-    """Download and ETL files in parallel, returning ConnectorDocuments.
+) -> tuple[list[ConnectorDocument], list[tuple[str, str]]]:
+    """Download and ETL files in parallel.
 
-    Returns (connector_docs, download_failed_count).
+    Returns (connector_docs, failed_files), where failed_files is a list of
+    (file_id, reason) so callers can mark those placeholders failed.
     """
     results: list[ConnectorDocument] = []
     sem = asyncio.Semaphore(max_concurrency)
@@ -476,7 +477,8 @@ async def _download_files_parallel(
     completed_count = 0
     hb_lock = asyncio.Lock()
 
-    async def _download_one(file: dict) -> ConnectorDocument | None:
+    async def _download_one(file: dict) -> ConnectorDocument | str:
+        # ConnectorDocument on success; failure reason string otherwise.
         nonlocal last_heartbeat, completed_count
         async with sem:
             markdown, drive_metadata, error = await download_and_extract_content(
@@ -486,7 +488,7 @@ async def _download_files_parallel(
                 file_name = file.get("name", "Unknown")
                 reason = error or "empty content"
                 logger.warning(f"Download/ETL failed for {file_name}: {reason}")
-                return None
+                return f"Download/ETL failed: {reason}"
             doc = _build_connector_doc(
                 file,
                 markdown,
@@ -494,7 +496,6 @@ async def _download_files_parallel(
                 connector_id=connector_id,
                 search_space_id=search_space_id,
                 user_id=user_id,
-                enable_summary=enable_summary,
             )
             async with hb_lock:
                 completed_count += 1
@@ -508,14 +509,28 @@ async def _download_files_parallel(
     tasks = [_download_one(f) for f in files]
     outcomes = await asyncio.gather(*tasks, return_exceptions=True)
 
-    failed = 0
-    for outcome in outcomes:
-        if isinstance(outcome, Exception) or outcome is None:
-            failed += 1
-        else:
+    failed_files: list[tuple[str, str]] = []
+    for file, outcome in zip(files, outcomes, strict=False):
+        if isinstance(outcome, ConnectorDocument):
             results.append(outcome)
+            continue
+        file_id = file.get("id")
+        if isinstance(outcome, Exception):
+            reason = f"Download/ETL error: {safe_exception_message(outcome)}"
+            logger.warning(
+                "Download/ETL exception for %s: %s",
+                file.get("name", "Unknown"),
+                outcome,
+                exc_info=outcome,
+            )
+        elif isinstance(outcome, str):
+            reason = outcome
+        else:
+            reason = "Download or extraction failed"
+        if file_id:
+            failed_files.append((file_id, reason))
 
-    return results, failed
+    return results, failed_files
 
 
 async def _process_single_file(
@@ -525,7 +540,6 @@ async def _process_single_file(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool = True,
     vision_llm=None,
 ) -> tuple[int, int, int]:
     """Download, extract, and index a single Drive file via the pipeline.
@@ -551,7 +565,16 @@ async def _process_single_file(
             drive_client, file, vision_llm=vision_llm
         )
         if error or not markdown:
-            logger.warning(f"ETL failed for {file_name}: {error}")
+            reason = error or "empty content"
+            logger.warning(f"ETL failed for {file_name}: {reason}")
+            file_id = file.get("id")
+            if file_id:
+                await mark_connector_documents_failed(
+                    session,
+                    document_type=DocumentType.GOOGLE_DRIVE_FILE,
+                    search_space_id=search_space_id,
+                    failures=[(file_id, f"Download/ETL failed: {reason}")],
+                )
             return 0, 1, 0
 
         doc = _build_connector_doc(
@@ -561,7 +584,6 @@ async def _process_single_file(
             connector_id=connector_id,
             search_space_id=search_space_id,
             user_id=user_id,
-            enable_summary=enable_summary,
         )
 
         pipeline = IndexingPipelineService(session)
@@ -578,10 +600,7 @@ async def _process_single_file(
             connector_doc = doc_map.get(document.unique_identifier_hash)
             if not connector_doc:
                 continue
-            user_llm = await get_user_long_context_llm(
-                session, user_id, search_space_id
-            )
-            await pipeline.index(document, connector_doc, user_llm)
+            await pipeline.index(document, connector_doc)
 
         await page_limit_service.update_page_usage(
             user_id, estimated_pages, allow_exceed=True
@@ -636,7 +655,6 @@ async def _download_and_index(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
 ) -> tuple[int, int]:
@@ -644,33 +662,37 @@ async def _download_and_index(
 
     Returns (batch_indexed, total_failed).
     """
-    connector_docs, download_failed = await _download_files_parallel(
+    connector_docs, failed_files = await _download_files_parallel(
         drive_client,
         files,
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
     )
+
+    # Fail the placeholders for files whose download/ETL failed, so they don't
+    # stay stuck in 'pending'.
+    if failed_files:
+        await mark_connector_documents_failed(
+            session,
+            document_type=DocumentType.GOOGLE_DRIVE_FILE,
+            search_space_id=search_space_id,
+            failures=failed_files,
+        )
 
     batch_indexed = 0
     batch_failed = 0
     if connector_docs:
         pipeline = IndexingPipelineService(session)
-
-        async def _get_llm(s):
-            return await get_user_long_context_llm(s, user_id, search_space_id)
-
         _, batch_indexed, batch_failed = await pipeline.index_batch_parallel(
             connector_docs,
-            _get_llm,
             max_concurrency=3,
             on_heartbeat=on_heartbeat,
         )
 
-    return batch_indexed, download_failed + batch_failed
+    return batch_indexed, len(failed_files) + batch_failed
 
 
 async def _index_selected_files(
@@ -681,7 +703,6 @@ async def _index_selected_files(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
 ) -> tuple[int, int, int, list[str]]:
@@ -746,7 +767,6 @@ async def _index_selected_files(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
     )
@@ -781,7 +801,6 @@ async def _index_full_scan(
     max_files: int,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-    enable_summary: bool = True,
     vision_llm=None,
 ) -> tuple[int, int, int]:
     """Full scan indexing of a folder.
@@ -911,7 +930,6 @@ async def _index_full_scan(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
     )
@@ -946,7 +964,6 @@ async def _index_with_delta_sync(
     max_files: int,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-    enable_summary: bool = True,
     vision_llm=None,
 ) -> tuple[int, int, int]:
     """Delta sync using change tracking.
@@ -1054,7 +1071,6 @@ async def _index_with_delta_sync(
         connector_id=connector_id,
         search_space_id=search_space_id,
         user_id=user_id,
-        enable_summary=enable_summary,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
     )
@@ -1142,7 +1158,6 @@ async def index_google_drive_files(
             )
             return 0, 0, client_error, 0
 
-        connector_enable_summary = getattr(connector, "enable_summary", True)
         connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
         vision_llm = None
         if connector_enable_vision_llm:
@@ -1189,7 +1204,6 @@ async def index_google_drive_files(
                 max_files,
                 include_subfolders,
                 on_heartbeat_callback,
-                connector_enable_summary,
                 vision_llm=vision_llm,
             )
             documents_unsupported += du
@@ -1208,7 +1222,6 @@ async def index_google_drive_files(
                 max_files,
                 include_subfolders,
                 on_heartbeat_callback,
-                connector_enable_summary,
                 vision_llm=vision_llm,
             )
             documents_indexed += ri
@@ -1234,7 +1247,6 @@ async def index_google_drive_files(
                 max_files,
                 include_subfolders,
                 on_heartbeat_callback,
-                connector_enable_summary,
                 vision_llm=vision_llm,
             )
 
@@ -1346,7 +1358,6 @@ async def index_google_drive_single_file(
             )
             return 0, client_error
 
-        connector_enable_summary = getattr(connector, "enable_summary", True)
         connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
         vision_llm = None
         if connector_enable_vision_llm:
@@ -1370,7 +1381,6 @@ async def index_google_drive_single_file(
             connector_id,
             search_space_id,
             user_id,
-            connector_enable_summary,
             vision_llm=vision_llm,
         )
         await session.commit()
@@ -1467,7 +1477,6 @@ async def index_google_drive_selected_files(
             )
             return 0, 0, [error_msg]
 
-        connector_enable_summary = getattr(connector, "enable_summary", True)
         connector_enable_vision_llm = getattr(connector, "enable_vision_llm", False)
         vision_llm = None
         if connector_enable_vision_llm:
@@ -1481,7 +1490,6 @@ async def index_google_drive_selected_files(
             connector_id=connector_id,
             search_space_id=search_space_id,
             user_id=user_id,
-            enable_summary=connector_enable_summary,
             on_heartbeat=on_heartbeat_callback,
             vision_llm=vision_llm,
         )

@@ -1,18 +1,10 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertTriangle } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
-import {
-	globalNewLLMConfigsAtom,
-	llmPreferencesAtom,
-} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
@@ -44,28 +36,7 @@ interface ConnectorIndicatorProps {
 
 export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, ConnectorIndicatorProps>(
 	(_props, ref) => {
-		const router = useRouter();
 		const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-		const { data: preferences = {}, isFetching: preferencesLoading } =
-			useAtomValue(llmPreferencesAtom);
-		const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
-			useAtomValue(globalNewLLMConfigsAtom);
-
-		// Check if document summary LLM is properly configured
-		// - If ID is 0 (Auto mode), we need global configs to be available
-		// - If ID is positive (user config) or negative (specific global config), it's configured
-		// - If ID is null/undefined, it's not configured
-		const docSummaryLlmId = preferences.document_summary_llm_id;
-		const isAutoMode = docSummaryLlmId === 0;
-		const hasGlobalConfigs = globalConfigs.length > 0;
-
-		const hasDocumentSummaryLLM =
-			docSummaryLlmId !== null &&
-			docSummaryLlmId !== undefined &&
-			// If it's Auto mode, we need global configs to actually be available
-			(!isAutoMode || hasGlobalConfigs);
-
-		const llmConfigLoading = preferencesLoading || globalConfigsLoading;
 
 		// Real-time document type counts via Zero (updates instantly as docs are indexed)
 		const documentTypeCounts = useZeroDocumentTypeCounts(searchSpaceId);
@@ -97,7 +68,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			isDisconnecting,
 			periodicEnabled,
 			frequencyMinutes,
-			enableSummary,
 			enableVisionLlm,
 			allConnectors,
 			viewingAccountsType,
@@ -109,7 +79,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			setEndDate,
 			setPeriodicEnabled,
 			setFrequencyMinutes,
-			setEnableSummary,
 			setEnableVisionLlm,
 			handleOpenChange,
 			handleTabChange,
@@ -280,7 +249,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							endDate={endDate}
 							periodicEnabled={periodicEnabled}
 							frequencyMinutes={frequencyMinutes}
-							enableSummary={enableSummary}
 							enableVisionLlm={enableVisionLlm}
 							isSaving={isSaving}
 							isDisconnecting={isDisconnecting}
@@ -290,7 +258,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							onEndDateChange={setEndDate}
 							onPeriodicEnabledChange={setPeriodicEnabled}
 							onFrequencyChange={setFrequencyMinutes}
-							onEnableSummaryChange={setEnableSummary}
 							onEnableVisionLlmChange={setEnableVisionLlm}
 							onSave={() => {
 								startIndexing(editingConnector.id);
@@ -339,7 +306,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							endDate={endDate}
 							periodicEnabled={periodicEnabled}
 							frequencyMinutes={frequencyMinutes}
-							enableSummary={enableSummary}
 							enableVisionLlm={enableVisionLlm}
 							isStartingIndexing={isStartingIndexing}
 							isFromOAuth={isFromOAuth}
@@ -347,7 +313,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							onEndDateChange={setEndDate}
 							onPeriodicEnabledChange={setPeriodicEnabled}
 							onFrequencyChange={setFrequencyMinutes}
-							onEnableSummaryChange={setEnableSummary}
 							onEnableVisionLlmChange={setEnableVisionLlm}
 							onConfigChange={setIndexingConnectorConfig}
 							onStartIndexing={() => {
@@ -378,35 +343,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							<div className="flex-1 min-h-0 relative overflow-hidden">
 								<div className="h-full overflow-y-auto" onScroll={handleScroll}>
 									<div className="px-4 sm:px-12 py-4 sm:py-8 pb-12 sm:pb-16">
-										{/* LLM Configuration Warning */}
-										{!llmConfigLoading && !hasDocumentSummaryLLM && (
-											<div className="mb-6">
-												<Alert variant="warning">
-													<AlertTriangle />
-													<AlertTitle>LLM Configuration Required</AlertTitle>
-													<AlertDescription>
-														<p>
-															{isAutoMode && !hasGlobalConfigs
-																? "Auto mode requires a global LLM configuration. Please add one in Settings"
-																: "A Document Summary LLM is required to process uploads, configure one in Settings"}
-														</p>
-														<Button
-															size="sm"
-															variant="secondary"
-															onClick={() => {
-																handleOpenChange(false);
-																router.push(
-																	`/dashboard/${searchSpaceId}/search-space-settings/models`
-																);
-															}}
-														>
-															Go to Settings
-														</Button>
-													</AlertDescription>
-												</Alert>
-											</div>
-										)}
-
 										<TabsContent value="all" className="m-0">
 											<AllConnectorsTab
 												searchQuery={searchQuery}
@@ -416,14 +352,10 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 												allConnectors={connectors}
 												documentTypeCounts={documentTypeCounts}
 												indexingConnectorIds={indexingConnectorIds}
-												onConnectOAuth={hasDocumentSummaryLLM ? handleConnectOAuth : () => {}}
-												onConnectNonOAuth={hasDocumentSummaryLLM ? handleConnectNonOAuth : () => {}}
-												onCreateWebcrawler={
-													hasDocumentSummaryLLM ? handleCreateWebcrawler : () => {}
-												}
-												onCreateYouTubeCrawler={
-													hasDocumentSummaryLLM ? handleCreateYouTubeCrawler : () => {}
-												}
+												onConnectOAuth={handleConnectOAuth}
+												onConnectNonOAuth={handleConnectNonOAuth}
+												onCreateWebcrawler={handleCreateWebcrawler}
+												onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
 												onManage={handleStartEdit}
 												onViewAccountsList={handleViewAccountsList}
 											/>

@@ -8,7 +8,6 @@ import { updateAutomationMutationAtom } from "@/atoms/automations/automations-mu
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { Automation } from "@/contracts/types/automation.types";
-import { AutomationStatusBadge } from "../../components/automation-status-badge";
 import { DeleteAutomationDialog } from "../../components/delete-automation-dialog";
 
 interface AutomationDetailHeaderProps {
@@ -70,12 +69,9 @@ export function AutomationDetailHeader({
 
 				<div className="flex items-start justify-between gap-4 flex-wrap">
 					<div className="space-y-2 min-w-0 flex-1">
-						<div className="flex items-center gap-3 flex-wrap">
-							<h1 className="text-xl md:text-2xl font-semibold text-foreground break-words">
-								{automation.name}
-							</h1>
-							<AutomationStatusBadge status={automation.status} />
-						</div>
+						<h1 className="text-xl md:text-2xl font-semibold text-foreground break-words">
+							{automation.name}
+						</h1>
 						{automation.description && (
 							<p className="text-sm text-muted-foreground max-w-3xl">{automation.description}</p>
 						)}
@@ -83,9 +79,15 @@ export function AutomationDetailHeader({
 
 					<div className="flex items-center gap-2 shrink-0">
 						{canUpdate && (
-							<Button asChild type="button" variant="outline" size="sm">
+							<Button
+								asChild
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="justify-start rounded-md bg-muted px-3 hover:bg-accent"
+							>
 								<Link href={`/dashboard/${searchSpaceId}/automations/${automation.id}/edit`}>
-									<Pencil className="mr-2 h-4 w-4" />
+									<Pencil className="mr-1 h-4 w-4" />
 									Edit
 								</Link>
 							</Button>
@@ -93,28 +95,39 @@ export function AutomationDetailHeader({
 						{canToggle && (
 							<Button
 								type="button"
-								variant="outline"
+								variant="ghost"
 								size="sm"
 								onClick={handleTogglePause}
 								disabled={updating}
+								className="relative justify-start rounded-md bg-muted px-3 hover:bg-accent"
 							>
-								{updating ? (
-									<Spinner size="xs" className="mr-2" />
-								) : (
-									<PauseIcon className="mr-2 h-4 w-4" />
+								<span
+									className={
+										updating
+											? "inline-flex items-center whitespace-nowrap opacity-0"
+											: "inline-flex items-center whitespace-nowrap"
+									}
+								>
+									<PauseIcon className="mr-1 h-4 w-4" />
+									{pauseLabel}
+								</span>
+								{updating && (
+									<Spinner
+										size="xs"
+										className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+									/>
 								)}
-								{pauseLabel}
 							</Button>
 						)}
 						{canDelete && (
 							<Button
 								type="button"
-								variant="outline"
+								variant="ghost"
 								size="sm"
 								onClick={() => setDeleteOpen(true)}
-								className="text-destructive hover:text-destructive hover:bg-destructive/10"
+								className="justify-start rounded-md bg-muted px-3 hover:bg-accent"
 							>
-								<Trash2 className="mr-2 h-4 w-4" />
+								<Trash2 className="mr-1 h-4 w-4" />
 								Delete
 							</Button>
 						)}

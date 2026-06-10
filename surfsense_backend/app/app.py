@@ -23,7 +23,7 @@ from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from app.agents.new_chat.checkpointer import (
+from app.agents.chat.runtime.checkpointer import (
     close_checkpointer,
     setup_checkpointer_tables,
 )
@@ -37,6 +37,18 @@ from app.config import (
 )
 from app.db import User, create_db_and_tables, get_async_session
 from app.exceptions import GENERIC_5XX_MESSAGE, ISSUES_URL, SurfSenseError
+from app.gateway.byo_long_poll import (
+    start_byo_long_poll_supervisors,
+    stop_byo_long_poll_supervisors,
+)
+from app.gateway.discord.intake import (
+    start_discord_gateway_supervisor,
+    stop_discord_gateway_supervisor,
+)
+from app.gateway.inbox_worker import (
+    start_gateway_inbox_worker,
+    stop_gateway_inbox_worker,
+)
 from app.observability import metrics as ot_metrics
 from app.observability.bootstrap import init_otel, shutdown_otel
 from app.rate_limiter import get_real_client_ip, limiter
@@ -475,7 +487,7 @@ async def _warm_agent_jit_caches() -> None:
         )
         from langchain_core.tools import tool
 
-        from app.agents.new_chat.context import SurfSenseContextSchema
+        from app.agents.chat.shared.context import SurfSenseContextSchema
 
         # Minimal LLM stub. ``FakeListChatModel`` satisfies
         # ``BaseChatModel`` without any network or auth — perfect for
@@ -559,6 +571,41 @@ async def _warm_agent_jit_caches() -> None:
         )
 
 
+async def _warm_embedding_model() -> None:
+    """Pre-load/JIT the embedding model so the first KB search is fast.
+
+    With lazy KB retrieval (OpenCode-style), the main agent no longer embeds
+    on every turn — it calls the on-demand ``search_knowledge_base`` tool only
+    when it needs KB content, and that tool's first ``embed_texts`` call in a
+    fresh process pays the model's one-time load/JIT (local sentence-transformer
+    warm or API client init). Doing one throwaway embed at startup moves that
+    cost off the first real search.
+
+    Safety: behind the embedding global lock (run in a worker thread), bounded
+    by the caller's ``asyncio.wait_for``, and non-fatal — on any failure we log
+    and swallow so the worst case is the first real search pays the cold cost.
+    """
+    import time as _time
+
+    logger = logging.getLogger(__name__)
+    t0 = _time.perf_counter()
+    try:
+        from app.utils.document_converters import embed_texts
+
+        await asyncio.to_thread(embed_texts, ["warmup"])
+        logger.info(
+            "[startup] Embedding model warmup completed in %.3fs",
+            _time.perf_counter() - t0,
+        )
+    except Exception:
+        logger.warning(
+            "[startup] Embedding model warmup failed in %.3fs (non-fatal — first "
+            "KB search will pay the cold embed cost)",
+            _time.perf_counter() - t0,
+            exc_info=True,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Tune GC: lower gen-2 threshold so long-lived garbage is collected
@@ -589,14 +636,31 @@ async def lifespan(app: FastAPI):
             "first real request will pay the full compile cost."
         )
 
+    # Phase 2 — embedding warmup so the first lazy ``search_knowledge_base``
+    # call doesn't pay the cold embed-model load. Bounded + non-fatal.
+    try:
+        await asyncio.wait_for(asyncio.shield(_warm_embedding_model()), timeout=20)
+    except (TimeoutError, Exception):  # pragma: no cover - defensive
+        logging.getLogger(__name__).warning(
+            "[startup] Embedding warmup hit timeout/error — skipping; "
+            "first KB search will pay the cold embed cost."
+        )
+
     register_session_hooks()
     log_system_snapshot("startup_complete")
+    await start_gateway_inbox_worker()
+    await start_byo_long_poll_supervisors()
+    await start_discord_gateway_supervisor()
 
-    yield
-
-    _stop_openrouter_background_refresh()
-    await close_checkpointer()
-    shutdown_otel()
+    try:
+        yield
+    finally:
+        await stop_discord_gateway_supervisor()
+        await stop_byo_long_poll_supervisors()
+        await stop_gateway_inbox_worker()
+        _stop_openrouter_background_refresh()
+        await close_checkpointer()
+        shutdown_otel()
 
 
 def registration_allowed():

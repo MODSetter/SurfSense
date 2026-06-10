@@ -9,7 +9,6 @@ from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 
@@ -78,30 +77,8 @@ class GmailKBSyncService:
                 )
                 content_hash = unique_hash
 
-            from app.services.llm_service import get_user_long_context_llm
-
-            user_llm = await get_user_long_context_llm(
-                self.db_session,
-                user_id,
-                search_space_id,
-                disable_streaming=True,
-            )
-
-            doc_metadata_for_summary = {
-                "subject": subject,
-                "sender": sender,
-                "document_type": "Gmail Message",
-                "connector_type": "Gmail",
-            }
-
-            if user_llm:
-                summary_content, summary_embedding = await generate_document_summary(
-                    indexable_content, user_llm, doc_metadata_for_summary
-                )
-            else:
-                logger.warning("No LLM configured -- using fallback summary")
-                summary_content = f"Gmail Message: {subject}\n\n{indexable_content}"
-                summary_embedding = await asyncio.to_thread(embed_text, summary_content)
+            summary_content = f"Gmail Message: {subject}\n\n{indexable_content}"
+            summary_embedding = await asyncio.to_thread(embed_text, summary_content)
 
             chunks = await create_document_chunks(indexable_content)
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

@@ -55,15 +55,6 @@ const ROLE_DESCRIPTIONS = {
 		prefKey: "agent_llm_id" as const,
 		configType: "llm" as const,
 	},
-	document_summary: {
-		icon: FileText,
-		title: "Document Summary LLM",
-		description: "Handles document summarization and research synthesis",
-		color: "text-muted-foreground",
-		bgColor: "bg-muted",
-		prefKey: "document_summary_llm_id" as const,
-		configType: "llm" as const,
-	},
 	image_generation: {
 		icon: ImageIcon,
 		title: "Image Generation Model",
@@ -137,7 +128,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 	const [assignments, setAssignments] = useState<Record<string, number | null>>(() => ({
 		agent_llm_id: preferences.agent_llm_id ?? null,
-		document_summary_llm_id: preferences.document_summary_llm_id ?? null,
 		image_generation_config_id: preferences.image_generation_config_id ?? null,
 		vision_llm_config_id: preferences.vision_llm_config_id ?? null,
 	}));
@@ -148,13 +138,11 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	useEffect(() => {
 		setAssignments({
 			agent_llm_id: preferences.agent_llm_id ?? null,
-			document_summary_llm_id: preferences.document_summary_llm_id ?? null,
 			image_generation_config_id: preferences.image_generation_config_id ?? null,
 			vision_llm_config_id: preferences.vision_llm_config_id ?? null,
 		});
 	}, [
 		preferences.agent_llm_id,
-		preferences.document_summary_llm_id,
 		preferences.image_generation_config_id,
 		preferences.vision_llm_config_id,
 	]);

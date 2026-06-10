@@ -8,7 +8,6 @@ from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 
@@ -73,30 +72,8 @@ class NotionKBSyncService:
                 )
                 content_hash = unique_hash
 
-            from app.services.llm_service import get_user_long_context_llm
-
-            user_llm = await get_user_long_context_llm(
-                self.db_session,
-                user_id,
-                search_space_id,
-                disable_streaming=True,
-            )
-
-            doc_metadata_for_summary = {
-                "page_title": page_title,
-                "page_id": page_id,
-                "document_type": "Notion Page",
-                "connector_type": "Notion",
-            }
-
-            if user_llm:
-                summary_content, summary_embedding = await generate_document_summary(
-                    markdown_content, user_llm, doc_metadata_for_summary
-                )
-            else:
-                logger.warning("No LLM configured — using fallback summary")
-                summary_content = f"Notion Page: {page_title}\n\n{markdown_content}"
-                summary_embedding = embed_text(summary_content)
+            summary_content = f"Notion Page: {page_title}\n\n{markdown_content}"
+            summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(markdown_content)
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -245,31 +222,10 @@ class NotionKBSyncService:
                 f"Final content length: {len(full_content)} chars, verified={content_verified}"
             )
 
-            from app.services.llm_service import get_user_long_context_llm
-
             logger.debug("Generating summary and embeddings")
-            user_llm = await get_user_long_context_llm(
-                self.db_session,
-                user_id,
-                search_space_id,
-                disable_streaming=True,  # disable streaming to avoid leaking into the chat
-            )
 
-            if user_llm:
-                document_metadata_for_summary = {
-                    "page_title": document.document_metadata.get("page_title"),
-                    "page_id": document.document_metadata.get("page_id"),
-                    "document_type": "Notion Page",
-                    "connector_type": "Notion",
-                }
-                summary_content, summary_embedding = await generate_document_summary(
-                    full_content, user_llm, document_metadata_for_summary
-                )
-                logger.debug(f"Generated summary length: {len(summary_content)} chars")
-            else:
-                logger.warning("No LLM configured - using fallback summary")
-                summary_content = f"Notion Page: {document.document_metadata.get('page_title')}\n\n{full_content}"
-                summary_embedding = embed_text(summary_content)
+            summary_content = f"Notion Page: {document.document_metadata.get('page_title')}\n\n{full_content}"
+            summary_embedding = embed_text(summary_content)
 
             logger.debug("Creating new chunks")
             chunks = await create_document_chunks(full_content)

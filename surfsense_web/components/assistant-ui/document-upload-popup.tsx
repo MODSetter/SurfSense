@@ -1,8 +1,6 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertTriangle } from "lucide-react";
-import { useRouter } from "next/navigation";
 import {
 	createContext,
 	type FC,
@@ -12,14 +10,8 @@ import {
 	useRef,
 	useState,
 } from "react";
-import {
-	globalNewLLMConfigsAtom,
-	llmPreferencesAtom,
-} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { DocumentUploadTab } from "@/components/sources/DocumentUploadTab";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -98,34 +90,13 @@ const DocumentUploadPopupContent: FC<{
 	isOpen: boolean;
 	onOpenChange: (open: boolean) => void;
 }> = ({ isOpen, onOpenChange }) => {
-	const router = useRouter();
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-	const { data: preferences = {}, isFetching: preferencesLoading } =
-		useAtomValue(llmPreferencesAtom);
-	const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
-		useAtomValue(globalNewLLMConfigsAtom);
 
 	if (!searchSpaceId) return null;
 
 	const handleSuccess = () => {
 		onOpenChange(false);
 	};
-
-	// Check if document summary LLM is properly configured
-	// - If ID is 0 (Auto mode), we need global configs to be available
-	// - If ID is positive (user config) or negative (specific global config), it's configured
-	// - If ID is null/undefined, it's not configured
-	const docSummaryLlmId = preferences.document_summary_llm_id;
-	const isAutoMode = docSummaryLlmId === 0;
-	const hasGlobalConfigs = globalConfigs.length > 0;
-
-	const hasDocumentSummaryLLM =
-		docSummaryLlmId !== null &&
-		docSummaryLlmId !== undefined &&
-		// If it's Auto mode, we need global configs to actually be available
-		(!isAutoMode || hasGlobalConfigs);
-
-	const isLoading = preferencesLoading || globalConfigsLoading;
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -146,33 +117,7 @@ const DocumentUploadPopupContent: FC<{
 					</DialogHeader>
 
 					<div className="px-4 sm:px-6 pb-4 sm:pb-6">
-						{!isLoading && !hasDocumentSummaryLLM ? (
-							<div className="mb-4">
-								<Alert variant="warning">
-									<AlertTriangle />
-									<AlertTitle>LLM Configuration Required</AlertTitle>
-									<AlertDescription>
-										<p>
-											{isAutoMode && !hasGlobalConfigs
-												? "Auto mode requires a global LLM configuration. Please add one in Settings"
-												: "A Document Summary LLM is required to process uploads, configure one in Settings"}
-										</p>
-										<Button
-											size="sm"
-											variant="secondary"
-											onClick={() => {
-												onOpenChange(false);
-												router.push(`/dashboard/${searchSpaceId}/search-space-settings/models`);
-											}}
-										>
-											Go to Settings
-										</Button>
-									</AlertDescription>
-								</Alert>
-							</div>
-						) : (
-							<DocumentUploadTab searchSpaceId={searchSpaceId} onSuccess={handleSuccess} />
-						)}
+						<DocumentUploadTab searchSpaceId={searchSpaceId} onSuccess={handleSuccess} />
 					</div>
 				</div>
 			</DialogContent>

@@ -1,0 +1,60 @@
+---
+title: Docker Setup
+description: Configure messaging channels for Docker and one-line installs
+---
+
+# Docker Setup
+
+For Docker and one-line installs, configure messaging channels in the generated
+`docker/.env` file. You do not need to edit `surfsense_backend/.env.example`.
+
+The Compose stack passes `docker/.env` into the backend, worker, and beat
+containers. Database, Redis, SearXNG, and internal Docker networking are already
+wired by Compose.
+
+## Public URLs
+
+For localhost-only testing, the defaults are enough for the SurfSense UI, but
+public webhooks from Telegram, WhatsApp, and Slack require a public HTTPS backend
+URL. Use your deployed backend URL or a tunnel such as Cloudflare Tunnel or
+ngrok.
+
+When using a custom domain or tunnel, set:
+
+```bash
+BACKEND_URL=https://api.example.com
+GATEWAY_BASE_URL=https://api.example.com
+NEXT_FRONTEND_URL=https://app.example.com
+NEXT_PUBLIC_FASTAPI_BACKEND_URL=https://api.example.com
+```
+
+## Environment Variables
+
+Uncomment only the channel you are enabling in `docker/.env`.
+
+| Channel | Main variables |
+| --- | --- |
+| Telegram | `TELEGRAM_SHARED_BOT_TOKEN`, `TELEGRAM_SHARED_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`, `GATEWAY_BASE_URL`, `GATEWAY_TELEGRAM_INTAKE_MODE` |
+| WhatsApp Cloud API | `GATEWAY_WHATSAPP_INTAKE_MODE`, `WHATSAPP_SHARED_BUSINESS_TOKEN`, `WHATSAPP_SHARED_PHONE_NUMBER_ID`, `WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER`, `WHATSAPP_SHARED_WABA_ID`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_WEBHOOK_APP_SECRET` |
+| WhatsApp Baileys | `GATEWAY_WHATSAPP_INTAKE_MODE`, `WHATSAPP_BRIDGE_URL`, `WHATSAPP_MODE` |
+| Slack | `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `GATEWAY_SLACK_ENABLED`, `GATEWAY_SLACK_SIGNING_SECRET`, `GATEWAY_SLACK_REDIRECT_URI` |
+| Discord | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_BOT_TOKEN`, `GATEWAY_DISCORD_ENABLED`, `GATEWAY_DISCORD_REDIRECT_URI` |
+
+After editing `docker/.env`, restart the stack:
+
+```bash
+docker compose up -d
+```
+
+For WhatsApp Baileys, start the Compose profile:
+
+```bash
+docker compose --profile whatsapp up -d
+```
+
+Then follow the per-channel setup pages:
+
+- [Telegram](/docs/messaging-channels/telegram)
+- [WhatsApp](/docs/messaging-channels/whatsapp)
+- [Slack](/docs/messaging-channels/slack)
+- [Discord](/docs/messaging-channels/discord)

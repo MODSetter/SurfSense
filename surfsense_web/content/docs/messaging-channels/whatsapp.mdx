@@ -1,0 +1,75 @@
+---
+title: WhatsApp
+description: Enable SurfSense chat from WhatsApp
+---
+
+# WhatsApp Messaging Channel
+
+WhatsApp supports two intake modes:
+
+- `cloud` uses the official Meta WhatsApp Cloud API with a SurfSense-owned system
+  WhatsApp Business Account.
+- `baileys` uses the unofficial Baileys WebSocket bridge for self-hosted,
+  one-tenant Message Yourself installs.
+
+Use `cloud` for production and shared deployments.
+
+## Meta Cloud API
+
+Create a Meta app, provision a WhatsApp Business Account and phone number, and
+create a long-lived system user token with WhatsApp permissions.
+
+Point the Meta app webhook to:
+
+```text
+${GATEWAY_BASE_URL}/api/v1/gateway/webhooks/whatsapp
+```
+
+Set the webhook verify token in Meta to the same value as
+`WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
+
+For Docker installs, add these to `docker/.env`. For manual installs, add them to
+`surfsense_backend/.env`.
+
+```bash
+GATEWAY_WHATSAPP_INTAKE_MODE=cloud
+WHATSAPP_SHARED_BUSINESS_TOKEN=your-system-user-token
+WHATSAPP_SHARED_PHONE_NUMBER_ID=your-meta-phone-number-id
+WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER=15551234567
+WHATSAPP_SHARED_WABA_ID=your-waba-id
+WHATSAPP_GRAPH_API_VERSION=v25.0
+WHATSAPP_WEBHOOK_VERIFY_TOKEN=generate-a-long-random-secret
+WHATSAPP_WEBHOOK_APP_SECRET=your-meta-app-secret
+```
+
+Users open **User Settings > Messaging Channels**, click **Pair WhatsApp**, and
+open the returned `wa.me` link. WhatsApp pre-fills `/start CODE`; the user must
+press send to bind the chat.
+
+## Baileys Self-Hosted Mode
+
+Baileys is unofficial. Use it only for single-tenant self-hosted installs where
+the operator accepts the risk of a personal WhatsApp session bridge.
+
+```bash
+GATEWAY_WHATSAPP_INTAKE_MODE=baileys
+WHATSAPP_BRIDGE_URL=http://whatsapp-bridge:9929
+WHATSAPP_MODE=self-chat
+docker compose --profile whatsapp up -d
+```
+
+After pairing, use WhatsApp's Message Yourself chat. The bridge only forwards
+messages from your own self-chat and ignores groups, other chats, and other
+people.
+
+The `whatsapp-bridge` container stores Baileys auth state in the
+`surfsense-whatsapp-sessions` Docker volume. That volume contains account
+takeover material. Treat it like a secret.
+
+To intentionally reset pairing:
+
+```bash
+docker compose --profile whatsapp down
+docker volume rm surfsense-whatsapp-sessions
+docker compose --profile whatsapp up -d
+```

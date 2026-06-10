@@ -6,13 +6,13 @@ from unittest.mock import MagicMock, patch
 
 from langchain.agents.middleware import AgentMiddleware
 
-from app.agents.new_chat.plugin_loader import (
+from app.agents.chat.multi_agent_chat.main_agent.plugins.loader import (
     PLUGIN_ENTRY_POINT_GROUP,
     PluginContext,
     load_allowed_plugin_names_from_env,
     load_plugin_middlewares,
 )
-from app.agents.new_chat.plugins.year_substituter import (
+from app.agents.chat.multi_agent_chat.main_agent.plugins.year_substituter import (
     _YearSubstituterMiddleware,
     make_middleware as year_substituter_factory,
 )
@@ -66,7 +66,7 @@ class TestPluginLoaderBasics:
 
         ep = _FakeEntryPoint("dangerous_plugin", factory)
         with patch(
-            "app.agents.new_chat.plugin_loader.entry_points",
+            "app.agents.chat.multi_agent_chat.main_agent.plugins.loader.entry_points",
             return_value=[ep],
         ):
             result = load_plugin_middlewares(
@@ -78,7 +78,7 @@ class TestPluginLoaderBasics:
     def test_loads_allowlisted_plugin(self) -> None:
         ep = _FakeEntryPoint("year_substituter", year_substituter_factory)
         with patch(
-            "app.agents.new_chat.plugin_loader.entry_points",
+            "app.agents.chat.multi_agent_chat.main_agent.plugins.loader.entry_points",
             return_value=[ep],
         ):
             result = load_plugin_middlewares(
@@ -95,7 +95,7 @@ class TestPluginLoaderIsolation:
 
         ep = _FakeEntryPoint("buggy", crashing_factory)
         with patch(
-            "app.agents.new_chat.plugin_loader.entry_points",
+            "app.agents.chat.multi_agent_chat.main_agent.plugins.loader.entry_points",
             return_value=[ep],
         ):
             result = load_plugin_middlewares(_ctx(), allowed_plugin_names={"buggy"})
@@ -107,7 +107,7 @@ class TestPluginLoaderIsolation:
 
         ep = _FakeEntryPoint("liar", bad_factory)
         with patch(
-            "app.agents.new_chat.plugin_loader.entry_points",
+            "app.agents.chat.multi_agent_chat.main_agent.plugins.loader.entry_points",
             return_value=[ep],
         ):
             result = load_plugin_middlewares(_ctx(), allowed_plugin_names={"liar"})
@@ -121,7 +121,7 @@ class TestPluginLoaderIsolation:
                 raise ImportError("cannot import")
 
         with patch(
-            "app.agents.new_chat.plugin_loader.entry_points",
+            "app.agents.chat.multi_agent_chat.main_agent.plugins.loader.entry_points",
             return_value=[_BrokenEP()],
         ):
             result = load_plugin_middlewares(_ctx(), allowed_plugin_names={"broken"})
@@ -137,7 +137,10 @@ class TestPluginLoaderIsolation:
             _FakeEntryPoint("crashing", crashing_factory),
             _FakeEntryPoint("ok", year_substituter_factory),
         ]
-        with patch("app.agents.new_chat.plugin_loader.entry_points", return_value=eps):
+        with patch(
+            "app.agents.chat.multi_agent_chat.main_agent.plugins.loader.entry_points",
+            return_value=eps,
+        ):
             result = load_plugin_middlewares(
                 _ctx(), allowed_plugin_names={"crashing", "ok"}
             )

@@ -25,8 +25,6 @@ def _drive_doc(
         search_space_id=search_space_id,
         connector_id=connector_id,
         created_by_id=user_id,
-        should_summarize=True,
-        fallback_summary=f"File: {unique_id}.pdf",
         metadata={
             "google_drive_file_id": unique_id,
             "google_drive_file_name": f"{unique_id}.pdf",
@@ -35,9 +33,7 @@ def _drive_doc(
     )
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_drive_pipeline_creates_ready_document(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -54,7 +50,7 @@ async def test_drive_pipeline_creates_ready_document(
     prepared = await service.prepare_for_indexing([doc])
     assert len(prepared) == 1
 
-    await service.index(prepared[0], doc, llm=mocker.Mock())
+    await service.index(prepared[0], doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.search_space_id == space_id)
@@ -66,9 +62,7 @@ async def test_drive_pipeline_creates_ready_document(
     assert DocumentStatus.is_state(row.status, DocumentStatus.READY)
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_drive_legacy_doc_migrated(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -183,3 +177,75 @@ async def test_should_skip_file_skips_failed_document(
 
     assert should_skip, "FAILED documents must be skipped during automatic sync"
     assert "failed" in msg.lower()
+
+
+@pytest.mark.parametrize("stuck_state", ["pending", "processing"])
+async def test_should_skip_file_retries_stuck_document(
+    db_session,
+    db_search_space,
+    db_user,
+    stuck_state,
+):
+    """A doc stuck in pending/processing (worker died mid-index) must re-index, not skip."""
+    import importlib
+    import sys
+    import types
+
+    pkg = "app.tasks.connector_indexers"
+    stub = pkg not in sys.modules
+    if stub:
+        mod = types.ModuleType(pkg)
+        mod.__path__ = ["app/tasks/connector_indexers"]
+        mod.__package__ = pkg
+        sys.modules[pkg] = mod
+
+    try:
+        gdm = importlib.import_module(
+            "app.tasks.connector_indexers.google_drive_indexer"
+        )
+        _should_skip_file = gdm._should_skip_file
+    finally:
+        if stub:
+            sys.modules.pop(pkg, None)
+
+    space_id = db_search_space.id
+    file_id = f"file-{stuck_state}-drive"
+    md5 = "stuck123checksum"
+
+    doc_hash = compute_identifier_hash(
+        DocumentType.GOOGLE_DRIVE_FILE.value, file_id, space_id
+    )
+    status = (
+        DocumentStatus.pending()
+        if stuck_state == "pending"
+        else DocumentStatus.processing()
+    )
+    stuck_doc = Document(
+        title="Stuck File.pdf",
+        document_type=DocumentType.GOOGLE_DRIVE_FILE,
+        content="Pending...",
+        content_hash=f"ch-{doc_hash[:12]}",
+        unique_identifier_hash=doc_hash,
+        source_markdown="",
+        search_space_id=space_id,
+        created_by_id=str(db_user.id),
+        status=status,
+        document_metadata={
+            "google_drive_file_id": file_id,
+            "google_drive_file_name": "Stuck File.pdf",
+            "md5_checksum": md5,
+        },
+    )
+    db_session.add(stuck_doc)
+    await db_session.flush()
+
+    incoming_file = {
+        "id": file_id,
+        "name": "Stuck File.pdf",
+        "mimeType": "application/pdf",
+        "md5Checksum": md5,
+    }
+
+    should_skip, _msg = await _should_skip_file(db_session, incoming_file, space_id)
+
+    assert not should_skip, f"{stuck_state} documents must re-index, not be skipped"

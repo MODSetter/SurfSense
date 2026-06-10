@@ -351,9 +351,24 @@ function GetStartedButton() {
 }
 
 function DownloadButton() {
-	const { os, primary, alternatives } = usePrimaryDownload();
+	const { os, primary, alternatives, isMobileOS } = usePrimaryDownload();
 
 	const fallbackUrl = GITHUB_RELEASES_URL;
+	const mobileDisabledLabel = "Desktop app unavailable on mobile";
+
+	if (isMobileOS) {
+		return (
+			<Button
+				type="button"
+				variant="ghost"
+				disabled
+				className="h-14 w-full gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 sm:w-auto sm:px-6 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+			>
+				<Download className="size-4" />
+				{mobileDisabledLabel}
+			</Button>
+		);
+	}
 
 	if (!primary) {
 		return (

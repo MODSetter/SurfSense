@@ -447,6 +447,7 @@ const Composer: FC = () => {
 	const [actionQuery, setActionQuery] = useState("");
 	const [suggestionAnchorPoint, setSuggestionAnchorPoint] =
 		useState<ComposerSuggestionAnchorPoint | null>(null);
+	const [isComposerInputEmpty, setIsComposerInputEmpty] = useState(true);
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const prevMentionedDocsRef = useRef<Map<string, MentionedDocumentInfo>>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
@@ -538,6 +539,7 @@ const Composer: FC = () => {
 	// short-circuit keeps pure-text keystrokes from churning the atom.
 	const handleEditorChange = useCallback(
 		(text: string, docs: MentionedDocument[]) => {
+			setIsComposerInputEmpty(text.trim().length === 0 && docs.length === 0);
 			aui.composer().setText(text);
 			setMentionedDocuments((prev) => {
 				if (prev.length === docs.length) {
@@ -653,6 +655,7 @@ const Composer: FC = () => {
 					: action.prompt;
 			editorRef.current?.setText(finalPrompt);
 			aui.composer().setText(finalPrompt);
+			setIsComposerInputEmpty(false);
 			setShowPromptPicker(false);
 			setActionQuery("");
 			setSuggestionAnchorPoint(null);
@@ -664,6 +667,7 @@ const Composer: FC = () => {
 		(prompt: string) => {
 			editorRef.current?.setText(prompt);
 			aui.composer().setText(prompt);
+			setIsComposerInputEmpty(false);
 			editorRef.current?.focus();
 		},
 		[aui]
@@ -678,6 +682,7 @@ const Composer: FC = () => {
 				: `${action.prompt}\n\n${clipboardInitialText}`;
 			editorRef.current?.setText(finalPrompt);
 			aui.composer().setText(finalPrompt);
+			setIsComposerInputEmpty(false);
 			setShowPromptPicker(false);
 			setActionQuery("");
 			setSuggestionAnchorPoint(null);
@@ -757,6 +762,7 @@ const Composer: FC = () => {
 
 		aui.composer().send();
 		editorRef.current?.clear();
+		setIsComposerInputEmpty(true);
 		setMentionedDocuments([]);
 	}, [
 		showDocumentPopover,
@@ -892,10 +898,10 @@ const Composer: FC = () => {
 					</>
 				) : null}
 			</Popover>
-			<div className="flex w-full flex-col">
+			<div className="relative flex w-full flex-col">
 				<div
 					className={cn(
-						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-shadow dark:shadow-black/10",
+						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input/20 bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-input/60 focus-within:border-input/60 dark:shadow-black/10",
 						connectToolsTrayVisible && "rounded-b-3xl shadow-none dark:shadow-none"
 					)}
 				>
@@ -906,7 +912,7 @@ const Composer: FC = () => {
 							onDismiss={() => setClipboardInitialText(undefined)}
 						/>
 					)}
-					<div className="aui-composer-input-wrapper px-4 pt-3 pb-6">
+					<div className="aui-composer-input-wrapper px-4 pt-3 pb-2 sm:pb-6">
 						<InlineMentionEditor
 							ref={editorRef}
 							placeholder={currentPlaceholder}
@@ -918,7 +924,7 @@ const Composer: FC = () => {
 							onDocumentRemove={handleDocumentRemove}
 							onSubmit={handleSubmit}
 							onKeyDown={handleKeyDown}
-							className="min-h-[24px] **:data-slate-placeholder:font-normal"
+							className="min-h-[48px] sm:min-h-[24px] **:data-slate-placeholder:font-normal"
 						/>
 					</div>
 					<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
@@ -928,7 +934,11 @@ const Composer: FC = () => {
 					isThreadEmpty={isThreadEmpty}
 					onVisibleChange={setConnectToolsTrayVisible}
 				/>
-				{isThreadEmpty && <ChatExamplePrompts onSelect={handleExampleSelect} />}
+				{isThreadEmpty && isComposerInputEmpty ? (
+					<div className="absolute top-full left-0 right-0 z-20">
+						<ChatExamplePrompts onSelect={handleExampleSelect} />
+					</div>
+				) : null}
 			</div>
 		</ComposerPrimitive.Root>
 	);

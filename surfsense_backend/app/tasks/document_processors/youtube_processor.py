@@ -7,25 +7,25 @@ Implements 2-phase document status updates for real-time UI feedback:
 """
 
 import logging
+import time
 from urllib.parse import parse_qs, urlparse
 
-import aiohttp
 from fake_useragent import UserAgent
 from requests import Session
+from scrapling.fetchers import AsyncFetcher
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from app.db import Document, DocumentStatus, DocumentType
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
-from app.utils.proxy_config import get_requests_proxies
+from app.utils.proxy import get_proxy_url, get_requests_proxies
 
 from .base import (
     check_document_by_unique_identifier,
@@ -219,18 +219,23 @@ async def add_youtube_video_document(
         }
         oembed_url = "https://www.youtube.com/oembed"
 
-        # Build residential proxy URL (if configured)
+        # Build residential proxy settings (if configured)
         residential_proxies = get_requests_proxies()
 
-        async with (
-            aiohttp.ClientSession() as http_session,
-            http_session.get(
-                oembed_url,
-                params=params,
-                proxy=residential_proxies["http"] if residential_proxies else None,
-            ) as response,
-        ):
-            video_data = await response.json()
+        oembed_fetch_start = time.perf_counter()
+        oembed_page = await AsyncFetcher.get(
+            oembed_url,
+            params=params,
+            proxy=get_proxy_url(),
+            stealthy_headers=True,
+        )
+        logging.info(
+            "[youtube][perf] source=oembed video=%s status=%s fetch_ms=%.1f",
+            video_id,
+            getattr(oembed_page, "status", None),
+            (time.perf_counter() - oembed_fetch_start) * 1000,
+        )
+        video_data = oembed_page.json()
 
         # Update title immediately for better UX (user sees actual title sooner)
         document.title = video_data.get("title", f"YouTube Video: {video_id}")
@@ -254,6 +259,7 @@ async def add_youtube_video_document(
         )
 
         try:
+            transcript_fetch_start = time.perf_counter()
             ua = UserAgent()
             http_client = Session()
             http_client.headers.update({"User-Agent": ua.random})
@@ -266,6 +272,11 @@ async def add_youtube_video_document(
             transcript_list = ytt_api.list(video_id)
             transcript = next(iter(transcript_list))
             captions = transcript.fetch()
+            logging.info(
+                "[youtube][perf] source=transcript video=%s fetch_ms=%.1f",
+                video_id,
+                (time.perf_counter() - transcript_fetch_start) * 1000,
+            )
 
             # Include complete caption information with timestamps
             transcript_segments = []
@@ -355,40 +366,8 @@ async def add_youtube_video_document(
             await session.commit()
             return document
 
-        # Get LLM for summary generation
-        await task_logger.log_task_progress(
-            log_entry,
-            f"Preparing for summary generation: {video_data.get('title', 'YouTube Video')}",
-            {"stage": "llm_setup"},
-        )
-
-        # Get user's long context LLM
-        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
-        if not user_llm:
-            raise RuntimeError(
-                f"No long context LLM configured for user {user_id} in search space {search_space_id}"
-            )
-
-        # Generate summary
-        await task_logger.log_task_progress(
-            log_entry,
-            f"Generating summary for video: {video_data.get('title', 'YouTube Video')}",
-            {"stage": "summary_generation"},
-        )
-
-        # Generate summary with metadata
-        document_metadata_for_summary = {
-            "url": url,
-            "video_id": video_id,
-            "title": video_data.get("title", "YouTube Video"),
-            "author": video_data.get("author_name", "Unknown"),
-            "thumbnail": video_data.get("thumbnail_url", ""),
-            "document_type": "YouTube Video Document",
-            "has_transcript": "No captions available" not in transcript_text,
-        }
-        summary_content, summary_embedding = await generate_document_summary(
-            combined_document_string, user_llm, document_metadata_for_summary
-        )
+        summary_content = combined_document_string
+        summary_embedding = embed_text(summary_content)
 
         # Process chunks
         await task_logger.log_task_progress(

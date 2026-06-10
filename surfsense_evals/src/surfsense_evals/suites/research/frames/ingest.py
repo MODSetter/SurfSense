@@ -136,7 +136,6 @@ async def _upload_markdowns(
         result = await docs_client.upload(
             files=batch,
             search_space_id=ctx.search_space_id,
-            should_summarize=settings.should_summarize,
             use_vision_llm=settings.use_vision_llm,
             processing_mode=settings.processing_mode,
         )
@@ -240,8 +239,7 @@ async def run_ingest(
     settings = settings or IngestSettings(
         use_vision_llm=False,
         processing_mode="basic",
-        should_summarize=False,
-    )
+        )
     bench_dir = ctx.benchmark_data_dir()
     wiki_cache = bench_dir / "wiki"
     wiki_cache.mkdir(parents=True, exist_ok=True)

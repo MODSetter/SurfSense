@@ -9,6 +9,7 @@ Implements 2-phase document status updates for real-time UI feedback:
 - Phase 2: Process each document: pending → processing → ready/failed
 """
 
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -18,13 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.github_connector import GitHubConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 
@@ -351,42 +350,14 @@ async def index_github_repos(
                 document.status = DocumentStatus.processing()
                 await session.commit()
 
-                # Heavy processing (LLM, embeddings, chunks)
-                user_llm = await get_user_long_context_llm(
-                    session, user_id, search_space_id
+                # Heavy processing (embeddings, chunks)
+
+                summary_text = (
+                    f"# GitHub Repository: {repo_full_name}\n\n"
+                    f"## Summary\n{digest.summary}\n\n"
+                    f"## File Structure\n{digest.tree}"
                 )
-
-                document_metadata_for_summary = {
-                    "repository": repo_full_name,
-                    "document_type": "GitHub Repository",
-                    "connector_type": "GitHub",
-                    "ingestion_method": "gitingest",
-                    "file_tree": digest.tree[:2000]
-                    if len(digest.tree) > 2000
-                    else digest.tree,
-                    "estimated_tokens": digest.estimated_tokens,
-                }
-
-                if user_llm and connector.enable_summary:
-                    # Prepare content for summarization
-                    summary_content = digest.full_digest
-                    if len(summary_content) > MAX_DIGEST_CHARS:
-                        summary_content = (
-                            f"# Repository: {repo_full_name}\n\n"
-                            f"## File Structure\n\n{digest.tree}\n\n"
-                            f"## File Contents (truncated)\n\n{digest.content[: MAX_DIGEST_CHARS - len(digest.tree) - 200]}..."
-                        )
-
-                    summary_text, summary_embedding = await generate_document_summary(
-                        summary_content, user_llm, document_metadata_for_summary
-                    )
-                else:
-                    summary_text = (
-                        f"# GitHub Repository: {repo_full_name}\n\n"
-                        f"## Summary\n{digest.summary}\n\n"
-                        f"## File Structure\n{digest.tree}"
-                    )
-                    summary_embedding = embed_text(summary_text)
+                summary_embedding = embed_text(summary_text)
 
                 # Chunk the full digest content for granular search
                 try:
@@ -443,10 +414,15 @@ async def index_github_repos(
                 try:
                     document.status = DocumentStatus.failed(str(repo_err))
                     document.updated_at = get_current_timestamp()
+                    # Commit now so the failed status survives a later rollback or
+                    # crash; otherwise the doc stays stuck in pending/processing.
+                    await session.commit()
                 except Exception as status_error:
                     logger.error(
                         f"Failed to update document status to failed: {status_error}"
                     )
+                    with contextlib.suppress(Exception):
+                        await session.rollback()
                 errors.append(f"Failed processing {repo_full_name}: {repo_err}")
                 documents_failed += 1
                 continue

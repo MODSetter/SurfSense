@@ -1,11 +1,7 @@
 "use client";
-import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from "@/components/ui/accordion";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { ChevronDown, ChevronRight, ChevronUp, Trash2 } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { BuilderTask } from "@/lib/automations/builder-schema";
@@ -43,7 +39,7 @@ export function TaskItem({
 	onRemove,
 }: TaskItemProps) {
 	return (
-		<div className="rounded-lg border border-border/60 bg-background p-3 space-y-3">
+		<div className="rounded-md border border-border/60 bg-transparent p-3 space-y-3">
 			<div className="flex items-center justify-between gap-2">
 				<span className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
 					<span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-foreground">
@@ -103,27 +99,30 @@ export function TaskItem({
 
 			<Accordion type="single" collapsible>
 				<AccordionItem value="advanced" className="border-b-0">
-					<AccordionTrigger className="py-1.5 text-xs text-muted-foreground hover:no-underline">
-						Advanced
-					</AccordionTrigger>
+					<AccordionPrimitive.Header className="flex">
+						<AccordionPrimitive.Trigger className="group flex flex-1 items-center justify-between rounded-md py-1.5 text-left text-xs font-medium text-muted-foreground outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50">
+							Advanced
+							<ChevronRight className="pointer-events-none size-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+						</AccordionPrimitive.Trigger>
+					</AccordionPrimitive.Header>
 					<AccordionContent className="pb-1">
 						<div className="grid grid-cols-2 gap-3">
-							<Field label="Max retries" hint="Leave blank to use the default.">
+							<Field label="Max retries">
 								<Input
 									type="number"
 									min={0}
 									max={10}
 									value={task.maxRetries ?? ""}
-									placeholder="default"
+									placeholder="2 retries"
 									onChange={(e) => onChange({ maxRetries: parseOptionalInt(e.target.value) })}
 								/>
 							</Field>
-							<Field label="Timeout (seconds)" hint="Leave blank to use the default.">
+							<Field label="Timeout (seconds)">
 								<Input
 									type="number"
 									min={1}
 									value={task.timeoutSeconds ?? ""}
-									placeholder="default"
+									placeholder="600 seconds"
 									onChange={(e) => onChange({ timeoutSeconds: parseOptionalInt(e.target.value) })}
 								/>
 							</Field>

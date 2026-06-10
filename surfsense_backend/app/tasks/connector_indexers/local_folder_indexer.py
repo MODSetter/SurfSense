@@ -33,7 +33,6 @@ from app.db import (
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
-from app.services.llm_service import get_user_long_context_llm
 from app.services.page_limit_service import PageLimitExceededError, PageLimitService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker
@@ -478,7 +477,6 @@ def _build_connector_doc(
     *,
     search_space_id: int,
     user_id: str,
-    enable_summary: bool,
 ) -> ConnectorDocument:
     """Build a ConnectorDocument from a local file's extracted content."""
     unique_id = f"{folder_name}:{relative_path}"
@@ -488,7 +486,6 @@ def _build_connector_doc(
         "document_type": "Local Folder File",
         "connector_type": "Local Folder",
     }
-    fallback_summary = f"File: {title}\n\n{content[:4000]}"
 
     return ConnectorDocument(
         title=title,
@@ -498,8 +495,6 @@ def _build_connector_doc(
         search_space_id=search_space_id,
         connector_id=None,
         created_by_id=user_id,
-        should_summarize=enable_summary,
-        fallback_summary=fallback_summary,
         metadata=metadata,
     )
 
@@ -513,7 +508,6 @@ async def index_local_folder(
     exclude_patterns: list[str] | None = None,
     file_extensions: list[str] | None = None,
     root_folder_id: int | None = None,
-    enable_summary: bool = False,
     target_file_paths: list[str] | None = None,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, int | None, str | None]:
@@ -574,7 +568,6 @@ async def index_local_folder(
                         folder_path=folder_path,
                         folder_name=folder_name,
                         target_file_path=target_file_paths[0],
-                        enable_summary=enable_summary,
                         root_folder_id=root_folder_id,
                         task_logger=task_logger,
                         log_entry=log_entry,
@@ -587,7 +580,6 @@ async def index_local_folder(
                     folder_path=folder_path,
                     folder_name=folder_name,
                     target_file_paths=target_file_paths,
-                    enable_summary=enable_summary,
                     root_folder_id=root_folder_id,
                     on_progress_callback=on_heartbeat_callback,
                 )
@@ -774,7 +766,6 @@ async def index_local_folder(
                     folder_name=folder_name,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    enable_summary=enable_summary,
                 )
                 connector_docs.append(doc)
                 file_meta_map[unique_identifier] = {
@@ -845,15 +836,13 @@ async def index_local_folder(
             doc_map = {compute_unique_identifier_hash(cd): cd for cd in connector_docs}
             documents = await pipeline.prepare_for_indexing(connector_docs)
 
-            llm = await get_user_long_context_llm(session, user_id, search_space_id)
-
             for document in documents:
                 connector_doc = doc_map.get(document.unique_identifier_hash)
                 if connector_doc is None:
                     failed_count += 1
                     continue
 
-                result = await pipeline.index(document, connector_doc, llm)
+                result = await pipeline.index(document, connector_doc)
 
                 if DocumentStatus.is_state(result.status, DocumentStatus.READY):
                     indexed_count += 1
@@ -960,7 +949,6 @@ async def _index_batch_files(
     folder_path: str,
     folder_name: str,
     target_file_paths: list[str],
-    enable_summary: bool,
     root_folder_id: int | None,
     on_progress_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, str | None]:
@@ -995,7 +983,6 @@ async def _index_batch_files(
                         folder_path=folder_path,
                         folder_name=folder_name,
                         target_file_path=file_path,
-                        enable_summary=enable_summary,
                         root_folder_id=root_folder_id,
                         task_logger=task_logger,
                         log_entry=log_entry,
@@ -1036,7 +1023,6 @@ async def _index_single_file(
     folder_path: str,
     folder_name: str,
     target_file_path: str,
-    enable_summary: bool,
     root_folder_id: int | None,
     task_logger,
     log_entry,
@@ -1125,7 +1111,6 @@ async def _index_single_file(
             folder_name=folder_name,
             search_space_id=search_space_id,
             user_id=user_id,
-            enable_summary=enable_summary,
         )
 
         if root_folder_id:
@@ -1134,7 +1119,6 @@ async def _index_single_file(
             )
 
         pipeline = IndexingPipelineService(session)
-        llm = await get_user_long_context_llm(session, user_id, search_space_id)
         documents = await pipeline.prepare_for_indexing([connector_doc])
 
         if not documents:
@@ -1142,7 +1126,7 @@ async def _index_single_file(
 
         db_doc = documents[0]
 
-        await pipeline.index(db_doc, connector_doc, llm)
+        await pipeline.index(db_doc, connector_doc)
 
         await session.refresh(db_doc)
         doc_meta = dict(db_doc.document_metadata or {})
@@ -1275,7 +1259,6 @@ async def index_uploaded_files(
     user_id: str,
     folder_name: str,
     root_folder_id: int,
-    enable_summary: bool,
     file_mappings: list[dict],
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
     use_vision_llm: bool = False,
@@ -1318,7 +1301,6 @@ async def index_uploaded_files(
 
         page_limit_service = PageLimitService(session)
         pipeline = IndexingPipelineService(session)
-        llm = await get_user_long_context_llm(session, user_id, search_space_id)
 
         vision_llm_instance = None
         if use_vision_llm:
@@ -1414,7 +1396,6 @@ async def index_uploaded_files(
                     folder_name=folder_name,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    enable_summary=enable_summary,
                 )
 
                 connector_doc.folder_id = await _resolve_folder_for_file(
@@ -1432,7 +1413,7 @@ async def index_uploaded_files(
 
                 db_doc = documents[0]
 
-                await pipeline.index(db_doc, connector_doc, llm)
+                await pipeline.index(db_doc, connector_doc)
 
                 await session.refresh(db_doc)
                 doc_meta = dict(db_doc.document_metadata or {})

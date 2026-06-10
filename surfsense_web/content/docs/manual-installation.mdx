@@ -39,6 +39,15 @@ Complete all the [setup steps](/docs), including:
 
 The backend is the core of SurfSense. Follow these steps to set it up:
 
+### Optional: Messaging Channels
+
+SurfSense can expose the same backend agent through Telegram, WhatsApp, Slack,
+and Discord. For manual installs, configure the relevant channel variables in
+`surfsense_backend/.env`.
+
+See [Messaging Channels](/docs/messaging-channels) for the channel-specific
+setup guides.
+
 ### 1. Environment Configuration
 
 First, create and configure your environment variables by copying the example file:
@@ -85,12 +94,10 @@ Edit the `.env` file and set the following variables:
 | STT_SERVICE                | Speech-to-Text API provider for Audio Files (e.g., `local/base`, `openai/whisper-1`). See [supported providers](https://docs.litellm.ai/docs/audio_transcription#supported-providers)                   |
 | STT_SERVICE_API_KEY        | (Optional if local) API key for the Speech-to-Text service                                                                                                                                                    |
 | STT_SERVICE_API_BASE       | (Optional) Custom API base URL for the Speech-to-Text service                                                                                                                      |
-| FIRECRAWL_API_KEY          | (Optional) API key for Firecrawl service for web crawling                                                                                                                                 |
 | ETL_SERVICE                | Document parsing service: `UNSTRUCTURED` (supports 34+ formats), `LLAMACLOUD` (supports 50+ formats including legacy document types), or `DOCLING` (local processing, supports PDF, Office docs, images, HTML, CSV)                                                  |
 | UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing (required if ETL_SERVICE=UNSTRUCTURED)                                                                                           |
 | LLAMA_CLOUD_API_KEY        | API key for LlamaCloud service for document parsing (required if ETL_SERVICE=LLAMACLOUD)                                                                                                  |
-| CELERY_BROKER_URL          | Redis connection URL for Celery broker (e.g., `redis://localhost:6379/0`)                                                                                                                |
-| CELERY_RESULT_BACKEND      | Redis connection URL for Celery result backend (e.g., `redis://localhost:6379/0`)                                                                                                        |
+| REDIS_URL                  | Single Redis connection URL for the Celery broker, result backend, and app cache (e.g., `redis://localhost:6379/0`). Optionally override per use with `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, or `REDIS_APP_URL`. |
 | SCHEDULE_CHECKER_INTERVAL  | (Optional) How often to check for scheduled connector tasks. Format: `<number><unit>` where unit is `m` (minutes) or `h` (hours). Examples: `1m`, `5m`, `1h`, `2h` (default: `1m`)                  |
 | REGISTRATION_ENABLED       | (Optional) Enable or disable new user registration (e.g., `TRUE` or `FALSE`, default: `TRUE`)                                                                                                       |
 | PAGES_LIMIT                | (Optional) Maximum pages limit per user for ETL services (default: `999999999` for unlimited in OSS version)                                                                                        |
@@ -350,7 +357,7 @@ redis-cli ping
 
 ### 6. Start Celery Worker
 
-In a new terminal window, start the Celery worker to handle background tasks:
+In a new terminal window, start the Celery worker to handle background tasks. For external chat surfaces, Celery only runs maintenance tasks; agent turns run inside the FastAPI process.
 
 **If using uv:**
 
@@ -358,9 +365,9 @@ In a new terminal window, start the Celery worker to handle background tasks:
 # Make sure you're in the surfsense_backend directory
 cd surfsense_backend
 
-# Start Celery worker (consume both default and connectors queues)
+# Start Celery worker (consume default, connectors, and external chat maintenance queues)
 DEFAULT_Q="${CELERY_TASK_DEFAULT_QUEUE:-surfsense}"
-uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors"
+uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors,${DEFAULT_Q}.gateway"
 ```
 
 **If using pip/venv:**
@@ -374,9 +381,9 @@ source .venv/bin/activate  # Linux/macOS
 # OR
 .venv\Scripts\activate     # Windows
 
-# Start Celery worker (consume both default and connectors queues)
+# Start Celery worker (consume default, connectors, and external chat maintenance queues)
 DEFAULT_Q="${CELERY_TASK_DEFAULT_QUEUE:-surfsense}"
-celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors"
+celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors,${DEFAULT_Q}.gateway"
 ```
 
 **Optional: Start Flower for monitoring Celery tasks:**
@@ -457,7 +464,7 @@ If everything is set up correctly, you should see output indicating the server i
 
 ## Zero-Cache Setup
 
-**zero-cache** is the Rocicorp Zero server that sits between PostgreSQL and the browser. It streams real-time updates (notifications, document indexing status, chat comments, collaboration indicators) to all connected clients via WebSocket. The frontend connects to it on startup — without zero-cache running, you will not see live updates and many parts of the UI will sit on stale data.
+**zero-cache** is the Rocicorp Zero server that sits between PostgreSQL and the browser. It streams real-time updates (notifications, document indexing status, chat comments, collaboration indicators) to all connected clients via WebSocket. The frontend connects to it on startup. Without zero-cache running, you will not see live updates and many parts of the UI will sit on stale data.
 
 For an overview of how Zero works and the list of synced tables, see the [Real-Time Sync with Zero](/docs/how-to/zero-sync) guide.
 
@@ -539,7 +546,7 @@ cd ../docker
 docker compose -f docker-compose.deps-only.yml up -d
 ```
 
-The deps-only stack exposes zero-cache on port `4848` (default) — keep `NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:4848` in your `surfsense_web/.env`.
+The deps-only stack exposes zero-cache on port `4848` by default. Keep `NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:4848` in your `surfsense_web/.env`.
 
 ## Frontend Setup
 
@@ -675,13 +682,13 @@ To verify your installation:
 1. Open your browser and navigate to `http://localhost:3000`
 2. Sign in with your Google account (or local credentials if `AUTH_TYPE=LOCAL`)
 3. Create a search space and try uploading a document
-4. Watch the upload status update live without refreshing — this confirms zero-cache is wired up correctly
+4. Watch the upload status update live without refreshing. This confirms zero-cache is wired up correctly
 5. Test the chat functionality with your uploaded content
 
 ## Troubleshooting
 
 - **Database Connection Issues**: Verify your PostgreSQL server is running and pgvector is properly installed
-- **Redis Connection Issues**: Ensure Redis server is running (`redis-cli ping` should return `PONG`). Check that `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` are correctly set in your `.env` file
+- **Redis Connection Issues**: Ensure Redis server is running (`redis-cli ping` should return `PONG`). Check that `REDIS_URL` is correctly set in your `.env` file
 - **Celery Worker Issues**: Make sure the Celery worker is running in a separate terminal. Check worker logs for any errors
 - **Authentication Problems**: Check your Google OAuth configuration and ensure redirect URIs are set correctly
 - **LLM Errors**: Confirm your LLM API keys are valid and the selected models are accessible

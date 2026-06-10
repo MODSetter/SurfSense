@@ -5,10 +5,13 @@ import json
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app.agents.new_chat.document_xml import build_document_xml as _build_document_xml
-from app.agents.new_chat.middleware.knowledge_search import (
+from app.agents.chat.multi_agent_chat.shared.middleware import knowledge_search as ks
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.document_xml import (
+    build_document_xml as _build_document_xml,
+)
+from app.agents.chat.multi_agent_chat.shared.middleware.knowledge_search import (
     KBSearchPlan,
-    KnowledgeBaseSearchMiddleware,
+    KnowledgePriorityMiddleware,
     _normalize_optional_date_range,
     _parse_kb_search_plan_response,
     _render_recent_conversation,
@@ -201,7 +204,7 @@ class FakeBudgetLLM:
         return sum(len(msg.get("content", "")) for msg in messages)
 
 
-class TestKnowledgeBaseSearchMiddlewarePlanner:
+class TestKnowledgePriorityMiddlewarePlanner:
     @pytest.fixture(autouse=True)
     def _disable_planner_runnable(self, monkeypatch):
         # ``FakeLLM`` is a duck-typed mock; ``create_agent`` (used when the
@@ -258,7 +261,8 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -271,7 +275,7 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
                 }
             )
         )
-        middleware = KnowledgeBaseSearchMiddleware(llm=llm, search_space_id=37)
+        middleware = KnowledgePriorityMiddleware(llm=llm, search_space_id=37)
 
         result = await middleware.abefore_agent(
             {
@@ -301,11 +305,12 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
-        middleware = KnowledgeBaseSearchMiddleware(
+        middleware = KnowledgePriorityMiddleware(
             llm=FakeLLM("not json"),
             search_space_id=37,
         )
@@ -330,11 +335,12 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
-        middleware = KnowledgeBaseSearchMiddleware(
+        middleware = KnowledgePriorityMiddleware(
             llm=FakeLLM(
                 json.dumps(
                     {
@@ -375,11 +381,13 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.browse_recent_documents",
+            ks,
+            "browse_recent_documents",
             fake_browse_recent_documents,
         )
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -393,7 +401,7 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
                 }
             )
         )
-        middleware = KnowledgeBaseSearchMiddleware(llm=llm, search_space_id=42)
+        middleware = KnowledgePriorityMiddleware(llm=llm, search_space_id=42)
 
         result = await middleware.abefore_agent(
             {"messages": [HumanMessage(content="what's my latest file?")]},
@@ -422,11 +430,13 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
             return []
 
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.browse_recent_documents",
+            ks,
+            "browse_recent_documents",
             fake_browse_recent_documents,
         )
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
@@ -440,7 +450,7 @@ class TestKnowledgeBaseSearchMiddlewarePlanner:
                 }
             )
         )
-        middleware = KnowledgeBaseSearchMiddleware(llm=llm, search_space_id=42)
+        middleware = KnowledgePriorityMiddleware(llm=llm, search_space_id=42)
 
         await middleware.abefore_agent(
             {"messages": [HumanMessage(content="find the quarterly revenue report")]},
@@ -549,15 +559,17 @@ class TestKnowledgePriorityMentionDrain:
             return []
 
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.fetch_mentioned_documents",
+            ks,
+            "fetch_mentioned_documents",
             fake_fetch_mentioned_documents,
         )
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
-        middleware = KnowledgeBaseSearchMiddleware(
+        middleware = KnowledgePriorityMiddleware(
             llm=self._planner_llm(),
             search_space_id=42,
             mentioned_document_ids=[1, 2, 3],
@@ -597,17 +609,19 @@ class TestKnowledgePriorityMentionDrain:
             return []
 
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.fetch_mentioned_documents",
+            ks,
+            "fetch_mentioned_documents",
             fake_fetch_mentioned_documents,
         )
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
         # Simulate a cached middleware instance whose closure was seeded
         # by a previous turn's cache-miss build (mentions=[1,2,3]).
-        middleware = KnowledgeBaseSearchMiddleware(
+        middleware = KnowledgePriorityMiddleware(
             llm=self._planner_llm(),
             search_space_id=42,
             mentioned_document_ids=[1, 2, 3],
@@ -642,15 +656,17 @@ class TestKnowledgePriorityMentionDrain:
             return []
 
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.fetch_mentioned_documents",
+            ks,
+            "fetch_mentioned_documents",
             fake_fetch_mentioned_documents,
         )
         monkeypatch.setattr(
-            "app.agents.new_chat.middleware.knowledge_search.search_knowledge_base",
+            ks,
+            "search_knowledge_base",
             fake_search_knowledge_base,
         )
 
-        middleware = KnowledgeBaseSearchMiddleware(
+        middleware = KnowledgePriorityMiddleware(
             llm=self._planner_llm(),
             search_space_id=42,
             mentioned_document_ids=[7, 8],

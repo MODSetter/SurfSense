@@ -4,12 +4,27 @@ import { reportPanelAtom } from "./report-panel.atom";
 
 interface CurrentThreadState {
 	id: number | null;
+	searchSpaceId: number | null;
 	visibility: ChatVisibility | null;
 	hasComments: boolean;
 }
 
+interface CurrentThreadMetadataPatch {
+	id: number | null;
+	searchSpaceId?: number | null;
+	visibility?: ChatVisibility | null;
+	hasComments?: boolean;
+}
+
+interface CurrentThreadMetadataUpdate {
+	id: number;
+	visibility?: ChatVisibility | null;
+	hasComments?: boolean;
+}
+
 const initialState: CurrentThreadState = {
 	id: null,
+	searchSpaceId: null,
 	visibility: null,
 	hasComments: false,
 };
@@ -20,9 +35,52 @@ export const commentsEnabledAtom = atom(
 	(get) => get(currentThreadAtom).visibility === "SEARCH_SPACE"
 );
 
-export const setThreadVisibilityAtom = atom(null, (get, set, newVisibility: ChatVisibility) => {
-	set(currentThreadAtom, { ...get(currentThreadAtom), visibility: newVisibility });
-});
+export const setCurrentThreadMetadataAtom = atom(
+	null,
+	(get, set, metadata: CurrentThreadMetadataPatch) => {
+		const current = get(currentThreadAtom);
+		const isSameThread = current.id === metadata.id;
+
+		set(currentThreadAtom, {
+			...current,
+			id: metadata.id,
+			searchSpaceId:
+				"searchSpaceId" in metadata
+					? (metadata.searchSpaceId ?? null)
+					: isSameThread
+						? current.searchSpaceId
+						: null,
+			visibility:
+				"visibility" in metadata
+					? (metadata.visibility ?? null)
+					: isSameThread
+						? current.visibility
+						: null,
+			hasComments:
+				"hasComments" in metadata
+					? (metadata.hasComments ?? false)
+					: isSameThread
+						? current.hasComments
+						: false,
+		});
+	}
+);
+
+export const patchCurrentThreadMetadataAtom = atom(
+	null,
+	(get, set, patch: CurrentThreadMetadataUpdate) => {
+		const current = get(currentThreadAtom);
+		if (current.id !== patch.id) {
+			return;
+		}
+
+		set(currentThreadAtom, {
+			...current,
+			visibility: "visibility" in patch ? (patch.visibility ?? null) : current.visibility,
+			hasComments: "hasComments" in patch ? (patch.hasComments ?? false) : current.hasComments,
+		});
+	}
+);
 
 export const resetCurrentThreadAtom = atom(null, (_, set) => {
 	set(currentThreadAtom, initialState);

@@ -27,7 +27,6 @@ export function AutomationRunsSection({ automationId }: AutomationRunsSectionPro
 			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
 				<div className="space-y-1">
 					<CardTitle className="text-base font-semibold inline-flex items-center gap-2">
-						<History className="h-4 w-4 text-muted-foreground" aria-hidden />
 						Recent runs
 					</CardTitle>
 					<p className="text-xs text-muted-foreground">

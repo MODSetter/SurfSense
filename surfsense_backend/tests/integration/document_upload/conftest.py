@@ -68,7 +68,6 @@ class InlineTaskDispatcher:
         filename: str,
         search_space_id: int,
         user_id: str,
-        should_summarize: bool = False,
         use_vision_llm: bool = False,
         processing_mode: str = "basic",
     ) -> None:
@@ -83,7 +82,6 @@ class InlineTaskDispatcher:
                 filename,
                 search_space_id,
                 user_id,
-                should_summarize=should_summarize,
                 use_vision_llm=use_vision_llm,
                 processing_mode=processing_mode,
             )
@@ -266,10 +264,6 @@ async def page_limits():
 @pytest.fixture(autouse=True)
 def _mock_external_apis(monkeypatch):
     """Mock LLM, embedding, and chunking — these are external API boundaries."""
-    monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.summarize_document",
-        AsyncMock(return_value="Mocked summary."),
-    )
     monkeypatch.setattr(
         "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
         MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]),

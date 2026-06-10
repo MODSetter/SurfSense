@@ -1,8 +1,5 @@
 ---
-title: "SurfSense v0.0.16 - Try SurfSense With No Login, Long-Term Memory, Token Tracking & AI File Sorting"
-description: "SurfSense v0.0.16 introduces a no-login online experience so anyone can try this free ChatGPT alternative in seconds, long-term user and team memory, a reworked model selector with full token usage tracking, AI-powered file sorting, one-click Knowledge Base export as ZIP, trusted MCP tools, and OpenRouter integration."
 date: "2026-04-16"
-tags: ["No Login", "Memory", "Token Usage", "AI File Sorting", "KB Export", "OpenRouter", "MCP"]
 version: "0.0.16"
 ---
 
@@ -97,39 +94,28 @@ Token visibility is now first-class.
 - **Composer & Layout**: Loading placeholders in the composer, a better mention picker experience, and refined settings layout.
 - **Better Editing**: Trailing empty lines in the rich-text editor make long-form writing smoother.
 
-<Accordion type="multiple" className="w-full not-prose">
-  <AccordionItem value="item-1">
-    <AccordionTrigger>Bug Fixes</AccordionTrigger>
-    <AccordionContent className="flex flex-col gap-4 text-balance">
-      <ul className="list-disc space-y-2 pl-4">
-        <li>Fixed knowledge base search being skipped in certain chat sequences</li>
-        <li>Fixed a button nesting issue in the mobile upload area</li>
-        <li>Clearer logs and behavior when a vision model isn't available vs. not configured</li>
-        <li>Added a safety check for very large images before vision processing</li>
-        <li>Better fallback when an image can't be processed by the vision model</li>
-        <li>Fixed duplicate filename collisions during folder upload</li>
-        <li>Cleaner filenames on folder uploads</li>
-        <li>More accurate "documents still processing" warning during folder export</li>
-        <li>Handled display names that are just whitespace without crashing</li>
-        <li>Added user feedback when snapshot deletion fails</li>
-        <li>Updated billing text to reflect 500 pages included in demo plans</li>
-      </ul>
-    </AccordionContent>
-  </AccordionItem>
-  <AccordionItem value="item-2">
-    <AccordionTrigger>Under the Hood</AccordionTrigger>
-    <AccordionContent className="flex flex-col gap-4 text-balance">
-      <ul className="list-disc space-y-2 pl-4">
-        <li>Old memory storage fully migrated and retired</li>
-        <li>Smaller bundles on public marketing pages</li>
-        <li>Consistent approval handling across all connectors</li>
-        <li>Cleaner file type detection using explicit, well-defined rules</li>
-        <li>Rich-text editor now powers memory input, with inline alerts and a better layout</li>
-        <li>Localized folder-upload messages and download button text</li>
-      </ul>
-    </AccordionContent>
-  </AccordionItem>
-</Accordion>
+### No longer broken
+
+- Fixed knowledge base search being skipped in certain chat sequences
+- Fixed a button nesting issue in the mobile upload area
+- Clearer logs and behavior when a vision model isn't available vs. not configured
+- Added a safety check for very large images before vision processing
+- Better fallback when an image can't be processed by the vision model
+- Fixed duplicate filename collisions during folder upload
+- Cleaner filenames on folder uploads
+- More accurate "documents still processing" warning during folder export
+- Handled display names that are just whitespace without crashing
+- Added user feedback when snapshot deletion fails
+- Updated billing text to reflect 500 pages included in demo plans
+
+### Developers
+
+- Old memory storage fully migrated and retired
+- Smaller bundles on public marketing pages
+- Consistent approval handling across all connectors
+- Cleaner file type detection using explicit, well-defined rules
+- Rich-text editor now powers memory input, with inline alerts and a better layout
+- Localized folder-upload messages and download button text
 
 v0.0.16 makes SurfSense the easiest open source AI assistant to actually try: zero friction, no login, online. Whether you're searching for a **ChatGPT alternative free online**, a **free Claude AI alternative**, or a **NotebookLM alternative** you can self-host, SurfSense v0.0.16 is built for you.
 

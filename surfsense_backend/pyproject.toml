@@ -1,6 +1,6 @@
 [project]
 name = "surf-new-backend"
-version = "0.0.26"
+version = "0.0.27"
 description = "SurfSense Backend"
 requires-python = ">=3.12"
 dependencies = [
@@ -25,7 +25,6 @@ dependencies = [
     "notion-client>=2.3.0",
     "numpy>=1.24.0",
     "pgvector>=0.3.6",
-    "playwright>=1.50.0",
     "pypdf>=5.1.0",
     "python-ffmpeg>=2.0.12",
     "rerankers[flashrank]>=0.7.1",
@@ -46,6 +45,7 @@ dependencies = [
     "redis>=5.2.1",
     "firecrawl-py>=4.9.0",
     "boto3>=1.35.0",
+    "azure-storage-blob>=12.23.0",
     "fake-useragent>=2.2.0",
     "trafilatura>=2.0.0",
     "fastapi-users[oauth,sqlalchemy]>=15.0.3",
@@ -87,8 +87,15 @@ dependencies = [
     "opentelemetry-instrumentation-httpx>=0.61b0",
     "opentelemetry-instrumentation-celery>=0.61b0",
     "opentelemetry-instrumentation-logging>=0.61b0",
+    "python-telegram-bot>=22.7",
     "croniter>=2.0.0",
+    "scrapling[fetchers]>=0.4.9",
 ]
+
+[project.optional-dependencies]
+cpu = ["torch==2.11.0", "torchvision==0.26.0"]
+cu126 = ["torch==2.11.0", "torchvision==0.26.0"]
+cu128 = ["torch==2.11.0", "torchvision==0.26.0"]
 
 [dependency-groups]
 dev = [
@@ -98,6 +105,36 @@ dev = [
     "pytest-mock>=3.14",
     "httpx>=0.28.1",
 ]
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cu126" }, { extra = "cu128" }]]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu126", extra = "cu126", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu128", extra = "cu128", marker = "sys_platform == 'linux'" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu126", extra = "cu126", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu128", extra = "cu128", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
@@ -193,10 +230,11 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
+pythonpath = ["."]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short -x --strict-markers -ra --durations=5"
+addopts = "-v --tb=short -x --strict-markers -ra --durations=5 --import-mode=importlib"
 markers = [
     "unit: pure logic tests, no DB or external services",
     "integration: tests that require a real PostgreSQL database"

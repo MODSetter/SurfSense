@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 export type OSInfo = {
-	os: "macOS" | "Windows" | "Linux";
+	os: "macOS" | "Windows" | "Linux" | "Android" | "iOS";
 	arch: "arm64" | "x64";
 };
 
@@ -12,7 +12,13 @@ export function useUserOS(): OSInfo {
 		let os: OSInfo["os"] = "macOS";
 		let arch: OSInfo["arch"] = "x64";
 
-		if (/Windows/i.test(ua)) {
+		if (/Android/i.test(ua)) {
+			os = "Android";
+			arch = "arm64";
+		} else if (/iPhone|iPad|iPod/i.test(ua)) {
+			os = "iOS";
+			arch = "arm64";
+		} else if (/Windows/i.test(ua)) {
 			os = "Windows";
 			arch = "x64";
 		} else if (/Linux/i.test(ua)) {
@@ -88,9 +94,11 @@ export const GITHUB_RELEASES_URL = "https://github.com/MODSetter/SurfSense/relea
 export function usePrimaryDownload() {
 	const { os, arch } = useUserOS();
 	const assets = useLatestRelease();
+	const isMobileOS = os === "Android" || os === "iOS";
 
 	const { primary, alternatives } = useMemo(() => {
 		if (assets.length === 0) return { primary: null, alternatives: [] };
+		if (isMobileOS) return { primary: null, alternatives: assets };
 
 		const matchers: Record<string, (n: string) => boolean> = {
 			Windows: (n) => n.endsWith(".exe"),
@@ -102,7 +110,7 @@ export function usePrimaryDownload() {
 		const primary = assets.find((a) => match(a.name)) ?? null;
 		const alternatives = assets.filter((a) => a !== primary);
 		return { primary, alternatives };
-	}, [assets, os, arch]);
+	}, [assets, os, arch, isMobileOS]);
 
-	return { os, arch, assets, primary, alternatives };
+	return { os, arch, assets, primary, alternatives, isMobileOS };
 }

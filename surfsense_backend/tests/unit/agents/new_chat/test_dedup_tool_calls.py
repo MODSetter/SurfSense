@@ -6,7 +6,7 @@ import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
 
-from app.agents.new_chat.middleware.dedup_tool_calls import (
+from app.agents.chat.multi_agent_chat.main_agent.middleware.dedup_hitl import (
     DedupHITLToolCallsMiddleware,
 )
 
@@ -91,10 +91,9 @@ def test_no_agent_tools_means_no_dedup() -> None:
     """After the cleanup tier removed the legacy ``_NATIVE_HITL_TOOL_DEDUP_KEYS``
     map, dedup is purely declarative — no resolvers means no dedup runs.
 
-    Coverage for the previously hardcoded native HITL tools now lives on
-    each :class:`ToolDefinition.dedup_key` in
-    :mod:`app.agents.new_chat.tools.registry`, which is wired through to
-    ``tool.metadata`` by :func:`build_tools`.
+    Dedup is purely declarative: tools opt in by carrying a ``dedup_key``
+    (callable) or ``hitl_dedup_key`` (arg name) in their ``metadata``. With no
+    agent tools, there are no resolvers and dedup is a no-op.
     """
     mw = DedupHITLToolCallsMiddleware(agent_tools=None)
     state = {
@@ -109,27 +108,6 @@ def test_no_agent_tools_means_no_dedup() -> None:
     assert out is None
 
 
-def test_registry_propagates_dedup_key_to_tool_metadata() -> None:
-    """Smoke-check the wiring path that replaced the legacy native map.
-
-    ``ToolDefinition.dedup_key`` set in the registry must be copied onto
-    the constructed tool's ``metadata`` so :class:`DedupHITLToolCallsMiddleware`
-    can pick it up at agent build time.
-    """
-    from app.agents.new_chat.tools.registry import (
-        BUILTIN_TOOLS,
-        wrap_dedup_key_by_arg_name,
-    )
-
-    notion_tool_defs = [t for t in BUILTIN_TOOLS if t.name == "create_notion_page"]
-    assert notion_tool_defs, "registry should still expose create_notion_page"
-    tool_def = notion_tool_defs[0]
-    assert tool_def.dedup_key is not None
-    # Same wrapping helper used in the registry — sanity check identity
-    sample = wrap_dedup_key_by_arg_name("title")({"title": "Plan"})
-    assert sample == "plan"
-
-
 def test_full_args_dedup_keeps_distinct_calls_sharing_a_field() -> None:
     """Regression: MCP tools (e.g. ``createJiraIssue``) used to dedup on
     the schema's first required field, which is often the workspace /
@@ -137,7 +115,9 @@ def test_full_args_dedup_keeps_distinct_calls_sharing_a_field() -> None:
 
     With :func:`dedup_key_full_args` only fully identical arg dicts dedup.
     """
-    from app.agents.new_chat.middleware.dedup_tool_calls import dedup_key_full_args
+    from app.agents.chat.multi_agent_chat.shared.middleware.dedup_tool_calls import (
+        dedup_key_full_args,
+    )
 
     tool = _make_tool("createJiraIssue", dedup_key=dedup_key_full_args)
     mw = DedupHITLToolCallsMiddleware(agent_tools=[tool])
@@ -179,7 +159,9 @@ def test_full_args_dedup_keeps_distinct_calls_sharing_a_field() -> None:
 
 
 def test_full_args_dedup_drops_only_exact_duplicates() -> None:
-    from app.agents.new_chat.middleware.dedup_tool_calls import dedup_key_full_args
+    from app.agents.chat.multi_agent_chat.shared.middleware.dedup_tool_calls import (
+        dedup_key_full_args,
+    )
 
     tool = _make_tool("createJiraIssue", dedup_key=dedup_key_full_args)
     mw = DedupHITLToolCallsMiddleware(agent_tools=[tool])

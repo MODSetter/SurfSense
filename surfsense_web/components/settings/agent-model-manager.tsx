@@ -228,7 +228,7 @@ export function AgentModelManager({ searchSpaceId }: AgentModelManagerProps) {
 									<h3 className="text-sm md:text-base font-semibold mb-2">No Models Yet</h3>
 									<p className="text-[11px] md:text-xs text-muted-foreground max-w-sm mb-4">
 										{canCreate
-											? "Add your first model to power document summarization, chat, and other agent capabilities"
+											? "Add your first model to power chat, reports, and other agent capabilities"
 											: "No models have been added to this space yet. Contact a space owner to add one"}
 									</p>
 								</CardContent>

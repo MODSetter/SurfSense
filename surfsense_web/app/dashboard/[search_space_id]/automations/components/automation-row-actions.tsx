@@ -8,7 +8,6 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { AutomationSummary } from "@/contracts/types/automation.types";
@@ -58,25 +57,21 @@ export function AutomationRowActions({
 					<Button
 						variant="ghost"
 						size="icon"
-						className="h-8 w-8"
+						className="h-6 w-6 hover:bg-transparent"
 						aria-label={`Actions for ${automation.name}`}
 					>
-						<MoreHorizontal className="h-4 w-4" />
+						<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 					</Button>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end" className="w-40">
+				<DropdownMenuContent align="end" className="w-32 z-80">
 					{canToggle && (
 						<DropdownMenuItem onSelect={handleTogglePause} disabled={updating}>
 							<PauseIcon className="mr-2 h-4 w-4" />
 							{pauseLabel}
 						</DropdownMenuItem>
 					)}
-					{canToggle && canDelete && <DropdownMenuSeparator />}
 					{canDelete && (
-						<DropdownMenuItem
-							onSelect={() => setDeleteOpen(true)}
-							className="text-destructive focus:text-destructive"
-						>
+						<DropdownMenuItem onSelect={() => setDeleteOpen(true)}>
 							<Trash2 className="mr-2 h-4 w-4" />
 							Delete
 						</DropdownMenuItem>

@@ -7,7 +7,7 @@ constructs a fresh :class:`AgentEventRelayState` with
 ``thinking_step_counter=0``), React renders sibling timeline rows with the
 same key — the warning the user reported in production.
 
-The contract this module pins: each ``_stream_agent_events`` invocation must
+The contract this module pins: each ``stream_agent_events`` invocation must
 receive a ``step_prefix`` that is unique within the thread (we salt with the
 per-turn ``turn_id``), so the resulting step IDs across consecutive turns
 are always disjoint.
@@ -23,10 +23,12 @@ from typing import Any
 import pytest
 
 from app.services.new_streaming_service import VercelStreamingService
-from app.tasks.chat.stream_new_chat import (
-    StreamResult,
-    _resume_step_prefix,
-    _stream_agent_events,
+from app.tasks.chat.streaming.agent.event_loop import (
+    stream_agent_events as _stream_agent_events,
+)
+from app.tasks.chat.streaming.shared.stream_result import StreamResult
+from app.tasks.chat.streaming.shared.utils import (
+    resume_step_prefix as _resume_step_prefix,
 )
 
 pytestmark = pytest.mark.unit

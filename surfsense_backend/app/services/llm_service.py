@@ -68,7 +68,6 @@ def _is_interactive_auth_provider(
 
 class LLMRole:
     AGENT = "agent"  # For agent/chat operations
-    DOCUMENT_SUMMARY = "document_summary"  # For document summarization
 
 
 def get_global_llm_config(llm_config_id: int) -> dict | None:
@@ -204,7 +203,9 @@ async def validate_llm_config(
         if litellm_params:
             litellm_kwargs.update(litellm_params)
 
-        from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
+        from app.agents.chat.runtime.llm_config import (
+            SanitizedChatLiteLLM,
+        )
 
         llm = SanitizedChatLiteLLM(**litellm_kwargs)
 
@@ -266,7 +267,7 @@ async def get_search_space_llm_instance(
     Args:
         session: Database session
         search_space_id: Search Space ID
-        role: LLM role ('agent' or 'document_summary')
+        role: LLM role ('agent')
 
     Returns:
         ChatLiteLLM or ChatLiteLLMRouter instance, or None if not found
@@ -283,11 +284,8 @@ async def get_search_space_llm_instance(
             return None
 
         # Get the appropriate LLM config ID based on role
-        llm_config_id = None
         if role == LLMRole.AGENT:
             llm_config_id = search_space.agent_llm_id
-        elif role == LLMRole.DOCUMENT_SUMMARY:
-            llm_config_id = search_space.document_summary_llm_id
         else:
             logger.error(f"Invalid LLM role: {role}")
             return None
@@ -379,7 +377,9 @@ async def get_search_space_llm_instance(
             if disable_streaming:
                 litellm_kwargs["disable_streaming"] = True
 
-            from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
+            from app.agents.chat.runtime.llm_config import (
+                SanitizedChatLiteLLM,
+            )
 
             return SanitizedChatLiteLLM(**litellm_kwargs)
 
@@ -458,7 +458,9 @@ async def get_search_space_llm_instance(
         if disable_streaming:
             litellm_kwargs["disable_streaming"] = True
 
-        from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
+        from app.agents.chat.runtime.llm_config import (
+            SanitizedChatLiteLLM,
+        )
 
         return SanitizedChatLiteLLM(**litellm_kwargs)
 
@@ -470,20 +472,13 @@ async def get_search_space_llm_instance(
 
 
 async def get_agent_llm(
-    session: AsyncSession, search_space_id: int
-) -> ChatLiteLLM | ChatLiteLLMRouter | None:
-    """Get the search space's agent LLM instance for chat operations."""
-    return await get_search_space_llm_instance(session, search_space_id, LLMRole.AGENT)
-
-
-async def get_document_summary_llm(
     session: AsyncSession, search_space_id: int, disable_streaming: bool = False
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
-    """Get the search space's document summary LLM instance."""
+    """Get the search space's agent LLM instance for chat operations."""
     return await get_search_space_llm_instance(
         session,
         search_space_id,
-        LLMRole.DOCUMENT_SUMMARY,
+        LLMRole.AGENT,
         disable_streaming=disable_streaming,
     )
 
@@ -580,7 +575,9 @@ async def get_vision_llm(
             if global_cfg.get("litellm_params"):
                 litellm_kwargs.update(global_cfg["litellm_params"])
 
-            from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
+            from app.agents.chat.runtime.llm_config import (
+                SanitizedChatLiteLLM,
+            )
 
             inner_llm = SanitizedChatLiteLLM(**litellm_kwargs)
 
@@ -634,7 +631,9 @@ async def get_vision_llm(
         if vision_cfg.litellm_params:
             litellm_kwargs.update(vision_cfg.litellm_params)
 
-        from app.agents.new_chat.llm_config import SanitizedChatLiteLLM
+        from app.agents.chat.runtime.llm_config import (
+            SanitizedChatLiteLLM,
+        )
 
         return SanitizedChatLiteLLM(**litellm_kwargs)
 
@@ -643,22 +642,6 @@ async def get_vision_llm(
             f"Error getting vision LLM for search space {search_space_id}: {e!s}"
         )
         return None
-
-
-# Backward-compatible alias (LLM preferences are now per-search-space, not per-user)
-async def get_user_long_context_llm(
-    session: AsyncSession,
-    user_id: str,
-    search_space_id: int,
-    disable_streaming: bool = False,
-) -> ChatLiteLLM | ChatLiteLLMRouter | None:
-    """
-    Deprecated: Use get_document_summary_llm instead.
-    The user_id parameter is ignored as LLM preferences are now per-search-space.
-    """
-    return await get_document_summary_llm(
-        session, search_space_id, disable_streaming=disable_streaming
-    )
 
 
 def get_planner_llm() -> ChatLiteLLM | None:
@@ -679,7 +662,9 @@ def get_planner_llm() -> ChatLiteLLM | None:
     Callers MUST fall back to their chat LLM when this returns ``None`` so
     deployments without a planner config keep working unchanged.
     """
-    from app.agents.new_chat.llm_config import create_chat_litellm_from_config
+    from app.agents.chat.runtime.llm_config import (
+        create_chat_litellm_from_config,
+    )
 
     planner_cfg = next(
         (cfg for cfg in config.GLOBAL_LLM_CONFIGS if cfg.get("is_planner") is True),

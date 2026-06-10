@@ -1,4 +1,5 @@
 import { defineConfig, defineDocs, frontmatterSchema } from "fumadocs-mdx/config";
+import lastModified from "fumadocs-mdx/plugins/last-modified";
 import { z } from "zod";
 
 export const docs = defineDocs({
@@ -8,9 +9,8 @@ export const docs = defineDocs({
 export const changelog = defineDocs({
 	dir: "changelog/content",
 	docs: {
-		schema: frontmatterSchema.extend({
+		schema: frontmatterSchema.omit({ title: true, description: true }).extend({
 			date: z.string(),
-			tags: z.array(z.string()).optional(),
 			version: z.string().optional(),
 		}),
 	},
@@ -36,7 +36,7 @@ export const blog = defineDocs({
 });
 
 export default defineConfig({
-	lastModifiedTime: "git",
+	plugins: [lastModified()],
 	mdxOptions: {
 		providerImportSource: "@/mdx-components",
 	},

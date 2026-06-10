@@ -1,8 +1,5 @@
 ---
-title: "SurfSense v0.0.26 - AI Automations: Build, Schedule & Event-Trigger AI Agents From Chat"
-description: "SurfSense v0.0.26 introduces open source AI automations across your connectors: describe a workflow in plain English and SurfSense builds it, run AI agents on a schedule, or trigger them when a document lands in a folder, working across Notion, Slack, Google Drive, Gmail, GitHub, Linear, Jira and Confluence. Plus connector @-mentions in chat and a faster anonymous chat experience."
 date: "2026-05-31"
-tags: ["Automations", "AI Agents", "Workflow Automation", "Scheduled Workflows", "Event Triggers", "Connectors", "Notion", "Slack", "Open Source"]
 version: "0.0.26"
 ---
 
@@ -41,35 +38,24 @@ Turn one-off prompts into repeatable, hands-off **AI agent workflows**.
 - **Redesigned Use-Case Showcase**: The homepage now groups demos into clear categories (Desktop App, Deliverable Studio, Search & Chat, Connectors & Integrations, and Automations) so visitors immediately see what SurfSense can do.
 - **Desktop App, Front and Center**: The desktop experience is highlighted as a set of native extras on top of everything SurfSense already does, not a separate product.
 
-<Accordion type="multiple" className="w-full not-prose">
-  <AccordionItem value="item-1">
-    <AccordionTrigger>Bug Fixes</AccordionTrigger>
-    <AccordionContent className="flex flex-col gap-4 text-balance">
-      <ul className="list-disc space-y-2 pl-4">
-        <li>Bulk-moving documents now uses ORM objects so folder events fire correctly and trigger automations</li>
-        <li>Automation enum columns now persist Postgres enum values instead of names</li>
-        <li>Automation agent tasks use an in-memory checkpointer to avoid Celery pool timeouts</li>
-        <li>The API client now handles 204 No Content responses without errors</li>
-        <li>The model role manager now stays in sync when preferences are updated</li>
-        <li>The JSON editor now coerces numeric strings to numbers on edit</li>
-      </ul>
-    </AccordionContent>
-  </AccordionItem>
-  <AccordionItem value="item-2">
-    <AccordionTrigger>Under the Hood</AccordionTrigger>
-    <AccordionContent className="flex flex-col gap-4 text-balance">
-      <ul className="list-disc space-y-2 pl-4">
-        <li>New in-process domain event bus with an event catalog and a <code>document.entered_folder</code> event</li>
-        <li>SQLAlchemy session hooks publish folder events automatically, registered at app startup</li>
-        <li>Cron schedule triggers backed by croniter and a Celery beat tick task</li>
-        <li>Sandboxed template engine with an allowlisted filter and test set for safe workflow templating</li>
-        <li>Automations reorganized into a vertical-slice architecture (actions and triggers grouped by domain)</li>
-        <li>Extensive new test coverage locking automation schemas, dispatch, runtime, triggers, and templating</li>
-        <li>Model eligibility checks when creating automations, so only valid models are selectable</li>
-      </ul>
-    </AccordionContent>
-  </AccordionItem>
-</Accordion>
+### No longer broken
+
+- Bulk-moving documents now uses ORM objects so folder events fire correctly and trigger automations
+- Automation enum columns now persist Postgres enum values instead of names
+- Automation agent tasks use an in-memory checkpointer to avoid Celery pool timeouts
+- The API client now handles 204 No Content responses without errors
+- The model role manager now stays in sync when preferences are updated
+- The JSON editor now coerces numeric strings to numbers on edit
+
+### Developers
+
+- New in-process domain event bus with an event catalog and a `document.entered_folder` event
+- SQLAlchemy session hooks publish folder events automatically, registered at app startup
+- Cron schedule triggers backed by croniter and a Celery beat tick task
+- Sandboxed template engine with an allowlisted filter and test set for safe workflow templating
+- Automations reorganized into a vertical-slice architecture (actions and triggers grouped by domain)
+- Extensive new test coverage locking automation schemas, dispatch, runtime, triggers, and templating
+- Model eligibility checks when creating automations, so only valid models are selectable
 
 v0.0.26 turns SurfSense from a place you ask questions into a place that does the work for you. Whether you want **scheduled AI workflows**, **event-driven document automation**, or a **self-hosted, open source AI agent** you fully control, this release lets you build it from a single sentence.
 

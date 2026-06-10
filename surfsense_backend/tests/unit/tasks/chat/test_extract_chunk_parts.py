@@ -1,4 +1,4 @@
-"""Unit tests for ``stream_new_chat._extract_chunk_parts``.
+"""Unit tests for ``streaming.helpers.chunk_parts.extract_chunk_parts``.
 
 Earlier versions only handled ``isinstance(chunk.content, str)`` and
 silently dropped every other shape (Anthropic typed-block lists,
@@ -14,7 +14,9 @@ from typing import Any
 
 import pytest
 
-from app.tasks.chat.stream_new_chat import _extract_chunk_parts
+from app.tasks.chat.streaming.helpers.chunk_parts import (
+    extract_chunk_parts as _extract_chunk_parts,
+)
 
 
 @dataclass

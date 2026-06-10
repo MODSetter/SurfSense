@@ -85,23 +85,16 @@ async def build_dependencies(
     connector_service, firecrawl_api_key = await setup_connector_and_firecrawl(
         session, search_space_id=search_space_id
     )
-    # Quick fix: use an in-memory checkpointer for automation runs.
+    # Per-task InMemorySaver: the shared Postgres checkpointer's connection
+    # pool binds connections to the loop that opened them, but Celery uses a
+    # fresh loop per task, so the next task hangs 30s on a dead-loop connection
+    # (`PoolTimeout`). InMemorySaver has no pool and dies with the task — fine
+    # while runs are one-shot (the checkpoint only spans one graph execution).
     #
-    # The shared Postgres checkpointer caches DB connections in a
-    # module-level pool. Each cached connection is bound to the asyncio
-    # loop that opened it. Celery throws away the loop after every task,
-    # so the pool ends up full of connections pointing to a dead loop,
-    # and the next Celery task (running on a fresh loop) can't use any
-    # of them — it hangs 30s and fails with
-    # `PoolTimeout: couldn't get a connection after 30.00 sec`.
-    #
-    # InMemorySaver has no cached connections, no loop binding — each
-    # Celery task creates one and drops it on exit.
-    #
-    # TODO(checkpointer): proper fix is to dispose the checkpointer
-    # pool around each Celery task in `run_async_celery_task`, the same
-    # way `_dispose_shared_db_engine` already does for the SQLAlchemy
-    # pool. Then this site can switch back to the shared checkpointer.
+    # TODO(checkpointer): when runs need durability (crash-resume or HITL
+    # interrupt/resume across tasks), dispose the checkpointer pool around each
+    # Celery task in `run_async_celery_task` — as `_dispose_shared_db_engine`
+    # already does for the SQLAlchemy pool — then use the shared checkpointer.
     checkpointer = InMemorySaver()
     return AgentDependencies(
         llm=llm,

@@ -35,12 +35,69 @@ All configuration lives in a single `docker/.env` file (or `surfsense/.env` if y
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `SURFSENSE_VERSION` | Image tag to deploy. Use `latest`, a clean version (e.g. `0.0.14`), or a specific build (e.g. `0.0.14.1`) | `latest` |
+| `SURFSENSE_VARIANT` | Backend image variant. Leave empty for CPU, set `cuda` for CUDA 12.8, or `cuda126` for CUDA 12.6. | *(empty)* |
 | `AUTH_TYPE` | Authentication method: `LOCAL` (email/password) or `GOOGLE` (OAuth) | `LOCAL` |
 | `ETL_SERVICE` | Document parsing: `DOCLING` (local), `UNSTRUCTURED`, or `LLAMACLOUD` | `DOCLING` |
 | `EMBEDDING_MODEL` | Embedding model for vector search | `sentence-transformers/all-MiniLM-L6-v2` |
 | `TTS_SERVICE` | Text-to-speech provider for podcasts | `local/kokoro` |
 | `STT_SERVICE` | Speech-to-text provider for audio files | `local/base` |
 | `REGISTRATION_ENABLED` | Allow new user registrations | `TRUE` |
+
+### Image Variants
+
+SurfSense publishes CPU and CUDA backend image variants. The frontend image is not variant-specific.
+
+| Backend tag | Use case | `SURFSENSE_VARIANT` |
+|-------------|----------|---------------------|
+| `:latest` | CPU-only default | *(empty)* |
+| `:latest-cuda` | NVIDIA CUDA 12.8 backend image | `cuda` |
+| `:latest-cuda126` | NVIDIA CUDA 12.6 backend image for older driver stacks | `cuda126` |
+
+All backend variants are published for `linux/amd64` and `linux/arm64`. CUDA on `linux/arm64` is best-effort.
+
+<Callout type="info">
+GPU acceleration needs two settings: `SURFSENSE_VARIANT` selects the CUDA image, and `COMPOSE_FILE` enables the GPU device overlay. The host must have the NVIDIA Container Toolkit installed.
+</Callout>
+
+### NVIDIA GPU Acceleration
+
+For most NVIDIA systems, add these values to `.env` to use the CUDA 12.8 image:
+
+```dotenv
+SURFSENSE_VARIANT=cuda
+COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml
+SURFSENSE_GPU_COUNT=1
+```
+
+Use `SURFSENSE_VARIANT=cuda126` for older NVIDIA driver stacks or older GPUs that need the CUDA 12.6 fallback image.
+
+On Windows, use `;` instead of `:` in `COMPOSE_FILE` inside `.env`:
+
+```dotenv
+COMPOSE_FILE=docker-compose.yml;docker-compose.gpu.yml
+```
+
+To switch variants later, edit `SURFSENSE_VARIANT` and `COMPOSE_FILE` in `.env`, then run:
+
+```bash
+docker compose pull
+docker compose up -d --wait
+```
+
+### Automatic Updates
+
+Manual Docker Compose installs do not start Watchtower automatically. To enable external automatic updates, run Watchtower separately:
+
+```bash
+docker run -d --name watchtower \
+  --restart unless-stopped \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  nickfedor/watchtower \
+  --label-enable \
+  --interval 86400
+```
+
+SurfSense containers are labeled for Watchtower, so `--label-enable` limits updates to the SurfSense services.
 
 ### Ports
 
@@ -103,7 +160,6 @@ Create credentials at the [Google Cloud Console](https://console.cloud.google.co
 
 | Variable | Description |
 |----------|-------------|
-| `FIRECRAWL_API_KEY` | [Firecrawl](https://www.firecrawl.dev/) API key for web crawling |
 | `UNSTRUCTURED_API_KEY` | [Unstructured.io](https://unstructured.io/) API key (required if `ETL_SERVICE=UNSTRUCTURED`) |
 | `LLAMA_CLOUD_API_KEY` | [LlamaCloud](https://cloud.llamaindex.ai/) API key (required if `ETL_SERVICE=LLAMACLOUD`) |
 
@@ -123,6 +179,19 @@ Uncomment the connectors you want to use. Redirect URIs follow the pattern `http
 | Airtable | `AIRTABLE_CLIENT_ID`, `AIRTABLE_CLIENT_SECRET`, `AIRTABLE_REDIRECT_URI` |
 | Microsoft (Teams & OneDrive) | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `TEAMS_REDIRECT_URI`, `ONEDRIVE_REDIRECT_URI` |
 | Dropbox | `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET`, `DROPBOX_REDIRECT_URI` |
+
+### Messaging Channels
+
+Configure these in the same `docker/.env` file when you want users to chat with
+SurfSense from external apps. See [Messaging Channels](/docs/messaging-channels)
+for full setup.
+
+| Channel | Variables |
+|---------|-----------|
+| Telegram | `TELEGRAM_SHARED_BOT_TOKEN`, `TELEGRAM_SHARED_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`, `GATEWAY_BASE_URL`, `GATEWAY_TELEGRAM_INTAKE_MODE` |
+| WhatsApp | `GATEWAY_WHATSAPP_INTAKE_MODE`, `WHATSAPP_SHARED_BUSINESS_TOKEN`, `WHATSAPP_SHARED_PHONE_NUMBER_ID`, `WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER`, `WHATSAPP_SHARED_WABA_ID`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_WEBHOOK_APP_SECRET` |
+| Slack | `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `GATEWAY_SLACK_ENABLED`, `GATEWAY_SLACK_SIGNING_SECRET`, `GATEWAY_SLACK_REDIRECT_URI` |
+| Discord | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_BOT_TOKEN`, `GATEWAY_DISCORD_ENABLED`, `GATEWAY_DISCORD_REDIRECT_URI` |
 
 ### Observability (optional)
 
@@ -187,9 +256,9 @@ Postgres. Before this design, a silent migration failure would leave
 
 The backend exposes two endpoints:
 
-- `GET /health` — lightweight liveness probe (always returns 200 if the
+- `GET /health`: lightweight liveness probe (always returns 200 if the
   process is up).
-- `GET /ready` — readiness probe that confirms `zero_publication` exists.
+- `GET /ready`: readiness probe that confirms `zero_publication` exists.
   Returns 503 if not. The compose `backend.healthcheck` uses `/ready` so the
   container only reports `healthy` once the schema is actually usable by
   zero-cache.
@@ -247,7 +316,7 @@ docker compose exec db psql -U surfsense -d surfsense \
 ```
 
 The default migration timeout is 900 seconds. Slow disks (Windows / WSL2)
-may need more — set `MIGRATION_TIMEOUT` in `.env` to increase it.
+may need more. Set `MIGRATION_TIMEOUT` in `.env` to increase it.
 
 ### Zero-cache stuck on `Unknown or invalid publications`
 
@@ -257,11 +326,13 @@ Symptom (in `docker compose logs zero-cache`):
 Error: Unknown or invalid publications. Specified: [zero_publication]. Found: []
 ```
 
-This means `zero-cache` started before `zero_publication` was created. With
-the current compose files this should be impossible — the `migrations`
-service blocks `zero-cache` from starting. If you see it, your stack
-predates the fix or you brought up `zero-cache` manually with `docker
-compose up zero-cache` before the migrations service ran.
+This means `zero-cache` started before `zero_publication` was created or the
+publication does not match SurfSense's canonical Zero shape. With the current
+compose files this should be impossible: the `migrations` service blocks
+`zero-cache` from starting and verifies the publication before exiting
+successfully. If you see it, your stack predates the fix or you brought up
+`zero-cache` manually with `docker compose up zero-cache` before the migrations
+service ran.
 
 Recovery:
 
@@ -271,18 +342,13 @@ docker volume rm surfsense-zero-cache   # wipe half-built SQLite replica
 docker compose up -d                    # migrations runs first, then zero-cache
 ```
 
-The install script (`install.ps1` / `install.sh`) detects this case
-automatically: if it finds a `surfsense-zero-cache` volume from a previous
-install with no matching `surfsense-zero-init` volume, it removes the stale
-volume before bringing the stack up.
-
 ### Zero-cache crashes with `_zero.tableMetadata` errors
 
 This indicates a half-initialized SQLite replica left behind by a previous
-crash. The `migrations` service writes a marker file on a shared volume
-(`surfsense-zero-init`) when the publication oid changes; zero-cache wipes
-its replica and re-syncs on next start. If the marker mechanism somehow did
-not trigger, run the recovery one-liner above.
+crash. Zero's own event triggers and `ZERO_AUTO_RESET` handle schema and
+replication halts automatically. If the local SQLite replica is wedged, run the
+recovery one-liner above to wipe `surfsense-zero-cache`; zero-cache will
+re-sync from Postgres on the next start.
 
 ### Ensuring `wal_level = logical`
 

@@ -65,11 +65,10 @@ async def test_single_file_returns_one_connector_document(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 1
-    assert failed == 0
+    assert failed == []
     assert docs[0].title == "test.txt"
     assert docs[0].unique_id == "f1"
     assert docs[0].document_type == DocumentType.ONEDRIVE_FILE
@@ -91,11 +90,10 @@ async def test_multiple_files_all_produce_documents(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 3
-    assert failed == 0
+    assert failed == []
     assert {d.unique_id for d in docs} == {"f0", "f1", "f2"}
 
 
@@ -119,11 +117,10 @@ async def test_one_download_exception_does_not_block_others(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 2
-    assert failed == 1
+    assert len(failed) == 1
     assert {d.unique_id for d in docs} == {"f0", "f2"}
 
 
@@ -146,11 +143,10 @@ async def test_etl_error_counts_as_download_failure(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
     )
 
     assert len(docs) == 1
-    assert failed == 1
+    assert len(failed) == 1
 
 
 # Slice 5: Semaphore bound
@@ -185,12 +181,11 @@ async def test_concurrency_bounded_by_semaphore(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
         max_concurrency=2,
     )
 
     assert len(docs) == 6
-    assert failed == 0
+    assert failed == []
     assert peak <= 2, f"Peak concurrency was {peak}, expected <= 2"
 
 
@@ -225,10 +220,9 @@ async def test_heartbeat_fires_during_parallel_downloads(
         connector_id=_CONNECTOR_ID,
         search_space_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
-        enable_summary=True,
         on_heartbeat=_on_heartbeat,
     )
 
     assert len(docs) == 3
-    assert failed == 0
+    assert failed == []
     assert len(heartbeat_calls) >= 1, "Heartbeat should have fired at least once"

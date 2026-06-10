@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+import { isLlmOnboardingComplete } from "@/lib/onboarding";
 
 export default function OnboardPage() {
 	const router = useRouter();
@@ -52,18 +53,16 @@ export default function OnboardPage() {
 		}
 	}, []);
 
-	// Check if onboarding is already complete (including 0 for Auto mode)
-	const isOnboardingComplete =
-		preferences.agent_llm_id !== null &&
-		preferences.agent_llm_id !== undefined &&
-		preferences.document_summary_llm_id !== null &&
-		preferences.document_summary_llm_id !== undefined;
+	const isOnboardingComplete = isLlmOnboardingComplete(
+		preferences.agent_llm_id,
+		globalConfigs.length > 0
+	);
 
 	useEffect(() => {
-		if (!preferencesLoading && isOnboardingComplete) {
+		if (!preferencesLoading && globalConfigsLoaded && isOnboardingComplete) {
 			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
-	}, [preferencesLoading, isOnboardingComplete, router, searchSpaceId]);
+	}, [preferencesLoading, globalConfigsLoaded, isOnboardingComplete, router, searchSpaceId]);
 
 	useEffect(() => {
 		const autoConfigureWithGlobal = async () => {
@@ -83,7 +82,6 @@ export default function OnboardPage() {
 						search_space_id: searchSpaceId,
 						data: {
 							agent_llm_id: firstGlobalConfig.id,
-							document_summary_llm_id: firstGlobalConfig.id,
 						},
 					});
 
@@ -120,7 +118,6 @@ export default function OnboardPage() {
 				search_space_id: searchSpaceId,
 				data: {
 					agent_llm_id: newConfig.id,
-					document_summary_llm_id: newConfig.id,
 				},
 			});
 

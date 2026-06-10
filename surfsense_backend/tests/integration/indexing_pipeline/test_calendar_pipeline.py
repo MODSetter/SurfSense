@@ -25,8 +25,6 @@ def _cal_doc(
         search_space_id=search_space_id,
         connector_id=connector_id,
         created_by_id=user_id,
-        should_summarize=True,
-        fallback_summary=f"Calendar: Event {unique_id}",
         metadata={
             "event_id": unique_id,
             "start_time": "2025-01-15T10:00:00",
@@ -36,9 +34,7 @@ def _cal_doc(
     )
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_calendar_pipeline_creates_ready_document(
     db_session, db_search_space, db_connector, db_user, mocker
 ):
@@ -55,7 +51,7 @@ async def test_calendar_pipeline_creates_ready_document(
     prepared = await service.prepare_for_indexing([doc])
     assert len(prepared) == 1
 
-    await service.index(prepared[0], doc, llm=mocker.Mock())
+    await service.index(prepared[0], doc)
 
     result = await db_session.execute(
         select(Document).filter(Document.search_space_id == space_id)
@@ -67,9 +63,7 @@ async def test_calendar_pipeline_creates_ready_document(
     assert DocumentStatus.is_state(row.status, DocumentStatus.READY)
 
 
-@pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
-)
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_calendar_legacy_doc_migrated(
     db_session, db_search_space, db_connector, db_user, mocker
 ):

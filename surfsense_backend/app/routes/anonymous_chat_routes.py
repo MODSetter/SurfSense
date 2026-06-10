@@ -236,7 +236,7 @@ async def stream_anonymous_chat(
             detail="No-login mode is not enabled.",
         )
 
-    from app.agents.new_chat.llm_config import (
+    from app.agents.chat.runtime.llm_config import (
         AgentConfig,
         create_chat_litellm_from_agent_config,
     )
@@ -351,12 +351,13 @@ async def stream_anonymous_chat(
     async def _generate():
         from langchain_core.messages import AIMessage, HumanMessage
 
-        from app.agents.new_chat.anonymous_agent import create_anonymous_chat_agent
-        from app.agents.new_chat.checkpointer import get_checkpointer
+        from app.agents.chat.anonymous_chat import create_anonymous_chat_agent
+        from app.agents.chat.runtime.checkpointer import get_checkpointer
         from app.db import shielded_async_session
         from app.services.new_streaming_service import VercelStreamingService
         from app.services.token_tracking_service import start_turn
-        from app.tasks.chat.stream_new_chat import StreamResult, _stream_agent_events
+        from app.tasks.chat.streaming.agent.event_loop import stream_agent_events
+        from app.tasks.chat.streaming.shared.stream_result import StreamResult
 
         accumulator = start_turn()
         streaming_service = VercelStreamingService()
@@ -419,7 +420,7 @@ async def stream_anonymous_chat(
 
                 stream_result = StreamResult()
 
-                async for sse in _stream_agent_events(
+                async for sse in stream_agent_events(
                     agent=agent,
                     config=langgraph_config,
                     input_data=input_state,

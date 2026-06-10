@@ -51,13 +51,8 @@ export function TaskList({ tasks, errors, searchSpaceId, onChange }: TaskListPro
 
 			{errors.tasks && <p className="text-xs text-destructive">{errors.tasks}</p>}
 
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				onClick={() => onChange([...tasks, emptyTask()])}
-			>
-				<Plus className="mr-1.5 h-4 w-4" />
+			<Button type="button" size="sm" onClick={() => onChange([...tasks, emptyTask()])}>
+				<Plus className="h-4 w-4" />
 				Add task
 			</Button>
 		</div>

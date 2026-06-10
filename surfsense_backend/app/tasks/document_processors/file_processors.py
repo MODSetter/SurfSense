@@ -10,13 +10,14 @@ from __future__ import annotations
 import contextlib
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Document, Log, Notification
-from app.services.notification_service import NotificationService
+from app.db import Document, Log
+from app.notifications.persistence import Notification
+from app.notifications.service import NotificationService
 from app.services.task_logging_service import TaskLoggingService
 
 from ._helpers import update_document_from_connector
@@ -48,12 +49,6 @@ class _ProcessingContext:
     notification: Notification | None = None
     use_vision_llm: bool = False
     processing_mode: str = "basic"
-    enable_summary: bool = field(init=False)
-
-    def __post_init__(self) -> None:
-        self.enable_summary = (
-            self.connector.get("enable_summary", True) if self.connector else True
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +256,6 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
         ctx.user_id,
         etl_result.etl_service,
         ctx.connector,
-        enable_summary=ctx.enable_summary,
     )
 
     if result:
@@ -466,7 +460,6 @@ async def process_file_in_background_with_document(
     log_entry: Log,
     connector: dict | None = None,
     notification: Notification | None = None,
-    should_summarize: bool = False,
     use_vision_llm: bool = False,
     processing_mode: str = "basic",
 ) -> Document | None:
@@ -482,7 +475,6 @@ async def process_file_in_background_with_document(
     from app.indexing_pipeline.adapters.file_upload_adapter import (
         UploadDocumentAdapter,
     )
-    from app.services.llm_service import get_user_long_context_llm
     from app.utils.document_converters import generate_content_hash
 
     from .base import check_duplicate_document
@@ -522,8 +514,6 @@ async def process_file_in_background_with_document(
                 stage="chunking",
             )
 
-        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
-
         adapter = UploadDocumentAdapter(session)
         await adapter.index(
             markdown_content=markdown_content,
@@ -531,8 +521,6 @@ async def process_file_in_background_with_document(
             etl_service=etl_service,
             search_space_id=search_space_id,
             user_id=user_id,
-            llm=user_llm,
-            should_summarize=should_summarize,
         )
 
         if billable_pages > 0:

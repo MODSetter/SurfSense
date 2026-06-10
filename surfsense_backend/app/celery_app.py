@@ -1,7 +1,6 @@
 """Celery application configuration and setup."""
 
 import contextlib
-import os
 import time
 
 from celery import Celery
@@ -18,6 +17,8 @@ try:
     from opentelemetry import trace
 except ImportError:  # pragma: no cover - optional OTel dependency
     trace = None  # type: ignore[assignment]
+
+from app.config import config
 
 # Load environment variables
 load_dotenv()
@@ -103,7 +104,7 @@ def init_worker(**kwargs):
     """Initialize the LLM Router and Image Gen Router when a Celery worker process starts.
 
     This ensures the Auto mode (LiteLLM Router) is available for background tasks
-    like document summarization and image generation.
+    like agent workflows and image generation.
     """
     from app.observability.bootstrap import init_otel
 
@@ -124,16 +125,16 @@ def init_worker(**kwargs):
     initialize_vision_llm_router()
 
 
-# Get Celery configuration from environment
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
-CELERY_TASK_DEFAULT_QUEUE = os.getenv("CELERY_TASK_DEFAULT_QUEUE", "surfsense")
+# Celery configuration, sourced from the central Config singleton
+CELERY_BROKER_URL = config.CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = config.CELERY_RESULT_BACKEND
+CELERY_TASK_DEFAULT_QUEUE = config.CELERY_TASK_DEFAULT_QUEUE
 
-# Get schedule checker interval from environment
+# Schedule checker interval
 # Format: "<number><unit>" where unit is 'm' (minutes) or 'h' (hours)
 # Examples: "1m" (every minute), "5m" (every 5 minutes), "1h" (every hour)
-SCHEDULE_CHECKER_INTERVAL = os.getenv("SCHEDULE_CHECKER_INTERVAL", "2m")
-STRIPE_RECONCILIATION_INTERVAL = os.getenv("STRIPE_RECONCILIATION_INTERVAL", "10m")
+SCHEDULE_CHECKER_INTERVAL = config.SCHEDULE_CHECKER_INTERVAL
+STRIPE_RECONCILIATION_INTERVAL = config.STRIPE_RECONCILIATION_INTERVAL
 
 
 def parse_schedule_interval(interval: str) -> dict:
@@ -188,6 +189,7 @@ celery_app = Celery(
         "app.tasks.celery_tasks.document_reindex_tasks",
         "app.tasks.celery_tasks.stale_notification_cleanup_task",
         "app.tasks.celery_tasks.stripe_reconciliation_task",
+        "app.tasks.celery_tasks.gateway_tasks",
         "app.automations.tasks.execute_run",
         "app.automations.triggers.builtin.schedule.selector",
         "app.automations.triggers.builtin.event.selector",
@@ -245,6 +247,9 @@ celery_app.conf.update(
         "index_obsidian_attachment": {"queue": CONNECTORS_QUEUE},
         # Everything else (document processing, podcasts, reindexing,
         # schedule checker, cleanup) stays on the default fast queue.
+        "gateway.reconcile_inbox": {"queue": f"{CELERY_TASK_DEFAULT_QUEUE}.gateway"},
+        "gateway.health_check": {"queue": f"{CELERY_TASK_DEFAULT_QUEUE}.gateway"},
+        "gateway.retention_sweep": {"queue": f"{CELERY_TASK_DEFAULT_QUEUE}.gateway"},
     },
 )
 
@@ -290,6 +295,21 @@ celery_app.conf.beat_schedule = {
         "options": {
             "expires": 60,
         },
+    },
+    "gateway-reconcile-inbox": {
+        "task": "gateway.reconcile_inbox",
+        "schedule": crontab(minute="*"),
+        "options": {"expires": 60},
+    },
+    "gateway-health-check": {
+        "task": "gateway.health_check",
+        "schedule": crontab(minute="*/5"),
+        "options": {"expires": 120},
+    },
+    "gateway-retention-sweep": {
+        "task": "gateway.retention_sweep",
+        "schedule": crontab(hour="3", minute="17"),
+        "options": {"expires": 600},
     },
     # Fire due automation schedule triggers (Beat entry owned by the schedule
     # trigger; see app.automations.triggers.builtin.schedule.source).

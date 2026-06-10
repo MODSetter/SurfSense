@@ -17,7 +17,6 @@ import { BACKEND_URL } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
-import { SummaryConfig } from "../../components/summary-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
 import { LIVE_CONNECTOR_TYPES } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
@@ -38,7 +37,6 @@ interface ConnectorEditViewProps {
 	endDate: Date | undefined;
 	periodicEnabled: boolean;
 	frequencyMinutes: string;
-	enableSummary: boolean;
 	enableVisionLlm: boolean;
 	isSaving: boolean;
 	isDisconnecting: boolean;
@@ -48,7 +46,6 @@ interface ConnectorEditViewProps {
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
 	onFrequencyChange: (frequency: string) => void;
-	onEnableSummaryChange: (enabled: boolean) => void;
 	onEnableVisionLlmChange: (enabled: boolean) => void;
 	onSave: () => void;
 	onDisconnect: () => void;
@@ -64,7 +61,6 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	endDate,
 	periodicEnabled,
 	frequencyMinutes,
-	enableSummary,
 	enableVisionLlm,
 	isSaving,
 	isDisconnecting,
@@ -74,7 +70,6 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	onEndDateChange,
 	onPeriodicEnabledChange,
 	onFrequencyChange,
-	onEnableSummaryChange,
 	onEnableVisionLlmChange,
 	onSave,
 	onDisconnect,
@@ -87,9 +82,13 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	const isAuthExpired = connector.config?.auth_expired === true;
 	const reauthEndpoint = getReauthEndpoint(connector);
 	const [reauthing, setReauthing] = useState(false);
+	const isMCPBacked = Boolean(connector.config?.server_config);
+	const isLive = isMCPBacked || LIVE_CONNECTOR_TYPES.has(connector.connector_type);
 	const supportsVisionLlm = VISION_LLM_CONNECTOR_TYPES.has(connector.connector_type);
-	const showsAiToggles =
-		connector.is_indexable || connector.connector_type === EnumConnectorName.OBSIDIAN_CONNECTOR;
+	const showsVisionToggle =
+		!isLive &&
+		supportsVisionLlm &&
+		(connector.is_indexable || connector.connector_type === EnumConnectorName.OBSIDIAN_CONNECTOR);
 
 	const handleReauth = useCallback(async () => {
 		const spaceId = searchSpaceId ?? searchSpaceIdAtom;
@@ -120,9 +119,6 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 			setReauthing(false);
 		}
 	}, [searchSpaceId, searchSpaceIdAtom, reauthEndpoint, connector.id]);
-
-	const isMCPBacked = Boolean(connector.config?.server_config);
-	const isLive = isMCPBacked || LIVE_CONNECTOR_TYPES.has(connector.connector_type);
 
 	// Get connector-specific config component (MCP-backed connectors use a generic view)
 	const ConnectorConfigComponent = useMemo(() => {
@@ -280,76 +276,68 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							/>
 						)}
 
-						{/* Summary + vision toggles (Obsidian is plugin-push, non-indexable by design) */}
-						{showsAiToggles && !isLive && (
-							<>
-								{/* AI Summary toggle */}
-								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
-
-								{/* Vision LLM toggle for file/attachment connectors */}
-								{supportsVisionLlm && (
-									<VisionLLMConfig
-										enabled={enableVisionLlm}
-										onEnabledChange={onEnableVisionLlmChange}
-									/>
-								)}
-
-								{/* Date-range and periodic sync stay indexable-only */}
-								{connector.is_indexable &&
-									connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
-									connector.connector_type !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
-									connector.connector_type !== "DROPBOX_CONNECTOR" &&
-									connector.connector_type !== "ONEDRIVE_CONNECTOR" &&
-									connector.connector_type !== "WEBCRAWLER_CONNECTOR" &&
-									connector.connector_type !== "GITHUB_CONNECTOR" && (
-										<DateRangeSelector
-											startDate={startDate}
-											endDate={endDate}
-											onStartDateChange={onStartDateChange}
-											onEndDateChange={onEndDateChange}
-											allowFutureDates={
-												connector.connector_type === "GOOGLE_CALENDAR_CONNECTOR" ||
-												connector.connector_type === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR" ||
-												connector.connector_type === "LUMA_CONNECTOR"
-											}
-											lastIndexedAt={connector.last_indexed_at}
-										/>
-									)}
-
-								{connector.is_indexable &&
-									(() => {
-										const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
-										const isComposioGoogleDrive =
-											connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
-										const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
-										const selectedFolders =
-											(connector.config?.selected_folders as
-												| Array<{ id: string; name: string }>
-												| undefined) || [];
-										const selectedFiles =
-											(connector.config?.selected_files as
-												| Array<{ id: string; name: string }>
-												| undefined) || [];
-										const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
-										const isDisabled = requiresFolderSelection && !hasItemsSelected;
-
-										return (
-											<PeriodicSyncConfig
-												enabled={periodicEnabled}
-												frequencyMinutes={frequencyMinutes}
-												onEnabledChange={onPeriodicEnabledChange}
-												onFrequencyChange={onFrequencyChange}
-												disabled={isDisabled}
-												disabledMessage={
-													isDisabled
-														? "Select at least one folder or file above to enable periodic sync"
-														: undefined
-												}
-											/>
-										);
-									})()}
-							</>
+						{/* Vision toggle (Obsidian is plugin-push, non-indexable by design) */}
+						{showsVisionToggle && (
+							<VisionLLMConfig
+								enabled={enableVisionLlm}
+								onEnabledChange={onEnableVisionLlmChange}
+							/>
 						)}
+
+						{/* Date-range and periodic sync stay indexable-only */}
+						{connector.is_indexable &&
+							connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
+							connector.connector_type !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
+							connector.connector_type !== "DROPBOX_CONNECTOR" &&
+							connector.connector_type !== "ONEDRIVE_CONNECTOR" &&
+							connector.connector_type !== "WEBCRAWLER_CONNECTOR" &&
+							connector.connector_type !== "GITHUB_CONNECTOR" && (
+								<DateRangeSelector
+									startDate={startDate}
+									endDate={endDate}
+									onStartDateChange={onStartDateChange}
+									onEndDateChange={onEndDateChange}
+									allowFutureDates={
+										connector.connector_type === "GOOGLE_CALENDAR_CONNECTOR" ||
+										connector.connector_type === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR" ||
+										connector.connector_type === "LUMA_CONNECTOR"
+									}
+									lastIndexedAt={connector.last_indexed_at}
+								/>
+							)}
+
+						{connector.is_indexable &&
+							(() => {
+								const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
+								const isComposioGoogleDrive =
+									connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
+								const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
+								const selectedFolders =
+									(connector.config?.selected_folders as
+										| Array<{ id: string; name: string }>
+										| undefined) || [];
+								const selectedFiles =
+									(connector.config?.selected_files as
+										| Array<{ id: string; name: string }>
+										| undefined) || [];
+								const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
+								const isDisabled = requiresFolderSelection && !hasItemsSelected;
+
+								return (
+									<PeriodicSyncConfig
+										enabled={periodicEnabled}
+										frequencyMinutes={frequencyMinutes}
+										onEnabledChange={onPeriodicEnabledChange}
+										onFrequencyChange={onFrequencyChange}
+										disabled={isDisabled}
+										disabledMessage={
+											isDisabled
+												? "Select at least one folder or file above to enable periodic sync"
+												: undefined
+										}
+									/>
+								);
+							})()}
 
 						{/* Info box - hidden for live connectors */}
 						{connector.is_indexable && !isLive && (

@@ -6,6 +6,7 @@ Implements 2-phase document status updates for real-time UI feedback:
 - Phase 2: Process each page: pending → processing → ready/failed
 """
 
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime
@@ -15,13 +16,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.bookstack_connector import BookStackConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 
@@ -384,10 +383,7 @@ async def index_bookstack_pages(
                 document.status = DocumentStatus.processing()
                 await session.commit()
 
-                # Heavy processing (LLM, embeddings, chunks)
-                user_llm = await get_user_long_context_llm(
-                    session, user_id, search_space_id
-                )
+                # Heavy processing (embeddings, chunks)
 
                 # Build document metadata
                 doc_metadata = {
@@ -403,23 +399,8 @@ async def index_bookstack_pages(
                     "connector_id": connector_id,
                 }
 
-                if user_llm and connector.enable_summary:
-                    summary_metadata = {
-                        "page_name": item["page_name"],
-                        "page_id": item["page_id"],
-                        "book_id": item["book_id"],
-                        "document_type": "BookStack Page",
-                        "connector_type": "BookStack",
-                    }
-                    (
-                        summary_content,
-                        summary_embedding,
-                    ) = await generate_document_summary(
-                        item["full_content"], user_llm, summary_metadata
-                    )
-                else:
-                    summary_content = f"BookStack Page: {item['page_name']}\n\nBook ID: {item['book_id']}\n\n{item['full_content']}"
-                    summary_embedding = embed_text(summary_content)
+                summary_content = f"BookStack Page: {item['page_name']}\n\nBook ID: {item['book_id']}\n\n{item['full_content']}"
+                summary_embedding = embed_text(summary_content)
 
                 # Process chunks - using the full page content
                 chunks = await create_document_chunks(item["full_content"])
@@ -452,10 +433,15 @@ async def index_bookstack_pages(
                 try:
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
+                    # Commit now so the failed status survives a later rollback or
+                    # crash; otherwise the doc stays stuck in pending/processing.
+                    await session.commit()
                 except Exception as status_error:
                     logger.error(
                         f"Failed to update document status to failed: {status_error}"
                     )
+                    with contextlib.suppress(Exception):
+                        await session.rollback()
                 skipped_pages.append(
                     f"{item.get('page_name', 'Unknown')} (processing error)"
                 )

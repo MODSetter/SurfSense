@@ -3,6 +3,7 @@ import {
 	createDocumentRequest,
 	createDocumentResponse,
 	type DeleteDocumentRequest,
+	type DocumentFileRead,
 	deleteDocumentRequest,
 	deleteDocumentResponse,
 	documentTitleRead,
@@ -16,6 +17,7 @@ import {
 	getDocumentByChunkResponse,
 	getDocumentChunksRequest,
 	getDocumentChunksResponse,
+	getDocumentFilesResponse,
 	getDocumentRequest,
 	getDocumentResponse,
 	getDocumentsRequest,
@@ -124,8 +126,7 @@ class DocumentsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		const { files, search_space_id, should_summarize, use_vision_llm, processing_mode } =
-			parsedRequest.data;
+		const { files, search_space_id, use_vision_llm, processing_mode } = parsedRequest.data;
 		const UPLOAD_BATCH_SIZE = 5;
 
 		const batches: File[][] = [];
@@ -143,7 +144,6 @@ class DocumentsApiService {
 			const formData = new FormData();
 			for (const file of batch) formData.append("files", file);
 			formData.append("search_space_id", String(search_space_id));
-			formData.append("should_summarize", String(should_summarize));
 			formData.append("use_vision_llm", String(use_vision_llm));
 			formData.append("processing_mode", processing_mode);
 
@@ -381,6 +381,14 @@ class DocumentsApiService {
 		});
 	};
 
+	/**
+	 * List the stored files for a document (e.g. its original upload).
+	 * Used to gate the "Download original" affordance.
+	 */
+	getDocumentFiles = async (documentId: number): Promise<DocumentFileRead[]> => {
+		return baseApiService.get(`/api/v1/documents/${documentId}/files`, getDocumentFilesResponse);
+	};
+
 	listDocumentVersions = async (documentId: number) => {
 		return baseApiService.get(`/api/v1/documents/${documentId}/versions`);
 	};
@@ -410,7 +418,6 @@ class DocumentsApiService {
 			search_space_id: number;
 			relative_paths: string[];
 			root_folder_id?: number | null;
-			enable_summary?: boolean;
 			use_vision_llm?: boolean;
 			processing_mode?: "basic" | "premium";
 		},
@@ -426,7 +433,6 @@ class DocumentsApiService {
 		if (metadata.root_folder_id != null) {
 			formData.append("root_folder_id", String(metadata.root_folder_id));
 		}
-		formData.append("enable_summary", String(metadata.enable_summary ?? false));
 		formData.append("use_vision_llm", String(metadata.use_vision_llm ?? false));
 		formData.append("processing_mode", metadata.processing_mode ?? "basic");
 

@@ -9,7 +9,6 @@ from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
-    generate_document_summary,
     generate_unique_identifier_hash,
 )
 
@@ -84,32 +83,10 @@ class LinearKBSyncService:
                 )
                 content_hash = unique_hash
 
-            from app.services.llm_service import get_user_long_context_llm
-
-            user_llm = await get_user_long_context_llm(
-                self.db_session,
-                user_id,
-                search_space_id,
-                disable_streaming=True,
+            summary_content = (
+                f"Linear Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
             )
-
-            doc_metadata_for_summary = {
-                "issue_id": issue_identifier,
-                "issue_title": issue_title,
-                "document_type": "Linear Issue",
-                "connector_type": "Linear",
-            }
-
-            if user_llm:
-                summary_content, summary_embedding = await generate_document_summary(
-                    issue_content, user_llm, doc_metadata_for_summary
-                )
-            else:
-                logger.warning("No LLM configured — using fallback summary")
-                summary_content = (
-                    f"Linear Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
-                )
-                summary_embedding = embed_text(summary_content)
+            summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(issue_content)
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -227,30 +204,10 @@ class LinearKBSyncService:
             comment_count = len(formatted_issue.get("comments", []))
             formatted_issue.get("description", "")
 
-            from app.services.llm_service import get_user_long_context_llm
-
-            user_llm = await get_user_long_context_llm(
-                self.db_session, user_id, search_space_id, disable_streaming=True
+            summary_content = (
+                f"Linear Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
             )
-
-            if user_llm:
-                document_metadata_for_summary = {
-                    "issue_id": issue_identifier,
-                    "issue_title": issue_title,
-                    "state": state,
-                    "priority": priority,
-                    "comment_count": comment_count,
-                    "document_type": "Linear Issue",
-                    "connector_type": "Linear",
-                }
-                summary_content, summary_embedding = await generate_document_summary(
-                    issue_content, user_llm, document_metadata_for_summary
-                )
-            else:
-                summary_content = (
-                    f"Linear Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
-                )
-                summary_embedding = embed_text(summary_content)
+            summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(issue_content)
 

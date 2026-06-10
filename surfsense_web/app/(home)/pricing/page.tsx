@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import PricingBasic from "@/components/pricing/pricing-section";
-import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 
 export const metadata: Metadata = {
 	title: "Pricing | SurfSense - Free AI Workspace, Automations & Agents",
@@ -14,14 +13,6 @@ export const metadata: Metadata = {
 const page = () => {
 	return (
 		<div>
-			<div className="container mx-auto pt-24 px-4">
-				<BreadcrumbNav
-					items={[
-						{ name: "Home", href: "/" },
-						{ name: "Pricing", href: "/pricing" },
-					]}
-				/>
-			</div>
 			<PricingBasic />
 		</div>
 	);

@@ -3,14 +3,14 @@
 import json
 import logging
 import re
+import time
 
-import aiohttp
-from fake_useragent import UserAgent
 from fastapi import APIRouter, Depends, HTTPException, Query
+from scrapling.fetchers import AsyncFetcher
 
 from app.db import User
 from app.users import current_active_user
-from app.utils.proxy_config import get_requests_proxies
+from app.utils.proxy import get_proxy_url
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -69,26 +69,30 @@ async def _fetch_playlist_via_innertube(playlist_id: str) -> list[str]:
         "context": {"client": _INNERTUBE_CLIENT},
         "browseId": f"VL{playlist_id}",
     }
-    proxies = get_requests_proxies()
 
     try:
-        async with (
-            aiohttp.ClientSession() as session,
-            session.post(
-                _INNERTUBE_API_URL,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                proxy=proxies["http"] if proxies else None,
-            ) as response,
-        ):
-            if response.status != 200:
-                logger.warning(
-                    "Innertube API returned %d for playlist %s",
-                    response.status,
-                    playlist_id,
-                )
-                return []
-            data = await response.json()
+        fetch_start = time.perf_counter()
+        page = await AsyncFetcher.post(
+            _INNERTUBE_API_URL,
+            json=payload,
+            proxy=get_proxy_url(),
+            stealthy_headers=True,
+        )
+        fetch_ms = (time.perf_counter() - fetch_start) * 1000
+        logger.info(
+            "[youtube][perf] source=innertube playlist=%s status=%s fetch_ms=%.1f",
+            playlist_id,
+            page.status,
+            fetch_ms,
+        )
+        if page.status != 200:
+            logger.warning(
+                "Innertube API returned %d for playlist %s",
+                page.status,
+                playlist_id,
+            )
+            return []
+        data = page.json()
 
         return _extract_playlist_video_ids(data)
     except Exception as e:
@@ -98,35 +102,38 @@ async def _fetch_playlist_via_innertube(playlist_id: str) -> list[str]:
 
 async def _fetch_playlist_via_html(playlist_id: str) -> list[str]:
     """Fallback: scrape playlist page HTML with consent cookies set."""
-    ua = UserAgent()
-    headers = {
-        "User-Agent": ua.random,
-        "Accept-Language": "en-US,en;q=0.9",
-    }
+    # Scrapling's stealthy_headers supplies a realistic User-Agent automatically.
+    headers = {"Accept-Language": "en-US,en;q=0.9"}
     cookies = {
         "CONSENT": "PENDING+999",
         "SOCS": "CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AxGgJlbiADGgYIgOa_pgY",
     }
-    proxies = get_requests_proxies()
     playlist_url = f"https://www.youtube.com/playlist?list={playlist_id}"
 
     try:
-        async with (
-            aiohttp.ClientSession(cookies=cookies) as session,
-            session.get(
-                playlist_url,
-                headers=headers,
-                proxy=proxies["http"] if proxies else None,
-            ) as response,
-        ):
-            if response.status != 200:
-                logger.warning(
-                    "HTML fallback returned %d for playlist %s",
-                    response.status,
-                    playlist_id,
-                )
-                return []
-            html = await response.text()
+        fetch_start = time.perf_counter()
+        page = await AsyncFetcher.get(
+            playlist_url,
+            headers=headers,
+            cookies=cookies,
+            proxy=get_proxy_url(),
+            stealthy_headers=True,
+        )
+        fetch_ms = (time.perf_counter() - fetch_start) * 1000
+        logger.info(
+            "[youtube][perf] source=html-fallback playlist=%s status=%s fetch_ms=%.1f",
+            playlist_id,
+            page.status,
+            fetch_ms,
+        )
+        if page.status != 200:
+            logger.warning(
+                "HTML fallback returned %d for playlist %s",
+                page.status,
+                playlist_id,
+            )
+            return []
+        html = page.html_content
 
         yt_data = _extract_yt_initial_data(html)
         if not yt_data:

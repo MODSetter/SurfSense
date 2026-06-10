@@ -1,6 +1,8 @@
 "use client";
-import { ListOrdered, Settings2, Tag, Target } from "lucide-react";
+import { Dot } from "lucide-react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { AutomationDefinition } from "@/contracts/types/automation.types";
 import { ExecutionSummary } from "./execution-summary";
 import { InputsSchemaPreview } from "./inputs-schema-preview";
@@ -11,34 +13,30 @@ interface AutomationDefinitionSectionProps {
 }
 
 /**
- * The Definition card. Read view; editing happens on the sibling /edit
- * route (Edit button in the header). Layout is top-down:
- *   goal → tags → execution defaults → inputs schema (if any) → plan
- *
- * The schema_version is rendered as a small badge next to the section
- * title so it's discoverable but doesn't fight for attention.
+ * User-facing read view of the saved automation definition. Editing happens on
+ * the sibling /edit route; this card should summarize behavior, not expose the
+ * raw persisted schema.
  */
 export function AutomationDefinitionSection({ definition }: AutomationDefinitionSectionProps) {
 	const hasTags = definition.metadata.tags.length > 0;
 	const hasInputs = !!definition.inputs;
+	const [advancedOpen, setAdvancedOpen] = useState(false);
+	const stepCount = `${definition.plan.length} step${definition.plan.length === 1 ? "" : "s"}`;
 
 	return (
 		<Card className="border-border/60 bg-accent">
-			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-				<CardTitle className="text-base font-semibold">Definition</CardTitle>
-				<span className="text-xs font-mono text-muted-foreground border border-border/60 rounded px-1.5 py-0.5">
-					v{definition.schema_version}
-				</span>
+			<CardHeader className="pb-4">
+				<CardTitle className="text-base font-semibold">Automation details</CardTitle>
 			</CardHeader>
 			<CardContent className="space-y-6">
 				{definition.goal && (
-					<Field icon={Target} label="Goal">
+					<Field label="Goal">
 						<p className="text-sm text-foreground">{definition.goal}</p>
 					</Field>
 				)}
 
 				{hasTags && (
-					<Field icon={Tag} label="Tags">
+					<Field label="Tags">
 						<div className="flex flex-wrap gap-1.5">
 							{definition.metadata.tags.map((tag) => (
 								<span
@@ -52,46 +50,49 @@ export function AutomationDefinitionSection({ definition }: AutomationDefinition
 					</Field>
 				)}
 
-				<Field icon={Settings2} label="Execution defaults">
-					<ExecutionSummary execution={definition.execution} />
-				</Field>
-
 				{hasInputs && (
-					<Field icon={Settings2} label="Inputs schema">
+					<Field label="Inputs">
 						{definition.inputs && <InputsSchemaPreview inputs={definition.inputs} />}
 					</Field>
 				)}
 
 				<Field
-					icon={ListOrdered}
-					label={`Plan · ${definition.plan.length} step${definition.plan.length === 1 ? "" : "s"}`}
+					label={
+						<span className="inline-flex items-center">
+							Plan
+							<Dot className="h-4 w-4 text-muted-foreground" aria-hidden />
+							{stepCount}
+						</span>
+					}
 				>
 					<div className="space-y-2">
 						{definition.plan.map((step, idx) => (
 							<PlanStepCard key={step.step_id} step={step} index={idx} />
 						))}
 					</div>
+					<Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="mt-3">
+						<CollapsibleTrigger className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+							{advancedOpen ? "Hide advanced options" : "Advanced options"}
+						</CollapsibleTrigger>
+						<CollapsibleContent>
+							<div className="mt-3 rounded-md border border-border/60 bg-background/30 p-3">
+								<div className="mb-2 text-sm font-medium text-muted-foreground">
+									Execution defaults
+								</div>
+								<ExecutionSummary execution={definition.execution} />
+							</div>
+						</CollapsibleContent>
+					</Collapsible>
 				</Field>
 			</CardContent>
 		</Card>
 	);
 }
 
-function Field({
-	icon: Icon,
-	label,
-	children,
-}: {
-	icon: typeof Target;
-	label: string;
-	children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
 	return (
 		<div className="space-y-2">
-			<div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-				<Icon className="h-3.5 w-3.5" aria-hidden />
-				{label}
-			</div>
+			<div className="text-sm font-medium text-muted-foreground">{label}</div>
 			{children}
 		</div>
 	);
