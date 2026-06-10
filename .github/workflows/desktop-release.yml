@@ -121,6 +121,14 @@ jobs:
             --publish "${{ inputs.publish || 'always' }}" \
             -c.extraMetadata.version="${{ steps.version.outputs.VERSION }}")
 
+          # node-mac-permissions is the only native dependency and is darwin-only.
+          # electron-builder's internal rebuild would try to node-gyp compile it on
+          # Windows (no Visual Studio) and Linux, so skip the rebuild there. On macOS
+          # the rebuild must stay enabled for per-arch (x64/arm64) builds.
+          if [ "${{ matrix.platform }}" != "--mac" ]; then
+            CMD+=(-c.npmRebuild=false)
+          fi
+
           if [ "${{ steps.sign.outputs.enabled }}" = "true" ]; then
             CMD+=(-c.win.azureSignOptions.publisherName="$WINDOWS_PUBLISHER_NAME")
             CMD+=(-c.win.azureSignOptions.endpoint="$AZURE_CODESIGN_ENDPOINT")
