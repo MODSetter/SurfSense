@@ -51,13 +51,7 @@ const PRESETS: Preset[] = [
 	{ id: "custom", label: "OpenAI-compatible (any URL)", protocol: "OPENAI_COMPATIBLE" },
 	{ id: "openai", label: "OpenAI", protocol: "NATIVE", nativeProvider: "OPENAI" },
 	{ id: "anthropic", label: "Anthropic", protocol: "NATIVE", nativeProvider: "ANTHROPIC" },
-	{
-		id: "openrouter",
-		label: "OpenRouter",
-		protocol: "NATIVE",
-		nativeProvider: "OPENROUTER",
-		baseUrl: "https://openrouter.ai/api/v1",
-	},
+	{ id: "openrouter", label: "OpenRouter", protocol: "NATIVE", nativeProvider: "OPENROUTER" },
 	{
 		id: "ollama",
 		label: "Ollama",
@@ -328,6 +322,12 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 	const preset = visiblePresets.find((item) => item.id === presetId) ?? visiblePresets[0];
 	const [baseUrl, setBaseUrl] = useState(preset?.baseUrl ?? "");
 	const [apiKey, setApiKey] = useState("");
+	// Native providers carry their endpoint inside LiteLLM, so Base URL is hidden
+	// by default and only revealed for power users who want to override it.
+	const [showCustomEndpoint, setShowCustomEndpoint] = useState(false);
+
+	const isNative = preset?.protocol === "NATIVE";
+	const requiresUrl = !isNative;
 
 	const allConnections = [...globalConnections, ...connections];
 	const enabledModels = flattenModels(allConnections).filter((model) => model.enabled);
@@ -338,7 +338,10 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 	function onPresetChange(value: string) {
 		setPresetId(value);
 		const next = visiblePresets.find((item) => item.id === value);
-		setBaseUrl(next?.baseUrl ?? "");
+		// Native providers use LiteLLM's built-in endpoint; everything else needs
+		// (and may prefill) a Base URL.
+		setBaseUrl(next?.protocol === "NATIVE" ? "" : (next?.baseUrl ?? ""));
+		setShowCustomEndpoint(false);
 	}
 
 	function handleCreate() {
@@ -401,30 +404,50 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 							</Select>
 						</div>
 						<div className="space-y-2">
-							<Label>Base URL</Label>
-							<Input
-								value={baseUrl}
-								onChange={(event) => setBaseUrl(event.target.value)}
-								placeholder="https://api.example.com/v1"
-								list="model-conn-url-suggestions"
-							/>
-							<datalist id="model-conn-url-suggestions">
-								{URL_SUGGESTIONS.map((url) => (
-									<option key={url} value={url} />
-								))}
-							</datalist>
+							<Label>{isNative ? "Base URL (optional)" : "Base URL"}</Label>
+							{isNative && !showCustomEndpoint ? (
+								<div className="space-y-1">
+									<div className="flex h-9 items-center text-sm text-muted-foreground">
+										Uses provider default
+									</div>
+									<button
+										type="button"
+										className="text-xs text-primary hover:underline"
+										onClick={() => setShowCustomEndpoint(true)}
+									>
+										Override endpoint
+									</button>
+								</div>
+							) : (
+								<>
+									<Input
+										value={baseUrl}
+										onChange={(event) => setBaseUrl(event.target.value)}
+										placeholder="https://api.example.com/v1"
+										list="model-conn-url-suggestions"
+									/>
+									<datalist id="model-conn-url-suggestions">
+										{URL_SUGGESTIONS.map((url) => (
+											<option key={url} value={url} />
+										))}
+									</datalist>
+								</>
+							)}
 						</div>
 						<div className="space-y-2">
-							<Label>API Key</Label>
+							<Label>{preset?.local ? "API Key (optional)" : "API Key"}</Label>
 							<Input
 								value={apiKey}
 								onChange={(event) => setApiKey(event.target.value)}
-								placeholder="Optional for local models"
+								placeholder={preset?.local ? "Optional for local models" : "API key"}
 								type="password"
 							/>
 						</div>
 						<div className="flex items-end">
-							<Button onClick={handleCreate} disabled={createConnection.isPending}>
+							<Button
+								onClick={handleCreate}
+								disabled={createConnection.isPending || (requiresUrl && !baseUrl.trim())}
+							>
 								<PlugZap className="mr-2 h-4 w-4" /> Add
 							</Button>
 						</div>
@@ -434,10 +457,15 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 							Local URLs are tested from the backend container. Use host.docker.internal instead of
 							localhost.
 						</p>
+					) : isNative ? (
+						<p className="text-xs text-muted-foreground">
+							Just paste an API key — {preset?.label} routes through its native endpoint
+							automatically. After adding, hit Discover (or add model IDs manually).
+						</p>
 					) : preset?.protocol === "OPENAI_COMPATIBLE" ? (
 						<p className="text-xs text-muted-foreground">
-							Works with any OpenAI-compatible endpoint (OpenRouter, Together, Groq, vLLM, LM
-							Studio…). After adding, hit Discover to list models.
+							Enter any OpenAI-compatible endpoint (OpenRouter, Together, Groq, vLLM, LM Studio…).
+							After adding, hit Discover to list models.
 						</p>
 					) : null}
 
