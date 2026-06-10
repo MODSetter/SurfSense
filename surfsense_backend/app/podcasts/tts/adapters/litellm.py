@@ -16,8 +16,8 @@ from ..request import SynthesisRequest
 # Hosted providers return MP3-encoded bytes from ``aspeech``.
 _CONTAINER = "mp3"
 
-# Matches the legacy podcaster timeouts; long single segments still finish well
-# under this, and retries cover transient upstream failures.
+# A long single segment still finishes well under this; retries absorb transient
+# upstream failures without failing the whole render.
 _TIMEOUT_SECONDS = 600
 _MAX_RETRIES = 2
 

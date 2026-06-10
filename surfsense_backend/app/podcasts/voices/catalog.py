@@ -1,9 +1,9 @@
 """The voice catalog: look up and filter selectable voices.
 
-A :class:`VoiceCatalog` is the single source of truth for which voices exist,
-replacing the hardcoded speaker-id maps. Resolution uses it to pick defaults
-for a brief, the API exposes it as picker options, and the renderer uses it to
-turn a stored ``voice_id`` back into the provider-native reference.
+A :class:`VoiceCatalog` is the single source of truth for which voices exist.
+Resolution uses it to pick defaults for a brief, the API exposes it as picker
+options, and the renderer uses it to turn a stored ``voice_id`` back into the
+provider-native reference.
 """
 
 from __future__ import annotations

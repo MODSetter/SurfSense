@@ -1,8 +1,7 @@
 """Voices: the catalog of selectable TTS voices and the active provider.
 
-Replaces the legacy hardcoded speaker-id voice maps. Callers obtain the
-catalog via :func:`get_voice_catalog` and identify the configured provider via
-:func:`provider_from_service`.
+Callers obtain the catalog via :func:`get_voice_catalog` and identify the
+configured provider via :func:`provider_from_service`.
 """
 
 from __future__ import annotations

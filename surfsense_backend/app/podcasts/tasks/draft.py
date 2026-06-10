@@ -1,9 +1,8 @@
 """Transcript-drafting task: DRAFTING -> AWAITING_REVIEW.
 
-The expensive, LLM-heavy step, so it runs under ``billable_call`` exactly like
-the legacy generator. The API has already moved the row to DRAFTING and stored
-the approved brief; this task drafts the long-form transcript and opens the
-go/no-go gate.
+The expensive, LLM-heavy step, so it runs under ``billable_call``. The API has
+already moved the row to DRAFTING and stored the approved brief; this task
+drafts the long-form transcript and opens the go/no-go gate.
 """
 
 from __future__ import annotations

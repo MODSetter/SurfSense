@@ -1,9 +1,8 @@
 """Parse a model's reply into a Pydantic shape, tolerating chatty output.
 
-Agent LLMs return JSON wrapped in prose, markdown fences, or reasoning blocks.
-This mirrors the legacy podcaster's resilient parsing — strip fences, then fall
-back to the outermost ``{...}`` span — so every generation node validates the
-reply the same way instead of repeating ad-hoc parsing.
+Agent LLMs return JSON wrapped in prose, markdown fences, or reasoning blocks,
+so a plain ``model_validate_json`` is unreliable. Centralising the tolerant
+parse here keeps every generation node validating replies the same way.
 """
 
 from __future__ import annotations

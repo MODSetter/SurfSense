@@ -1,8 +1,7 @@
-"""Generation: the LLM-driven brief and transcript controlled graphs.
+"""Generation: the controlled graphs that produce a brief and a transcript.
 
-Two small graphs hold all the intelligence: ``brief`` proposes a reviewable spec
-(language detection + resolution), and ``transcript`` drafts long-form dialogue
-outline-first. Everything else in the podcast pipeline is deterministic.
+``brief`` proposes a reviewable spec from deterministic defaults; ``transcript``
+is the LLM-driven step, drafting long-form dialogue outline-first.
 """
 
 from __future__ import annotations
