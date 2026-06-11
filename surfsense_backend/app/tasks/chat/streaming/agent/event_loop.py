@@ -25,6 +25,9 @@ from app.tasks.chat.streaming.graph_stream.event_stream import stream_output
 from app.tasks.chat.streaming.helpers.interrupt_inspector import (
     all_interrupt_values,
 )
+from app.tasks.chat.message_parts_normalizer import (
+    final_assistant_parts_from_messages,
+)
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.tasks.chat.streaming.shared.utils import safe_float
 from app.utils.perf import get_perf_logger
@@ -75,6 +78,9 @@ async def stream_agent_events(
 
     state = await agent.aget_state(config)
     state_values = getattr(state, "values", {}) or {}
+    result.final_message_parts = final_assistant_parts_from_messages(
+        state_values.get("messages")
+    )
 
     # Safety net: if astream_events was cancelled before
     # KnowledgeBasePersistenceMiddleware.aafter_agent ran, any staged work
