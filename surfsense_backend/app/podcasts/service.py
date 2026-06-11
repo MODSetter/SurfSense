@@ -30,13 +30,14 @@ _ALLOWED: dict[PodcastStatus, frozenset[PodcastStatus]] = {
     # Never entered anymore (the transcript gate was dropped); kept with exits
     # so legacy rows aren't stranded.
     PodcastStatus.AWAITING_REVIEW: frozenset(
-        {PodcastStatus.DRAFTING, PodcastStatus.FAILED, PodcastStatus.CANCELLED}
+        {PodcastStatus.AWAITING_BRIEF, PodcastStatus.FAILED, PodcastStatus.CANCELLED}
     ),
     PodcastStatus.RENDERING: frozenset(
         {PodcastStatus.READY, PodcastStatus.FAILED, PodcastStatus.CANCELLED}
     ),
-    # Not terminal: regeneration is decided by listening to the finished episode.
-    PodcastStatus.READY: frozenset({PodcastStatus.DRAFTING}),
+    # Not terminal: regeneration reopens the brief gate so the user can tweak
+    # the spec before a new take is drafted.
+    PodcastStatus.READY: frozenset({PodcastStatus.AWAITING_BRIEF}),
     PodcastStatus.FAILED: frozenset(),
     PodcastStatus.CANCELLED: frozenset(),
 }
@@ -125,17 +126,17 @@ class PodcastService:
         await self._session.flush()
         return podcast
 
-    # Guards regenerate beyond the transition table: from AWAITING_BRIEF the
-    # DRAFTING target is also legal, but there it means brief approval.
+    # Guards regenerate beyond the transition table: from PENDING the
+    # AWAITING_BRIEF target is also legal, but there it means attaching a brief.
     _REGENERABLE = frozenset({PodcastStatus.READY, PodcastStatus.AWAITING_REVIEW})
 
     async def regenerate(self, podcast: Podcast) -> Podcast:
-        """Send the episode back to drafting for a fresh transcript and render."""
+        """Reopen the brief gate; the saved spec becomes the new starting point."""
         if _status(podcast) not in self._REGENERABLE:
             raise InvalidTransition(
                 f"nothing to regenerate from {_status(podcast).value}"
             )
-        self._transition(podcast, PodcastStatus.DRAFTING)
+        self._transition(podcast, PodcastStatus.AWAITING_BRIEF)
         await self._session.flush()
         return podcast
 

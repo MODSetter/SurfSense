@@ -57,10 +57,12 @@ def resolve_completed_thinking(
         "drafting",
         "rendering",
     ):
+        # Persisted with the chat while the podcast keeps moving, so the copy
+        # must stay true after the lifecycle outgrows today's status.
         completed = [
             f"Title: {podcast_title}",
-            "Brief ready for review",
-            "Approve it in the podcast panel to generate",
+            "Podcast created",
+            "Review and progress continue on the podcast card",
         ]
     elif podcast_status in ("failed", "error"):
         error_msg = (

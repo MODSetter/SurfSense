@@ -7,11 +7,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
-import type { PodcastSpec } from "@/contracts/types/podcast.types";
 import { type LivePodcast, usePodcastLive } from "@/hooks/use-podcast-live";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
+import { BriefReview } from "./brief-review";
 import { PodcastErrorState, PodcastPlayer } from "./player";
-import { PodcastReviewSheet } from "./review-sheet";
 import type { GeneratePodcastArgs, GeneratePodcastResult } from "./schema";
 
 function WorkingState({ title, label }: { title: string; label: string }) {
@@ -36,45 +35,9 @@ function NoticeState({ title, message }: { title: string; message: string }) {
 	);
 }
 
-function briefSummary(spec: PodcastSpec | null): string | null {
-	if (!spec) return null;
-	const speakers = spec.speakers.length === 1 ? "1 speaker" : `${spec.speakers.length} speakers`;
-	return `${spec.language} · ${speakers} · ${spec.duration.min_minutes}–${spec.duration.max_minutes} min`;
-}
-
-function ReviewGateCard({
-	title,
-	heading,
-	summary,
-	buttonLabel,
-	onReview,
-}: {
-	title: string;
-	heading: string;
-	summary: string | null;
-	buttonLabel: string;
-	onReview: () => void;
-}) {
-	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
-			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
-				<p className="text-xs text-muted-foreground mt-0.5">{heading}</p>
-			</div>
-			<div className="mx-5 h-px bg-border/50" />
-			<div className="flex items-center justify-between gap-3 px-5 py-4">
-				<p className="text-xs text-muted-foreground">{summary}</p>
-				<Button type="button" size="sm" onClick={onReview}>
-					{buttonLabel}
-				</Button>
-			</div>
-		</div>
-	);
-}
-
 /**
- * Regenerating discards the current audio, so a stray click is guarded by an
- * inline confirm step.
+ * Regenerating reopens the brief and ultimately replaces the current audio,
+ * so a stray click is guarded by an inline confirm step.
  */
 function RegenerateButton({ podcast }: { podcast: LivePodcast }) {
 	const [confirming, setConfirming] = useState(false);
@@ -108,7 +71,9 @@ function RegenerateButton({ podcast }: { podcast: LivePodcast }) {
 
 	return (
 		<div className="flex items-center gap-2">
-			<span className="text-xs text-muted-foreground">Replace this episode with a new take?</span>
+			<span className="text-xs text-muted-foreground">
+				Reopen the brief and replace this episode?
+			</span>
 			<Button
 				type="button"
 				variant="ghost"
@@ -141,7 +106,6 @@ function LivePodcastCard({
 	fallbackTitle: string;
 }) {
 	const { podcast, isLoading } = usePodcastLive(podcastId);
-	const [reviewOpen, setReviewOpen] = useState(false);
 
 	if (!podcast) {
 		if (isLoading) {
@@ -165,21 +129,29 @@ function LivePodcastCard({
 		case "rendering":
 			return <WorkingState title={title} label="Rendering audio" />;
 		case "awaiting_brief":
+			// The gate lives right in the chat: the form is the card, so there
+			// is nothing to open and nothing to dismiss.
+			if (!podcast.spec) {
+				return <WorkingState title={title} label="Preparing brief" />;
+			}
 			return (
-				<>
-					<ReviewGateCard
-						title={title}
-						heading="Brief ready for your review"
-						summary={briefSummary(podcast.spec)}
-						buttonLabel="Review brief"
-						onReview={() => setReviewOpen(true)}
-					/>
-					<PodcastReviewSheet podcast={podcast} open={reviewOpen} onOpenChange={setReviewOpen} />
-				</>
+				<div className="my-4 max-w-xl overflow-hidden rounded-2xl border bg-muted/30">
+					<div className="px-5 pt-5 pb-3 select-none">
+						<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
+						<p className="text-xs text-muted-foreground mt-0.5">
+							Confirm the language, voices, and length — the episode generates automatically after
+							you approve.
+						</p>
+					</div>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4">
+						<BriefReview podcast={podcast} spec={podcast.spec} />
+					</div>
+				</div>
 			);
 		case "awaiting_review":
 			// Legacy rows parked at the removed transcript gate; the only way
-			// forward is a fresh draft.
+			// forward is regenerating through the brief gate.
 			return (
 				<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 					<div className="px-5 pt-5 pb-4">
@@ -217,9 +189,9 @@ function LivePodcastCard({
 /**
  * Tool UI for `generate_podcast`. The tool only prepares the podcast (it
  * returns with the brief awaiting review), so this card follows the lifecycle
- * by Zero push and opens the review panel at each gate. Public shared chats
- * have no Zero session; their snapshots only ever contain finished episodes,
- * so the player renders directly against the share-token endpoints.
+ * by Zero push, rendering the brief form inline at the gate. Public shared
+ * chats have no Zero session; their snapshots only ever contain finished
+ * episodes, so the player renders directly against the share-token endpoints.
  */
 export const GeneratePodcastToolUI = ({
 	args,

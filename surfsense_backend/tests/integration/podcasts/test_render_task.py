@@ -54,6 +54,7 @@ async def test_rerender_replaces_audio_and_purges_the_old_object(
 
     service = PodcastService(db_session)
     await service.regenerate(podcast)
+    await service.begin_drafting(podcast)
     await service.attach_transcript(podcast, build_transcript())
 
     result = await render._render_audio(podcast.id)

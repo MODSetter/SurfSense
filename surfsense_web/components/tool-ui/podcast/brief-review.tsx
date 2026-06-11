@@ -44,15 +44,16 @@ function primary(language: string): string {
 interface BriefReviewProps {
 	podcast: LivePodcast;
 	spec: PodcastSpec;
-	onApproved: () => void;
 }
 
 /**
- * Gate 1: the pre-filled brief as a near-confirmation. One-click approve is
- * the easy path; every field stays overridable and saves through the
- * version-guarded PATCH so concurrent edits surface instead of clobbering.
+ * The brief gate, rendered inline in the chat card: a pre-filled
+ * near-confirmation. One-click approve is the easy path; every field stays
+ * overridable and saves through the version-guarded PATCH so concurrent edits
+ * surface instead of clobbering. Approval needs no local follow-up — the
+ * pushed status flips the card to its drafting state.
  */
-export function BriefReview({ podcast, spec, onApproved }: BriefReviewProps) {
+export function BriefReview({ podcast, spec }: BriefReviewProps) {
 	const [draft, setDraft] = useState<PodcastSpec>(spec);
 	const [voices, setVoices] = useState<VoiceOption[] | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -165,23 +166,11 @@ export function BriefReview({ podcast, spec, onApproved }: BriefReviewProps) {
 		}
 	};
 
-	const handleSave = async () => {
-		setIsSubmitting(true);
-		try {
-			if (await saveIfDirty()) {
-				toast.success("Brief saved.");
-			}
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
 	const handleApprove = async () => {
 		setIsSubmitting(true);
 		try {
 			if (!(await saveIfDirty())) return;
 			await podcastsApiService.approveBrief(podcast.id);
-			onApproved();
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : "Failed to approve the brief");
 		} finally {
@@ -359,8 +348,13 @@ export function BriefReview({ podcast, spec, onApproved }: BriefReviewProps) {
 
 			<div className="flex justify-end gap-2">
 				{isDirty ? (
-					<Button type="button" variant="outline" onClick={handleSave} disabled={isSubmitting}>
-						Save changes
+					<Button
+						type="button"
+						variant="ghost"
+						onClick={() => setDraft(spec)}
+						disabled={isSubmitting}
+					>
+						Discard
 					</Button>
 				) : null}
 				<Button
@@ -369,7 +363,7 @@ export function BriefReview({ podcast, spec, onApproved }: BriefReviewProps) {
 					disabled={isSubmitting || draft.duration.max_minutes < draft.duration.min_minutes}
 				>
 					{isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
-					Approve &amp; draft transcript
+					{isDirty ? "Approve changes & draft transcript" : "Approve & draft transcript"}
 				</Button>
 			</div>
 		</div>

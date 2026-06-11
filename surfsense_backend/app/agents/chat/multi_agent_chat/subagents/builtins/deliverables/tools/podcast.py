@@ -1,9 +1,10 @@
 """Factory for a podcast-generation tool.
 
 Creates the podcast and proposes its brief (language, voices, length) inline,
-then returns immediately with the row awaiting review. The user approves the
-brief and the drafted transcript in the podcast panel before any audio is
-rendered, so this tool never blocks on generation.
+then returns immediately with the row awaiting review. Everything after —
+brief approval, drafting, rendering — happens on the live podcast card, so
+this tool never blocks on generation and the chat text must not describe a
+status that the card will outgrow.
 """
 
 import logging
@@ -53,8 +54,10 @@ def create_generate_podcast_tool(
         - "Turn this into a podcast"
 
         This sets up the podcast and proposes its brief (language, voices,
-        length). The user then reviews and approves the brief and transcript in
-        the podcast panel to produce the audio — generation does not start here.
+        length). The user reviews the brief on the live podcast card in the
+        chat; after approval the episode drafts and renders automatically.
+        Generation does not start here, and the card tracks all progress — do
+        not describe the podcast's current status in your reply.
 
         Args:
             source_content: The text content to convert into a podcast.
@@ -97,9 +100,11 @@ def create_generate_podcast_tool(
                 "podcast_id": podcast_id,
                 "title": podcast_title,
                 "message": (
-                    "I've prepared a podcast brief — review the language, "
-                    "voices, and length in the podcast panel, then approve it "
-                    "to draft and generate the episode."
+                    "Podcast set up. The card in the chat handles the rest: "
+                    "the user reviews the brief (language, voices, length) "
+                    "there, and the episode drafts and renders automatically "
+                    "after approval. The card tracks progress live, so do not "
+                    "state the podcast's current status in your reply."
                 ),
             }
             return with_receipt(

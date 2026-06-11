@@ -37,7 +37,8 @@ class PodcastsApiService {
 		return baseApiService.post(`${BASE}/${podcastId}/brief/approve`, podcastDetail);
 	};
 
-	// Destructive: the current transcript and audio are replaced by a fresh take.
+	// Reopens the brief gate; the transcript and audio are replaced once the
+	// user re-approves.
 	regenerate = async (podcastId: number) => {
 		return baseApiService.post(`${BASE}/${podcastId}/transcript/regenerate`, podcastDetail);
 	};

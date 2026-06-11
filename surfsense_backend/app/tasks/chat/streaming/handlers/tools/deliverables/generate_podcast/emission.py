@@ -24,8 +24,10 @@ def iter_completion_emission_frames(
         "drafting",
         "rendering",
     ):
+        # This line is persisted with the chat while the podcast keeps moving,
+        # so it must stay true after the lifecycle outgrows today's status.
         yield ctx.streaming_service.format_terminal_info(
-            f"Podcast brief ready to review: {title}",
+            f"Podcast created: {title}",
             "success",
         )
     elif status in ("ready", "success"):

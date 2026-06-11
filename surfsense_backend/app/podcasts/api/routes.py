@@ -213,12 +213,11 @@ async def regenerate_transcript(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Send a finished episode back to drafting for a fresh take."""
+    """Reopen the brief gate for a fresh take; drafting waits for re-approval."""
     podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
         await PodcastService(session).regenerate(podcast)
     await session.commit()
-    draft_transcript_task.delay(podcast.id, podcast.search_space_id)
     return PodcastDetail.of(podcast)
 
 
