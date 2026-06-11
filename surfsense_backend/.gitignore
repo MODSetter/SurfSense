@@ -1,7 +1,7 @@
 .env
 .venv
 venv/
-data/
+/data/
 .local_object_store/
 __pycache__/
 .flashrank_cache
