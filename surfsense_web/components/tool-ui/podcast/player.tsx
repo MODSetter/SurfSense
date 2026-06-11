@@ -23,6 +23,8 @@ const publicPodcastDetailsSchema = z.object({
 });
 
 interface TranscriptLine {
+	// Transcripts are immutable once fetched, so a turn's position identifies it.
+	key: string;
 	label: string;
 	text: string;
 }
@@ -110,10 +112,13 @@ export function PodcastPlayer({
 					]);
 					audioBlob = blob;
 					const parsed = publicPodcastDetailsSchema.safeParse(details);
-					lines = (parsed.success ? (parsed.data.podcast_transcript ?? []) : []).map((entry) => ({
-						label: `Speaker ${entry.speaker_id + 1}`,
-						text: entry.dialog,
-					}));
+					lines = (parsed.success ? (parsed.data.podcast_transcript ?? []) : []).map(
+						(entry, turn) => ({
+							key: `turn-${turn}`,
+							label: `Speaker ${entry.speaker_id + 1}`,
+							text: entry.dialog,
+						})
+					);
 				} else {
 					const [audioResponse, detail] = await Promise.all([
 						authenticatedFetch(`${BACKEND_URL}/api/v1/podcasts/${podcastId}/stream`, {
@@ -128,9 +133,10 @@ export function PodcastPlayer({
 					}
 
 					audioBlob = await audioResponse.blob();
-					lines = (detail.transcript?.turns ?? []).map((turn) => ({
-						label: speakerLabel(detail.spec, turn.speaker),
-						text: turn.text,
+					lines = (detail.transcript?.turns ?? []).map((entry, turn) => ({
+						key: `turn-${turn}`,
+						label: speakerLabel(detail.spec, entry.speaker),
+						text: entry.text,
 					}));
 				}
 
@@ -186,8 +192,8 @@ export function PodcastPlayer({
 							</AccordionTrigger>
 							<AccordionContent className="pb-0">
 								<div className="space-y-2 max-h-64 sm:max-h-96 overflow-y-auto select-text">
-									{transcriptLines.map((line, idx) => (
-										<div key={`${idx}-${line.label}`} className="text-xs sm:text-sm">
+									{transcriptLines.map((line) => (
+										<div key={line.key} className="text-xs sm:text-sm">
 											<span className="font-medium text-primary">{line.label}:</span>{" "}
 											<span className="text-muted-foreground">{line.text}</span>
 										</div>
