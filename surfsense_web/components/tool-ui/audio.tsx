@@ -201,7 +201,7 @@ export function Audio({ id, src, title, durationMs, className }: AudioProps) {
 			<div className="mx-5 h-px bg-border/50" />
 
 			<div className="px-5 pt-3 pb-4 space-y-3">
-				<div className="space-y-0.5">
+				<div className="space-y-2">
 					<Slider
 						value={[currentTime]}
 						max={duration || 100}

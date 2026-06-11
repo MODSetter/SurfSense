@@ -17,9 +17,9 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
-import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { GenerateResumeToolUI } from "@/components/tool-ui/generate-resume";
+import { GeneratePodcastToolUI } from "@/components/tool-ui/podcast";
 
 const GenerateVideoPresentationToolUI = dynamic(
 	() =>

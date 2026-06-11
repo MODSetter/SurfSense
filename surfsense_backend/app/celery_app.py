@@ -179,7 +179,8 @@ celery_app = Celery(
     backend=CELERY_RESULT_BACKEND,
     include=[
         "app.tasks.celery_tasks.document_tasks",
-        "app.tasks.celery_tasks.podcast_tasks",
+        "app.podcasts.tasks.draft",
+        "app.podcasts.tasks.render",
         "app.tasks.celery_tasks.video_presentation_tasks",
         "app.tasks.celery_tasks.connector_tasks",
         "app.tasks.celery_tasks.obsidian_tasks",
@@ -187,6 +188,7 @@ celery_app = Celery(
         "app.tasks.celery_tasks.document_reindex_tasks",
         "app.tasks.celery_tasks.stale_notification_cleanup_task",
         "app.tasks.celery_tasks.stripe_reconciliation_task",
+        "app.tasks.celery_tasks.auto_reload_task",
         "app.tasks.celery_tasks.gateway_tasks",
         "app.automations.tasks.execute_run",
         "app.automations.triggers.builtin.schedule.selector",
@@ -279,16 +281,9 @@ celery_app.conf.beat_schedule = {
             "expires": 60,  # Task expires after 60 seconds if not picked up
         },
     },
-    # Reconcile Stripe purchases that were paid but remained pending
-    "reconcile-pending-stripe-page-purchases": {
-        "task": "reconcile_pending_stripe_page_purchases",
-        "schedule": crontab(**stripe_reconciliation_schedule_params),
-        "options": {
-            "expires": 60,
-        },
-    },
-    "reconcile-pending-stripe-token-purchases": {
-        "task": "reconcile_pending_stripe_token_purchases",
+    # Reconcile Stripe credit purchases that were paid but remained pending
+    "reconcile-pending-stripe-credit-purchases": {
+        "task": "reconcile_pending_stripe_credit_purchases",
         "schedule": crontab(**stripe_reconciliation_schedule_params),
         "options": {
             "expires": 60,

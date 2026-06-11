@@ -12,7 +12,8 @@ export const incentiveTaskInfo = z.object({
 	task_type: incentiveTaskTypeEnum,
 	title: z.string(),
 	description: z.string(),
-	pages_reward: z.number(),
+	// Reward in micro-USD (1_000_000 == $1.00) credited to the wallet.
+	credit_micros_reward: z.number(),
 	action_url: z.string(),
 	completed: z.boolean(),
 	completed_at: z.string().nullable(),
@@ -23,7 +24,7 @@ export const incentiveTaskInfo = z.object({
  */
 export const getIncentiveTasksResponse = z.object({
 	tasks: z.array(incentiveTaskInfo),
-	total_pages_earned: z.number(),
+	total_credit_micros_earned: z.number(),
 });
 
 /**
@@ -32,8 +33,8 @@ export const getIncentiveTasksResponse = z.object({
 export const completeTaskSuccessResponse = z.object({
 	success: z.literal(true),
 	message: z.string(),
-	pages_awarded: z.number(),
-	new_pages_limit: z.number(),
+	credit_micros_awarded: z.number(),
+	new_balance_micros: z.number(),
 });
 
 /**

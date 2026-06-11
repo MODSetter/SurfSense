@@ -28,7 +28,7 @@ from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
 from app.indexing_pipeline.exceptions import safe_exception_message
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
-from app.services.page_limit_service import PageLimitService
+from app.services.etl_credit_service import EtlCreditService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
     check_document_by_unique_identifier,
@@ -423,9 +423,8 @@ async def _index_full_scan(
         },
     )
 
-    page_limit_service = PageLimitService(session)
-    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
-    remaining_quota = pages_limit - pages_used
+    etl_credit_service = EtlCreditService(session)
+    available_micros = await etl_credit_service.get_available_micros(user_id)
     batch_estimated_pages = 0
     page_limit_reached = False
 
@@ -467,13 +466,17 @@ async def _index_full_scan(
                     skipped += 1
                 continue
 
-        file_pages = PageLimitService.estimate_pages_from_metadata(
+        file_pages = EtlCreditService.estimate_pages_from_metadata(
             file.get("name", ""), file.get("size")
         )
-        if batch_estimated_pages + file_pages > remaining_quota:
+        if (
+            available_micros is not None
+            and EtlCreditService.pages_to_micros(batch_estimated_pages + file_pages)
+            > available_micros
+        ):
             if not page_limit_reached:
                 logger.warning(
-                    "Page limit reached during Dropbox full scan, "
+                    "Insufficient credits during Dropbox full scan, "
                     "skipping remaining files"
                 )
                 page_limit_reached = True
@@ -498,9 +501,7 @@ async def _index_full_scan(
         pages_to_deduct = max(
             1, batch_estimated_pages * batch_indexed // len(files_to_download)
         )
-        await page_limit_service.update_page_usage(
-            user_id, pages_to_deduct, allow_exceed=True
-        )
+        await etl_credit_service.charge_credits(user_id, pages_to_deduct)
 
     indexed = renamed_count + batch_indexed
     logger.info(
@@ -523,9 +524,8 @@ async def _index_selected_files(
     vision_llm=None,
 ) -> tuple[int, int, int, list[str]]:
     """Index user-selected files using the parallel pipeline."""
-    page_limit_service = PageLimitService(session)
-    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
-    remaining_quota = pages_limit - pages_used
+    etl_credit_service = EtlCreditService(session)
+    available_micros = await etl_credit_service.get_available_micros(user_id)
     batch_estimated_pages = 0
 
     files_to_download: list[dict] = []
@@ -560,12 +560,16 @@ async def _index_selected_files(
                     skipped += 1
                 continue
 
-        file_pages = PageLimitService.estimate_pages_from_metadata(
+        file_pages = EtlCreditService.estimate_pages_from_metadata(
             file.get("name", ""), file.get("size")
         )
-        if batch_estimated_pages + file_pages > remaining_quota:
+        if (
+            available_micros is not None
+            and EtlCreditService.pages_to_micros(batch_estimated_pages + file_pages)
+            > available_micros
+        ):
             display = file_name or file_path
-            errors.append(f"File '{display}': page limit would be exceeded")
+            errors.append(f"File '{display}': insufficient credits")
             continue
 
         batch_estimated_pages += file_pages
@@ -586,9 +590,7 @@ async def _index_selected_files(
         pages_to_deduct = max(
             1, batch_estimated_pages * batch_indexed // len(files_to_download)
         )
-        await page_limit_service.update_page_usage(
-            user_id, pages_to_deduct, allow_exceed=True
-        )
+        await etl_credit_service.charge_credits(user_id, pages_to_deduct)
 
     return renamed_count + batch_indexed, skipped, unsupported_count, errors
 

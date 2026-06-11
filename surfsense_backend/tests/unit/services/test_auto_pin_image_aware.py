@@ -114,7 +114,7 @@ async def test_image_turn_filters_out_text_only_candidates(monkeypatch):
         [_text_only_cfg(-1), _vision_cfg(-2)],
     )
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _premium_allowed,
     )
 
@@ -146,7 +146,7 @@ async def test_image_turn_force_repins_stale_text_only_pin(monkeypatch):
         [_text_only_cfg(-1), _vision_cfg(-2)],
     )
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _premium_allowed,
     )
 
@@ -178,7 +178,7 @@ async def test_image_turn_reuses_existing_vision_pin(monkeypatch):
         [_text_only_cfg(-1), _vision_cfg(-2), _vision_cfg(-3, quality=70)],
     )
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _premium_allowed,
     )
 
@@ -209,7 +209,7 @@ async def test_image_turn_with_no_vision_candidates_raises(monkeypatch):
         [_text_only_cfg(-1), _text_only_cfg(-2)],
     )
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _premium_allowed,
     )
 
@@ -237,7 +237,7 @@ async def test_non_image_turn_keeps_text_only_in_pool(monkeypatch):
         [_text_only_cfg(-1)],
     )
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _premium_allowed,
     )
 
@@ -271,7 +271,7 @@ async def test_image_turn_unannotated_cfg_resolves_via_helper(monkeypatch):
     }
     monkeypatch.setattr(config, "GLOBAL_LLM_CONFIGS", [cfg_unannotated_vision])
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _premium_allowed,
     )
 

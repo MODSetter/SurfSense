@@ -64,11 +64,11 @@ from app.tasks.chat.streaming.flows.shared.pre_stream_setup import (
     setup_connector_and_firecrawl,
 )
 from app.tasks.chat.streaming.flows.shared.premium_quota import (
-    PremiumReservation,
-    finalize_premium,
-    needs_premium_quota,
-    release_premium,
-    reserve_premium,
+    CreditReservation,
+    finalize_credit,
+    needs_credit_quota,
+    release_credit,
+    reserve_credit,
 )
 from app.tasks.chat.streaming.flows.shared.rate_limit_recovery import (
     can_recover_provider_rate_limit,
@@ -144,7 +144,7 @@ async def stream_resume_chat(
 
     accumulator = start_turn()
 
-    premium_reservation: PremiumReservation | None = None
+    premium_reservation: CreditReservation | None = None
     busy_error_raised = False
 
     emit_stream_error = partial(
@@ -212,8 +212,8 @@ async def stream_resume_chat(
             "[stream_resume] LLM config loaded in %.3fs", time.perf_counter() - _t0
         )
 
-        if needs_premium_quota(agent_config, user_id):
-            premium_reservation = await reserve_premium(
+        if needs_credit_quota(agent_config, user_id):
+            premium_reservation = await reserve_credit(
                 agent_config=agent_config,
                 user_id=user_id,  # type: ignore[arg-type]
             )
@@ -285,7 +285,7 @@ async def stream_resume_chat(
                 else:
                     yield emit_stream_error(
                         message=(
-                            "Buy more tokens to continue with this model, or "
+                            "Buy more credits to continue with this model, or "
                             "switch to a free model"
                         ),
                         error_kind="premium_quota_exhausted",
@@ -544,7 +544,7 @@ async def stream_resume_chat(
             return
 
         if premium_reservation is not None and user_id:
-            await finalize_premium(
+            await finalize_credit(
                 reservation=premium_reservation,
                 user_id=user_id,
                 accumulator=accumulator,
@@ -584,7 +584,7 @@ async def stream_resume_chat(
             end_turn(str(chat_id))
 
             if premium_reservation is not None and user_id:
-                await release_premium(reservation=premium_reservation, user_id=user_id)
+                await release_credit(reservation=premium_reservation, user_id=user_id)
 
             await close_session_and_clear_ai_responding(session, chat_id)
 

@@ -4,6 +4,7 @@ from app.automations.api import router as automations_router
 from app.file_storage.api import router as file_storage_router
 from app.gateway import require_gateway_enabled
 from app.notifications.api import router as notifications_router
+from app.podcasts.api import router as podcasts_router
 
 from .agent_action_log_route import router as agent_action_log_router
 from .agent_flags_route import router as agent_flags_router
@@ -51,7 +52,6 @@ from .notes_routes import router as notes_router
 from .notion_add_connector_route import router as notion_add_connector_router
 from .obsidian_plugin_routes import router as obsidian_plugin_router
 from .onedrive_add_connector_route import router as onedrive_add_connector_router
-from .podcasts_routes import router as podcasts_router
 from .prompts_routes import router as prompts_router
 from .public_chat_routes import router as public_chat_router
 from .rbac_routes import router as rbac_router

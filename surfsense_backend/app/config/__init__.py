@@ -624,14 +624,9 @@ class Config:
     )
     GATEWAY_DISCORD_REDIRECT_URI = os.getenv("GATEWAY_DISCORD_REDIRECT_URI")
 
-    # Stripe checkout for pay-as-you-go page packs
+    # Stripe checkout (shared secrets for the unified credit wallet)
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
-    STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID")
-    STRIPE_PAGES_PER_UNIT = int(os.getenv("STRIPE_PAGES_PER_UNIT", "1000"))
-    STRIPE_PAGE_BUYING_ENABLED = (
-        os.getenv("STRIPE_PAGE_BUYING_ENABLED", "TRUE").upper() == "TRUE"
-    )
     STRIPE_RECONCILIATION_LOOKBACK_MINUTES = int(
         os.getenv("STRIPE_RECONCILIATION_LOOKBACK_MINUTES", "10")
     )
@@ -639,27 +634,56 @@ class Config:
         os.getenv("STRIPE_RECONCILIATION_BATCH_SIZE", "100")
     )
 
-    # Premium credit (micro-USD) quota settings.
+    # Unified credit wallet (micro-USD) settings.
     #
-    # Storage unit is integer micro-USD (1_000_000 = $1.00). The legacy
-    # ``PREMIUM_TOKEN_LIMIT`` and ``STRIPE_TOKENS_PER_UNIT`` env vars are
-    # still honoured for one release as fall-back values — the prior
-    # $1-per-1M-tokens Stripe price means every existing value maps 1:1
-    # to micros, so operators upgrading without changing their .env still
-    # get correct behaviour. A startup deprecation warning fires below if
-    # they're set.
-    PREMIUM_CREDIT_MICROS_LIMIT = int(
-        os.getenv("PREMIUM_CREDIT_MICROS_LIMIT")
+    # Storage unit is integer micro-USD (1_000_000 = $1.00). A single
+    # ``credit_micros_balance`` funds both ETL page processing and premium
+    # model calls. New users start with ``DEFAULT_CREDIT_MICROS_BALANCE``
+    # ($5 by default).
+    #
+    # Legacy env names (``PREMIUM_CREDIT_MICROS_LIMIT`` / ``PREMIUM_TOKEN_LIMIT``,
+    # ``STRIPE_PREMIUM_TOKEN_PRICE_ID``, ``STRIPE_CREDIT_MICROS_PER_UNIT`` /
+    # ``STRIPE_TOKENS_PER_UNIT``, ``STRIPE_TOKEN_BUYING_ENABLED``) are still
+    # honoured as fall-backs for one release; deprecation warnings fire below.
+    DEFAULT_CREDIT_MICROS_BALANCE = int(
+        os.getenv("DEFAULT_CREDIT_MICROS_BALANCE")
+        or os.getenv("PREMIUM_CREDIT_MICROS_LIMIT")
         or os.getenv("PREMIUM_TOKEN_LIMIT", "5000000")
     )
-    STRIPE_PREMIUM_TOKEN_PRICE_ID = os.getenv("STRIPE_PREMIUM_TOKEN_PRICE_ID")
+    STRIPE_CREDIT_PRICE_ID = os.getenv("STRIPE_CREDIT_PRICE_ID") or os.getenv(
+        "STRIPE_PREMIUM_TOKEN_PRICE_ID"
+    )
     STRIPE_CREDIT_MICROS_PER_UNIT = int(
         os.getenv("STRIPE_CREDIT_MICROS_PER_UNIT")
         or os.getenv("STRIPE_TOKENS_PER_UNIT", "1000000")
     )
-    STRIPE_TOKEN_BUYING_ENABLED = (
-        os.getenv("STRIPE_TOKEN_BUYING_ENABLED", "FALSE").upper() == "TRUE"
+    STRIPE_CREDIT_BUYING_ENABLED = (
+        os.getenv("STRIPE_CREDIT_BUYING_ENABLED")
+        or os.getenv("STRIPE_TOKEN_BUYING_ENABLED", "FALSE")
+    ).upper() == "TRUE"
+
+    # ETL page processing debits the credit wallet only when enabled. Defaults
+    # to FALSE so self-hosted / OSS installs keep effectively-free ETL; hosted
+    # deployments set this TRUE. 1 page == ``MICROS_PER_PAGE`` micro-USD.
+    ETL_CREDIT_BILLING_ENABLED = (
+        os.getenv("ETL_CREDIT_BILLING_ENABLED", "FALSE").upper() == "TRUE"
     )
+    MICROS_PER_PAGE = int(os.getenv("MICROS_PER_PAGE", "1000"))
+
+    # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service
+    # so the UI can nudge the user to top up / enable auto-reload. $0.50.
+    CREDIT_LOW_BALANCE_WARNING_MICROS = int(
+        os.getenv("CREDIT_LOW_BALANCE_WARNING_MICROS", "500000")
+    )
+
+    # Auto-reload (off-session Stripe top-up) feature flag and guards.
+    AUTO_RELOAD_ENABLED = os.getenv("AUTO_RELOAD_ENABLED", "FALSE").upper() == "TRUE"
+    # Minimum configurable reload amount (micro-USD). $1.00 to match pack pricing.
+    AUTO_RELOAD_MIN_AMOUNT_MICROS = int(
+        os.getenv("AUTO_RELOAD_MIN_AMOUNT_MICROS", "1000000")
+    )
+    # Cooldown so a burst of debits can't fire multiple charges (minutes).
+    AUTO_RELOAD_COOLDOWN_MINUTES = int(os.getenv("AUTO_RELOAD_COOLDOWN_MINUTES", "10"))
 
     # Safety ceiling on the per-call premium reservation. ``stream_new_chat``
     # estimates an upper-bound cost from ``litellm.get_model_info`` x the
@@ -669,14 +693,13 @@ class Config:
     # reserve_tokens ≈ $0.36) with headroom.
     QUOTA_MAX_RESERVE_MICROS = int(os.getenv("QUOTA_MAX_RESERVE_MICROS", "1000000"))
 
-    if os.getenv("PREMIUM_TOKEN_LIMIT") and not os.getenv(
-        "PREMIUM_CREDIT_MICROS_LIMIT"
-    ):
+    if (
+        os.getenv("PREMIUM_TOKEN_LIMIT") or os.getenv("PREMIUM_CREDIT_MICROS_LIMIT")
+    ) and not os.getenv("DEFAULT_CREDIT_MICROS_BALANCE"):
         print(
-            "Warning: PREMIUM_TOKEN_LIMIT is deprecated; rename to "
-            "PREMIUM_CREDIT_MICROS_LIMIT (1:1 numerical mapping under the "
-            "current Stripe price). The old key will be removed in a "
-            "future release."
+            "Warning: PREMIUM_TOKEN_LIMIT / PREMIUM_CREDIT_MICROS_LIMIT are "
+            "deprecated; rename to DEFAULT_CREDIT_MICROS_BALANCE. The old keys "
+            "will be removed in a future release."
         )
     if os.getenv("STRIPE_TOKENS_PER_UNIT") and not os.getenv(
         "STRIPE_CREDIT_MICROS_PER_UNIT"
@@ -685,6 +708,22 @@ class Config:
             "Warning: STRIPE_TOKENS_PER_UNIT is deprecated; rename to "
             "STRIPE_CREDIT_MICROS_PER_UNIT (1:1 numerical mapping). "
             "The old key will be removed in a future release."
+        )
+    if os.getenv("STRIPE_PREMIUM_TOKEN_PRICE_ID") and not os.getenv(
+        "STRIPE_CREDIT_PRICE_ID"
+    ):
+        print(
+            "Warning: STRIPE_PREMIUM_TOKEN_PRICE_ID is deprecated; rename to "
+            "STRIPE_CREDIT_PRICE_ID. The old key will be removed in a future "
+            "release."
+        )
+    if os.getenv("STRIPE_TOKEN_BUYING_ENABLED") and not os.getenv(
+        "STRIPE_CREDIT_BUYING_ENABLED"
+    ):
+        print(
+            "Warning: STRIPE_TOKEN_BUYING_ENABLED is deprecated; rename to "
+            "STRIPE_CREDIT_BUYING_ENABLED. The old key will be removed in a "
+            "future release."
         )
 
     # Anonymous / no-login mode settings
@@ -898,9 +937,6 @@ class Config:
 
     # ETL Service
     ETL_SERVICE = os.getenv("ETL_SERVICE")
-
-    # Pages limit for ETL services (default to very high number for OSS unlimited usage)
-    PAGES_LIMIT = int(os.getenv("PAGES_LIMIT", "999999999"))
 
     if ETL_SERVICE == "UNSTRUCTURED":
         # Unstructured API Key

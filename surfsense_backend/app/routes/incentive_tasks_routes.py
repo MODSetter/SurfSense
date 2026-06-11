@@ -1,6 +1,6 @@
 """
 Incentive Tasks API routes.
-Allows users to complete tasks (like starring GitHub repo) to earn free pages.
+Allows users to complete tasks (like starring GitHub repo) to earn free credits.
 Each task can only be completed once per user.
 """
 
@@ -42,21 +42,21 @@ async def get_incentive_tasks(
 
     # Build task list with completion status
     tasks = []
-    total_pages_earned = 0
+    total_credit_micros_earned = 0
 
     for task_type, config in INCENTIVE_TASKS_CONFIG.items():
         completed_task = completed_tasks.get(task_type)
         is_completed = completed_task is not None
 
         if is_completed:
-            total_pages_earned += completed_task.pages_awarded
+            total_credit_micros_earned += completed_task.credit_micros_awarded
 
         tasks.append(
             IncentiveTaskInfo(
                 task_type=task_type,
                 title=config["title"],
                 description=config["description"],
-                pages_reward=config["pages_reward"],
+                credit_micros_reward=config["credit_micros_reward"],
                 action_url=config["action_url"],
                 completed=is_completed,
                 completed_at=completed_task.completed_at if completed_task else None,
@@ -65,7 +65,7 @@ async def get_incentive_tasks(
 
     return IncentiveTasksResponse(
         tasks=tasks,
-        total_pages_earned=total_pages_earned,
+        total_credit_micros_earned=total_credit_micros_earned,
     )
 
 
@@ -79,10 +79,10 @@ async def complete_task(
     session: AsyncSession = Depends(get_async_session),
 ) -> CompleteTaskResponse | TaskAlreadyCompletedResponse:
     """
-    Mark an incentive task as completed and award pages to the user.
+    Mark an incentive task as completed and award credit to the user.
 
     Each task can only be completed once. If the task was already completed,
-    returns the existing completion information without awarding additional pages.
+    returns the existing completion information without awarding additional credit.
     """
     # Validate task type exists in config
     task_config = INCENTIVE_TASKS_CONFIG.get(task_type)
@@ -109,25 +109,23 @@ async def complete_task(
         )
 
     # Create the task completion record
-    pages_reward = task_config["pages_reward"]
+    credit_micros_reward = task_config["credit_micros_reward"]
     new_task = UserIncentiveTask(
         user_id=user.id,
         task_type=task_type,
-        pages_awarded=pages_reward,
+        credit_micros_awarded=credit_micros_reward,
     )
     session.add(new_task)
 
-    # pages_used can exceed pages_limit when a document's final page count is
-    # determined after processing. Base the new limit on the higher of the two
-    # so the rewarded pages are fully usable above the current high-water mark.
-    user.pages_limit = max(user.pages_used, user.pages_limit) + pages_reward
+    # Add the reward directly to the user's spendable wallet balance.
+    user.credit_micros_balance = user.credit_micros_balance + credit_micros_reward
 
     await session.commit()
     await session.refresh(user)
 
     return CompleteTaskResponse(
         success=True,
-        message=f"Task completed! You earned {pages_reward} pages.",
-        pages_awarded=pages_reward,
-        new_pages_limit=user.pages_limit,
+        message=f"Task completed! You earned ${credit_micros_reward / 1_000_000:.2f} of credit.",
+        credit_micros_awarded=credit_micros_reward,
+        new_balance_micros=user.credit_micros_balance,
     )

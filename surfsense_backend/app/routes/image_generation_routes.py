@@ -590,11 +590,10 @@ async def create_image_generation(
             detail={
                 "error_code": "premium_quota_exhausted",
                 "usage_type": exc.usage_type,
-                "used_micros": exc.used_micros,
-                "limit_micros": exc.limit_micros,
+                "balance_micros": exc.balance_micros,
                 "remaining_micros": exc.remaining_micros,
                 "message": (
-                    "Out of premium credits for image generation. "
+                    "Out of credits for image generation. "
                     "Purchase additional credits or switch to a free model."
                 ),
             },

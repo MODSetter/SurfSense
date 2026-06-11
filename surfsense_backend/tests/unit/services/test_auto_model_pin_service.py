@@ -90,7 +90,7 @@ async def test_auto_first_turn_pins_one_model(monkeypatch):
         return _FakeQuotaResult(allowed=True)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _allowed,
     )
 
@@ -138,7 +138,7 @@ async def test_premium_eligible_auto_prefers_premium_over_free(monkeypatch):
         return _FakeQuotaResult(allowed=True)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _allowed,
     )
 
@@ -196,7 +196,7 @@ async def test_premium_eligible_auto_prefers_azure_gpt_5_4(monkeypatch):
         return _FakeQuotaResult(allowed=True)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _allowed,
     )
 
@@ -232,11 +232,11 @@ async def test_next_turn_reuses_existing_pin(monkeypatch):
 
     async def _must_not_call(*_args, **_kwargs):
         raise AssertionError(
-            "premium_get_usage should not be called for valid pin reuse"
+            "credit_get_usage should not be called for valid pin reuse"
         )
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _must_not_call,
     )
 
@@ -275,7 +275,7 @@ async def test_premium_eligible_auto_can_pin_premium(monkeypatch):
         return _FakeQuotaResult(allowed=True)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _allowed,
     )
 
@@ -320,7 +320,7 @@ async def test_premium_ineligible_auto_pins_free_only(monkeypatch):
         return _FakeQuotaResult(allowed=False)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _blocked,
     )
 
@@ -365,7 +365,7 @@ async def test_pinned_premium_stays_premium_after_quota_exhaustion(monkeypatch):
         return _FakeQuotaResult(allowed=False)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _blocked,
     )
 
@@ -410,7 +410,7 @@ async def test_force_repin_free_switches_auto_premium_pin_to_free(monkeypatch):
         return _FakeQuotaResult(allowed=False)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _blocked,
     )
 
@@ -470,7 +470,7 @@ async def test_invalid_pinned_config_repairs_with_new_pin(monkeypatch):
         return _FakeQuotaResult(allowed=False)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _blocked,
     )
 
@@ -529,7 +529,7 @@ async def test_health_gated_config_is_excluded_from_selection(monkeypatch):
         return _FakeQuotaResult(allowed=False)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _blocked,
     )
 
@@ -581,7 +581,7 @@ async def test_tier_a_locks_first_premium_user_skips_or(monkeypatch):
         return _FakeQuotaResult(allowed=True)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _allowed,
     )
 
@@ -633,7 +633,7 @@ async def test_tier_a_falls_through_to_or_when_a_pool_empty_for_user(monkeypatch
         return _FakeQuotaResult(allowed=False)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _blocked,
     )
 
@@ -686,7 +686,7 @@ async def test_top_k_picks_only_high_score_models(monkeypatch):
         return _FakeQuotaResult(allowed=True)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _allowed,
     )
 
@@ -754,7 +754,7 @@ async def test_pin_reuse_survives_health_gating_for_existing_pin(monkeypatch):
         return _FakeQuotaResult(allowed=True)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _allowed,
     )
 
@@ -803,10 +803,10 @@ async def test_pin_reuse_regression_existing_healthy_pin(monkeypatch):
     )
 
     async def _must_not_call(*_args, **_kwargs):
-        raise AssertionError("premium_get_usage should not run on pin reuse")
+        raise AssertionError("credit_get_usage should not run on pin reuse")
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _must_not_call,
     )
 
@@ -864,7 +864,7 @@ async def test_runtime_cooled_down_pin_is_not_reused(monkeypatch):
         return _FakeQuotaResult(allowed=False)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _blocked,
     )
 
@@ -904,10 +904,10 @@ async def test_clearing_runtime_cooldown_restores_pin_reuse(monkeypatch):
     )
 
     async def _must_not_call(*_args, **_kwargs):
-        raise AssertionError("premium_get_usage should not run on healthy pin reuse")
+        raise AssertionError("credit_get_usage should not run on healthy pin reuse")
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _must_not_call,
     )
 
@@ -962,7 +962,7 @@ async def test_auto_pin_repin_excludes_previous_config_on_runtime_retry(monkeypa
         return _FakeQuotaResult(allowed=False)
 
     monkeypatch.setattr(
-        "app.services.auto_model_pin_service.TokenQuotaService.premium_get_usage",
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _blocked,
     )
 

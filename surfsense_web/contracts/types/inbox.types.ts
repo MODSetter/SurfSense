@@ -11,7 +11,7 @@ export const inboxItemTypeEnum = z.enum([
 	"document_processing",
 	"new_mention",
 	"comment_reply",
-	"page_limit_exceeded",
+	"insufficient_credits",
 ]);
 
 /**
@@ -116,15 +116,17 @@ export const commentReplyMetadata = z.object({
 });
 
 /**
- * Page limit exceeded metadata schema
+ * Insufficient credits metadata schema.
+ *
+ * ``balance_micros`` / ``required_micros`` are integer micro-USD
+ * (1_000_000 == $1.00); the UI divides by 1M when displaying.
  */
-export const pageLimitExceededMetadata = baseInboxItemMetadata.extend({
+export const insufficientCreditsMetadata = baseInboxItemMetadata.extend({
 	document_name: z.string(),
 	document_type: z.string(),
-	pages_used: z.number(),
-	pages_limit: z.number(),
-	pages_to_add: z.number(),
-	error_type: z.literal("page_limit_exceeded"),
+	balance_micros: z.number(),
+	required_micros: z.number(),
+	error_type: z.literal("insufficient_credits"),
 	// Navigation target for frontend
 	action_url: z.string(),
 	action_label: z.string(),
@@ -140,7 +142,7 @@ export const inboxItemMetadata = z.union([
 	documentProcessingMetadata,
 	newMentionMetadata,
 	commentReplyMetadata,
-	pageLimitExceededMetadata,
+	insufficientCreditsMetadata,
 	baseInboxItemMetadata,
 ]);
 
@@ -188,9 +190,9 @@ export const commentReplyInboxItem = inboxItem.extend({
 	metadata: commentReplyMetadata,
 });
 
-export const pageLimitExceededInboxItem = inboxItem.extend({
-	type: z.literal("page_limit_exceeded"),
-	metadata: pageLimitExceededMetadata,
+export const insufficientCreditsInboxItem = inboxItem.extend({
+	type: z.literal("insufficient_credits"),
+	metadata: insufficientCreditsMetadata,
 });
 
 // =============================================================================
@@ -341,12 +343,12 @@ export function isCommentReplyMetadata(metadata: unknown): metadata is CommentRe
 }
 
 /**
- * Type guard for PageLimitExceededMetadata
+ * Type guard for InsufficientCreditsMetadata
  */
-export function isPageLimitExceededMetadata(
+export function isInsufficientCreditsMetadata(
 	metadata: unknown
-): metadata is PageLimitExceededMetadata {
-	return pageLimitExceededMetadata.safeParse(metadata).success;
+): metadata is InsufficientCreditsMetadata {
+	return insufficientCreditsMetadata.safeParse(metadata).success;
 }
 
 /**
@@ -361,7 +363,7 @@ export function parseInboxItemMetadata(
 	| DocumentProcessingMetadata
 	| NewMentionMetadata
 	| CommentReplyMetadata
-	| PageLimitExceededMetadata
+	| InsufficientCreditsMetadata
 	| null {
 	switch (type) {
 		case "connector_indexing": {
@@ -384,8 +386,8 @@ export function parseInboxItemMetadata(
 			const result = commentReplyMetadata.safeParse(metadata);
 			return result.success ? result.data : null;
 		}
-		case "page_limit_exceeded": {
-			const result = pageLimitExceededMetadata.safeParse(metadata);
+		case "insufficient_credits": {
+			const result = insufficientCreditsMetadata.safeParse(metadata);
 			return result.success ? result.data : null;
 		}
 		default:
@@ -406,7 +408,7 @@ export type ConnectorDeletionMetadata = z.infer<typeof connectorDeletionMetadata
 export type DocumentProcessingMetadata = z.infer<typeof documentProcessingMetadata>;
 export type NewMentionMetadata = z.infer<typeof newMentionMetadata>;
 export type CommentReplyMetadata = z.infer<typeof commentReplyMetadata>;
-export type PageLimitExceededMetadata = z.infer<typeof pageLimitExceededMetadata>;
+export type InsufficientCreditsMetadata = z.infer<typeof insufficientCreditsMetadata>;
 export type InboxItemMetadata = z.infer<typeof inboxItemMetadata>;
 export type InboxItem = z.infer<typeof inboxItem>;
 export type ConnectorIndexingInboxItem = z.infer<typeof connectorIndexingInboxItem>;
@@ -414,7 +416,7 @@ export type ConnectorDeletionInboxItem = z.infer<typeof connectorDeletionInboxIt
 export type DocumentProcessingInboxItem = z.infer<typeof documentProcessingInboxItem>;
 export type NewMentionInboxItem = z.infer<typeof newMentionInboxItem>;
 export type CommentReplyInboxItem = z.infer<typeof commentReplyInboxItem>;
-export type PageLimitExceededInboxItem = z.infer<typeof pageLimitExceededInboxItem>;
+export type InsufficientCreditsInboxItem = z.infer<typeof insufficientCreditsInboxItem>;
 
 // API Request/Response types
 export type GetNotificationsRequest = z.infer<typeof getNotificationsRequest>;

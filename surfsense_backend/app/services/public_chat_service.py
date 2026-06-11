@@ -337,6 +337,9 @@ async def _get_podcast_for_snapshot(
         "original_id": podcast.id,
         "title": podcast.title,
         "transcript": podcast.podcast_transcript,
+        "storage_backend": podcast.storage_backend,
+        "storage_key": podcast.storage_key,
+        # Legacy fallback for rows rendered before the storage migration.
         "file_path": podcast.file_location,
     }
 
@@ -717,6 +720,8 @@ async def clone_from_snapshot(
                             new_podcast = Podcast(
                                 title=podcast_info.get("title", "Cloned Podcast"),
                                 podcast_transcript=podcast_info.get("transcript"),
+                                storage_backend=podcast_info.get("storage_backend"),
+                                storage_key=podcast_info.get("storage_key"),
                                 file_location=podcast_info.get("file_path"),
                                 status=PodcastStatus.READY,
                                 search_space_id=target_search_space_id,

@@ -410,7 +410,7 @@ async def _is_premium_eligible(
     parsed = _to_uuid(user_id)
     if parsed is None:
         return False
-    usage = await TokenQuotaService.premium_get_usage(session, parsed)
+    usage = await TokenQuotaService.credit_get_usage(session, parsed)
     return bool(usage.allowed)
 
 
