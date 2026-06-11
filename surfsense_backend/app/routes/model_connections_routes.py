@@ -69,7 +69,7 @@ def _connection_read(conn: Connection | dict, models: list[Model | dict] | None 
         last_verified_at=conn.last_verified_at,
         last_status=conn.last_status,
         last_error=conn.last_error,
-        models=[_model_read(model) for model in (models or conn.models or [])],
+        models=[_model_read(model) for model in (models or [])],
         created_at=conn.created_at,
     )
 
@@ -144,7 +144,10 @@ async def list_connections(
     else:
         stmt = stmt.where(Connection.user_id == user.id)
     result = await session.execute(stmt.order_by(Connection.id))
-    return [_connection_read(conn) for conn in result.scalars().all()]
+    return [
+        _connection_read(conn, list(conn.models))
+        for conn in result.scalars().all()
+    ]
 
 
 @router.post("/model-connections", response_model=ConnectionRead)
@@ -173,7 +176,7 @@ async def create_connection(
     session.add(conn)
     await session.commit()
     await session.refresh(conn)
-    return _connection_read(conn)
+    return _connection_read(conn, [])
 
 
 @router.put("/model-connections/{connection_id}", response_model=ConnectionRead)
@@ -188,8 +191,8 @@ async def update_connection(
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(conn, key, value)
     await session.commit()
-    await session.refresh(conn)
-    return _connection_read(conn)
+    conn = await _load_connection(session, connection_id)
+    return _connection_read(conn, list(conn.models))
 
 
 @router.delete("/model-connections/{connection_id}")
@@ -253,7 +256,7 @@ async def discover_connection_models(
             }
             db_model.catalog = item.get("metadata") or db_model.catalog
     await session.commit()
-    await session.refresh(conn)
+    conn = await _load_connection(session, connection_id)
     return [_model_read(model) for model in conn.models]
 
 
