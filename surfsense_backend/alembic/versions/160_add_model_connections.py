@@ -1,7 +1,7 @@
 """add model connections
 
-Revision ID: 156
-Revises: 155
+Revision ID: 160
+Revises: 159
 """
 
 from collections.abc import Sequence
@@ -11,8 +11,8 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision: str = "156"
-down_revision: str | None = "155"
+revision: str = "160"
+down_revision: str | None = "159"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
