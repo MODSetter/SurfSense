@@ -31,8 +31,8 @@
 	"dependencies": {
 		"@ai-sdk/react": "^1.2.12",
 		"@ariakit/react": "^0.4.21",
-		"@assistant-ui/react": "^0.12.19",
-		"@assistant-ui/react-markdown": "^0.12.6",
+		"@assistant-ui/react": "^0.14.14",
+		"@assistant-ui/react-markdown": "^0.14.1",
 		"@babel/standalone": "^7.29.2",
 		"@hookform/resolvers": "^5.2.2",
 		"@marsidev/react-turnstile": "^1.5.0",
