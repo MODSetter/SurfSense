@@ -68,7 +68,6 @@ from .new_llm_config import (
     NewLLMConfigRead,
     NewLLMConfigUpdate,
 )
-from .podcasts import PodcastBase, PodcastCreate, PodcastRead, PodcastUpdate
 from .rbac_schemas import (
     InviteAcceptRequest,
     InviteAcceptResponse,
@@ -237,10 +236,6 @@ __all__ = [
     "PermissionInfo",
     "PermissionsListResponse",
     # Podcast schemas
-    "PodcastBase",
-    "PodcastCreate",
-    "PodcastRead",
-    "PodcastUpdate",
     "RefreshTokenRequest",
     "RefreshTokenResponse",
     # Report schemas

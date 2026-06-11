@@ -239,17 +239,18 @@ def test_video_presentation_task_uses_runner_helper() -> None:
     )
 
 
-def test_podcast_task_uses_runner_helper() -> None:
-    """Symmetric assertion for the podcast task — same root cause, same
+def test_podcast_tasks_use_runner_helper() -> None:
+    """Symmetric assertion for the podcast tasks — same root cause, same
     fix, same regression risk.
     """
     import inspect
 
-    from app.tasks.celery_tasks import podcast_tasks
+    from app.podcasts.tasks import draft, render
 
-    src = inspect.getsource(podcast_tasks)
-    assert "run_async_celery_task" in src
-    assert "asyncio.new_event_loop" not in src
+    for module in (draft, render):
+        src = inspect.getsource(module)
+        assert "run_async_celery_task" in src
+        assert "asyncio.new_event_loop" not in src
 
 
 def test_runner_runs_shutdown_asyncgens_before_close() -> None:

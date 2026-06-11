@@ -16,7 +16,6 @@ export {
 	GenerateImageResultSchema,
 	GenerateImageToolUI,
 } from "./generate-image";
-export { GeneratePodcastToolUI } from "./generate-podcast";
 export { GenerateReportToolUI } from "./generate-report";
 export { CreateGoogleDriveFileToolUI, DeleteGoogleDriveFileToolUI } from "./google-drive";
 export {
@@ -44,6 +43,7 @@ export {
 	type SerializablePlan,
 	type TodoStatus,
 } from "./plan";
+export { GeneratePodcastToolUI } from "./podcast";
 export {
 	type ExecuteArgs,
 	ExecuteArgsSchema,

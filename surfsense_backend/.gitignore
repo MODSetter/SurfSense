@@ -6,7 +6,7 @@ data/
 __pycache__/
 .flashrank_cache
 surf_new_backend.egg-info/
-podcasts/
+/podcasts/
 video_presentation_audio/
 sandbox_files/
 temp_audio/

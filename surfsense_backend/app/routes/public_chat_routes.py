@@ -99,6 +99,17 @@ async def stream_public_podcast(
     if not podcast_info:
         raise HTTPException(status_code=404, detail="Podcast not found")
 
+    storage_key = podcast_info.get("storage_key")
+    if storage_key:
+        from app.file_storage.factory import get_storage_backend
+
+        return StreamingResponse(
+            get_storage_backend().open_stream(storage_key),
+            media_type="audio/mpeg",
+            headers={"Accept-Ranges": "bytes"},
+        )
+
+    # Legacy fallback for snapshots taken before the storage migration.
     file_path = podcast_info.get("file_path")
 
     if not file_path or not os.path.isfile(file_path):
