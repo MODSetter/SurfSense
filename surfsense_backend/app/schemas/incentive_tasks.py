@@ -15,7 +15,8 @@ class IncentiveTaskInfo(BaseModel):
     task_type: IncentiveTaskType
     title: str
     description: str
-    pages_reward: int
+    # Credit reward in USD micro-units (1_000_000 == $1.00).
+    credit_micros_reward: int
     action_url: str
     completed: bool
     completed_at: datetime | None = None
@@ -25,7 +26,7 @@ class IncentiveTasksResponse(BaseModel):
     """Response containing all available incentive tasks with completion status."""
 
     tasks: list[IncentiveTaskInfo]
-    total_pages_earned: int
+    total_credit_micros_earned: int
 
 
 class CompleteTaskRequest(BaseModel):
@@ -39,8 +40,8 @@ class CompleteTaskResponse(BaseModel):
 
     success: bool
     message: str
-    pages_awarded: int
-    new_pages_limit: int
+    credit_micros_awarded: int
+    new_balance_micros: int
 
 
 class TaskAlreadyCompletedResponse(BaseModel):

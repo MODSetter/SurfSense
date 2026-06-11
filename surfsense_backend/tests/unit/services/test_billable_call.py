@@ -38,11 +38,13 @@ class _FakeQuotaResult:
         used: int = 0,
         limit: int = 5_000_000,
         remaining: int = 5_000_000,
+        balance: int = 5_000_000,
     ) -> None:
         self.allowed = allowed
         self.used = used
         self.limit = limit
         self.remaining = remaining
+        self.balance = balance
 
 
 class _FakeSession:
@@ -118,17 +120,17 @@ def _patch_isolation_layer(
         return object()
 
     monkeypatch.setattr(
-        "app.services.billable_calls.TokenQuotaService.premium_reserve",
+        "app.services.billable_calls.TokenQuotaService.credit_reserve",
         _fake_reserve,
         raising=False,
     )
     monkeypatch.setattr(
-        "app.services.billable_calls.TokenQuotaService.premium_finalize",
+        "app.services.billable_calls.TokenQuotaService.credit_finalize",
         _fake_finalize,
         raising=False,
     )
     monkeypatch.setattr(
-        "app.services.billable_calls.TokenQuotaService.premium_release",
+        "app.services.billable_calls.TokenQuotaService.credit_release",
         _fake_release,
         raising=False,
     )
@@ -201,9 +203,7 @@ async def test_premium_reserve_denied_raises_quota_insufficient(monkeypatch):
 
     spies = _patch_isolation_layer(
         monkeypatch,
-        reserve_result=_FakeQuotaResult(
-            allowed=False, used=5_000_000, limit=5_000_000, remaining=0
-        ),
+        reserve_result=_FakeQuotaResult(allowed=False, balance=0, remaining=0),
     )
     user_id = uuid4()
 
@@ -220,8 +220,7 @@ async def test_premium_reserve_denied_raises_quota_insufficient(monkeypatch):
 
     err = exc_info.value
     assert err.usage_type == "image_generation"
-    assert err.used_micros == 5_000_000
-    assert err.limit_micros == 5_000_000
+    assert err.balance_micros == 0
     assert err.remaining_micros == 0
     # Reserve was attempted, but no finalize/release on a denied reserve
     # — the reservation never actually held credit.
@@ -532,7 +531,7 @@ async def test_premium_video_denial_raises_quota_insufficient(monkeypatch):
     spies = _patch_isolation_layer(
         monkeypatch,
         reserve_result=_FakeQuotaResult(
-            allowed=False, used=4_500_000, limit=5_000_000, remaining=500_000
+            allowed=False, balance=500_000, remaining=500_000
         ),
     )
     user_id = uuid4()
@@ -552,6 +551,7 @@ async def test_premium_video_denial_raises_quota_insufficient(monkeypatch):
 
     err = exc_info.value
     assert err.usage_type == "video_presentation_generation"
+    assert err.balance_micros == 500_000
     assert err.remaining_micros == 500_000
     assert spies["reserve"][0]["reserve_micros"] == 1_000_000
     assert spies["finalize"] == []

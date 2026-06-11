@@ -22,7 +22,7 @@ const CATEGORY_TYPES: Record<NotificationCategory, string[]> = {
 		"connector_indexing",
 		"connector_deletion",
 		"document_processing",
-		"page_limit_exceeded",
+		"insufficient_credits",
 	],
 };
 

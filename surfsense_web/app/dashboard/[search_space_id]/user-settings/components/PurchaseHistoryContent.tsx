@@ -14,24 +14,24 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import type {
+	CreditPurchase,
 	PagePurchase,
-	PagePurchaseStatus,
-	TokenPurchase,
+	PurchaseStatus,
 } from "@/contracts/types/stripe.types";
 import { stripeApiService } from "@/lib/apis/stripe-api.service";
 import { cn } from "@/lib/utils";
 
-type PurchaseKind = "pages" | "tokens";
+type PurchaseKind = "pages" | "credits";
 
 type UnifiedPurchase = {
 	id: string;
 	kind: PurchaseKind;
 	created_at: string;
-	status: PagePurchaseStatus;
+	status: PurchaseStatus;
 	/**
 	 * Granted units. Interpretation depends on ``kind``:
-	 *  - ``"pages"`` — integer number of indexed pages.
-	 *  - ``"tokens"`` — integer micro-USD of credit (1_000_000 = $1.00).
+	 *  - ``"pages"`` — integer number of indexed pages (legacy history).
+	 *  - ``"credits"`` — integer micro-USD of credit (1_000_000 = $1.00).
 	 * The ``Granted`` column formats accordingly.
 	 */
 	granted: number;
@@ -39,7 +39,7 @@ type UnifiedPurchase = {
 	currency: string | null;
 };
 
-const STATUS_STYLES: Record<PagePurchaseStatus, { label: string; className: string }> = {
+const STATUS_STYLES: Record<PurchaseStatus, { label: string; className: string }> = {
 	completed: {
 		label: "Completed",
 		className: "bg-emerald-600 text-white border-transparent hover:bg-emerald-600",
@@ -63,8 +63,8 @@ const KIND_META: Record<
 		icon: FileText,
 		iconClass: "text-sky-500",
 	},
-	tokens: {
-		label: "Premium Credit",
+	credits: {
+		label: "Credits",
 		icon: Coins,
 		iconClass: "text-amber-500",
 	},
@@ -97,10 +97,10 @@ function normalizePagePurchase(p: PagePurchase): UnifiedPurchase {
 	};
 }
 
-function normalizeTokenPurchase(p: TokenPurchase): UnifiedPurchase {
+function normalizeCreditPurchase(p: CreditPurchase): UnifiedPurchase {
 	return {
 		id: p.id,
-		kind: "tokens",
+		kind: "credits",
 		created_at: p.created_at,
 		status: p.status,
 		granted: p.credit_micros_granted,
@@ -110,10 +110,10 @@ function normalizeTokenPurchase(p: TokenPurchase): UnifiedPurchase {
 }
 
 function formatGranted(p: UnifiedPurchase): string {
-	if (p.kind === "tokens") {
+	if (p.kind === "credits") {
 		const dollars = p.granted / 1_000_000;
-		// Premium credit packs are always whole dollars at the moment, but
-		// future fractional grants (refunds, partial top-ups) shouldn't
+		// Credit packs are always whole dollars at the moment, but future
+		// fractional grants (refunds, partial top-ups, auto-reload) shouldn't
 		// silently round to "$0".
 		if (dollars >= 1) return `$${dollars.toFixed(2)} of credit`;
 		if (dollars > 0) return `$${dollars.toFixed(3)} of credit`;
@@ -127,26 +127,26 @@ export function PurchaseHistoryContent() {
 		queries: [
 			{
 				queryKey: ["stripe-purchases"],
-				queryFn: () => stripeApiService.getPurchases(),
+				queryFn: () => stripeApiService.getPagePurchases(),
 			},
 			{
-				queryKey: ["stripe-token-purchases"],
-				queryFn: () => stripeApiService.getTokenPurchases(),
+				queryKey: ["stripe-credit-purchases"],
+				queryFn: () => stripeApiService.getCreditPurchases(),
 			},
 		],
 	});
 
-	const [pagesQuery, tokensQuery] = results;
-	const isLoading = pagesQuery.isLoading || tokensQuery.isLoading;
+	const [pagesQuery, creditsQuery] = results;
+	const isLoading = pagesQuery.isLoading || creditsQuery.isLoading;
 
 	const purchases = useMemo<UnifiedPurchase[]>(() => {
 		const pagePurchases = pagesQuery.data?.purchases ?? [];
-		const tokenPurchases = tokensQuery.data?.purchases ?? [];
+		const creditPurchases = creditsQuery.data?.purchases ?? [];
 		return [
 			...pagePurchases.map(normalizePagePurchase),
-			...tokenPurchases.map(normalizeTokenPurchase),
+			...creditPurchases.map(normalizeCreditPurchase),
 		].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-	}, [pagesQuery.data, tokensQuery.data]);
+	}, [pagesQuery.data, creditsQuery.data]);
 
 	if (isLoading) {
 		return (
@@ -162,7 +162,7 @@ export function PurchaseHistoryContent() {
 				<ReceiptText className="h-8 w-8 text-muted-foreground" />
 				<p className="text-sm font-medium">No purchases yet</p>
 				<p className="text-xs text-muted-foreground">
-					Your page and premium credit purchases will appear here after checkout.
+					Your credit purchases will appear here after checkout.
 				</p>
 			</div>
 		);

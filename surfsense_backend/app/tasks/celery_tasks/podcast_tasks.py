@@ -164,11 +164,9 @@ async def _generate_content_podcast(
                     )
             except QuotaInsufficientError as exc:
                 logger.info(
-                    "Podcast %s denied: out of premium credits "
-                    "(used=%d/%d remaining=%d)",
+                    "Podcast %s denied: out of credits (balance=%d remaining=%d)",
                     podcast.id,
-                    exc.used_micros,
-                    exc.limit_micros,
+                    exc.balance_micros,
                     exc.remaining_micros,
                 )
                 podcast.status = PodcastStatus.FAILED

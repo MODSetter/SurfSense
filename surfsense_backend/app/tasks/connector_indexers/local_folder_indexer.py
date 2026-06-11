@@ -33,7 +33,7 @@ from app.db import (
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_identifier_hash
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
-from app.services.page_limit_service import PageLimitExceededError, PageLimitService
+from app.services.etl_credit_service import EtlCreditService, InsufficientCreditsError
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker
 from app.utils.document_versioning import create_version_snapshot
@@ -46,38 +46,38 @@ from .base import (
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 
 
-def _estimate_pages_safe(page_limit_service: PageLimitService, file_path: str) -> int:
+def _estimate_pages_safe(etl_credit_service: EtlCreditService, file_path: str) -> int:
     """Estimate page count with a file-size fallback."""
     try:
-        return page_limit_service.estimate_pages_before_processing(file_path)
+        return etl_credit_service.estimate_pages_before_processing(file_path)
     except Exception:
         file_size = os.path.getsize(file_path)
         return max(1, file_size // (80 * 1024))
 
 
-async def _check_page_limit_or_skip(
-    page_limit_service: PageLimitService,
+async def _check_credits_or_skip(
+    etl_credit_service: EtlCreditService,
     user_id: str,
     file_path: str,
     page_multiplier: int = 1,
 ) -> tuple[int, int]:
-    """Estimate pages and check the limit; raises PageLimitExceededError if over quota.
+    """Estimate pages and check credit; raises InsufficientCreditsError if unaffordable.
 
     Returns (estimated_pages, billable_pages).
     """
-    estimated = _estimate_pages_safe(page_limit_service, file_path)
+    estimated = _estimate_pages_safe(etl_credit_service, file_path)
     billable = estimated * page_multiplier
-    await page_limit_service.check_page_limit(user_id, billable)
+    await etl_credit_service.check_credits(user_id, billable)
     return estimated, billable
 
 
 def _compute_final_pages(
-    page_limit_service: PageLimitService,
+    etl_credit_service: EtlCreditService,
     estimated_pages: int,
     content_length: int,
 ) -> int:
     """Return the final page count as max(estimated, actual)."""
-    actual = page_limit_service.estimate_pages_from_content_length(content_length)
+    actual = etl_credit_service.estimate_pages_from_content_length(content_length)
     return max(estimated_pages, actual)
 
 
@@ -635,7 +635,7 @@ async def index_local_folder(
         skipped_count = 0
         failed_count = 0
 
-        page_limit_service = PageLimitService(session)
+        etl_credit_service = EtlCreditService(session)
 
         # ================================================================
         # PHASE 1: Pre-filter files (mtime / content-hash), version changed
@@ -694,12 +694,12 @@ async def index_local_folder(
                         continue
 
                     try:
-                        estimated_pages, _billable = await _check_page_limit_or_skip(
-                            page_limit_service, user_id, file_path_abs
+                        estimated_pages, _billable = await _check_credits_or_skip(
+                            etl_credit_service, user_id, file_path_abs
                         )
-                    except PageLimitExceededError:
+                    except InsufficientCreditsError:
                         logger.warning(
-                            f"Page limit exceeded, skipping: {file_path_abs}"
+                            f"Insufficient credits, skipping: {file_path_abs}"
                         )
                         failed_count += 1
                         continue
@@ -730,12 +730,12 @@ async def index_local_folder(
                     await create_version_snapshot(session, existing_document)
                 else:
                     try:
-                        estimated_pages, _billable = await _check_page_limit_or_skip(
-                            page_limit_service, user_id, file_path_abs
+                        estimated_pages, _billable = await _check_credits_or_skip(
+                            etl_credit_service, user_id, file_path_abs
                         )
-                    except PageLimitExceededError:
+                    except InsufficientCreditsError:
                         logger.warning(
-                            f"Page limit exceeded, skipping: {file_path_abs}"
+                            f"Insufficient credits, skipping: {file_path_abs}"
                         )
                         failed_count += 1
                         continue
@@ -858,11 +858,9 @@ async def index_local_folder(
                     est = mtime_info.get("estimated_pages", 1)
                     content_len = mtime_info.get("content_length", 0)
                     final_pages = _compute_final_pages(
-                        page_limit_service, est, content_len
+                        etl_credit_service, est, content_len
                     )
-                    await page_limit_service.update_page_usage(
-                        user_id, final_pages, allow_exceed=True
-                    )
+                    await etl_credit_service.charge_credits(user_id, final_pages)
                 else:
                     failed_count += 1
 
@@ -1072,13 +1070,13 @@ async def _index_single_file(
                 await session.commit()
                 return 0, 0, None
 
-        page_limit_service = PageLimitService(session)
+        etl_credit_service = EtlCreditService(session)
         try:
-            estimated_pages, _billable = await _check_page_limit_or_skip(
-                page_limit_service, user_id, str(full_path)
+            estimated_pages, _billable = await _check_credits_or_skip(
+                etl_credit_service, user_id, str(full_path)
             )
-        except PageLimitExceededError as e:
-            return 0, 1, f"Page limit exceeded: {e}"
+        except InsufficientCreditsError as e:
+            return 0, 1, f"Insufficient credits: {e}"
 
         try:
             content, content_hash = await _compute_file_content_hash(
@@ -1142,11 +1140,9 @@ async def _index_single_file(
 
         if indexed:
             final_pages = _compute_final_pages(
-                page_limit_service, estimated_pages, len(content)
+                etl_credit_service, estimated_pages, len(content)
             )
-            await page_limit_service.update_page_usage(
-                user_id, final_pages, allow_exceed=True
-            )
+            await etl_credit_service.charge_credits(user_id, final_pages)
             await task_logger.log_task_success(
                 log_entry,
                 f"Single file indexed: {rel_path}",
@@ -1299,7 +1295,7 @@ async def index_uploaded_files(
 
         await _set_indexing_flag(session, root_folder_id)
 
-        page_limit_service = PageLimitService(session)
+        etl_credit_service = EtlCreditService(session)
         pipeline = IndexingPipelineService(session)
 
         vision_llm_instance = None
@@ -1345,14 +1341,14 @@ async def index_uploaded_files(
                         continue
 
                 try:
-                    estimated_pages, _billable_pages = await _check_page_limit_or_skip(
-                        page_limit_service,
+                    estimated_pages, _billable_pages = await _check_credits_or_skip(
+                        etl_credit_service,
                         user_id,
                         temp_path,
                         page_multiplier=mode.page_multiplier,
                     )
-                except PageLimitExceededError:
-                    logger.warning(f"Page limit exceeded, skipping: {relative_path}")
+                except InsufficientCreditsError:
+                    logger.warning(f"Insufficient credits, skipping: {relative_path}")
                     failed_count += 1
                     continue
 
@@ -1425,12 +1421,10 @@ async def index_uploaded_files(
                 if DocumentStatus.is_state(db_doc.status, DocumentStatus.READY):
                     indexed_count += 1
                     final_pages = _compute_final_pages(
-                        page_limit_service, estimated_pages, len(content)
+                        etl_credit_service, estimated_pages, len(content)
                     )
                     final_billable = final_pages * mode.page_multiplier
-                    await page_limit_service.update_page_usage(
-                        user_id, final_billable, allow_exceed=True
-                    )
+                    await etl_credit_service.charge_credits(user_id, final_billable)
                 else:
                     failed_count += 1
 

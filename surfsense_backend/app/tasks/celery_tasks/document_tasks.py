@@ -668,52 +668,52 @@ async def _process_file_upload(
             # Import here to avoid circular dependencies
             from fastapi import HTTPException
 
-            from app.services.page_limit_service import PageLimitExceededError
+            from app.services.etl_credit_service import InsufficientCreditsError
 
-            # Check if this is a page limit error (either direct or wrapped in HTTPException)
-            page_limit_error: PageLimitExceededError | None = None
-            if isinstance(e, PageLimitExceededError):
-                page_limit_error = e
+            # Check if this is an insufficient-credit error (either direct or
+            # wrapped in HTTPException)
+            credit_error: InsufficientCreditsError | None = None
+            if isinstance(e, InsufficientCreditsError):
+                credit_error = e
             elif (
                 isinstance(e, HTTPException)
                 and e.__cause__
-                and isinstance(e.__cause__, PageLimitExceededError)
+                and isinstance(e.__cause__, InsufficientCreditsError)
             ):
-                # HTTPException wraps the original PageLimitExceededError
-                page_limit_error = e.__cause__
-            elif isinstance(e, HTTPException) and "page limit" in str(e.detail).lower():
-                # Fallback: HTTPException with page limit message but no cause
-                page_limit_error = None  # We don't have the details
+                # HTTPException wraps the original InsufficientCreditsError
+                credit_error = e.__cause__
+            elif isinstance(e, HTTPException) and "credit" in str(e.detail).lower():
+                # Fallback: HTTPException with credit message but no cause
+                credit_error = None  # We don't have the details
 
-            # For page limit errors, create a dedicated page_limit_exceeded notification
-            if page_limit_error is not None:
-                error_message = str(page_limit_error)
-                # Create a dedicated page limit exceeded notification
+            # For insufficient-credit errors, create a dedicated notification
+            if credit_error is not None:
+                error_message = str(credit_error)
+                # Create a dedicated insufficient credits notification
                 try:
                     # First, mark the processing notification as failed
                     await session.refresh(notification)
                     await NotificationService.document_processing.notify_processing_completed(
                         session=session,
                         notification=notification,
-                        error_message="Page limit exceeded",
+                        error_message="Insufficient credits",
                     )
 
-                    # Then create a separate page_limit_exceeded notification for better UX
-                    await NotificationService.page_limit.notify_page_limit_exceeded(
+                    # Then create a separate insufficient_credits notification for better UX
+                    await NotificationService.insufficient_credits.notify_insufficient_credits(
                         session=session,
                         user_id=UUID(user_id),
                         document_name=filename,
                         document_type="FILE",
                         search_space_id=search_space_id,
-                        pages_used=page_limit_error.pages_used,
-                        pages_limit=page_limit_error.pages_limit,
-                        pages_to_add=page_limit_error.pages_to_add,
+                        balance_micros=credit_error.balance_micros,
+                        required_micros=credit_error.required_micros,
                     )
                 except Exception as notif_error:
                     logger.error(
-                        f"Failed to create page limit notification: {notif_error!s}"
+                        f"Failed to create insufficient credits notification: {notif_error!s}"
                     )
-            elif isinstance(e, HTTPException) and "page limit" in str(e.detail).lower():
+            elif isinstance(e, HTTPException) and "credit" in str(e.detail).lower():
                 # HTTPException with page limit message but no detailed cause
                 error_message = str(e.detail)
                 try:
@@ -984,18 +984,18 @@ async def _process_file_with_document(
             # Import here to avoid circular dependencies
             from fastapi import HTTPException
 
-            from app.services.page_limit_service import PageLimitExceededError
+            from app.services.etl_credit_service import InsufficientCreditsError
 
-            # Check if this is a page limit error
-            page_limit_error: PageLimitExceededError | None = None
-            if isinstance(e, PageLimitExceededError):
-                page_limit_error = e
+            # Check if this is an insufficient-credit error
+            credit_error: InsufficientCreditsError | None = None
+            if isinstance(e, InsufficientCreditsError):
+                credit_error = e
             elif (
                 isinstance(e, HTTPException)
                 and e.__cause__
-                and isinstance(e.__cause__, PageLimitExceededError)
+                and isinstance(e.__cause__, InsufficientCreditsError)
             ):
-                page_limit_error = e.__cause__
+                credit_error = e.__cause__
 
             # Mark document as failed (shows error in UI via Zero)
             error_message = str(e)[:500]
@@ -1006,28 +1006,27 @@ async def _process_file_with_document(
                 f"[_process_file_with_document] Document {document_id} marked as failed: {error_message[:100]}"
             )
 
-            # Handle page limit errors with dedicated notification
-            if page_limit_error is not None:
+            # Handle insufficient-credit errors with dedicated notification
+            if credit_error is not None:
                 try:
                     await session.refresh(notification)
                     await NotificationService.document_processing.notify_processing_completed(
                         session=session,
                         notification=notification,
-                        error_message="Page limit exceeded",
+                        error_message="Insufficient credits",
                     )
-                    await NotificationService.page_limit.notify_page_limit_exceeded(
+                    await NotificationService.insufficient_credits.notify_insufficient_credits(
                         session=session,
                         user_id=UUID(user_id),
                         document_name=filename,
                         document_type="FILE",
                         search_space_id=search_space_id,
-                        pages_used=page_limit_error.pages_used,
-                        pages_limit=page_limit_error.pages_limit,
-                        pages_to_add=page_limit_error.pages_to_add,
+                        balance_micros=credit_error.balance_micros,
+                        required_micros=credit_error.required_micros,
                     )
                 except Exception as notif_error:
                     logger.error(
-                        f"Failed to create page limit notification: {notif_error!s}"
+                        f"Failed to create insufficient credits notification: {notif_error!s}"
                     )
             else:
                 # Update notification on failure

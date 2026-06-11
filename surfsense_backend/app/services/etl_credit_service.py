@@ -1,5 +1,14 @@
 """
-Service for managing user page limits for ETL services.
+Service for charging the unified credit wallet for ETL document processing.
+
+Replaces the legacy ``PageLimitService`` page-quota model. Page counts are
+still estimated the same way; they are now converted to USD micro-credits
+(``config.MICROS_PER_PAGE`` per page, times a per-mode multiplier) and debited
+from ``user.credit_micros_balance``.
+
+When ``config.ETL_CREDIT_BILLING_ENABLED`` is False (the default for
+self-hosted / OSS installs) every check/charge is a no-op, preserving the prior
+effectively-unlimited ETL behaviour.
 """
 
 import os
@@ -8,141 +17,125 @@ from pathlib import Path, PurePosixPath
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import config
 
-class PageLimitExceededError(Exception):
-    """
-    Exception raised when a user exceeds their page processing limit.
-    """
+
+class InsufficientCreditsError(Exception):
+    """Raised when a user lacks enough credit to process a document."""
 
     def __init__(
         self,
-        message: str = "Page limit exceeded. Please contact admin to increase limits for your account.",
-        pages_used: int = 0,
-        pages_limit: int = 0,
-        pages_to_add: int = 0,
+        message: str = "Insufficient credits to process this document. "
+        "Add more credits to continue.",
+        balance_micros: int = 0,
+        required_micros: int = 0,
     ):
-        self.pages_used = pages_used
-        self.pages_limit = pages_limit
-        self.pages_to_add = pages_to_add
+        self.balance_micros = balance_micros
+        self.required_micros = required_micros
         super().__init__(message)
 
 
-class PageLimitService:
-    """Service for checking and updating user page limits."""
+class EtlCreditService:
+    """Checks and charges the credit wallet for ETL page processing."""
 
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def check_page_limit(
-        self, user_id: str, estimated_pages: int = 1
-    ) -> tuple[bool, int, int]:
+    @staticmethod
+    def billing_enabled() -> bool:
+        return config.ETL_CREDIT_BILLING_ENABLED
+
+    @staticmethod
+    def pages_to_micros(pages: int, multiplier: int = 1) -> int:
+        """Convert a (multiplied) page count to USD micro-credits."""
+        return int(pages) * int(multiplier) * config.MICROS_PER_PAGE
+
+    async def get_available_micros(self, user_id: str) -> int | None:
+        """Return spendable credit in micro-USD (``balance - reserved``).
+
+        Returns ``None`` when ETL billing is disabled, which callers treat as
+        "unlimited" (no batch skipping, no blocking).
         """
-        Check if user has enough pages remaining for processing.
+        if not config.ETL_CREDIT_BILLING_ENABLED:
+            return None
 
-        Args:
-            user_id: The user's ID
-            estimated_pages: Estimated number of pages to be processed
-
-        Returns:
-            Tuple of (has_capacity, pages_used, pages_limit)
-
-        Raises:
-            PageLimitExceededError: If user would exceed their page limit
-        """
         from app.db import User
 
-        # Get user's current page usage
         result = await self.session.execute(
-            select(User.pages_used, User.pages_limit).where(User.id == user_id)
+            select(User.credit_micros_balance, User.credit_micros_reserved).where(
+                User.id == user_id
+            )
         )
         row = result.first()
-
         if not row:
             raise ValueError(f"User with ID {user_id} not found")
 
-        pages_used, pages_limit = row
+        balance, reserved = row
+        return balance - reserved
 
-        # Check if adding estimated pages would exceed limit
-        if pages_used + estimated_pages > pages_limit:
-            raise PageLimitExceededError(
-                message=f"Processing this document would exceed your page limit. "
-                f"Used: {pages_used}/{pages_limit} pages. "
-                f"Document has approximately {estimated_pages} page(s). "
-                f"Please contact admin to increase limits for your account.",
-                pages_used=pages_used,
-                pages_limit=pages_limit,
-                pages_to_add=estimated_pages,
+    async def check_credits(
+        self, user_id: str, estimated_pages: int = 1, multiplier: int = 1
+    ) -> None:
+        """Raise :class:`InsufficientCreditsError` if the user can't afford to
+        process ``estimated_pages`` (times ``multiplier``).
+
+        No-op when ETL billing is disabled.
+        """
+        if not config.ETL_CREDIT_BILLING_ENABLED:
+            return
+
+        required = self.pages_to_micros(estimated_pages, multiplier)
+        available = await self.get_available_micros(user_id)
+        if available is None:
+            return
+
+        if required > available:
+            raise InsufficientCreditsError(
+                message=(
+                    "Processing this document would exceed your available "
+                    f"credit. Available: ${available / 1_000_000:.2f}. "
+                    f"This document costs about ${required / 1_000_000:.2f} "
+                    f"({estimated_pages} page(s)). Add more credits to continue."
+                ),
+                balance_micros=available,
+                required_micros=required,
             )
 
-        return True, pages_used, pages_limit
+    async def charge_credits(
+        self, user_id: str, pages: int, multiplier: int = 1
+    ) -> int | None:
+        """Debit the credit wallet after successful processing.
 
-    async def update_page_usage(
-        self, user_id: str, pages_to_add: int, allow_exceed: bool = False
-    ) -> int:
+        The balance may dip slightly negative when the actual page count
+        exceeds the pre-check estimate (the document is already processed),
+        mirroring the prior ``allow_exceed=True`` semantics.
+
+        Returns the new balance in micros, or ``None`` when billing is disabled.
         """
-        Update user's page usage after successful processing.
+        if not config.ETL_CREDIT_BILLING_ENABLED:
+            return None
 
-        Args:
-            user_id: The user's ID
-            pages_to_add: Number of pages to add to usage
-            allow_exceed: If True, allows update even if it exceeds limit
-                         (used when document was already processed after passing initial check)
-
-        Returns:
-            New total pages_used value
-
-        Raises:
-            PageLimitExceededError: If adding pages would exceed limit and allow_exceed is False
-        """
         from app.db import User
 
-        # Get user
         result = await self.session.execute(select(User).where(User.id == user_id))
         user = result.unique().scalar_one_or_none()
-
         if not user:
             raise ValueError(f"User with ID {user_id} not found")
 
-        # Check if this would exceed limit (only if allow_exceed is False)
-        new_usage = user.pages_used + pages_to_add
-        if not allow_exceed and new_usage > user.pages_limit:
-            raise PageLimitExceededError(
-                message=f"Cannot update page usage. Would exceed limit. "
-                f"Current: {user.pages_used}/{user.pages_limit}, "
-                f"Trying to add: {pages_to_add}",
-                pages_used=user.pages_used,
-                pages_limit=user.pages_limit,
-                pages_to_add=pages_to_add,
-            )
-
-        # Update usage
-        user.pages_used = new_usage
+        cost = self.pages_to_micros(pages, multiplier)
+        user.credit_micros_balance -= cost
         await self.session.commit()
         await self.session.refresh(user)
 
-        return user.pages_used
+        # Best-effort: fire an auto-reload check if the balance dropped low.
+        try:
+            from app.services.auto_reload_service import maybe_trigger_auto_reload
 
-    async def get_page_usage(self, user_id: str) -> tuple[int, int]:
-        """
-        Get user's current page usage and limit.
+            await maybe_trigger_auto_reload(user_id)
+        except Exception:
+            pass
 
-        Args:
-            user_id: The user's ID
-
-        Returns:
-            Tuple of (pages_used, pages_limit)
-        """
-        from app.db import User
-
-        result = await self.session.execute(
-            select(User.pages_used, User.pages_limit).where(User.id == user_id)
-        )
-        row = result.first()
-
-        if not row:
-            raise ValueError(f"User with ID {user_id} not found")
-
-        return row
+        return user.credit_micros_balance
 
     def estimate_pages_from_elements(self, elements: list) -> int:
         """

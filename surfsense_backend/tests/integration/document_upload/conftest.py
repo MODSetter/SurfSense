@@ -204,32 +204,34 @@ async def _cleanup_documents(
 
 
 # ---------------------------------------------------------------------------
-# Page-limit helpers (direct DB for setup, API for verification)
+# Credit-wallet helpers (direct DB for setup, API for verification)
 # ---------------------------------------------------------------------------
 
 
-async def _get_user_page_usage(email: str) -> tuple[int, int]:
+async def _get_user_credit(email: str) -> tuple[int, int]:
     conn = await asyncpg.connect(_ASYNCPG_URL)
     try:
         row = await conn.fetchrow(
-            'SELECT pages_used, pages_limit FROM "user" WHERE email = $1',
+            "SELECT credit_micros_balance, credit_micros_reserved "
+            'FROM "user" WHERE email = $1',
             email,
         )
         assert row is not None, f"User {email!r} not found in database"
-        return row["pages_used"], row["pages_limit"]
+        return row["credit_micros_balance"], row["credit_micros_reserved"]
     finally:
         await conn.close()
 
 
-async def _set_user_page_limits(
-    email: str, *, pages_used: int, pages_limit: int
+async def _set_user_credit(
+    email: str, *, balance_micros: int, reserved_micros: int = 0
 ) -> None:
     conn = await asyncpg.connect(_ASYNCPG_URL)
     try:
         await conn.execute(
-            'UPDATE "user" SET pages_used = $1, pages_limit = $2 WHERE email = $3',
-            pages_used,
-            pages_limit,
+            'UPDATE "user" SET credit_micros_balance = $1, '
+            "credit_micros_reserved = $2 WHERE email = $3",
+            balance_micros,
+            reserved_micros,
             email,
         )
     finally:
@@ -237,23 +239,39 @@ async def _set_user_page_limits(
 
 
 @pytest.fixture
-async def page_limits():
-    """Manipulate the test user's page limits (direct DB for setup only).
+async def credits():
+    """Manipulate the test user's credit wallet (direct DB for setup only).
 
-    Automatically restores original values after each test.
+    Force-enables ETL credit billing for the duration of the test (it is off
+    by default for self-hosted/OSS, which would bypass all gating), and
+    automatically restores the original balance and billing flag afterwards.
+
+    ``MICROS_PER_PAGE`` is exposed so callers can size balances by page count.
     """
 
-    class _PageLimits:
-        async def set(self, *, pages_used: int, pages_limit: int) -> None:
-            await _set_user_page_limits(
-                TEST_EMAIL, pages_used=pages_used, pages_limit=pages_limit
+    class _Credits:
+        micros_per_page = app_config.MICROS_PER_PAGE
+
+        async def set(self, *, balance_micros: int, reserved_micros: int = 0) -> None:
+            await _set_user_credit(
+                TEST_EMAIL,
+                balance_micros=balance_micros,
+                reserved_micros=reserved_micros,
             )
 
-    original = await _get_user_page_usage(TEST_EMAIL)
-    yield _PageLimits()
-    await _set_user_page_limits(
-        TEST_EMAIL, pages_used=original[0], pages_limit=original[1]
-    )
+        def pages(self, n: int) -> int:
+            return n * app_config.MICROS_PER_PAGE
+
+    original_billing = app_config.ETL_CREDIT_BILLING_ENABLED
+    app_config.ETL_CREDIT_BILLING_ENABLED = True
+    original = await _get_user_credit(TEST_EMAIL)
+    try:
+        yield _Credits()
+    finally:
+        app_config.ETL_CREDIT_BILLING_ENABLED = original_billing
+        await _set_user_credit(
+            TEST_EMAIL, balance_micros=original[0], reserved_micros=original[1]
+        )
 
 
 # ---------------------------------------------------------------------------

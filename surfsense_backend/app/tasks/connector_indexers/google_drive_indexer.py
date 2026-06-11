@@ -41,7 +41,7 @@ from app.indexing_pipeline.indexing_pipeline_service import (
     PlaceholderInfo,
 )
 from app.services.composio_service import ComposioService
-from app.services.page_limit_service import PageLimitService
+from app.services.etl_credit_service import EtlCreditService
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
     check_document_by_unique_identifier,
@@ -555,11 +555,11 @@ async def _process_single_file(
                 return 1, 0, 0
             return 0, 1, 0
 
-        page_limit_service = PageLimitService(session)
-        estimated_pages = PageLimitService.estimate_pages_from_metadata(
+        etl_credit_service = EtlCreditService(session)
+        estimated_pages = EtlCreditService.estimate_pages_from_metadata(
             file_name, file.get("size")
         )
-        await page_limit_service.check_page_limit(user_id, estimated_pages)
+        await etl_credit_service.check_credits(user_id, estimated_pages)
 
         markdown, drive_metadata, error = await download_and_extract_content(
             drive_client, file, vision_llm=vision_llm
@@ -602,9 +602,7 @@ async def _process_single_file(
                 continue
             await pipeline.index(document, connector_doc)
 
-        await page_limit_service.update_page_usage(
-            user_id, estimated_pages, allow_exceed=True
-        )
+        await etl_credit_service.charge_credits(user_id, estimated_pages)
         logger.info(f"Successfully indexed Google Drive file: {file_name}")
         return 1, 0, 0
 
@@ -713,9 +711,8 @@ async def _index_selected_files(
 
     Returns (indexed_count, skipped_count, unsupported_count, errors).
     """
-    page_limit_service = PageLimitService(session)
-    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
-    remaining_quota = pages_limit - pages_used
+    etl_credit_service = EtlCreditService(session)
+    available_micros = await etl_credit_service.get_available_micros(user_id)
     batch_estimated_pages = 0
 
     files_to_download: list[dict] = []
@@ -741,12 +738,16 @@ async def _index_selected_files(
                 skipped += 1
             continue
 
-        file_pages = PageLimitService.estimate_pages_from_metadata(
+        file_pages = EtlCreditService.estimate_pages_from_metadata(
             file.get("name", ""), file.get("size")
         )
-        if batch_estimated_pages + file_pages > remaining_quota:
+        if (
+            available_micros is not None
+            and EtlCreditService.pages_to_micros(batch_estimated_pages + file_pages)
+            > available_micros
+        ):
             display = file_name or file_id
-            errors.append(f"File '{display}': page limit would be exceeded")
+            errors.append(f"File '{display}': insufficient credits")
             continue
 
         batch_estimated_pages += file_pages
@@ -775,9 +776,7 @@ async def _index_selected_files(
         pages_to_deduct = max(
             1, batch_estimated_pages * batch_indexed // len(files_to_download)
         )
-        await page_limit_service.update_page_usage(
-            user_id, pages_to_deduct, allow_exceed=True
-        )
+        await etl_credit_service.charge_credits(user_id, pages_to_deduct)
 
     return renamed_count + batch_indexed, skipped, unsupported_count, errors
 
@@ -820,9 +819,8 @@ async def _index_full_scan(
     # ------------------------------------------------------------------
     # Phase 1 (serial): collect files, run skip checks, track renames
     # ------------------------------------------------------------------
-    page_limit_service = PageLimitService(session)
-    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
-    remaining_quota = pages_limit - pages_used
+    etl_credit_service = EtlCreditService(session)
+    available_micros = await etl_credit_service.get_available_micros(user_id)
     batch_estimated_pages = 0
     page_limit_reached = False
 
@@ -877,13 +875,19 @@ async def _index_full_scan(
                         skipped += 1
                     continue
 
-                file_pages = PageLimitService.estimate_pages_from_metadata(
+                file_pages = EtlCreditService.estimate_pages_from_metadata(
                     file.get("name", ""), file.get("size")
                 )
-                if batch_estimated_pages + file_pages > remaining_quota:
+                if (
+                    available_micros is not None
+                    and EtlCreditService.pages_to_micros(
+                        batch_estimated_pages + file_pages
+                    )
+                    > available_micros
+                ):
                     if not page_limit_reached:
                         logger.warning(
-                            "Page limit reached during Google Drive full scan, "
+                            "Insufficient credits during Google Drive full scan, "
                             "skipping remaining files"
                         )
                         page_limit_reached = True
@@ -938,9 +942,7 @@ async def _index_full_scan(
         pages_to_deduct = max(
             1, batch_estimated_pages * batch_indexed // len(files_to_download)
         )
-        await page_limit_service.update_page_usage(
-            user_id, pages_to_deduct, allow_exceed=True
-        )
+        await etl_credit_service.charge_credits(user_id, pages_to_deduct)
 
     indexed = renamed_count + batch_indexed
     logger.info(
@@ -996,9 +998,8 @@ async def _index_with_delta_sync(
     # ------------------------------------------------------------------
     # Phase 1 (serial): handle removals, collect files for download
     # ------------------------------------------------------------------
-    page_limit_service = PageLimitService(session)
-    pages_used, pages_limit = await page_limit_service.get_page_usage(user_id)
-    remaining_quota = pages_limit - pages_used
+    etl_credit_service = EtlCreditService(session)
+    available_micros = await etl_credit_service.get_available_micros(user_id)
     batch_estimated_pages = 0
     page_limit_reached = False
 
@@ -1034,13 +1035,17 @@ async def _index_with_delta_sync(
                 skipped += 1
             continue
 
-        file_pages = PageLimitService.estimate_pages_from_metadata(
+        file_pages = EtlCreditService.estimate_pages_from_metadata(
             file.get("name", ""), file.get("size")
         )
-        if batch_estimated_pages + file_pages > remaining_quota:
+        if (
+            available_micros is not None
+            and EtlCreditService.pages_to_micros(batch_estimated_pages + file_pages)
+            > available_micros
+        ):
             if not page_limit_reached:
                 logger.warning(
-                    "Page limit reached during Google Drive delta sync, "
+                    "Insufficient credits during Google Drive delta sync, "
                     "skipping remaining files"
                 )
                 page_limit_reached = True
@@ -1079,9 +1084,7 @@ async def _index_with_delta_sync(
         pages_to_deduct = max(
             1, batch_estimated_pages * batch_indexed // len(files_to_download)
         )
-        await page_limit_service.update_page_usage(
-            user_id, pages_to_deduct, allow_exceed=True
-        )
+        await etl_credit_service.charge_credits(user_id, pages_to_deduct)
 
     indexed = renamed_count + batch_indexed
     logger.info(
