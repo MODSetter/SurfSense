@@ -50,9 +50,7 @@ class KokoroTextToSpeech(TextToSpeech):
 
     async def synthesize(self, request: SynthesisRequest) -> SynthesizedAudio:
         if not isinstance(request.voice, str):
-            raise TextToSpeechError(
-                "Kokoro voices are named by string, not a mapping"
-            )
+            raise TextToSpeechError("Kokoro voices are named by string, not a mapping")
 
         pipeline = self._pipeline_for(request.language)
         loop = asyncio.get_event_loop()
@@ -67,7 +65,7 @@ class KokoroTextToSpeech(TextToSpeech):
                 ),
             )
             segments = [audio for _gs, _ps, audio in generator]
-        except Exception as exc:  # noqa: BLE001 - normalise provider errors
+        except Exception as exc:
             raise TextToSpeechError(f"Kokoro synthesis failed: {exc}") from exc
 
         if not segments:

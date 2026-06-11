@@ -23,7 +23,9 @@ class StructuredOutputError(RuntimeError):
     """The model reply could not be parsed into the expected shape."""
 
 
-async def invoke_json(llm, messages: list[BaseMessage], model: type[T]) -> T:
+async def invoke_json[T: BaseModel](
+    llm, messages: list[BaseMessage], model: type[T]
+) -> T:
     """Invoke ``llm`` and validate its reply as ``model``."""
     response = await llm.ainvoke(messages)
     content = strip_markdown_fences(extract_text_content(response.content))

@@ -48,8 +48,8 @@ import {
 	isCommentReplyMetadata,
 	isConnectorIndexingMetadata,
 	isDocumentProcessingMetadata,
-	isNewMentionMetadata,
 	isInsufficientCreditsMetadata,
+	isNewMentionMetadata,
 } from "@/contracts/types/inbox.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type { InboxItem } from "@/hooks/use-inbox";

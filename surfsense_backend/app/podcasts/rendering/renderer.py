@@ -77,9 +77,7 @@ class PodcastRenderer:
         await concat_to_mp3(list(segment_paths), output_path)
         return RenderedPodcast(data=output_path.read_bytes(), container="mp3")
 
-    def _request_for(
-        self, spec: PodcastSpec, turn: TranscriptTurn
-    ) -> SynthesisRequest:
+    def _request_for(self, spec: PodcastSpec, turn: TranscriptTurn) -> SynthesisRequest:
         try:
             speaker = spec.speaker_for(turn.speaker)
         except KeyError as exc:
@@ -132,7 +130,7 @@ class _SegmentSynthesizer:
         if owner:
             try:
                 path = await self._synthesize(request, key)
-            except BaseException as exc:  # noqa: BLE001 - relayed to all waiters
+            except BaseException as exc:
                 future.set_exception(exc)
             else:
                 future.set_result(path)

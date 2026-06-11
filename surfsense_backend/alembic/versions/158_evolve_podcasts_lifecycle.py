@@ -52,7 +52,9 @@ def upgrade() -> None:
         "ALTER TABLE podcasts ADD COLUMN IF NOT EXISTS storage_backend VARCHAR(32);"
     )
     op.execute("ALTER TABLE podcasts ADD COLUMN IF NOT EXISTS storage_key TEXT;")
-    op.execute("ALTER TABLE podcasts ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;")
+    op.execute(
+        "ALTER TABLE podcasts ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;"
+    )
     op.execute("ALTER TABLE podcasts ADD COLUMN IF NOT EXISTS error TEXT;")
 
 

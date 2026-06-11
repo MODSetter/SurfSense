@@ -71,7 +71,9 @@ def _spec(voice_id: str) -> PodcastSpec:
 
 
 async def test_render_rejects_a_turn_for_an_unknown_speaker(tmp_path):
-    renderer = PodcastRenderer(tts=_UnusedTTS(), catalog=_catalog_with("kokoro:am_adam"))
+    renderer = PodcastRenderer(
+        tts=_UnusedTTS(), catalog=_catalog_with("kokoro:am_adam")
+    )
     transcript = Transcript(turns=[TranscriptTurn(speaker=5, text="Who am I?")])
 
     with pytest.raises(RenderError):
@@ -81,7 +83,9 @@ async def test_render_rejects_a_turn_for_an_unknown_speaker(tmp_path):
 
 
 async def test_render_rejects_a_speaker_whose_voice_is_not_in_the_catalog(tmp_path):
-    renderer = PodcastRenderer(tts=_UnusedTTS(), catalog=_catalog_with("kokoro:am_adam"))
+    renderer = PodcastRenderer(
+        tts=_UnusedTTS(), catalog=_catalog_with("kokoro:am_adam")
+    )
     transcript = Transcript(turns=[TranscriptTurn(speaker=0, text="Hello.")])
 
     with pytest.raises(RenderError):

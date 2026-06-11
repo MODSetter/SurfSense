@@ -30,7 +30,7 @@ _SAMPLE_TEXTS = {
     "it": "Ciao! Questa è la mia voce quando racconto il tuo podcast.",
     "ja": "こんにちは。ポッドキャストをお届けするときの私の声です。",
     "pt": "Olá! É assim que eu soo ao narrar o seu podcast.",
-    "zh": "你好！这就是我为你播报播客时的声音。",
+    "zh": "你好！这就是我为你播报播客时的声音。",  # noqa: RUF001
 }
 
 _CONTENT_TYPES = {"mp3": "audio/mpeg", "wav": "audio/wav"}
@@ -40,9 +40,7 @@ async def render_voice_preview(
     voice: CatalogVoice, tts: TextToSpeech
 ) -> tuple[bytes, str]:
     """Return ``(audio_bytes, content_type)`` for a sample spoken by ``voice``."""
-    language = (
-        _FALLBACK_LANGUAGE if voice.language == ANY_LANGUAGE else voice.language
-    )
+    language = _FALLBACK_LANGUAGE if voice.language == ANY_LANGUAGE else voice.language
     request = SynthesisRequest(
         text=_sample_text(language), voice=voice.native_ref, language=language
     )

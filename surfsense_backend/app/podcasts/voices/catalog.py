@@ -36,9 +36,7 @@ class VoiceCatalog:
         """All voices offered by ``provider``, in catalog order."""
         return list(self._by_provider.get(provider, ()))
 
-    def for_language(
-        self, provider: TtsProvider, language: str
-    ) -> list[CatalogVoice]:
+    def for_language(self, provider: TtsProvider, language: str) -> list[CatalogVoice]:
         """``provider`` voices that can render ``language``, in catalog order."""
         return [v for v in self.for_provider(provider) if v.speaks(language)]
 
@@ -50,6 +48,4 @@ class VoiceCatalog:
 @lru_cache(maxsize=1)
 def get_voice_catalog() -> VoiceCatalog:
     """The process-wide catalog assembled from every provider's roster."""
-    return VoiceCatalog(
-        (*KOKORO_VOICES, *OPENAI_VOICES, *AZURE_VOICES, *VERTEX_VOICES)
-    )
+    return VoiceCatalog((*KOKORO_VOICES, *OPENAI_VOICES, *AZURE_VOICES, *VERTEX_VOICES))
