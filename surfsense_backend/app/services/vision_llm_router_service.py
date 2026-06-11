@@ -3,18 +3,11 @@ from typing import Any
 
 from litellm import Router
 
-from app.services.model_resolver import (
-    NATIVE_PROVIDER_PREFIX,
-    native_connection_from_config,
-    to_litellm,
-)
+from app.services.model_resolver import native_connection_from_config, to_litellm
 
 logger = logging.getLogger(__name__)
 
 VISION_AUTO_MODE_ID = 0
-
-VISION_PROVIDER_MAP = NATIVE_PROVIDER_PREFIX
-
 
 class VisionLLMRouterService:
     _instance = None
@@ -141,12 +134,11 @@ def is_vision_auto_mode(config_id: int | None) -> bool:
 
 
 def build_vision_model_string(
-    provider: str, model_name: str, custom_provider: str | None
+    litellm_provider: str, model_name: str, custom_provider: str | None
 ) -> str:
     if custom_provider:
         return f"{custom_provider}/{model_name}"
-    prefix = VISION_PROVIDER_MAP.get(provider.upper(), provider.lower())
-    return f"{prefix}/{model_name}"
+    return f"{litellm_provider}/{model_name}"
 
 
 def get_global_vision_llm_config(config_id: int) -> dict | None:

@@ -154,19 +154,19 @@ def _process_models(raw_models: list[dict]) -> list[dict]:
             }
         )
 
-        # 2) Emit for the native provider when we have a mapping
-        native_provider = OPENROUTER_SLUG_TO_PROVIDER.get(provider_slug)
-        if native_provider:
+        # 2) Emit for the direct provider when we have a mapping
+        direct_provider = OPENROUTER_SLUG_TO_PROVIDER.get(provider_slug)
+        if direct_provider:
             # Google's Gemini API only serves gemini-* models.
             # Open-source models like gemma-* are NOT available through it.
-            if native_provider == "GOOGLE" and not model_name.startswith("gemini-"):
+            if direct_provider == "GOOGLE" and not model_name.startswith("gemini-"):
                 continue
 
             processed.append(
                 {
                     "value": model_name,
                     "label": name,
-                    "provider": native_provider,
+                    "provider": direct_provider,
                     "context_window": context_window,
                 }
             )

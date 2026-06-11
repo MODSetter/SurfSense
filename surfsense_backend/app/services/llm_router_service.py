@@ -30,11 +30,7 @@ from litellm.exceptions import (
 )
 from pydantic import Field
 
-from app.services.model_resolver import (
-    NATIVE_PROVIDER_PREFIX,
-    native_connection_from_config,
-    to_litellm,
-)
+from app.services.model_resolver import native_connection_from_config, to_litellm
 from app.utils.perf import get_perf_logger
 
 litellm.json_logs = False
@@ -100,10 +96,6 @@ def _sanitize_content(content: Any) -> Any:
 
 # Special ID for Auto mode - uses router for load balancing
 AUTO_MODE_ID = 0
-
-# Historical export kept for callers that still import PROVIDER_MAP.
-PROVIDER_MAP = NATIVE_PROVIDER_PREFIX
-
 
 class LLMRouterService:
     """

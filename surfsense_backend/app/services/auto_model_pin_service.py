@@ -23,9 +23,10 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import config
-from app.db import NewChatThread
+from app.db import Connection, Model, NewChatThread
 from app.services.quality_score import _QUALITY_TOP_K
 from app.services.token_quota_service import TokenQuotaService
 
@@ -61,9 +62,18 @@ def _is_usable_global_config(cfg: dict) -> bool:
     return bool(
         cfg.get("id") is not None
         and cfg.get("model_name")
-        and cfg.get("provider")
+        and cfg.get("litellm_provider")
         and cfg.get("api_key")
     )
+
+
+def _has_capability(model: dict | Model, capability: str) -> bool:
+    caps = (
+        model.get("capabilities", {})
+        if isinstance(model, dict)
+        else model.capabilities or {}
+    )
+    return bool(caps.get(capability))
 
 
 def _prune_runtime_cooldowns(now_ts: float | None = None) -> None:
@@ -186,15 +196,19 @@ def _cfg_supports_image_input(cfg: dict) -> bool:
         else None
     )
     return derive_supports_image_input(
-        provider=cfg.get("provider"),
+        litellm_provider=cfg.get("litellm_provider"),
         model_name=cfg.get("model_name"),
         base_model=base_model,
         custom_provider=cfg.get("custom_provider"),
     )
 
 
-def _global_candidates(*, requires_image_input: bool = False) -> list[dict]:
-    """Return Auto-eligible global cfgs.
+def _global_candidates(
+    *,
+    capability: str = "chat",
+    requires_image_input: bool = False,
+) -> list[dict]:
+    """Return Auto-eligible global virtual models.
 
     Drops cfgs flagged ``health_gated`` (best non-null OpenRouter uptime
     below ``_HEALTH_GATE_UPTIME_PCT``) so chronically broken providers
@@ -205,15 +219,133 @@ def _global_candidates(*, requires_image_input: bool = False) -> list[dict]:
     filters out configs whose ``supports_image_input`` resolves to False
     so a text-only deployment can't be pinned for an image request.
     """
-    candidates = [
-        cfg
+    connection_by_id = {
+        int(conn.get("id")): conn
+        for conn in config.GLOBAL_CONNECTIONS
+        if conn.get("id") is not None
+    }
+    config_by_model_name = {
+        cfg.get("model_name"): cfg
         for cfg in config.GLOBAL_LLM_CONFIGS
         if _is_usable_global_config(cfg)
-        and not cfg.get("health_gated")
-        and not _is_runtime_cooled_down(int(cfg.get("id", 0)))
-        and (not requires_image_input or _cfg_supports_image_input(cfg))
-    ]
+    }
+    candidates: list[dict] = []
+    for model in config.GLOBAL_MODELS:
+        model_id = int(model.get("id", 0))
+        if model_id >= 0 or _is_runtime_cooled_down(model_id):
+            continue
+        if not _has_capability(model, capability):
+            continue
+        cfg = config_by_model_name.get(model.get("model_id")) or {}
+        if cfg.get("health_gated"):
+            continue
+        if requires_image_input and not _has_capability(model, "vision"):
+            continue
+        if requires_image_input and cfg and not _cfg_supports_image_input(cfg):
+            continue
+        connection = connection_by_id.get(int(model.get("connection_id", 0)))
+        if not connection:
+            continue
+        catalog = model.get("catalog") or {}
+        candidates.append(
+            {
+                "id": model_id,
+                "model_id": model.get("model_id"),
+                "source": "global",
+                "connection": connection,
+                "capabilities": model.get("capabilities") or {},
+                "billing_tier": model.get("billing_tier", "free"),
+                "litellm_provider": connection.get("litellm_provider"),
+                "model_name": model.get("model_id"),
+                "auto_pin_tier": catalog.get("auto_pin_tier")
+                or cfg.get("auto_pin_tier")
+                or "A",
+                "quality_score": catalog.get("quality_score")
+                or cfg.get("quality_score")
+                or cfg.get("quality_score_static")
+                or 50,
+            }
+        )
     return sorted(candidates, key=lambda c: int(c.get("id", 0)))
+
+
+async def _db_candidates(
+    session: AsyncSession,
+    *,
+    search_space_id: int,
+    user_id: str | UUID | None,
+    capability: str,
+    requires_image_input: bool = False,
+) -> list[dict]:
+    parsed_user_id = _to_uuid(user_id)
+    stmt = (
+        select(Model)
+        .options(selectinload(Model.connection))
+        .join(Connection, Model.connection_id == Connection.id)
+        .where(Model.enabled.is_(True), Connection.enabled.is_(True))
+    )
+    result = await session.execute(stmt)
+    candidates: list[dict] = []
+    for model in result.scalars().all():
+        conn = model.connection
+        if not conn:
+            continue
+        if conn.search_space_id is not None and conn.search_space_id != search_space_id:
+            continue
+        if conn.user_id is not None and parsed_user_id is not None and conn.user_id != parsed_user_id:
+            continue
+        if conn.user_id is not None and parsed_user_id is None:
+            continue
+        if not _has_capability(model, capability):
+            continue
+        if requires_image_input and not _has_capability(model, "vision"):
+            continue
+        model_id = int(model.id)
+        if _is_runtime_cooled_down(model_id):
+            continue
+        catalog = model.catalog or {}
+        candidates.append(
+            {
+                "id": model_id,
+                "model_id": model.model_id,
+                "source": "db",
+                "connection": conn,
+                "capabilities": model.capabilities or {},
+                "billing_tier": "byok",
+                "litellm_provider": conn.litellm_provider,
+                "model_name": model.model_id,
+                "auto_pin_tier": catalog.get("auto_pin_tier") or "BYOK",
+                "quality_score": catalog.get("quality_score") or 75,
+            }
+        )
+    return sorted(candidates, key=lambda c: int(c.get("id", 0)))
+
+
+async def auto_model_candidates(
+    session: AsyncSession,
+    *,
+    search_space_id: int,
+    user_id: str | UUID | None,
+    capability: str,
+    requires_image_input: bool = False,
+    exclude_model_ids: set[int] | None = None,
+) -> list[dict]:
+    excluded_ids = {int(mid) for mid in (exclude_model_ids or set())}
+    db_candidates = await _db_candidates(
+        session,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        capability=capability,
+        requires_image_input=requires_image_input,
+    )
+    candidates = [
+        *_global_candidates(
+            capability=capability,
+            requires_image_input=requires_image_input,
+        ),
+        *db_candidates,
+    ]
+    return [c for c in candidates if int(c.get("id", 0)) not in excluded_ids]
 
 
 def _tier_of(cfg: dict) -> str:
@@ -223,8 +355,9 @@ def _tier_of(cfg: dict) -> str:
 def _is_preferred_premium_auto_config(cfg: dict) -> bool:
     """Return True for the operator-preferred premium Auto model."""
     return (
-        _tier_of(cfg) == "premium"
-        and str(cfg.get("provider", "")).upper() == "AZURE_OPENAI"
+        cfg.get("source") == "global"
+        and _tier_of(cfg) == "premium"
+        and str(cfg.get("litellm_provider", "")).lower() == "azure"
         and str(cfg.get("model_name", "")).lower() == "gpt-5.4"
     )
 
@@ -249,6 +382,11 @@ def _select_pin(eligible: list[dict], thread_id: int) -> tuple[dict, int]:
     digest = hashlib.sha256(f"{AUTO_FASTEST_MODE}:{thread_id}".encode()).digest()
     idx = int.from_bytes(digest[:8], "big") % len(top_k)
     return top_k[idx], len(top_k)
+
+
+def choose_auto_model_candidate(candidates: list[dict], seed_id: int) -> dict:
+    selected, _ = _select_pin(candidates, seed_id)
+    return selected
 
 
 def _to_uuid(user_id: str | UUID | None) -> UUID | None:
@@ -326,20 +464,23 @@ async def resolve_or_get_pinned_llm_config_id(
         )
 
     excluded_ids = {int(cid) for cid in (exclude_config_ids or set())}
-    candidates = [
-        c
-        for c in _global_candidates(requires_image_input=requires_image_input)
-        if int(c.get("id", 0)) not in excluded_ids
-    ]
+    candidates = await auto_model_candidates(
+        session,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        capability="chat",
+        requires_image_input=requires_image_input,
+        exclude_model_ids=excluded_ids,
+    )
     if not candidates:
         if requires_image_input:
             # Distinguish the "no vision-capable cfg" case from generic
             # "no usable cfg" so the streaming task can map this to the
             # MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT SSE error.
             raise ValueError(
-                "No vision-capable global LLM configs are available for Auto mode"
+                "No vision-capable LLM models are available for Auto mode"
             )
-        raise ValueError("No usable global LLM configs are available for Auto mode")
+        raise ValueError("No usable LLM models are available for Auto mode")
     candidate_by_id = {int(c["id"]): c for c in candidates}
 
     # Reuse an existing valid pin without re-checking current quota (no silent
@@ -379,24 +520,13 @@ async def resolve_or_get_pinned_llm_config_id(
         # log that explicitly so operators can correlate the re-pin with
         # the user's image attachment instead of suspecting a cooldown.
         if requires_image_input:
-            try:
-                pinned_global = next(
-                    c
-                    for c in config.GLOBAL_LLM_CONFIGS
-                    if int(c.get("id", 0)) == int(pinned_id)
-                )
-            except StopIteration:
-                pinned_global = None
-            if pinned_global is not None and not _cfg_supports_image_input(
-                pinned_global
-            ):
-                logger.info(
-                    "auto_pin_repinned_for_image thread_id=%s search_space_id=%s "
-                    "previous_config_id=%s",
-                    thread_id,
-                    search_space_id,
-                    pinned_id,
-                )
+            logger.info(
+                "auto_pin_repinned_for_image thread_id=%s search_space_id=%s "
+                "previous_config_id=%s",
+                thread_id,
+                search_space_id,
+                pinned_id,
+            )
         logger.info(
             "auto_pin_invalid thread_id=%s search_space_id=%s pinned_config_id=%s",
             thread_id,

@@ -97,16 +97,16 @@ def _process_vision_models(raw_models: list[dict]) -> list[dict]:
             }
         )
 
-        native_provider = OPENROUTER_SLUG_TO_VISION_PROVIDER.get(provider_slug)
-        if native_provider:
-            if native_provider == "GOOGLE" and not model_name.startswith("gemini-"):
+        direct_provider = OPENROUTER_SLUG_TO_VISION_PROVIDER.get(provider_slug)
+        if direct_provider:
+            if direct_provider == "GOOGLE" and not model_name.startswith("gemini-"):
                 continue
 
             processed.append(
                 {
                     "value": model_name,
                     "label": name,
-                    "provider": native_provider,
+                    "provider": direct_provider,
                     "context_window": context_window,
                 }
             )

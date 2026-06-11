@@ -75,10 +75,10 @@ async def test_auto_first_turn_pins_one_model(monkeypatch):
         config,
         "GLOBAL_LLM_CONFIGS",
         [
-            {"id": -2, "provider": "OPENAI", "model_name": "gpt-free", "api_key": "k1"},
+            {"id": -2, "litellm_provider": "openai", "model_name": "gpt-free", "api_key": "k1"},
             {
                 "id": -1,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-prem",
                 "api_key": "k2",
                 "billing_tier": "premium",
@@ -117,7 +117,7 @@ async def test_premium_eligible_auto_prefers_premium_over_free(monkeypatch):
         [
             {
                 "id": -2,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-free",
                 "api_key": "k1",
                 "billing_tier": "free",
@@ -125,7 +125,7 @@ async def test_premium_eligible_auto_prefers_premium_over_free(monkeypatch):
             },
             {
                 "id": -1,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-prem",
                 "api_key": "k2",
                 "billing_tier": "premium",
@@ -164,7 +164,7 @@ async def test_premium_eligible_auto_prefers_azure_gpt_5_4(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "AZURE_OPENAI",
+                "litellm_provider": "azure",
                 "model_name": "gpt-5.1",
                 "api_key": "k1",
                 "billing_tier": "premium",
@@ -173,7 +173,7 @@ async def test_premium_eligible_auto_prefers_azure_gpt_5_4(monkeypatch):
             },
             {
                 "id": -2,
-                "provider": "AZURE_OPENAI",
+                "litellm_provider": "azure",
                 "model_name": "gpt-5.4",
                 "api_key": "k2",
                 "billing_tier": "premium",
@@ -182,7 +182,7 @@ async def test_premium_eligible_auto_prefers_azure_gpt_5_4(monkeypatch):
             },
             {
                 "id": -3,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "openai/gpt-5.4",
                 "api_key": "k3",
                 "billing_tier": "premium",
@@ -222,7 +222,7 @@ async def test_next_turn_reuses_existing_pin(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-prem",
                 "api_key": "k2",
                 "billing_tier": "premium",
@@ -263,7 +263,7 @@ async def test_premium_eligible_auto_can_pin_premium(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-prem",
                 "api_key": "k2",
                 "billing_tier": "premium",
@@ -301,14 +301,14 @@ async def test_premium_ineligible_auto_pins_free_only(monkeypatch):
         [
             {
                 "id": -2,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-free",
                 "api_key": "k1",
                 "billing_tier": "free",
             },
             {
                 "id": -1,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-prem",
                 "api_key": "k2",
                 "billing_tier": "premium",
@@ -346,14 +346,14 @@ async def test_pinned_premium_stays_premium_after_quota_exhaustion(monkeypatch):
         [
             {
                 "id": -2,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-free",
                 "api_key": "k1",
                 "billing_tier": "free",
             },
             {
                 "id": -1,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-prem",
                 "api_key": "k2",
                 "billing_tier": "premium",
@@ -391,14 +391,14 @@ async def test_force_repin_free_switches_auto_premium_pin_to_free(monkeypatch):
         [
             {
                 "id": -2,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-free",
                 "api_key": "k1",
                 "billing_tier": "free",
             },
             {
                 "id": -1,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-prem",
                 "api_key": "k2",
                 "billing_tier": "premium",
@@ -437,7 +437,7 @@ async def test_explicit_user_model_change_clears_pin(monkeypatch):
         config,
         "GLOBAL_LLM_CONFIGS",
         [
-            {"id": -2, "provider": "OPENAI", "model_name": "gpt-free", "api_key": "k1"},
+            {"id": -2, "litellm_provider": "openai", "model_name": "gpt-free", "api_key": "k1"},
         ],
     )
 
@@ -462,7 +462,7 @@ async def test_invalid_pinned_config_repairs_with_new_pin(monkeypatch):
         config,
         "GLOBAL_LLM_CONFIGS",
         [
-            {"id": -2, "provider": "OPENAI", "model_name": "gpt-free", "api_key": "k1"},
+            {"id": -2, "litellm_provider": "openai", "model_name": "gpt-free", "api_key": "k1"},
         ],
     )
 
@@ -504,7 +504,7 @@ async def test_health_gated_config_is_excluded_from_selection(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "venice/dead-model",
                 "api_key": "k1",
                 "billing_tier": "free",
@@ -514,7 +514,7 @@ async def test_health_gated_config_is_excluded_from_selection(monkeypatch):
             },
             {
                 "id": -2,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "google/gemini-flash",
                 "api_key": "k1",
                 "billing_tier": "free",
@@ -556,7 +556,7 @@ async def test_tier_a_locks_first_premium_user_skips_or(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "AZURE_OPENAI",
+                "litellm_provider": "azure",
                 "model_name": "gpt-5",
                 "api_key": "k-yaml",
                 "billing_tier": "premium",
@@ -566,7 +566,7 @@ async def test_tier_a_locks_first_premium_user_skips_or(monkeypatch):
             },
             {
                 "id": -2,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "openai/gpt-5",
                 "api_key": "k-or",
                 "billing_tier": "premium",
@@ -608,7 +608,7 @@ async def test_tier_a_falls_through_to_or_when_a_pool_empty_for_user(monkeypatch
         [
             {
                 "id": -1,
-                "provider": "AZURE_OPENAI",
+                "litellm_provider": "azure",
                 "model_name": "gpt-5",
                 "api_key": "k-yaml",
                 "billing_tier": "premium",
@@ -618,7 +618,7 @@ async def test_tier_a_falls_through_to_or_when_a_pool_empty_for_user(monkeypatch
             },
             {
                 "id": -2,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "google/gemini-flash:free",
                 "api_key": "k-or",
                 "billing_tier": "free",
@@ -656,7 +656,7 @@ async def test_top_k_picks_only_high_score_models(monkeypatch):
     high_score_cfgs = [
         {
             "id": -i,
-            "provider": "AZURE_OPENAI",
+            "litellm_provider": "azure",
             "model_name": f"gpt-x-{i}",
             "api_key": "k",
             "billing_tier": "premium",
@@ -668,7 +668,7 @@ async def test_top_k_picks_only_high_score_models(monkeypatch):
     ]
     low_score_trap = {
         "id": -99,
-        "provider": "AZURE_OPENAI",
+        "litellm_provider": "azure",
         "model_name": "tiny-legacy",
         "api_key": "k",
         "billing_tier": "premium",
@@ -729,7 +729,7 @@ async def test_pin_reuse_survives_health_gating_for_existing_pin(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "venice/dead-model",
                 "api_key": "k",
                 "billing_tier": "premium",
@@ -739,7 +739,7 @@ async def test_pin_reuse_survives_health_gating_for_existing_pin(monkeypatch):
             },
             {
                 "id": -2,
-                "provider": "AZURE_OPENAI",
+                "litellm_provider": "azure",
                 "model_name": "gpt-5",
                 "api_key": "k",
                 "billing_tier": "premium",
@@ -781,7 +781,7 @@ async def test_pin_reuse_regression_existing_healthy_pin(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "AZURE_OPENAI",
+                "litellm_provider": "azure",
                 "model_name": "gpt-5",
                 "api_key": "k",
                 "billing_tier": "premium",
@@ -791,7 +791,7 @@ async def test_pin_reuse_regression_existing_healthy_pin(monkeypatch):
             },
             {
                 "id": -2,
-                "provider": "AZURE_OPENAI",
+                "litellm_provider": "azure",
                 "model_name": "gpt-5-pro",
                 "api_key": "k",
                 "billing_tier": "premium",
@@ -839,7 +839,7 @@ async def test_runtime_cooled_down_pin_is_not_reused(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "google/gemma-4-26b-a4b-it:free",
                 "api_key": "k",
                 "billing_tier": "free",
@@ -849,7 +849,7 @@ async def test_runtime_cooled_down_pin_is_not_reused(monkeypatch):
             },
             {
                 "id": -2,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "google/gemini-2.5-flash:free",
                 "api_key": "k",
                 "billing_tier": "free",
@@ -892,7 +892,7 @@ async def test_clearing_runtime_cooldown_restores_pin_reuse(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "google/gemma-4-26b-a4b-it:free",
                 "api_key": "k",
                 "billing_tier": "free",
@@ -937,7 +937,7 @@ async def test_auto_pin_repin_excludes_previous_config_on_runtime_retry(monkeypa
         [
             {
                 "id": -1,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "google/gemma-4-26b-a4b-it:free",
                 "api_key": "k",
                 "billing_tier": "free",
@@ -947,7 +947,7 @@ async def test_auto_pin_repin_excludes_previous_config_on_runtime_retry(monkeypa
             },
             {
                 "id": -2,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "google/gemini-2.5-flash:free",
                 "api_key": "k",
                 "billing_tier": "free",

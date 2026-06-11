@@ -74,7 +74,7 @@ def _thread(*, pinned: int | None = None):
 def _vision_cfg(id_: int, *, tier: str = "free", quality: int = 80) -> dict:
     return {
         "id": id_,
-        "provider": "OPENAI",
+        "litellm_provider": "openai",
         "model_name": f"vision-{id_}",
         "api_key": "k",
         "billing_tier": tier,
@@ -87,7 +87,7 @@ def _vision_cfg(id_: int, *, tier: str = "free", quality: int = 80) -> dict:
 def _text_only_cfg(id_: int, *, tier: str = "free", quality: int = 90) -> dict:
     return {
         "id": id_,
-        "provider": "OPENAI",
+        "litellm_provider": "openai",
         "model_name": f"text-{id_}",
         "api_key": "k",
         "billing_tier": tier,
@@ -261,7 +261,7 @@ async def test_image_turn_unannotated_cfg_resolves_via_helper(monkeypatch):
     session = _FakeSession(_thread())
     cfg_unannotated_vision = {
         "id": -2,
-        "provider": "OPENAI",
+        "litellm_provider": "openai",
         "model_name": "gpt-4o",  # known vision model in LiteLLM map
         "api_key": "k",
         "billing_tier": "free",

@@ -10,13 +10,11 @@ from sqlalchemy.orm import selectinload
 
 from app.config import config
 from app.db import Model, SearchSpace
-from app.services.llm_router_service import (
-    AUTO_MODE_ID,
-    ChatLiteLLMRouter,
-    LLMRouterService,
-    get_auto_mode_llm,
-    is_auto_mode,
+from app.services.auto_model_pin_service import (
+    auto_model_candidates,
+    choose_auto_model_candidate,
 )
+from app.services.llm_router_service import AUTO_MODE_ID, ChatLiteLLMRouter, is_auto_mode
 from app.services.model_resolver import native_connection_from_config, to_litellm
 from app.services.token_tracking_service import token_tracker
 
@@ -78,7 +76,7 @@ def _legacy_config_connection(
     api_version: str | None = None,
 ) -> tuple[str, dict]:
     cfg = {
-        "provider": provider,
+        "litellm_provider": provider.lower(),
         "model_name": model_name,
         "api_key": api_key,
         "api_base": api_base,
@@ -325,23 +323,21 @@ async def get_search_space_llm_instance(
             logger.error(f"No {role} LLM configured for search space {search_space_id}")
             return None
 
-        # Check for Auto mode (ID 0) - use router for load balancing
+        # Auto mode resolves to one concrete global or BYOK model from the
+        # unified model-connections catalog.
         if is_auto_mode(llm_config_id):
-            if not LLMRouterService.is_initialized():
-                logger.error(
-                    "Auto mode requested but LLM Router not initialized. "
-                    "Ensure global_llm_config.yaml exists with valid configs."
-                )
+            candidates = await auto_model_candidates(
+                session,
+                search_space_id=search_space_id,
+                user_id=search_space.user_id,
+                capability="chat",
+            )
+            if not candidates:
+                logger.error("No chat-capable models available for Auto mode")
                 return None
-
-            try:
-                logger.debug(
-                    f"Using Auto mode (LLM Router) for search space {search_space_id}, role {role}"
-                )
-                return get_auto_mode_llm(streaming=not disable_streaming)
-            except Exception as e:
-                logger.error(f"Failed to create ChatLiteLLMRouter: {e}")
-                return None
+            llm_config_id = int(
+                choose_auto_model_candidate(candidates, search_space_id)["id"]
+            )
 
         # Check if this is a global virtual model (negative ID)
         if llm_config_id < 0:
@@ -414,7 +410,7 @@ async def get_vision_llm(
     """Get the search space's vision LLM instance for screenshot analysis.
 
     Resolves from the new connection/model role bindings:
-    - Auto mode (ID 0): VisionLLMRouterService
+    - Auto mode (ID 0): unified global/BYOK model candidate selection
     - Global (negative ID): virtual GLOBAL models from YAML
     - DB (positive ID): Model + Connection tables
 
@@ -424,10 +420,7 @@ async def get_vision_llm(
     unwrapped — they don't consume premium credit (issue M).
     """
     from app.services.quota_checked_vision_llm import QuotaCheckedVisionLLM
-    from app.services.vision_llm_router_service import (
-        VisionLLMRouterService,
-        is_vision_auto_mode,
-    )
+    from app.services.vision_llm_router_service import is_vision_auto_mode
 
     try:
         result = await session.execute(
@@ -476,26 +469,16 @@ async def get_vision_llm(
             return None
 
         if is_vision_auto_mode(config_id):
-            if not VisionLLMRouterService.is_initialized():
-                logger.error(
-                    "Vision Auto mode requested but Vision LLM Router not initialized"
-                )
+            candidates = await auto_model_candidates(
+                session,
+                search_space_id=search_space_id,
+                user_id=owner_user_id,
+                capability="vision",
+            )
+            if not candidates:
+                logger.error("No vision-capable models available for Auto mode")
                 return None
-            try:
-                # Auto mode is currently treated as free at the wrapper
-                # level — the underlying router can dispatch to either
-                # premium or free YAML configs but routing decisions are
-                # opaque. If/when we want to bill Auto-routed vision
-                # calls we'd need to thread the resolved deployment's
-                # billing_tier back from the router. For now we keep
-                # parity with chat Auto, which also doesn't pre-classify.
-                return ChatLiteLLMRouter(
-                    router=VisionLLMRouterService.get_router(),
-                    streaming=True,
-                )
-            except Exception as e:
-                logger.error(f"Failed to create vision ChatLiteLLMRouter: {e}")
-                return None
+            config_id = int(choose_auto_model_candidate(candidates, search_space_id)["id"])
 
         if config_id < 0:
             global_model = get_global_model(config_id)
