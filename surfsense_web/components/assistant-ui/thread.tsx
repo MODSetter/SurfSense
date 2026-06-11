@@ -144,11 +144,15 @@ function getComposerSuggestionAnchorPoint(
 	};
 }
 
-export const Thread: FC = () => {
-	return <ThreadContent />;
+interface ThreadProps {
+	hasActiveThread?: boolean;
+}
+
+export const Thread: FC<ThreadProps> = ({ hasActiveThread = false }) => {
+	return <ThreadContent hasActiveThread={hasActiveThread} />;
 };
 
-const ThreadContent: FC = () => {
+const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false }) => {
 	return (
 		<ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
@@ -158,13 +162,13 @@ const ThreadContent: FC = () => {
 		>
 			<ChatViewport
 				footer={
-					<AuiIf condition={({ thread }) => !thread.isEmpty}>
+					<AuiIf condition={({ thread }) => hasActiveThread || !thread.isEmpty}>
 						<PremiumQuotaPinnedAlert />
 						<Composer />
 					</AuiIf>
 				}
 			>
-				<AuiIf condition={({ thread }) => thread.isEmpty}>
+				<AuiIf condition={({ thread }) => !hasActiveThread && thread.isEmpty}>
 					<ThreadWelcome />
 				</AuiIf>
 
