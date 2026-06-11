@@ -84,7 +84,7 @@ const GenerateResumeToolUI = dynamic(
 );
 const GeneratePodcastToolUI = dynamic(
 	() =>
-		import("@/components/tool-ui/generate-podcast").then((m) => ({
+		import("@/components/tool-ui/podcast").then((m) => ({
 			default: m.GeneratePodcastToolUI,
 		})),
 	{ ssr: false }
