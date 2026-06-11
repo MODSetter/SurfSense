@@ -242,20 +242,28 @@ def _folder_dict(file_id: str, name: str) -> dict:
     }
 
 
-def _make_page_limit_session(pages_used=0, pages_limit=999_999):
-    """Build a mock DB session that real PageLimitService can operate against."""
+def _make_page_limit_session(balance_micros=999_999_000, reserved_micros=0):
+    """Build a mock DB session that real EtlCreditService can operate against.
+
+    ETL credit billing is disabled by default in tests, so get_available_micros
+    short-circuits to None ("unlimited") and these fields are unused; they're
+    provided for parity if a test opts into billing.
+    """
 
     class _FakeUser:
-        def __init__(self, pu, pl):
-            self.pages_used = pu
-            self.pages_limit = pl
+        def __init__(self, balance, reserved):
+            self.credit_micros_balance = balance
+            self.credit_micros_reserved = reserved
 
-    fake_user = _FakeUser(pages_used, pages_limit)
+    fake_user = _FakeUser(balance_micros, reserved_micros)
     session = AsyncMock()
 
     def _make_result(*_a, **_kw):
         r = MagicMock()
-        r.first.return_value = (fake_user.pages_used, fake_user.pages_limit)
+        r.first.return_value = (
+            fake_user.credit_micros_balance,
+            fake_user.credit_micros_reserved,
+        )
         r.unique.return_value.scalar_one_or_none.return_value = fake_user
         return r
 

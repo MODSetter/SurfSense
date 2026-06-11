@@ -14,11 +14,11 @@ const demoPlans = [
 		price: "0",
 		yearlyPrice: "0",
 		period: "",
-		billingText: "500 pages + $5 in premium credits included",
+		billingText: "$5 of credit included to start",
 		features: [
 			"Self Hostable",
-			"500 pages included to start",
-			"$5 in premium credits for paid AI models and premium AI features",
+			"$5 of credit included to start",
+			"One credit balance for document processing and premium AI features",
 			"Includes access to OpenAI text, audio and image models",
 			"AI automations and agents: scheduled and event-triggered workflows",
 			"Desktop app: Quick, General and Screenshot Assist plus local folder sync",
@@ -38,7 +38,7 @@ const demoPlans = [
 		billingText: "No subscription, buy only when you need more",
 		features: [
 			"Everything in Free",
-			"Buy 1,000-page packs or $1 in premium credits at $1 each",
+			"Buy credit in $1 packs — $1 buys $1 of credit, with optional auto-reload",
 			"Use premium AI models like GPT-5.4, Claude Sonnet 4.6, Gemini 2.5 Pro & 100+ more via OpenRouter",
 			"Connector write-back to Notion, Slack, Linear & Jira",
 			"Priority support on Discord",
@@ -84,32 +84,32 @@ interface FAQSection {
 
 const faqData: FAQSection[] = [
 	{
-		title: "Pages & Document Billing",
+		title: "Credits & Document Billing",
 		items: [
 			{
-				question: 'What exactly is a "page" in SurfSense?',
+				question: "What are credits in SurfSense?",
 				answer:
-					"A page is a simple billing unit that measures how much content you add to your knowledge base. For PDFs, one page equals one real PDF page. For other document types like Word, PowerPoint, and Excel files, pages are automatically estimated based on the file. Every file uses at least 1 page.",
+					"Credits are a single prepaid balance shown in dollars that powers everything in SurfSense — both document processing and premium AI features. New accounts start with $5 of credit. Your balance goes down as you use the product and back up when you top up or earn more, so there's just one number to keep an eye on.",
 			},
 			{
-				question: "What are Basic and Premium processing modes?",
+				question: "How much does document processing cost?",
 				answer:
-					"When uploading documents, you can choose between two processing modes. Basic mode uses standard extraction and costs 1 page credit per page, great for most documents. Premium processing mode uses advanced extraction optimized for complex financial, medical, and legal documents with intricate tables, layouts, and formatting. It costs 10 page credits per page and does not use your premium AI credits.",
+					"Document processing is billed per page out of your credit balance. For PDFs, one page equals one real PDF page; for other document types like Word, PowerPoint, and Excel files, pages are automatically estimated. Basic mode costs $0.001 per page and Premium mode costs $0.01 per page. Premium processing uses advanced extraction optimized for complex financial, medical, and legal documents with intricate tables and layouts. Every file uses at least 1 page.",
 			},
 			{
 				question: "How does the Pay As You Go plan work?",
 				answer:
-					"There's no monthly subscription. When you need more pages, simply purchase 1,000-page packs at $1 each. Purchased pages are added to your account immediately so you can keep indexing right away. You only pay when you actually need more.",
+					"There's no monthly subscription. When you need more credit, simply buy $1 packs — $1 buys exactly $1 of credit. Purchased credit is added to your balance immediately so you can keep working right away. You only pay when you actually need more, and you can enable auto-reload to top up automatically.",
 			},
 			{
-				question: "What happens if I run out of pages?",
+				question: "What happens if I run out of credit?",
 				answer:
-					"SurfSense checks your remaining pages before processing each file. If you don't have enough, the upload is paused and you'll be notified. You can purchase additional page packs at any time to continue. For cloud connector syncs, a small overage may be allowed so your sync doesn't partially fail.",
+					"SurfSense checks your remaining credit before processing each file. If you don't have enough, the upload is paused and you'll be notified so you can buy more credit and continue. For cloud connector syncs, a small overage may be allowed so your sync doesn't partially fail.",
 			},
 			{
-				question: "If I delete a document, do I get my pages back?",
+				question: "If I delete a document, do I get my credit back?",
 				answer:
-					"No. Deleting a document removes it from your knowledge base, but the pages it used are not refunded. Pages track your total usage over time, not how much is currently stored. So be mindful of what you index. Once pages are spent, they're spent even if you later remove the document.",
+					"No. Deleting a document removes it from your knowledge base, but the credit it used is not refunded. Credit tracks your total usage over time, not how much is currently stored, so be mindful of what you index. Once credit is spent, it's spent even if you later remove the document.",
 			},
 		],
 	},
@@ -117,49 +117,49 @@ const faqData: FAQSection[] = [
 		title: "File Types & Connectors",
 		items: [
 			{
-				question: "Which file types count toward my page limit?",
+				question: "Which file types use credit?",
 				answer:
-					"Page limits only apply to document files that need processing, including PDFs, Word documents (DOC, DOCX, ODT, RTF), presentations (PPT, PPTX, ODP), spreadsheets (XLS, XLSX, ODS), ebooks (EPUB), and images (JPG, PNG, TIFF, WebP, BMP). Plain text files, code files, Markdown, CSV, TSV, HTML, audio, and video files do not consume any pages.",
+					"Credit is only used for document files that need processing, including PDFs, Word documents (DOC, DOCX, ODT, RTF), presentations (PPT, PPTX, ODP), spreadsheets (XLS, XLSX, ODS), ebooks (EPUB), and images (JPG, PNG, TIFF, WebP, BMP). Plain text files, code files, Markdown, CSV, TSV, HTML, audio, and video files do not consume any credit.",
 			},
 			{
-				question: "How are pages consumed?",
+				question: "How is credit consumed for documents?",
 				answer:
-					"Pages are deducted whenever a document file is successfully indexed into your knowledge base, whether through direct uploads or file-based connector syncs (Google Drive, OneDrive, Dropbox, Local Folder). In Basic mode, each page costs 1 page credit; in Premium mode, each page costs 10 page credits. SurfSense checks your remaining credits before processing and only charges you after the file is indexed. Duplicate documents are automatically detected and won't cost you extra pages.",
+					"Credit is deducted whenever a document file is successfully indexed into your knowledge base, whether through direct uploads or file-based connector syncs (Google Drive, OneDrive, Dropbox, Local Folder). In Basic mode each page costs $0.001; in Premium mode each page costs $0.01. SurfSense checks your remaining credit before processing and only charges you after the file is indexed. Duplicate documents are automatically detected and won't cost you extra.",
 			},
 			{
-				question: "Do connectors like Slack, Notion, or Gmail use pages?",
+				question: "Do connectors like Slack, Notion, or Gmail use credit?",
 				answer:
-					"No. Connectors that work with structured text data like Slack, Discord, Notion, Confluence, Jira, Linear, ClickUp, GitHub, Gmail, Google Calendar, Microsoft Teams, Airtable, Elasticsearch, Web Crawler, BookStack, Obsidian, and Luma do not use pages at all. Page limits only apply to file-based connectors that need document processing, such as Google Drive, OneDrive, Dropbox, and Local Folder syncs.",
+					"No. Connectors that work with structured text data like Slack, Discord, Notion, Confluence, Jira, Linear, ClickUp, GitHub, Gmail, Google Calendar, Microsoft Teams, Airtable, Elasticsearch, Web Crawler, BookStack, Obsidian, and Luma do not use credit at all. Document-processing charges only apply to file-based connectors such as Google Drive, OneDrive, Dropbox, and Local Folder syncs.",
 			},
 		],
 	},
 	{
-		title: "Premium Credits",
+		title: "Premium AI & Credit",
 		items: [
 			{
-				question: 'What are "premium credits"?',
+				question: "How is credit used for premium AI?",
 				answer:
-					"Premium credits are your USD balance for paid AI usage in SurfSense, including premium AI models like GPT-5.4, Claude Sonnet 4.6, and Gemini 2.5 Pro, plus premium AI features such as image generation, podcasts, and video presentations when they use paid models. Each request debits the actual USD provider cost, so cheaper and more expensive models bill proportionally.",
+					"The same credit balance pays for paid AI usage in SurfSense, including premium AI models like GPT-5.4, Claude Sonnet 4.6, and Gemini 2.5 Pro, plus premium AI features such as image generation, podcasts, and video presentations when they use paid models. Each request debits the actual USD provider cost, so cheaper and more expensive models bill proportionally.",
 			},
 			{
-				question: "How many premium credits do I get for free?",
+				question: "How much credit do I get for free?",
 				answer:
-					"Every registered SurfSense account starts with $5 in premium credits at no cost. Anonymous users (no login) get 500,000 free tokens across free models before creating an account. Once your included premium credits run out, you can top up at any time.",
+					"Every registered SurfSense account starts with $5 of credit at no cost. Anonymous users (no login) get 500,000 free tokens across free models before creating an account. Once your included credit runs out, you can top up at any time or earn more by completing tasks.",
 			},
 			{
-				question: "How does buying premium credits work?",
+				question: "How does buying credit work?",
 				answer:
-					"Premium credit top-ups are pay as you go, with no subscription. $1 buys $1 of credit, and your balance is spent at provider cost. Purchased credit is added to your account immediately. You can buy up to $100 at a time.",
+					"Top-ups are pay as you go, with no subscription. $1 buys $1 of credit, and your balance is spent at provider cost. Purchased credit is added to your account immediately, and you can buy any custom amount. Enable auto-reload to top up automatically when your balance runs low.",
 			},
 			{
-				question: "Are premium credits the same as page credits?",
+				question: "Is there a separate balance for documents and AI?",
 				answer:
-					"No. Page credits pay for document indexing and file-based connector processing. Premium credits pay for paid AI usage, such as premium model chats and premium AI generation features. Premium document processing mode sounds similar, but it consumes page credits, not premium credits.",
+					"No. SurfSense uses one unified credit balance for everything — document indexing, file-based connector processing, premium model chats, and premium AI generation features all draw from the same wallet. Premium document processing mode simply costs more per page ($0.01 vs $0.001), but it's the same credit.",
 			},
 			{
-				question: "What happens if I run out of premium credits?",
+				question: "What happens if I run out of credit?",
 				answer:
-					"When your premium credit balance runs low, you'll see a warning. Once you run out, paid model requests and premium AI features are paused until you top up. You can still use non-premium models and features that do not consume premium credits.",
+					"When your credit balance runs low, you'll see a warning. Once you run out, paid model requests, premium AI features, and document processing are paused until you top up. You can still use non-premium models and features that do not consume credit.",
 			},
 		],
 	},
@@ -174,7 +174,7 @@ const faqData: FAQSection[] = [
 			{
 				question: "Do automations and agents cost extra?",
 				answer:
-					"No. There is no separate subscription or add-on fee for automations. Agents use the same page credits and premium credits as the rest of SurfSense. Indexing documents consumes page credits, and premium AI model usage during a workflow consumes premium credits at provider cost. If a workflow only uses free models, it does not touch your premium credits.",
+					"No. There is no separate subscription or add-on fee for automations. Agents draw from the same unified credit balance as the rest of SurfSense. Indexing documents and premium AI model usage during a workflow both consume credit at provider cost. If a workflow only uses free models and indexes no documents, it does not touch your credit.",
 			},
 			{
 				question: "How do event-triggered automations work?",
@@ -192,9 +192,9 @@ const faqData: FAQSection[] = [
 		title: "Self-Hosting",
 		items: [
 			{
-				question: "Can I self-host SurfSense with unlimited pages and credit?",
+				question: "Can I self-host SurfSense with unlimited usage?",
 				answer:
-					"Yes! When self-hosting, you have full control over your page and premium credit limits. The default self-hosted setup gives you effectively unlimited pages and premium credits, so you can index as much data and use as many AI queries as your infrastructure supports.",
+					"Yes! When self-hosting, you have full control over billing. The default self-hosted setup leaves document-processing credit billing off and gives you effectively unlimited credit, so you can index as much data and use as many AI queries as your infrastructure supports.",
 			},
 		],
 	},
@@ -286,8 +286,8 @@ function PricingFAQ() {
 					Frequently Asked Questions
 				</h2>
 				<p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-					Everything you need to know about SurfSense pages, premium credits, and billing.
-					Can&apos;t find what you need? Reach out at{" "}
+					Everything you need to know about SurfSense credits and billing. Can&apos;t find what you
+					need? Reach out at{" "}
 					<a href="mailto:rohan@surfsense.com" className="text-blue-500 underline">
 						rohan@surfsense.com
 					</a>
@@ -372,7 +372,7 @@ function PricingBasic() {
 			<Pricing
 				plans={demoPlans}
 				title="SurfSense Pricing"
-				description="Start free with 500 pages & $5 in premium credits. Run AI automations and agents, and pay as you go."
+				description="Start free with $5 of credit. Run AI automations and agents, and pay as you go."
 			/>
 			<PricingFAQ />
 		</>

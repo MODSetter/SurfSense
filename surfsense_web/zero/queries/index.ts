@@ -4,6 +4,7 @@ import { chatSessionQueries, commentQueries, messageQueries } from "./chat";
 import { connectorQueries, documentQueries } from "./documents";
 import { folderQueries } from "./folders";
 import { notificationQueries } from "./inbox";
+import { podcastQueries } from "./podcasts";
 import { userQueries } from "./user";
 
 export const queries = defineQueries({
@@ -16,4 +17,5 @@ export const queries = defineQueries({
 	chatSession: chatSessionQueries,
 	user: userQueries,
 	automationRuns: automationRunQueries,
+	podcasts: podcastQueries,
 });

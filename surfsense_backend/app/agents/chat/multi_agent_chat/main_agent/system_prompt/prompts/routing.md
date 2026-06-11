@@ -126,23 +126,25 @@ user: "Create issues in Linear for each of these five bugs: <list>"
 
 <example>
 user: "Make a 30-second podcast of this conversation."
-→ Celery-backed deliverable. The `deliverables` subagent dispatches the
-  Celery job and then **waits for it to finish** before returning. The
-  call may take 10-60 seconds (or longer for video presentations) —
-  that is intentional, not a hang. You always get back one of two
-  Receipt shapes:
+→ Podcast deliverable. The `deliverables` subagent sets the podcast up and
+  returns **immediately** — generation does not happen during the call. A
+  live card in the chat takes over from there: the user reviews the brief
+  (language, voices, length) on the card, and the episode drafts and
+  renders automatically after they approve.
     task(deliverables, "Generate a podcast titled '<title>' from the
-      following content. Use a 30-second style brief. Return the podcast
-      id and title.\n\n<source content>")
+      following content. Aim for a 30-second style brief. Return the
+      podcast id and title.\n\n<source content>")
   Outcomes:
-    - **`status="success"`**: the audio is saved. Tell the user the
-      podcast is **ready** and quote the `external_id` / `preview` so
-      they can find it in the podcast panel.
+    - **`status="success"`**: the podcast is set up. Do NOT describe its
+      current status or promise it is ready — the card tracks progress
+      live and will outlive whatever you say. Just point the user at the
+      card in the chat.
     - **`status="failed"`**: surface the Receipt's `error` field
       verbatim. Do NOT silently re-dispatch — the backend already tried
       and reported a real error.
-  Same two-way pattern applies to video presentations (which take
-  longer to render, but still return a terminal status). If a
+  Video presentations differ: that Celery-backed call **waits for the
+  render to finish** before returning (possibly minutes — intentional,
+  not a hang) and ends with a terminal status. If a
   `task(deliverables, ...)` invocation itself times out at the subagent
   layer (separate from the Receipt), that's an operator-side problem
   with the subagent invoke timeout, not a deliverable failure — pass

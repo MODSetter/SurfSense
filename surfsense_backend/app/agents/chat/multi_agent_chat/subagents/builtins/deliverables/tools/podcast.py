@@ -1,11 +1,10 @@
 """Factory for a podcast-generation tool.
 
-Dispatches the heavy generation to Celery and then polls the podcast row
-until it reaches a terminal status (READY/FAILED). The tool always
-returns a real terminal ``Receipt`` — never a pending one. The wait is
-bounded by the existing per-invocation safety net
-(``SURFSENSE_SUBAGENT_INVOKE_TIMEOUT_SECONDS`` in multi-agent mode,
-HTTP / process lifetime in single-agent mode).
+Creates the podcast and proposes its brief (language, voices, length) inline,
+then returns immediately with the row awaiting review. Everything after —
+brief approval, drafting, rendering — happens on the live podcast card, so
+this tool never blocks on generation and the chat text must not describe a
+status that the card will outgrow.
 """
 
 import logging
@@ -18,13 +17,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat.multi_agent_chat.shared.receipts.command import with_receipt
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receipt
-from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.deliverable_wait import (
-    wait_for_deliverable,
-)
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thread_resolver import (
     resolve_root_thread_id,
 )
-from app.db import Podcast, PodcastStatus, shielded_async_session
+from app.db import PodcastStatus, shielded_async_session
+from app.podcasts.generation.brief import propose_brief
+from app.podcasts.service import PodcastService
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +43,7 @@ def create_generate_podcast_tool(
         user_prompt: str | None = None,
     ) -> Command:
         """
-        Generate a podcast from the provided content.
+        Prepare a podcast from the provided content for the user to review.
 
         Use this tool when the user asks to create, generate, or make a podcast.
         Common triggers include phrases like:
@@ -55,100 +53,59 @@ def create_generate_podcast_tool(
         - "Make a podcast about..."
         - "Turn this into a podcast"
 
+        This sets up the podcast and proposes its brief (language, voices,
+        length). The user reviews the brief on the live podcast card in the
+        chat; after approval the episode drafts and renders automatically.
+        Generation does not start here, and the card tracks all progress — do
+        not describe the podcast's current status in your reply.
+
         Args:
             source_content: The text content to convert into a podcast.
             podcast_title: Title for the podcast (default: "SurfSense Podcast")
-            user_prompt: Optional instructions for podcast style, tone, or format.
+            user_prompt: Optional steer for what the episode should focus on.
 
         Returns:
             A dictionary containing:
-            - status: PodcastStatus value (pending, generating, or failed)
-            - podcast_id: The podcast ID for polling (when status is pending or generating)
-            - title: The podcast title
-            - message: Status message (or "error" field if status is failed)
+            - status: the podcast lifecycle status (awaiting_brief on success)
+            - podcast_id: the podcast ID to review in the panel
+            - title: the podcast title
+            - message: what the user should do next (or "error" when failed)
         """
         try:
             # One DB session per tool call so parallel invocations never share an AsyncSession.
             async with shielded_async_session() as session:
-                podcast = Podcast(
+                service = PodcastService(session)
+                podcast = await service.create(
                     title=podcast_title,
-                    status=PodcastStatus.PENDING,
                     search_space_id=search_space_id,
                     thread_id=resolve_root_thread_id(runtime, thread_id),
                 )
-                session.add(podcast)
+                podcast.source_content = source_content
+                spec = await propose_brief(
+                    session,
+                    search_space_id=search_space_id,
+                    focus=user_prompt,
+                )
+                await service.attach_brief(podcast, spec)
                 await session.commit()
-                await session.refresh(podcast)
                 podcast_id = podcast.id
 
-            from app.tasks.celery_tasks.podcast_tasks import (
-                generate_content_podcast_task,
-            )
-
-            task = generate_content_podcast_task.delay(
-                podcast_id=podcast_id,
-                source_content=source_content,
-                search_space_id=search_space_id,
-                user_prompt=user_prompt,
-            )
-
             logger.info(
-                "[generate_podcast] Created podcast %s, task: %s",
+                "[generate_podcast] Prepared podcast %s awaiting brief review",
                 podcast_id,
-                task.id,
             )
 
-            # Wait until the Celery worker flips the row to a terminal
-            # state. The wait is bounded only by the subagent invoke
-            # timeout (multi-agent) or HTTP lifetime (single-agent) —
-            # see app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.deliverable_wait for details.
-            terminal_status, columns, elapsed = await wait_for_deliverable(
-                model=Podcast,
-                row_id=podcast_id,
-                columns=[Podcast.status, Podcast.file_location],
-                terminal_statuses={PodcastStatus.READY, PodcastStatus.FAILED},
-            )
-
-            if terminal_status == PodcastStatus.READY:
-                file_location = columns[1] if columns else None
-                logger.info(
-                    "[generate_podcast] Podcast %s READY in %.2fs (file=%s)",
-                    podcast_id,
-                    elapsed,
-                    file_location,
-                )
-                payload: dict[str, Any] = {
-                    "status": PodcastStatus.READY.value,
-                    "podcast_id": podcast_id,
-                    "title": podcast_title,
-                    "file_location": file_location,
-                    "message": ("Podcast generated and saved to your podcast panel."),
-                }
-                return with_receipt(
-                    payload=payload,
-                    receipt=make_receipt(
-                        route="deliverables",
-                        type="podcast",
-                        operation="generate",
-                        status="success",
-                        external_id=str(podcast_id),
-                        preview=podcast_title,
-                    ),
-                    tool_call_id=runtime.tool_call_id,
-                )
-
-            # Only other terminal state is FAILED.
-            logger.warning(
-                "[generate_podcast] Podcast %s FAILED in %.2fs",
-                podcast_id,
-                elapsed,
-            )
-            err = "Background worker reported FAILED status for this podcast."
-            payload = {
-                "status": PodcastStatus.FAILED.value,
+            payload: dict[str, Any] = {
+                "status": PodcastStatus.AWAITING_BRIEF.value,
                 "podcast_id": podcast_id,
                 "title": podcast_title,
-                "error": err,
+                "message": (
+                    "Podcast set up. The card in the chat handles the rest: "
+                    "the user reviews the brief (language, voices, length) "
+                    "there, and the episode drafts and renders automatically "
+                    "after approval. The card tracks progress live, so do not "
+                    "state the podcast's current status in your reply."
+                ),
             }
             return with_receipt(
                 payload=payload,
@@ -156,10 +113,9 @@ def create_generate_podcast_tool(
                     route="deliverables",
                     type="podcast",
                     operation="generate",
-                    status="failed",
+                    status="success",
                     external_id=str(podcast_id),
                     preview=podcast_title,
-                    error=err,
                 ),
                 tool_call_id=runtime.tool_call_id,
             )

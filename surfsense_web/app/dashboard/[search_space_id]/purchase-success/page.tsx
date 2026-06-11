@@ -112,9 +112,7 @@ export default function PurchaseSuccessPage() {
 						{state.kind === "still_pending" &&
 							"Your payment is still being processed by your bank. We'll apply your purchase as soon as it clears — usually within a few minutes. You can safely close this page."}
 						{state.kind === "completed" &&
-							(state.data.purchase_type === "page_packs"
-								? `Added ${formatNumber(state.data.pages_granted ?? 0)} pages to your account.`
-								: `Added ${formatCredit(state.data.premium_credit_micros_granted ?? 0)} of premium credit to your account.`)}
+							`Added ${formatCredit(state.data.credit_micros_granted ?? 0)} of credit to your account.`}
 						{state.kind === "failed" &&
 							"Stripe reported the checkout as failed or expired. Your card was not charged."}
 						{state.kind === "error" &&
@@ -123,18 +121,9 @@ export default function PurchaseSuccessPage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-3 text-center">
-					{state.kind === "completed" && state.data.purchase_type === "page_packs" && (
+					{state.kind === "completed" && (
 						<p className="text-sm text-muted-foreground">
-							New balance: {formatNumber(state.data.pages_limit ?? 0)} total pages
-							{typeof state.data.pages_used === "number"
-								? ` (${formatNumber((state.data.pages_limit ?? 0) - state.data.pages_used)} remaining)`
-								: ""}
-						</p>
-					)}
-					{state.kind === "completed" && state.data.purchase_type === "premium_tokens" && (
-						<p className="text-sm text-muted-foreground">
-							New premium credit balance:{" "}
-							{formatCredit(state.data.premium_credit_micros_limit ?? 0)}
+							New credit balance: {formatCredit(state.data.credit_micros_balance ?? 0)}
 						</p>
 					)}
 					{state.kind === "error" && (
@@ -146,16 +135,12 @@ export default function PurchaseSuccessPage() {
 						<Link href={`/dashboard/${searchSpaceId}/new-chat`}>Back to Dashboard</Link>
 					</Button>
 					<Button asChild variant="outline" className="w-full">
-						<Link href={`/dashboard/${searchSpaceId}/buy-more`}>Buy More</Link>
+						<Link href={`/dashboard/${searchSpaceId}/buy-more`}>Buy credits</Link>
 					</Button>
 				</CardFooter>
 			</Card>
 		</div>
 	);
-}
-
-function formatNumber(n: number): string {
-	return new Intl.NumberFormat("en-US").format(n);
 }
 
 function formatCredit(micros: number): string {

@@ -69,8 +69,8 @@ BillableSessionFactory = Callable[[], AbstractAsyncContextManager[AsyncSession]]
 
 
 class QuotaInsufficientError(Exception):
-    """Raised when ``TokenQuotaService.premium_reserve`` denies a billable
-    call because the user has exhausted their premium credit pool.
+    """Raised when ``TokenQuotaService.credit_reserve`` denies a billable
+    call because the user has exhausted their credit wallet.
 
     The route handler should catch this and return HTTP 402 Payment
     Required (or the equivalent for the surface area). Outside of the HTTP
@@ -83,17 +83,15 @@ class QuotaInsufficientError(Exception):
         self,
         *,
         usage_type: str,
-        used_micros: int,
-        limit_micros: int,
+        balance_micros: int,
         remaining_micros: int,
     ) -> None:
         self.usage_type = usage_type
-        self.used_micros = used_micros
-        self.limit_micros = limit_micros
+        self.balance_micros = balance_micros
         self.remaining_micros = remaining_micros
         super().__init__(
-            f"Premium credit exhausted for {usage_type}: "
-            f"used={used_micros} limit={limit_micros} remaining={remaining_micros} (micro-USD)"
+            f"Credit exhausted for {usage_type}: "
+            f"balance={balance_micros} remaining={remaining_micros} (micro-USD)"
         )
 
 
@@ -267,7 +265,7 @@ async def billable_call(
         ``TokenTrackingCallback`` populates the accumulator automatically.
 
     Raises:
-        QuotaInsufficientError: when premium and ``premium_reserve`` denies.
+        QuotaInsufficientError: when premium and ``credit_reserve`` denies.
     """
     is_premium = billing_tier == "premium"
     session_factory = billable_session_factory or shielded_async_session
@@ -310,7 +308,7 @@ async def billable_call(
         request_id = str(uuid4())
 
         async with session_factory() as quota_session:
-            reserve_result = await TokenQuotaService.premium_reserve(
+            reserve_result = await TokenQuotaService.credit_reserve(
                 db_session=quota_session,
                 user_id=user_id,
                 request_id=request_id,
@@ -320,18 +318,16 @@ async def billable_call(
         if not reserve_result.allowed:
             logger.info(
                 "[billable_call] reserve DENIED user=%s usage_type=%s "
-                "reserve=%d used=%d limit=%d remaining=%d",
+                "reserve=%d balance=%d remaining=%d",
                 user_id,
                 usage_type,
                 reserve_micros,
-                reserve_result.used,
-                reserve_result.limit,
+                reserve_result.balance,
                 reserve_result.remaining,
             )
             raise QuotaInsufficientError(
                 usage_type=usage_type,
-                used_micros=reserve_result.used,
-                limit_micros=reserve_result.limit,
+                balance_micros=reserve_result.balance,
                 remaining_micros=reserve_result.remaining,
             )
 
@@ -352,14 +348,14 @@ async def billable_call(
             # BaseException so cancellation also releases.
             try:
                 async with session_factory() as quota_session:
-                    await TokenQuotaService.premium_release(
+                    await TokenQuotaService.credit_release(
                         db_session=quota_session,
                         user_id=user_id,
                         reserved_micros=reserve_micros,
                     )
             except Exception:
                 logger.exception(
-                    "[billable_call] premium_release failed for user=%s "
+                    "[billable_call] credit_release failed for user=%s "
                     "reserve_micros=%d (reservation will be GC'd by quota "
                     "reconciliation if/when implemented)",
                     user_id,
@@ -380,7 +376,7 @@ async def billable_call(
                 thread_id,
             )
             async with session_factory() as quota_session:
-                final_result = await TokenQuotaService.premium_finalize(
+                final_result = await TokenQuotaService.credit_finalize(
                     db_session=quota_session,
                     user_id=user_id,
                     request_id=request_id,
@@ -389,26 +385,25 @@ async def billable_call(
                 )
             logger.info(
                 "[billable_call] finalize user=%s usage_type=%s actual=%d "
-                "reserved=%d → used=%d/%d (remaining=%d)",
+                "reserved=%d → balance=%d (remaining=%d)",
                 user_id,
                 usage_type,
                 actual_micros,
                 reserve_micros,
-                final_result.used,
-                final_result.limit,
+                final_result.balance,
                 final_result.remaining,
             )
         except Exception as finalize_exc:
             # Last-ditch: if finalize itself fails, we must at least release
             # so the reservation doesn't leak.
             logger.exception(
-                "[billable_call] premium_finalize failed for user=%s; "
+                "[billable_call] credit_finalize failed for user=%s; "
                 "attempting release",
                 user_id,
             )
             try:
                 async with session_factory() as quota_session:
-                    await TokenQuotaService.premium_release(
+                    await TokenQuotaService.credit_release(
                         db_session=quota_session,
                         user_id=user_id,
                         reserved_micros=reserve_micros,
@@ -465,7 +460,7 @@ async def _resolve_agent_billing_for_search_space(
           so the same model bills for chat + downstream podcast/video. If the
           user is not premium-eligible, the pin service auto-restricts to free
           deployments — denial only happens later in
-          ``billable_call.premium_reserve`` if the pin really is premium and
+          ``billable_call.credit_reserve`` if the pin really is premium and
           credit ran out mid-flow.
         * ``thread_id`` is None: fallback to ``("free", "auto")``. Forward-compat
           for any future direct-API path; today both Celery tasks always pass

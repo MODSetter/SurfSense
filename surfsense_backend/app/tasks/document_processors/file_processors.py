@@ -79,10 +79,10 @@ async def _notify(
 # ---------------------------------------------------------------------------
 
 
-def _estimate_pages_safe(page_limit_service, file_path: str) -> int:
+def _estimate_pages_safe(etl_credit_service, file_path: str) -> int:
     """Estimate page count with a file-size fallback."""
     try:
-        return page_limit_service.estimate_pages_before_processing(file_path)
+        return etl_credit_service.estimate_pages_before_processing(file_path)
     except Exception:
         file_size = os.path.getsize(file_path)
         return max(1, file_size // (80 * 1024))
@@ -185,11 +185,14 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
     """Route a document file to the configured ETL service via the unified pipeline."""
     from app.etl_pipeline.etl_document import EtlRequest, ProcessingMode
     from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
-    from app.services.page_limit_service import PageLimitExceededError, PageLimitService
+    from app.services.etl_credit_service import (
+        EtlCreditService,
+        InsufficientCreditsError,
+    )
 
     mode = ProcessingMode.coerce(ctx.processing_mode)
-    page_limit_service = PageLimitService(ctx.session)
-    estimated_pages = _estimate_pages_safe(page_limit_service, ctx.file_path)
+    etl_credit_service = EtlCreditService(ctx.session)
+    estimated_pages = _estimate_pages_safe(etl_credit_service, ctx.file_path)
     billable_pages = estimated_pages * mode.page_multiplier
 
     await ctx.task_logger.log_task_progress(
@@ -204,16 +207,16 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
     )
 
     try:
-        await page_limit_service.check_page_limit(ctx.user_id, billable_pages)
-    except PageLimitExceededError as e:
+        await etl_credit_service.check_credits(ctx.user_id, billable_pages)
+    except InsufficientCreditsError as e:
         await ctx.task_logger.log_task_failure(
             ctx.log_entry,
-            f"Page limit exceeded before processing: {ctx.filename}",
+            f"Insufficient credits before processing: {ctx.filename}",
             str(e),
             {
-                "error_type": "PageLimitExceeded",
-                "pages_used": e.pages_used,
-                "pages_limit": e.pages_limit,
+                "error_type": "InsufficientCredits",
+                "balance_micros": e.balance_micros,
+                "required_micros": e.required_micros,
                 "estimated_pages": estimated_pages,
                 "billable_pages": billable_pages,
                 "processing_mode": mode.value,
@@ -259,9 +262,7 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
     )
 
     if result:
-        await page_limit_service.update_page_usage(
-            ctx.user_id, billable_pages, allow_exceed=True
-        )
+        await etl_credit_service.charge_credits(ctx.user_id, billable_pages)
         if ctx.connector:
             await update_document_from_connector(result, ctx.connector, ctx.session)
         await ctx.task_logger.log_task_success(
@@ -337,11 +338,11 @@ async def process_file_in_background(
     except Exception as e:
         await session.rollback()
 
-        from app.services.page_limit_service import PageLimitExceededError
+        from app.services.etl_credit_service import InsufficientCreditsError
 
-        if isinstance(e, PageLimitExceededError):
+        if isinstance(e, InsufficientCreditsError):
             error_message = str(e)
-        elif isinstance(e, HTTPException) and "page limit" in str(e.detail).lower():
+        elif isinstance(e, HTTPException) and "credit" in str(e.detail).lower():
             error_message = str(e.detail)
         else:
             error_message = f"Failed to process file: {filename}"
@@ -414,12 +415,12 @@ async def _extract_file_content(
     )
 
     if category == FileCategory.DOCUMENT:
-        from app.services.page_limit_service import PageLimitService
+        from app.services.etl_credit_service import EtlCreditService
 
-        page_limit_service = PageLimitService(session)
-        estimated_pages = _estimate_pages_safe(page_limit_service, file_path)
+        etl_credit_service = EtlCreditService(session)
+        estimated_pages = _estimate_pages_safe(etl_credit_service, file_path)
         billable_pages = estimated_pages * mode.page_multiplier
-        await page_limit_service.check_page_limit(user_id, billable_pages)
+        await etl_credit_service.check_credits(user_id, billable_pages)
 
     # Vision LLM is provided to the ETL pipeline for any file category
     # when the operator opts in. Image files run through it directly;
@@ -524,12 +525,10 @@ async def process_file_in_background_with_document(
         )
 
         if billable_pages > 0:
-            from app.services.page_limit_service import PageLimitService
+            from app.services.etl_credit_service import EtlCreditService
 
-            page_limit_service = PageLimitService(session)
-            await page_limit_service.update_page_usage(
-                user_id, billable_pages, allow_exceed=True
-            )
+            etl_credit_service = EtlCreditService(session)
+            await etl_credit_service.charge_credits(user_id, billable_pages)
 
         await task_logger.log_task_success(
             log_entry,
@@ -547,11 +546,11 @@ async def process_file_in_background_with_document(
     except Exception as e:
         await session.rollback()
 
-        from app.services.page_limit_service import PageLimitExceededError
+        from app.services.etl_credit_service import InsufficientCreditsError
 
-        if isinstance(e, PageLimitExceededError):
+        if isinstance(e, InsufficientCreditsError):
             error_message = str(e)
-        elif isinstance(e, HTTPException) and "page limit" in str(e.detail).lower():
+        elif isinstance(e, HTTPException) and "credit" in str(e.detail).lower():
             error_message = str(e.detail)
         else:
             error_message = f"Failed to process file: {filename}"

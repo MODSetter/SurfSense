@@ -99,7 +99,18 @@ class QuotaStatus(StrEnum):
 
 
 class QuotaResult:
-    __slots__ = ("allowed", "limit", "remaining", "reserved", "status", "used")
+    # ``used``/``limit`` are used by the anonymous (Redis) token path.
+    # ``balance``/``remaining``/``reserved`` are used by the credit (Postgres)
+    # path, all in USD micro-units. ``remaining`` == spendable (balance - reserved).
+    __slots__ = (
+        "allowed",
+        "balance",
+        "limit",
+        "remaining",
+        "reserved",
+        "status",
+        "used",
+    )
 
     def __init__(
         self,
@@ -109,6 +120,7 @@ class QuotaResult:
         limit: int,
         reserved: int = 0,
         remaining: int = 0,
+        balance: int = 0,
     ):
         self.allowed = allowed
         self.status = status
@@ -116,6 +128,7 @@ class QuotaResult:
         self.limit = limit
         self.reserved = reserved
         self.remaining = remaining
+        self.balance = balance
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -125,6 +138,7 @@ class QuotaResult:
             "limit": self.limit,
             "reserved": self.reserved,
             "remaining": self.remaining,
+            "balance": self.balance,
         }
 
 
@@ -505,19 +519,33 @@ class TokenQuotaService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    async def premium_reserve(
+    def _credit_status(balance: int) -> QuotaStatus:
+        """Map a spendable balance to OK / WARNING / BLOCKED.
+
+        There is no longer a fixed ceiling, so WARNING fires on a low absolute
+        balance (``config.CREDIT_LOW_BALANCE_WARNING_MICROS``) instead of a
+        percentage of a limit.
+        """
+        if balance <= 0:
+            return QuotaStatus.BLOCKED
+        if balance < config.CREDIT_LOW_BALANCE_WARNING_MICROS:
+            return QuotaStatus.WARNING
+        return QuotaStatus.OK
+
+    @staticmethod
+    async def credit_reserve(
         db_session: AsyncSession,
         user_id: Any,
         request_id: str,
         reserve_micros: int,
     ) -> QuotaResult:
-        """Reserve ``reserve_micros`` (USD micro-units) from the user's
-        premium credit balance.
+        """Reserve ``reserve_micros`` (USD micro-units) from the user's credit
+        wallet.
 
-        ``QuotaResult.used``/``limit``/``reserved``/``remaining`` are
-        all in micro-USD on this code path; callers (chat stream,
-        token-status route, FE display) convert to dollars by dividing
-        by 1_000_000.
+        ``QuotaResult.balance``/``reserved``/``remaining`` are in micro-USD on
+        this code path; callers (chat stream, credit-status route, FE display)
+        convert to dollars by dividing by 1_000_000. ``remaining`` is the
+        spendable amount (``balance - reserved``).
         """
         from app.db import User
 
@@ -538,48 +566,41 @@ class TokenQuotaService:
                 limit=0,
             )
 
-        limit = user.premium_credit_micros_limit
-        used = user.premium_credit_micros_used
-        reserved = user.premium_credit_micros_reserved
+        balance = user.credit_micros_balance
+        reserved = user.credit_micros_reserved
 
-        effective = used + reserved + reserve_micros
-        if effective > limit:
-            remaining = max(0, limit - used - reserved)
+        # Block when the new hold would exceed the spendable balance.
+        if reserved + reserve_micros > balance:
+            remaining = max(0, balance - reserved)
             await db_session.rollback()
             return QuotaResult(
                 allowed=False,
                 status=QuotaStatus.BLOCKED,
-                used=used,
-                limit=limit,
+                used=0,
+                limit=balance,
                 reserved=reserved,
                 remaining=remaining,
+                balance=balance,
             )
 
-        user.premium_credit_micros_reserved = reserved + reserve_micros
+        user.credit_micros_reserved = reserved + reserve_micros
         await db_session.commit()
 
         new_reserved = reserved + reserve_micros
-        remaining = max(0, limit - used - new_reserved)
-        warning_threshold = int(limit * 0.8)
-
-        if (used + new_reserved) >= limit:
-            status = QuotaStatus.BLOCKED
-        elif (used + new_reserved) >= warning_threshold:
-            status = QuotaStatus.WARNING
-        else:
-            status = QuotaStatus.OK
+        remaining = max(0, balance - new_reserved)
 
         return QuotaResult(
             allowed=True,
-            status=status,
-            used=used,
-            limit=limit,
+            status=TokenQuotaService._credit_status(remaining),
+            used=0,
+            limit=balance,
             reserved=new_reserved,
             remaining=remaining,
+            balance=balance,
         )
 
     @staticmethod
-    async def premium_finalize(
+    async def credit_finalize(
         db_session: AsyncSession,
         user_id: Any,
         request_id: str,
@@ -587,7 +608,8 @@ class TokenQuotaService:
         reserved_micros: int,
     ) -> QuotaResult:
         """Settle the reservation: release ``reserved_micros`` and debit
-        ``actual_micros`` (the LiteLLM-reported provider cost in micro-USD).
+        ``actual_micros`` (the LiteLLM-reported provider cost in micro-USD)
+        from the balance.
         """
         from app.db import User
 
@@ -605,44 +627,42 @@ class TokenQuotaService:
                 allowed=False, status=QuotaStatus.BLOCKED, used=0, limit=0
             )
 
-        user.premium_credit_micros_reserved = max(
-            0, user.premium_credit_micros_reserved - reserved_micros
+        user.credit_micros_reserved = max(
+            0, user.credit_micros_reserved - reserved_micros
         )
-        user.premium_credit_micros_used = (
-            user.premium_credit_micros_used + actual_micros
-        )
+        user.credit_micros_balance = user.credit_micros_balance - actual_micros
 
         await db_session.commit()
 
-        limit = user.premium_credit_micros_limit
-        used = user.premium_credit_micros_used
-        reserved = user.premium_credit_micros_reserved
-        remaining = max(0, limit - used - reserved)
+        balance = user.credit_micros_balance
+        reserved = user.credit_micros_reserved
+        remaining = max(0, balance - reserved)
 
-        warning_threshold = int(limit * 0.8)
-        if used >= limit:
-            status = QuotaStatus.BLOCKED
-        elif used >= warning_threshold:
-            status = QuotaStatus.WARNING
-        else:
-            status = QuotaStatus.OK
+        # Best-effort auto-reload nudge after the debit settles.
+        try:
+            from app.services.auto_reload_service import maybe_trigger_auto_reload
+
+            await maybe_trigger_auto_reload(user_id)
+        except Exception:
+            pass
 
         return QuotaResult(
             allowed=True,
-            status=status,
-            used=used,
-            limit=limit,
+            status=TokenQuotaService._credit_status(remaining),
+            used=0,
+            limit=balance,
             reserved=reserved,
             remaining=remaining,
+            balance=balance,
         )
 
     @staticmethod
-    async def premium_release(
+    async def credit_release(
         db_session: AsyncSession,
         user_id: Any,
         reserved_micros: int,
     ) -> None:
-        """Release ``reserved_micros`` previously held by ``premium_reserve``.
+        """Release ``reserved_micros`` previously held by ``credit_reserve``.
 
         Used when a request fails before finalize (so the reservation
         doesn't leak credit).
@@ -659,13 +679,13 @@ class TokenQuotaService:
             .scalar_one_or_none()
         )
         if user is not None:
-            user.premium_credit_micros_reserved = max(
-                0, user.premium_credit_micros_reserved - reserved_micros
+            user.credit_micros_reserved = max(
+                0, user.credit_micros_reserved - reserved_micros
             )
             await db_session.commit()
 
     @staticmethod
-    async def premium_get_usage(
+    async def credit_get_usage(
         db_session: AsyncSession,
         user_id: Any,
     ) -> QuotaResult:
@@ -681,24 +701,16 @@ class TokenQuotaService:
                 allowed=False, status=QuotaStatus.BLOCKED, used=0, limit=0
             )
 
-        limit = user.premium_credit_micros_limit
-        used = user.premium_credit_micros_used
-        reserved = user.premium_credit_micros_reserved
-        remaining = max(0, limit - used - reserved)
-
-        warning_threshold = int(limit * 0.8)
-        if used >= limit:
-            status = QuotaStatus.BLOCKED
-        elif used >= warning_threshold:
-            status = QuotaStatus.WARNING
-        else:
-            status = QuotaStatus.OK
+        balance = user.credit_micros_balance
+        reserved = user.credit_micros_reserved
+        remaining = max(0, balance - reserved)
 
         return QuotaResult(
-            allowed=used < limit,
-            status=status,
-            used=used,
-            limit=limit,
+            allowed=remaining > 0,
+            status=TokenQuotaService._credit_status(remaining),
+            used=0,
+            limit=balance,
             reserved=reserved,
             remaining=remaining,
+            balance=balance,
         )

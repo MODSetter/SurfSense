@@ -272,22 +272,26 @@ def full_scan_mocks(mock_dropbox_client, monkeypatch):
     download_and_index_mock = AsyncMock(return_value=(0, 0))
     monkeypatch.setattr(_mod, "_download_and_index", download_and_index_mock)
 
-    from app.services.page_limit_service import PageLimitService as _RealPLS
+    from app.services.etl_credit_service import EtlCreditService as _RealECS
 
-    mock_page_limit_instance = MagicMock()
-    mock_page_limit_instance.get_page_usage = AsyncMock(return_value=(0, 999_999))
-    mock_page_limit_instance.update_page_usage = AsyncMock()
+    # get_available_micros -> None means "unlimited" (billing disabled), so no
+    # batch is gated and charge_credits is a no-op — matching the prior
+    # 999_999 page-limit intent for these parallel-processing tests.
+    mock_credit_instance = MagicMock()
+    mock_credit_instance.get_available_micros = AsyncMock(return_value=None)
+    mock_credit_instance.charge_credits = AsyncMock(return_value=None)
 
-    class _MockPageLimitService:
+    class _MockEtlCreditService:
         estimate_pages_from_metadata = staticmethod(
-            _RealPLS.estimate_pages_from_metadata
+            _RealECS.estimate_pages_from_metadata
         )
+        pages_to_micros = staticmethod(_RealECS.pages_to_micros)
 
         def __init__(self, session):
-            self.get_page_usage = mock_page_limit_instance.get_page_usage
-            self.update_page_usage = mock_page_limit_instance.update_page_usage
+            self.get_available_micros = mock_credit_instance.get_available_micros
+            self.charge_credits = mock_credit_instance.charge_credits
 
-    monkeypatch.setattr(_mod, "PageLimitService", _MockPageLimitService)
+    monkeypatch.setattr(_mod, "EtlCreditService", _MockEtlCreditService)
 
     return {
         "dropbox_client": mock_dropbox_client,
@@ -393,22 +397,23 @@ def selected_files_mocks(mock_dropbox_client, monkeypatch):
     download_and_index_mock = AsyncMock(return_value=(0, 0))
     monkeypatch.setattr(_mod, "_download_and_index", download_and_index_mock)
 
-    from app.services.page_limit_service import PageLimitService as _RealPLS
+    from app.services.etl_credit_service import EtlCreditService as _RealECS
 
-    mock_page_limit_instance = MagicMock()
-    mock_page_limit_instance.get_page_usage = AsyncMock(return_value=(0, 999_999))
-    mock_page_limit_instance.update_page_usage = AsyncMock()
+    mock_credit_instance = MagicMock()
+    mock_credit_instance.get_available_micros = AsyncMock(return_value=None)
+    mock_credit_instance.charge_credits = AsyncMock(return_value=None)
 
-    class _MockPageLimitService:
+    class _MockEtlCreditService:
         estimate_pages_from_metadata = staticmethod(
-            _RealPLS.estimate_pages_from_metadata
+            _RealECS.estimate_pages_from_metadata
         )
+        pages_to_micros = staticmethod(_RealECS.pages_to_micros)
 
         def __init__(self, session):
-            self.get_page_usage = mock_page_limit_instance.get_page_usage
-            self.update_page_usage = mock_page_limit_instance.update_page_usage
+            self.get_available_micros = mock_credit_instance.get_available_micros
+            self.charge_credits = mock_credit_instance.charge_credits
 
-    monkeypatch.setattr(_mod, "PageLimitService", _MockPageLimitService)
+    monkeypatch.setattr(_mod, "EtlCreditService", _MockEtlCreditService)
 
     return {
         "dropbox_client": mock_dropbox_client,

@@ -74,11 +74,6 @@ export interface ChatsSectionProps {
 	searchSpaceId?: string;
 }
 
-export interface PageUsageDisplayProps {
-	pagesUsed: number;
-	pagesLimit: number;
-}
-
 export interface SidebarUserProfileProps {
 	user: User;
 	searchSpaceId?: string;

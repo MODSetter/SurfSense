@@ -38,10 +38,7 @@ DOCUMENT_COLS = [
 
 USER_COLS = [
     "id",
-    "pages_limit",
-    "pages_used",
-    "premium_credit_micros_limit",
-    "premium_credit_micros_used",
+    "credit_micros_balance",
 ]
 
 AUTOMATION_RUN_COLS = [
@@ -55,6 +52,22 @@ AUTOMATION_RUN_COLS = [
     "created_at",
 ]
 
+# Enough to drive the lifecycle UI by push: status, the reviewable brief, and
+# its version. The bulky source_content and transcript are deliberately excluded
+# and fetched over REST when a gate opens.
+PODCAST_COLS = [
+    "id",
+    "title",
+    "status",
+    "spec",
+    "spec_version",
+    "duration_seconds",
+    "error",
+    "search_space_id",
+    "thread_id",
+    "created_at",
+]
+
 ZERO_PUBLICATION: Mapping[str, Sequence[str] | None] = {
     "notifications": None,
     "documents": DOCUMENT_COLS,
@@ -65,6 +78,7 @@ ZERO_PUBLICATION: Mapping[str, Sequence[str] | None] = {
     "chat_session_state": None,
     "user": USER_COLS,
     "automation_runs": AUTOMATION_RUN_COLS,
+    "podcasts": PODCAST_COLS,
 }
 
 
@@ -92,7 +106,9 @@ def _expected_columns(conn: Connection, table: str) -> list[str] | None:
         return None
 
     expected = list(columns)
-    if table in {"documents", "user"} and _column_exists(conn, table, "_0_version"):
+    if table in {"documents", "user", "podcasts"} and _column_exists(
+        conn, table, "_0_version"
+    ):
         expected.append("_0_version")
     return expected
 

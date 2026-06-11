@@ -24,11 +24,11 @@ def resolve_start_thinking(tool_name: str, tool_input: Any) -> ToolStartThinking
         d.get("source_content", "") if isinstance(tool_input, dict) else ""
     )
     return ToolStartThinking(
-        title="Generating podcast",
+        title="Preparing podcast",
         items=[
             f"Title: {podcast_title}",
             f"Content: {content_len:,} characters",
-            "Preparing audio generation...",
+            "Proposing brief (language, voices, length)...",
         ],
     )
 
@@ -50,17 +50,19 @@ def resolve_completed_thinking(
         if isinstance(tool_output, dict)
         else "Podcast"
     )
-    if podcast_status in ("pending", "generating", "processing"):
+    if podcast_status in (
+        "awaiting_brief",
+        "awaiting_review",
+        "pending",
+        "drafting",
+        "rendering",
+    ):
+        # Persisted with the chat while the podcast keeps moving, so the copy
+        # must stay true after the lifecycle outgrows today's status.
         completed = [
             f"Title: {podcast_title}",
-            "Podcast generation started",
-            "Processing in background...",
-        ]
-    elif podcast_status == "already_generating":
-        completed = [
-            f"Title: {podcast_title}",
-            "Podcast already in progress",
-            "Please wait for it to complete",
+            "Podcast created",
+            "Review and progress continue on the podcast card",
         ]
     elif podcast_status in ("failed", "error"):
         error_msg = (
@@ -79,4 +81,4 @@ def resolve_completed_thinking(
         ]
     else:
         completed = items
-    return ("Generating podcast", completed)
+    return ("Preparing podcast", completed)

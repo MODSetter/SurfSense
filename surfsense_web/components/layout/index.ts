@@ -12,6 +12,7 @@ export type {
 export {
 	ChatListItem,
 	CreateSearchSpaceDialog,
+	CreditBalanceDisplay,
 	Header,
 	IconRail,
 	LayoutShell,
@@ -19,7 +20,6 @@ export {
 	MobileSidebarTrigger,
 	NavIcon,
 	NavSection,
-	PageUsageDisplay,
 	SearchSpaceAvatar,
 	Sidebar,
 	SidebarCollapseButton,

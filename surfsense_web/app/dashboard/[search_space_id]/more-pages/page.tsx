@@ -1,11 +1,18 @@
 "use client";
 
-import { MorePagesContent } from "@/components/settings/more-pages-content";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
+// Legacy route kept as a redirect: older "insufficient credits" notifications
+// and bookmarks may still point at /more-pages.
 export default function MorePagesPage() {
-	return (
-		<div className="w-full select-none space-y-6">
-			<MorePagesContent />
-		</div>
-	);
+	const router = useRouter();
+	const params = useParams();
+	const searchSpaceId = params?.search_space_id ?? "";
+
+	useEffect(() => {
+		router.replace(`/dashboard/${searchSpaceId}/earn-credits`);
+	}, [router, searchSpaceId]);
+
+	return null;
 }

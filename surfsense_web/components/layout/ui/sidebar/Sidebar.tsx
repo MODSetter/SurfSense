@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, Dot, SquarePen, Zap } from "lucide-react";
+import { CreditCard, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -13,10 +13,9 @@ import { useIsAnonymous } from "@/contexts/anonymous-mode";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
-import { AuthenticatedPageUsageDisplay } from "./AuthenticatedPageUsageDisplay";
 import { ChatListItem } from "./ChatListItem";
+import { CreditBalanceDisplay } from "./CreditBalanceDisplay";
 import { NavSection } from "./NavSection";
-import { PremiumTokenUsageDisplay } from "./PremiumTokenUsageDisplay";
 import { SidebarButton } from "./SidebarButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
 import { SidebarHeader } from "./SidebarHeader";
@@ -404,17 +403,16 @@ function SidebarUsageFooter({
 
 	return (
 		<div className={containerClass}>
-			<PremiumTokenUsageDisplay />
-			<AuthenticatedPageUsageDisplay />
+			<CreditBalanceDisplay />
 			<div className="space-y-0.5">
 				<Link
-					href={`/dashboard/${searchSpaceId}/more-pages`}
+					href={`/dashboard/${searchSpaceId}/earn-credits`}
 					onClick={onNavigate}
 					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
 				>
 					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
 						<Zap className="h-3 w-3 shrink-0" />
-						Get Free Pages
+						Earn credits
 					</span>
 					<Badge className="h-4 rounded px-1 text-[10px] font-semibold leading-none bg-emerald-600 text-white border-transparent hover:bg-emerald-600">
 						FREE
@@ -427,12 +425,7 @@ function SidebarUsageFooter({
 				>
 					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
 						<CreditCard className="h-3 w-3 shrink-0" />
-						Buy More
-					</span>
-					<span className="flex items-center text-[10px] font-medium text-muted-foreground">
-						$1/1k
-						<Dot className="h-3 w-3" />
-						$1/1M
+						Buy credits
 					</span>
 				</Link>
 			</div>

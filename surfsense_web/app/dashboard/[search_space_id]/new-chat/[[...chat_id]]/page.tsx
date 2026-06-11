@@ -77,11 +77,6 @@ import {
 	convertToThreadMessage,
 	reconcileInterruptedAssistantMessages,
 } from "@/lib/chat/message-utils";
-import {
-	isPodcastGenerating,
-	looksLikePodcastRequest,
-	setActivePodcastTaskId,
-} from "@/lib/chat/podcast-state";
 import { createStreamFlushHelpers } from "@/lib/chat/stream-flush";
 import { consumeSseEvents, processSharedStreamEvent } from "@/lib/chat/stream-pipeline";
 import {
@@ -758,6 +753,9 @@ export default function NewChatPage() {
 		const loadedMessages = reconcileInterruptedAssistantMessages(messagesResponse.messages).map(
 			convertToThreadMessage
 		);
+		if (messages.length > 0 && loadedMessages.length < messages.length) {
+			return;
+		}
 		setMessages(loadedMessages);
 
 		tokenUsageStore.clear();
@@ -778,6 +776,7 @@ export default function NewChatPage() {
 	}, [
 		activeThreadId,
 		isRunning,
+		messages.length,
 		setMessageDocumentsMap,
 		threadMessagesQuery.data,
 		tokenUsageStore,
@@ -953,11 +952,6 @@ export default function NewChatPage() {
 			const { userQuery, userImages } = extractUserTurnForNewChatApi(message, urlsSnapshot);
 
 			if (!userQuery.trim() && userImages.length === 0) return;
-
-			if (userQuery.trim() && isPodcastGenerating() && looksLikePodcastRequest(userQuery)) {
-				toast.warning("A podcast is already being generated.");
-				return;
-			}
 
 			const token = getBearerToken();
 			if (!token) {
@@ -1216,17 +1210,6 @@ export default function NewChatPage() {
 							onTurnStatus: (data) => {
 								if (data.status === "cancelling") {
 									recentCancelRequestedAtRef.current = Date.now();
-								}
-							},
-							onToolOutputAvailable: (event, sharedCtx) => {
-								if (event.output?.status === "pending" && event.output?.podcast_id) {
-									const idx = sharedCtx.toolCallIndices.get(event.toolCallId);
-									if (idx !== undefined) {
-										const part = sharedCtx.contentPartsState.contentParts[idx];
-										if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-											setActivePodcastTaskId(String(event.output.podcast_id));
-										}
-									}
 								}
 							},
 						})
@@ -2187,17 +2170,6 @@ export default function NewChatPage() {
 									recentCancelRequestedAtRef.current = Date.now();
 								}
 							},
-							onToolOutputAvailable: (event, sharedCtx) => {
-								if (event.output?.status === "pending" && event.output?.podcast_id) {
-									const idx = sharedCtx.toolCallIndices.get(event.toolCallId);
-									if (idx !== undefined) {
-										const part = sharedCtx.contentPartsState.contentParts[idx];
-										if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-											setActivePodcastTaskId(String(event.output.podcast_id));
-										}
-									}
-								}
-							},
 						})
 					) {
 						return;
@@ -2569,7 +2541,7 @@ export default function NewChatPage() {
 				>
 					<div key={searchSpaceId} className="flex h-full overflow-hidden">
 						<div className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
-							<Thread />
+							<Thread hasActiveThread={!!activeThreadId} />
 							{isThreadMessagesLoading ? (
 								<div className="absolute inset-0 z-10 bg-panel">
 									<ThreadMessagesSkeleton />

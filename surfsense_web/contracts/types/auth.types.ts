@@ -20,8 +20,7 @@ export const registerRequest = loginRequest.omit({ grant_type: true, username: t
 
 export const registerResponse = registerRequest.omit({ password: true }).extend({
 	id: z.string(),
-	pages_limit: z.number(),
-	pages_used: z.number(),
+	credit_micros_balance: z.number(),
 });
 
 export type LoginRequest = z.infer<typeof loginRequest>;

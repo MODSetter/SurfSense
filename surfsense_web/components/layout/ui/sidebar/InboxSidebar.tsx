@@ -48,8 +48,8 @@ import {
 	isCommentReplyMetadata,
 	isConnectorIndexingMetadata,
 	isDocumentProcessingMetadata,
+	isInsufficientCreditsMetadata,
 	isNewMentionMetadata,
-	isPageLimitExceededMetadata,
 } from "@/contracts/types/inbox.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type { InboxItem } from "@/hooks/use-inbox";
@@ -291,7 +291,7 @@ export function InboxSidebarContent({
 		(item: InboxItem): boolean => {
 			if (activeFilter === "unread") return !item.read;
 			if (activeFilter === "errors") {
-				if (item.type === "page_limit_exceeded") return true;
+				if (item.type === "insufficient_credits") return true;
 				const meta = item.metadata as Record<string, unknown> | undefined;
 				return typeof meta?.status === "string" && meta.status === "failed";
 			}
@@ -397,8 +397,8 @@ export function InboxSidebarContent({
 						router.push(url);
 					}
 				}
-			} else if (item.type === "page_limit_exceeded") {
-				if (isPageLimitExceededMetadata(item.metadata)) {
+			} else if (item.type === "insufficient_credits") {
+				if (isInsufficientCreditsMetadata(item.metadata)) {
 					const actionUrl = item.metadata.action_url;
 					if (actionUrl) {
 						onOpenChange(false);
@@ -470,7 +470,7 @@ export function InboxSidebarContent({
 			);
 		}
 
-		if (item.type === "page_limit_exceeded") {
+		if (item.type === "insufficient_credits") {
 			return (
 				<div className="h-8 w-8 flex items-center justify-center rounded-full bg-amber-500/10">
 					<AlertTriangle className="h-4 w-4 text-amber-500" />

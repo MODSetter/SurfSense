@@ -114,13 +114,6 @@ class SearchSourceConnectorType(StrEnum):
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
 
 
-class PodcastStatus(StrEnum):
-    PENDING = "pending"
-    GENERATING = "generating"
-    READY = "ready"
-    FAILED = "failed"
-
-
 class VideoPresentationStatus(StrEnum):
     PENDING = "pending"
     GENERATING = "generating"
@@ -320,7 +313,7 @@ class PagePurchaseStatus(StrEnum):
     FAILED = "failed"
 
 
-class PremiumTokenPurchaseStatus(StrEnum):
+class CreditPurchaseStatus(StrEnum):
     PENDING = "pending"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -332,26 +325,27 @@ INCENTIVE_TASKS_CONFIG = {
     IncentiveTaskType.GITHUB_STAR: {
         "title": "Star our GitHub repository",
         "description": "Show your support by starring SurfSense on GitHub",
-        "pages_reward": 30,
+        # Credit reward in USD micro-units (1_000_000 == $1.00). $0.03.
+        "credit_micros_reward": 30000,
         "action_url": "https://github.com/MODSetter/SurfSense",
     },
     IncentiveTaskType.REDDIT_FOLLOW: {
         "title": "Join our Subreddit",
         "description": "Join the SurfSense community on Reddit",
-        "pages_reward": 30,
+        "credit_micros_reward": 30000,
         "action_url": "https://www.reddit.com/r/SurfSense/",
     },
     IncentiveTaskType.DISCORD_JOIN: {
         "title": "Join our Discord",
         "description": "Join the SurfSense community on Discord",
-        "pages_reward": 40,
+        "credit_micros_reward": 40000,
         "action_url": "https://discord.gg/ejRNvftDp9",
     },
     # Future tasks can be configured here:
     # IncentiveTaskType.GITHUB_ISSUE: {
     #     "title": "Create an issue",
     #     "description": "Help improve SurfSense by reporting bugs or suggesting features",
-    #     "pages_reward": 50,
+    #     "credit_micros_reward": 50000,
     #     "action_url": "https://github.com/MODSetter/SurfSense/issues/new/choose",
     # },
 }
@@ -1536,41 +1530,6 @@ class Chunk(BaseModel, TimestampMixin):
     document = relationship("Document", back_populates="chunks")
 
 
-class Podcast(BaseModel, TimestampMixin):
-    """Podcast model for storing generated podcasts."""
-
-    __tablename__ = "podcasts"
-
-    title = Column(String(500), nullable=False)
-    podcast_transcript = Column(JSONB, nullable=True)
-    file_location = Column(Text, nullable=True)
-    status = Column(
-        SQLAlchemyEnum(
-            PodcastStatus,
-            name="podcast_status",
-            create_type=False,
-            values_callable=lambda x: [e.value for e in x],
-        ),
-        nullable=False,
-        default=PodcastStatus.READY,
-        server_default="ready",
-        index=True,
-    )
-
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
-    )
-    search_space = relationship("SearchSpace", back_populates="podcasts")
-
-    thread_id = Column(
-        Integer,
-        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    thread = relationship("NewChatThread")
-
-
 class VideoPresentation(BaseModel, TimestampMixin):
     """Video presentation model for storing AI-generated video presentations.
 
@@ -2069,7 +2028,7 @@ class UserIncentiveTask(BaseModel, TimestampMixin):
     """
     Tracks completed incentive tasks for users.
     Each user can only complete each task type once.
-    When a task is completed, the user's pages_limit is increased.
+    When a task is completed, the user's credit_micros_balance is increased.
     """
 
     __tablename__ = "user_incentive_tasks"
@@ -2088,7 +2047,8 @@ class UserIncentiveTask(BaseModel, TimestampMixin):
         index=True,
     )
     task_type = Column(SQLAlchemyEnum(IncentiveTaskType), nullable=False, index=True)
-    pages_awarded = Column(Integer, nullable=False)
+    # Credit reward granted in USD micro-units (1_000_000 == $1.00).
+    credit_micros_awarded = Column(BigInteger, nullable=False)
     completed_at = Column(
         TIMESTAMP(timezone=True),
         nullable=False,
@@ -2131,18 +2091,18 @@ class PagePurchase(Base, TimestampMixin):
     user = relationship("User", back_populates="page_purchases")
 
 
-class PremiumTokenPurchase(Base, TimestampMixin):
-    """Tracks Stripe checkout sessions used to grant additional premium credit (USD micro-units).
+class CreditPurchase(Base, TimestampMixin):
+    """Tracks Stripe checkout sessions used to grant credit (USD micro-units).
 
-    Note: the table name is preserved (``premium_token_purchases``) for
-    operational continuity even though the unit is now USD micro-credits
-    instead of raw tokens. The ``credit_micros_granted`` column replaced
-    the legacy ``tokens_granted`` in migration 140; the stored values
-    were not transformed because the prior $1 = 1M tokens Stripe price
-    makes the unit conversion 1:1 numerically.
+    Renamed from ``premium_token_purchases`` in migration 156 as part of the
+    unified-credits wallet. ``credit_micros_granted`` stores the USD-micro
+    amount added to ``user.credit_micros_balance`` on fulfillment.
+
+    ``source`` distinguishes a user-initiated checkout from an automatic
+    off-session top-up (auto-reload), added in the auto-reload migration.
     """
 
-    __tablename__ = "premium_token_purchases"
+    __tablename__ = "credit_purchases"
     __allow_unmapped__ = True
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -2160,15 +2120,18 @@ class PremiumTokenPurchase(Base, TimestampMixin):
     credit_micros_granted = Column(BigInteger, nullable=False)
     amount_total = Column(Integer, nullable=True)
     currency = Column(String(10), nullable=True)
+    source = Column(
+        String(20), nullable=False, default="checkout", server_default="checkout"
+    )
     status = Column(
-        SQLAlchemyEnum(PremiumTokenPurchaseStatus),
+        SQLAlchemyEnum(CreditPurchaseStatus),
         nullable=False,
-        default=PremiumTokenPurchaseStatus.PENDING,
+        default=CreditPurchaseStatus.PENDING,
         index=True,
     )
     completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
-    user = relationship("User", back_populates="premium_token_purchases")
+    user = relationship("User", back_populates="credit_purchases")
 
 
 class SearchSpaceRole(BaseModel, TimestampMixin):
@@ -2448,33 +2411,40 @@ if config.AUTH_TYPE == "GOOGLE":
             back_populates="user",
             cascade="all, delete-orphan",
         )
-        premium_token_purchases = relationship(
-            "PremiumTokenPurchase",
+        credit_purchases = relationship(
+            "CreditPurchase",
             back_populates="user",
             cascade="all, delete-orphan",
         )
 
-        # Page usage tracking for ETL services
-        pages_limit = Column(
-            Integer,
-            nullable=False,
-            default=config.PAGES_LIMIT,
-            server_default=str(config.PAGES_LIMIT),
-        )
-        pages_used = Column(Integer, nullable=False, default=0, server_default="0")
-
-        premium_credit_micros_limit = Column(
+        # Unified credit wallet (USD micro-units, 1_000_000 == $1.00).
+        # Decreases on use (ETL pages + premium model calls), increases on
+        # purchase / incentive grant / auto-reload. May dip slightly negative
+        # when an actual cost exceeds its pre-charge estimate; UI clamps at $0.
+        credit_micros_balance = Column(
             BigInteger,
             nullable=False,
-            default=config.PREMIUM_CREDIT_MICROS_LIMIT,
-            server_default=str(config.PREMIUM_CREDIT_MICROS_LIMIT),
+            default=config.DEFAULT_CREDIT_MICROS_BALANCE,
+            server_default=str(config.DEFAULT_CREDIT_MICROS_BALANCE),
         )
-        premium_credit_micros_used = Column(
+        # In-flight reservation holds (released/settled at finalize).
+        credit_micros_reserved = Column(
             BigInteger, nullable=False, default=0, server_default="0"
         )
-        premium_credit_micros_reserved = Column(
-            BigInteger, nullable=False, default=0, server_default="0"
+
+        # Auto-reload (off-session Stripe top-up), behind AUTO_RELOAD_ENABLED.
+        # ``stripe_customer_id`` + ``auto_reload_payment_method_id`` are the
+        # saved-card plumbing; thresholds are micro-USD. ``auto_reload_failed_at``
+        # is set (and ``auto_reload_enabled`` flipped off) when an off-session
+        # charge is declined so the UI can prompt the user to fix their card.
+        stripe_customer_id = Column(String, nullable=True)
+        auto_reload_enabled = Column(
+            Boolean, nullable=False, default=False, server_default="false"
         )
+        auto_reload_threshold_micros = Column(BigInteger, nullable=True)
+        auto_reload_amount_micros = Column(BigInteger, nullable=True)
+        auto_reload_payment_method_id = Column(String, nullable=True)
+        auto_reload_failed_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
         # User profile from OAuth
         display_name = Column(String, nullable=True)
@@ -2587,33 +2557,40 @@ else:
             back_populates="user",
             cascade="all, delete-orphan",
         )
-        premium_token_purchases = relationship(
-            "PremiumTokenPurchase",
+        credit_purchases = relationship(
+            "CreditPurchase",
             back_populates="user",
             cascade="all, delete-orphan",
         )
 
-        # Page usage tracking for ETL services
-        pages_limit = Column(
-            Integer,
-            nullable=False,
-            default=config.PAGES_LIMIT,
-            server_default=str(config.PAGES_LIMIT),
-        )
-        pages_used = Column(Integer, nullable=False, default=0, server_default="0")
-
-        premium_credit_micros_limit = Column(
+        # Unified credit wallet (USD micro-units, 1_000_000 == $1.00).
+        # Decreases on use (ETL pages + premium model calls), increases on
+        # purchase / incentive grant / auto-reload. May dip slightly negative
+        # when an actual cost exceeds its pre-charge estimate; UI clamps at $0.
+        credit_micros_balance = Column(
             BigInteger,
             nullable=False,
-            default=config.PREMIUM_CREDIT_MICROS_LIMIT,
-            server_default=str(config.PREMIUM_CREDIT_MICROS_LIMIT),
+            default=config.DEFAULT_CREDIT_MICROS_BALANCE,
+            server_default=str(config.DEFAULT_CREDIT_MICROS_BALANCE),
         )
-        premium_credit_micros_used = Column(
+        # In-flight reservation holds (released/settled at finalize).
+        credit_micros_reserved = Column(
             BigInteger, nullable=False, default=0, server_default="0"
         )
-        premium_credit_micros_reserved = Column(
-            BigInteger, nullable=False, default=0, server_default="0"
+
+        # Auto-reload (off-session Stripe top-up), behind AUTO_RELOAD_ENABLED.
+        # ``stripe_customer_id`` + ``auto_reload_payment_method_id`` are the
+        # saved-card plumbing; thresholds are micro-USD. ``auto_reload_failed_at``
+        # is set (and ``auto_reload_enabled`` flipped off) when an off-session
+        # charge is declined so the UI can prompt the user to fix their card.
+        stripe_customer_id = Column(String, nullable=True)
+        auto_reload_enabled = Column(
+            Boolean, nullable=False, default=False, server_default="false"
         )
+        auto_reload_threshold_micros = Column(BigInteger, nullable=True)
+        auto_reload_amount_micros = Column(BigInteger, nullable=True)
+        auto_reload_payment_method_id = Column(String, nullable=True)
+        auto_reload_failed_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
         # User profile (can be set manually for non-OAuth users)
         display_name = Column(String, nullable=True)
@@ -2889,6 +2866,10 @@ from app.automations.persistence import (  # noqa: E402, F401
 )
 from app.file_storage.persistence import DocumentFile  # noqa: E402, F401
 from app.notifications.persistence import Notification  # noqa: E402, F401
+from app.podcasts.persistence import (  # noqa: E402, F401
+    Podcast,
+    PodcastStatus,
+)
 
 engine = create_async_engine(
     DATABASE_URL,
