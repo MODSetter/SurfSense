@@ -5,6 +5,10 @@ export type ChatErrorKind =
 	| "thread_busy"
 	| "send_failed_pre_accept"
 	| "auth_expired"
+	| "model_auth_failed"
+	| "model_not_found"
+	| "model_context_limit"
+	| "model_provider_unavailable"
 	| "rate_limited"
 	| "network_offline"
 	| "stream_interrupted"
@@ -14,7 +18,7 @@ export type ChatErrorKind =
 	| "server_error"
 	| "unknown";
 
-export type ChatErrorChannel = "pinned_inline" | "toast" | "silent";
+export type ChatErrorChannel = "pinned_inline" | "inline" | "toast" | "silent";
 export type ChatTelemetryEvent = "chat_blocked" | "chat_error";
 export type ChatErrorSeverity = "info" | "warn" | "error";
 
@@ -203,6 +207,66 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			rawMessage,
 			errorCode: errorCode ?? "AUTH_EXPIRED",
 			details: { flow: input.flow },
+		};
+	}
+
+	if (errorCode === "MODEL_AUTH_FAILED") {
+		return {
+			kind: "model_auth_failed",
+			channel: "toast",
+			severity: "warn",
+			telemetryEvent: "chat_blocked",
+			isExpected: true,
+			userMessage:
+				"This model’s API key is invalid or expired. Switch models, or update the API key.",
+			rawMessage,
+			errorCode: errorCode ?? "MODEL_AUTH_FAILED",
+			details: { flow: input.flow, providerErrorType },
+		};
+	}
+
+	if (errorCode === "MODEL_NOT_FOUND") {
+		return {
+			kind: "model_not_found",
+			channel: "toast",
+			severity: "warn",
+			telemetryEvent: "chat_blocked",
+			isExpected: true,
+			userMessage:
+				"This model is unavailable or no longer exists. Switch to another model and try again.",
+			rawMessage,
+			errorCode: errorCode ?? "MODEL_NOT_FOUND",
+			details: { flow: input.flow, providerErrorType },
+		};
+	}
+
+	if (errorCode === "MODEL_CONTEXT_LIMIT") {
+		return {
+			kind: "model_context_limit",
+			channel: "toast",
+			severity: "warn",
+			telemetryEvent: "chat_blocked",
+			isExpected: true,
+			userMessage:
+				"This request is too large for the selected model. Reduce the input or switch models.",
+			rawMessage,
+			errorCode: errorCode ?? "MODEL_CONTEXT_LIMIT",
+			details: { flow: input.flow, providerErrorType },
+		};
+	}
+
+	if (errorCode === "MODEL_PROVIDER_UNAVAILABLE") {
+		return {
+			kind: "model_provider_unavailable",
+			channel: "toast",
+			severity: "warn",
+			telemetryEvent: "chat_blocked",
+			isExpected: true,
+			userMessage:
+				"The selected model provider is temporarily unavailable. Please try again or switch models.",
+			rawMessage,
+			errorCode: errorCode ?? "MODEL_PROVIDER_UNAVAILABLE",
+			details: { flow: input.flow, providerErrorType },
 		};
 	}
 

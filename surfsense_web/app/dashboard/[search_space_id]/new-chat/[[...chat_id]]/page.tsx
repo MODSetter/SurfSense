@@ -613,6 +613,18 @@ export default function NewChatPage() {
 				return;
 			}
 
+			if (normalized.channel === "inline") {
+				if (normalized.assistantMessage) {
+					await persistAssistantErrorMessage({
+						threadId,
+						assistantMsgId,
+						text: normalized.assistantMessage,
+					});
+				}
+				toast.error(normalized.userMessage);
+				return;
+			}
+
 			toast.error(normalized.userMessage);
 		},
 		[currentUser?.id, persistAssistantErrorMessage, searchSpaceId, setPremiumAlertForThread]

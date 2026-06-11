@@ -18,6 +18,7 @@ from app.etl_pipeline.file_classifier import (
     PLAINTEXT_EXTENSIONS,
 )
 from app.rate_limiter import limiter
+from app.tasks.chat.streaming.errors.classifier import classify_stream_exception
 
 logger = logging.getLogger(__name__)
 
@@ -474,7 +475,15 @@ async def stream_anonymous_chat(
         except Exception as e:
             logger.exception("Anonymous chat stream error")
             await TokenQuotaService.anon_release(session_key, ip_key, request_id)
-            yield streaming_service.format_error(f"Error during chat: {e!s}")
+            _, error_code, _, _, user_message, extra = classify_stream_exception(
+                e,
+                flow_label="chat",
+            )
+            yield streaming_service.format_error(
+                user_message,
+                error_code=error_code,
+                extra=extra,
+            )
             yield streaming_service.format_done()
         finally:
             await TokenQuotaService.anon_release_stream_slot(client_ip)
