@@ -6,6 +6,8 @@ Revises: 157
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "158"
@@ -14,7 +16,29 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _drop_podcasts_from_publication() -> None:
+    """Detach podcasts from zero_publication so status can be retyped.
+
+    Postgres refuses ``ALTER COLUMN ... TYPE`` on a column a publication
+    depends on. Some databases reach this migration with podcasts already
+    published (an interim apply_publication ran during 156); drop it here and
+    let migration 159 reconcile the publication to the canonical shape.
+    """
+    conn = op.get_bind()
+    published = conn.execute(
+        sa.text(
+            "SELECT 1 FROM pg_publication_tables "
+            "WHERE pubname = 'zero_publication' "
+            "AND schemaname = current_schema() AND tablename = 'podcasts'"
+        )
+    ).fetchone()
+    if published:
+        op.execute('ALTER PUBLICATION "zero_publication" DROP TABLE "podcasts";')
+
+
 def upgrade() -> None:
+    _drop_podcasts_from_publication()
+
     # Retype the status enum by swapping in a fresh type and casting existing
     # rows. The legacy transient value 'generating' maps onto 'rendering'.
     op.execute("ALTER TYPE podcast_status RENAME TO podcast_status_old;")
