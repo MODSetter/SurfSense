@@ -569,10 +569,10 @@ export function trackIncentivePageViewed() {
 	safeCapture("incentive_page_viewed");
 }
 
-export function trackIncentiveTaskCompleted(taskType: string, pagesRewarded: number) {
+export function trackIncentiveTaskCompleted(taskType: string, creditMicrosRewarded: number) {
 	safeCapture("incentive_task_completed", {
 		task_type: taskType,
-		pages_rewarded: pagesRewarded,
+		credit_micros_rewarded: creditMicrosRewarded,
 	});
 }
 

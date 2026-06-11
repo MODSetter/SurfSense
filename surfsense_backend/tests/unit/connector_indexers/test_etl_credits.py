@@ -1,17 +1,22 @@
-"""Tests for page limit enforcement in connector indexers.
+"""Tests for ETL credit enforcement in connector indexers.
 
 Covers:
-  A) PageLimitService.estimate_pages_from_metadata — pure function (no mocks)
-  B) Page-limit quota gating in _index_selected_files tested through the
-     real PageLimitService with a mock DB session (system boundary).
+  A) EtlCreditService.estimate_pages_from_metadata — pure function (no mocks)
+  B) Credit-wallet gating in the connector indexers, tested through the real
+     EtlCreditService with a mock DB session (system boundary). ETL credit
+     billing is force-enabled per-test so the gating path is exercised.
      Google Drive is the primary, with OneDrive/Dropbox smoke tests.
+
+Page estimates are converted to micro-USD at ``config.MICROS_PER_PAGE`` per
+page and debited from ``user.credit_micros_balance``.
 """
 
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.page_limit_service import PageLimitService
+from app.config import config
+from app.services.etl_credit_service import EtlCreditService
 
 pytestmark = pytest.mark.unit
 
@@ -20,8 +25,23 @@ _CONNECTOR_ID = 42
 _SEARCH_SPACE_ID = 1
 
 
+def _micros(pages: int) -> int:
+    """Convert a page count to micro-USD using the configured rate."""
+    return pages * config.MICROS_PER_PAGE
+
+
+@pytest.fixture(autouse=True)
+def _enable_etl_billing(monkeypatch):
+    """Force ETL credit billing on so the gating/charging path runs.
+
+    It defaults to off (self-hosted/OSS), which would short-circuit
+    get_available_micros to None and bypass every check in this module.
+    """
+    monkeypatch.setattr(config, "ETL_CREDIT_BILLING_ENABLED", True)
+
+
 # ===================================================================
-# A) PageLimitService.estimate_pages_from_metadata — pure function
+# A) EtlCreditService.estimate_pages_from_metadata — pure function
 #    No mocks: it's a staticmethod with no I/O.
 # ===================================================================
 
@@ -30,88 +50,91 @@ class TestEstimatePagesFromMetadata:
     """Vertical slices for the page estimation staticmethod."""
 
     def test_pdf_100kb_returns_1(self):
-        assert PageLimitService.estimate_pages_from_metadata(".pdf", 100 * 1024) == 1
+        assert EtlCreditService.estimate_pages_from_metadata(".pdf", 100 * 1024) == 1
 
     def test_pdf_500kb_returns_5(self):
-        assert PageLimitService.estimate_pages_from_metadata(".pdf", 500 * 1024) == 5
+        assert EtlCreditService.estimate_pages_from_metadata(".pdf", 500 * 1024) == 5
 
     def test_pdf_1mb(self):
-        assert PageLimitService.estimate_pages_from_metadata(".pdf", 1024 * 1024) == 10
+        assert EtlCreditService.estimate_pages_from_metadata(".pdf", 1024 * 1024) == 10
 
     def test_docx_50kb_returns_1(self):
-        assert PageLimitService.estimate_pages_from_metadata(".docx", 50 * 1024) == 1
+        assert EtlCreditService.estimate_pages_from_metadata(".docx", 50 * 1024) == 1
 
     def test_docx_200kb(self):
-        assert PageLimitService.estimate_pages_from_metadata(".docx", 200 * 1024) == 4
+        assert EtlCreditService.estimate_pages_from_metadata(".docx", 200 * 1024) == 4
 
     def test_pptx_uses_200kb_per_page(self):
-        assert PageLimitService.estimate_pages_from_metadata(".pptx", 600 * 1024) == 3
+        assert EtlCreditService.estimate_pages_from_metadata(".pptx", 600 * 1024) == 3
 
     def test_xlsx_uses_100kb_per_page(self):
-        assert PageLimitService.estimate_pages_from_metadata(".xlsx", 300 * 1024) == 3
+        assert EtlCreditService.estimate_pages_from_metadata(".xlsx", 300 * 1024) == 3
 
     def test_txt_uses_3000_bytes_per_page(self):
-        assert PageLimitService.estimate_pages_from_metadata(".txt", 9000) == 3
+        assert EtlCreditService.estimate_pages_from_metadata(".txt", 9000) == 3
 
     def test_image_always_returns_1(self):
         for ext in (".jpg", ".png", ".gif", ".webp"):
-            assert PageLimitService.estimate_pages_from_metadata(ext, 5_000_000) == 1
+            assert EtlCreditService.estimate_pages_from_metadata(ext, 5_000_000) == 1
 
     def test_audio_uses_1mb_per_page(self):
         assert (
-            PageLimitService.estimate_pages_from_metadata(".mp3", 3 * 1024 * 1024) == 3
+            EtlCreditService.estimate_pages_from_metadata(".mp3", 3 * 1024 * 1024) == 3
         )
 
     def test_video_uses_5mb_per_page(self):
         assert (
-            PageLimitService.estimate_pages_from_metadata(".mp4", 15 * 1024 * 1024) == 3
+            EtlCreditService.estimate_pages_from_metadata(".mp4", 15 * 1024 * 1024) == 3
         )
 
     def test_unknown_ext_uses_80kb_per_page(self):
-        assert PageLimitService.estimate_pages_from_metadata(".xyz", 160 * 1024) == 2
+        assert EtlCreditService.estimate_pages_from_metadata(".xyz", 160 * 1024) == 2
 
     def test_zero_size_returns_1(self):
-        assert PageLimitService.estimate_pages_from_metadata(".pdf", 0) == 1
+        assert EtlCreditService.estimate_pages_from_metadata(".pdf", 0) == 1
 
     def test_negative_size_returns_1(self):
-        assert PageLimitService.estimate_pages_from_metadata(".pdf", -500) == 1
+        assert EtlCreditService.estimate_pages_from_metadata(".pdf", -500) == 1
 
     def test_minimum_is_always_1(self):
-        assert PageLimitService.estimate_pages_from_metadata(".pdf", 50) == 1
+        assert EtlCreditService.estimate_pages_from_metadata(".pdf", 50) == 1
 
     def test_epub_uses_50kb_per_page(self):
-        assert PageLimitService.estimate_pages_from_metadata(".epub", 250 * 1024) == 5
+        assert EtlCreditService.estimate_pages_from_metadata(".epub", 250 * 1024) == 5
 
 
 # ===================================================================
-# B) Page-limit enforcement in connector indexers
-#    System boundary mocked: DB session (for PageLimitService)
+# B) Credit enforcement in connector indexers
+#    System boundary mocked: DB session (for EtlCreditService)
 #    System boundary mocked: external API clients, download/ETL
-#    NOT mocked: PageLimitService itself (our own code)
+#    NOT mocked: EtlCreditService itself (our own code)
 # ===================================================================
 
 
 class _FakeUser:
     """Stands in for the User ORM model at the DB boundary."""
 
-    def __init__(self, pages_used: int = 0, pages_limit: int = 100):
-        self.pages_used = pages_used
-        self.pages_limit = pages_limit
+    def __init__(self, balance_micros: int = 0, reserved_micros: int = 0):
+        self.credit_micros_balance = balance_micros
+        self.credit_micros_reserved = reserved_micros
 
 
-def _make_page_limit_session(pages_used: int = 0, pages_limit: int = 100):
-    """Build a mock DB session that real PageLimitService can operate against.
+def _make_credit_session(balance_micros: int = _micros(100), reserved_micros: int = 0):
+    """Build a mock DB session that the real EtlCreditService can operate against.
 
     Every ``session.execute()`` returns a result compatible with both
-    ``get_page_usage`` (.first() → tuple) and ``update_page_usage``
-    (.unique().scalar_one_or_none() → User-like).
+    ``get_available_micros`` (.first() → ``(balance, reserved)``) and
+    ``charge_credits`` (.unique().scalar_one_or_none() → User-like).
     """
-    fake_user = _FakeUser(pages_used, pages_limit)
+    fake_user = _FakeUser(balance_micros, reserved_micros)
     session = AsyncMock()
 
     def _make_result(*_args, **_kwargs):
         result = MagicMock()
-        result.first.return_value = (fake_user.pages_used, fake_user.pages_limit)
+        result.first.return_value = (
+            fake_user.credit_micros_balance,
+            fake_user.credit_micros_reserved,
+        )
         result.unique.return_value.scalar_one_or_none.return_value = fake_user
         return result
 
@@ -138,7 +161,7 @@ def gdrive_selected_mocks(monkeypatch):
     """Mocks for Google Drive _index_selected_files — only system boundaries."""
     import app.tasks.connector_indexers.google_drive_indexer as _mod
 
-    session, fake_user = _make_page_limit_session(0, 100)
+    session, fake_user = _make_credit_session(_micros(100))
 
     get_file_results: dict[str, tuple[dict | None, str | None]] = {}
 
@@ -183,12 +206,11 @@ async def _run_gdrive_selected(mocks, file_ids):
     )
 
 
-async def test_gdrive_files_within_quota_are_downloaded(gdrive_selected_mocks):
-    """Files whose cumulative estimated pages fit within remaining quota
+async def test_gdrive_files_within_credit_are_downloaded(gdrive_selected_mocks):
+    """Files whose cumulative estimated cost fits within available credit
     are sent to _download_and_index."""
     m = gdrive_selected_mocks
-    m["fake_user"].pages_used = 0
-    m["fake_user"].pages_limit = 100
+    m["fake_user"].credit_micros_balance = _micros(100)
 
     for fid in ("f1", "f2", "f3"):
         m["get_file_results"][fid] = (
@@ -207,11 +229,10 @@ async def test_gdrive_files_within_quota_are_downloaded(gdrive_selected_mocks):
     assert len(call_files) == 3
 
 
-async def test_gdrive_files_exceeding_quota_rejected(gdrive_selected_mocks):
-    """Files whose pages would exceed remaining quota are rejected."""
+async def test_gdrive_files_exceeding_credit_rejected(gdrive_selected_mocks):
+    """Files whose cost would exceed available credit are rejected."""
     m = gdrive_selected_mocks
-    m["fake_user"].pages_used = 98
-    m["fake_user"].pages_limit = 100
+    m["fake_user"].credit_micros_balance = _micros(2)
 
     m["get_file_results"]["big"] = (
         _make_gdrive_file("big", "huge.pdf", size=500 * 1024),
@@ -224,14 +245,13 @@ async def test_gdrive_files_exceeding_quota_rejected(gdrive_selected_mocks):
 
     assert indexed == 0
     assert len(errors) == 1
-    assert "page limit" in errors[0].lower()
+    assert "insufficient credits" in errors[0].lower()
 
 
-async def test_gdrive_quota_mix_partial_indexing(gdrive_selected_mocks):
-    """3rd file pushes over quota → only first two indexed."""
+async def test_gdrive_credit_mix_partial_indexing(gdrive_selected_mocks):
+    """3rd file pushes over available credit → only first two indexed."""
     m = gdrive_selected_mocks
-    m["fake_user"].pages_used = 0
-    m["fake_user"].pages_limit = 2
+    m["fake_user"].credit_micros_balance = _micros(2)
 
     for fid in ("f1", "f2", "f3"):
         m["get_file_results"][fid] = (
@@ -250,11 +270,10 @@ async def test_gdrive_quota_mix_partial_indexing(gdrive_selected_mocks):
     assert {f["id"] for f in call_files} == {"f1", "f2"}
 
 
-async def test_gdrive_proportional_page_deduction(gdrive_selected_mocks):
-    """Pages deducted are proportional to successfully indexed files."""
+async def test_gdrive_proportional_credit_deduction(gdrive_selected_mocks):
+    """Credit deducted is proportional to successfully indexed files."""
     m = gdrive_selected_mocks
-    m["fake_user"].pages_used = 0
-    m["fake_user"].pages_limit = 100
+    m["fake_user"].credit_micros_balance = _micros(100)
 
     for fid in ("f1", "f2", "f3", "f4"):
         m["get_file_results"][fid] = (
@@ -268,14 +287,14 @@ async def test_gdrive_proportional_page_deduction(gdrive_selected_mocks):
         [("f1", "f1.xyz"), ("f2", "f2.xyz"), ("f3", "f3.xyz"), ("f4", "f4.xyz")],
     )
 
-    assert m["fake_user"].pages_used == 2
+    # 4 estimated pages, 2 of 4 indexed → deduct 2 pages.
+    assert m["fake_user"].credit_micros_balance == _micros(100) - _micros(2)
 
 
 async def test_gdrive_no_deduction_when_nothing_indexed(gdrive_selected_mocks):
-    """If batch_indexed == 0, user's pages_used stays unchanged."""
+    """If batch_indexed == 0, the user's balance stays unchanged."""
     m = gdrive_selected_mocks
-    m["fake_user"].pages_used = 5
-    m["fake_user"].pages_limit = 100
+    m["fake_user"].credit_micros_balance = _micros(95)
 
     m["get_file_results"]["f1"] = (
         _make_gdrive_file("f1", "f1.xyz", size=80 * 1024),
@@ -285,14 +304,13 @@ async def test_gdrive_no_deduction_when_nothing_indexed(gdrive_selected_mocks):
 
     await _run_gdrive_selected(m, [("f1", "f1.xyz")])
 
-    assert m["fake_user"].pages_used == 5
+    assert m["fake_user"].credit_micros_balance == _micros(95)
 
 
-async def test_gdrive_zero_quota_rejects_all(gdrive_selected_mocks):
-    """When pages_used == pages_limit, every file is rejected."""
+async def test_gdrive_zero_credit_rejects_all(gdrive_selected_mocks):
+    """When the balance is exhausted, every file is rejected."""
     m = gdrive_selected_mocks
-    m["fake_user"].pages_used = 100
-    m["fake_user"].pages_limit = 100
+    m["fake_user"].credit_micros_balance = 0
 
     for fid in ("f1", "f2"):
         m["get_file_results"][fid] = (
@@ -317,7 +335,7 @@ async def test_gdrive_zero_quota_rejects_all(gdrive_selected_mocks):
 def gdrive_full_scan_mocks(monkeypatch):
     import app.tasks.connector_indexers.google_drive_indexer as _mod
 
-    session, fake_user = _make_page_limit_session(0, 100)
+    session, fake_user = _make_credit_session(_micros(100))
     mock_task_logger = MagicMock()
     mock_task_logger.log_task_progress = AsyncMock()
 
@@ -364,10 +382,9 @@ async def _run_gdrive_full_scan(mocks, max_files=500):
     )
 
 
-async def test_gdrive_full_scan_skips_over_quota(gdrive_full_scan_mocks, monkeypatch):
+async def test_gdrive_full_scan_skips_over_credit(gdrive_full_scan_mocks, monkeypatch):
     m = gdrive_full_scan_mocks
-    m["fake_user"].pages_used = 0
-    m["fake_user"].pages_limit = 2
+    m["fake_user"].credit_micros_balance = _micros(2)
 
     page_files = [
         _make_gdrive_file(f"f{i}", f"file{i}.xyz", size=80 * 1024) for i in range(5)
@@ -391,8 +408,7 @@ async def test_gdrive_full_scan_deducts_after_indexing(
     gdrive_full_scan_mocks, monkeypatch
 ):
     m = gdrive_full_scan_mocks
-    m["fake_user"].pages_used = 0
-    m["fake_user"].pages_limit = 100
+    m["fake_user"].credit_micros_balance = _micros(100)
 
     page_files = [
         _make_gdrive_file(f"f{i}", f"file{i}.xyz", size=80 * 1024) for i in range(3)
@@ -408,7 +424,7 @@ async def test_gdrive_full_scan_deducts_after_indexing(
 
     await _run_gdrive_full_scan(m)
 
-    assert m["fake_user"].pages_used == 3
+    assert m["fake_user"].credit_micros_balance == _micros(100) - _micros(3)
 
 
 # ---------------------------------------------------------------------------
@@ -416,10 +432,10 @@ async def test_gdrive_full_scan_deducts_after_indexing(
 # ---------------------------------------------------------------------------
 
 
-async def test_gdrive_delta_sync_skips_over_quota(monkeypatch):
+async def test_gdrive_delta_sync_skips_over_credit(monkeypatch):
     import app.tasks.connector_indexers.google_drive_indexer as _mod
 
-    session, _ = _make_page_limit_session(0, 2)
+    session, _ = _make_credit_session(_micros(2))
 
     changes = [
         {
@@ -471,7 +487,7 @@ async def test_gdrive_delta_sync_skips_over_quota(monkeypatch):
 
 
 # ===================================================================
-# C) OneDrive smoke tests — verify page limit wiring
+# C) OneDrive smoke tests — verify credit wiring
 # ===================================================================
 
 
@@ -489,7 +505,7 @@ def _make_onedrive_file(file_id: str, name: str, size: int = 80 * 1024) -> dict:
 def onedrive_selected_mocks(monkeypatch):
     import app.tasks.connector_indexers.onedrive_indexer as _mod
 
-    session, fake_user = _make_page_limit_session(0, 100)
+    session, fake_user = _make_credit_session(_micros(100))
 
     get_file_results: dict[str, tuple[dict | None, str | None]] = {}
 
@@ -531,11 +547,10 @@ async def _run_onedrive_selected(mocks, file_ids):
     )
 
 
-async def test_onedrive_over_quota_rejected(onedrive_selected_mocks):
-    """OneDrive: files exceeding quota produce errors, not downloads."""
+async def test_onedrive_over_credit_rejected(onedrive_selected_mocks):
+    """OneDrive: files exceeding available credit produce errors, not downloads."""
     m = onedrive_selected_mocks
-    m["fake_user"].pages_used = 99
-    m["fake_user"].pages_limit = 100
+    m["fake_user"].credit_micros_balance = _micros(1)
 
     m["get_file_results"]["big"] = (
         _make_onedrive_file("big", "huge.pdf", size=500 * 1024),
@@ -548,14 +563,13 @@ async def test_onedrive_over_quota_rejected(onedrive_selected_mocks):
 
     assert indexed == 0
     assert len(errors) == 1
-    assert "page limit" in errors[0].lower()
+    assert "insufficient credits" in errors[0].lower()
 
 
 async def test_onedrive_deducts_after_success(onedrive_selected_mocks):
-    """OneDrive: pages_used increases after successful indexing."""
+    """OneDrive: balance decreases after successful indexing."""
     m = onedrive_selected_mocks
-    m["fake_user"].pages_used = 0
-    m["fake_user"].pages_limit = 100
+    m["fake_user"].credit_micros_balance = _micros(100)
 
     for fid in ("f1", "f2"):
         m["get_file_results"][fid] = (
@@ -566,11 +580,11 @@ async def test_onedrive_deducts_after_success(onedrive_selected_mocks):
 
     await _run_onedrive_selected(m, [("f1", "f1.xyz"), ("f2", "f2.xyz")])
 
-    assert m["fake_user"].pages_used == 2
+    assert m["fake_user"].credit_micros_balance == _micros(100) - _micros(2)
 
 
 # ===================================================================
-# D) Dropbox smoke tests — verify page limit wiring
+# D) Dropbox smoke tests — verify credit wiring
 # ===================================================================
 
 
@@ -590,7 +604,7 @@ def _make_dropbox_file(file_path: str, name: str, size: int = 80 * 1024) -> dict
 def dropbox_selected_mocks(monkeypatch):
     import app.tasks.connector_indexers.dropbox_indexer as _mod
 
-    session, fake_user = _make_page_limit_session(0, 100)
+    session, fake_user = _make_credit_session(_micros(100))
 
     get_file_results: dict[str, tuple[dict | None, str | None]] = {}
 
@@ -632,11 +646,10 @@ async def _run_dropbox_selected(mocks, file_paths):
     )
 
 
-async def test_dropbox_over_quota_rejected(dropbox_selected_mocks):
-    """Dropbox: files exceeding quota produce errors, not downloads."""
+async def test_dropbox_over_credit_rejected(dropbox_selected_mocks):
+    """Dropbox: files exceeding available credit produce errors, not downloads."""
     m = dropbox_selected_mocks
-    m["fake_user"].pages_used = 99
-    m["fake_user"].pages_limit = 100
+    m["fake_user"].credit_micros_balance = _micros(1)
 
     m["get_file_results"]["/huge.pdf"] = (
         _make_dropbox_file("/huge.pdf", "huge.pdf", size=500 * 1024),
@@ -649,14 +662,13 @@ async def test_dropbox_over_quota_rejected(dropbox_selected_mocks):
 
     assert indexed == 0
     assert len(errors) == 1
-    assert "page limit" in errors[0].lower()
+    assert "insufficient credits" in errors[0].lower()
 
 
 async def test_dropbox_deducts_after_success(dropbox_selected_mocks):
-    """Dropbox: pages_used increases after successful indexing."""
+    """Dropbox: balance decreases after successful indexing."""
     m = dropbox_selected_mocks
-    m["fake_user"].pages_used = 0
-    m["fake_user"].pages_limit = 100
+    m["fake_user"].credit_micros_balance = _micros(100)
 
     for name in ("f1.xyz", "f2.xyz"):
         path = f"/{name}"
@@ -668,4 +680,4 @@ async def test_dropbox_deducts_after_success(dropbox_selected_mocks):
 
     await _run_dropbox_selected(m, [("/f1.xyz", "f1.xyz"), ("/f2.xyz", "f2.xyz")])
 
-    assert m["fake_user"].pages_used == 2
+    assert m["fake_user"].credit_micros_balance == _micros(100) - _micros(2)

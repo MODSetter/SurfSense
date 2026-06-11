@@ -22,7 +22,14 @@ import {
 } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
-export function MorePagesContent() {
+// Compact dollar label for a task's reward (e.g. "+$0.03").
+const formatRewardUsd = (micros: number) => {
+	const dollars = micros / 1_000_000;
+	if (dollars >= 1) return `+$${dollars.toFixed(2)}`;
+	return `+$${dollars.toFixed(2)}`;
+};
+
+export function EarnCreditsContent() {
 	const params = useParams();
 	const queryClient = useQueryClient();
 	const searchSpaceId = params?.search_space_id ?? "";
@@ -35,11 +42,11 @@ export function MorePagesContent() {
 		queryKey: ["incentive-tasks"],
 		queryFn: () => incentiveTasksApiService.getTasks(),
 	});
-	const { data: stripeStatus } = useQuery({
-		queryKey: ["stripe-status"],
-		queryFn: () => stripeApiService.getStatus(),
+	const { data: creditStatus } = useQuery({
+		queryKey: ["credit-status"],
+		queryFn: () => stripeApiService.getCreditStatus(),
 	});
-	const pageBuyingEnabled = stripeStatus?.page_buying_enabled ?? true;
+	const creditBuyingEnabled = creditStatus?.credit_buying_enabled ?? true;
 
 	const completeMutation = useMutation({
 		mutationFn: incentiveTasksApiService.completeTask,
@@ -48,7 +55,7 @@ export function MorePagesContent() {
 				toast.success(response.message);
 				const task = data?.tasks.find((t) => t.task_type === taskType);
 				if (task) {
-					trackIncentiveTaskCompleted(taskType, task.pages_reward);
+					trackIncentiveTaskCompleted(taskType, task.credit_micros_reward);
 				}
 				queryClient.invalidateQueries({ queryKey: ["incentive-tasks"] });
 				queryClient.invalidateQueries({ queryKey: USER_QUERY_KEY });
@@ -69,12 +76,14 @@ export function MorePagesContent() {
 	return (
 		<div className="w-full space-y-5">
 			<div className="text-center">
-				<h2 className="text-xl font-bold tracking-tight">Get Free Pages</h2>
-				<p className="mt-1 text-sm text-muted-foreground">Earn bonus pages by completing tasks</p>
+				<h2 className="text-xl font-bold tracking-tight">Earn Credits</h2>
+				<p className="mt-1 text-sm text-muted-foreground">
+					Earn bonus credits by completing tasks
+				</p>
 			</div>
 
 			<div className="space-y-2">
-				<h3 className="text-sm font-semibold">Earn Bonus Pages</h3>
+				<h3 className="text-sm font-semibold">Earn Bonus Credits</h3>
 				{isLoading ? (
 					<div className="space-y-1.5">
 						{["github", "reddit", "discord"].map((task) => (
@@ -97,14 +106,16 @@ export function MorePagesContent() {
 								<CardContent className="flex items-center gap-3 p-3">
 									<div
 										className={cn(
-											"flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+											"flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full px-2",
 											task.completed ? "bg-primary text-primary-foreground" : "bg-muted"
 										)}
 									>
 										{task.completed ? (
 											<Check className="h-3.5 w-3.5" />
 										) : (
-											<span className="text-xs font-semibold">+{task.pages_reward}</span>
+											<span className="text-[11px] font-semibold tabular-nums">
+												{formatRewardUsd(task.credit_micros_reward)}
+											</span>
 										)}
 									</div>
 									<p
@@ -151,15 +162,13 @@ export function MorePagesContent() {
 
 			<div className="text-center">
 				<p className="text-sm text-muted-foreground">Need more?</p>
-				{pageBuyingEnabled ? (
+				{creditBuyingEnabled ? (
 					<Button asChild variant="link" className="text-emerald-600 dark:text-emerald-400">
-						<Link href={`/dashboard/${searchSpaceId}/buy-pages`}>
-							Buy page packs at $1 per 1,000
-						</Link>
+						<Link href={`/dashboard/${searchSpaceId}/buy-more`}>Buy credits at $1 per $1</Link>
 					</Button>
 				) : (
 					<p className="text-xs text-muted-foreground">
-						Page purchases are temporarily unavailable.
+						Credit purchases are temporarily unavailable.
 					</p>
 				)}
 			</div>

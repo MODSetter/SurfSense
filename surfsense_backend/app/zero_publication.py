@@ -38,10 +38,7 @@ DOCUMENT_COLS = [
 
 USER_COLS = [
     "id",
-    "pages_limit",
-    "pages_used",
-    "premium_credit_micros_limit",
-    "premium_credit_micros_used",
+    "credit_micros_balance",
 ]
 
 AUTOMATION_RUN_COLS = [

@@ -1,19 +1,48 @@
 import { z } from "zod";
 
-export const pagePurchaseStatusEnum = z.enum(["pending", "completed", "failed"]);
+export const purchaseStatusEnum = z.enum(["pending", "completed", "failed"]);
 
-export const createCheckoutSessionRequest = z.object({
-	quantity: z.number().int().min(1).max(100),
+// ---------------------------------------------------------------------------
+// Credit purchases ($1 packs that top up credit_micros_balance)
+// ---------------------------------------------------------------------------
+
+export const createCreditCheckoutSessionRequest = z.object({
+	quantity: z.number().int().min(1).max(10_000),
 	search_space_id: z.number().int().min(1),
 });
 
-export const createCheckoutSessionResponse = z.object({
+export const createCreditCheckoutSessionResponse = z.object({
 	checkout_url: z.string(),
 });
 
-export const stripeStatusResponse = z.object({
-	page_buying_enabled: z.boolean(),
+// Credit balance availability + records. Unit is integer micro-USD
+// (1_000_000 == $1.00); the FE divides by 1M when displaying.
+export const creditStripeStatusResponse = z.object({
+	credit_buying_enabled: z.boolean(),
+	credit_micros_balance: z.number().default(0),
 });
+
+export const creditPurchase = z.object({
+	id: z.uuid(),
+	stripe_checkout_session_id: z.string(),
+	stripe_payment_intent_id: z.string().nullable(),
+	quantity: z.number(),
+	credit_micros_granted: z.number(),
+	amount_total: z.number().nullable(),
+	currency: z.string().nullable(),
+	source: z.string().default("checkout"),
+	status: purchaseStatusEnum,
+	completed_at: z.string().nullable(),
+	created_at: z.string(),
+});
+
+export const getCreditPurchasesResponse = z.object({
+	purchases: z.array(creditPurchase),
+});
+
+// ---------------------------------------------------------------------------
+// Legacy page purchases (read-only history; page buying is removed)
+// ---------------------------------------------------------------------------
 
 export const pagePurchase = z.object({
 	id: z.uuid(),
@@ -23,7 +52,7 @@ export const pagePurchase = z.object({
 	pages_granted: z.number(),
 	amount_total: z.number().nullable(),
 	currency: z.string().nullable(),
-	status: pagePurchaseStatusEnum,
+	status: purchaseStatusEnum,
 	completed_at: z.string().nullable(),
 	created_at: z.string(),
 });
@@ -32,70 +61,59 @@ export const getPagePurchasesResponse = z.object({
 	purchases: z.array(pagePurchase),
 });
 
-// Premium credit purchases
-export const createTokenCheckoutSessionRequest = z.object({
-	quantity: z.number().int().min(1).max(100),
+// Response from /stripe/finalize-checkout (credit purchases only).
+export const finalizeCheckoutResponse = z.object({
+	status: purchaseStatusEnum,
+	credit_micros_balance: z.number().default(0),
+	credit_micros_granted: z.number().nullable().optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Auto-reload (off-session top-up when the balance drops below a threshold)
+// All *_micros fields are integer micro-USD (1_000_000 == $1.00).
+// ---------------------------------------------------------------------------
+
+export const autoReloadSettingsResponse = z.object({
+	feature_enabled: z.boolean(),
+	enabled: z.boolean().default(false),
+	threshold_micros: z.number().nullable(),
+	amount_micros: z.number().nullable(),
+	min_amount_micros: z.number(),
+	has_payment_method: z.boolean().default(false),
+	failed_at: z.string().nullable(),
+});
+
+export const updateAutoReloadSettingsRequest = z.object({
+	enabled: z.boolean(),
+	threshold_micros: z.number().int().min(0).nullable().optional(),
+	amount_micros: z.number().int().min(0).nullable().optional(),
+});
+
+export const createAutoReloadSetupSessionRequest = z.object({
 	search_space_id: z.number().int().min(1),
 });
 
-export const createTokenCheckoutSessionResponse = z.object({
+export const createAutoReloadSetupSessionResponse = z.object({
 	checkout_url: z.string(),
 });
 
-// Premium credit balance + purchase records.
-//
-// The unit is integer micro-USD (1_000_000 == $1.00). The schema names
-// kept the ``Token`` prefix for API back-compat with pinned clients;
-// the field names below are authoritative.
-export const tokenStripeStatusResponse = z.object({
-	token_buying_enabled: z.boolean(),
-	premium_credit_micros_used: z.number().default(0),
-	premium_credit_micros_limit: z.number().default(0),
-	premium_credit_micros_remaining: z.number().default(0),
-});
+export type AutoReloadSettingsResponse = z.infer<typeof autoReloadSettingsResponse>;
+export type UpdateAutoReloadSettingsRequest = z.infer<typeof updateAutoReloadSettingsRequest>;
+export type CreateAutoReloadSetupSessionRequest = z.infer<
+	typeof createAutoReloadSetupSessionRequest
+>;
+export type CreateAutoReloadSetupSessionResponse = z.infer<
+	typeof createAutoReloadSetupSessionResponse
+>;
 
-export const tokenPurchaseStatusEnum = pagePurchaseStatusEnum;
-
-export const tokenPurchase = z.object({
-	id: z.uuid(),
-	stripe_checkout_session_id: z.string(),
-	stripe_payment_intent_id: z.string().nullable(),
-	quantity: z.number(),
-	credit_micros_granted: z.number(),
-	amount_total: z.number().nullable(),
-	currency: z.string().nullable(),
-	status: tokenPurchaseStatusEnum,
-	completed_at: z.string().nullable(),
-	created_at: z.string(),
-});
-
-export const getTokenPurchasesResponse = z.object({
-	purchases: z.array(tokenPurchase),
-});
-
-// Response from /stripe/finalize-checkout. Either page or token fields
-// are populated depending on purchase_type.
-export const finalizeCheckoutResponse = z.object({
-	purchase_type: z.enum(["page_packs", "premium_tokens"]),
-	status: pagePurchaseStatusEnum,
-	pages_limit: z.number().nullable().optional(),
-	pages_used: z.number().nullable().optional(),
-	pages_granted: z.number().nullable().optional(),
-	premium_credit_micros_limit: z.number().nullable().optional(),
-	premium_credit_micros_used: z.number().nullable().optional(),
-	premium_credit_micros_granted: z.number().nullable().optional(),
-});
-
-export type PagePurchaseStatus = z.infer<typeof pagePurchaseStatusEnum>;
-export type CreateCheckoutSessionRequest = z.infer<typeof createCheckoutSessionRequest>;
-export type CreateCheckoutSessionResponse = z.infer<typeof createCheckoutSessionResponse>;
-export type StripeStatusResponse = z.infer<typeof stripeStatusResponse>;
+export type PurchaseStatus = z.infer<typeof purchaseStatusEnum>;
+export type CreateCreditCheckoutSessionRequest = z.infer<typeof createCreditCheckoutSessionRequest>;
+export type CreateCreditCheckoutSessionResponse = z.infer<
+	typeof createCreditCheckoutSessionResponse
+>;
+export type CreditStripeStatusResponse = z.infer<typeof creditStripeStatusResponse>;
+export type CreditPurchase = z.infer<typeof creditPurchase>;
+export type GetCreditPurchasesResponse = z.infer<typeof getCreditPurchasesResponse>;
 export type PagePurchase = z.infer<typeof pagePurchase>;
 export type GetPagePurchasesResponse = z.infer<typeof getPagePurchasesResponse>;
-export type CreateTokenCheckoutSessionRequest = z.infer<typeof createTokenCheckoutSessionRequest>;
-export type CreateTokenCheckoutSessionResponse = z.infer<typeof createTokenCheckoutSessionResponse>;
-export type TokenStripeStatusResponse = z.infer<typeof tokenStripeStatusResponse>;
-export type TokenPurchaseStatus = z.infer<typeof tokenPurchaseStatusEnum>;
-export type TokenPurchase = z.infer<typeof tokenPurchase>;
-export type GetTokenPurchasesResponse = z.infer<typeof getTokenPurchasesResponse>;
 export type FinalizeCheckoutResponse = z.infer<typeof finalizeCheckoutResponse>;

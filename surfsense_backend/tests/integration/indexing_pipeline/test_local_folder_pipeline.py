@@ -961,24 +961,37 @@ class TestDirectConvert:
 
 
 # ====================================================================
-# Tier 8: Page Limits (PL1-PL6)
+# Tier 8: ETL Credits (CR1-CR6)
 # ====================================================================
 
 
-class TestPageLimits:
+class TestEtlCredits:
+    @pytest.fixture(autouse=True)
+    def _enable_etl_billing(self, monkeypatch):
+        """Force ETL credit billing on (off by default for self-hosted/OSS)."""
+        from app.config import config
+
+        monkeypatch.setattr(config, "ETL_CREDIT_BILLING_ENABLED", True)
+
+    @staticmethod
+    def _micros(pages: int) -> int:
+        from app.config import config
+
+        return pages * config.MICROS_PER_PAGE
+
     @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
-    async def test_pl1_full_scan_increments_pages_used(
+    async def test_cr1_full_scan_debits_balance(
         self,
         db_session: AsyncSession,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
     ):
-        """PL1: Successful full-scan sync increments user.pages_used."""
+        """CR1: Successful full-scan sync debits user.credit_micros_balance."""
         from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
-        db_user.pages_used = 0
-        db_user.pages_limit = 500
+        starting = self._micros(500)
+        db_user.credit_micros_balance = starting
         await db_session.flush()
 
         (tmp_path / "note.md").write_text("# Hello World\n\nContent here.")
@@ -995,21 +1008,22 @@ class TestPageLimits:
         assert count == 1
 
         await db_session.refresh(db_user)
-        assert db_user.pages_used > 0, "pages_used should increase after indexing"
+        assert db_user.credit_micros_balance < starting, (
+            "balance should drop after indexing"
+        )
 
     @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
-    async def test_pl2_full_scan_blocked_when_limit_exhausted(
+    async def test_cr2_full_scan_blocked_when_credit_exhausted(
         self,
         db_session: AsyncSession,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
     ):
-        """PL2: Full-scan skips file when page limit is exhausted."""
+        """CR2: Full-scan skips file when the wallet is empty."""
         from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
-        db_user.pages_used = 100
-        db_user.pages_limit = 100
+        db_user.credit_micros_balance = 0
         await db_session.flush()
 
         (tmp_path / "note.md").write_text("# Hello World\n\nContent here.")
@@ -1025,21 +1039,23 @@ class TestPageLimits:
         assert count == 0
 
         await db_session.refresh(db_user)
-        assert db_user.pages_used == 100, "pages_used should not change on rejection"
+        assert db_user.credit_micros_balance == 0, (
+            "balance should not change on rejection"
+        )
 
     @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
-    async def test_pl3_single_file_increments_pages_used(
+    async def test_cr3_single_file_debits_balance(
         self,
         db_session: AsyncSession,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
     ):
-        """PL3: Single-file mode increments user.pages_used on success."""
+        """CR3: Single-file mode debits balance on success."""
         from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
-        db_user.pages_used = 0
-        db_user.pages_limit = 500
+        starting = self._micros(500)
+        db_user.credit_micros_balance = starting
         await db_session.flush()
 
         (tmp_path / "note.md").write_text("# Hello World\n\nContent here.")
@@ -1057,21 +1073,22 @@ class TestPageLimits:
         assert count == 1
 
         await db_session.refresh(db_user)
-        assert db_user.pages_used > 0, "pages_used should increase after indexing"
+        assert db_user.credit_micros_balance < starting, (
+            "balance should drop after indexing"
+        )
 
     @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
-    async def test_pl4_single_file_blocked_when_limit_exhausted(
+    async def test_cr4_single_file_blocked_when_credit_exhausted(
         self,
         db_session: AsyncSession,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
     ):
-        """PL4: Single-file mode skips file when page limit is exhausted."""
+        """CR4: Single-file mode skips file when the wallet is empty."""
         from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
-        db_user.pages_used = 100
-        db_user.pages_limit = 100
+        db_user.credit_micros_balance = 0
         await db_session.flush()
 
         (tmp_path / "note.md").write_text("# Hello World\n\nContent here.")
@@ -1087,24 +1104,25 @@ class TestPageLimits:
 
         assert count == 0
         assert err is not None
-        assert "page limit" in err.lower()
+        assert "credit" in err.lower()
 
         await db_session.refresh(db_user)
-        assert db_user.pages_used == 100, "pages_used should not change on rejection"
+        assert db_user.credit_micros_balance == 0, (
+            "balance should not change on rejection"
+        )
 
     @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
-    async def test_pl5_unchanged_resync_no_extra_pages(
+    async def test_cr5_unchanged_resync_no_extra_debit(
         self,
         db_session: AsyncSession,
         db_user: User,
         db_search_space: SearchSpace,
         tmp_path: Path,
     ):
-        """PL5: Re-syncing an unchanged file does not consume additional pages."""
+        """CR5: Re-syncing an unchanged file does not consume additional credit."""
         from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
-        db_user.pages_used = 0
-        db_user.pages_limit = 500
+        db_user.credit_micros_balance = self._micros(500)
         await db_session.flush()
 
         (tmp_path / "note.md").write_text("# Hello\n\nSame content.")
@@ -1119,8 +1137,8 @@ class TestPageLimits:
         assert count1 == 1
 
         await db_session.refresh(db_user)
-        pages_after_first = db_user.pages_used
-        assert pages_after_first > 0
+        balance_after_first = db_user.credit_micros_balance
+        assert balance_after_first < self._micros(500)
 
         count2, _, _, _ = await index_local_folder(
             session=db_session,
@@ -1133,12 +1151,12 @@ class TestPageLimits:
         assert count2 == 0
 
         await db_session.refresh(db_user)
-        assert db_user.pages_used == pages_after_first, (
-            "pages_used should not increase for unchanged files"
+        assert db_user.credit_micros_balance == balance_after_first, (
+            "balance should not change for unchanged files"
         )
 
     @pytest.mark.usefixtures(*UNIFIED_FIXTURES)
-    async def test_pl6_batch_partial_page_limit_exhaustion(
+    async def test_cr6_batch_partial_credit_exhaustion(
         self,
         db_session: AsyncSession,
         db_user: User,
@@ -1146,11 +1164,11 @@ class TestPageLimits:
         tmp_path: Path,
         patched_batch_sessions,
     ):
-        """PL6: Batch mode with a very low page limit: some files succeed, rest fail."""
+        """CR6: Batch mode with a tiny balance: some files succeed, rest fail."""
         from app.tasks.connector_indexers.local_folder_indexer import index_local_folder
 
-        db_user.pages_used = 0
-        db_user.pages_limit = 1
+        # Exactly one page of credit.
+        db_user.credit_micros_balance = self._micros(1)
         await db_session.flush()
 
         (tmp_path / "a.md").write_text("File A content")
@@ -1171,12 +1189,13 @@ class TestPageLimits:
         )
 
         assert count >= 1, "at least one file should succeed"
-        assert failed >= 1, "at least one file should fail due to page limit"
+        assert failed >= 1, "at least one file should fail due to insufficient credits"
         assert count + failed == 3
 
         await db_session.refresh(db_user)
-        assert db_user.pages_used > 0
-        assert db_user.pages_used <= db_user.pages_limit + 1
+        # The wallet was drained by the successful file(s); it may dip slightly
+        # negative when the actual page count exceeds the pre-check estimate.
+        assert db_user.credit_micros_balance <= 0
 
 
 # ====================================================================

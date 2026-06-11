@@ -110,11 +110,13 @@ from .search_space import (
     SearchSpaceWithStats,
 )
 from .stripe import (
-    CreateCheckoutSessionRequest,
-    CreateCheckoutSessionResponse,
+    CreateCreditCheckoutSessionRequest,
+    CreateCreditCheckoutSessionResponse,
+    CreditPurchaseHistoryResponse,
+    CreditPurchaseRead,
+    CreditStripeStatusResponse,
     PagePurchaseHistoryResponse,
     PagePurchaseRead,
-    StripeStatusResponse,
     StripeWebhookResponse,
 )
 from .users import UserCreate, UserRead, UserUpdate
@@ -142,8 +144,11 @@ __all__ = [
     "ChunkCreate",
     "ChunkRead",
     "ChunkUpdate",
-    "CreateCheckoutSessionRequest",
-    "CreateCheckoutSessionResponse",
+    "CreateCreditCheckoutSessionRequest",
+    "CreateCreditCheckoutSessionResponse",
+    "CreditPurchaseHistoryResponse",
+    "CreditPurchaseRead",
+    "CreditStripeStatusResponse",
     "DefaultSystemInstructionsResponse",
     # Document schemas
     "DocumentBase",
@@ -252,7 +257,6 @@ __all__ = [
     "SearchSpaceRead",
     "SearchSpaceUpdate",
     "SearchSpaceWithStats",
-    "StripeStatusResponse",
     "StripeWebhookResponse",
     "ThreadHistoryLoadResponse",
     "ThreadListItem",

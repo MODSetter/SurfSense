@@ -186,40 +186,40 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setStatusInboxItems(statusInbox.inboxItems);
 	}, [statusInbox.inboxItems, setStatusInboxItems]);
 
-	// Track seen notification IDs to detect new page_limit_exceeded notifications
-	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
+	// Track seen notification IDs to detect new insufficient_credits notifications
+	const seenCreditNotifications = useRef<Set<number>>(new Set());
 	const isInitialLoad = useRef(true);
 
-	// Effect to show toast for new page_limit_exceeded notifications
+	// Effect to show toast for new insufficient_credits notifications
 	useEffect(() => {
 		if (statusInbox.loading) return;
 
-		const pageLimitNotifications = statusInbox.inboxItems.filter(
-			(item) => item.type === "page_limit_exceeded"
+		const creditNotifications = statusInbox.inboxItems.filter(
+			(item) => item.type === "insufficient_credits"
 		);
 
 		if (isInitialLoad.current) {
-			for (const notification of pageLimitNotifications) {
-				seenPageLimitNotifications.current.add(notification.id);
+			for (const notification of creditNotifications) {
+				seenCreditNotifications.current.add(notification.id);
 			}
 			isInitialLoad.current = false;
 			return;
 		}
 
-		const newNotifications = pageLimitNotifications.filter(
-			(notification) => !seenPageLimitNotifications.current.has(notification.id)
+		const newNotifications = creditNotifications.filter(
+			(notification) => !seenCreditNotifications.current.has(notification.id)
 		);
 
 		for (const notification of newNotifications) {
-			seenPageLimitNotifications.current.add(notification.id);
+			seenCreditNotifications.current.add(notification.id);
 
 			toast.error(notification.title, {
 				description: notification.message,
 				duration: 8000,
 				icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
 				action: {
-					label: "Get More Pages",
-					onClick: () => router.push(`/dashboard/${searchSpaceId}/more-pages`),
+					label: "Buy credits",
+					onClick: () => router.push(`/dashboard/${searchSpaceId}/buy-more`),
 				},
 			});
 		}
@@ -696,6 +696,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const isAutomationsPage = pathname?.includes("/automations") === true;
 	const useWorkspacePanel =
 		pathname?.endsWith("/buy-more") === true ||
+		pathname?.endsWith("/earn-credits") === true ||
 		pathname?.endsWith("/more-pages") === true ||
 		isUserSettingsPage ||
 		isSearchSpaceSettingsPage ||

@@ -275,7 +275,7 @@ async def list_notifications(
         query = query.where(unread_filter)
         count_query = count_query.where(unread_filter)
     elif filter == "errors":
-        error_filter = (Notification.type == "page_limit_exceeded") | (
+        error_filter = (Notification.type == "insufficient_credits") | (
             Notification.notification_metadata["status"].astext == "failed"
         )
         query = query.where(error_filter)
