@@ -47,11 +47,16 @@ function buildKind(
 	capability: "chat" | "image_gen" | "vision",
 	prefId: number | null | undefined
 ): EligibleModelKind {
+	const supportsCapability = (model: ModelRead) => {
+		if (capability === "chat") return Boolean(model.supports_chat);
+		if (capability === "vision") return Boolean(model.supports_image_input);
+		return Boolean(model.supports_image_generation);
+	};
 	const toOption = (connection: ConnectionRead, model: ModelRead, isBYOK: boolean) => ({
 		id: model.id,
 		name: model.display_name || model.model_id,
 		modelName: model.model_id,
-		provider: connection.litellm_provider || connection.protocol,
+		provider: connection.provider,
 		isBYOK,
 	});
 
@@ -60,7 +65,7 @@ function buildKind(
 			.filter(
 				(model) =>
 					model.enabled &&
-					Boolean(model.capabilities?.[capability]) &&
+					supportsCapability(model) &&
 					String(model.billing_tier ?? "").toLowerCase() === "premium"
 			)
 			.map((model) => toOption(connection, model, false))
@@ -68,7 +73,7 @@ function buildKind(
 
 	const byokOptions: EligibleModelOption[] = (byok ?? []).flatMap((connection) =>
 		connection.models
-			.filter((model) => model.enabled && Boolean(model.capabilities?.[capability]))
+			.filter((model) => model.enabled && supportsCapability(model))
 			.map((model) => toOption(connection, model, true))
 	);
 

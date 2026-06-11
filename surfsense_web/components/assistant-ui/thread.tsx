@@ -48,10 +48,10 @@ import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dial
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
-	globalNewLLMConfigsAtom,
-	llmPreferencesAtom,
-	newLLMConfigsAtom,
-} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+	globalModelConnectionsAtom,
+	modelConnectionsAtom,
+	modelRolesAtom,
+} from "@/atoms/model-connections/model-connections-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
@@ -976,9 +976,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		if (url) setPendingScreenImages((prev) => [...prev, url]);
 	}, [electronAPI, setPendingScreenImages]);
 
-	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
-	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
-	const { data: preferences } = useAtomValue(llmPreferencesAtom);
+	const { data: globalModelConnections } = useAtomValue(globalModelConnectionsAtom);
+	const { data: modelConnections } = useAtomValue(modelConnectionsAtom);
+	const { data: modelRoles } = useAtomValue(modelRolesAtom);
 
 	const { data: agentTools } = useAtomValue(agentToolsAtom);
 	const disabledTools = useAtomValue(disabledToolsAtom);
@@ -1065,15 +1065,18 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	}, [hydrateDisabled]);
 
 	const hasModelConfigured = useMemo(() => {
-		if (!preferences) return false;
-		const agentLlmId = preferences.agent_llm_id;
-		if (agentLlmId === null || agentLlmId === undefined) return false;
-
-		if (agentLlmId <= 0) {
-			return globalConfigs?.some((c) => c.id === agentLlmId) ?? false;
+		const chatModelId = modelRoles?.chat_model_id ?? 0;
+		if (chatModelId === 0) {
+			return [...(globalModelConnections ?? []), ...(modelConnections ?? [])].some((connection) =>
+				connection.models.some((model) => model.enabled && Boolean(model.supports_chat))
+			);
 		}
-		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;
-	}, [preferences, globalConfigs, userConfigs]);
+		return [...(globalModelConnections ?? []), ...(modelConnections ?? [])].some((connection) =>
+			connection.models.some(
+				(model) => model.id === chatModelId && model.enabled && Boolean(model.supports_chat)
+			)
+		);
+	}, [modelRoles?.chat_model_id, globalModelConnections, modelConnections]);
 
 	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 

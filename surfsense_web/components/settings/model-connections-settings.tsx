@@ -1,11 +1,12 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
-import { CheckCircle2, PlugZap, Plus, RefreshCcw, XCircle } from "lucide-react";
+import { CheckCircle2, PlugZap, Plus, RefreshCcw, Trash2, XCircle } from "lucide-react";
 import { useState } from "react";
 import {
 	addManualModelMutationAtom,
 	createModelConnectionMutationAtom,
+	deleteModelConnectionMutationAtom,
 	discoverConnectionModelsMutationAtom,
 	testModelMutationAtom,
 	updateModelConnectionMutationAtom,
@@ -16,6 +17,7 @@ import {
 import {
 	globalModelConnectionsAtom,
 	modelConnectionsAtom,
+	modelProvidersAtom,
 	modelRolesAtom,
 } from "@/atoms/model-connections/model-connections-query.atoms";
 import { Badge } from "@/components/ui/badge";
@@ -30,36 +32,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import type {
-	ConnectionProtocol,
-	ConnectionRead,
-	ModelRead,
-} from "@/contracts/types/model-connections.types";
+import type { ConnectionRead, ModelRead } from "@/contracts/types/model-connections.types";
 import { getProviderIcon } from "@/lib/provider-icons";
-
-const PROTOCOL_OPTIONS: { value: ConnectionProtocol; label: string; description: string }[] = [
-	{
-		value: "OPENAI_COMPATIBLE",
-		label: "OpenAI-compatible",
-		description: "Use for OpenAI, OpenRouter, Groq, vLLM, LM Studio, and compatible APIs.",
-	},
-	{
-		value: "ANTHROPIC",
-		label: "Anthropic",
-		description: "Use for Claude endpoints that require Anthropic headers.",
-	},
-	{
-		value: "OLLAMA",
-		label: "Ollama",
-		description: "Use for Ollama's native API.",
-	},
-];
-
-function defaultLitellmProvider(protocol: ConnectionProtocol) {
-	if (protocol === "OLLAMA") return "ollama_chat";
-	if (protocol === "ANTHROPIC") return "anthropic";
-	return "openai";
-}
 
 // Free-text URL hints (datalist), mirroring OpenWebUI. These never restrict
 // what the user can type — any OpenAI-compatible endpoint works.
@@ -82,8 +56,18 @@ function modelLabel(model: ModelRead) {
 }
 
 function capability(model: ModelRead, key: "chat" | "vision" | "image_gen") {
-	return Boolean(model.capabilities?.[key]);
+	if (key === "chat") return Boolean(model.supports_chat);
+	if (key === "vision") return Boolean(model.supports_image_input);
+	return Boolean(model.supports_image_generation);
 }
+
+type ModelCapabilityFilter = "chat" | "vision" | "image_gen";
+
+const MODEL_CAPABILITY_FILTERS: { key: ModelCapabilityFilter; label: string }[] = [
+	{ key: "chat", label: "Chat" },
+	{ key: "vision", label: "Vision" },
+	{ key: "image_gen", label: "Image" },
+];
 
 function StatusBadge({ connection }: { connection: ConnectionRead }) {
 	if (connection.last_status === "OK") {
@@ -107,9 +91,9 @@ function flattenModels(connections: ConnectionRead[]) {
 	return connections.flatMap((connection) =>
 		connection.models.map((model) => ({
 			...model,
-			connectionName: connection.litellm_provider || connection.protocol,
+			connectionName: connection.provider,
 			connectionId: connection.id,
-			provider: connection.litellm_provider || connection.protocol,
+			provider: connection.provider,
 		}))
 	);
 }
@@ -118,6 +102,7 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 	const verifyConnection = useAtomValue(verifyModelConnectionMutationAtom);
 	const discoverModels = useAtomValue(discoverConnectionModelsMutationAtom);
 	const updateConnection = useAtomValue(updateModelConnectionMutationAtom);
+	const deleteConnection = useAtomValue(deleteModelConnectionMutationAtom);
 	const addManualModel = useAtomValue(addManualModelMutationAtom);
 	const updateModel = useAtomValue(updateModelMutationAtom);
 	const testModel = useAtomValue(testModelMutationAtom);
@@ -127,9 +112,16 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 		: [];
 	const [allowlistText, setAllowlistText] = useState(allowlist.join(", "));
 	const [manualModelId, setManualModelId] = useState("");
+	const [modelFilter, setModelFilter] = useState<ModelCapabilityFilter | null>(null);
 
-	const providerLabel = connection.litellm_provider || connection.protocol;
-	const isLocal = connection.protocol === "OLLAMA" || !connection.base_url?.startsWith("https");
+	const providerLabel = connection.provider;
+	const isLocal =
+		connection.provider === "ollama_chat" ||
+		connection.provider === "lm_studio" ||
+		!connection.base_url?.startsWith("https");
+	const filteredModels = modelFilter
+		? connection.models.filter((model) => capability(model, modelFilter))
+		: connection.models;
 
 	function saveAllowlist() {
 		const ids = allowlistText
@@ -149,6 +141,14 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 			{ connectionId: connection.id, data: { model_id: modelId } },
 			{ onSuccess: () => setManualModelId("") }
 		);
+	}
+
+	function deleteCurrentConnection() {
+		const confirmed = window.confirm(
+			`Delete the ${providerLabel} connection and all of its models? This cannot be undone.`
+		);
+		if (!confirmed) return;
+		deleteConnection.mutate(connection.id);
 	}
 
 	return (
@@ -174,6 +174,14 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 					</Button>
 					<Button variant="outline" size="sm" onClick={() => discoverModels.mutate(connection.id)}>
 						<RefreshCcw className="mr-2 h-4 w-4" /> Discover
+					</Button>
+					<Button
+						variant="destructive"
+						size="sm"
+						onClick={deleteCurrentConnection}
+						disabled={deleteConnection.isPending}
+					>
+						<Trash2 className="mr-2 h-4 w-4" /> Delete
 					</Button>
 				</div>
 			</div>
@@ -232,8 +240,38 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 				</Button>
 			</div>
 
+			{connection.models.length > 0 ? (
+				<div className="mt-4 flex flex-wrap items-center gap-2">
+					<span className="text-xs font-medium text-muted-foreground">Filter models</span>
+					{MODEL_CAPABILITY_FILTERS.map((filter) => {
+						const count = connection.models.filter((model) => capability(model, filter.key)).length;
+						const isActive = modelFilter === filter.key;
+
+						return (
+							<Button
+								key={filter.key}
+								type="button"
+								variant={isActive ? "secondary" : "outline"}
+								size="sm"
+								className="h-7 rounded-full px-3 text-xs"
+								onClick={() => setModelFilter(isActive ? null : filter.key)}
+							>
+								{filter.label}
+								<span className="ml-1 text-muted-foreground">{count}</span>
+							</Button>
+						);
+					})}
+				</div>
+			) : null}
+
 			<div className="mt-4 grid gap-2">
-				{connection.models.map((model) => (
+				{filteredModels.length === 0 && modelFilter ? (
+					<div className="rounded-md bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+						No {MODEL_CAPABILITY_FILTERS.find((filter) => filter.key === modelFilter)?.label.toLowerCase()}{" "}
+						models found on this connection.
+					</div>
+				) : null}
+				{filteredModels.map((model) => (
 					<div
 						key={model.id}
 						className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2"
@@ -250,8 +288,8 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 							</div>
 							<div className="text-xs text-muted-foreground">
 								{["chat", "vision", "image_gen"]
-									.filter((key) => Boolean(model.capabilities?.[key]))
-									.join(", ") || "No verified capabilities"}
+									.filter((key) => capability(model, key as "chat" | "vision" | "image_gen"))
+									.join(", ") || "No discovered capabilities"}
 							</div>
 						</div>
 						<div className="flex gap-2">
@@ -278,18 +316,16 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: number }) {
 	const [{ data: globalConnections = [] }] = useAtom(globalModelConnectionsAtom);
 	const [{ data: connections = [] }] = useAtom(modelConnectionsAtom);
+	const [{ data: providers = [] }] = useAtom(modelProvidersAtom);
 	const [{ data: roles }] = useAtom(modelRolesAtom);
 	const createConnection = useAtomValue(createModelConnectionMutationAtom);
 	const updateRoles = useAtomValue(updateModelRolesMutationAtom);
 
-	const [protocol, setProtocol] = useState<ConnectionProtocol>("OPENAI_COMPATIBLE");
+	const [provider, setProvider] = useState("openai_compatible");
 	const [baseUrl, setBaseUrl] = useState("");
 	const [apiKey, setApiKey] = useState("");
-	const [litellmProvider, setLitellmProvider] = useState("");
-	const [showAdvancedProvider, setShowAdvancedProvider] = useState(false);
-	const selectedProtocol = PROTOCOL_OPTIONS.find((item) => item.value === protocol);
-	const protocolDefaultProvider = defaultLitellmProvider(protocol);
-	const isOllama = protocol === "OLLAMA";
+	const selectedProvider = providers.find((item) => item.provider === provider);
+	const isOllama = provider === "ollama_chat";
 
 	const allConnections = [...globalConnections, ...connections];
 	const enabledModels = flattenModels(allConnections).filter((model) => model.enabled);
@@ -298,11 +334,9 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 	const imageModels = enabledModels.filter((model) => capability(model, "image_gen"));
 
 	function handleCreate() {
-		const explicitProvider = litellmProvider.trim();
 		createConnection.mutate(
 			{
-				protocol,
-				litellm_provider: explicitProvider ? explicitProvider : null,
+				provider,
 				base_url: baseUrl || null,
 				api_key: apiKey || null,
 				scope: "SEARCH_SPACE",
@@ -337,18 +371,22 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 				<CardContent className="space-y-6">
 					<div className="grid gap-3 md:grid-cols-[220px_1fr_1fr_auto]">
 						<div className="space-y-2">
-							<Label>Protocol</Label>
+							<Label>Provider</Label>
 							<Select
-								value={protocol}
-								onValueChange={(value) => setProtocol(value as ConnectionProtocol)}
+								value={provider}
+								onValueChange={(value) => {
+									setProvider(value);
+									const next = providers.find((item) => item.provider === value);
+									if (next?.default_base_url) setBaseUrl(next.default_base_url);
+								}}
 							>
 								<SelectTrigger>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
-									{PROTOCOL_OPTIONS.map((item) => (
-										<SelectItem key={item.value} value={item.value}>
-											{item.label}
+									{providers.map((item) => (
+										<SelectItem key={item.provider} value={item.provider}>
+											{item.provider}
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -382,7 +420,10 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 						<div className="flex items-end">
 							<Button
 								onClick={handleCreate}
-								disabled={createConnection.isPending || !baseUrl.trim()}
+								disabled={
+									createConnection.isPending ||
+									Boolean(selectedProvider?.base_url_required && !baseUrl.trim())
+								}
 							>
 								<PlugZap className="mr-2 h-4 w-4" /> Add
 							</Button>
@@ -390,35 +431,12 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 					</div>
 					<div className="space-y-3">
 						<p className="text-xs text-muted-foreground">
-							{selectedProtocol?.description} Base URL is explicit and editable; no provider presets
-							are required. Local URLs are tested from the backend container, so use
-							host.docker.internal instead of localhost.
+							{selectedProvider
+								? `${selectedProvider.transport} transport, ${selectedProvider.discovery} discovery.`
+								: "Choose a provider preset."}{" "}
+							Base URL is explicit and editable. Local URLs are tested from the backend container,
+							so use host.docker.internal instead of localhost.
 						</p>
-						<div>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								className="h-auto px-0 text-xs"
-								onClick={() => setShowAdvancedProvider((current) => !current)}
-							>
-								Advanced: LiteLLM provider ({litellmProvider.trim() || protocolDefaultProvider})
-							</Button>
-							{showAdvancedProvider ? (
-								<div className="mt-2 max-w-sm space-y-2">
-									<Label>LiteLLM provider override</Label>
-									<Input
-										value={litellmProvider}
-										onChange={(event) => setLitellmProvider(event.target.value)}
-										placeholder={protocolDefaultProvider}
-									/>
-									<p className="text-xs text-muted-foreground">
-										Leave empty to use the protocol default. Set this for more accurate LiteLLM
-										capabilities/costs, for example openrouter, groq, gemini, or azure.
-									</p>
-								</div>
-							) : null}
-						</div>
 					</div>
 
 					<div className="space-y-3">

@@ -49,7 +49,7 @@ export function DashboardClientLayout({
 
 	const firstGlobalChatModel = useMemo(() => {
 		for (const connection of globalConnections) {
-			const model = connection.models.find((item) => item.enabled && item.capabilities?.chat);
+			const model = connection.models.find((item) => item.enabled && item.supports_chat);
 			if (model) return model;
 		}
 		return null;

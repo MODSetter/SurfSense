@@ -11,6 +11,13 @@ export const globalModelConnectionsAtom = atomWithQuery(() => ({
 	queryFn: () => modelConnectionsApiService.getGlobalConnections(),
 }));
 
+export const modelProvidersAtom = atomWithQuery(() => ({
+	queryKey: cacheKeys.modelConnections.providers(),
+	enabled: !!getBearerToken(),
+	staleTime: 60 * 60 * 1000,
+	queryFn: () => modelConnectionsApiService.getModelProviders(),
+}));
+
 export const modelConnectionsAtom = atomWithQuery((get) => {
 	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
 	return {

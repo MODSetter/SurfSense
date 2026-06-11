@@ -56,18 +56,18 @@ function modelName(model: ModelRead) {
 
 function connectionLabel(connection: ConnectionRead) {
 	if (connection.scope === "GLOBAL") return "Hosted";
-	return connection.litellm_provider || connection.protocol;
+	return connection.provider;
 }
 
 function flattenChatModels(connections: ConnectionRead[]) {
 	return connections.flatMap((connection) =>
 		connection.models
-			.filter((model) => model.enabled && Boolean(model.capabilities?.chat))
+			.filter((model) => model.enabled && Boolean(model.supports_chat))
 			.map((model) => ({
 				...model,
 				connectionId: connection.id,
 				connectionLabel: connectionLabel(connection),
-				provider: connection.litellm_provider || connection.protocol,
+				provider: connection.provider,
 			}))
 	);
 }
@@ -184,9 +184,14 @@ export function ModelSelector({
 											<span className="truncate">{modelName(model)}</span>
 										</div>
 										<div className="truncate text-xs text-muted-foreground">{model.model_id}</div>
+										{model.max_input_tokens ? (
+											<div className="text-xs text-muted-foreground">
+												{model.max_input_tokens.toLocaleString()} context
+											</div>
+										) : null}
 									</div>
 									<div className="ml-3 flex items-center gap-2">
-										{!model.capabilities?.vision ? (
+										{!model.supports_image_input ? (
 											<Badge variant="outline" className="gap-1">
 												<ImageOff className="h-3 w-3" /> No image
 											</Badge>

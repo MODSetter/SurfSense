@@ -7,10 +7,12 @@ import {
 	connectionRead,
 	connectionUpdateRequest,
 	type ModelCreateRequest,
+	type ModelProviderRead,
 	type ModelRead,
 	type ModelRoles,
 	type ModelUpdateRequest,
 	modelCreateRequest,
+	modelProviderListResponse,
 	modelListResponse,
 	modelRead,
 	modelRoles,
@@ -24,6 +26,10 @@ import { baseApiService } from "./base-api.service";
 class ModelConnectionsApiService {
 	getGlobalConnections = async (): Promise<ConnectionRead[]> => {
 		return baseApiService.get(`/api/v1/global-model-connections`, connectionListResponse);
+	};
+
+	getModelProviders = async (): Promise<ModelProviderRead[]> => {
+		return baseApiService.get(`/api/v1/model-providers`, modelProviderListResponse);
 	};
 
 	getConnections = async (searchSpaceId: number): Promise<ConnectionRead[]> => {

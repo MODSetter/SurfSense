@@ -1,16 +1,7 @@
 import { z } from "zod";
 
-export const connectionProtocolEnum = z.enum(["OLLAMA", "OPENAI_COMPATIBLE", "ANTHROPIC"]);
 export const connectionScopeEnum = z.enum(["GLOBAL", "SEARCH_SPACE", "USER"]);
 export const modelSourceEnum = z.enum(["DISCOVERED", "MANUAL"]);
-
-export const modelCapabilities = z.object({
-	chat: z.boolean().optional(),
-	vision: z.boolean().optional(),
-	image_gen: z.boolean().optional(),
-	embedding: z.boolean().optional(),
-	tools: z.boolean().optional(),
-});
 
 export const modelRead = z.object({
 	id: z.number(),
@@ -18,9 +9,11 @@ export const modelRead = z.object({
 	model_id: z.string(),
 	display_name: z.string().nullable().optional(),
 	source: z.union([modelSourceEnum, z.string()]),
-	capabilities: z.record(z.string(), z.any()).default({}),
-	capabilities_declared: z.record(z.string(), z.any()).default({}),
-	capabilities_verified: z.record(z.string(), z.any()).default({}),
+	supports_chat: z.boolean().nullable().optional(),
+	max_input_tokens: z.number().nullable().optional(),
+	supports_image_input: z.boolean().nullable().optional(),
+	supports_tools: z.boolean().nullable().optional(),
+	supports_image_generation: z.boolean().nullable().optional(),
 	capabilities_override: z.record(z.string(), z.any()).default({}),
 	embedding_dimension: z.number().nullable().optional(),
 	enabled: z.boolean(),
@@ -31,8 +24,7 @@ export const modelRead = z.object({
 
 export const connectionRead = z.object({
 	id: z.number(),
-	protocol: z.union([connectionProtocolEnum, z.string()]),
-	litellm_provider: z.string().nullable().optional(),
+	provider: z.string(),
 	base_url: z.string().nullable().optional(),
 	extra: z.record(z.string(), z.any()).default({}),
 	scope: z.union([connectionScopeEnum, z.string()]),
@@ -48,8 +40,7 @@ export const connectionRead = z.object({
 });
 
 export const connectionCreateRequest = z.object({
-	protocol: connectionProtocolEnum,
-	litellm_provider: z.string().nullable().optional(),
+	provider: z.string().min(1),
 	base_url: z.string().nullable().optional(),
 	api_key: z.string().nullable().optional(),
 	extra: z.record(z.string(), z.any()).default({}),
@@ -59,7 +50,7 @@ export const connectionCreateRequest = z.object({
 });
 
 export const connectionUpdateRequest = z.object({
-	litellm_provider: z.string().nullable().optional(),
+	provider: z.string().nullable().optional(),
 	base_url: z.string().nullable().optional(),
 	api_key: z.string().nullable().optional(),
 	extra: z.record(z.string(), z.any()).optional(),
@@ -74,6 +65,11 @@ export const modelCreateRequest = z.object({
 export const modelUpdateRequest = z.object({
 	display_name: z.string().nullable().optional(),
 	enabled: z.boolean().optional(),
+	supports_chat: z.boolean().nullable().optional(),
+	max_input_tokens: z.number().nullable().optional(),
+	supports_image_input: z.boolean().nullable().optional(),
+	supports_tools: z.boolean().nullable().optional(),
+	supports_image_generation: z.boolean().nullable().optional(),
 	capabilities_override: z.record(z.string(), z.any()).optional(),
 });
 
@@ -89,10 +85,21 @@ export const modelRoles = z.object({
 	image_gen_model_id: z.number().nullable().optional(),
 });
 
+export const modelProviderRead = z.object({
+	provider: z.string(),
+	transport: z.string(),
+	discovery: z.string(),
+	default_base_url: z.string().nullable().optional(),
+	base_url_required: z.boolean(),
+	auth_style: z.string(),
+	local_only: z.boolean().default(false),
+});
+
+export const modelProviderListResponse = z.array(modelProviderRead);
+
 export const connectionListResponse = z.array(connectionRead);
 export const modelListResponse = z.array(modelRead);
 
-export type ConnectionProtocol = z.infer<typeof connectionProtocolEnum>;
 export type ConnectionScope = z.infer<typeof connectionScopeEnum>;
 export type ModelRead = z.infer<typeof modelRead>;
 export type ConnectionRead = z.infer<typeof connectionRead>;
@@ -102,3 +109,4 @@ export type ModelCreateRequest = z.infer<typeof modelCreateRequest>;
 export type ModelUpdateRequest = z.infer<typeof modelUpdateRequest>;
 export type ModelRoles = z.infer<typeof modelRoles>;
 export type VerifyConnectionResponse = z.infer<typeof verifyConnectionResponse>;
+export type ModelProviderRead = z.infer<typeof modelProviderRead>;

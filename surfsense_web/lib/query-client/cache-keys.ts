@@ -47,6 +47,7 @@ export const cacheKeys = {
 	modelConnections: {
 		all: (searchSpaceId: number) => ["model-connections", searchSpaceId] as const,
 		global: () => ["model-connections", "global"] as const,
+		providers: () => ["model-connections", "providers"] as const,
 		roles: (searchSpaceId: number) => ["model-roles", searchSpaceId] as const,
 	},
 	imageGenConfigs: {
