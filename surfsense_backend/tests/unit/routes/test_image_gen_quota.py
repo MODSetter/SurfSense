@@ -49,14 +49,14 @@ async def test_resolve_billing_for_premium_global_config(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-image-1",
                 "billing_tier": "premium",
                 "quota_reserve_micros": 75_000,
             },
             {
                 "id": -2,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "google/gemini-2.5-flash-image",
                 "billing_tier": "free",
             },
@@ -118,7 +118,7 @@ async def test_resolve_billing_falls_back_to_search_space_default(monkeypatch):
         [
             {
                 "id": -7,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-image-1",
                 "billing_tier": "premium",
             }

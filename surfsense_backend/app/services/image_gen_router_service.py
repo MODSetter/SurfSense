@@ -20,22 +20,12 @@ from typing import Any
 from litellm import Router
 from litellm.utils import ImageResponse
 
-from app.services.model_resolver import (
-    NATIVE_PROVIDER_PREFIX,
-    native_connection_from_config,
-    to_litellm,
-)
+from app.services.model_resolver import native_connection_from_config, to_litellm
 
 logger = logging.getLogger(__name__)
 
 # Special ID for Auto mode - uses router for load balancing
 IMAGE_GEN_AUTO_MODE_ID = 0
-
-# Provider mapping for LiteLLM model string construction.
-# Only includes providers that support image generation.
-# See: https://docs.litellm.ai/docs/image_generation#supported-providers
-IMAGE_GEN_PROVIDER_MAP = NATIVE_PROVIDER_PREFIX
-
 
 class ImageGenRouterService:
     """

@@ -1,19 +1,4 @@
-"""Defense-in-depth: image-gen call sites must not let an empty
-``api_base`` fall through to LiteLLM's module-global ``litellm.api_base``.
-
-The bug repro: an OpenRouter image-gen config ships
-``api_base=""``. The pre-fix call site in
-``image_generation_routes._execute_image_generation`` did
-``if cfg.get("api_base"): kwargs["api_base"] = cfg["api_base"]`` which
-silently dropped the empty string. LiteLLM then fell back to
-``litellm.api_base`` (commonly inherited from ``AZURE_OPENAI_ENDPOINT``)
-and OpenRouter's ``image_generation/transformation`` appended
-``/chat/completions`` to it → 404 ``Resource not found``.
-
-This test pins the post-fix behaviour: with an empty ``api_base`` in
-the config, the call site MUST set ``api_base`` to OpenRouter's public
-URL instead of leaving it unset.
-"""
+"""Image-gen call sites must pass each config's explicit ``api_base``."""
 
 from __future__ import annotations
 
@@ -26,20 +11,17 @@ pytestmark = pytest.mark.unit
 
 
 @pytest.mark.asyncio
-async def test_global_openrouter_image_gen_sets_api_base_when_config_empty():
-    """The global-config branch (``config_id < 0``) of
-    ``_execute_image_generation`` must apply the resolver and pin
-    ``api_base`` to OpenRouter when the config ships an empty string.
-    """
+async def test_global_openrouter_image_gen_sets_explicit_api_base():
+    """The global-config branch forwards the explicit OpenRouter base."""
     from app.routes import image_generation_routes
 
     cfg = {
         "id": -20_001,
         "name": "GPT Image 1 (OpenRouter)",
-        "provider": "OPENROUTER",
+        "litellm_provider": "openrouter",
         "model_name": "openai/gpt-image-1",
         "api_key": "sk-or-test",
-        "api_base": "",  # the original bug shape
+        "api_base": "https://openrouter.ai/api/v1",
         "api_version": None,
         "litellm_params": {},
     }
@@ -80,16 +62,13 @@ async def test_global_openrouter_image_gen_sets_api_base_when_config_empty():
             session=session, image_gen=image_gen, search_space=search_space
         )
 
-    # The whole point of the fix: even with empty ``api_base`` in the
-    # config, we forward OpenRouter's public URL so the call doesn't
-    # inherit an Azure endpoint.
     assert captured.get("api_base") == "https://openrouter.ai/api/v1"
     assert captured["model"] == "openrouter/openai/gpt-image-1"
 
 
 @pytest.mark.asyncio
-async def test_generate_image_tool_global_sets_api_base_when_config_empty():
-    """Same defense at the agent tool entry point — both surfaces share
+async def test_generate_image_tool_global_sets_explicit_api_base():
+    """Same explicit-base behavior at the agent tool entry point — both surfaces share
     the same OpenRouter config payloads."""
     from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
         generate_image as gi_module,
@@ -98,10 +77,10 @@ async def test_generate_image_tool_global_sets_api_base_when_config_empty():
     cfg = {
         "id": -20_001,
         "name": "GPT Image 1 (OpenRouter)",
-        "provider": "OPENROUTER",
+        "litellm_provider": "openrouter",
         "model_name": "openai/gpt-image-1",
         "api_key": "sk-or-test",
-        "api_base": "",
+        "api_base": "https://openrouter.ai/api/v1",
         "api_version": None,
         "litellm_params": {},
     }
@@ -171,20 +150,16 @@ async def test_generate_image_tool_global_sets_api_base_when_config_empty():
     assert captured["model"] == "openrouter/openai/gpt-image-1"
 
 
-def test_image_gen_router_deployment_sets_api_base_when_config_empty():
-    """The Auto-mode router pool must also resolve ``api_base`` when an
-    OpenRouter config ships an empty string. The deployment dict is fed
-    straight to ``litellm.Router``, so a missing ``api_base`` would
-    leak the same way as the direct call sites.
-    """
+def test_image_gen_router_deployment_sets_explicit_api_base():
+    """The Auto-mode router pool carries explicit api_base into deployments."""
     from app.services.image_gen_router_service import ImageGenRouterService
 
     deployment = ImageGenRouterService._config_to_deployment(
         {
             "model_name": "openai/gpt-image-1",
-            "provider": "OPENROUTER",
+            "litellm_provider": "openrouter",
             "api_key": "sk-or-test",
-            "api_base": "",
+            "api_base": "https://openrouter.ai/api/v1",
         }
     )
     assert deployment is not None

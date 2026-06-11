@@ -1,12 +1,4 @@
-"""Defense-in-depth: vision-LLM resolution must not leak ``api_base``
-defaults from ``litellm.api_base`` either.
-
-Vision shares the same shape as image-gen — global YAML / OpenRouter
-dynamic configs ship ``api_base=""`` and the pre-fix ``get_vision_llm``
-call sites would silently drop the empty string and inherit
-``AZURE_OPENAI_ENDPOINT``. ``ChatLiteLLM(...)`` doesn't 404 on
-construction so we test the kwargs we hand to it instead.
-"""
+"""Vision LLM resolution must pass explicit per-config ``api_base``."""
 
 from __future__ import annotations
 
@@ -19,19 +11,16 @@ pytestmark = pytest.mark.unit
 
 @pytest.mark.asyncio
 async def test_get_vision_llm_global_openrouter_sets_api_base():
-    """Global negative-ID branch: an OpenRouter vision config with
-    ``api_base=""`` must end up calling ``SanitizedChatLiteLLM`` with
-    ``api_base="https://openrouter.ai/api/v1"`` — never an empty string,
-    never silently absent."""
+    """Global negative-ID branch forwards the explicit OpenRouter base."""
     from app.services import llm_service
 
     cfg = {
         "id": -30_001,
         "name": "GPT-4o Vision (OpenRouter)",
-        "provider": "OPENROUTER",
+        "litellm_provider": "openrouter",
         "model_name": "openai/gpt-4o",
         "api_key": "sk-or-test",
-        "api_base": "",
+        "api_base": "https://openrouter.ai/api/v1",
         "api_version": None,
         "litellm_params": {},
         "billing_tier": "free",
@@ -72,16 +61,15 @@ async def test_get_vision_llm_global_openrouter_sets_api_base():
 
 
 def test_vision_router_deployment_sets_api_base_when_config_empty():
-    """Auto-mode vision router: deployments are fed to ``litellm.Router``,
-    so the resolver has to apply at deployment construction time too."""
+    """Auto-mode vision router carries explicit api_base into deployments."""
     from app.services.vision_llm_router_service import VisionLLMRouterService
 
     deployment = VisionLLMRouterService._config_to_deployment(
         {
             "model_name": "openai/gpt-4o",
-            "provider": "OPENROUTER",
+            "litellm_provider": "openrouter",
             "api_key": "sk-or-test",
-            "api_base": "",
+            "api_base": "https://openrouter.ai/api/v1",
         }
     )
     assert deployment is not None

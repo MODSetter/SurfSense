@@ -23,20 +23,26 @@ from app.db import (
 )
 from app.services.image_gen_router_service import (
     IMAGE_GEN_AUTO_MODE_ID,
-    ImageGenRouterService,
     is_image_gen_auto_mode,
 )
-from app.services.model_resolver import native_connection_from_config, to_litellm
+from app.services.auto_model_pin_service import (
+    auto_model_candidates,
+    choose_auto_model_candidate,
+)
+from app.services.model_resolver import to_litellm
 from app.utils.signed_image_urls import generate_image_token
 
 logger = logging.getLogger(__name__)
 
-def _get_global_image_gen_config(config_id: int) -> dict | None:
-    """Get a global image gen config by negative ID."""
-    for cfg in config.GLOBAL_IMAGE_GEN_CONFIGS:
-        if cfg.get("id") == config_id:
-            return cfg
-    return None
+def _get_global_model(model_id: int) -> dict | None:
+    return next((m for m in config.GLOBAL_MODELS if m.get("id") == model_id), None)
+
+
+def _get_global_connection(connection_id: int) -> dict | None:
+    return next(
+        (c for c in config.GLOBAL_CONNECTIONS if c.get("id") == connection_id),
+        None,
+    )
 
 
 def create_generate_image_tool(
@@ -93,6 +99,16 @@ def create_generate_image_tool(
             # task's session is shared across every tool; without isolation,
             # autoflushes from a concurrent writer poison this tool too.
             async with shielded_async_session() as session:
+                result = await session.execute(
+                    select(SearchSpace).filter(SearchSpace.id == search_space_id)
+                )
+                search_space = result.scalars().first()
+                if not search_space:
+                    return _failed(
+                        {"error": "Search space not found"},
+                        error="Search space not found",
+                    )
+
                 if image_gen_model_id_override is not None:
                     # Automation run: use the captured image model, insulated from
                     # later search-space changes. No search-space read needed.
@@ -100,16 +116,6 @@ def create_generate_image_tool(
                         image_gen_model_id_override or IMAGE_GEN_AUTO_MODE_ID
                     )
                 else:
-                    result = await session.execute(
-                        select(SearchSpace).filter(SearchSpace.id == search_space_id)
-                    )
-                    search_space = result.scalars().first()
-                    if not search_space:
-                        return _failed(
-                            {"error": "Search space not found"},
-                            error="Search space not found",
-                        )
-
                     config_id = (
                         search_space.image_gen_model_id
                         or IMAGE_GEN_AUTO_MODE_ID
@@ -122,24 +128,39 @@ def create_generate_image_tool(
                     gen_kwargs["n"] = n
 
                 if is_image_gen_auto_mode(config_id):
-                    if not ImageGenRouterService.is_initialized():
+                    candidates = await auto_model_candidates(
+                        session,
+                        search_space_id=search_space_id,
+                        user_id=search_space.user_id,
+                        capability="image_gen",
+                    )
+                    if not candidates:
                         err = (
-                            "No image generation models configured. "
+                            "No image generation models available. "
                             "Please add an image model in Settings > Image Models."
                         )
                         return _failed({"error": err}, error=err)
-                    response = await ImageGenRouterService.aimage_generation(
-                        prompt=prompt, model="auto", **gen_kwargs
+                    config_id = int(
+                        choose_auto_model_candidate(candidates, search_space_id)["id"]
                     )
-                elif config_id < 0:
-                    cfg = _get_global_image_gen_config(config_id)
-                    if not cfg:
-                        err = f"Image generation config {config_id} not found"
+
+                if config_id < 0:
+                    global_model = _get_global_model(config_id)
+                    if not global_model or not (
+                        global_model.get("capabilities") or {}
+                    ).get("image_gen"):
+                        err = f"Image generation model {config_id} not found"
+                        return _failed({"error": err}, error=err)
+                    global_connection = _get_global_connection(
+                        global_model["connection_id"]
+                    )
+                    if not global_connection:
+                        err = f"Image generation connection for model {config_id} not found"
                         return _failed({"error": err}, error=err)
 
                     model_string, resolved_kwargs = to_litellm(
-                        native_connection_from_config(cfg),
-                        cfg["model_name"],
+                        global_connection,
+                        global_model["model_id"],
                     )
                     gen_kwargs.update(resolved_kwargs)
 
@@ -155,6 +176,19 @@ def create_generate_image_tool(
                     )
                     db_model = cfg_result.scalars().first()
                     if not db_model or not db_model.connection or not db_model.connection.enabled:
+                        err = f"Image generation model {config_id} not found"
+                        return _failed({"error": err}, error=err)
+                    conn = db_model.connection
+                    if (
+                        conn.search_space_id is not None
+                        and conn.search_space_id != search_space_id
+                    ):
+                        err = f"Image generation model {config_id} not found"
+                        return _failed({"error": err}, error=err)
+                    if (
+                        conn.user_id is not None
+                        and conn.user_id != search_space.user_id
+                    ):
                         err = f"Image generation model {config_id} not found"
                         return _failed({"error": err}, error=err)
                     if not (db_model.capabilities or {}).get("image_gen"):
