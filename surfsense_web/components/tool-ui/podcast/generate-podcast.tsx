@@ -1,24 +1,46 @@
 "use client";
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw, Undo2, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import { Button } from "@/components/ui/button";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { type LivePodcast, usePodcastLive } from "@/hooks/use-podcast-live";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { BriefReview } from "./brief-review";
 import { PodcastErrorState, PodcastPlayer } from "./player";
 import type { GeneratePodcastArgs, GeneratePodcastResult } from "./schema";
 
-function WorkingState({ title, label }: { title: string; label: string }) {
+function WorkingState({
+	title,
+	label,
+	action,
+}: {
+	title: string;
+	label: string;
+	action?: ReactNode;
+}) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
-			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
-				<TextShimmerLoader text={label} size="sm" />
+			<div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4">
+				<div className="min-w-0">
+					<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
+					<TextShimmerLoader text={label} size="sm" />
+				</div>
+				{action}
 			</div>
 		</div>
 	);
@@ -97,6 +119,84 @@ function RegenerateButton({ podcast }: { podcast: LivePodcast }) {
 	);
 }
 
+/**
+ * The way out of an in-flight generation depends on what already exists:
+ * a regeneration is reverted (the stored episode survives, so no confirm),
+ * while a first-time generation is cancelled (destructive, so confirmed via a
+ * dialog — the card header is too cramped to host a confirmation row).
+ */
+function BackOutButton({ podcastId, hasEpisode }: { podcastId: number; hasEpisode: boolean }) {
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const run = async (call: (id: number) => Promise<unknown>, failure: string) => {
+		setIsSubmitting(true);
+		try {
+			await call(podcastId);
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : failure);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	if (hasEpisode) {
+		return (
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				className="shrink-0 text-muted-foreground"
+				disabled={isSubmitting}
+				onClick={() =>
+					run(podcastsApiService.revertRegeneration, "Failed to restore the current episode")
+				}
+			>
+				{isSubmitting ? (
+					<Loader2 className="size-3.5 animate-spin" />
+				) : (
+					<Undo2 className="size-3.5" />
+				)}
+				Keep current episode
+			</Button>
+		);
+	}
+
+	return (
+		<AlertDialog>
+			<AlertDialogTrigger asChild>
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					className="shrink-0 text-muted-foreground"
+					disabled={isSubmitting}
+				>
+					<X className="size-3.5" /> Cancel
+				</Button>
+			</AlertDialogTrigger>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Cancel this podcast?</AlertDialogTitle>
+					<AlertDialogDescription>
+						Generation stops and the podcast is discarded. This cannot be undone.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel>Keep going</AlertDialogCancel>
+					<AlertDialogAction
+						className={buttonVariants({ variant: "destructive" })}
+						onClick={() => run(podcastsApiService.cancel, "Failed to cancel the podcast")}
+					>
+						Cancel podcast
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+const BACK_OUT_STATUSES = new Set(["awaiting_brief", "drafting", "rendering"]);
+
 /** Status-driven card for an authenticated viewer, fed by Zero push. */
 function LivePodcastCard({
 	podcastId,
@@ -106,6 +206,26 @@ function LivePodcastCard({
 	fallbackTitle: string;
 }) {
 	const { podcast, isLoading } = usePodcastLive(podcastId);
+
+	// Whether a finished episode exists decides revert-vs-cancel, and Zero
+	// doesn't publish audio fields — so the in-flight states check over REST,
+	// re-checking on each status change (a fresh podcast gains its episode,
+	// a regeneration starts with one).
+	const status = podcast?.status;
+	const [hasEpisode, setHasEpisode] = useState(false);
+	useEffect(() => {
+		if (!status || !BACK_OUT_STATUSES.has(status)) return;
+		let stale = false;
+		podcastsApiService
+			.getDetail(podcastId)
+			.then((detail) => {
+				if (!stale) setHasEpisode(detail.has_audio);
+			})
+			.catch(() => {});
+		return () => {
+			stale = true;
+		};
+	}, [podcastId, status]);
 
 	if (!podcast) {
 		if (isLoading) {
@@ -121,13 +241,15 @@ function LivePodcastCard({
 
 	const title = podcast.title || fallbackTitle;
 
+	const backOut = <BackOutButton podcastId={podcast.id} hasEpisode={hasEpisode} />;
+
 	switch (podcast.status) {
 		case "pending":
 			return <WorkingState title={title} label="Preparing brief" />;
 		case "drafting":
-			return <WorkingState title={title} label="Drafting transcript" />;
+			return <WorkingState title={title} label="Drafting transcript" action={backOut} />;
 		case "rendering":
-			return <WorkingState title={title} label="Rendering audio" />;
+			return <WorkingState title={title} label="Rendering audio" action={backOut} />;
 		case "awaiting_brief":
 			// The gate lives right in the chat: the form is the card, so there
 			// is nothing to open and nothing to dismiss.
@@ -136,12 +258,15 @@ function LivePodcastCard({
 			}
 			return (
 				<div className="my-4 max-w-xl overflow-hidden rounded-2xl border bg-muted/30">
-					<div className="px-5 pt-5 pb-3 select-none">
-						<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Confirm the language, voices, and length — the episode generates automatically after
-							you approve.
-						</p>
+					<div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 select-none">
+						<div className="min-w-0">
+							<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
+							<p className="text-xs text-muted-foreground mt-0.5">
+								Confirm the language, voices, and length — the episode generates automatically after
+								you approve.
+							</p>
+						</div>
+						{backOut}
 					</div>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4">

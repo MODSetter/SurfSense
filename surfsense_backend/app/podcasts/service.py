@@ -21,11 +21,23 @@ _ALLOWED: dict[PodcastStatus, frozenset[PodcastStatus]] = {
     PodcastStatus.PENDING: frozenset(
         {PodcastStatus.AWAITING_BRIEF, PodcastStatus.FAILED, PodcastStatus.CANCELLED}
     ),
+    # The READY exits below exist for reverting a regeneration; the audio
+    # guard for that lives in revert_regeneration.
     PodcastStatus.AWAITING_BRIEF: frozenset(
-        {PodcastStatus.DRAFTING, PodcastStatus.FAILED, PodcastStatus.CANCELLED}
+        {
+            PodcastStatus.DRAFTING,
+            PodcastStatus.READY,
+            PodcastStatus.FAILED,
+            PodcastStatus.CANCELLED,
+        }
     ),
     PodcastStatus.DRAFTING: frozenset(
-        {PodcastStatus.RENDERING, PodcastStatus.FAILED, PodcastStatus.CANCELLED}
+        {
+            PodcastStatus.RENDERING,
+            PodcastStatus.READY,
+            PodcastStatus.FAILED,
+            PodcastStatus.CANCELLED,
+        }
     ),
     # Never entered anymore (the transcript gate was dropped); kept with exits
     # so legacy rows aren't stranded.
@@ -140,6 +152,19 @@ class PodcastService:
         await self._session.flush()
         return podcast
 
+    async def revert_regeneration(self, podcast: Podcast) -> Podcast:
+        """Back out of a regeneration and fall back to the stored episode.
+
+        Regeneration keeps the rendered audio until a new take replaces it, so
+        any point before that commit is a free change of mind. A fresh podcast
+        has no regeneration to revert and is rejected.
+        """
+        if not _has_episode(podcast):
+            raise InvalidTransition("no finished episode to fall back to")
+        self._transition(podcast, PodcastStatus.READY)
+        await self._session.flush()
+        return podcast
+
     async def attach_audio(
         self,
         podcast: Podcast,
@@ -165,7 +190,15 @@ class PodcastService:
         return podcast
 
     async def cancel(self, podcast: Podcast) -> Podcast:
-        """Cancel a non-terminal podcast at the user's request."""
+        """Cancel a podcast that has produced nothing the user could keep.
+
+        No user action may destroy playable audio: once an episode exists,
+        backing out goes through revert_regeneration instead.
+        """
+        if _has_episode(podcast):
+            raise InvalidTransition(
+                "a finished episode exists; revert the regeneration instead"
+            )
         self._transition(podcast, PodcastStatus.CANCELLED)
         await self._session.flush()
         return podcast
@@ -181,6 +214,11 @@ class PodcastService:
 
 def _status(podcast: Podcast) -> PodcastStatus:
     return PodcastStatus(podcast.status)
+
+
+def _has_episode(podcast: Podcast) -> bool:
+    """Whether finished audio is stored (``file_location`` covers legacy rows)."""
+    return bool(podcast.storage_key or podcast.file_location)
 
 
 def read_spec(podcast: Podcast) -> PodcastSpec | None:

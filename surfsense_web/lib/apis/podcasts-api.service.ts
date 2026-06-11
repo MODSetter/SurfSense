@@ -43,6 +43,14 @@ class PodcastsApiService {
 		return baseApiService.post(`${BASE}/${podcastId}/transcript/regenerate`, podcastDetail);
 	};
 
+	// Backs out of a regeneration: the podcast returns to ready with its
+	// existing audio untouched. 409 when there is no episode to fall back to.
+	revertRegeneration = async (podcastId: number) => {
+		return baseApiService.post(`${BASE}/${podcastId}/regenerate/revert`, podcastDetail);
+	};
+
+	// Only for podcasts that have produced nothing yet; once an episode
+	// exists the backend refuses (409) and revertRegeneration is the way back.
 	cancel = async (podcastId: number) => {
 		return baseApiService.post(`${BASE}/${podcastId}/cancel`, podcastDetail);
 	};

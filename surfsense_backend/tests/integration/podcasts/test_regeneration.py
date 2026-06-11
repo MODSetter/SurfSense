@@ -2,9 +2,11 @@
 
 A user who dislikes the finished audio sends the episode back to the brief
 gate: the saved brief reopens for tweaks (voices, length, focus) and drafting
-only restarts on a fresh approval. These pin the READY -> AWAITING_BRIEF ->
-DRAFTING round trip and the 409 for regenerating from states that have nothing
-to redo.
+only restarts on a fresh approval. The whole redo can also be reverted at any
+point before the new render commits, falling back to the still-stored episode.
+These pin the READY -> AWAITING_BRIEF -> DRAFTING round trip, the revert
+fallback, and the 409s for acting from states that have nothing to redo or
+revert.
 """
 
 from __future__ import annotations
@@ -12,6 +14,9 @@ from __future__ import annotations
 import pytest
 
 from app.podcasts.persistence import PodcastStatus
+from app.podcasts.service import PodcastService
+
+from .conftest import build_transcript
 
 pytestmark = pytest.mark.integration
 
@@ -78,3 +83,99 @@ async def test_regenerate_from_cancelled_is_rejected(
 
     assert resp.status_code == 409
     assert captured_tasks.draft == []
+
+
+async def test_reverting_a_regeneration_restores_the_ready_episode(
+    client, db_search_space, make_podcast, captured_tasks
+):
+    podcast = await make_podcast(
+        search_space_id=db_search_space.id, status=PodcastStatus.READY
+    )
+    await client.post(f"{BASE}/{podcast.id}/transcript/regenerate")
+
+    resp = await client.post(f"{BASE}/{podcast.id}/regenerate/revert")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ready"
+    # The episode the user could already play is untouched.
+    assert body["has_audio"] is True
+    assert captured_tasks.draft == []
+    assert captured_tasks.render == []
+
+
+async def test_reverting_mid_draft_keeps_the_episode(
+    client, db_search_space, make_podcast
+):
+    # Changing one's mind is allowed even after the reopened brief was
+    # approved: the episode survives until a new render replaces it.
+    podcast = await make_podcast(
+        search_space_id=db_search_space.id, status=PodcastStatus.READY
+    )
+    await client.post(f"{BASE}/{podcast.id}/transcript/regenerate")
+    await client.post(f"{BASE}/{podcast.id}/brief/approve")
+
+    resp = await client.post(f"{BASE}/{podcast.id}/regenerate/revert")
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ready"
+
+
+async def test_reverting_mid_render_keeps_the_episode(
+    client, db_session, db_search_space, make_podcast
+):
+    podcast = await make_podcast(
+        search_space_id=db_search_space.id, status=PodcastStatus.READY
+    )
+    service = PodcastService(db_session)
+    await service.regenerate(podcast)
+    await service.begin_drafting(podcast)
+    await service.attach_transcript(podcast, build_transcript())
+
+    resp = await client.post(f"{BASE}/{podcast.id}/regenerate/revert")
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ready"
+
+
+async def test_reverted_episode_can_be_regenerated_again(
+    client, db_search_space, make_podcast
+):
+    # Reverting must not strand the episode: the user can change their mind
+    # again immediately.
+    podcast = await make_podcast(
+        search_space_id=db_search_space.id, status=PodcastStatus.READY
+    )
+    await client.post(f"{BASE}/{podcast.id}/transcript/regenerate")
+    await client.post(f"{BASE}/{podcast.id}/regenerate/revert")
+
+    resp = await client.post(f"{BASE}/{podcast.id}/transcript/regenerate")
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "awaiting_brief"
+
+
+async def test_revert_on_a_fresh_brief_gate_is_rejected(
+    client, db_search_space, make_podcast
+):
+    # A first-time brief has no regeneration to revert.
+    podcast = await make_podcast(
+        search_space_id=db_search_space.id, status=PodcastStatus.AWAITING_BRIEF
+    )
+
+    resp = await client.post(f"{BASE}/{podcast.id}/regenerate/revert")
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"]
+
+
+async def test_revert_when_nothing_was_regenerated_is_rejected(
+    client, db_search_space, make_podcast
+):
+    podcast = await make_podcast(
+        search_space_id=db_search_space.id, status=PodcastStatus.READY
+    )
+
+    resp = await client.post(f"{BASE}/{podcast.id}/regenerate/revert")
+
+    assert resp.status_code == 409

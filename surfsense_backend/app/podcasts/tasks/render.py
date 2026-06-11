@@ -14,7 +14,12 @@ from pathlib import Path
 from app.celery_app import celery_app
 from app.podcasts.persistence import PodcastRepository
 from app.podcasts.rendering import PodcastRenderer
-from app.podcasts.service import PodcastService, read_spec, read_transcript
+from app.podcasts.service import (
+    InvalidTransition,
+    PodcastService,
+    read_spec,
+    read_transcript,
+)
 from app.podcasts.storage import purge_audio_object, store_audio
 from app.podcasts.tts import get_text_to_speech
 from app.podcasts.voices import get_voice_catalog
@@ -65,10 +70,16 @@ async def _render_audio(podcast_id: int) -> dict:
             podcast_id=podcast_id,
             data=rendered.data,
         )
-        await PodcastService(session).attach_audio(
-            podcast, storage_backend=backend_name, storage_key=key
-        )
-        await session.commit()
+        try:
+            await PodcastService(session).attach_audio(
+                podcast, storage_backend=backend_name, storage_key=key
+            )
+            await session.commit()
+        except InvalidTransition:
+            # A user back-out won the race (e.g. the regeneration was
+            # reverted): drop the stale render and leave the row alone.
+            await purge_audio_object(key)
+            return {"status": "superseded", "podcast_id": podcast_id}
 
     # Purge only after the new audio is committed, so a failed re-render never
     # destroys the episode the user can still play.

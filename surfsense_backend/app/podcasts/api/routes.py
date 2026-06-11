@@ -221,6 +221,20 @@ async def regenerate_transcript(
     return PodcastDetail.of(podcast)
 
 
+@router.post("/podcasts/{podcast_id}/regenerate/revert", response_model=PodcastDetail)
+async def revert_regeneration(
+    podcast_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Back out of a regeneration and return to the finished episode."""
+    podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
+    async with _lifecycle_errors():
+        await PodcastService(session).revert_regeneration(podcast)
+    await session.commit()
+    return PodcastDetail.of(podcast)
+
+
 @router.post("/podcasts/{podcast_id}/cancel", response_model=PodcastDetail)
 async def cancel_podcast(
     podcast_id: int,

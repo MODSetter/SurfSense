@@ -64,3 +64,37 @@ async def test_rerender_replaces_audio_and_purges_the_old_object(
     assert podcast.storage_key != old_key
     assert fake_storage.objects[podcast.storage_key] == b"merged-audio"
     assert old_key in fake_storage.deleted
+
+
+async def test_render_losing_to_a_user_revert_keeps_the_episode_and_leaks_nothing(
+    db_session,
+    db_search_space,
+    make_podcast,
+    bind_task_session,
+    fake_tts,
+    fake_merge,
+    fake_storage,
+):
+    # The user reverts the regeneration while the render is in flight: the
+    # stale render must neither resurrect the redo nor leak the object it
+    # already stored.
+    podcast = await make_podcast(
+        search_space_id=db_search_space.id, status=PodcastStatus.READY
+    )
+    old_key = podcast.storage_key
+    fake_storage.objects[old_key] = b"old-audio"
+
+    service = PodcastService(db_session)
+    await service.regenerate(podcast)
+    await service.begin_drafting(podcast)
+    await service.attach_transcript(podcast, build_transcript())
+    await service.revert_regeneration(podcast)
+
+    result = await render._render_audio(podcast.id)
+
+    assert result["status"] == "superseded"
+    assert podcast.status == PodcastStatus.READY
+    assert podcast.storage_key == old_key
+    assert old_key not in fake_storage.deleted
+    stale_keys = [key for key in fake_storage.objects if key != old_key]
+    assert all(key in fake_storage.deleted for key in stale_keys)
