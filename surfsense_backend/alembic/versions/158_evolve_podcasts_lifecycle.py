@@ -13,8 +13,34 @@ down_revision: str | None = "157"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+PUBLICATION_NAME = "zero_publication"
+
+
+def _drop_podcasts_from_zero_publication() -> None:
+    """Temporarily unpublish podcasts while changing published columns."""
+
+    op.execute(
+        f"""
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1
+                FROM pg_publication_tables
+                WHERE pubname = '{PUBLICATION_NAME}'
+                  AND schemaname = current_schema()
+                  AND tablename = 'podcasts'
+            ) THEN
+                ALTER PUBLICATION "{PUBLICATION_NAME}" DROP TABLE "podcasts";
+            END IF;
+        END
+        $$;
+        """
+    )
+
 
 def upgrade() -> None:
+    _drop_podcasts_from_zero_publication()
+
     # Retype the status enum by swapping in a fresh type and casting existing
     # rows. The legacy transient value 'generating' maps onto 'rendering'.
     op.execute("ALTER TYPE podcast_status RENAME TO podcast_status_old;")
@@ -57,6 +83,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    _drop_podcasts_from_zero_publication()
+
     op.execute("ALTER TABLE podcasts DROP COLUMN IF EXISTS error;")
     op.execute("ALTER TABLE podcasts DROP COLUMN IF EXISTS duration_seconds;")
     op.execute("ALTER TABLE podcasts DROP COLUMN IF EXISTS storage_key;")
