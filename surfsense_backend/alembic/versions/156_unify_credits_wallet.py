@@ -55,7 +55,8 @@ def _column_exists(conn, table: str, column: str) -> bool:
         conn.execute(
             sa.text(
                 "SELECT 1 FROM information_schema.columns "
-                "WHERE table_name = :tbl AND column_name = :col"
+                "WHERE table_name = :tbl AND column_name = :col "
+                "AND table_schema = current_schema()"
             ),
             {"tbl": table, "col": column},
         ).fetchone()
@@ -107,11 +108,17 @@ def upgrade() -> None:
             ),
         )
 
-        # Backfill only when the legacy source columns are present (fresh DBs
+        # Backfill only when ALL legacy source columns are present (fresh DBs
         # created from current models won't have them).
-        if _column_exists(
-            conn, "user", "premium_credit_micros_limit"
-        ) and _column_exists(conn, "user", "pages_limit"):
+        if all(
+            _column_exists(conn, "user", col)
+            for col in (
+                "premium_credit_micros_limit",
+                "premium_credit_micros_used",
+                "pages_limit",
+                "pages_used",
+            )
+        ):
             conn.execute(
                 sa.text(
                     'UPDATE "user" SET credit_micros_balance = '
@@ -163,8 +170,18 @@ def upgrade() -> None:
         """
         DO $$
         BEGIN
-            IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'premiumtokenpurchasestatus')
-               AND NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'creditpurchasestatus')
+            IF EXISTS (
+                   SELECT 1 FROM pg_type t
+                   JOIN pg_namespace n ON n.oid = t.typnamespace
+                   WHERE t.typname = 'premiumtokenpurchasestatus'
+                     AND n.nspname = current_schema()
+               )
+               AND NOT EXISTS (
+                   SELECT 1 FROM pg_type t
+                   JOIN pg_namespace n ON n.oid = t.typnamespace
+                   WHERE t.typname = 'creditpurchasestatus'
+                     AND n.nspname = current_schema()
+               )
             THEN
                 ALTER TYPE premiumtokenpurchasestatus RENAME TO creditpurchasestatus;
             END IF;

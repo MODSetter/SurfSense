@@ -11,7 +11,7 @@ from app.db import PagePurchaseStatus
 class CreateCreditCheckoutSessionRequest(BaseModel):
     """Request body for creating a credit-purchase checkout session."""
 
-    quantity: int = Field(ge=1, le=100)
+    quantity: int = Field(ge=1, le=10_000)
     search_space_id: int = Field(ge=1)
 
 

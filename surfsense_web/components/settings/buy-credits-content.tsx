@@ -18,7 +18,12 @@ import { queries } from "@/zero/queries";
 // at the actual cost, so $1 of credit always buys $1 of usage at cost.
 const CREDIT_PER_PACK_MICROS = 1_000_000;
 const PRICE_PER_PACK_USD = 1;
-const PRESET_MULTIPLIERS = [1, 2, 5, 10, 25, 50] as const;
+const PRESET_MULTIPLIERS = [1, 2, 5, 10, 25, 50, 100] as const;
+const MIN_QUANTITY = 1;
+const MAX_QUANTITY = 10_000;
+
+const clampQuantity = (value: number) =>
+	Math.min(MAX_QUANTITY, Math.max(MIN_QUANTITY, Math.floor(value)));
 
 const formatUsd = (micros: number) => {
 	// Clamp at $0.00 — the balance can dip slightly negative when actual cost
@@ -34,6 +39,15 @@ export function BuyCreditsContent() {
 	const params = useParams();
 	const searchSpaceId = Number(params?.search_space_id);
 	const [quantity, setQuantity] = useState(1);
+	// Raw text of the amount field so the user can clear it while typing;
+	// committed back to a clamped integer on blur.
+	const [amountInput, setAmountInput] = useState("1");
+
+	const commitQuantity = (value: number) => {
+		const clamped = clampQuantity(Number.isFinite(value) ? value : MIN_QUANTITY);
+		setQuantity(clamped);
+		setAmountInput(String(clamped));
+	};
 
 	// Server config flag: stays on REST, not per-user.
 	const { data: creditStatus } = useQuery({
@@ -78,9 +92,6 @@ export function BuyCreditsContent() {
 		<div className="w-full space-y-5">
 			<div className="text-center">
 				<h2 className="text-xl font-bold tracking-tight">Buy Credits</h2>
-				<p className="mt-1 text-sm text-muted-foreground">
-					$1 buys $1 of credit, billed at provider cost
-				</p>
 			</div>
 
 			<div className="rounded-lg border bg-muted/20 p-3">
@@ -96,21 +107,39 @@ export function BuyCreditsContent() {
 						type="button"
 						variant="ghost"
 						size="icon"
-						onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-						disabled={quantity <= 1 || purchaseMutation.isPending}
+						onClick={() => commitQuantity(quantity - 1)}
+						disabled={quantity <= MIN_QUANTITY || purchaseMutation.isPending}
 						className="size-8 text-muted-foreground shadow-none transition-colors hover:bg-muted hover:text-white disabled:opacity-40"
 					>
 						<Minus className="h-3.5 w-3.5" />
 					</Button>
-					<span className="min-w-32 text-center text-lg font-semibold tabular-nums">
-						${(totalCreditMicros / 1_000_000).toFixed(0)} of credit
-					</span>
+					<div className="flex items-baseline gap-1.5">
+						<span className="text-lg font-semibold">$</span>
+						<input
+							type="text"
+							inputMode="numeric"
+							value={amountInput}
+							onChange={(e) => {
+								const raw = e.target.value.replace(/[^0-9]/g, "");
+								setAmountInput(raw);
+								const parsed = Number.parseInt(raw, 10);
+								if (Number.isFinite(parsed)) {
+									setQuantity(clampQuantity(parsed));
+								}
+							}}
+							onBlur={() => commitQuantity(Number.parseInt(amountInput, 10))}
+							disabled={purchaseMutation.isPending}
+							aria-label="Credit amount in US dollars"
+							className="w-20 rounded-md border bg-transparent px-2 py-1 text-center text-lg font-semibold tabular-nums outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+						/>
+						<span className="text-sm text-muted-foreground">of credit</span>
+					</div>
 					<Button
 						type="button"
 						variant="ghost"
 						size="icon"
-						onClick={() => setQuantity((q) => Math.min(100, q + 1))}
-						disabled={quantity >= 100 || purchaseMutation.isPending}
+						onClick={() => commitQuantity(quantity + 1)}
+						disabled={quantity >= MAX_QUANTITY || purchaseMutation.isPending}
 						className="size-8 text-muted-foreground shadow-none transition-colors hover:bg-muted hover:text-white disabled:opacity-40"
 					>
 						<Plus className="h-3.5 w-3.5" />
@@ -123,7 +152,7 @@ export function BuyCreditsContent() {
 							key={m}
 							type="button"
 							variant="ghost"
-							onClick={() => setQuantity(m)}
+							onClick={() => commitQuantity(m)}
 							disabled={purchaseMutation.isPending}
 							className={cn(
 								"h-auto rounded-md px-2.5 py-1 text-xs font-medium tabular-nums transition-colors disabled:opacity-60",

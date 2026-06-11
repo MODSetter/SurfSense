@@ -39,7 +39,8 @@ def _column_exists(conn, table: str, column: str) -> bool:
         conn.execute(
             sa.text(
                 "SELECT 1 FROM information_schema.columns "
-                "WHERE table_name = :tbl AND column_name = :col"
+                "WHERE table_name = :tbl AND column_name = :col "
+                "AND table_schema = current_schema()"
             ),
             {"tbl": table, "col": column},
         ).fetchone()

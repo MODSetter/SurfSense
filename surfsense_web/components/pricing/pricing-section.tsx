@@ -149,7 +149,7 @@ const faqData: FAQSection[] = [
 			{
 				question: "How does buying credit work?",
 				answer:
-					"Top-ups are pay as you go, with no subscription. $1 buys $1 of credit, and your balance is spent at provider cost. Purchased credit is added to your account immediately, and you can buy up to $100 at a time. Enable auto-reload to top up automatically when your balance runs low.",
+					"Top-ups are pay as you go, with no subscription. $1 buys $1 of credit, and your balance is spent at provider cost. Purchased credit is added to your account immediately, and you can buy any custom amount. Enable auto-reload to top up automatically when your balance runs low.",
 			},
 			{
 				question: "Is there a separate balance for documents and AI?",

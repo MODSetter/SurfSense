@@ -7,7 +7,7 @@ export const purchaseStatusEnum = z.enum(["pending", "completed", "failed"]);
 // ---------------------------------------------------------------------------
 
 export const createCreditCheckoutSessionRequest = z.object({
-	quantity: z.number().int().min(1).max(100),
+	quantity: z.number().int().min(1).max(10_000),
 	search_space_id: z.number().int().min(1),
 });
 
