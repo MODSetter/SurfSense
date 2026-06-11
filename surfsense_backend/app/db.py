@@ -283,7 +283,7 @@ class VisionProvider(StrEnum):
 class ConnectionProtocol(StrEnum):
     OLLAMA = "OLLAMA"
     OPENAI_COMPATIBLE = "OPENAI_COMPATIBLE"
-    NATIVE = "NATIVE"
+    ANTHROPIC = "ANTHROPIC"
 
 
 class ConnectionScope(StrEnum):
@@ -1663,7 +1663,7 @@ class Connection(BaseModel, TimestampMixin):
     __tablename__ = "connections"
 
     protocol = Column(SQLAlchemyEnum(ConnectionProtocol), nullable=False, index=True)
-    native_provider = Column(String(100), nullable=True, index=True)
+    litellm_provider = Column(String(100), nullable=True, index=True)
     base_url = Column(String(500), nullable=True)
     api_key = Column(String, nullable=True)
     extra = Column(JSONB, nullable=False, default=dict, server_default="{}")

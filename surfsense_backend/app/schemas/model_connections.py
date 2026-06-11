@@ -29,7 +29,7 @@ class ModelRead(BaseModel):
 class ConnectionRead(BaseModel):
     id: int
     protocol: ConnectionProtocol | str
-    native_provider: str | None = None
+    litellm_provider: str | None = None
     base_url: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
     scope: ConnectionScope | str
@@ -48,7 +48,7 @@ class ConnectionRead(BaseModel):
 
 class ConnectionCreate(BaseModel):
     protocol: ConnectionProtocol
-    native_provider: str | None = None
+    litellm_provider: str | None = Field(None, max_length=100)
     base_url: str | None = Field(None, max_length=500)
     api_key: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
@@ -58,7 +58,7 @@ class ConnectionCreate(BaseModel):
 
 
 class ConnectionUpdate(BaseModel):
-    native_provider: str | None = None
+    litellm_provider: str | None = Field(None, max_length=100)
     base_url: str | None = Field(None, max_length=500)
     api_key: str | None = None
     extra: dict[str, Any] | None = None

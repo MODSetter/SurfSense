@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import logging
 from dataclasses import dataclass
@@ -13,8 +12,7 @@ import httpx
 import litellm
 
 from app.db import Connection, ConnectionProtocol, Model, ModelSource
-from app.services.model_resolver import NATIVE_PROVIDER_PREFIX, ensure_v1, to_litellm
-from app.services.provider_api_base import resolve_api_base
+from app.services.model_resolver import ensure_v1, to_litellm
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +32,13 @@ def _auth_headers(conn: Connection) -> dict[str, str]:
     if not conn.api_key:
         return {}
     return {"Authorization": f"Bearer {conn.api_key}"}
+
+
+def _anthropic_headers(conn: Connection) -> dict[str, str]:
+    headers = {"anthropic-version": "2023-06-01"}
+    if conn.api_key:
+        headers["x-api-key"] = conn.api_key
+    return headers
 
 
 def _docker_hint(url: str | None, exc_or_status: Any) -> str:
@@ -56,24 +61,26 @@ def _docker_hint(url: str | None, exc_or_status: Any) -> str:
 
 
 async def verify_connection(conn: Connection) -> VerifyResult:
-    if not conn.base_url and conn.protocol in (
-        ConnectionProtocol.OLLAMA,
-        ConnectionProtocol.OPENAI_COMPATIBLE,
-    ):
+    if not conn.base_url:
         return VerifyResult("UNREACHABLE", False, "Base URL is required.")
 
     if conn.protocol == ConnectionProtocol.OLLAMA:
         url = f"{conn.base_url.rstrip('/')}/api/version"
     elif conn.protocol == ConnectionProtocol.OPENAI_COMPATIBLE:
         url = f"{ensure_v1(conn.base_url)}/models"
+    elif conn.protocol == ConnectionProtocol.ANTHROPIC:
+        url = f"{conn.base_url.rstrip('/')}/models"
     else:
-        # Native providers do not share one cheap health endpoint. The model
-        # probe exercises the real path and is the authoritative check.
-        return VerifyResult("OK", True, "Native provider configuration accepted.")
+        return VerifyResult("UNREACHABLE", False, "Unsupported connection protocol.")
 
     try:
         async with httpx.AsyncClient(timeout=VERIFY_TIMEOUT_SECONDS) as client:
-            response = await client.get(url, headers=_auth_headers(conn))
+            headers = (
+                _anthropic_headers(conn)
+                if conn.protocol == ConnectionProtocol.ANTHROPIC
+                else _auth_headers(conn)
+            )
+            response = await client.get(url, headers=headers)
         if response.status_code in (401, 403):
             return VerifyResult("AUTH_FAILED", False, "Authentication failed.")
         if response.status_code == 404:
@@ -156,39 +163,25 @@ async def _discover_openai_shaped_models(conn: Connection, base_url: str | None)
     ]
 
 
-def _litellm_valid_model_ids(provider: str, api_key: str | None) -> list[str]:
-    if not api_key:
+async def _discover_anthropic_models(conn: Connection) -> list[dict[str, Any]]:
+    if not conn.base_url:
         return []
 
-    try:
-        models = litellm.get_valid_models(
-            check_provider_endpoint=True,
-            custom_llm_provider=provider,
-            api_key=api_key,
-        )
-    except Exception as exc:
-        logger.warning("LiteLLM model discovery failed for provider %s: %s", provider, exc)
-        return []
-
-    provider_prefix = f"{provider}/"
-    return [
-        model.removeprefix(provider_prefix)
-        for model in models
-        if isinstance(model, str) and model.strip()
-    ]
-
-
-async def _discover_litellm_native_models(conn: Connection, provider: str) -> list[dict[str, Any]]:
-    model_ids = await asyncio.to_thread(_litellm_valid_model_ids, provider, conn.api_key)
+    url = f"{conn.base_url.rstrip('/')}/models"
+    async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as client:
+        response = await client.get(url, headers=_anthropic_headers(conn))
+    response.raise_for_status()
+    models = response.json().get("data", [])
     return [
         {
-            "model_id": model_id,
-            "display_name": model_id,
+            "model_id": item.get("id"),
+            "display_name": item.get("display_name") or item.get("id"),
             "source": ModelSource.DISCOVERED,
-            "capabilities": derive_capabilities(conn, model_id),
-            "metadata": {},
+            "capabilities": derive_capabilities(conn, item.get("id"), item),
+            "metadata": item,
         }
-        for model_id in model_ids
+        for item in models
+        if item.get("id")
     ]
 
 
@@ -231,20 +224,10 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
         ]
     elif conn.protocol == ConnectionProtocol.OPENAI_COMPATIBLE:
         results = await _discover_openai_shaped_models(conn, conn.base_url)
+    elif conn.protocol == ConnectionProtocol.ANTHROPIC:
+        results = await _discover_anthropic_models(conn)
     else:
-        provider_key = (conn.native_provider or "").upper()
-        provider = NATIVE_PROVIDER_PREFIX.get(provider_key, provider_key.lower())
-        api_base = resolve_api_base(
-            provider=provider_key,
-            provider_prefix=provider,
-            config_api_base=conn.base_url,
-        )
-        if api_base:
-            results = await _discover_openai_shaped_models(conn, api_base)
-        elif provider:
-            results = await _discover_litellm_native_models(conn, provider)
-        else:
-            results = []
+        results = []
 
     if allowlist:
         results = [item for item in results if item["model_id"] in allowlist]

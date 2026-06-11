@@ -18,7 +18,7 @@
 # - Configure router_settings below to customize the load balancing behavior
 #
 # Static config shape:
-# - Connection fields: provider, api_key, api_base, api_version
+# - Connection fields: litellm_provider, api_key, api_base, api_version
 # - Model fields: model_name, billing_tier, rpm/tpm, litellm_params
 # - Prompt defaults: system_instructions, citations_enabled
 # IDs share one GLOBAL model namespace across chat, vision, and image generation.
@@ -75,10 +75,10 @@ global_llm_configs:
     seo_enabled: true
     seo_slug: "gpt-4-turbo"
     quota_reserve_tokens: 4000
-    provider: "OPENAI"
+    litellm_provider: "openai"
     model_name: "gpt-4-turbo-preview"
     api_key: "sk-your-openai-api-key-here"
-    api_base: ""
+    api_base: "https://api.openai.com/v1"
     # Rate limits for load balancing (requests/tokens per minute)
     rpm: 500 # Requests per minute
     tpm: 100000 # Tokens per minute
@@ -99,10 +99,10 @@ global_llm_configs:
     seo_enabled: true
     seo_slug: "claude-3-opus"
     quota_reserve_tokens: 4000
-    provider: "ANTHROPIC"
+    litellm_provider: "anthropic"
     model_name: "claude-3-opus-20240229"
     api_key: "sk-ant-your-anthropic-api-key-here"
-    api_base: ""
+    api_base: "https://api.anthropic.com/v1"
     rpm: 1000
     tpm: 100000
     litellm_params:
@@ -121,10 +121,10 @@ global_llm_configs:
     seo_enabled: true
     seo_slug: "gpt-3.5-turbo-fast"
     quota_reserve_tokens: 2000
-    provider: "OPENAI"
+    litellm_provider: "openai"
     model_name: "gpt-3.5-turbo"
     api_key: "sk-your-openai-api-key-here"
-    api_base: ""
+    api_base: "https://api.openai.com/v1"
     rpm: 3500 # GPT-3.5 has higher rate limits
     tpm: 200000
     litellm_params:
@@ -143,7 +143,7 @@ global_llm_configs:
     seo_enabled: true
     seo_slug: "deepseek-chat-chinese"
     quota_reserve_tokens: 4000
-    provider: "DEEPSEEK"
+    litellm_provider: "openai"
     model_name: "deepseek-chat"
     api_key: "your-deepseek-api-key-here"
     api_base: "https://api.deepseek.com/v1"
@@ -175,7 +175,7 @@ global_llm_configs:
     seo_enabled: true
     seo_slug: "azure-gpt-4o"
     quota_reserve_tokens: 4000
-    provider: "AZURE"
+    litellm_provider: "azure"
     # model_name format for Azure: azure/<your-deployment-name>
     model_name: "azure/gpt-4o-deployment"
     api_key: "your-azure-api-key-here"
@@ -203,7 +203,7 @@ global_llm_configs:
     seo_enabled: true
     seo_slug: "azure-gpt-4-turbo"
     quota_reserve_tokens: 4000
-    provider: "AZURE"
+    litellm_provider: "azure"
     model_name: "azure/gpt-4-turbo-deployment"
     api_key: "your-azure-api-key-here"
     api_base: "https://your-resource.openai.azure.com"
@@ -227,10 +227,10 @@ global_llm_configs:
     seo_enabled: true
     seo_slug: "groq-llama-3"
     quota_reserve_tokens: 8000
-    provider: "GROQ"
+    litellm_provider: "groq"
     model_name: "llama3-70b-8192"
     api_key: "your-groq-api-key-here"
-    api_base: ""
+    api_base: "https://api.groq.com/openai/v1"
     rpm: 30 # Groq has lower rate limits on free tier
     tpm: 14400
     litellm_params:
@@ -249,7 +249,7 @@ global_llm_configs:
     seo_enabled: true
     seo_slug: "minimax-m3"
     quota_reserve_tokens: 4000
-    provider: "MINIMAX"
+    litellm_provider: "openai"
     model_name: "MiniMax-M3"
     api_key: "your-minimax-api-key-here"
     api_base: "https://api.minimax.io/v1"
@@ -288,10 +288,10 @@ global_llm_configs:
     anonymous_enabled: false
     seo_enabled: false
     quota_reserve_tokens: 1000
-    provider: "OPENAI"
+    litellm_provider: "openai"
     model_name: "gpt-4o-mini"
     api_key: "sk-your-openai-api-key-here"
-    api_base: ""
+    api_base: "https://api.openai.com/v1"
     rpm: 3500
     tpm: 200000
     litellm_params:
@@ -391,10 +391,10 @@ global_image_generation_configs:
   - id: -2001
     name: "Global DALL-E 3"
     description: "OpenAI's DALL-E 3 for high-quality image generation"
-    provider: "OPENAI"
+    litellm_provider: "openai"
     model_name: "dall-e-3"
     api_key: "sk-your-openai-api-key-here"
-    api_base: ""
+    api_base: "https://api.openai.com/v1"
     rpm: 50 # Requests per minute (image gen is rate-limited by RPM, not tokens)
     litellm_params: {}
 
@@ -402,10 +402,10 @@ global_image_generation_configs:
   - id: -2002
     name: "Global GPT Image 1"
     description: "OpenAI's GPT Image 1 model"
-    provider: "OPENAI"
+    litellm_provider: "openai"
     model_name: "gpt-image-1"
     api_key: "sk-your-openai-api-key-here"
-    api_base: ""
+    api_base: "https://api.openai.com/v1"
     rpm: 50
     litellm_params: {}
 
@@ -413,7 +413,7 @@ global_image_generation_configs:
   - id: -2003
     name: "Global Azure DALL-E 3"
     description: "Azure-hosted DALL-E 3 deployment"
-    provider: "AZURE_OPENAI"
+    litellm_provider: "azure"
     model_name: "azure/dall-e-3-deployment"
     api_key: "your-azure-api-key-here"
     api_base: "https://your-resource.openai.azure.com"
@@ -426,10 +426,10 @@ global_image_generation_configs:
   # - id: -2004
   #   name: "Global Gemini Image Gen"
   #   description: "Google Gemini image generation via OpenRouter"
-  #   provider: "OPENROUTER"
+  #   litellm_provider: "openrouter"
   #   model_name: "google/gemini-2.5-flash-image"
   #   api_key: "your-openrouter-api-key-here"
-  #   api_base: ""
+  #   api_base: "https://openrouter.ai/api/v1"
   #   rpm: 30
   #   litellm_params: {}
 
@@ -455,10 +455,10 @@ global_vision_llm_configs:
   - id: -1001
     name: "Global GPT-4o Vision"
     description: "OpenAI's GPT-4o with strong vision capabilities"
-    provider: "OPENAI"
+    litellm_provider: "openai"
     model_name: "gpt-4o"
     api_key: "sk-your-openai-api-key-here"
-    api_base: ""
+    api_base: "https://api.openai.com/v1"
     rpm: 500
     tpm: 100000
     litellm_params:
@@ -469,10 +469,10 @@ global_vision_llm_configs:
   - id: -1002
     name: "Global Gemini 2.0 Flash"
     description: "Google's fast vision model with large context"
-    provider: "GOOGLE"
+    litellm_provider: "gemini"
     model_name: "gemini-2.0-flash"
     api_key: "your-google-ai-api-key-here"
-    api_base: ""
+    api_base: "https://generativelanguage.googleapis.com/v1beta"
     rpm: 1000
     tpm: 200000
     litellm_params:
@@ -483,10 +483,10 @@ global_vision_llm_configs:
   - id: -1003
     name: "Global Claude 3.5 Sonnet Vision"
     description: "Anthropic's Claude 3.5 Sonnet with vision support"
-    provider: "ANTHROPIC"
+    litellm_provider: "anthropic"
     model_name: "claude-3-5-sonnet-20241022"
     api_key: "sk-ant-your-anthropic-api-key-here"
-    api_base: ""
+    api_base: "https://api.anthropic.com/v1"
     rpm: 1000
     tpm: 100000
     litellm_params:
@@ -497,7 +497,7 @@ global_vision_llm_configs:
   # - id: -1004
   #   name: "Global Azure GPT-4o Vision"
   #   description: "Azure-hosted GPT-4o for vision analysis"
-  #   provider: "AZURE_OPENAI"
+  #   litellm_provider: "azure"
   #   model_name: "azure/gpt-4o-deployment"
   #   api_key: "your-azure-api-key-here"
   #   api_base: "https://your-resource.openai.azure.com"
@@ -518,7 +518,7 @@ global_vision_llm_configs:
 # - system_instructions: Custom prompt or empty string to use defaults
 # - use_default_system_instructions: true = use SURFSENSE_SYSTEM_INSTRUCTIONS when system_instructions is empty
 # - citations_enabled: true = include citation instructions, false = include anti-citation instructions
-# - All standard LiteLLM providers are supported
+# - All standard LiteLLM provider adapter names are supported
 # - rpm/tpm: Optional rate limits for load balancing (requests/tokens per minute)
 #   These help the router distribute load evenly and avoid rate limit errors
 #

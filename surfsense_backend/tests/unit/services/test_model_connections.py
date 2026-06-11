@@ -2,11 +2,12 @@ from app.services.global_model_catalog import materialize_global_model_catalog
 from app.services.model_resolver import ensure_v1, to_litellm
 
 
-def test_openai_compatible_resolver_normalizes_v1() -> None:
+def test_openai_compatible_resolver_uses_explicit_api_base() -> None:
     model, kwargs = to_litellm(
         {
             "protocol": "OPENAI_COMPATIBLE",
-            "base_url": "http://host.docker.internal:1234",
+            "litellm_provider": "openai",
+            "base_url": "http://host.docker.internal:1234/v1",
             "api_key": "local-key",
             "extra": {},
         },
@@ -23,6 +24,7 @@ def test_ollama_resolver_uses_native_api_base() -> None:
     model, kwargs = to_litellm(
         {
             "protocol": "OLLAMA",
+            "litellm_provider": "ollama_chat",
             "base_url": "http://host.docker.internal:11434",
             "api_key": None,
             "extra": {},
@@ -40,9 +42,10 @@ def test_global_materialization_preserves_tier_and_keeps_key_server_side() -> No
             {
                 "id": -101,
                 "name": "OpenRouter Free",
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "meta-llama/llama-3.1-8b-instruct:free",
                 "api_key": "sk-global-secret",
+                "api_base": "https://openrouter.ai/api/v1",
                 "billing_tier": "free",
                 "anonymous_enabled": True,
                 "seo_enabled": True,
@@ -52,9 +55,10 @@ def test_global_materialization_preserves_tier_and_keeps_key_server_side() -> No
             {
                 "id": -102,
                 "name": "OpenRouter Premium",
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "anthropic/claude-sonnet-4",
                 "api_key": "sk-global-secret",
+                "api_base": "https://openrouter.ai/api/v1",
                 "billing_tier": "premium",
             },
         ],

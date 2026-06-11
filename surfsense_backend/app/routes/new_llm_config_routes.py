@@ -57,7 +57,7 @@ def _serialize_byok_config(config: NewLLMConfig) -> NewLLMConfigRead:
         litellm_params.get("base_model") if isinstance(litellm_params, dict) else None
     )
     supports_image_input = derive_supports_image_input(
-        provider=provider_value,
+        litellm_provider=provider_value.lower(),
         model_name=config.model_name,
         base_model=base_model,
         custom_provider=config.custom_provider,
@@ -147,7 +147,7 @@ async def get_global_new_llm_configs(
                     else None
                 )
                 supports_image_input = derive_supports_image_input(
-                    provider=cfg.get("provider"),
+                    litellm_provider=cfg.get("litellm_provider"),
                     model_name=cfg.get("model_name"),
                     base_model=cfg_base_model,
                     custom_provider=cfg.get("custom_provider"),
@@ -157,7 +157,7 @@ async def get_global_new_llm_configs(
                 "id": cfg.get("id"),
                 "name": cfg.get("name"),
                 "description": cfg.get("description"),
-                "provider": cfg.get("provider"),
+                "provider": cfg.get("litellm_provider"),
                 "custom_provider": cfg.get("custom_provider"),
                 "model_name": cfg.get("model_name"),
                 "api_base": cfg.get("api_base") or None,

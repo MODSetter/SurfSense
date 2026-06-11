@@ -25,7 +25,7 @@ _IMAGE_FIXTURE: list[dict] = [
     {
         "id": -1,
         "name": "DALL-E 3",
-        "provider": "OPENAI",
+        "litellm_provider": "openai",
         "model_name": "dall-e-3",
         "api_key": "sk-test",
         "billing_tier": "free",
@@ -33,7 +33,7 @@ _IMAGE_FIXTURE: list[dict] = [
     {
         "id": -2,
         "name": "GPT-Image 1 (premium)",
-        "provider": "OPENAI",
+        "litellm_provider": "openai",
         "model_name": "gpt-image-1",
         "api_key": "sk-test",
         "billing_tier": "premium",
@@ -41,7 +41,7 @@ _IMAGE_FIXTURE: list[dict] = [
     {
         "id": -20_001,
         "name": "google/gemini-2.5-flash-image (OpenRouter)",
-        "provider": "OPENROUTER",
+        "litellm_provider": "openrouter",
         "model_name": "google/gemini-2.5-flash-image",
         "api_key": "sk-or-test",
         "api_base": "https://openrouter.ai/api/v1",
@@ -54,7 +54,7 @@ _VISION_FIXTURE: list[dict] = [
     {
         "id": -1,
         "name": "GPT-4o Vision",
-        "provider": "OPENAI",
+        "litellm_provider": "openai",
         "model_name": "gpt-4o",
         "api_key": "sk-test",
         "billing_tier": "free",
@@ -62,7 +62,7 @@ _VISION_FIXTURE: list[dict] = [
     {
         "id": -2,
         "name": "Claude 3.5 Sonnet (premium)",
-        "provider": "ANTHROPIC",
+        "litellm_provider": "anthropic",
         "model_name": "claude-3-5-sonnet",
         "api_key": "sk-ant-test",
         "billing_tier": "premium",
@@ -70,7 +70,7 @@ _VISION_FIXTURE: list[dict] = [
     {
         "id": -30_001,
         "name": "openai/gpt-4o (OpenRouter)",
-        "provider": "OPENROUTER",
+        "litellm_provider": "openrouter",
         "model_name": "openai/gpt-4o",
         "api_key": "sk-or-test",
         "api_base": "https://openrouter.ai/api/v1",

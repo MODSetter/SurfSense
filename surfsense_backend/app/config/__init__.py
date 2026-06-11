@@ -78,8 +78,7 @@ def load_global_llm_configs():
         # stamps) never leak into the cached YAML structure.
         configs = copy.deepcopy(data.get("global_llm_configs", []))
 
-        # Lazy import keeps the `app.config` -> `app.services` edge one-way
-        # and matches the `provider_api_base` pattern used elsewhere.
+        # Lazy import keeps the `app.config` -> `app.services` edge one-way.
         from app.services.provider_capabilities import derive_supports_image_input
 
         seen_slugs: dict[str, int] = {}
@@ -104,7 +103,7 @@ def load_global_llm_configs():
                     else None
                 )
                 cfg["supports_image_input"] = derive_supports_image_input(
-                    provider=cfg.get("provider"),
+                    litellm_provider=cfg.get("litellm_provider"),
                     model_name=cfg.get("model_name"),
                     base_model=base_model,
                     custom_provider=cfg.get("custom_provider"),
@@ -123,7 +122,7 @@ def load_global_llm_configs():
         # Stamp Auto (Fastest) ranking metadata. YAML configs are always
         # Tier A — operator-curated, locked first when premium-eligible.
         # The OpenRouter refresh tick later re-stamps health for any cfg
-        # whose provider == "OPENROUTER" via _enrich_health.
+        # whose litellm_provider == "openrouter" via _enrich_health.
         try:
             from app.services.quality_score import static_score_yaml
 
@@ -133,7 +132,7 @@ def load_global_llm_configs():
                 cfg["quality_score_static"] = static_q
                 cfg["quality_score"] = static_q
                 cfg["quality_score_health"] = None
-                # YAML cfgs whose provider is OPENROUTER are also subject
+                # YAML cfgs whose litellm_provider is openrouter are also subject
                 # to health gating against their own /endpoints data — a
                 # hand-picked dead OR model is still dead. _enrich_health
                 # re-stamps health_gated for them on the next refresh tick.

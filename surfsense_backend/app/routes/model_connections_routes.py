@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.config import config
 from app.db import (
     Connection,
+    ConnectionProtocol,
     ConnectionScope,
     Model,
     ModelSource,
@@ -40,6 +41,16 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _default_litellm_provider(protocol: ConnectionProtocol | str) -> str:
+    protocol_value = getattr(protocol, "value", str(protocol))
+    defaults = {
+        ConnectionProtocol.OLLAMA.value: "ollama_chat",
+        ConnectionProtocol.ANTHROPIC.value: "anthropic",
+        ConnectionProtocol.OPENAI_COMPATIBLE.value: "openai",
+    }
+    return defaults.get(protocol_value, "openai")
+
+
 def _model_read(model: Model | dict) -> ModelRead:
     return ModelRead.model_validate(model)
 
@@ -58,7 +69,7 @@ def _connection_read(conn: Connection | dict, models: list[Model | dict] | None 
     return ConnectionRead(
         id=conn.id,
         protocol=conn.protocol,
-        native_provider=conn.native_provider,
+        litellm_provider=conn.litellm_provider,
         base_url=conn.base_url,
         extra=conn.extra or {},
         scope=conn.scope,
@@ -168,8 +179,12 @@ async def create_connection(
             Permission.LLM_CONFIGS_CREATE.value,
             "You don't have permission to create model connections in this search space",
         )
+    payload = data.model_dump(exclude={"search_space_id"})
+    if not payload.get("litellm_provider"):
+        payload["litellm_provider"] = _default_litellm_provider(data.protocol)
+
     conn = Connection(
-        **data.model_dump(exclude={"search_space_id"}),
+        **payload,
         search_space_id=data.search_space_id if data.scope == ConnectionScope.SEARCH_SPACE else None,
         user_id=user.id,
     )
