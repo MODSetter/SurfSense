@@ -148,6 +148,14 @@ class PodcastSpec(BaseModel):
             raise ValueError("speaker slots must be unique")
         return self
 
+    @model_validator(mode="after")
+    def _check_style_speakers(self) -> PodcastSpec:
+        # One voice is what "monologue" means; letting extra speakers through
+        # would force drafting to silently pick a winner.
+        if self.style is PodcastStyle.MONOLOGUE and len(self.speakers) != 1:
+            raise ValueError("a monologue has exactly one speaker")
+        return self
+
     def speaker_for(self, slot: int) -> SpeakerSpec:
         """Return the speaker bound to ``slot`` or raise if none matches."""
         for speaker in self.speakers:

@@ -61,13 +61,19 @@ export const durationTarget = z.object({
 });
 export type DurationTarget = z.infer<typeof durationTarget>;
 
-export const podcastSpec = z.object({
-	language: z.string().min(2),
-	style: podcastStyle,
-	speakers: z.array(speakerSpec).min(1).max(MAX_SPEAKERS),
-	duration: durationTarget,
-	focus: z.string().max(2000).nullable().optional(),
-});
+export const podcastSpec = z
+	.object({
+		language: z.string().min(2),
+		style: podcastStyle,
+		speakers: z.array(speakerSpec).min(1).max(MAX_SPEAKERS),
+		duration: durationTarget,
+		focus: z.string().max(2000).nullable().optional(),
+	})
+	// Mirrors the backend invariant: one voice is what "monologue" means.
+	.refine((spec) => spec.style !== "monologue" || spec.speakers.length === 1, {
+		message: "A monologue has exactly one speaker",
+		path: ["speakers"],
+	});
 export type PodcastSpec = z.infer<typeof podcastSpec>;
 
 // =============================================================================

@@ -110,6 +110,16 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 		});
 	};
 
+	const setStyle = (style: PodcastStyle) => {
+		setDraft((current) => ({
+			...current,
+			style,
+			// A monologue has exactly one speaker, so extra speakers are dropped
+			// rather than letting approval fail validation.
+			speakers: style === "monologue" ? current.speakers.slice(0, 1) : current.speakers,
+		}));
+	};
+
 	const updateSpeaker = (slot: number, change: Partial<PodcastSpec["speakers"][number]>) => {
 		setDraft((current) => ({
 			...current,
@@ -198,12 +208,7 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 				</div>
 				<div className="flex flex-col gap-2">
 					<Label htmlFor="podcast-style">Style</Label>
-					<Select
-						value={draft.style}
-						onValueChange={(value) =>
-							setDraft((current) => ({ ...current, style: value as PodcastStyle }))
-						}
-					>
+					<Select value={draft.style} onValueChange={(value) => setStyle(value as PodcastStyle)}>
 						<SelectTrigger id="podcast-style">
 							<SelectValue placeholder="Style" />
 						</SelectTrigger>
@@ -226,7 +231,7 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 						variant="ghost"
 						size="sm"
 						onClick={addSpeaker}
-						disabled={draft.speakers.length >= MAX_SPEAKERS}
+						disabled={draft.style === "monologue" || draft.speakers.length >= MAX_SPEAKERS}
 					>
 						<Plus className="size-4" /> Add speaker
 					</Button>

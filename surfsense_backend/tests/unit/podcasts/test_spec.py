@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from app.podcasts.schemas import (
     DurationTarget,
     PodcastSpec,
+    PodcastStyle,
     SpeakerRole,
     SpeakerSpec,
     Transcript,
@@ -76,6 +77,27 @@ def test_a_brief_needs_at_least_one_speaker():
         PodcastSpec(
             language="en",
             speakers=[],
+            duration=DurationTarget(min_minutes=5, max_minutes=10),
+        )
+
+
+def test_a_monologue_brief_carries_exactly_one_speaker():
+    spec = PodcastSpec(
+        language="en",
+        style=PodcastStyle.MONOLOGUE,
+        speakers=[_speaker(0)],
+        duration=DurationTarget(min_minutes=5, max_minutes=10),
+    )
+    assert spec.style is PodcastStyle.MONOLOGUE
+
+
+def test_a_monologue_brief_rejects_multiple_speakers():
+    """One voice is what 'monologue' means; a second speaker is a user error."""
+    with pytest.raises(ValidationError):
+        PodcastSpec(
+            language="en",
+            style=PodcastStyle.MONOLOGUE,
+            speakers=[_speaker(0), _speaker(1, voice_id="kokoro:af_bella")],
             duration=DurationTarget(min_minutes=5, max_minutes=10),
         )
 
