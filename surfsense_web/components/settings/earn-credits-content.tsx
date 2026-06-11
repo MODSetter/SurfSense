@@ -77,9 +77,7 @@ export function EarnCreditsContent() {
 		<div className="w-full space-y-5">
 			<div className="text-center">
 				<h2 className="text-xl font-bold tracking-tight">Earn Credits</h2>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Earn bonus credits by completing tasks
-				</p>
+				<p className="mt-1 text-sm text-muted-foreground">Earn bonus credits by completing tasks</p>
 			</div>
 
 			<div className="space-y-2">

@@ -64,7 +64,9 @@ def test_a_preferred_voice_invalid_for_the_language_is_replaced():
         speaker_count=1,
         preferred=["kokoro:does-not-exist"],
     )
-    assert voices[0].voice_id in {v.voice_id for v in catalog.for_provider(TtsProvider.KOKORO)}
+    assert voices[0].voice_id in {
+        v.voice_id for v in catalog.for_provider(TtsProvider.KOKORO)
+    }
 
 
 def test_resolution_fails_when_no_voice_speaks_the_language():

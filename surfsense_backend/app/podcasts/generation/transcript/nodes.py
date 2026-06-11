@@ -18,7 +18,7 @@ from app.services.llm_service import get_agent_llm
 from ..prompts import draft_segment_prompt, plan_outline_prompt
 from ..structured import invoke_json
 from .config import TranscriptConfig
-from .planning import Outline, OutlineSegment, SegmentDraft
+from .planning import Outline, SegmentDraft
 from .state import TranscriptState
 
 # Average speaking rate; converts target minutes to a target word count.

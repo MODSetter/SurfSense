@@ -70,7 +70,9 @@ class SpeakerSpec(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    slot: int = Field(..., ge=0, description="Stable index a transcript turn references")
+    slot: int = Field(
+        ..., ge=0, description="Stable index a transcript turn references"
+    )
     name: str = Field(..., min_length=1, max_length=120)
     role: SpeakerRole
     voice_id: str = Field(

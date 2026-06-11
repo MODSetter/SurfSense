@@ -13,11 +13,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import type {
-	CreditPurchase,
-	PagePurchase,
-	PurchaseStatus,
-} from "@/contracts/types/stripe.types";
+import type { CreditPurchase, PagePurchase, PurchaseStatus } from "@/contracts/types/stripe.types";
 import { stripeApiService } from "@/lib/apis/stripe-api.service";
 import { cn } from "@/lib/utils";
 

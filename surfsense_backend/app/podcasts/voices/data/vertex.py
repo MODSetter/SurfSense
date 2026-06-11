@@ -30,10 +30,52 @@ def _voice(
 
 
 VERTEX_VOICES: tuple[CatalogVoice, ...] = (
-    _voice("en-US-Studio-O", "en-US", "en-US", "en-US-Studio-O", "Studio O (US)", VoiceGender.FEMALE),
-    _voice("en-US-Studio-M", "en-US", "en-US", "en-US-Studio-M", "Studio M (US)", VoiceGender.MALE),
-    _voice("en-GB-Studio-A", "en-GB", "en-UK", "en-UK-Studio-A", "Studio A (UK)", VoiceGender.FEMALE),
-    _voice("en-GB-Studio-B", "en-GB", "en-UK", "en-UK-Studio-B", "Studio B (UK)", VoiceGender.MALE),
-    _voice("en-AU-Studio-A", "en-AU", "en-AU", "en-AU-Studio-A", "Studio A (AU)", VoiceGender.FEMALE),
-    _voice("en-AU-Studio-B", "en-AU", "en-AU", "en-AU-Studio-B", "Studio B (AU)", VoiceGender.MALE),
+    _voice(
+        "en-US-Studio-O",
+        "en-US",
+        "en-US",
+        "en-US-Studio-O",
+        "Studio O (US)",
+        VoiceGender.FEMALE,
+    ),
+    _voice(
+        "en-US-Studio-M",
+        "en-US",
+        "en-US",
+        "en-US-Studio-M",
+        "Studio M (US)",
+        VoiceGender.MALE,
+    ),
+    _voice(
+        "en-GB-Studio-A",
+        "en-GB",
+        "en-UK",
+        "en-UK-Studio-A",
+        "Studio A (UK)",
+        VoiceGender.FEMALE,
+    ),
+    _voice(
+        "en-GB-Studio-B",
+        "en-GB",
+        "en-UK",
+        "en-UK-Studio-B",
+        "Studio B (UK)",
+        VoiceGender.MALE,
+    ),
+    _voice(
+        "en-AU-Studio-A",
+        "en-AU",
+        "en-AU",
+        "en-AU-Studio-A",
+        "Studio A (AU)",
+        VoiceGender.FEMALE,
+    ),
+    _voice(
+        "en-AU-Studio-B",
+        "en-AU",
+        "en-AU",
+        "en-AU-Studio-B",
+        "Studio B (AU)",
+        VoiceGender.MALE,
+    ),
 )

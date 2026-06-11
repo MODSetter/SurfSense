@@ -2,9 +2,9 @@
 
 import {
 	FilePlus2,
+	type LucideIcon,
 	Search,
 	Settings2,
-	type LucideIcon,
 	WandSparkles,
 	Workflow,
 	X,

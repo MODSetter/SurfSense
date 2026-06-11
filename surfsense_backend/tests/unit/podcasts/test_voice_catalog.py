@@ -52,7 +52,9 @@ def test_for_provider_returns_only_that_providers_voices():
 def test_for_language_matches_on_the_primary_subtag():
     """A request for 'en' should match an 'en-US' voice (region-insensitive)."""
     catalog = VoiceCatalog([_voice("k1", language="en-US")])
-    assert [v.voice_id for v in catalog.for_language(TtsProvider.KOKORO, "en")] == ["k1"]
+    assert [v.voice_id for v in catalog.for_language(TtsProvider.KOKORO, "en")] == [
+        "k1"
+    ]
 
 
 def test_for_language_excludes_other_languages():

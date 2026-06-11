@@ -26,7 +26,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.app import app, limiter
 from app.config import config as app_config
 from app.db import SearchSpace, User, get_async_session
-from app.routes.search_spaces_routes import create_default_roles_and_membership
 from app.podcasts.persistence import Podcast, PodcastStatus
 from app.podcasts.schemas import (
     DurationTarget,
@@ -39,6 +38,7 @@ from app.podcasts.schemas import (
 )
 from app.podcasts.service import PodcastService
 from app.podcasts.tts import SynthesisRequest, SynthesizedAudio, TextToSpeech
+from app.routes.search_spaces_routes import create_default_roles_and_membership
 from app.users import current_active_user
 
 pytestmark = pytest.mark.integration
@@ -128,12 +128,8 @@ class FakeStorageBackend:
 def fake_storage(monkeypatch) -> FakeStorageBackend:
     """Route audio storage to an in-memory backend for the stream routes."""
     backend = FakeStorageBackend()
-    monkeypatch.setattr(
-        "app.podcasts.storage.get_storage_backend", lambda: backend
-    )
-    monkeypatch.setattr(
-        "app.file_storage.factory.get_storage_backend", lambda: backend
-    )
+    monkeypatch.setattr("app.podcasts.storage.get_storage_backend", lambda: backend)
+    monkeypatch.setattr("app.file_storage.factory.get_storage_backend", lambda: backend)
     return backend
 
 
@@ -159,9 +155,7 @@ def bind_task_session(db_session: AsyncSession, monkeypatch) -> AsyncSession:
         "app.podcasts.tasks.render",
         "app.podcasts.tasks.runtime",
     ):
-        monkeypatch.setattr(
-            f"{module}.get_celery_session_maker", lambda: _make_session
-        )
+        monkeypatch.setattr(f"{module}.get_celery_session_maker", lambda: _make_session)
     return db_session
 
 
@@ -213,8 +207,12 @@ def build_spec(
         language=language,
         style=PodcastStyle.CONVERSATIONAL,
         speakers=[
-            SpeakerSpec(slot=0, name="Host", role=SpeakerRole.HOST, voice_id=voice_ids[0]),
-            SpeakerSpec(slot=1, name="Guest", role=SpeakerRole.GUEST, voice_id=voice_ids[1]),
+            SpeakerSpec(
+                slot=0, name="Host", role=SpeakerRole.HOST, voice_id=voice_ids[0]
+            ),
+            SpeakerSpec(
+                slot=1, name="Guest", role=SpeakerRole.GUEST, voice_id=voice_ids[1]
+            ),
         ],
         duration=DurationTarget(min_minutes=10, max_minutes=20),
     )
@@ -237,7 +235,7 @@ def make_podcast(db_session: AsyncSession):
     session, so the endpoint under test reads a realistically-built row.
     """
 
-    _LADDER = [
+    ladder = [
         PodcastStatus.AWAITING_BRIEF,
         PodcastStatus.DRAFTING,
         PodcastStatus.RENDERING,
@@ -259,7 +257,7 @@ def make_podcast(db_session: AsyncSession):
             await db_session.flush()
             return podcast
 
-        targets = _LADDER[: _LADDER.index(status) + 1]
+        targets = ladder[: ladder.index(status) + 1]
         for target in targets:
             if target is PodcastStatus.AWAITING_BRIEF:
                 await service.attach_brief(podcast, build_spec())

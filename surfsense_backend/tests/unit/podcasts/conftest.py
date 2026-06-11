@@ -38,7 +38,10 @@ def make_spec():
         if speakers is None:
             speakers = [
                 SpeakerSpec(
-                    slot=0, name="Host", role=SpeakerRole.HOST, voice_id="kokoro:am_adam"
+                    slot=0,
+                    name="Host",
+                    role=SpeakerRole.HOST,
+                    voice_id="kokoro:am_adam",
                 ),
                 SpeakerSpec(
                     slot=1,

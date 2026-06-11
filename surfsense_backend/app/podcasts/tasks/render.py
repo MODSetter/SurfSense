@@ -15,7 +15,7 @@ from app.celery_app import celery_app
 from app.podcasts.persistence import PodcastRepository
 from app.podcasts.rendering import PodcastRenderer
 from app.podcasts.service import (
-    InvalidTransition,
+    InvalidTransitionError,
     PodcastService,
     read_spec,
     read_transcript,
@@ -36,9 +36,10 @@ _WORKDIR_BASE = Path(tempfile.gettempdir()) / "surfsense_podcasts"
 def render_audio_task(self, podcast_id: int) -> dict:
     try:
         return run_async_celery_task(lambda: _render_audio(podcast_id))
-    except Exception as exc:  # noqa: BLE001 - record and report, never crash worker
+    except Exception as exc:
         logger.error("Podcast %s render failed: %s", podcast_id, exc)
-        run_async_celery_task(lambda: mark_failed(podcast_id, str(exc)))
+        message = str(exc)
+        run_async_celery_task(lambda: mark_failed(podcast_id, message))
         return {"status": "failed", "podcast_id": podcast_id}
 
 
@@ -75,7 +76,7 @@ async def _render_audio(podcast_id: int) -> dict:
                 podcast, storage_backend=backend_name, storage_key=key
             )
             await session.commit()
-        except InvalidTransition:
+        except InvalidTransitionError:
             # A user back-out won the race (e.g. the regeneration was
             # reverted): drop the stale render and leave the row alone.
             await purge_audio_object(key)
