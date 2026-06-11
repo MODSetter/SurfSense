@@ -1,10 +1,10 @@
 """Shared builders for podcast unit tests.
 
-These tests exercise the podcast domain through its public interfaces. The only
-test double is a minimal stand-in for the SQLAlchemy ``AsyncSession`` — a real
-system boundary — so the service's own repository and state machine run for
-real. Briefs and transcripts are built with valid factories so each test states
-just the fields it cares about.
+These tests exercise pure logic through public interfaces with no test doubles:
+the brief and transcript factories build valid aggregates so each test states
+only the fields it cares about. Stateful, persistence-backed paths (the lifecycle
+service, the Celery task bodies) are covered by the integration suite against a
+real database.
 """
 
 from __future__ import annotations
@@ -20,76 +20,6 @@ from app.podcasts.schemas import (
     Transcript,
     TranscriptTurn,
 )
-
-
-class FakeAsyncSession:
-    """A no-op stand-in for ``AsyncSession`` at the persistence boundary.
-
-    The service flushes to assign state within a unit of work; in a unit test
-    there is no database, so ``add``/``flush`` simply do nothing. Behavior is
-    observed through the returned aggregate, never through this double.
-    """
-
-    def add(self, _obj: object) -> None:
-        return None
-
-    async def flush(self) -> None:
-        return None
-
-
-class FakeCeleryDbSession(FakeAsyncSession):
-    """An async-context session double for Celery task bodies.
-
-    Task bodies open ``get_celery_session_maker()()`` as an async context,
-    ``get`` the row, then ``commit``. This holds one preloaded podcast and
-    records whether the body committed, so tests assert on the row's final
-    state — not on the calls made to get there.
-    """
-
-    def __init__(self, podcast: object | None = None) -> None:
-        self._podcast = podcast
-        self.committed = False
-
-    async def get(self, _model: object, _id: object) -> object | None:
-        return self._podcast
-
-    async def commit(self) -> None:
-        self.committed = True
-
-    async def __aenter__(self) -> FakeCeleryDbSession:
-        return self
-
-    async def __aexit__(self, *_exc: object) -> None:
-        return None
-
-
-@pytest.fixture
-def fake_session() -> FakeAsyncSession:
-    return FakeAsyncSession()
-
-
-@pytest.fixture
-def make_celery_session():
-    """Factory for a Celery-style session double holding one podcast."""
-
-    def _make(podcast: object | None = None) -> FakeCeleryDbSession:
-        return FakeCeleryDbSession(podcast)
-
-    return _make
-
-
-@pytest.fixture
-def session_maker_for():
-    """Build a ``get_celery_session_maker`` replacement bound to one session.
-
-    ``get_celery_session_maker()()`` must yield the session, so the replacement
-    is a zero-arg callable returning a maker that returns the session.
-    """
-
-    def _make(session: object):
-        return lambda: (lambda: session)
-
-    return _make
 
 
 @pytest.fixture
