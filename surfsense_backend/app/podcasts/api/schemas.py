@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.podcasts.persistence import Podcast, PodcastStatus
 from app.podcasts.schemas import PodcastSpec, Transcript
-from app.podcasts.service import read_spec, read_transcript
+from app.podcasts.service import has_stored_episode, read_spec, read_transcript
 
 # Defaults applied when a create request omits brief sizing; the brief gate lets
 # the user adjust before any cost is incurred.
@@ -88,7 +88,7 @@ class PodcastDetail(BaseModel):
             spec_version=podcast.spec_version,
             spec=read_spec(podcast),
             transcript=read_transcript(podcast),
-            has_audio=bool(podcast.storage_key),
+            has_audio=has_stored_episode(podcast),
             duration_seconds=podcast.duration_seconds,
             error=podcast.error,
             created_at=podcast.created_at,

@@ -53,6 +53,28 @@ def test_an_awaiting_brief_podcast_exposes_the_deserialized_brief(make_spec):
     assert detail.spec.language == "fr"
 
 
+def test_a_legacy_episode_still_exposes_its_transcript_and_audio():
+    # Pre-rework rows stored [{speaker_id, dialog}] and a local file path;
+    # they must keep flowing through the new read model, not fail validation.
+    podcast = _podcast(
+        status=PodcastStatus.READY,
+        podcast_transcript=[
+            {"speaker_id": 0, "dialog": "Welcome back."},
+            {"speaker_id": 1, "dialog": "Glad to be here."},
+        ],
+        file_location="/var/old/podcast.mp3",
+    )
+
+    detail = PodcastDetail.of(podcast)
+
+    assert detail.has_audio is True
+    assert detail.transcript is not None
+    assert [(turn.speaker, turn.text) for turn in detail.transcript.turns] == [
+        (0, "Welcome back."),
+        (1, "Glad to be here."),
+    ]
+
+
 def test_a_ready_podcast_reports_available_audio(make_spec, make_transcript):
     podcast = _podcast(
         status=PodcastStatus.READY,

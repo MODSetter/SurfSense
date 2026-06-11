@@ -12,7 +12,7 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.podcasts.persistence import Podcast, PodcastRepository, PodcastStatus
-from app.podcasts.schemas import PodcastSpec, Transcript
+from app.podcasts.schemas import PodcastSpec, Transcript, TranscriptTurn
 
 _MAX_ERROR_CHARS = 2000
 
@@ -148,6 +148,10 @@ class PodcastService:
             raise InvalidTransition(
                 f"nothing to regenerate from {_status(podcast).value}"
             )
+        # Legacy episodes finished before briefs existed; a gate with nothing
+        # to review would strand them.
+        if podcast.spec is None:
+            raise PreconditionFailed("cannot regenerate without a brief")
         self._transition(podcast, PodcastStatus.AWAITING_BRIEF)
         await self._session.flush()
         return podcast
@@ -159,7 +163,7 @@ class PodcastService:
         any point before that commit is a free change of mind. A fresh podcast
         has no regeneration to revert and is rejected.
         """
-        if not _has_episode(podcast):
+        if not has_stored_episode(podcast):
             raise InvalidTransition("no finished episode to fall back to")
         self._transition(podcast, PodcastStatus.READY)
         await self._session.flush()
@@ -195,7 +199,7 @@ class PodcastService:
         No user action may destroy playable audio: once an episode exists,
         backing out goes through revert_regeneration instead.
         """
-        if _has_episode(podcast):
+        if has_stored_episode(podcast):
             raise InvalidTransition(
                 "a finished episode exists; revert the regeneration instead"
             )
@@ -216,7 +220,7 @@ def _status(podcast: Podcast) -> PodcastStatus:
     return PodcastStatus(podcast.status)
 
 
-def _has_episode(podcast: Podcast) -> bool:
+def has_stored_episode(podcast: Podcast) -> bool:
     """Whether finished audio is stored (``file_location`` covers legacy rows)."""
     return bool(podcast.storage_key or podcast.file_location)
 
@@ -228,9 +232,19 @@ def read_spec(podcast: Podcast) -> PodcastSpec | None:
 
 def read_transcript(podcast: Podcast) -> Transcript | None:
     """Deserialize the stored transcript, or ``None`` if not yet drafted."""
-    if not podcast.podcast_transcript:
+    raw = podcast.podcast_transcript
+    if not raw:
         return None
-    return Transcript.model_validate(podcast.podcast_transcript)
+    # Rows from before the lifecycle rework stored a bare turn list with
+    # different field names; they must keep reading, not fail validation.
+    if isinstance(raw, list):
+        return Transcript(
+            turns=[
+                TranscriptTurn(speaker=turn["speaker_id"], text=turn["dialog"])
+                for turn in raw
+            ]
+        )
+    return Transcript.model_validate(raw)
 
 
 def preferences_from(podcast: Podcast | None) -> tuple[str | None, list[str]]:

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.podcasts.persistence import PodcastStatus
+from app.podcasts.persistence import Podcast, PodcastStatus
 from app.podcasts.service import PodcastService
 
 from .conftest import build_transcript
@@ -179,3 +179,24 @@ async def test_revert_when_nothing_was_regenerated_is_rejected(
     resp = await client.post(f"{BASE}/{podcast.id}/regenerate/revert")
 
     assert resp.status_code == 409
+
+
+async def test_regenerate_without_a_brief_is_rejected(
+    client, db_session, db_search_space, captured_tasks
+):
+    # Legacy episodes finished before briefs existed; reopening a gate with
+    # nothing to review would strand them there.
+    podcast = Podcast(
+        title="Legacy Episode",
+        search_space_id=db_search_space.id,
+        status=PodcastStatus.READY,
+        spec_version=1,
+        file_location="/var/old/podcast.mp3",
+    )
+    db_session.add(podcast)
+    await db_session.flush()
+
+    resp = await client.post(f"{BASE}/{podcast.id}/transcript/regenerate")
+
+    assert resp.status_code == 422
+    assert captured_tasks.draft == []
