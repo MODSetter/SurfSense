@@ -33,7 +33,7 @@ async def test_stream_serves_stored_audio(
 
 async def test_stream_404_when_no_audio(client, db_search_space, make_podcast):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.AWAITING_REVIEW
+        search_space_id=db_search_space.id, status=PodcastStatus.DRAFTING
     )
 
     resp = await client.get(f"{BASE}/{podcast.id}/stream")

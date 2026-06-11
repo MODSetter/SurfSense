@@ -26,6 +26,7 @@ import {
 import type { LivePodcast } from "@/hooks/use-podcast-live";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { AppError } from "@/lib/error";
+import { VoicePreviewButton } from "./voice-preview-button";
 
 // A "*" voice speaks whatever language the text is in (mirrors the backend
 // catalog's ANY_LANGUAGE sentinel).
@@ -274,23 +275,26 @@ export function BriefReview({ podcast, spec, onApproved }: BriefReviewProps) {
 								</SelectContent>
 							</Select>
 						</div>
-						<div className="flex w-44 flex-col gap-1.5">
+						<div className="flex w-52 flex-col gap-1.5">
 							<Label className="text-xs">Voice</Label>
-							<Select
-								value={speaker.voice_id}
-								onValueChange={(value) => updateSpeaker(speaker.slot, { voice_id: value })}
-							>
-								<SelectTrigger>
-									<SelectValue placeholder={voices === null ? "Loading…" : "Voice"} />
-								</SelectTrigger>
-								<SelectContent>
-									{voiceItems(voicesForLanguage, speaker.voice_id).map((voice) => (
-										<SelectItem key={voice.voice_id} value={voice.voice_id}>
-											{voice.display_name} ({voice.gender})
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							<div className="flex items-center gap-1">
+								<Select
+									value={speaker.voice_id}
+									onValueChange={(value) => updateSpeaker(speaker.slot, { voice_id: value })}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder={voices === null ? "Loading…" : "Voice"} />
+									</SelectTrigger>
+									<SelectContent>
+										{voiceItems(voicesForLanguage, speaker.voice_id).map((voice) => (
+											<SelectItem key={voice.voice_id} value={voice.voice_id}>
+												{voice.display_name} ({voice.gender})
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<VoicePreviewButton voiceId={speaker.voice_id} />
+							</div>
 						</div>
 						<Button
 							type="button"

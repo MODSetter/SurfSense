@@ -44,5 +44,10 @@ def open_audio_stream(podcast: Podcast) -> AsyncIterator[bytes]:
 
 async def purge_audio(podcast: Podcast) -> None:
     """Delete a podcast's stored audio if present; a missing object is fine."""
-    if podcast.storage_key:
-        await get_storage_backend().delete(podcast.storage_key)
+    await purge_audio_object(podcast.storage_key)
+
+
+async def purge_audio_object(key: str | None) -> None:
+    """Delete a stored audio object by key, e.g. the one a re-render replaced."""
+    if key:
+        await get_storage_backend().delete(key)

@@ -16,18 +16,18 @@ export const podcastStatus = z.enum([
 ]);
 export type PodcastStatus = z.infer<typeof podcastStatus>;
 
-/** States waiting on user input before the lifecycle can proceed. */
-export const GATE_STATUSES: ReadonlySet<PodcastStatus> = new Set([
-	"awaiting_brief",
-	"awaiting_review",
-]);
+/**
+ * States waiting on user input before the lifecycle can proceed. The brief is
+ * the only approval gate; `awaiting_review` survives in the enum for legacy
+ * rows but is never entered anymore.
+ */
+export const GATE_STATUSES: ReadonlySet<PodcastStatus> = new Set(["awaiting_brief"]);
 
-/** States from which no further transition is possible. */
-export const TERMINAL_STATUSES: ReadonlySet<PodcastStatus> = new Set([
-	"ready",
-	"failed",
-	"cancelled",
-]);
+/**
+ * States from which no further transition is possible. A `ready` episode is
+ * not terminal: it can be sent back to drafting for regeneration.
+ */
+export const TERMINAL_STATUSES: ReadonlySet<PodcastStatus> = new Set(["failed", "cancelled"]);
 
 // =============================================================================
 // Brief (spec) — mirror app/podcasts/schemas/spec.py

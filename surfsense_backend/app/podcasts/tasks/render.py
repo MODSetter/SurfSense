@@ -15,7 +15,7 @@ from app.celery_app import celery_app
 from app.podcasts.persistence import PodcastRepository
 from app.podcasts.rendering import PodcastRenderer
 from app.podcasts.service import PodcastService, read_spec, read_transcript
-from app.podcasts.storage import store_audio
+from app.podcasts.storage import purge_audio_object, store_audio
 from app.podcasts.tts import get_text_to_speech
 from app.podcasts.voices import get_voice_catalog
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
@@ -58,6 +58,8 @@ async def _render_audio(podcast_id: int) -> dict:
             spec=spec, transcript=transcript, workdir=workdir
         )
 
+        superseded_key = podcast.storage_key
+
         backend_name, key = await store_audio(
             search_space_id=podcast.search_space_id,
             podcast_id=podcast_id,
@@ -67,4 +69,8 @@ async def _render_audio(podcast_id: int) -> dict:
             podcast, storage_backend=backend_name, storage_key=key
         )
         await session.commit()
-        return {"status": "ready", "podcast_id": podcast_id}
+
+    # Purge only after the new audio is committed, so a failed re-render never
+    # destroys the episode the user can still play.
+    await purge_audio_object(superseded_key)
+    return {"status": "ready", "podcast_id": podcast_id}

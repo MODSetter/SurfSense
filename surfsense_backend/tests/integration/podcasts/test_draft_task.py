@@ -1,11 +1,12 @@
 """The transcript-drafting task against a real database.
 
 Drafting is the expensive LLM step, so it runs under ``billable_call``. The
-behavior that protects users' money: when billing succeeds, a drafted transcript
-opens the review gate (DRAFTING -> AWAITING_REVIEW); when billing denies or
-settlement fails, the podcast ends FAILED with no transcript left behind. The DB,
-service, and transcript persistence run for real; only the true externals are
-faked — billing (the metering boundary) and the generation graph (the LLM).
+behavior that protects users' money: when billing succeeds, the drafted
+transcript is stored and rendering starts immediately (DRAFTING -> RENDERING,
+render task enqueued — the brief gate is the only approval); when billing denies
+or settlement fails, the podcast ends FAILED with no transcript left behind. The
+DB, service, and transcript persistence run for real; only the true externals
+are faked — billing (the metering boundary) and the generation graph (the LLM).
 """
 
 from __future__ import annotations
@@ -43,8 +44,8 @@ def _wire_billing(monkeypatch, *, billable_call, transcript=None) -> None:
     monkeypatch.setattr(draft, "transcript_graph", SimpleNamespace(ainvoke=_ainvoke))
 
 
-async def test_successful_billing_opens_review_gate_with_transcript(
-    monkeypatch, db_search_space, make_podcast, bind_task_session
+async def test_successful_draft_stores_transcript_and_starts_rendering(
+    monkeypatch, db_search_space, make_podcast, bind_task_session, captured_tasks
 ):
     podcast = await make_podcast(
         search_space_id=db_search_space.id, status=PodcastStatus.DRAFTING
@@ -58,9 +59,10 @@ async def test_successful_billing_opens_review_gate_with_transcript(
 
     result = await draft._draft_transcript(podcast.id, db_search_space.id)
 
-    assert result["status"] == "awaiting_review"
-    assert podcast.status == PodcastStatus.AWAITING_REVIEW
+    assert result["status"] == "rendering"
+    assert podcast.status == PodcastStatus.RENDERING
     assert read_transcript(podcast) is not None
+    assert captured_tasks.render == [((podcast.id,), {})]
 
 
 async def test_quota_denial_fails_the_podcast_without_a_transcript(

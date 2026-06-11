@@ -1,12 +1,15 @@
 "use client";
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import { Loader2, RotateCcw } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import type { PodcastSpec } from "@/contracts/types/podcast.types";
-import { usePodcastLive } from "@/hooks/use-podcast-live";
+import { type LivePodcast, usePodcastLive } from "@/hooks/use-podcast-live";
+import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { PodcastErrorState, PodcastPlayer } from "./player";
 import { PodcastReviewSheet } from "./review-sheet";
 import type { GeneratePodcastArgs, GeneratePodcastResult } from "./schema";
@@ -69,6 +72,66 @@ function ReviewGateCard({
 	);
 }
 
+/**
+ * Regenerating discards the current audio, so a stray click is guarded by an
+ * inline confirm step.
+ */
+function RegenerateButton({ podcast }: { podcast: LivePodcast }) {
+	const [confirming, setConfirming] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const regenerate = async () => {
+		setIsSubmitting(true);
+		try {
+			await podcastsApiService.regenerate(podcast.id);
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Failed to regenerate the podcast");
+		} finally {
+			setIsSubmitting(false);
+			setConfirming(false);
+		}
+	};
+
+	if (!confirming) {
+		return (
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				className="text-muted-foreground"
+				onClick={() => setConfirming(true)}
+			>
+				<RotateCcw className="size-3.5" /> Regenerate
+			</Button>
+		);
+	}
+
+	return (
+		<div className="flex items-center gap-2">
+			<span className="text-xs text-muted-foreground">Replace this episode with a new take?</span>
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				onClick={() => setConfirming(false)}
+				disabled={isSubmitting}
+			>
+				Keep it
+			</Button>
+			<Button
+				type="button"
+				variant="destructive"
+				size="sm"
+				onClick={regenerate}
+				disabled={isSubmitting}
+			>
+				{isSubmitting ? <Loader2 className="size-3.5 animate-spin" /> : null}
+				Regenerate
+			</Button>
+		</div>
+	);
+}
+
 /** Status-driven card for an authenticated viewer, fed by Zero push. */
 function LivePodcastCard({
 	podcastId,
@@ -102,30 +165,47 @@ function LivePodcastCard({
 		case "rendering":
 			return <WorkingState title={title} label="Rendering audio" />;
 		case "awaiting_brief":
-		case "awaiting_review": {
-			const isBriefGate = podcast.status === "awaiting_brief";
 			return (
 				<>
 					<ReviewGateCard
 						title={title}
-						heading={
-							isBriefGate ? "Brief ready for your review" : "Transcript ready for your review"
-						}
+						heading="Brief ready for your review"
 						summary={briefSummary(podcast.spec)}
-						buttonLabel={isBriefGate ? "Review brief" : "Review transcript"}
+						buttonLabel="Review brief"
 						onReview={() => setReviewOpen(true)}
 					/>
 					<PodcastReviewSheet podcast={podcast} open={reviewOpen} onOpenChange={setReviewOpen} />
 				</>
 			);
-		}
+		case "awaiting_review":
+			// Legacy rows parked at the removed transcript gate; the only way
+			// forward is a fresh draft.
+			return (
+				<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+					<div className="px-5 pt-5 pb-4">
+						<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
+						<p className="text-xs text-muted-foreground mt-0.5">
+							This podcast was drafted before audio rendering became automatic.
+						</p>
+					</div>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="flex justify-end px-5 py-3">
+						<RegenerateButton podcast={podcast} />
+					</div>
+				</div>
+			);
 		case "ready":
 			return (
-				<PodcastPlayer
-					podcastId={podcast.id}
-					title={title}
-					durationMs={podcast.durationSeconds ? podcast.durationSeconds * 1000 : undefined}
-				/>
+				<div>
+					<PodcastPlayer
+						podcastId={podcast.id}
+						title={title}
+						durationMs={podcast.durationSeconds ? podcast.durationSeconds * 1000 : undefined}
+					/>
+					<div className="-mt-2 mb-4 flex max-w-lg justify-end">
+						<RegenerateButton podcast={podcast} />
+					</div>
+				</div>
 			);
 		case "failed":
 			return <PodcastErrorState title={title} error={podcast.error || "Generation failed"} />;

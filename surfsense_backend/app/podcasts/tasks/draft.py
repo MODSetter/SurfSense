@@ -1,8 +1,9 @@
-"""Transcript-drafting task: DRAFTING -> AWAITING_REVIEW.
+"""Transcript-drafting task: DRAFTING -> RENDERING.
 
 The expensive, LLM-heavy step, so it runs under ``billable_call``. The API has
 already moved the row to DRAFTING and stored the approved brief; this task
-drafts the long-form transcript and opens the go/no-go gate.
+drafts the long-form transcript and chains straight into the render — the brief
+gate is the only approval in the lifecycle.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from app.services.billable_calls import (
 )
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
+from .render import render_audio_task
 from .runtime import billable_session, mark_failed
 
 logger = logging.getLogger(__name__)
@@ -90,4 +92,8 @@ async def _draft_transcript(podcast_id: int, search_space_id: int) -> dict:
 
         await service.attach_transcript(podcast, result["transcript"])
         await session.commit()
-        return {"status": "awaiting_review", "podcast_id": podcast_id}
+
+    # Enqueue only after the transaction is committed, so the render worker can
+    # never pick up a row whose transcript isn't visible yet.
+    render_audio_task.delay(podcast_id)
+    return {"status": "rendering", "podcast_id": podcast_id}

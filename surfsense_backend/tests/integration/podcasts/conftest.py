@@ -166,13 +166,20 @@ def bind_task_session(db_session: AsyncSession, monkeypatch) -> AsyncSession:
 
 
 class FakeTextToSpeech(TextToSpeech):
-    """In-memory TTS provider: every segment yields fixed bytes (the boundary)."""
+    """In-memory TTS provider: every segment yields fixed bytes (the boundary).
+
+    Records each request so tests can assert how often synthesis was paid for.
+    """
+
+    def __init__(self) -> None:
+        self.requests: list[SynthesisRequest] = []
 
     @property
     def container(self) -> str:
         return "mp3"
 
     async def synthesize(self, request: SynthesisRequest) -> SynthesizedAudio:
+        self.requests.append(request)
         return SynthesizedAudio(data=b"segment-audio", container="mp3")
 
 
@@ -233,7 +240,6 @@ def make_podcast(db_session: AsyncSession):
     _LADDER = [
         PodcastStatus.AWAITING_BRIEF,
         PodcastStatus.DRAFTING,
-        PodcastStatus.AWAITING_REVIEW,
         PodcastStatus.RENDERING,
         PodcastStatus.READY,
     ]
@@ -259,10 +265,8 @@ def make_podcast(db_session: AsyncSession):
                 await service.attach_brief(podcast, build_spec())
             elif target is PodcastStatus.DRAFTING:
                 await service.begin_drafting(podcast)
-            elif target is PodcastStatus.AWAITING_REVIEW:
-                await service.attach_transcript(podcast, build_transcript())
             elif target is PodcastStatus.RENDERING:
-                await service.approve(podcast)
+                await service.attach_transcript(podcast, build_transcript())
             elif target is PodcastStatus.READY:
                 await service.attach_audio(
                     podcast,

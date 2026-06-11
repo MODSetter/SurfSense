@@ -1,7 +1,7 @@
 """HTTP surface for the podcast lifecycle.
 
 Status is observed by the frontend through Zero, so these routes are about
-actions (create, edit the brief, approve/regenerate, cancel) and audio delivery.
+actions (create, edit/approve the brief, regenerate, cancel) and audio delivery.
 Each mutating route performs the guarded transition via the service, commits,
 then enqueues the matching Celery task; lifecycle errors map to 409/422.
 """
@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,11 +33,13 @@ from app.podcasts.service import (
     SpecConflict,
 )
 from app.podcasts.storage import open_audio_stream, purge_audio
-from app.podcasts.tasks import (
-    draft_transcript_task,
-    render_audio_task,
+from app.podcasts.tasks import draft_transcript_task
+from app.podcasts.tts import get_text_to_speech
+from app.podcasts.voices import (
+    get_voice_catalog,
+    provider_from_service,
+    render_voice_preview,
 )
-from app.podcasts.voices import get_voice_catalog, provider_from_service
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 
@@ -110,6 +112,29 @@ async def list_voices(language: str | None = None):
     ]
 
 
+@router.get("/podcasts/voices/{voice_id}/preview")
+async def preview_voice(
+    voice_id: str,
+    user: User = Depends(current_active_user),
+):
+    """A short audio sample of a voice, so users pick by sound."""
+    if not app_config.TTS_SERVICE:
+        raise HTTPException(status_code=503, detail="No TTS provider configured")
+
+    provider = provider_from_service(app_config.TTS_SERVICE)
+    try:
+        voice = get_voice_catalog().get(voice_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Unknown voice") from None
+    if voice.provider is not provider:
+        raise HTTPException(
+            status_code=404, detail="Voice not offered by the active TTS provider"
+        )
+
+    data, content_type = await render_voice_preview(voice, get_text_to_speech())
+    return Response(content=data, media_type=content_type)
+
+
 @router.post("/podcasts", response_model=PodcastDetail, status_code=201)
 async def create_podcast(
     body: CreatePodcastRequest,
@@ -180,21 +205,6 @@ async def approve_brief(
     return PodcastDetail.of(podcast)
 
 
-@router.post("/podcasts/{podcast_id}/transcript/approve", response_model=PodcastDetail)
-async def approve_transcript(
-    podcast_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """Approve the transcript and start rendering audio."""
-    podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
-    async with _lifecycle_errors():
-        await PodcastService(session).approve(podcast)
-    await session.commit()
-    render_audio_task.delay(podcast.id)
-    return PodcastDetail.of(podcast)
-
-
 @router.post(
     "/podcasts/{podcast_id}/transcript/regenerate", response_model=PodcastDetail
 )
@@ -203,7 +213,7 @@ async def regenerate_transcript(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Reject the transcript and draft a fresh one."""
+    """Send a finished episode back to drafting for a fresh take."""
     podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
         await PodcastService(session).regenerate(podcast)

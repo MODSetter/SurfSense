@@ -37,11 +37,8 @@ class PodcastsApiService {
 		return baseApiService.post(`${BASE}/${podcastId}/brief/approve`, podcastDetail);
 	};
 
-	approveTranscript = async (podcastId: number) => {
-		return baseApiService.post(`${BASE}/${podcastId}/transcript/approve`, podcastDetail);
-	};
-
-	regenerateTranscript = async (podcastId: number) => {
+	// Destructive: the current transcript and audio are replaced by a fresh take.
+	regenerate = async (podcastId: number) => {
 		return baseApiService.post(`${BASE}/${podcastId}/transcript/regenerate`, podcastDetail);
 	};
 
@@ -52,6 +49,11 @@ class PodcastsApiService {
 	listVoices = async (language?: string) => {
 		const qs = language ? `?${new URLSearchParams({ language })}` : "";
 		return baseApiService.get(`${BASE}/voices${qs}`, voiceOptionList);
+	};
+
+	// A short audio sample of a voice, cached server-side per voice.
+	previewVoice = async (voiceId: string) => {
+		return baseApiService.getBlob(`${BASE}/voices/${encodeURIComponent(voiceId)}/preview`);
 	};
 }
 

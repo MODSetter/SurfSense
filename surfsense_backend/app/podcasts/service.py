@@ -25,20 +25,18 @@ _ALLOWED: dict[PodcastStatus, frozenset[PodcastStatus]] = {
         {PodcastStatus.DRAFTING, PodcastStatus.FAILED, PodcastStatus.CANCELLED}
     ),
     PodcastStatus.DRAFTING: frozenset(
-        {PodcastStatus.AWAITING_REVIEW, PodcastStatus.FAILED, PodcastStatus.CANCELLED}
+        {PodcastStatus.RENDERING, PodcastStatus.FAILED, PodcastStatus.CANCELLED}
     ),
+    # Never entered anymore (the transcript gate was dropped); kept with exits
+    # so legacy rows aren't stranded.
     PodcastStatus.AWAITING_REVIEW: frozenset(
-        {
-            PodcastStatus.RENDERING,  # approve
-            PodcastStatus.DRAFTING,  # regenerate
-            PodcastStatus.FAILED,
-            PodcastStatus.CANCELLED,
-        }
+        {PodcastStatus.DRAFTING, PodcastStatus.FAILED, PodcastStatus.CANCELLED}
     ),
     PodcastStatus.RENDERING: frozenset(
         {PodcastStatus.READY, PodcastStatus.FAILED, PodcastStatus.CANCELLED}
     ),
-    PodcastStatus.READY: frozenset(),
+    # Not terminal: regeneration is decided by listening to the finished episode.
+    PodcastStatus.READY: frozenset({PodcastStatus.DRAFTING}),
     PodcastStatus.FAILED: frozenset(),
     PodcastStatus.CANCELLED: frozenset(),
 }
@@ -121,22 +119,22 @@ class PodcastService:
     async def attach_transcript(
         self, podcast: Podcast, transcript: Transcript
     ) -> Podcast:
-        """Record the drafted transcript and open the go/no-go gate."""
-        self._transition(podcast, PodcastStatus.AWAITING_REVIEW)
+        """Record the drafted transcript and move straight to rendering."""
+        self._transition(podcast, PodcastStatus.RENDERING)
         podcast.podcast_transcript = transcript.model_dump(mode="json")
         await self._session.flush()
         return podcast
 
-    async def approve(self, podcast: Podcast) -> Podcast:
-        """Accept the transcript and start rendering."""
-        if not podcast.podcast_transcript:
-            raise PreconditionFailed("cannot render without a transcript")
-        self._transition(podcast, PodcastStatus.RENDERING)
-        await self._session.flush()
-        return podcast
+    # Guards regenerate beyond the transition table: from AWAITING_BRIEF the
+    # DRAFTING target is also legal, but there it means brief approval.
+    _REGENERABLE = frozenset({PodcastStatus.READY, PodcastStatus.AWAITING_REVIEW})
 
     async def regenerate(self, podcast: Podcast) -> Podcast:
-        """Reject the transcript and draft a new one."""
+        """Send the episode back to drafting for a fresh transcript and render."""
+        if _status(podcast) not in self._REGENERABLE:
+            raise InvalidTransition(
+                f"nothing to regenerate from {_status(podcast).value}"
+            )
         self._transition(podcast, PodcastStatus.DRAFTING)
         await self._session.flush()
         return podcast
