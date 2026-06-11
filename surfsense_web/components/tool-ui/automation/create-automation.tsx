@@ -2,7 +2,7 @@
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import { AlertCircle, CornerDownLeftIcon, ExternalLink, Pencil, Workflow } from "lucide-react";
+import { AlertCircle, Clock3, CornerDownLeftIcon, ExternalLink, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -211,7 +211,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300">
 			<div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 select-none">
 				<div className="flex items-start gap-3 min-w-0">
-					<Workflow className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
+					<Clock3 className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
 					<div className="min-w-0">
 						<p className="text-sm font-semibold text-foreground">
 							{phase === "rejected"
@@ -404,7 +404,7 @@ function SavedCard({ result }: { result: SavedResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="flex items-start gap-3 px-5 pt-5 pb-4">
-				<Workflow className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
+				<Clock3 className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
 				<div className="min-w-0">
 					<p className="text-sm font-semibold text-foreground">Automation saved</p>
 					<p className="text-xs text-muted-foreground mt-0.5">{result.name}</p>

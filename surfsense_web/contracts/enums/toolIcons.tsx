@@ -1,6 +1,7 @@
 import {
 	Brain,
 	Calendar,
+	Clock3,
 	FileEdit,
 	FilePlus,
 	FileText,
@@ -24,7 +25,6 @@ import {
 	SearchCheck,
 	Send,
 	Trash2,
-	Workflow,
 	Wrench,
 } from "lucide-react";
 
@@ -47,7 +47,7 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 	scrape_webpage: ScanLine,
 	web_search: Globe,
 	// Automations
-	create_automation: Workflow,
+	create_automation: Clock3,
 	// Memory
 	update_memory: Brain,
 	// Filesystem (built-in deepagent + middleware)

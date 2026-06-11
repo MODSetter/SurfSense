@@ -1,5 +1,5 @@
 "use client";
-import { CalendarDays, Info, Workflow } from "lucide-react";
+import { CalendarDays, Clock3, Info } from "lucide-react";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { AutomationSummary } from "@/contracts/types/automation.types";
 import { AutomationRow } from "./automation-row";
@@ -31,7 +31,7 @@ export function AutomationsTable({
 					<TableRow className="hover:bg-transparent border-b border-border/60">
 						<TableHead className="px-4 md:px-6 border-r border-border/60">
 							<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
-								<Workflow size={14} className="opacity-60 text-muted-foreground" />
+								<Clock3 size={14} className="opacity-60 text-muted-foreground" />
 								Name
 							</span>
 						</TableHead>

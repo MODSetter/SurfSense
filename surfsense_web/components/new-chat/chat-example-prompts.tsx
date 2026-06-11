@@ -1,12 +1,12 @@
 "use client";
 
 import {
+	Clock3,
 	FilePlus2,
 	Search,
 	Settings2,
 	type LucideIcon,
 	WandSparkles,
-	Workflow,
 	X,
 } from "lucide-react";
 import { memo, useCallback, useState } from "react";
@@ -22,7 +22,7 @@ interface ChatExamplePromptsProps {
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
 	search: Search,
 	create: FilePlus2,
-	automate: Workflow,
+	automate: Clock3,
 	tools: Settings2,
 };
 
