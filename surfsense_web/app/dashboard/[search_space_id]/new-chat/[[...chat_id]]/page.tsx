@@ -77,11 +77,6 @@ import {
 	convertToThreadMessage,
 	reconcileInterruptedAssistantMessages,
 } from "@/lib/chat/message-utils";
-import {
-	isPodcastGenerating,
-	looksLikePodcastRequest,
-	setActivePodcastTaskId,
-} from "@/lib/chat/podcast-state";
 import { createStreamFlushHelpers } from "@/lib/chat/stream-flush";
 import { consumeSseEvents, processSharedStreamEvent } from "@/lib/chat/stream-pipeline";
 import {
@@ -954,11 +949,6 @@ export default function NewChatPage() {
 
 			if (!userQuery.trim() && userImages.length === 0) return;
 
-			if (userQuery.trim() && isPodcastGenerating() && looksLikePodcastRequest(userQuery)) {
-				toast.warning("A podcast is already being generated.");
-				return;
-			}
-
 			const token = getBearerToken();
 			if (!token) {
 				toast.error("Not authenticated. Please log in again.");
@@ -1216,17 +1206,6 @@ export default function NewChatPage() {
 							onTurnStatus: (data) => {
 								if (data.status === "cancelling") {
 									recentCancelRequestedAtRef.current = Date.now();
-								}
-							},
-							onToolOutputAvailable: (event, sharedCtx) => {
-								if (event.output?.status === "pending" && event.output?.podcast_id) {
-									const idx = sharedCtx.toolCallIndices.get(event.toolCallId);
-									if (idx !== undefined) {
-										const part = sharedCtx.contentPartsState.contentParts[idx];
-										if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-											setActivePodcastTaskId(String(event.output.podcast_id));
-										}
-									}
 								}
 							},
 						})
@@ -2185,17 +2164,6 @@ export default function NewChatPage() {
 							onTurnStatus: (data) => {
 								if (data.status === "cancelling") {
 									recentCancelRequestedAtRef.current = Date.now();
-								}
-							},
-							onToolOutputAvailable: (event, sharedCtx) => {
-								if (event.output?.status === "pending" && event.output?.podcast_id) {
-									const idx = sharedCtx.toolCallIndices.get(event.toolCallId);
-									if (idx !== undefined) {
-										const part = sharedCtx.contentPartsState.contentParts[idx];
-										if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-											setActivePodcastTaskId(String(event.output.podcast_id));
-										}
-									}
 								}
 							},
 						})
