@@ -1,4 +1,4 @@
-import { AutoReloadSettings } from "../components/AutoReloadSettings";
+import { AutoReloadSettings } from "@/components/settings/auto-reload-settings";
 import { PurchaseHistoryContent } from "../components/PurchaseHistoryContent";
 
 export default function Page() {

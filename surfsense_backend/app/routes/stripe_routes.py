@@ -837,6 +837,9 @@ async def create_auto_reload_setup_session(
         checkout_session = stripe_client.v1.checkout.sessions.create(
             params={
                 "mode": "setup",
+                # Required in setup mode when payment_method_types is omitted
+                # (dynamic payment methods); auto-reload charges are in USD.
+                "currency": "usd",
                 "success_url": success_url,
                 "cancel_url": cancel_url,
                 "customer": customer_id,

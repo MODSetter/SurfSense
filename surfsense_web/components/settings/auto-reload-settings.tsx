@@ -3,7 +3,7 @@
 import { useQuery as useZeroQuery } from "@rocicorp/zero/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CreditCard, RefreshCw } from "lucide-react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -35,6 +35,7 @@ const formatUsd = (micros: number) => `$${(Math.max(0, micros) / 1_000_000).toFi
 export function AutoReloadSettings() {
 	const params = useParams();
 	const router = useRouter();
+	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const queryClient = useQueryClient();
 	const searchSpaceId = Number(params?.search_space_id);
@@ -73,8 +74,8 @@ export function AutoReloadSettings() {
 			toast.info("Card setup canceled.");
 		}
 		// Strip the query param so refreshes don't re-toast.
-		router.replace(`/dashboard/${searchSpaceId}/user-settings/purchases`);
-	}, [searchParams, router, searchSpaceId, queryClient]);
+		router.replace(pathname);
+	}, [searchParams, router, pathname, queryClient]);
 
 	const setupMutation = useMutation({
 		mutationFn: () =>
@@ -102,16 +103,10 @@ export function AutoReloadSettings() {
 		},
 	});
 
-	if (isLoading || !settings) {
-		return (
-			<div className="flex items-center justify-center py-8">
-				<Spinner size="md" className="text-muted-foreground" />
-			</div>
-		);
-	}
-
-	// Server-side feature flag: hide the whole card when auto-reload is off.
-	if (!settings.feature_enabled) {
+	// Render nothing while loading (avoids a spinner flash on pages where the
+	// feature flag turns out to be off) and when auto-reload is disabled
+	// server-side.
+	if (isLoading || !settings || !settings.feature_enabled) {
 		return null;
 	}
 
