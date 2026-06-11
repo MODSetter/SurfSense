@@ -8,7 +8,6 @@ from sqlalchemy.orm import selectinload
 from app.config import config
 from app.db import (
     Connection,
-    ConnectionProtocol,
     ConnectionScope,
     Model,
     ModelSource,
@@ -22,6 +21,7 @@ from app.schemas import (
     ConnectionRead,
     ConnectionUpdate,
     ModelCreate,
+    ModelProviderRead,
     ModelRead,
     ModelRolesRead,
     ModelRolesUpdate,
@@ -34,21 +34,13 @@ from app.services.model_connection_service import (
     persist_verification,
     test_model,
 )
+from app.services.model_capabilities import has_capability
+from app.services.provider_registry import REGISTRY
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-def _default_litellm_provider(protocol: ConnectionProtocol | str) -> str:
-    protocol_value = getattr(protocol, "value", str(protocol))
-    defaults = {
-        ConnectionProtocol.OLLAMA.value: "ollama_chat",
-        ConnectionProtocol.ANTHROPIC.value: "anthropic",
-        ConnectionProtocol.OPENAI_COMPATIBLE.value: "openai",
-    }
-    return defaults.get(protocol_value, "openai")
 
 
 def _model_read(model: Model | dict) -> ModelRead:
@@ -68,8 +60,7 @@ def _connection_read(conn: Connection | dict, models: list[Model | dict] | None 
 
     return ConnectionRead(
         id=conn.id,
-        protocol=conn.protocol,
-        litellm_provider=conn.litellm_provider,
+        provider=conn.provider,
         base_url=conn.base_url,
         extra=conn.extra or {},
         scope=conn.scope,
@@ -83,6 +74,60 @@ def _connection_read(conn: Connection | dict, models: list[Model | dict] | None 
         models=[_model_read(model) for model in (models or [])],
         created_at=conn.created_at,
     )
+
+
+def _apply_model_facts(model: Model, facts: dict) -> None:
+    model.supports_chat = facts.get("supports_chat")
+    model.max_input_tokens = facts.get("max_input_tokens")
+    model.supports_image_input = facts.get("supports_image_input")
+    model.supports_tools = facts.get("supports_tools")
+    model.supports_image_generation = facts.get("supports_image_generation")
+
+
+def _default_model_for(models: list[Model], capability: str) -> int | None:
+    for model in models:
+        if model.enabled and has_capability(model, capability):
+            return model.id
+    return None
+
+
+async def _default_unset_roles(
+    session: AsyncSession,
+    conn: Connection,
+    models: list[Model],
+) -> None:
+    if conn.scope != ConnectionScope.SEARCH_SPACE or conn.search_space_id is None:
+        return
+    search_space = await _get_search_space(session, conn.search_space_id)
+    if search_space.chat_model_id is None:
+        search_space.chat_model_id = _default_model_for(models, "chat")
+    if search_space.vision_model_id is None:
+        vision_default = None
+        if search_space.chat_model_id:
+            chat_model = next((m for m in models if m.id == search_space.chat_model_id), None)
+            if chat_model and has_capability(chat_model, "vision"):
+                vision_default = chat_model.id
+        search_space.vision_model_id = vision_default or _default_model_for(models, "vision")
+    if search_space.image_gen_model_id is None:
+        search_space.image_gen_model_id = _default_model_for(models, "image_gen")
+
+
+@router.get("/model-providers", response_model=list[ModelProviderRead])
+async def list_model_providers(user: User = Depends(current_active_user)):
+    del user
+    local_only = {"ollama_chat", "lm_studio"}
+    return [
+        ModelProviderRead(
+            provider=provider,
+            transport=spec.transport.value,
+            discovery=spec.discovery,
+            default_base_url=spec.default_base_url,
+            base_url_required=spec.base_url_required,
+            auth_style=spec.auth_style,
+            local_only=provider in local_only,
+        )
+        for provider, spec in sorted(REGISTRY.items())
+    ]
 
 
 async def _get_search_space(session: AsyncSession, search_space_id: int) -> SearchSpace:
@@ -180,8 +225,6 @@ async def create_connection(
             "You don't have permission to create model connections in this search space",
         )
     payload = data.model_dump(exclude={"search_space_id"})
-    if not payload.get("litellm_provider"):
-        payload["litellm_provider"] = _default_litellm_provider(data.protocol)
 
     conn = Connection(
         **payload,
@@ -254,22 +297,19 @@ async def discover_connection_models(
                 model_id=item["model_id"],
                 display_name=item.get("display_name"),
                 source=item["source"],
-                capabilities=item["capabilities"],
-                capabilities_declared=item["capabilities"],
-                capabilities_verified={},
                 capabilities_override={},
                 enabled=False,
                 catalog=item.get("metadata") or {},
             )
+            _apply_model_facts(db_model, item)
             session.add(db_model)
         else:
             db_model.display_name = item.get("display_name") or db_model.display_name
-            db_model.capabilities_declared = item["capabilities"]
-            db_model.capabilities = {
-                **item["capabilities"],
-                **(db_model.capabilities_override or {}),
-            }
+            _apply_model_facts(db_model, item)
             db_model.catalog = item.get("metadata") or db_model.catalog
+    await session.commit()
+    conn = await _load_connection(session, connection_id)
+    await _default_unset_roles(session, conn, list(conn.models))
     await session.commit()
     conn = await _load_connection(session, connection_id)
     return [_model_read(model) for model in conn.models]
@@ -297,16 +337,17 @@ async def add_manual_model(
         model_id=model_id,
         display_name=data.display_name or None,
         source=ModelSource.MANUAL,
-        capabilities=capabilities,
-        capabilities_declared=capabilities,
-        capabilities_verified={},
         capabilities_override={},
         enabled=True,
         catalog={},
     )
+    _apply_model_facts(model, capabilities)
     session.add(model)
     await session.commit()
     await session.refresh(model)
+    conn = await _load_connection(session, connection_id)
+    await _default_unset_roles(session, conn, list(conn.models))
+    await session.commit()
     return _model_read(model)
 
 
@@ -327,11 +368,6 @@ async def update_model(
     update = data.model_dump(exclude_unset=True)
     for key, value in update.items():
         setattr(model, key, value)
-    if "capabilities_override" in update:
-        model.capabilities = {
-            **(model.capabilities_declared or {}),
-            **(model.capabilities_override or {}),
-        }
     await session.commit()
     await session.refresh(model)
     return _model_read(model)

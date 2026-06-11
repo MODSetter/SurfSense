@@ -52,6 +52,7 @@ from app.services.auto_model_pin_service import (
     choose_auto_model_candidate,
 )
 from app.services.model_resolver import to_litellm
+from app.services.model_capabilities import has_capability
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 from app.utils.signed_image_urls import verify_image_token
@@ -166,7 +167,7 @@ async def _execute_image_generation(
 
     if config_id < 0:
         global_model = _get_global_model(config_id)
-        if not global_model or not (global_model.get("capabilities") or {}).get("image_gen"):
+        if not global_model or not has_capability(global_model, "image_gen"):
             raise ValueError(f"Global image generation model {config_id} not found")
         global_connection = _get_global_connection(global_model["connection_id"])
         if not global_connection:
@@ -200,7 +201,7 @@ async def _execute_image_generation(
             raise ValueError(f"Image generation model {config_id} not found")
         if conn.user_id is not None and conn.user_id != search_space.user_id:
             raise ValueError(f"Image generation model {config_id} not found")
-        if not (db_model.capabilities or {}).get("image_gen"):
+        if not has_capability(db_model, "image_gen"):
             raise ValueError(f"Model {config_id} is not image-generation capable")
 
         model_string, resolved_kwargs = to_litellm(
@@ -272,7 +273,7 @@ async def get_global_image_gen_configs(
                     "id": cfg.get("id"),
                     "name": cfg.get("name"),
                     "description": cfg.get("description"),
-                    "provider": cfg.get("litellm_provider"),
+                    "provider": cfg.get("provider") or cfg.get("litellm_provider"),
                     "custom_provider": cfg.get("custom_provider"),
                     "model_name": cfg.get("model_name"),
                     "api_base": cfg.get("api_base") or None,

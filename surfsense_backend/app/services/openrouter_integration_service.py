@@ -29,6 +29,13 @@ from app.services.quality_score import (
     aggregate_health,
     static_score_or,
 )
+from app.services.openrouter_model_normalizer import (
+    is_allowed_model as _shared_is_allowed_model,
+    is_compatible_provider as _shared_is_compatible_provider,
+    is_openrouter_image_model,
+    normalize_openrouter_models,
+    supports_image_input,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -292,24 +299,16 @@ def _generate_configs(
     use_default: bool = settings.get("use_default_system_instructions", True)
     citations_enabled: bool = settings.get("citations_enabled", True)
 
-    text_models = [
-        m
-        for m in raw_models
-        if _is_text_output_model(m)
-        and _supports_tool_calling(m)
-        and _has_sufficient_context(m)
-        and _is_compatible_provider(m)
-        and _is_allowed_model(m)
-        and "/" in m.get("id", "")
-    ]
+    text_models = normalize_openrouter_models(raw_models)
 
     configs: list[dict] = []
     taken: set[int] = set()
     now_ts = int(time.time())
 
-    for model in text_models:
-        model_id: str = model["id"]
-        name: str = model.get("name", model_id)
+    for normalized in text_models:
+        model = normalized.get("metadata") or {}
+        model_id: str = normalized["model_id"]
+        name: str = normalized.get("display_name") or model_id
         tier = _openrouter_tier(model)
 
         static_q = static_score_or(model, now_ts=now_ts)
@@ -323,7 +322,7 @@ def _generate_configs(
             "seo_enabled": seo_enabled,
             "seo_slug": None,
             "quota_reserve_tokens": quota_reserve_tokens,
-            "litellm_provider": "openrouter",
+            "provider": "openrouter",
             "model_name": model_id,
             "api_key": api_key,
             "api_base": "https://openrouter.ai/api/v1",
@@ -345,7 +344,7 @@ def _generate_configs(
             # ``stream_new_chat`` as a fail-fast safety net before the
             # OpenRouter request would otherwise 404 with
             # ``"No endpoints found that support image input"``.
-            "supports_image_input": _supports_image_input(model),
+            "supports_image_input": bool(normalized.get("supports_image_input")),
             _OPENROUTER_DYNAMIC_MARKER: True,
             # Auto (Fastest) ranking metadata. ``quality_score`` is initialised
             # to the static score and gets re-blended with health on the next
@@ -403,10 +402,7 @@ def _generate_image_gen_configs(
     image_models = [
         m
         for m in raw_models
-        if _is_image_output_model(m)
-        and _is_compatible_provider(m)
-        and _is_allowed_model(m)
-        and "/" in m.get("id", "")
+        if is_openrouter_image_model(m)
     ]
 
     configs: list[dict] = []
@@ -420,7 +416,7 @@ def _generate_image_gen_configs(
             "id": _stable_config_id(model_id, id_offset, taken),
             "name": name,
             "description": f"{name} via OpenRouter (image generation)",
-            "litellm_provider": "openrouter",
+            "provider": "openrouter",
             "model_name": model_id,
             "api_key": api_key,
             "api_base": "https://openrouter.ai/api/v1",
@@ -468,9 +464,9 @@ def _generate_vision_llm_configs(
     vision_models = [
         m
         for m in raw_models
-        if _is_vision_input_model(m)
-        and _is_compatible_provider(m)
-        and _is_allowed_model(m)
+        if supports_image_input(m)
+        and _shared_is_compatible_provider(m)
+        and _shared_is_allowed_model(m)
         and "/" in m.get("id", "")
     ]
 
@@ -499,7 +495,7 @@ def _generate_vision_llm_configs(
             "id": _stable_config_id(model_id, id_offset, taken),
             "name": name,
             "description": f"{name} via OpenRouter (vision)",
-            "litellm_provider": "openrouter",
+            "provider": "openrouter",
             "model_name": model_id,
             "api_key": api_key,
             "api_base": "https://openrouter.ai/api/v1",
@@ -544,11 +540,9 @@ class OpenRouterIntegrationService:
         # Cached raw catalogue from the most recent fetch. Image / vision
         # emitters reuse this to avoid a second network call per surface.
         self._raw_models: list[dict] = []
-        # Image / vision config caches (only populated when the matching
-        # opt-in flag is true on initialize). Refreshed in lockstep with
-        # the chat catalogue.
+        # Image config cache (only populated when the matching opt-in flag is
+        # true on initialize). Refreshed in lockstep with the chat catalogue.
         self._image_configs: list[dict] = []
-        self._vision_configs: list[dict] = []
 
     @classmethod
     def get_instance(cls) -> "OpenRouterIntegrationService":
@@ -583,7 +577,7 @@ class OpenRouterIntegrationService:
         self._configs_by_id = {c["id"]: c for c in self._configs}
         self._raw_pricing = _extract_raw_pricing(raw_models)
 
-        # Populate image / vision caches when their opt-in flag is set.
+        # Populate image cache when its opt-in flag is set.
         # Empty otherwise so the accessors return [] without re-running
         # filters every refresh.
         if settings.get("image_generation_enabled"):
@@ -594,15 +588,6 @@ class OpenRouterIntegrationService:
             )
         else:
             self._image_configs = []
-
-        if settings.get("vision_enabled"):
-            self._vision_configs = _generate_vision_llm_configs(raw_models, settings)
-            logger.info(
-                "OpenRouter integration: vision LLM emission ON (%d models)",
-                len(self._vision_configs),
-            )
-        else:
-            self._vision_configs = []
 
         self._initialized = True
 
@@ -657,9 +642,9 @@ class OpenRouterIntegrationService:
         self._configs = new_configs
         self._configs_by_id = new_by_id
 
-        # Image / vision lists are atomic-swapped the same way: filter out
+        # Image list is atomic-swapped the same way: filter out
         # the previous dynamic entries from the live config list and append
-        # the freshly generated ones. No-ops when the opt-in flag is off.
+        # the freshly generated ones. No-op when the opt-in flag is off.
         if self._settings.get("image_generation_enabled"):
             new_image = _generate_image_gen_configs(raw_models, self._settings)
             static_image = [
@@ -669,16 +654,6 @@ class OpenRouterIntegrationService:
             ]
             app_config.GLOBAL_IMAGE_GEN_CONFIGS = static_image + new_image
             self._image_configs = new_image
-
-        if self._settings.get("vision_enabled"):
-            new_vision = _generate_vision_llm_configs(raw_models, self._settings)
-            static_vision = [
-                c
-                for c in app_config.GLOBAL_VISION_LLM_CONFIGS
-                if not c.get(_OPENROUTER_DYNAMIC_MARKER)
-            ]
-            app_config.GLOBAL_VISION_LLM_CONFIGS = static_vision + new_vision
-            self._vision_configs = new_vision
 
         # Catalogue churn invalidates per-config "recently healthy" credit
         # earned by the previous turn's preflight. Drop the whole table so
@@ -701,7 +676,7 @@ class OpenRouterIntegrationService:
         )
 
         # Re-blend health scores against the freshly fetched catalogue. Also
-        # re-stamps health for any YAML-curated cfg with litellm_provider=openrouter
+        # re-stamps health for any YAML-curated cfg with provider=openrouter
         # so a hand-picked dead OR model is gated like a dynamic one.
         await self._enrich_health_safely(static_configs + new_configs, log_summary=True)
 
@@ -778,7 +753,7 @@ class OpenRouterIntegrationService:
         the entire previous cycle's cache for this run.
         """
         or_cfgs = [
-            c for c in configs if str(c.get("litellm_provider", "")).lower() == "openrouter"
+            c for c in configs if str(c.get("provider", "")).lower() == "openrouter"
         ]
         if not or_cfgs:
             return
@@ -958,17 +933,6 @@ class OpenRouterIntegrationService:
         ``Config.GLOBAL_IMAGE_GEN_CONFIGS``.
         """
         return list(self._image_configs)
-
-    def get_vision_llm_configs(self) -> list[dict]:
-        """Return the dynamic OpenRouter vision-LLM configs (empty list
-        when the ``vision_enabled`` flag is off).
-
-        Each entry exposes ``input_cost_per_token`` / ``output_cost_per_token``
-        so ``pricing_registration`` can teach LiteLLM the cost of these
-        models the same way it does for chat — which keeps the billable
-        wrapper able to debit accurate micro-USD on a vision call.
-        """
-        return list(self._vision_configs)
 
     def get_raw_pricing(self) -> dict[str, dict[str, str]]:
         """Return the cached raw OpenRouter pricing map.

@@ -18,8 +18,7 @@ def _connection_key(conn: dict[str, Any]) -> tuple[Any, ...]:
     # Deliberately includes api_key because two operator-owned credentials for
     # the same provider/base can have different quota/rate limits upstream.
     return (
-        conn.get("protocol"),
-        conn.get("litellm_provider"),
+        conn.get("provider"),
         conn.get("base_url"),
         conn.get("api_key"),
         _freeze(conn.get("extra") or {}),
@@ -32,16 +31,6 @@ def _freeze(value: Any) -> Any:
     if isinstance(value, list):
         return tuple(_freeze(item) for item in value)
     return value
-
-
-def _capabilities_for(role: str, config: dict[str, Any]) -> dict[str, bool]:
-    return {
-        "chat": role == "chat",
-        "vision": role == "vision" or bool(config.get("supports_image_input")),
-        "image_gen": role == "image_gen",
-        "embedding": False,
-        "tools": bool(config.get("supports_tools", False)),
-    }
 
 
 def _catalog_metadata(config: dict[str, Any]) -> dict[str, Any]:
@@ -72,7 +61,6 @@ def _catalog_metadata(config: dict[str, Any]) -> dict[str, Any]:
 def materialize_global_model_catalog(
     *,
     chat_configs: list[dict[str, Any]],
-    vision_configs: list[dict[str, Any]],
     image_configs: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     connections: list[dict[str, Any]] = []
@@ -109,9 +97,13 @@ def materialize_global_model_catalog(
                 "model_id": config["model_name"],
                 "display_name": config.get("name") or config["model_name"],
                 "source": "MANUAL",
-                "capabilities": _capabilities_for(role, config),
-                "capabilities_declared": _capabilities_for(role, config),
-                "capabilities_verified": _capabilities_for(role, config),
+                "supports_chat": role == "chat",
+                "max_input_tokens": config.get("max_input_tokens"),
+                "supports_image_input": (
+                    role == "chat" and bool(config.get("supports_image_input"))
+                ),
+                "supports_tools": bool(config.get("supports_tools", False)),
+                "supports_image_generation": role == "image_gen",
                 "capabilities_override": {},
                 "embedding_dimension": None,
                 "enabled": True,
@@ -125,10 +117,6 @@ def materialize_global_model_catalog(
         if cfg.get("is_auto_mode"):
             continue
         add_config(cfg, "chat")
-    for cfg in vision_configs:
-        if cfg.get("is_auto_mode"):
-            continue
-        add_config(cfg, "vision")
     for cfg in image_configs:
         if cfg.get("is_auto_mode"):
             continue

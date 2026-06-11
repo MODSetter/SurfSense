@@ -40,7 +40,7 @@ def check_image_input_capability(
         else None
     )
     if not is_known_text_only_chat_model(
-        litellm_provider=agent_config.provider,
+        provider=agent_config.provider,
         model_name=agent_config.model_name,
         base_model=agent_base_model,
         custom_provider=agent_config.custom_provider,

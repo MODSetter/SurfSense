@@ -22,6 +22,7 @@ from app.agents.chat.runtime.llm_config import (
 )
 from app.config import config
 from app.db import Model, SearchSpace
+from app.services.model_capabilities import has_capability
 from app.services.model_resolver import to_litellm
 
 
@@ -96,7 +97,7 @@ async def load_llm_bundle(
             model_id=config_id,
             search_space=search_space,
         )
-        if not model or not (model.capabilities or {}).get("chat"):
+        if not model or not has_capability(model, "chat"):
             return (
                 None,
                 None,
@@ -106,12 +107,12 @@ async def load_llm_bundle(
         agent_config = _agent_config_from_resolved(
             config_id=config_id,
             config_name=model.display_name or model.model_id,
-            provider=model.connection.litellm_provider or "",
+            provider=model.connection.provider or "",
             model_name=model.model_id,
             api_key=model.connection.api_key,
             api_base=model.connection.base_url,
             litellm_params=(model.connection.extra or {}).get("litellm_params"),
-            supports_image_input=bool((model.capabilities or {}).get("vision")),
+            supports_image_input=has_capability(model, "vision"),
             billing_tier="free",
         )
         return (
@@ -121,7 +122,7 @@ async def load_llm_bundle(
         )
 
     global_model = next((m for m in config.GLOBAL_MODELS if m.get("id") == config_id), None)
-    if not global_model or not (global_model.get("capabilities") or {}).get("chat"):
+    if not global_model or not has_capability(global_model, "chat"):
         return None, None, f"Failed to load global chat model with id {config_id}"
     global_connection = next(
         (
@@ -137,12 +138,12 @@ async def load_llm_bundle(
     agent_config = _agent_config_from_resolved(
         config_id=config_id,
         config_name=global_model.get("display_name") or global_model.get("model_id"),
-        provider=global_connection.get("litellm_provider") or "",
+        provider=global_connection.get("provider") or "",
         model_name=global_model["model_id"],
         api_key=global_connection.get("api_key"),
         api_base=global_connection.get("base_url"),
         litellm_params=(global_connection.get("extra") or {}).get("litellm_params"),
-        supports_image_input=bool((global_model.get("capabilities") or {}).get("vision")),
+        supports_image_input=has_capability(global_model, "vision"),
         billing_tier=str(global_model.get("billing_tier", "free")).lower(),
     )
     return (

@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.db import ConnectionProtocol, ConnectionScope, ModelSource
+from app.db import ConnectionScope, ModelSource
 
 
 class ModelRead(BaseModel):
@@ -13,9 +13,11 @@ class ModelRead(BaseModel):
     model_id: str
     display_name: str | None = None
     source: ModelSource | str
-    capabilities: dict[str, Any]
-    capabilities_declared: dict[str, Any] = Field(default_factory=dict)
-    capabilities_verified: dict[str, Any] = Field(default_factory=dict)
+    supports_chat: bool | None = None
+    max_input_tokens: int | None = None
+    supports_image_input: bool | None = None
+    supports_tools: bool | None = None
+    supports_image_generation: bool | None = None
     capabilities_override: dict[str, Any] = Field(default_factory=dict)
     embedding_dimension: int | None = None
     enabled: bool
@@ -28,8 +30,7 @@ class ModelRead(BaseModel):
 
 class ConnectionRead(BaseModel):
     id: int
-    protocol: ConnectionProtocol | str
-    litellm_provider: str | None = None
+    provider: str
     base_url: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
     scope: ConnectionScope | str
@@ -47,8 +48,7 @@ class ConnectionRead(BaseModel):
 
 
 class ConnectionCreate(BaseModel):
-    protocol: ConnectionProtocol
-    litellm_provider: str | None = Field(None, max_length=100)
+    provider: str = Field(..., max_length=100)
     base_url: str | None = Field(None, max_length=500)
     api_key: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
@@ -58,7 +58,7 @@ class ConnectionCreate(BaseModel):
 
 
 class ConnectionUpdate(BaseModel):
-    litellm_provider: str | None = Field(None, max_length=100)
+    provider: str | None = Field(None, max_length=100)
     base_url: str | None = Field(None, max_length=500)
     api_key: str | None = None
     extra: dict[str, Any] | None = None
@@ -79,7 +79,22 @@ class ModelCreate(BaseModel):
 class ModelUpdate(BaseModel):
     display_name: str | None = Field(None, max_length=255)
     enabled: bool | None = None
+    supports_chat: bool | None = None
+    max_input_tokens: int | None = None
+    supports_image_input: bool | None = None
+    supports_tools: bool | None = None
+    supports_image_generation: bool | None = None
     capabilities_override: dict[str, Any] | None = None
+
+
+class ModelProviderRead(BaseModel):
+    provider: str
+    transport: str
+    discovery: str
+    default_base_url: str | None = None
+    base_url_required: bool
+    auth_style: str
+    local_only: bool = False
 
 
 class VerifyConnectionResponse(BaseModel):

@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 def _candidate_model_strings(
     *,
-    litellm_provider: str | None,
+    provider: str | None,
     model_name: str | None,
     base_model: str | None,
     custom_provider: str | None,
@@ -78,7 +78,7 @@ def _candidate_model_strings(
         seen.add(key)
         candidates.append(key)
 
-    provider_prefix = custom_provider or litellm_provider
+    provider_prefix = custom_provider or provider
 
     primary_model = base_model or model_name
     bare_model = model_name
@@ -113,7 +113,7 @@ def _candidate_model_strings(
 
 def derive_supports_image_input(
     *,
-    litellm_provider: str | None = None,
+    provider: str | None = None,
     model_name: str | None = None,
     base_model: str | None = None,
     custom_provider: str | None = None,
@@ -147,7 +147,7 @@ def derive_supports_image_input(
         return False
 
     for model_string, custom_llm_provider in _candidate_model_strings(
-        litellm_provider=litellm_provider,
+        provider=provider,
         model_name=model_name,
         base_model=base_model,
         custom_provider=custom_provider,
@@ -172,7 +172,7 @@ def derive_supports_image_input(
 
 def is_known_text_only_chat_model(
     *,
-    litellm_provider: str | None = None,
+    provider: str | None = None,
     model_name: str | None = None,
     base_model: str | None = None,
     custom_provider: str | None = None,
@@ -193,7 +193,7 @@ def is_known_text_only_chat_model(
     leads to the regression we're fixing here.
     """
     for model_string, custom_llm_provider in _candidate_model_strings(
-        litellm_provider=litellm_provider,
+        provider=provider,
         model_name=model_name,
         base_model=base_model,
         custom_provider=custom_provider,

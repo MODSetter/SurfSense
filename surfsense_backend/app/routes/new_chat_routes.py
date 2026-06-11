@@ -1741,12 +1741,11 @@ async def handle_new_chat(
         if not search_space:
             raise HTTPException(status_code=404, detail="Search space not found")
 
-        # Use agent_llm_id from search space for chat operations
-        # Positive IDs load from NewLLMConfig database table
-        # Negative IDs load from YAML global configs
-        # Falls back to -1 (first global config) if not configured
+        # Use the converged model-connections role for chat operations.
+        # Positive IDs load Model + Connection rows; negative IDs load
+        # virtual GLOBAL models; 0 means Auto.
         llm_config_id = (
-            search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
+            search_space.chat_model_id if search_space.chat_model_id is not None else 0
         )
 
         # Release the read-transaction so we don't hold ACCESS SHARE locks
@@ -2228,7 +2227,7 @@ async def regenerate_response(
             raise HTTPException(status_code=404, detail="Search space not found")
 
         llm_config_id = (
-            search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
+            search_space.chat_model_id if search_space.chat_model_id is not None else 0
         )
 
         # Release the read-transaction so we don't hold ACCESS SHARE locks
@@ -2393,7 +2392,7 @@ async def resume_chat(
             raise HTTPException(status_code=404, detail="Search space not found")
 
         llm_config_id = (
-            search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
+            search_space.chat_model_id if search_space.chat_model_id is not None else 0
         )
 
         decisions = [d.model_dump() for d in request.decisions]

@@ -15,6 +15,7 @@ from app.services.auto_model_pin_service import (
     choose_auto_model_candidate,
 )
 from app.services.llm_router_service import AUTO_MODE_ID, ChatLiteLLMRouter, is_auto_mode
+from app.services.model_capabilities import has_capability
 from app.services.model_resolver import native_connection_from_config, to_litellm
 from app.services.token_tracking_service import token_tracker
 
@@ -76,7 +77,7 @@ def _legacy_config_connection(
     api_version: str | None = None,
 ) -> tuple[str, dict]:
     cfg = {
-        "litellm_provider": provider.lower(),
+        "provider": provider.lower(),
         "model_name": model_name,
         "api_key": api_key,
         "api_base": api_base,
@@ -136,12 +137,7 @@ def get_global_connection(connection_id: int) -> dict | None:
 
 
 def _has_capability(model: dict | Model, capability: str) -> bool:
-    caps = (
-        model.get("capabilities", {})
-        if isinstance(model, dict)
-        else model.capabilities or {}
-    )
-    return bool(caps.get(capability))
+    return has_capability(model, capability)
 
 
 def _chat_litellm_from_resolved(
@@ -420,8 +416,6 @@ async def get_vision_llm(
     unwrapped — they don't consume premium credit (issue M).
     """
     from app.services.quota_checked_vision_llm import QuotaCheckedVisionLLM
-    from app.services.vision_llm_router_service import is_vision_auto_mode
-
     try:
         result = await session.execute(
             select(SearchSpace).where(SearchSpace.id == search_space_id)
@@ -468,7 +462,7 @@ async def get_vision_llm(
             logger.error(f"No vision LLM configured for search space {search_space_id}")
             return None
 
-        if is_vision_auto_mode(config_id):
+        if config_id == AUTO_MODE_ID:
             candidates = await auto_model_candidates(
                 session,
                 search_space_id=search_space_id,

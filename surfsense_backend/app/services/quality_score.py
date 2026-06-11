@@ -273,7 +273,7 @@ def static_score_yaml(cfg: dict) -> int:
     listed this model. Pricing / context fall through to lazy ``litellm``
     lookups; failures are silent (we just lose those sub-points).
     """
-    provider = str(cfg.get("litellm_provider", "")).lower()
+    provider = str(cfg.get("provider") or cfg.get("litellm_provider") or "").lower()
     base = PROVIDER_PRESTIGE_YAML.get(provider, 15)
 
     model_name = cfg.get("model_name") or ""

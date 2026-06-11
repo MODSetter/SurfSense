@@ -27,6 +27,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config import config
 from app.db import Connection, Model, NewChatThread
+from app.services.model_capabilities import has_capability
 from app.services.quality_score import _QUALITY_TOP_K
 from app.services.token_quota_service import TokenQuotaService
 
@@ -62,18 +63,13 @@ def _is_usable_global_config(cfg: dict) -> bool:
     return bool(
         cfg.get("id") is not None
         and cfg.get("model_name")
-        and cfg.get("litellm_provider")
+        and (cfg.get("provider") or cfg.get("litellm_provider"))
         and cfg.get("api_key")
     )
 
 
 def _has_capability(model: dict | Model, capability: str) -> bool:
-    caps = (
-        model.get("capabilities", {})
-        if isinstance(model, dict)
-        else model.capabilities or {}
-    )
-    return bool(caps.get(capability))
+    return has_capability(model, capability)
 
 
 def _prune_runtime_cooldowns(now_ts: float | None = None) -> None:
@@ -196,7 +192,7 @@ def _cfg_supports_image_input(cfg: dict) -> bool:
         else None
     )
     return derive_supports_image_input(
-        litellm_provider=cfg.get("litellm_provider"),
+        provider=cfg.get("provider") or cfg.get("litellm_provider"),
         model_name=cfg.get("model_name"),
         base_model=base_model,
         custom_provider=cfg.get("custom_provider"),
@@ -253,9 +249,13 @@ def _global_candidates(
                 "model_id": model.get("model_id"),
                 "source": "global",
                 "connection": connection,
-                "capabilities": model.get("capabilities") or {},
+                "supports_chat": model.get("supports_chat"),
+                "supports_image_input": model.get("supports_image_input"),
+                "supports_tools": model.get("supports_tools"),
+                "supports_image_generation": model.get("supports_image_generation"),
+                "capabilities_override": model.get("capabilities_override") or {},
                 "billing_tier": model.get("billing_tier", "free"),
-                "litellm_provider": connection.get("litellm_provider"),
+                "provider": connection.get("provider"),
                 "model_name": model.get("model_id"),
                 "auto_pin_tier": catalog.get("auto_pin_tier")
                 or cfg.get("auto_pin_tier")
@@ -310,9 +310,13 @@ async def _db_candidates(
                 "model_id": model.model_id,
                 "source": "db",
                 "connection": conn,
-                "capabilities": model.capabilities or {},
+                "supports_chat": model.supports_chat,
+                "supports_image_input": model.supports_image_input,
+                "supports_tools": model.supports_tools,
+                "supports_image_generation": model.supports_image_generation,
+                "capabilities_override": model.capabilities_override or {},
                 "billing_tier": "byok",
-                "litellm_provider": conn.litellm_provider,
+                "provider": conn.provider,
                 "model_name": model.model_id,
                 "auto_pin_tier": catalog.get("auto_pin_tier") or "BYOK",
                 "quality_score": catalog.get("quality_score") or 75,
@@ -357,7 +361,7 @@ def _is_preferred_premium_auto_config(cfg: dict) -> bool:
     return (
         cfg.get("source") == "global"
         and _tier_of(cfg) == "premium"
-        and str(cfg.get("litellm_provider", "")).lower() == "azure"
+        and str(cfg.get("provider", "")).lower() == "azure"
         and str(cfg.get("model_name", "")).lower() == "gpt-5.4"
     )
 

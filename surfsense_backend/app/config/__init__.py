@@ -103,7 +103,7 @@ def load_global_llm_configs():
                     else None
                 )
                 cfg["supports_image_input"] = derive_supports_image_input(
-                    litellm_provider=cfg.get("litellm_provider"),
+                    provider=cfg.get("provider") or cfg.get("litellm_provider"),
                     model_name=cfg.get("model_name"),
                     base_model=base_model,
                     custom_provider=cfg.get("custom_provider"),
@@ -122,7 +122,7 @@ def load_global_llm_configs():
         # Stamp Auto (Fastest) ranking metadata. YAML configs are always
         # Tier A — operator-curated, locked first when premium-eligible.
         # The OpenRouter refresh tick later re-stamps health for any cfg
-        # whose litellm_provider == "openrouter" via _enrich_health.
+        # whose provider == "openrouter" via _enrich_health.
         try:
             from app.services.quality_score import static_score_yaml
 
@@ -132,7 +132,7 @@ def load_global_llm_configs():
                 cfg["quality_score_static"] = static_q
                 cfg["quality_score"] = static_q
                 cfg["quality_score_health"] = None
-                # YAML cfgs whose litellm_provider is openrouter are also subject
+                # YAML cfgs whose provider is openrouter are also subject
                 # to health gating against their own /endpoints data — a
                 # hand-picked dead OR model is still dead. _enrich_health
                 # re-stamps health_gated for them on the next refresh tick.
@@ -362,8 +362,8 @@ def initialize_openrouter_integration():
         else:
             print("Info: OpenRouter integration enabled but no models fetched")
 
-        # Image generation + vision LLM emissions are opt-in (issue L).
-        # Both reuse the catalogue already cached by ``service.initialize``
+        # Image generation emissions reuse the catalogue already cached by
+        # ``service.initialize``
         # so we don't make additional network calls here.
         if settings.get("image_generation_enabled"):
             try:
@@ -377,18 +377,6 @@ def initialize_openrouter_integration():
             except Exception as e:
                 print(f"Warning: Failed to inject OpenRouter image-gen configs: {e}")
 
-        if settings.get("vision_enabled"):
-            try:
-                vision_configs = service.get_vision_llm_configs()
-                if vision_configs:
-                    config.GLOBAL_VISION_LLM_CONFIGS.extend(vision_configs)
-                    print(
-                        f"Info: OpenRouter integration added {len(vision_configs)} "
-                        f"vision LLM models"
-                    )
-            except Exception as e:
-                print(f"Warning: Failed to inject OpenRouter vision-LLM configs: {e}")
-
         refresh_global_model_catalog()
     except Exception as e:
         print(f"Warning: Failed to initialize OpenRouter integration: {e}")
@@ -399,7 +387,6 @@ def materialize_global_configs():
 
     return materialize_global_model_catalog(
         chat_configs=getattr(config, "GLOBAL_LLM_CONFIGS", []),
-        vision_configs=getattr(config, "GLOBAL_VISION_LLM_CONFIGS", []),
         image_configs=getattr(config, "GLOBAL_IMAGE_GEN_CONFIGS", []),
     )
 
@@ -493,29 +480,9 @@ def initialize_image_gen_router():
 
 
 def initialize_vision_llm_router():
-    vision_configs = load_global_vision_llm_configs()
-    # Reuse the router settings already parsed at Config construction. The
-    # *configs* list is intentionally re-read from YAML (it must exclude the
-    # OpenRouter-injected dynamic models held in config.GLOBAL_VISION_LLM_CONFIGS).
-    router_settings = config.VISION_LLM_ROUTER_SETTINGS
-
-    if not vision_configs:
-        print(
-            "Info: No global vision LLM configs found, "
-            "Vision LLM Auto mode will not be available"
-        )
-        return
-
-    try:
-        from app.services.vision_llm_router_service import VisionLLMRouterService
-
-        VisionLLMRouterService.initialize(vision_configs, router_settings)
-        print(
-            f"Info: Vision LLM Router initialized with {len(vision_configs)} models "
-            f"(strategy: {router_settings.get('routing_strategy', 'usage-based-routing')})"
-        )
-    except Exception as e:
-        print(f"Warning: Failed to initialize Vision LLM Router: {e}")
+    # Retired: vision Auto now uses shared capability-filtered model selection
+    # over GLOBAL/BYOK chat models with supports_image_input=true.
+    return
 
 
 class Config:
@@ -874,7 +841,6 @@ class Config:
 
     GLOBAL_CONNECTIONS, GLOBAL_MODELS = _materialize_global_model_catalog(
         chat_configs=GLOBAL_LLM_CONFIGS,
-        vision_configs=GLOBAL_VISION_LLM_CONFIGS,
         image_configs=GLOBAL_IMAGE_GEN_CONFIGS,
     )
     del _materialize_global_model_catalog

@@ -12,6 +12,8 @@ from pathlib import Path
 
 import httpx
 
+from app.services.openrouter_model_normalizer import normalize_openrouter_models
+
 logger = logging.getLogger(__name__)
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/models"
@@ -121,24 +123,11 @@ def _process_models(raw_models: list[dict]) -> list[dict]:
     """
     processed: list[dict] = []
 
-    for model in raw_models:
-        model_id: str = model.get("id", "")
-        name: str = model.get("name", "")
-        context_length = model.get("context_length")
-
+    for normalized in normalize_openrouter_models(raw_models):
+        model_id: str = normalized["model_id"]
+        name: str = normalized.get("display_name") or model_id
+        context_length = normalized.get("max_input_tokens")
         if "/" not in model_id:
-            continue
-
-        if not _is_text_output_model(model):
-            continue
-
-        if not _supports_tool_calling(model):
-            continue
-
-        if not _has_sufficient_context(model):
-            continue
-
-        if not _is_allowed_model(model):
             continue
 
         provider_slug, model_name = model_id.split("/", 1)

@@ -49,16 +49,19 @@ def _sanitize_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
       reject the blank text.  The OpenAI spec says ``content`` should be
       ``null`` when an assistant message only carries tool calls.
     """
+    sanitized: list[BaseMessage] = []
     for msg in messages:
-        if isinstance(msg.content, list):
-            msg.content = _sanitize_content(msg.content)
+        next_msg = msg.model_copy(deep=True)
+        if isinstance(next_msg.content, list):
+            next_msg.content = _sanitize_content(next_msg.content)
         if (
-            isinstance(msg, AIMessage)
-            and (not msg.content or msg.content == "")
-            and getattr(msg, "tool_calls", None)
+            isinstance(next_msg, AIMessage)
+            and (not next_msg.content or next_msg.content == "")
+            and getattr(next_msg, "tool_calls", None)
         ):
-            msg.content = None  # type: ignore[assignment]
-    return messages
+            next_msg.content = None  # type: ignore[assignment]
+        sanitized.append(next_msg)
+    return sanitized
 
 
 class SanitizedChatLiteLLM(ChatLiteLLM):
@@ -88,6 +91,22 @@ class SanitizedChatLiteLLM(ChatLiteLLM):
             _sanitize_messages(messages), stop, run_manager, **kwargs
         ):
             yield chunk
+
+    async def _agenerate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: AsyncCallbackManagerForLLMRun | None = None,
+        stream: bool | None = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        return await super()._agenerate(
+            _sanitize_messages(messages),
+            stop=stop,
+            run_manager=run_manager,
+            stream=stream,
+            **kwargs,
+        )
 
 
 def _attach_model_profile(llm: ChatLiteLLM, model_string: str) -> None:
@@ -210,7 +229,7 @@ class AgentConfig:
             # BYOK rows have no curated flag; ask LiteLLM (default-allow on
             # unknown). The streaming safety net still blocks explicit text-only.
             supports_image_input=derive_supports_image_input(
-                litellm_provider=provider_value.lower(),
+                provider=provider_value.lower(),
                 model_name=config.model_name,
                 base_model=base_model,
                 custom_provider=config.custom_provider,
@@ -229,7 +248,7 @@ class AgentConfig:
 
         system_instructions = yaml_config.get("system_instructions", "")
 
-        provider = yaml_config.get("litellm_provider", "")
+        provider = yaml_config.get("provider") or yaml_config.get("litellm_provider", "")
         model_name = yaml_config.get("model_name", "")
         custom_provider = yaml_config.get("custom_provider")
         litellm_params = yaml_config.get("litellm_params") or {}
@@ -245,7 +264,7 @@ class AgentConfig:
             supports_image_input = bool(yaml_config.get("supports_image_input"))
         else:
             supports_image_input = derive_supports_image_input(
-                litellm_provider=provider,
+                provider=provider,
                 model_name=model_name,
                 base_model=base_model,
                 custom_provider=custom_provider,
@@ -396,8 +415,8 @@ def create_chat_litellm_from_config(llm_config: dict) -> ChatLiteLLM | None:
     if llm_config.get("custom_provider"):
         model_string = f"{llm_config['custom_provider']}/{llm_config['model_name']}"
     else:
-        litellm_provider = llm_config.get("litellm_provider", "openai")
-        model_string = f"{litellm_provider}/{llm_config['model_name']}"
+        provider = llm_config.get("provider") or llm_config.get("litellm_provider", "openai")
+        model_string = f"{provider}/{llm_config['model_name']}"
 
     litellm_kwargs = {
         "model": model_string,

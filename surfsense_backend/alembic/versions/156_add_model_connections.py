@@ -17,13 +17,6 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-connection_protocol = postgresql.ENUM(
-    "OLLAMA",
-    "OPENAI_COMPATIBLE",
-    "ANTHROPIC",
-    name="connectionprotocol",
-    create_type=False,
-)
 connection_scope = postgresql.ENUM(
     "GLOBAL",
     "SEARCH_SPACE",
@@ -73,36 +66,67 @@ def _add_searchspace_column_if_missing(column_name: str) -> None:
         op.add_column("searchspaces", sa.Column(column_name, sa.Integer(), nullable=True))
 
 
+def _drop_column_if_exists(table_name: str, column_name: str) -> None:
+    if _column_exists(table_name, column_name):
+        op.drop_column(table_name, column_name)
+
+
+def _drop_index_if_exists(table_name: str, index_name: str) -> None:
+    if _index_exists(table_name, index_name):
+        op.drop_index(index_name, table_name=table_name)
+
+
 def upgrade() -> None:
     bind = op.get_bind()
-    connection_protocol.create(bind, checkfirst=True)
-    op.execute("ALTER TYPE connectionprotocol ADD VALUE IF NOT EXISTS 'ANTHROPIC'")
     connection_scope.create(bind, checkfirst=True)
     model_source.create(bind, checkfirst=True)
 
     if _table_exists("connections"):
-        if _column_exists("connections", "native_provider") and not _column_exists(
-            "connections", "litellm_provider"
+        if _column_exists("connections", "litellm_provider") and not _column_exists(
+            "connections", "provider"
+        ):
+            op.alter_column(
+                "connections",
+                "litellm_provider",
+                new_column_name="provider",
+                existing_type=sa.String(length=100),
+                existing_nullable=True,
+            )
+            op.alter_column(
+                "connections",
+                "provider",
+                existing_type=sa.String(length=100),
+                nullable=False,
+            )
+        elif _column_exists("connections", "native_provider") and not _column_exists(
+            "connections", "provider"
         ):
             op.alter_column(
                 "connections",
                 "native_provider",
-                new_column_name="litellm_provider",
+                new_column_name="provider",
                 existing_type=sa.String(length=100),
                 existing_nullable=True,
             )
-        elif not _column_exists("connections", "litellm_provider"):
+            op.alter_column(
+                "connections",
+                "provider",
+                existing_type=sa.String(length=100),
+                nullable=False,
+            )
+        elif not _column_exists("connections", "provider"):
             op.add_column(
                 "connections",
-                sa.Column("litellm_provider", sa.String(length=100), nullable=True),
+                sa.Column("provider", sa.String(length=100), nullable=False),
             )
+        _drop_index_if_exists("connections", "ix_connections_protocol")
+        _drop_column_if_exists("connections", "protocol")
     else:
         op.create_table(
             "connections",
             sa.Column("id", sa.Integer(), nullable=False),
             sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-            sa.Column("protocol", connection_protocol, nullable=False),
-            sa.Column("litellm_provider", sa.String(length=100), nullable=True),
+            sa.Column("provider", sa.String(length=100), nullable=False),
             sa.Column("base_url", sa.String(length=500), nullable=True),
             sa.Column("api_key", sa.String(), nullable=True),
             sa.Column(
@@ -131,18 +155,20 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint("id"),
         )
     if _index_exists("connections", "ix_connections_native_provider") and not _index_exists(
-        "connections", "ix_connections_litellm_provider"
+        "connections", "ix_connections_provider"
     ):
         op.execute(
             "ALTER INDEX ix_connections_native_provider "
-            "RENAME TO ix_connections_litellm_provider"
+            "RENAME TO ix_connections_provider"
         )
-    _create_index_if_missing("ix_connections_protocol", "connections", ["protocol"])
-    _create_index_if_missing(
-        "ix_connections_litellm_provider",
-        "connections",
-        ["litellm_provider"],
-    )
+    if _index_exists("connections", "ix_connections_litellm_provider") and not _index_exists(
+        "connections", "ix_connections_provider"
+    ):
+        op.execute(
+            "ALTER INDEX ix_connections_litellm_provider "
+            "RENAME TO ix_connections_provider"
+        )
+    _create_index_if_missing("ix_connections_provider", "connections", ["provider"])
     _create_index_if_missing("ix_connections_scope", "connections", ["scope"])
 
     if not _table_exists("models"):
@@ -159,24 +185,11 @@ def upgrade() -> None:
                 server_default="DISCOVERED",
                 nullable=False,
             ),
-            sa.Column(
-                "capabilities",
-                postgresql.JSONB(astext_type=sa.Text()),
-                server_default=sa.text("'{}'::jsonb"),
-                nullable=False,
-            ),
-            sa.Column(
-                "capabilities_declared",
-                postgresql.JSONB(astext_type=sa.Text()),
-                server_default=sa.text("'{}'::jsonb"),
-                nullable=False,
-            ),
-            sa.Column(
-                "capabilities_verified",
-                postgresql.JSONB(astext_type=sa.Text()),
-                server_default=sa.text("'{}'::jsonb"),
-                nullable=False,
-            ),
+            sa.Column("supports_chat", sa.Boolean(), nullable=True),
+            sa.Column("max_input_tokens", sa.Integer(), nullable=True),
+            sa.Column("supports_image_input", sa.Boolean(), nullable=True),
+            sa.Column("supports_tools", sa.Boolean(), nullable=True),
+            sa.Column("supports_image_generation", sa.Boolean(), nullable=True),
             sa.Column(
                 "capabilities_override",
                 postgresql.JSONB(astext_type=sa.Text()),
@@ -198,6 +211,24 @@ def upgrade() -> None:
                 "connection_id", "model_id", name="uq_models_connection_model_id"
             ),
         )
+    else:
+        if not _column_exists("models", "supports_chat"):
+            op.add_column("models", sa.Column("supports_chat", sa.Boolean(), nullable=True))
+        if not _column_exists("models", "max_input_tokens"):
+            op.add_column("models", sa.Column("max_input_tokens", sa.Integer(), nullable=True))
+        if not _column_exists("models", "supports_image_input"):
+            op.add_column(
+                "models", sa.Column("supports_image_input", sa.Boolean(), nullable=True)
+            )
+        if not _column_exists("models", "supports_tools"):
+            op.add_column("models", sa.Column("supports_tools", sa.Boolean(), nullable=True))
+        if not _column_exists("models", "supports_image_generation"):
+            op.add_column(
+                "models", sa.Column("supports_image_generation", sa.Boolean(), nullable=True)
+            )
+        _drop_column_if_exists("models", "capabilities")
+        _drop_column_if_exists("models", "capabilities_declared")
+        _drop_column_if_exists("models", "capabilities_verified")
     _create_index_if_missing("ix_models_connection_id", "models", ["connection_id"])
     _create_index_if_missing("ix_models_model_id", "models", ["model_id"])
     _create_index_if_missing("ix_models_billing_tier", "models", ["billing_tier"])
@@ -205,6 +236,8 @@ def upgrade() -> None:
     _add_searchspace_column_if_missing("chat_model_id")
     _add_searchspace_column_if_missing("image_gen_model_id")
     _add_searchspace_column_if_missing("vision_model_id")
+
+    op.execute("DROP TYPE IF EXISTS connectionprotocol")
 
 
 def downgrade() -> None:
@@ -218,11 +251,9 @@ def downgrade() -> None:
     op.drop_table("models")
 
     op.drop_index(op.f("ix_connections_scope"), table_name="connections")
-    op.drop_index(op.f("ix_connections_litellm_provider"), table_name="connections")
-    op.drop_index(op.f("ix_connections_protocol"), table_name="connections")
+    op.drop_index(op.f("ix_connections_provider"), table_name="connections")
     op.drop_table("connections")
 
     bind = op.get_bind()
     model_source.drop(bind, checkfirst=True)
     connection_scope.drop(bind, checkfirst=True)
-    connection_protocol.drop(bind, checkfirst=True)

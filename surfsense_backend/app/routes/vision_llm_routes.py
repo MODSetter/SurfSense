@@ -96,7 +96,7 @@ async def get_global_vision_llm_configs(
                     "id": cfg.get("id"),
                     "name": cfg.get("name"),
                     "description": cfg.get("description"),
-                    "provider": cfg.get("litellm_provider"),
+                    "provider": cfg.get("provider") or cfg.get("litellm_provider"),
                     "custom_provider": cfg.get("custom_provider"),
                     "model_name": cfg.get("model_name"),
                     "api_base": cfg.get("api_base") or None,

@@ -280,12 +280,6 @@ class VisionProvider(StrEnum):
     CUSTOM = "CUSTOM"
 
 
-class ConnectionProtocol(StrEnum):
-    OLLAMA = "OLLAMA"
-    OPENAI_COMPATIBLE = "OPENAI_COMPATIBLE"
-    ANTHROPIC = "ANTHROPIC"
-
-
 class ConnectionScope(StrEnum):
     GLOBAL = "GLOBAL"
     SEARCH_SPACE = "SEARCH_SPACE"
@@ -1662,8 +1656,7 @@ class Report(BaseModel, TimestampMixin):
 class Connection(BaseModel, TimestampMixin):
     __tablename__ = "connections"
 
-    protocol = Column(SQLAlchemyEnum(ConnectionProtocol), nullable=False, index=True)
-    litellm_provider = Column(String(100), nullable=True, index=True)
+    provider = Column(String(100), nullable=False, index=True)
     base_url = Column(String(500), nullable=True)
     api_key = Column(String, nullable=True)
     extra = Column(JSONB, nullable=False, default=dict, server_default="{}")
@@ -1715,9 +1708,11 @@ class Model(BaseModel, TimestampMixin):
         default=ModelSource.DISCOVERED,
         server_default=ModelSource.DISCOVERED.value,
     )
-    capabilities = Column(JSONB, nullable=False, default=dict, server_default="{}")
-    capabilities_declared = Column(JSONB, nullable=False, default=dict, server_default="{}")
-    capabilities_verified = Column(JSONB, nullable=False, default=dict, server_default="{}")
+    supports_chat = Column(Boolean, nullable=True)
+    max_input_tokens = Column(Integer, nullable=True)
+    supports_image_input = Column(Boolean, nullable=True)
+    supports_tools = Column(Boolean, nullable=True)
+    supports_image_generation = Column(Boolean, nullable=True)
     capabilities_override = Column(JSONB, nullable=False, default=dict, server_default="{}")
     embedding_dimension = Column(Integer, nullable=True)
     enabled = Column(Boolean, nullable=False, default=True, server_default="true")

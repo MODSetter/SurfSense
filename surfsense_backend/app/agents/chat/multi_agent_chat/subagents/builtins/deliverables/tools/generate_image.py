@@ -29,6 +29,7 @@ from app.services.auto_model_pin_service import (
     auto_model_candidates,
     choose_auto_model_candidate,
 )
+from app.services.model_capabilities import has_capability
 from app.services.model_resolver import to_litellm
 from app.utils.signed_image_urls import generate_image_token
 
@@ -146,9 +147,7 @@ def create_generate_image_tool(
 
                 if config_id < 0:
                     global_model = _get_global_model(config_id)
-                    if not global_model or not (
-                        global_model.get("capabilities") or {}
-                    ).get("image_gen"):
+                    if not global_model or not has_capability(global_model, "image_gen"):
                         err = f"Image generation model {config_id} not found"
                         return _failed({"error": err}, error=err)
                     global_connection = _get_global_connection(
@@ -191,7 +190,7 @@ def create_generate_image_tool(
                     ):
                         err = f"Image generation model {config_id} not found"
                         return _failed({"error": err}, error=err)
-                    if not (db_model.capabilities or {}).get("image_gen"):
+                    if not has_capability(db_model, "image_gen"):
                         err = f"Model {config_id} is not image-generation capable"
                         return _failed({"error": err}, error=err)
 
