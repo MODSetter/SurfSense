@@ -186,7 +186,7 @@ def test_openrouter_models_register_under_aliases(monkeypatch):
         [
             {
                 "id": 1,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "anthropic/claude-3-5-sonnet",
             }
         ],
@@ -228,7 +228,7 @@ def test_yaml_override_registers_under_alias_set(monkeypatch):
         [
             {
                 "id": 1,
-                "provider": "AZURE_OPENAI",
+                "litellm_provider": "azure",
                 "model_name": "gpt-5.4",
                 "litellm_params": {
                     "base_model": "gpt-5.4",
@@ -243,7 +243,6 @@ def test_yaml_override_registers_under_alias_set(monkeypatch):
 
     keys = spy.all_keys
     assert "gpt-5.4" in keys
-    assert "azure_openai/gpt-5.4" in keys
     assert "azure/gpt-5.4" in keys
 
     payload = spy.calls[0]
@@ -271,7 +270,7 @@ def test_no_override_means_no_registration(monkeypatch):
         [
             {
                 "id": 1,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "gpt-4o",
                 "litellm_params": {"base_model": "gpt-4o"},
             }
@@ -302,7 +301,7 @@ def test_openrouter_skipped_when_pricing_missing(monkeypatch):
         [
             {
                 "id": 1,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "anthropic/claude-3-5-sonnet",
             }
         ],
@@ -349,12 +348,12 @@ def test_register_continues_after_individual_failure(monkeypatch, caplog):
         [
             {
                 "id": 1,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "anthropic/claude-3-5-sonnet",
             },
             {
                 "id": 2,
-                "provider": "OPENAI",
+                "litellm_provider": "openai",
                 "model_name": "custom-deployment",
                 "litellm_params": {
                     "base_model": "custom-deployment",
@@ -396,7 +395,7 @@ def test_vision_configs_registered_with_chat_shape(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "openai/gpt-4o",
                 "billing_tier": "premium",
                 "input_cost_per_token": 5e-6,
@@ -433,7 +432,7 @@ def test_vision_with_inline_pricing_when_or_cache_missing(monkeypatch):
         [
             {
                 "id": -1,
-                "provider": "OPENROUTER",
+                "litellm_provider": "openrouter",
                 "model_name": "google/gemini-2.5-flash",
                 "billing_tier": "premium",
                 "input_cost_per_token": 1e-6,

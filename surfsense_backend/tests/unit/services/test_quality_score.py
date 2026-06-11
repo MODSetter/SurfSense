@@ -228,7 +228,7 @@ def test_static_score_or_recent_release_beats_year_old_same_provider():
 
 def test_static_score_yaml_includes_operator_bonus():
     cfg = {
-        "provider": "AZURE_OPENAI",
+        "litellm_provider": "azure",
         "model_name": "gpt-5",
         "litellm_params": {"base_model": "azure/gpt-5"},
     }
@@ -238,7 +238,7 @@ def test_static_score_yaml_includes_operator_bonus():
 
 def test_static_score_yaml_unknown_provider_still_carries_bonus():
     cfg = {
-        "provider": "SOME_NEW_PROVIDER",
+        "litellm_provider": "some_new_provider",
         "model_name": "weird-model",
     }
     score = static_score_yaml(cfg)
@@ -247,7 +247,7 @@ def test_static_score_yaml_unknown_provider_still_carries_bonus():
 
 def test_static_score_yaml_clamped_0_to_100():
     cfg = {
-        "provider": "AZURE_OPENAI",
+        "litellm_provider": "azure",
         "model_name": "gpt-5",
         "litellm_params": {"base_model": "azure/gpt-5"},
     }

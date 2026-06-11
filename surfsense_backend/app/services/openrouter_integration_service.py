@@ -323,10 +323,10 @@ def _generate_configs(
             "seo_enabled": seo_enabled,
             "seo_slug": None,
             "quota_reserve_tokens": quota_reserve_tokens,
-            "provider": "OPENROUTER",
+            "litellm_provider": "openrouter",
             "model_name": model_id,
             "api_key": api_key,
-            "api_base": "",
+            "api_base": "https://openrouter.ai/api/v1",
             "rpm": free_rpm if tier == "free" else rpm,
             "tpm": free_tpm if tier == "free" else tpm,
             "litellm_params": dict(litellm_params),
@@ -420,14 +420,9 @@ def _generate_image_gen_configs(
             "id": _stable_config_id(model_id, id_offset, taken),
             "name": name,
             "description": f"{name} via OpenRouter (image generation)",
-            "provider": "OPENROUTER",
+            "litellm_provider": "openrouter",
             "model_name": model_id,
             "api_key": api_key,
-            # Pin to OpenRouter's public base URL so a downstream call site
-            # that forgets ``resolve_api_base`` still doesn't inherit
-            # ``AZURE_OPENAI_ENDPOINT`` and 404 on
-            # ``image_generation/transformation`` (defense-in-depth, see
-            # ``provider_api_base`` docstring).
             "api_base": "https://openrouter.ai/api/v1",
             "api_version": None,
             "rpm": free_rpm if tier == "free" else rpm,
@@ -504,13 +499,9 @@ def _generate_vision_llm_configs(
             "id": _stable_config_id(model_id, id_offset, taken),
             "name": name,
             "description": f"{name} via OpenRouter (vision)",
-            "provider": "OPENROUTER",
+            "litellm_provider": "openrouter",
             "model_name": model_id,
             "api_key": api_key,
-            # Pin to OpenRouter's public base URL so a downstream call site
-            # that forgets ``resolve_api_base`` still doesn't inherit
-            # ``AZURE_OPENAI_ENDPOINT`` (defense-in-depth, see
-            # ``provider_api_base`` docstring).
             "api_base": "https://openrouter.ai/api/v1",
             "api_version": None,
             "rpm": free_rpm if tier == "free" else rpm,
@@ -710,7 +701,7 @@ class OpenRouterIntegrationService:
         )
 
         # Re-blend health scores against the freshly fetched catalogue. Also
-        # re-stamps health for any YAML-curated cfg with provider==OPENROUTER
+        # re-stamps health for any YAML-curated cfg with litellm_provider=openrouter
         # so a hand-picked dead OR model is gated like a dynamic one.
         await self._enrich_health_safely(static_configs + new_configs, log_summary=True)
 
@@ -787,7 +778,7 @@ class OpenRouterIntegrationService:
         the entire previous cycle's cache for this run.
         """
         or_cfgs = [
-            c for c in configs if str(c.get("provider", "")).upper() == "OPENROUTER"
+            c for c in configs if str(c.get("litellm_provider", "")).lower() == "openrouter"
         ]
         if not or_cfgs:
             return

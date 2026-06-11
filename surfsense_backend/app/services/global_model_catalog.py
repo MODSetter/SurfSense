@@ -19,7 +19,7 @@ def _connection_key(conn: dict[str, Any]) -> tuple[Any, ...]:
     # the same provider/base can have different quota/rate limits upstream.
     return (
         conn.get("protocol"),
-        conn.get("native_provider"),
+        conn.get("litellm_provider"),
         conn.get("base_url"),
         conn.get("api_key"),
         _freeze(conn.get("extra") or {}),
