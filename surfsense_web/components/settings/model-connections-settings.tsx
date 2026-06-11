@@ -2,7 +2,7 @@
 
 import { useAtom, useAtomValue } from "jotai";
 import { CheckCircle2, PlugZap, Plus, RefreshCcw, XCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
 	addManualModelMutationAtom,
 	createModelConnectionMutationAtom,
@@ -35,59 +35,31 @@ import type {
 	ConnectionRead,
 	ModelRead,
 } from "@/contracts/types/model-connections.types";
-import { isCloud } from "@/lib/env-config";
 import { getProviderIcon } from "@/lib/provider-icons";
 
-type Preset = {
-	id: string;
-	label: string;
-	protocol: ConnectionProtocol;
-	nativeProvider?: string;
-	baseUrl?: string;
-	local?: boolean;
-};
-
-const PRESETS: Preset[] = [
-	{ id: "custom", label: "OpenAI-compatible (any URL)", protocol: "OPENAI_COMPATIBLE" },
-	{ id: "openai", label: "OpenAI", protocol: "NATIVE", nativeProvider: "OPENAI" },
-	{ id: "anthropic", label: "Anthropic", protocol: "NATIVE", nativeProvider: "ANTHROPIC" },
-	{ id: "openrouter", label: "OpenRouter", protocol: "NATIVE", nativeProvider: "OPENROUTER" },
+const PROTOCOL_OPTIONS: { value: ConnectionProtocol; label: string; description: string }[] = [
 	{
-		id: "ollama",
+		value: "OPENAI_COMPATIBLE",
+		label: "OpenAI-compatible",
+		description: "Use for OpenAI, OpenRouter, Groq, vLLM, LM Studio, and compatible APIs.",
+	},
+	{
+		value: "ANTHROPIC",
+		label: "Anthropic",
+		description: "Use for Claude endpoints that require Anthropic headers.",
+	},
+	{
+		value: "OLLAMA",
 		label: "Ollama",
-		protocol: "OLLAMA",
-		baseUrl: "http://host.docker.internal:11434",
-		local: true,
-	},
-	{
-		id: "lmstudio",
-		label: "LM Studio",
-		protocol: "OPENAI_COMPATIBLE",
-		baseUrl: "http://host.docker.internal:1234/v1",
-		local: true,
-	},
-	{
-		id: "llamacpp",
-		label: "llama.cpp",
-		protocol: "OPENAI_COMPATIBLE",
-		baseUrl: "http://host.docker.internal:8080/v1",
-		local: true,
-	},
-	{
-		id: "localai",
-		label: "LocalAI",
-		protocol: "OPENAI_COMPATIBLE",
-		baseUrl: "http://host.docker.internal:8080/v1",
-		local: true,
-	},
-	{
-		id: "vllm",
-		label: "vLLM",
-		protocol: "OPENAI_COMPATIBLE",
-		baseUrl: "http://host.docker.internal:8000/v1",
-		local: true,
+		description: "Use for Ollama's native API.",
 	},
 ];
+
+function defaultLitellmProvider(protocol: ConnectionProtocol) {
+	if (protocol === "OLLAMA") return "ollama_chat";
+	if (protocol === "ANTHROPIC") return "anthropic";
+	return "openai";
+}
 
 // Free-text URL hints (datalist), mirroring OpenWebUI. These never restrict
 // what the user can type — any OpenAI-compatible endpoint works.
@@ -135,9 +107,9 @@ function flattenModels(connections: ConnectionRead[]) {
 	return connections.flatMap((connection) =>
 		connection.models.map((model) => ({
 			...model,
-			connectionName: connection.native_provider || connection.protocol,
+			connectionName: connection.litellm_provider || connection.protocol,
 			connectionId: connection.id,
-			provider: connection.native_provider || connection.protocol,
+			provider: connection.litellm_provider || connection.protocol,
 		}))
 	);
 }
@@ -156,7 +128,7 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 	const [allowlistText, setAllowlistText] = useState(allowlist.join(", "));
 	const [manualModelId, setManualModelId] = useState("");
 
-	const providerLabel = connection.native_provider || connection.protocol;
+	const providerLabel = connection.litellm_provider || connection.protocol;
 	const isLocal = connection.protocol === "OLLAMA" || !connection.base_url?.startsWith("https");
 
 	function saveAllowlist() {
@@ -200,11 +172,7 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 					>
 						Test
 					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => discoverModels.mutate(connection.id)}
-					>
+					<Button variant="outline" size="sm" onClick={() => discoverModels.mutate(connection.id)}>
 						<RefreshCcw className="mr-2 h-4 w-4" /> Discover
 					</Button>
 				</div>
@@ -212,8 +180,8 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 
 			{connection.last_status && connection.last_status !== "OK" ? (
 				<p className="mt-2 text-sm text-amber-600 dark:text-amber-500">
-					{connection.last_error || "Could not list models."} Chat may still work — add model
-					IDs manually below.
+					{connection.last_error || "Could not list models."} Chat may still work — add model IDs
+					manually below.
 				</p>
 			) : null}
 
@@ -236,8 +204,8 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 						</Button>
 					</div>
 					<p className="text-xs text-muted-foreground">
-						Leave empty to discover all models. Recommended for providers with large catalogs
-						(e.g. OpenRouter).
+						Leave empty to discover all models. Recommended for providers with large catalogs (e.g.
+						OpenRouter).
 					</p>
 				</div>
 			) : null}
@@ -314,20 +282,14 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 	const createConnection = useAtomValue(createModelConnectionMutationAtom);
 	const updateRoles = useAtomValue(updateModelRolesMutationAtom);
 
-	const visiblePresets = useMemo(
-		() => PRESETS.filter((preset) => !(isCloud() && preset.local)),
-		[]
-	);
-	const [presetId, setPresetId] = useState(visiblePresets[0]?.id ?? "custom");
-	const preset = visiblePresets.find((item) => item.id === presetId) ?? visiblePresets[0];
-	const [baseUrl, setBaseUrl] = useState(preset?.baseUrl ?? "");
+	const [protocol, setProtocol] = useState<ConnectionProtocol>("OPENAI_COMPATIBLE");
+	const [baseUrl, setBaseUrl] = useState("");
 	const [apiKey, setApiKey] = useState("");
-	// Native providers carry their endpoint inside LiteLLM, so Base URL is hidden
-	// by default and only revealed for power users who want to override it.
-	const [showCustomEndpoint, setShowCustomEndpoint] = useState(false);
-
-	const isNative = preset?.protocol === "NATIVE";
-	const requiresUrl = !isNative;
+	const [litellmProvider, setLitellmProvider] = useState("");
+	const [showAdvancedProvider, setShowAdvancedProvider] = useState(false);
+	const selectedProtocol = PROTOCOL_OPTIONS.find((item) => item.value === protocol);
+	const protocolDefaultProvider = defaultLitellmProvider(protocol);
+	const isOllama = protocol === "OLLAMA";
 
 	const allConnections = [...globalConnections, ...connections];
 	const enabledModels = flattenModels(allConnections).filter((model) => model.enabled);
@@ -335,21 +297,12 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 	const visionModels = enabledModels.filter((model) => capability(model, "vision"));
 	const imageModels = enabledModels.filter((model) => capability(model, "image_gen"));
 
-	function onPresetChange(value: string) {
-		setPresetId(value);
-		const next = visiblePresets.find((item) => item.id === value);
-		// Native providers use LiteLLM's built-in endpoint; everything else needs
-		// (and may prefill) a Base URL.
-		setBaseUrl(next?.protocol === "NATIVE" ? "" : (next?.baseUrl ?? ""));
-		setShowCustomEndpoint(false);
-	}
-
 	function handleCreate() {
-		if (!preset) return;
+		const explicitProvider = litellmProvider.trim();
 		createConnection.mutate(
 			{
-				protocol: preset.protocol,
-				native_provider: preset.nativeProvider,
+				protocol,
+				litellm_provider: explicitProvider ? explicitProvider : null,
 				base_url: baseUrl || null,
 				api_key: apiKey || null,
 				scope: "SEARCH_SPACE",
@@ -384,90 +337,89 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 				<CardContent className="space-y-6">
 					<div className="grid gap-3 md:grid-cols-[220px_1fr_1fr_auto]">
 						<div className="space-y-2">
-							<Label>Provider</Label>
-							<Select value={presetId} onValueChange={onPresetChange}>
+							<Label>Protocol</Label>
+							<Select
+								value={protocol}
+								onValueChange={(value) => setProtocol(value as ConnectionProtocol)}
+							>
 								<SelectTrigger>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
-									{visiblePresets.map((item) => (
-										<SelectItem key={item.id} value={item.id}>
-											<span className="inline-flex items-center gap-2">
-												{getProviderIcon(item.nativeProvider || item.protocol, {
-													className: "size-4",
-												})}
-												{item.label}
-											</span>
+									{PROTOCOL_OPTIONS.map((item) => (
+										<SelectItem key={item.value} value={item.value}>
+											{item.label}
 										</SelectItem>
 									))}
 								</SelectContent>
 							</Select>
 						</div>
 						<div className="space-y-2">
-							<Label>{isNative ? "Base URL (optional)" : "Base URL"}</Label>
-							{isNative && !showCustomEndpoint ? (
-								<div className="space-y-1">
-									<div className="flex h-9 items-center text-sm text-muted-foreground">
-										Uses provider default
-									</div>
-									<button
-										type="button"
-										className="text-xs text-primary hover:underline"
-										onClick={() => setShowCustomEndpoint(true)}
-									>
-										Override endpoint
-									</button>
-								</div>
-							) : (
-								<>
-									<Input
-										value={baseUrl}
-										onChange={(event) => setBaseUrl(event.target.value)}
-										placeholder="https://api.example.com/v1"
-										list="model-conn-url-suggestions"
-									/>
-									<datalist id="model-conn-url-suggestions">
-										{URL_SUGGESTIONS.map((url) => (
-											<option key={url} value={url} />
-										))}
-									</datalist>
-								</>
-							)}
+							<Label>Base URL</Label>
+							<Input
+								value={baseUrl}
+								onChange={(event) => setBaseUrl(event.target.value)}
+								placeholder={
+									isOllama ? "http://host.docker.internal:11434" : "https://api.example.com/v1"
+								}
+								list="model-conn-url-suggestions"
+							/>
+							<datalist id="model-conn-url-suggestions">
+								{URL_SUGGESTIONS.map((url) => (
+									<option key={url} value={url} />
+								))}
+							</datalist>
 						</div>
 						<div className="space-y-2">
-							<Label>{preset?.local ? "API Key (optional)" : "API Key"}</Label>
+							<Label>{isOllama ? "API Key (optional)" : "API Key"}</Label>
 							<Input
 								value={apiKey}
 								onChange={(event) => setApiKey(event.target.value)}
-								placeholder={preset?.local ? "Optional for local models" : "API key"}
+								placeholder={isOllama ? "Optional for Ollama" : "API key"}
 								type="password"
 							/>
 						</div>
 						<div className="flex items-end">
 							<Button
 								onClick={handleCreate}
-								disabled={createConnection.isPending || (requiresUrl && !baseUrl.trim())}
+								disabled={createConnection.isPending || !baseUrl.trim()}
 							>
 								<PlugZap className="mr-2 h-4 w-4" /> Add
 							</Button>
 						</div>
 					</div>
-					{preset?.local ? (
+					<div className="space-y-3">
 						<p className="text-xs text-muted-foreground">
-							Local URLs are tested from the backend container. Use host.docker.internal instead of
-							localhost.
+							{selectedProtocol?.description} Base URL is explicit and editable; no provider presets
+							are required. Local URLs are tested from the backend container, so use
+							host.docker.internal instead of localhost.
 						</p>
-					) : isNative ? (
-						<p className="text-xs text-muted-foreground">
-							Just paste an API key — {preset?.label} routes through its native endpoint
-							automatically. After adding, hit Discover (or add model IDs manually).
-						</p>
-					) : preset?.protocol === "OPENAI_COMPATIBLE" ? (
-						<p className="text-xs text-muted-foreground">
-							Enter any OpenAI-compatible endpoint (OpenRouter, Together, Groq, vLLM, LM Studio…).
-							After adding, hit Discover to list models.
-						</p>
-					) : null}
+						<div>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="h-auto px-0 text-xs"
+								onClick={() => setShowAdvancedProvider((current) => !current)}
+							>
+								Advanced: LiteLLM provider ({litellmProvider.trim() || protocolDefaultProvider})
+							</Button>
+							{showAdvancedProvider ? (
+								<div className="mt-2 max-w-sm space-y-2">
+									<Label>LiteLLM provider override</Label>
+									<Input
+										value={litellmProvider}
+										onChange={(event) => setLitellmProvider(event.target.value)}
+										placeholder={protocolDefaultProvider}
+									/>
+									<p className="text-xs text-muted-foreground">
+										Leave empty to use the protocol default. Set this for more accurate LiteLLM
+										capabilities/costs, for example openrouter, groq, gemini, or azure.
+									</p>
+								</div>
+							) : null}
+						</div>
+					</div>
 
 					<div className="space-y-3">
 						{connections.map((connection) => (

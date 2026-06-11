@@ -51,7 +51,7 @@ function buildKind(
 		id: model.id,
 		name: model.display_name || model.model_id,
 		modelName: model.model_id,
-		provider: connection.native_provider || connection.protocol,
+		provider: connection.litellm_provider || connection.protocol,
 		isBYOK,
 	});
 

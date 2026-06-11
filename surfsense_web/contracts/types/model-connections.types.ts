@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const connectionProtocolEnum = z.enum(["OLLAMA", "OPENAI_COMPATIBLE", "NATIVE"]);
+export const connectionProtocolEnum = z.enum(["OLLAMA", "OPENAI_COMPATIBLE", "ANTHROPIC"]);
 export const connectionScopeEnum = z.enum(["GLOBAL", "SEARCH_SPACE", "USER"]);
 export const modelSourceEnum = z.enum(["DISCOVERED", "MANUAL"]);
 
@@ -32,7 +32,7 @@ export const modelRead = z.object({
 export const connectionRead = z.object({
 	id: z.number(),
 	protocol: z.union([connectionProtocolEnum, z.string()]),
-	native_provider: z.string().nullable().optional(),
+	litellm_provider: z.string().nullable().optional(),
 	base_url: z.string().nullable().optional(),
 	extra: z.record(z.string(), z.any()).default({}),
 	scope: z.union([connectionScopeEnum, z.string()]),
@@ -49,7 +49,7 @@ export const connectionRead = z.object({
 
 export const connectionCreateRequest = z.object({
 	protocol: connectionProtocolEnum,
-	native_provider: z.string().nullable().optional(),
+	litellm_provider: z.string().nullable().optional(),
 	base_url: z.string().nullable().optional(),
 	api_key: z.string().nullable().optional(),
 	extra: z.record(z.string(), z.any()).default({}),
@@ -59,7 +59,7 @@ export const connectionCreateRequest = z.object({
 });
 
 export const connectionUpdateRequest = z.object({
-	native_provider: z.string().nullable().optional(),
+	litellm_provider: z.string().nullable().optional(),
 	base_url: z.string().nullable().optional(),
 	api_key: z.string().nullable().optional(),
 	extra: z.record(z.string(), z.any()).optional(),

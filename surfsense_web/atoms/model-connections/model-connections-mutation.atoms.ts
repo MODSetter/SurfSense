@@ -4,8 +4,10 @@ import type {
 	ConnectionCreateRequest,
 	ConnectionUpdateRequest,
 	ModelCreateRequest,
+	ModelRead,
 	ModelRoles,
 	ModelUpdateRequest,
+	VerifyConnectionResponse,
 } from "@/contracts/types/model-connections.types";
 import { modelConnectionsApiService } from "@/lib/apis/model-connections-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -67,7 +69,7 @@ export const verifyModelConnectionMutationAtom = atomWithMutation((get) => {
 	return {
 		mutationKey: ["model-connections", "verify"],
 		mutationFn: (id: number) => modelConnectionsApiService.verifyConnection(id),
-		onSuccess: (result) => {
+		onSuccess: (result: VerifyConnectionResponse) => {
 			if (result.ok) {
 				toast.success("Connection verified");
 			} else {
@@ -90,11 +92,9 @@ export const discoverConnectionModelsMutationAtom = atomWithMutation((get) => {
 	return {
 		mutationKey: ["model-connections", "discover"],
 		mutationFn: (id: number) => modelConnectionsApiService.discoverModels(id),
-		onSuccess: (models) => {
+		onSuccess: (models: ModelRead[]) => {
 			toast.success(
-				models.length
-					? `${models.length} models discovered`
-					: "No models found for this connection"
+				models.length ? `${models.length} models discovered` : "No models found for this connection"
 			);
 			invalidateModelConnections(searchSpaceId);
 		},
@@ -132,7 +132,7 @@ export const testModelMutationAtom = atomWithMutation((get) => {
 	return {
 		mutationKey: ["models", "test"],
 		mutationFn: (id: number) => modelConnectionsApiService.testModel(id),
-		onSuccess: (result) => {
+		onSuccess: (result: VerifyConnectionResponse) => {
 			if (result.ok) toast.success("Model test succeeded");
 			else toast.error(result.message || "Model test failed");
 			invalidateModelConnections(searchSpaceId);

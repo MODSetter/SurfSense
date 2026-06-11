@@ -56,7 +56,7 @@ function modelName(model: ModelRead) {
 
 function connectionLabel(connection: ConnectionRead) {
 	if (connection.scope === "GLOBAL") return "Hosted";
-	return connection.native_provider || connection.protocol;
+	return connection.litellm_provider || connection.protocol;
 }
 
 function flattenChatModels(connections: ConnectionRead[]) {
@@ -67,7 +67,7 @@ function flattenChatModels(connections: ConnectionRead[]) {
 				...model,
 				connectionId: connection.id,
 				connectionLabel: connectionLabel(connection),
-				provider: connection.native_provider || connection.protocol,
+				provider: connection.litellm_provider || connection.protocol,
 			}))
 	);
 }
