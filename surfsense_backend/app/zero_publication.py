@@ -86,18 +86,15 @@ def _quote_identifier(identifier: str) -> str:
     return '"' + identifier.replace('"', '""') + '"'
 
 
-def _column_exists(conn: Connection, table: str, column: str) -> bool:
-    return (
-        conn.execute(
-            text(
-                "SELECT 1 FROM information_schema.columns "
-                "WHERE table_schema = current_schema() "
-                "AND table_name = :table AND column_name = :column"
-            ),
-            {"table": table, "column": column},
-        ).fetchone()
-        is not None
-    )
+def _table_columns(conn: Connection, table: str) -> set[str]:
+    rows = conn.execute(
+        text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = current_schema() AND table_name = :table"
+        ),
+        {"table": table},
+    ).fetchall()
+    return {row[0] for row in rows}
 
 
 def _expected_columns(conn: Connection, table: str) -> list[str] | None:
@@ -106,18 +103,38 @@ def _expected_columns(conn: Connection, table: str) -> list[str] | None:
         return None
 
     expected = list(columns)
-    if table in {"documents", "user", "podcasts"} and _column_exists(
-        conn, table, "_0_version"
+    if table in {"documents", "user", "podcasts"} and "_0_version" in _table_columns(
+        conn, table
     ):
         expected.append("_0_version")
     return expected
 
 
-def _format_table_entry(conn: Connection, table: str) -> str:
-    columns = _expected_columns(conn, table)
+def _format_table_entry(conn: Connection, table: str) -> str | None:
+    """Render one SET TABLE entry, or ``None`` if the table isn't ready.
+
+    Historical migrations (e.g. 155/156) call ``apply_publication`` while the
+    schema is still mid-history, before later migrations add columns that the
+    canonical shape references. A table is only published once it exists AND
+    every canonical column exists; otherwise it is omitted entirely and a later
+    reconcile migration (e.g. 159) picks it up once its columns land. Partial
+    column lists are deliberately avoided: publishing a column early would
+    block later ``ALTER COLUMN ... TYPE`` migrations on it (Postgres forbids
+    retyping columns a publication depends on). ``verify_publication`` remains
+    strict against the unfiltered canonical shape.
+    """
+
+    actual = _table_columns(conn, table)
+    if not actual:
+        return None
+
     table_sql = _quote_identifier(table)
+    columns = _expected_columns(conn, table)
     if columns is None:
         return table_sql
+
+    if any(column not in actual for column in columns):
+        return None
 
     column_sql = ", ".join(_quote_identifier(column) for column in columns)
     return f"{table_sql} ({column_sql})"
@@ -126,9 +143,8 @@ def _format_table_entry(conn: Connection, table: str) -> str:
 def build_set_table_sql(conn: Connection) -> str:
     """Build the canonical plain SET TABLE statement for Zero's event triggers."""
 
-    table_list = ", ".join(
-        _format_table_entry(conn, table) for table in ZERO_PUBLICATION
-    )
+    entries = [_format_table_entry(conn, table) for table in ZERO_PUBLICATION]
+    table_list = ", ".join(entry for entry in entries if entry is not None)
     return f"ALTER PUBLICATION {_quote_identifier(PUBLICATION_NAME)} SET TABLE {table_list}"
 
 
