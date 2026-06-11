@@ -758,6 +758,9 @@ export default function NewChatPage() {
 		const loadedMessages = reconcileInterruptedAssistantMessages(messagesResponse.messages).map(
 			convertToThreadMessage
 		);
+		if (messages.length > 0 && loadedMessages.length < messages.length) {
+			return;
+		}
 		setMessages(loadedMessages);
 
 		tokenUsageStore.clear();
@@ -778,6 +781,7 @@ export default function NewChatPage() {
 	}, [
 		activeThreadId,
 		isRunning,
+		messages.length,
 		setMessageDocumentsMap,
 		threadMessagesQuery.data,
 		tokenUsageStore,
@@ -2569,7 +2573,7 @@ export default function NewChatPage() {
 				>
 					<div key={searchSpaceId} className="flex h-full overflow-hidden">
 						<div className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
-							<Thread />
+							<Thread hasActiveThread={!!activeThreadId} />
 							{isThreadMessagesLoading ? (
 								<div className="absolute inset-0 z-10 bg-panel">
 									<ThreadMessagesSkeleton />
