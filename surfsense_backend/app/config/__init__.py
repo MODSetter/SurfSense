@@ -434,7 +434,10 @@ def initialize_llm_router():
     router_settings = config.ROUTER_SETTINGS
 
     if not all_configs:
-        print("Info: No global LLM configs found, Auto mode will not be available")
+        print(
+            "Info: No global LLM configs found; global Auto pool is unavailable. "
+            "Auto can still use enabled BYOK models."
+        )
         return
 
     try:

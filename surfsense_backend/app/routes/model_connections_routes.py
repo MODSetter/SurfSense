@@ -105,6 +105,15 @@ def _apply_model_facts(model: Model, facts: dict) -> None:
     model.supports_image_generation = facts.get("supports_image_generation")
 
 
+def _complete_selection_facts(conn: Connection, selection: ModelSelection) -> dict:
+    facts = selection.model_dump()
+    derived = derive_capabilities(conn, selection.model_id.strip(), selection.metadata)
+    for key, value in derived.items():
+        if facts.get(key) is None:
+            facts[key] = value
+    return facts
+
+
 def _selection_to_model(conn: Connection, selection: ModelSelection) -> Model:
     source = (
         selection.source
@@ -120,7 +129,7 @@ def _selection_to_model(conn: Connection, selection: ModelSelection) -> Model:
         enabled=selection.enabled,
         catalog=selection.metadata,
     )
-    _apply_model_facts(model, selection.model_dump())
+    _apply_model_facts(model, _complete_selection_facts(conn, selection))
     return model
 
 
