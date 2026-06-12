@@ -13,6 +13,7 @@ from app.etl_pipeline.cache.service import EtlCacheService
 from app.etl_pipeline.cache.settings import load_etl_cache_settings
 from app.etl_pipeline.etl_document import EtlRequest, EtlResult
 from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
+from app.observability import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,15 @@ async def extract_with_cache(
 
     cached_result = await _recall(key)
     if cached_result is not None:
+        metrics.record_etl_cache_lookup(
+            etl_service=key.etl_service, mode=key.mode, outcome="hit"
+        )
+        logger.debug("ETL cache hit for %s", key.source_sha256)
         return cached_result
 
+    metrics.record_etl_cache_lookup(
+        etl_service=key.etl_service, mode=key.mode, outcome="miss"
+    )
     result = await EtlPipelineService(vision_llm=vision_llm).extract(request)
     await _remember(key, result)
     return result
