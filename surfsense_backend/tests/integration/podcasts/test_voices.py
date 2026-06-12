@@ -29,3 +29,23 @@ async def test_voices_503_when_no_tts_configured(client, monkeypatch):
     resp = await client.get(f"{BASE}/voices")
 
     assert resp.status_code == 503
+
+
+async def test_languages_returns_the_active_providers_offering(client):
+    """The brief form renders exactly what the backend offers — for a wildcard
+    provider (openai/tts-1) that is the curated list plus free entry."""
+    resp = await client.get(f"{BASE}/languages")
+
+    assert resp.status_code == 200
+    offering = resp.json()
+    assert "en" in offering["languages"]
+    assert "fr" in offering["languages"]
+    assert offering["allows_custom"] is True
+
+
+async def test_languages_503_when_no_tts_configured(client, monkeypatch):
+    monkeypatch.setattr(app_config, "TTS_SERVICE", "")
+
+    resp = await client.get(f"{BASE}/languages")
+
+    assert resp.status_code == 503
