@@ -103,6 +103,15 @@ export const voiceOption = z.object({
 });
 export type VoiceOption = z.infer<typeof voiceOption>;
 
+// The languages the backend offers for the active TTS provider. When
+// `allows_custom` is true the list is a starting point and any BCP-47 tag
+// may be entered.
+export const languageOptions = z.object({
+	languages: z.array(z.string()),
+	allows_custom: z.boolean(),
+});
+export type LanguageOptions = z.infer<typeof languageOptions>;
+
 export const updateSpecRequest = z.object({
 	spec: podcastSpec,
 	expected_version: z.number().int().min(1),
