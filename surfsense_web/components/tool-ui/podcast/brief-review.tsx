@@ -1,11 +1,20 @@
 "use client";
 
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -15,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+	type LanguageOptions,
 	MAX_SPEAKERS,
 	type PodcastSpec,
 	type PodcastStyle,
@@ -56,6 +66,7 @@ interface BriefReviewProps {
 export function BriefReview({ podcast, spec }: BriefReviewProps) {
 	const [draft, setDraft] = useState<PodcastSpec>(spec);
 	const [voices, setVoices] = useState<VoiceOption[] | null>(null);
+	const [offering, setOffering] = useState<LanguageOptions | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	// A pushed spec change (saved edit or concurrent editor) resets the form to
@@ -75,19 +86,26 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 			.catch(() => {
 				if (!cancelled) setVoices([]);
 			});
+		podcastsApiService
+			.listLanguages()
+			.then((options) => {
+				if (!cancelled) setOffering(options);
+			})
+			.catch(() => {
+				if (!cancelled) setOffering({ languages: [], allows_custom: false });
+			});
 		return () => {
 			cancelled = true;
 		};
 	}, []);
 
+	// The backend owns the offering; the draft's language stays listed even
+	// when it falls outside it (e.g. a custom tag entered earlier).
 	const languages = useMemo(() => {
-		const tags = new Set<string>();
-		for (const voice of voices ?? []) {
-			if (voice.language !== ANY_LANGUAGE) tags.add(voice.language);
-		}
+		const tags = new Set(offering?.languages ?? []);
 		tags.add(draft.language);
 		return [...tags].sort();
-	}, [voices, draft.language]);
+	}, [offering, draft.language]);
 
 	const voicesForLanguage = useMemo(
 		() => (voices ?? []).filter((voice) => speaks(voice, draft.language)),
@@ -193,18 +211,22 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 			<div className="grid grid-cols-2 gap-4">
 				<div className="flex flex-col gap-2">
 					<Label htmlFor="podcast-language">Language</Label>
-					<Select value={draft.language} onValueChange={setLanguage}>
-						<SelectTrigger id="podcast-language">
-							<SelectValue placeholder="Language" />
-						</SelectTrigger>
-						<SelectContent>
-							{languages.map((tag) => (
-								<SelectItem key={tag} value={tag}>
-									{languageLabel(tag)}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+					{offering?.allows_custom ? (
+						<LanguageCombobox value={draft.language} languages={languages} onSelect={setLanguage} />
+					) : (
+						<Select value={draft.language} onValueChange={setLanguage}>
+							<SelectTrigger id="podcast-language">
+								<SelectValue placeholder="Language" />
+							</SelectTrigger>
+							<SelectContent>
+								{languages.map((tag) => (
+									<SelectItem key={tag} value={tag}>
+										{languageLabel(tag)}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
 				</div>
 				<div className="flex flex-col gap-2">
 					<Label htmlFor="podcast-style">Style</Label>
@@ -372,6 +394,80 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 				</Button>
 			</div>
 		</div>
+	);
+}
+
+/** A searchable language picker for providers whose voices speak anything:
+ * the offered list comes from the backend, and any BCP-47 tag may be typed
+ * when none of them fits. */
+function LanguageCombobox({
+	value,
+	languages,
+	onSelect,
+}: {
+	value: string;
+	languages: string[];
+	onSelect: (language: string) => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const [query, setQuery] = useState("");
+
+	const pick = (tag: string) => {
+		onSelect(tag);
+		setOpen(false);
+		setQuery("");
+	};
+
+	const customTag = query.trim();
+	const isNewTag =
+		customTag.length > 0 && !languages.some((tag) => tag.toLowerCase() === customTag.toLowerCase());
+
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					role="combobox"
+					aria-expanded={open}
+					id="podcast-language"
+					className="border-popover-border flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs outline-none transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50"
+				>
+					<span className="line-clamp-1 text-left">{languageLabel(value)}</span>
+					<ChevronDown className="size-4 shrink-0 opacity-50" />
+				</button>
+			</PopoverTrigger>
+			<PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+				<Command>
+					<CommandInput
+						placeholder="Search or type a language tag…"
+						value={query}
+						onValueChange={setQuery}
+					/>
+					<CommandList>
+						<CommandEmpty>No matching language.</CommandEmpty>
+						<CommandGroup>
+							{languages.map((tag) => (
+								<CommandItem
+									key={tag}
+									value={tag}
+									keywords={[languageLabel(tag)]}
+									onSelect={() => pick(tag)}
+								>
+									<Check className={tag === value ? "size-4" : "size-4 opacity-0"} />
+									{languageLabel(tag)}
+								</CommandItem>
+							))}
+							{isNewTag ? (
+								<CommandItem value={customTag} onSelect={() => pick(customTag)}>
+									<Plus className="size-4" />
+									Use “{customTag}”
+								</CommandItem>
+							) : null}
+						</CommandGroup>
+					</CommandList>
+				</Command>
+			</PopoverContent>
+		</Popover>
 	);
 }
 
