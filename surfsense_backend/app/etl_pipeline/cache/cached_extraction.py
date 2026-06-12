@@ -7,12 +7,12 @@ import hashlib
 import logging
 
 from app.config import config
+from app.etl_pipeline.cache.eligibility import is_parse_cacheable
 from app.etl_pipeline.cache.schemas import ParseKey
 from app.etl_pipeline.cache.service import EtlCacheService
 from app.etl_pipeline.cache.settings import load_etl_cache_settings
 from app.etl_pipeline.etl_document import EtlRequest, EtlResult
 from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
-from app.etl_pipeline.file_classifier import FileCategory, classify_file
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +25,11 @@ async def extract_with_cache(
     """Drop-in for ``EtlPipelineService.extract`` that reuses prior parser output."""
     settings = load_etl_cache_settings()
 
-    # Vision-LLM appends model-generated content not captured by the key, so its
-    # output must not be shared with plain parses (and vice versa): bypass cache.
-    cacheable = (
-        settings.enabled
-        and vision_llm is None
-        and bool(config.ETL_SERVICE)
-        and classify_file(request.filename) == FileCategory.DOCUMENT
+    cacheable = is_parse_cacheable(
+        filename=request.filename,
+        etl_service=config.ETL_SERVICE,
+        cache_enabled=settings.enabled,
+        has_vision_llm=vision_llm is not None,
     )
     if not cacheable:
         return await EtlPipelineService(vision_llm=vision_llm).extract(request)

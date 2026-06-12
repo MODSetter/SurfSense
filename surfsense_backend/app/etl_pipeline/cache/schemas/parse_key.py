@@ -15,7 +15,7 @@ class ParseKey:
     @classmethod
     def for_document(
         cls, source_sha256: str, *, etl_service: str, mode: str, version: int
-    ) -> "ParseKey":
+    ) -> ParseKey:
         return cls(
             source_sha256=source_sha256,
             etl_service=etl_service,
