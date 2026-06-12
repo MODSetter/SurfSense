@@ -68,6 +68,7 @@ import {
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { ChatExamplePrompts } from "@/components/new-chat/chat-example-prompts";
+import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ComposerSuggestionPopoverContent } from "@/components/new-chat/composer-suggestion-popup";
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
@@ -931,7 +932,10 @@ const Composer: FC = () => {
 							className="min-h-[48px] sm:min-h-[24px] **:data-slate-placeholder:font-normal"
 						/>
 					</div>
-					<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
+					<ComposerAction
+						isBlockedByOtherUser={isBlockedByOtherUser}
+						searchSpaceId={Number(search_space_id)}
+					/>
 					<ConnectorIndicator showTrigger={false} />
 				</div>
 				<ConnectToolsBanner
@@ -950,9 +954,10 @@ const Composer: FC = () => {
 
 interface ComposerActionProps {
 	isBlockedByOtherUser?: boolean;
+	searchSpaceId: number;
 }
 
-const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false }) => {
+const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false, searchSpaceId }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
@@ -1562,6 +1567,10 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				</div>
 			)}
 			<div className="flex items-center gap-2">
+				<ChatHeader
+					searchSpaceId={searchSpaceId}
+					className="h-9 max-w-[44vw] px-2 sm:max-w-[220px] sm:px-3"
+				/>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
@@ -1569,7 +1578,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								isBlockedByOtherUser
 									? "Wait for AI to finish responding"
 									: !hasModelConfigured
-										? "Please select a model from the header to start chatting"
+										? "Please select a model to start chatting"
 										: isComposerEmpty
 											? "Enter a message or add a screenshot to send"
 											: "Send message"

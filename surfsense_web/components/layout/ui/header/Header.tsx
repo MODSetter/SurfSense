@@ -6,7 +6,6 @@ import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { activeTabAtom } from "@/atoms/tabs/tabs.atom";
 import { ActionLogButton } from "@/components/agent-action-log/action-log-button";
-import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ChatShareButton } from "@/components/new-chat/chat-share-button";
 import type { ThreadRecord } from "@/lib/chat/thread-persistence";
 
@@ -66,12 +65,9 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 
 	return (
 		<header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60 px-4">
-			{/* Left side - Mobile menu trigger + Model selector */}
+			{/* Left side - Mobile menu trigger */}
 			<div className="flex flex-1 items-center gap-2 min-w-0">
 				{mobileMenuTrigger}
-				{isChatPage && !isDocumentTab && searchSpaceId && (
-					<ChatHeader searchSpaceId={Number(searchSpaceId)} className="md:h-9 md:px-4 md:text-sm" />
-				)}
 			</div>
 
 			{/* Right side - Actions */}

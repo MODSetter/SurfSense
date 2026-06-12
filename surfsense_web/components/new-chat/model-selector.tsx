@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Drawer,
 	DrawerContent,
+	DrawerHandle,
 	DrawerHeader,
 	DrawerTitle,
 	DrawerTrigger,
@@ -127,23 +128,28 @@ export function ModelSelector({
 		setOpen(false);
 	}
 
+	function manageModelConnections() {
+		setOpen(false);
+		onAddNewLLM();
+	}
+
 	const content = (
-		<div className="flex max-h-[min(520px,80vh)] flex-col">
-			<div className="border-b p-3">
+		<div className="flex max-h-[min(520px,80vh)] flex-col overflow-hidden">
+			<div className="p-2">
 				<div className="relative">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search className="absolute left-0.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						value={search}
 						onChange={(event) => setSearch(event.target.value)}
-						placeholder="Search chat models..."
-						className="pl-9"
+						placeholder="Search chat models"
+						className="h-8 border-0 bg-transparent pl-6 text-sm shadow-none"
 					/>
 				</div>
 			</div>
-			<div className="overflow-y-auto p-2">
+			<div className="overflow-y-auto overflow-x-hidden px-1.5 py-1.5">
 				<button
 					type="button"
-					className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-accent"
+					className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
 					onClick={() => selectModel(0)}
 				>
 					<div className="flex items-center gap-3">
@@ -175,7 +181,7 @@ export function ModelSelector({
 								<button
 									type="button"
 									key={model.id}
-									className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-accent"
+									className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
 									onClick={() => selectModel(model.id)}
 								>
 									<div className="min-w-0">
@@ -183,7 +189,6 @@ export function ModelSelector({
 											{getProviderIcon(model.provider, { className: "size-4 shrink-0" })}
 											<span className="truncate">{modelName(model)}</span>
 										</div>
-										<div className="truncate text-xs text-muted-foreground">{model.model_id}</div>
 										{model.max_input_tokens ? (
 											<div className="text-xs text-muted-foreground">
 												{model.max_input_tokens.toLocaleString()} context
@@ -204,9 +209,13 @@ export function ModelSelector({
 					))
 				)}
 			</div>
-			<div className="border-t p-3">
-				<Button variant="outline" className="w-full justify-start" onClick={() => onAddNewLLM()}>
-					<Settings2 className="mr-2 h-4 w-4" /> Manage model connections
+			<div className="p-2">
+				<Button
+					variant="ghost"
+					className="w-full justify-start rounded-md bg-foreground/5 hover:bg-foreground/10 hover:text-foreground"
+					onClick={manageModelConnections}
+				>
+					<Settings2 className="mr-2 h-4 w-4" /> Manage models
 				</Button>
 			</div>
 		</div>
@@ -217,17 +226,22 @@ export function ModelSelector({
 			type="button"
 			variant="ghost"
 			size="sm"
-			className={cn("h-8 gap-2 rounded-full px-3 text-muted-foreground", className)}
+			className={cn(
+				"h-8 min-w-0 gap-2 rounded-md px-3 text-muted-foreground transition-colors",
+				"hover:bg-foreground/10 hover:text-foreground",
+				"data-[state=open]:bg-foreground/10 data-[state=open]:text-foreground",
+				className
+			)}
 		>
 			{selected ? (
-				getProviderIcon(selected.provider, { className: "size-4" })
+				getProviderIcon(selected.provider, { className: "size-4 shrink-0" })
 			) : (
-				<Cpu className="h-4 w-4" />
+				<Cpu className="h-4 w-4 shrink-0" />
 			)}
-			<span className="max-w-[180px] truncate text-sm">
+			<span className="min-w-0 flex-1 truncate text-sm">
 				{selected ? modelName(selected) : "Auto"}
 			</span>
-			<ChevronDown className="h-3.5 w-3.5" />
+			<ChevronDown className="h-3.5 w-3.5 shrink-0" />
 		</Button>
 	);
 
@@ -235,7 +249,8 @@ export function ModelSelector({
 		return (
 			<Drawer open={open} onOpenChange={setOpen}>
 				<DrawerTrigger asChild>{trigger}</DrawerTrigger>
-				<DrawerContent>
+				<DrawerContent className="max-h-[85vh]">
+					<DrawerHandle />
 					<DrawerHeader>
 						<DrawerTitle>Select Chat Model</DrawerTitle>
 					</DrawerHeader>
@@ -248,7 +263,7 @@ export function ModelSelector({
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>{trigger}</PopoverTrigger>
-			<PopoverContent align="start" className="w-[420px] p-0">
+			<PopoverContent align="start" className="w-[360px] p-0">
 				{content}
 			</PopoverContent>
 		</Popover>
