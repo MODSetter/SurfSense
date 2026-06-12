@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
-import { Bot, Check, ChevronDown, ImageOff, Search, Settings2, Zap } from "lucide-react";
+import { Check, ChevronDown, Cpu, ImageOff, Search, Settings2, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { updateModelRolesMutationAtom } from "@/atoms/model-connections/model-connections-mutation.atoms";
 import {
@@ -222,7 +222,7 @@ export function ModelSelector({
 			{selected ? (
 				getProviderIcon(selected.provider, { className: "size-4" })
 			) : (
-				<Bot className="h-4 w-4" />
+				<Cpu className="h-4 w-4" />
 			)}
 			<span className="max-w-[180px] truncate text-sm">
 				{selected ? modelName(selected) : "Auto"}

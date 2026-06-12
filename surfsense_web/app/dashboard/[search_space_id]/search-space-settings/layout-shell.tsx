@@ -2,8 +2,8 @@
 
 import {
 	BookText,
-	Bot,
 	CircleUser,
+	Cpu,
 	Earth,
 	UserKey,
 } from "lucide-react";
@@ -54,7 +54,7 @@ export function SearchSpaceSettingsLayoutShell({
 			{
 				value: "models" as const,
 				label: t("nav_models"),
-				icon: <Bot className="h-4 w-4" />,
+				icon: <Cpu className="h-4 w-4" />,
 			},
 			{
 				value: "team-roles" as const,

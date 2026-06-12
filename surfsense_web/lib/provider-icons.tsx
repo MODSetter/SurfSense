@@ -1,4 +1,4 @@
-import { Bot, Shuffle } from "lucide-react";
+import { Cpu, Shuffle } from "lucide-react";
 import {
 	Ai21Icon,
 	AnthropicIcon,
@@ -72,7 +72,7 @@ export function getProviderIcon(
 		case "COMETAPI":
 			return <CometApiIcon className={cn(className)} />;
 		case "CUSTOM":
-			return <Bot className={cn(className, "text-gray-400")} />;
+			return <Cpu className={cn(className, "text-gray-400")} />;
 		case "DATABRICKS":
 			return <DatabricksIcon className={cn(className)} />;
 		case "DEEPINFRA":
@@ -122,6 +122,6 @@ export function getProviderIcon(
 		case "ZHIPU":
 			return <ZhipuIcon className={cn(className)} />;
 		default:
-			return <Bot className={cn(className, "text-muted-foreground")} />;
+			return <Cpu className={cn(className, "text-muted-foreground")} />;
 	}
 }
