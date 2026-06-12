@@ -53,6 +53,7 @@ from .model_connections import (
     ModelRead,
     ModelRolesRead,
     ModelRolesUpdate,
+    ModelsBulkUpdate,
     ModelUpdate,
     VerifyConnectionResponse,
 )

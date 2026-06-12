@@ -1,7 +1,7 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -25,6 +25,7 @@ from app.schemas import (
     ModelRead,
     ModelRolesRead,
     ModelRolesUpdate,
+    ModelsBulkUpdate,
     ModelUpdate,
     VerifyConnectionResponse,
 )
@@ -62,6 +63,7 @@ def _connection_read(conn: Connection | dict, models: list[Model | dict] | None 
         id=conn.id,
         provider=conn.provider,
         base_url=conn.base_url,
+        api_key=conn.api_key,
         extra=conn.extra or {},
         scope=conn.scope,
         search_space_id=conn.search_space_id,
@@ -349,6 +351,33 @@ async def add_manual_model(
     await _default_unset_roles(session, conn, list(conn.models))
     await session.commit()
     return _model_read(model)
+
+
+@router.patch("/model-connections/{connection_id}/models", response_model=list[ModelRead])
+async def bulk_update_models(
+    connection_id: int,
+    data: ModelsBulkUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    conn = await _load_connection(session, connection_id)
+    await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_UPDATE.value)
+
+    model_ids = set(data.model_ids)
+    await session.execute(
+        update(Model)
+        .where(Model.connection_id == connection_id, Model.id.in_(model_ids))
+        .values(enabled=data.enabled)
+    )
+    await session.commit()
+    session.expire_all()
+
+    result = await session.execute(
+        select(Model)
+        .where(Model.connection_id == connection_id, Model.id.in_(model_ids))
+        .order_by(Model.id)
+    )
+    return [_model_read(model) for model in result.scalars().all()]
 
 
 @router.put("/models/{model_id}", response_model=ModelRead)

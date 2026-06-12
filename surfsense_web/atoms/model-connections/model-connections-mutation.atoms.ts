@@ -6,6 +6,7 @@ import type {
 	ModelCreateRequest,
 	ModelRead,
 	ModelRoles,
+	ModelsBulkUpdateRequest,
 	ModelUpdateRequest,
 	VerifyConnectionResponse,
 } from "@/contracts/types/model-connections.types";
@@ -124,6 +125,17 @@ export const updateModelMutationAtom = atomWithMutation((get) => {
 			modelConnectionsApiService.updateModel(id, data),
 		onSuccess: () => invalidateModelConnections(searchSpaceId),
 		onError: (error: Error) => toast.error(error.message || "Failed to update model"),
+	};
+});
+
+export const bulkUpdateModelsMutationAtom = atomWithMutation((get) => {
+	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	return {
+		mutationKey: ["models", "bulk-update"],
+		mutationFn: ({ connectionId, data }: { connectionId: number; data: ModelsBulkUpdateRequest }) =>
+			modelConnectionsApiService.bulkUpdateModels(connectionId, data),
+		onSuccess: () => invalidateModelConnections(searchSpaceId),
+		onError: (error: Error) => toast.error(error.message || "Failed to update models"),
 	};
 });
 

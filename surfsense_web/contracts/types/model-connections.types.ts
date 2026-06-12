@@ -26,6 +26,7 @@ export const connectionRead = z.object({
 	id: z.number(),
 	provider: z.string(),
 	base_url: z.string().nullable().optional(),
+	api_key: z.string().nullable().optional(),
 	extra: z.record(z.string(), z.any()).default({}),
 	scope: z.union([connectionScopeEnum, z.string()]),
 	search_space_id: z.number().nullable().optional(),
@@ -73,6 +74,11 @@ export const modelUpdateRequest = z.object({
 	capabilities_override: z.record(z.string(), z.any()).optional(),
 });
 
+export const modelsBulkUpdateRequest = z.object({
+	model_ids: z.array(z.number()).min(1).max(1000),
+	enabled: z.boolean(),
+});
+
 export const verifyConnectionResponse = z.object({
 	status: z.string(),
 	ok: z.boolean(),
@@ -107,6 +113,7 @@ export type ConnectionCreateRequest = z.infer<typeof connectionCreateRequest>;
 export type ConnectionUpdateRequest = z.infer<typeof connectionUpdateRequest>;
 export type ModelCreateRequest = z.infer<typeof modelCreateRequest>;
 export type ModelUpdateRequest = z.infer<typeof modelUpdateRequest>;
+export type ModelsBulkUpdateRequest = z.infer<typeof modelsBulkUpdateRequest>;
 export type ModelRoles = z.infer<typeof modelRoles>;
 export type VerifyConnectionResponse = z.infer<typeof verifyConnectionResponse>;
 export type ModelProviderRead = z.infer<typeof modelProviderRead>;

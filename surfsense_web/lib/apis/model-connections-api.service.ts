@@ -10,12 +10,14 @@ import {
 	type ModelProviderRead,
 	type ModelRead,
 	type ModelRoles,
+	type ModelsBulkUpdateRequest,
 	type ModelUpdateRequest,
 	modelCreateRequest,
-	modelProviderListResponse,
 	modelListResponse,
+	modelProviderListResponse,
 	modelRead,
 	modelRoles,
+	modelsBulkUpdateRequest,
 	modelUpdateRequest,
 	type VerifyConnectionResponse,
 	verifyConnectionResponse,
@@ -95,6 +97,25 @@ class ModelConnectionsApiService {
 		return baseApiService.put(`/api/v1/models/${id}`, modelRead, {
 			body: parsed.data,
 		});
+	};
+
+	bulkUpdateModels = async (
+		connectionId: number,
+		request: ModelsBulkUpdateRequest
+	): Promise<ModelRead[]> => {
+		const parsed = modelsBulkUpdateRequest.safeParse(request);
+		if (!parsed.success) {
+			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
+		}
+		return baseApiService.request(
+			`/api/v1/model-connections/${connectionId}/models`,
+			modelListResponse,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: parsed.data,
+			}
+		);
 	};
 
 	testModel = async (id: number): Promise<VerifyConnectionResponse> => {

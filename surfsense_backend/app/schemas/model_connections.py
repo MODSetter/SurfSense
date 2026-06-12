@@ -32,6 +32,7 @@ class ConnectionRead(BaseModel):
     id: int
     provider: str
     base_url: str | None = None
+    api_key: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
     scope: ConnectionScope | str
     search_space_id: int | None = None
@@ -85,6 +86,11 @@ class ModelUpdate(BaseModel):
     supports_tools: bool | None = None
     supports_image_generation: bool | None = None
     capabilities_override: dict[str, Any] | None = None
+
+
+class ModelsBulkUpdate(BaseModel):
+    model_ids: list[int] = Field(..., min_length=1, max_length=1000)
+    enabled: bool
 
 
 class ModelProviderRead(BaseModel):
