@@ -127,7 +127,7 @@ async def db_search_space(db_session: AsyncSession, db_user: User) -> SearchSpac
 def patched_embed_texts(monkeypatch) -> MagicMock:
     mock = MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts])
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+        "app.indexing_pipeline.cache.cached_indexing.embed_texts",
         mock,
     )
     return mock
@@ -137,7 +137,7 @@ def patched_embed_texts(monkeypatch) -> MagicMock:
 def patched_embed_texts_raises(monkeypatch) -> MagicMock:
     mock = MagicMock(side_effect=RuntimeError("Embedding unavailable"))
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+        "app.indexing_pipeline.cache.cached_indexing.embed_texts",
         mock,
     )
     return mock
@@ -147,11 +147,11 @@ def patched_embed_texts_raises(monkeypatch) -> MagicMock:
 def patched_chunk_text(monkeypatch) -> MagicMock:
     mock = MagicMock(return_value=["Test chunk content."])
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text",
         mock,
     )
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.chunk_text_hybrid",
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text_hybrid",
         mock,
     )
     return mock

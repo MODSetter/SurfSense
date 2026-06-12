@@ -177,7 +177,7 @@ async def test_reindex_sets_status_ready(db_session, db_search_space, db_user, m
 async def test_reindex_replaces_chunks(db_session, db_search_space, db_user, mocker):
     """Reindexing replaces old chunks with new content rather than appending."""
     mocker.patch(
-        "app.indexing_pipeline.indexing_pipeline_service.chunk_text_hybrid",
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text_hybrid",
         side_effect=[["Original chunk."], ["Updated chunk."]],
     )
 
