@@ -5,9 +5,9 @@ import {
 	addManualModelMutationAtom,
 	bulkUpdateModelsMutationAtom,
 	discoverConnectionModelsMutationAtom,
+	testPreviewModelMutationAtom,
 	updateModelConnectionMutationAtom,
 	updateModelMutationAtom,
-	verifyModelConnectionMutationAtom,
 } from "@/atoms/model-connections/model-connections-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +26,7 @@ import type {
 	ConnectionRead,
 	ConnectionUpdateRequest,
 } from "@/contracts/types/model-connections.types";
-import type { SelectableModel } from "./model-utils";
+import { capability, type SelectableModel } from "./model-utils";
 import { ModelsSelectionPanel } from "./models-selection-panel";
 import { providerIcon } from "./provider-metadata";
 
@@ -39,8 +39,8 @@ export function ConnectionSettingsDialog({
 	connection,
 	providerLabel,
 }: ConnectionSettingsDialogProps) {
-	const verifyConnection = useAtomValue(verifyModelConnectionMutationAtom);
 	const discoverModels = useAtomValue(discoverConnectionModelsMutationAtom);
+	const testPreviewModel = useAtomValue(testPreviewModelMutationAtom);
 	const updateConnection = useAtomValue(updateModelConnectionMutationAtom);
 	const addManualModel = useAtomValue(addManualModelMutationAtom);
 	const updateModel = useAtomValue(updateModelMutationAtom);
@@ -81,11 +81,45 @@ export function ConnectionSettingsDialog({
 		if (apiKeyDraft.trim() !== (connection.api_key ?? "")) {
 			data.api_key = apiKeyDraft.trim() || null;
 		}
+		const apiKeyForTest = Object.hasOwn(data, "api_key")
+			? (data.api_key ?? null)
+			: (connection.api_key ?? null);
 
-		updateConnection.mutate(
-			{ id: connection.id, data },
+		const enabledModels = connection.models.filter((model) => model.enabled);
+		const testModel =
+			enabledModels.find((model) => capability(model, "chat")) ?? enabledModels[0];
+		if (!testModel) {
+			updateConnection.mutate(
+				{ id: connection.id, data },
+				{
+					onSuccess: () => setApiKeyDraft(""),
+				}
+			);
+			return;
+		}
+
+		testPreviewModel.mutate(
 			{
-				onSuccess: () => setApiKeyDraft(""),
+				provider: connection.provider,
+				base_url: data.base_url,
+				api_key: apiKeyForTest,
+				scope: "SEARCH_SPACE",
+				search_space_id: connection.search_space_id,
+				extra: connection.extra ?? {},
+				enabled: connection.enabled,
+				models: [],
+				model_id: testModel.model_id,
+			},
+			{
+				onSuccess: (result) => {
+					if (!result.ok) return;
+					updateConnection.mutate(
+						{ id: connection.id, data },
+						{
+							onSuccess: () => setApiKeyDraft(""),
+						}
+					);
+				},
 			}
 		);
 	}
@@ -219,26 +253,15 @@ export function ConnectionSettingsDialog({
 							onBulkToggle={handleBulkToggle}
 						/>
 
-						{connection.last_status && connection.last_status !== "OK" ? (
-							<p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-500">
-								{connection.last_error || "Could not list models."} Chat may still work; add model
-								IDs manually if discovery is unavailable.
-							</p>
-						) : null}
 					</div>
 				</div>
 
 				<DialogFooter className="shrink-0 border-t bg-popover px-6 py-4">
 					<Button
-						variant="secondary"
-						onClick={() => verifyConnection.mutate(connection.id)}
-						disabled={verifyConnection.isPending}
-					>
-						Test
-					</Button>
-					<Button
 						onClick={saveConnectionSettings}
-						disabled={updateConnection.isPending || !hasConnectionChanges}
+						disabled={
+							updateConnection.isPending || testPreviewModel.isPending || !hasConnectionChanges
+						}
 					>
 						Update
 					</Button>

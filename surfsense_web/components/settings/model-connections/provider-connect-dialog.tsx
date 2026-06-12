@@ -94,6 +94,8 @@ export function ProviderConnectDialog({
 	})();
 
 	const canRefreshModels = !isAzure && !isVertex && (!isBedrock || canSubmit);
+	const hasEnabledModel = previewModels.some((model) => model.enabled) || Boolean(currentDraft.seedModelId);
+	const canConnect = canSubmit && hasEnabledModel;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -134,7 +136,7 @@ export function ProviderConnectDialog({
 				<ConnectFormFooter
 					onCancel={() => onOpenChange(false)}
 					onSubmit={() => onSubmit(currentDraft)}
-					canSubmit={canSubmit}
+					canSubmit={canConnect}
 					isPending={isPending}
 				/>
 			</DialogContent>

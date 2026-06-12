@@ -54,8 +54,9 @@ from .model_connections import (
     ModelRead,
     ModelRolesRead,
     ModelRolesUpdate,
-    ModelSelection,
     ModelsBulkUpdate,
+    ModelSelection,
+    ModelTestPreview,
     ModelUpdate,
     VerifyConnectionResponse,
 )
@@ -149,7 +150,7 @@ from .vision_llm import (
     VisionLLMConfigUpdate,
 )
 
-__all__ = [
+__all__ = [ 
     # Folder schemas
     "BulkDocumentMove",
     # Chat schemas (assistant-ui integration)
@@ -159,6 +160,10 @@ __all__ = [
     "ChunkCreate",
     "ChunkRead",
     "ChunkUpdate",
+    # Model connection schemas
+    "ConnectionCreate",
+    "ConnectionRead",
+    "ConnectionUpdate",
     "CreateCreditCheckoutSessionRequest",
     "CreateCreditCheckoutSessionResponse",
     "CreditPurchaseHistoryResponse",
@@ -232,6 +237,16 @@ __all__ = [
     "MembershipRead",
     "MembershipReadWithUser",
     "MembershipUpdate",
+    "ModelCreate",
+    "ModelPreviewRead",
+    "ModelProviderRead",
+    "ModelRead",
+    "ModelRolesRead",
+    "ModelRolesUpdate",
+    "ModelSelection",
+    "ModelTestPreview",
+    "ModelUpdate",
+    "ModelsBulkUpdate",
     "NewChatMessageAppend",
     "NewChatMessageCreate",
     "NewChatMessageRead",
@@ -282,6 +297,7 @@ __all__ = [
     "UserRead",
     "UserSearchSpaceAccess",
     "UserUpdate",
+    "VerifyConnectionResponse",
     # Video Presentation schemas
     "VideoPresentationBase",
     "VideoPresentationCreate",

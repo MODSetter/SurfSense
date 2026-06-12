@@ -85,6 +85,10 @@ class ConnectionCreate(BaseModel):
     models: list[ModelSelection] = Field(default_factory=list)
 
 
+class ModelTestPreview(ConnectionCreate):
+    model_id: str = Field(..., max_length=255)
+
+
 class ConnectionUpdate(BaseModel):
     provider: str | None = Field(None, max_length=100)
     base_url: str | None = Field(None, max_length=500)

@@ -55,6 +55,8 @@ def to_litellm(
         kwargs["api_version"] = api_version
     kwargs.update(extra.get("litellm_params", {}))
     kwargs.update(extra.get("kwargs", {}))
+    if provider == "bedrock" and (bearer_token := kwargs.pop("aws_bearer_token_bedrock", None)):
+        kwargs["api_key"] = bearer_token
     return model_string, kwargs
 
 

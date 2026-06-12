@@ -11,6 +11,7 @@ import {
 	type ModelProviderRead,
 	type ModelRead,
 	type ModelRoles,
+	type ModelTestPreviewRequest,
 	type ModelsBulkUpdateRequest,
 	type ModelUpdateRequest,
 	modelCreateRequest,
@@ -19,6 +20,7 @@ import {
 	modelProviderListResponse,
 	modelRead,
 	modelRoles,
+	modelTestPreviewRequest,
 	modelsBulkUpdateRequest,
 	modelUpdateRequest,
 	type VerifyConnectionResponse,
@@ -86,6 +88,20 @@ class ModelConnectionsApiService {
 		return baseApiService.post(
 			`/api/v1/model-connections/discover-preview`,
 			modelPreviewListResponse,
+			{
+				body: parsed.data,
+			}
+		);
+	};
+
+	testPreviewModel = async (request: ModelTestPreviewRequest): Promise<VerifyConnectionResponse> => {
+		const parsed = modelTestPreviewRequest.safeParse(request);
+		if (!parsed.success) {
+			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
+		}
+		return baseApiService.post(
+			`/api/v1/model-connections/test-preview`,
+			verifyConnectionResponse,
 			{
 				body: parsed.data,
 			}

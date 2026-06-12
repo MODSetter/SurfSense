@@ -7,6 +7,7 @@ import type {
 	ModelPreviewRead,
 	ModelRead,
 	ModelRoles,
+	ModelTestPreviewRequest,
 	ModelsBulkUpdateRequest,
 	ModelUpdateRequest,
 	VerifyConnectionResponse,
@@ -111,6 +112,20 @@ export const previewConnectionModelsMutationAtom = atomWithMutation(() => {
 			modelConnectionsApiService.previewModels(request),
 		onSuccess: (_models: ModelPreviewRead[]) => {},
 		onError: (error: Error) => toast.error(error.message || "Failed to discover models"),
+	};
+});
+
+export const testPreviewModelMutationAtom = atomWithMutation(() => {
+	return {
+		mutationKey: ["model-connections", "test-preview"],
+		mutationFn: (request: ModelTestPreviewRequest) =>
+			modelConnectionsApiService.testPreviewModel(request),
+		onSuccess: (result: VerifyConnectionResponse) => {
+			if (!result.ok) {
+				toast.error(result.message || "Model test failed");
+			}
+		},
+		onError: (error: Error) => toast.error(error.message || "Failed to test model"),
 	};
 });
 

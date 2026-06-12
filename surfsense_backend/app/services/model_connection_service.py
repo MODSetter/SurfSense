@@ -15,7 +15,7 @@ import litellm
 from app.db import Connection, Model, ModelSource
 from app.services.model_resolver import ensure_v1, to_litellm
 from app.services.openrouter_model_normalizer import normalize_openrouter_models
-from app.services.provider_registry import Transport, spec_for
+from app.services.provider_registry import Transport, provider_label, spec_for
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +75,68 @@ def _docker_hint(url: str | None, exc_or_status: Any) -> str:
             "`host.docker.internal:host-gateway` to extra_hosts."
         )
     return raw
+
+
+def _model_test_error(conn: Connection, model_id: str, exc: Exception) -> VerifyResult:
+    provider_name = provider_label(conn.provider)
+    raw = str(exc)
+    normalized = raw.lower()
+    exc_name = exc.__class__.__name__.lower()
+    status_code = getattr(exc, "status_code", None)
+
+    logger.info(
+        "Model test failed for provider=%s model=%s: %s",
+        conn.provider,
+        model_id,
+        raw,
+    )
+
+    if status_code in (401, 403) or "authentication" in exc_name or "401" in normalized:
+        return VerifyResult(
+            "AUTH_FAILED",
+            False,
+            f"Authentication failed. Check your {provider_name} credentials and try again.",
+        )
+
+    if status_code == 404 or "notfound" in exc_name or "not found" in normalized:
+        if conn.provider == "azure":
+            message = (
+                "Azure OpenAI deployment was not found. Check the deployment name, "
+                "API version, and endpoint."
+            )
+        else:
+            message = f"Model '{model_id}' was not found on {provider_name}."
+        return VerifyResult("NOT_FOUND", False, message)
+
+    if status_code == 429 or "ratelimit" in exc_name or "rate limit" in normalized:
+        return VerifyResult(
+            "RATE_LIMITED",
+            False,
+            f"{provider_name} rate limited the model test. Try again later.",
+        )
+
+    if "timeout" in exc_name or "timed out" in normalized:
+        return VerifyResult(
+            "TIMEOUT",
+            False,
+            f"{provider_name} did not respond in time. Check the endpoint and try again.",
+        )
+
+    if "connection" in exc_name or "connect" in normalized:
+        return VerifyResult(
+            "UNREACHABLE",
+            False,
+            _docker_hint(
+                _base_url_or_default(conn),
+                f"Could not reach {provider_name}. Check the endpoint and try again.",
+            ),
+        )
+
+    return VerifyResult(
+        "UNREACHABLE",
+        False,
+        f"Could not test model '{model_id}' on {provider_name}. Check the credentials, endpoint, and model name.",
+    )
 
 
 async def verify_connection(conn: Connection) -> VerifyResult:
@@ -321,15 +383,24 @@ async def _discover_bedrock_models(conn: Connection) -> list[dict[str, Any]]:
         return []
 
     def list_models() -> list[dict[str, Any]]:
+        import os
+
         import boto3
 
-        client_kwargs: dict[str, str] = {"region_name": region_name}
-        if params.get("aws_access_key_id"):
-            client_kwargs["aws_access_key_id"] = params["aws_access_key_id"]
-        if params.get("aws_secret_access_key"):
-            client_kwargs["aws_secret_access_key"] = params["aws_secret_access_key"]
+        if bearer_token := params.get("aws_bearer_token_bedrock"):
+            try:
+                os.environ["AWS_BEARER_TOKEN_BEDROCK"] = bearer_token
+                client = boto3.client("bedrock", region_name=region_name)
+            finally:
+                os.environ.pop("AWS_BEARER_TOKEN_BEDROCK", None)
+        else:
+            client_kwargs: dict[str, str] = {"region_name": region_name}
+            if params.get("aws_access_key_id"):
+                client_kwargs["aws_access_key_id"] = params["aws_access_key_id"]
+            if params.get("aws_secret_access_key"):
+                client_kwargs["aws_secret_access_key"] = params["aws_secret_access_key"]
+            client = boto3.client("bedrock", **client_kwargs)
 
-        client = boto3.client("bedrock", **client_kwargs)
         response = client.list_foundation_models()
         results: list[dict[str, Any]] = []
         for item in response.get("modelSummaries", []):
@@ -393,7 +464,7 @@ async def test_model(conn: Connection, model: Model) -> VerifyResult:
             **kwargs,
         )
     except Exception as exc:
-        return VerifyResult("UNREACHABLE", False, str(exc))
+        return _model_test_error(conn, model.model_id, exc)
 
     model.supports_chat = True
     return VerifyResult("OK", True, "Model test succeeded.")

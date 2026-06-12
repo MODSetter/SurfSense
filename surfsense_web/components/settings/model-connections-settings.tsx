@@ -1,12 +1,14 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
-import { CheckCircle2, Trash2, XCircle } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
 	createModelConnectionMutationAtom,
 	deleteModelConnectionMutationAtom,
 	previewConnectionModelsMutationAtom,
+	testPreviewModelMutationAtom,
 	updateModelRolesMutationAtom,
 } from "@/atoms/model-connections/model-connections-mutation.atoms";
 import {
@@ -53,24 +55,6 @@ import {
 	providerIcon,
 } from "./model-connections/provider-metadata";
 
-function StatusBadge({ connection }: { connection: ConnectionRead }) {
-	if (connection.last_status === "OK") {
-		return (
-			<Badge variant="outline" className="gap-1 text-green-600">
-				<CheckCircle2 className="h-3 w-3" /> Healthy
-			</Badge>
-		);
-	}
-	if (connection.last_status) {
-		return (
-			<Badge variant="outline" className="gap-1 text-destructive">
-				<XCircle className="h-3 w-3" /> {connection.last_status}
-			</Badge>
-		);
-	}
-	return <Badge variant="secondary">Not tested</Badge>;
-}
-
 function flattenModels(connections: ConnectionRead[]) {
 	return connections.flatMap((connection) =>
 		connection.models.map((model) => ({
@@ -110,7 +94,6 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 					</div>
 				</div>
 				<div className="flex shrink-0 items-center gap-2">
-					<StatusBadge connection={connection} />
 					<ConnectionSettingsDialog connection={connection} providerLabel={providerLabel} />
 					<AlertDialog>
 						<AlertDialogTrigger asChild>
@@ -156,6 +139,7 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 	const [{ data: roles }] = useAtom(modelRolesAtom);
 	const createConnection = useAtomValue(createModelConnectionMutationAtom);
 	const previewModels = useAtomValue(previewConnectionModelsMutationAtom);
+	const testPreviewModel = useAtomValue(testPreviewModelMutationAtom);
 	const updateRoles = useAtomValue(updateModelRolesMutationAtom);
 
 	const [isAddProviderOpen, setIsAddProviderOpen] = useState(false);
@@ -220,9 +204,7 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 		});
 	}
 
-	// Each provider connect form builds its own credential payload; the backend
-	// resolver (`to_litellm`) forwards `extra.litellm_params` straight to LiteLLM.
-	function handleCreate(draft: ConnectionDraft) {
+	function connectionModelsForDraft(draft: ConnectionDraft) {
 		const models = [...connectModels];
 		if (draft.seedModelId && !models.some((model) => model.model_id === draft.seedModelId)) {
 			models.push({
@@ -233,22 +215,46 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 				metadata: {},
 			});
 		}
+		return models;
+	}
 
-		createConnection.mutate(
+	function representativeTestModel(models: ModelSelection[]) {
+		const enabledModels = models.filter((model) => model.enabled);
+		return enabledModels.find((model) => capability(model, "chat")) ?? enabledModels[0];
+	}
+
+	// Each provider connect form builds its own credential payload; the backend
+	// resolver (`to_litellm`) forwards `extra.litellm_params` straight to LiteLLM.
+	function handleCreate(draft: ConnectionDraft) {
+		const models = connectionModelsForDraft(draft);
+		const testModel = representativeTestModel(models);
+		if (!testModel) {
+			toast.error("Select at least one model before connecting");
+			return;
+		}
+
+		const request = {
+			provider,
+			base_url: draft.base_url,
+			api_key: draft.api_key,
+			scope: "SEARCH_SPACE" as const,
+			search_space_id: searchSpaceId,
+			extra: draft.extra,
+			enabled: true,
+			models,
+		};
+
+		testPreviewModel.mutate(
+			{ ...request, model_id: testModel.model_id },
 			{
-				provider,
-				base_url: draft.base_url,
-				api_key: draft.api_key,
-				scope: "SEARCH_SPACE",
-				search_space_id: searchSpaceId,
-				extra: draft.extra,
-				enabled: true,
-				models,
-			},
-			{
-				onSuccess: () => {
-					setIsAddProviderOpen(false);
-					resetConnectState();
+				onSuccess: (result) => {
+					if (!result.ok) return;
+					createConnection.mutate(request, {
+						onSuccess: () => {
+							setIsAddProviderOpen(false);
+							resetConnectState();
+						},
+					});
 				},
 			}
 		);
@@ -380,7 +386,7 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 					onOpenChange={handleConnectOpenChange}
 					provider={provider}
 					selectedProvider={selectedProvider}
-					isPending={createConnection.isPending}
+					isPending={createConnection.isPending || testPreviewModel.isPending}
 					onSubmit={handleCreate}
 					previewModels={connectModels}
 					isPreviewingModels={previewModels.isPending}

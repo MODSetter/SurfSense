@@ -26,11 +26,13 @@ from app.schemas import (
     ModelRead,
     ModelRolesRead,
     ModelRolesUpdate,
-    ModelSelection,
     ModelsBulkUpdate,
+    ModelSelection,
+    ModelTestPreview,
     ModelUpdate,
     VerifyConnectionResponse,
 )
+from app.services.model_capabilities import has_capability
 from app.services.model_connection_service import (
     ModelDiscoveryError,
     derive_capabilities,
@@ -38,7 +40,6 @@ from app.services.model_connection_service import (
     persist_verification,
     test_model,
 )
-from app.services.model_capabilities import has_capability
 from app.services.provider_registry import REGISTRY
 from app.users import current_active_user
 from app.utils.rbac import check_permission
@@ -319,6 +320,47 @@ async def preview_connection_models(
     except ModelDiscoveryError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return [_preview_model_read(item) for item in discovered]
+
+
+@router.post("/model-connections/test-preview", response_model=VerifyConnectionResponse)
+async def test_preview_connection_model(
+    data: ModelTestPreview,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    if data.scope == ConnectionScope.SEARCH_SPACE and data.search_space_id is not None:
+        await check_permission(
+            session,
+            user,
+            data.search_space_id,
+            Permission.LLM_CONFIGS_CREATE.value,
+            "You don't have permission to create model connections in this search space",
+        )
+
+    model_id = data.model_id.strip()
+    if not model_id:
+        raise HTTPException(status_code=400, detail="model_id is required")
+
+    draft = Connection(
+        provider=data.provider,
+        base_url=data.base_url,
+        api_key=data.api_key,
+        extra=data.extra or {},
+        scope=data.scope,
+        enabled=data.enabled,
+        search_space_id=data.search_space_id if data.scope == ConnectionScope.SEARCH_SPACE else None,
+        user_id=user.id,
+    )
+    model = Model(
+        connection_id=0,
+        model_id=model_id,
+        source=ModelSource.MANUAL,
+        enabled=True,
+        capabilities_override={},
+        catalog={},
+    )
+    result = await test_model(draft, model)
+    return VerifyConnectionResponse(status=result.status, ok=result.ok, message=result.message)
 
 
 @router.put("/model-connections/{connection_id}", response_model=ConnectionRead)

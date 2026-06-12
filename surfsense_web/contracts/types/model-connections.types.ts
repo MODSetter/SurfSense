@@ -66,6 +66,10 @@ export const connectionCreateRequest = z.object({
 	models: z.array(modelSelection).default([]),
 });
 
+export const modelTestPreviewRequest = connectionCreateRequest.extend({
+	model_id: z.string().min(1),
+});
+
 export const connectionUpdateRequest = z.object({
 	provider: z.string().nullable().optional(),
 	base_url: z.string().nullable().optional(),
@@ -129,6 +133,7 @@ export type ModelPreviewRead = z.infer<typeof modelPreviewRead>;
 export type ModelSelection = z.infer<typeof modelSelection>;
 export type ConnectionRead = z.infer<typeof connectionRead>;
 export type ConnectionCreateRequest = z.infer<typeof connectionCreateRequest>;
+export type ModelTestPreviewRequest = z.infer<typeof modelTestPreviewRequest>;
 export type ConnectionUpdateRequest = z.infer<typeof connectionUpdateRequest>;
 export type ModelCreateRequest = z.infer<typeof modelCreateRequest>;
 export type ModelUpdateRequest = z.infer<typeof modelUpdateRequest>;

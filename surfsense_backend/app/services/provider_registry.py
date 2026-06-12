@@ -38,21 +38,24 @@ class ProviderSpec:
     default_base_url: str | None
     base_url_required: bool
     auth_style: AuthStyle
+    display_name: str | None = None
 
 
 REGISTRY: dict[str, ProviderSpec] = {
     "openai": ProviderSpec(
-        Transport.NATIVE, "openai", "openai_models", None, False, "bearer"
+        Transport.NATIVE, "openai", "openai_models", None, False, "bearer", "OpenAI"
     ),
     "anthropic": ProviderSpec(
-        Transport.NATIVE, "anthropic", "anthropic_models", None, False, "x-api-key"
+        Transport.NATIVE, "anthropic", "anthropic_models", None, False, "x-api-key", "Anthropic"
     ),
-    "azure": ProviderSpec(Transport.NATIVE, "azure", "static", None, True, "native"),
+    "azure": ProviderSpec(
+        Transport.NATIVE, "azure", "static", None, True, "native", "Azure OpenAI"
+    ),
     "vertex_ai": ProviderSpec(
-        Transport.NATIVE, "vertex_ai", "static", None, False, "native"
+        Transport.NATIVE, "vertex_ai", "static", None, False, "native", "Vertex AI"
     ),
     "bedrock": ProviderSpec(
-        Transport.NATIVE, "bedrock", "bedrock_models", None, False, "native"
+        Transport.NATIVE, "bedrock", "bedrock_models", None, False, "native", "Amazon Bedrock"
     ),
     "openrouter": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,
@@ -61,6 +64,7 @@ REGISTRY: dict[str, ProviderSpec] = {
         "https://openrouter.ai/api/v1",
         False,
         "bearer",
+        "OpenRouter",
     ),
     "openai_compatible": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,
@@ -69,6 +73,7 @@ REGISTRY: dict[str, ProviderSpec] = {
         None,
         True,
         "bearer",
+        "OpenAI-compatible provider",
     ),
     "lm_studio": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,
@@ -77,6 +82,7 @@ REGISTRY: dict[str, ProviderSpec] = {
         "http://localhost:1234/v1",
         True,
         "bearer",
+        "LM Studio",
     ),
     "ollama_chat": ProviderSpec(
         Transport.OLLAMA,
@@ -85,6 +91,7 @@ REGISTRY: dict[str, ProviderSpec] = {
         "http://localhost:11434",
         True,
         "none",
+        "Ollama",
     ),
 }
 
@@ -96,4 +103,12 @@ def spec_for(provider: str | None) -> ProviderSpec:
     )
 
 
-__all__ = ["REGISTRY", "ProviderSpec", "Transport", "spec_for"]
+def provider_label(provider: str | None) -> str:
+    provider_key = (provider or "").strip()
+    spec = spec_for(provider_key)
+    if spec.display_name:
+        return spec.display_name
+    return provider_key.replace("_", " ").title() if provider_key else "Provider"
+
+
+__all__ = ["REGISTRY", "ProviderSpec", "Transport", "provider_label", "spec_for"]
