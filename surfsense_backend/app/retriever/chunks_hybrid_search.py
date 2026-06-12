@@ -420,7 +420,10 @@ class ChucksHybridSearchRetriever:
             select(
                 Chunk.id.label("chunk_id"),
                 func.row_number()
-                .over(partition_by=Chunk.document_id, order_by=Chunk.id)
+                .over(
+                    partition_by=Chunk.document_id,
+                    order_by=(Chunk.position, Chunk.id),
+                )
                 .label("rn"),
             )
             .where(Chunk.document_id.in_(doc_ids))
@@ -441,7 +444,7 @@ class ChucksHybridSearchRetriever:
             select(Chunk.id, Chunk.content, Chunk.document_id)
             .join(numbered, Chunk.id == numbered.c.chunk_id)
             .where(chunk_filter)
-            .order_by(Chunk.document_id, Chunk.id)
+            .order_by(Chunk.document_id, Chunk.position, Chunk.id)
         )
 
         t_fetch = time.perf_counter()

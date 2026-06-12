@@ -357,7 +357,10 @@ class DocumentHybridSearchRetriever:
             select(
                 Chunk.id.label("chunk_id"),
                 func.row_number()
-                .over(partition_by=Chunk.document_id, order_by=Chunk.id)
+                .over(
+                    partition_by=Chunk.document_id,
+                    order_by=(Chunk.position, Chunk.id),
+                )
                 .label("rn"),
             )
             .where(Chunk.document_id.in_(doc_ids))
@@ -369,7 +372,7 @@ class DocumentHybridSearchRetriever:
             select(Chunk.id, Chunk.content, Chunk.document_id)
             .join(numbered, Chunk.id == numbered.c.chunk_id)
             .where(numbered.c.rn <= _MAX_FETCH_CHUNKS_PER_DOC)
-            .order_by(Chunk.document_id, Chunk.id)
+            .order_by(Chunk.document_id, Chunk.position, Chunk.id)
         )
 
         t_fetch = time.perf_counter()
