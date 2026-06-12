@@ -58,7 +58,9 @@ async def build_chunk_embeddings(
     cached = await _recall(key)
     if cached is not None:
         metrics.record_embedding_cache_lookup(
-            embedding_model=key.embedding_model, chunker_kind=chunker_kind, outcome="hit"
+            embedding_model=key.embedding_model,
+            chunker_kind=chunker_kind,
+            outcome="hit",
         )
         logger.debug("Embedding cache hit for %s", key.markdown_sha256)
         return cached.summary_embedding, [(c.text, c.embedding) for c in cached.chunks]
@@ -73,18 +75,24 @@ async def build_chunk_embeddings(
     return summary_embedding, chunk_pairs
 
 
+async def chunk_markdown(markdown: str, *, use_code_chunker: bool) -> list[str]:
+    """Chunk markdown into ordered texts with the pipeline's chunker selection."""
+    if use_code_chunker:
+        return await asyncio.to_thread(chunk_text, markdown, use_code_chunker=True)
+    # Table-aware hybrid chunker keeps Markdown tables intact (issue #1334).
+    return await asyncio.to_thread(chunk_text_hybrid, markdown)
+
+
+async def embed_batch(texts: list[str]) -> list[np.ndarray]:
+    """Embed texts in one batch off the event loop."""
+    return await asyncio.to_thread(embed_texts, texts)
+
+
 async def _compute(
     markdown: str, *, use_code_chunker: bool
 ) -> tuple[np.ndarray, list[ChunkPair]]:
-    if use_code_chunker:
-        chunk_texts = await asyncio.to_thread(
-            chunk_text, markdown, use_code_chunker=True
-        )
-    else:
-        # Table-aware hybrid chunker keeps Markdown tables intact (issue #1334).
-        chunk_texts = await asyncio.to_thread(chunk_text_hybrid, markdown)
-
-    embeddings = await asyncio.to_thread(embed_texts, [markdown, *chunk_texts])
+    chunk_texts = await chunk_markdown(markdown, use_code_chunker=use_code_chunker)
+    embeddings = await embed_batch([markdown, *chunk_texts])
     summary_embedding, *chunk_embeddings = embeddings
     return summary_embedding, list(zip(chunk_texts, chunk_embeddings, strict=False))
 
