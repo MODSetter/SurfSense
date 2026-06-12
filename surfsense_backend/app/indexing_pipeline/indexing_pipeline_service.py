@@ -19,9 +19,8 @@ from app.db import (
     DocumentStatus,
     DocumentType,
 )
+from app.indexing_pipeline.cache import build_chunk_embeddings
 from app.indexing_pipeline.connector_document import ConnectorDocument
-from app.indexing_pipeline.document_chunker import chunk_text, chunk_text_hybrid
-from app.indexing_pipeline.document_embedder import embed_texts
 from app.indexing_pipeline.document_hashing import (
     compute_content_hash,
     compute_identifier_hash,
@@ -385,27 +384,13 @@ class IndexingPipelineService:
             )
 
             t_step = time.perf_counter()
-            if connector_doc.should_use_code_chunker:
-                chunk_texts = await asyncio.to_thread(
-                    chunk_text,
-                    connector_doc.source_markdown,
-                    use_code_chunker=True,
-                )
-            else:
-                # Use the table-aware hybrid chunker so Markdown tables are not
-                # split mid-row (see issue #1334).
-                chunk_texts = await asyncio.to_thread(
-                    chunk_text_hybrid,
-                    connector_doc.source_markdown,
-                )
-
-            texts_to_embed = [content, *chunk_texts]
-            embeddings = await asyncio.to_thread(embed_texts, texts_to_embed)
-            summary_embedding, *chunk_embeddings = embeddings
+            summary_embedding, chunk_pairs = await build_chunk_embeddings(
+                content,
+                use_code_chunker=connector_doc.should_use_code_chunker,
+            )
 
             chunks = [
-                Chunk(content=text, embedding=emb)
-                for text, emb in zip(chunk_texts, chunk_embeddings, strict=False)
+                Chunk(content=text, embedding=emb) for text, emb in chunk_pairs
             ]
             perf.info(
                 "[indexing] chunk+embed doc=%d chunks=%d in %.3fs",
