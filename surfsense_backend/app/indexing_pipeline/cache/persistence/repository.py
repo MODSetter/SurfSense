@@ -1,4 +1,4 @@
-"""CRUD and eviction selectors for ``index_cache_embedding_sets`` (no business rules)."""
+"""CRUD and eviction selectors for ``embedding_cache_sets`` (no business rules)."""
 
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ class CachedEmbeddingSetRepository:
                 last_used_at=now,
                 created_at=now,
             )
-            .on_conflict_do_nothing(constraint="uq_index_cache_embedding_sets_key")
+            .on_conflict_do_nothing(constraint="uq_embedding_cache_sets_key")
         )
         await self._session.commit()
 

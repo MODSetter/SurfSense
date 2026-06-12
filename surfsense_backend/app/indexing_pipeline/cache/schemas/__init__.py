@@ -1,4 +1,4 @@
-"""Pure value objects for the index cache."""
+"""Pure value objects for the embedding cache."""
 
 from __future__ import annotations
 

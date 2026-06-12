@@ -1,4 +1,4 @@
-"""add index_cache_embedding_sets table for content-addressed embedding reuse
+"""add embedding_cache_sets table for content-addressed embedding reuse
 
 Revision ID: 161
 Revises: 160
@@ -17,7 +17,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.execute(
         """
-        CREATE TABLE IF NOT EXISTS index_cache_embedding_sets (
+        CREATE TABLE IF NOT EXISTS embedding_cache_sets (
             id SERIAL PRIMARY KEY,
             markdown_sha256 VARCHAR(64) NOT NULL,
             embedding_model VARCHAR(255) NOT NULL,
@@ -31,23 +31,23 @@ def upgrade() -> None:
             times_reused BIGINT NOT NULL DEFAULT 0,
             last_used_at TIMESTAMP WITH TIME ZONE NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-            CONSTRAINT uq_index_cache_embedding_sets_key
+            CONSTRAINT uq_embedding_cache_sets_key
                 UNIQUE (markdown_sha256, embedding_model, chunker_kind, chunker_version)
         );
         """
     )
 
     op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_index_cache_embedding_sets_last_used_at "
-        "ON index_cache_embedding_sets(last_used_at);"
+        "CREATE INDEX IF NOT EXISTS ix_embedding_cache_sets_last_used_at "
+        "ON embedding_cache_sets(last_used_at);"
     )
     op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_index_cache_embedding_sets_created_at "
-        "ON index_cache_embedding_sets(created_at);"
+        "CREATE INDEX IF NOT EXISTS ix_embedding_cache_sets_created_at "
+        "ON embedding_cache_sets(created_at);"
     )
 
 
 def downgrade() -> None:
-    op.execute("DROP INDEX IF EXISTS ix_index_cache_embedding_sets_created_at;")
-    op.execute("DROP INDEX IF EXISTS ix_index_cache_embedding_sets_last_used_at;")
-    op.execute("DROP TABLE IF EXISTS index_cache_embedding_sets;")
+    op.execute("DROP INDEX IF EXISTS ix_embedding_cache_sets_created_at;")
+    op.execute("DROP INDEX IF EXISTS ix_embedding_cache_sets_last_used_at;")
+    op.execute("DROP TABLE IF EXISTS embedding_cache_sets;")

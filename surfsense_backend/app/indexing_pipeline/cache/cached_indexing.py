@@ -14,10 +14,10 @@ import logging
 import numpy as np
 
 from app.config import config
-from app.indexing_pipeline.cache.eligibility import is_index_cacheable
+from app.indexing_pipeline.cache.eligibility import is_embedding_cacheable
 from app.indexing_pipeline.cache.schemas import CachedChunk, EmbeddingKey, EmbeddingSet
-from app.indexing_pipeline.cache.service import IndexCacheService
-from app.indexing_pipeline.cache.settings import load_index_cache_settings
+from app.indexing_pipeline.cache.service import EmbeddingCacheService
+from app.indexing_pipeline.cache.settings import load_embedding_cache_settings
 from app.indexing_pipeline.document_chunker import chunk_text, chunk_text_hybrid
 from app.indexing_pipeline.document_embedder import embed_texts
 from app.observability import metrics
@@ -35,11 +35,11 @@ async def build_chunk_embeddings(
     Drop-in for the inline chunk+embed step; reuses prior output when the same
     markdown has already been embedded with the current model and chunker.
     """
-    settings = load_index_cache_settings()
+    settings = load_embedding_cache_settings()
     chunker_kind = "code" if use_code_chunker else "hybrid"
     embedding_dim = getattr(config.embedding_model_instance, "dimension", None)
 
-    cacheable = is_index_cacheable(
+    cacheable = is_embedding_cacheable(
         cache_enabled=settings.enabled,
         embedding_model=config.EMBEDDING_MODEL,
         embedding_dim=embedding_dim,
@@ -57,13 +57,13 @@ async def build_chunk_embeddings(
 
     cached = await _recall(key)
     if cached is not None:
-        metrics.record_index_cache_lookup(
+        metrics.record_embedding_cache_lookup(
             embedding_model=key.embedding_model, chunker_kind=chunker_kind, outcome="hit"
         )
-        logger.debug("Index cache hit for %s", key.markdown_sha256)
+        logger.debug("Embedding cache hit for %s", key.markdown_sha256)
         return cached.summary_embedding, [(c.text, c.embedding) for c in cached.chunks]
 
-    metrics.record_index_cache_lookup(
+    metrics.record_embedding_cache_lookup(
         embedding_model=key.embedding_model, chunker_kind=chunker_kind, outcome="miss"
     )
     summary_embedding, chunk_pairs = await _compute(
@@ -95,9 +95,9 @@ async def _recall(key: EmbeddingKey) -> EmbeddingSet | None:
         from app.tasks.celery_tasks import get_celery_session_maker
 
         async with get_celery_session_maker()() as session:
-            return await IndexCacheService(session).recall(key)
+            return await EmbeddingCacheService(session).recall(key)
     except Exception:
-        logger.warning("Index cache recall failed; embedding fresh", exc_info=True)
+        logger.warning("Embedding cache recall failed; embedding fresh", exc_info=True)
         return None
 
 
@@ -112,9 +112,9 @@ async def _remember(
             chunks=[CachedChunk(text=text, embedding=vec) for text, vec in chunk_pairs],
         )
         async with get_celery_session_maker()() as session:
-            await IndexCacheService(session).remember(key, embedding_set)
+            await EmbeddingCacheService(session).remember(key, embedding_set)
     except Exception:
-        logger.warning("Index cache write failed; result not cached", exc_info=True)
+        logger.warning("Embedding cache write failed; result not cached", exc_info=True)
 
 
 def _hash_text(text: str) -> str:

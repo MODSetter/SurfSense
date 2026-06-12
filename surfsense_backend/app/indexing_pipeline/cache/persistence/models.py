@@ -1,4 +1,4 @@
-"""``index_cache_embedding_sets``: one reusable chunk+embedding set per markdown."""
+"""``embedding_cache_sets``: one reusable chunk+embedding set per markdown."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from app.db import BaseModel, TimestampMixin
 
 
 class CachedEmbeddingSet(BaseModel, TimestampMixin):
-    __tablename__ = "index_cache_embedding_sets"
+    __tablename__ = "embedding_cache_sets"
 
     # Key: markdown text + the recipe that turned it into vectors.
     markdown_sha256 = Column(String(64), nullable=False)
@@ -41,7 +41,7 @@ class CachedEmbeddingSet(BaseModel, TimestampMixin):
             "embedding_model",
             "chunker_kind",
             "chunker_version",
-            name="uq_index_cache_embedding_sets_key",
+            name="uq_embedding_cache_sets_key",
         ),
-        Index("ix_index_cache_embedding_sets_last_used_at", "last_used_at"),
+        Index("ix_embedding_cache_sets_last_used_at", "last_used_at"),
     )

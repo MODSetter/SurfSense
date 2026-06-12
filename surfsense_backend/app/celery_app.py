@@ -314,9 +314,9 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour="4", minute="0"),
         "options": {"expires": 600},
     },
-    # Prune the index cache (chunk+embedding sets) once daily, off-peak.
-    "evict-index-cache": {
-        "task": "evict_index_cache",
+    # Prune the embedding cache (chunk+embedding sets) once daily, off-peak.
+    "evict-embedding-cache": {
+        "task": "evict_embedding_cache",
         "schedule": crontab(hour="4", minute="30"),
         "options": {"expires": 600},
     },

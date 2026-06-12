@@ -13,7 +13,7 @@ from app.indexing_pipeline.cache.storage import EmbeddingCacheStore
 logger = logging.getLogger(__name__)
 
 
-class IndexCacheService:
+class EmbeddingCacheService:
     def __init__(self, session: AsyncSession) -> None:
         self._index = CachedEmbeddingSetRepository(session)
         self._store = EmbeddingCacheStore()

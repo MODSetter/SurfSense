@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.indexing_pipeline.cache.schemas import EmbeddingKey
 
-CACHE_PREFIX = "index_cache"
+CACHE_PREFIX = "embedding_cache"
 
 
 def build_embedding_object_key(key: EmbeddingKey) -> str:

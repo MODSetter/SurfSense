@@ -1,4 +1,4 @@
-"""Index-cache configuration resolved from the central ``Config``.
+"""Embedding-cache configuration resolved from the central ``Config``.
 
 The blob backend is intentionally not configured here: it is shared with the ETL
 parse cache (see ``ETL_CACHE_STORAGE_*``).
@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class IndexCacheSettings:
+class EmbeddingCacheSettings:
     enabled: bool
     chunker_version: int
     ttl_days: int
@@ -18,13 +18,13 @@ class IndexCacheSettings:
     eviction_batch: int
 
 
-def load_index_cache_settings() -> IndexCacheSettings:
+def load_embedding_cache_settings() -> EmbeddingCacheSettings:
     from app.config import config
 
-    return IndexCacheSettings(
-        enabled=config.INDEX_CACHE_ENABLED,
-        chunker_version=config.INDEX_CACHE_CHUNKER_VERSION,
-        ttl_days=config.INDEX_CACHE_TTL_DAYS,
-        max_total_bytes=config.INDEX_CACHE_MAX_TOTAL_MB * 1024 * 1024,
-        eviction_batch=config.INDEX_CACHE_EVICTION_BATCH,
+    return EmbeddingCacheSettings(
+        enabled=config.EMBEDDING_CACHE_ENABLED,
+        chunker_version=config.EMBEDDING_CACHE_CHUNKER_VERSION,
+        ttl_days=config.EMBEDDING_CACHE_TTL_DAYS,
+        max_total_bytes=config.EMBEDDING_CACHE_MAX_TOTAL_MB * 1024 * 1024,
+        eviction_batch=config.EMBEDDING_CACHE_EVICTION_BATCH,
     )

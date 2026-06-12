@@ -306,18 +306,18 @@ def _etl_cache_evictions():
 
 
 @lru_cache(maxsize=1)
-def _index_cache_lookups():
+def _embedding_cache_lookups():
     return _get_meter().create_counter(
-        "surfsense.index.cache.lookups",
-        description="Count of index (chunk+embedding) cache lookups by outcome (hit/miss).",
+        "surfsense.embedding.cache.lookups",
+        description="Count of embedding (chunk+embedding) cache lookups by outcome (hit/miss).",
     )
 
 
 @lru_cache(maxsize=1)
-def _index_cache_evictions():
+def _embedding_cache_evictions():
     return _get_meter().create_counter(
-        "surfsense.index.cache.evictions",
-        description="Count of index cache entries evicted, by phase.",
+        "surfsense.embedding.cache.evictions",
+        description="Count of embedding cache entries evicted, by phase.",
     )
 
 
@@ -724,12 +724,12 @@ def record_etl_cache_eviction(count: int, *, phase: str) -> None:
     _add(_etl_cache_evictions(), count, {"phase": phase})
 
 
-def record_index_cache_lookup(
+def record_embedding_cache_lookup(
     *, embedding_model: str | None, chunker_kind: str | None, outcome: str
 ) -> None:
-    """Record an index-cache lookup. ``outcome`` is ``hit`` or ``miss``."""
+    """Record an embedding-cache lookup. ``outcome`` is ``hit`` or ``miss``."""
     _add(
-        _index_cache_lookups(),
+        _embedding_cache_lookups(),
         1,
         {
             "embedding.model": embedding_model or "unknown",
@@ -739,11 +739,11 @@ def record_index_cache_lookup(
     )
 
 
-def record_index_cache_eviction(count: int, *, phase: str) -> None:
+def record_embedding_cache_eviction(count: int, *, phase: str) -> None:
     """Record evicted entries. ``phase`` is ``ttl`` or ``size``."""
     if count <= 0:
         return
-    _add(_index_cache_evictions(), count, {"phase": phase})
+    _add(_embedding_cache_evictions(), count, {"phase": phase})
 
 
 def record_celery_heartbeat_refresh(*, heartbeat_type: str) -> None:
@@ -942,12 +942,12 @@ __all__ = [
     "record_compaction_run",
     "record_connector_sync_duration",
     "record_connector_sync_outcome",
+    "record_embedding_cache_eviction",
+    "record_embedding_cache_lookup",
     "record_etl_cache_eviction",
     "record_etl_cache_lookup",
     "record_etl_extract_duration",
     "record_etl_extract_outcome",
-    "record_index_cache_eviction",
-    "record_index_cache_lookup",
     "record_indexing_document_duration",
     "record_indexing_document_outcome",
     "record_interrupt",

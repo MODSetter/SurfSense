@@ -7,8 +7,8 @@ markdown and its embeddings live side by side; only the object prefix differs.
 from __future__ import annotations
 
 from app.etl_pipeline.cache.storage.backend import resolve_cache_backend
-from app.indexing_pipeline.cache.serialization import deserialize, serialize
 from app.indexing_pipeline.cache.schemas import EmbeddingKey, EmbeddingSet
+from app.indexing_pipeline.cache.serialization import deserialize, serialize
 from app.indexing_pipeline.cache.storage.object_keys import build_embedding_object_key
 
 _EMBEDDING_CONTENT_TYPE = "application/octet-stream"
