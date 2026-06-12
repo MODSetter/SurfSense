@@ -1,10 +1,11 @@
 import { Cpu, Shuffle } from "lucide-react";
 import {
 	Ai21Icon,
-	AnthropicIcon,
 	AnyscaleIcon,
+	AzureIcon,
 	BedrockIcon,
 	CerebrasIcon,
+	ClaudeIcon,
 	CloudflareIcon,
 	CohereIcon,
 	CometApiIcon,
@@ -16,6 +17,7 @@ import {
 	GitHubModelsIcon,
 	GroqIcon,
 	HuggingFaceIcon,
+	LmStudioIcon,
 	MiniMaxIcon,
 	MistralIcon,
 	MoonshotIcon,
@@ -54,12 +56,13 @@ export function getProviderIcon(
 		case "ALIBABA_QWEN":
 			return <QwenIcon className={cn(className)} />;
 		case "ANTHROPIC":
-			return <AnthropicIcon className={cn(className)} />;
+		case "CLAUDE":
+			return <ClaudeIcon className={cn(className)} />;
 		case "ANYSCALE":
 			return <AnyscaleIcon className={cn(className)} />;
 		case "AZURE":
 		case "AZURE_OPENAI":
-			return <OpenaiIcon className={cn(className)} />;
+			return <AzureIcon className={cn(className)} />;
 		case "AWS_BEDROCK":
 		case "BEDROCK":
 			return <BedrockIcon className={cn(className)} />;
@@ -72,7 +75,7 @@ export function getProviderIcon(
 		case "COMETAPI":
 			return <CometApiIcon className={cn(className)} />;
 		case "CUSTOM":
-			return <Cpu className={cn(className, "text-gray-400")} />;
+			return <Cpu className={cn(className)} />;
 		case "DATABRICKS":
 			return <DatabricksIcon className={cn(className)} />;
 		case "DEEPINFRA":
@@ -89,6 +92,8 @@ export function getProviderIcon(
 			return <GroqIcon className={cn(className)} />;
 		case "HUGGINGFACE":
 			return <HuggingFaceIcon className={cn(className)} />;
+		case "LM_STUDIO":
+			return <LmStudioIcon className={cn(className)} />;
 		case "MINIMAX":
 			return <MiniMaxIcon className={cn(className)} />;
 		case "MISTRAL":
@@ -98,6 +103,7 @@ export function getProviderIcon(
 		case "NSCALE":
 			return <NscaleIcon className={cn(className)} />;
 		case "OLLAMA":
+		case "OLLAMA_CHAT":
 			return <OllamaIcon className={cn(className)} />;
 		case "OPENAI":
 			return <OpenaiIcon className={cn(className)} />;

@@ -19,12 +19,12 @@ export const PROVIDER_DISPLAY: Record<
 	anthropic: {
 		name: "Claude",
 		subtitle: "Anthropic",
-		iconKey: "anthropic",
+		iconKey: "claude",
 		defaultBaseUrl: "https://api.anthropic.com/v1",
 	},
-	azure: { name: "Azure OpenAI", subtitle: "Microsoft Azure", iconKey: "azure_openai" },
+	azure: { name: "Azure OpenAI", subtitle: "Microsoft Azure", iconKey: "azure" },
 	bedrock: { name: "Amazon Bedrock", subtitle: "AWS", iconKey: "bedrock" },
-	lm_studio: { name: "LM Studio", subtitle: "LM Studio", iconKey: "custom" },
+	lm_studio: { name: "LM Studio", subtitle: "LM Studio", iconKey: "lm_studio" },
 	ollama_chat: { name: "Ollama", subtitle: "Ollama", iconKey: "ollama" },
 	openai: {
 		name: "GPT",
