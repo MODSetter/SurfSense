@@ -322,6 +322,17 @@ def _embedding_cache_evictions():
 
 
 @lru_cache(maxsize=1)
+def _chunk_reconcile_chunks():
+    return _get_meter().create_counter(
+        "surfsense.indexing.reconcile.chunks",
+        description=(
+            "Chunks handled by incremental re-indexing, by outcome "
+            "(reused/embedded/deleted)."
+        ),
+    )
+
+
+@lru_cache(maxsize=1)
 def _celery_heartbeat_refreshes():
     return _get_meter().create_counter(
         "surfsense.celery.heartbeat.refreshes",
@@ -746,6 +757,17 @@ def record_embedding_cache_eviction(count: int, *, phase: str) -> None:
     _add(_embedding_cache_evictions(), count, {"phase": phase})
 
 
+def record_chunk_reconcile(*, reused: int, embedded: int, deleted: int) -> None:
+    """Record an incremental re-index: how many chunks were kept vs recomputed."""
+    for outcome, count in (
+        ("reused", reused),
+        ("embedded", embedded),
+        ("deleted", deleted),
+    ):
+        if count > 0:
+            _add(_chunk_reconcile_chunks(), count, {"outcome": outcome})
+
+
 def record_celery_heartbeat_refresh(*, heartbeat_type: str) -> None:
     _add(_celery_heartbeat_refreshes(), 1, {"heartbeat.type": heartbeat_type})
 
@@ -939,6 +961,7 @@ __all__ = [
     "record_celery_queue_latency",
     "record_chat_request_duration",
     "record_chat_request_outcome",
+    "record_chunk_reconcile",
     "record_compaction_run",
     "record_connector_sync_duration",
     "record_connector_sync_outcome",

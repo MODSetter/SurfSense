@@ -979,6 +979,13 @@ class Config:
         os.getenv("EMBEDDING_CACHE_EVICTION_BATCH", "500")
     )
 
+    # Incremental re-indexing: on document edits, keep chunk rows whose text is
+    # unchanged (reusing their embeddings) and embed only new/changed chunks.
+    # Kill switch -- disabling falls back to delete-all + full re-embed.
+    CHUNK_RECONCILE_ENABLED = (
+        os.getenv("CHUNK_RECONCILE_ENABLED", "true").strip().lower() == "true"
+    )
+
     # Proxy provider selection. Maps to a ProxyProvider implementation registered
     # in app/utils/proxy/registry.py. Add new vendors there and switch via this var.
     PROXY_PROVIDER = os.getenv("PROXY_PROVIDER", "anonymous_proxies")
