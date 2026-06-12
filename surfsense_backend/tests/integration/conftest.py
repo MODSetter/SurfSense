@@ -123,6 +123,19 @@ async def db_search_space(db_session: AsyncSession, db_user: User) -> SearchSpac
     return space
 
 
+@pytest.fixture(autouse=True)
+def _derivation_caches_disabled(monkeypatch):
+    """Keep integration tests hermetic regardless of the developer's .env.
+
+    With the embedding cache enabled, a successful index of some markdown makes
+    every later index of the same markdown a cache hit -- silently bypassing
+    patched ``embed_texts`` fakes/failure injections in unrelated tests. Cache
+    tests opt back in explicitly via ``monkeypatch.setattr``.
+    """
+    monkeypatch.setattr(app_config, "ETL_CACHE_ENABLED", False)
+    monkeypatch.setattr(app_config, "EMBEDDING_CACHE_ENABLED", False)
+
+
 @pytest.fixture
 def patched_embed_texts(monkeypatch) -> MagicMock:
     mock = MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts])
