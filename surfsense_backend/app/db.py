@@ -2864,6 +2864,7 @@ from app.automations.persistence import (  # noqa: E402, F401
     AutomationRun,
     AutomationTrigger,
 )
+from app.etl_pipeline.cache.persistence.models import CachedParse  # noqa: E402, F401
 from app.file_storage.persistence import DocumentFile  # noqa: E402, F401
 from app.notifications.persistence import Notification  # noqa: E402, F401
 from app.podcasts.persistence import (  # noqa: E402, F401
