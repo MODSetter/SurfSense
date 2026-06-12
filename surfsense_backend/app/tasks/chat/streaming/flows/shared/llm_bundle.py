@@ -24,6 +24,7 @@ from app.config import config
 from app.db import Model, SearchSpace
 from app.services.model_capabilities import has_capability
 from app.services.model_resolver import to_litellm
+from app.services.token_tracking_service import register_model_usage_metadata
 
 
 def _agent_config_from_resolved(
@@ -104,10 +105,19 @@ async def load_llm_bundle(
                 f"Failed to load chat model with id {config_id}",
             )
         model_string, litellm_kwargs = to_litellm(model.connection, model.model_id)
+        display_name = model.display_name or model.model_id
+        provider = model.connection.provider or ""
+        register_model_usage_metadata(
+            model=model_string,
+            model_ref=f"db:{model.id}",
+            model_id=model.model_id,
+            display_name=display_name,
+            provider=provider,
+        )
         agent_config = _agent_config_from_resolved(
             config_id=config_id,
-            config_name=model.display_name or model.model_id,
-            provider=model.connection.provider or "",
+            config_name=display_name,
+            provider=provider,
             model_name=model.model_id,
             api_key=model.connection.api_key,
             api_base=model.connection.base_url,
@@ -135,10 +145,19 @@ async def load_llm_bundle(
     if not global_connection:
         return None, None, f"Failed to load global connection for model {config_id}"
     model_string, litellm_kwargs = to_litellm(global_connection, global_model["model_id"])
+    display_name = global_model.get("display_name") or global_model.get("model_id")
+    provider = global_connection.get("provider") or ""
+    register_model_usage_metadata(
+        model=model_string,
+        model_ref=f"global:{config_id}",
+        model_id=global_model["model_id"],
+        display_name=display_name,
+        provider=provider,
+    )
     agent_config = _agent_config_from_resolved(
         config_id=config_id,
-        config_name=global_model.get("display_name") or global_model.get("model_id"),
-        provider=global_connection.get("provider") or "",
+        config_name=display_name,
+        provider=provider,
         model_name=global_model["model_id"],
         api_key=global_connection.get("api_key"),
         api_base=global_connection.get("base_url"),

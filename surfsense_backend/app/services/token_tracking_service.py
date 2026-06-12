@@ -40,6 +40,10 @@ class TokenCallRecord:
     total_tokens: int
     cost_micros: int = 0
     call_kind: str = "chat"
+    model_ref: str | None = None
+    model_id: str | None = None
+    display_name: str | None = None
+    provider: str | None = None
 
 
 @dataclass
@@ -47,6 +51,24 @@ class TurnTokenAccumulator:
     """Accumulates token usage across all LLM calls within a single user turn."""
 
     calls: list[TokenCallRecord] = field(default_factory=list)
+    model_metadata: dict[str, dict[str, str | None]] = field(default_factory=dict)
+
+    def register_model_metadata(
+        self,
+        *,
+        model: str,
+        model_ref: str | None,
+        model_id: str | None,
+        display_name: str | None,
+        provider: str | None,
+    ) -> None:
+        """Attach resolved model metadata for later LiteLLM callback attribution."""
+        self.model_metadata[model] = {
+            "model_ref": model_ref,
+            "model_id": model_id,
+            "display_name": display_name,
+            "provider": provider,
+        }
 
     def add(
         self,
@@ -57,9 +79,14 @@ class TurnTokenAccumulator:
         cost_micros: int = 0,
         call_kind: str = "chat",
     ) -> None:
+        metadata = self.model_metadata.get(model, {})
         self.calls.append(
             TokenCallRecord(
                 model=model,
+                model_ref=metadata.get("model_ref"),
+                model_id=metadata.get("model_id"),
+                display_name=metadata.get("display_name"),
+                provider=metadata.get("provider"),
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
@@ -68,13 +95,18 @@ class TurnTokenAccumulator:
             )
         )
 
-    def per_message_summary(self) -> dict[str, dict[str, int]]:
+    def per_message_summary(self) -> dict[str, dict[str, Any]]:
         """Return token counts (and cost) grouped by model name."""
-        by_model: dict[str, dict[str, int]] = {}
+        by_model: dict[str, dict[str, Any]] = {}
         for c in self.calls:
             entry = by_model.setdefault(
                 c.model,
                 {
+                    "model": c.model,
+                    "model_ref": c.model_ref,
+                    "model_id": c.model_id,
+                    "display_name": c.display_name,
+                    "provider": c.provider,
                     "prompt_tokens": 0,
                     "completion_tokens": 0,
                     "total_tokens": 0,
@@ -140,6 +172,27 @@ def start_turn() -> TurnTokenAccumulator:
 
 def get_current_accumulator() -> TurnTokenAccumulator | None:
     return _turn_accumulator.get()
+
+
+def register_model_usage_metadata(
+    *,
+    model: str,
+    model_ref: str | None,
+    model_id: str | None,
+    display_name: str | None,
+    provider: str | None,
+) -> None:
+    """Register resolved model metadata with the current turn, if one exists."""
+    acc = _turn_accumulator.get()
+    if acc is None:
+        return
+    acc.register_model_metadata(
+        model=model,
+        model_ref=model_ref,
+        model_id=model_id,
+        display_name=display_name,
+        provider=provider,
+    )
 
 
 @asynccontextmanager

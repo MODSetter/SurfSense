@@ -9,6 +9,18 @@ import {
 	useSyncExternalStore,
 } from "react";
 
+export interface TokenUsageModelBreakdown {
+	prompt_tokens: number;
+	completion_tokens: number;
+	total_tokens: number;
+	cost_micros?: number;
+	model?: string | null;
+	model_ref?: string | null;
+	model_id?: string | null;
+	display_name?: string | null;
+	provider?: string | null;
+}
+
 export interface TokenUsageData {
 	prompt_tokens: number;
 	completion_tokens: number;
@@ -20,24 +32,8 @@ export interface TokenUsageData {
 	 * before the migration won't have it.
 	 */
 	cost_micros?: number;
-	usage?: Record<
-		string,
-		{
-			prompt_tokens: number;
-			completion_tokens: number;
-			total_tokens: number;
-			cost_micros?: number;
-		}
-	>;
-	model_breakdown?: Record<
-		string,
-		{
-			prompt_tokens: number;
-			completion_tokens: number;
-			total_tokens: number;
-			cost_micros?: number;
-		}
-	>;
+	usage?: Record<string, TokenUsageModelBreakdown>;
+	model_breakdown?: Record<string, TokenUsageModelBreakdown>;
 }
 
 type Listener = () => void;
