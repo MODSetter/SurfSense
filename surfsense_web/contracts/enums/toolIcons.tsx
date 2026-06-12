@@ -1,7 +1,7 @@
 import {
 	Brain,
 	Calendar,
-	Clock3,
+	AlarmClock,
 	FileEdit,
 	FilePlus,
 	FileText,
@@ -47,7 +47,7 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 	scrape_webpage: ScanLine,
 	web_search: Globe,
 	// Automations
-	create_automation: Clock3,
+	create_automation: AlarmClock,
 	// Memory
 	update_memory: Brain,
 	// Filesystem (built-in deepagent + middleware)

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { AlertTriangle, Clock3, Inbox, LibraryBig } from "lucide-react";
+import { AlertTriangle, AlarmClock, Inbox, LibraryBig } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -342,7 +342,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					{
 						title: "Automations",
 						url: `/dashboard/${searchSpaceId}/automations`,
-						icon: Clock3,
+						icon: AlarmClock,
 						isActive: isAutomationsActive,
 					},
 					isMobile

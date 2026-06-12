@@ -1,7 +1,7 @@
 "use client";
 
 import {
-	Clock3,
+	AlarmClock,
 	FilePlus2,
 	Search,
 	Settings2,
@@ -22,7 +22,7 @@ interface ChatExamplePromptsProps {
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
 	search: Search,
 	create: FilePlus2,
-	automate: Clock3,
+	automate: AlarmClock,
 	tools: Settings2,
 };
 

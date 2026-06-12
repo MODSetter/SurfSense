@@ -1,5 +1,5 @@
 "use client";
-import { Clock3 } from "lucide-react";
+import { AlarmClock } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -18,7 +18,7 @@ export function AutomationsEmptyState({ searchSpaceId, canCreate }: AutomationsE
 	return (
 		<div className="rounded-lg border border-dashed border-border/60 bg-muted/20 px-6 py-12 text-center">
 			<div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-				<Clock3 className="h-6 w-6" aria-hidden />
+				<AlarmClock className="h-6 w-6" aria-hidden />
 			</div>
 			<h3 className="mt-4 text-base font-semibold text-foreground">No automations yet</h3>
 			<p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
