@@ -51,6 +51,17 @@ class VoiceOption(BaseModel):
     gender: str
 
 
+class LanguageOptions(BaseModel):
+    """The languages the brief editor may offer for the active provider.
+
+    When ``allows_custom`` is true the list is a curated starting point and
+    the editor accepts any BCP-47 tag beyond it.
+    """
+
+    languages: list[str]
+    allows_custom: bool
+
+
 class PodcastSummary(BaseModel):
     """Lightweight list item."""
 

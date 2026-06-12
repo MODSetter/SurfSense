@@ -47,6 +47,7 @@ from app.utils.rbac import check_permission
 
 from .schemas import (
     CreatePodcastRequest,
+    LanguageOptions,
     PodcastDetail,
     PodcastSummary,
     UpdateSpecRequest,
@@ -112,6 +113,20 @@ async def list_voices(language: str | None = None):
         )
         for v in voices
     ]
+
+
+@router.get("/podcasts/languages", response_model=LanguageOptions)
+async def list_languages():
+    """Languages the active TTS provider can offer the brief editor."""
+    if not app_config.TTS_SERVICE:
+        raise HTTPException(status_code=503, detail="No TTS provider configured")
+
+    provider = provider_from_service(app_config.TTS_SERVICE)
+    offering = get_voice_catalog().offerable_languages(provider)
+    return LanguageOptions(
+        languages=offering.languages,
+        allows_custom=offering.allows_custom,
+    )
 
 
 @router.get("/podcasts/voices/{voice_id}/preview")
