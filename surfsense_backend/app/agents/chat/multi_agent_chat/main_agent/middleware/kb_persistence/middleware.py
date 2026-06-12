@@ -241,8 +241,15 @@ async def _create_document(
         chunk_embeddings = await asyncio.to_thread(embed_texts, chunks)
         session.add_all(
             [
-                Chunk(document_id=doc.id, content=text, embedding=embedding)
-                for text, embedding in zip(chunks, chunk_embeddings, strict=True)
+                Chunk(
+                    document_id=doc.id,
+                    content=text,
+                    embedding=embedding,
+                    position=i,
+                )
+                for i, (text, embedding) in enumerate(
+                    zip(chunks, chunk_embeddings, strict=True)
+                )
             ]
         )
     return doc
@@ -289,8 +296,15 @@ async def _update_document(
         chunk_embeddings = await asyncio.to_thread(embed_texts, chunks)
         session.add_all(
             [
-                Chunk(document_id=document.id, content=text, embedding=embedding)
-                for text, embedding in zip(chunks, chunk_embeddings, strict=True)
+                Chunk(
+                    document_id=document.id,
+                    content=text,
+                    embedding=embedding,
+                    position=i,
+                )
+                for i, (text, embedding) in enumerate(
+                    zip(chunks, chunk_embeddings, strict=True)
+                )
             ]
         )
     return document
@@ -475,7 +489,9 @@ async def _load_chunks_for_snapshot(
     session: AsyncSession, *, doc_id: int
 ) -> list[dict[str, str]]:
     rows = await session.execute(
-        select(Chunk.content).where(Chunk.document_id == doc_id).order_by(Chunk.id)
+        select(Chunk.content)
+        .where(Chunk.document_id == doc_id)
+        .order_by(Chunk.position, Chunk.id)
     )
     return [{"content": row.content} for row in rows.all() if row.content is not None]
 

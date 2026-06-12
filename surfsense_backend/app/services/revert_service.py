@@ -238,9 +238,14 @@ async def _restore_in_place_document(
             chunk_embeddings = await asyncio.to_thread(embed_texts, chunk_texts)
             session.add_all(
                 [
-                    Chunk(document_id=doc.id, content=text, embedding=embedding)
-                    for text, embedding in zip(
-                        chunk_texts, chunk_embeddings, strict=True
+                    Chunk(
+                        document_id=doc.id,
+                        content=text,
+                        embedding=embedding,
+                        position=i,
+                    )
+                    for i, (text, embedding) in enumerate(
+                        zip(chunk_texts, chunk_embeddings, strict=True)
                     )
                 ]
             )
@@ -336,8 +341,15 @@ async def _reinsert_document_from_revision(
         chunk_embeddings = await asyncio.to_thread(embed_texts, chunk_texts)
         session.add_all(
             [
-                Chunk(document_id=new_doc.id, content=text, embedding=embedding)
-                for text, embedding in zip(chunk_texts, chunk_embeddings, strict=True)
+                Chunk(
+                    document_id=new_doc.id,
+                    content=text,
+                    embedding=embedding,
+                    position=i,
+                )
+                for i, (text, embedding) in enumerate(
+                    zip(chunk_texts, chunk_embeddings, strict=True)
+                )
             ]
         )
 
