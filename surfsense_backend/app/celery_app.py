@@ -193,6 +193,7 @@ celery_app = Celery(
         "app.tasks.celery_tasks.auto_reload_task",
         "app.tasks.celery_tasks.gateway_tasks",
         "app.etl_pipeline.cache.eviction.task",
+        "app.indexing_pipeline.cache.eviction.task",
         "app.automations.tasks.execute_run",
         "app.automations.triggers.builtin.schedule.selector",
         "app.automations.triggers.builtin.event.selector",
@@ -311,6 +312,12 @@ celery_app.conf.beat_schedule = {
     "evict-etl-cache": {
         "task": "evict_etl_cache",
         "schedule": crontab(hour="4", minute="0"),
+        "options": {"expires": 600},
+    },
+    # Prune the index cache (chunk+embedding sets) once daily, off-peak.
+    "evict-index-cache": {
+        "task": "evict_index_cache",
+        "schedule": crontab(hour="4", minute="30"),
         "options": {"expires": 600},
     },
     # Fire due automation schedule triggers (Beat entry owned by the schedule
