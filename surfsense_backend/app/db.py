@@ -2866,6 +2866,9 @@ from app.automations.persistence import (  # noqa: E402, F401
 )
 from app.etl_pipeline.cache.persistence.models import CachedParse  # noqa: E402, F401
 from app.file_storage.persistence import DocumentFile  # noqa: E402, F401
+from app.indexing_pipeline.cache.persistence.models import (  # noqa: E402, F401
+    CachedEmbeddingSet,
+)
 from app.notifications.persistence import Notification  # noqa: E402, F401
 from app.podcasts.persistence import (  # noqa: E402, F401
     Podcast,
