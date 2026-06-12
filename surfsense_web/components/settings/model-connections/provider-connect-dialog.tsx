@@ -1,20 +1,18 @@
-import { Button } from "@/components/ui/button";
+import { useCallback, useState } from "react";
 import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
-	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import type {
-	ConnectionRead,
-	ModelProviderRead,
-	ModelRead,
-} from "@/contracts/types/model-connections.types";
+import { Separator } from "@/components/ui/separator";
+import type { ModelProviderRead } from "@/contracts/types/model-connections.types";
 import { AzureConnectForm } from "./azure-connect-form";
 import { BedrockConnectForm } from "./bedrock-connect-form";
+import { ConnectFormFooter } from "./connect-fields";
 import { DefaultConnectForm } from "./default-connect-form";
+import type { SelectableModel } from "./model-utils";
 import { ModelsSelectionPanel } from "./models-selection-panel";
 import {
 	type ConnectionDraft,
@@ -32,17 +30,12 @@ interface ProviderConnectDialogProps {
 	selectedProvider?: ModelProviderRead;
 	isPending: boolean;
 	onSubmit: (draft: ConnectionDraft) => void;
-	connectedConnection?: ConnectionRead | null;
-	connectModels?: ModelRead[];
-	isDiscoveringModels?: boolean;
-	isAddingManualModel?: boolean;
-	isUpdatingModel?: boolean;
-	isBulkUpdatingModels?: boolean;
-	onRefreshModels?: () => void;
-	onAddManualModel?: (modelId: string) => void;
-	onToggleModel?: (model: ModelRead, enabled: boolean) => void;
-	onBulkToggleModels?: (models: ModelRead[], enabled: boolean) => void;
-	onDone?: () => void;
+	previewModels?: SelectableModel[];
+	isPreviewingModels?: boolean;
+	onPreviewModels?: (draft: ConnectionDraft) => void;
+	onAddPreviewModel?: (modelId: string) => void;
+	onTogglePreviewModel?: (model: SelectableModel, enabled: boolean) => void;
+	onBulkTogglePreviewModels?: (models: SelectableModel[], enabled: boolean) => void;
 }
 
 /**
@@ -57,97 +50,93 @@ export function ProviderConnectDialog({
 	selectedProvider,
 	isPending,
 	onSubmit,
-	connectedConnection,
-	connectModels = [],
-	isDiscoveringModels = false,
-	isAddingManualModel = false,
-	isUpdatingModel = false,
-	isBulkUpdatingModels = false,
-	onRefreshModels,
-	onAddManualModel,
-	onToggleModel,
-	onBulkToggleModels,
-	onDone,
+	previewModels = [],
+	isPreviewingModels = false,
+	onPreviewModels,
+	onAddPreviewModel,
+	onTogglePreviewModel,
+	onBulkTogglePreviewModels,
 }: ProviderConnectDialogProps) {
 	const meta = providerDisplay(provider);
-	const isModelSelectionStep = Boolean(connectedConnection);
+	const isAzure = provider === "azure";
+	const isBedrock = provider === "bedrock";
+	const isVertex = provider === "vertex_ai";
+	const [currentDraft, setCurrentDraft] = useState<ConnectionDraft>({
+		base_url: null,
+		api_key: null,
+		extra: {},
+	});
+	const [canSubmit, setCanSubmit] = useState(false);
+
+	const handleDraftChange = useCallback((draft: ConnectionDraft, nextCanSubmit: boolean) => {
+		setCurrentDraft(draft);
+		setCanSubmit(nextCanSubmit);
+	}, []);
 
 	const formProps: ProviderConnectFormProps = {
 		provider,
 		defaultBaseUrl: providerDefaultBaseUrl(provider, selectedProvider?.default_base_url),
 		baseUrlRequired: Boolean(selectedProvider?.base_url_required),
-		isPending,
-		onCancel: () => onOpenChange(false),
-		onSubmit,
+		onDraftChange: handleDraftChange,
 	};
+
+	const modelDescription = (() => {
+		if (isAzure) {
+			return "Select the models to enable for Azure OpenAI";
+		}
+		if (isBedrock) {
+			return "Select the models to enable for Amazon Bedrock";
+		}
+		if (isVertex) {
+			return "Select the models to enable for Gemini";
+		}
+		return "Select the models to enable for this provider";
+	})();
+
+	const canRefreshModels = !isAzure && !isVertex && (!isBedrock || canSubmit);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent
-				className={`flex max-h-[90vh] ${
-					isModelSelectionStep ? "max-w-2xl" : "max-w-xl"
-				} flex-col overflow-hidden bg-popover p-0 text-popover-foreground`}
-			>
+			<DialogContent className="flex h-[85vh] max-h-[760px] min-h-[640px] max-w-2xl flex-col overflow-hidden bg-popover p-0 text-popover-foreground">
 				<DialogHeader className="shrink-0 border-b px-6 py-5">
 					<div className="flex items-center gap-3">
 						{providerIcon(provider, "size-5")}
 						<div>
-							<DialogTitle>
-								{isModelSelectionStep ? `Select ${meta.name} models` : `Connect ${meta.name}`}
-							</DialogTitle>
-							<DialogDescription>
-								{isModelSelectionStep
-									? selectedProvider?.discovery === "static"
-										? "Choose from known model IDs or add one manually."
-										: "Choose which discovered models should be available in this search space."
-									: meta.subtitle}
-							</DialogDescription>
+							<DialogTitle>Connect {meta.name}</DialogTitle>
+							<DialogDescription>{meta.subtitle}</DialogDescription>
 						</div>
 					</div>
 				</DialogHeader>
-				{isModelSelectionStep ? (
-					<>
-						<div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-							<ModelsSelectionPanel
-								models={connectModels}
-								description={
-									selectedProvider?.discovery === "static"
-										? "These are known model IDs for this provider. Select the ones to make available."
-										: "Select models to make available for this provider."
-								}
-								emptyMessage={
-									isDiscoveringModels
-										? "Discovering models..."
-										: "No models found. You can refresh discovery or add a model ID manually."
-								}
-								isRefreshing={isDiscoveringModels}
-								isAddingManual={isAddingManualModel}
-								isUpdatingModel={isUpdatingModel}
-								isBulkUpdating={isBulkUpdatingModels}
-								refreshLabel={`Refresh ${meta.name} models`}
-								onRefresh={onRefreshModels}
-								onAddManual={onAddManualModel}
-								onToggleModel={onToggleModel}
-								onBulkToggle={onBulkToggleModels}
-							/>
-						</div>
-						<DialogFooter className="shrink-0 border-t bg-popover px-6 py-4">
-							<Button onClick={onDone}>Done</Button>
-						</DialogFooter>
-					</>
-				) : (
-					<div className="overflow-y-auto px-6 py-5">
-						{provider === "azure" ? (
-							<AzureConnectForm {...formProps} />
-						) : provider === "bedrock" ? (
-							<BedrockConnectForm {...formProps} />
-						) : provider === "vertex_ai" ? (
-							<VertexConnectForm {...formProps} />
-						) : (
-							<DefaultConnectForm {...formProps} />
-						)}
-					</div>
-				)}
+				<div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+					{provider === "azure" ? (
+						<AzureConnectForm {...formProps} />
+					) : provider === "bedrock" ? (
+						<BedrockConnectForm {...formProps} />
+					) : provider === "vertex_ai" ? (
+						<VertexConnectForm {...formProps} />
+					) : (
+						<DefaultConnectForm {...formProps} />
+					)}
+
+					<Separator className="bg-muted-foreground/20" />
+
+					<ModelsSelectionPanel
+						models={previewModels}
+						description={modelDescription}
+						isRefreshing={isPreviewingModels}
+						refreshLabel={`Refresh ${meta.name} models`}
+						onRefresh={canRefreshModels ? () => onPreviewModels?.(currentDraft) : undefined}
+						onAddManual={onAddPreviewModel}
+						onToggleModel={onTogglePreviewModel}
+						onBulkToggle={onBulkTogglePreviewModels}
+					/>
+				</div>
+				<ConnectFormFooter
+					onCancel={() => onOpenChange(false)}
+					onSubmit={() => onSubmit(currentDraft)}
+					canSubmit={canSubmit}
+					isPending={isPending}
+				/>
 			</DialogContent>
 		</Dialog>
 	);

@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue } from "jotai";
-import { RefreshCcw, Workflow } from "lucide-react";
+import { RefreshCw, Workflow } from "lucide-react";
 import { useCallback } from "react";
 import { actionLogDialogAtom } from "@/atoms/agent/action-log-dialog.atom";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
@@ -112,7 +112,7 @@ export function ActionLogDialog() {
 					className="absolute right-14 top-4 size-8 rounded-full p-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 					aria-label="Refresh action log"
 				>
-					<RefreshCcw className={isFetching ? "size-3.5 animate-spin" : "size-3.5"} />
+					<RefreshCw className={isFetching ? "size-3.5 animate-spin" : "size-3.5"} />
 				</Button>
 
 				<div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin">

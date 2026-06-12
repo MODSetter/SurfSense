@@ -40,6 +40,21 @@ export const connectionRead = z.object({
 	created_at: z.string().nullable().optional(),
 });
 
+export const modelSelection = z.object({
+	model_id: z.string().min(1),
+	display_name: z.string().nullable().optional(),
+	source: z.union([modelSourceEnum, z.string()]).default("DISCOVERED"),
+	supports_chat: z.boolean().nullable().optional(),
+	max_input_tokens: z.number().nullable().optional(),
+	supports_image_input: z.boolean().nullable().optional(),
+	supports_tools: z.boolean().nullable().optional(),
+	supports_image_generation: z.boolean().nullable().optional(),
+	enabled: z.boolean().default(false),
+	metadata: z.record(z.string(), z.any()).default({}),
+});
+
+export const modelPreviewRead = modelSelection;
+
 export const connectionCreateRequest = z.object({
 	provider: z.string().min(1),
 	base_url: z.string().nullable().optional(),
@@ -48,6 +63,7 @@ export const connectionCreateRequest = z.object({
 	scope: connectionScopeEnum.default("SEARCH_SPACE"),
 	search_space_id: z.number().nullable().optional(),
 	enabled: z.boolean().default(true),
+	models: z.array(modelSelection).default([]),
 });
 
 export const connectionUpdateRequest = z.object({
@@ -105,9 +121,12 @@ export const modelProviderListResponse = z.array(modelProviderRead);
 
 export const connectionListResponse = z.array(connectionRead);
 export const modelListResponse = z.array(modelRead);
+export const modelPreviewListResponse = z.array(modelPreviewRead);
 
 export type ConnectionScope = z.infer<typeof connectionScopeEnum>;
 export type ModelRead = z.infer<typeof modelRead>;
+export type ModelPreviewRead = z.infer<typeof modelPreviewRead>;
+export type ModelSelection = z.infer<typeof modelSelection>;
 export type ConnectionRead = z.infer<typeof connectionRead>;
 export type ConnectionCreateRequest = z.infer<typeof connectionCreateRequest>;
 export type ConnectionUpdateRequest = z.infer<typeof connectionUpdateRequest>;

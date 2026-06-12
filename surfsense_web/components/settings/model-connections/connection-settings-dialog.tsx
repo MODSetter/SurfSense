@@ -25,8 +25,8 @@ import { Separator } from "@/components/ui/separator";
 import type {
 	ConnectionRead,
 	ConnectionUpdateRequest,
-	ModelRead,
 } from "@/contracts/types/model-connections.types";
+import type { SelectableModel } from "./model-utils";
 import { ModelsSelectionPanel } from "./models-selection-panel";
 import { providerIcon } from "./provider-metadata";
 
@@ -101,17 +101,22 @@ export function ConnectionSettingsDialog({
 		});
 	}
 
-	function handleToggleModel(model: ModelRead, enabled: boolean) {
+	function handleToggleModel(model: SelectableModel, enabled: boolean) {
+		if (typeof model.id !== "number") return;
 		updateModel.mutate({
 			id: model.id,
 			data: { enabled },
 		});
 	}
 
-	function handleBulkToggle(models: ModelRead[], enabled: boolean) {
+	function handleBulkToggle(models: SelectableModel[], enabled: boolean) {
+		const modelIds = models
+			.map((model) => model.id)
+			.filter((id): id is number => typeof id === "number");
+		if (modelIds.length === 0) return;
 		bulkUpdateModels.mutate({
 			connectionId: connection.id,
-			data: { model_ids: models.map((model) => model.id), enabled },
+			data: { model_ids: modelIds, enabled },
 		});
 	}
 
@@ -184,12 +189,7 @@ export function ConnectionSettingsDialog({
 										onChange={(event) => setAllowlistText(event.target.value)}
 										placeholder="Comma-separated, e.g. anthropic/claude-sonnet-4-5, google/gemini-2.5-pro"
 									/>
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={saveAllowlist}
-										disabled={updateConnection.isPending}
-									>
+									<Button size="sm" onClick={saveAllowlist} disabled={updateConnection.isPending}>
 										Save filter
 									</Button>
 								</div>

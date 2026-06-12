@@ -7,6 +7,7 @@ import {
 	connectionRead,
 	connectionUpdateRequest,
 	type ModelCreateRequest,
+	type ModelPreviewRead,
 	type ModelProviderRead,
 	type ModelRead,
 	type ModelRoles,
@@ -14,6 +15,7 @@ import {
 	type ModelUpdateRequest,
 	modelCreateRequest,
 	modelListResponse,
+	modelPreviewListResponse,
 	modelProviderListResponse,
 	modelRead,
 	modelRoles,
@@ -74,6 +76,20 @@ class ModelConnectionsApiService {
 
 	discoverModels = async (id: number): Promise<ModelRead[]> => {
 		return baseApiService.post(`/api/v1/model-connections/${id}/discover`, modelListResponse);
+	};
+
+	previewModels = async (request: ConnectionCreateRequest): Promise<ModelPreviewRead[]> => {
+		const parsed = connectionCreateRequest.safeParse(request);
+		if (!parsed.success) {
+			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
+		}
+		return baseApiService.post(
+			`/api/v1/model-connections/discover-preview`,
+			modelPreviewListResponse,
+			{
+				body: parsed.data,
+			}
+		);
 	};
 
 	addManualModel = async (

@@ -4,17 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import type { ModelRead } from "@/contracts/types/model-connections.types";
 import {
 	capability,
 	capabilityLabels,
 	MODEL_CAPABILITY_FILTERS,
 	type ModelCapabilityFilter,
 	modelLabel,
+	type SelectableModel,
 } from "./model-utils";
 
 interface ModelsSelectionPanelProps {
-	models: ModelRead[];
+	models: SelectableModel[];
 	description?: string;
 	emptyMessage?: string;
 	manualInputPlaceholder?: string;
@@ -25,8 +25,8 @@ interface ModelsSelectionPanelProps {
 	isBulkUpdating?: boolean;
 	onRefresh?: () => void;
 	onAddManual?: (modelId: string) => void;
-	onToggleModel?: (model: ModelRead, enabled: boolean) => void;
-	onBulkToggle?: (models: ModelRead[], enabled: boolean) => void;
+	onToggleModel?: (model: SelectableModel, enabled: boolean) => void;
+	onBulkToggle?: (models: SelectableModel[], enabled: boolean) => void;
 }
 
 export function ModelsSelectionPanel({
@@ -166,7 +166,7 @@ export function ModelsSelectionPanel({
 				<div className="space-y-2">
 					{filteredModels.map((model) => (
 						<div
-							key={model.id}
+							key={model.id ?? model.model_id}
 							className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-background"
 						>
 							<Checkbox

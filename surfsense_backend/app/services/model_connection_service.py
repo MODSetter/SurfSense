@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+import anyio
 import httpx
 import litellm
 
@@ -292,6 +293,48 @@ def _litellm_static_models(conn: Connection) -> list[dict[str, Any]]:
     return results
 
 
+async def _discover_bedrock_models(conn: Connection) -> list[dict[str, Any]]:
+    params = (conn.extra or {}).get("litellm_params", {})
+    region_name = params.get("aws_region_name")
+    if not region_name:
+        return []
+
+    def list_models() -> list[dict[str, Any]]:
+        import boto3
+
+        client_kwargs: dict[str, str] = {"region_name": region_name}
+        if params.get("aws_access_key_id"):
+            client_kwargs["aws_access_key_id"] = params["aws_access_key_id"]
+        if params.get("aws_secret_access_key"):
+            client_kwargs["aws_secret_access_key"] = params["aws_secret_access_key"]
+
+        client = boto3.client("bedrock", **client_kwargs)
+        response = client.list_foundation_models()
+        results: list[dict[str, Any]] = []
+        for item in response.get("modelSummaries", []):
+            model_id = item.get("modelId")
+            if not model_id:
+                continue
+            input_modalities = set(item.get("inputModalities") or [])
+            output_modalities = set(item.get("outputModalities") or [])
+            results.append(
+                {
+                    "model_id": model_id,
+                    "display_name": item.get("modelName") or model_id,
+                    "source": ModelSource.DISCOVERED,
+                    "supports_chat": "TEXT" in input_modalities and "TEXT" in output_modalities,
+                    "supports_image_input": "IMAGE" in input_modalities,
+                    "supports_tools": None,
+                    "supports_image_generation": "IMAGE" in output_modalities,
+                    "max_input_tokens": None,
+                    "metadata": item,
+                }
+            )
+        return results
+
+    return await anyio.to_thread.run_sync(list_models)
+
+
 async def discover_models(conn: Connection) -> list[dict[str, Any]]:
     allowlist = _allowlist(conn)
     spec = spec_for(conn.provider)
@@ -304,6 +347,8 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
         results = await _discover_anthropic_models(conn)
     elif spec.discovery == "openai_models":
         results = await _discover_openai_shaped_models(conn, conn.base_url)
+    elif spec.discovery == "bedrock_models":
+        results = await _discover_bedrock_models(conn)
     elif spec.discovery == "static":
         results = _litellm_static_models(conn)
     else:

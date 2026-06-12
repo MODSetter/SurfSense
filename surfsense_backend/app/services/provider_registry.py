@@ -21,6 +21,7 @@ DiscoveryKind = Literal[
     "ollama",
     "openai_models",
     "anthropic_models",
+    "bedrock_models",
     "openrouter",
     "static",
     "none",
@@ -51,7 +52,7 @@ REGISTRY: dict[str, ProviderSpec] = {
         Transport.NATIVE, "vertex_ai", "static", None, False, "native"
     ),
     "bedrock": ProviderSpec(
-        Transport.NATIVE, "bedrock", "static", None, False, "native"
+        Transport.NATIVE, "bedrock", "bedrock_models", None, False, "native"
     ),
     "openrouter": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,

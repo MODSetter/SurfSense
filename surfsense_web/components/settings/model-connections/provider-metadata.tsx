@@ -133,7 +133,5 @@ export interface ProviderConnectFormProps {
 	provider: string;
 	defaultBaseUrl: string;
 	baseUrlRequired: boolean;
-	isPending: boolean;
-	onCancel: () => void;
-	onSubmit: (draft: ConnectionDraft) => void;
+	onDraftChange: (draft: ConnectionDraft, canSubmit: boolean) => void;
 }

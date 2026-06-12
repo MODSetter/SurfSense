@@ -4,6 +4,7 @@ import type {
 	ConnectionCreateRequest,
 	ConnectionUpdateRequest,
 	ModelCreateRequest,
+	ModelPreviewRead,
 	ModelRead,
 	ModelRoles,
 	ModelsBulkUpdateRequest,
@@ -99,6 +100,16 @@ export const discoverConnectionModelsMutationAtom = atomWithMutation((get) => {
 			);
 			invalidateModelConnections(searchSpaceId);
 		},
+		onError: (error: Error) => toast.error(error.message || "Failed to discover models"),
+	};
+});
+
+export const previewConnectionModelsMutationAtom = atomWithMutation(() => {
+	return {
+		mutationKey: ["model-connections", "discover-preview"],
+		mutationFn: (request: ConnectionCreateRequest) =>
+			modelConnectionsApiService.previewModels(request),
+		onSuccess: (_models: ModelPreviewRead[]) => {},
 		onError: (error: Error) => toast.error(error.message || "Failed to discover models"),
 	};
 });

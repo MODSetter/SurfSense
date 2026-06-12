@@ -1,3 +1,5 @@
+import { Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -43,15 +45,31 @@ export function ApiKeyField({
 	label = "API Key",
 	placeholder = "API key",
 }: ApiKeyFieldProps) {
+	const [showApiKey, setShowApiKey] = useState(false);
+
 	return (
 		<div className="flex flex-col gap-2">
 			<Label>{label}</Label>
-			<Input
-				value={value}
-				onChange={(event) => onChange(event.target.value)}
-				placeholder={placeholder}
-				type="password"
-			/>
+			<div className="relative">
+				<Input
+					value={value}
+					onChange={(event) => onChange(event.target.value)}
+					placeholder={placeholder}
+					type={showApiKey ? "text" : "password"}
+					className="pr-11"
+				/>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="absolute top-1/2 right-1 size-8 -translate-y-1/2 text-muted-foreground"
+					onClick={() => setShowApiKey((current) => !current)}
+					disabled={!value}
+					aria-label={showApiKey ? "Hide API key" : "Show API key"}
+				>
+					{showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+				</Button>
+			</div>
 		</div>
 	);
 }
@@ -71,7 +89,7 @@ export function ConnectFormFooter({
 	isPending,
 }: ConnectFormFooterProps) {
 	return (
-		<DialogFooter className="mt-6">
+		<DialogFooter className="shrink-0 border-t bg-popover px-6 py-4">
 			<Button variant="secondary" onClick={onCancel}>
 				Cancel
 			</Button>

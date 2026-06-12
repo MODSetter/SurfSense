@@ -48,6 +48,32 @@ class ConnectionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ModelSelection(BaseModel):
+    model_id: str = Field(..., max_length=255)
+    display_name: str | None = Field(None, max_length=255)
+    source: ModelSource | str = ModelSource.DISCOVERED
+    supports_chat: bool | None = None
+    max_input_tokens: int | None = None
+    supports_image_input: bool | None = None
+    supports_tools: bool | None = None
+    supports_image_generation: bool | None = None
+    enabled: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ModelPreviewRead(BaseModel):
+    model_id: str
+    display_name: str | None = None
+    source: ModelSource | str = ModelSource.DISCOVERED
+    supports_chat: bool | None = None
+    max_input_tokens: int | None = None
+    supports_image_input: bool | None = None
+    supports_tools: bool | None = None
+    supports_image_generation: bool | None = None
+    enabled: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class ConnectionCreate(BaseModel):
     provider: str = Field(..., max_length=100)
     base_url: str | None = Field(None, max_length=500)
@@ -56,6 +82,7 @@ class ConnectionCreate(BaseModel):
     scope: ConnectionScope = ConnectionScope.SEARCH_SPACE
     search_space_id: int | None = None
     enabled: bool = True
+    models: list[ModelSelection] = Field(default_factory=list)
 
 
 class ConnectionUpdate(BaseModel):

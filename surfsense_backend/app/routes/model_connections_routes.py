@@ -21,10 +21,12 @@ from app.schemas import (
     ConnectionRead,
     ConnectionUpdate,
     ModelCreate,
+    ModelPreviewRead,
     ModelProviderRead,
     ModelRead,
     ModelRolesRead,
     ModelRolesUpdate,
+    ModelSelection,
     ModelsBulkUpdate,
     ModelUpdate,
     VerifyConnectionResponse,
@@ -46,6 +48,21 @@ logger = logging.getLogger(__name__)
 
 def _model_read(model: Model | dict) -> ModelRead:
     return ModelRead.model_validate(model)
+
+
+def _preview_model_read(item: dict) -> ModelPreviewRead:
+    return ModelPreviewRead(
+        model_id=item["model_id"],
+        display_name=item.get("display_name"),
+        source=item.get("source", ModelSource.DISCOVERED),
+        supports_chat=item.get("supports_chat"),
+        max_input_tokens=item.get("max_input_tokens"),
+        supports_image_input=item.get("supports_image_input"),
+        supports_tools=item.get("supports_tools"),
+        supports_image_generation=item.get("supports_image_generation"),
+        enabled=item.get("enabled", False),
+        metadata=item.get("metadata") or item.get("catalog") or {},
+    )
 
 
 def _connection_read(conn: Connection | dict, models: list[Model | dict] | None = None) -> ConnectionRead:
@@ -84,6 +101,25 @@ def _apply_model_facts(model: Model, facts: dict) -> None:
     model.supports_image_input = facts.get("supports_image_input")
     model.supports_tools = facts.get("supports_tools")
     model.supports_image_generation = facts.get("supports_image_generation")
+
+
+def _selection_to_model(conn: Connection, selection: ModelSelection) -> Model:
+    source = (
+        selection.source
+        if isinstance(selection.source, ModelSource)
+        else ModelSource(selection.source)
+    )
+    model = Model(
+        connection_id=conn.id,
+        model_id=selection.model_id.strip(),
+        display_name=selection.display_name,
+        source=source,
+        capabilities_override={},
+        enabled=selection.enabled,
+        catalog=selection.metadata,
+    )
+    _apply_model_facts(model, selection.model_dump())
+    return model
 
 
 def _default_model_for(models: list[Model], capability: str) -> int | None:
@@ -226,7 +262,7 @@ async def create_connection(
             Permission.LLM_CONFIGS_CREATE.value,
             "You don't have permission to create model connections in this search space",
         )
-    payload = data.model_dump(exclude={"search_space_id"})
+    payload = data.model_dump(exclude={"search_space_id", "models"})
 
     conn = Connection(
         **payload,
@@ -234,9 +270,51 @@ async def create_connection(
         user_id=user.id,
     )
     session.add(conn)
+    await session.flush()
+
+    seen_model_ids: set[str] = set()
+    for selection in data.models:
+        model_id = selection.model_id.strip()
+        if not model_id or model_id in seen_model_ids:
+            continue
+        seen_model_ids.add(model_id)
+        session.add(_selection_to_model(conn, selection))
+
     await session.commit()
-    await session.refresh(conn)
-    return _connection_read(conn, [])
+    conn = await _load_connection(session, conn.id)
+    await _default_unset_roles(session, conn, list(conn.models))
+    await session.commit()
+    conn = await _load_connection(session, conn.id)
+    return _connection_read(conn, list(conn.models))
+
+
+@router.post("/model-connections/discover-preview", response_model=list[ModelPreviewRead])
+async def preview_connection_models(
+    data: ConnectionCreate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    if data.scope == ConnectionScope.SEARCH_SPACE and data.search_space_id is not None:
+        await check_permission(
+            session,
+            user,
+            data.search_space_id,
+            Permission.LLM_CONFIGS_CREATE.value,
+            "You don't have permission to create model connections in this search space",
+        )
+
+    draft = Connection(
+        provider=data.provider,
+        base_url=data.base_url,
+        api_key=data.api_key,
+        extra=data.extra or {},
+        scope=data.scope,
+        enabled=data.enabled,
+        search_space_id=data.search_space_id if data.scope == ConnectionScope.SEARCH_SPACE else None,
+        user_id=user.id,
+    )
+    discovered = await discover_models(draft)
+    return [_preview_model_read(item) for item in discovered]
 
 
 @router.put("/model-connections/{connection_id}", response_model=ConnectionRead)

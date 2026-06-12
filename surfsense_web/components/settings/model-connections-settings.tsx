@@ -4,12 +4,9 @@ import { useAtom, useAtomValue } from "jotai";
 import { CheckCircle2, Trash2, XCircle } from "lucide-react";
 import { useState } from "react";
 import {
-	addManualModelMutationAtom,
-	bulkUpdateModelsMutationAtom,
 	createModelConnectionMutationAtom,
 	deleteModelConnectionMutationAtom,
-	discoverConnectionModelsMutationAtom,
-	updateModelMutationAtom,
+	previewConnectionModelsMutationAtom,
 	updateModelRolesMutationAtom,
 } from "@/atoms/model-connections/model-connections-mutation.atoms";
 import {
@@ -41,9 +38,13 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import type { ConnectionRead, ModelRead } from "@/contracts/types/model-connections.types";
+import type {
+	ConnectionRead,
+	ModelRead,
+	ModelSelection,
+} from "@/contracts/types/model-connections.types";
 import { ConnectionSettingsDialog } from "./model-connections/connection-settings-dialog";
-import { capability, modelLabel } from "./model-connections/model-utils";
+import { capability, modelLabel, type SelectableModel } from "./model-connections/model-utils";
 import { ProviderConnectDialog } from "./model-connections/provider-connect-dialog";
 import {
 	type ConnectionDraft,
@@ -154,16 +155,12 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 	const [{ data: providers = [] }] = useAtom(modelProvidersAtom);
 	const [{ data: roles }] = useAtom(modelRolesAtom);
 	const createConnection = useAtomValue(createModelConnectionMutationAtom);
-	const addManualModel = useAtomValue(addManualModelMutationAtom);
-	const discoverModels = useAtomValue(discoverConnectionModelsMutationAtom);
-	const updateModel = useAtomValue(updateModelMutationAtom);
-	const bulkUpdateModels = useAtomValue(bulkUpdateModelsMutationAtom);
+	const previewModels = useAtomValue(previewConnectionModelsMutationAtom);
 	const updateRoles = useAtomValue(updateModelRolesMutationAtom);
 
 	const [isAddProviderOpen, setIsAddProviderOpen] = useState(false);
 	const [provider, setProvider] = useState("openai_compatible");
-	const [connectedConnection, setConnectedConnection] = useState<ConnectionRead | null>(null);
-	const [connectModels, setConnectModels] = useState<ModelRead[]>([]);
+	const [connectModels, setConnectModels] = useState<ModelSelection[]>([]);
 	const selectedProvider = providers.find((item) => item.provider === provider);
 
 	const sortedProviders = [...providers].sort((left, right) => {
@@ -185,7 +182,6 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 	const imageModels = enabledModels.filter((model) => capability(model, "image_gen"));
 
 	function resetConnectState() {
-		setConnectedConnection(null);
 		setConnectModels([]);
 	}
 
@@ -196,15 +192,48 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 		}
 	}
 
-	function replaceConnectModels(updatedModels: ModelRead[]) {
-		setConnectModels((current) =>
-			current.map((model) => updatedModels.find((updated) => updated.id === model.id) ?? model)
-		);
+	function toModelSelection(model: SelectableModel): ModelSelection {
+		return {
+			model_id: model.model_id,
+			display_name: model.display_name,
+			source: model.source || "DISCOVERED",
+			supports_chat: model.supports_chat,
+			max_input_tokens: model.max_input_tokens,
+			supports_image_input: model.supports_image_input,
+			supports_tools: model.supports_tools,
+			supports_image_generation: model.supports_image_generation,
+			enabled: model.enabled,
+			metadata: "metadata" in model ? (model.metadata ?? {}) : (model.catalog ?? {}),
+		};
+	}
+
+	function mergePreviewModels(fetchedModels: SelectableModel[]) {
+		setConnectModels((current) => {
+			const currentById = new Map(current.map((model) => [model.model_id, model]));
+			return fetchedModels.map((model) => {
+				const prior = currentById.get(model.model_id);
+				return {
+					...toModelSelection(model),
+					enabled: prior ? prior.enabled : model.enabled,
+				};
+			});
+		});
 	}
 
 	// Each provider connect form builds its own credential payload; the backend
 	// resolver (`to_litellm`) forwards `extra.litellm_params` straight to LiteLLM.
 	function handleCreate(draft: ConnectionDraft) {
+		const models = [...connectModels];
+		if (draft.seedModelId && !models.some((model) => model.model_id === draft.seedModelId)) {
+			models.push({
+				model_id: draft.seedModelId,
+				display_name: draft.seedModelId,
+				source: "MANUAL",
+				enabled: true,
+				metadata: {},
+			});
+		}
+
 		createConnection.mutate(
 			{
 				provider,
@@ -214,26 +243,12 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 				search_space_id: searchSpaceId,
 				extra: draft.extra,
 				enabled: true,
+				models,
 			},
 			{
-				onSuccess: (created) => {
-					setConnectedConnection(created);
-					setConnectModels([]);
-					if (draft.seedModelId) {
-						addManualModel.mutate(
-							{
-								connectionId: created.id,
-								data: { model_id: draft.seedModelId },
-							},
-							{
-								onSuccess: (model) => setConnectModels([model]),
-							}
-						);
-					} else {
-						discoverModels.mutate(created.id, {
-							onSuccess: (models) => setConnectModels(models),
-						});
-					}
+				onSuccess: () => {
+					setIsAddProviderOpen(false);
+					resetConnectState();
 				},
 			}
 		);
@@ -243,50 +258,70 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 		resetConnectState();
 		setProvider(providerId);
 		setIsAddProviderOpen(true);
+		if (providerId === "vertex_ai") {
+			previewModels.mutate(
+				{
+					provider: providerId,
+					base_url: null,
+					api_key: null,
+					scope: "SEARCH_SPACE",
+					search_space_id: searchSpaceId,
+					extra: {},
+					enabled: true,
+					models: [],
+				},
+				{
+					onSuccess: mergePreviewModels,
+				}
+			);
+		}
 	}
 
-	function refreshConnectModels() {
-		if (!connectedConnection) return;
-		discoverModels.mutate(connectedConnection.id, {
-			onSuccess: (models) => setConnectModels(models),
-		});
+	function refreshConnectModels(draft: ConnectionDraft) {
+		previewModels.mutate(
+			{
+				provider,
+				base_url: draft.base_url,
+				api_key: draft.api_key,
+				scope: "SEARCH_SPACE",
+				search_space_id: searchSpaceId,
+				extra: draft.extra,
+				enabled: true,
+				models: [],
+			},
+			{
+				onSuccess: mergePreviewModels,
+			}
+		);
 	}
 
 	function addConnectModel(modelId: string) {
-		if (!connectedConnection) return;
-		addManualModel.mutate(
-			{ connectionId: connectedConnection.id, data: { model_id: modelId } },
-			{
-				onSuccess: (model) => setConnectModels((current) => [...current, model]),
-			}
+		setConnectModels((current) => {
+			if (current.some((model) => model.model_id === modelId)) return current;
+			return [
+				...current,
+				{
+					model_id: modelId,
+					display_name: modelId,
+					source: "MANUAL",
+					enabled: true,
+					metadata: {},
+				},
+			];
+		});
+	}
+
+	function toggleConnectModel(model: SelectableModel, enabled: boolean) {
+		setConnectModels((current) =>
+			current.map((item) => (item.model_id === model.model_id ? { ...item, enabled } : item))
 		);
 	}
 
-	function toggleConnectModel(model: ModelRead, enabled: boolean) {
-		updateModel.mutate(
-			{ id: model.id, data: { enabled } },
-			{
-				onSuccess: (updated) => replaceConnectModels([updated]),
-			}
+	function bulkToggleConnectModels(models: SelectableModel[], enabled: boolean) {
+		const modelIds = new Set(models.map((model) => model.model_id));
+		setConnectModels((current) =>
+			current.map((item) => (modelIds.has(item.model_id) ? { ...item, enabled } : item))
 		);
-	}
-
-	function bulkToggleConnectModels(models: ModelRead[], enabled: boolean) {
-		if (!connectedConnection) return;
-		bulkUpdateModels.mutate(
-			{
-				connectionId: connectedConnection.id,
-				data: { model_ids: models.map((model) => model.id), enabled },
-			},
-			{
-				onSuccess: replaceConnectModels,
-			}
-		);
-	}
-
-	function finishConnectFlow() {
-		setIsAddProviderOpen(false);
-		resetConnectState();
 	}
 
 	function renderModelOption(model: ModelRead & { connectionName: string; provider: string }) {
@@ -347,17 +382,12 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 					selectedProvider={selectedProvider}
 					isPending={createConnection.isPending}
 					onSubmit={handleCreate}
-					connectedConnection={connectedConnection}
-					connectModels={connectModels}
-					isDiscoveringModels={discoverModels.isPending}
-					isAddingManualModel={addManualModel.isPending}
-					isUpdatingModel={updateModel.isPending}
-					isBulkUpdatingModels={bulkUpdateModels.isPending}
-					onRefreshModels={refreshConnectModels}
-					onAddManualModel={addConnectModel}
-					onToggleModel={toggleConnectModel}
-					onBulkToggleModels={bulkToggleConnectModels}
-					onDone={finishConnectFlow}
+					previewModels={connectModels}
+					isPreviewingModels={previewModels.isPending}
+					onPreviewModels={refreshConnectModels}
+					onAddPreviewModel={addConnectModel}
+					onTogglePreviewModel={toggleConnectModel}
+					onBulkTogglePreviewModels={bulkToggleConnectModels}
 				/>
 
 				{connections.length > 0 ? (
