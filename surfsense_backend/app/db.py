@@ -1853,13 +1853,13 @@ class SearchSpace(BaseModel, TimestampMixin):
     #   - Negative IDs: Global virtual models from global_llm_config.yaml
     #   - Positive IDs: User/search-space models from the models table
     chat_model_id = Column(
-        Integer, nullable=True, default=0
+        Integer, nullable=True, default=0, server_default="0"
     )  # For agent/chat operations, defaults to Auto mode
     image_gen_model_id = Column(
-        Integer, nullable=True, default=0
+        Integer, nullable=True, default=0, server_default="0"
     )  # For image generation, defaults to Auto mode when eligible
     vision_model_id = Column(
-        Integer, nullable=True, default=0
+        Integer, nullable=True, default=0, server_default="0"
     )  # For vision/screenshot analysis, defaults to Auto mode
 
     ai_file_sort_enabled = Column(

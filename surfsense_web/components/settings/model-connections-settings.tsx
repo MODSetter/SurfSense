@@ -65,6 +65,11 @@ function flattenModels(connections: ConnectionRead[]) {
 	);
 }
 
+function roleSelectValue(modelId: number | null | undefined, models: Array<{ id: number }>) {
+	if (!modelId) return "0";
+	return models.some((model) => model.id === modelId) ? String(modelId) : "0";
+}
+
 function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 	const deleteConnection = useAtomValue(deleteModelConnectionMutationAtom);
 
@@ -349,8 +354,8 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 		<div className="flex flex-col gap-6">
 			<div className="flex flex-col gap-4">
 				<div>
-					<h3 className="text-sm font-semibold">Model Roles</h3>
-					<p className="text-xs text-muted-foreground">
+					<h3 className="text-base font-semibold">Model Roles</h3>
+					<p className="text-sm text-muted-foreground">
 						Pick which enabled model powers chat, vision, and image generation for this search
 						space.
 					</p>
@@ -358,8 +363,12 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 				<div className="flex w-full max-w-2xl flex-col gap-4">
 					<div className="flex flex-col gap-2">
 						<Label>Chat model</Label>
+						<p className="text-xs text-muted-foreground">
+							Primary model for chat responses and agent tasks. You can also change it from the
+							chat.
+						</p>
 						<Select
-							value={String(roles?.chat_model_id ?? 0)}
+							value={roleSelectValue(roles?.chat_model_id, chatModels)}
 							onValueChange={(value) => updateRoles.mutate({ chat_model_id: Number(value) })}
 						>
 							<SelectTrigger className="w-full">
@@ -373,8 +382,12 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 					</div>
 					<div className="flex flex-col gap-2">
 						<Label>Vision model</Label>
+						<p className="text-xs text-muted-foreground">
+							Used to understand images in uploads, documents, connectors, and automations. Falls
+							back to chat model when possible.
+						</p>
 						<Select
-							value={String(roles?.vision_model_id ?? 0)}
+							value={roleSelectValue(roles?.vision_model_id, visionModels)}
 							onValueChange={(value) => updateRoles.mutate({ vision_model_id: Number(value) })}
 						>
 							<SelectTrigger className="w-full">
@@ -388,8 +401,9 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 					</div>
 					<div className="flex flex-col gap-2">
 						<Label>Image generation model</Label>
+						<p className="text-xs text-muted-foreground">Used when generating images in chat.</p>
 						<Select
-							value={String(roles?.image_gen_model_id ?? 0)}
+							value={roleSelectValue(roles?.image_gen_model_id, imageModels)}
 							onValueChange={(value) => updateRoles.mutate({ image_gen_model_id: Number(value) })}
 						>
 							<SelectTrigger className="w-full">
@@ -409,8 +423,8 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 			<div className="flex flex-col gap-6">
 				<div className="flex flex-col gap-3">
 					<div>
-						<h3 className="text-sm font-semibold">Add Provider</h3>
-						<p className="text-xs text-muted-foreground">
+						<h3 className="text-base font-semibold">Add Provider</h3>
+						<p className="text-sm text-muted-foreground">
 							SurfSense supports popular providers and self-hosted model endpoints.
 						</p>
 					</div>
@@ -462,7 +476,7 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 				{connections.length > 0 ? (
 					<div className="flex flex-col gap-3">
 						<Separator />
-						<h3 className="text-sm font-semibold">Available Providers</h3>
+						<h3 className="text-base font-semibold">Available Providers</h3>
 						<div className="flex flex-col gap-3">
 							{connections.map((connection) => (
 								<ConnectionCard key={connection.id} connection={connection} />

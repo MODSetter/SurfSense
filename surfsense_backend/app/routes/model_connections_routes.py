@@ -131,6 +131,95 @@ def _default_model_for(models: list[Model], capability: str) -> int | None:
     return None
 
 
+async def _load_role_model(
+    session: AsyncSession,
+    search_space_id: int,
+    model_id: int,
+) -> Model | dict | None:
+    if model_id < 0:
+        return next(
+            (model for model in config.GLOBAL_MODELS if model.get("id") == model_id),
+            None,
+        )
+
+    result = await session.execute(
+        select(Model)
+        .options(selectinload(Model.connection))
+        .where(Model.id == model_id)
+    )
+    model = result.scalars().first()
+    if model is None or model.connection.search_space_id != search_space_id:
+        return None
+    return model
+
+
+def _role_model_enabled(model: Model | dict) -> bool:
+    if isinstance(model, dict):
+        return bool(model.get("enabled", True))
+    return bool(model.enabled and model.connection.enabled)
+
+
+async def _validate_role_model_id(
+    session: AsyncSession,
+    *,
+    search_space_id: int,
+    model_id: int | None,
+    capability: str,
+) -> int:
+    if model_id is None or model_id == 0:
+        return 0
+
+    model = await _load_role_model(session, search_space_id, model_id)
+    if model and _role_model_enabled(model) and has_capability(model, capability):
+        return model_id
+
+    raise HTTPException(
+        status_code=400,
+        detail=f"Selected model is not available for {capability}",
+    )
+
+
+async def _resolve_role_model_id(
+    session: AsyncSession,
+    *,
+    search_space_id: int,
+    model_id: int | None,
+    capability: str,
+) -> int:
+    try:
+        return await _validate_role_model_id(
+            session,
+            search_space_id=search_space_id,
+            model_id=model_id,
+            capability=capability,
+        )
+    except HTTPException:
+        return 0
+
+
+async def _clear_invalid_roles(session: AsyncSession, search_space_id: int) -> SearchSpace:
+    search_space = await _get_search_space(session, search_space_id)
+    search_space.chat_model_id = await _resolve_role_model_id(
+        session,
+        search_space_id=search_space_id,
+        model_id=search_space.chat_model_id,
+        capability="chat",
+    )
+    search_space.vision_model_id = await _resolve_role_model_id(
+        session,
+        search_space_id=search_space_id,
+        model_id=search_space.vision_model_id,
+        capability="vision",
+    )
+    search_space.image_gen_model_id = await _resolve_role_model_id(
+        session,
+        search_space_id=search_space_id,
+        model_id=search_space.image_gen_model_id,
+        capability="image_gen",
+    )
+    return search_space
+
+
 async def _default_unset_roles(
     session: AsyncSession,
     conn: Connection,
@@ -372,9 +461,13 @@ async def update_connection(
 ):
     conn = await _load_connection(session, connection_id)
     await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_UPDATE.value)
+    search_space_id = conn.search_space_id
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(conn, key, value)
     await session.commit()
+    if search_space_id is not None:
+        await _clear_invalid_roles(session, search_space_id)
+        await session.commit()
     conn = await _load_connection(session, connection_id)
     return _connection_read(conn, list(conn.models))
 
@@ -387,8 +480,12 @@ async def delete_connection(
 ):
     conn = await _load_connection(session, connection_id)
     await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_DELETE.value)
+    search_space_id = conn.search_space_id
     await session.delete(conn)
     await session.commit()
+    if search_space_id is not None:
+        await _clear_invalid_roles(session, search_space_id)
+        await session.commit()
     return {"status": "deleted"}
 
 
@@ -439,6 +536,8 @@ async def discover_connection_models(
     await session.commit()
     conn = await _load_connection(session, connection_id)
     await _default_unset_roles(session, conn, list(conn.models))
+    if conn.search_space_id is not None:
+        await _clear_invalid_roles(session, conn.search_space_id)
     await session.commit()
     conn = await _load_connection(session, connection_id)
     return [_model_read(model) for model in conn.models]
@@ -476,7 +575,10 @@ async def add_manual_model(
     await session.refresh(model)
     conn = await _load_connection(session, connection_id)
     await _default_unset_roles(session, conn, list(conn.models))
+    if conn.search_space_id is not None:
+        await _clear_invalid_roles(session, conn.search_space_id)
     await session.commit()
+    await session.refresh(model)
     return _model_read(model)
 
 
@@ -489,6 +591,7 @@ async def bulk_update_models(
 ):
     conn = await _load_connection(session, connection_id)
     await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_UPDATE.value)
+    search_space_id = conn.search_space_id
 
     model_ids = set(data.model_ids)
     await session.execute(
@@ -498,6 +601,10 @@ async def bulk_update_models(
     )
     await session.commit()
     session.expire_all()
+    if search_space_id is not None:
+        await _clear_invalid_roles(session, search_space_id)
+        await session.commit()
+        session.expire_all()
 
     result = await session.execute(
         select(Model)
@@ -521,11 +628,16 @@ async def update_model(
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
     await _assert_connection_access(session, user, model.connection, Permission.LLM_CONFIGS_UPDATE.value)
+    search_space_id = model.connection.search_space_id
     update = data.model_dump(exclude_unset=True)
     for key, value in update.items():
         setattr(model, key, value)
     await session.commit()
     await session.refresh(model)
+    if search_space_id is not None:
+        await _clear_invalid_roles(session, search_space_id)
+        await session.commit()
+        await session.refresh(model)
     return _model_read(model)
 
 
@@ -560,7 +672,9 @@ async def get_model_roles(
         Permission.LLM_CONFIGS_CREATE.value,
         "You don't have permission to view model roles in this search space",
     )
-    search_space = await _get_search_space(session, search_space_id)
+    search_space = await _clear_invalid_roles(session, search_space_id)
+    await session.commit()
+    await session.refresh(search_space)
     return ModelRolesRead(
         chat_model_id=search_space.chat_model_id,
         vision_model_id=search_space.vision_model_id,
@@ -583,8 +697,28 @@ async def update_model_roles(
         "You don't have permission to update model roles in this search space",
     )
     search_space = await _get_search_space(session, search_space_id)
-    for key, value in data.model_dump(exclude_unset=True).items():
-        setattr(search_space, key, value)
+    updates = data.model_dump(exclude_unset=True)
+    if "chat_model_id" in updates:
+        search_space.chat_model_id = await _validate_role_model_id(
+            session,
+            search_space_id=search_space_id,
+            model_id=updates["chat_model_id"],
+            capability="chat",
+        )
+    if "vision_model_id" in updates:
+        search_space.vision_model_id = await _validate_role_model_id(
+            session,
+            search_space_id=search_space_id,
+            model_id=updates["vision_model_id"],
+            capability="vision",
+        )
+    if "image_gen_model_id" in updates:
+        search_space.image_gen_model_id = await _validate_role_model_id(
+            session,
+            search_space_id=search_space_id,
+            model_id=updates["image_gen_model_id"],
+            capability="image_gen",
+        )
     await session.commit()
     await session.refresh(search_space)
     return ModelRolesRead(

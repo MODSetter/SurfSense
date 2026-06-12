@@ -61,9 +61,21 @@ def _create_index_if_missing(
         op.create_index(index_name, table_name, columns, unique=False)
 
 
-def _add_searchspace_column_if_missing(column_name: str) -> None:
+def _add_searchspace_column_if_missing(
+    column_name: str,
+    *,
+    server_default: object | None = None,
+) -> None:
     if not _column_exists("searchspaces", column_name):
-        op.add_column("searchspaces", sa.Column(column_name, sa.Integer(), nullable=True))
+        op.add_column(
+            "searchspaces",
+            sa.Column(
+                column_name,
+                sa.Integer(),
+                nullable=True,
+                server_default=server_default,
+            ),
+        )
 
 
 def _drop_column_if_exists(table_name: str, column_name: str) -> None:
@@ -233,9 +245,26 @@ def upgrade() -> None:
     _create_index_if_missing("ix_models_model_id", "models", ["model_id"])
     _create_index_if_missing("ix_models_billing_tier", "models", ["billing_tier"])
 
-    _add_searchspace_column_if_missing("chat_model_id")
-    _add_searchspace_column_if_missing("image_gen_model_id")
-    _add_searchspace_column_if_missing("vision_model_id")
+    _add_searchspace_column_if_missing("chat_model_id", server_default=sa.text("0"))
+    _add_searchspace_column_if_missing("image_gen_model_id", server_default=sa.text("0"))
+    _add_searchspace_column_if_missing("vision_model_id", server_default=sa.text("0"))
+    for column_name in ("chat_model_id", "image_gen_model_id", "vision_model_id"):
+        op.alter_column(
+            "searchspaces",
+            column_name,
+            existing_type=sa.Integer(),
+            existing_nullable=True,
+            server_default=sa.text("0"),
+        )
+    op.execute(
+        """
+        UPDATE searchspaces
+        SET
+            chat_model_id = COALESCE(chat_model_id, 0),
+            image_gen_model_id = COALESCE(image_gen_model_id, 0),
+            vision_model_id = COALESCE(vision_model_id, 0)
+        """
+    )
 
     op.execute("DROP TYPE IF EXISTS connectionprotocol")
 
