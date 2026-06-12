@@ -90,11 +90,12 @@ async def download_and_extract_content(
         if error:
             return None, metadata, error
 
+        from app.etl_pipeline.cache import extract_with_cache
         from app.etl_pipeline.etl_document import EtlRequest
-        from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
-        result = await EtlPipelineService(vision_llm=vision_llm).extract(
-            EtlRequest(file_path=temp_file_path, filename=file_name)
+        result = await extract_with_cache(
+            EtlRequest(file_path=temp_file_path, filename=file_name),
+            vision_llm=vision_llm,
         )
         markdown = result.markdown_content
         return markdown, metadata, None

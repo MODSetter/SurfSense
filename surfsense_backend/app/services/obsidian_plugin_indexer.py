@@ -199,11 +199,12 @@ async def _extract_binary_attachment_markdown(
 
 async def _run_etl_extract(*, file_path: str, filename: str, vision_llm):
     """Lazy-load ETL dependencies to avoid module-import cycles."""
+    from app.etl_pipeline.cache import extract_with_cache
     from app.etl_pipeline.etl_document import EtlRequest
-    from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
-    return await EtlPipelineService(vision_llm=vision_llm).extract(
-        EtlRequest(file_path=file_path, filename=filename)
+    return await extract_with_cache(
+        EtlRequest(file_path=file_path, filename=filename),
+        vision_llm=vision_llm,
     )
 
 
