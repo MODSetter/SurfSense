@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
-import { Trash2 } from "lucide-react";
+import { Dot, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -78,7 +77,7 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 
 	return (
 		<div className="rounded-lg border border-border/60 overflow-hidden">
-			<div className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-accent hover:text-accent-foreground">
+			<div className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-accent">
 				<div className="min-w-0">
 					<div className="flex items-center gap-2 font-semibold">
 						{providerIcon(connection.provider)}
@@ -100,10 +99,11 @@ function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 							<Button
 								variant="ghost"
 								size="icon"
+								className="text-muted-foreground hover:text-accent-foreground"
 								disabled={deleteConnection.isPending}
 								aria-label={`Delete ${providerLabel}`}
 							>
-								<Trash2 className="h-4 w-4 text-destructive" />
+								<Trash2 className="h-4 w-4" />
 							</Button>
 						</AlertDialogTrigger>
 						<AlertDialogContent>
@@ -335,7 +335,11 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 			<SelectItem key={model.id} value={String(model.id)}>
 				<span className="inline-flex items-center gap-2">
 					{providerIcon(model.provider)}
-					{modelLabel(model)} · {model.connectionName}
+					<span className="inline-flex items-center gap-1">
+						<span>{modelLabel(model)}</span>
+						<Dot className="size-4 text-muted-foreground" aria-hidden="true" />
+						<span>{model.connectionName}</span>
+					</span>
 				</span>
 			</SelectItem>
 		);
@@ -343,7 +347,66 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 
 	return (
 		<div className="flex flex-col gap-6">
-			<div className="space-y-6">
+			<div className="flex flex-col gap-4">
+				<div>
+					<h3 className="text-sm font-semibold">Model Roles</h3>
+					<p className="text-xs text-muted-foreground">
+						Pick which enabled model powers chat, vision, and image generation for this search
+						space.
+					</p>
+				</div>
+				<div className="flex w-full max-w-2xl flex-col gap-4">
+					<div className="flex flex-col gap-2">
+						<Label>Chat model</Label>
+						<Select
+							value={String(roles?.chat_model_id ?? 0)}
+							onValueChange={(value) => updateRoles.mutate({ chat_model_id: Number(value) })}
+						>
+							<SelectTrigger className="w-full">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="0">Auto mode</SelectItem>
+								{chatModels.map(renderModelOption)}
+							</SelectContent>
+						</Select>
+					</div>
+					<div className="flex flex-col gap-2">
+						<Label>Vision model</Label>
+						<Select
+							value={String(roles?.vision_model_id ?? 0)}
+							onValueChange={(value) => updateRoles.mutate({ vision_model_id: Number(value) })}
+						>
+							<SelectTrigger className="w-full">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="0">Auto mode</SelectItem>
+								{visionModels.map(renderModelOption)}
+							</SelectContent>
+						</Select>
+					</div>
+					<div className="flex flex-col gap-2">
+						<Label>Image generation model</Label>
+						<Select
+							value={String(roles?.image_gen_model_id ?? 0)}
+							onValueChange={(value) => updateRoles.mutate({ image_gen_model_id: Number(value) })}
+						>
+							<SelectTrigger className="w-full">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="0">Auto mode</SelectItem>
+								{imageModels.map(renderModelOption)}
+							</SelectContent>
+						</Select>
+					</div>
+				</div>
+			</div>
+
+			<Separator />
+
+			<div className="flex flex-col gap-6">
 				<div className="flex flex-col gap-3">
 					<div>
 						<h3 className="text-sm font-semibold">Add Provider</h3>
@@ -408,63 +471,6 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 					</div>
 				) : null}
 			</div>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Model Roles</CardTitle>
-					<CardDescription>
-						Pick which enabled model powers chat, vision, and image generation for this search
-						space.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="grid gap-4 md:grid-cols-3">
-					<div className="space-y-2">
-						<Label>Chat model</Label>
-						<Select
-							value={String(roles?.chat_model_id ?? 0)}
-							onValueChange={(value) => updateRoles.mutate({ chat_model_id: Number(value) })}
-						>
-							<SelectTrigger>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="0">Auto</SelectItem>
-								{chatModels.map(renderModelOption)}
-							</SelectContent>
-						</Select>
-					</div>
-					<div className="space-y-2">
-						<Label>Vision</Label>
-						<Select
-							value={String(roles?.vision_model_id ?? 0)}
-							onValueChange={(value) => updateRoles.mutate({ vision_model_id: Number(value) })}
-						>
-							<SelectTrigger>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="0">Auto / use chat model when possible</SelectItem>
-								{visionModels.map(renderModelOption)}
-							</SelectContent>
-						</Select>
-					</div>
-					<div className="space-y-2">
-						<Label>Image generation</Label>
-						<Select
-							value={String(roles?.image_gen_model_id ?? 0)}
-							onValueChange={(value) => updateRoles.mutate({ image_gen_model_id: Number(value) })}
-						>
-							<SelectTrigger>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="0">Auto / None</SelectItem>
-								{imageModels.map(renderModelOption)}
-							</SelectContent>
-						</Select>
-					</div>
-				</CardContent>
-			</Card>
 		</div>
 	);
 }

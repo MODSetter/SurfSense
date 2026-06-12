@@ -157,7 +157,12 @@ export function ConnectionSettingsDialog({
 	return (
 		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
-				<Button variant="ghost" size="icon" aria-label={`Configure ${providerLabel}`}>
+				<Button
+					variant="ghost"
+					size="icon"
+					className="text-muted-foreground hover:text-accent-foreground"
+					aria-label={`Configure ${providerLabel}`}
+				>
 					<Settings className="h-4 w-4" />
 				</Button>
 			</DialogTrigger>
