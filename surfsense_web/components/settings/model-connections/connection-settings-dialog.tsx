@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import type {
 	ConnectionRead,
 	ConnectionUpdateRequest,
@@ -54,6 +55,7 @@ export function ConnectionSettingsDialog({
 	const [apiKeyDraft, setApiKeyDraft] = useState("");
 	const [showApiKey, setShowApiKey] = useState(false);
 	const [allowlistText, setAllowlistText] = useState(allowlist.join(", "));
+	const [isSavingConnectionSettings, setIsSavingConnectionSettings] = useState(false);
 
 	const isLocal =
 		connection.provider === "ollama_chat" ||
@@ -70,10 +72,13 @@ export function ConnectionSettingsDialog({
 			setApiKeyDraft(connection.api_key ?? "");
 			setShowApiKey(false);
 			setAllowlistText(allowlist.join(", "));
+			setIsSavingConnectionSettings(false);
 		}
 	}
 
 	function saveConnectionSettings() {
+		if (isSavingConnectionSettings) return;
+
 		const data: ConnectionUpdateRequest = {
 			base_url: baseUrlDraft.trim() || null,
 		};
@@ -86,13 +91,14 @@ export function ConnectionSettingsDialog({
 			: (connection.api_key ?? null);
 
 		const enabledModels = connection.models.filter((model) => model.enabled);
-		const testModel =
-			enabledModels.find((model) => capability(model, "chat")) ?? enabledModels[0];
+		const testModel = enabledModels.find((model) => capability(model, "chat")) ?? enabledModels[0];
+		setIsSavingConnectionSettings(true);
 		if (!testModel) {
 			updateConnection.mutate(
 				{ id: connection.id, data },
 				{
 					onSuccess: () => setApiKeyDraft(""),
+					onSettled: () => setIsSavingConnectionSettings(false),
 				}
 			);
 			return;
@@ -112,14 +118,19 @@ export function ConnectionSettingsDialog({
 			},
 			{
 				onSuccess: (result) => {
-					if (!result.ok) return;
+					if (!result.ok) {
+						setIsSavingConnectionSettings(false);
+						return;
+					}
 					updateConnection.mutate(
 						{ id: connection.id, data },
 						{
 							onSuccess: () => setApiKeyDraft(""),
+							onSettled: () => setIsSavingConnectionSettings(false),
 						}
 					);
 				},
+				onError: () => setIsSavingConnectionSettings(false),
 			}
 		);
 	}
@@ -257,18 +268,17 @@ export function ConnectionSettingsDialog({
 							onToggleModel={handleToggleModel}
 							onBulkToggle={handleBulkToggle}
 						/>
-
 					</div>
 				</div>
 
 				<DialogFooter className="shrink-0 border-t bg-popover px-6 py-4">
 					<Button
 						onClick={saveConnectionSettings}
-						disabled={
-							updateConnection.isPending || testPreviewModel.isPending || !hasConnectionChanges
-						}
+						disabled={isSavingConnectionSettings || !hasConnectionChanges}
+						className="relative min-w-[96px]"
 					>
-						Update
+						<span className={isSavingConnectionSettings ? "opacity-0" : ""}>Update</span>
+						{isSavingConnectionSettings ? <Spinner size="sm" className="absolute" /> : null}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

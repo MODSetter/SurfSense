@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 
 interface ApiBaseUrlFieldProps {
 	value: string;
@@ -93,8 +94,13 @@ export function ConnectFormFooter({
 			<Button variant="secondary" onClick={onCancel}>
 				Cancel
 			</Button>
-			<Button onClick={onSubmit} disabled={isPending || !canSubmit}>
-				Connect
+			<Button
+				onClick={onSubmit}
+				disabled={isPending || !canSubmit}
+				className="relative min-w-[96px]"
+			>
+				<span className={isPending ? "opacity-0" : ""}>Connect</span>
+				{isPending ? <Spinner size="sm" className="absolute" /> : null}
 			</Button>
 		</DialogFooter>
 	);

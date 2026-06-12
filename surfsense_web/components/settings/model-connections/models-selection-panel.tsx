@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
 	capability,
 	capabilityLabels,
@@ -117,8 +118,10 @@ export function ModelsSelectionPanel({
 						type="button"
 						onClick={addModel}
 						disabled={isAddingManual || !manualModelId.trim()}
+						className="relative min-w-[88px]"
 					>
-						Add model
+						<span className={isAddingManual ? "opacity-0" : ""}>Add model</span>
+						{isAddingManual ? <Spinner size="xs" className="absolute" /> : null}
 					</Button>
 				</div>
 			) : null}

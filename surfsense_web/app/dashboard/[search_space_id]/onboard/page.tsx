@@ -7,11 +7,13 @@ import { toast } from "sonner";
 import { updateModelRolesMutationAtom } from "@/atoms/model-connections/model-connections-mutation.atoms";
 import {
 	globalModelConnectionsAtom,
+	modelConnectionsAtom,
 	modelRolesAtom,
 } from "@/atoms/model-connections/model-connections-query.atoms";
 import { Logo } from "@/components/Logo";
+import { ModelProviderConnectionsPanel } from "@/components/settings/model-connections/model-provider-connections-panel";
+import { capability } from "@/components/settings/model-connections/model-utils";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
@@ -22,6 +24,8 @@ export default function OnboardPage() {
 	const { data: globalConnections = [], isFetching: globalLoading } = useAtomValue(
 		globalModelConnectionsAtom
 	);
+	const { data: connections = [], isFetching: connectionsLoading } =
+		useAtomValue(modelConnectionsAtom);
 	const { data: roles = {}, isFetching: rolesLoading } = useAtomValue(modelRolesAtom);
 	const { mutateAsync: updateRoles, isPending } = useAtomValue(updateModelRolesMutationAtom);
 	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
@@ -38,6 +42,15 @@ export default function OnboardPage() {
 		}
 		return null;
 	}, [globalConnections]);
+	const hasEnabledChatModel = useMemo(
+		() =>
+			connections.some(
+				(connection) =>
+					connection.enabled &&
+					connection.models.some((model) => model.enabled && capability(model, "chat"))
+			),
+		[connections]
+	);
 
 	const isComplete = (roles.chat_model_id ?? 0) !== 0 || Boolean(firstGlobalChatModel);
 
@@ -73,28 +86,37 @@ export default function OnboardPage() {
 		updateRoles,
 	]);
 
-	const isLoading = globalLoading || rolesLoading || isAutoConfiguring || isPending;
+	const isLoading =
+		globalLoading || connectionsLoading || rolesLoading || isAutoConfiguring || isPending;
 	useGlobalLoadingEffect(isLoading);
 
 	if (isLoading || isComplete) return null;
 
 	return (
-		<div className="flex h-screen select-none flex-col items-center justify-center bg-main-panel p-4">
-			<div className="w-full max-w-md space-y-6 rounded-xl border bg-main-panel p-8 text-center">
+		<div className="flex min-h-screen select-none flex-col items-center justify-center bg-main-panel p-4">
+			<div className="w-full max-w-3xl space-y-6 text-center">
 				<Logo className="mx-auto h-12 w-12" />
 				<div className="space-y-2">
-					<h1 className="text-2xl font-semibold tracking-tight">Connect a Model</h1>
+					<h1 className="text-2xl font-semibold tracking-tight">Choose a model</h1>
 					<p className="text-sm text-muted-foreground">
-						Add one connection, discover its models, then choose a chat model for this search space.
+						Connect any supported provider, then enable the models you want SurfSense to use.
 					</p>
 				</div>
-				<Button
-					className="min-w-[180px]"
-					onClick={() => router.push(`/dashboard/${searchSpaceId}/search-space-settings/models`)}
-				>
-					Open Models Settings
-				</Button>
-				{isPending ? <Spinner size="sm" /> : null}
+				<ModelProviderConnectionsPanel
+					searchSpaceId={searchSpaceId}
+					connections={connections}
+					className="flex flex-col gap-6 text-left"
+					footerAction={
+						<Button
+							className="min-w-[112px]"
+							disabled={!hasEnabledChatModel}
+							onClick={() => router.push(`/dashboard/${searchSpaceId}/new-chat`)}
+						>
+							Start
+						</Button>
+					}
+					showAddProviderHeader={false}
+				/>
 			</div>
 		</div>
 	);
