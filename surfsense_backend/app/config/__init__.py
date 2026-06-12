@@ -964,6 +964,17 @@ class Config:
     ETL_CACHE_STORAGE_CONTAINER = os.getenv("ETL_CACHE_STORAGE_CONTAINER")
     ETL_CACHE_STORAGE_LOCAL_PATH = os.getenv("ETL_CACHE_STORAGE_LOCAL_PATH")
 
+    # Index cache: reuse chunk+embedding output for identical markdown across
+    # workspaces. Blobs share the ETL_CACHE_STORAGE_* backend.
+    INDEX_CACHE_ENABLED = (
+        os.getenv("INDEX_CACHE_ENABLED", "false").strip().lower() == "true"
+    )
+    # Bump to invalidate every cached embedding set after a chunker change.
+    INDEX_CACHE_CHUNKER_VERSION = int(os.getenv("INDEX_CACHE_CHUNKER_VERSION", "1"))
+    INDEX_CACHE_TTL_DAYS = int(os.getenv("INDEX_CACHE_TTL_DAYS", "90"))
+    INDEX_CACHE_MAX_TOTAL_MB = int(os.getenv("INDEX_CACHE_MAX_TOTAL_MB", "5120"))
+    INDEX_CACHE_EVICTION_BATCH = int(os.getenv("INDEX_CACHE_EVICTION_BATCH", "500"))
+
     # Proxy provider selection. Maps to a ProxyProvider implementation registered
     # in app/utils/proxy/registry.py. Add new vendors there and switch via this var.
     PROXY_PROVIDER = os.getenv("PROXY_PROVIDER", "anonymous_proxies")
