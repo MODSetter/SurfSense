@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+	languageOptions,
 	type PodcastSpec,
 	podcastDetail,
 	updateSpecRequest,
@@ -58,6 +59,12 @@ class PodcastsApiService {
 	listVoices = async (language?: string) => {
 		const qs = language ? `?${new URLSearchParams({ language })}` : "";
 		return baseApiService.get(`${BASE}/voices${qs}`, voiceOptionList);
+	};
+
+	// The languages the active provider can offer; the brief form renders
+	// exactly this list and only opens free entry when the backend allows it.
+	listLanguages = async () => {
+		return baseApiService.get(`${BASE}/languages`, languageOptions);
 	};
 
 	// A short audio sample of a voice, cached server-side per voice.
