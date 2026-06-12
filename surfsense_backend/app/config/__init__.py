@@ -952,6 +952,18 @@ class Config:
         AZURE_DI_ENDPOINT = os.getenv("AZURE_DI_ENDPOINT")
         AZURE_DI_KEY = os.getenv("AZURE_DI_KEY")
 
+    # ETL parse cache: reuse parser output for identical bytes across workspaces.
+    ETL_CACHE_ENABLED = os.getenv("ETL_CACHE_ENABLED", "false").strip().lower() == "true"
+    # Bump to invalidate every cached entry after a parser/behaviour change.
+    ETL_CACHE_PARSER_VERSION = int(os.getenv("ETL_CACHE_PARSER_VERSION", "1"))
+    ETL_CACHE_TTL_DAYS = int(os.getenv("ETL_CACHE_TTL_DAYS", "90"))
+    ETL_CACHE_MAX_TOTAL_MB = int(os.getenv("ETL_CACHE_MAX_TOTAL_MB", "5120"))
+    ETL_CACHE_EVICTION_BATCH = int(os.getenv("ETL_CACHE_EVICTION_BATCH", "500"))
+    # Optional dedicated blob storage; unset reuses the main file_storage backend.
+    ETL_CACHE_STORAGE_BACKEND = os.getenv("ETL_CACHE_STORAGE_BACKEND")
+    ETL_CACHE_STORAGE_CONTAINER = os.getenv("ETL_CACHE_STORAGE_CONTAINER")
+    ETL_CACHE_STORAGE_LOCAL_PATH = os.getenv("ETL_CACHE_STORAGE_LOCAL_PATH")
+
     # Proxy provider selection. Maps to a ProxyProvider implementation registered
     # in app/utils/proxy/registry.py. Add new vendors there and switch via this var.
     PROXY_PROVIDER = os.getenv("PROXY_PROVIDER", "anonymous_proxies")
