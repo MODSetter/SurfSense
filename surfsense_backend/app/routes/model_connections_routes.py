@@ -32,6 +32,7 @@ from app.schemas import (
     VerifyConnectionResponse,
 )
 from app.services.model_connection_service import (
+    ModelDiscoveryError,
     derive_capabilities,
     discover_models,
     persist_verification,
@@ -313,7 +314,10 @@ async def preview_connection_models(
         search_space_id=data.search_space_id if data.scope == ConnectionScope.SEARCH_SPACE else None,
         user_id=user.id,
     )
-    discovered = await discover_models(draft)
+    try:
+        discovered = await discover_models(draft)
+    except ModelDiscoveryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return [_preview_model_read(item) for item in discovered]
 
 
@@ -367,7 +371,10 @@ async def discover_connection_models(
 ):
     conn = await _load_connection(session, connection_id)
     await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_CREATE.value)
-    discovered = await discover_models(conn)
+    try:
+        discovered = await discover_models(conn)
+    except ModelDiscoveryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     by_model_id = {model.model_id: model for model in conn.models}
     for item in discovered:
         db_model = by_model_id.get(item["model_id"])

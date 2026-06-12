@@ -31,6 +31,10 @@ class VerifyResult:
     message: str = ""
 
 
+class ModelDiscoveryError(Exception):
+    """User-correctable discovery failure for provider configuration issues."""
+
+
 def _auth_headers(conn: Connection) -> dict[str, str]:
     if not conn.api_key:
         return {}
@@ -118,6 +122,23 @@ async def persist_verification(conn: Connection) -> VerifyResult:
     conn.last_status = result.status
     conn.last_error = "" if result.ok else result.message
     return result
+
+
+def _discovery_error_message(conn: Connection, exc: httpx.HTTPError) -> str:
+    base_url = _base_url_or_default(conn)
+    if isinstance(exc, httpx.HTTPStatusError):
+        status_code = exc.response.status_code
+        if status_code in (401, 403):
+            return "Authentication failed while discovering models."
+        if status_code == 404:
+            spec = spec_for(conn.provider)
+            if spec.transport == Transport.OPENAI_COMPATIBLE:
+                return "OpenAI-compatible servers should expose /v1/models."
+            return "Model discovery endpoint returned 404."
+        return f"Model discovery failed with HTTP {status_code}."
+    if isinstance(exc, httpx.TimeoutException):
+        return f"Model discovery timed out: {exc}"
+    return _docker_hint(base_url, exc)
 
 
 def _allowlist(conn: Connection) -> set[str]:
@@ -339,20 +360,23 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
     allowlist = _allowlist(conn)
     spec = spec_for(conn.provider)
 
-    if spec.discovery == "ollama":
-        results = await _ollama_tags_then_show(conn)
-    elif spec.discovery == "openrouter":
-        results = await _openrouter_models(conn)
-    elif spec.discovery == "anthropic_models":
-        results = await _discover_anthropic_models(conn)
-    elif spec.discovery == "openai_models":
-        results = await _discover_openai_shaped_models(conn, conn.base_url)
-    elif spec.discovery == "bedrock_models":
-        results = await _discover_bedrock_models(conn)
-    elif spec.discovery == "static":
-        results = _litellm_static_models(conn)
-    else:
-        results = []
+    try:
+        if spec.discovery == "ollama":
+            results = await _ollama_tags_then_show(conn)
+        elif spec.discovery == "openrouter":
+            results = await _openrouter_models(conn)
+        elif spec.discovery == "anthropic_models":
+            results = await _discover_anthropic_models(conn)
+        elif spec.discovery == "openai_models":
+            results = await _discover_openai_shaped_models(conn, conn.base_url)
+        elif spec.discovery == "bedrock_models":
+            results = await _discover_bedrock_models(conn)
+        elif spec.discovery == "static":
+            results = _litellm_static_models(conn)
+        else:
+            results = []
+    except httpx.HTTPError as exc:
+        raise ModelDiscoveryError(_discovery_error_message(conn, exc)) from exc
 
     if allowlist:
         results = [item for item in results if item["model_id"] in allowlist]
@@ -376,6 +400,7 @@ async def test_model(conn: Connection, model: Model) -> VerifyResult:
 
 
 __all__ = [
+    "ModelDiscoveryError",
     "VerifyResult",
     "derive_capabilities",
     "discover_models",

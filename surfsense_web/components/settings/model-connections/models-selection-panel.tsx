@@ -1,4 +1,4 @@
-import { RefreshCcw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ interface ModelsSelectionPanelProps {
 export function ModelsSelectionPanel({
 	models,
 	description = "Select models to make available for this provider.",
-	emptyMessage = "No models yet. Use the refresh button to discover models or add one manually.",
+	emptyMessage = "No models available.",
 	manualInputPlaceholder = "Add a model ID manually",
 	refreshLabel = "Refresh models",
 	isRefreshing = false,
@@ -86,14 +86,14 @@ export function ModelsSelectionPanel({
 					</Button>
 					{onRefresh ? (
 						<Button
-							variant="outline"
+							variant="ghost"
 							size="icon"
 							type="button"
 							onClick={onRefresh}
 							disabled={isRefreshing}
 							aria-label={refreshLabel}
 						>
-							<RefreshCcw className="h-4 w-4" />
+							<RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
 						</Button>
 					) : null}
 				</div>
@@ -113,7 +113,6 @@ export function ModelsSelectionPanel({
 						placeholder={manualInputPlaceholder}
 					/>
 					<Button
-						variant="outline"
 						size="sm"
 						type="button"
 						onClick={addModel}
@@ -135,9 +134,9 @@ export function ModelsSelectionPanel({
 							<Button
 								key={filter.key}
 								type="button"
-								variant={isActive ? "secondary" : "outline"}
+								variant="secondary"
 								size="sm"
-								className="h-7 rounded-full px-3 text-xs"
+								className={`h-7 rounded-full px-3 text-xs ${isActive ? "" : "opacity-80"}`}
 								onClick={() => setModelFilter(isActive ? null : filter.key)}
 							>
 								{filter.label}
@@ -148,7 +147,7 @@ export function ModelsSelectionPanel({
 				</div>
 			) : null}
 
-			<div className="max-h-80 overflow-y-auto rounded-xl border bg-muted/20 p-2">
+			<div className="h-80 overflow-y-auto rounded-xl border bg-muted/20 p-2">
 				{models.length === 0 ? (
 					<div className="rounded-lg px-3 py-6 text-center text-sm text-muted-foreground">
 						{emptyMessage}
