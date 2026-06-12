@@ -9,11 +9,26 @@ provider-native reference.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from functools import lru_cache
 
 from .data import AZURE_VOICES, KOKORO_VOICES, OPENAI_VOICES, VERTEX_VOICES
+from .data.languages import COMMON_LANGUAGES
 from .provider import TtsProvider
-from .voice import CatalogVoice
+from .voice import ANY_LANGUAGE, CatalogVoice
+
+
+@dataclass(frozen=True, slots=True)
+class LanguageOffering:
+    """The languages a provider's roster can offer the brief form.
+
+    ``allows_custom`` is true when the roster has wildcard voices: the listed
+    languages are then a curated starting point, not a limit, and any BCP-47
+    tag may be entered.
+    """
+
+    languages: list[str]
+    allows_custom: bool
 
 
 class VoiceCatalog:
@@ -45,6 +60,20 @@ class VoiceCatalog:
     def supports_language(self, provider: TtsProvider, language: str) -> bool:
         """Whether ``provider`` has at least one voice for ``language``."""
         return any(v.speaks(language) for v in self.for_provider(provider))
+
+    def offerable_languages(self, provider: TtsProvider) -> LanguageOffering:
+        """The languages ``provider`` can offer up front.
+
+        Language-bound voices contribute their concrete tags; wildcard voices
+        cannot enumerate languages, so their presence merges in the curated
+        common list and opens free entry.
+        """
+        voices = self.for_provider(provider)
+        tags = {v.language for v in voices if v.language != ANY_LANGUAGE}
+        has_wildcard = any(v.language == ANY_LANGUAGE for v in voices)
+        if has_wildcard:
+            tags.update(COMMON_LANGUAGES)
+        return LanguageOffering(languages=sorted(tags), allows_custom=has_wildcard)
 
 
 @lru_cache(maxsize=1)
