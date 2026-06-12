@@ -75,6 +75,59 @@ def test_supports_language_reports_availability():
     assert not catalog.supports_language(TtsProvider.KOKORO, "de")
 
 
+def test_offerable_languages_for_a_concrete_roster_are_its_tags_only():
+    """A provider whose voices are language-bound offers exactly those tags."""
+    catalog = VoiceCatalog(
+        [
+            _voice("k1", language="en-US"),
+            _voice("k2", language="fr"),
+            _voice("k3", language="fr"),
+        ]
+    )
+
+    offering = catalog.offerable_languages(TtsProvider.KOKORO)
+
+    assert offering.languages == ["en-US", "fr"]
+    assert offering.allows_custom is False
+
+
+def test_a_wildcard_roster_offers_the_curated_languages_and_custom_entry():
+    """Voices that speak anything can't enumerate languages themselves, so the
+    catalog offers the curated common list and invites free entry."""
+    catalog = VoiceCatalog(
+        [_voice("o1", provider=TtsProvider.OPENAI, language=ANY_LANGUAGE)]
+    )
+
+    offering = catalog.offerable_languages(TtsProvider.OPENAI)
+
+    assert {"en", "fr", "sw", "hi", "zh"} <= set(offering.languages)
+    assert offering.allows_custom is True
+
+
+def test_a_mixed_roster_offers_the_union_of_concrete_and_curated():
+    catalog = VoiceCatalog(
+        [
+            _voice("v1", provider=TtsProvider.VERTEX_AI, language="en-GB"),
+            _voice("v2", provider=TtsProvider.VERTEX_AI, language=ANY_LANGUAGE),
+        ]
+    )
+
+    offering = catalog.offerable_languages(TtsProvider.VERTEX_AI)
+
+    assert "en-GB" in offering.languages
+    assert "fr" in offering.languages
+    assert offering.allows_custom is True
+
+
+def test_a_provider_with_no_voices_offers_nothing():
+    catalog = VoiceCatalog([_voice("k1")])
+
+    offering = catalog.offerable_languages(TtsProvider.OPENAI)
+
+    assert offering.languages == []
+    assert offering.allows_custom is False
+
+
 def test_get_raises_for_an_unknown_voice():
     catalog = VoiceCatalog([_voice("k1")])
     with pytest.raises(KeyError):
