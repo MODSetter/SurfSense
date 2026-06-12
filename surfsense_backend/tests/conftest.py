@@ -13,6 +13,14 @@ TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", _DEFAULT_TEST_DB)
 # DATABASE_URL in the environment (e.g. from .env or shell profile).
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
+# Integration tests authenticate over HTTP via email/password, so the
+# password-auth routers must be mounted (they are skipped under AUTH_TYPE=GOOGLE).
+# setdefault (not load_dotenv, which runs later with override=False) lets a
+# developer's .env=GOOGLE be overridden here while still honouring an explicitly
+# exported shell AUTH_TYPE.
+os.environ.setdefault("AUTH_TYPE", "LOCAL")
+os.environ.setdefault("REGISTRATION_ENABLED", "TRUE")
+
 import pytest  # noqa: E402
 
 from app.db import DocumentType  # noqa: E402
