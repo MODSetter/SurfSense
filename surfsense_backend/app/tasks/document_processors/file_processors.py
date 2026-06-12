@@ -381,7 +381,6 @@ async def _extract_file_content(
         Tuple of (markdown_content, etl_service_name, billable_pages).
     """
     from app.etl_pipeline.etl_document import EtlRequest, ProcessingMode
-    from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
     from app.etl_pipeline.file_classifier import (
         FileCategory,
         classify_file as etl_classify,
@@ -432,13 +431,16 @@ async def _extract_file_content(
 
         vision_llm = await get_vision_llm(session, search_space_id)
 
-    result = await EtlPipelineService(vision_llm=vision_llm).extract(
+    from app.etl_pipeline.cache import extract_with_cache
+
+    result = await extract_with_cache(
         EtlRequest(
             file_path=file_path,
             filename=filename,
             estimated_pages=estimated_pages,
             processing_mode=mode,
-        )
+        ),
+        vision_llm=vision_llm,
     )
 
     with contextlib.suppress(Exception):
