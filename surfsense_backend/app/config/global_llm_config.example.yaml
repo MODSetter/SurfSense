@@ -1,366 +1,237 @@
 # Global LLM Configuration
 #
 # SETUP INSTRUCTIONS:
-# 1. For production: Copy this file to global_llm_config.yaml and add your real API keys
-# 2. For testing: The system will use this example file automatically if global_llm_config.yaml doesn't exist
+# 1. Copy this file to global_llm_config.yaml.
+# 2. Replace placeholder credentials, endpoints, deployment names, and pricing
+#    with values from your own provider accounts.
 #
-# NOTE: The example API keys below are placeholders and won't work.
-# Replace them with your actual API keys to enable global configurations.
+# This file is intentionally safe to commit. Do not put real API keys in this
+# example file.
 #
-# These configurations are materialized as server-owned GLOBAL connections/models
-# and become available on the Models page. Users can choose hosted/global models
-# or add their own BYOK/local connections.
+# These YAML entries are materialized at startup as server-owned GLOBAL
+# connections and models:
 #
-# AUTO MODE (Recommended):
-# - Auto mode (ID: 0) uses LiteLLM Router to automatically load balance across all global configs
-# - This helps avoid rate limits by distributing requests across multiple providers
-# - New users are automatically assigned Auto mode by default
-# - Configure router_settings below to customize the load balancing behavior
+#   global_llm_configs              -> GLOBAL chat models
+#   global_image_generation_configs -> GLOBAL image generation models
+#
+# Do not add global_connections or global_models sections here. They are
+# runtime-derived metadata exposed through the model-connections APIs.
 #
 # Static config shape:
-# - Connection fields: litellm_provider, api_key, api_base, api_version
-# - Model fields: model_name, billing_tier, rpm/tpm, litellm_params
-# - Prompt defaults: system_instructions, citations_enabled
-# IDs share one GLOBAL model namespace across chat, vision, and image generation.
-# Suggested ranges: chat -1..-999, vision -1001..-1999, image -2001..-2999.
+# - Connection fields: provider, api_key, api_base, api_version
+# - Model fields: model_name, billing_tier, rpm/tpm, capabilities, litellm_params
+# - Public no-login metadata: description, seo_title, seo_description
+# - Prompt defaults: system_instructions, use_default_system_instructions,
+#   citations_enabled
+#
+# Provider notes:
+# - Use the canonical provider field.
+# - For Azure, use the bare deployment name in model_name, for example
+#   model_name: "gpt-5.1". The resolver prefixes the LiteLLM model string from
+#   provider: "azure".
+#
+# GLOBAL ID namespace:
+# - ID 0 is reserved for Auto mode.
+# - Negative IDs are server-owned GLOBAL models.
+# - Positive IDs are user/BYOK database models.
+# - Keep static IDs unique across chat and image generation.
+# - Suggested static ranges: chat -1..-999, image -2001..-2999.
+# - Vision is not a separate config/table. Chat models that accept images use
+#   supports_image_input: true.
 #
 # COST-BASED PREMIUM CREDITS:
-# Each premium config bills the user's USD-credit balance based on the
-# actual provider cost reported by LiteLLM. For models LiteLLM already
-# knows (most OpenAI/Anthropic/etc. names) you don't need to do anything.
-# For custom Azure deployment names (e.g. an in-house "gpt-5.4" deployment)
-# or any model LiteLLM doesn't have in its built-in pricing table, declare
-# per-token costs inline so they bill correctly:
+# Each premium model bills the user's USD-credit balance based on provider cost
+# reported by LiteLLM. For custom Azure deployments or any model LiteLLM does
+# not know, declare per-token costs inline:
 #
 #   litellm_params:
-#     base_model: "my-custom-azure-deploy"
-#     # USD per token; e.g. 0.000003 == $3.00 per million input tokens
-#     input_cost_per_token: 0.000003
-#     output_cost_per_token: 0.000015
+#     base_model: "my-custom-deployment"
+#     # USD per token; 0.00000125 == $1.25 per million input tokens.
+#     input_cost_per_token: 0.00000125
+#     output_cost_per_token: 0.00001
 #
-# OpenRouter dynamic models pull pricing automatically from OpenRouter's
-# API — no inline declaration needed. Models without resolvable pricing
-# debit $0 from the user's balance and log a WARNING.
+# OpenRouter dynamic chat models pull pricing automatically from OpenRouter's
+# API. Models without resolvable pricing debit $0 and log a warning.
 
-# Router Settings for Auto Mode
-# These settings control how the LiteLLM Router distributes requests across models
+# =============================================================================
+# Chat Auto Mode Router Settings
+# =============================================================================
+# These settings control how the LiteLLM Router distributes Auto-mode requests
+# across curated router-eligible GLOBAL chat deployments.
 router_settings:
   # Routing strategy options:
-  # - "usage-based-routing": Routes to deployment with lowest current usage (recommended for rate limits)
-  # - "simple-shuffle": Random distribution with optional RPM/TPM weighting
-  # - "least-busy": Routes to least busy deployment
-  # - "latency-based-routing": Routes based on response latency
+  # - "usage-based-routing": Routes to deployment with lowest current usage.
+  # - "simple-shuffle": Random distribution with optional RPM/TPM weighting.
+  # - "least-busy": Routes to least busy deployment.
+  # - "latency-based-routing": Routes based on response latency.
   routing_strategy: "usage-based-routing"
-
-  # Number of retries before failing
   num_retries: 3
-
-  # Number of failures allowed before cooling down a deployment
   allowed_fails: 3
-
-  # Cooldown time in seconds after allowed_fails is exceeded
   cooldown_time: 60
+  # Optional fallback map:
+  # fallbacks:
+  #   - {"azure/gpt-5.1": ["azure/gpt-5.4-mini"]}
 
-  # Fallback models (optional) - when primary fails, try these
-  # Format: [{"primary_model": ["fallback1", "fallback2"]}]
-  # fallbacks: []
-
+# =============================================================================
+# Static GLOBAL Chat Models
+# =============================================================================
 global_llm_configs:
-  # Example: OpenAI GPT-4 Turbo with citations enabled
+  # Premium Azure chat model with image input support and explicit custom
+  # pricing. This is the current shape to use for hosted GPT 5.x deployments.
   - id: -1
-    name: "Global GPT-4 Turbo"
-    description: "OpenAI's GPT-4 Turbo with default prompts and citations"
-    billing_tier: "free"
-    anonymous_enabled: true
-    seo_enabled: true
-    seo_slug: "gpt-4-turbo"
+    name: "Azure GPT 5.1"
+    billing_tier: "premium"
+    anonymous_enabled: false
+    seo_enabled: false
+    seo_slug: "azure-gpt-5-1"
     quota_reserve_tokens: 4000
-    litellm_provider: "openai"
-    model_name: "gpt-4-turbo-preview"
-    api_key: "sk-your-openai-api-key-here"
-    api_base: "https://api.openai.com/v1"
-    # Rate limits for load balancing (requests/tokens per minute)
-    rpm: 500 # Requests per minute
-    tpm: 100000 # Tokens per minute
+    provider: "azure"
+    model_name: "gpt-5.1"
+    supports_image_input: true
+    supports_tools: true
+    max_input_tokens: 400000
+    api_key: "your-azure-api-key-here"
+    api_base: "https://your-resource.openai.azure.com"
+    # api_version is optional. Include it if your Azure deployment requires a
+    # specific API version.
+    # api_version: "2025-04-01-preview"
+    rpm: 47500
+    tpm: 14750000
     litellm_params:
-      temperature: 0.7
-      max_tokens: 4000
-    # Prompt Configuration
-    system_instructions: "" # Empty = use default SURFSENSE_SYSTEM_INSTRUCTIONS
+      max_tokens: 16384
+      base_model: "gpt-5.1"
+      input_cost_per_token: 0.00000125
+      output_cost_per_token: 0.00001
+    system_instructions: ""
     use_default_system_instructions: true
     citations_enabled: true
 
-  # Example: Anthropic Claude 3 Opus
+  # Larger premium chat model. If your provider prices long-context traffic
+  # differently, choose a conservative flat price or document the limitation
+  # next to the inline pricing.
   - id: -2
-    name: "Global Claude 3 Opus"
-    description: "Anthropic's most capable model with citations"
-    billing_tier: "free"
-    anonymous_enabled: true
-    seo_enabled: true
-    seo_slug: "claude-3-opus"
+    name: "Azure GPT 5.4"
+    billing_tier: "premium"
+    anonymous_enabled: false
+    seo_enabled: false
+    seo_slug: "azure-gpt-5-4"
     quota_reserve_tokens: 4000
-    litellm_provider: "anthropic"
-    model_name: "claude-3-opus-20240229"
-    api_key: "sk-ant-your-anthropic-api-key-here"
-    api_base: "https://api.anthropic.com/v1"
-    rpm: 1000
-    tpm: 100000
+    provider: "azure"
+    model_name: "gpt-5.4"
+    supports_image_input: true
+    supports_tools: true
+    max_input_tokens: 400000
+    api_key: "your-azure-api-key-here"
+    api_base: "https://your-resource.openai.azure.com"
+    rpm: 150000
+    tpm: 15000000
     litellm_params:
-      temperature: 0.7
-      max_tokens: 4000
+      max_tokens: 16384
+      base_model: "gpt-5.4"
+      input_cost_per_token: 0.0000025
+      output_cost_per_token: 0.000015
     system_instructions: ""
     use_default_system_instructions: true
     citations_enabled: true
 
-  # Example: Fast model - GPT-3.5 Turbo (citations disabled for speed)
+  # Free/no-login hosted model. Free models are visible to users when
+  # anonymous_enabled/seo_enabled are true but do not debit premium credits.
   - id: -3
-    name: "Global GPT-3.5 Turbo (Fast)"
-    description: "Fast responses without citations for quick queries"
+    name: "Azure GPT 5.4 Mini"
+    description: "Free hosted Azure GPT 5.4 Mini deployment"
     billing_tier: "free"
     anonymous_enabled: true
     seo_enabled: true
-    seo_slug: "gpt-3.5-turbo-fast"
-    quota_reserve_tokens: 2000
-    litellm_provider: "openai"
-    model_name: "gpt-3.5-turbo"
-    api_key: "sk-your-openai-api-key-here"
-    api_base: "https://api.openai.com/v1"
-    rpm: 3500 # GPT-3.5 has higher rate limits
-    tpm: 200000
-    litellm_params:
-      temperature: 0.5
-      max_tokens: 2000
-    system_instructions: ""
-    use_default_system_instructions: true
-    citations_enabled: false # Disabled for faster responses
-
-  # Example: Chinese LLM - DeepSeek with custom instructions
-  - id: -4
-    name: "Global DeepSeek Chat (Chinese)"
-    description: "DeepSeek optimized for Chinese language responses"
-    billing_tier: "free"
-    anonymous_enabled: true
-    seo_enabled: true
-    seo_slug: "deepseek-chat-chinese"
+    seo_slug: "gpt-5-4-mini-no-login"
+    seo_title: "Free GPT 5.4 Mini Chat"
+    seo_description: "Chat with a hosted GPT 5.4 Mini model without signing in."
     quota_reserve_tokens: 4000
-    litellm_provider: "openai"
-    model_name: "deepseek-chat"
-    api_key: "your-deepseek-api-key-here"
-    api_base: "https://api.deepseek.com/v1"
-    rpm: 60
-    tpm: 100000
-    litellm_params:
-      temperature: 0.7
-      max_tokens: 4000
-    # Custom system instructions for Chinese responses
-    system_instructions: |
-      <system_instruction>
-      You are SurfSense, a reasoning and acting AI agent designed to answer user questions using the user's personal knowledge base.
-
-      Today's date (UTC): {resolved_today}
-
-      IMPORTANT: Please respond in Chinese (简体中文) unless the user specifically requests another language.
-      </system_instruction>
-    use_default_system_instructions: false
-    citations_enabled: true
-
-  # Example: Azure OpenAI GPT-4o
-  # IMPORTANT: For Azure deployments, always include 'base_model' in litellm_params
-  # to enable accurate token counting, cost tracking, and max token limits
-  - id: -5
-    name: "Global Azure GPT-4o"
-    description: "Azure OpenAI GPT-4o deployment"
-    billing_tier: "free"
-    anonymous_enabled: true
-    seo_enabled: true
-    seo_slug: "azure-gpt-4o"
-    quota_reserve_tokens: 4000
-    litellm_provider: "azure"
-    # model_name format for Azure: azure/<your-deployment-name>
-    model_name: "azure/gpt-4o-deployment"
+    provider: "azure"
+    model_name: "gpt-5.4-mini"
+    supports_image_input: false
+    supports_tools: true
+    max_input_tokens: 128000
     api_key: "your-azure-api-key-here"
     api_base: "https://your-resource.openai.azure.com"
-    api_version: "2024-02-15-preview" # Azure API version
-    rpm: 1000
-    tpm: 150000
+    rpm: 15000
+    tpm: 15000000
     litellm_params:
-      temperature: 0.7
-      max_tokens: 4000
-      # REQUIRED for Azure: Specify the underlying OpenAI model
-      # This fixes "Could not identify azure model" warnings
-      # Common base_model values: gpt-4, gpt-4-turbo, gpt-4o, gpt-4o-mini, gpt-3.5-turbo
-      base_model: "gpt-4o"
+      max_tokens: 16384
+      base_model: "gpt-5.4-mini"
     system_instructions: ""
     use_default_system_instructions: true
     citations_enabled: true
 
-  # Example: Azure OpenAI GPT-4 Turbo
-  - id: -6
-    name: "Global Azure GPT-4 Turbo"
-    description: "Azure OpenAI GPT-4 Turbo deployment"
-    billing_tier: "free"
-    anonymous_enabled: true
-    seo_enabled: true
-    seo_slug: "azure-gpt-4-turbo"
-    quota_reserve_tokens: 4000
-    litellm_provider: "azure"
-    model_name: "azure/gpt-4-turbo-deployment"
-    api_key: "your-azure-api-key-here"
-    api_base: "https://your-resource.openai.azure.com"
-    api_version: "2024-02-15-preview"
-    rpm: 500
-    tpm: 100000
-    litellm_params:
-      temperature: 0.7
-      max_tokens: 4000
-      base_model: "gpt-4-turbo" # Maps to gpt-4-turbo-preview
-    system_instructions: ""
-    use_default_system_instructions: true
-    citations_enabled: true
-
-  # Example: Groq - Fast inference
-  - id: -7
-    name: "Global Groq Llama 3"
-    description: "Ultra-fast Llama 3 70B via Groq"
-    billing_tier: "free"
-    anonymous_enabled: true
-    seo_enabled: true
-    seo_slug: "groq-llama-3"
-    quota_reserve_tokens: 8000
-    litellm_provider: "groq"
-    model_name: "llama3-70b-8192"
-    api_key: "your-groq-api-key-here"
-    api_base: "https://api.groq.com/openai/v1"
-    rpm: 30 # Groq has lower rate limits on free tier
-    tpm: 14400
-    litellm_params:
-      temperature: 0.7
-      max_tokens: 8000
-    system_instructions: ""
-    use_default_system_instructions: true
-    citations_enabled: true
-
-  # Example: MiniMax M3 - High-performance with 512K context window
-  - id: -8
-    name: "Global MiniMax M3"
-    description: "MiniMax M3 with 512K context window and competitive pricing"
-    billing_tier: "free"
-    anonymous_enabled: true
-    seo_enabled: true
-    seo_slug: "minimax-m3"
-    quota_reserve_tokens: 4000
-    litellm_provider: "openai"
-    model_name: "MiniMax-M3"
-    api_key: "your-minimax-api-key-here"
-    api_base: "https://api.minimax.io/v1"
-    rpm: 60
-    tpm: 100000
-    litellm_params:
-      temperature: 1.0 # MiniMax requires temperature in (0.0, 1.0], cannot be 0
-      max_tokens: 4000
-    system_instructions: ""
-    use_default_system_instructions: true
-    citations_enabled: true
-
-  # Example: Planner LLM - small, fast model used for internal utility tasks
-  #
-  # The PLANNER role handles short, structured internal calls (KB query
-  # rewriting, date extraction, recency classification, etc.) that don't
-  # need frontier-tier capability. Pointing the planner at a cheap+fast
-  # model (gpt-4o-mini, Claude Haiku, Azure gpt-5.x-nano, Groq Llama, ...)
-  # typically saves 500ms-1.5s per turn vs. routing those same internal
-  # calls through the user's chat model.
-  #
-  # Activation:
-  #   - Mark EXACTLY ONE global config with ``is_planner: true``.
-  #   - If multiple are marked, the first one wins and a WARNING is logged.
-  #   - If none is marked, every internal call falls back to the user's
-  #     chat LLM (same behavior as before this flag existed).
-  #
-  # This config is operator-only — it is NOT exposed in the user-facing
-  # model selector, never billed against premium quota, and the
-  # billing_tier / anonymous_enabled fields below are ignored.
+  # Planner LLM. This is operator-only and is not shown in the user-facing
+  # model selector. Only one global_llm_configs entry should set is_planner.
   - id: -9
-    name: "Global Planner (GPT-4o mini)"
-    description: "Internal-only planner LLM for query rewriting and classification"
+    name: "Azure GPT 5.x Nano Planner"
     is_planner: true
     billing_tier: "free"
     anonymous_enabled: false
     seo_enabled: false
     quota_reserve_tokens: 1000
-    litellm_provider: "openai"
-    model_name: "gpt-4o-mini"
-    api_key: "sk-your-openai-api-key-here"
-    api_base: "https://api.openai.com/v1"
-    rpm: 3500
-    tpm: 200000
+    provider: "azure"
+    model_name: "gpt-5.4-nano"
+    supports_image_input: false
+    supports_tools: false
+    router_pool_eligible: false
+    api_key: "your-azure-api-key-here"
+    api_base: "https://your-resource.openai.azure.com"
+    rpm: 20000
+    tpm: 4000000
     litellm_params:
       temperature: 0
       max_tokens: 1000
+      base_model: "gpt-5.4-nano"
     system_instructions: ""
     use_default_system_instructions: true
     citations_enabled: false
 
 # =============================================================================
-# OpenRouter Integration
+# OpenRouter Dynamic Model Integration
 # =============================================================================
-# When enabled, dynamically fetches ALL available models from the OpenRouter API
-# and injects them as global configs. This gives premium users access to any model
-# on OpenRouter (Claude, Gemini, Llama, Mistral, etc.) via their premium token quota,
-# while free-tier OpenRouter models show up with a green Free badge and do NOT
-# consume premium quota.
-# Models are fetched at startup and refreshed periodically in the background.
-# All calls go through LiteLLM with the openrouter/ prefix.
+# When enabled, SurfSense fetches the OpenRouter catalog at startup and injects
+# supported models as GLOBAL chat and optionally image-generation models.
+# Tier is derived per model from OpenRouter data:
+# - model id ends with ":free" -> billing_tier=free
+# - prompt and completion pricing are zero -> billing_tier=free
+# - otherwise -> billing_tier=premium
+#
+# Do not use deprecated openrouter_integration.billing_tier or
+# openrouter_integration.anonymous_enabled. Use the tier-specific anonymous
+# switches below.
 openrouter_integration:
   enabled: false
   api_key: "sk-or-your-openrouter-api-key"
 
-  # Tier is derived PER MODEL from OpenRouter's own API signals:
-  #   - id ends with ":free"                         -> billing_tier=free
-  #   - pricing.prompt AND pricing.completion == "0" -> billing_tier=free
-  #   - otherwise                                    -> billing_tier=premium
-  # No global billing_tier knob is honored; any legacy value emits a startup warning.
-
-  # Anonymous access is split by tier so operators can expose only free
-  # models to no-login users without leaking paid inference.
   anonymous_enabled_paid: false
   anonymous_enabled_free: false
-
   seo_enabled: false
-  # quota_reserve_tokens: tokens reserved per call for quota enforcement
   quota_reserve_tokens: 4000
-  # id_offset: base negative ID for dynamically generated configs.
-  # Model IDs are derived deterministically via BLAKE2b so they survive
-  # catalogue churn. Must not overlap with any static GLOBAL model IDs.
+
+  # Base negative ID namespace for dynamic chat models. IDs are derived
+  # deterministically so they survive catalog churn. Do not overlap static IDs.
   id_offset: -10000
-  # refresh_interval_hours: how often to re-fetch models from OpenRouter (0 = startup only)
+
+  # Separate base negative ID namespace for dynamic image-generation models.
+  image_id_offset: -20000
+
+  # How often to refresh the OpenRouter catalog. 0 means startup only.
   refresh_interval_hours: 24
 
-  # Rate limits for PAID OpenRouter models. These are used by LiteLLM Router
-  # for per-deployment accounting when OR premium models participate in the
-  # shared sub-agent "auto" pool. They do NOT cap OpenRouter itself — your
-  # real account limits live at https://openrouter.ai/settings/limits.
+  # Paid OpenRouter models may join curated router pools when eligible.
   rpm: 200
   tpm: 1000000
 
-  # Rate limits for FREE OpenRouter models. Informational only: free OR
-  # models are intentionally kept OUT of the LiteLLM Router pool, because
-  # OpenRouter enforces free-tier limits globally per account (~20 RPM +
-  # 50-1000 daily requests across every ":free" model combined) —
-  # per-deployment router accounting can't represent a shared bucket
-  # correctly. Free OR models stay fully available in the model selector
-  # and for user-facing Auto thread pinning.
+  # Free OpenRouter models are available for user-facing selection/pinning but
+  # should be treated as a shared-account bucket, not normal router capacity.
   free_rpm: 20
   free_tpm: 100000
 
-  # Image generation + vision LLM emission are OPT-IN. OpenRouter's catalogue
-  # contains hundreds of image- and vision-capable models; turning these on
-  # injects them into the global image-generation / vision model lists
-  # alongside any static configs. Tier (free/premium) is derived
-  # per model the same way it is for chat (`:free` suffix or zero pricing).
-  # When a user picks a premium image/vision model the call debits the
-  # shared $5 USD-cost-based premium credit pool — so leaving these off
-  # avoids surprise quota burn on existing deployments. Default: false.
+  # Image generation is opt-in to avoid injecting a large image catalog during
+  # upgrades. Vision-capable chat models are represented with
+  # supports_image_input: true.
   image_generation_enabled: false
   vision_enabled: false
 
@@ -371,116 +242,83 @@ openrouter_integration:
   citations_enabled: true
 
 # =============================================================================
-# Image Generation Configuration
+# Image Generation Auto Mode Router Settings
 # =============================================================================
-# These configurations power the image generation feature using litellm.aimage_generation().
-# Supported providers: OpenAI, Azure, Google AI Studio, Vertex AI, AWS Bedrock,
-# Recraft, OpenRouter, Xinference, Nscale
-#
-# Auto mode (ID 0) uses LiteLLM Router for load balancing across all image gen configs.
-
-# Router Settings for Image Generation Auto Mode
 image_generation_router_settings:
   routing_strategy: "usage-based-routing"
   num_retries: 3
   allowed_fails: 3
   cooldown_time: 60
 
+# =============================================================================
+# Static GLOBAL Image Generation Models
+# =============================================================================
 global_image_generation_configs:
-  # Example: OpenAI DALL-E 3
   - id: -2001
-    name: "Global DALL-E 3"
-    description: "OpenAI's DALL-E 3 for high-quality image generation"
-    litellm_provider: "openai"
-    model_name: "dall-e-3"
-    api_key: "sk-your-openai-api-key-here"
-    api_base: "https://api.openai.com/v1"
-    rpm: 50 # Requests per minute (image gen is rate-limited by RPM, not tokens)
-    litellm_params: {}
-
-  # Example: OpenAI GPT Image 1
-  - id: -2002
-    name: "Global GPT Image 1"
-    description: "OpenAI's GPT Image 1 model"
-    litellm_provider: "openai"
-    model_name: "gpt-image-1"
-    api_key: "sk-your-openai-api-key-here"
-    api_base: "https://api.openai.com/v1"
-    rpm: 50
-    litellm_params: {}
-
-  # Example: Azure OpenAI DALL-E 3
-  - id: -2003
-    name: "Global Azure DALL-E 3"
-    description: "Azure-hosted DALL-E 3 deployment"
-    litellm_provider: "azure"
-    model_name: "azure/dall-e-3-deployment"
+    name: "Azure GPT Image 1.5"
+    billing_tier: "premium"
+    provider: "azure"
+    model_name: "gpt-image-1.5"
     api_key: "your-azure-api-key-here"
     api_base: "https://your-resource.openai.azure.com"
-    api_version: "2024-02-15-preview"
-    rpm: 50
+    # api_version: "2025-04-01-preview"
+    rpm: 60
     litellm_params:
-      base_model: "dall-e-3"
+      base_model: "gpt-image-1.5"
 
-  # Example: OpenRouter Gemini Image Generation
-  # - id: -2004
-  #   name: "Global Gemini Image Gen"
-  #   description: "Google Gemini image generation via OpenRouter"
-  #   litellm_provider: "openrouter"
-  #   model_name: "google/gemini-2.5-flash-image"
-  #   api_key: "your-openrouter-api-key-here"
-  #   api_base: "https://openrouter.ai/api/v1"
-  #   rpm: 30
-  #   litellm_params: {}
+  - id: -2002
+    name: "Azure GPT Image 1 Mini"
+    billing_tier: "free"
+    provider: "azure"
+    model_name: "gpt-image-1-mini"
+    api_key: "your-azure-api-key-here"
+    api_base: "https://your-resource.openai.azure.com"
+    # api_version: "2025-04-01-preview"
+    rpm: 120
+    litellm_params:
+      base_model: "gpt-image-1-mini"
 
-# Notes:
-# - ID 0 is reserved for "Auto" mode - uses LiteLLM Router for load balancing
-# - Use negative IDs to distinguish global models from BYOK/local DB models
-# - IDs must be unique across chat and image generation configs
-# - Suggested static ranges: chat -1..-999, image -2001..-2999
-# - The 'api_key' field will not be exposed to users via API
-# - system_instructions: Custom prompt or empty string to use defaults
-# - use_default_system_instructions: true = use SURFSENSE_SYSTEM_INSTRUCTIONS when system_instructions is empty
-# - citations_enabled: true = include citation instructions, false = include anti-citation instructions
-# - All standard LiteLLM provider adapter names are supported
-# - rpm/tpm: Optional rate limits for load balancing (requests/tokens per minute)
-#   These help the router distribute load evenly and avoid rate limit errors
+# =============================================================================
+# Field Notes
+# =============================================================================
+# Common chat/image fields:
+# - provider: Canonical provider adapter name. Example: azure, openai,
+#   anthropic, openrouter, groq, bedrock.
+# - model_name: Provider model or deployment id. For Azure, use the bare
+#   deployment name. The resolver prefixes LiteLLM model strings from provider.
+# - api_base: Provider endpoint/root URL. For OpenAI-compatible providers, the
+#   resolver adds /v1 when needed.
+# - api_version: Optional provider-specific API version, stored on the
+#   materialized connection extra metadata.
+# - litellm_params: Passed to LiteLLM when invoking the model. Also used for
+#   base_model and inline pricing registration.
 #
+# Chat model fields:
+# - supports_image_input: true when the chat model can consume image inputs.
+# - supports_tools: true when the model can use tools/function calling.
+# - max_input_tokens: Optional UI/catalog metadata for context size.
+# - router_pool_eligible: false keeps a model out of shared router pools while
+#   still allowing direct selection/pinning.
+# - is_planner: true marks the internal-only planner model. Only one config
+#   should set this flag.
 #
-# IMAGE GENERATION NOTES:
-# - Image generation configs use the shared GLOBAL ID namespace
-# - Supported models: dall-e-2, dall-e-3, gpt-image-1 (OpenAI), azure/* (Azure),
-#   bedrock/* (AWS), vertex_ai/* (Google), recraft/* (Recraft), openrouter/* (OpenRouter)
-# - The router uses litellm.aimage_generation() for async image generation
-# - Only RPM (requests per minute) is relevant for image generation rate limiting.
-#   TPM (tokens per minute) does not apply since image APIs are billed/rate-limited per request, not per token.
+# Catalog and access fields:
+# - billing_tier: "free" or "premium".
+# - anonymous_enabled: Whether the model appears in the public no-login catalog.
+# - description: Optional no-login UI copy for anonymous-enabled chat models.
+#   This is not materialized into GLOBAL model metadata and is ignored by image
+#   generation configs.
+# - seo_enabled: Whether a /free/<seo_slug> landing page is generated.
+# - seo_slug: Stable URL slug for SEO pages. Keep unique and do not change once
+#   public.
+# - seo_title / seo_description: Optional SEO metadata overrides.
+# - quota_reserve_tokens: Tokens reserved before each chat LLM call.
+# - rpm / tpm: Optional rate limits for router accounting and load balancing.
 #
-# VISION LLM NOTES:
-# - Vision configs use the shared GLOBAL ID namespace
-# - Only use vision-capable models (GPT-4o, Gemini, Claude 3, etc.)
-# - Lower temperature (0.3) is recommended for accurate screenshot analysis
-# - Lower max_tokens (1000) is sufficient since autocomplete produces short suggestions
-#
-# PLANNER LLM NOTES:
-# - is_planner: true marks a config as the internal-only planner LLM (small,
-#   fast model used for KB query rewriting, date extraction, recency
-#   classification, etc.). Only one config may carry this flag — if
-#   multiple do, the first one wins and a startup WARNING is logged.
-# - When no config is marked is_planner, every internal utility call falls
-#   back to the user's chat LLM (the historical behavior).
-# - Planner configs are NOT shown in the user-facing model selector and
-#   are NOT billed against the user's premium quota. Their billing_tier,
-#   anonymous_enabled, seo_* fields are ignored.
-# - Recommended models: gpt-4o-mini, claude-3-5-haiku, gemini-1.5-flash,
-#   azure gpt-5.x-nano, groq llama3-8b — anything <200ms p50 on a 1-2k
-#   prompt. Frontier models here defeat the purpose of the flag.
-#
-# TOKEN QUOTA & ANONYMOUS ACCESS NOTES:
-# - billing_tier: "free" or "premium". Controls whether registered users need premium token quota.
-# - anonymous_enabled: true/false. Whether the model appears in the public no-login catalog.
-# - seo_enabled: true/false. Whether a /free/<seo_slug> landing page is generated.
-# - seo_slug: Stable URL slug for SEO pages. Must be unique. Do NOT change once public.
-# - seo_title: Optional HTML title tag override for the model's /free/<slug> page.
-# - seo_description: Optional meta description override for the model's /free/<slug> page.
-# - quota_reserve_tokens: Tokens reserved before each LLM call for quota enforcement.
-#   Independent of litellm_params.max_tokens. Used by the token quota service.
+# Image generation notes:
+# - Image-generation configs use the same GLOBAL ID namespace as chat models.
+# - Only RPM is relevant for most image-generation APIs.
+# - The runtime uses litellm.aimage_generation().
+# - Image billing currently uses billing_tier and model catalog metadata. Keep
+#   quota reserve tuning in code/catalog unless the materializer copies a YAML
+#   key for image quota reservation.
