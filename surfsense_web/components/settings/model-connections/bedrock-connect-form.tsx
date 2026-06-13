@@ -87,14 +87,14 @@ export function BedrockConnectForm({ onDraftChange }: ProviderConnectFormProps) 
 						<Input
 							value={accessKeyId}
 							onChange={(event) => setAccessKeyId(event.target.value)}
-							placeholder="AKIAIOSFODNN7EXAMPLE"
+							placeholder="Enter your AWS access key ID"
 						/>
 					</div>
 					<ApiKeyField
 						value={secretAccessKey}
 						onChange={setSecretAccessKey}
 						label="AWS Secret Access Key"
-						placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+						placeholder="Enter your AWS secret access key"
 					/>
 				</>
 			) : null}

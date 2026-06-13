@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { ApiBaseUrlField, ApiKeyField } from "./connect-fields";
 import type { ProviderConnectFormProps } from "./provider-metadata";
 
+const OPTIONAL_API_KEY_PROVIDERS = new Set(["ollama_chat", "lm_studio", "openai_compatible"]);
+
 function baseUrlHint(provider: string) {
 	if (provider === "ollama_chat" || provider === "lm_studio") {
 		return "For local servers, use host.docker.internal instead of localhost.";
@@ -28,13 +30,14 @@ export function DefaultConnectForm({
 }: ProviderConnectFormProps) {
 	const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
 	const [apiKey, setApiKey] = useState("");
-	const isOllama = provider === "ollama_chat";
+	const isApiKeyOptional = OPTIONAL_API_KEY_PROVIDERS.has(provider);
 	const hint = baseUrlHint(provider);
-	const canSubmit = !(baseUrlRequired && !baseUrl.trim());
+	const apiKeyValue = apiKey.trim();
+	const canSubmit = !(baseUrlRequired && !baseUrl.trim()) && (isApiKeyOptional || Boolean(apiKeyValue));
 
 	useEffect(() => {
-		onDraftChange({ base_url: baseUrl || null, api_key: apiKey || null, extra: {} }, canSubmit);
-	}, [apiKey, baseUrl, canSubmit, onDraftChange]);
+		onDraftChange({ base_url: baseUrl || null, api_key: apiKeyValue || null, extra: {} }, canSubmit);
+	}, [apiKeyValue, baseUrl, canSubmit, onDraftChange]);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -47,8 +50,8 @@ export function DefaultConnectForm({
 			<ApiKeyField
 				value={apiKey}
 				onChange={setApiKey}
-				label={isOllama ? "API Key (optional)" : "API Key"}
-				placeholder={isOllama ? "Optional for Ollama" : "API key"}
+				label={isApiKeyOptional ? "API Key (optional)" : "API Key"}
+				placeholder="Enter your API key"
 			/>
 		</div>
 	);
