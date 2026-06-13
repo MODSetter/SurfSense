@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
 	Dialog,
 	DialogContent,
@@ -61,6 +61,7 @@ export function ProviderConnectDialog({
 	const isAzure = provider === "azure";
 	const isBedrock = provider === "bedrock";
 	const isVertex = provider === "vertex_ai";
+	const titleRef = useRef<HTMLHeadingElement>(null);
 	const [currentDraft, setCurrentDraft] = useState<ConnectionDraft>({
 		base_url: null,
 		api_key: null,
@@ -99,12 +100,20 @@ export function ProviderConnectDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="flex h-[85vh] max-h-[760px] min-h-[640px] max-w-2xl flex-col overflow-hidden bg-popover p-0 text-popover-foreground">
+			<DialogContent
+				className="flex h-[85vh] max-h-[760px] min-h-[640px] max-w-2xl flex-col overflow-hidden bg-popover p-0 text-popover-foreground"
+				onOpenAutoFocus={(event) => {
+					event.preventDefault();
+					titleRef.current?.focus();
+				}}
+			>
 				<DialogHeader className="shrink-0 border-b px-6 py-5">
 					<div className="flex items-center gap-3">
 						{providerIcon(provider, "size-5")}
 						<div>
-							<DialogTitle>Connect {meta.name}</DialogTitle>
+							<DialogTitle ref={titleRef} tabIndex={-1}>
+								Connect {meta.name}
+							</DialogTitle>
 							<DialogDescription>{meta.subtitle}</DialogDescription>
 						</div>
 					</div>

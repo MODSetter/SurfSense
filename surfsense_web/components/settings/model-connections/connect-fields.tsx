@@ -1,4 +1,5 @@
 import { Eye, EyeOff } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -9,25 +10,27 @@ import { Spinner } from "@/components/ui/spinner";
 interface ApiBaseUrlFieldProps {
 	value: string;
 	onChange: (value: string) => void;
-	optional?: boolean;
 	/** Placeholder, typically the provider's prefilled default base URL. */
 	placeholder?: string;
+	hint?: ReactNode;
 }
 
 /** Shared API Base URL input. The prefilled default is passed in via `value`. */
-export function ApiBaseUrlField({ value, onChange, optional, placeholder }: ApiBaseUrlFieldProps) {
+export function ApiBaseUrlField({
+	value,
+	onChange,
+	placeholder,
+	hint,
+}: ApiBaseUrlFieldProps) {
 	return (
 		<div className="flex flex-col gap-2">
-			<Label>API Base URL{optional ? " (optional)" : ""}</Label>
+			<Label>API Base URL</Label>
 			<Input
 				value={value}
 				onChange={(event) => onChange(event.target.value)}
 				placeholder={placeholder || "https://api.example.com/v1"}
 			/>
-			<p className="text-xs text-muted-foreground">
-				Local URLs are tested from the backend container, so use host.docker.internal instead of
-				localhost.
-			</p>
+			{hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
 		</div>
 	);
 }
