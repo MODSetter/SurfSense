@@ -75,7 +75,6 @@ def materialize_global_model_catalog(
         conn = native_connection_from_config(config)
         conn["scope"] = "GLOBAL"
         conn["enabled"] = True
-        conn["last_status"] = "OK"
         key = _connection_key(conn)
         connection_id = connection_id_by_key.get(key)
         if connection_id is None:
@@ -105,7 +104,6 @@ def materialize_global_model_catalog(
                 "supports_tools": bool(config.get("supports_tools", False)),
                 "supports_image_generation": role == "image_gen",
                 "capabilities_override": {},
-                "embedding_dimension": None,
                 "enabled": True,
                 "billing_tier": config.get("billing_tier", "free"),
                 "catalog": _catalog_metadata(config),

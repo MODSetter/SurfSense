@@ -19,7 +19,6 @@ class ModelRead(BaseModel):
     supports_tools: bool | None = None
     supports_image_generation: bool | None = None
     capabilities_override: dict[str, Any] = Field(default_factory=dict)
-    embedding_dimension: int | None = None
     enabled: bool
     billing_tier: str | None = None
     catalog: dict[str, Any] = Field(default_factory=dict)
@@ -39,9 +38,6 @@ class ConnectionRead(BaseModel):
     user_id: uuid.UUID | None = None
     enabled: bool
     has_api_key: bool
-    last_verified_at: datetime | None = None
-    last_status: str | None = None
-    last_error: str | None = None
     models: list[ModelRead] = Field(default_factory=list)
     created_at: datetime | None = None
 

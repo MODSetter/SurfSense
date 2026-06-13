@@ -153,9 +153,6 @@ def upgrade() -> None:
             ),
             sa.Column("search_space_id", sa.Integer(), nullable=True),
             sa.Column("user_id", sa.UUID(), nullable=True),
-            sa.Column("last_verified_at", sa.TIMESTAMP(timezone=True), nullable=True),
-            sa.Column("last_status", sa.String(length=50), nullable=True),
-            sa.Column("last_error", sa.Text(), nullable=True),
             sa.CheckConstraint(
                 "(scope = 'GLOBAL' AND search_space_id IS NULL AND user_id IS NULL) OR "
                 "(scope = 'SEARCH_SPACE' AND search_space_id IS NOT NULL AND user_id IS NOT NULL) OR "
@@ -210,7 +207,6 @@ def upgrade() -> None:
                 server_default=sa.text("'{}'::jsonb"),
                 nullable=False,
             ),
-            sa.Column("embedding_dimension", sa.Integer(), nullable=True),
             sa.Column(
                 "enabled", sa.Boolean(), server_default=sa.text("true"), nullable=False
             ),

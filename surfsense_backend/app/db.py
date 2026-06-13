@@ -1554,10 +1554,6 @@ class Connection(BaseModel, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=True
     )
 
-    last_verified_at = Column(TIMESTAMP(timezone=True), nullable=True)
-    last_status = Column(String(50), nullable=True)
-    last_error = Column(Text, nullable=True)
-
     search_space = relationship("SearchSpace", back_populates="connections")
     user = relationship("User", back_populates="connections")
     models = relationship(
@@ -1603,7 +1599,6 @@ class Model(BaseModel, TimestampMixin):
     capabilities_override = Column(
         JSONB, nullable=False, default=dict, server_default="{}"
     )
-    embedding_dimension = Column(Integer, nullable=True)
     enabled = Column(Boolean, nullable=False, default=True, server_default="true")
     billing_tier = Column(String(50), nullable=True, index=True)
     catalog = Column(JSONB, nullable=False, default=dict, server_default="{}")

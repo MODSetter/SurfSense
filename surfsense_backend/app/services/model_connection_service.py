@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any
 
 import anyio
@@ -184,14 +183,6 @@ async def verify_connection(conn: Connection) -> VerifyResult:
         return VerifyResult("UNREACHABLE", False, f"Connection timed out: {exc}")
     except httpx.HTTPError as exc:
         return VerifyResult("UNREACHABLE", False, _docker_hint(base_url, exc))
-
-
-async def persist_verification(conn: Connection) -> VerifyResult:
-    result = await verify_connection(conn)
-    conn.last_verified_at = datetime.now(UTC)
-    conn.last_status = result.status
-    conn.last_error = "" if result.ok else result.message
-    return result
 
 
 def _discovery_error_message(conn: Connection, exc: httpx.HTTPError) -> str:
@@ -494,7 +485,6 @@ __all__ = [
     "VerifyResult",
     "derive_capabilities",
     "discover_models",
-    "persist_verification",
     "test_model",
     "verify_connection",
 ]

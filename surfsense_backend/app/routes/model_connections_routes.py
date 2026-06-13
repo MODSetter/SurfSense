@@ -38,8 +38,8 @@ from app.services.model_connection_service import (
     ModelDiscoveryError,
     derive_capabilities,
     discover_models,
-    persist_verification,
     test_model,
+    verify_connection,
 )
 from app.services.provider_registry import REGISTRY
 from app.users import current_active_user
@@ -92,9 +92,6 @@ def _connection_read(
         user_id=conn.user_id,
         enabled=conn.enabled,
         has_api_key=bool(conn.api_key),
-        last_verified_at=conn.last_verified_at,
-        last_status=conn.last_status,
-        last_error=conn.last_error,
         models=[_model_read(model) for model in (models or [])],
         created_at=conn.created_at,
     )
@@ -536,8 +533,7 @@ async def verify_model_connection(
     await _assert_connection_access(
         session, user, conn, Permission.LLM_CONFIGS_CREATE.value
     )
-    result = await persist_verification(conn)
-    await session.commit()
+    result = await verify_connection(conn)
     return VerifyConnectionResponse(
         status=result.status, ok=result.ok, message=result.message
     )

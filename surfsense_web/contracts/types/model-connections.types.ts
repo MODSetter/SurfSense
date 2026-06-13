@@ -15,7 +15,6 @@ export const modelRead = z.object({
 	supports_tools: z.boolean().nullable().optional(),
 	supports_image_generation: z.boolean().nullable().optional(),
 	capabilities_override: z.record(z.string(), z.any()).default({}),
-	embedding_dimension: z.number().nullable().optional(),
 	enabled: z.boolean(),
 	billing_tier: z.string().nullable().optional(),
 	catalog: z.record(z.string(), z.any()).default({}),
@@ -33,9 +32,6 @@ export const connectionRead = z.object({
 	user_id: z.string().nullable().optional(),
 	enabled: z.boolean(),
 	has_api_key: z.boolean(),
-	last_verified_at: z.string().nullable().optional(),
-	last_status: z.string().nullable().optional(),
-	last_error: z.string().nullable().optional(),
 	models: z.array(modelRead).default([]),
 	created_at: z.string().nullable().optional(),
 });
