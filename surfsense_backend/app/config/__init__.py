@@ -119,7 +119,7 @@ def load_global_llm_configs():
                 else:
                     seen_slugs[slug] = cfg.get("id", 0)
 
-        # Stamp Auto (Fastest) ranking metadata. YAML configs are always
+        # Stamp Auto ranking metadata. YAML configs are always
         # Tier A — operator-curated, locked first when premium-eligible.
         # The OpenRouter refresh tick later re-stamps health for any cfg
         # whose provider == "openrouter" via _enrich_health.
@@ -208,42 +208,6 @@ def load_global_image_gen_configs():
     except Exception as e:
         print(f"Warning: Failed to load global image generation configs: {e}")
         return []
-
-
-def load_global_vision_llm_configs():
-    data = _global_config_data()
-    if not data:
-        return []
-
-    try:
-        configs = copy.deepcopy(data.get("global_vision_llm_configs", []) or [])
-        for cfg in configs:
-            if isinstance(cfg, dict):
-                cfg.setdefault("billing_tier", "free")
-        return configs
-    except Exception as e:
-        print(f"Warning: Failed to load global vision LLM configs: {e}")
-        return []
-
-
-def load_vision_llm_router_settings():
-    default_settings = {
-        "routing_strategy": "usage-based-routing",
-        "num_retries": 3,
-        "allowed_fails": 3,
-        "cooldown_time": 60,
-    }
-
-    data = _global_config_data()
-    if not data:
-        return default_settings
-
-    try:
-        settings = data.get("vision_llm_router_settings", {})
-        return {**default_settings, **settings}
-    except Exception as e:
-        print(f"Warning: Failed to load vision LLM router settings: {e}")
-        return default_settings
 
 
 def load_image_gen_router_settings():
@@ -480,12 +444,6 @@ def initialize_image_gen_router():
         )
     except Exception as e:
         print(f"Warning: Failed to initialize Image Generation Router: {e}")
-
-
-def initialize_vision_llm_router():
-    # Retired: vision Auto now uses shared capability-filtered model selection
-    # over GLOBAL/BYOK chat models with supports_image_input=true.
-    return
 
 
 class Config:
@@ -868,12 +826,6 @@ class Config:
 
     # Router settings for Image Generation Auto mode
     IMAGE_GEN_ROUTER_SETTINGS = load_image_gen_router_settings()
-
-    # Global Vision LLM Configurations (optional)
-    GLOBAL_VISION_LLM_CONFIGS = load_global_vision_llm_configs()
-
-    # Router settings for Vision LLM Auto mode
-    VISION_LLM_ROUTER_SETTINGS = load_vision_llm_router_settings()
 
     # Virtual GLOBAL connection/model catalog. This is server-only metadata
     # derived from global_llm_config.yaml; GLOBAL keys are not stored in DB.

@@ -198,81 +198,6 @@ class DocumentStatus:
         return None
 
 
-class LiteLLMProvider(StrEnum):
-    """
-    Enum for LLM providers supported by LiteLLM.
-    """
-
-    OPENAI = "OPENAI"
-    ANTHROPIC = "ANTHROPIC"
-    GOOGLE = "GOOGLE"
-    AZURE_OPENAI = "AZURE_OPENAI"
-    BEDROCK = "BEDROCK"
-    VERTEX_AI = "VERTEX_AI"
-    GROQ = "GROQ"
-    COHERE = "COHERE"
-    MISTRAL = "MISTRAL"
-    DEEPSEEK = "DEEPSEEK"
-    XAI = "XAI"
-    OPENROUTER = "OPENROUTER"
-    TOGETHER_AI = "TOGETHER_AI"
-    FIREWORKS_AI = "FIREWORKS_AI"
-    REPLICATE = "REPLICATE"
-    PERPLEXITY = "PERPLEXITY"
-    OLLAMA = "OLLAMA"
-    ALIBABA_QWEN = "ALIBABA_QWEN"
-    MOONSHOT = "MOONSHOT"
-    ZHIPU = "ZHIPU"
-    ANYSCALE = "ANYSCALE"
-    DEEPINFRA = "DEEPINFRA"
-    CEREBRAS = "CEREBRAS"
-    SAMBANOVA = "SAMBANOVA"
-    AI21 = "AI21"
-    CLOUDFLARE = "CLOUDFLARE"
-    DATABRICKS = "DATABRICKS"
-    COMETAPI = "COMETAPI"
-    HUGGINGFACE = "HUGGINGFACE"
-    GITHUB_MODELS = "GITHUB_MODELS"
-    MINIMAX = "MINIMAX"
-    CUSTOM = "CUSTOM"
-
-
-class ImageGenProvider(StrEnum):
-    """
-    Enum for image generation providers supported by LiteLLM.
-    This is a subset of LLM providers — only those that support image generation.
-    See: https://docs.litellm.ai/docs/image_generation#supported-providers
-    """
-
-    OPENAI = "OPENAI"
-    AZURE_OPENAI = "AZURE_OPENAI"
-    GOOGLE = "GOOGLE"  # Google AI Studio
-    VERTEX_AI = "VERTEX_AI"
-    BEDROCK = "BEDROCK"  # AWS Bedrock
-    RECRAFT = "RECRAFT"
-    OPENROUTER = "OPENROUTER"
-    XINFERENCE = "XINFERENCE"
-    NSCALE = "NSCALE"
-
-
-class VisionProvider(StrEnum):
-    OPENAI = "OPENAI"
-    ANTHROPIC = "ANTHROPIC"
-    GOOGLE = "GOOGLE"
-    AZURE_OPENAI = "AZURE_OPENAI"
-    VERTEX_AI = "VERTEX_AI"
-    BEDROCK = "BEDROCK"
-    XAI = "XAI"
-    OPENROUTER = "OPENROUTER"
-    OLLAMA = "OLLAMA"
-    GROQ = "GROQ"
-    TOGETHER_AI = "TOGETHER_AI"
-    FIREWORKS_AI = "FIREWORKS_AI"
-    DEEPSEEK = "DEEPSEEK"
-    MISTRAL = "MISTRAL"
-    CUSTOM = "CUSTOM"
-
-
 class ConnectionScope(StrEnum):
     GLOBAL = "GLOBAL"
     SEARCH_SPACE = "SEARCH_SPACE"
@@ -710,11 +635,11 @@ class NewChatThread(BaseModel, TimestampMixin):
         default=False,
         server_default="false",
     )
-    # Auto (Fastest) model pin for this thread: concrete resolved global LLM
+    # Auto model pin for this thread: concrete resolved global LLM
     # config id. NULL means no pin; Auto will resolve on the next turn.
     # Single-writer invariant: only app.services.auto_model_pin_service sets
     # or clears this column (plus bulk clears when a search space's
-    # agent_llm_id changes). Unindexed: all reads are by primary key.
+    # chat_model_id changes). Unindexed: all reads are by primary key.
     pinned_llm_config_id = Column(Integer, nullable=True)
 
     # Surface metadata for first-party SurfSense and external chat threads.
@@ -1686,75 +1611,6 @@ class Model(BaseModel, TimestampMixin):
     )
 
 
-class ImageGenerationConfig(BaseModel, TimestampMixin):
-    """
-    Dedicated configuration table for image generation models.
-
-    Separate from NewLLMConfig because image generation models don't need
-    system_instructions, citations_enabled, or use_default_system_instructions.
-    They only need provider credentials and model parameters.
-    """
-
-    __tablename__ = "image_generation_configs"
-
-    name = Column(String(100), nullable=False, index=True)
-    description = Column(String(500), nullable=True)
-
-    # Provider & model (uses ImageGenProvider, NOT LiteLLMProvider)
-    provider = Column(SQLAlchemyEnum(ImageGenProvider), nullable=False)
-    custom_provider = Column(String(100), nullable=True)
-    model_name = Column(String(100), nullable=False)
-
-    # Credentials
-    api_key = Column(String, nullable=False)
-    api_base = Column(String(500), nullable=True)
-    api_version = Column(String(50), nullable=True)  # Azure-specific
-
-    # Additional litellm parameters
-    litellm_params = Column(JSON, nullable=True, default={})
-
-    # Relationships
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
-    )
-    search_space = relationship(
-        "SearchSpace", back_populates="image_generation_configs"
-    )
-
-    # User who created this config
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
-    )
-    user = relationship("User", back_populates="image_generation_configs")
-
-
-class VisionLLMConfig(BaseModel, TimestampMixin):
-    __tablename__ = "vision_llm_configs"
-
-    name = Column(String(100), nullable=False, index=True)
-    description = Column(String(500), nullable=True)
-
-    provider = Column(SQLAlchemyEnum(VisionProvider), nullable=False)
-    custom_provider = Column(String(100), nullable=True)
-    model_name = Column(String(100), nullable=False)
-
-    api_key = Column(String, nullable=False)
-    api_base = Column(String(500), nullable=True)
-    api_version = Column(String(50), nullable=True)
-
-    litellm_params = Column(JSON, nullable=True, default={})
-
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
-    )
-    search_space = relationship("SearchSpace", back_populates="vision_llm_configs")
-
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
-    )
-    user = relationship("User", back_populates="vision_llm_configs")
-
-
 class ImageGeneration(BaseModel, TimestampMixin):
     """
     Stores image generation requests and results using litellm.aimage_generation().
@@ -1786,10 +1642,9 @@ class ImageGeneration(BaseModel, TimestampMixin):
     style = Column(String(50), nullable=True)  # Model-specific style parameter
     response_format = Column(String(50), nullable=True)  # "url" or "b64_json"
 
-    # Image generation config reference
-    # 0 = Auto mode (router), negative IDs = global configs from YAML,
-    # positive IDs = ImageGenerationConfig records in DB
-    image_generation_config_id = Column(Integer, nullable=True)
+    # Image generation model provenance.
+    # 0 = Auto mode, negative IDs = GLOBAL models, positive IDs = Model records.
+    image_gen_model_id = Column(Integer, nullable=True)
 
     # Response data (full litellm response as JSONB) — present on success
     response_data = Column(JSONB, nullable=True)
@@ -1831,23 +1686,7 @@ class SearchSpace(BaseModel, TimestampMixin):
 
     shared_memory_md = Column(Text, nullable=True, server_default="")
 
-    # Search space-level LLM preferences (shared by all members)
-    # Note: ID values:
-    #   - 0: Auto mode (uses LiteLLM Router for load balancing) - default for new search spaces
-    #   - Negative IDs: Global configs from YAML
-    #   - Positive IDs: Custom configs from DB (NewLLMConfig table)
-    agent_llm_id = Column(
-        Integer, nullable=True, default=0
-    )  # For chat operations, defaults to Auto mode
-    image_generation_config_id = Column(
-        Integer, nullable=True, default=0
-    )  # For image generation, defaults to Auto mode
-    vision_llm_config_id = Column(
-        Integer, nullable=True, default=0
-    )  # For vision/screenshot analysis, defaults to Auto mode
-
-    # New connection/model role bindings. These supersede the legacy config
-    # columns above without removing them in this PR.
+    # Connection/model role bindings.
     # Note: ID values preserve the existing convention:
     #   - 0: Auto mode
     #   - Negative IDs: Global virtual models from global_llm_config.yaml
@@ -1929,24 +1768,6 @@ class SearchSpace(BaseModel, TimestampMixin):
         "SearchSourceConnector",
         back_populates="search_space",
         order_by="SearchSourceConnector.id",
-        cascade="all, delete-orphan",
-    )
-    new_llm_configs = relationship(
-        "NewLLMConfig",
-        back_populates="search_space",
-        order_by="NewLLMConfig.id",
-        cascade="all, delete-orphan",
-    )
-    image_generation_configs = relationship(
-        "ImageGenerationConfig",
-        back_populates="search_space",
-        order_by="ImageGenerationConfig.id",
-        cascade="all, delete-orphan",
-    )
-    vision_llm_configs = relationship(
-        "VisionLLMConfig",
-        back_populates="search_space",
-        order_by="VisionLLMConfig.id",
         cascade="all, delete-orphan",
     )
     connections = relationship(
@@ -2055,64 +1876,6 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
 
     # Documents created by this connector (for cleanup on connector deletion)
     documents = relationship("Document", back_populates="connector")
-
-
-class NewLLMConfig(BaseModel, TimestampMixin):
-    """
-    New LLM configuration table that combines model settings with prompt configuration.
-
-    This table provides:
-    - LLM model configuration (provider, model_name, api_key, etc.)
-    - Configurable system instructions (defaults to SURFSENSE_SYSTEM_INSTRUCTIONS)
-    - Citation toggle (enable/disable citation instructions)
-
-    Note: Tools instructions are built by get_tools_instructions(thread_visibility) (personal vs shared memory).
-    """
-
-    __tablename__ = "new_llm_configs"
-
-    name = Column(String(100), nullable=False, index=True)
-    description = Column(String(500), nullable=True)
-
-    # === LLM Model Configuration (from original LLMConfig, excluding 'language') ===
-    # Provider from the enum
-    provider = Column(SQLAlchemyEnum(LiteLLMProvider), nullable=False)
-    # Custom provider name when provider is CUSTOM
-    custom_provider = Column(String(100), nullable=True)
-    # Just the model name without provider prefix
-    model_name = Column(String(100), nullable=False)
-    # API Key should be encrypted before storing
-    api_key = Column(String, nullable=False)
-    api_base = Column(String(500), nullable=True)
-    # For any other parameters that litellm supports
-    litellm_params = Column(JSON, nullable=True, default={})
-
-    # === Prompt Configuration ===
-    # Configurable system instructions (defaults to SURFSENSE_SYSTEM_INSTRUCTIONS)
-    # Users can customize this from the UI
-    system_instructions = Column(
-        Text,
-        nullable=False,
-        default="",  # Empty string means use default SURFSENSE_SYSTEM_INSTRUCTIONS
-    )
-    # Whether to use the default system instructions when system_instructions is empty
-    use_default_system_instructions = Column(Boolean, nullable=False, default=True)
-
-    # Citation toggle - when enabled, SURFSENSE_CITATION_INSTRUCTIONS is injected
-    # When disabled, an anti-citation prompt is injected instead
-    citations_enabled = Column(Boolean, nullable=False, default=True)
-
-    # === Relationships ===
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
-    )
-    search_space = relationship("SearchSpace", back_populates="new_llm_configs")
-
-    # User who created this config
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
-    )
-    user = relationship("User", back_populates="new_llm_configs")
 
 
 class Log(BaseModel, TimestampMixin):
@@ -2481,25 +2244,6 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
-        # LLM configs created by this user
-        new_llm_configs = relationship(
-            "NewLLMConfig",
-            back_populates="user",
-            passive_deletes=True,
-        )
-
-        # Image generation configs created by this user
-        image_generation_configs = relationship(
-            "ImageGenerationConfig",
-            back_populates="user",
-            passive_deletes=True,
-        )
-
-        vision_llm_configs = relationship(
-            "VisionLLMConfig",
-            back_populates="user",
-            passive_deletes=True,
-        )
         connections = relationship(
             "Connection",
             back_populates="user",
@@ -2632,25 +2376,6 @@ else:
             passive_deletes=True,
         )
 
-        # LLM configs created by this user
-        new_llm_configs = relationship(
-            "NewLLMConfig",
-            back_populates="user",
-            passive_deletes=True,
-        )
-
-        # Image generation configs created by this user
-        image_generation_configs = relationship(
-            "ImageGenerationConfig",
-            back_populates="user",
-            passive_deletes=True,
-        )
-
-        vision_llm_configs = relationship(
-            "VisionLLMConfig",
-            back_populates="user",
-            passive_deletes=True,
-        )
         connections = relationship(
             "Connection",
             back_populates="user",

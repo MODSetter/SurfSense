@@ -64,12 +64,12 @@ async def test_assert_models_billable_raises_422_on_violation(
 
     def _raise(_ss):
         raise AutomationModelPolicyError(
-            [{"kind": "llm", "config_id": 0, "reason": "Auto mode"}]
+            [{"kind": "llm", "model_id": 0, "reason": "Auto mode"}]
         )
 
     monkeypatch.setattr(automation_mod, "assert_automation_models_billable", _raise)
 
-    service = _service(SimpleNamespace(agent_llm_id=0))
+    service = _service(SimpleNamespace(chat_model_id=0))
     with pytest.raises(HTTPException) as exc_info:
         await service._assert_models_billable(1)
 
@@ -99,7 +99,7 @@ async def test_assert_models_billable_returns_search_space_when_ok(
         automation_mod, "assert_automation_models_billable", lambda _ss: None
     )
 
-    search_space = SimpleNamespace(agent_llm_id=-1)
+    search_space = SimpleNamespace(chat_model_id=-1)
     service = _service(search_space)
     assert await service._assert_models_billable(1) is search_space
 
@@ -123,9 +123,9 @@ async def test_create_injects_captured_models_from_search_space(
     monkeypatch.setattr(AutomationService, "_get_with_triggers_or_raise", _return_added)
 
     search_space = SimpleNamespace(
-        agent_llm_id=-1,
-        image_generation_config_id=5,
-        vision_llm_config_id=-1,
+        chat_model_id=-1,
+        image_gen_model_id=5,
+        vision_model_id=-1,
     )
     service = _service(search_space)
     payload = AutomationCreate(
@@ -137,9 +137,9 @@ async def test_create_injects_captured_models_from_search_space(
     automation = await service.create(payload)
 
     assert automation.definition["models"] == {
-        "agent_llm_id": -1,
-        "image_generation_config_id": 5,
-        "vision_llm_config_id": -1,
+        "chat_model_id": -1,
+        "image_gen_model_id": 5,
+        "vision_model_id": -1,
     }
 
 
@@ -162,9 +162,9 @@ async def test_create_treats_unset_prefs_as_auto_zero(
     monkeypatch.setattr(AutomationService, "_get_with_triggers_or_raise", _return_added)
 
     search_space = SimpleNamespace(
-        agent_llm_id=None,
-        image_generation_config_id=None,
-        vision_llm_config_id=None,
+        chat_model_id=None,
+        image_gen_model_id=None,
+        vision_model_id=None,
     )
     service = _service(search_space)
     payload = AutomationCreate(search_space_id=1, name="A", definition=_definition())
@@ -172,9 +172,9 @@ async def test_create_treats_unset_prefs_as_auto_zero(
     automation = await service.create(payload)
 
     assert automation.definition["models"] == {
-        "agent_llm_id": 0,
-        "image_generation_config_id": 0,
-        "vision_llm_config_id": 0,
+        "chat_model_id": 0,
+        "image_gen_model_id": 0,
+        "vision_model_id": 0,
     }
 
 
@@ -195,11 +195,11 @@ async def test_create_honors_selected_models_when_provided(
     )
     validated: dict[str, Any] = {}
 
-    def _assert_ok(*, agent_llm_id, image_generation_config_id, vision_llm_config_id):
+    def _assert_ok(*, chat_model_id, image_gen_model_id, vision_model_id):
         validated["ids"] = (
-            agent_llm_id,
-            image_generation_config_id,
-            vision_llm_config_id,
+            chat_model_id,
+            image_gen_model_id,
+            vision_model_id,
         )
 
     monkeypatch.setattr(automation_mod, "assert_models_billable", _assert_ok)
@@ -213,15 +213,15 @@ async def test_create_honors_selected_models_when_provided(
     monkeypatch.setattr(AutomationService, "_authorize", _noop_authorize)
     monkeypatch.setattr(AutomationService, "_get_with_triggers_or_raise", _return_added)
 
-    service = _service(SimpleNamespace(agent_llm_id=-99))
+    service = _service(SimpleNamespace(chat_model_id=-99))
     payload = AutomationCreate(
         search_space_id=1,
         name="A",
         definition=_definition(
             models=AutomationModels(
-                agent_llm_id=-1,
-                image_generation_config_id=7,
-                vision_llm_config_id=-2,
+                chat_model_id=-1,
+                image_gen_model_id=7,
+                vision_model_id=-2,
             )
         ),
     )
@@ -230,9 +230,9 @@ async def test_create_honors_selected_models_when_provided(
 
     assert validated["ids"] == (-1, 7, -2)
     assert automation.definition["models"] == {
-        "agent_llm_id": -1,
-        "image_generation_config_id": 7,
-        "vision_llm_config_id": -2,
+        "chat_model_id": -1,
+        "image_gen_model_id": 7,
+        "vision_model_id": -2,
     }
 
 
@@ -241,9 +241,9 @@ async def test_create_rejects_unbillable_selected_models(
 ) -> None:
     """A non-billable explicit selection maps the policy error to HTTP 422."""
 
-    def _raise(*, agent_llm_id, image_generation_config_id, vision_llm_config_id):
+    def _raise(*, chat_model_id, image_gen_model_id, vision_model_id):
         raise AutomationModelPolicyError(
-            [{"kind": "llm", "config_id": -3, "reason": "free model"}]
+            [{"kind": "llm", "model_id": -3, "reason": "free model"}]
         )
 
     monkeypatch.setattr(automation_mod, "assert_models_billable", _raise)
@@ -253,15 +253,15 @@ async def test_create_rejects_unbillable_selected_models(
 
     monkeypatch.setattr(AutomationService, "_authorize", _noop_authorize)
 
-    service = _service(SimpleNamespace(agent_llm_id=-3))
+    service = _service(SimpleNamespace(chat_model_id=-3))
     payload = AutomationCreate(
         search_space_id=1,
         name="A",
         definition=_definition(
             models=AutomationModels(
-                agent_llm_id=-3,
-                image_generation_config_id=7,
-                vision_llm_config_id=-2,
+                chat_model_id=-3,
+                image_gen_model_id=7,
+                vision_model_id=-2,
             )
         ),
     )
@@ -277,9 +277,9 @@ async def test_update_preserves_captured_models(
 ) -> None:
     """A definition edit carries over the previously captured ``models``."""
     captured = {
-        "agent_llm_id": -1,
-        "image_generation_config_id": 5,
-        "vision_llm_config_id": -1,
+        "chat_model_id": -1,
+        "image_gen_model_id": 5,
+        "vision_model_id": -1,
     }
     existing = SimpleNamespace(
         search_space_id=1,
@@ -318,20 +318,20 @@ async def test_update_honors_changed_models_when_valid(
             "name": "A",
             "plan": [],
             "models": {
-                "agent_llm_id": -1,
-                "image_generation_config_id": 5,
-                "vision_llm_config_id": -1,
+                "chat_model_id": -1,
+                "image_gen_model_id": 5,
+                "vision_model_id": -1,
             },
         },
         version=3,
     )
     validated: dict[str, Any] = {}
 
-    def _assert_ok(*, agent_llm_id, image_generation_config_id, vision_llm_config_id):
+    def _assert_ok(*, chat_model_id, image_gen_model_id, vision_model_id):
         validated["ids"] = (
-            agent_llm_id,
-            image_generation_config_id,
-            vision_llm_config_id,
+            chat_model_id,
+            image_gen_model_id,
+            vision_model_id,
         )
 
     monkeypatch.setattr(automation_mod, "assert_models_billable", _assert_ok)
@@ -351,9 +351,9 @@ async def test_update_honors_changed_models_when_valid(
     patch = AutomationUpdate(
         definition=_definition(
             models=AutomationModels(
-                agent_llm_id=-2,
-                image_generation_config_id=9,
-                vision_llm_config_id=-2,
+                chat_model_id=-2,
+                image_gen_model_id=9,
+                vision_model_id=-2,
             )
         )
     )
@@ -362,9 +362,9 @@ async def test_update_honors_changed_models_when_valid(
 
     assert validated["ids"] == (-2, 9, -2)
     assert result.definition["models"] == {
-        "agent_llm_id": -2,
-        "image_generation_config_id": 9,
-        "vision_llm_config_id": -2,
+        "chat_model_id": -2,
+        "image_gen_model_id": 9,
+        "vision_model_id": -2,
     }
     assert result.version == 4
 
@@ -379,17 +379,17 @@ async def test_update_rejects_changed_unbillable_models(
             "name": "A",
             "plan": [],
             "models": {
-                "agent_llm_id": -1,
-                "image_generation_config_id": 5,
-                "vision_llm_config_id": -1,
+                "chat_model_id": -1,
+                "image_gen_model_id": 5,
+                "vision_model_id": -1,
             },
         },
         version=3,
     )
 
-    def _raise(*, agent_llm_id, image_generation_config_id, vision_llm_config_id):
+    def _raise(*, chat_model_id, image_gen_model_id, vision_model_id):
         raise AutomationModelPolicyError(
-            [{"kind": "llm", "config_id": -7, "reason": "free model"}]
+            [{"kind": "llm", "model_id": -7, "reason": "free model"}]
         )
 
     monkeypatch.setattr(automation_mod, "assert_models_billable", _raise)
@@ -409,9 +409,9 @@ async def test_update_rejects_changed_unbillable_models(
     patch = AutomationUpdate(
         definition=_definition(
             models=AutomationModels(
-                agent_llm_id=-7,
-                image_generation_config_id=5,
-                vision_llm_config_id=-1,
+                chat_model_id=-7,
+                image_gen_model_id=5,
+                vision_model_id=-1,
             )
         )
     )
@@ -431,9 +431,9 @@ async def test_update_keeps_unchanged_models_without_revalidation(
     premium without an unrelated edit tripping the policy check.
     """
     captured = {
-        "agent_llm_id": -1,
-        "image_generation_config_id": 5,
-        "vision_llm_config_id": -1,
+        "chat_model_id": -1,
+        "image_gen_model_id": 5,
+        "vision_model_id": -1,
     }
     existing = SimpleNamespace(
         search_space_id=1,
@@ -485,7 +485,7 @@ async def test_model_eligibility_authorizes_and_returns_payload(
         lambda _ss: {"allowed": False, "violations": [{"kind": "image"}]},
     )
 
-    service = _service(SimpleNamespace(agent_llm_id=-2))
+    service = _service(SimpleNamespace(chat_model_id=-2))
     result = await service.model_eligibility(search_space_id=5)
 
     assert result == {"allowed": False, "violations": [{"kind": "image"}]}

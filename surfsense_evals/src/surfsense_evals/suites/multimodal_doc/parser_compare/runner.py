@@ -554,7 +554,7 @@ class ParserCompareBenchmark:
                 "scenario": ctx.scenario,
                 "provider_model": ctx.provider_model,
                 "vision_provider_model": ctx.vision_provider_model,
-                "agent_llm_id": ctx.agent_llm_id,
+                "chat_model_id": ctx.chat_model_id,
                 "preprocess_tariff": {
                     "basic_per_1k_pages": 1.0,
                     "premium_per_1k_pages": 10.0,

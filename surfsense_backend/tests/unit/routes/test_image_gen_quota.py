@@ -27,9 +27,18 @@ async def test_resolve_billing_for_auto_mode(monkeypatch):
     from app.routes import image_generation_routes
     from app.services.billable_calls import DEFAULT_IMAGE_RESERVE_MICROS
 
-    search_space = SimpleNamespace(image_generation_config_id=None)
+    async def _no_auto_candidates(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(
+        image_generation_routes,
+        "auto_model_candidates",
+        _no_auto_candidates,
+    )
+
+    search_space = SimpleNamespace(id=1, user_id=None, image_gen_model_id=None)
     tier, model, reserve = await image_generation_routes._resolve_billing_for_image_gen(
-        session=None,  # Not consumed on this code path.
+        session=None,
         config_id=0,  # IMAGE_GEN_AUTO_MODE_ID
         search_space=search_space,
     )
@@ -45,26 +54,42 @@ async def test_resolve_billing_for_premium_global_config(monkeypatch):
 
     monkeypatch.setattr(
         config,
-        "GLOBAL_IMAGE_GEN_CONFIGS",
+        "GLOBAL_MODELS",
         [
             {
                 "id": -1,
-                "litellm_provider": "openai",
-                "model_name": "gpt-image-1",
+                "connection_id": -101,
+                "model_id": "gpt-image-1",
                 "billing_tier": "premium",
-                "quota_reserve_micros": 75_000,
+                "catalog": {"quota_reserve_micros": 75_000},
             },
             {
                 "id": -2,
-                "litellm_provider": "openrouter",
-                "model_name": "google/gemini-2.5-flash-image",
+                "connection_id": -102,
+                "model_id": "google/gemini-2.5-flash-image",
                 "billing_tier": "free",
+                "catalog": {},
+            },
+        ],
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config,
+        "GLOBAL_CONNECTIONS",
+        [
+            {"id": -101, "provider": "openai", "api_key": "sk-test", "base_url": None, "extra": {}},
+            {
+                "id": -102,
+                "provider": "openrouter",
+                "api_key": "sk-or-test",
+                "base_url": "https://openrouter.ai/api/v1",
+                "extra": {},
             },
         ],
         raising=False,
     )
 
-    search_space = SimpleNamespace(image_generation_config_id=None)
+    search_space = SimpleNamespace(id=1, user_id=None, image_gen_model_id=None)
 
     # Premium with override.
     tier, model, reserve = await image_generation_routes._resolve_billing_for_image_gen(
@@ -94,7 +119,7 @@ async def test_resolve_billing_for_user_owned_byok_is_free():
     from app.routes import image_generation_routes
     from app.services.billable_calls import DEFAULT_IMAGE_RESERVE_MICROS
 
-    search_space = SimpleNamespace(image_generation_config_id=None)
+    search_space = SimpleNamespace(id=1, user_id=None, image_gen_model_id=None)
     tier, model, reserve = await image_generation_routes._resolve_billing_for_image_gen(
         session=None, config_id=42, search_space=search_space
     )
@@ -105,7 +130,7 @@ async def test_resolve_billing_for_user_owned_byok_is_free():
 
 @pytest.mark.asyncio
 async def test_resolve_billing_falls_back_to_search_space_default(monkeypatch):
-    """When the request omits ``image_generation_config_id``, the helper
+    """When the request omits ``image_gen_model_id``, the helper
     must consult the search space's default — so a search space pinned
     to a premium global config still gates new requests by quota.
     """
@@ -114,19 +139,26 @@ async def test_resolve_billing_falls_back_to_search_space_default(monkeypatch):
 
     monkeypatch.setattr(
         config,
-        "GLOBAL_IMAGE_GEN_CONFIGS",
+        "GLOBAL_MODELS",
         [
             {
                 "id": -7,
-                "litellm_provider": "openai",
-                "model_name": "gpt-image-1",
+                "connection_id": -101,
+                "model_id": "gpt-image-1",
                 "billing_tier": "premium",
+                "catalog": {},
             }
         ],
         raising=False,
     )
+    monkeypatch.setattr(
+        config,
+        "GLOBAL_CONNECTIONS",
+        [{"id": -101, "provider": "openai", "api_key": "sk-test", "base_url": None, "extra": {}}],
+        raising=False,
+    )
 
-    search_space = SimpleNamespace(image_generation_config_id=-7)
+    search_space = SimpleNamespace(id=1, user_id=None, image_gen_model_id=-7)
     (
         tier,
         model,

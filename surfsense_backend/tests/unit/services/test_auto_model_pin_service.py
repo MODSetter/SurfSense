@@ -32,8 +32,9 @@ class _FakeQuotaResult:
 
 
 class _FakeExecResult:
-    def __init__(self, thread):
+    def __init__(self, *, thread=None, scalars=None):
         self._thread = thread
+        self._scalars = scalars or []
 
     def unique(self):
         return self
@@ -41,17 +42,67 @@ class _FakeExecResult:
     def scalar_one_or_none(self):
         return self._thread
 
+    def scalars(self):
+        return SimpleNamespace(all=lambda: self._scalars)
+
 
 class _FakeSession:
-    def __init__(self, thread):
+    def __init__(self, thread, *, models=None):
         self.thread = thread
+        self.models = models or []
         self.commit_count = 0
+        self.execute_count = 0
 
     async def execute(self, _stmt):
-        return _FakeExecResult(self.thread)
+        self.execute_count += 1
+        if self.execute_count == 1:
+            return _FakeExecResult(thread=self.thread)
+        return _FakeExecResult(scalars=self.models)
 
     async def commit(self):
         self.commit_count += 1
+
+
+def _set_global_llm_configs(monkeypatch, config, configs: list[dict]):
+    """Patch the new global model catalog shape from compact legacy cfg fixtures."""
+    connections = []
+    models = []
+    for cfg in configs:
+        config_id = int(cfg["id"])
+        connection_id = config_id - 100_000
+        provider = cfg.get("provider") or cfg.get("litellm_provider")
+        model_name = cfg["model_name"]
+        connections.append(
+            {
+                "id": connection_id,
+                "provider": provider,
+                "scope": "GLOBAL",
+                "enabled": True,
+            }
+        )
+        models.append(
+            {
+                "id": config_id,
+                "connection_id": connection_id,
+                "model_id": model_name,
+                "display_name": cfg.get("name") or model_name,
+                "supports_chat": cfg.get("supports_chat", True),
+                "supports_image_input": cfg.get("supports_image_input", True),
+                "supports_tools": cfg.get("supports_tools", True),
+                "supports_image_generation": cfg.get("supports_image_generation", False),
+                "capabilities_override": cfg.get("capabilities_override") or {},
+                "billing_tier": cfg.get("billing_tier", "free"),
+                "catalog": {
+                    "auto_pin_tier": cfg.get("auto_pin_tier"),
+                    "quality_score": cfg.get("quality_score")
+                    or cfg.get("quality_score_static"),
+                },
+            }
+        )
+
+    monkeypatch.setattr(config, "GLOBAL_LLM_CONFIGS", configs)
+    monkeypatch.setattr(config, "GLOBAL_CONNECTIONS", connections)
+    monkeypatch.setattr(config, "GLOBAL_MODELS", models)
 
 
 def _thread(
@@ -71,9 +122,9 @@ async def test_auto_first_turn_pins_one_model(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread())
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {"id": -2, "litellm_provider": "openai", "model_name": "gpt-free", "api_key": "k1"},
             {
@@ -111,9 +162,9 @@ async def test_premium_eligible_auto_prefers_premium_over_free(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread())
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -2,
@@ -158,9 +209,9 @@ async def test_premium_eligible_auto_prefers_azure_gpt_5_4(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread())
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -1,
@@ -216,9 +267,9 @@ async def test_next_turn_reuses_existing_pin(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread(pinned_llm_config_id=-1))
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -1,
@@ -257,9 +308,9 @@ async def test_premium_eligible_auto_can_pin_premium(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread())
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -1,
@@ -295,9 +346,9 @@ async def test_premium_ineligible_auto_pins_free_only(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread())
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -2,
@@ -340,9 +391,9 @@ async def test_pinned_premium_stays_premium_after_quota_exhaustion(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread(pinned_llm_config_id=-1))
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -2,
@@ -385,9 +436,9 @@ async def test_force_repin_free_switches_auto_premium_pin_to_free(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread(pinned_llm_config_id=-1))
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -2,
@@ -433,9 +484,9 @@ async def test_explicit_user_model_change_clears_pin(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread(pinned_llm_config_id=-2))
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {"id": -2, "litellm_provider": "openai", "model_name": "gpt-free", "api_key": "k1"},
         ],
@@ -458,9 +509,9 @@ async def test_invalid_pinned_config_repairs_with_new_pin(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread(pinned_llm_config_id=-999))
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {"id": -2, "litellm_provider": "openai", "model_name": "gpt-free", "api_key": "k1"},
         ],
@@ -487,7 +538,7 @@ async def test_invalid_pinned_config_repairs_with_new_pin(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Quality-aware pin selection (Auto Fastest upgrade)
+# Quality-aware pin selection (Auto upgrade)
 # ---------------------------------------------------------------------------
 
 
@@ -498,9 +549,9 @@ async def test_health_gated_config_is_excluded_from_selection(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread())
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -1,
@@ -550,9 +601,9 @@ async def test_tier_a_locks_first_premium_user_skips_or(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread())
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -1,
@@ -602,9 +653,9 @@ async def test_tier_a_falls_through_to_or_when_a_pool_empty_for_user(monkeypatch
     from app.config import config
 
     session = _FakeSession(_thread())
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -1,
@@ -676,9 +727,9 @@ async def test_top_k_picks_only_high_score_models(monkeypatch):
         "quality_score": 10,
         "health_gated": False,
     }
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [*high_score_cfgs, low_score_trap],
     )
 
@@ -723,9 +774,9 @@ async def test_pin_reuse_survives_health_gating_for_existing_pin(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread(pinned_llm_config_id=-1))
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -1,
@@ -775,9 +826,9 @@ async def test_pin_reuse_regression_existing_healthy_pin(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread(pinned_llm_config_id=-1))
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -1,
@@ -833,9 +884,9 @@ async def test_runtime_cooled_down_pin_is_not_reused(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread(pinned_llm_config_id=-1))
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -1,
@@ -886,9 +937,9 @@ async def test_clearing_runtime_cooldown_restores_pin_reuse(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread(pinned_llm_config_id=-1))
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -1,
@@ -931,9 +982,9 @@ async def test_auto_pin_repin_excludes_previous_config_on_runtime_retry(monkeypa
     from app.config import config
 
     session = _FakeSession(_thread(pinned_llm_config_id=-1))
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [
             {
                 "id": -1,

@@ -14,7 +14,11 @@ from app.services.auto_model_pin_service import (
     auto_model_candidates,
     choose_auto_model_candidate,
 )
-from app.services.llm_router_service import AUTO_MODE_ID, ChatLiteLLMRouter, is_auto_mode
+from app.services.llm_router_service import (
+    AUTO_MODE_ID,
+    ChatLiteLLMRouter,
+    is_auto_mode,
+)
 from app.services.model_capabilities import has_capability
 from app.services.model_resolver import native_connection_from_config, to_litellm
 from app.services.token_tracking_service import token_tracker
@@ -96,26 +100,16 @@ class LLMRole:
 def get_global_llm_config(llm_config_id: int) -> dict | None:
     """
     Get a global LLM configuration by ID.
-    Global configs have negative IDs. ID 0 is reserved for Auto mode.
+    Global configs have negative IDs. Auto mode (ID 0) is resolved through the
+    model-candidate pipeline, not this legacy config lookup.
 
     Args:
-        llm_config_id: The ID of the global config (should be negative or 0 for Auto)
+        llm_config_id: The ID of the global config (must be negative)
 
     Returns:
         dict: Global config dictionary or None if not found
     """
-    # Auto mode (ID 0) is handled separately via the router
-    if llm_config_id == AUTO_MODE_ID:
-        return {
-            "id": AUTO_MODE_ID,
-            "name": "Auto (Fastest)",
-            "description": "Automatically routes requests across available LLM providers for optimal performance and rate limit handling",
-            "provider": "AUTO",
-            "model_name": "auto",
-            "is_auto_mode": True,
-        }
-
-    if llm_config_id > 0:
+    if llm_config_id >= 0:
         return None
 
     for cfg in config.GLOBAL_LLM_CONFIGS:

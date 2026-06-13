@@ -28,9 +28,9 @@ def _run() -> SimpleNamespace:
 def test_build_action_ctx_propagates_captured_models() -> None:
     """``definition.models`` flows onto the ActionContext model fields."""
     models = AutomationModels(
-        agent_llm_id=-1,
-        image_generation_config_id=5,
-        vision_llm_config_id=-1,
+        chat_model_id=-1,
+        image_gen_model_id=5,
+        vision_model_id=-1,
     )
     ctx = _build_action_ctx(
         cast(AsyncSession, None),
@@ -40,9 +40,9 @@ def test_build_action_ctx_propagates_captured_models() -> None:
     )
 
     assert ctx.search_space_id == 42
-    assert ctx.agent_llm_id == -1
-    assert ctx.image_generation_config_id == 5
-    assert ctx.vision_llm_config_id == -1
+    assert ctx.chat_model_id == -1
+    assert ctx.image_gen_model_id == 5
+    assert ctx.vision_model_id == -1
 
 
 def test_build_action_ctx_none_models_leaves_fields_none() -> None:
@@ -54,6 +54,6 @@ def test_build_action_ctx_none_models_leaves_fields_none() -> None:
         None,
     )
 
-    assert ctx.agent_llm_id is None
-    assert ctx.image_generation_config_id is None
-    assert ctx.vision_llm_config_id is None
+    assert ctx.chat_model_id is None
+    assert ctx.image_gen_model_id is None
+    assert ctx.vision_model_id is None

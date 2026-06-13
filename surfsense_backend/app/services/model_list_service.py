@@ -24,7 +24,7 @@ CACHE_TTL_SECONDS = 86400  # 24 hours
 _cache: list[dict] | None = None
 _cache_timestamp: float = 0
 
-# Maps OpenRouter provider slug → our LiteLLMProvider enum value.
+# Maps OpenRouter provider slug to native LiteLLM provider prefixes.
 # Only providers where the model-name part (after the slash) can be
 # used directly with the native provider's litellm prefix are listed.
 #

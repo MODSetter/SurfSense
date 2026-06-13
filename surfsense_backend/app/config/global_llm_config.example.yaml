@@ -433,87 +433,11 @@ global_image_generation_configs:
   #   rpm: 30
   #   litellm_params: {}
 
-# =============================================================================
-# Vision LLM Configuration
-# =============================================================================
-# These configurations power the vision autocomplete feature (screenshot analysis).
-# Only vision-capable models should be used here (e.g. GPT-4o, Gemini Pro, Claude 3).
-# Supported providers: OpenAI, Anthropic, Google, Azure OpenAI, Vertex AI, Bedrock,
-# xAI, OpenRouter, Ollama, Groq, Together AI, Fireworks AI, DeepSeek, Mistral, Custom
-#
-# Auto mode (ID 0) uses LiteLLM Router for load balancing across all vision configs.
-
-# Router Settings for Vision LLM Auto Mode
-vision_llm_router_settings:
-  routing_strategy: "usage-based-routing"
-  num_retries: 3
-  allowed_fails: 3
-  cooldown_time: 60
-
-global_vision_llm_configs:
-  # Example: OpenAI GPT-4o (recommended for vision)
-  - id: -1001
-    name: "Global GPT-4o Vision"
-    description: "OpenAI's GPT-4o with strong vision capabilities"
-    litellm_provider: "openai"
-    model_name: "gpt-4o"
-    api_key: "sk-your-openai-api-key-here"
-    api_base: "https://api.openai.com/v1"
-    rpm: 500
-    tpm: 100000
-    litellm_params:
-      temperature: 0.3
-      max_tokens: 1000
-
-  # Example: Google Gemini 2.0 Flash
-  - id: -1002
-    name: "Global Gemini 2.0 Flash"
-    description: "Google's fast vision model with large context"
-    litellm_provider: "gemini"
-    model_name: "gemini-2.0-flash"
-    api_key: "your-google-ai-api-key-here"
-    api_base: "https://generativelanguage.googleapis.com/v1beta"
-    rpm: 1000
-    tpm: 200000
-    litellm_params:
-      temperature: 0.3
-      max_tokens: 1000
-
-  # Example: Anthropic Claude 3.5 Sonnet
-  - id: -1003
-    name: "Global Claude 3.5 Sonnet Vision"
-    description: "Anthropic's Claude 3.5 Sonnet with vision support"
-    litellm_provider: "anthropic"
-    model_name: "claude-3-5-sonnet-20241022"
-    api_key: "sk-ant-your-anthropic-api-key-here"
-    api_base: "https://api.anthropic.com/v1"
-    rpm: 1000
-    tpm: 100000
-    litellm_params:
-      temperature: 0.3
-      max_tokens: 1000
-
-  # Example: Azure OpenAI GPT-4o
-  # - id: -1004
-  #   name: "Global Azure GPT-4o Vision"
-  #   description: "Azure-hosted GPT-4o for vision analysis"
-  #   litellm_provider: "azure"
-  #   model_name: "azure/gpt-4o-deployment"
-  #   api_key: "your-azure-api-key-here"
-  #   api_base: "https://your-resource.openai.azure.com"
-  #   api_version: "2024-02-15-preview"
-  #   rpm: 500
-  #   tpm: 100000
-  #   litellm_params:
-  #     temperature: 0.3
-  #     max_tokens: 1000
-  #     base_model: "gpt-4o"
-
 # Notes:
 # - ID 0 is reserved for "Auto" mode - uses LiteLLM Router for load balancing
 # - Use negative IDs to distinguish global models from BYOK/local DB models
-# - IDs must be unique across chat, vision, and image generation configs
-# - Suggested static ranges: chat -1..-999, vision -1001..-1999, image -2001..-2999
+# - IDs must be unique across chat and image generation configs
+# - Suggested static ranges: chat -1..-999, image -2001..-2999
 # - The 'api_key' field will not be exposed to users via API
 # - system_instructions: Custom prompt or empty string to use defaults
 # - use_default_system_instructions: true = use SURFSENSE_SYSTEM_INSTRUCTIONS when system_instructions is empty

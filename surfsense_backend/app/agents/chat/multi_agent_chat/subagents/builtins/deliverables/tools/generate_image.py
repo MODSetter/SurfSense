@@ -215,7 +215,7 @@ def create_generate_image_tool(
                     prompt=prompt,
                     model=getattr(response, "_hidden_params", {}).get("model"),
                     n=n,
-                    image_generation_config_id=config_id,
+                    image_gen_model_id=config_id,
                     response_data=response_dict,
                     search_space_id=search_space_id,
                     access_token=access_token,

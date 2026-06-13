@@ -348,8 +348,7 @@ def compose_system_prompt(
         mcp_connector_tools: ``{server_name: [tool_names...]}`` to inject
             an explicit MCP routing block.
         custom_system_instructions: Free-form instructions that override
-            the default ``<system_instruction>`` block (legacy support
-            for ``NewLLMConfig.system_instructions``).
+            the default ``<system_instruction>`` block.
         use_default_system_instructions: When ``custom_system_instructions``
             is empty/None, fall back to defaults (legacy semantics).
         citations_enabled: Include ``citations_on.md`` (true) or

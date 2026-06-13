@@ -1,13 +1,13 @@
-"""Resolve and persist Auto (Fastest) model pins per chat thread.
+"""Resolve and persist Auto model pins per chat thread.
 
-Auto (Fastest) is represented by ``agent_llm_id == 0``. For chat threads we
-resolve that virtual mode to one concrete global LLM config exactly once and
+Auto is represented by ``chat_model_id == 0``. For chat threads we
+resolve that virtual mode to one concrete global model exactly once and
 persist the chosen config id on ``new_chat_threads.pinned_llm_config_id`` so
 subsequent turns are stable.
 
 Single-writer invariant: this module is the only writer of
 ``NewChatThread.pinned_llm_config_id`` (aside from the bulk clear in
-``search_spaces_routes`` when a search space's ``agent_llm_id`` changes).
+``model_connections_routes`` when a search space's ``chat_model_id`` changes).
 Therefore a non-NULL value unambiguously means "this thread has an
 Auto-resolved pin"; no separate source/policy column is needed.
 """
@@ -33,8 +33,10 @@ from app.services.token_quota_service import TokenQuotaService
 
 logger = logging.getLogger(__name__)
 
-AUTO_FASTEST_ID = 0
-AUTO_FASTEST_MODE = "auto_fastest"
+AUTO_MODE_ID = 0
+# Stable internal hash namespace for deterministic per-thread selection.
+# Do not rename: changing this rebalances Auto's model choice for new pins.
+AUTO_PIN_HASH_NAMESPACE = "auto_fastest"
 _RUNTIME_COOLDOWN_SECONDS = 600
 _HEALTHY_TTL_SECONDS = 45
 
@@ -383,7 +385,7 @@ def _select_pin(eligible: list[dict], thread_id: int) -> tuple[dict, int]:
     pool = tier_a if tier_a else eligible
     pool = sorted(pool, key=lambda c: -int(c.get("quality_score") or 0))
     top_k = pool[:_QUALITY_TOP_K]
-    digest = hashlib.sha256(f"{AUTO_FASTEST_MODE}:{thread_id}".encode()).digest()
+    digest = hashlib.sha256(f"{AUTO_PIN_HASH_NAMESPACE}:{thread_id}".encode()).digest()
     idx = int.from_bytes(digest[:8], "big") % len(top_k)
     return top_k[idx], len(top_k)
 
@@ -425,7 +427,7 @@ async def resolve_or_get_pinned_llm_config_id(
     exclude_config_ids: set[int] | None = None,
     requires_image_input: bool = False,
 ) -> AutoPinResolution:
-    """Resolve Auto (Fastest) to one concrete config id and persist the pin.
+    """Resolve Auto to one concrete config id and persist the pin.
 
     For non-auto selections, this function clears any existing pin and returns
     the selected id as-is.
@@ -457,7 +459,7 @@ async def resolve_or_get_pinned_llm_config_id(
         )
 
     # Explicit model selected: clear any stale pin.
-    if selected_llm_config_id != AUTO_FASTEST_ID:
+    if selected_llm_config_id != AUTO_MODE_ID:
         if thread.pinned_llm_config_id is not None:
             thread.pinned_llm_config_id = None
             await session.commit()

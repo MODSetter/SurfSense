@@ -3,8 +3,8 @@
 Two responsibilities:
 
 1. Resolve an explicit ``--vision-llm <slug>`` to a global OpenRouter
-   vision LLM config id that ``set_llm_preferences(vision_llm_config_id=...)``
-   can accept.
+   vision-capable model id that ``set_model_roles(vision_model_id=...)`` can
+   accept.
 2. Auto-pick the strongest registered vision config when the operator
    doesn't pass ``--vision-llm`` but the scenario / benchmark needs one.
 

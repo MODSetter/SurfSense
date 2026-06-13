@@ -147,35 +147,35 @@ class SuiteState:
     """Per-suite persisted state.
 
     ``provider_model`` is the slug pinned to the SearchSpace's
-    ``agent_llm`` — what answers SurfSense queries (and what the native
+    ``chat_model_id`` — what answers SurfSense queries (and what the native
     arm uses too, unless ``native_arm_model`` is set for cost-arbitrage).
 
-    ``vision_provider_model`` is the slug of the OpenRouter vision LLM
-    config attached to the SearchSpace's ``vision_llm_config_id`` — what
+    ``vision_provider_model`` is the slug of the OpenRouter vision model
+    attached to the SearchSpace's ``vision_model_id`` — what
     SurfSense uses to extract image content at ingest time when
     ``use_vision_llm=True``. ``None`` means no vision config was attached
     at setup (legacy or text-only suite).
     """
 
     search_space_id: int
-    agent_llm_id: int
+    chat_model_id: int
     provider_model: str
     created_at: str
     ingestion_maps: dict[str, str] = field(default_factory=dict)
     scenario: str = DEFAULT_SCENARIO
-    vision_llm_config_id: int | None = None
+    vision_model_id: int | None = None
     vision_provider_model: str | None = None
     native_arm_model: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "search_space_id": self.search_space_id,
-            "agent_llm_id": self.agent_llm_id,
+            "chat_model_id": self.chat_model_id,
             "provider_model": self.provider_model,
             "created_at": self.created_at,
             "ingestion_maps": dict(self.ingestion_maps),
             "scenario": self.scenario,
-            "vision_llm_config_id": self.vision_llm_config_id,
+            "vision_model_id": self.vision_model_id,
             "vision_provider_model": self.vision_provider_model,
             "native_arm_model": self.native_arm_model,
         }
@@ -187,15 +187,16 @@ class SuiteState:
         scenario = str(payload.get("scenario") or DEFAULT_SCENARIO)
         if scenario not in SCENARIOS:
             scenario = DEFAULT_SCENARIO
-        raw_vision_id = payload.get("vision_llm_config_id")
+        raw_chat_id = payload.get("chat_model_id")
+        raw_vision_id = payload.get("vision_model_id")
         return cls(
             search_space_id=int(payload["search_space_id"]),
-            agent_llm_id=int(payload["agent_llm_id"]),
+            chat_model_id=int(raw_chat_id),
             provider_model=str(payload["provider_model"]),
             created_at=str(payload.get("created_at") or ""),
             ingestion_maps=dict(payload.get("ingestion_maps") or {}),
             scenario=scenario,
-            vision_llm_config_id=int(raw_vision_id) if raw_vision_id is not None else None,
+            vision_model_id=int(raw_vision_id) if raw_vision_id is not None else None,
             vision_provider_model=(
                 str(payload["vision_provider_model"])
                 if payload.get("vision_provider_model")

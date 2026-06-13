@@ -1,4 +1,4 @@
-"""Unit tests for the Auto (Fastest) quality scoring module."""
+"""Unit tests for the Auto quality scoring module."""
 
 from __future__ import annotations
 

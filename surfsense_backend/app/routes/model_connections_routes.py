@@ -11,6 +11,7 @@ from app.db import (
     ConnectionScope,
     Model,
     ModelSource,
+    NewChatThread,
     Permission,
     SearchSpace,
     User,
@@ -708,12 +709,26 @@ async def update_model_roles(
     search_space = await _get_search_space(session, search_space_id)
     updates = data.model_dump(exclude_unset=True)
     if "chat_model_id" in updates:
-        search_space.chat_model_id = await _validate_role_model_id(
+        previous_chat_model_id = search_space.chat_model_id
+        next_chat_model_id = await _validate_role_model_id(
             session,
             search_space_id=search_space_id,
             model_id=updates["chat_model_id"],
             capability="chat",
         )
+        search_space.chat_model_id = next_chat_model_id
+        if next_chat_model_id != previous_chat_model_id:
+            await session.execute(
+                update(NewChatThread)
+                .where(NewChatThread.search_space_id == search_space_id)
+                .values(pinned_llm_config_id=None)
+            )
+            logger.info(
+                "Cleared auto model pins for search_space_id=%s after chat_model_id change (%s -> %s)",
+                search_space_id,
+                previous_chat_model_id,
+                next_chat_model_id,
+            )
     if "vision_model_id" in updates:
         search_space.vision_model_id = await _validate_role_model_id(
             session,

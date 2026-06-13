@@ -1,108 +1,9 @@
-"""
-Pydantic schemas for Image Generation configs and generation requests.
+"""Pydantic schemas for image generation requests/results."""
 
-ImageGenerationConfig: CRUD schemas for user-created image gen model configs.
-ImageGeneration: Schemas for the actual image generation requests/results.
-GlobalImageGenConfigRead: Schema for admin-configured YAML configs.
-"""
-
-import uuid
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
-
-from app.db import ImageGenProvider
-
-# =============================================================================
-# ImageGenerationConfig CRUD Schemas
-# =============================================================================
-
-
-class ImageGenerationConfigBase(BaseModel):
-    """Base schema with fields for ImageGenerationConfig."""
-
-    name: str = Field(
-        ..., max_length=100, description="User-friendly name for the config"
-    )
-    description: str | None = Field(
-        None, max_length=500, description="Optional description"
-    )
-    provider: ImageGenProvider = Field(
-        ...,
-        description="Image generation provider (OpenAI, Azure, Google AI Studio, Vertex AI, Bedrock, Recraft, OpenRouter, Xinference, Nscale)",
-    )
-    custom_provider: str | None = Field(
-        None, max_length=100, description="Custom provider name"
-    )
-    model_name: str = Field(
-        ..., max_length=100, description="Model name (e.g., dall-e-3, gpt-image-1)"
-    )
-    api_key: str = Field(..., description="API key for the provider")
-    api_base: str | None = Field(
-        None, max_length=500, description="Optional API base URL"
-    )
-    api_version: str | None = Field(
-        None,
-        max_length=50,
-        description="Azure-specific API version (e.g., '2024-02-15-preview')",
-    )
-    litellm_params: dict[str, Any] | None = Field(
-        default=None, description="Additional LiteLLM parameters"
-    )
-
-
-class ImageGenerationConfigCreate(ImageGenerationConfigBase):
-    """Schema for creating a new ImageGenerationConfig."""
-
-    search_space_id: int = Field(
-        ..., description="Search space ID to associate the config with"
-    )
-
-
-class ImageGenerationConfigUpdate(BaseModel):
-    """Schema for updating an existing ImageGenerationConfig. All fields optional."""
-
-    name: str | None = Field(None, max_length=100)
-    description: str | None = Field(None, max_length=500)
-    provider: ImageGenProvider | None = None
-    custom_provider: str | None = Field(None, max_length=100)
-    model_name: str | None = Field(None, max_length=100)
-    api_key: str | None = None
-    api_base: str | None = Field(None, max_length=500)
-    api_version: str | None = Field(None, max_length=50)
-    litellm_params: dict[str, Any] | None = None
-
-
-class ImageGenerationConfigRead(ImageGenerationConfigBase):
-    """Schema for reading an ImageGenerationConfig (includes id and timestamps)."""
-
-    id: int
-    created_at: datetime
-    search_space_id: int
-    user_id: uuid.UUID
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class ImageGenerationConfigPublic(BaseModel):
-    """Public schema that hides the API key (for list views)."""
-
-    id: int
-    name: str
-    description: str | None = None
-    provider: ImageGenProvider
-    custom_provider: str | None = None
-    model_name: str
-    api_base: str | None = None
-    api_version: str | None = None
-    litellm_params: dict[str, Any] | None = None
-    created_at: datetime
-    search_space_id: int
-    user_id: uuid.UUID
-
-    model_config = ConfigDict(from_attributes=True)
-
 
 # =============================================================================
 # ImageGeneration (request/result) Schemas
@@ -136,12 +37,12 @@ class ImageGenerationCreate(BaseModel):
     search_space_id: int = Field(
         ..., description="Search space ID to associate the generation with"
     )
-    image_generation_config_id: int | None = Field(
+    image_gen_model_id: int | None = Field(
         None,
         description=(
-            "Image generation config ID. "
-            "0 = Auto mode (router), negative = global YAML config, positive = DB config. "
-            "If not provided, uses the search space's image_generation_config_id preference."
+            "Image generation model ID. "
+            "0 = Auto mode, negative = GLOBAL model, positive = BYOK Model row. "
+            "If not provided, uses the search space's image_gen_model_id preference."
         ),
     )
 
@@ -157,7 +58,7 @@ class ImageGenerationRead(BaseModel):
     size: str | None = None
     style: str | None = None
     response_format: str | None = None
-    image_generation_config_id: int | None = None
+    image_gen_model_id: int | None = None
     response_data: dict[str, Any] | None = None
     error_message: str | None = None
     search_space_id: int
@@ -204,57 +105,3 @@ class ImageGenerationListRead(BaseModel):
             image_count=image_count,
         )
 
-
-# =============================================================================
-# Global Image Gen Config (from YAML)
-# =============================================================================
-
-
-class GlobalImageGenConfigRead(BaseModel):
-    """
-    Schema for reading global image generation configs from YAML.
-    Global configs have negative IDs. API key is hidden.
-    ID 0 is reserved for Auto mode (LiteLLM Router load balancing).
-
-    The ``billing_tier`` field allows the frontend to show a Premium/Free
-    badge and (more importantly) tells the backend whether to debit the
-    user's premium credit pool when this config is used. ``"free"`` is
-    the default for backward compatibility — admins must explicitly opt
-    a global config into ``"premium"``.
-    """
-
-    id: int = Field(
-        ...,
-        description="Config ID: 0 for Auto mode, negative for global configs",
-    )
-    name: str
-    description: str | None = None
-    provider: str
-    custom_provider: str | None = None
-    model_name: str
-    api_base: str | None = None
-    api_version: str | None = None
-    litellm_params: dict[str, Any] | None = None
-    is_global: bool = True
-    is_auto_mode: bool = False
-    billing_tier: str = Field(
-        default="free",
-        description="'free' or 'premium'. Premium debits the user's premium credit pool (USD-cost-based).",
-    )
-    is_premium: bool = Field(
-        default=False,
-        description=(
-            "Convenience boolean derived server-side from "
-            "``billing_tier == 'premium'``. The new-chat model selector "
-            "keys its Free/Premium badge off this field for parity with "
-            "chat (`GlobalLLMConfigRead.is_premium`)."
-        ),
-    )
-    quota_reserve_micros: int | None = Field(
-        default=None,
-        description=(
-            "Optional override for the reservation amount (in micro-USD) used when "
-            "this image generation is premium. Falls back to "
-            "QUOTA_DEFAULT_IMAGE_RESERVE_MICROS when omitted."
-        ),
-    )

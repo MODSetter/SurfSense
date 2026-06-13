@@ -1,4 +1,4 @@
-"""Pure-function quality scoring for Auto (Fastest) model selection.
+"""Pure-function quality scoring for Auto model selection.
 
 This module is import-free of any service / request-path dependencies. All
 numbers are computed once during the OpenRouter refresh tick (or YAML load)

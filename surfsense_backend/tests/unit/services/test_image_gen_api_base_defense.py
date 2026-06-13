@@ -15,15 +15,19 @@ async def test_global_openrouter_image_gen_sets_explicit_api_base():
     """The global-config branch forwards the explicit OpenRouter base."""
     from app.routes import image_generation_routes
 
-    cfg = {
+    global_model = {
         "id": -20_001,
-        "name": "GPT Image 1 (OpenRouter)",
-        "litellm_provider": "openrouter",
-        "model_name": "openai/gpt-image-1",
+        "connection_id": -101,
+        "model_id": "openai/gpt-image-1",
+        "supports_image_generation": True,
+        "capabilities_override": {},
+    }
+    global_connection = {
+        "id": -101,
+        "provider": "openrouter",
         "api_key": "sk-or-test",
-        "api_base": "https://openrouter.ai/api/v1",
-        "api_version": None,
-        "litellm_params": {},
+        "base_url": "https://openrouter.ai/api/v1",
+        "extra": {},
     }
 
     captured: dict = {}
@@ -33,7 +37,7 @@ async def test_global_openrouter_image_gen_sets_explicit_api_base():
         return MagicMock(model_dump=lambda: {"data": []}, _hidden_params={})
 
     image_gen = MagicMock()
-    image_gen.image_generation_config_id = cfg["id"]
+    image_gen.image_gen_model_id = global_model["id"]
     image_gen.prompt = "test"
     image_gen.n = 1
     image_gen.quality = None
@@ -43,14 +47,19 @@ async def test_global_openrouter_image_gen_sets_explicit_api_base():
     image_gen.model = None
 
     search_space = MagicMock()
-    search_space.image_generation_config_id = cfg["id"]
+    search_space.image_gen_model_id = global_model["id"]
     session = MagicMock()
 
     with (
         patch.object(
             image_generation_routes,
-            "_get_global_image_gen_config",
-            return_value=cfg,
+            "_get_global_model",
+            return_value=global_model,
+        ),
+        patch.object(
+            image_generation_routes,
+            "_get_global_connection",
+            return_value=global_connection,
         ),
         patch.object(
             image_generation_routes,
@@ -74,15 +83,19 @@ async def test_generate_image_tool_global_sets_explicit_api_base():
         generate_image as gi_module,
     )
 
-    cfg = {
+    global_model = {
         "id": -20_001,
-        "name": "GPT Image 1 (OpenRouter)",
-        "litellm_provider": "openrouter",
-        "model_name": "openai/gpt-image-1",
+        "connection_id": -101,
+        "model_id": "openai/gpt-image-1",
+        "supports_image_generation": True,
+        "capabilities_override": {},
+    }
+    global_connection = {
+        "id": -101,
+        "provider": "openrouter",
         "api_key": "sk-or-test",
-        "api_base": "https://openrouter.ai/api/v1",
-        "api_version": None,
-        "litellm_params": {},
+        "base_url": "https://openrouter.ai/api/v1",
+        "extra": {},
     }
 
     captured: dict = {}
@@ -98,7 +111,7 @@ async def test_generate_image_tool_global_sets_explicit_api_base():
 
     search_space = MagicMock()
     search_space.id = 1
-    search_space.image_generation_config_id = cfg["id"]
+    search_space.image_gen_model_id = global_model["id"]
 
     session_cm = AsyncMock()
     session = AsyncMock()
@@ -121,7 +134,8 @@ async def test_generate_image_tool_global_sets_explicit_api_base():
 
     with (
         patch.object(gi_module, "shielded_async_session", return_value=session_cm),
-        patch.object(gi_module, "_get_global_image_gen_config", return_value=cfg),
+        patch.object(gi_module, "_get_global_model", return_value=global_model),
+        patch.object(gi_module, "_get_global_connection", return_value=global_connection),
         patch.object(
             gi_module, "aimage_generation", side_effect=fake_aimage_generation
         ),

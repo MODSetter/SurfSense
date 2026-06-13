@@ -4,7 +4,7 @@ Revision ID: 138
 Revises: 137
 Create Date: 2026-04-30
 
-Add a single thread-level column to persist the Auto (Fastest) model pin:
+Add a single thread-level column to persist the Auto model pin:
 - pinned_llm_config_id: concrete resolved global LLM config id used for this
   thread. NULL means "no pin; Auto will resolve on next turn".
 

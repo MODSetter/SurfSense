@@ -330,31 +330,6 @@ async def probe_chat_configs(report: Report, *, live: bool) -> None:
         report.add(result)
 
 
-async def probe_vision_configs(report: Report, *, live: bool) -> None:
-    print("\n[vision configs from global_vision_llm_configs (YAML-static)]")
-    for cfg in config.GLOBAL_VISION_LLM_CONFIGS:
-        if _is_or_dynamic(cfg):
-            continue
-        result = ProbeResult(
-            label=str(cfg.get("name") or cfg.get("model_name")),
-            surface="vision",
-            config_id=cfg.get("id"),
-        )
-        # For vision configs, capability is implied — they're in the
-        # dedicated vision pool. Run the same resolver to flag any
-        # surprise disagreement.
-        cap_ok, cap_note = _probe_chat_capability(cfg)
-        result.capability_ok = cap_ok
-        result.capability_note = cap_note
-        if live:
-            t0 = time.perf_counter()
-            ok, note = await _live_chat_image_call(cfg)
-            result.live_ok = ok
-            result.live_note = note
-            result.duration_s = time.perf_counter() - t0
-        report.add(result)
-
-
 async def probe_image_gen_configs(report: Report, *, live: bool) -> None:
     print(
         "\n[image generation configs from global_image_generation_configs (YAML-static)]"
@@ -380,7 +355,7 @@ async def probe_image_gen_configs(report: Report, *, live: bool) -> None:
 
 
 async def probe_openrouter_catalog(report: Report, *, live: bool) -> None:
-    """Sample one chat (vision-capable), one vision, one image-gen model
+    """Sample chat/vision-capable and image-gen models
     from the live OpenRouter catalogue. Doesn't iterate the full pool
     (would be hundreds of probes); just validates the integration end-
     to-end on a representative model from each surface."""
@@ -405,9 +380,6 @@ async def probe_openrouter_catalog(report: Report, *, live: bool) -> None:
         for c in config.GLOBAL_LLM_CONFIGS
         if c.get("provider") == "OPENROUTER" and c.get("supports_image_input")
     ]
-    or_vision = [
-        c for c in config.GLOBAL_VISION_LLM_CONFIGS if c.get("provider") == "OPENROUTER"
-    ]
     or_image_gen = [
         c for c in config.GLOBAL_IMAGE_GEN_CONFIGS if c.get("provider") == "OPENROUTER"
     ]
@@ -427,11 +399,6 @@ async def probe_openrouter_catalog(report: Report, *, live: bool) -> None:
         ("or-chat", _pick_first(or_chat, "anthropic/claude")),
         ("or-chat", _pick_first(or_chat, "google/gemini-2.5-flash")),
     ]
-    vision_picks = [
-        ("or-vision", _pick_first(or_vision, "openai/gpt-4o")),
-        ("or-vision", _pick_first(or_vision, "anthropic/claude")),
-        ("or-vision", _pick_first(or_vision, "google/gemini-2.5-flash")),
-    ]
     image_picks = [
         ("or-image", _pick_first(or_image_gen, "google/gemini-2.5-flash-image")),
         # OpenRouter publishes OpenAI image models as ``openai/gpt-5-image*``
@@ -441,11 +408,11 @@ async def probe_openrouter_catalog(report: Report, *, live: bool) -> None:
     ]
 
     print(
-        f"  catalog: chat={len(or_chat)} vision={len(or_vision)} image_gen={len(or_image_gen)} "
+        f"  catalog: chat_vision={len(or_chat)} image_gen={len(or_image_gen)} "
         f"(service initialized={service.is_initialized() if hasattr(service, 'is_initialized') else 'n/a'})"
     )
 
-    for surface, picked in chat_picks + vision_picks + image_picks:
+    for surface, picked in chat_picks + image_picks:
         if not picked:
             report.add(
                 ProbeResult(
@@ -486,7 +453,6 @@ async def probe_openrouter_catalog(report: Report, *, live: bool) -> None:
 async def main(args: argparse.Namespace) -> int:
     print("Loaded global configs:")
     print(f"  chat:      {len(config.GLOBAL_LLM_CONFIGS)} entries")
-    print(f"  vision:    {len(config.GLOBAL_VISION_LLM_CONFIGS)} entries")
     print(f"  image-gen: {len(config.GLOBAL_IMAGE_GEN_CONFIGS)} entries")
     print(f"  OR settings present: {bool(config.OPENROUTER_INTEGRATION_SETTINGS)}")
 
@@ -507,8 +473,6 @@ async def main(args: argparse.Namespace) -> int:
     report = Report()
     if not args.skip_chat:
         await probe_chat_configs(report, live=args.live)
-    if not args.skip_vision:
-        await probe_vision_configs(report, live=args.live)
     if not args.skip_image_gen:
         await probe_image_gen_configs(report, live=args.live)
     if not args.skip_openrouter:
@@ -528,7 +492,6 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.set_defaults(live=True)
     parser.add_argument("--skip-chat", action="store_true")
-    parser.add_argument("--skip-vision", action="store_true")
     parser.add_argument("--skip-image-gen", action="store_true")
     parser.add_argument("--skip-openrouter", action="store_true")
     return parser.parse_args()

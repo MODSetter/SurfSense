@@ -2,7 +2,7 @@
 
 Subcommands:
 
-* ``setup    --suite <name> --provider-model <slug> [--agent-llm-id <int>]``
+* ``setup    --suite <name> --provider-model <slug> [--chat-model-id <int>]``
 * ``teardown --suite <name>``
 * ``models  list [--provider openrouter] [--grep <s>]``
 * ``suites  list``
@@ -18,7 +18,7 @@ publish its own flags.
 
 Design choices worth flagging:
 
-* ``setup`` rejects ``agent_llm_id == 0`` (Auto / LiteLLM router) so
+* ``setup`` rejects ``chat_model_id == 0`` (Auto / LiteLLM router) so
   per-question accuracy is reproducible.
 * ``setup`` validates that the picked LLM config has
   ``provider == "OPENROUTER"`` and ``model_name == --provider-model``
@@ -59,7 +59,6 @@ if sys.platform == "win32":
 from . import registry
 from .auth import CredentialError, acquire_token, client_with_auth
 from .clients import SearchSpaceClient
-from .clients.search_space import LlmPreferences
 from .config import (
     DEFAULT_SCENARIO,
     SCENARIOS,
@@ -111,23 +110,30 @@ class LlmConfigEntry:
     def from_payload(cls, payload: dict[str, Any]) -> LlmConfigEntry:
         return cls(
             id=int(payload["id"]),
-            name=str(payload.get("name", "")),
+            name=str(payload.get("display_name") or payload.get("name") or ""),
             provider=str(payload.get("provider", "")).upper(),
-            model_name=str(payload.get("model_name", "")),
+            model_name=str(payload.get("model_id") or payload.get("model_name") or ""),
             raw=payload,
         )
 
 
 async def _list_global_llm_configs(http: httpx.AsyncClient, base: str) -> list[LlmConfigEntry]:
     response = await http.get(
-        f"{base}/api/v1/global-new-llm-configs",
+        f"{base}/api/v1/model-connections/global",
         headers={"Accept": "application/json"},
     )
     response.raise_for_status()
     payload = response.json()
     if not isinstance(payload, list):
-        raise RuntimeError(f"Unexpected /global-new-llm-configs payload: {payload!r}")
-    return [LlmConfigEntry.from_payload(item) for item in payload]
+        raise RuntimeError(f"Unexpected /model-connections/global payload: {payload!r}")
+    entries: list[LlmConfigEntry] = []
+    for connection in payload:
+        provider = connection.get("provider", "")
+        for model in connection.get("models") or []:
+            if not model.get("enabled", True) or not model.get("supports_chat"):
+                continue
+            entries.append(LlmConfigEntry.from_payload({**model, "provider": provider}))
+    return entries
 
 
 def _resolve_openrouter_id(
@@ -143,8 +149,8 @@ def _resolve_openrouter_id(
     * If ``explicit_id`` is given: return it directly. The caller is
       then expected to GET-validate that the row's
       ``provider == "OPENROUTER"`` and ``model_name`` matches the slug.
-      That branch supports positive BYOK ``NewLLMConfig`` rows whose
-      slugs may overlap with global OpenRouter virtuals.
+      That branch supports positive BYOK model rows whose slugs may overlap
+      with global OpenRouter virtuals.
     * Otherwise: filter to ``provider == "OPENROUTER"`` and
       ``model_name == provider_model``. Expect exactly one match —
       raise with a friendly message otherwise.
@@ -173,7 +179,7 @@ def _resolve_openrouter_id(
         listing = "\n".join(f"  id={c.id}  name={c.name!r}" for c in matches)
         raise RuntimeError(
             f"Multiple OpenRouter configs for slug '{provider_model}':\n{listing}\n"
-            "Pass --agent-llm-id <id> to disambiguate."
+            "Pass --chat-model-id <id> to disambiguate."
         )
     return matches[0].id
 
@@ -186,7 +192,7 @@ def _resolve_openrouter_id(
 async def _cmd_setup(args: argparse.Namespace) -> int:
     suite = args.suite
     provider_model: str = args.provider_model
-    explicit_id: int | None = args.agent_llm_id
+    explicit_id: int | None = args.chat_model_id
     scenario: str = args.scenario
     vision_llm_slug: str | None = args.vision_llm
     native_arm_model: str | None = args.native_arm_model
@@ -194,7 +200,7 @@ async def _cmd_setup(args: argparse.Namespace) -> int:
 
     if explicit_id == 0:
         console.print(
-            "[red]agent_llm_id == 0 (Auto / LiteLLM router) is not allowed — "
+            "[red]chat_model_id == 0 (Auto / LiteLLM router) is not allowed — "
             "results would not be reproducible.[/red]"
         )
         return 2
@@ -242,7 +248,7 @@ async def _cmd_setup(args: argparse.Namespace) -> int:
         candidates = await _list_global_llm_configs(http, config.surfsense_api_base)
 
         try:
-            agent_llm_id = _resolve_openrouter_id(
+            chat_model_id = _resolve_openrouter_id(
                 candidates, provider_model, explicit_id=explicit_id
             )
         except RuntimeError as exc:
@@ -288,7 +294,7 @@ async def _cmd_setup(args: argparse.Namespace) -> int:
         vision_provider_model: str | None = None
         if not skip_vision_setup and (vision_required or vision_llm_slug is not None):
             try:
-                vision_candidates = await ss_client.list_global_vision_llm_configs()
+                vision_candidates = await ss_client.list_global_vision_models()
                 resolved = resolve_vision_llm(
                     vision_candidates, explicit_slug=vision_llm_slug
                 )
@@ -302,37 +308,34 @@ async def _cmd_setup(args: argparse.Namespace) -> int:
                 f"(id={vision_config_id}, selected_via={resolved.selected_via})."
             )
 
-        pref_kwargs: dict[str, Any] = {"agent_llm_id": agent_llm_id}
+        role_kwargs: dict[str, Any] = {"chat_model_id": chat_model_id}
         if vision_config_id is not None:
-            pref_kwargs["vision_llm_config_id"] = vision_config_id
+            role_kwargs["vision_model_id"] = vision_config_id
 
-        await ss_client.set_llm_preferences(search_space_id, **pref_kwargs)
-        prefs = await ss_client.get_llm_preferences(search_space_id)
-        if not _validate_pin(prefs, provider_model):
-            agent = prefs.agent_llm or {}
+        await ss_client.set_model_roles(search_space_id, **role_kwargs)
+        roles = await ss_client.get_model_roles(search_space_id)
+        if roles.chat_model_id != chat_model_id:
             console.print(
                 f"[red]LLM pin validation FAILED.[/red] After PUT, "
-                f"agent_llm.provider={agent.get('provider')!r}, "
-                f"model_name={agent.get('model_name')!r}; expected "
-                f"provider=OPENROUTER, model_name={provider_model!r}."
+                f"chat_model_id={roles.chat_model_id!r}; expected {chat_model_id!r}."
             )
             return 2
-        if vision_config_id is not None and prefs.vision_llm_config_id != vision_config_id:
+        if vision_config_id is not None and roles.vision_model_id != vision_config_id:
             console.print(
                 f"[red]Vision LLM pin validation FAILED.[/red] After PUT, "
-                f"vision_llm_config_id={prefs.vision_llm_config_id!r}; "
+                f"vision_model_id={roles.vision_model_id!r}; "
                 f"expected {vision_config_id!r}."
             )
             return 2
 
         suite_state = SuiteState(
             search_space_id=search_space_id,
-            agent_llm_id=agent_llm_id,
+            chat_model_id=chat_model_id,
             provider_model=provider_model,
             created_at=utc_iso_timestamp(),
             ingestion_maps=existing.ingestion_maps if existing else {},
             scenario=scenario,
-            vision_llm_config_id=vision_config_id,
+            vision_model_id=vision_config_id,
             vision_provider_model=vision_provider_model,
             native_arm_model=native_arm_model,
         )
@@ -342,7 +345,7 @@ async def _cmd_setup(args: argparse.Namespace) -> int:
         f"suite={suite!r}",
         f"scenario={scenario!r}",
         f"search_space_id={suite_state.search_space_id}",
-        f"agent_llm_id={suite_state.agent_llm_id}",
+        f"chat_model_id={suite_state.chat_model_id}",
         f"provider_model={suite_state.provider_model!r}",
     ]
     if suite_state.vision_provider_model:
@@ -351,14 +354,6 @@ async def _cmd_setup(args: argparse.Namespace) -> int:
         summary_bits.append(f"native_arm_model={suite_state.native_arm_model!r}")
     console.print(f"[green]setup OK[/green] {' '.join(summary_bits)}")
     return 0
-
-
-def _validate_pin(prefs: LlmPreferences, provider_model: str) -> bool:
-    agent = prefs.agent_llm or {}
-    return (
-        str(agent.get("provider", "")).upper() == "OPENROUTER"
-        and str(agent.get("model_name", "")) == provider_model
-    )
 
 
 async def _cmd_teardown(args: argparse.Namespace) -> int:
@@ -654,10 +649,10 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p_setup.add_argument(
-        "--agent-llm-id",
+        "--chat-model-id",
         type=int,
         default=None,
-        help="Optional override for BYOK NewLLMConfig rows.",
+        help="Optional explicit model id override.",
     )
     p_setup.add_argument(
         "--scenario",

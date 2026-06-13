@@ -24,8 +24,6 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGenerationChunk, ChatResult
 from langchain_litellm import ChatLiteLLM
 from litellm import get_model_info
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat.runtime.prompt_caching import (
     apply_litellm_prompt_caching,
@@ -34,7 +32,6 @@ from app.services.llm_router_service import (
     AUTO_MODE_ID,
     ChatLiteLLMRouter,
     _sanitize_content,
-    is_auto_mode,
 )
 
 
@@ -130,7 +127,7 @@ class AgentConfig:
     """
     Complete configuration for the SurfSense agent.
 
-    This combines LLM settings with prompt configuration from NewLLMConfig.
+    This combines resolved model settings with prompt configuration.
     Supports Auto mode metadata (ID 0). Runtime callers must resolve Auto to
     a concrete global or BYOK model before constructing ChatLiteLLM.
     """
@@ -180,7 +177,7 @@ class AgentConfig:
             use_default_system_instructions=True,
             citations_enabled=True,
             config_id=AUTO_MODE_ID,
-            config_name="Auto (Fastest)",
+            config_name="Auto",
             is_auto_mode=True,
             billing_tier="free",
             is_premium=False,
@@ -192,56 +189,11 @@ class AgentConfig:
         )
 
     @classmethod
-    def from_new_llm_config(cls, config) -> "AgentConfig":
-        """Build an AgentConfig from a NewLLMConfig database model."""
-        # Lazy import: keeps provider_capabilities (and litellm) out of init order.
-        from app.services.provider_capabilities import derive_supports_image_input
-
-        provider_value = (
-            config.provider.value
-            if hasattr(config.provider, "value")
-            else str(config.provider)
-        )
-        litellm_params = config.litellm_params or {}
-        base_model = (
-            litellm_params.get("base_model")
-            if isinstance(litellm_params, dict)
-            else None
-        )
-
-        return cls(
-            provider=provider_value,
-            model_name=config.model_name,
-            api_key=config.api_key,
-            api_base=config.api_base,
-            custom_provider=config.custom_provider,
-            litellm_params=config.litellm_params,
-            system_instructions=config.system_instructions,
-            use_default_system_instructions=config.use_default_system_instructions,
-            citations_enabled=config.citations_enabled,
-            config_id=config.id,
-            config_name=config.name,
-            is_auto_mode=False,
-            billing_tier="free",
-            is_premium=False,
-            anonymous_enabled=False,
-            quota_reserve_tokens=None,
-            # BYOK rows have no curated flag; ask LiteLLM (default-allow on
-            # unknown). The streaming safety net still blocks explicit text-only.
-            supports_image_input=derive_supports_image_input(
-                provider=provider_value.lower(),
-                model_name=config.model_name,
-                base_model=base_model,
-                custom_provider=config.custom_provider,
-            ),
-        )
-
-    @classmethod
     def from_yaml_config(cls, yaml_config: dict) -> "AgentConfig":
         """Build an AgentConfig from a YAML configuration dictionary.
 
-        Supports the same prompt fields as NewLLMConfig (system_instructions,
-        use_default_system_instructions, citations_enabled).
+        Supports prompt fields such as system_instructions,
+        use_default_system_instructions, and citations_enabled.
         """
         # Lazy import: keeps provider_capabilities (and litellm) out of init order.
         from app.services.provider_capabilities import derive_supports_image_input
@@ -332,82 +284,6 @@ def load_global_llm_config_by_id(llm_config_id: int) -> dict | None:
             return cfg
     # Fallback to YAML file read (covers hot-reload edge cases).
     return load_llm_config_from_yaml(llm_config_id)
-
-
-async def load_new_llm_config_from_db(
-    session: AsyncSession,
-    config_id: int,
-) -> "AgentConfig | None":
-    """Load a NewLLMConfig from the database by ID."""
-    from app.db import NewLLMConfig
-
-    try:
-        result = await session.execute(
-            select(NewLLMConfig).filter(NewLLMConfig.id == config_id)
-        )
-        config = result.scalars().first()
-
-        if not config:
-            print(f"Error: NewLLMConfig with id {config_id} not found")
-            return None
-
-        return AgentConfig.from_new_llm_config(config)
-    except Exception as e:
-        print(f"Error loading NewLLMConfig from database: {e}")
-        return None
-
-
-async def load_agent_llm_config_for_search_space(
-    session: AsyncSession,
-    search_space_id: int,
-) -> "AgentConfig | None":
-    """Load the chat model config for a search space via its agent_llm_id.
-
-    Positive id -> DB; negative -> YAML; None -> first global config (-1).
-    """
-    from app.db import SearchSpace
-
-    try:
-        result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == search_space_id)
-        )
-        search_space = result.scalars().first()
-
-        if not search_space:
-            print(f"Error: SearchSpace with id {search_space_id} not found")
-            return None
-
-        config_id = (
-            search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
-        )
-        return await load_agent_config(session, config_id, search_space_id)
-    except Exception as e:
-        print(f"Error loading chat model config for search space {search_space_id}: {e}")
-        return None
-
-
-async def load_agent_config(
-    session: AsyncSession,
-    config_id: int,
-    search_space_id: int | None = None,
-) -> "AgentConfig | None":
-    """Main config loader: id 0 -> Auto mode; negative -> YAML; positive -> DB."""
-    if is_auto_mode(config_id):
-        return AgentConfig.from_auto_mode()
-
-    if config_id < 0:
-        # In-memory covers static YAML + dynamic OpenRouter configs.
-        from app.config import config as app_config
-
-        for cfg in app_config.GLOBAL_LLM_CONFIGS:
-            if cfg.get("id") == config_id:
-                return AgentConfig.from_yaml_config(cfg)
-        yaml_config = load_llm_config_from_yaml(config_id)
-        if yaml_config:
-            return AgentConfig.from_yaml_config(yaml_config)
-        return None
-    else:
-        return await load_new_llm_config_from_db(session, config_id)
 
 
 def create_chat_litellm_from_config(llm_config: dict) -> ChatLiteLLM | None:

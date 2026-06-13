@@ -2,11 +2,11 @@
 
 Automations run unattended, so every run must be **billable**: it may only use
 either a premium global model (``billing_tier == "premium"``) or a user-provided
-BYOK model (a positive config id pointing at a per-user/per-space DB row). Free
+BYOK model (a positive model id pointing at a per-user/per-space DB row). Free
 global models and Auto mode are blocked, because Auto can dispatch to a free
 deployment and free models aren't metered in premium credits.
 
-Config id conventions (shared across chat / image / vision):
+Model id conventions (shared across chat / image / vision):
 - ``id == 0``  → Auto mode (``AUTO_MODE_ID`` / ``IMAGE_GEN_AUTO_MODE_ID`` /
   ``VISION_AUTO_MODE_ID``). Blocked.
 - ``id < 0``   → global YAML/OpenRouter config. Allowed only if premium.
@@ -82,7 +82,7 @@ def get_model_eligibility(
 
     The ID-based core shared by both the search-space path (creation/eligibility)
     and the captured-snapshot path (runtime backstop). Each violation is
-    ``{"kind", "config_id", "reason"}``.
+    ``{"kind", "model_id", "reason"}``.
     """
     checks: list[tuple[ModelKind, int | None]] = [
         ("chat", chat_model_id),
@@ -91,10 +91,10 @@ def get_model_eligibility(
     ]
 
     violations: list[dict] = []
-    for kind, config_id in checks:
-        allowed, reason = _classify(kind, config_id)
+    for kind, model_id in checks:
+        allowed, reason = _classify(kind, model_id)
         if not allowed:
-            violations.append({"kind": kind, "model_id": config_id, "reason": reason})
+            violations.append({"kind": kind, "model_id": model_id, "reason": reason})
 
     return {"allowed": not violations, "violations": violations}
 

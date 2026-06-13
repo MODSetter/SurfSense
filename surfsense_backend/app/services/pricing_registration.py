@@ -154,10 +154,8 @@ def _register_chat_shape_configs(
                 input_cost = _safe_float(entry.get("prompt"))
                 output_cost = _safe_float(entry.get("completion"))
             else:
-                # Vision configs from ``_generate_vision_llm_configs``
-                # carry their pricing inline because the OpenRouter
-                # raw-pricing cache is keyed by chat-catalogue model_id;
-                # vision flows pick up the inline values here.
+                # Some dynamically materialized configs can carry pricing
+                # inline when the raw OpenRouter cache has no matching entry.
                 input_cost = _safe_float(cfg.get("input_cost_per_token"))
                 output_cost = _safe_float(cfg.get("output_cost_per_token"))
             if input_cost == 0.0 and output_cost == 0.0:

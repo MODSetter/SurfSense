@@ -281,7 +281,7 @@ def _generate_configs(
 
     OpenRouter's own ``openrouter/free`` meta-router is filtered out upstream
     via ``_EXCLUDED_MODEL_IDS``; we don't expose a redundant auto-select layer
-    because our own Auto (Fastest) pin + 24 h refresh + repair logic already
+    because our own Auto pin + 24 h refresh + repair logic already
     cover the catalogue-churn case.
     """
     id_offset: int = settings.get("id_offset", -10000)
@@ -346,7 +346,7 @@ def _generate_configs(
             # ``"No endpoints found that support image input"``.
             "supports_image_input": bool(normalized.get("supports_image_input")),
             _OPENROUTER_DYNAMIC_MARKER: True,
-            # Auto (Fastest) ranking metadata. ``quality_score`` is initialised
+            # Auto ranking metadata. ``quality_score`` is initialised
             # to the static score and gets re-blended with health on the next
             # ``_enrich_health`` pass (synchronous on refresh, deferred on cold
             # start so startup latency is unchanged).
@@ -361,11 +361,7 @@ def _generate_configs(
     return configs
 
 
-# ID-offset bands used to keep dynamic OpenRouter configs in their own
-# namespace per surface. Image / vision get separate bands so a single
-# Postgres-INTEGER cfg ID is unambiguous about which selector it belongs to.
 _OPENROUTER_IMAGE_ID_OFFSET_DEFAULT = -20000
-_OPENROUTER_VISION_ID_OFFSET_DEFAULT = -30000
 
 
 def _generate_image_gen_configs(
@@ -424,89 +420,6 @@ def _generate_image_gen_configs(
             "rpm": free_rpm if tier == "free" else rpm,
             "litellm_params": dict(litellm_params),
             "billing_tier": tier,
-            _OPENROUTER_DYNAMIC_MARKER: True,
-        }
-        configs.append(cfg)
-
-    return configs
-
-
-def _generate_vision_llm_configs(
-    raw_models: list[dict], settings: dict[str, Any]
-) -> list[dict]:
-    """Convert OpenRouter vision-capable LLMs into global vision-LLM config
-    dicts (matches the YAML shape consumed by ``vision_llm_routes``).
-
-    Filter:
-      - architecture.input_modalities contains "image"
-      - architecture.output_modalities contains "text"
-      - compatible provider (excluded slugs blocked)
-      - allowed model id (excluded list blocked)
-
-    Vision-LLM is invoked from the indexer (image extraction during
-    document upload) via ``langchain_litellm.ChatLiteLLM.ainvoke``, so
-    the chat-only ``_supports_tool_calling`` and ``_has_sufficient_context``
-    filters do not apply: a small-context vision model that doesn't
-    advertise tool-calling is still perfectly viable for "describe this
-    image" prompts.
-    """
-    id_offset: int = int(
-        settings.get("vision_id_offset") or _OPENROUTER_VISION_ID_OFFSET_DEFAULT
-    )
-    api_key: str = settings.get("api_key", "")
-    rpm: int = settings.get("rpm", 200)
-    tpm: int = settings.get("tpm", 1_000_000)
-    free_rpm: int = settings.get("free_rpm", 20)
-    free_tpm: int = settings.get("free_tpm", 100_000)
-    quota_reserve_tokens: int = settings.get("quota_reserve_tokens", 4000)
-    litellm_params: dict = settings.get("litellm_params") or {}
-
-    vision_models = [
-        m
-        for m in raw_models
-        if supports_image_input(m)
-        and _shared_is_compatible_provider(m)
-        and _shared_is_allowed_model(m)
-        and "/" in m.get("id", "")
-    ]
-
-    configs: list[dict] = []
-    taken: set[int] = set()
-    for model in vision_models:
-        model_id: str = model["id"]
-        name: str = model.get("name", model_id)
-        tier = _openrouter_tier(model)
-        pricing = model.get("pricing") or {}
-
-        # Capture per-token prices so ``pricing_registration`` can
-        # register them with LiteLLM at startup (and so the cost
-        # estimator in ``estimate_call_reserve_micros`` can resolve
-        # them at reserve time).
-        try:
-            input_cost = float(pricing.get("prompt", 0) or 0)
-        except (TypeError, ValueError):
-            input_cost = 0.0
-        try:
-            output_cost = float(pricing.get("completion", 0) or 0)
-        except (TypeError, ValueError):
-            output_cost = 0.0
-
-        cfg: dict[str, Any] = {
-            "id": _stable_config_id(model_id, id_offset, taken),
-            "name": name,
-            "description": f"{name} via OpenRouter (vision)",
-            "provider": "openrouter",
-            "model_name": model_id,
-            "api_key": api_key,
-            "api_base": "https://openrouter.ai/api/v1",
-            "api_version": None,
-            "rpm": free_rpm if tier == "free" else rpm,
-            "tpm": free_tpm if tier == "free" else tpm,
-            "litellm_params": dict(litellm_params),
-            "billing_tier": tier,
-            "quota_reserve_tokens": quota_reserve_tokens,
-            "input_cost_per_token": input_cost or None,
-            "output_cost_per_token": output_cost or None,
             _OPENROUTER_DYNAMIC_MARKER: True,
         }
         configs.append(cfg)
@@ -724,7 +637,7 @@ class OpenRouterIntegrationService:
         return counts
 
     # ------------------------------------------------------------------
-    # Auto (Fastest) health enrichment
+    # Auto health enrichment
     # ------------------------------------------------------------------
 
     async def _enrich_health_safely(
