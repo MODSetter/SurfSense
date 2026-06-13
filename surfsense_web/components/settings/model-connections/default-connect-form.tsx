@@ -33,10 +33,14 @@ export function DefaultConnectForm({
 	const isApiKeyOptional = OPTIONAL_API_KEY_PROVIDERS.has(provider);
 	const hint = baseUrlHint(provider);
 	const apiKeyValue = apiKey.trim();
-	const canSubmit = !(baseUrlRequired && !baseUrl.trim()) && (isApiKeyOptional || Boolean(apiKeyValue));
+	const canSubmit =
+		!(baseUrlRequired && !baseUrl.trim()) && (isApiKeyOptional || Boolean(apiKeyValue));
 
 	useEffect(() => {
-		onDraftChange({ base_url: baseUrl || null, api_key: apiKeyValue || null, extra: {} }, canSubmit);
+		onDraftChange(
+			{ base_url: baseUrl || null, api_key: apiKeyValue || null, extra: {} },
+			canSubmit
+		);
 	}, [apiKeyValue, baseUrl, canSubmit, onDraftChange]);
 
 	return (
