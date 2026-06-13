@@ -99,7 +99,6 @@ class AnonQuotaResponse(BaseModel):
 class AnonModelResponse(BaseModel):
     id: int
     name: str
-    description: str | None = None
     provider: str
     model_name: str
     billing_tier: str = "free"
@@ -132,7 +131,6 @@ async def list_anonymous_models():
                 AnonModelResponse(
                     id=cfg.get("id", 0),
                     name=cfg.get("name", ""),
-                    description=cfg.get("description"),
                     provider=cfg.get("provider") or cfg.get("litellm_provider", ""),
                     model_name=cfg.get("model_name", ""),
                     billing_tier=cfg.get("billing_tier", "free"),
@@ -161,7 +159,6 @@ async def get_anonymous_model(slug: str):
             return AnonModelResponse(
                 id=cfg.get("id", 0),
                 name=cfg.get("name", ""),
-                description=cfg.get("description"),
                 provider=cfg.get("provider") or cfg.get("litellm_provider", ""),
                 model_name=cfg.get("model_name", ""),
                 billing_tier=cfg.get("billing_tier", "free"),

@@ -20,7 +20,7 @@
 # Static config shape:
 # - Connection fields: provider, api_key, api_base, api_version
 # - Model fields: model_name, billing_tier, rpm/tpm, capabilities, litellm_params
-# - Public no-login metadata: description, seo_title, seo_description
+# - Public no-login SEO metadata: seo_title, seo_description
 # - Prompt defaults: system_instructions, use_default_system_instructions,
 #   citations_enabled
 #
@@ -138,7 +138,6 @@ global_llm_configs:
   # anonymous_enabled/seo_enabled are true but do not debit premium credits.
   - id: -3
     name: "Azure GPT 5.4 Mini"
-    description: "Free hosted Azure GPT 5.4 Mini deployment"
     billing_tier: "free"
     anonymous_enabled: true
     seo_enabled: true
@@ -305,9 +304,6 @@ global_image_generation_configs:
 # Catalog and access fields:
 # - billing_tier: "free" or "premium".
 # - anonymous_enabled: Whether the model appears in the public no-login catalog.
-# - description: Optional no-login UI copy for anonymous-enabled chat models.
-#   This is not materialized into GLOBAL model metadata and is ignored by image
-#   generation configs.
 # - seo_enabled: Whether a /free/<seo_slug> landing page is generated.
 # - seo_slug: Stable URL slug for SEO pages. Keep unique and do not change once
 #   public.

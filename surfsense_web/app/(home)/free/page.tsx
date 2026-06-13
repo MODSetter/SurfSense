@@ -246,11 +246,6 @@ export default async function FreeHubPage() {
 													className="group flex flex-col gap-0.5"
 												>
 													<span className="font-medium group-hover:underline">{model.name}</span>
-													{model.description && (
-														<span className="text-xs text-muted-foreground line-clamp-1">
-															{model.description}
-														</span>
-													)}
 												</Link>
 											</TableCell>
 											<TableCell>
