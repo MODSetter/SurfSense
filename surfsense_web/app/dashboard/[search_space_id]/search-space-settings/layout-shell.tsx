@@ -2,9 +2,9 @@
 
 import {
 	BookText,
-	CircleUser,
 	Cpu,
 	Earth,
+	Settings,
 	UserKey,
 } from "lucide-react";
 import Link from "next/link";
@@ -49,7 +49,7 @@ export function SearchSpaceSettingsLayoutShell({
 			{
 				value: "general" as const,
 				label: t("nav_general"),
-				icon: <CircleUser className="h-4 w-4" />,
+				icon: <Settings className="h-4 w-4" />,
 			},
 			{
 				value: "models" as const,

@@ -191,11 +191,11 @@ export function ModelSelector({
 											{getProviderIcon(model.provider, { className: "size-4 shrink-0" })}
 											<span className="truncate">{modelName(model)}</span>
 										</div>
-										{model.max_input_tokens ? (
+										{/* {model.max_input_tokens ? (
 											<div className="text-xs text-muted-foreground">
 												{model.max_input_tokens.toLocaleString()} context
 											</div>
-										) : null}
+										) : null} */}
 									</div>
 									<div className="ml-3 flex shrink-0 items-center gap-2">
 										{isFreeGlobalModel(model) ? (
