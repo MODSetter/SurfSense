@@ -22,18 +22,21 @@ _LIVE_SEARCH_CONNECTORS: set[str] = {
     "TAVILY_API",
     "LINKUP_API",
     "BAIDU_SEARCH_API",
+    "CRW_API",
 }
 
 _LIVE_CONNECTOR_SPECS: dict[str, tuple[str, bool, bool, dict[str, Any]]] = {
     "TAVILY_API": ("search_tavily", False, True, {}),
     "LINKUP_API": ("search_linkup", False, False, {"mode": "standard"}),
     "BAIDU_SEARCH_API": ("search_baidu", False, True, {}),
+    "CRW_API": ("search_crw", False, True, {}),
 }
 
 _CONNECTOR_LABELS: dict[str, str] = {
     "TAVILY_API": "Tavily",
     "LINKUP_API": "Linkup",
     "BAIDU_SEARCH_API": "Baidu",
+    "CRW_API": "fastCRW",
 }
 
 
