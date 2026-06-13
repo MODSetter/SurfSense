@@ -513,6 +513,21 @@ def validate_connector_config(
             ],
             "validators": {},
         },
+        "CRW_API": {
+            # Self-host instances may run without auth, so the key is optional.
+            "required": [],
+            "optional": [
+                "CRW_API_KEY",
+                "CRW_BASE_URL",
+            ],
+            "validators": {
+                "CRW_BASE_URL": lambda: (
+                    validate_url_field("CRW_BASE_URL", "fastCRW")
+                    if config.get("CRW_BASE_URL")
+                    else None
+                ),
+            },
+        },
         # "SLACK_CONNECTOR": {
         #     "required": [],  # OAuth uses bot_token (encrypted), legacy uses SLACK_BOT_TOKEN
         #     "optional": [
