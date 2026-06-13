@@ -35,7 +35,6 @@ import {
 } from "@/lib/chat/streaming-state";
 import { BACKEND_URL } from "@/lib/env-config";
 import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
-import { FreeModelSelector } from "./free-model-selector";
 import { FreeThread } from "./free-thread";
 import { RemoveAdsBanner } from "./remove-ads-banner";
 
@@ -499,10 +498,6 @@ export function FreeChatPage() {
 				<TimelineDataUI />
 				<StepSeparatorDataUI />
 				<div className="flex h-full flex-col overflow-hidden">
-					<div className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 px-4">
-						<FreeModelSelector />
-					</div>
-
 					<RemoveAdsBanner />
 
 					{captchaRequired && TURNSTILE_SITE_KEY && (
