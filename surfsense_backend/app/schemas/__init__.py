@@ -127,7 +127,8 @@ from .video_presentations import (
     VideoPresentationRead,
     VideoPresentationUpdate,
 )
-__all__ = [ 
+
+__all__ = [
     # Folder schemas
     "BulkDocumentMove",
     # Chat schemas (assistant-ui integration)

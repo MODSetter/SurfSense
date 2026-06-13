@@ -180,7 +180,11 @@ def _category_from_provider_payload(
     normalized_type = (provider_error_type or "").lower()
     if normalized_type == "rate_limit_error":
         return LLMErrorCategory.RATE_LIMITED
-    if normalized_type in {"authentication_error", "invalid_api_key", "invalid_api_key_error"}:
+    if normalized_type in {
+        "authentication_error",
+        "invalid_api_key",
+        "invalid_api_key_error",
+    }:
         return LLMErrorCategory.AUTH_FAILED
     if normalized_type in {"permission_denied", "forbidden"}:
         return LLMErrorCategory.PERMISSION_DENIED
@@ -193,7 +197,10 @@ def _category_from_provider_payload(
 
 def _category_from_message(raw: str) -> LLMErrorCategory | None:
     lowered = raw.lower()
-    if any(hint in lowered for hint in ("rate limit", "rate-limited", "temporarily rate-limited")):
+    if any(
+        hint in lowered
+        for hint in ("rate limit", "rate-limited", "temporarily rate-limited")
+    ):
         return LLMErrorCategory.RATE_LIMITED
     if any(
         hint in lowered
@@ -248,4 +255,3 @@ def adapt_llm_exception(exc: BaseException) -> LLMErrorAdaptation:
 
 def llm_error_message(exc: BaseException) -> str:
     return adapt_llm_exception(exc).user_message
-

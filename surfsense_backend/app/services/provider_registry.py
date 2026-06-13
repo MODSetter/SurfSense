@@ -46,7 +46,13 @@ REGISTRY: dict[str, ProviderSpec] = {
         Transport.NATIVE, "openai", "openai_models", None, False, "bearer", "OpenAI"
     ),
     "anthropic": ProviderSpec(
-        Transport.NATIVE, "anthropic", "anthropic_models", None, False, "x-api-key", "Anthropic"
+        Transport.NATIVE,
+        "anthropic",
+        "anthropic_models",
+        None,
+        False,
+        "x-api-key",
+        "Anthropic",
     ),
     "azure": ProviderSpec(
         Transport.NATIVE, "azure", "static", None, True, "native", "Azure OpenAI"
@@ -55,7 +61,13 @@ REGISTRY: dict[str, ProviderSpec] = {
         Transport.NATIVE, "vertex_ai", "static", None, False, "native", "Vertex AI"
     ),
     "bedrock": ProviderSpec(
-        Transport.NATIVE, "bedrock", "bedrock_models", None, False, "native", "Amazon Bedrock"
+        Transport.NATIVE,
+        "bedrock",
+        "bedrock_models",
+        None,
+        False,
+        "native",
+        "Amazon Bedrock",
     ),
     "openrouter": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,

@@ -200,7 +200,9 @@ class AgentConfig:
 
         system_instructions = yaml_config.get("system_instructions", "")
 
-        provider = yaml_config.get("provider") or yaml_config.get("litellm_provider", "")
+        provider = yaml_config.get("provider") or yaml_config.get(
+            "litellm_provider", ""
+        )
         model_name = yaml_config.get("model_name", "")
         custom_provider = yaml_config.get("custom_provider")
         litellm_params = yaml_config.get("litellm_params") or {}
@@ -291,7 +293,9 @@ def create_chat_litellm_from_config(llm_config: dict) -> ChatLiteLLM | None:
     if llm_config.get("custom_provider"):
         model_string = f"{llm_config['custom_provider']}/{llm_config['model_name']}"
     else:
-        provider = llm_config.get("provider") or llm_config.get("litellm_provider", "openai")
+        provider = llm_config.get("provider") or llm_config.get(
+            "litellm_provider", "openai"
+        )
         model_string = f"{provider}/{llm_config['model_name']}"
 
     litellm_kwargs = {
@@ -317,7 +321,9 @@ def create_chat_litellm_from_agent_config(
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """Create a ChatLiteLLM from an already resolved concrete model config."""
     if agent_config.is_auto_mode:
-        print("Error: Auto mode must be resolved to a concrete model before LLM creation")
+        print(
+            "Error: Auto mode must be resolved to a concrete model before LLM creation"
+        )
         return None
 
     if agent_config.custom_provider:

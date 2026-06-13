@@ -68,7 +68,9 @@ def _docker_hint(url: str | None, exc_or_status: Any) -> str:
             "backend container. Use host.docker.internal and make sure the model "
             "server listens on 0.0.0.0."
         )
-    if "host.docker.internal" in url and ("refused" in raw.lower() or "connect" in raw.lower()):
+    if "host.docker.internal" in url and (
+        "refused" in raw.lower() or "connect" in raw.lower()
+    ):
         return (
             f"{raw}. The host is reachable only if your local model server is "
             "listening on 0.0.0.0. On Linux Docker, add "
@@ -152,11 +154,17 @@ async def verify_connection(conn: Connection) -> VerifyResult:
     elif spec.discovery == "anthropic_models" and base_url:
         url = f"{base_url.rstrip('/')}/models"
     else:
-        return VerifyResult("OK", True, "Connection uses provider-native authentication.")
+        return VerifyResult(
+            "OK", True, "Connection uses provider-native authentication."
+        )
 
     try:
         async with httpx.AsyncClient(timeout=VERIFY_TIMEOUT_SECONDS) as client:
-            headers = _anthropic_headers(conn) if spec.auth_style == "x-api-key" else _auth_headers(conn)
+            headers = (
+                _anthropic_headers(conn)
+                if spec.auth_style == "x-api-key"
+                else _auth_headers(conn)
+            )
             response = await client.get(url, headers=headers)
         if response.status_code in (401, 403):
             return VerifyResult("AUTH_FAILED", False, "Authentication failed.")
@@ -213,7 +221,9 @@ def _litellm_info(model_string: str, model_id: str) -> dict[str, Any]:
         info = litellm.get_model_info(model=model_string)
         if isinstance(info, dict):
             return info
-    return litellm.model_cost.get(model_string) or litellm.model_cost.get(model_id) or {}
+    return (
+        litellm.model_cost.get(model_string) or litellm.model_cost.get(model_id) or {}
+    )
 
 
 def _classify_from_litellm(model_string: str, model_id: str) -> dict[str, Any]:
@@ -230,11 +240,14 @@ def _classify_from_litellm(model_string: str, model_id: str) -> dict[str, Any]:
         "max_input_tokens": info.get("max_input_tokens") or info.get("max_tokens"),
         "supports_image_input": supports_image_input,
         "supports_tools": supports_tools,
-        "supports_image_generation": mode in {"image_generation", "image_generation_model"},
+        "supports_image_generation": mode
+        in {"image_generation", "image_generation_model"},
     }
 
 
-def derive_capabilities(conn: Connection, model_id: str, metadata: dict | None = None) -> dict[str, Any]:
+def derive_capabilities(
+    conn: Connection, model_id: str, metadata: dict | None = None
+) -> dict[str, Any]:
     metadata = metadata or {}
     spec = spec_for(conn.provider)
     model_string, _ = to_litellm(conn, model_id)
@@ -245,7 +258,8 @@ def derive_capabilities(conn: Connection, model_id: str, metadata: dict | None =
         facts.update(
             {
                 "supports_chat": "embedding" not in caps,
-                "supports_image_input": "vision" in caps or facts["supports_image_input"],
+                "supports_image_input": "vision" in caps
+                or facts["supports_image_input"],
                 "supports_tools": "tools" in caps or facts["supports_tools"],
                 "supports_image_generation": False,
                 "max_input_tokens": metadata.get("context_length")
@@ -351,7 +365,9 @@ async def _ollama_tags_then_show(conn: Connection) -> list[dict[str, Any]]:
 async def _openrouter_models(conn: Connection) -> list[dict[str, Any]]:
     base_url = _base_url_or_default(conn) or "https://openrouter.ai/api/v1"
     async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as client:
-        response = await client.get(f"{ensure_v1(base_url)}/models", headers=_auth_headers(conn))
+        response = await client.get(
+            f"{ensure_v1(base_url)}/models", headers=_auth_headers(conn)
+        )
     response.raise_for_status()
     return normalize_openrouter_models(response.json().get("data", []))
 
@@ -361,7 +377,9 @@ def _litellm_static_models(conn: Connection) -> list[dict[str, Any]]:
     prefix = spec_for(provider).litellm_prefix or provider
     results: list[dict[str, Any]] = []
     for model_string, metadata in litellm.model_cost.items():
-        if not isinstance(model_string, str) or not model_string.startswith(f"{prefix}/"):
+        if not isinstance(model_string, str) or not model_string.startswith(
+            f"{prefix}/"
+        ):
             continue
         model_id = model_string.split("/", 1)[1]
         results.append(
@@ -414,7 +432,8 @@ async def _discover_bedrock_models(conn: Connection) -> list[dict[str, Any]]:
                     "model_id": model_id,
                     "display_name": item.get("modelName") or model_id,
                     "source": ModelSource.DISCOVERED,
-                    "supports_chat": "TEXT" in input_modalities and "TEXT" in output_modalities,
+                    "supports_chat": "TEXT" in input_modalities
+                    and "TEXT" in output_modalities,
                     "supports_image_input": "IMAGE" in input_modalities,
                     "supports_tools": None,
                     "supports_image_generation": "IMAGE" in output_modalities,

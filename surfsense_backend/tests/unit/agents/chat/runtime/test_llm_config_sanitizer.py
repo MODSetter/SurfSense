@@ -37,4 +37,3 @@ def test_sanitize_messages_sets_tool_only_ai_content_to_none() -> None:
 
     assert sanitized[0].content is None
     assert message.content == ""
-

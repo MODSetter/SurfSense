@@ -55,8 +55,12 @@ def _agent_config_from_resolved(
     )
 
 
-async def _load_search_space(session: AsyncSession, search_space_id: int) -> SearchSpace | None:
-    result = await session.execute(select(SearchSpace).where(SearchSpace.id == search_space_id))
+async def _load_search_space(
+    session: AsyncSession, search_space_id: int
+) -> SearchSpace | None:
+    result = await session.execute(
+        select(SearchSpace).where(SearchSpace.id == search_space_id)
+    )
     return result.scalars().first()
 
 
@@ -131,7 +135,9 @@ async def load_llm_bundle(
             None,
         )
 
-    global_model = next((m for m in config.GLOBAL_MODELS if m.get("id") == config_id), None)
+    global_model = next(
+        (m for m in config.GLOBAL_MODELS if m.get("id") == config_id), None
+    )
     if not global_model or not has_capability(global_model, "chat"):
         return None, None, f"Failed to load global chat model with id {config_id}"
     global_connection = next(
@@ -144,7 +150,9 @@ async def load_llm_bundle(
     )
     if not global_connection:
         return None, None, f"Failed to load global connection for model {config_id}"
-    model_string, litellm_kwargs = to_litellm(global_connection, global_model["model_id"])
+    model_string, litellm_kwargs = to_litellm(
+        global_connection, global_model["model_id"]
+    )
     display_name = global_model.get("display_name") or global_model.get("model_id")
     provider = global_connection.get("provider") or ""
     register_model_usage_metadata(

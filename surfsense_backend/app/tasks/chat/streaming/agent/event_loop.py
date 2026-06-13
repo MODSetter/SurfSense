@@ -16,6 +16,9 @@ from app.agents.chat.multi_agent_chat.main_agent.middleware.kb_persistence impor
 )
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.services.new_streaming_service import VercelStreamingService
+from app.tasks.chat.message_parts_normalizer import (
+    final_assistant_parts_from_messages,
+)
 from app.tasks.chat.streaming.contract.file_contract import (
     contract_enforcement_active,
     evaluate_file_contract_outcome,
@@ -24,9 +27,6 @@ from app.tasks.chat.streaming.contract.file_contract import (
 from app.tasks.chat.streaming.graph_stream.event_stream import stream_output
 from app.tasks.chat.streaming.helpers.interrupt_inspector import (
     all_interrupt_values,
-)
-from app.tasks.chat.message_parts_normalizer import (
-    final_assistant_parts_from_messages,
 )
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.tasks.chat.streaming.shared.utils import safe_float

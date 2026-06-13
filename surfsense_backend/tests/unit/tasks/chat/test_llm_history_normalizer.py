@@ -59,4 +59,3 @@ def test_user_images_can_be_dropped_for_text_only_history() -> None:
     ]
 
     assert user_content_to_llm_content(content, allow_images=False) == "look"
-

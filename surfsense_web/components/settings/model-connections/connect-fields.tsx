@@ -16,12 +16,7 @@ interface ApiBaseUrlFieldProps {
 }
 
 /** Shared API Base URL input. The prefilled default is passed in via `value`. */
-export function ApiBaseUrlField({
-	value,
-	onChange,
-	placeholder,
-	hint,
-}: ApiBaseUrlFieldProps) {
+export function ApiBaseUrlField({ value, onChange, placeholder, hint }: ApiBaseUrlFieldProps) {
 	return (
 		<div className="flex flex-col gap-2">
 			<Label>API Base URL</Label>

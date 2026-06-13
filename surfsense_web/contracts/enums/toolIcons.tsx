@@ -1,7 +1,7 @@
 import {
+	AlarmClock,
 	Brain,
 	Calendar,
-	AlarmClock,
 	FileEdit,
 	FilePlus,
 	FileText,

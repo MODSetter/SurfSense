@@ -86,4 +86,3 @@ def user_content_to_llm_content(
     if allow_images and any(part.get("type") == "image_url" for part in parts):
         return parts
     return "\n".join(text_chunks)
-

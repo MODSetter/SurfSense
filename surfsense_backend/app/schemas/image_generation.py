@@ -104,4 +104,3 @@ class ImageGenerationListRead(BaseModel):
             is_success=obj.response_data is not None,
             image_count=image_count,
         )
-

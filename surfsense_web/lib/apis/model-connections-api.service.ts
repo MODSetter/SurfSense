@@ -11,8 +11,8 @@ import {
 	type ModelProviderRead,
 	type ModelRead,
 	type ModelRoles,
-	type ModelTestPreviewRequest,
 	type ModelsBulkUpdateRequest,
+	type ModelTestPreviewRequest,
 	type ModelUpdateRequest,
 	modelCreateRequest,
 	modelListResponse,
@@ -20,8 +20,8 @@ import {
 	modelProviderListResponse,
 	modelRead,
 	modelRoles,
-	modelTestPreviewRequest,
 	modelsBulkUpdateRequest,
+	modelTestPreviewRequest,
 	modelUpdateRequest,
 	type VerifyConnectionResponse,
 	verifyConnectionResponse,
@@ -94,18 +94,16 @@ class ModelConnectionsApiService {
 		);
 	};
 
-	testPreviewModel = async (request: ModelTestPreviewRequest): Promise<VerifyConnectionResponse> => {
+	testPreviewModel = async (
+		request: ModelTestPreviewRequest
+	): Promise<VerifyConnectionResponse> => {
 		const parsed = modelTestPreviewRequest.safeParse(request);
 		if (!parsed.success) {
 			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
 		}
-		return baseApiService.post(
-			`/api/v1/model-connections/test-preview`,
-			verifyConnectionResponse,
-			{
-				body: parsed.data,
-			}
-		);
+		return baseApiService.post(`/api/v1/model-connections/test-preview`, verifyConnectionResponse, {
+			body: parsed.data,
+		});
 	};
 
 	addManualModel = async (

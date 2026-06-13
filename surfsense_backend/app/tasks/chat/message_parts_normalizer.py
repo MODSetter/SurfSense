@@ -31,7 +31,9 @@ def _text_from_content(content: Any) -> str:
     return "".join(text_parts)
 
 
-def normalize_ai_message_to_parts(message: AIMessage | Any | None) -> list[dict[str, Any]]:
+def normalize_ai_message_to_parts(
+    message: AIMessage | Any | None,
+) -> list[dict[str, Any]]:
     """Return user-visible assistant-ui parts for a final AI message.
 
     We intentionally do not backfill provider ``thinking`` /
@@ -60,7 +62,9 @@ def last_ai_message(messages: Iterable[Any] | None) -> AIMessage | Any | None:
     return None
 
 
-def final_assistant_parts_from_messages(messages: Iterable[Any] | None) -> list[dict[str, Any]]:
+def final_assistant_parts_from_messages(
+    messages: Iterable[Any] | None,
+) -> list[dict[str, Any]]:
     return normalize_ai_message_to_parts(last_ai_message(messages))
 
 
@@ -83,4 +87,3 @@ def merge_streamed_and_final_parts(
     if not has_non_empty_text_part(final_parts):
         return streamed_parts
     return [*streamed_parts, *final_parts]
-

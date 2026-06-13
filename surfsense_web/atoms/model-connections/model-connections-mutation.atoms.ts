@@ -8,8 +8,8 @@ import type {
 	ModelPreviewRead,
 	ModelRead,
 	ModelRoles,
-	ModelTestPreviewRequest,
 	ModelsBulkUpdateRequest,
+	ModelTestPreviewRequest,
 	ModelUpdateRequest,
 	VerifyConnectionResponse,
 } from "@/contracts/types/model-connections.types";

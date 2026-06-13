@@ -65,4 +65,3 @@ def test_merge_does_not_duplicate_when_stream_already_has_text() -> None:
     final = [{"type": "text", "text": "final answer"}]
 
     assert merge_streamed_and_final_parts(streamed, final) == streamed
-

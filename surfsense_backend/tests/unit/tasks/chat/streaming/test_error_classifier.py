@@ -77,4 +77,3 @@ def test_stream_classifier_keeps_unknown_errors_generic() -> None:
     assert expected is False
     assert message == "Error during chat: database exploded"
     assert extra is None
-

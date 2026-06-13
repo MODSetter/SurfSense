@@ -97,6 +97,7 @@ def _sanitize_content(content: Any) -> Any:
 # Special ID for Auto mode - uses router for load balancing
 AUTO_MODE_ID = 0
 
+
 class LLMRouterService:
     """
     Singleton service for managing LiteLLM Router.

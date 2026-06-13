@@ -120,7 +120,9 @@ def _set_global_llm_configs(monkeypatch, config, configs: list[dict]):
                 "supports_chat": cfg.get("supports_chat", True),
                 "supports_image_input": cfg.get("supports_image_input", True),
                 "supports_tools": cfg.get("supports_tools", True),
-                "supports_image_generation": cfg.get("supports_image_generation", False),
+                "supports_image_generation": cfg.get(
+                    "supports_image_generation", False
+                ),
                 "capabilities_override": cfg.get("capabilities_override") or {},
                 "billing_tier": cfg.get("billing_tier", "free"),
                 "catalog": {
@@ -157,7 +159,12 @@ async def test_auto_first_turn_pins_one_model(monkeypatch):
         monkeypatch,
         config,
         [
-            {"id": -2, "litellm_provider": "openai", "model_name": "gpt-free", "api_key": "k1"},
+            {
+                "id": -2,
+                "litellm_provider": "openai",
+                "model_name": "gpt-free",
+                "api_key": "k1",
+            },
             {
                 "id": -1,
                 "litellm_provider": "openai",
@@ -548,7 +555,12 @@ async def test_explicit_user_model_change_clears_pin(monkeypatch):
         monkeypatch,
         config,
         [
-            {"id": -2, "litellm_provider": "openai", "model_name": "gpt-free", "api_key": "k1"},
+            {
+                "id": -2,
+                "litellm_provider": "openai",
+                "model_name": "gpt-free",
+                "api_key": "k1",
+            },
         ],
     )
 
@@ -573,7 +585,12 @@ async def test_invalid_pinned_config_repairs_with_new_pin(monkeypatch):
         monkeypatch,
         config,
         [
-            {"id": -2, "litellm_provider": "openai", "model_name": "gpt-free", "api_key": "k1"},
+            {
+                "id": -2,
+                "litellm_provider": "openai",
+                "model_name": "gpt-free",
+                "api_key": "k1",
+            },
         ],
     )
 

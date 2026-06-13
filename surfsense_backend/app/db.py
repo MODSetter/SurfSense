@@ -1582,7 +1582,10 @@ class Model(BaseModel, TimestampMixin):
     __tablename__ = "models"
 
     connection_id = Column(
-        Integer, ForeignKey("connections.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("connections.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     model_id = Column(String(255), nullable=False)
     display_name = Column(String(255), nullable=True)
@@ -1597,7 +1600,9 @@ class Model(BaseModel, TimestampMixin):
     supports_image_input = Column(Boolean, nullable=True)
     supports_tools = Column(Boolean, nullable=True)
     supports_image_generation = Column(Boolean, nullable=True)
-    capabilities_override = Column(JSONB, nullable=False, default=dict, server_default="{}")
+    capabilities_override = Column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
     embedding_dimension = Column(Integer, nullable=True)
     enabled = Column(Boolean, nullable=False, default=True, server_default="true")
     billing_tier = Column(String(50), nullable=True, index=True)
@@ -1606,7 +1611,9 @@ class Model(BaseModel, TimestampMixin):
     connection = relationship("Connection", back_populates="models")
 
     __table_args__ = (
-        UniqueConstraint("connection_id", "model_id", name="uq_models_connection_model_id"),
+        UniqueConstraint(
+            "connection_id", "model_id", name="uq_models_connection_model_id"
+        ),
         Index("ix_models_model_id", "model_id"),
     )
 

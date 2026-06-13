@@ -148,7 +148,9 @@ def upgrade() -> None:
                 nullable=False,
             ),
             sa.Column("scope", connection_scope, nullable=False),
-            sa.Column("enabled", sa.Boolean(), server_default=sa.text("true"), nullable=False),
+            sa.Column(
+                "enabled", sa.Boolean(), server_default=sa.text("true"), nullable=False
+            ),
             sa.Column("search_space_id", sa.Integer(), nullable=True),
             sa.Column("user_id", sa.UUID(), nullable=True),
             sa.Column("last_verified_at", sa.TIMESTAMP(timezone=True), nullable=True),
@@ -166,16 +168,16 @@ def upgrade() -> None:
             sa.ForeignKeyConstraint(["user_id"], ["user.id"], ondelete="CASCADE"),
             sa.PrimaryKeyConstraint("id"),
         )
-    if _index_exists("connections", "ix_connections_native_provider") and not _index_exists(
-        "connections", "ix_connections_provider"
-    ):
+    if _index_exists(
+        "connections", "ix_connections_native_provider"
+    ) and not _index_exists("connections", "ix_connections_provider"):
         op.execute(
             "ALTER INDEX ix_connections_native_provider "
             "RENAME TO ix_connections_provider"
         )
-    if _index_exists("connections", "ix_connections_litellm_provider") and not _index_exists(
-        "connections", "ix_connections_provider"
-    ):
+    if _index_exists(
+        "connections", "ix_connections_litellm_provider"
+    ) and not _index_exists("connections", "ix_connections_provider"):
         op.execute(
             "ALTER INDEX ix_connections_litellm_provider "
             "RENAME TO ix_connections_provider"
@@ -209,7 +211,9 @@ def upgrade() -> None:
                 nullable=False,
             ),
             sa.Column("embedding_dimension", sa.Integer(), nullable=True),
-            sa.Column("enabled", sa.Boolean(), server_default=sa.text("true"), nullable=False),
+            sa.Column(
+                "enabled", sa.Boolean(), server_default=sa.text("true"), nullable=False
+            ),
             sa.Column("billing_tier", sa.String(length=50), nullable=True),
             sa.Column(
                 "catalog",
@@ -217,7 +221,9 @@ def upgrade() -> None:
                 server_default=sa.text("'{}'::jsonb"),
                 nullable=False,
             ),
-            sa.ForeignKeyConstraint(["connection_id"], ["connections.id"], ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(
+                ["connection_id"], ["connections.id"], ondelete="CASCADE"
+            ),
             sa.PrimaryKeyConstraint("id"),
             sa.UniqueConstraint(
                 "connection_id", "model_id", name="uq_models_connection_model_id"
@@ -225,18 +231,25 @@ def upgrade() -> None:
         )
     else:
         if not _column_exists("models", "supports_chat"):
-            op.add_column("models", sa.Column("supports_chat", sa.Boolean(), nullable=True))
+            op.add_column(
+                "models", sa.Column("supports_chat", sa.Boolean(), nullable=True)
+            )
         if not _column_exists("models", "max_input_tokens"):
-            op.add_column("models", sa.Column("max_input_tokens", sa.Integer(), nullable=True))
+            op.add_column(
+                "models", sa.Column("max_input_tokens", sa.Integer(), nullable=True)
+            )
         if not _column_exists("models", "supports_image_input"):
             op.add_column(
                 "models", sa.Column("supports_image_input", sa.Boolean(), nullable=True)
             )
         if not _column_exists("models", "supports_tools"):
-            op.add_column("models", sa.Column("supports_tools", sa.Boolean(), nullable=True))
+            op.add_column(
+                "models", sa.Column("supports_tools", sa.Boolean(), nullable=True)
+            )
         if not _column_exists("models", "supports_image_generation"):
             op.add_column(
-                "models", sa.Column("supports_image_generation", sa.Boolean(), nullable=True)
+                "models",
+                sa.Column("supports_image_generation", sa.Boolean(), nullable=True),
             )
         _drop_column_if_exists("models", "capabilities")
         _drop_column_if_exists("models", "capabilities_declared")
@@ -246,7 +259,9 @@ def upgrade() -> None:
     _create_index_if_missing("ix_models_billing_tier", "models", ["billing_tier"])
 
     _add_searchspace_column_if_missing("chat_model_id", server_default=sa.text("0"))
-    _add_searchspace_column_if_missing("image_gen_model_id", server_default=sa.text("0"))
+    _add_searchspace_column_if_missing(
+        "image_gen_model_id", server_default=sa.text("0")
+    )
     _add_searchspace_column_if_missing("vision_model_id", server_default=sa.text("0"))
     for column_name in ("chat_model_id", "image_gen_model_id", "vision_model_id"):
         op.alter_column(

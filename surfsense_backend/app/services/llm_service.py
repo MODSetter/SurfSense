@@ -410,6 +410,7 @@ async def get_vision_llm(
     unwrapped — they don't consume premium credit (issue M).
     """
     from app.services.quota_checked_vision_llm import QuotaCheckedVisionLLM
+
     try:
         result = await session.execute(
             select(SearchSpace).where(SearchSpace.id == search_space_id)
@@ -427,7 +428,9 @@ async def get_vision_llm(
             if chat_model_id < 0:
                 chat_model = get_global_model(chat_model_id)
                 if chat_model and _has_capability(chat_model, "vision"):
-                    global_connection = get_global_connection(chat_model["connection_id"])
+                    global_connection = get_global_connection(
+                        chat_model["connection_id"]
+                    )
                     if global_connection:
                         model_string, litellm_kwargs = _chat_litellm_from_resolved(
                             conn=global_connection,
@@ -466,7 +469,9 @@ async def get_vision_llm(
             if not candidates:
                 logger.error("No vision-capable models available for Auto mode")
                 return None
-            config_id = int(choose_auto_model_candidate(candidates, search_space_id)["id"])
+            config_id = int(
+                choose_auto_model_candidate(candidates, search_space_id)["id"]
+            )
 
         if config_id < 0:
             global_model = get_global_model(config_id)

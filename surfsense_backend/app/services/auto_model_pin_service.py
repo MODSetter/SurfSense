@@ -145,7 +145,9 @@ def _shared_runtime_cooled_down_ids(config_ids: list[int]) -> set[int]:
             exc_info=True,
         )
         return set()
-    return {cid for cid, value in zip(unique_ids, values, strict=False) if value is not None}
+    return {
+        cid for cid, value in zip(unique_ids, values, strict=False) if value is not None
+    }
 
 
 def _clear_shared_runtime_cooldown(config_id: int | None = None) -> None:
@@ -388,7 +390,11 @@ async def _db_candidates(
             continue
         if conn.search_space_id is not None and conn.search_space_id != search_space_id:
             continue
-        if conn.user_id is not None and parsed_user_id is not None and conn.user_id != parsed_user_id:
+        if (
+            conn.user_id is not None
+            and parsed_user_id is not None
+            and conn.user_id != parsed_user_id
+        ):
             continue
         if conn.user_id is not None and parsed_user_id is None:
             continue
@@ -574,9 +580,7 @@ async def resolve_or_get_pinned_llm_config_id(
             # Distinguish the "no vision-capable cfg" case from generic
             # "no usable cfg" so the streaming task can map this to the
             # MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT SSE error.
-            raise ValueError(
-                "No vision-capable LLM models are available for Auto mode"
-            )
+            raise ValueError("No vision-capable LLM models are available for Auto mode")
         raise ValueError("No usable LLM models are available for Auto mode")
     candidate_by_id = {int(c["id"]): c for c in candidates}
 

@@ -68,7 +68,9 @@ def _preview_model_read(item: dict) -> ModelPreviewRead:
     )
 
 
-def _connection_read(conn: Connection | dict, models: list[Model | dict] | None = None) -> ConnectionRead:
+def _connection_read(
+    conn: Connection | dict, models: list[Model | dict] | None = None
+) -> ConnectionRead:
     if isinstance(conn, dict):
         payload = {
             **conn,
@@ -207,7 +209,9 @@ async def _resolve_role_model_id(
         return 0
 
 
-async def _clear_invalid_roles(session: AsyncSession, search_space_id: int) -> SearchSpace:
+async def _clear_invalid_roles(
+    session: AsyncSession, search_space_id: int
+) -> SearchSpace:
     search_space = await _get_search_space(session, search_space_id)
     search_space.chat_model_id = await _resolve_role_model_id(
         session,
@@ -243,10 +247,14 @@ async def _default_unset_roles(
     if search_space.vision_model_id is None:
         vision_default = None
         if search_space.chat_model_id:
-            chat_model = next((m for m in models if m.id == search_space.chat_model_id), None)
+            chat_model = next(
+                (m for m in models if m.id == search_space.chat_model_id), None
+            )
             if chat_model and has_capability(chat_model, "vision"):
                 vision_default = chat_model.id
-        search_space.vision_model_id = vision_default or _default_model_for(models, "vision")
+        search_space.vision_model_id = vision_default or _default_model_for(
+            models, "vision"
+        )
     if search_space.image_gen_model_id is None:
         search_space.image_gen_model_id = _default_model_for(models, "image_gen")
 
@@ -270,7 +278,9 @@ async def list_model_providers(user: User = Depends(current_active_user)):
 
 
 async def _get_search_space(session: AsyncSession, search_space_id: int) -> SearchSpace:
-    result = await session.execute(select(SearchSpace).where(SearchSpace.id == search_space_id))
+    result = await session.execute(
+        select(SearchSpace).where(SearchSpace.id == search_space_id)
+    )
     search_space = result.scalars().first()
     if not search_space:
         raise HTTPException(status_code=404, detail="Search space not found")
@@ -305,7 +315,9 @@ async def _assert_connection_access(
         )
         return
     if conn.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Connection does not belong to user")
+        raise HTTPException(
+            status_code=403, detail="Connection does not belong to user"
+        )
 
 
 @router.get("/global-model-connections", response_model=list[ConnectionRead])
@@ -340,8 +352,7 @@ async def list_connections(
         stmt = stmt.where(Connection.user_id == user.id)
     result = await session.execute(stmt.order_by(Connection.id))
     return [
-        _connection_read(conn, list(conn.models))
-        for conn in result.scalars().all()
+        _connection_read(conn, list(conn.models)) for conn in result.scalars().all()
     ]
 
 
@@ -367,7 +378,9 @@ async def create_connection(
 
     conn = Connection(
         **payload,
-        search_space_id=data.search_space_id if data.scope == ConnectionScope.SEARCH_SPACE else None,
+        search_space_id=data.search_space_id
+        if data.scope == ConnectionScope.SEARCH_SPACE
+        else None,
         user_id=user.id,
     )
     session.add(conn)
@@ -389,7 +402,9 @@ async def create_connection(
     return _connection_read(conn, list(conn.models))
 
 
-@router.post("/model-connections/discover-preview", response_model=list[ModelPreviewRead])
+@router.post(
+    "/model-connections/discover-preview", response_model=list[ModelPreviewRead]
+)
 async def preview_connection_models(
     data: ConnectionCreate,
     session: AsyncSession = Depends(get_async_session),
@@ -411,7 +426,9 @@ async def preview_connection_models(
         extra=data.extra or {},
         scope=data.scope,
         enabled=data.enabled,
-        search_space_id=data.search_space_id if data.scope == ConnectionScope.SEARCH_SPACE else None,
+        search_space_id=data.search_space_id
+        if data.scope == ConnectionScope.SEARCH_SPACE
+        else None,
         user_id=user.id,
     )
     try:
@@ -447,7 +464,9 @@ async def test_preview_connection_model(
         extra=data.extra or {},
         scope=data.scope,
         enabled=data.enabled,
-        search_space_id=data.search_space_id if data.scope == ConnectionScope.SEARCH_SPACE else None,
+        search_space_id=data.search_space_id
+        if data.scope == ConnectionScope.SEARCH_SPACE
+        else None,
         user_id=user.id,
     )
     model = Model(
@@ -459,7 +478,9 @@ async def test_preview_connection_model(
         catalog={},
     )
     result = await test_model(draft, model)
-    return VerifyConnectionResponse(status=result.status, ok=result.ok, message=result.message)
+    return VerifyConnectionResponse(
+        status=result.status, ok=result.ok, message=result.message
+    )
 
 
 @router.put("/model-connections/{connection_id}", response_model=ConnectionRead)
@@ -470,7 +491,9 @@ async def update_connection(
     user: User = Depends(current_active_user),
 ):
     conn = await _load_connection(session, connection_id)
-    await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_UPDATE.value)
+    await _assert_connection_access(
+        session, user, conn, Permission.LLM_CONFIGS_UPDATE.value
+    )
     search_space_id = conn.search_space_id
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(conn, key, value)
@@ -489,7 +512,9 @@ async def delete_connection(
     user: User = Depends(current_active_user),
 ):
     conn = await _load_connection(session, connection_id)
-    await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_DELETE.value)
+    await _assert_connection_access(
+        session, user, conn, Permission.LLM_CONFIGS_DELETE.value
+    )
     search_space_id = conn.search_space_id
     await session.delete(conn)
     await session.commit()
@@ -499,27 +524,37 @@ async def delete_connection(
     return {"status": "deleted"}
 
 
-@router.post("/model-connections/{connection_id}/verify", response_model=VerifyConnectionResponse)
+@router.post(
+    "/model-connections/{connection_id}/verify", response_model=VerifyConnectionResponse
+)
 async def verify_model_connection(
     connection_id: int,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     conn = await _load_connection(session, connection_id)
-    await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_CREATE.value)
+    await _assert_connection_access(
+        session, user, conn, Permission.LLM_CONFIGS_CREATE.value
+    )
     result = await persist_verification(conn)
     await session.commit()
-    return VerifyConnectionResponse(status=result.status, ok=result.ok, message=result.message)
+    return VerifyConnectionResponse(
+        status=result.status, ok=result.ok, message=result.message
+    )
 
 
-@router.post("/model-connections/{connection_id}/discover", response_model=list[ModelRead])
+@router.post(
+    "/model-connections/{connection_id}/discover", response_model=list[ModelRead]
+)
 async def discover_connection_models(
     connection_id: int,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     conn = await _load_connection(session, connection_id)
-    await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_CREATE.value)
+    await _assert_connection_access(
+        session, user, conn, Permission.LLM_CONFIGS_CREATE.value
+    )
     try:
         discovered = await discover_models(conn)
     except ModelDiscoveryError as exc:
@@ -561,13 +596,17 @@ async def add_manual_model(
     user: User = Depends(current_active_user),
 ):
     conn = await _load_connection(session, connection_id)
-    await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_UPDATE.value)
+    await _assert_connection_access(
+        session, user, conn, Permission.LLM_CONFIGS_UPDATE.value
+    )
 
     model_id = data.model_id.strip()
     if not model_id:
         raise HTTPException(status_code=400, detail="model_id is required")
     if any(existing.model_id == model_id for existing in conn.models):
-        raise HTTPException(status_code=400, detail="Model already exists on this connection")
+        raise HTTPException(
+            status_code=400, detail="Model already exists on this connection"
+        )
 
     capabilities = derive_capabilities(conn, model_id)
     model = Model(
@@ -592,7 +631,9 @@ async def add_manual_model(
     return _model_read(model)
 
 
-@router.patch("/model-connections/{connection_id}/models", response_model=list[ModelRead])
+@router.patch(
+    "/model-connections/{connection_id}/models", response_model=list[ModelRead]
+)
 async def bulk_update_models(
     connection_id: int,
     data: ModelsBulkUpdate,
@@ -600,7 +641,9 @@ async def bulk_update_models(
     user: User = Depends(current_active_user),
 ):
     conn = await _load_connection(session, connection_id)
-    await _assert_connection_access(session, user, conn, Permission.LLM_CONFIGS_UPDATE.value)
+    await _assert_connection_access(
+        session, user, conn, Permission.LLM_CONFIGS_UPDATE.value
+    )
     search_space_id = conn.search_space_id
 
     model_ids = set(data.model_ids)
@@ -632,12 +675,16 @@ async def update_model(
     user: User = Depends(current_active_user),
 ):
     result = await session.execute(
-        select(Model).options(selectinload(Model.connection)).where(Model.id == model_id)
+        select(Model)
+        .options(selectinload(Model.connection))
+        .where(Model.id == model_id)
     )
     model = result.scalars().first()
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
-    await _assert_connection_access(session, user, model.connection, Permission.LLM_CONFIGS_UPDATE.value)
+    await _assert_connection_access(
+        session, user, model.connection, Permission.LLM_CONFIGS_UPDATE.value
+    )
     search_space_id = model.connection.search_space_id
     update = data.model_dump(exclude_unset=True)
     for key, value in update.items():
@@ -658,18 +705,26 @@ async def test_connection_model(
     user: User = Depends(current_active_user),
 ):
     result = await session.execute(
-        select(Model).options(selectinload(Model.connection)).where(Model.id == model_id)
+        select(Model)
+        .options(selectinload(Model.connection))
+        .where(Model.id == model_id)
     )
     model = result.scalars().first()
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
-    await _assert_connection_access(session, user, model.connection, Permission.LLM_CONFIGS_UPDATE.value)
+    await _assert_connection_access(
+        session, user, model.connection, Permission.LLM_CONFIGS_UPDATE.value
+    )
     result = await test_model(model.connection, model)
     await session.commit()
-    return VerifyConnectionResponse(status=result.status, ok=result.ok, message=result.message)
+    return VerifyConnectionResponse(
+        status=result.status, ok=result.ok, message=result.message
+    )
 
 
-@router.get("/search-spaces/{search_space_id}/model-roles", response_model=ModelRolesRead)
+@router.get(
+    "/search-spaces/{search_space_id}/model-roles", response_model=ModelRolesRead
+)
 async def get_model_roles(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -692,7 +747,9 @@ async def get_model_roles(
     )
 
 
-@router.put("/search-spaces/{search_space_id}/model-roles", response_model=ModelRolesRead)
+@router.put(
+    "/search-spaces/{search_space_id}/model-roles", response_model=ModelRolesRead
+)
 async def update_model_roles(
     search_space_id: int,
     data: ModelRolesUpdate,

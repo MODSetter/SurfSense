@@ -288,4 +288,3 @@ def test_generate_image_gen_configs_assigns_image_id_offset():
     cfgs = _generate_image_gen_configs(raw, dict(_SETTINGS_BASE))
     assert all(c["id"] < -20_000 + 1 for c in cfgs)
     assert all(c["id"] > -29_000_000 for c in cfgs)
-

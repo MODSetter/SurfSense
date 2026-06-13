@@ -135,7 +135,9 @@ async def test_generate_image_tool_global_sets_explicit_api_base():
     with (
         patch.object(gi_module, "shielded_async_session", return_value=session_cm),
         patch.object(gi_module, "_get_global_model", return_value=global_model),
-        patch.object(gi_module, "_get_global_connection", return_value=global_connection),
+        patch.object(
+            gi_module, "_get_global_connection", return_value=global_connection
+        ),
         patch.object(
             gi_module, "aimage_generation", side_effect=fake_aimage_generation
         ),

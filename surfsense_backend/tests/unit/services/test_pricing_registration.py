@@ -368,5 +368,3 @@ def test_register_continues_after_individual_failure(monkeypatch, caplog):
 
     # The good config still registered.
     assert any("custom-deployment" in payload for payload in successful_calls)
-
-

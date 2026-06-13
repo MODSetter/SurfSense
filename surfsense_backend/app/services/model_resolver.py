@@ -48,14 +48,20 @@ def to_litellm(
     prefix = spec.litellm_prefix or str(provider)
     model_string = f"{prefix}/{model_id}" if prefix else model_id
     if base_url:
-        api_base = ensure_v1(base_url) if spec.transport == Transport.OPENAI_COMPATIBLE else base_url.rstrip("/")
+        api_base = (
+            ensure_v1(base_url)
+            if spec.transport == Transport.OPENAI_COMPATIBLE
+            else base_url.rstrip("/")
+        )
         kwargs["api_base"] = api_base
 
     if api_version := extra.get("api_version"):
         kwargs["api_version"] = api_version
     kwargs.update(extra.get("litellm_params", {}))
     kwargs.update(extra.get("kwargs", {}))
-    if provider == "bedrock" and (bearer_token := kwargs.pop("aws_bearer_token_bedrock", None)):
+    if provider == "bedrock" and (
+        bearer_token := kwargs.pop("aws_bearer_token_bedrock", None)
+    ):
         kwargs["api_key"] = bearer_token
     return model_string, kwargs
 

@@ -53,6 +53,7 @@ from app.utils.signed_image_urls import verify_image_token
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+
 def _get_global_model(model_id: int) -> dict | None:
     return next((m for m in config.GLOBAL_MODELS if m.get("id") == model_id), None)
 

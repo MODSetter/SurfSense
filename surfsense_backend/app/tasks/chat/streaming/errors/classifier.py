@@ -146,9 +146,10 @@ def _provider_error_extra(adapted: Any) -> dict[str, Any] | None:
 
 def _classify_provider_exception(
     exc: Exception,
-) -> tuple[
-    str, str, Literal["info", "warn", "error"], bool, str, dict[str, Any] | None
-] | None:
+) -> (
+    tuple[str, str, Literal["info", "warn", "error"], bool, str, dict[str, Any] | None]
+    | None
+):
     adapted = adapt_llm_exception(exc)
 
     if adapted.category is LLMErrorCategory.RATE_LIMITED:

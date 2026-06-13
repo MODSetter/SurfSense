@@ -1,12 +1,6 @@
 "use client";
 
-import {
-	BookText,
-	Cpu,
-	Earth,
-	Settings,
-	UserKey,
-} from "lucide-react";
+import { BookText, Cpu, Earth, Settings, UserKey } from "lucide-react";
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
 import { useTranslations } from "next-intl";

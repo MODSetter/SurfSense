@@ -84,7 +84,9 @@ def is_openrouter_image_model(model: dict[str, Any]) -> bool:
     )
 
 
-def normalize_openrouter_models(raw_models: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def normalize_openrouter_models(
+    raw_models: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     normalized: list[dict[str, Any]] = []
     for model in raw_models:
         if not is_openrouter_chat_model(model):

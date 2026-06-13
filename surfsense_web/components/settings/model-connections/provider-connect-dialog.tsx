@@ -95,7 +95,8 @@ export function ProviderConnectDialog({
 	})();
 
 	const canRefreshModels = !isAzure && !isVertex && (!isBedrock || canSubmit);
-	const hasEnabledModel = previewModels.some((model) => model.enabled) || Boolean(currentDraft.seedModelId);
+	const hasEnabledModel =
+		previewModels.some((model) => model.enabled) || Boolean(currentDraft.seedModelId);
 	const canConnect = canSubmit && hasEnabledModel;
 
 	return (

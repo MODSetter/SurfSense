@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # Special ID for Auto mode - uses router for load balancing
 IMAGE_GEN_AUTO_MODE_ID = 0
 
+
 class ImageGenRouterService:
     """
     Singleton service for managing LiteLLM Router for image generation.

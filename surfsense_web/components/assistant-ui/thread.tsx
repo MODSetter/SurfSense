@@ -957,7 +957,10 @@ interface ComposerActionProps {
 	searchSpaceId: number;
 }
 
-const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false, searchSpaceId }) => {
+const ComposerAction: FC<ComposerActionProps> = ({
+	isBlockedByOtherUser = false,
+	searchSpaceId,
+}) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);

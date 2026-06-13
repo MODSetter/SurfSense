@@ -19,6 +19,10 @@ from typing import Any
 
 import httpx
 
+from app.services.openrouter_model_normalizer import (
+    is_openrouter_image_model,
+    normalize_openrouter_models,
+)
 from app.services.quality_score import (
     _HEALTH_BLEND_WEIGHT,
     _HEALTH_ENRICH_CONCURRENCY,
@@ -28,13 +32,6 @@ from app.services.quality_score import (
     _HEALTH_FETCH_TIMEOUT_SEC,
     aggregate_health,
     static_score_or,
-)
-from app.services.openrouter_model_normalizer import (
-    is_allowed_model as _shared_is_allowed_model,
-    is_compatible_provider as _shared_is_compatible_provider,
-    is_openrouter_image_model,
-    normalize_openrouter_models,
-    supports_image_input,
 )
 
 logger = logging.getLogger(__name__)
@@ -395,11 +392,7 @@ def _generate_image_gen_configs(
     free_rpm: int = settings.get("free_rpm", 20)
     litellm_params: dict = settings.get("litellm_params") or {}
 
-    image_models = [
-        m
-        for m in raw_models
-        if is_openrouter_image_model(m)
-    ]
+    image_models = [m for m in raw_models if is_openrouter_image_model(m)]
 
     configs: list[dict] = []
     taken: set[int] = set()

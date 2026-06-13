@@ -77,7 +77,13 @@ async def test_resolve_billing_for_premium_global_config(monkeypatch):
         config,
         "GLOBAL_CONNECTIONS",
         [
-            {"id": -101, "provider": "openai", "api_key": "sk-test", "base_url": None, "extra": {}},
+            {
+                "id": -101,
+                "provider": "openai",
+                "api_key": "sk-test",
+                "base_url": None,
+                "extra": {},
+            },
             {
                 "id": -102,
                 "provider": "openrouter",
@@ -154,7 +160,15 @@ async def test_resolve_billing_falls_back_to_search_space_default(monkeypatch):
     monkeypatch.setattr(
         config,
         "GLOBAL_CONNECTIONS",
-        [{"id": -101, "provider": "openai", "api_key": "sk-test", "base_url": None, "extra": {}}],
+        [
+            {
+                "id": -101,
+                "provider": "openai",
+                "api_key": "sk-test",
+                "base_url": None,
+                "extra": {},
+            }
+        ],
         raising=False,
     )
 

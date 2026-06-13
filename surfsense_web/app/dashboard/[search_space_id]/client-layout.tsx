@@ -37,11 +37,7 @@ export function DashboardClientLayout({
 	const setActiveSearchSpaceIdState = useSetAtom(activeSearchSpaceIdAtom);
 	const setPendingUserImageUrls = useSetAtom(pendingUserImageDataUrlsAtom);
 
-	const {
-		data: modelRoles = {},
-		isLoading: loading,
-		error,
-	} = useAtomValue(modelRolesAtom);
+	const { data: modelRoles = {}, isLoading: loading, error } = useAtomValue(modelRolesAtom);
 	const { data: globalConnections = [], isLoading: globalConfigsLoading } = useAtomValue(
 		globalModelConnectionsAtom
 	);
@@ -158,13 +154,13 @@ export function DashboardClientLayout({
 
 	// Determine if we should show loading
 	const shouldShowLoading =
-		(!hasCheckedOnboarding &&
-			(!isSearchSpaceReady ||
-				loading ||
-				accessLoading ||
-				globalConfigsLoading ||
-				modelConnectionsLoading) &&
-			!isOnboardingPage);
+		!hasCheckedOnboarding &&
+		(!isSearchSpaceReady ||
+			loading ||
+			accessLoading ||
+			globalConfigsLoading ||
+			modelConnectionsLoading) &&
+		!isOnboardingPage;
 
 	// Use global loading screen - spinner animation won't reset
 	useGlobalLoadingEffect(shouldShowLoading);

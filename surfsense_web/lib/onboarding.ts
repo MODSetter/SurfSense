@@ -22,8 +22,7 @@ export function isLlmOnboardingComplete(
 
 	return connections.some((connection) =>
 		connection.models.some(
-			(model) =>
-				model.id === resolvedChatModelId && model.enabled && Boolean(model.supports_chat)
+			(model) => model.id === resolvedChatModelId && model.enabled && Boolean(model.supports_chat)
 		)
 	);
 }

@@ -21,19 +21,20 @@ from app.db import (
     SearchSpace,
     shielded_async_session,
 )
-from app.services.image_gen_router_service import (
-    IMAGE_GEN_AUTO_MODE_ID,
-    is_image_gen_auto_mode,
-)
 from app.services.auto_model_pin_service import (
     auto_model_candidates,
     choose_auto_model_candidate,
+)
+from app.services.image_gen_router_service import (
+    IMAGE_GEN_AUTO_MODE_ID,
+    is_image_gen_auto_mode,
 )
 from app.services.model_capabilities import has_capability
 from app.services.model_resolver import to_litellm
 from app.utils.signed_image_urls import generate_image_token
 
 logger = logging.getLogger(__name__)
+
 
 def _get_global_model(model_id: int) -> dict | None:
     return next((m for m in config.GLOBAL_MODELS if m.get("id") == model_id), None)
@@ -113,13 +114,10 @@ def create_generate_image_tool(
                 if image_gen_model_id_override is not None:
                     # Automation run: use the captured image model, insulated from
                     # later search-space changes. No search-space read needed.
-                    config_id = (
-                        image_gen_model_id_override or IMAGE_GEN_AUTO_MODE_ID
-                    )
+                    config_id = image_gen_model_id_override or IMAGE_GEN_AUTO_MODE_ID
                 else:
                     config_id = (
-                        search_space.image_gen_model_id
-                        or IMAGE_GEN_AUTO_MODE_ID
+                        search_space.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
                     )
 
                 # size/quality/style are intentionally omitted: valid values
@@ -147,7 +145,9 @@ def create_generate_image_tool(
 
                 if config_id < 0:
                     global_model = _get_global_model(config_id)
-                    if not global_model or not has_capability(global_model, "image_gen"):
+                    if not global_model or not has_capability(
+                        global_model, "image_gen"
+                    ):
                         err = f"Image generation model {config_id} not found"
                         return _failed({"error": err}, error=err)
                     global_connection = _get_global_connection(
@@ -174,7 +174,11 @@ def create_generate_image_tool(
                         .filter(Model.id == config_id, Model.enabled.is_(True))
                     )
                     db_model = cfg_result.scalars().first()
-                    if not db_model or not db_model.connection or not db_model.connection.enabled:
+                    if (
+                        not db_model
+                        or not db_model.connection
+                        or not db_model.connection.enabled
+                    ):
                         err = f"Image generation model {config_id} not found"
                         return _failed({"error": err}, error=err)
                     conn = db_model.connection

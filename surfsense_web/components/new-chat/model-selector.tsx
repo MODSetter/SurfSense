@@ -82,10 +82,7 @@ function groupedModels(models: ChatModel[]) {
 	}, {});
 }
 
-export function ModelSelector({
-	searchSpaceId,
-	className,
-}: ModelSelectorProps) {
+export function ModelSelector({ searchSpaceId, className }: ModelSelectorProps) {
 	const router = useRouter();
 	const isMobile = useIsMobile();
 	const [open, setOpen] = useState(false);
@@ -250,11 +247,9 @@ export function ModelSelector({
 				className
 			)}
 		>
-			{selected ? (
-				getProviderIcon(selected.provider, { className: "size-4 shrink-0" })
-			) : (
-				getProviderIcon(AUTO_PROVIDER_ICON_KEY, { className: "size-4 shrink-0" })
-			)}
+			{selected
+				? getProviderIcon(selected.provider, { className: "size-4 shrink-0" })
+				: getProviderIcon(AUTO_PROVIDER_ICON_KEY, { className: "size-4 shrink-0" })}
 			<span className="min-w-0 flex-1 truncate text-sm">
 				{selected ? modelName(selected) : "Auto"}
 			</span>
