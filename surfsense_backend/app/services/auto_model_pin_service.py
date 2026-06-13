@@ -21,6 +21,7 @@ import time
 from dataclasses import dataclass
 from uuid import UUID
 
+import redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -39,12 +40,16 @@ AUTO_MODE_ID = 0
 AUTO_PIN_HASH_NAMESPACE = "auto_fastest"
 _RUNTIME_COOLDOWN_SECONDS = 600
 _HEALTHY_TTL_SECONDS = 45
+_RUNTIME_COOLDOWN_REDIS_KEY_PREFIX = "auto:cooldown:llm:"
+_REDIS_TIMEOUT_SECONDS = 0.2
 
 # In-memory runtime cooldown map for configs that recently hard-failed at
 # provider runtime (e.g. OpenRouter 429 on a pinned free model). This keeps
 # the same unhealthy config from being reselected immediately during repair.
 _runtime_cooldown_until: dict[int, float] = {}
 _runtime_cooldown_lock = threading.Lock()
+_runtime_cooldown_redis: redis.Redis | None = None
+_runtime_cooldown_redis_lock = threading.Lock()
 
 # Short-TTL "recently healthy" cache for configs that just passed a runtime
 # preflight ping. Lets back-to-back turns on the same model skip the probe
@@ -87,6 +92,79 @@ def _is_runtime_cooled_down(config_id: int) -> bool:
         return config_id in _runtime_cooldown_until
 
 
+def _runtime_cooldown_redis_key(config_id: int) -> str:
+    return f"{_RUNTIME_COOLDOWN_REDIS_KEY_PREFIX}{int(config_id)}"
+
+
+def _get_runtime_cooldown_redis() -> redis.Redis:
+    global _runtime_cooldown_redis
+    if _runtime_cooldown_redis is None:
+        with _runtime_cooldown_redis_lock:
+            if _runtime_cooldown_redis is None:
+                _runtime_cooldown_redis = redis.from_url(
+                    config.REDIS_APP_URL,
+                    decode_responses=True,
+                    socket_connect_timeout=_REDIS_TIMEOUT_SECONDS,
+                    socket_timeout=_REDIS_TIMEOUT_SECONDS,
+                )
+    return _runtime_cooldown_redis
+
+
+def _mark_shared_runtime_cooldown(
+    config_id: int,
+    *,
+    reason: str,
+    cooldown_seconds: int,
+) -> None:
+    try:
+        _get_runtime_cooldown_redis().set(
+            _runtime_cooldown_redis_key(config_id),
+            reason,
+            ex=int(cooldown_seconds),
+        )
+    except Exception:
+        logger.warning(
+            "auto_pin_runtime_cooldown_redis_write_failed config_id=%s",
+            config_id,
+            exc_info=True,
+        )
+
+
+def _shared_runtime_cooled_down_ids(config_ids: list[int]) -> set[int]:
+    unique_ids = list(dict.fromkeys(int(cid) for cid in config_ids))
+    if not unique_ids:
+        return set()
+    try:
+        values = _get_runtime_cooldown_redis().mget(
+            [_runtime_cooldown_redis_key(cid) for cid in unique_ids]
+        )
+    except Exception:
+        logger.warning(
+            "auto_pin_runtime_cooldown_redis_read_failed count=%s",
+            len(unique_ids),
+            exc_info=True,
+        )
+        return set()
+    return {cid for cid, value in zip(unique_ids, values, strict=False) if value is not None}
+
+
+def _clear_shared_runtime_cooldown(config_id: int | None = None) -> None:
+    try:
+        client = _get_runtime_cooldown_redis()
+        if config_id is not None:
+            client.delete(_runtime_cooldown_redis_key(config_id))
+            return
+        keys = list(client.scan_iter(f"{_RUNTIME_COOLDOWN_REDIS_KEY_PREFIX}*"))
+        if keys:
+            client.delete(*keys)
+    except Exception:
+        logger.warning(
+            "auto_pin_runtime_cooldown_redis_clear_failed config_id=%s",
+            config_id,
+            exc_info=True,
+        )
+
+
 def mark_runtime_cooldown(
     config_id: int,
     *,
@@ -105,6 +183,11 @@ def mark_runtime_cooldown(
     with _runtime_cooldown_lock:
         _runtime_cooldown_until[int(config_id)] = until
         _prune_runtime_cooldowns()
+    _mark_shared_runtime_cooldown(
+        int(config_id),
+        reason=reason,
+        cooldown_seconds=int(cooldown_seconds),
+    )
     # A cooled cfg can never be "recently healthy"; drop any stale credit so
     # the next turn that resolves to it (after cooldown) re-runs preflight.
     clear_healthy(int(config_id))
@@ -121,8 +204,9 @@ def clear_runtime_cooldown(config_id: int | None = None) -> None:
     with _runtime_cooldown_lock:
         if config_id is None:
             _runtime_cooldown_until.clear()
-            return
-        _runtime_cooldown_until.pop(int(config_id), None)
+        else:
+            _runtime_cooldown_until.pop(int(config_id), None)
+    _clear_shared_runtime_cooldown(config_id)
 
 
 def _prune_healthy(now_ts: float | None = None) -> None:
@@ -205,6 +289,7 @@ def _global_candidates(
     *,
     capability: str = "chat",
     requires_image_input: bool = False,
+    shared_cooled_down_ids: set[int] | None = None,
 ) -> list[dict]:
     """Return Auto-eligible global virtual models.
 
@@ -228,9 +313,14 @@ def _global_candidates(
         if _is_usable_global_config(cfg)
     }
     candidates: list[dict] = []
+    shared_cooled_down_ids = shared_cooled_down_ids or set()
     for model in config.GLOBAL_MODELS:
         model_id = int(model.get("id", 0))
-        if model_id >= 0 or _is_runtime_cooled_down(model_id):
+        if (
+            model_id >= 0
+            or _is_runtime_cooled_down(model_id)
+            or model_id in shared_cooled_down_ids
+        ):
             continue
         if not _has_capability(model, capability):
             continue
@@ -287,8 +377,12 @@ async def _db_candidates(
         .where(Model.enabled.is_(True), Connection.enabled.is_(True))
     )
     result = await session.execute(stmt)
+    models = result.scalars().all()
+    shared_cooled_down_ids = _shared_runtime_cooled_down_ids(
+        [int(model.id) for model in models]
+    )
     candidates: list[dict] = []
-    for model in result.scalars().all():
+    for model in models:
         conn = model.connection
         if not conn:
             continue
@@ -303,7 +397,7 @@ async def _db_candidates(
         if requires_image_input and not _has_capability(model, "vision"):
             continue
         model_id = int(model.id)
-        if _is_runtime_cooled_down(model_id):
+        if _is_runtime_cooled_down(model_id) or model_id in shared_cooled_down_ids:
             continue
         catalog = model.catalog or {}
         candidates.append(
@@ -337,6 +431,12 @@ async def auto_model_candidates(
     exclude_model_ids: set[int] | None = None,
 ) -> list[dict]:
     excluded_ids = {int(mid) for mid in (exclude_model_ids or set())}
+    global_ids = [
+        int(model.get("id", 0))
+        for model in config.GLOBAL_MODELS
+        if int(model.get("id", 0)) < 0
+    ]
+    shared_global_cooled_down_ids = _shared_runtime_cooled_down_ids(global_ids)
     db_candidates = await _db_candidates(
         session,
         search_space_id=search_space_id,
@@ -348,6 +448,7 @@ async def auto_model_candidates(
         *_global_candidates(
             capability=capability,
             requires_image_input=requires_image_input,
+            shared_cooled_down_ids=shared_global_cooled_down_ids,
         ),
         *db_candidates,
     ]
@@ -356,16 +457,6 @@ async def auto_model_candidates(
 
 def _tier_of(cfg: dict) -> str:
     return str(cfg.get("billing_tier", "free")).lower()
-
-
-def _is_preferred_premium_auto_config(cfg: dict) -> bool:
-    """Return True for the operator-preferred premium Auto model."""
-    return (
-        cfg.get("source") == "global"
-        and _tier_of(cfg) == "premium"
-        and str(cfg.get("provider", "")).lower() == "azure"
-        and str(cfg.get("model_name", "")).lower() == "gpt-5.4"
-    )
 
 
 def _select_pin(eligible: list[dict], thread_id: int) -> tuple[dict, int]:
@@ -546,10 +637,7 @@ async def resolve_or_get_pinned_llm_config_id(
     byok_candidates = [c for c in candidates if _tier_of(c) == "byok"]
     if premium_eligible:
         premium_candidates = [c for c in candidates if _tier_of(c) == "premium"]
-        preferred_premium = [
-            c for c in premium_candidates if _is_preferred_premium_auto_config(c)
-        ]
-        eligible = preferred_premium or premium_candidates or byok_candidates
+        eligible = premium_candidates or byok_candidates
     else:
         eligible = [c for c in candidates if _tier_of(c) != "premium"]
 

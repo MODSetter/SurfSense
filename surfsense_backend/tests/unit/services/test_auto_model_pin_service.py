@@ -17,8 +17,39 @@ from app.services.auto_model_pin_service import (
 pytestmark = pytest.mark.unit
 
 
+class _FakeRedis:
+    def __init__(self):
+        self.values: dict[str, str] = {}
+        self.ttls: dict[str, int] = {}
+
+    def set(self, key: str, value: str, *, ex: int | None = None):
+        self.values[key] = value
+        if ex is not None:
+            self.ttls[key] = ex
+        return True
+
+    def mget(self, keys: list[str]):
+        return [self.values.get(key) for key in keys]
+
+    def delete(self, *keys: str):
+        removed = 0
+        for key in keys:
+            if key in self.values:
+                removed += 1
+            self.values.pop(key, None)
+            self.ttls.pop(key, None)
+        return removed
+
+    def scan_iter(self, pattern: str):
+        prefix = pattern.removesuffix("*")
+        return (key for key in list(self.values) if key.startswith(prefix))
+
+
 @pytest.fixture(autouse=True)
-def _clear_runtime_cooldown_map():
+def _clear_runtime_cooldown_map(monkeypatch):
+    import app.services.auto_model_pin_service as svc
+
+    monkeypatch.setattr(svc, "_runtime_cooldown_redis", _FakeRedis())
     clear_runtime_cooldown()
     clear_healthy()
     yield
@@ -205,7 +236,9 @@ async def test_premium_eligible_auto_prefers_premium_over_free(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_premium_eligible_auto_prefers_azure_gpt_5_4(monkeypatch):
+async def test_premium_eligible_auto_uses_quality_pool_not_single_preferred_model(
+    monkeypatch,
+):
     from app.config import config
 
     session = _FakeSession(_thread())
@@ -233,12 +266,39 @@ async def test_premium_eligible_auto_prefers_azure_gpt_5_4(monkeypatch):
             },
             {
                 "id": -3,
-                "litellm_provider": "openrouter",
-                "model_name": "openai/gpt-5.4",
+                "litellm_provider": "anthropic",
+                "model_name": "claude-opus",
                 "api_key": "k3",
                 "billing_tier": "premium",
-                "auto_pin_tier": "B",
-                "quality_score": 100,
+                "auto_pin_tier": "A",
+                "quality_score": 99,
+            },
+            {
+                "id": -4,
+                "litellm_provider": "openai",
+                "model_name": "gpt-5.3",
+                "api_key": "k4",
+                "billing_tier": "premium",
+                "auto_pin_tier": "A",
+                "quality_score": 98,
+            },
+            {
+                "id": -5,
+                "litellm_provider": "gemini",
+                "model_name": "gemini-3-pro",
+                "api_key": "k5",
+                "billing_tier": "premium",
+                "auto_pin_tier": "A",
+                "quality_score": 97,
+            },
+            {
+                "id": -6,
+                "litellm_provider": "xai",
+                "model_name": "grok-5",
+                "api_key": "k6",
+                "billing_tier": "premium",
+                "auto_pin_tier": "A",
+                "quality_score": 96,
             },
         ],
     )
@@ -258,7 +318,7 @@ async def test_premium_eligible_auto_prefers_azure_gpt_5_4(monkeypatch):
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
-    assert result.resolved_llm_config_id == -2
+    assert result.resolved_llm_config_id in {-1, -3, -4, -5, -6}
     assert result.resolved_tier == "premium"
 
 
@@ -920,6 +980,74 @@ async def test_runtime_cooled_down_pin_is_not_reused(monkeypatch):
     )
 
     mark_runtime_cooldown(-1, reason="provider_rate_limited", cooldown_seconds=600)
+
+    result = await resolve_or_get_pinned_llm_config_id(
+        session,
+        thread_id=1,
+        search_space_id=10,
+        user_id="00000000-0000-0000-0000-000000000001",
+        selected_llm_config_id=0,
+    )
+    assert result.resolved_llm_config_id == -2
+    assert result.from_existing_pin is False
+
+
+def test_mark_runtime_cooldown_writes_shared_redis(monkeypatch):
+    import app.services.auto_model_pin_service as svc
+
+    mark_runtime_cooldown(-9, reason="provider_rate_limited", cooldown_seconds=123)
+
+    redis_client = svc._runtime_cooldown_redis
+    assert redis_client.values["auto:cooldown:llm:-9"] == "provider_rate_limited"
+    assert redis_client.ttls["auto:cooldown:llm:-9"] == 123
+
+
+@pytest.mark.asyncio
+async def test_shared_runtime_cooldown_blocks_pin_across_workers(monkeypatch):
+    """A Redis cooldown written by another worker should invalidate local pins."""
+    import app.services.auto_model_pin_service as svc
+    from app.config import config
+
+    session = _FakeSession(_thread(pinned_llm_config_id=-1))
+    _set_global_llm_configs(
+        monkeypatch,
+        config,
+        [
+            {
+                "id": -1,
+                "litellm_provider": "openrouter",
+                "model_name": "google/gemma-4-26b-a4b-it:free",
+                "api_key": "k",
+                "billing_tier": "free",
+                "auto_pin_tier": "C",
+                "quality_score": 90,
+                "health_gated": False,
+            },
+            {
+                "id": -2,
+                "litellm_provider": "openrouter",
+                "model_name": "google/gemini-2.5-flash:free",
+                "api_key": "k",
+                "billing_tier": "free",
+                "auto_pin_tier": "C",
+                "quality_score": 80,
+                "health_gated": False,
+            },
+        ],
+    )
+    svc._runtime_cooldown_redis.set(
+        "auto:cooldown:llm:-1",
+        "provider_rate_limited",
+        ex=600,
+    )
+
+    async def _blocked(*_args, **_kwargs):
+        return _FakeQuotaResult(allowed=False)
+
+    monkeypatch.setattr(
+        "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
+        _blocked,
+    )
 
     result = await resolve_or_get_pinned_llm_config_id(
         session,
