@@ -45,8 +45,9 @@ class _FakeQuotaResult:
 
 
 class _FakeExecResult:
-    def __init__(self, thread):
+    def __init__(self, *, thread=None, scalars=None):
         self._thread = thread
+        self._scalars = scalars or []
 
     def unique(self):
         return self
@@ -54,14 +55,21 @@ class _FakeExecResult:
     def scalar_one_or_none(self):
         return self._thread
 
+    def scalars(self):
+        return SimpleNamespace(all=lambda: self._scalars)
+
 
 class _FakeSession:
     def __init__(self, thread):
         self.thread = thread
         self.commit_count = 0
+        self.execute_count = 0
 
     async def execute(self, _stmt):
-        return _FakeExecResult(self.thread)
+        self.execute_count += 1
+        if self.execute_count == 1:
+            return _FakeExecResult(thread=self.thread)
+        return _FakeExecResult(scalars=[])
 
     async def commit(self):
         self.commit_count += 1
@@ -69,6 +77,60 @@ class _FakeSession:
 
 def _thread(*, pinned: int | None = None):
     return SimpleNamespace(id=1, search_space_id=10, pinned_llm_config_id=pinned)
+
+
+def _set_global_llm_configs(monkeypatch, config, configs: list[dict]):
+    from app.services.provider_capabilities import derive_supports_image_input
+
+    connections = []
+    models = []
+    for cfg in configs:
+        config_id = int(cfg["id"])
+        connection_id = config_id - 100_000
+        provider = cfg.get("provider") or cfg.get("litellm_provider")
+        model_name = cfg["model_name"]
+        if "supports_image_input" not in cfg:
+            litellm_params = cfg.get("litellm_params") or {}
+            base_model = (
+                litellm_params.get("base_model")
+                if isinstance(litellm_params, dict)
+                else None
+            )
+            cfg["supports_image_input"] = derive_supports_image_input(
+                provider=provider,
+                model_name=model_name,
+                base_model=base_model,
+                custom_provider=cfg.get("custom_provider"),
+            )
+        connections.append(
+            {
+                "id": connection_id,
+                "provider": provider,
+                "scope": "GLOBAL",
+                "enabled": True,
+            }
+        )
+        model = {
+            "id": config_id,
+            "connection_id": connection_id,
+            "model_id": model_name,
+            "display_name": cfg.get("name") or model_name,
+            "supports_chat": cfg.get("supports_chat", True),
+            "supports_tools": cfg.get("supports_tools", True),
+            "supports_image_generation": cfg.get("supports_image_generation", False),
+            "capabilities_override": cfg.get("capabilities_override") or {},
+            "billing_tier": cfg.get("billing_tier", "free"),
+            "catalog": {
+                "auto_pin_tier": cfg.get("auto_pin_tier"),
+                "quality_score": cfg.get("quality_score"),
+            },
+            "supports_image_input": cfg["supports_image_input"],
+        }
+        models.append(model)
+
+    monkeypatch.setattr(config, "GLOBAL_LLM_CONFIGS", configs)
+    monkeypatch.setattr(config, "GLOBAL_CONNECTIONS", connections)
+    monkeypatch.setattr(config, "GLOBAL_MODELS", models)
 
 
 def _vision_cfg(id_: int, *, tier: str = "free", quality: int = 80) -> dict:
@@ -108,11 +170,7 @@ async def test_image_turn_filters_out_text_only_candidates(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread())
-    monkeypatch.setattr(
-        config,
-        "GLOBAL_LLM_CONFIGS",
-        [_text_only_cfg(-1), _vision_cfg(-2)],
-    )
+    _set_global_llm_configs(monkeypatch, config, [_text_only_cfg(-1), _vision_cfg(-2)])
     monkeypatch.setattr(
         "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _premium_allowed,
@@ -140,11 +198,7 @@ async def test_image_turn_force_repins_stale_text_only_pin(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread(pinned=-1))
-    monkeypatch.setattr(
-        config,
-        "GLOBAL_LLM_CONFIGS",
-        [_text_only_cfg(-1), _vision_cfg(-2)],
-    )
+    _set_global_llm_configs(monkeypatch, config, [_text_only_cfg(-1), _vision_cfg(-2)])
     monkeypatch.setattr(
         "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _premium_allowed,
@@ -172,9 +226,9 @@ async def test_image_turn_reuses_existing_vision_pin(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread(pinned=-2))
-    monkeypatch.setattr(
+    _set_global_llm_configs(
+        monkeypatch,
         config,
-        "GLOBAL_LLM_CONFIGS",
         [_text_only_cfg(-1), _vision_cfg(-2), _vision_cfg(-3, quality=70)],
     )
     monkeypatch.setattr(
@@ -203,10 +257,8 @@ async def test_image_turn_with_no_vision_candidates_raises(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread())
-    monkeypatch.setattr(
-        config,
-        "GLOBAL_LLM_CONFIGS",
-        [_text_only_cfg(-1), _text_only_cfg(-2)],
+    _set_global_llm_configs(
+        monkeypatch, config, [_text_only_cfg(-1), _text_only_cfg(-2)]
     )
     monkeypatch.setattr(
         "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
@@ -231,11 +283,7 @@ async def test_non_image_turn_keeps_text_only_in_pool(monkeypatch):
     from app.config import config
 
     session = _FakeSession(_thread())
-    monkeypatch.setattr(
-        config,
-        "GLOBAL_LLM_CONFIGS",
-        [_text_only_cfg(-1)],
-    )
+    _set_global_llm_configs(monkeypatch, config, [_text_only_cfg(-1)])
     monkeypatch.setattr(
         "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _premium_allowed,
@@ -269,7 +317,7 @@ async def test_image_turn_unannotated_cfg_resolves_via_helper(monkeypatch):
         "quality_score": 80,
         # NOTE: no supports_image_input key
     }
-    monkeypatch.setattr(config, "GLOBAL_LLM_CONFIGS", [cfg_unannotated_vision])
+    _set_global_llm_configs(monkeypatch, config, [cfg_unannotated_vision])
     monkeypatch.setattr(
         "app.services.auto_model_pin_service.TokenQuotaService.credit_get_usage",
         _premium_allowed,

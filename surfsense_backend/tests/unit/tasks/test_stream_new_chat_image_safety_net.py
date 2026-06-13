@@ -35,7 +35,7 @@ def test_safety_net_does_not_fire_for_azure_gpt_4o():
     it text-only."""
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="azure",
+            provider="azure",
             model_name="my-azure-deployment",
             base_model="gpt-4o",
         )
@@ -49,7 +49,7 @@ def test_safety_net_does_not_fire_for_unknown_model():
     LiteLLM doesn't know about must flow through to the provider."""
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="custom",
+            provider="custom",
             custom_provider="brand_new_proxy",
             model_name="brand-new-model-x9",
         )
@@ -69,7 +69,7 @@ def test_safety_net_does_not_fire_when_lookup_raises(monkeypatch):
 
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="openai",
+            provider="openai",
             model_name="gpt-4o",
         )
         is False
@@ -88,7 +88,7 @@ def test_safety_net_fires_only_on_explicit_false(monkeypatch):
     monkeypatch.setattr(pc.litellm, "get_model_info", _info_explicit_false)
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="openai",
+            provider="openai",
             model_name="text-only-stub",
         )
         is True
@@ -100,7 +100,7 @@ def test_safety_net_fires_only_on_explicit_false(monkeypatch):
     monkeypatch.setattr(pc.litellm, "get_model_info", _info_true)
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="openai",
+            provider="openai",
             model_name="vision-stub",
         )
         is False
@@ -112,7 +112,7 @@ def test_safety_net_fires_only_on_explicit_false(monkeypatch):
     monkeypatch.setattr(pc.litellm, "get_model_info", _info_missing)
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="openai",
+            provider="openai",
             model_name="missing-key-stub",
         )
         is False

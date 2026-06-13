@@ -32,7 +32,7 @@ pytestmark = pytest.mark.unit
 def test_or_modalities_with_image_returns_true():
     assert (
         derive_supports_image_input(
-            litellm_provider="openrouter",
+            provider="openrouter",
             model_name="openai/gpt-4o",
             openrouter_input_modalities=["text", "image"],
         )
@@ -43,7 +43,7 @@ def test_or_modalities_with_image_returns_true():
 def test_or_modalities_text_only_returns_false():
     assert (
         derive_supports_image_input(
-            litellm_provider="openrouter",
+            provider="openrouter",
             model_name="deepseek/deepseek-v3.2-exp",
             openrouter_input_modalities=["text"],
         )
@@ -57,7 +57,7 @@ def test_or_modalities_empty_list_returns_false():
     to LiteLLM."""
     assert (
         derive_supports_image_input(
-            litellm_provider="openrouter",
+            provider="openrouter",
             model_name="weird/empty-modalities",
             openrouter_input_modalities=[],
         )
@@ -70,7 +70,7 @@ def test_or_modalities_none_falls_through_to_litellm():
     to LiteLLM. Using ``openai/gpt-4o`` which is in LiteLLM's map."""
     assert (
         derive_supports_image_input(
-            litellm_provider="openai",
+            provider="openai",
             model_name="gpt-4o",
             openrouter_input_modalities=None,
         )
@@ -86,7 +86,7 @@ def test_or_modalities_none_falls_through_to_litellm():
 def test_litellm_known_vision_model_returns_true():
     assert (
         derive_supports_image_input(
-            litellm_provider="openai",
+            provider="openai",
             model_name="gpt-4o",
         )
         is True
@@ -100,7 +100,7 @@ def test_litellm_base_model_wins_over_model_name():
     doesn't know) would shadow the real capability."""
     assert (
         derive_supports_image_input(
-            litellm_provider="azure",
+            provider="azure",
             model_name="my-azure-deployment-id",
             base_model="gpt-4o",
         )
@@ -112,7 +112,7 @@ def test_litellm_unknown_model_default_allows():
     """Default-allow on unknown — the safety net is the actual block."""
     assert (
         derive_supports_image_input(
-            litellm_provider="custom",
+            provider="custom",
             model_name="brand-new-model-x9-unmapped",
             custom_provider="brand_new_proxy",
         )
@@ -128,7 +128,7 @@ def test_litellm_known_text_only_returns_false():
     # Sanity: confirm the helper's negative path. We use a small model
     # known not to support vision per the map.
     result = derive_supports_image_input(
-        litellm_provider="openai",
+        provider="openai",
         model_name="deepseek-chat",
     )
     # We accept either False (LiteLLM said explicit no) or True
@@ -147,7 +147,7 @@ def test_litellm_known_text_only_returns_false():
 def test_is_known_text_only_returns_false_for_vision_model():
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="openai",
+            provider="openai",
             model_name="gpt-4o",
         )
         is False
@@ -160,7 +160,7 @@ def test_is_known_text_only_returns_false_for_unknown_model():
     fixing."""
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="custom",
+            provider="custom",
             model_name="brand-new-model-x9-unmapped",
             custom_provider="brand_new_proxy",
         )
@@ -181,7 +181,7 @@ def test_is_known_text_only_returns_false_when_lookup_raises(monkeypatch):
 
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="openai",
+            provider="openai",
             model_name="gpt-4o",
         )
         is False
@@ -201,7 +201,7 @@ def test_is_known_text_only_returns_true_on_explicit_false(monkeypatch):
 
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="openai",
+            provider="openai",
             model_name="any-model",
         )
         is True
@@ -218,7 +218,7 @@ def test_is_known_text_only_returns_false_on_supports_vision_true(monkeypatch):
 
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="openai",
+            provider="openai",
             model_name="any-model",
         )
         is False
@@ -237,7 +237,7 @@ def test_is_known_text_only_returns_false_on_missing_key(monkeypatch):
 
     assert (
         is_known_text_only_chat_model(
-            litellm_provider="openai",
+            provider="openai",
             model_name="any-model",
         )
         is False

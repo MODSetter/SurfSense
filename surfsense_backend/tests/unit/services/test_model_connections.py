@@ -6,7 +6,7 @@ def test_openai_compatible_resolver_uses_explicit_api_base() -> None:
     model, kwargs = to_litellm(
         {
             "protocol": "OPENAI_COMPATIBLE",
-            "litellm_provider": "openai",
+            "provider": "openai",
             "base_url": "http://host.docker.internal:1234/v1",
             "api_key": "local-key",
             "extra": {},
@@ -24,7 +24,7 @@ def test_ollama_resolver_uses_native_api_base() -> None:
     model, kwargs = to_litellm(
         {
             "protocol": "OLLAMA",
-            "litellm_provider": "ollama_chat",
+            "provider": "ollama_chat",
             "base_url": "http://host.docker.internal:11434",
             "api_key": None,
             "extra": {},
@@ -62,7 +62,6 @@ def test_global_materialization_preserves_tier_and_keeps_key_server_side() -> No
                 "billing_tier": "premium",
             },
         ],
-        vision_configs=[],
         image_configs=[],
     )
 

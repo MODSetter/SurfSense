@@ -25,7 +25,7 @@ def _or_cfg(
 ) -> dict:
     return {
         "id": cid,
-        "litellm_provider": "openrouter",
+        "provider": "openrouter",
         "model_name": model_name,
         "billing_tier": tier,
         "auto_pin_tier": "B" if tier == "premium" else "C",

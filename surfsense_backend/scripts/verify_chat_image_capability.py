@@ -153,13 +153,13 @@ def _probe_chat_capability(cfg: dict) -> tuple[bool, str]:
         litellm_params.get("base_model") if isinstance(litellm_params, dict) else None
     )
     cap = derive_supports_image_input(
-        litellm_provider=cfg.get("litellm_provider"),
+        provider=cfg.get("litellm_provider"),
         model_name=cfg.get("model_name"),
         base_model=base_model,
         custom_provider=cfg.get("custom_provider"),
     )
     block = is_known_text_only_chat_model(
-        litellm_provider=cfg.get("litellm_provider"),
+        provider=cfg.get("litellm_provider"),
         model_name=cfg.get("model_name"),
         base_model=base_model,
         custom_provider=cfg.get("custom_provider"),
