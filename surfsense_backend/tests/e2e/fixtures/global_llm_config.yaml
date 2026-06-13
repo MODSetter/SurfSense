@@ -19,7 +19,7 @@
 #   so the resolved auto-pin id is never sent to a real LLM provider.
 #   The values below only need to pass
 #   auto_model_pin_service._is_usable_global_config()
-#   which requires id / model_name / provider / api_key all truthy.
+#   which requires id / model_name / litellm_provider / api_key all truthy.
 #
 # Why TWO entries (premium + free):
 #   auto_model_pin_service.resolve_or_get_pinned_llm_config_id() splits
@@ -44,9 +44,10 @@ global_llm_configs:
     anonymous_enabled: false
     seo_enabled: false
     quality_score: 1.0
-    provider: "OPENAI"
+    litellm_provider: "openai"
     model_name: "fake-e2e-model-premium"
     api_key: "fake-e2e-api-key-not-for-production"
+    api_base: "https://api.openai.com/v1"
     supports_image_input: false
     quota_reserve_tokens: 1024
     rpm: 1000
@@ -60,9 +61,10 @@ global_llm_configs:
     anonymous_enabled: false
     seo_enabled: false
     quality_score: 1.0
-    provider: "OPENAI"
+    litellm_provider: "openai"
     model_name: "fake-e2e-model-free"
     api_key: "fake-e2e-api-key-not-for-production"
+    api_base: "https://api.openai.com/v1"
     supports_image_input: false
     quota_reserve_tokens: 1024
     rpm: 1000

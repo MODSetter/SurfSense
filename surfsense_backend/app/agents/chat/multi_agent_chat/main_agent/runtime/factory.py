@@ -72,11 +72,11 @@ async def create_multi_agent_chat_deep_agent(
     mentioned_document_ids: list[int] | None = None,
     anon_session_id: str | None = None,
     filesystem_selection: FilesystemSelection | None = None,
-    image_generation_config_id: int | None = None,
+    image_gen_model_id: int | None = None,
 ):
     """Deep agent with SurfSense tools/middleware; registry route subagents behind ``task`` when enabled.
 
-    ``image_generation_config_id`` overrides the search space's image model for
+    ``image_gen_model_id`` overrides the search space's image model for
     this invocation (used by automations to run on their captured model). When
     ``None``, the ``generate_image`` tool resolves the live search-space pref.
     """
@@ -147,7 +147,7 @@ async def create_multi_agent_chat_deep_agent(
         "llm": llm,
         # Per-invocation image model override (automations run on their captured
         # model). Reaches the generate_image subagent tool via subagent_dependencies.
-        "image_generation_config_id_override": image_generation_config_id,
+        "image_gen_model_id_override": image_gen_model_id,
     }
 
     _t0 = time.perf_counter()
@@ -303,7 +303,7 @@ async def create_multi_agent_chat_deep_agent(
         mcp_tools_by_agent=mcp_tools_by_agent,
         disabled_tools=disabled_tools,
         config_id=config_id,
-        image_generation_config_id_override=image_generation_config_id,
+        image_gen_model_id_override=image_gen_model_id,
     )
     _perf_log.info(
         "[create_agent] Middleware stack + graph compiled in %.3fs",

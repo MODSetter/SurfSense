@@ -131,6 +131,10 @@ def test_serialized_calls_includes_cost_micros():
     assert serialized == [
         {
             "model": "m",
+            "model_ref": None,
+            "model_id": None,
+            "display_name": None,
+            "provider": None,
             "prompt_tokens": 1,
             "completion_tokens": 1,
             "total_tokens": 2,

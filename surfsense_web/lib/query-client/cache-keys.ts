@@ -36,24 +36,11 @@ export const cacheKeys = {
 		withQueryParams: (queries: GetLogsRequest["queryParams"]) =>
 			["logs", "with-query-params", ...stableEntries(queries)] as const,
 	},
-	newLLMConfigs: {
-		all: (searchSpaceId: number) => ["new-llm-configs", searchSpaceId] as const,
-		byId: (configId: number) => ["new-llm-configs", "detail", configId] as const,
-		preferences: (searchSpaceId: number) => ["llm-preferences", searchSpaceId] as const,
-		defaultInstructions: () => ["new-llm-configs", "default-instructions"] as const,
-		global: () => ["new-llm-configs", "global"] as const,
-		modelList: () => ["models", "catalogue"] as const,
-	},
-	imageGenConfigs: {
-		all: (searchSpaceId: number) => ["image-gen-configs", searchSpaceId] as const,
-		byId: (configId: number) => ["image-gen-configs", "detail", configId] as const,
-		global: () => ["image-gen-configs", "global"] as const,
-	},
-	visionLLMConfigs: {
-		all: (searchSpaceId: number) => ["vision-llm-configs", searchSpaceId] as const,
-		byId: (configId: number) => ["vision-llm-configs", "detail", configId] as const,
-		global: () => ["vision-llm-configs", "global"] as const,
-		modelList: () => ["vision-models", "catalogue"] as const,
+	modelConnections: {
+		all: (searchSpaceId: number) => ["model-connections", searchSpaceId] as const,
+		global: () => ["model-connections", "global"] as const,
+		providers: () => ["model-connections", "providers"] as const,
+		roles: (searchSpaceId: number) => ["model-roles", searchSpaceId] as const,
 	},
 	auth: {
 		user: ["auth", "user"] as const,

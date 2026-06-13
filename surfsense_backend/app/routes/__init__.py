@@ -44,9 +44,9 @@ from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
 from .mcp_oauth_route import router as mcp_oauth_router
 from .memory_routes import router as memory_router
+from .model_connections_routes import router as model_connections_router
 from .model_list_routes import router as model_list_router
 from .new_chat_routes import router as new_chat_router
-from .new_llm_config_routes import router as new_llm_config_router
 from .notes_routes import router as notes_router
 from .notion_add_connector_route import router as notion_add_connector_router
 from .obsidian_plugin_routes import router as obsidian_plugin_router
@@ -63,7 +63,6 @@ from .stripe_routes import router as stripe_router
 from .team_memory_routes import router as team_memory_router
 from .teams_add_connector_route import router as teams_add_connector_router
 from .video_presentations_routes import router as video_presentations_router
-from .vision_llm_routes import router as vision_llm_router
 from .youtube_routes import router as youtube_router
 
 router = APIRouter()
@@ -98,7 +97,6 @@ router.include_router(
 )  # Video presentation status and streaming
 router.include_router(reports_router)  # Report CRUD and multi-format export
 router.include_router(image_generation_router)  # Image generation via litellm
-router.include_router(vision_llm_router)  # Vision LLM configs for screenshot analysis
 router.include_router(search_source_connectors_router)
 router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)
@@ -116,7 +114,7 @@ router.include_router(jira_add_connector_router)
 router.include_router(confluence_add_connector_router)
 router.include_router(clickup_add_connector_router)
 router.include_router(dropbox_add_connector_router)
-router.include_router(new_llm_config_router)  # LLM configs with prompt configuration
+router.include_router(model_connections_router)  # Connection-centric model catalog
 router.include_router(model_list_router)  # Dynamic model catalogue from OpenRouter
 router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks

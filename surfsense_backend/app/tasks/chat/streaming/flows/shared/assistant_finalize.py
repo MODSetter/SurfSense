@@ -53,6 +53,7 @@ async def finalize_assistant_message(
     ):
         return
 
+    from app.tasks.chat.message_parts_normalizer import merge_streamed_and_final_parts
     from app.tasks.chat.persistence import finalize_assistant_turn
 
     builder_stats: dict[str, int] | None = None
@@ -74,6 +75,10 @@ async def finalize_assistant_message(
                 "text": stream_result.accumulated_text or "",
             }
         ]
+    content_payload = merge_streamed_and_final_parts(
+        content_payload,
+        stream_result.final_message_parts,
+    )
 
     if builder_stats is not None:
         _perf_log.info(

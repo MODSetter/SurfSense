@@ -25,7 +25,7 @@ def _or_cfg(
 ) -> dict:
     return {
         "id": cid,
-        "provider": "OPENROUTER",
+        "provider": "openrouter",
         "model_name": model_name,
         "billing_tier": tier,
         "auto_pin_tier": "B" if tier == "premium" else "C",
@@ -144,7 +144,7 @@ async def test_enrich_health_only_touches_or_provider(monkeypatch):
     """YAML cfgs that aren't OPENROUTER must be skipped entirely."""
     yaml_cfg = {
         "id": -1,
-        "provider": "AZURE_OPENAI",
+        "litellm_provider": "azure",
         "model_name": "gpt-5",
         "billing_tier": "premium",
         "auto_pin_tier": "A",
@@ -313,7 +313,7 @@ async def test_enrich_health_no_or_cfgs_is_noop(monkeypatch):
     """When the catalogue has no OR cfgs at all, no HTTP calls fire."""
     yaml_cfg: dict[str, Any] = {
         "id": -1,
-        "provider": "AZURE_OPENAI",
+        "litellm_provider": "azure",
         "model_name": "gpt-5",
         "billing_tier": "premium",
     }

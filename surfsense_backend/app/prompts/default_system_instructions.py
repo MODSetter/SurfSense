@@ -82,7 +82,7 @@ def build_configurable_system_prompt(
     *,
     model_name: str | None = None,
 ) -> str:
-    """Build a configurable SurfSense system prompt (NewLLMConfig path).
+    """Build a configurable SurfSense system prompt.
 
     See :func:`app.prompts.system_prompt_composer.composer.compose_system_prompt`
     for full parameter docs.
@@ -104,7 +104,7 @@ def build_configurable_system_prompt(
 def get_default_system_instructions() -> str:
     """Return the default ``<system_instruction>`` block (no tools / citations).
 
-    Useful for populating the UI when seeding ``NewLLMConfig.system_instructions``.
+    Useful for populating the UI when editing custom system instructions.
     The output reflects the current fragment tree, not a baked-in constant.
     """
     resolved_today = datetime.now(UTC).date().isoformat()

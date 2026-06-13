@@ -1,6 +1,6 @@
 """Lock the runtime model-policy backstop in ``build_dependencies``.
 
-Automations resolve their LLM from the *captured* ``agent_llm_id`` snapshot (so
+Automations resolve their LLM from the *captured* ``chat_model_id`` snapshot (so
 runs are insulated from later chat/search-space model changes), and the model
 policy is re-checked at run time so a captured model that is no longer billable
 fails the run clearly. When no snapshot is present, resolution falls back to the
@@ -45,10 +45,10 @@ def patched_side_effects(monkeypatch: pytest.MonkeyPatch):
     return None
 
 
-async def test_build_dependencies_resolves_captured_agent_llm_id(
+async def test_build_dependencies_resolves_captured_chat_model_id(
     monkeypatch: pytest.MonkeyPatch, patched_side_effects
 ) -> None:
-    """The bundle loads with the *captured* ``agent_llm_id``, not the live search space."""
+    """The bundle loads with the *captured* ``chat_model_id``, not the live search space."""
     captured: dict[str, Any] = {}
 
     async def _fake_load(_session, *, config_id, search_space_id):
@@ -67,13 +67,13 @@ async def test_build_dependencies_resolves_captured_agent_llm_id(
         lambda _ss: pytest.fail("search-space policy should not run on captured path"),
     )
 
-    search_space = SimpleNamespace(agent_llm_id=-99)
+    search_space = SimpleNamespace(chat_model_id=-99)
     result = await build_dependencies(
         session=_FakeSession(search_space),
         search_space_id=42,
-        agent_llm_id=-7,
-        image_generation_config_id=5,
-        vision_llm_config_id=-1,
+        chat_model_id=-7,
+        image_gen_model_id=5,
+        vision_model_id=-1,
     )
 
     assert captured == {"config_id": -7, "search_space_id": 42}
@@ -98,17 +98,17 @@ async def test_build_dependencies_validates_captured_ids(
     monkeypatch.setattr(deps_mod, "load_llm_bundle", _fake_load)
 
     await build_dependencies(
-        session=_FakeSession(SimpleNamespace(agent_llm_id=0)),
+        session=_FakeSession(SimpleNamespace(chat_model_id=0)),
         search_space_id=42,
-        agent_llm_id=-7,
-        image_generation_config_id=5,
-        vision_llm_config_id=-1,
+        chat_model_id=-7,
+        image_gen_model_id=5,
+        vision_model_id=-1,
     )
 
     assert seen == {
-        "agent_llm_id": -7,
-        "image_generation_config_id": 5,
-        "vision_llm_config_id": -1,
+        "chat_model_id": -7,
+        "image_gen_model_id": 5,
+        "vision_model_id": -1,
     }
 
 
@@ -119,7 +119,7 @@ async def test_build_dependencies_raises_on_captured_policy_violation(
 
     def _raise(**_kw):
         raise AutomationModelPolicyError(
-            [{"kind": "image", "config_id": -2, "reason": "free model"}]
+            [{"kind": "image", "model_id": -2, "reason": "free model"}]
         )
 
     monkeypatch.setattr(deps_mod, "assert_models_billable", _raise)
@@ -131,11 +131,11 @@ async def test_build_dependencies_raises_on_captured_policy_violation(
 
     with pytest.raises(DependencyError):
         await build_dependencies(
-            session=_FakeSession(SimpleNamespace(agent_llm_id=-7)),
+            session=_FakeSession(SimpleNamespace(chat_model_id=-7)),
             search_space_id=42,
-            agent_llm_id=-7,
-            image_generation_config_id=-2,
-            vision_llm_config_id=-1,
+            chat_model_id=-7,
+            image_gen_model_id=-2,
+            vision_model_id=-1,
         )
 
 
@@ -157,7 +157,7 @@ async def test_build_dependencies_falls_back_to_search_space(
         lambda **_kw: pytest.fail("captured policy should not run on fallback path"),
     )
 
-    search_space = SimpleNamespace(agent_llm_id=-7)
+    search_space = SimpleNamespace(chat_model_id=-7)
     result = await build_dependencies(
         session=_FakeSession(search_space), search_space_id=42
     )

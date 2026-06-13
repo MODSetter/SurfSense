@@ -14,16 +14,16 @@ from .trigger_spec import TriggerSpec
 class AutomationModels(BaseModel):
     """Captured model profile for an automation.
 
-    Snapshotted from the search space's preferences at create time so runs are
-    insulated from later chat/search-space model changes. Config-id conventions
+    Snapshotted from the search space's model roles at create time so runs are
+    insulated from later chat/search-space model changes. Model-id conventions
     match the shared scheme (``0`` Auto, ``< 0`` global, ``> 0`` BYOK).
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    agent_llm_id: int = 0
-    image_generation_config_id: int = 0
-    vision_llm_config_id: int = 0
+    chat_model_id: int = 0
+    image_gen_model_id: int = 0
+    vision_model_id: int = 0
 
 
 class AutomationDefinition(BaseModel):

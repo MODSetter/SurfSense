@@ -13,6 +13,7 @@ import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { cn } from "@/lib/utils";
+import { FreeModelSelector } from "./free-model-selector";
 
 const ANON_ALLOWED_EXTENSIONS = new Set([
 	".md",
@@ -227,7 +228,8 @@ export const FreeComposer: FC = () => {
 					</Tooltip>
 				</div>
 
-				<div className="flex items-center gap-1">
+				<div className="flex min-w-0 items-center gap-1">
+					<FreeModelSelector className="h-8 max-w-[44vw] px-2 sm:max-w-[220px] sm:px-3" />
 					{!isRunning ? (
 						<ComposerPrimitive.Send asChild>
 							<TooltipIconButton tooltip="Send" variant="default" className="size-8 rounded-full">

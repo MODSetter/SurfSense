@@ -1,17 +1,16 @@
-"""Client for ``/api/v1/searchspaces`` and ``/api/v1/search-spaces/{id}/llm-preferences``.
+"""Client for ``/api/v1/searchspaces`` and model-role endpoints.
 
 Verified against:
 
 * ``surfsense_backend/app/routes/search_spaces_routes.py:116`` (POST create)
 * ``surfsense_backend/app/routes/search_spaces_routes.py:234`` (GET by id)
 * ``surfsense_backend/app/routes/search_spaces_routes.py:422`` (DELETE soft-delete)
-* ``surfsense_backend/app/routes/search_spaces_routes.py:698-849`` (GET/PUT llm-preferences)
+* ``surfsense_backend/app/routes/model_connections_routes.py`` (GET/PUT model roles)
 * ``surfsense_backend/app/schemas/search_space.py:14`` (SearchSpaceCreate body)
-* ``surfsense_backend/app/routes/vision_llm_routes.py:60`` (GET global vision configs)
 
 Note the inconsistent pluralisation in the backend: ``/searchspaces``
-(no hyphen) for CRUD, but ``/search-spaces`` (hyphenated) for the
-``llm-preferences`` sub-resource. Both are mirrored verbatim here.
+(no hyphen) for CRUD, but ``/search-spaces`` (hyphenated) for model-role
+sub-resources. Both are mirrored verbatim here.
 """
 
 from __future__ import annotations
@@ -46,13 +45,8 @@ class SearchSpaceRow:
 
 
 @dataclass
-class VisionLlmConfigEntry:
-    """Subset of one ``GET /global-vision-llm-configs`` row.
-
-    The backend returns negative ids for global / OpenRouter-derived
-    vision configs and positive ids for per-user BYOK rows. Either is
-    accepted by ``set_llm_preferences(vision_llm_config_id=...)``.
-    """
+class VisionModelEntry:
+    """Subset of one GLOBAL model-connection model with image input support."""
 
     id: int
     name: str
@@ -62,45 +56,38 @@ class VisionLlmConfigEntry:
     raw: dict[str, Any]
 
     @classmethod
-    def from_payload(cls, payload: dict[str, Any]) -> VisionLlmConfigEntry:
+    def from_payload(cls, payload: dict[str, Any]) -> VisionModelEntry:
         return cls(
             id=int(payload.get("id", 0)),
-            name=str(payload.get("name", "")),
+            name=str(payload.get("display_name") or payload.get("model_id") or ""),
             provider=str(payload.get("provider", "")).upper(),
-            model_name=str(payload.get("model_name", "")),
-            is_auto_mode=bool(payload.get("is_auto_mode", False)),
+            model_name=str(payload.get("model_id", "")),
+            is_auto_mode=False,
             raw=payload,
         )
 
 
 @dataclass
-class LlmPreferences:
-    """Resolved LLM preferences with the embedded full config row.
+class ModelRoles:
+    """Model role ids for a search space."""
 
-    Mirrors ``LLMPreferencesRead`` from the backend so the lifecycle
-    command can introspect ``provider`` / ``model_name`` to validate the
-    OpenRouter pin.
-    """
-
-    agent_llm_id: int | None
-    image_generation_config_id: int | None
-    vision_llm_config_id: int | None
-    agent_llm: dict[str, Any] | None
+    chat_model_id: int | None
+    image_gen_model_id: int | None
+    vision_model_id: int | None
     raw: dict[str, Any]
 
     @classmethod
-    def from_payload(cls, payload: dict[str, Any]) -> LlmPreferences:
+    def from_payload(cls, payload: dict[str, Any]) -> ModelRoles:
         return cls(
-            agent_llm_id=payload.get("agent_llm_id"),
-            image_generation_config_id=payload.get("image_generation_config_id"),
-            vision_llm_config_id=payload.get("vision_llm_config_id"),
-            agent_llm=payload.get("agent_llm"),
+            chat_model_id=payload.get("chat_model_id"),
+            image_gen_model_id=payload.get("image_gen_model_id"),
+            vision_model_id=payload.get("vision_model_id"),
             raw=payload,
         )
 
 
 class SearchSpaceClient:
-    """Thin wrapper around the SearchSpace + LLM preferences endpoints."""
+    """Thin wrapper around the SearchSpace + model role endpoints."""
 
     def __init__(self, http: httpx.AsyncClient, base_url: str) -> None:
         self._http = http
@@ -139,64 +126,67 @@ class SearchSpaceClient:
             return
         response.raise_for_status()
 
-    async def get_llm_preferences(self, search_space_id: int) -> LlmPreferences:
+    async def get_model_roles(self, search_space_id: int) -> ModelRoles:
         response = await self._http.get(
-            f"{self._base}/api/v1/search-spaces/{search_space_id}/llm-preferences",
+            f"{self._base}/api/v1/search-spaces/{search_space_id}/model-roles",
             headers={"Accept": "application/json"},
         )
         response.raise_for_status()
-        return LlmPreferences.from_payload(response.json())
+        return ModelRoles.from_payload(response.json())
 
-    async def set_llm_preferences(
+    async def set_model_roles(
         self,
         search_space_id: int,
         *,
-        agent_llm_id: int | None = None,
-        image_generation_config_id: int | None = None,
-        vision_llm_config_id: int | None = None,
-    ) -> LlmPreferences:
-        """PUT a partial update to ``/search-spaces/{id}/llm-preferences``.
+        chat_model_id: int | None = None,
+        image_gen_model_id: int | None = None,
+        vision_model_id: int | None = None,
+    ) -> ModelRoles:
+        """PUT a partial update to ``/search-spaces/{id}/model-roles``.
 
         Backend uses ``model_dump(exclude_unset=True)`` so omitted fields
         are left unchanged.
         """
 
         body: dict[str, Any] = {}
-        if agent_llm_id is not None:
-            body["agent_llm_id"] = agent_llm_id
-        if image_generation_config_id is not None:
-            body["image_generation_config_id"] = image_generation_config_id
-        if vision_llm_config_id is not None:
-            body["vision_llm_config_id"] = vision_llm_config_id
+        if chat_model_id is not None:
+            body["chat_model_id"] = chat_model_id
+        if image_gen_model_id is not None:
+            body["image_gen_model_id"] = image_gen_model_id
+        if vision_model_id is not None:
+            body["vision_model_id"] = vision_model_id
         response = await self._http.put(
-            f"{self._base}/api/v1/search-spaces/{search_space_id}/llm-preferences",
+            f"{self._base}/api/v1/search-spaces/{search_space_id}/model-roles",
             json=body,
             headers={"Accept": "application/json"},
         )
         response.raise_for_status()
-        return LlmPreferences.from_payload(response.json())
+        return ModelRoles.from_payload(response.json())
 
-    async def list_global_vision_llm_configs(self) -> list[VisionLlmConfigEntry]:
-        """List the registered global vision LLM configs.
+    async def list_global_vision_models(self) -> list[VisionModelEntry]:
+        """List registered GLOBAL models that can accept image input.
 
-        Used by ``setup`` to (a) resolve an explicit ``--vision-llm <slug>``
-        to a config id and (b) auto-pick the strongest registered vision
-        config when the operator doesn't pass one. The ``Auto (Fastest)``
-        entry (``id=0``) is filtered out — accuracy must be reproducible.
+        Used by ``setup`` to resolve ``--vision-llm <slug>`` or auto-pick a
+        reproducible ingest-time vision model.
         """
 
         response = await self._http.get(
-            f"{self._base}/api/v1/global-vision-llm-configs",
+            f"{self._base}/api/v1/model-connections/global",
             headers={"Accept": "application/json"},
         )
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, list):
             raise RuntimeError(
-                f"Unexpected /global-vision-llm-configs payload: {payload!r}"
+                f"Unexpected /model-connections/global payload: {payload!r}"
             )
-        return [
-            VisionLlmConfigEntry.from_payload(item)
-            for item in payload
-            if not bool(item.get("is_auto_mode", False))
-        ]
+        entries: list[VisionModelEntry] = []
+        for connection in payload:
+            provider = str(connection.get("provider", ""))
+            for model in connection.get("models") or []:
+                if not model.get("enabled", True) or not model.get("supports_image_input"):
+                    continue
+                entries.append(
+                    VisionModelEntry.from_payload({**model, "provider": provider})
+                )
+        return entries

@@ -35,7 +35,6 @@ import {
 } from "@/lib/chat/streaming-state";
 import { BACKEND_URL } from "@/lib/env-config";
 import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
-import { FreeModelSelector } from "./free-model-selector";
 import { FreeThread } from "./free-thread";
 import { RemoveAdsBanner } from "./remove-ads-banner";
 
@@ -62,6 +61,21 @@ function normalizeFreeChatErrorMessage(error: unknown): string {
 	const code = (error as Error & { errorCode?: string }).errorCode;
 	if (code === "THREAD_BUSY") {
 		return "A previous response is still stopping. Please try again in a moment.";
+	}
+	if (code === "MODEL_AUTH_FAILED") {
+		return "This model’s API key is invalid or expired. Switch models, or update the API key.";
+	}
+	if (code === "MODEL_NOT_FOUND") {
+		return "This model is unavailable or no longer exists. Please switch models.";
+	}
+	if (code === "MODEL_CONTEXT_LIMIT") {
+		return "This request is too large for the selected model. Reduce the input or switch models.";
+	}
+	if (code === "MODEL_PROVIDER_UNAVAILABLE") {
+		return "The selected model provider is temporarily unavailable. Please try again or switch models.";
+	}
+	if (code === "RATE_LIMITED") {
+		return "This model is temporarily rate-limited. Please try again in a few seconds or switch models.";
 	}
 	return error.message || "An unexpected error occurred";
 }
@@ -154,7 +168,7 @@ export function FreeChatPage() {
 			assistantMsgId: string,
 			signal: AbortSignal,
 			turnstileToken: string | null
-		): Promise<"captcha" | void> => {
+		): Promise<"captcha" | undefined> => {
 			const reqBody: Record<string, unknown> = {
 				model_slug: modelSlug,
 				messages: messageHistory,
@@ -484,10 +498,6 @@ export function FreeChatPage() {
 				<TimelineDataUI />
 				<StepSeparatorDataUI />
 				<div className="flex h-full flex-col overflow-hidden">
-					<div className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 px-4">
-						<FreeModelSelector />
-					</div>
-
 					<RemoveAdsBanner />
 
 					{captchaRequired && TURNSTILE_SITE_KEY && (

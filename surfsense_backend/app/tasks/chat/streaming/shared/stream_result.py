@@ -35,3 +35,7 @@ class StreamResult:
     # (``StreamResult`` is logged in some error branches) from dumping a
     # potentially-large parts list.
     content_builder: Any | None = field(default=None, repr=False)
+    # User-visible assistant message parts derived from the final LangGraph
+    # state. Used after streaming completes as a provider-agnostic persistence
+    # backfill when no text chunks reached the live stream.
+    final_message_parts: list[dict[str, Any]] = field(default_factory=list)

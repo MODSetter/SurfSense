@@ -12,6 +12,8 @@ from pathlib import Path
 
 import httpx
 
+from app.services.openrouter_model_normalizer import normalize_openrouter_models
+
 logger = logging.getLogger(__name__)
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/models"
@@ -22,7 +24,7 @@ CACHE_TTL_SECONDS = 86400  # 24 hours
 _cache: list[dict] | None = None
 _cache_timestamp: float = 0
 
-# Maps OpenRouter provider slug → our LiteLLMProvider enum value.
+# Maps OpenRouter provider slug to native LiteLLM provider prefixes.
 # Only providers where the model-name part (after the slash) can be
 # used directly with the native provider's litellm prefix are listed.
 #
@@ -121,24 +123,11 @@ def _process_models(raw_models: list[dict]) -> list[dict]:
     """
     processed: list[dict] = []
 
-    for model in raw_models:
-        model_id: str = model.get("id", "")
-        name: str = model.get("name", "")
-        context_length = model.get("context_length")
-
+    for normalized in normalize_openrouter_models(raw_models):
+        model_id: str = normalized["model_id"]
+        name: str = normalized.get("display_name") or model_id
+        context_length = normalized.get("max_input_tokens")
         if "/" not in model_id:
-            continue
-
-        if not _is_text_output_model(model):
-            continue
-
-        if not _supports_tool_calling(model):
-            continue
-
-        if not _has_sufficient_context(model):
-            continue
-
-        if not _is_allowed_model(model):
             continue
 
         provider_slug, model_name = model_id.split("/", 1)
@@ -154,19 +143,19 @@ def _process_models(raw_models: list[dict]) -> list[dict]:
             }
         )
 
-        # 2) Emit for the native provider when we have a mapping
-        native_provider = OPENROUTER_SLUG_TO_PROVIDER.get(provider_slug)
-        if native_provider:
+        # 2) Emit for the direct provider when we have a mapping
+        direct_provider = OPENROUTER_SLUG_TO_PROVIDER.get(provider_slug)
+        if direct_provider:
             # Google's Gemini API only serves gemini-* models.
             # Open-source models like gemma-* are NOT available through it.
-            if native_provider == "GOOGLE" and not model_name.startswith("gemini-"):
+            if direct_provider == "GOOGLE" and not model_name.startswith("gemini-"):
                 continue
 
             processed.append(
                 {
                     "value": model_name,
                     "label": name,
-                    "provider": native_provider,
+                    "provider": direct_provider,
                     "context_window": context_window,
                 }
             )

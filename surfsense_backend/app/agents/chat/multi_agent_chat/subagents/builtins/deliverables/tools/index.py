@@ -51,8 +51,6 @@ def load_tools(
         create_generate_image_tool(
             search_space_id=d["search_space_id"],
             db_session=d["db_session"],
-            image_generation_config_id_override=d.get(
-                "image_generation_config_id_override"
-            ),
+            image_gen_model_id_override=d.get("image_gen_model_id_override"),
         ),
     ]

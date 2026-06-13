@@ -18,6 +18,7 @@ from app.etl_pipeline.file_classifier import (
     PLAINTEXT_EXTENSIONS,
 )
 from app.rate_limiter import limiter
+from app.tasks.chat.streaming.errors.classifier import classify_stream_exception
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,6 @@ class AnonQuotaResponse(BaseModel):
 class AnonModelResponse(BaseModel):
     id: int
     name: str
-    description: str | None = None
     provider: str
     model_name: str
     billing_tier: str = "free"
@@ -131,8 +131,7 @@ async def list_anonymous_models():
                 AnonModelResponse(
                     id=cfg.get("id", 0),
                     name=cfg.get("name", ""),
-                    description=cfg.get("description"),
-                    provider=cfg.get("provider", ""),
+                    provider=cfg.get("provider") or cfg.get("litellm_provider", ""),
                     model_name=cfg.get("model_name", ""),
                     billing_tier=cfg.get("billing_tier", "free"),
                     is_premium=cfg.get("billing_tier", "free") == "premium",
@@ -160,8 +159,7 @@ async def get_anonymous_model(slug: str):
             return AnonModelResponse(
                 id=cfg.get("id", 0),
                 name=cfg.get("name", ""),
-                description=cfg.get("description"),
-                provider=cfg.get("provider", ""),
+                provider=cfg.get("provider") or cfg.get("litellm_provider", ""),
                 model_name=cfg.get("model_name", ""),
                 billing_tier=cfg.get("billing_tier", "free"),
                 is_premium=cfg.get("billing_tier", "free") == "premium",
@@ -474,7 +472,15 @@ async def stream_anonymous_chat(
         except Exception as e:
             logger.exception("Anonymous chat stream error")
             await TokenQuotaService.anon_release(session_key, ip_key, request_id)
-            yield streaming_service.format_error(f"Error during chat: {e!s}")
+            _, error_code, _, _, user_message, extra = classify_stream_exception(
+                e,
+                flow_label="chat",
+            )
+            yield streaming_service.format_error(
+                user_message,
+                error_code=error_code,
+                extra=extra,
+            )
             yield streaming_service.format_done()
         finally:
             await TokenQuotaService.anon_release_stream_slot(client_ip)
