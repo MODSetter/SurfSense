@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
-import { Check, ChevronDown, Cpu, Search, Settings2, Zap } from "lucide-react";
+import { Check, ChevronDown, Search, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { UIEvent } from "react";
 import { useCallback, useMemo, useState } from "react";
@@ -26,7 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Spinner } from "@/components/ui/spinner";
 import type { ConnectionRead, ModelRead } from "@/contracts/types/model-connections.types";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { getProviderIcon } from "@/lib/provider-icons";
+import { AUTO_PROVIDER_ICON_KEY, getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 import { providerDisplay } from "../settings/model-connections/provider-metadata";
 
@@ -153,13 +153,10 @@ export function ModelSelector({
 					className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
 					onClick={() => selectModel(0)}
 				>
-					<div className="flex items-center gap-3">
-						<div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-							<Zap className="h-4 w-4" />
-						</div>
-						<div>
-							<div className="font-medium">Auto</div>
-							<div className="text-xs text-muted-foreground">Use the hosted/global router</div>
+					<div className="min-w-0 flex-1">
+						<div className="flex min-w-0 items-center gap-2 font-medium">
+							{getProviderIcon(AUTO_PROVIDER_ICON_KEY, { className: "size-4 shrink-0" })}
+							<span className="truncate">Auto</span>
 						</div>
 					</div>
 					{(roles?.chat_model_id ?? 0) === 0 ? <Check className="h-4 w-4" /> : null}
@@ -252,7 +249,7 @@ export function ModelSelector({
 			{selected ? (
 				getProviderIcon(selected.provider, { className: "size-4 shrink-0" })
 			) : (
-				<Cpu className="h-4 w-4 shrink-0" />
+				getProviderIcon(AUTO_PROVIDER_ICON_KEY, { className: "size-4 shrink-0" })
 			)}
 			<span className="min-w-0 flex-1 truncate text-sm">
 				{selected ? modelName(selected) : "Auto"}

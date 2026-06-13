@@ -38,6 +38,8 @@ import {
 } from "@/components/icons/providers";
 import { cn } from "@/lib/utils";
 
+export const AUTO_PROVIDER_ICON_KEY = "AUTO";
+
 /**
  * Returns a Lucide icon element for the given LLM / image-gen provider.
  * Accepts an optional `className` override for the icon size.
@@ -46,7 +48,7 @@ export function getProviderIcon(
 	provider: string,
 	{ isAutoMode, className = "size-4" }: { isAutoMode?: boolean; className?: string } = {}
 ) {
-	if (isAutoMode || provider?.toUpperCase() === "AUTO") {
+	if (isAutoMode || provider?.toUpperCase() === AUTO_PROVIDER_ICON_KEY) {
 		return <Shuffle className={cn(className, "text-muted-foreground")} />;
 	}
 

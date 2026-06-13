@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import type { ConnectionRead, ModelRead } from "@/contracts/types/model-connections.types";
+import { AUTO_PROVIDER_ICON_KEY, getProviderIcon } from "@/lib/provider-icons";
 import { ModelProviderConnectionsPanel } from "./model-connections/model-provider-connections-panel";
 import { capability, modelLabel } from "./model-connections/model-utils";
 import { providerDisplay, providerIcon } from "./model-connections/provider-metadata";
@@ -36,6 +37,17 @@ function flattenModels(connections: ConnectionRead[]) {
 function roleSelectValue(modelId: number | null | undefined, models: Array<{ id: number }>) {
 	if (!modelId) return "0";
 	return models.some((model) => model.id === modelId) ? String(modelId) : "0";
+}
+
+function renderAutoModeOption() {
+	return (
+		<SelectItem value="0">
+			<span className="inline-flex items-center gap-2">
+				{getProviderIcon(AUTO_PROVIDER_ICON_KEY)}
+				<span>Auto mode</span>
+			</span>
+		</SelectItem>
+	);
 }
 
 export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: number }) {
@@ -90,7 +102,7 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="0">Auto mode</SelectItem>
+								{renderAutoModeOption()}
 								{chatModels.map(renderModelOption)}
 							</SelectContent>
 						</Select>
@@ -109,7 +121,7 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="0">Auto mode</SelectItem>
+								{renderAutoModeOption()}
 								{visionModels.map(renderModelOption)}
 							</SelectContent>
 						</Select>
@@ -125,7 +137,7 @@ export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: num
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="0">Auto mode</SelectItem>
+								{renderAutoModeOption()}
 								{imageModels.map(renderModelOption)}
 							</SelectContent>
 						</Select>
