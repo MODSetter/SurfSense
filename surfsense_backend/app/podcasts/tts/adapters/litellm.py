@@ -57,10 +57,8 @@ class LiteLlmTextToSpeech(TextToSpeech):
 
         try:
             response = await aspeech(**kwargs)
-        except Exception as exc:  # noqa: BLE001 - normalise provider errors
-            raise TextToSpeechError(
-                f"{self._model} synthesis failed: {exc}"
-            ) from exc
+        except Exception as exc:
+            raise TextToSpeechError(f"{self._model} synthesis failed: {exc}") from exc
 
         data = getattr(response, "content", None)
         if not data:

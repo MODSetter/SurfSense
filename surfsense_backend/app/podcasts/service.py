@@ -59,11 +59,11 @@ class PodcastError(RuntimeError):
     """Base class for lifecycle errors."""
 
 
-class InvalidTransition(PodcastError):
+class InvalidTransitionError(PodcastError):
     """A requested status change is not permitted from the current state."""
 
 
-class SpecConflict(PodcastError):
+class SpecConflictError(PodcastError):
     """A spec edit raced another: the expected version is stale."""
 
     def __init__(self, expected: int, actual: int) -> None:
@@ -74,7 +74,7 @@ class SpecConflict(PodcastError):
         self.actual = actual
 
 
-class PreconditionFailed(PodcastError):
+class PreconditionFailedError(PodcastError):
     """A transition's data precondition (brief/transcript present) is unmet."""
 
 
@@ -110,12 +110,12 @@ class PodcastService:
     ) -> Podcast:
         """Edit the brief at the gate, guarded by optimistic concurrency."""
         if _status(podcast) is not PodcastStatus.AWAITING_BRIEF:
-            raise InvalidTransition(
+            raise InvalidTransitionError(
                 f"the brief can only be edited while awaiting_brief, "
                 f"not {_status(podcast).value}"
             )
         if expected_version != podcast.spec_version:
-            raise SpecConflict(expected_version, podcast.spec_version)
+            raise SpecConflictError(expected_version, podcast.spec_version)
         podcast.spec = spec.model_dump(mode="json")
         podcast.spec_version += 1
         await self._session.flush()
@@ -124,7 +124,7 @@ class PodcastService:
     async def begin_drafting(self, podcast: Podcast) -> Podcast:
         """Approve the brief and start transcript drafting."""
         if podcast.spec is None:
-            raise PreconditionFailed("cannot draft without a brief")
+            raise PreconditionFailedError("cannot draft without a brief")
         self._transition(podcast, PodcastStatus.DRAFTING)
         await self._session.flush()
         return podcast
@@ -145,13 +145,13 @@ class PodcastService:
     async def regenerate(self, podcast: Podcast) -> Podcast:
         """Reopen the brief gate; the saved spec becomes the new starting point."""
         if _status(podcast) not in self._REGENERABLE:
-            raise InvalidTransition(
+            raise InvalidTransitionError(
                 f"nothing to regenerate from {_status(podcast).value}"
             )
         # Legacy episodes finished before briefs existed; a gate with nothing
         # to review would strand them.
         if podcast.spec is None:
-            raise PreconditionFailed("cannot regenerate without a brief")
+            raise PreconditionFailedError("cannot regenerate without a brief")
         self._transition(podcast, PodcastStatus.AWAITING_BRIEF)
         await self._session.flush()
         return podcast
@@ -164,7 +164,7 @@ class PodcastService:
         has no regeneration to revert and is rejected.
         """
         if not has_stored_episode(podcast):
-            raise InvalidTransition("no finished episode to fall back to")
+            raise InvalidTransitionError("no finished episode to fall back to")
         self._transition(podcast, PodcastStatus.READY)
         await self._session.flush()
         return podcast
@@ -200,7 +200,7 @@ class PodcastService:
         backing out goes through revert_regeneration instead.
         """
         if has_stored_episode(podcast):
-            raise InvalidTransition(
+            raise InvalidTransitionError(
                 "a finished episode exists; revert the regeneration instead"
             )
         self._transition(podcast, PodcastStatus.CANCELLED)
@@ -210,7 +210,7 @@ class PodcastService:
     def _transition(self, podcast: Podcast, target: PodcastStatus) -> None:
         current = _status(podcast)
         if target not in _ALLOWED[current]:
-            raise InvalidTransition(
+            raise InvalidTransitionError(
                 f"{current.value} -> {target.value} is not allowed"
             )
         podcast.status = target

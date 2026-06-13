@@ -36,7 +36,11 @@ def iter_completion_emission_frames(
             "success",
         )
     elif status in ("failed", "error"):
-        error_msg = out.get("error", "Unknown error") if isinstance(out, dict) else "Unknown error"
+        error_msg = (
+            out.get("error", "Unknown error")
+            if isinstance(out, dict)
+            else "Unknown error"
+        )
         yield ctx.streaming_service.format_terminal_info(
             f"Podcast generation failed: {error_msg}",
             "error",

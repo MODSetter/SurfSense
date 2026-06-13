@@ -23,18 +23,12 @@ BASE = "/api/v1/podcasts"
 def preview_tts(monkeypatch, tmp_path) -> FakeTextToSpeech:
     """Route preview synthesis to the fake provider and an isolated cache."""
     provider = FakeTextToSpeech()
-    monkeypatch.setattr(
-        "app.podcasts.api.routes.get_text_to_speech", lambda: provider
-    )
-    monkeypatch.setattr(
-        "app.podcasts.voices.preview.PREVIEW_CACHE_ROOT", tmp_path
-    )
+    monkeypatch.setattr("app.podcasts.api.routes.get_text_to_speech", lambda: provider)
+    monkeypatch.setattr("app.podcasts.voices.preview.PREVIEW_CACHE_ROOT", tmp_path)
     return provider
 
 
-async def test_preview_returns_playable_audio_for_a_catalog_voice(
-    client, preview_tts
-):
+async def test_preview_returns_playable_audio_for_a_catalog_voice(client, preview_tts):
     resp = await client.get(f"{BASE}/voices/openai:alloy/preview")
 
     assert resp.status_code == 200
@@ -42,9 +36,7 @@ async def test_preview_returns_playable_audio_for_a_catalog_voice(
     assert resp.content == b"segment-audio"
 
 
-async def test_preview_is_synthesised_once_then_served_from_cache(
-    client, preview_tts
-):
+async def test_preview_is_synthesised_once_then_served_from_cache(client, preview_tts):
     first = await client.get(f"{BASE}/voices/openai:alloy/preview")
     second = await client.get(f"{BASE}/voices/openai:alloy/preview")
 
@@ -69,9 +61,7 @@ async def test_preview_voice_of_inactive_provider_is_404(client, preview_tts):
     assert preview_tts.requests == []
 
 
-async def test_preview_without_tts_provider_is_503(
-    client, preview_tts, monkeypatch
-):
+async def test_preview_without_tts_provider_is_503(client, preview_tts, monkeypatch):
     monkeypatch.setattr(app_config, "TTS_SERVICE", None)
 
     resp = await client.get(f"{BASE}/voices/openai:alloy/preview")

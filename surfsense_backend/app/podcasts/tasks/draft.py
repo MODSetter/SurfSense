@@ -36,9 +36,10 @@ def draft_transcript_task(self, podcast_id: int, search_space_id: int) -> dict:
         return run_async_celery_task(
             lambda: _draft_transcript(podcast_id, search_space_id)
         )
-    except Exception as exc:  # noqa: BLE001 - record and report, never crash worker
+    except Exception as exc:
         logger.error("Podcast %s drafting failed: %s", podcast_id, exc)
-        run_async_celery_task(lambda: mark_failed(podcast_id, str(exc)))
+        message = str(exc)
+        run_async_celery_task(lambda: mark_failed(podcast_id, message))
         return {"status": "failed", "podcast_id": podcast_id}
 
 

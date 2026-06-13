@@ -3,10 +3,7 @@ import type { MDXComponents } from "mdx/types";
 import type { Metadata } from "next";
 import type { ComponentType } from "react";
 import { changelog } from "@/.source/server";
-import {
-	ChangelogTimeline,
-	type ChangelogTimelineEntry,
-} from "@/components/ui/changelog-timeline";
+import { ChangelogTimeline, type ChangelogTimelineEntry } from "@/components/ui/changelog-timeline";
 import { formatDate } from "@/lib/utils";
 import { getMDXComponents } from "@/mdx-components";
 

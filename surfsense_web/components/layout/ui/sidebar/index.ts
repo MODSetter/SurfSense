@@ -1,9 +1,9 @@
 export { AllChatsSidebar, AllChatsSidebarContent } from "./AllChatsSidebar";
 export { ChatListItem } from "./ChatListItem";
+export { CreditBalanceDisplay } from "./CreditBalanceDisplay";
 export { DocumentsSidebar } from "./DocumentsSidebar";
 export { InboxSidebar, InboxSidebarContent } from "./InboxSidebar";
 export { MobileSidebar, MobileSidebarTrigger } from "./MobileSidebar";
-export { CreditBalanceDisplay } from "./CreditBalanceDisplay";
 export { NavSection } from "./NavSection";
 export { Sidebar } from "./Sidebar";
 export { SidebarCollapseButton } from "./SidebarCollapseButton";

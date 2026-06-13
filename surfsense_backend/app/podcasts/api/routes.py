@@ -9,6 +9,8 @@ then enqueues the matching Celery task; lifecycle errors map to 409/422.
 from __future__ import annotations
 
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -27,10 +29,10 @@ from app.db import (
 from app.podcasts.generation.brief import propose_brief
 from app.podcasts.persistence import Podcast, PodcastRepository
 from app.podcasts.service import (
-    InvalidTransition,
+    InvalidTransitionError,
     PodcastService,
-    PreconditionFailed,
-    SpecConflict,
+    PreconditionFailedError,
+    SpecConflictError,
 )
 from app.podcasts.storage import open_audio_stream, purge_audio
 from app.podcasts.tasks import draft_transcript_task
@@ -45,6 +47,7 @@ from app.utils.rbac import check_permission
 
 from .schemas import (
     CreatePodcastRequest,
+    LanguageOptions,
     PodcastDetail,
     PodcastSummary,
     UpdateSpecRequest,
@@ -110,6 +113,20 @@ async def list_voices(language: str | None = None):
         )
         for v in voices
     ]
+
+
+@router.get("/podcasts/languages", response_model=LanguageOptions)
+async def list_languages():
+    """Languages the active TTS provider can offer the brief editor."""
+    if not app_config.TTS_SERVICE:
+        raise HTTPException(status_code=503, detail="No TTS provider configured")
+
+    provider = provider_from_service(app_config.TTS_SERVICE)
+    offering = get_voice_catalog().offerable_languages(provider)
+    return LanguageOptions(
+        languages=offering.languages,
+        allows_custom=offering.allows_custom,
+    )
 
 
 @router.get("/podcasts/voices/{voice_id}/preview")
@@ -324,19 +341,12 @@ async def _load(
     return podcast
 
 
-class _lifecycle_errors:
+@asynccontextmanager
+async def _lifecycle_errors() -> AsyncIterator[None]:
     """Map service lifecycle errors onto HTTP responses."""
-
-    async def __aenter__(self) -> None:
-        return None
-
-    async def __aexit__(self, exc_type, exc, tb) -> bool:
-        if exc is None:
-            return False
-        if isinstance(exc, SpecConflict):
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-        if isinstance(exc, InvalidTransition):
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-        if isinstance(exc, PreconditionFailed):
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return False
+    try:
+        yield
+    except (SpecConflictError, InvalidTransitionError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except PreconditionFailedError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

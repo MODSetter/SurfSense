@@ -3,9 +3,9 @@
 import {
 	AlarmClock,
 	FilePlus2,
+	type LucideIcon,
 	Search,
 	Settings2,
-	type LucideIcon,
 	WandSparkles,
 	X,
 } from "lucide-react";

@@ -59,7 +59,7 @@ def _card_error_payment_intent_id(exc: CardError) -> str | None:
 @celery_app.task(name="auto_reload_credits")
 def auto_reload_credits_task(user_id: str):
     """Charge the user's saved card to top up credits when below threshold."""
-    return run_async_celery_task(_auto_reload_credits, user_id)
+    return run_async_celery_task(lambda: _auto_reload_credits(user_id))
 
 
 async def _auto_reload_credits(user_id: str) -> None:
