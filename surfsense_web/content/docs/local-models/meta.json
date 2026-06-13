@@ -1,0 +1,6 @@
+{
+	"title": "Local Models",
+	"pages": ["ollama", "lm-studio", "other-local-servers"],
+	"icon": "Cpu",
+	"defaultOpen": false
+}

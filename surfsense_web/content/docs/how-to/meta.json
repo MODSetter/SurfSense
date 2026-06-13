@@ -1,6 +1,6 @@
 {
 	"title": "How to",
-	"pages": ["zero-sync", "realtime-collaboration", "web-search", "ollama"],
+	"pages": ["zero-sync", "realtime-collaboration", "web-search"],
 	"icon": "Compass",
 	"defaultOpen": false
 }

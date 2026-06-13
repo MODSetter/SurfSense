@@ -88,7 +88,7 @@ REGISTRY: dict[str, ProviderSpec] = {
         Transport.OLLAMA,
         "ollama_chat",
         "ollama",
-        "http://ollama:11434",
+        "http://host.docker.internal:11434",
         True,
         "none",
         "Ollama",

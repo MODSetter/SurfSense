@@ -1,0 +1,109 @@
+---
+title: Other Local Servers
+description: Connect local OpenAI compatible model servers
+---
+
+# Connect Other Local Servers
+
+Connect to llama.cpp, vLLM, LocalAI, LiteLLM Proxy, and other servers
+that expose OpenAI compatible routes.
+
+SurfSense discovers models from:
+
+```text
+/v1/models
+```
+
+Chat requests use the same `/v1` base URL.
+
+## Pick Your Setup
+
+Use one of these URL patterns.
+
+### SurfSense Runs in Docker
+
+Use this when SurfSense is running from Docker and the model server is running on your computer.
+
+```text
+http://host.docker.internal:<port>/v1
+```
+
+Common ports:
+
+| Server | Port |
+|---|---|
+| llama.cpp | `10000` |
+| vLLM | `8000` |
+| LocalAI | `8080` |
+| LiteLLM Proxy | `4000` |
+| text-generation-webui | `5000` |
+
+### SurfSense Runs Without Docker
+
+Use this when SurfSense and the model server both run directly on the same computer.
+
+```text
+http://localhost:<port>/v1
+```
+
+### Model Server Runs on Another Computer
+
+Use this when the model server is running on another machine in your network.
+
+```text
+http://<host>:<port>/v1
+```
+
+## Add the Connection
+
+1. Open Search Space Settings.
+2. Go to Models.
+3. Select OpenAI Compatible.
+4. Set API Base URL.
+5. Add an API Key only if your server requires one.
+6. Select the models you want to enable.
+7. Save the connection.
+
+If you enter the URL without `/v1`, SurfSense adds `/v1` for requests.
+
+## Verify
+
+From the host:
+
+```bash
+curl http://localhost:<port>/v1/models
+```
+
+From the SurfSense backend container:
+
+```bash
+docker compose exec backend curl http://host.docker.internal:<port>/v1/models
+```
+
+A working server returns JSON with a `data` array.
+
+## When Not to Use This
+
+Use the Ollama provider for Ollama. It uses native routes such as `/api/tags`.
+
+Use the LM Studio provider for LM Studio. Its default URL is already set.
+
+## Troubleshooting
+
+### Endpoint returned 404
+
+The server does not expose `/v1/models`.
+
+Enable the server's OpenAI compatible mode.
+
+### Connection refused
+
+The backend cannot reach the server.
+
+Check that the server is running and that the port is open.
+
+### No models found
+
+The server returned an empty model list.
+
+Load or serve a model, then refresh model discovery in SurfSense.
