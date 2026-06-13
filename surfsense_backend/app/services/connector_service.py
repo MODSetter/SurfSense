@@ -948,6 +948,17 @@ class ConnectorService:
                 "sources": [],
             }, []
 
+        # Guard against unexpected JSON shapes: a non-object envelope would
+        # raise on .get(...) and fail the whole request instead of degrading.
+        if not isinstance(data, dict):
+            print("WARNING: fastCRW returned a non-object JSON envelope")
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+
         # Firecrawl-compatible envelope: failures set success=False and error.
         if data.get("success") is False:
             print(
@@ -963,6 +974,15 @@ class ConnectorService:
 
         crw_results = data.get("data", [])
 
+        if not isinstance(crw_results, list):
+            print("WARNING: fastCRW returned a non-list `data` payload")
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+
         if not crw_results:
             return {
                 "id": 13,
@@ -976,6 +996,8 @@ class ConnectorService:
 
         async with self.counter_lock:
             for result in crw_results:
+                if not isinstance(result, dict):
+                    continue
                 title = result.get("title", "fastCRW Result")
                 url = result.get("url", "")
                 # Prefer the full markdown when present, fall back to the snippet.

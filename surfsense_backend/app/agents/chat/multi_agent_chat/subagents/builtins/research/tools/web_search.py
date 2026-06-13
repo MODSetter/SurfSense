@@ -213,24 +213,16 @@ def create_web_search_tool(
                 continue
             all_documents.extend(result)
 
-        seen_urls: set[str] = set()
-        deduplicated: list[dict[str, Any]] = []
-        for doc in all_documents:
-            url = ((doc.get("document") or {}).get("metadata") or {}).get("url", "")
-            if url and url in seen_urls:
-                continue
-            if url:
-                seen_urls.add(url)
-            deduplicated.append(doc)
-
-        formatted = _format_web_results(deduplicated)
+        # Do not deduplicate by URL: each chunk is a distinct source entry that
+        # citation tracking relies on. Collapsing by URL would drop evidence
+        # returned by different live-search engines for the same page.
+        formatted = _format_web_results(all_documents)
 
         perf.info(
-            "[web_search] query=%r engines=%d results=%d deduped=%d chars=%d in %.3fs",
+            "[web_search] query=%r engines=%d results=%d chars=%d in %.3fs",
             query[:60],
             len(tasks),
             len(all_documents),
-            len(deduplicated),
             len(formatted),
             time.perf_counter() - t0,
         )

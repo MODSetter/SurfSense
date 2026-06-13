@@ -520,7 +520,13 @@ def validate_connector_config(
                 "CRW_API_KEY",
                 "CRW_BASE_URL",
             ],
-            "validators": {},
+            "validators": {
+                "CRW_BASE_URL": lambda: (
+                    validate_url_field("CRW_BASE_URL", "fastCRW")
+                    if config.get("CRW_BASE_URL")
+                    else None
+                ),
+            },
         },
         # "SLACK_CONNECTOR": {
         #     "required": [],  # OAuth uses bot_token (encrypted), legacy uses SLACK_BOT_TOKEN

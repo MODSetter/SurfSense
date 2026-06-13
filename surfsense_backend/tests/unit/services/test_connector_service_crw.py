@@ -47,7 +47,7 @@ def _patch_post(monkeypatch, *, json_data=None, exc: Exception | None = None) ->
         def json(self):
             return json_data
 
-    async def _fake_post(self, url, headers=None, json=None):  # noqa: A002
+    async def _fake_post(self, url, headers=None, json=None):
         captured["url"] = url
         captured["headers"] = headers
         captured["json"] = json
@@ -186,3 +186,120 @@ async def test_search_crw_http_error_returns_empty(monkeypatch):
 
     assert result_object["sources"] == []
     assert documents == []
+
+
+@pytest.mark.asyncio
+async def test_search_crw_non_object_envelope_returns_empty(monkeypatch):
+    """A non-dict JSON body must degrade gracefully, not raise on .get(...)."""
+    svc = _make_service()
+
+    connector = SimpleNamespace(config={"CRW_API_KEY": "sk-test"})
+
+    async def _connector(connector_type, search_space_id):
+        return connector
+
+    monkeypatch.setattr(svc, "get_connector_by_type", _connector)
+    _patch_post(monkeypatch, json_data=["unexpected", "list"])
+
+    result_object, documents = await svc.search_crw("python", search_space_id=1)
+
+    assert result_object["type"] == "CRW_API"
+    assert result_object["sources"] == []
+    assert documents == []
+
+
+@pytest.mark.asyncio
+async def test_search_crw_non_list_data_returns_empty(monkeypatch):
+    """A non-list ``data`` payload must degrade gracefully."""
+    svc = _make_service()
+
+    connector = SimpleNamespace(config={"CRW_API_KEY": "sk-test"})
+
+    async def _connector(connector_type, search_space_id):
+        return connector
+
+    monkeypatch.setattr(svc, "get_connector_by_type", _connector)
+    _patch_post(monkeypatch, json_data={"success": True, "data": {"oops": 1}})
+
+    result_object, documents = await svc.search_crw("python", search_space_id=1)
+
+    assert result_object["sources"] == []
+    assert documents == []
+
+
+@pytest.mark.asyncio
+async def test_search_crw_skips_non_dict_items(monkeypatch):
+    """Non-dict items inside ``data`` are skipped, valid ones still mapped."""
+    svc = _make_service()
+
+    connector = SimpleNamespace(config={"CRW_API_KEY": "sk-test"})
+
+    async def _connector(connector_type, search_space_id):
+        return connector
+
+    monkeypatch.setattr(svc, "get_connector_by_type", _connector)
+    _patch_post(
+        monkeypatch,
+        json_data={
+            "success": True,
+            "data": [
+                "not-a-dict",
+                {
+                    "title": "Valid",
+                    "url": "https://example.com/ok",
+                    "description": "snippet",
+                },
+            ],
+        },
+    )
+
+    result_object, documents = await svc.search_crw("python", search_space_id=1)
+
+    assert len(result_object["sources"]) == 1
+    assert len(documents) == 1
+    assert documents[0]["document"]["metadata"]["url"] == "https://example.com/ok"
+
+
+@pytest.mark.asyncio
+async def test_search_crw_preserves_duplicate_url_entries(monkeypatch):
+    """Distinct chunks sharing a URL must each yield a separate source entry.
+
+    Citation tracking relies on every chunk keeping its own source, so the
+    connector must never collapse results by URL.
+    """
+    svc = _make_service()
+
+    connector = SimpleNamespace(config={"CRW_API_KEY": "sk-test"})
+
+    async def _connector(connector_type, search_space_id):
+        return connector
+
+    monkeypatch.setattr(svc, "get_connector_by_type", _connector)
+    _patch_post(
+        monkeypatch,
+        json_data={
+            "success": True,
+            "data": [
+                {
+                    "title": "Same Page A",
+                    "url": "https://example.com/dup",
+                    "markdown": "chunk one",
+                },
+                {
+                    "title": "Same Page B",
+                    "url": "https://example.com/dup",
+                    "markdown": "chunk two",
+                },
+            ],
+        },
+    )
+
+    result_object, documents = await svc.search_crw("python", search_space_id=1)
+
+    # Both entries are preserved despite sharing a URL.
+    assert len(result_object["sources"]) == 2
+    assert len(documents) == 2
+    # Each retains a unique chunk id for accurate citation tracking.
+    chunk_ids = {doc["chunk_id"] for doc in documents}
+    assert len(chunk_ids) == 2
+    assert [doc["content"] for doc in documents] == ["chunk one", "chunk two"]
