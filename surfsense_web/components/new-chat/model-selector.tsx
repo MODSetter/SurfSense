@@ -42,10 +42,6 @@ type ChatModel = ModelRead & {
 	provider: string;
 };
 
-function modelName(model: ModelRead) {
-	return (model.display_name || model.model_id).replace(/\s+\(free\)$/i, "");
-}
-
 function connectionLabel(connection: ConnectionRead) {
 	if (connection.scope === "GLOBAL") return "Global";
 	return providerDisplay(connection.provider).name;
@@ -67,6 +63,14 @@ function flattenChatModels(connections: ConnectionRead[]) {
 
 function isFreeGlobalModel(model: ChatModel) {
 	return model.connectionScope === "GLOBAL" && model.billing_tier?.toLowerCase() === "free";
+}
+
+function modelName(model: ChatModel) {
+	const name = model.display_name || model.model_id;
+	if (model.connectionScope === "GLOBAL") {
+		return name.replace(/\s+\(free\)$/i, "");
+	}
+	return name;
 }
 
 function groupedModels(models: ChatModel[]) {
