@@ -2,6 +2,7 @@ import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
 import type {
 	ConnectionCreateRequest,
+	ConnectionRead,
 	ConnectionUpdateRequest,
 	ModelCreateRequest,
 	ModelPreviewRead,
@@ -26,15 +27,33 @@ function invalidateModelConnections(searchSpaceId: number) {
 	});
 }
 
+function upsertModelConnection(searchSpaceId: number, connection: ConnectionRead) {
+	queryClient.setQueryData<ConnectionRead[]>(
+		cacheKeys.modelConnections.all(searchSpaceId),
+		(current = []) => {
+			if (current.some((item) => item.id === connection.id)) {
+				return current.map((item) => (item.id === connection.id ? connection : item));
+			}
+			return [...current, connection];
+		}
+	);
+}
+
 export const createModelConnectionMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
 	return {
 		mutationKey: ["model-connections", "create"],
 		mutationFn: (request: ConnectionCreateRequest) =>
 			modelConnectionsApiService.createConnection(request),
-		onSuccess: () => {
+		onSuccess: (connection: ConnectionRead, request: ConnectionCreateRequest) => {
+			const resolvedSearchSpaceId = Number(
+				request.search_space_id ?? connection.search_space_id ?? searchSpaceId
+			);
 			toast.success("Connection created");
-			invalidateModelConnections(searchSpaceId);
+			if (resolvedSearchSpaceId > 0) {
+				upsertModelConnection(resolvedSearchSpaceId, connection);
+				invalidateModelConnections(resolvedSearchSpaceId);
+			}
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to create connection"),
 	};

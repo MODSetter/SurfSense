@@ -4,13 +4,12 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
-import { updateModelRolesMutationAtom } from "@/atoms/model-connections/model-connections-mutation.atoms";
 import {
 	globalModelConnectionsAtom,
+	modelConnectionsAtom,
 	modelRolesAtom,
 } from "@/atoms/model-connections/model-connections-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -21,6 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useFolderSync } from "@/hooks/use-folder-sync";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { isLlmOnboardingComplete } from "@/lib/onboarding";
 
 export function DashboardClientLayout({
 	children,
@@ -33,39 +33,32 @@ export function DashboardClientLayout({
 	const router = useRouter();
 	const pathname = usePathname();
 	const { search_space_id } = useParams();
+	const activeSearchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const setActiveSearchSpaceIdState = useSetAtom(activeSearchSpaceIdAtom);
 	const setPendingUserImageUrls = useSetAtom(pendingUserImageDataUrlsAtom);
 
 	const {
 		data: modelRoles = {},
-		isFetching: loading,
+		isLoading: loading,
 		error,
-		refetch: refetchModelRoles,
 	} = useAtomValue(modelRolesAtom);
-	const { data: globalConnections = [], isFetching: globalConfigsLoading } = useAtomValue(
+	const { data: globalConnections = [], isLoading: globalConfigsLoading } = useAtomValue(
 		globalModelConnectionsAtom
 	);
-	const { mutateAsync: updateModelRoles } = useAtomValue(updateModelRolesMutationAtom);
-
-	const firstGlobalChatModel = useMemo(() => {
-		for (const connection of globalConnections) {
-			const model = connection.models.find((item) => item.enabled && item.supports_chat);
-			if (model) return model;
-		}
-		return null;
-	}, [globalConnections]);
-
-	const isOnboardingComplete = useCallback(() => {
-		return (modelRoles.chat_model_id ?? 0) !== 0 || Boolean(firstGlobalChatModel);
-	}, [modelRoles.chat_model_id, firstGlobalChatModel]);
+	const { data: modelConnections = [], isLoading: modelConnectionsLoading } =
+		useAtomValue(modelConnectionsAtom);
 
 	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
-	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
-	const hasAttemptedAutoConfig = useRef(false);
 
 	const isOnboardingPage = pathname?.includes("/onboard");
 	const isOwner = access?.is_owner ?? false;
+	const isSearchSpaceReady = activeSearchSpaceId === searchSpaceId;
+
+	useEffect(() => {
+		if (isSearchSpaceReady) return;
+		setHasCheckedOnboarding(false);
+	}, [isSearchSpaceReady]);
 
 	useEffect(() => {
 		if (isOnboardingPage) {
@@ -74,13 +67,18 @@ export function DashboardClientLayout({
 		}
 
 		if (
+			isSearchSpaceReady &&
 			!loading &&
 			!accessLoading &&
 			!globalConfigsLoading &&
-			!hasCheckedOnboarding &&
-			!isAutoConfiguring
+			!modelConnectionsLoading &&
+			!hasCheckedOnboarding
 		) {
-			const onboardingComplete = isOnboardingComplete();
+			const onboardingComplete = isLlmOnboardingComplete(
+				modelRoles.chat_model_id,
+				globalConnections,
+				modelConnections
+			);
 
 			if (onboardingComplete) {
 				setHasCheckedOnboarding(true);
@@ -92,50 +90,23 @@ export function DashboardClientLayout({
 				return;
 			}
 
-			if (firstGlobalChatModel && !hasAttemptedAutoConfig.current) {
-				hasAttemptedAutoConfig.current = true;
-				setIsAutoConfiguring(true);
-
-				const autoConfigureWithGlobal = async () => {
-					try {
-						await updateModelRoles({ chat_model_id: firstGlobalChatModel.id });
-
-						await refetchModelRoles();
-
-						toast.success("AI configured automatically!", {
-							description: `Using ${firstGlobalChatModel.display_name || firstGlobalChatModel.model_id}. Customize in Settings.`,
-						});
-
-						setHasCheckedOnboarding(true);
-					} catch (error) {
-						console.error("Auto-configuration failed:", error);
-						router.push(`/dashboard/${searchSpaceId}/onboard`);
-					} finally {
-						setIsAutoConfiguring(false);
-					}
-				};
-
-				autoConfigureWithGlobal();
-				return;
-			}
-
 			router.push(`/dashboard/${searchSpaceId}/onboard`);
 			setHasCheckedOnboarding(true);
 		}
 	}, [
+		isSearchSpaceReady,
 		loading,
 		accessLoading,
 		globalConfigsLoading,
-		isOnboardingComplete,
+		modelConnectionsLoading,
+		modelRoles.chat_model_id,
+		globalConnections,
+		modelConnections,
 		isOnboardingPage,
 		isOwner,
-		isAutoConfiguring,
-		firstGlobalChatModel,
 		router,
 		searchSpaceId,
 		hasCheckedOnboarding,
-		updateModelRoles,
-		refetchModelRoles,
 	]);
 
 	const electronAPI = useElectronAPI();
@@ -188,9 +159,12 @@ export function DashboardClientLayout({
 	// Determine if we should show loading
 	const shouldShowLoading =
 		(!hasCheckedOnboarding &&
-			(loading || accessLoading || globalConfigsLoading) &&
-			!isOnboardingPage) ||
-		isAutoConfiguring;
+			(!isSearchSpaceReady ||
+				loading ||
+				accessLoading ||
+				globalConfigsLoading ||
+				modelConnectionsLoading) &&
+			!isOnboardingPage);
 
 	// Use global loading screen - spinner animation won't reset
 	useGlobalLoadingEffect(shouldShowLoading);

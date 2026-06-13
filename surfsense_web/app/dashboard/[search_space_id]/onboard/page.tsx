@@ -2,9 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { updateModelRolesMutationAtom } from "@/atoms/model-connections/model-connections-mutation.atoms";
+import { useEffect, useMemo } from "react";
 import {
 	globalModelConnectionsAtom,
 	modelConnectionsAtom,
@@ -12,85 +10,40 @@ import {
 } from "@/atoms/model-connections/model-connections-query.atoms";
 import { Logo } from "@/components/Logo";
 import { ModelProviderConnectionsPanel } from "@/components/settings/model-connections/model-provider-connections-panel";
-import { capability } from "@/components/settings/model-connections/model-utils";
 import { Button } from "@/components/ui/button";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+import { hasEnabledChatModel, isLlmOnboardingComplete } from "@/lib/onboarding";
 
 export default function OnboardPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
-	const { data: globalConnections = [], isFetching: globalLoading } = useAtomValue(
+	const { data: globalConnections = [], isLoading: globalLoading } = useAtomValue(
 		globalModelConnectionsAtom
 	);
-	const { data: connections = [], isFetching: connectionsLoading } =
-		useAtomValue(modelConnectionsAtom);
-	const { data: roles = {}, isFetching: rolesLoading } = useAtomValue(modelRolesAtom);
-	const { mutateAsync: updateRoles, isPending } = useAtomValue(updateModelRolesMutationAtom);
-	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
-	const hasAttemptedAutoConfig = useRef(false);
+	const { data: connections = [] } = useAtomValue(modelConnectionsAtom);
+	const { data: roles = {}, isLoading: rolesLoading } = useAtomValue(modelRolesAtom);
 
 	useEffect(() => {
 		if (!getBearerToken()) redirectToLogin();
 	}, []);
 
-	const firstGlobalChatModel = useMemo(() => {
-		for (const connection of globalConnections) {
-			const model = connection.models.find((item) => item.enabled && item.supports_chat);
-			if (model) return model;
-		}
-		return null;
-	}, [globalConnections]);
-	const hasEnabledChatModel = useMemo(
-		() =>
-			connections.some(
-				(connection) =>
-					connection.enabled &&
-					connection.models.some((model) => model.enabled && capability(model, "chat"))
-			),
-		[connections]
+	const hasUsableChatModel = useMemo(
+		() => hasEnabledChatModel([...globalConnections, ...connections]),
+		[globalConnections, connections]
 	);
 
-	const isComplete = (roles.chat_model_id ?? 0) !== 0 || Boolean(firstGlobalChatModel);
-
-	useEffect(() => {
-		if (globalLoading || rolesLoading || hasAttemptedAutoConfig.current) return;
-		if ((roles.chat_model_id ?? 0) !== 0) {
-			router.push(`/dashboard/${searchSpaceId}/new-chat`);
-			return;
-		}
-		if (!firstGlobalChatModel) return;
-
-		hasAttemptedAutoConfig.current = true;
-		setIsAutoConfiguring(true);
-		updateRoles({ chat_model_id: firstGlobalChatModel.id })
-			.then(() => {
-				toast.success("AI configured automatically", {
-					description: `Using ${firstGlobalChatModel.display_name || firstGlobalChatModel.model_id}.`,
-				});
-				router.push(`/dashboard/${searchSpaceId}/new-chat`);
-			})
-			.catch((error) => {
-				console.error("Auto-configuration failed:", error);
-				toast.error("Auto-configuration failed. Add a connection manually.");
-				setIsAutoConfiguring(false);
-			});
-	}, [
-		firstGlobalChatModel,
-		globalLoading,
+	const onboardingComplete = isLlmOnboardingComplete(
 		roles.chat_model_id,
-		rolesLoading,
-		router,
-		searchSpaceId,
-		updateRoles,
-	]);
+		globalConnections,
+		connections
+	);
 
-	const isLoading =
-		globalLoading || connectionsLoading || rolesLoading || isAutoConfiguring || isPending;
+	const isLoading = globalLoading || rolesLoading;
 	useGlobalLoadingEffect(isLoading);
 
-	if (isLoading || isComplete) return null;
+	if (isLoading) return null;
 
 	return (
 		<div className="flex min-h-screen select-none flex-col items-center justify-center bg-main-panel p-4">
@@ -109,7 +62,7 @@ export default function OnboardPage() {
 					footerAction={
 						<Button
 							className="min-w-[112px]"
-							disabled={!hasEnabledChatModel}
+							disabled={!onboardingComplete || !hasUsableChatModel}
 							onClick={() => router.push(`/dashboard/${searchSpaceId}/new-chat`)}
 						>
 							Start
