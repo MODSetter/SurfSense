@@ -43,6 +43,8 @@ type ChatModel = ModelRead & {
 	provider: string;
 };
 
+const AUTO_CHAT_MODEL_ID = 0;
+
 function connectionLabel(connection: ConnectionRead) {
 	if (connection.scope === "GLOBAL") return "Global";
 	return providerDisplay(connection.provider).name;
@@ -74,6 +76,17 @@ function modelName(model: ChatModel) {
 	return name;
 }
 
+function filterChatModels(models: ChatModel[], search: string) {
+	const normalized = search.trim().toLowerCase();
+	if (!normalized) return models;
+	return models.filter((model) =>
+		[modelName(model), model.model_id, model.connectionLabel]
+			.join(" ")
+			.toLowerCase()
+			.includes(normalized)
+	);
+}
+
 function groupedModels(models: ChatModel[]) {
 	return models.reduce<Record<string, ChatModel[]>>((groups, model) => {
 		const key = model.connectionLabel;
@@ -100,24 +113,32 @@ export function ModelSelector({
 	const [{ data: roles }] = useAtom(modelRolesAtom);
 	const updateRoles = useAtomValue(updateModelRolesMutationAtom);
 
-	const chatModels = useMemo(() => {
-		const normalized = search.trim().toLowerCase();
-		const models = flattenChatModels([...globalConnections, ...connections]);
-		if (!normalized) return models;
-		return models.filter((model) =>
-			[modelName(model), model.model_id, model.connectionLabel]
-				.join(" ")
-				.toLowerCase()
-				.includes(normalized)
-		);
-	}, [globalConnections, connections, search]);
+	const allChatModels = useMemo(
+		() => flattenChatModels([...globalConnections, ...connections]),
+		[globalConnections, connections]
+	);
 
-	const selected = chatModels.find((model) => model.id === roles?.chat_model_id);
-	const groups = groupedModels(chatModels);
+	const visibleChatModels = useMemo(
+		() => filterChatModels(allChatModels, search),
+		[allChatModels, search]
+	);
+	const chatModelsById = useMemo(
+		() => new Map(allChatModels.map((model) => [model.id, model])),
+		[allChatModels]
+	);
+	const selectedModelId = roles?.chat_model_id ?? AUTO_CHAT_MODEL_ID;
+	const selected = chatModelsById.get(selectedModelId);
+	const groups = useMemo(() => groupedModels(visibleChatModels), [visibleChatModels]);
 	const loading = globalLoading || connectionsLoading;
+
+	function handleOpenChange(nextOpen: boolean) {
+		if (!nextOpen) setSearch("");
+		setOpen(nextOpen);
+	}
 
 	function selectModel(modelId: number) {
 		updateRoles.mutate({ chat_model_id: modelId });
+		setSearch("");
 		setOpen(false);
 		requestAnimationFrame(() => {
 			onChatModelSelected?.();
@@ -160,7 +181,7 @@ export function ModelSelector({
 				<button
 					type="button"
 					className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
-					onClick={() => selectModel(0)}
+					onClick={() => selectModel(AUTO_CHAT_MODEL_ID)}
 				>
 					<div className="min-w-0 flex-1">
 						<div className="flex min-w-0 items-center gap-2 font-medium">
@@ -168,7 +189,7 @@ export function ModelSelector({
 							<span className="truncate">Auto</span>
 						</div>
 					</div>
-					{(roles?.chat_model_id ?? 0) === 0 ? <Check className="h-4 w-4" /> : null}
+					{selectedModelId === AUTO_CHAT_MODEL_ID ? <Check className="h-4 w-4" /> : null}
 				</button>
 				{loading ? (
 					<div className="flex items-center justify-center py-8">
@@ -267,7 +288,7 @@ export function ModelSelector({
 
 	if (isMobile) {
 		return (
-			<Drawer open={open} onOpenChange={setOpen}>
+			<Drawer open={open} onOpenChange={handleOpenChange}>
 				<DrawerTrigger asChild>{trigger}</DrawerTrigger>
 				<DrawerContent className="max-h-[85vh]">
 					<DrawerHandle />
@@ -281,7 +302,7 @@ export function ModelSelector({
 	}
 
 	return (
-		<Popover open={open} onOpenChange={setOpen}>
+		<Popover open={open} onOpenChange={handleOpenChange}>
 			<PopoverTrigger asChild>{trigger}</PopoverTrigger>
 			<PopoverContent align="start" className="w-[340px] p-0">
 				{content}
