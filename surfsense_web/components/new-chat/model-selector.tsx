@@ -33,6 +33,7 @@ import { providerDisplay } from "../settings/model-connections/provider-metadata
 interface ModelSelectorProps {
 	searchSpaceId: number;
 	className?: string;
+	onChatModelSelected?: () => void;
 }
 
 type ChatModel = ModelRead & {
@@ -82,7 +83,11 @@ function groupedModels(models: ChatModel[]) {
 	}, {});
 }
 
-export function ModelSelector({ searchSpaceId, className }: ModelSelectorProps) {
+export function ModelSelector({
+	searchSpaceId,
+	className,
+	onChatModelSelected,
+}: ModelSelectorProps) {
 	const router = useRouter();
 	const isMobile = useIsMobile();
 	const [open, setOpen] = useState(false);
@@ -114,6 +119,9 @@ export function ModelSelector({ searchSpaceId, className }: ModelSelectorProps) 
 	function selectModel(modelId: number) {
 		updateRoles.mutate({ chat_model_id: modelId });
 		setOpen(false);
+		requestAnimationFrame(() => {
+			onChatModelSelected?.();
+		});
 	}
 
 	function manageModelConnections() {

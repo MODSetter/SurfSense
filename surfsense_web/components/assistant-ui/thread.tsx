@@ -522,6 +522,11 @@ const Composer: FC = () => {
 		editorRef.current?.focus();
 	}, [isDesktop, showDocumentPopover, showPromptPicker, threadId]);
 
+	const handleChatModelSelected = useCallback(() => {
+		if (!isDesktop) return;
+		editorRef.current?.focus();
+	}, [isDesktop]);
+
 	// Close document picker when a sidebar slide-out panel (inbox, etc.) opens.
 	// React only on changes to the tick — comparing against the previously-seen
 	// value preserves the one-shot semantics of the prior window-event approach
@@ -935,6 +940,7 @@ const Composer: FC = () => {
 					<ComposerAction
 						isBlockedByOtherUser={isBlockedByOtherUser}
 						searchSpaceId={Number(search_space_id)}
+						onChatModelSelected={handleChatModelSelected}
 					/>
 					<ConnectorIndicator showTrigger={false} />
 				</div>
@@ -955,11 +961,13 @@ const Composer: FC = () => {
 interface ComposerActionProps {
 	isBlockedByOtherUser?: boolean;
 	searchSpaceId: number;
+	onChatModelSelected?: () => void;
 }
 
 const ComposerAction: FC<ComposerActionProps> = ({
 	isBlockedByOtherUser = false,
 	searchSpaceId,
+	onChatModelSelected,
 }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
@@ -1573,6 +1581,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 				<ChatHeader
 					searchSpaceId={searchSpaceId}
 					className="h-9 max-w-[44vw] px-2 sm:max-w-[220px] sm:px-3"
+					onChatModelSelected={onChatModelSelected}
 				/>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
