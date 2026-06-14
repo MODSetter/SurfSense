@@ -1149,6 +1149,7 @@ function AuthenticatedDocumentsSidebarBase({
 	const showCloudSkeleton =
 		currentFilesystemTab === "cloud" &&
 		(zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete");
+	const connectorButtonLabel = connectorCount > 0 ? "Manage connectors" : "Connect your connectors";
 
 	const cloudContent = (
 		<>
@@ -1161,9 +1162,7 @@ function AuthenticatedDocumentsSidebarBase({
 				className="shrink-0 mx-4 mt-6 mb-2.5 h-auto select-none justify-start gap-2 bg-muted px-3 py-1.5 text-xs text-muted-foreground"
 			>
 				<Unplug className="size-4 shrink-0" />
-				<span className="truncate">
-					{connectorCount > 0 ? "Manage connectors" : "Connect your connectors"}
-				</span>
+				<span className="truncate">{connectorButtonLabel}</span>
 				{connectorCount > 0 && (
 					<span className="shrink-0 rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
 						{connectorCount}
