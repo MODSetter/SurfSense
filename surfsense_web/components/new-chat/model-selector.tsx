@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
-import { Check, ChevronDown, Search, Settings2 } from "lucide-react";
+import { Check, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { UIEvent } from "react";
 import { useCallback, useMemo, useState } from "react";
@@ -130,6 +130,7 @@ export function ModelSelector({
 	const selected = chatModelsById.get(selectedModelId);
 	const groups = useMemo(() => groupedModels(visibleChatModels), [visibleChatModels]);
 	const loading = globalLoading || connectionsLoading;
+	const hasSearchQuery = search.trim().length > 0;
 
 	function handleOpenChange(nextOpen: boolean) {
 		if (!nextOpen) setSearch("");
@@ -197,7 +198,9 @@ export function ModelSelector({
 					</div>
 				) : Object.keys(groups).length === 0 ? (
 					<div className="px-3 py-8 text-center text-sm text-muted-foreground">
-						No enabled chat models. Add or enable models in Settings.
+						{hasSearchQuery
+							? "No matching chat models."
+							: "No enabled chat models. Add or enable models in Settings."}
 					</div>
 				) : (
 					Object.entries(groups).map(([connection, models]) => (
@@ -257,7 +260,7 @@ export function ModelSelector({
 					className="w-full justify-start rounded-md bg-foreground/5 hover:bg-foreground/10 hover:text-foreground"
 					onClick={manageModelConnections}
 				>
-					<Settings2 className="mr-2 h-4 w-4" /> Manage models
+					<SlidersHorizontal className="h-4 w-4" /> Manage models
 				</Button>
 			</div>
 		</div>
@@ -304,7 +307,10 @@ export function ModelSelector({
 	return (
 		<Popover open={open} onOpenChange={handleOpenChange}>
 			<PopoverTrigger asChild>{trigger}</PopoverTrigger>
-			<PopoverContent align="start" className="w-[340px] p-0">
+			<PopoverContent
+				align="start"
+				className="w-[340px] border border-popover-border bg-popover p-0 text-popover-foreground shadow-md"
+			>
 				{content}
 			</PopoverContent>
 		</Popover>
