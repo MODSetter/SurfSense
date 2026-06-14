@@ -57,9 +57,9 @@ def install(patches: list[Any]) -> None:
         # Consumers that did `from app.utils.document_converters import embed_text/texts`
         ("app.indexing_pipeline.document_embedder.embed_text", fake_embed_text),
         ("app.indexing_pipeline.document_embedder.embed_texts", fake_embed_texts),
-        # Pipeline service binding (the actual call site for indexing.index)
+        # Index-cache facade binding (the actual call site for indexing.index)
         (
-            "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+            "app.indexing_pipeline.cache.cached_indexing.embed_texts",
             fake_embed_texts,
         ),
     ]

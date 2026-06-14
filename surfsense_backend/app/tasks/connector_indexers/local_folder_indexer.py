@@ -162,12 +162,13 @@ async def _read_file_content(
     All file types (plaintext, audio, direct-convert, document, image) are
     handled by ``EtlPipelineService``.
     """
+    from app.etl_pipeline.cache import extract_with_cache
     from app.etl_pipeline.etl_document import EtlRequest, ProcessingMode
-    from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
     mode = ProcessingMode.coerce(processing_mode)
-    result = await EtlPipelineService(vision_llm=vision_llm).extract(
-        EtlRequest(file_path=file_path, filename=filename, processing_mode=mode)
+    result = await extract_with_cache(
+        EtlRequest(file_path=file_path, filename=filename, processing_mode=mode),
+        vision_llm=vision_llm,
     )
     return result.markdown_content
 

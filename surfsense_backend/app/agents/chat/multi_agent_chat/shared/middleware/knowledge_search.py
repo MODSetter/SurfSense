@@ -394,7 +394,10 @@ async def browse_recent_documents(
                 Chunk.document_id,
                 Chunk.content,
                 func.row_number()
-                .over(partition_by=Chunk.document_id, order_by=Chunk.id)
+                .over(
+                    partition_by=Chunk.document_id,
+                    order_by=(Chunk.position, Chunk.id),
+                )
                 .label("rn"),
             )
             .where(Chunk.document_id.in_(doc_ids))
@@ -404,7 +407,7 @@ async def browse_recent_documents(
         chunk_query = (
             select(numbered.c.chunk_id, numbered.c.document_id, numbered.c.content)
             .where(numbered.c.rn <= _RECENCY_MAX_CHUNKS_PER_DOC)
-            .order_by(numbered.c.document_id, numbered.c.chunk_id)
+            .order_by(numbered.c.document_id, numbered.c.rn)
         )
         chunk_result = await session.execute(chunk_query)
         fetched_chunks = chunk_result.all()
@@ -531,7 +534,7 @@ async def fetch_mentioned_documents(
         chunk_result = await session.execute(
             select(Chunk.id, Chunk.content, Chunk.document_id)
             .where(Chunk.document_id.in_(list(docs.keys())))
-            .order_by(Chunk.document_id, Chunk.id)
+            .order_by(Chunk.document_id, Chunk.position, Chunk.id)
         )
         chunks_by_doc: dict[int, list[dict[str, Any]]] = {doc_id: [] for doc_id in docs}
         for row in chunk_result.all():

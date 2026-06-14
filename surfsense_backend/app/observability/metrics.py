@@ -290,6 +290,49 @@ def _etl_extract_outcome():
 
 
 @lru_cache(maxsize=1)
+def _etl_cache_lookups():
+    return _get_meter().create_counter(
+        "surfsense.etl.cache.lookups",
+        description="Count of ETL parse-cache lookups by outcome (hit/miss).",
+    )
+
+
+@lru_cache(maxsize=1)
+def _etl_cache_evictions():
+    return _get_meter().create_counter(
+        "surfsense.etl.cache.evictions",
+        description="Count of ETL parse-cache entries evicted, by phase.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _embedding_cache_lookups():
+    return _get_meter().create_counter(
+        "surfsense.embedding.cache.lookups",
+        description="Count of embedding (chunk+embedding) cache lookups by outcome (hit/miss).",
+    )
+
+
+@lru_cache(maxsize=1)
+def _embedding_cache_evictions():
+    return _get_meter().create_counter(
+        "surfsense.embedding.cache.evictions",
+        description="Count of embedding cache entries evicted, by phase.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _chunk_reconcile_chunks():
+    return _get_meter().create_counter(
+        "surfsense.indexing.reconcile.chunks",
+        description=(
+            "Chunks handled by incremental re-indexing, by outcome "
+            "(reused/embedded/deleted)."
+        ),
+    )
+
+
+@lru_cache(maxsize=1)
 def _celery_heartbeat_refreshes():
     return _get_meter().create_counter(
         "surfsense.celery.heartbeat.refreshes",
@@ -670,6 +713,61 @@ def record_etl_extract_outcome(
     )
 
 
+def record_etl_cache_lookup(
+    *, etl_service: str | None, mode: str | None, outcome: str
+) -> None:
+    """Record a parse-cache lookup. ``outcome`` is ``hit`` or ``miss``."""
+    _add(
+        _etl_cache_lookups(),
+        1,
+        {
+            "etl.service": etl_service or "unknown",
+            "mode": mode or "unknown",
+            "outcome": outcome,
+        },
+    )
+
+
+def record_etl_cache_eviction(count: int, *, phase: str) -> None:
+    """Record evicted entries. ``phase`` is ``ttl`` or ``size``."""
+    if count <= 0:
+        return
+    _add(_etl_cache_evictions(), count, {"phase": phase})
+
+
+def record_embedding_cache_lookup(
+    *, embedding_model: str | None, chunker_kind: str | None, outcome: str
+) -> None:
+    """Record an embedding-cache lookup. ``outcome`` is ``hit`` or ``miss``."""
+    _add(
+        _embedding_cache_lookups(),
+        1,
+        {
+            "embedding.model": embedding_model or "unknown",
+            "chunker.kind": chunker_kind or "unknown",
+            "outcome": outcome,
+        },
+    )
+
+
+def record_embedding_cache_eviction(count: int, *, phase: str) -> None:
+    """Record evicted entries. ``phase`` is ``ttl`` or ``size``."""
+    if count <= 0:
+        return
+    _add(_embedding_cache_evictions(), count, {"phase": phase})
+
+
+def record_chunk_reconcile(*, reused: int, embedded: int, deleted: int) -> None:
+    """Record an incremental re-index: how many chunks were kept vs recomputed."""
+    for outcome, count in (
+        ("reused", reused),
+        ("embedded", embedded),
+        ("deleted", deleted),
+    ):
+        if count > 0:
+            _add(_chunk_reconcile_chunks(), count, {"outcome": outcome})
+
+
 def record_celery_heartbeat_refresh(*, heartbeat_type: str) -> None:
     _add(_celery_heartbeat_refreshes(), 1, {"heartbeat.type": heartbeat_type})
 
@@ -863,9 +961,14 @@ __all__ = [
     "record_celery_queue_latency",
     "record_chat_request_duration",
     "record_chat_request_outcome",
+    "record_chunk_reconcile",
     "record_compaction_run",
     "record_connector_sync_duration",
     "record_connector_sync_outcome",
+    "record_embedding_cache_eviction",
+    "record_embedding_cache_lookup",
+    "record_etl_cache_eviction",
+    "record_etl_cache_lookup",
     "record_etl_extract_duration",
     "record_etl_extract_outcome",
     "record_indexing_document_duration",

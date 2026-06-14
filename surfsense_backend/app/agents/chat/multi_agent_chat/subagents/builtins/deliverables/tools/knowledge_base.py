@@ -122,7 +122,7 @@ async def _browse_recent_documents(
         chunk_query = (
             select(Chunk)
             .where(Chunk.document_id.in_(doc_ids))
-            .order_by(Chunk.document_id, Chunk.id)
+            .order_by(Chunk.document_id, Chunk.position, Chunk.id)
         )
         chunk_result = await session.execute(chunk_query)
         raw_chunks = chunk_result.scalars().all()
