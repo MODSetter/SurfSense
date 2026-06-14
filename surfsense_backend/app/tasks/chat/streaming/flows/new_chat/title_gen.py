@@ -80,7 +80,6 @@ async def _generate_title(
         from litellm import acompletion
 
         from app.services.llm_router_service import LLMRouterService
-        from app.services.provider_api_base import resolve_api_base
         from app.services.token_tracking_service import _turn_accumulator
 
         # Excludes this turn's own assistant row (pre-written by
@@ -125,26 +124,12 @@ async def _generate_title(
             router = LLMRouterService.get_router()
             response = await router.acompletion(model="auto", messages=messages)
         else:
-            # Apply the same ``api_base`` cascade chat / vision / image-gen
-            # call sites use so we never inherit ``litellm.api_base``
-            # (commonly set by ``AZURE_OPENAI_ENDPOINT``) when the chat
-            # config itself ships an empty ``api_base``. Without this the
-            # title-gen on an OpenRouter chat config would 404 against the
-            # inherited Azure endpoint — see ``provider_api_base`` for the
-            # same bug repro on the image-gen / vision paths.
             raw_model = getattr(llm, "model", "") or ""
-            provider_prefix = raw_model.split("/", 1)[0] if "/" in raw_model else None
-            provider_value = agent_config.provider if agent_config is not None else None
-            title_api_base = resolve_api_base(
-                provider=provider_value,
-                provider_prefix=provider_prefix,
-                config_api_base=getattr(llm, "api_base", None),
-            )
             response = await acompletion(
                 model=raw_model,
                 messages=messages,
                 api_key=getattr(llm, "api_key", None),
-                api_base=title_api_base,
+                api_base=getattr(llm, "api_base", None),
             )
 
         usage_info = None

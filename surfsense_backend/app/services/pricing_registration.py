@@ -143,21 +143,19 @@ def _register_chat_shape_configs(
     sample_keys: list[str] = []
 
     for cfg in configs:
-        provider = str(cfg.get("provider") or "").upper()
+        provider = str(cfg.get("provider") or cfg.get("litellm_provider") or "").lower()
         model_name = str(cfg.get("model_name") or "").strip()
         litellm_params = cfg.get("litellm_params") or {}
         base_model = str(litellm_params.get("base_model") or model_name).strip()
 
-        if provider == "OPENROUTER":
+        if provider == "openrouter":
             entry = or_pricing.get(model_name)
             if entry:
                 input_cost = _safe_float(entry.get("prompt"))
                 output_cost = _safe_float(entry.get("completion"))
             else:
-                # Vision configs from ``_generate_vision_llm_configs``
-                # carry their pricing inline because the OpenRouter
-                # raw-pricing cache is keyed by chat-catalogue model_id;
-                # vision flows pick up the inline values here.
+                # Some dynamically materialized configs can carry pricing
+                # inline when the raw OpenRouter cache has no matching entry.
                 input_cost = _safe_float(cfg.get("input_cost_per_token"))
                 output_cost = _safe_float(cfg.get("output_cost_per_token"))
             if input_cost == 0.0 and output_cost == 0.0:
@@ -189,12 +187,11 @@ def _register_chat_shape_configs(
             skipped_no_pricing += 1
             continue
         aliases = _alias_set_for_yaml(provider, model_name, base_model)
-        provider_slug = "azure" if provider == "AZURE_OPENAI" else provider.lower()
         count = _register(
             aliases,
             input_cost=input_cost,
             output_cost=output_cost,
-            provider=provider_slug,
+            provider=provider,
         )
         if count > 0:
             registered_models += 1
@@ -217,9 +214,8 @@ def _register_chat_shape_configs(
 def register_pricing_from_global_configs() -> None:
     """Register pricing for every known LLM deployment with LiteLLM.
 
-    Walks ``config.GLOBAL_LLM_CONFIGS`` *and* ``config.GLOBAL_VISION_LLM_CONFIGS``
-    so vision calls (during indexing) can resolve cost the same way chat
-    calls do — namely:
+    Walks ``config.GLOBAL_LLM_CONFIGS`` so chat and vision calls can resolve
+    cost from the same chat-shaped deployment configs:
 
     1. ``OPENROUTER``: pulls the cached raw pricing from
        ``OpenRouterIntegrationService`` (populated during its own
@@ -246,10 +242,7 @@ def register_pricing_from_global_configs() -> None:
     from app.config import config as app_config
 
     chat_configs: list[dict] = list(getattr(app_config, "GLOBAL_LLM_CONFIGS", []) or [])
-    vision_configs: list[dict] = list(
-        getattr(app_config, "GLOBAL_VISION_LLM_CONFIGS", []) or []
-    )
-    if not chat_configs and not vision_configs:
+    if not chat_configs:
         logger.info("[PricingRegistration] no global configs to register")
         return
 
@@ -268,7 +261,3 @@ def register_pricing_from_global_configs() -> None:
 
     if chat_configs:
         _register_chat_shape_configs(chat_configs, or_pricing=or_pricing, label="chat")
-    if vision_configs:
-        _register_chat_shape_configs(
-            vision_configs, or_pricing=or_pricing, label="vision"
-        )

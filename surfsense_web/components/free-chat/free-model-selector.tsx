@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Cpu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +82,7 @@ export function FreeModelSelector({ className }: { className?: string }) {
 						</>
 					) : (
 						<>
-							<Bot className="size-4 text-muted-foreground" />
+							<Cpu className="size-4 text-muted-foreground" />
 							<span className="text-muted-foreground">Select Model</span>
 						</>
 					)}

@@ -445,15 +445,15 @@ async def _resolve_agent_billing_for_search_space(
     thread_id: int | None = None,
 ) -> tuple[UUID, str, str]:
     """Resolve ``(owner_user_id, billing_tier, base_model)`` for the search-space
-    agent LLM.
+    chat model.
 
     Used by Celery tasks (podcast generation, video presentation) to bill the
-    search-space owner's premium credit pool when the agent LLM is premium.
+    search-space owner's premium credit pool when the chat model is premium.
 
-    Resolution rules mirror chat at ``stream_new_chat.py:2294-2351``:
+    Resolution rules mirror the chat model role resolver:
 
-    - Search space not found / no ``agent_llm_id``: raise ``ValueError``.
-    - **Auto mode** (``id == AUTO_FASTEST_ID == 0``):
+    - Search space not found / no ``chat_model_id``: raise ``ValueError``.
+    - **Auto mode** (``id == AUTO_MODE_ID == 0``):
         * ``thread_id`` is set: delegate to
           ``resolve_or_get_pinned_llm_config_id`` (the same call chat uses) and
           recurse into the resolved id. Reuses chat's existing pin if present
@@ -469,9 +469,8 @@ async def _resolve_agent_billing_for_search_space(
       (defaults to ``"free"`` via ``app/config/__init__.py:52`` setdefault),
       ``base_model = litellm_params.get("base_model") or model_name`` —
       NOT provider-prefixed, matching chat's cost-map lookup convention.
-    - **Positive id** (user BYOK ``NewLLMConfig``): always free (matches
-      ``AgentConfig.from_new_llm_config`` which hard-codes ``billing_tier="free"``);
-      ``base_model`` from ``litellm_params`` or ``model_name``.
+    - **Positive id** (user BYOK ``Model``): always free; ``base_model`` from
+      the model catalog override or the upstream ``model_id``.
 
     Note on imports: ``llm_service``, ``auto_model_pin_service``, and
     ``llm_router_service`` are imported lazily inside the function body to
@@ -480,8 +479,9 @@ async def _resolve_agent_billing_for_search_space(
     ``billable_calls.py``'s module load path.
     """
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
-    from app.db import NewLLMConfig, SearchSpace
+    from app.db import Model, SearchSpace
 
     result = await session.execute(
         select(SearchSpace).where(SearchSpace.id == search_space_id)
@@ -490,20 +490,20 @@ async def _resolve_agent_billing_for_search_space(
     if search_space is None:
         raise ValueError(f"Search space {search_space_id} not found")
 
-    agent_llm_id = search_space.agent_llm_id
-    if agent_llm_id is None:
+    chat_model_id = search_space.chat_model_id
+    if chat_model_id is None:
         raise ValueError(
-            f"Search space {search_space_id} has no agent_llm_id configured"
+            f"Search space {search_space_id} has no chat_model_id configured"
         )
 
     owner_user_id: UUID = search_space.user_id
 
     from app.services.auto_model_pin_service import (
-        AUTO_FASTEST_ID,
+        AUTO_MODE_ID,
         resolve_or_get_pinned_llm_config_id,
     )
 
-    if agent_llm_id == AUTO_FASTEST_ID:
+    if chat_model_id == AUTO_MODE_ID:
         if thread_id is None:
             return owner_user_id, "free", "auto"
         try:
@@ -512,7 +512,7 @@ async def _resolve_agent_billing_for_search_space(
                 thread_id=thread_id,
                 search_space_id=search_space_id,
                 user_id=str(owner_user_id),
-                selected_llm_config_id=AUTO_FASTEST_ID,
+                selected_llm_config_id=AUTO_MODE_ID,
             )
         except ValueError:
             logger.warning(
@@ -523,28 +523,35 @@ async def _resolve_agent_billing_for_search_space(
                 exc_info=True,
             )
             return owner_user_id, "free", "auto"
-        agent_llm_id = resolution.resolved_llm_config_id
+        chat_model_id = resolution.resolved_llm_config_id
 
-    if agent_llm_id < 0:
+    if chat_model_id < 0:
         from app.services.llm_service import get_global_llm_config
 
-        cfg = get_global_llm_config(agent_llm_id) or {}
+        cfg = get_global_llm_config(chat_model_id) or {}
         billing_tier = str(cfg.get("billing_tier", "free")).lower()
         litellm_params = cfg.get("litellm_params") or {}
         base_model = litellm_params.get("base_model") or cfg.get("model_name") or ""
         return owner_user_id, billing_tier, base_model
 
-    nlc_result = await session.execute(
-        select(NewLLMConfig).where(
-            NewLLMConfig.id == agent_llm_id,
-            NewLLMConfig.search_space_id == search_space_id,
-        )
+    model_result = await session.execute(
+        select(Model)
+        .options(selectinload(Model.connection))
+        .where(Model.id == chat_model_id, Model.enabled.is_(True))
     )
-    nlc = nlc_result.scalars().first()
+    model = model_result.scalars().first()
     base_model = ""
-    if nlc is not None:
-        litellm_params = nlc.litellm_params or {}
-        base_model = litellm_params.get("base_model") or nlc.model_name or ""
+    if (
+        model is not None
+        and model.connection is not None
+        and model.connection.enabled
+        and (
+            model.connection.search_space_id in (None, search_space_id)
+            and model.connection.user_id in (None, owner_user_id)
+        )
+    ):
+        catalog = model.catalog or {}
+        base_model = catalog.get("base_model") or model.model_id or ""
     return owner_user_id, "free", base_model
 
 

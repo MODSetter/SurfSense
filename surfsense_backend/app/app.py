@@ -33,7 +33,6 @@ from app.config import (
     initialize_llm_router,
     initialize_openrouter_integration,
     initialize_pricing_registration,
-    initialize_vision_llm_router,
 )
 from app.db import User, create_db_and_tables, get_async_session
 from app.exceptions import GENERIC_5XX_MESSAGE, ISSUES_URL, SurfSenseError
@@ -622,7 +621,6 @@ async def lifespan(app: FastAPI):
     initialize_pricing_registration()
     initialize_llm_router()
     initialize_image_gen_router()
-    initialize_vision_llm_router()
 
     # Phase 1.7 — JIT warmup. Bounded so a stuck warmup never delays
     # worker readiness. ``shield`` so Uvicorn cancelling startup

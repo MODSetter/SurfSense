@@ -132,9 +132,7 @@ def _build_action_ctx(
         step_id=step.step_id,
         search_space_id=automation.search_space_id,
         creator_user_id=automation.created_by_user_id,
-        agent_llm_id=models.agent_llm_id if models else None,
-        image_generation_config_id=(
-            models.image_generation_config_id if models else None
-        ),
-        vision_llm_config_id=models.vision_llm_config_id if models else None,
+        chat_model_id=models.chat_model_id if models else None,
+        image_gen_model_id=models.image_gen_model_id if models else None,
+        vision_model_id=models.vision_model_id if models else None,
     )

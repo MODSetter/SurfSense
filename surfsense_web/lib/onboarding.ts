@@ -1,8 +1,28 @@
+import type { ConnectionRead } from "@/contracts/types/model-connections.types";
+
+export function hasEnabledChatModel(connections: ConnectionRead[]): boolean {
+	return connections.some(
+		(connection) =>
+			connection.enabled &&
+			connection.models.some((model) => model.enabled && Boolean(model.supports_chat))
+	);
+}
+
 export function isLlmOnboardingComplete(
-	agentLlmId: number | null | undefined,
-	hasGlobalConfigs: boolean
+	chatModelId: number | null | undefined,
+	globalConnections: ConnectionRead[],
+	searchSpaceConnections: ConnectionRead[]
 ): boolean {
-	if (agentLlmId === null || agentLlmId === undefined) return false;
-	if (agentLlmId === 0) return hasGlobalConfigs;
-	return true;
+	const connections = [...globalConnections, ...searchSpaceConnections];
+	const resolvedChatModelId = chatModelId ?? 0;
+
+	if (resolvedChatModelId === 0) {
+		return hasEnabledChatModel(connections);
+	}
+
+	return connections.some((connection) =>
+		connection.models.some(
+			(model) => model.id === resolvedChatModelId && model.enabled && Boolean(model.supports_chat)
+		)
+	);
 }

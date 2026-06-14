@@ -188,9 +188,6 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 							</div>
 						</div>
 						<h2 className="text-xl font-semibold mb-2">{model.name}</h2>
-						{model.description && (
-							<p className="text-sm text-muted-foreground max-w-md">{model.description}</p>
-						)}
 						<p className="text-xs text-muted-foreground mt-4">
 							Free to use &middot; No login required &middot; Start typing below
 						</p>

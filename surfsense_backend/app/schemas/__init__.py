@@ -34,16 +34,27 @@ from .folders import (
 )
 from .google_drive import DriveItem, GoogleDriveIndexingOptions, GoogleDriveIndexRequest
 from .image_generation import (
-    GlobalImageGenConfigRead,
-    ImageGenerationConfigCreate,
-    ImageGenerationConfigPublic,
-    ImageGenerationConfigRead,
-    ImageGenerationConfigUpdate,
     ImageGenerationCreate,
     ImageGenerationListRead,
     ImageGenerationRead,
 )
 from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
+from .model_connections import (
+    ConnectionCreate,
+    ConnectionRead,
+    ConnectionUpdate,
+    ModelCreate,
+    ModelPreviewRead,
+    ModelProviderRead,
+    ModelRead,
+    ModelRolesRead,
+    ModelRolesUpdate,
+    ModelsBulkUpdate,
+    ModelSelection,
+    ModelTestPreview,
+    ModelUpdate,
+    VerifyConnectionResponse,
+)
 from .new_chat import (
     ChatMessage,
     NewChatMessageAppend,
@@ -57,16 +68,6 @@ from .new_chat import (
     ThreadHistoryLoadResponse,
     ThreadListItem,
     ThreadListResponse,
-)
-from .new_llm_config import (
-    DefaultSystemInstructionsResponse,
-    GlobalNewLLMConfigRead,
-    LLMPreferencesRead,
-    LLMPreferencesUpdate,
-    NewLLMConfigCreate,
-    NewLLMConfigPublic,
-    NewLLMConfigRead,
-    NewLLMConfigUpdate,
 )
 from .rbac_schemas import (
     InviteAcceptRequest,
@@ -126,13 +127,6 @@ from .video_presentations import (
     VideoPresentationRead,
     VideoPresentationUpdate,
 )
-from .vision_llm import (
-    GlobalVisionLLMConfigRead,
-    VisionLLMConfigCreate,
-    VisionLLMConfigPublic,
-    VisionLLMConfigRead,
-    VisionLLMConfigUpdate,
-)
 
 __all__ = [
     # Folder schemas
@@ -144,12 +138,15 @@ __all__ = [
     "ChunkCreate",
     "ChunkRead",
     "ChunkUpdate",
+    # Model connection schemas
+    "ConnectionCreate",
+    "ConnectionRead",
+    "ConnectionUpdate",
     "CreateCreditCheckoutSessionRequest",
     "CreateCreditCheckoutSessionResponse",
     "CreditPurchaseHistoryResponse",
     "CreditPurchaseRead",
     "CreditStripeStatusResponse",
-    "DefaultSystemInstructionsResponse",
     # Document schemas
     "DocumentBase",
     "DocumentMove",
@@ -172,19 +169,10 @@ __all__ = [
     "FolderRead",
     "FolderReorder",
     "FolderUpdate",
-    "GlobalImageGenConfigRead",
-    "GlobalNewLLMConfigRead",
-    # Vision LLM Config schemas
-    "GlobalVisionLLMConfigRead",
     "GoogleDriveIndexRequest",
     "GoogleDriveIndexingOptions",
     # Base schemas
     "IDModel",
-    # Image Generation Config schemas
-    "ImageGenerationConfigCreate",
-    "ImageGenerationConfigPublic",
-    "ImageGenerationConfigRead",
-    "ImageGenerationConfigUpdate",
     # Image Generation schemas
     "ImageGenerationCreate",
     "ImageGenerationListRead",
@@ -196,9 +184,6 @@ __all__ = [
     "InviteInfoResponse",
     "InviteRead",
     "InviteUpdate",
-    # LLM Preferences schemas
-    "LLMPreferencesRead",
-    "LLMPreferencesUpdate",
     # Log schemas
     "LogBase",
     "LogCreate",
@@ -217,6 +202,16 @@ __all__ = [
     "MembershipRead",
     "MembershipReadWithUser",
     "MembershipUpdate",
+    "ModelCreate",
+    "ModelPreviewRead",
+    "ModelProviderRead",
+    "ModelRead",
+    "ModelRolesRead",
+    "ModelRolesUpdate",
+    "ModelSelection",
+    "ModelTestPreview",
+    "ModelUpdate",
+    "ModelsBulkUpdate",
     "NewChatMessageAppend",
     "NewChatMessageCreate",
     "NewChatMessageRead",
@@ -225,11 +220,6 @@ __all__ = [
     "NewChatThreadRead",
     "NewChatThreadUpdate",
     "NewChatThreadWithMessages",
-    # NewLLMConfig schemas
-    "NewLLMConfigCreate",
-    "NewLLMConfigPublic",
-    "NewLLMConfigRead",
-    "NewLLMConfigUpdate",
     "PagePurchaseHistoryResponse",
     "PagePurchaseRead",
     "PaginatedResponse",
@@ -267,13 +257,10 @@ __all__ = [
     "UserRead",
     "UserSearchSpaceAccess",
     "UserUpdate",
+    "VerifyConnectionResponse",
     # Video Presentation schemas
     "VideoPresentationBase",
     "VideoPresentationCreate",
     "VideoPresentationRead",
     "VideoPresentationUpdate",
-    "VisionLLMConfigCreate",
-    "VisionLLMConfigPublic",
-    "VisionLLMConfigRead",
-    "VisionLLMConfigUpdate",
 ]

@@ -115,14 +115,12 @@ def init_worker(**kwargs):
         initialize_llm_router,
         initialize_openrouter_integration,
         initialize_pricing_registration,
-        initialize_vision_llm_router,
     )
 
     initialize_openrouter_integration()
     initialize_pricing_registration()
     initialize_llm_router()
     initialize_image_gen_router()
-    initialize_vision_llm_router()
 
 
 # Celery configuration, sourced from the central Config singleton

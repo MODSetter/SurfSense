@@ -63,29 +63,22 @@ async def test_delete_search_space_idempotent_on_404(respx_mock, http):
 
 @pytest.mark.asyncio
 @respx.mock(base_url=_BASE)
-async def test_set_llm_preferences_partial_update(respx_mock, http):
-    route = respx_mock.put("/api/v1/search-spaces/42/llm-preferences").mock(
+async def test_set_model_roles_partial_update(respx_mock, http):
+    route = respx_mock.put("/api/v1/search-spaces/42/model-roles").mock(
         return_value=httpx.Response(
             200,
             json={
-                "agent_llm_id": -10042,
-                "agent_llm_id": None,
-                "image_generation_config_id": None,
-                "vision_llm_config_id": None,
-                "agent_llm": {
-                    "id": -10042,
-                    "provider": "OPENROUTER",
-                    "model_name": "anthropic/claude-sonnet-4.5",
-                },
+                "chat_model_id": -10042,
+                "image_gen_model_id": None,
+                "vision_model_id": None,
             },
         )
     )
     client = SearchSpaceClient(http, _BASE)
-    prefs = await client.set_llm_preferences(42, agent_llm_id=-10042)
-    assert prefs.agent_llm_id == -10042
-    assert prefs.agent_llm["provider"] == "OPENROUTER"
+    roles = await client.set_model_roles(42, chat_model_id=-10042)
+    assert roles.chat_model_id == -10042
     sent_body = json.loads(route.calls[-1].request.content)
-    assert sent_body == {"agent_llm_id": -10042}
+    assert sent_body == {"chat_model_id": -10042}
 
 
 # ---------------------------------------------------------------------------

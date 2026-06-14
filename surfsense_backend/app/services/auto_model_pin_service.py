@@ -1,13 +1,13 @@
-"""Resolve and persist Auto (Fastest) model pins per chat thread.
+"""Resolve and persist Auto model pins per chat thread.
 
-Auto (Fastest) is represented by ``agent_llm_id == 0``. For chat threads we
-resolve that virtual mode to one concrete global LLM config exactly once and
+Auto is represented by ``chat_model_id == 0``. For chat threads we
+resolve that virtual mode to one concrete global model exactly once and
 persist the chosen config id on ``new_chat_threads.pinned_llm_config_id`` so
 subsequent turns are stable.
 
 Single-writer invariant: this module is the only writer of
 ``NewChatThread.pinned_llm_config_id`` (aside from the bulk clear in
-``search_spaces_routes`` when a search space's ``agent_llm_id`` changes).
+``model_connections_routes`` when a search space's ``chat_model_id`` changes).
 Therefore a non-NULL value unambiguously means "this thread has an
 Auto-resolved pin"; no separate source/policy column is needed.
 """
@@ -21,26 +21,35 @@ import time
 from dataclasses import dataclass
 from uuid import UUID
 
+import redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import config
-from app.db import NewChatThread
+from app.db import Connection, Model, NewChatThread
+from app.services.model_capabilities import has_capability
 from app.services.quality_score import _QUALITY_TOP_K
 from app.services.token_quota_service import TokenQuotaService
 
 logger = logging.getLogger(__name__)
 
-AUTO_FASTEST_ID = 0
-AUTO_FASTEST_MODE = "auto_fastest"
+AUTO_MODE_ID = 0
+# Stable internal hash namespace for deterministic per-thread selection.
+# Do not rename: changing this rebalances Auto's model choice for new pins.
+AUTO_PIN_HASH_NAMESPACE = "auto_fastest"
 _RUNTIME_COOLDOWN_SECONDS = 600
 _HEALTHY_TTL_SECONDS = 45
+_RUNTIME_COOLDOWN_REDIS_KEY_PREFIX = "auto:cooldown:llm:"
+_REDIS_TIMEOUT_SECONDS = 0.2
 
 # In-memory runtime cooldown map for configs that recently hard-failed at
 # provider runtime (e.g. OpenRouter 429 on a pinned free model). This keeps
 # the same unhealthy config from being reselected immediately during repair.
 _runtime_cooldown_until: dict[int, float] = {}
 _runtime_cooldown_lock = threading.Lock()
+_runtime_cooldown_redis: redis.Redis | None = None
+_runtime_cooldown_redis_lock = threading.Lock()
 
 # Short-TTL "recently healthy" cache for configs that just passed a runtime
 # preflight ping. Lets back-to-back turns on the same model skip the probe
@@ -61,9 +70,13 @@ def _is_usable_global_config(cfg: dict) -> bool:
     return bool(
         cfg.get("id") is not None
         and cfg.get("model_name")
-        and cfg.get("provider")
+        and (cfg.get("provider") or cfg.get("litellm_provider"))
         and cfg.get("api_key")
     )
+
+
+def _has_capability(model: dict | Model, capability: str) -> bool:
+    return has_capability(model, capability)
 
 
 def _prune_runtime_cooldowns(now_ts: float | None = None) -> None:
@@ -77,6 +90,81 @@ def _is_runtime_cooled_down(config_id: int) -> bool:
     with _runtime_cooldown_lock:
         _prune_runtime_cooldowns()
         return config_id in _runtime_cooldown_until
+
+
+def _runtime_cooldown_redis_key(config_id: int) -> str:
+    return f"{_RUNTIME_COOLDOWN_REDIS_KEY_PREFIX}{int(config_id)}"
+
+
+def _get_runtime_cooldown_redis() -> redis.Redis:
+    global _runtime_cooldown_redis
+    if _runtime_cooldown_redis is None:
+        with _runtime_cooldown_redis_lock:
+            if _runtime_cooldown_redis is None:
+                _runtime_cooldown_redis = redis.from_url(
+                    config.REDIS_APP_URL,
+                    decode_responses=True,
+                    socket_connect_timeout=_REDIS_TIMEOUT_SECONDS,
+                    socket_timeout=_REDIS_TIMEOUT_SECONDS,
+                )
+    return _runtime_cooldown_redis
+
+
+def _mark_shared_runtime_cooldown(
+    config_id: int,
+    *,
+    reason: str,
+    cooldown_seconds: int,
+) -> None:
+    try:
+        _get_runtime_cooldown_redis().set(
+            _runtime_cooldown_redis_key(config_id),
+            reason,
+            ex=int(cooldown_seconds),
+        )
+    except Exception:
+        logger.warning(
+            "auto_pin_runtime_cooldown_redis_write_failed config_id=%s",
+            config_id,
+            exc_info=True,
+        )
+
+
+def _shared_runtime_cooled_down_ids(config_ids: list[int]) -> set[int]:
+    unique_ids = list(dict.fromkeys(int(cid) for cid in config_ids))
+    if not unique_ids:
+        return set()
+    try:
+        values = _get_runtime_cooldown_redis().mget(
+            [_runtime_cooldown_redis_key(cid) for cid in unique_ids]
+        )
+    except Exception:
+        logger.warning(
+            "auto_pin_runtime_cooldown_redis_read_failed count=%s",
+            len(unique_ids),
+            exc_info=True,
+        )
+        return set()
+    return {
+        cid for cid, value in zip(unique_ids, values, strict=False) if value is not None
+    }
+
+
+def _clear_shared_runtime_cooldown(config_id: int | None = None) -> None:
+    try:
+        client = _get_runtime_cooldown_redis()
+        if config_id is not None:
+            client.delete(_runtime_cooldown_redis_key(config_id))
+            return
+        keys = list(client.scan_iter(f"{_RUNTIME_COOLDOWN_REDIS_KEY_PREFIX}*"))
+        if keys:
+            client.delete(*keys)
+    except Exception:
+        logger.warning(
+            "auto_pin_runtime_cooldown_redis_clear_failed config_id=%s",
+            config_id,
+            exc_info=True,
+        )
 
 
 def mark_runtime_cooldown(
@@ -97,6 +185,11 @@ def mark_runtime_cooldown(
     with _runtime_cooldown_lock:
         _runtime_cooldown_until[int(config_id)] = until
         _prune_runtime_cooldowns()
+    _mark_shared_runtime_cooldown(
+        int(config_id),
+        reason=reason,
+        cooldown_seconds=int(cooldown_seconds),
+    )
     # A cooled cfg can never be "recently healthy"; drop any stale credit so
     # the next turn that resolves to it (after cooldown) re-runs preflight.
     clear_healthy(int(config_id))
@@ -113,8 +206,9 @@ def clear_runtime_cooldown(config_id: int | None = None) -> None:
     with _runtime_cooldown_lock:
         if config_id is None:
             _runtime_cooldown_until.clear()
-            return
-        _runtime_cooldown_until.pop(int(config_id), None)
+        else:
+            _runtime_cooldown_until.pop(int(config_id), None)
+    _clear_shared_runtime_cooldown(config_id)
 
 
 def _prune_healthy(now_ts: float | None = None) -> None:
@@ -186,15 +280,20 @@ def _cfg_supports_image_input(cfg: dict) -> bool:
         else None
     )
     return derive_supports_image_input(
-        provider=cfg.get("provider"),
+        provider=cfg.get("provider") or cfg.get("litellm_provider"),
         model_name=cfg.get("model_name"),
         base_model=base_model,
         custom_provider=cfg.get("custom_provider"),
     )
 
 
-def _global_candidates(*, requires_image_input: bool = False) -> list[dict]:
-    """Return Auto-eligible global cfgs.
+def _global_candidates(
+    *,
+    capability: str = "chat",
+    requires_image_input: bool = False,
+    shared_cooled_down_ids: set[int] | None = None,
+) -> list[dict]:
+    """Return Auto-eligible global virtual models.
 
     Drops cfgs flagged ``health_gated`` (best non-null OpenRouter uptime
     below ``_HEALTH_GATE_UPTIME_PCT``) so chronically broken providers
@@ -205,28 +304,165 @@ def _global_candidates(*, requires_image_input: bool = False) -> list[dict]:
     filters out configs whose ``supports_image_input`` resolves to False
     so a text-only deployment can't be pinned for an image request.
     """
-    candidates = [
-        cfg
+    connection_by_id = {
+        int(conn.get("id")): conn
+        for conn in config.GLOBAL_CONNECTIONS
+        if conn.get("id") is not None
+    }
+    config_by_model_name = {
+        cfg.get("model_name"): cfg
         for cfg in config.GLOBAL_LLM_CONFIGS
         if _is_usable_global_config(cfg)
-        and not cfg.get("health_gated")
-        and not _is_runtime_cooled_down(int(cfg.get("id", 0)))
-        and (not requires_image_input or _cfg_supports_image_input(cfg))
-    ]
+    }
+    candidates: list[dict] = []
+    shared_cooled_down_ids = shared_cooled_down_ids or set()
+    for model in config.GLOBAL_MODELS:
+        model_id = int(model.get("id", 0))
+        if (
+            model_id >= 0
+            or _is_runtime_cooled_down(model_id)
+            or model_id in shared_cooled_down_ids
+        ):
+            continue
+        if not _has_capability(model, capability):
+            continue
+        cfg = config_by_model_name.get(model.get("model_id")) or {}
+        if cfg.get("health_gated"):
+            continue
+        if requires_image_input and not _has_capability(model, "vision"):
+            continue
+        if requires_image_input and cfg and not _cfg_supports_image_input(cfg):
+            continue
+        connection = connection_by_id.get(int(model.get("connection_id", 0)))
+        if not connection:
+            continue
+        catalog = model.get("catalog") or {}
+        candidates.append(
+            {
+                "id": model_id,
+                "model_id": model.get("model_id"),
+                "source": "global",
+                "connection": connection,
+                "supports_chat": model.get("supports_chat"),
+                "supports_image_input": model.get("supports_image_input"),
+                "supports_tools": model.get("supports_tools"),
+                "supports_image_generation": model.get("supports_image_generation"),
+                "capabilities_override": model.get("capabilities_override") or {},
+                "billing_tier": model.get("billing_tier", "free"),
+                "provider": connection.get("provider"),
+                "model_name": model.get("model_id"),
+                "auto_pin_tier": catalog.get("auto_pin_tier")
+                or cfg.get("auto_pin_tier")
+                or "A",
+                "quality_score": catalog.get("quality_score")
+                or cfg.get("quality_score")
+                or cfg.get("quality_score_static")
+                or 50,
+            }
+        )
     return sorted(candidates, key=lambda c: int(c.get("id", 0)))
+
+
+async def _db_candidates(
+    session: AsyncSession,
+    *,
+    search_space_id: int,
+    user_id: str | UUID | None,
+    capability: str,
+    requires_image_input: bool = False,
+) -> list[dict]:
+    parsed_user_id = _to_uuid(user_id)
+    stmt = (
+        select(Model)
+        .options(selectinload(Model.connection))
+        .join(Connection, Model.connection_id == Connection.id)
+        .where(Model.enabled.is_(True), Connection.enabled.is_(True))
+    )
+    result = await session.execute(stmt)
+    models = result.scalars().all()
+    shared_cooled_down_ids = _shared_runtime_cooled_down_ids(
+        [int(model.id) for model in models]
+    )
+    candidates: list[dict] = []
+    for model in models:
+        conn = model.connection
+        if not conn:
+            continue
+        if conn.search_space_id is not None and conn.search_space_id != search_space_id:
+            continue
+        if (
+            conn.user_id is not None
+            and parsed_user_id is not None
+            and conn.user_id != parsed_user_id
+        ):
+            continue
+        if conn.user_id is not None and parsed_user_id is None:
+            continue
+        if not _has_capability(model, capability):
+            continue
+        if requires_image_input and not _has_capability(model, "vision"):
+            continue
+        model_id = int(model.id)
+        if _is_runtime_cooled_down(model_id) or model_id in shared_cooled_down_ids:
+            continue
+        catalog = model.catalog or {}
+        candidates.append(
+            {
+                "id": model_id,
+                "model_id": model.model_id,
+                "source": "db",
+                "connection": conn,
+                "supports_chat": model.supports_chat,
+                "supports_image_input": model.supports_image_input,
+                "supports_tools": model.supports_tools,
+                "supports_image_generation": model.supports_image_generation,
+                "capabilities_override": model.capabilities_override or {},
+                "billing_tier": "byok",
+                "provider": conn.provider,
+                "model_name": model.model_id,
+                "auto_pin_tier": catalog.get("auto_pin_tier") or "BYOK",
+                "quality_score": catalog.get("quality_score") or 75,
+            }
+        )
+    return sorted(candidates, key=lambda c: int(c.get("id", 0)))
+
+
+async def auto_model_candidates(
+    session: AsyncSession,
+    *,
+    search_space_id: int,
+    user_id: str | UUID | None,
+    capability: str,
+    requires_image_input: bool = False,
+    exclude_model_ids: set[int] | None = None,
+) -> list[dict]:
+    excluded_ids = {int(mid) for mid in (exclude_model_ids or set())}
+    global_ids = [
+        int(model.get("id", 0))
+        for model in config.GLOBAL_MODELS
+        if int(model.get("id", 0)) < 0
+    ]
+    shared_global_cooled_down_ids = _shared_runtime_cooled_down_ids(global_ids)
+    db_candidates = await _db_candidates(
+        session,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        capability=capability,
+        requires_image_input=requires_image_input,
+    )
+    candidates = [
+        *_global_candidates(
+            capability=capability,
+            requires_image_input=requires_image_input,
+            shared_cooled_down_ids=shared_global_cooled_down_ids,
+        ),
+        *db_candidates,
+    ]
+    return [c for c in candidates if int(c.get("id", 0)) not in excluded_ids]
 
 
 def _tier_of(cfg: dict) -> str:
     return str(cfg.get("billing_tier", "free")).lower()
-
-
-def _is_preferred_premium_auto_config(cfg: dict) -> bool:
-    """Return True for the operator-preferred premium Auto model."""
-    return (
-        _tier_of(cfg) == "premium"
-        and str(cfg.get("provider", "")).upper() == "AZURE_OPENAI"
-        and str(cfg.get("model_name", "")).lower() == "gpt-5.4"
-    )
 
 
 def _select_pin(eligible: list[dict], thread_id: int) -> tuple[dict, int]:
@@ -246,9 +482,14 @@ def _select_pin(eligible: list[dict], thread_id: int) -> tuple[dict, int]:
     pool = tier_a if tier_a else eligible
     pool = sorted(pool, key=lambda c: -int(c.get("quality_score") or 0))
     top_k = pool[:_QUALITY_TOP_K]
-    digest = hashlib.sha256(f"{AUTO_FASTEST_MODE}:{thread_id}".encode()).digest()
+    digest = hashlib.sha256(f"{AUTO_PIN_HASH_NAMESPACE}:{thread_id}".encode()).digest()
     idx = int.from_bytes(digest[:8], "big") % len(top_k)
     return top_k[idx], len(top_k)
+
+
+def choose_auto_model_candidate(candidates: list[dict], seed_id: int) -> dict:
+    selected, _ = _select_pin(candidates, seed_id)
+    return selected
 
 
 def _to_uuid(user_id: str | UUID | None) -> UUID | None:
@@ -283,7 +524,7 @@ async def resolve_or_get_pinned_llm_config_id(
     exclude_config_ids: set[int] | None = None,
     requires_image_input: bool = False,
 ) -> AutoPinResolution:
-    """Resolve Auto (Fastest) to one concrete config id and persist the pin.
+    """Resolve Auto to one concrete config id and persist the pin.
 
     For non-auto selections, this function clears any existing pin and returns
     the selected id as-is.
@@ -315,7 +556,7 @@ async def resolve_or_get_pinned_llm_config_id(
         )
 
     # Explicit model selected: clear any stale pin.
-    if selected_llm_config_id != AUTO_FASTEST_ID:
+    if selected_llm_config_id != AUTO_MODE_ID:
         if thread.pinned_llm_config_id is not None:
             thread.pinned_llm_config_id = None
             await session.commit()
@@ -326,20 +567,21 @@ async def resolve_or_get_pinned_llm_config_id(
         )
 
     excluded_ids = {int(cid) for cid in (exclude_config_ids or set())}
-    candidates = [
-        c
-        for c in _global_candidates(requires_image_input=requires_image_input)
-        if int(c.get("id", 0)) not in excluded_ids
-    ]
+    candidates = await auto_model_candidates(
+        session,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        capability="chat",
+        requires_image_input=requires_image_input,
+        exclude_model_ids=excluded_ids,
+    )
     if not candidates:
         if requires_image_input:
             # Distinguish the "no vision-capable cfg" case from generic
             # "no usable cfg" so the streaming task can map this to the
             # MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT SSE error.
-            raise ValueError(
-                "No vision-capable global LLM configs are available for Auto mode"
-            )
-        raise ValueError("No usable global LLM configs are available for Auto mode")
+            raise ValueError("No vision-capable LLM models are available for Auto mode")
+        raise ValueError("No usable LLM models are available for Auto mode")
     candidate_by_id = {int(c["id"]): c for c in candidates}
 
     # Reuse an existing valid pin without re-checking current quota (no silent
@@ -379,24 +621,13 @@ async def resolve_or_get_pinned_llm_config_id(
         # log that explicitly so operators can correlate the re-pin with
         # the user's image attachment instead of suspecting a cooldown.
         if requires_image_input:
-            try:
-                pinned_global = next(
-                    c
-                    for c in config.GLOBAL_LLM_CONFIGS
-                    if int(c.get("id", 0)) == int(pinned_id)
-                )
-            except StopIteration:
-                pinned_global = None
-            if pinned_global is not None and not _cfg_supports_image_input(
-                pinned_global
-            ):
-                logger.info(
-                    "auto_pin_repinned_for_image thread_id=%s search_space_id=%s "
-                    "previous_config_id=%s",
-                    thread_id,
-                    search_space_id,
-                    pinned_id,
-                )
+            logger.info(
+                "auto_pin_repinned_for_image thread_id=%s search_space_id=%s "
+                "previous_config_id=%s",
+                thread_id,
+                search_space_id,
+                pinned_id,
+            )
         logger.info(
             "auto_pin_invalid thread_id=%s search_space_id=%s pinned_config_id=%s",
             thread_id,
@@ -407,12 +638,10 @@ async def resolve_or_get_pinned_llm_config_id(
     premium_eligible = (
         False if force_repin_free else await _is_premium_eligible(session, user_id)
     )
+    byok_candidates = [c for c in candidates if _tier_of(c) == "byok"]
     if premium_eligible:
         premium_candidates = [c for c in candidates if _tier_of(c) == "premium"]
-        preferred_premium = [
-            c for c in premium_candidates if _is_preferred_premium_auto_config(c)
-        ]
-        eligible = preferred_premium or premium_candidates
+        eligible = premium_candidates or byok_candidates
     else:
         eligible = [c for c in candidates if _tier_of(c) != "premium"]
 

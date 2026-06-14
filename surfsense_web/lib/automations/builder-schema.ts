@@ -73,7 +73,7 @@ export type BuilderExecution = z.infer<typeof builderExecutionSchema>;
  * later chat/search-space model changes.
  */
 export const builderModelsSchema = z.object({
-	agentLlmId: z.number().int(),
+	chatModelId: z.number().int(),
 	imageConfigId: z.number().int(),
 	visionConfigId: z.number().int(),
 });
@@ -90,7 +90,7 @@ export const builderFormSchema = z.object({
 	tags: z.array(z.string()),
 	/** Carried through from an edited definition so we don't drop it. */
 	goal: z.string().nullable(),
-	/** Selected agent/image/vision models (``0`` = use the eligible default). */
+	/** Selected chat/image/vision models (``0`` = use the eligible default). */
 	models: builderModelsSchema,
 });
 export type BuilderForm = z.infer<typeof builderFormSchema>;
@@ -147,7 +147,7 @@ export function createEmptyForm(): BuilderForm {
 		},
 		tags: [],
 		goal: null,
-		models: { agentLlmId: 0, imageConfigId: 0, visionConfigId: 0 },
+		models: { chatModelId: 0, imageConfigId: 0, visionConfigId: 0 },
 	};
 }
 
@@ -240,9 +240,9 @@ function buildDefinition(form: BuilderForm): AutomationDefinition {
 		...(hasResolvedModels(form.models)
 			? {
 					models: {
-						agent_llm_id: form.models.agentLlmId,
-						image_generation_config_id: form.models.imageConfigId,
-						vision_llm_config_id: form.models.visionConfigId,
+						chat_model_id: form.models.chatModelId,
+						image_gen_model_id: form.models.imageConfigId,
+						vision_model_id: form.models.visionConfigId,
 					},
 				}
 			: {}),
@@ -251,7 +251,7 @@ function buildDefinition(form: BuilderForm): AutomationDefinition {
 
 /** True once every model slot holds a concrete (non-zero) id. */
 export function hasResolvedModels(models: BuilderModels): boolean {
-	return models.agentLlmId !== 0 && models.imageConfigId !== 0 && models.visionConfigId !== 0;
+	return models.chatModelId !== 0 && models.imageConfigId !== 0 && models.visionConfigId !== 0;
 }
 
 /** The desired schedule trigger for this form, or ``null`` if none. */
@@ -500,9 +500,9 @@ function modelsFromDefinition(raw: unknown): BuilderModels {
 	const m = asRecord(raw);
 	const num = (value: unknown) => (typeof value === "number" ? value : 0);
 	return {
-		agentLlmId: num(m.agent_llm_id),
-		imageConfigId: num(m.image_generation_config_id),
-		visionConfigId: num(m.vision_llm_config_id),
+		chatModelId: num(m.chat_model_id),
+		imageConfigId: num(m.image_gen_model_id),
+		visionConfigId: num(m.vision_model_id),
 	};
 }
 

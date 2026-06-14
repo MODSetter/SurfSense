@@ -16,6 +16,9 @@ from app.agents.chat.multi_agent_chat.main_agent.middleware.kb_persistence impor
 )
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.services.new_streaming_service import VercelStreamingService
+from app.tasks.chat.message_parts_normalizer import (
+    final_assistant_parts_from_messages,
+)
 from app.tasks.chat.streaming.contract.file_contract import (
     contract_enforcement_active,
     evaluate_file_contract_outcome,
@@ -75,6 +78,9 @@ async def stream_agent_events(
 
     state = await agent.aget_state(config)
     state_values = getattr(state, "values", {}) or {}
+    result.final_message_parts = final_assistant_parts_from_messages(
+        state_values.get("messages")
+    )
 
     # Safety net: if astream_events was cancelled before
     # KnowledgeBasePersistenceMiddleware.aafter_agent ran, any staged work

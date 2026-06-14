@@ -23,9 +23,9 @@ class ActionContext:
     # Captured model snapshot from the automation definition (``definition.models``),
     # resolved per run instead of the live search space. ``None`` falls back to the
     # search space's current prefs (defensive; should not happen post-capture).
-    agent_llm_id: int | None = None
-    image_generation_config_id: int | None = None
-    vision_llm_config_id: int | None = None
+    chat_model_id: int | None = None
+    image_gen_model_id: int | None = None
+    vision_model_id: int | None = None
 
 
 ActionHandler = Callable[[dict[str, Any]], Awaitable[Any]]

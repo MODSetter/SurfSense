@@ -25,7 +25,7 @@ import { getProviderIcon } from "@/lib/provider-icons";
 import { Field } from "./form-field";
 
 export interface AutomationModelSelection {
-	agentLlmId: number;
+	chatModelId: number;
 	imageConfigId: number;
 	visionConfigId: number;
 }
@@ -39,7 +39,7 @@ interface AutomationModelFieldsProps {
 }
 
 /**
- * Three eligible-only model pickers (Agent LLM / Image / Vision) for the
+ * Three eligible-only model pickers (Chat / Image / Vision) for the
  * automation builder + chat approval card. Options come from
  * {@link useAutomationEligibleModels} (premium globals + BYOK only); selection
  * is validated + snapshotted onto `definition.models` at create time.
@@ -51,18 +51,18 @@ export function AutomationModelFields({
 	errors,
 }: AutomationModelFieldsProps) {
 	const { llm, image, vision, isLoading } = useAutomationEligibleModels();
-	const rolesHref = `/dashboard/${searchSpaceId}/search-space-settings/roles`;
+	const rolesHref = `/dashboard/${searchSpaceId}/search-space-settings/models`;
 
 	return (
 		<div className="flex flex-col gap-4">
 			<ModelSelectField
-				label="Agent model"
+				label="Chat model"
 				kind={llm}
-				value={value.agentLlmId}
+				value={value.chatModelId}
 				isLoading={isLoading}
 				rolesHref={rolesHref}
-				error={errors?.agentLlmId}
-				onChange={(id) => onChange({ agentLlmId: id })}
+				error={errors?.chatModelId}
+				onChange={(id) => onChange({ chatModelId: id })}
 			/>
 			<ModelSelectField
 				label="Image model"

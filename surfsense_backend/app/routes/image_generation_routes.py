@@ -1,7 +1,5 @@
 """
 Image Generation routes:
-- CRUD for ImageGenerationConfig (user-created image model configs)
-- Global image gen configs endpoint (from YAML)
 - Image generation execution (calls litellm.aimage_generation())
 - CRUD for ImageGeneration records (results)
 - Image serving endpoint (serves b64_json images from DB, protected by signed tokens)
@@ -16,11 +14,12 @@ from litellm import aimage_generation
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import config
 from app.db import (
     ImageGeneration,
-    ImageGenerationConfig,
+    Model,
     Permission,
     SearchSpace,
     SearchSpaceMembership,
@@ -28,13 +27,13 @@ from app.db import (
     get_async_session,
 )
 from app.schemas import (
-    GlobalImageGenConfigRead,
-    ImageGenerationConfigCreate,
-    ImageGenerationConfigRead,
-    ImageGenerationConfigUpdate,
     ImageGenerationCreate,
     ImageGenerationListRead,
     ImageGenerationRead,
+)
+from app.services.auto_model_pin_service import (
+    auto_model_candidates,
+    choose_auto_model_candidate,
 )
 from app.services.billable_calls import (
     DEFAULT_IMAGE_RESERVE_MICROS,
@@ -43,10 +42,10 @@ from app.services.billable_calls import (
 )
 from app.services.image_gen_router_service import (
     IMAGE_GEN_AUTO_MODE_ID,
-    ImageGenRouterService,
     is_image_gen_auto_mode,
 )
-from app.services.provider_api_base import resolve_api_base
+from app.services.model_capabilities import has_capability
+from app.services.model_resolver import to_litellm
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 from app.utils.signed_image_urls import verify_image_token
@@ -54,52 +53,16 @@ from app.utils.signed_image_urls import verify_image_token
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Provider mapping for building litellm model strings.
-# Only includes providers that support image generation.
-# See: https://docs.litellm.ai/docs/image_generation#supported-providers
-_PROVIDER_MAP = {
-    "OPENAI": "openai",
-    "AZURE_OPENAI": "azure",
-    "GOOGLE": "gemini",  # Google AI Studio
-    "VERTEX_AI": "vertex_ai",
-    "BEDROCK": "bedrock",  # AWS Bedrock
-    "RECRAFT": "recraft",
-    "OPENROUTER": "openrouter",
-    "XINFERENCE": "xinference",
-    "NSCALE": "nscale",
-}
+
+def _get_global_model(model_id: int) -> dict | None:
+    return next((m for m in config.GLOBAL_MODELS if m.get("id") == model_id), None)
 
 
-def _get_global_image_gen_config(config_id: int) -> dict | None:
-    """Get a global image generation configuration by ID (negative IDs)."""
-    if config_id == IMAGE_GEN_AUTO_MODE_ID:
-        return {
-            "id": IMAGE_GEN_AUTO_MODE_ID,
-            "name": "Auto (Fastest)",
-            "provider": "AUTO",
-            "model_name": "auto",
-            "is_auto_mode": True,
-        }
-    if config_id > 0:
-        return None
-    for cfg in config.GLOBAL_IMAGE_GEN_CONFIGS:
-        if cfg.get("id") == config_id:
-            return cfg
-    return None
-
-
-def _resolve_provider_prefix(provider: str, custom_provider: str | None) -> str:
-    """Resolve the LiteLLM provider prefix used in model strings."""
-    if custom_provider:
-        return custom_provider
-    return _PROVIDER_MAP.get(provider.upper(), provider.lower())
-
-
-def _build_model_string(
-    provider: str, model_name: str, custom_provider: str | None
-) -> str:
-    """Build a litellm model string from provider + model_name."""
-    return f"{_resolve_provider_prefix(provider, custom_provider)}/{model_name}"
+def _get_global_connection(connection_id: int) -> dict | None:
+    return next(
+        (c for c in config.GLOBAL_CONNECTIONS if c.get("id") == connection_id),
+        None,
+    )
 
 
 async def _resolve_billing_for_image_gen(
@@ -115,34 +78,41 @@ async def _resolve_billing_for_image_gen(
     config that will actually run, and so we don't open an
     ``ImageGeneration`` row for a request that's about to 402.
 
-    User-owned (positive ID) BYOK configs are always free — they cost
-    the user nothing on our side. Auto mode currently treats as free
-    because the underlying router can dispatch to either premium or
-    free YAML configs and we don't surface the resolved deployment up
-    here yet. Bringing Auto under premium billing would require
-    threading the chosen deployment back from ``ImageGenRouterService``.
+    User-owned (positive ID) BYOK models are always free — they cost
+    the user nothing on our side. Auto mode resolves to one concrete
+    global or BYOK model before billing is calculated.
     """
     resolved_id = config_id
     if resolved_id is None:
-        resolved_id = search_space.image_generation_config_id or IMAGE_GEN_AUTO_MODE_ID
+        resolved_id = search_space.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
 
     if is_image_gen_auto_mode(resolved_id):
-        return ("free", "auto", DEFAULT_IMAGE_RESERVE_MICROS)
+        candidates = await auto_model_candidates(
+            session,
+            search_space_id=search_space.id,
+            user_id=search_space.user_id,
+            capability="image_gen",
+        )
+        if not candidates:
+            return ("free", "auto", DEFAULT_IMAGE_RESERVE_MICROS)
+        selected = choose_auto_model_candidate(candidates, search_space.id)
+        resolved_id = int(selected["id"])
 
     if resolved_id < 0:
-        cfg = _get_global_image_gen_config(resolved_id) or {}
-        billing_tier = str(cfg.get("billing_tier", "free")).lower()
-        base_model = _build_model_string(
-            cfg.get("provider", ""),
-            cfg.get("model_name", ""),
-            cfg.get("custom_provider"),
-        )
+        global_model = _get_global_model(resolved_id) or {}
+        global_connection = _get_global_connection(global_model.get("connection_id", 0))
+        billing_tier = str(global_model.get("billing_tier", "free")).lower()
+        if global_connection and global_model.get("model_id"):
+            base_model, _ = to_litellm(global_connection, global_model["model_id"])
+        else:
+            base_model = "global_image_model"
+        catalog = global_model.get("catalog") or {}
         reserve_micros = int(
-            cfg.get("quota_reserve_micros") or DEFAULT_IMAGE_RESERVE_MICROS
+            catalog.get("quota_reserve_micros") or DEFAULT_IMAGE_RESERVE_MICROS
         )
         return (billing_tier, base_model, reserve_micros)
 
-    # Positive ID = user-owned BYOK image-gen config — always free.
+    # Positive ID = user-owned BYOK image-gen model — always free.
     return ("free", "user_byok", DEFAULT_IMAGE_RESERVE_MICROS)
 
 
@@ -155,14 +125,14 @@ async def _execute_image_generation(
     Call litellm.aimage_generation() with the appropriate config.
 
     Resolution order:
-    1. Explicit image_generation_config_id on the request
-    2. Search space's image_generation_config_id preference
+    1. Explicit image_gen_model_id on the request
+    2. Search space's image_gen_model_id preference
     3. Falls back to Auto mode if available
     """
-    config_id = image_gen.image_generation_config_id
+    config_id = image_gen.image_gen_model_id
     if config_id is None:
-        config_id = search_space.image_generation_config_id or IMAGE_GEN_AUTO_MODE_ID
-        image_gen.image_generation_config_id = config_id
+        config_id = search_space.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
+        image_gen.image_gen_model_id = config_id
 
     # Build kwargs
     gen_kwargs = {}
@@ -178,36 +148,30 @@ async def _execute_image_generation(
         gen_kwargs["response_format"] = image_gen.response_format
 
     if is_image_gen_auto_mode(config_id):
-        if not ImageGenRouterService.is_initialized():
-            raise ValueError(
-                "Auto mode requested but Image Generation Router not initialized. "
-                "Ensure global_llm_config.yaml has global_image_generation_configs."
-            )
-        response = await ImageGenRouterService.aimage_generation(
-            prompt=image_gen.prompt, model="auto", **gen_kwargs
+        candidates = await auto_model_candidates(
+            session,
+            search_space_id=search_space.id,
+            user_id=search_space.user_id,
+            capability="image_gen",
         )
-    elif config_id < 0:
-        # Global config from YAML
-        cfg = _get_global_image_gen_config(config_id)
-        if not cfg:
-            raise ValueError(f"Global image generation config {config_id} not found")
+        if not candidates:
+            raise ValueError("No image-generation models are available for Auto mode")
+        config_id = int(choose_auto_model_candidate(candidates, search_space.id)["id"])
+        image_gen.image_gen_model_id = config_id
 
-        provider_prefix = _resolve_provider_prefix(
-            cfg.get("provider", ""), cfg.get("custom_provider")
+    if config_id < 0:
+        global_model = _get_global_model(config_id)
+        if not global_model or not has_capability(global_model, "image_gen"):
+            raise ValueError(f"Global image generation model {config_id} not found")
+        global_connection = _get_global_connection(global_model["connection_id"])
+        if not global_connection:
+            raise ValueError(f"Global connection for image model {config_id} not found")
+
+        model_string, resolved_kwargs = to_litellm(
+            global_connection,
+            global_model["model_id"],
         )
-        model_string = f"{provider_prefix}/{cfg['model_name']}"
-        gen_kwargs["api_key"] = cfg.get("api_key")
-        api_base = resolve_api_base(
-            provider=cfg.get("provider"),
-            provider_prefix=provider_prefix,
-            config_api_base=cfg.get("api_base"),
-        )
-        if api_base:
-            gen_kwargs["api_base"] = api_base
-        if cfg.get("api_version"):
-            gen_kwargs["api_version"] = cfg["api_version"]
-        if cfg.get("litellm_params"):
-            gen_kwargs.update(cfg["litellm_params"])
+        gen_kwargs.update(resolved_kwargs)
 
         # User model override
         if image_gen.model:
@@ -217,30 +181,28 @@ async def _execute_image_generation(
             prompt=image_gen.prompt, model=model_string, **gen_kwargs
         )
     else:
-        # Positive ID = DB ImageGenerationConfig
+        # Positive ID = Model + Connection
         result = await session.execute(
-            select(ImageGenerationConfig).filter(ImageGenerationConfig.id == config_id)
+            select(Model)
+            .options(selectinload(Model.connection))
+            .filter(Model.id == config_id, Model.enabled.is_(True))
         )
-        db_cfg = result.scalars().first()
-        if not db_cfg:
-            raise ValueError(f"Image generation config {config_id} not found")
+        db_model = result.scalars().first()
+        if not db_model or not db_model.connection or not db_model.connection.enabled:
+            raise ValueError(f"Image generation model {config_id} not found")
+        conn = db_model.connection
+        if conn.search_space_id is not None and conn.search_space_id != search_space.id:
+            raise ValueError(f"Image generation model {config_id} not found")
+        if conn.user_id is not None and conn.user_id != search_space.user_id:
+            raise ValueError(f"Image generation model {config_id} not found")
+        if not has_capability(db_model, "image_gen"):
+            raise ValueError(f"Model {config_id} is not image-generation capable")
 
-        provider_prefix = _resolve_provider_prefix(
-            db_cfg.provider.value, db_cfg.custom_provider
+        model_string, resolved_kwargs = to_litellm(
+            db_model.connection,
+            db_model.model_id,
         )
-        model_string = f"{provider_prefix}/{db_cfg.model_name}"
-        gen_kwargs["api_key"] = db_cfg.api_key
-        api_base = resolve_api_base(
-            provider=db_cfg.provider.value,
-            provider_prefix=provider_prefix,
-            config_api_base=db_cfg.api_base,
-        )
-        if api_base:
-            gen_kwargs["api_base"] = api_base
-        if db_cfg.api_version:
-            gen_kwargs["api_version"] = db_cfg.api_version
-        if db_cfg.litellm_params:
-            gen_kwargs.update(db_cfg.litellm_params)
+        gen_kwargs.update(resolved_kwargs)
 
         # User model override
         if image_gen.model:
@@ -258,266 +220,6 @@ async def _execute_image_generation(
         hidden = response._hidden_params
         if isinstance(hidden, dict) and hidden.get("model"):
             image_gen.model = hidden["model"]
-
-
-# =============================================================================
-# Global Image Generation Configs (from YAML)
-# =============================================================================
-
-
-@router.get(
-    "/global-image-generation-configs",
-    response_model=list[GlobalImageGenConfigRead],
-)
-async def get_global_image_gen_configs(
-    user: User = Depends(current_active_user),
-):
-    """Get all global image generation configs. API keys are hidden."""
-    try:
-        global_configs = config.GLOBAL_IMAGE_GEN_CONFIGS
-        safe_configs = []
-
-        if global_configs and len(global_configs) > 0:
-            safe_configs.append(
-                {
-                    "id": 0,
-                    "name": "Auto (Fastest)",
-                    "description": "Automatically routes across available image generation providers.",
-                    "provider": "AUTO",
-                    "custom_provider": None,
-                    "model_name": "auto",
-                    "api_base": None,
-                    "api_version": None,
-                    "litellm_params": {},
-                    "is_global": True,
-                    "is_auto_mode": True,
-                    # Auto mode currently treated as free until per-deployment
-                    # billing-tier surfacing lands (see _resolve_billing_for_image_gen).
-                    "billing_tier": "free",
-                    "is_premium": False,
-                }
-            )
-
-        for cfg in global_configs:
-            billing_tier = str(cfg.get("billing_tier", "free")).lower()
-            safe_configs.append(
-                {
-                    "id": cfg.get("id"),
-                    "name": cfg.get("name"),
-                    "description": cfg.get("description"),
-                    "provider": cfg.get("provider"),
-                    "custom_provider": cfg.get("custom_provider"),
-                    "model_name": cfg.get("model_name"),
-                    "api_base": cfg.get("api_base") or None,
-                    "api_version": cfg.get("api_version") or None,
-                    "litellm_params": cfg.get("litellm_params", {}),
-                    "is_global": True,
-                    "billing_tier": billing_tier,
-                    # Mirror chat (``new_llm_config_routes``) so the new-chat
-                    # selector's premium badge logic keys off the same
-                    # field across chat / image / vision tabs.
-                    "is_premium": billing_tier == "premium",
-                    "quota_reserve_micros": cfg.get("quota_reserve_micros"),
-                }
-            )
-
-        return safe_configs
-    except Exception as e:
-        logger.exception("Failed to fetch global image generation configs")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to fetch configs: {e!s}"
-        ) from e
-
-
-# =============================================================================
-# ImageGenerationConfig CRUD
-# =============================================================================
-
-
-@router.post("/image-generation-configs", response_model=ImageGenerationConfigRead)
-async def create_image_gen_config(
-    config_data: ImageGenerationConfigCreate,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """Create a new image generation config for a search space."""
-    try:
-        await check_permission(
-            session,
-            user,
-            config_data.search_space_id,
-            Permission.IMAGE_GENERATIONS_CREATE.value,
-            "You don't have permission to create image generation configs in this search space",
-        )
-
-        db_config = ImageGenerationConfig(**config_data.model_dump(), user_id=user.id)
-        session.add(db_config)
-        await session.commit()
-        await session.refresh(db_config)
-        return db_config
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        await session.rollback()
-        logger.exception("Failed to create ImageGenerationConfig")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to create config: {e!s}"
-        ) from e
-
-
-@router.get("/image-generation-configs", response_model=list[ImageGenerationConfigRead])
-async def list_image_gen_configs(
-    search_space_id: int,
-    skip: int = 0,
-    limit: int = 100,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """List image generation configs for a search space."""
-    try:
-        await check_permission(
-            session,
-            user,
-            search_space_id,
-            Permission.IMAGE_GENERATIONS_READ.value,
-            "You don't have permission to view image generation configs in this search space",
-        )
-
-        result = await session.execute(
-            select(ImageGenerationConfig)
-            .filter(ImageGenerationConfig.search_space_id == search_space_id)
-            .order_by(ImageGenerationConfig.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-        )
-        return result.scalars().all()
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Failed to list ImageGenerationConfigs")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to fetch configs: {e!s}"
-        ) from e
-
-
-@router.get(
-    "/image-generation-configs/{config_id}", response_model=ImageGenerationConfigRead
-)
-async def get_image_gen_config(
-    config_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """Get a specific image generation config by ID."""
-    try:
-        result = await session.execute(
-            select(ImageGenerationConfig).filter(ImageGenerationConfig.id == config_id)
-        )
-        db_config = result.scalars().first()
-        if not db_config:
-            raise HTTPException(status_code=404, detail="Config not found")
-
-        await check_permission(
-            session,
-            user,
-            db_config.search_space_id,
-            Permission.IMAGE_GENERATIONS_READ.value,
-            "You don't have permission to view image generation configs in this search space",
-        )
-        return db_config
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Failed to get ImageGenerationConfig")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to fetch config: {e!s}"
-        ) from e
-
-
-@router.put(
-    "/image-generation-configs/{config_id}", response_model=ImageGenerationConfigRead
-)
-async def update_image_gen_config(
-    config_id: int,
-    update_data: ImageGenerationConfigUpdate,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """Update an existing image generation config."""
-    try:
-        result = await session.execute(
-            select(ImageGenerationConfig).filter(ImageGenerationConfig.id == config_id)
-        )
-        db_config = result.scalars().first()
-        if not db_config:
-            raise HTTPException(status_code=404, detail="Config not found")
-
-        await check_permission(
-            session,
-            user,
-            db_config.search_space_id,
-            Permission.IMAGE_GENERATIONS_CREATE.value,
-            "You don't have permission to update image generation configs in this search space",
-        )
-
-        for key, value in update_data.model_dump(exclude_unset=True).items():
-            setattr(db_config, key, value)
-
-        await session.commit()
-        await session.refresh(db_config)
-        return db_config
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        await session.rollback()
-        logger.exception("Failed to update ImageGenerationConfig")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update config: {e!s}"
-        ) from e
-
-
-@router.delete("/image-generation-configs/{config_id}", response_model=dict)
-async def delete_image_gen_config(
-    config_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """Delete an image generation config."""
-    try:
-        result = await session.execute(
-            select(ImageGenerationConfig).filter(ImageGenerationConfig.id == config_id)
-        )
-        db_config = result.scalars().first()
-        if not db_config:
-            raise HTTPException(status_code=404, detail="Config not found")
-
-        await check_permission(
-            session,
-            user,
-            db_config.search_space_id,
-            Permission.IMAGE_GENERATIONS_DELETE.value,
-            "You don't have permission to delete image generation configs in this search space",
-        )
-
-        await session.delete(db_config)
-        await session.commit()
-        return {
-            "message": "Image generation config deleted successfully",
-            "id": config_id,
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        await session.rollback()
-        logger.exception("Failed to delete ImageGenerationConfig")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to delete config: {e!s}"
-        ) from e
 
 
 # =============================================================================
@@ -568,7 +270,7 @@ async def create_image_generation(
             raise HTTPException(status_code=404, detail="Search space not found")
 
         billing_tier, base_model, reserve_micros = await _resolve_billing_for_image_gen(
-            session, data.image_generation_config_id, search_space
+            session, data.image_gen_model_id, search_space
         )
 
         # billable_call runs OUTSIDE the inner try/except so QuotaInsufficientError
@@ -594,7 +296,7 @@ async def create_image_generation(
                 size=data.size,
                 style=data.style,
                 response_format=data.response_format,
-                image_generation_config_id=data.image_generation_config_id,
+                image_gen_model_id=data.image_gen_model_id,
                 search_space_id=data.search_space_id,
                 created_by_id=user.id,
             )

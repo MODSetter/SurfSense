@@ -25,10 +25,10 @@ def _fake_yaml_config(
     return {
         "id": id,
         "name": f"yaml-{id}",
-        "provider": "OPENAI",
+        "litellm_provider": "openai",
         "model_name": model_name,
         "api_key": "sk-test",
-        "api_base": "",
+        "api_base": "https://api.openai.com/v1",
         "billing_tier": billing_tier,
         "rpm": 100,
         "tpm": 100_000,
@@ -54,10 +54,10 @@ def _fake_openrouter_config(
     return {
         "id": id,
         "name": f"or-{id}",
-        "provider": "OPENROUTER",
+        "litellm_provider": "openrouter",
         "model_name": model_name,
         "api_key": "sk-or-test",
-        "api_base": "",
+        "api_base": "https://openrouter.ai/api/v1",
         "billing_tier": billing_tier,
         "rpm": 20 if billing_tier == "free" else 200,
         "tpm": 100_000 if billing_tier == "free" else 1_000_000,
@@ -217,10 +217,64 @@ def test_auto_model_pin_candidates_include_dynamic_openrouter():
         model_name="meta-llama/llama-3.3-70b:free",
         billing_tier="free",
     )
-    original = config.GLOBAL_LLM_CONFIGS
+    global_connections = [
+        {
+            "id": -110_001,
+            "provider": "openrouter",
+            "scope": "GLOBAL",
+            "enabled": True,
+        },
+        {
+            "id": -110_002,
+            "provider": "openrouter",
+            "scope": "GLOBAL",
+            "enabled": True,
+        },
+    ]
+    global_models = [
+        {
+            "id": or_premium["id"],
+            "connection_id": -110_001,
+            "model_id": or_premium["model_name"],
+            "display_name": or_premium["name"],
+            "supports_chat": True,
+            "supports_image_input": True,
+            "supports_tools": True,
+            "supports_image_generation": False,
+            "capabilities_override": {},
+            "billing_tier": or_premium["billing_tier"],
+            "catalog": {
+                "auto_pin_tier": "A",
+                "quality_score": 50,
+            },
+        },
+        {
+            "id": or_free["id"],
+            "connection_id": -110_002,
+            "model_id": or_free["model_name"],
+            "display_name": or_free["name"],
+            "supports_chat": True,
+            "supports_image_input": True,
+            "supports_tools": True,
+            "supports_image_generation": False,
+            "capabilities_override": {},
+            "billing_tier": or_free["billing_tier"],
+            "catalog": {
+                "auto_pin_tier": "A",
+                "quality_score": 50,
+            },
+        },
+    ]
+    original_configs = config.GLOBAL_LLM_CONFIGS
+    original_connections = config.GLOBAL_CONNECTIONS
+    original_models = config.GLOBAL_MODELS
     try:
         config.GLOBAL_LLM_CONFIGS = [or_premium, or_free]
+        config.GLOBAL_CONNECTIONS = global_connections
+        config.GLOBAL_MODELS = global_models
         candidate_ids = {c["id"] for c in _global_candidates()}
         assert candidate_ids == {-10_001, -10_002}
     finally:
-        config.GLOBAL_LLM_CONFIGS = original
+        config.GLOBAL_LLM_CONFIGS = original_configs
+        config.GLOBAL_CONNECTIONS = original_connections
+        config.GLOBAL_MODELS = original_models

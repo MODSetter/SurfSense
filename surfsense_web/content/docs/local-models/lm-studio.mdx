@@ -1,0 +1,92 @@
+---
+title: LM Studio
+description: Connect LM Studio to SurfSense
+---
+
+# Connect LM Studio
+
+Connect to your LM Studio local server. Add it from
+**Search Space Settings > Models**.
+
+## Base URL
+
+LM Studio uses an OpenAI compatible server.
+
+### SurfSense Runs in Docker
+
+Use this when SurfSense is running from Docker and LM Studio is running on your computer.
+
+```text
+http://host.docker.internal:1234/v1
+```
+
+<Callout type="info">
+This is the default in SurfSense.
+</Callout>
+
+### SurfSense Runs Without Docker
+
+Use this when SurfSense and LM Studio both run directly on the same computer.
+
+```text
+http://localhost:1234/v1
+```
+
+### LM Studio Runs on Another Computer
+
+Use this when LM Studio is running on another machine in your network.
+
+```text
+http://<host>:1234/v1
+```
+
+Replace `<host>` with the LAN IP or domain for that machine.
+
+## LM Studio Setup
+
+1. Open LM Studio.
+2. Load a model.
+3. Start the local server.
+4. Confirm the server listens on port `1234`.
+
+## Add the Connection
+
+1. Open Search Space Settings.
+2. Go to Models.
+3. Select LM Studio.
+4. Set API Base URL.
+5. Leave API Key empty unless your server requires one.
+6. Select the models you want to enable.
+7. Save the connection.
+
+SurfSense discovers models from `/v1/models`. If you enter the URL without `/v1`, SurfSense adds it for requests.
+
+## Verify
+
+From the host:
+
+```bash
+curl http://localhost:1234/v1/models
+```
+
+From the SurfSense backend container:
+
+```bash
+docker compose exec backend curl http://host.docker.internal:1234/v1/models
+```
+
+## Troubleshooting
+
+### Connection refused
+
+LM Studio is not reachable from the backend.
+
+Start the LM Studio server and confirm that port `1234` is open.
+
+### No models found
+
+Load a model in LM Studio, then refresh model discovery in SurfSense.
+
+### Endpoint returned 404
+
+Use an OpenAI compatible server URL. The models endpoint must be available at `/v1/models`.

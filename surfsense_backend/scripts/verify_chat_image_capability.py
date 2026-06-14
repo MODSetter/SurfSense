@@ -55,7 +55,6 @@ from app.services.openrouter_integration_service import (  # noqa: E402
     _OPENROUTER_DYNAMIC_MARKER,
     OpenRouterIntegrationService,
 )
-from app.services.provider_api_base import resolve_api_base  # noqa: E402
 from app.services.provider_capabilities import (  # noqa: E402
     derive_supports_image_input,
     is_known_text_only_chat_model,
@@ -154,13 +153,13 @@ def _probe_chat_capability(cfg: dict) -> tuple[bool, str]:
         litellm_params.get("base_model") if isinstance(litellm_params, dict) else None
     )
     cap = derive_supports_image_input(
-        provider=cfg.get("provider"),
+        provider=cfg.get("litellm_provider"),
         model_name=cfg.get("model_name"),
         base_model=base_model,
         custom_provider=cfg.get("custom_provider"),
     )
     block = is_known_text_only_chat_model(
-        provider=cfg.get("provider"),
+        provider=cfg.get("litellm_provider"),
         model_name=cfg.get("model_name"),
         base_model=base_model,
         custom_provider=cfg.get("custom_provider"),
@@ -179,11 +178,7 @@ def _probe_chat_capability(cfg: dict) -> tuple[bool, str]:
 def _build_chat_model_string(cfg: dict) -> str:
     if cfg.get("custom_provider"):
         return f"{cfg['custom_provider']}/{cfg['model_name']}"
-    from app.services.provider_capabilities import _PROVIDER_PREFIX_MAP
-
-    prefix = _PROVIDER_PREFIX_MAP.get(
-        (cfg.get("provider") or "").upper(), (cfg.get("provider") or "").lower()
-    )
+    prefix = cfg.get("litellm_provider") or "openai"
     return f"{prefix}/{cfg['model_name']}"
 
 
@@ -195,11 +190,6 @@ def _build_chat_model_string(cfg: dict) -> str:
 async def _live_chat_image_call(cfg: dict) -> tuple[bool, str]:
     """Send a 1x1 PNG + `reply with one word: ok` to the chat config."""
     model_string = _build_chat_model_string(cfg)
-    api_base = resolve_api_base(
-        provider=cfg.get("provider"),
-        provider_prefix=model_string.split("/", 1)[0],
-        config_api_base=cfg.get("api_base") or None,
-    )
     kwargs: dict[str, Any] = {
         "model": model_string,
         "api_key": cfg.get("api_key"),
@@ -218,8 +208,8 @@ async def _live_chat_image_call(cfg: dict) -> tuple[bool, str]:
         "max_tokens": 16,
         "timeout": 60,
     }
-    if api_base:
-        kwargs["api_base"] = api_base
+    if cfg.get("api_base"):
+        kwargs["api_base"] = cfg["api_base"]
     if cfg.get("litellm_params"):
         # Strip pricing keys — they're tracking-only and confuse some
         # provider validators (e.g. azure/openai reject unknown kwargs
@@ -257,20 +247,11 @@ _IMAGE_GEN_PROMPTS: tuple[str, ...] = (
 
 async def _live_image_gen_call(cfg: dict) -> tuple[bool, str]:
     """Generate one tiny image to verify the deployment is reachable."""
-    from app.services.provider_capabilities import _PROVIDER_PREFIX_MAP
-
     if cfg.get("custom_provider"):
         prefix = cfg["custom_provider"]
     else:
-        prefix = _PROVIDER_PREFIX_MAP.get(
-            (cfg.get("provider") or "").upper(), (cfg.get("provider") or "").lower()
-        )
+        prefix = cfg.get("litellm_provider") or "openai"
     model_string = f"{prefix}/{cfg['model_name']}"
-    api_base = resolve_api_base(
-        provider=cfg.get("provider"),
-        provider_prefix=prefix,
-        config_api_base=cfg.get("api_base") or None,
-    )
     base_kwargs: dict[str, Any] = {
         "model": model_string,
         "api_key": cfg.get("api_key"),
@@ -278,8 +259,8 @@ async def _live_image_gen_call(cfg: dict) -> tuple[bool, str]:
         "size": "1024x1024",
         "timeout": 120,
     }
-    if api_base:
-        base_kwargs["api_base"] = api_base
+    if cfg.get("api_base"):
+        base_kwargs["api_base"] = cfg["api_base"]
     if cfg.get("api_version"):
         base_kwargs["api_version"] = cfg["api_version"]
     if cfg.get("litellm_params"):
@@ -349,31 +330,6 @@ async def probe_chat_configs(report: Report, *, live: bool) -> None:
         report.add(result)
 
 
-async def probe_vision_configs(report: Report, *, live: bool) -> None:
-    print("\n[vision configs from global_vision_llm_configs (YAML-static)]")
-    for cfg in config.GLOBAL_VISION_LLM_CONFIGS:
-        if _is_or_dynamic(cfg):
-            continue
-        result = ProbeResult(
-            label=str(cfg.get("name") or cfg.get("model_name")),
-            surface="vision",
-            config_id=cfg.get("id"),
-        )
-        # For vision configs, capability is implied — they're in the
-        # dedicated vision pool. Run the same resolver to flag any
-        # surprise disagreement.
-        cap_ok, cap_note = _probe_chat_capability(cfg)
-        result.capability_ok = cap_ok
-        result.capability_note = cap_note
-        if live:
-            t0 = time.perf_counter()
-            ok, note = await _live_chat_image_call(cfg)
-            result.live_ok = ok
-            result.live_note = note
-            result.duration_s = time.perf_counter() - t0
-        report.add(result)
-
-
 async def probe_image_gen_configs(report: Report, *, live: bool) -> None:
     print(
         "\n[image generation configs from global_image_generation_configs (YAML-static)]"
@@ -399,7 +355,7 @@ async def probe_image_gen_configs(report: Report, *, live: bool) -> None:
 
 
 async def probe_openrouter_catalog(report: Report, *, live: bool) -> None:
-    """Sample one chat (vision-capable), one vision, one image-gen model
+    """Sample chat/vision-capable and image-gen models
     from the live OpenRouter catalogue. Doesn't iterate the full pool
     (would be hundreds of probes); just validates the integration end-
     to-end on a representative model from each surface."""
@@ -424,9 +380,6 @@ async def probe_openrouter_catalog(report: Report, *, live: bool) -> None:
         for c in config.GLOBAL_LLM_CONFIGS
         if c.get("provider") == "OPENROUTER" and c.get("supports_image_input")
     ]
-    or_vision = [
-        c for c in config.GLOBAL_VISION_LLM_CONFIGS if c.get("provider") == "OPENROUTER"
-    ]
     or_image_gen = [
         c for c in config.GLOBAL_IMAGE_GEN_CONFIGS if c.get("provider") == "OPENROUTER"
     ]
@@ -446,11 +399,6 @@ async def probe_openrouter_catalog(report: Report, *, live: bool) -> None:
         ("or-chat", _pick_first(or_chat, "anthropic/claude")),
         ("or-chat", _pick_first(or_chat, "google/gemini-2.5-flash")),
     ]
-    vision_picks = [
-        ("or-vision", _pick_first(or_vision, "openai/gpt-4o")),
-        ("or-vision", _pick_first(or_vision, "anthropic/claude")),
-        ("or-vision", _pick_first(or_vision, "google/gemini-2.5-flash")),
-    ]
     image_picks = [
         ("or-image", _pick_first(or_image_gen, "google/gemini-2.5-flash-image")),
         # OpenRouter publishes OpenAI image models as ``openai/gpt-5-image*``
@@ -460,11 +408,11 @@ async def probe_openrouter_catalog(report: Report, *, live: bool) -> None:
     ]
 
     print(
-        f"  catalog: chat={len(or_chat)} vision={len(or_vision)} image_gen={len(or_image_gen)} "
+        f"  catalog: chat_vision={len(or_chat)} image_gen={len(or_image_gen)} "
         f"(service initialized={service.is_initialized() if hasattr(service, 'is_initialized') else 'n/a'})"
     )
 
-    for surface, picked in chat_picks + vision_picks + image_picks:
+    for surface, picked in chat_picks + image_picks:
         if not picked:
             report.add(
                 ProbeResult(
@@ -505,7 +453,6 @@ async def probe_openrouter_catalog(report: Report, *, live: bool) -> None:
 async def main(args: argparse.Namespace) -> int:
     print("Loaded global configs:")
     print(f"  chat:      {len(config.GLOBAL_LLM_CONFIGS)} entries")
-    print(f"  vision:    {len(config.GLOBAL_VISION_LLM_CONFIGS)} entries")
     print(f"  image-gen: {len(config.GLOBAL_IMAGE_GEN_CONFIGS)} entries")
     print(f"  OR settings present: {bool(config.OPENROUTER_INTEGRATION_SETTINGS)}")
 
@@ -526,8 +473,6 @@ async def main(args: argparse.Namespace) -> int:
     report = Report()
     if not args.skip_chat:
         await probe_chat_configs(report, live=args.live)
-    if not args.skip_vision:
-        await probe_vision_configs(report, live=args.live)
     if not args.skip_image_gen:
         await probe_image_gen_configs(report, live=args.live)
     if not args.skip_openrouter:
@@ -547,7 +492,6 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.set_defaults(live=True)
     parser.add_argument("--skip-chat", action="store_true")
-    parser.add_argument("--skip-vision", action="store_true")
     parser.add_argument("--skip-image-gen", action="store_true")
     parser.add_argument("--skip-openrouter", action="store_true")
     return parser.parse_args()

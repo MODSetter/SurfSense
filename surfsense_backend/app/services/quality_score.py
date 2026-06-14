@@ -1,4 +1,4 @@
-"""Pure-function quality scoring for Auto (Fastest) model selection.
+"""Pure-function quality scoring for Auto model selection.
 
 This module is import-free of any service / request-path dependencies. All
 numbers are computed once during the OpenRouter refresh tick (or YAML load)
@@ -108,25 +108,23 @@ PROVIDER_PRESTIGE_OR: dict[str, int] = {
 
 # YAML provider field (the upstream API shape the operator selected).
 PROVIDER_PRESTIGE_YAML: dict[str, int] = {
-    "AZURE_OPENAI": 50,
-    "OPENAI": 50,
-    "ANTHROPIC": 50,
-    "GOOGLE": 50,
-    "VERTEX_AI": 50,
-    "GEMINI": 50,
-    "XAI": 50,
-    "MISTRAL": 38,
-    "DEEPSEEK": 38,
-    "COHERE": 38,
-    "GROQ": 30,
-    "TOGETHER_AI": 28,
-    "FIREWORKS_AI": 28,
-    "PERPLEXITY": 28,
-    "MINIMAX": 28,
-    "BEDROCK": 28,
-    "OPENROUTER": 25,
-    "OLLAMA": 12,
-    "CUSTOM": 12,
+    "azure": 50,
+    "openai": 50,
+    "anthropic": 50,
+    "gemini": 50,
+    "vertex_ai": 50,
+    "xai": 50,
+    "mistral": 38,
+    "deepseek": 38,
+    "cohere": 38,
+    "groq": 30,
+    "together_ai": 28,
+    "fireworks_ai": 28,
+    "perplexity": 28,
+    "bedrock": 28,
+    "openrouter": 25,
+    "ollama_chat": 12,
+    "custom": 12,
 }
 
 
@@ -275,7 +273,7 @@ def static_score_yaml(cfg: dict) -> int:
     listed this model. Pricing / context fall through to lazy ``litellm``
     lookups; failures are silent (we just lose those sub-points).
     """
-    provider = str(cfg.get("provider", "")).upper()
+    provider = str(cfg.get("provider") or cfg.get("litellm_provider") or "").lower()
     base = PROVIDER_PRESTIGE_YAML.get(provider, 15)
 
     model_name = cfg.get("model_name") or ""

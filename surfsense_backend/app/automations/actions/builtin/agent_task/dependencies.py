@@ -39,31 +39,31 @@ async def build_dependencies(
     *,
     session: AsyncSession,
     search_space_id: int,
-    agent_llm_id: int | None = None,
-    image_generation_config_id: int | None = None,
-    vision_llm_config_id: int | None = None,
+    chat_model_id: int | None = None,
+    image_gen_model_id: int | None = None,
+    vision_model_id: int | None = None,
 ) -> AgentDependencies:
     """Load the LLM bundle, connector service, and a per-invoke in-memory checkpointer.
 
-    Resolves the agent LLM from the automation's *captured* model snapshot
-    (``agent_llm_id``) so runs are insulated from later chat/search-space model
+    Resolves the chat model from the automation's *captured* model snapshot
+    (``chat_model_id``) so runs are insulated from later chat/search-space model
     changes. The model policy is enforced here as a runtime backstop: a captured
     model that is no longer billable (e.g. a premium global config was removed)
     fails the run clearly instead of silently consuming a free model.
 
-    When ``agent_llm_id`` is ``None`` (no captured snapshot — defensive fallback),
-    fall back to the live search space's ``agent_llm_id`` and validate that.
+    When ``chat_model_id`` is ``None`` (no captured snapshot — defensive fallback),
+    fall back to the live search space's ``chat_model_id`` and validate that.
     """
-    if agent_llm_id is not None:
+    if chat_model_id is not None:
         try:
             assert_models_billable(
-                agent_llm_id=agent_llm_id,
-                image_generation_config_id=image_generation_config_id,
-                vision_llm_config_id=vision_llm_config_id,
+                chat_model_id=chat_model_id,
+                image_gen_model_id=image_gen_model_id,
+                vision_model_id=vision_model_id,
             )
         except AutomationModelPolicyError as exc:
             raise DependencyError(str(exc)) from exc
-        resolved_agent_llm_id = agent_llm_id or 0
+        resolved_chat_model_id = chat_model_id or 0
     else:
         search_space = await session.get(SearchSpace, search_space_id)
         if search_space is None:
@@ -72,15 +72,15 @@ async def build_dependencies(
             assert_automation_models_billable(search_space)
         except AutomationModelPolicyError as exc:
             raise DependencyError(str(exc)) from exc
-        resolved_agent_llm_id = search_space.agent_llm_id or 0
+        resolved_chat_model_id = search_space.chat_model_id or 0
 
     llm, agent_config, err = await load_llm_bundle(
         session,
-        config_id=resolved_agent_llm_id,
+        config_id=resolved_chat_model_id,
         search_space_id=search_space_id,
     )
     if err is not None or llm is None:
-        raise DependencyError(err or "failed to load agent LLM config")
+        raise DependencyError(err or "failed to load chat model config")
 
     connector_service, firecrawl_api_key = await setup_connector_and_firecrawl(
         session, search_space_id=search_space_id

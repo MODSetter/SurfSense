@@ -372,7 +372,7 @@ class FramesBenchmark:
                 "provider_model": ctx.provider_model,
                 "native_arm_model": ctx.native_arm_model,
                 "vision_provider_model": ctx.vision_provider_model,
-                "agent_llm_id": ctx.agent_llm_id,
+                "chat_model_id": ctx.chat_model_id,
                 "ingest_settings": ingest_settings,
                 "bare_arm_label": "bare_llm",
             },

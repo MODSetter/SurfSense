@@ -1,10 +1,11 @@
-import { Bot, Shuffle } from "lucide-react";
+import { Cpu, Shuffle } from "lucide-react";
 import {
 	Ai21Icon,
-	AnthropicIcon,
 	AnyscaleIcon,
+	AzureIcon,
 	BedrockIcon,
 	CerebrasIcon,
+	ClaudeIcon,
 	CloudflareIcon,
 	CohereIcon,
 	CometApiIcon,
@@ -16,6 +17,7 @@ import {
 	GitHubModelsIcon,
 	GroqIcon,
 	HuggingFaceIcon,
+	LmStudioIcon,
 	MiniMaxIcon,
 	MistralIcon,
 	MoonshotIcon,
@@ -36,6 +38,8 @@ import {
 } from "@/components/icons/providers";
 import { cn } from "@/lib/utils";
 
+export const AUTO_PROVIDER_ICON_KEY = "AUTO";
+
 /**
  * Returns a Lucide icon element for the given LLM / image-gen provider.
  * Accepts an optional `className` override for the icon size.
@@ -44,7 +48,7 @@ export function getProviderIcon(
 	provider: string,
 	{ isAutoMode, className = "size-4" }: { isAutoMode?: boolean; className?: string } = {}
 ) {
-	if (isAutoMode || provider?.toUpperCase() === "AUTO") {
+	if (isAutoMode || provider?.toUpperCase() === AUTO_PROVIDER_ICON_KEY) {
 		return <Shuffle className={cn(className, "text-muted-foreground")} />;
 	}
 
@@ -54,12 +58,13 @@ export function getProviderIcon(
 		case "ALIBABA_QWEN":
 			return <QwenIcon className={cn(className)} />;
 		case "ANTHROPIC":
-			return <AnthropicIcon className={cn(className)} />;
+		case "CLAUDE":
+			return <ClaudeIcon className={cn(className)} />;
 		case "ANYSCALE":
 			return <AnyscaleIcon className={cn(className)} />;
 		case "AZURE":
 		case "AZURE_OPENAI":
-			return <OpenaiIcon className={cn(className)} />;
+			return <AzureIcon className={cn(className)} />;
 		case "AWS_BEDROCK":
 		case "BEDROCK":
 			return <BedrockIcon className={cn(className)} />;
@@ -72,7 +77,7 @@ export function getProviderIcon(
 		case "COMETAPI":
 			return <CometApiIcon className={cn(className)} />;
 		case "CUSTOM":
-			return <Bot className={cn(className, "text-gray-400")} />;
+			return <Cpu className={cn(className)} />;
 		case "DATABRICKS":
 			return <DatabricksIcon className={cn(className)} />;
 		case "DEEPINFRA":
@@ -89,6 +94,8 @@ export function getProviderIcon(
 			return <GroqIcon className={cn(className)} />;
 		case "HUGGINGFACE":
 			return <HuggingFaceIcon className={cn(className)} />;
+		case "LM_STUDIO":
+			return <LmStudioIcon className={cn(className)} />;
 		case "MINIMAX":
 			return <MiniMaxIcon className={cn(className)} />;
 		case "MISTRAL":
@@ -98,6 +105,7 @@ export function getProviderIcon(
 		case "NSCALE":
 			return <NscaleIcon className={cn(className)} />;
 		case "OLLAMA":
+		case "OLLAMA_CHAT":
 			return <OllamaIcon className={cn(className)} />;
 		case "OPENAI":
 			return <OpenaiIcon className={cn(className)} />;
@@ -122,6 +130,6 @@ export function getProviderIcon(
 		case "ZHIPU":
 			return <ZhipuIcon className={cn(className)} />;
 		default:
-			return <Bot className={cn(className, "text-muted-foreground")} />;
+			return <Cpu className={cn(className, "text-muted-foreground")} />;
 	}
 }
