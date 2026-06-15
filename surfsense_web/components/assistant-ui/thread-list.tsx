@@ -9,7 +9,7 @@ import {
 	TrashIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -224,6 +224,11 @@ const ThreadListItemComponent = memo(function ThreadListItemComponent({
 	onUnarchive,
 	onDelete,
 }: ThreadListItemComponentProps) {
+	const relativeTime = useMemo(
+		() => formatRelativeTime(new Date(thread.updatedAt)),
+		[thread.updatedAt]
+	);
+
 	return (
 		<button
 			type="button"
@@ -237,7 +242,7 @@ const ThreadListItemComponent = memo(function ThreadListItemComponent({
 			<div className="flex-1 min-w-0">
 				<p className="truncate text-sm font-medium">{thread.title || "New Chat"}</p>
 				<p className="truncate text-xs text-muted-foreground">
-					{formatRelativeTime(new Date(thread.updatedAt))}
+					{relativeTime}
 				</p>
 			</div>
 			<DropdownMenu>
