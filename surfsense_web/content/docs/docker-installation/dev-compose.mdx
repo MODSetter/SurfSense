@@ -10,7 +10,11 @@ cd SurfSense/docker
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-This file builds the backend and frontend from your local source code (instead of pulling prebuilt images) and includes pgAdmin for database inspection at [http://localhost:5050](http://localhost:5050). Use the production `docker-compose.yml` for all other cases.
+This file builds the backend and frontend from your local source code (instead
+of pulling prebuilt images) and includes pgAdmin for database inspection at
+[http://localhost:5050](http://localhost:5050). It intentionally keeps raw
+frontend, backend, and zero-cache ports published for debugging. Use the
+production `docker-compose.yml` for the default Caddy single-origin setup.
 
 ## Dev-Only Environment Variables
 
@@ -28,3 +32,6 @@ The following `.env` variables are **only used by the dev compose file** (they h
 | `NEXT_PUBLIC_DEPLOYMENT_MODE` | Frontend build arg for deployment mode | `self-hosted` |
 
 In the production compose file, the `NEXT_PUBLIC_*` frontend variables are automatically derived from `AUTH_TYPE`, `ETL_SERVICE`, and the port settings. In the dev compose file, they are passed as build args since the frontend is built from source.
+Production Docker exposes only the bundled Caddy proxy by default; dev compose
+keeps direct service ports so contributors can inspect and restart individual
+services without going through the proxy.

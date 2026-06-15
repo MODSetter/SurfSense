@@ -32,10 +32,10 @@ zero-cache is included in the Docker Compose setup. The key environment variable
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZERO_CACHE_PORT` | Port for the zero-cache service | `5929` (prod) / `4848` (dev) |
+| `SURFSENSE_PUBLIC_URL` | Public SurfSense origin used by the browser | `http://localhost:3929` |
 | `ZERO_ADMIN_PASSWORD` | Password for the zero-cache admin UI and `/statz` endpoint | `surfsense-zero-admin` |
 | `ZERO_UPSTREAM_DB` | PostgreSQL connection URL for replication | Built from `DB_*` vars |
-| `NEXT_PUBLIC_ZERO_CACHE_URL` | URL the frontend uses to connect to zero-cache | `http://localhost:<ZERO_CACHE_PORT>` |
+| `NEXT_PUBLIC_ZERO_CACHE_URL` | URL the frontend uses to connect to zero-cache | `${SURFSENSE_PUBLIC_URL}/zero` |
 | `ZERO_APP_PUBLICATIONS` | PostgreSQL publication restricting which tables are replicated | `zero_publication` |
 | `ZERO_NUM_SYNC_WORKERS` | Number of view-sync worker processes. Must be ≤ `ZERO_UPSTREAM_MAX_CONNS` and ≤ `ZERO_CVR_MAX_CONNS` | `4` |
 | `ZERO_UPSTREAM_MAX_CONNS` | Max connections to upstream PostgreSQL for mutations | `20` |
@@ -71,7 +71,11 @@ For the full manual setup walkthrough, see the [Manual Installation guide](/docs
 
 ### Custom Domain / Reverse Proxy
 
-When deploying behind a reverse proxy, set `NEXT_PUBLIC_ZERO_CACHE_URL` to your public zero-cache URL (e.g., `https://zero.yourdomain.com`). The zero-cache service must be accessible via WebSocket from the browser.
+The production Docker stack includes Caddy by default. Zero is exposed under the
+same public origin as the app at `${SURFSENSE_PUBLIC_URL}/zero`, for example
+`https://surf.example.com/zero`. Zero accepts this single path-component base
+URL, so Caddy forwards `/zero/*` to the internal `zero-cache:4848` service
+without stripping the prefix.
 
 ### Database Requirements
 
@@ -110,7 +114,7 @@ Zero syncs the following tables for real-time features:
 
 - **zero-cache not starting**: Check `docker compose logs zero-cache`. Ensure PostgreSQL has `wal_level=logical` (configured in `postgresql.conf`).
 - **"Insufficient upstream connections" error**: zero-cache defaults `ZERO_NUM_SYNC_WORKERS` to the number of CPU cores, which can exceed connection pool limits on high-core machines. Lower `ZERO_NUM_SYNC_WORKERS` or raise `ZERO_UPSTREAM_MAX_CONNS` / `ZERO_CVR_MAX_CONNS` in your `.env`.
-- **Frontend not syncing**: Open DevTools → Console and check for WebSocket connection errors. Verify `NEXT_PUBLIC_ZERO_CACHE_URL` matches the running zero-cache address.
+- **Frontend not syncing**: Open DevTools → Console and check for WebSocket connection errors. In production Docker, verify `NEXT_PUBLIC_ZERO_CACHE_URL` resolves to `${SURFSENSE_PUBLIC_URL}/zero`.
 - **Stale data after restart**: zero-cache rebuilds its SQLite replica from PostgreSQL on startup. This may take a moment for large databases.
 
 ## Learn More
