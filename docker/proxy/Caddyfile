@@ -20,7 +20,9 @@
 
 	# Backend REST, streaming, connector OAuth, and messaging gateway endpoints.
 	# FastAPI already serves /api/v1, so the path is forwarded unchanged.
-	reverse_proxy /api/v1/* backend:8000
+	reverse_proxy /api/v1/* backend:8000 {
+		flush_interval -1
+	}
 
 	# Zero accepts a single path-component base URL (Zero >= 0.6).
 	# Preserve /zero so browser cacheURL can be ${SURFSENSE_PUBLIC_URL}/zero.
