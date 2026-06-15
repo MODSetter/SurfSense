@@ -16,6 +16,44 @@ export const AUTH_TYPE = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "G
 // same-origin relative requests (e.g. /api/v1/... and /auth/...).
 export const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "";
 
+type BackendUrlParam = string | number | boolean | null | undefined;
+
+/**
+ * Build browser-facing backend URLs without breaking proxy mode.
+ *
+ * In proxy mode BACKEND_URL intentionally stays empty, so callers must keep
+ * same-origin relative URLs ("/api/v1/...") and let Caddy route them. When
+ * BACKEND_URL is explicitly configured, the same path resolves against that
+ * absolute backend origin.
+ */
+export function buildBackendUrl(
+	path: string,
+	params?: Record<string, BackendUrlParam>
+): string {
+	const backendPath = path.startsWith("/") ? path : `/${path}`;
+	const queryParams = new URLSearchParams();
+
+	if (params) {
+		for (const [key, value] of Object.entries(params)) {
+			if (value !== null && value !== undefined) {
+				queryParams.append(key, String(value));
+			}
+		}
+	}
+
+	if (BACKEND_URL) {
+		const url = new URL(backendPath, BACKEND_URL);
+		for (const [key, value] of queryParams) {
+			url.searchParams.append(key, value);
+		}
+		return url.toString();
+	}
+
+	const queryString = queryParams.toString();
+	if (!queryString) return backendPath;
+	return `${backendPath}${backendPath.includes("?") ? "&" : "?"}${queryString}`;
+}
+
 // Server-side backend URL. Relative browser URLs do not work from RSC/API route
 // code, so server callers should use Docker DNS or an explicit public backend.
 export const SERVER_BACKEND_URL =

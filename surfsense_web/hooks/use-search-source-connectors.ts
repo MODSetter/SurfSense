@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 export interface SearchSourceConnector {
 	id: number;
 	name: string;
@@ -106,16 +106,15 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 				setIsLoading(true);
 				setError(null);
 
-				// Build URL with optional search_space_id query parameter
-				const url = new URL(`${BACKEND_URL}/api/v1/search-source-connectors`);
-				if (spaceId !== undefined) {
-					url.searchParams.append("search_space_id", spaceId.toString());
-				}
-
-				const response = await authenticatedFetch(url.toString(), {
-					method: "GET",
-					headers: { "Content-Type": "application/json" },
-				});
+				const response = await authenticatedFetch(
+					buildBackendUrl("/api/v1/search-source-connectors", {
+						search_space_id: spaceId,
+					}),
+					{
+						method: "GET",
+						headers: { "Content-Type": "application/json" },
+					}
+				);
 
 				if (!response.ok) {
 					throw new Error(`Failed to fetch connectors: ${response.statusText}`);
@@ -166,15 +165,16 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		spaceId: number
 	) => {
 		try {
-			// Add search_space_id as a query parameter
-			const url = new URL(`${BACKEND_URL}/api/v1/search-source-connectors`);
-			url.searchParams.append("search_space_id", spaceId.toString());
-
-			const response = await authenticatedFetch(url.toString(), {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(connectorData),
-			});
+			const response = await authenticatedFetch(
+				buildBackendUrl("/api/v1/search-source-connectors", {
+					search_space_id: spaceId,
+				}),
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(connectorData),
+				}
+			);
 
 			if (!response.ok) {
 				throw new Error(`Failed to create connector: ${response.statusText}`);
@@ -204,7 +204,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	) => {
 		try {
 			const response = await authenticatedFetch(
-				`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
+				buildBackendUrl(`/api/v1/search-source-connectors/${connectorId}`),
 				{
 					method: "PUT",
 					headers: { "Content-Type": "application/json" },
@@ -235,7 +235,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	const deleteConnector = async (connectorId: number) => {
 		try {
 			const response = await authenticatedFetch(
-				`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
+				buildBackendUrl(`/api/v1/search-source-connectors/${connectorId}`),
 				{
 					method: "DELETE",
 					headers: { "Content-Type": "application/json" },
@@ -267,19 +267,12 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		endDate?: string
 	) => {
 		try {
-			// Build query parameters
-			const params = new URLSearchParams({
-				search_space_id: searchSpaceId.toString(),
-			});
-			if (startDate) {
-				params.append("start_date", startDate);
-			}
-			if (endDate) {
-				params.append("end_date", endDate);
-			}
-
 			const response = await authenticatedFetch(
-				`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?${params.toString()}`,
+				buildBackendUrl(`/api/v1/search-source-connectors/${connectorId}/index`, {
+					search_space_id: searchSpaceId,
+					start_date: startDate,
+					end_date: endDate,
+				}),
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
