@@ -11,7 +11,8 @@ const zeroCacheURL = useProxyOrigin ? `${baseURL}/zero` : `http://localhost:${ZE
 process.env.PLAYWRIGHT_TEST_EMAIL ??= "e2e-test@surfsense.net";
 process.env.PLAYWRIGHT_TEST_PASSWORD ??= "E2eTestPassword123!";
 process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ??= backendURL;
-process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE ??= "LOCAL";
+process.env.SURFSENSE_BACKEND_INTERNAL_URL ??= backendURL;
+process.env.AUTH_TYPE ??= "LOCAL";
 process.env.NEXT_PUBLIC_ZERO_CACHE_URL ??= zeroCacheURL;
 
 /**
@@ -72,7 +73,8 @@ export default defineConfig({
 				stderr: "pipe",
 				env: {
 					NEXT_PUBLIC_FASTAPI_BACKEND_URL: process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL,
-					NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE,
+					SURFSENSE_BACKEND_INTERNAL_URL: process.env.SURFSENSE_BACKEND_INTERNAL_URL,
+					AUTH_TYPE: process.env.AUTH_TYPE,
 					NEXT_PUBLIC_ZERO_CACHE_URL: process.env.NEXT_PUBLIC_ZERO_CACHE_URL,
 				},
 			},

@@ -96,9 +96,11 @@ jobs:
         working-directory: surfsense_web
         env:
           NEXT_PUBLIC_FASTAPI_BACKEND_URL: ${{ vars.NEXT_PUBLIC_FASTAPI_BACKEND_URL }}
+          SURFSENSE_BACKEND_INTERNAL_URL: ${{ vars.NEXT_PUBLIC_FASTAPI_BACKEND_URL }}
           NEXT_PUBLIC_ZERO_CACHE_URL: ${{ vars.NEXT_PUBLIC_ZERO_CACHE_URL }}
           NEXT_PUBLIC_DEPLOYMENT_MODE: ${{ vars.NEXT_PUBLIC_DEPLOYMENT_MODE }}
           NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${{ vars.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE }}
+          NEXT_PUBLIC_ETL_SERVICE: ${{ vars.NEXT_PUBLIC_ETL_SERVICE }}
           NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
 
       - name: Install desktop dependencies
