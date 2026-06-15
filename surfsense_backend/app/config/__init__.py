@@ -535,9 +535,10 @@ class Config:
     # Platform web search (SearXNG)
     SEARXNG_DEFAULT_HOST = os.getenv("SEARXNG_DEFAULT_HOST")
 
-    NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL")
+    SURFSENSE_PUBLIC_URL = os.getenv("SURFSENSE_PUBLIC_URL")
+    NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL") or SURFSENSE_PUBLIC_URL
     # Backend URL to override the http to https in the OAuth redirect URI
-    BACKEND_URL = os.getenv("BACKEND_URL")
+    BACKEND_URL = os.getenv("BACKEND_URL") or SURFSENSE_PUBLIC_URL
 
     # Messaging gateway (Telegram v1)
     # Global master switch: when FALSE, no gateway supervisors/workers start and all
