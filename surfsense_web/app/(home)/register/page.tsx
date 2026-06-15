@@ -9,11 +9,11 @@ import { useEffect, useState } from "react";
 import { type ExternalToast, toast } from "sonner";
 import { registerMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Logo } from "@/components/Logo";
+import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { getBearerToken } from "@/lib/auth-utils";
-import { AUTH_TYPE } from "@/lib/env-config";
 import { AppError, ValidationError } from "@/lib/error";
 import {
 	trackRegistrationAttempt,
@@ -25,6 +25,7 @@ import { AmbientBackground } from "../login/AmbientBackground";
 export default function RegisterPage() {
 	const t = useTranslations("auth");
 	const tCommon = useTranslations("common");
+	const { authType } = useRuntimeConfig();
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
@@ -44,10 +45,10 @@ export default function RegisterPage() {
 			router.replace("/dashboard");
 			return;
 		}
-		if (AUTH_TYPE !== "LOCAL") {
+		if (authType !== "LOCAL") {
 			router.push("/login");
 		}
-	}, [router]);
+	}, [authType, router]);
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
