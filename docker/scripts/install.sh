@@ -333,11 +333,13 @@ step "Downloading SurfSense files"
 info "Installation directory: ${INSTALL_DIR}"
 mkdir -p "${INSTALL_DIR}/scripts"
 mkdir -p "${INSTALL_DIR}/searxng"
+mkdir -p "${INSTALL_DIR}/proxy"
 
 FILES=(
     "docker/docker-compose.yml:docker-compose.yml"
     "docker/docker-compose.gpu.yml:docker-compose.gpu.yml"
     "docker/.env.example:.env.example"
+    "docker/proxy/Caddyfile:proxy/Caddyfile"
     "docker/postgresql.conf:postgresql.conf"
     "docker/scripts/migrate-database.sh:scripts/migrate-database.sh"
     "docker/searxng/settings.yml:searxng/settings.yml"
@@ -532,9 +534,12 @@ _variant_display=$(grep '^SURFSENSE_VARIANT=' "${INSTALL_DIR}/.env" 2>/dev/null 
 _variant_display="${_variant_display:-cpu}"
 step "SurfSense is now installed [${_version_display}]"
 
-info "  Frontend:  http://localhost:3929"
-info "  Backend:   http://localhost:8929"
-info "  API Docs:  http://localhost:8929/docs"
+_public_url=$(grep '^SURFSENSE_PUBLIC_URL=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1 || true)
+_public_url="${_public_url:-http://localhost:3929}"
+
+info "  SurfSense: ${_public_url}"
+info "  Backend:   ${_public_url}/api/v1"
+info "  Zero sync: ${_public_url}/zero"
 info ""
 info "  Config:    ${INSTALL_DIR}/.env"
 info "  Variant:   ${_variant_display}"
