@@ -1,6 +1,7 @@
 "use client";
 
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { BACKEND_URL } from "@/lib/env-config";
 
 export type MemoryScope = "user" | "team";
 
@@ -30,7 +31,7 @@ function getMemoryPath(scope: MemoryScope, searchSpaceId?: number | null) {
 }
 
 function getBackendUrl(path: string) {
-	return `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${path}`;
+	return `${BACKEND_URL}${path}`;
 }
 
 export function getMemoryLimitState(length: number, limits?: MemoryLimits | null) {

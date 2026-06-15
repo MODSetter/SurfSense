@@ -93,11 +93,6 @@ class BaseApiService {
 				},
 			};
 
-			// Validate the base URL
-			if (!this.baseUrl) {
-				throw new AppError("Base URL is not set.");
-			}
-
 			// Validate the bearer token
 			const isNoAuthEndpoint =
 				this.noAuthEndpoints.includes(url) ||
@@ -107,8 +102,8 @@ class BaseApiService {
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
 
-			// Construct the full URL
-			const fullUrl = new URL(url, this.baseUrl).toString();
+			// Construct the full URL. Empty baseUrl is valid for same-origin proxy mode.
+			const fullUrl = this.baseUrl ? new URL(url, this.baseUrl).toString() : url;
 
 			// Prepare fetch options
 			const fetchOptions: RequestInit = {

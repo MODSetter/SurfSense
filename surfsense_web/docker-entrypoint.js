@@ -12,21 +12,31 @@
 const fs = require("fs");
 const path = require("path");
 
+function envValue(name, fallback, { allowEmpty = false } = {}) {
+	if (Object.hasOwn(process.env, name)) {
+		const value = process.env[name];
+		if (allowEmpty || value) {
+			return value ?? "";
+		}
+	}
+	return fallback;
+}
+
 const replacements = [
 	[
 		"__NEXT_PUBLIC_FASTAPI_BACKEND_URL__",
-		process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000",
+		envValue("NEXT_PUBLIC_FASTAPI_BACKEND_URL", "http://localhost:8000", { allowEmpty: true }),
 	],
 	[
 		"__NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE__",
-		process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "LOCAL",
+		envValue("NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE", "LOCAL"),
 	],
-	["__NEXT_PUBLIC_ETL_SERVICE__", process.env.NEXT_PUBLIC_ETL_SERVICE || "DOCLING"],
+	["__NEXT_PUBLIC_ETL_SERVICE__", envValue("NEXT_PUBLIC_ETL_SERVICE", "DOCLING")],
 	[
 		"__NEXT_PUBLIC_ZERO_CACHE_URL__",
-		process.env.NEXT_PUBLIC_ZERO_CACHE_URL || "http://localhost:4848",
+		envValue("NEXT_PUBLIC_ZERO_CACHE_URL", "http://localhost:4848", { allowEmpty: true }),
 	],
-	["__NEXT_PUBLIC_DEPLOYMENT_MODE__", process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "self-hosted"],
+	["__NEXT_PUBLIC_DEPLOYMENT_MODE__", envValue("NEXT_PUBLIC_DEPLOYMENT_MODE", "self-hosted")],
 ];
 
 let filesProcessed = 0;

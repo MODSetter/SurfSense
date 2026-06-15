@@ -2,6 +2,7 @@ import { loader } from "fumadocs-core/source";
 import type { MetadataRoute } from "next";
 import { blog, changelog } from "@/.source/server";
 import { source as docsSource } from "@/lib/source";
+import { SERVER_BACKEND_URL } from "@/lib/env-config";
 
 const blogSource = loader({
 	baseUrl: "/blog",
@@ -14,11 +15,10 @@ const changelogSource = loader({
 });
 
 const BASE_URL = "https://www.surfsense.com";
-const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 
 async function getFreeModelSlugs(): Promise<string[]> {
 	try {
-		const res = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/models`, {
+		const res = await fetch(`${SERVER_BACKEND_URL}/api/v1/public/anon-chat/models`, {
 			next: { revalidate: 3600 },
 		});
 		if (!res.ok) return [];

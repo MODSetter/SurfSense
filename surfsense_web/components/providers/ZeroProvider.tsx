@@ -12,7 +12,15 @@ import { getBearerToken, handleUnauthorized, refreshAccessToken } from "@/lib/au
 import { queries } from "@/zero/queries";
 import { schema } from "@/zero/schema";
 
-const cacheURL = process.env.NEXT_PUBLIC_ZERO_CACHE_URL || "http://localhost:4848";
+const configuredCacheURL = process.env.NEXT_PUBLIC_ZERO_CACHE_URL;
+
+function getCacheURL() {
+	if (configuredCacheURL) return configuredCacheURL;
+	if (typeof window !== "undefined") {
+		return `${window.location.origin}/zero`;
+	}
+	return "http://localhost:4848";
+}
 
 function ZeroAuthSync() {
 	const zero = useZero();
@@ -42,6 +50,7 @@ function ZeroAuthSync() {
 
 export function ZeroProvider({ children }: { children: React.ReactNode }) {
 	const { data: user } = useAtomValue(currentUserAtom);
+	const cacheURL = useMemo(() => getCacheURL(), []);
 
 	const userId = user?.id;
 	const hasUser = !!userId;
@@ -65,7 +74,7 @@ export function ZeroProvider({ children }: { children: React.ReactNode }) {
 			cacheURL,
 			auth,
 		}),
-		[userID, context, auth]
+		[userID, context, cacheURL, auth]
 	);
 
 	return (

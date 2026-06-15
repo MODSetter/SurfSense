@@ -2,12 +2,17 @@ import { defineConfig, devices } from "@playwright/test";
 
 const PORT = process.env.PORT || "3000";
 const BACKEND_PORT = process.env.BACKEND_PORT || "8000";
+const ZERO_CACHE_PORT = process.env.ZERO_CACHE_PORT || "4848";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${PORT}`;
+const useProxyOrigin = process.env.PLAYWRIGHT_USE_PROXY_ORIGIN === "true";
+const backendURL = useProxyOrigin ? baseURL : `http://localhost:${BACKEND_PORT}`;
+const zeroCacheURL = useProxyOrigin ? `${baseURL}/zero` : `http://localhost:${ZERO_CACHE_PORT}`;
 
 process.env.PLAYWRIGHT_TEST_EMAIL ??= "e2e-test@surfsense.net";
 process.env.PLAYWRIGHT_TEST_PASSWORD ??= "E2eTestPassword123!";
-process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ??= `http://localhost:${BACKEND_PORT}`;
+process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ??= backendURL;
 process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE ??= "LOCAL";
+process.env.NEXT_PUBLIC_ZERO_CACHE_URL ??= zeroCacheURL;
 
 /**
  * Playwright configuration for SurfSense web E2E tests.
@@ -68,6 +73,7 @@ export default defineConfig({
 				env: {
 					NEXT_PUBLIC_FASTAPI_BACKEND_URL: process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL,
 					NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE,
+					NEXT_PUBLIC_ZERO_CACHE_URL: process.env.NEXT_PUBLIC_ZERO_CACHE_URL,
 				},
 			},
 });

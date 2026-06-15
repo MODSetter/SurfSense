@@ -820,8 +820,8 @@ function AuthenticatedDocumentsSidebarBase({
 				try {
 					const endpoint =
 						doc.document_type === "USER_MEMORY"
-							? `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/users/me/memory`
-							: `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/memory`;
+							? `${BACKEND_URL}/api/v1/users/me/memory`
+							: `${BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/memory`;
 					const response = await authenticatedFetch(endpoint, { method: "GET" });
 					if (!response.ok) {
 						const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
@@ -1028,8 +1028,8 @@ function AuthenticatedDocumentsSidebarBase({
 			}
 			const endpoint =
 				doc.document_type === "USER_MEMORY"
-					? `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/users/me/memory/reset`
-					: `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/memory/reset`;
+					? `${BACKEND_URL}/api/v1/users/me/memory/reset`
+					: `${BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/memory/reset`;
 			try {
 				const response = await authenticatedFetch(endpoint, { method: "POST" });
 				if (!response.ok) {

@@ -15,9 +15,18 @@ import packageJson from "../package.json";
 // Placeholder: __NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE__
 export const AUTH_TYPE = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "GOOGLE";
 
-// Backend API URL
+// Backend API URL. An empty string is valid in proxy mode and means
+// same-origin relative requests (e.g. /api/v1/... and /auth/...).
 // Placeholder: __NEXT_PUBLIC_FASTAPI_BACKEND_URL__
-export const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+export const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "http://localhost:8000";
+
+// Server-side backend URL. Relative browser URLs do not work from RSC/API route
+// code, so server callers should use Docker DNS or an explicit public backend.
+export const SERVER_BACKEND_URL =
+	process.env.FASTAPI_BACKEND_INTERNAL_URL ||
+	process.env.BACKEND_URL ||
+	BACKEND_URL ||
+	"http://localhost:8000";
 
 // ETL Service: "DOCLING", "UNSTRUCTURED", or "LLAMACLOUD"
 // Placeholder: __NEXT_PUBLIC_ETL_SERVICE__
