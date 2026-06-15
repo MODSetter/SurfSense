@@ -43,11 +43,6 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 			if (!connector.search_space_id) return;
 
 			const baseUrl = BACKEND_URL;
-			if (!baseUrl) {
-				console.error("NEXT_PUBLIC_FASTAPI_BACKEND_URL is not configured");
-				setIsLoading(false);
-				return;
-			}
 
 			setIsLoading(true);
 			try {

@@ -72,6 +72,7 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
+import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
@@ -226,6 +227,7 @@ function AuthenticatedDocumentsSidebarBase({
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const platformElectronAPI = useElectronAPI();
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
+	const { etlService } = useRuntimeConfig();
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
@@ -618,7 +620,8 @@ function AuthenticatedDocumentsSidebarBase({
 					folderName: matched.name,
 					searchSpaceId,
 					excludePatterns: matched.excludePatterns ?? DEFAULT_EXCLUDE_PATTERNS,
-					fileExtensions: matched.fileExtensions ?? Array.from(getSupportedExtensionsSet()),
+					fileExtensions:
+						matched.fileExtensions ?? Array.from(getSupportedExtensionsSet(undefined, etlService)),
 					rootFolderId: folder.id,
 				});
 				toast.success(`Re-scan complete: ${matched.name}`);
@@ -626,7 +629,7 @@ function AuthenticatedDocumentsSidebarBase({
 				toast.error((err as Error)?.message || "Failed to re-scan folder");
 			}
 		},
-		[searchSpaceId, electronAPI]
+		[searchSpaceId, electronAPI, etlService]
 	);
 
 	const handleStopWatching = useCallback(
