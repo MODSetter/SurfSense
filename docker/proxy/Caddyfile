@@ -1,0 +1,36 @@
+{
+	# Optional ACME/global settings. These are harmless in the default :80
+	# localhost mode and become active when SURFSENSE_SITE_ADDRESS is a domain.
+	{$CERT_EMAIL}
+	acme_ca {$CERT_ACME_CA:https://acme-v02.api.letsencrypt.org/directory}
+	{$CERT_ACME_DNS}
+	servers {
+		client_ip_headers X-Forwarded-For X-Real-IP
+		trusted_proxies static {$TRUSTED_PROXIES:0.0.0.0/0}
+	}
+}
+
+(surfsense_proxy) {
+	request_body {
+		max_size {$SURFSENSE_MAX_BODY_SIZE:5GB}
+	}
+
+	# Backend auth routes (FastAPI Users + OAuth helpers).
+	reverse_proxy /auth/* backend:8000
+
+	# Backend REST, streaming, connector OAuth, and messaging gateway endpoints.
+	# FastAPI already serves /api/v1, so the path is forwarded unchanged.
+	reverse_proxy /api/v1/* backend:8000
+
+	# Zero accepts a single path-component base URL (Zero >= 0.6).
+	# Preserve /zero so browser cacheURL can be ${SURFSENSE_PUBLIC_URL}/zero.
+	reverse_proxy /zero/* zero-cache:4848
+
+	# Next.js app and frontend-owned API routes:
+	# /api/zero/*, /api/search, /api/contact, etc.
+	reverse_proxy /* frontend:3000
+}
+
+{$SURFSENSE_SITE_ADDRESS::80} {
+	import surfsense_proxy
+}
