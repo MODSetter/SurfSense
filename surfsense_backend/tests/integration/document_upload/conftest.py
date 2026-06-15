@@ -283,11 +283,11 @@ async def credits():
 def _mock_external_apis(monkeypatch):
     """Mock LLM, embedding, and chunking — these are external API boundaries."""
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+        "app.indexing_pipeline.cache.cached_indexing.embed_texts",
         MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]),
     )
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text",
         MagicMock(return_value=["Test chunk content."]),
     )
 

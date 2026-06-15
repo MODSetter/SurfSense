@@ -119,7 +119,7 @@ async def get_editor_content(
     chunk_contents_result = await session.execute(
         select(Chunk.content)
         .filter(Chunk.document_id == document_id)
-        .order_by(Chunk.id)
+        .order_by(Chunk.position, Chunk.id)
     )
     chunk_contents = chunk_contents_result.scalars().all()
 
@@ -205,7 +205,7 @@ async def download_document_markdown(
         chunk_contents_result = await session.execute(
             select(Chunk.content)
             .filter(Chunk.document_id == document_id)
-            .order_by(Chunk.id)
+            .order_by(Chunk.position, Chunk.id)
         )
         chunk_contents = chunk_contents_result.scalars().all()
         if chunk_contents:
@@ -354,7 +354,7 @@ async def export_document(
         chunk_contents_result = await session.execute(
             select(Chunk.content)
             .filter(Chunk.document_id == document_id)
-            .order_by(Chunk.id)
+            .order_by(Chunk.position, Chunk.id)
         )
         chunk_contents = chunk_contents_result.scalars().all()
         if chunk_contents:

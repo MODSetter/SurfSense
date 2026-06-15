@@ -156,7 +156,7 @@ async def _resolve_document_text(
     stmt = (
         select(Chunk.content)
         .where(Chunk.document_id == document.id)
-        .order_by(Chunk.id)
+        .order_by(Chunk.position, Chunk.id)
         .limit(_MAX_CHUNKS_FOR_CONTEXT)
     )
     result = await session.execute(stmt)
