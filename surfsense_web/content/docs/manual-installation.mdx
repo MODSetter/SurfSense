@@ -546,7 +546,10 @@ cd ../docker
 docker compose -f docker-compose.deps-only.yml up -d
 ```
 
-The deps-only stack exposes zero-cache on port `4848` by default. Keep `NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:4848` in your `surfsense_web/.env`.
+The deps-only stack exposes zero-cache on port `4848` by default. If your
+frontend is not behind a reverse proxy that serves `/zero`, set
+`NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:4848` before building/running the
+frontend.
 
 ## Frontend Setup
 
@@ -577,12 +580,13 @@ Copy-Item -Path .env.example -Destination .env
 
 Edit the `.env` file and set:
 
-| ENV VARIABLE                    | DESCRIPTION                                 |
-| ------------------------------- | ------------------------------------------- |
-| NEXT_PUBLIC_FASTAPI_BACKEND_URL | Backend URL (e.g., `http://localhost:8000`) |
-| NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE | Same value as set in backend AUTH_TYPE i.e `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication  |
-| NEXT_PUBLIC_ETL_SERVICE         | Document parsing service (should match backend ETL_SERVICE): `UNSTRUCTURED`, `LLAMACLOUD`, or `DOCLING` - affects supported file formats in upload interface |
-| NEXT_PUBLIC_ZERO_CACHE_URL     | URL for Zero-cache real-time sync service (e.g., `http://localhost:4848`) |
+| ENV VARIABLE | DESCRIPTION |
+| --- | --- |
+| `SURFSENSE_BACKEND_INTERNAL_URL` | Backend URL used by Next.js server routes, e.g. `http://localhost:8000` or `http://backend:8000` in Docker |
+| `AUTH_TYPE` | Same value as backend auth type: `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication |
+| `ETL_SERVICE` | Document parsing service (should match backend ETL_SERVICE): `UNSTRUCTURED`, `LLAMACLOUD`, or `DOCLING`; affects supported file formats in the upload interface |
+| `DEPLOYMENT_MODE` | `self-hosted` or `cloud`; controls self-hosted-only connector visibility |
+| `NEXT_PUBLIC_ZERO_CACHE_URL` | Only needed when the browser cannot reach Zero through same-origin `/zero`, e.g. manual local dev at `http://localhost:4848` |
 
 ### 2. Install Dependencies
 
@@ -693,7 +697,7 @@ To verify your installation:
 - **Authentication Problems**: Check your Google OAuth configuration and ensure redirect URIs are set correctly
 - **LLM Errors**: Confirm your LLM API keys are valid and the selected models are accessible
 - **File Upload Failures**: Validate your ETL service API key (Unstructured.io or LlamaCloud) or ensure Docling is properly configured
-- **Real-time updates not working / stale UI**: Verify zero-cache is running (`curl http://localhost:4848/keepalive` returns 200). Open browser DevTools → Console and look for WebSocket errors. Confirm `NEXT_PUBLIC_ZERO_CACHE_URL` in `surfsense_web/.env` matches the running zero-cache address.
+- **Real-time updates not working / stale UI**: Verify zero-cache is running (`curl http://localhost:4848/keepalive` returns 200). Open browser DevTools → Console and look for WebSocket errors. In default Docker, confirm `/zero` is routed by Caddy. In manual local development, confirm `NEXT_PUBLIC_ZERO_CACHE_URL` in `surfsense_web/.env` matches the running zero-cache address.
 - **Zero-cache stuck on `Unknown or invalid publications. Specified: [zero_publication]`**: You skipped (or never ran) `uv run alembic upgrade head` from `surfsense_backend/`. Run it, then restart the zero-cache container with `docker restart surfsense-zero-cache`.
 - **Zero-cache crashes with `_zero.tableMetadata` errors**: A previous run left a half-built SQLite replica behind. Stop the container, remove the volume, and start fresh: `docker rm -f surfsense-zero-cache && docker volume rm surfsense-zero-cache && docker run -d ...` (re-run the command from [Zero-Cache Setup](#zero-cache-setup)).
 - **`wal_level` is not set to `logical`**: zero-cache requires logical replication. Set `wal_level = logical` in `postgresql.conf`, restart PostgreSQL, and verify with `SHOW wal_level;` in psql.
