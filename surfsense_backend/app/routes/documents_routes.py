@@ -1014,8 +1014,8 @@ async def get_document_by_chunk_id(
             .filter(
                 Chunk.document_id == document.id,
                 or_(
-                    Chunk.created_at < chunk.created_at,
-                    and_(Chunk.created_at == chunk.created_at, Chunk.id < chunk.id),
+                    Chunk.position < chunk.position,
+                    and_(Chunk.position == chunk.position, Chunk.id < chunk.id),
                 ),
             )
         )
@@ -1027,7 +1027,7 @@ async def get_document_by_chunk_id(
         windowed_result = await session.execute(
             select(Chunk)
             .filter(Chunk.document_id == document.id)
-            .order_by(Chunk.created_at, Chunk.id)
+            .order_by(Chunk.position, Chunk.id)
             .offset(start)
             .limit(end - start)
         )
@@ -1137,7 +1137,7 @@ async def get_document_chunks_paginated(
         chunks_result = await session.execute(
             select(Chunk)
             .filter(Chunk.document_id == document_id)
-            .order_by(Chunk.created_at, Chunk.id)
+            .order_by(Chunk.position, Chunk.id)
             .offset(offset)
             .limit(page_size)
         )

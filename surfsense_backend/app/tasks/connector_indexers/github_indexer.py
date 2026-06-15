@@ -525,6 +525,7 @@ async def _simple_chunk_content(content: str, chunk_size: int = 4000) -> list:
                 Chunk(
                     content=chunk_text,
                     embedding=embed_text(chunk_text),
+                    position=len(chunks),
                 )
             )
 

@@ -1420,7 +1420,10 @@ class Document(BaseModel, TimestampMixin):
     created_by = relationship("User", back_populates="documents")
     connector = relationship("SearchSourceConnector", back_populates="documents")
     chunks = relationship(
-        "Chunk", back_populates="document", cascade="all, delete-orphan"
+        "Chunk",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="Chunk.position",
     )
     # Original upload + future derived artifacts (redacted, filled-form).
     # Model lives in app.file_storage.persistence to keep that feature cohesive.
@@ -1456,6 +1459,9 @@ class Chunk(BaseModel, TimestampMixin):
 
     content = Column(Text, nullable=False)
     embedding = Column(Vector(config.embedding_model_instance.dimension))
+    # Explicit document order; ids don't follow it since incremental
+    # re-indexing keeps unchanged rows across edits.
+    position = Column(Integer, nullable=False, server_default="0", index=True)
 
     document_id = Column(
         Integer,
@@ -2709,7 +2715,11 @@ from app.automations.persistence import (  # noqa: E402, F401
     AutomationRun,
     AutomationTrigger,
 )
+from app.etl_pipeline.cache.persistence.models import CachedParse  # noqa: E402, F401
 from app.file_storage.persistence import DocumentFile  # noqa: E402, F401
+from app.indexing_pipeline.cache.persistence.models import (  # noqa: E402, F401
+    CachedEmbeddingSet,
+)
 from app.notifications.persistence import Notification  # noqa: E402, F401
 from app.podcasts.persistence import (  # noqa: E402, F401
     Podcast,

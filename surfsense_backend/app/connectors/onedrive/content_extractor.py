@@ -84,11 +84,12 @@ async def download_and_extract_content(
 async def _parse_file_to_markdown(
     file_path: str, filename: str, *, vision_llm=None
 ) -> str:
-    """Parse a local file to markdown using the unified ETL pipeline."""
+    """Parse a local file to markdown via the cache-aware ETL pipeline."""
+    from app.etl_pipeline.cache import extract_with_cache
     from app.etl_pipeline.etl_document import EtlRequest
-    from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
-    result = await EtlPipelineService(vision_llm=vision_llm).extract(
-        EtlRequest(file_path=file_path, filename=filename)
+    result = await extract_with_cache(
+        EtlRequest(file_path=file_path, filename=filename),
+        vision_llm=vision_llm,
     )
     return result.markdown_content
