@@ -15,8 +15,15 @@
 		max_size {$SURFSENSE_MAX_BODY_SIZE:5GB}
 	}
 
+	# Frontend-owned auth page (the post-login token handler). More specific than
+	# /auth/*, so Caddy's matcher-specificity sort routes it here, not to backend.
+	reverse_proxy /auth/callback* frontend:3000
+
 	# Backend auth routes (FastAPI Users + OAuth helpers).
 	reverse_proxy /auth/* backend:8000
+
+	# Backend user profile routes (FastAPI Users users router, mounted at /users).
+	reverse_proxy /users/* backend:8000
 
 	# Backend REST, streaming, connector OAuth, and messaging gateway endpoints.
 	# FastAPI already serves /api/v1, so the path is forwarded unchanged.
