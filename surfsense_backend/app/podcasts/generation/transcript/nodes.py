@@ -38,7 +38,7 @@ async def plan_outline(
     tc = TranscriptConfig.from_runnable_config(config)
     llm = await _require_llm(state, tc)
 
-    target_words = round(tc.spec.duration.midpoint_minutes * _WORDS_PER_MINUTE)
+    target_words = round(tc.spec.duration.midpoint_seconds * _WORDS_PER_MINUTE / 60)
     suggested_segments = max(1, round(target_words / _WORDS_PER_SEGMENT))
 
     messages = [

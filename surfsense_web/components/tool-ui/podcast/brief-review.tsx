@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+	MAX_DURATION_SECONDS,
 	MAX_SPEAKERS,
+	MIN_DURATION_SECONDS,
 	type PodcastSpec,
 	type PodcastStyle,
 	podcastStyle,
@@ -55,6 +57,9 @@ interface BriefReviewProps {
  */
 export function BriefReview({ podcast, spec }: BriefReviewProps) {
 	const [draft, setDraft] = useState<PodcastSpec>(spec);
+	const [durationUnit, setDurationUnit] = useState<DurationUnit>(() =>
+		defaultDurationUnit(spec.duration.max_seconds),
+	);
 	const [voices, setVoices] = useState<VoiceOption[] | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -63,6 +68,7 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: reset only when the server version moves
 	useEffect(() => {
 		setDraft(spec);
+		setDurationUnit(defaultDurationUnit(spec.duration.max_seconds));
 	}, [podcast.specVersion]);
 
 	useEffect(() => {
@@ -304,39 +310,72 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 				))}
 			</div>
 
-			<div className="grid grid-cols-2 gap-4">
-				<div className="flex flex-col gap-2">
-					<Label htmlFor="podcast-min-minutes">Min length (minutes)</Label>
-					<Input
-						id="podcast-min-minutes"
-						type="number"
-						min={1}
-						value={draft.duration.min_minutes}
-						onChange={(e) =>
-							setDraft((current) => ({
-								...current,
-								duration: { ...current.duration, min_minutes: Number(e.target.value) || 1 },
-							}))
-						}
-					/>
+			<div className="flex flex-col gap-2">
+				<div className="flex items-center justify-between gap-3">
+					<Label>Target length</Label>
+					<Select
+						value={durationUnit}
+						onValueChange={(value) => setDurationUnit(value as DurationUnit)}
+					>
+						<SelectTrigger className="w-[7.5rem]" aria-label="Length unit">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="seconds">Seconds</SelectItem>
+							<SelectItem value="minutes">Minutes</SelectItem>
+							<SelectItem value="hours">Hours</SelectItem>
+						</SelectContent>
+					</Select>
 				</div>
-				<div className="flex flex-col gap-2">
-					<Label htmlFor="podcast-max-minutes">Max length (minutes)</Label>
-					<Input
-						id="podcast-max-minutes"
-						type="number"
-						min={draft.duration.min_minutes}
-						value={draft.duration.max_minutes}
-						onChange={(e) =>
-							setDraft((current) => ({
-								...current,
-								duration: {
-									...current.duration,
-									max_minutes: Number(e.target.value) || current.duration.min_minutes,
-								},
-							}))
-						}
-					/>
+				<div className="grid grid-cols-2 gap-4">
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="podcast-min-length">Min</Label>
+						<Input
+							id="podcast-min-length"
+							type="number"
+							min={durationUnitBounds(durationUnit).min}
+							max={durationUnitBounds(durationUnit).max}
+							step={durationInputStep(durationUnit)}
+							value={formatDurationForUnit(draft.duration.min_seconds, durationUnit)}
+							onChange={(e) => {
+								const seconds = clampDurationSeconds(
+									fromUnitValue(Number(e.target.value), durationUnit),
+								);
+								setDraft((current) => ({
+									...current,
+									duration: { ...current.duration, min_seconds: seconds },
+								}));
+							}}
+						/>
+					</div>
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="podcast-max-length">Max</Label>
+						<Input
+							id="podcast-max-length"
+							type="number"
+							min={secondsToUnitValue(draft.duration.min_seconds, durationUnit)}
+							max={durationUnitBounds(durationUnit).max}
+							step={durationInputStep(durationUnit)}
+							value={formatDurationForUnit(draft.duration.max_seconds, durationUnit)}
+							onChange={(e) => {
+								const parsed = Number(e.target.value);
+								const fallback = secondsToUnitValue(
+									draft.duration.min_seconds,
+									durationUnit,
+								);
+								const seconds = clampDurationSeconds(
+									fromUnitValue(
+										Number.isFinite(parsed) ? parsed : fallback,
+										durationUnit,
+									),
+								);
+								setDraft((current) => ({
+									...current,
+									duration: { ...current.duration, max_seconds: seconds },
+								}));
+							}}
+						/>
+					</div>
 				</div>
 			</div>
 
@@ -365,7 +404,9 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 				<Button
 					type="button"
 					onClick={handleApprove}
-					disabled={isSubmitting || draft.duration.max_minutes < draft.duration.min_minutes}
+					disabled={
+						isSubmitting || draft.duration.max_seconds < draft.duration.min_seconds
+					}
 				>
 					{isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
 					{isDirty ? "Approve changes & draft transcript" : "Approve & draft transcript"}
@@ -377,6 +418,50 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 
 /** The current selection stays listed even when it no longer matches the
  * language filter, so the Select never renders an orphaned value. */
+type DurationUnit = "seconds" | "minutes" | "hours";
+
+function defaultDurationUnit(maxSeconds: number): DurationUnit {
+	if (maxSeconds >= 3600) return "hours";
+	if (maxSeconds >= 60) return "minutes";
+	return "seconds";
+}
+
+function secondsToUnitValue(seconds: number, unit: DurationUnit): number {
+	if (unit === "minutes") return seconds / 60;
+	if (unit === "hours") return seconds / 3600;
+	return seconds;
+}
+
+function fromUnitValue(value: number, unit: DurationUnit): number {
+	if (!Number.isFinite(value)) return MIN_DURATION_SECONDS;
+	if (unit === "minutes") return value * 60;
+	if (unit === "hours") return value * 3600;
+	return value;
+}
+
+function formatDurationForUnit(seconds: number, unit: DurationUnit): number {
+	const raw = secondsToUnitValue(seconds, unit);
+	if (unit === "seconds") return Math.round(raw);
+	return Math.round(raw * 100) / 100;
+}
+
+function durationInputStep(unit: DurationUnit): number {
+	if (unit === "hours") return 0.1;
+	return 1;
+}
+
+function durationUnitBounds(unit: DurationUnit): { min: number; max: number } {
+	return {
+		min: formatDurationForUnit(MIN_DURATION_SECONDS, unit),
+		max: formatDurationForUnit(MAX_DURATION_SECONDS, unit),
+	};
+}
+
+function clampDurationSeconds(value: number): number {
+	if (!Number.isFinite(value)) return MIN_DURATION_SECONDS;
+	return Math.min(MAX_DURATION_SECONDS, Math.max(MIN_DURATION_SECONDS, Math.round(value)));
+}
+
 function voiceItems(candidates: VoiceOption[], selectedId: string): VoiceOption[] {
 	if (candidates.some((voice) => voice.voice_id === selectedId)) return candidates;
 	return [

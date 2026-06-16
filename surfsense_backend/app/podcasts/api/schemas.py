@@ -11,6 +11,12 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.podcasts.duration_limits import (
+    DEFAULT_MAX_SECONDS,
+    DEFAULT_MIN_SECONDS,
+    MAX_DURATION_SECONDS,
+    MIN_DURATION_SECONDS,
+)
 from app.podcasts.persistence import Podcast, PodcastStatus
 from app.podcasts.schemas import PodcastSpec, Transcript
 from app.podcasts.service import has_stored_episode, read_spec, read_transcript
@@ -18,8 +24,6 @@ from app.podcasts.service import has_stored_episode, read_spec, read_transcript
 # Defaults applied when a create request omits brief sizing; the brief gate lets
 # the user adjust before any cost is incurred.
 DEFAULT_SPEAKER_COUNT = 2
-DEFAULT_MIN_MINUTES = 10
-DEFAULT_MAX_MINUTES = 20
 
 
 class CreatePodcastRequest(BaseModel):
@@ -30,8 +34,16 @@ class CreatePodcastRequest(BaseModel):
     source_content: str = Field(..., min_length=1)
     thread_id: int | None = None
     speaker_count: int = Field(default=DEFAULT_SPEAKER_COUNT, ge=1, le=6)
-    min_minutes: int = Field(default=DEFAULT_MIN_MINUTES, ge=1)
-    max_minutes: int = Field(default=DEFAULT_MAX_MINUTES, ge=1)
+    min_seconds: int = Field(
+        default=DEFAULT_MIN_SECONDS,
+        ge=MIN_DURATION_SECONDS,
+        le=MAX_DURATION_SECONDS,
+    )
+    max_seconds: int = Field(
+        default=DEFAULT_MAX_SECONDS,
+        ge=MIN_DURATION_SECONDS,
+        le=MAX_DURATION_SECONDS,
+    )
     focus: str | None = Field(default=None, max_length=2000)
 
 

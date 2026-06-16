@@ -57,7 +57,7 @@ def test_spec_normalizes_its_language_on_construction():
     spec = PodcastSpec(
         language="EN-us",
         speakers=[_speaker(0)],
-        duration=DurationTarget(min_minutes=5, max_minutes=10),
+        duration=DurationTarget(min_seconds=300, max_seconds=600),
     )
     assert spec.language == "en-us"
 
@@ -68,7 +68,7 @@ def test_speakers_must_have_unique_slots():
         PodcastSpec(
             language="en",
             speakers=[_speaker(0), _speaker(0, voice_id="kokoro:af_bella")],
-            duration=DurationTarget(min_minutes=5, max_minutes=10),
+            duration=DurationTarget(min_seconds=300, max_seconds=600),
         )
 
 
@@ -77,7 +77,7 @@ def test_a_brief_needs_at_least_one_speaker():
         PodcastSpec(
             language="en",
             speakers=[],
-            duration=DurationTarget(min_minutes=5, max_minutes=10),
+            duration=DurationTarget(min_seconds=300, max_seconds=600),
         )
 
 
@@ -86,7 +86,7 @@ def test_a_monologue_brief_carries_exactly_one_speaker():
         language="en",
         style=PodcastStyle.MONOLOGUE,
         speakers=[_speaker(0)],
-        duration=DurationTarget(min_minutes=5, max_minutes=10),
+        duration=DurationTarget(min_seconds=300, max_seconds=600),
     )
     assert spec.style is PodcastStyle.MONOLOGUE
 
@@ -98,18 +98,25 @@ def test_a_monologue_brief_rejects_multiple_speakers():
             language="en",
             style=PodcastStyle.MONOLOGUE,
             speakers=[_speaker(0), _speaker(1, voice_id="kokoro:af_bella")],
-            duration=DurationTarget(min_minutes=5, max_minutes=10),
+            duration=DurationTarget(min_seconds=300, max_seconds=600),
         )
 
 
 def test_duration_rejects_an_inverted_range():
     """A max below the min is a user error caught at the brief gate."""
     with pytest.raises(ValidationError):
-        DurationTarget(min_minutes=20, max_minutes=10)
+        DurationTarget(min_seconds=1200, max_seconds=600)
 
 
 def test_duration_midpoint_is_where_drafting_aims():
-    assert DurationTarget(min_minutes=10, max_minutes=20).midpoint_minutes == 15
+    assert DurationTarget(min_seconds=600, max_seconds=1200).midpoint_seconds == 900
+    assert DurationTarget(min_seconds=600, max_seconds=1200).midpoint_minutes == 15
+
+
+def test_duration_loads_legacy_minute_fields_from_json():
+    duration = DurationTarget.model_validate({"min_minutes": 10, "max_minutes": 20})
+    assert duration.min_seconds == 600
+    assert duration.max_seconds == 1200
 
 
 def test_blank_focus_becomes_absent():
@@ -117,7 +124,7 @@ def test_blank_focus_becomes_absent():
     spec = PodcastSpec(
         language="en",
         speakers=[_speaker(0)],
-        duration=DurationTarget(min_minutes=5, max_minutes=10),
+        duration=DurationTarget(min_seconds=300, max_seconds=600),
         focus="   ",
     )
     assert spec.focus is None
@@ -127,7 +134,7 @@ def test_speaker_for_returns_the_speaker_bound_to_a_slot():
     spec = PodcastSpec(
         language="en",
         speakers=[_speaker(0), _speaker(1, voice_id="kokoro:af_bella")],
-        duration=DurationTarget(min_minutes=5, max_minutes=10),
+        duration=DurationTarget(min_seconds=300, max_seconds=600),
     )
     assert spec.speaker_for(1).voice_id == "kokoro:af_bella"
 
@@ -136,7 +143,7 @@ def test_speaker_for_raises_when_no_speaker_matches():
     spec = PodcastSpec(
         language="en",
         speakers=[_speaker(0)],
-        duration=DurationTarget(min_minutes=5, max_minutes=10),
+        duration=DurationTarget(min_seconds=300, max_seconds=600),
     )
     with pytest.raises(KeyError):
         spec.speaker_for(99)

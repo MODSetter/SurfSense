@@ -79,7 +79,7 @@ def propose_spec(state: BriefState, config: RunnableConfig) -> dict[str, Any]:
         style=PodcastStyle.CONVERSATIONAL,
         speakers=speakers,
         duration=DurationTarget(
-            min_minutes=brief.min_minutes, max_minutes=brief.max_minutes
+            min_seconds=brief.min_seconds, max_seconds=brief.max_seconds
         ),
         focus=brief.focus,
     )

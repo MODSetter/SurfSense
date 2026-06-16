@@ -66,7 +66,7 @@ def _spec(voice_id: str) -> PodcastSpec:
         speakers=[
             SpeakerSpec(slot=0, name="Host", role=SpeakerRole.HOST, voice_id=voice_id)
         ],
-        duration=DurationTarget(min_minutes=5, max_minutes=10),
+        duration=DurationTarget(min_seconds=300, max_seconds=600),
     )
 
 

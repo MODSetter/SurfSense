@@ -157,8 +157,8 @@ async def create_podcast(
         session,
         search_space_id=body.search_space_id,
         speaker_count=body.speaker_count,
-        min_minutes=body.min_minutes,
-        max_minutes=body.max_minutes,
+        min_seconds=body.min_seconds,
+        max_seconds=body.max_seconds,
         focus=body.focus,
     )
     await service.attach_brief(podcast, spec)
