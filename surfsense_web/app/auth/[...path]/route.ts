@@ -40,7 +40,7 @@ function toClientHeaders(headers: Headers) {
 async function proxy(request: NextRequest, context: { params: Promise<{ path?: string[] }> }) {
 	const params = await context.params;
 	const path = params.path?.join("/") || "";
-	const upstreamUrl = new URL(`${getBackendBaseUrl()}/api/v1/${path}`);
+	const upstreamUrl = new URL(`${getBackendBaseUrl()}/auth/${path}`);
 	upstreamUrl.search = request.nextUrl.search;
 
 	const hasBody = request.method !== "GET" && request.method !== "HEAD";

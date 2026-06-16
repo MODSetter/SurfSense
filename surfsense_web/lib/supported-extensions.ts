@@ -75,18 +75,21 @@ export const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 	},
 };
 
-export function getAcceptedFileTypes(): Record<string, string[]> {
-	const etlService = process.env.NEXT_PUBLIC_ETL_SERVICE;
+export function getAcceptedFileTypes(etlService?: string): Record<string, string[]> {
 	return FILE_TYPE_CONFIG[etlService || "default"] || FILE_TYPE_CONFIG.default;
 }
 
-export function getSupportedExtensions(acceptedFileTypes?: Record<string, string[]>): string[] {
-	const types = acceptedFileTypes ?? getAcceptedFileTypes();
+export function getSupportedExtensions(
+	acceptedFileTypes?: Record<string, string[]>,
+	etlService?: string
+): string[] {
+	const types = acceptedFileTypes ?? getAcceptedFileTypes(etlService);
 	return Array.from(new Set(Object.values(types).flat())).sort();
 }
 
 export function getSupportedExtensionsSet(
-	acceptedFileTypes?: Record<string, string[]>
+	acceptedFileTypes?: Record<string, string[]>,
+	etlService?: string
 ): Set<string> {
-	return new Set(getSupportedExtensions(acceptedFileTypes).map((ext) => ext.toLowerCase()));
+	return new Set(getSupportedExtensions(acceptedFileTypes, etlService).map((ext) => ext.toLowerCase()));
 }

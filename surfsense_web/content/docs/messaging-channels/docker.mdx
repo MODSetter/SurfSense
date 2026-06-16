@@ -15,17 +15,19 @@ wired by Compose.
 ## Public URLs
 
 For localhost-only testing, the defaults are enough for the SurfSense UI, but
-public webhooks from Telegram, WhatsApp, and Slack require a public HTTPS backend
-URL. Use your deployed backend URL or a tunnel such as Cloudflare Tunnel or
-ngrok.
+public webhooks from Telegram, WhatsApp, and Slack require a public HTTPS
+SurfSense URL. Use your deployed domain or a tunnel such as Cloudflare Tunnel
+or ngrok.
 
-When using a custom domain or tunnel, set:
+When using a custom domain or tunnel with the bundled Caddy proxy, set:
 
 ```bash
-BACKEND_URL=https://api.example.com
-GATEWAY_BASE_URL=https://api.example.com
-NEXT_FRONTEND_URL=https://app.example.com
-NEXT_PUBLIC_FASTAPI_BACKEND_URL=https://api.example.com
+SURFSENSE_PUBLIC_URL=https://surf.example.com
+SURFSENSE_SITE_ADDRESS=surf.example.com
+LISTEN_HTTP_PORT=80
+LISTEN_HTTPS_PORT=443
+CERT_EMAIL=you@example.com
+GATEWAY_BASE_URL=https://surf.example.com
 ```
 
 ## Environment Variables

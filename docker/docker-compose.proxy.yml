@@ -1,0 +1,54 @@
+# =============================================================================
+# SurfSense — Optional Caddy reverse-proxy overlay
+# =============================================================================
+# Usage (from docker/):
+#   PROXY_HTTP_PORT=8080 SURFSENSE_PUBLIC_URL=http://localhost:8080 \
+#     docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+#
+# This overlay is for validation and custom deployments. The production
+# docker-compose.yml includes Caddy by default.
+# =============================================================================
+
+services:
+  backend:
+    ports:
+      - "${BACKEND_PORT:-8929}:8000"
+
+  zero-cache:
+    ports:
+      - "${ZERO_CACHE_PORT:-5929}:4848"
+
+  frontend:
+    ports:
+      - "${FRONTEND_PORT:-3929}:3000"
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "${PROXY_HTTP_PORT:-8080}:80"
+      - "${PROXY_HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      SURFSENSE_SITE_ADDRESS: ${SURFSENSE_SITE_ADDRESS:-:80}
+      CERT_EMAIL: ${CERT_EMAIL:-}
+      CERT_ACME_CA: ${CERT_ACME_CA:-https://acme-v02.api.letsencrypt.org/directory}
+      CERT_ACME_DNS: ${CERT_ACME_DNS:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-0.0.0.0/0}
+      SURFSENSE_MAX_BODY_SIZE: ${SURFSENSE_MAX_BODY_SIZE:-5GB}
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
+      zero-cache:
+        condition: service_healthy
+
+volumes:
+  caddy_data:
+    name: surfsense-caddy-data
+  caddy_config:
+    name: surfsense-caddy-config

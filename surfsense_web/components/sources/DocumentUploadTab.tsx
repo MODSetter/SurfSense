@@ -8,6 +8,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import {
 	Accordion,
 	AccordionContent,
@@ -136,6 +137,7 @@ export function DocumentUploadTab({
 	onAccordionStateChange,
 }: DocumentUploadTabProps) {
 	const t = useTranslations("upload_documents");
+	const { etlService } = useRuntimeConfig();
 	const [files, setFiles] = useState<FileWithId[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [accordionValue, setAccordionValue] = useState<string>("");
@@ -160,7 +162,7 @@ export function DocumentUploadTab({
 	const electronAPI = useElectronAPI();
 	const isElectron = !!electronAPI?.browseFiles;
 
-	const acceptedFileTypes = useMemo(() => getAcceptedFileTypes(), []);
+	const acceptedFileTypes = useMemo(() => getAcceptedFileTypes(etlService), [etlService]);
 	const supportedExtensions = useMemo(
 		() => getSupportedExtensions(acceptedFileTypes),
 		[acceptedFileTypes]

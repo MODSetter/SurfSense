@@ -74,7 +74,27 @@ If Watchtower is enabled, it preserves the running image variant tag automatical
 
 After starting, access SurfSense at:
 
-- **Frontend**: [http://localhost:3929](http://localhost:3929)
-- **Backend API**: [http://localhost:8929](http://localhost:8929)
-- **API Docs**: [http://localhost:8929/docs](http://localhost:8929/docs)
-- **Zero-cache**: [http://localhost:5929](http://localhost:5929)
+- **SurfSense**: [http://localhost:3929](http://localhost:3929)
+- **Backend API**: [http://localhost:3929/api/v1](http://localhost:3929/api/v1)
+- **Zero sync**: `ws://localhost:3929/zero`
+
+The installer uses the bundled Caddy reverse proxy by default. The backend and
+zero-cache containers are not published on separate host ports in the production
+stack.
+
+For a custom domain, edit `surfsense/.env` after installation:
+
+```dotenv
+SURFSENSE_SITE_ADDRESS=surf.example.com
+LISTEN_HTTP_PORT=80
+LISTEN_HTTPS_PORT=443
+CERT_EMAIL=you@example.com
+SURFSENSE_PUBLIC_URL=https://surf.example.com
+```
+
+Then run:
+
+```bash
+cd surfsense
+docker compose up -d --wait
+```

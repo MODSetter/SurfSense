@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { AnonModel, AnonQuotaResponse } from "@/contracts/types/anonymous-chat.types";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { readSSEStream } from "@/lib/chat/streaming-state";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import { QuotaBar } from "./quota-bar";
@@ -81,7 +81,7 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 				content: m.content,
 			}));
 
-			const response = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/stream`, {
+			const response = await fetch(buildBackendUrl("/api/v1/public/anon-chat/stream"), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",

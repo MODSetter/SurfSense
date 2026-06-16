@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { AmbientBackground } from "./AmbientBackground";
 
@@ -51,7 +51,7 @@ export function GoogleLoginButton() {
 		// cross-origin fetch requests may not be sent on subsequent redirects.
 		// The authorize-redirect endpoint does a server-side redirect to Google
 		// and sets the CSRF cookie properly for same-site context.
-		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
+		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
 	};
 	return (
 		<div className="relative w-full overflow-hidden">

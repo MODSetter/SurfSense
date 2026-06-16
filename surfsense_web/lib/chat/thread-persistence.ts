@@ -4,7 +4,7 @@
  */
 
 import { baseApiService } from "@/lib/apis/base-api.service";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 // =============================================================================
 // Types matching backend schemas
 // =============================================================================
@@ -227,5 +227,5 @@ export interface RegenerateParams {
  * Get the URL for the regenerate endpoint (for streaming fetch)
  */
 export function getRegenerateUrl(threadId: number): string {
-	return `${BACKEND_URL}/api/v1/threads/${threadId}/regenerate`;
+	return buildBackendUrl(`/api/v1/threads/${threadId}/regenerate`);
 }

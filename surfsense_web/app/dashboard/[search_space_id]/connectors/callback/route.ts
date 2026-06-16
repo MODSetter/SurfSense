@@ -16,9 +16,12 @@ export async function GET(
 	};
 	const result = JSON.stringify(payload);
 
-	const redirectUrl = new URL(`/dashboard/${search_space_id}/new-chat`, request.url);
-
-	const response = NextResponse.redirect(redirectUrl, { status: 302 });
+	const response = new NextResponse(null, {
+		status: 302,
+		headers: {
+			Location: `/dashboard/${search_space_id}/new-chat`,
+		},
+	});
 	response.cookies.set(OAUTH_RESULT_COOKIE, result, {
 		path: "/",
 		maxAge: 60,

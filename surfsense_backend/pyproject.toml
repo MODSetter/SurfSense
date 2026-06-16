@@ -41,7 +41,6 @@ dependencies = [
     "elasticsearch>=9.1.1",
     "faster-whisper>=1.1.0",
     "celery[redis]>=5.5.3",
-    "flower>=2.0.1",
     "redis>=5.2.1",
     "firecrawl-py>=4.9.0",
     "boto3>=1.35.0",

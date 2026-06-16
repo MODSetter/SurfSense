@@ -10,7 +10,7 @@ import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { compileCheck, compileToComponent } from "@/lib/remotion/compile-check";
 import { FPS } from "@/lib/remotion/constants";
 import {
@@ -137,7 +137,6 @@ function VideoPresentationPlayer({
 	const [isPptxExporting, setIsPptxExporting] = useState(false);
 	const [pptxProgress, setPptxProgress] = useState<string | null>(null);
 
-	const backendUrl = BACKEND_URL ?? "";
 	const audioBlobUrlsRef = useRef<string[]>([]);
 
 	const loadPresentation = useCallback(async () => {
@@ -177,7 +176,7 @@ function VideoPresentationPlayer({
 					title: scene.title ?? slide.title,
 					code: scene.code,
 					durationInFrames,
-					audioUrl: slide.audio_url ? `${backendUrl}${slide.audio_url}` : undefined,
+					audioUrl: slide.audio_url ? buildBackendUrl(slide.audio_url) : undefined,
 				});
 			}
 
@@ -222,7 +221,7 @@ function VideoPresentationPlayer({
 		} finally {
 			setIsLoading(false);
 		}
-	}, [presentationId, backendUrl, shareToken]);
+	}, [presentationId, shareToken]);
 
 	useEffect(() => {
 		loadPresentation();

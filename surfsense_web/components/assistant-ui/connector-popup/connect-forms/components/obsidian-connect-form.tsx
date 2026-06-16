@@ -6,7 +6,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { useApiKey } from "@/hooks/use-api-key";
-import { BACKEND_URL } from "@/lib/env-config";
 import { getConnectorBenefits } from "../connector-benefits";
 import type { ConnectFormProps } from "../index";
 

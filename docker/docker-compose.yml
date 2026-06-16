@@ -94,10 +94,39 @@ services:
       timeout: 5s
       retries: 5
 
+  # Single public entry point for the Docker stack. Comment this service out
+  # only if you front SurfSense with your own reverse proxy.
+  proxy:
+    image: caddy:2-alpine
+    # For DNS-01/wildcard certificates, replace image with:
+    # build: ./proxy
+    restart: unless-stopped
+    ports:
+      - "${LISTEN_HTTP_PORT:-3929}:80"
+      - "${LISTEN_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      SURFSENSE_SITE_ADDRESS: ${SURFSENSE_SITE_ADDRESS:-:80}
+      CERT_EMAIL: ${CERT_EMAIL:-}
+      CERT_ACME_CA: ${CERT_ACME_CA:-https://acme-v02.api.letsencrypt.org/directory}
+      CERT_ACME_DNS: ${CERT_ACME_DNS:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-0.0.0.0/0}
+      SURFSENSE_MAX_BODY_SIZE: ${SURFSENSE_MAX_BODY_SIZE:-5GB}
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
+      zero-cache:
+        condition: service_healthy
+
   backend:
     image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
-    ports:
-      - "${BACKEND_PORT:-8929}:8000"
+    expose:
+      - "8000"
     volumes:
       - shared_temp:/shared_tmp
     env_file:
@@ -113,7 +142,8 @@ services:
       PYTHONPATH: /app
       UVICORN_LOOP: asyncio
       UNSTRUCTURED_HAS_PATCHED_LOOP: "1"
-      NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3929}}
+      NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-${SURFSENSE_PUBLIC_URL:-http://localhost:${LISTEN_HTTP_PORT:-3929}}}
+      BACKEND_URL: ${BACKEND_URL:-${SURFSENSE_PUBLIC_URL:-http://localhost:${LISTEN_HTTP_PORT:-3929}}}
       SEARXNG_DEFAULT_HOST: ${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
       WHATSAPP_BRIDGE_URL: ${WHATSAPP_BRIDGE_URL:-http://whatsapp-bridge:9929}
       # Daytona Sandbox – uncomment and set credentials to enable cloud code execution
@@ -217,8 +247,8 @@ services:
 
   zero-cache:
     image: rocicorp/zero:1.4.0
-    ports:
-      - "${ZERO_CACHE_PORT:-5929}:4848"
+    expose:
+      - "4848"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -252,16 +282,13 @@ services:
 
   frontend:
     image: ghcr.io/modsetter/surfsense-web:${SURFSENSE_VERSION:-latest}
-    ports:
-      - "${FRONTEND_PORT:-3929}:3000"
+    expose:
+      - "3000"
     environment:
-      NEXT_PUBLIC_FASTAPI_BACKEND_URL: ${NEXT_PUBLIC_FASTAPI_BACKEND_URL:-http://localhost:${BACKEND_PORT:-8929}}
-      NEXT_PUBLIC_ZERO_CACHE_URL: ${NEXT_PUBLIC_ZERO_CACHE_URL:-http://localhost:${ZERO_CACHE_PORT:-5929}}
-      NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${AUTH_TYPE:-LOCAL}
-      NEXT_PUBLIC_ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
-      NEXT_PUBLIC_DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
-      NEXT_PUBLIC_WHATSAPP_DISPLAY_PHONE_NUMBER: ${WHATSAPP_SHARED_DISPLAY_PHONE_NUMBER:-}
-      FASTAPI_BACKEND_INTERNAL_URL: ${FASTAPI_BACKEND_INTERNAL_URL:-http://backend:8000}
+      AUTH_TYPE: ${AUTH_TYPE:-LOCAL}
+      ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
+      DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
+      SURFSENSE_BACKEND_INTERNAL_URL: http://backend:8000
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
@@ -280,5 +307,9 @@ volumes:
     name: surfsense-shared-temp
   zero_cache_data:
     name: surfsense-zero-cache
+  caddy_data:
+    name: surfsense-caddy-data
+  caddy_config:
+    name: surfsense-caddy-config
   whatsapp_sessions:
     name: surfsense-whatsapp-sessions

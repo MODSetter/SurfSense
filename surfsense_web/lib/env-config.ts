@@ -1,47 +1,75 @@
 /**
  * Environment configuration for the frontend.
  *
- * This file centralizes access to NEXT_PUBLIC_* environment variables.
- * For Docker deployments, these placeholders are replaced at container startup
- * via sed in the entrypoint script.
- *
- * IMPORTANT: Do not use template literals or complex expressions with these values
- * as it may prevent the sed replacement from working correctly.
+ * Docker deployments use same-origin relative browser URLs behind Caddy.
+ * NEXT_PUBLIC_* values remain only as build-time fallbacks for packaged clients
+ * like Electron, where there is no bundled Caddy origin.
  */
 
 import packageJson from "../package.json";
 
-// Auth type: "LOCAL" for email/password, "GOOGLE" for OAuth
-// Placeholder: __NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE__
-export const AUTH_TYPE = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "GOOGLE";
+// Build-time fallback for packaged clients. Docker runtime reads plain AUTH_TYPE
+// through the runtime config provider first, then falls back to this baked value.
+export const BUILD_TIME_AUTH_TYPE = process.env.NEXT_PUBLIC_AUTH_TYPE || "GOOGLE";
 
-// Backend API URL
-// Placeholder: __NEXT_PUBLIC_FASTAPI_BACKEND_URL__
-export const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+// Backend API URL. An empty string is valid in proxy mode and means
+// same-origin relative requests (e.g. /api/v1/... and /auth/...).
+export const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL ?? "";
 
-// ETL Service: "DOCLING", "UNSTRUCTURED", or "LLAMACLOUD"
-// Placeholder: __NEXT_PUBLIC_ETL_SERVICE__
-export const ETL_SERVICE = process.env.NEXT_PUBLIC_ETL_SERVICE || "DOCLING";
+type BackendUrlParam = string | number | boolean | null | undefined;
 
-// Deployment Mode: "self-hosted" or "cloud"
-// Matches backend's SURFSENSE_DEPLOYMENT_MODE - defaults to "self-hosted"
-// self-hosted: Full access to local file system connectors (Obsidian, etc.)
-// cloud: Only cloud-based connectors available
-// Placeholder: __NEXT_PUBLIC_DEPLOYMENT_MODE__
-export const DEPLOYMENT_MODE = process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "self-hosted";
+/**
+ * Build browser-facing backend URLs without breaking proxy mode.
+ *
+ * In proxy mode BACKEND_URL intentionally stays empty, so callers must keep
+ * same-origin relative URLs ("/api/v1/...") and let Caddy route them. When
+ * BACKEND_URL is explicitly configured, the same path resolves against that
+ * absolute backend origin.
+ */
+export function buildBackendUrl(
+	path: string,
+	params?: Record<string, BackendUrlParam>
+): string {
+	const backendPath = path.startsWith("/") ? path : `/${path}`;
+	const queryParams = new URLSearchParams();
+
+	if (params) {
+		for (const [key, value] of Object.entries(params)) {
+			if (value !== null && value !== undefined) {
+				queryParams.append(key, String(value));
+			}
+		}
+	}
+
+	if (BACKEND_URL) {
+		const url = new URL(backendPath, BACKEND_URL);
+		for (const [key, value] of queryParams) {
+			url.searchParams.append(key, value);
+		}
+		return url.toString();
+	}
+
+	const queryString = queryParams.toString();
+	if (!queryString) return backendPath;
+	return `${backendPath}${backendPath.includes("?") ? "&" : "?"}${queryString}`;
+}
+
+// Server-side backend URL. Relative browser URLs do not work from RSC/API route
+// code, so server callers should use Docker DNS or an explicit public backend.
+export const SERVER_BACKEND_URL =
+	process.env.SURFSENSE_BACKEND_INTERNAL_URL ||
+	// TODO: Remove FASTAPI_BACKEND_INTERNAL_URL after the post-Caddy env migration window.
+	process.env.FASTAPI_BACKEND_INTERNAL_URL ||
+	"http://backend:8000";
+
+// Build-time fallback for packaged clients. Docker runtime reads plain ETL_SERVICE
+// through the runtime config provider first, then falls back to this baked value.
+export const BUILD_TIME_ETL_SERVICE = process.env.NEXT_PUBLIC_ETL_SERVICE || "DOCLING";
+
+// Build-time fallback for packaged clients. Docker runtime reads plain
+// DEPLOYMENT_MODE through the runtime config provider first, then falls back to this baked value.
+export const BUILD_TIME_DEPLOYMENT_MODE = process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "self-hosted";
 
 // App version - defaults to package.json version
 // Can be overridden at build time with NEXT_PUBLIC_APP_VERSION for full git tag version
 export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version;
-
-// Helper to check if local auth is enabled
-export const isLocalAuth = () => AUTH_TYPE === "LOCAL";
-
-// Helper to check if Google auth is enabled
-export const isGoogleAuth = () => AUTH_TYPE === "GOOGLE";
-
-// Helper to check if running in self-hosted mode
-export const isSelfHosted = () => DEPLOYMENT_MODE === "self-hosted";
-
-// Helper to check if running in cloud mode
-export const isCloud = () => DEPLOYMENT_MODE === "cloud";

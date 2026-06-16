@@ -106,7 +106,7 @@ import {
 	extractUserTurnForNewChatApi,
 	type NewChatUserImagePayload,
 } from "@/lib/chat/user-turn-api-parts";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { NotFoundError } from "@/lib/error";
 import {
 	trackChatBlocked,
@@ -919,10 +919,9 @@ export default function NewChatPage() {
 		if (threadId) {
 			const token = getBearerToken();
 			if (token) {
-				const backendUrl = BACKEND_URL;
 				try {
 					const response = await fetch(
-						`${backendUrl}/api/v1/threads/${threadId}/cancel-active-turn`,
+						buildBackendUrl(`/api/v1/threads/${threadId}/cancel-active-turn`),
 						{
 							method: "POST",
 							headers: {
@@ -1110,7 +1109,6 @@ export default function NewChatPage() {
 			let streamBatcher: FrameBatchedUpdater | null = null;
 
 			try {
-				const backendUrl = BACKEND_URL;
 				const selection = await getAgentFilesystemSelection(searchSpaceId, {
 					localFilesystemEnabled,
 				});
@@ -1147,7 +1145,7 @@ export default function NewChatPage() {
 				}
 
 				const response = await fetchWithTurnCancellingRetry(() =>
-					fetch(`${backendUrl}/api/v1/new_chat`, {
+					fetch(buildBackendUrl("/api/v1/new_chat"), {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
@@ -1642,12 +1640,11 @@ export default function NewChatPage() {
 			}
 
 			try {
-				const backendUrl = BACKEND_URL;
 				const selection = await getAgentFilesystemSelection(searchSpaceId, {
 					localFilesystemEnabled,
 				});
 				const response = await fetchWithTurnCancellingRetry(() =>
-					fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
+					fetch(buildBackendUrl(`/api/v1/threads/${resumeThreadId}/resume`), {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",

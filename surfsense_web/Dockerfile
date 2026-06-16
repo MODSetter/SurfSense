@@ -35,21 +35,6 @@ RUN apk add --no-cache git
 # Enable pnpm
 RUN corepack enable pnpm
 
-# Build with placeholder values for NEXT_PUBLIC_* variables.
-# These are replaced at container startup by docker-entrypoint.js
-# with real values from the container's environment variables.
-ARG NEXT_PUBLIC_FASTAPI_BACKEND_URL=__NEXT_PUBLIC_FASTAPI_BACKEND_URL__
-ARG NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=__NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE__
-ARG NEXT_PUBLIC_ETL_SERVICE=__NEXT_PUBLIC_ETL_SERVICE__
-ARG NEXT_PUBLIC_ZERO_CACHE_URL=__NEXT_PUBLIC_ZERO_CACHE_URL__
-ARG NEXT_PUBLIC_DEPLOYMENT_MODE=__NEXT_PUBLIC_DEPLOYMENT_MODE__
-
-ENV NEXT_PUBLIC_FASTAPI_BACKEND_URL=$NEXT_PUBLIC_FASTAPI_BACKEND_URL
-ENV NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=$NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE
-ENV NEXT_PUBLIC_ETL_SERVICE=$NEXT_PUBLIC_ETL_SERVICE
-ENV NEXT_PUBLIC_ZERO_CACHE_URL=$NEXT_PUBLIC_ZERO_CACHE_URL
-ENV NEXT_PUBLIC_DEPLOYMENT_MODE=$NEXT_PUBLIC_DEPLOYMENT_MODE
-
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -78,10 +63,6 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone/app/ ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Entrypoint scripts for runtime env var substitution
-COPY --chown=nextjs:nodejs docker-entrypoint.js ./docker-entrypoint.js
-COPY --chown=nextjs:nodejs --chmod=755 docker-entrypoint.sh ./docker-entrypoint.sh
-
 USER nextjs
 
 EXPOSE 3000
@@ -91,4 +72,4 @@ ENV PORT=3000
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
 ENV HOSTNAME="0.0.0.0"
-ENTRYPOINT ["/bin/sh", "./docker-entrypoint.sh"]
+CMD ["node", "server.js"]

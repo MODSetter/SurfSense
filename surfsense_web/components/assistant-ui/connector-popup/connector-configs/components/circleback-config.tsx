@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import type { ConnectorConfigProps } from "../index";
 export interface CirclebackConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
@@ -42,17 +42,10 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 		const doFetch = async () => {
 			if (!connector.search_space_id) return;
 
-			const baseUrl = BACKEND_URL;
-			if (!baseUrl) {
-				console.error("NEXT_PUBLIC_FASTAPI_BACKEND_URL is not configured");
-				setIsLoading(false);
-				return;
-			}
-
 			setIsLoading(true);
 			try {
 				const response = await authenticatedFetch(
-					`${baseUrl}/api/v1/webhooks/circleback/${connector.search_space_id}/info`,
+					buildBackendUrl(`/api/v1/webhooks/circleback/${connector.search_space_id}/info`),
 					{ signal: controller.signal }
 				);
 				if (controller.signal.aborted) return;
