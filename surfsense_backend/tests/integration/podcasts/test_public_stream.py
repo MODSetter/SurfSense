@@ -48,6 +48,22 @@ async def test_public_stream_serves_audio_via_storage_key(
     assert resp.content == b"public-audio"
 
 
+async def test_public_stream_404_when_object_missing(
+    client, db_session, db_search_space, db_user, fake_storage
+):
+    await _snapshot(
+        db_session,
+        search_space_id=db_search_space.id,
+        user=db_user,
+        token="tok-gone",
+        podcasts=[{"original_id": 556, "storage_key": "podcasts/gone.mp3"}],
+    )
+
+    resp = await client.get("/api/v1/public/tok-gone/podcasts/556/stream")
+
+    assert resp.status_code == 404
+
+
 async def test_public_stream_404_when_podcast_absent_from_snapshot(
     client, db_session, db_search_space, db_user
 ):

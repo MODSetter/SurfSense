@@ -42,6 +42,13 @@ def open_audio_stream(podcast: Podcast) -> AsyncIterator[bytes]:
     return get_storage_backend().open_stream(podcast.storage_key)
 
 
+async def audio_exists(podcast: Podcast) -> bool:
+    """Whether the podcast's stored audio object is actually present."""
+    return bool(podcast.storage_key) and await get_storage_backend().exists(
+        podcast.storage_key
+    )
+
+
 async def purge_audio(podcast: Podcast) -> None:
     """Delete a podcast's stored audio if present; a missing object is fine."""
     await purge_audio_object(podcast.storage_key)

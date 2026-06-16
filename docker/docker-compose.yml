@@ -100,6 +100,7 @@ services:
       - "${BACKEND_PORT:-8929}:8000"
     volumes:
       - shared_temp:/shared_tmp
+      - object_store:/app/.local_object_store
     env_file:
       - .env
     extra_hosts:
@@ -113,6 +114,7 @@ services:
       PYTHONPATH: /app
       UVICORN_LOOP: asyncio
       UNSTRUCTURED_HAS_PATCHED_LOOP: "1"
+      FILE_STORAGE_LOCAL_PATH: /app/.local_object_store
       NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3929}}
       SEARXNG_DEFAULT_HOST: ${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
       WHATSAPP_BRIDGE_URL: ${WHATSAPP_BRIDGE_URL:-http://whatsapp-bridge:9929}
@@ -165,6 +167,7 @@ services:
     image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
     volumes:
       - shared_temp:/shared_tmp
+      - object_store:/app/.local_object_store
     env_file:
       - .env
     extra_hosts:
@@ -176,6 +179,7 @@ services:
       REDIS_APP_URL: ${REDIS_URL:-redis://redis:6379/0}
       CELERY_TASK_DEFAULT_QUEUE: surfsense
       PYTHONPATH: /app
+      FILE_STORAGE_LOCAL_PATH: /app/.local_object_store
       SEARXNG_DEFAULT_HOST: ${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
       SERVICE_ROLE: worker
     depends_on:
@@ -278,6 +282,8 @@ volumes:
     name: surfsense-redis
   shared_temp:
     name: surfsense-shared-temp
+  object_store:
+    name: surfsense-object-store
   zero_cache_data:
     name: surfsense-zero-cache
   whatsapp_sessions:

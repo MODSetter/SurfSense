@@ -106,6 +106,7 @@ services:
     volumes:
       - ../surfsense_backend/app:/app/app
       - shared_temp:/shared_tmp
+      - object_store:/app/.local_object_store
     env_file:
       - ../surfsense_backend/.env
     extra_hosts:
@@ -119,6 +120,7 @@ services:
       - PYTHONPATH=/app
       - UVICORN_LOOP=asyncio
       - UNSTRUCTURED_HAS_PATCHED_LOOP=1
+      - FILE_STORAGE_LOCAL_PATH=/app/.local_object_store
       - LANGCHAIN_TRACING_V2=false
       - LANGSMITH_TRACING=false
       - AUTH_TYPE=${AUTH_TYPE:-LOCAL}
@@ -171,6 +173,7 @@ services:
     volumes:
       - ../surfsense_backend/app:/app/app
       - shared_temp:/shared_tmp
+      - object_store:/app/.local_object_store
     env_file:
       - ../surfsense_backend/.env
     extra_hosts:
@@ -182,6 +185,7 @@ services:
       - REDIS_APP_URL=${REDIS_URL:-redis://redis:6379/0}
       - CELERY_TASK_DEFAULT_QUEUE=surfsense
       - PYTHONPATH=/app
+      - FILE_STORAGE_LOCAL_PATH=/app/.local_object_store
       - SEARXNG_DEFAULT_HOST=${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
       - SERVICE_ROLE=worker
     depends_on:
@@ -278,6 +282,8 @@ volumes:
     name: surfsense-dev-redis
   shared_temp:
     name: surfsense-dev-shared-temp
+  object_store:
+    name: surfsense-dev-object-store
   zero_cache_data:
     name: surfsense-dev-zero-cache
   whatsapp_sessions:
