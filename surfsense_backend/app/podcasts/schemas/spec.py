@@ -12,8 +12,6 @@ import re
 from enum import StrEnum
 from typing import Any
 
-from typing import Any
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.podcasts.duration_limits import (
@@ -111,7 +109,11 @@ class DurationTarget(BaseModel):
     @classmethod
     def _coerce_legacy_minutes(cls, data: Any) -> Any:
         """Rows stored before seconds-based briefs still load from JSONB."""
-        if isinstance(data, dict) and "min_seconds" not in data and "min_minutes" in data:
+        if (
+            isinstance(data, dict)
+            and "min_seconds" not in data
+            and "min_minutes" in data
+        ):
             migrated = dict(data)
             migrated["min_seconds"] = int(migrated.pop("min_minutes")) * 60
             migrated["max_seconds"] = int(migrated.pop("max_minutes")) * 60
