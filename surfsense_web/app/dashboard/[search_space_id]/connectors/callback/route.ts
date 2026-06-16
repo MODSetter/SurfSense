@@ -16,8 +16,11 @@ export async function GET(
 	};
 	const result = JSON.stringify(payload);
 
-	const response = NextResponse.redirect(`/dashboard/${search_space_id}/new-chat`, {
+	const response = new NextResponse(null, {
 		status: 302,
+		headers: {
+			Location: `/dashboard/${search_space_id}/new-chat`,
+		},
 	});
 	response.cookies.set(OAUTH_RESULT_COOKIE, result, {
 		path: "/",
