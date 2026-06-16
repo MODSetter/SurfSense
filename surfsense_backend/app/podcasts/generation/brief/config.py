@@ -6,10 +6,13 @@ from dataclasses import dataclass, field, fields
 
 from langchain_core.runnables import RunnableConfig
 
+from app.podcasts.duration_limits import (
+    DEFAULT_MAX_SECONDS,
+    DEFAULT_MIN_SECONDS,
+)
+
 # Sensible defaults for a fresh brief; the user adjusts the range at the gate.
 DEFAULT_SPEAKER_COUNT = 2
-DEFAULT_MIN_MINUTES = 10
-DEFAULT_MAX_MINUTES = 20
 
 
 @dataclass(kw_only=True)
@@ -17,8 +20,8 @@ class BriefConfig:
     """Signals used to propose a brief; everything here is non-LLM context."""
 
     speaker_count: int = DEFAULT_SPEAKER_COUNT
-    min_minutes: int = DEFAULT_MIN_MINUTES
-    max_minutes: int = DEFAULT_MAX_MINUTES
+    min_seconds: int = DEFAULT_MIN_SECONDS
+    max_seconds: int = DEFAULT_MAX_SECONDS
     focus: str | None = None
     last_used_language: str | None = None
     last_used_voices: list[str] = field(default_factory=list)
