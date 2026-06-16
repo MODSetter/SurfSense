@@ -10,16 +10,20 @@ from __future__ import annotations
 
 import re
 from enum import StrEnum
+from typing import Any
+
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.podcasts.duration_limits import (
+    MAX_DURATION_SECONDS,
+    MIN_DURATION_SECONDS,
+)
 
 # A speaker count beyond this is almost never a real podcast and explodes the
 # voice/turn-attribution space, so we reject it at the brief gate.
 MAX_SPEAKERS = 6
-
-# Long-form is a goal, but an open-ended upper bound invites runaway TTS bills.
-# One day of audio is a generous ceiling that still blocks obvious mistakes.
-MAX_DURATION_MINUTES = 24 * 60
 
 # BCP-47 primary subtag plus optional region (e.g. ``en``, ``en-US``, ``pt-BR``).
 # Kept deliberately permissive: the voice catalog, not the brief, decides which
@@ -91,7 +95,7 @@ class SpeakerSpec(BaseModel):
 
 
 class DurationTarget(BaseModel):
-    """The desired finished length as an inclusive minute range.
+    """The desired finished length as an inclusive second range.
 
     Drafting aims for the midpoint and treats the bounds as soft guardrails;
     storing a range (rather than a point) keeps long-form expectations honest
@@ -100,19 +104,34 @@ class DurationTarget(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    min_minutes: int = Field(..., ge=1, le=MAX_DURATION_MINUTES)
-    max_minutes: int = Field(..., ge=1, le=MAX_DURATION_MINUTES)
+    min_seconds: int = Field(..., ge=MIN_DURATION_SECONDS, le=MAX_DURATION_SECONDS)
+    max_seconds: int = Field(..., ge=MIN_DURATION_SECONDS, le=MAX_DURATION_SECONDS)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_minutes(cls, data: Any) -> Any:
+        """Rows stored before seconds-based briefs still load from JSONB."""
+        if isinstance(data, dict) and "min_seconds" not in data and "min_minutes" in data:
+            migrated = dict(data)
+            migrated["min_seconds"] = int(migrated.pop("min_minutes")) * 60
+            migrated["max_seconds"] = int(migrated.pop("max_minutes")) * 60
+            return migrated
+        return data
 
     @model_validator(mode="after")
     def _check_order(self) -> DurationTarget:
-        if self.max_minutes < self.min_minutes:
-            raise ValueError("max_minutes must be >= min_minutes")
+        if self.max_seconds < self.min_seconds:
+            raise ValueError("max_seconds must be >= min_seconds")
         return self
 
     @property
-    def midpoint_minutes(self) -> float:
+    def midpoint_seconds(self) -> float:
         """The runtime drafting should aim for within the range."""
-        return (self.min_minutes + self.max_minutes) / 2
+        return (self.min_seconds + self.max_seconds) / 2
+
+    @property
+    def midpoint_minutes(self) -> float:
+        return self.midpoint_seconds / 60
 
 
 class PodcastSpec(BaseModel):
