@@ -1,10 +1,11 @@
 "use client";
 
-import { MessageCircle, RefreshCw, ShieldAlert } from "lucide-react";
+import { AlertTriangle, RefreshCw, ShieldAlert } from "lucide-react";
 import { useParams } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -403,23 +404,17 @@ export function MessagingChannelsContent() {
 			{isGatewayConfigLoading ? renderGatewaySkeletons() : null}
 
 			{!isGatewayConfigLoading && gatewayDisabled ? (
-				<Card className="col-span-full border-accent bg-accent/20">
-					<CardHeader className="space-y-3 p-4">
-						<div className="flex items-center gap-2">
-							<MessageCircle className="h-5 w-5 text-primary" />
-							<CardTitle className="text-base">Messaging Channels coming soon</CardTitle>
-						</div>
-						<p className="text-sm text-muted-foreground">
+				<Alert className="col-span-full" variant="warning">
+					<AlertTriangle aria-hidden />
+					<AlertTitle>Messaging Channels coming soon</AlertTitle>
+					<AlertDescription>
+						<p>
 							Soon you'll be able to connect WhatsApp, Telegram, Slack, and Discord to your
 							SurfSense agent so you can ask questions, route messages to search spaces, and get
 							answers from your knowledge base without leaving your chat app.
 						</p>
-					</CardHeader>
-					<CardContent className="space-y-2 p-4 pt-0 text-sm text-muted-foreground">
-						<p>Pair a chat once, then DM the SurfSense agent like a teammate.</p>
-						<p>Each channel can be routed to the right search space when integrations launch.</p>
-					</CardContent>
-				</Card>
+					</AlertDescription>
+				</Alert>
 			) : null}
 
 			{!isGatewayConfigLoading && !gatewayDisabled && !hasEnabledGateway ? (
