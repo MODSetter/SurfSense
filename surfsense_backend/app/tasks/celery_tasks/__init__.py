@@ -39,7 +39,12 @@ def get_celery_session_maker() -> async_sessionmaker:
         # legitimate long per-document embed window is never killed.
         connect_args: dict = {}
         idle_ms = config.DB_CELERY_IDLE_IN_TX_TIMEOUT_MS
-        if idle_ms and idle_ms > 0 and config.DATABASE_URL and "asyncpg" in config.DATABASE_URL:
+        if (
+            idle_ms
+            and idle_ms > 0
+            and config.DATABASE_URL
+            and "asyncpg" in config.DATABASE_URL
+        ):
             connect_args["server_settings"] = {
                 "idle_in_transaction_session_timeout": str(idle_ms)
             }
