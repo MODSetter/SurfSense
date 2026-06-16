@@ -32,10 +32,22 @@ def get_celery_session_maker() -> async_sessionmaker:
     """
     global _celery_engine, _celery_session_maker
     if _celery_session_maker is None:
+        # Reap connections orphaned mid-transaction (e.g. a worker that hung or
+        # crashed mid-index) so they can't hold locks on documents/chunks and
+        # wedge writes — the failure mode that previously left an "idle in
+        # transaction" session holding locks for 11+ hours. Kept generous so a
+        # legitimate long per-document embed window is never killed.
+        connect_args: dict = {}
+        idle_ms = config.DB_CELERY_IDLE_IN_TX_TIMEOUT_MS
+        if idle_ms and idle_ms > 0 and config.DATABASE_URL and "asyncpg" in config.DATABASE_URL:
+            connect_args["server_settings"] = {
+                "idle_in_transaction_session_timeout": str(idle_ms)
+            }
         _celery_engine = create_async_engine(
             config.DATABASE_URL,
             poolclass=NullPool,
             echo=False,
+            connect_args=connect_args,
         )
         with contextlib.suppress(Exception):
             from app.observability.bootstrap import instrument_sqlalchemy_engine

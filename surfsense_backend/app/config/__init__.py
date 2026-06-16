@@ -555,6 +555,13 @@ class Config:
     # connection so an abandoned "idle in transaction" session can't wedge the
     # database indefinitely. 0 disables. Only applied to asyncpg connections.
     DB_IDLE_IN_TX_TIMEOUT_MS = int(os.getenv("DB_IDLE_IN_TX_TIMEOUT_MS", "900000"))
+    # Same protection for the separate Celery worker engine, where long-running
+    # ingestion/podcast/video tasks live. Kept higher than the web default so a
+    # legitimate per-document embed window is never reaped: if a task hasn't
+    # touched the DB in 60 min it's treated as orphaned and dropped. 0 disables.
+    DB_CELERY_IDLE_IN_TX_TIMEOUT_MS = int(
+        os.getenv("DB_CELERY_IDLE_IN_TX_TIMEOUT_MS", "3600000")
+    )
 
     # Celery / Redis
     # Redis (single endpoint for Celery broker, result backend, and app cache).
