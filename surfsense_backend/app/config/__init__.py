@@ -541,6 +541,21 @@ class Config:
     # Database
     DATABASE_URL = os.getenv("DATABASE_URL")
 
+    # When TRUE (default) the app ensures extensions/tables/indexes exist on
+    # startup. Set FALSE in environments where schema is owned exclusively by
+    # Alembic migrations to skip all boot-time DDL.
+    DB_BOOTSTRAP_ON_STARTUP = (
+        os.getenv("DB_BOOTSTRAP_ON_STARTUP", "TRUE").upper() == "TRUE"
+    )
+    # Per-session lock_timeout (ms) applied to boot-time DDL so a contended
+    # CREATE INDEX / CREATE TABLE fails fast instead of hanging the FastAPI
+    # lifespan forever behind another transaction's lock.
+    DB_DDL_LOCK_TIMEOUT_MS = int(os.getenv("DB_DDL_LOCK_TIMEOUT_MS", "5000"))
+    # Global idle_in_transaction_session_timeout (ms) applied to every pooled
+    # connection so an abandoned "idle in transaction" session can't wedge the
+    # database indefinitely. 0 disables. Only applied to asyncpg connections.
+    DB_IDLE_IN_TX_TIMEOUT_MS = int(os.getenv("DB_IDLE_IN_TX_TIMEOUT_MS", "900000"))
+
     # Celery / Redis
     # Redis (single endpoint for Celery broker, result backend, and app cache).
     # Legacy CELERY_BROKER_URL / CELERY_RESULT_BACKEND / REDIS_APP_URL still
