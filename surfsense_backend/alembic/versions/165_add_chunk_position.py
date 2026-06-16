@@ -7,8 +7,8 @@ The backfill is done in committed batches (not one giant UPDATE) so that on a
 large table it: streams progress to the alembic console, keeps each transaction
 small, bounds WAL/bloat growth, and is resumable if interrupted.
 
-Revision ID: 164
-Revises: 163
+Revision ID: 165
+Revises: 164
 """
 
 import logging
@@ -18,8 +18,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "164"
-down_revision: str | None = "163"
+revision: str = "165"
+down_revision: str | None = "164"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -70,7 +70,7 @@ def upgrade() -> None:
     if _index_exists(bind, "ix_chunks_position") and _index_exists(
         bind, "ix_chunks_document_id_position"
     ):
-        logger.info("migration 164 already applied; skipping backfill")
+        logger.info("migration 165 already applied; skipping backfill")
         return
 
     # Run the heavy work outside the migration's single transaction so each
@@ -174,7 +174,7 @@ def upgrade() -> None:
             "CREATE INDEX IF NOT EXISTS ix_chunks_document_id_position "
             "ON chunks(document_id, position);"
         )
-        logger.info("migration 164 finished")
+        logger.info("migration 165 finished")
 
 
 def downgrade() -> None:
