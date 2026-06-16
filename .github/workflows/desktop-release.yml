@@ -95,8 +95,8 @@ jobs:
         run: pnpm build
         working-directory: surfsense_web
         env:
-          NEXT_PUBLIC_FASTAPI_BACKEND_URL: ${{ vars.NEXT_PUBLIC_FASTAPI_BACKEND_URL }}
-          SURFSENSE_BACKEND_INTERNAL_URL: ${{ vars.NEXT_PUBLIC_FASTAPI_BACKEND_URL }}
+          NEXT_PUBLIC_FASTAPI_BACKEND_URL: ${{ vars.HOSTED_BACKEND_URL }}
+          SURFSENSE_BACKEND_INTERNAL_URL: ${{ vars.HOSTED_BACKEND_URL }}
           NEXT_PUBLIC_ZERO_CACHE_URL: ${{ vars.NEXT_PUBLIC_ZERO_CACHE_URL }}
           NEXT_PUBLIC_DEPLOYMENT_MODE: ${{ vars.NEXT_PUBLIC_DEPLOYMENT_MODE }}
           NEXT_PUBLIC_AUTH_TYPE: ${{ vars.NEXT_PUBLIC_AUTH_TYPE }}
@@ -111,6 +111,7 @@ jobs:
         run: pnpm build
         working-directory: surfsense_desktop
         env:
+          HOSTED_BACKEND_URL: ${{ vars.HOSTED_BACKEND_URL }}
           HOSTED_FRONTEND_URL: ${{ vars.HOSTED_FRONTEND_URL }}
           POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
