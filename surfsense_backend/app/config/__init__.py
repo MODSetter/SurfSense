@@ -540,10 +540,10 @@ class Config:
     # Backend URL to override the http to https in the OAuth redirect URI
     BACKEND_URL = os.getenv("BACKEND_URL") or SURFSENSE_PUBLIC_URL
 
-    # Messaging gateway (Telegram v1)
+    # Messaging gateway
     # Global master switch: when FALSE, no gateway supervisors/workers start and all
-    # gateway HTTP routes return 404, regardless of the per-channel flags below.
-    GATEWAY_ENABLED = os.getenv("GATEWAY_ENABLED", "TRUE").upper() == "TRUE"
+    # gated gateway HTTP routes return 404, regardless of the per-channel flags below.
+    GATEWAY_ENABLED = os.getenv("GATEWAY_ENABLED", "FALSE").upper() == "TRUE"
     TELEGRAM_SHARED_BOT_TOKEN = os.getenv("TELEGRAM_SHARED_BOT_TOKEN")
     TELEGRAM_SHARED_BOT_USERNAME = os.getenv("TELEGRAM_SHARED_BOT_USERNAME")
     TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET")

@@ -24,7 +24,10 @@ from .dropbox_add_connector_route import router as dropbox_add_connector_router
 from .editor_routes import router as editor_router
 from .export_routes import router as export_router
 from .folders_routes import router as folders_router
-from .gateway_webhook_routes import router as gateway_router
+from .gateway_webhook_routes import (
+    config_router as gateway_config_router,
+    router as gateway_router,
+)
 from .gateway_whatsapp_baileys_routes import router as gateway_whatsapp_baileys_router
 from .gateway_whatsapp_webhook_routes import router as gateway_whatsapp_webhook_router
 from .google_calendar_add_connector_route import (
@@ -74,6 +77,7 @@ router.include_router(export_router)
 router.include_router(documents_router)
 router.include_router(folders_router)
 _gateway_enabled_dep = [Depends(require_gateway_enabled)]
+router.include_router(gateway_config_router)
 router.include_router(gateway_router, dependencies=_gateway_enabled_dep)
 router.include_router(
     gateway_whatsapp_webhook_router, dependencies=_gateway_enabled_dep

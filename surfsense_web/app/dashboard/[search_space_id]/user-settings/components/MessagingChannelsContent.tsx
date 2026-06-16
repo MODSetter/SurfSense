@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, ShieldAlert } from "lucide-react";
+import { MessageCircle, RefreshCw, ShieldAlert } from "lucide-react";
 import { useParams } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useState } from "react";
@@ -39,6 +39,7 @@ type GatewayConnection = {
 };
 
 type GatewayConfig = {
+	enabled: boolean;
 	telegram_enabled: boolean;
 	whatsapp_intake_mode: "disabled" | "cloud" | "baileys";
 	slack_enabled: boolean;
@@ -46,6 +47,14 @@ type GatewayConfig = {
 };
 
 type GatewayConfigState = GatewayConfig | null;
+
+const DISABLED_GATEWAY_CONFIG: GatewayConfig = {
+	enabled: false,
+	telegram_enabled: false,
+	whatsapp_intake_mode: "disabled",
+	slack_enabled: false,
+	discord_enabled: false,
+};
 
 type Pairing = {
 	binding_id: number;
@@ -80,17 +89,26 @@ export function MessagingChannelsContent() {
 	const whatsappMode = gatewayConfig?.whatsapp_intake_mode ?? "disabled";
 	const slackGatewayEnabled = gatewayConfig?.slack_enabled ?? false;
 	const discordGatewayEnabled = gatewayConfig?.discord_enabled ?? false;
+	const gatewayDisabled = gatewayConfig?.enabled === false;
 
 	const fetchConnections = useCallback(async (platform?: GatewayPlatform) => {
 		const res = await authenticatedFetch(
 			buildBackendUrl("/api/v1/gateway/connections", platform ? { platform } : undefined)
 		);
-		return (await res.json()) as GatewayConnection[];
+		if (!res.ok) return [];
+		const data = await res.json();
+		return Array.isArray(data) ? (data as GatewayConnection[]) : [];
 	}, []);
 
-	const fetchGatewayConfig = useCallback(async () => {
+	const fetchGatewayConfig = useCallback(async (): Promise<GatewayConfig> => {
 		const res = await authenticatedFetch(buildBackendUrl("/api/v1/gateway/config"));
-		return (await res.json()) as GatewayConfig;
+		if (!res.ok) return DISABLED_GATEWAY_CONFIG;
+		const data = (await res.json()) as Partial<GatewayConfig>;
+		return {
+			...DISABLED_GATEWAY_CONFIG,
+			...data,
+			enabled: data.enabled ?? true,
+		};
 	}, []);
 
 	const refresh = useCallback(async () => {
@@ -225,12 +243,9 @@ export function MessagingChannelsContent() {
 	}
 
 	async function resume(connection: GatewayConnection) {
-		await authenticatedFetch(
-			buildBackendUrl(`/api/v1/gateway/bindings/${connection.id}/resume`),
-			{
-				method: "POST",
-			}
-		);
+		await authenticatedFetch(buildBackendUrl(`/api/v1/gateway/bindings/${connection.id}/resume`), {
+			method: "POST",
+		});
 		await refreshPlatform(connection.platform as GatewayPlatform);
 	}
 
@@ -387,7 +402,27 @@ export function MessagingChannelsContent() {
 		<div className="grid items-stretch gap-3 sm:grid-cols-2">
 			{isGatewayConfigLoading ? renderGatewaySkeletons() : null}
 
-			{!isGatewayConfigLoading && !hasEnabledGateway ? (
+			{!isGatewayConfigLoading && gatewayDisabled ? (
+				<Card className="col-span-full border-accent bg-accent/20">
+					<CardHeader className="space-y-3 p-4">
+						<div className="flex items-center gap-2">
+							<MessageCircle className="h-5 w-5 text-primary" />
+							<CardTitle className="text-base">Messaging Channels coming soon</CardTitle>
+						</div>
+						<p className="text-sm text-muted-foreground">
+							Soon you'll be able to connect WhatsApp, Telegram, Slack, and Discord to your
+							SurfSense agent so you can ask questions, route messages to search spaces, and get
+							answers from your knowledge base without leaving your chat app.
+						</p>
+					</CardHeader>
+					<CardContent className="space-y-2 p-4 pt-0 text-sm text-muted-foreground">
+						<p>Pair a chat once, then DM the SurfSense agent like a teammate.</p>
+						<p>Each channel can be routed to the right search space when integrations launch.</p>
+					</CardContent>
+				</Card>
+			) : null}
+
+			{!isGatewayConfigLoading && !gatewayDisabled && !hasEnabledGateway ? (
 				<Card className="col-span-full border-accent bg-accent/20">
 					<CardHeader className="space-y-1.5 p-4">
 						<CardTitle className="text-sm">No messaging gateways enabled</CardTitle>
@@ -395,7 +430,7 @@ export function MessagingChannelsContent() {
 				</Card>
 			) : null}
 
-			{telegramGatewayEnabled ? (
+			{!gatewayDisabled && telegramGatewayEnabled ? (
 				<Card className="order-1 group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
 					<CardHeader className="space-y-1.5 p-4 pb-2">
 						<div className="flex items-center justify-between gap-3">
@@ -431,7 +466,7 @@ export function MessagingChannelsContent() {
 				</Card>
 			) : null}
 
-			{slackGatewayEnabled ? (
+			{!gatewayDisabled && slackGatewayEnabled ? (
 				<Card className="order-4 group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
 					<CardHeader className="space-y-1.5 p-4 pb-2">
 						<div className="flex items-center justify-between gap-3">
@@ -463,7 +498,7 @@ export function MessagingChannelsContent() {
 				</Card>
 			) : null}
 
-			{discordGatewayEnabled ? (
+			{!gatewayDisabled && discordGatewayEnabled ? (
 				<Card className="order-3 group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
 					<CardHeader className="space-y-1.5 p-4 pb-2">
 						<div className="flex items-center justify-between gap-3">
@@ -495,7 +530,7 @@ export function MessagingChannelsContent() {
 				</Card>
 			) : null}
 
-			{whatsappMode !== "disabled" ? (
+			{!gatewayDisabled && whatsappMode !== "disabled" ? (
 				<Card className="order-2 group relative h-full overflow-hidden border-accent bg-accent/20 transition-all duration-200 hover:shadow-md">
 					<CardHeader className="space-y-1.5 p-4 pb-2">
 						<div className="flex items-center justify-between gap-3">

@@ -56,6 +56,7 @@ from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 from app.utils.rbac import check_search_space_access
 
 router = APIRouter(prefix="/gateway", tags=["gateway"])
+config_router = APIRouter(prefix="/gateway", tags=["gateway"])
 logger = logging.getLogger(__name__)
 
 SLACK_AUTHORIZATION_URL = "https://slack.com/oauth/v2/authorize"
@@ -967,11 +968,20 @@ async def list_platforms(
     ]
 
 
-@router.get("/config")
+@config_router.get("/config")
 async def get_gateway_config(
     user: User = Depends(current_active_user),
 ) -> dict[str, bool | str]:
+    if not config.GATEWAY_ENABLED:
+        return {
+            "enabled": False,
+            "telegram_enabled": False,
+            "whatsapp_intake_mode": "disabled",
+            "slack_enabled": False,
+            "discord_enabled": False,
+        }
     return {
+        "enabled": True,
         "telegram_enabled": _telegram_gateway_enabled(),
         "whatsapp_intake_mode": config.GATEWAY_WHATSAPP_INTAKE_MODE,
         "slack_enabled": _slack_gateway_enabled(),
