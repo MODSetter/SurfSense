@@ -120,6 +120,9 @@ class FakeStorageBackend:
     async def open_stream(self, key: str) -> AsyncIterator[bytes]:
         yield self.objects.get(key, b"audio-bytes")
 
+    async def exists(self, key: str) -> bool:
+        return key in self.objects
+
     async def delete(self, key: str) -> None:
         self.deleted.append(key)
 
