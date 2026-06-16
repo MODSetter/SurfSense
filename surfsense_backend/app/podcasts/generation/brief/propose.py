@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.podcasts.duration_limits import DEFAULT_MAX_SECONDS, DEFAULT_MIN_SECONDS
 from app.podcasts.persistence import PodcastRepository
 from app.podcasts.schemas import PodcastSpec
 from app.podcasts.service import preferences_from
 
-from .config import DEFAULT_MAX_MINUTES, DEFAULT_MIN_MINUTES, DEFAULT_SPEAKER_COUNT
+from .config import DEFAULT_SPEAKER_COUNT
 from .graph import graph as brief_graph
 from .state import BriefState
 
@@ -18,8 +19,8 @@ async def propose_brief(
     *,
     search_space_id: int,
     speaker_count: int = DEFAULT_SPEAKER_COUNT,
-    min_minutes: int = DEFAULT_MIN_MINUTES,
-    max_minutes: int = DEFAULT_MAX_MINUTES,
+    min_seconds: int = DEFAULT_MIN_SECONDS,
+    max_seconds: int = DEFAULT_MAX_SECONDS,
     focus: str | None = None,
 ) -> PodcastSpec:
     """Reuse the last-used language and voices, else English; return the spec."""
@@ -29,8 +30,8 @@ async def propose_brief(
     config = {
         "configurable": {
             "speaker_count": speaker_count,
-            "min_minutes": min_minutes,
-            "max_minutes": max_minutes,
+            "min_seconds": min_seconds,
+            "max_seconds": max_seconds,
             "focus": focus,
             "last_used_language": last_language,
             "last_used_voices": last_voices,
