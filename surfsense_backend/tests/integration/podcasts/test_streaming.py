@@ -1,8 +1,7 @@
 """Streaming a podcast's rendered audio over HTTP.
 
-A ready podcast streams its bytes from the storage backend; a podcast with no
-stored audio returns 404. Storage is an in-memory backend (the object store is a
-system boundary).
+A ready podcast streams its bytes; an in-flight one is 409, a stored-but-missing
+object is 404. Storage is an in-memory backend (the object store is a boundary).
 """
 
 from __future__ import annotations
@@ -31,9 +30,21 @@ async def test_stream_serves_stored_audio(
     assert resp.content == b"the-audio"
 
 
-async def test_stream_404_when_no_audio(client, db_search_space, make_podcast):
+async def test_stream_409_while_in_flight(client, db_search_space, make_podcast):
     podcast = await make_podcast(
         search_space_id=db_search_space.id, status=PodcastStatus.DRAFTING
+    )
+
+    resp = await client.get(f"{BASE}/{podcast.id}/stream")
+
+    assert resp.status_code == 409
+
+
+async def test_stream_404_when_object_missing(
+    client, db_search_space, make_podcast, fake_storage
+):
+    podcast = await make_podcast(
+        search_space_id=db_search_space.id, status=PodcastStatus.READY
     )
 
     resp = await client.get(f"{BASE}/{podcast.id}/stream")
