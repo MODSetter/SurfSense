@@ -745,11 +745,23 @@ async def index_connector_content(
         if not connector:
             raise HTTPException(status_code=404, detail="Connector not found")
 
-        # Check if user has permission to update connectors (indexing is an update operation)
+        # Ensure the connector actually belongs to the requested search space.
+        # Without this, the permission check below would authorize against the
+        # caller-supplied search_space_id (their own space) while the connector
+        # lives in another user's space, allowing cross-tenant indexing of a
+        # foreign connector (and use of its stored credentials). Returning 404
+        # (rather than 403) on a mismatch also avoids disclosing the existence of
+        # connectors in other search spaces.
+        if connector.search_space_id != search_space_id:
+            raise HTTPException(status_code=404, detail="Connector not found")
+
+        # Check if user has permission to update connectors (indexing is an update
+        # operation). Authorize against the connector's OWN search space — matching
+        # the read/update/delete handlers — not the client-supplied query param.
         await check_permission(
             session,
             user,
-            search_space_id,
+            connector.search_space_id,
             Permission.CONNECTORS_UPDATE.value,
             "You don't have permission to index content in this search space",
         )
