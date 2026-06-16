@@ -1,7 +1,7 @@
 "use client";
 
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 
 export type MemoryScope = "user" | "team";
 
@@ -28,10 +28,6 @@ function getMemoryPath(scope: MemoryScope, searchSpaceId?: number | null) {
 	if (scope === "user") return "/api/v1/users/me/memory";
 	if (!searchSpaceId) throw new Error("Missing search space context");
 	return `/api/v1/searchspaces/${searchSpaceId}/memory`;
-}
-
-function getBackendUrl(path: string) {
-	return `${BACKEND_URL}${path}`;
 }
 
 export function getMemoryLimitState(length: number, limits?: MemoryLimits | null) {
@@ -66,7 +62,7 @@ export async function fetchMemoryEditorDocument({
 	title?: string | null;
 	signal?: AbortSignal;
 }) {
-	const response = await authenticatedFetch(getBackendUrl(getMemoryPath(scope, searchSpaceId)), {
+	const response = await authenticatedFetch(buildBackendUrl(getMemoryPath(scope, searchSpaceId)), {
 		method: "GET",
 		signal,
 	});
@@ -98,7 +94,7 @@ export async function saveMemoryMarkdown({
 	searchSpaceId?: number | null;
 	markdown: string;
 }) {
-	const response = await authenticatedFetch(getBackendUrl(getMemoryPath(scope, searchSpaceId)), {
+	const response = await authenticatedFetch(buildBackendUrl(getMemoryPath(scope, searchSpaceId)), {
 		method: "PUT",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ memory_md: markdown }),

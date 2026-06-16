@@ -18,7 +18,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { setBearerToken } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 
 type ShortcutKey = "generalAssist" | "quickAsk" | "screenshotAssist";
 type ShortcutMap = typeof DEFAULT_SHORTCUTS;
@@ -240,7 +240,7 @@ export default function DesktopLoginPage() {
 	const handleGoogleLogin = () => {
 		if (isGoogleRedirecting) return;
 		setIsGoogleRedirecting(true);
-		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
+		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
 	};
 
 	const autoSetSearchSpace = async () => {

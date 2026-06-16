@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 
 interface DownloadOriginalButtonProps {
 	documentId: number;
@@ -41,7 +41,7 @@ export function DownloadOriginalButton({ documentId }: DownloadOriginalButtonPro
 		setDownloading(true);
 		try {
 			const response = await authenticatedFetch(
-				`${BACKEND_URL}/api/v1/documents/${documentId}/download-original`,
+				buildBackendUrl(`/api/v1/documents/${documentId}/download-original`),
 				{ method: "GET" }
 			);
 			if (!response.ok) throw new Error("Download failed");

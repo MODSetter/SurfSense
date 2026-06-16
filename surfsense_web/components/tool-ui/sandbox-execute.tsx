@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getBearerToken } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -158,7 +158,9 @@ function truncateCommand(command: string, maxLen = 80): string {
 
 async function downloadSandboxFile(threadId: string, filePath: string, fileName: string) {
 	const token = getBearerToken();
-	const url = `${BACKEND_URL}/api/v1/threads/${threadId}/sandbox/download?path=${encodeURIComponent(filePath)}`;
+	const url = buildBackendUrl(`/api/v1/threads/${threadId}/sandbox/download`, {
+		path: filePath,
+	});
 	const res = await fetch(url, {
 		headers: { Authorization: `Bearer ${token || ""}` },
 	});

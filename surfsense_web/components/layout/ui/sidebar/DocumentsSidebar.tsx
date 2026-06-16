@@ -79,7 +79,7 @@ import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
@@ -751,7 +751,9 @@ function AuthenticatedDocumentsSidebarBase({
 					.trim()
 					.slice(0, 80) || "folder";
 			await doExport(
-				`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${ctx.folder.id}`,
+				buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`, {
+					folder_id: ctx.folder.id,
+				}),
 				`${safeName}.zip`
 			);
 			toast.success(`Folder "${ctx.folder.name}" exported`);
@@ -803,7 +805,9 @@ function AuthenticatedDocumentsSidebarBase({
 						.trim()
 						.slice(0, 80) || "folder";
 				await doExport(
-					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${folder.id}`,
+					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`, {
+						folder_id: folder.id,
+					}),
 					`${safeName}.zip`
 				);
 				toast.success(`Folder "${folder.name}" exported`);
@@ -823,8 +827,8 @@ function AuthenticatedDocumentsSidebarBase({
 				try {
 					const endpoint =
 						doc.document_type === "USER_MEMORY"
-							? `${BACKEND_URL}/api/v1/users/me/memory`
-							: `${BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/memory`;
+							? buildBackendUrl("/api/v1/users/me/memory")
+							: buildBackendUrl(`/api/v1/searchspaces/${searchSpaceId}/memory`);
 					const response = await authenticatedFetch(endpoint, { method: "GET" });
 					if (!response.ok) {
 						const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
@@ -852,7 +856,9 @@ function AuthenticatedDocumentsSidebarBase({
 
 			try {
 				const response = await authenticatedFetch(
-					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${doc.id}/export?format=${format}`,
+					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/documents/${doc.id}/export`, {
+						format,
+					}),
 					{ method: "GET" }
 				);
 
@@ -1031,8 +1037,8 @@ function AuthenticatedDocumentsSidebarBase({
 			}
 			const endpoint =
 				doc.document_type === "USER_MEMORY"
-					? `${BACKEND_URL}/api/v1/users/me/memory/reset`
-					: `${BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/memory/reset`;
+					? buildBackendUrl("/api/v1/users/me/memory/reset")
+					: buildBackendUrl(`/api/v1/searchspaces/${searchSpaceId}/memory/reset`);
 			try {
 				const response = await authenticatedFetch(endpoint, { method: "POST" });
 				if (!response.ok) {

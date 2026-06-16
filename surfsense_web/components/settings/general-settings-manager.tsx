@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
 
@@ -49,7 +49,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 		setIsExporting(true);
 		try {
 			const response = await authenticatedFetch(
-				`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export`,
+				buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`),
 				{ method: "GET" }
 			);
 			if (!response.ok) {

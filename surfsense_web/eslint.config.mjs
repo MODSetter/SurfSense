@@ -13,24 +13,25 @@ const eslintConfig = [
 	...compat.extends("next/core-web-vitals", "next/typescript"),
 	{
 		rules: {
-			"no-restricted-syntax": [
+			"no-restricted-imports": [
 				"error",
 				{
-					selector:
-						"NewExpression[callee.name='URL'] TemplateLiteral Identifier[name='BACKEND_URL']",
-					message:
-						"Use buildBackendUrl(path, params) for backend URLs. BACKEND_URL may be empty in proxy mode, and new URL('/relative') throws without a base.",
-				},
-				{
-					selector:
-						"NewExpression[callee.name='URL'] TemplateLiteral Identifier[name='backendUrl']",
-					message:
-						"Use buildBackendUrl(path, params) for backend URLs instead of aliasing BACKEND_URL into new URL().",
-				},
-				{
-					selector: "VariableDeclarator[id.name='backendUrl'][init.name='BACKEND_URL']",
-					message:
-						"Do not alias BACKEND_URL for URL construction. Use buildBackendUrl(path, params) instead.",
+					paths: [
+						{
+							name: "@/lib/env-config",
+							importNames: ["BACKEND_URL"],
+							message:
+								"Use buildBackendUrl(path, params) for browser-facing backend URLs. BACKEND_URL is empty in proxy mode; importing it bypasses the single URL seam.",
+						},
+					],
+					patterns: [
+						{
+							group: ["**/env-config", "**/env-config.ts"],
+							importNames: ["BACKEND_URL"],
+							message:
+								"Use buildBackendUrl(path, params). Import BACKEND_URL only inside lib/env-config.ts.",
+						},
+					],
 				},
 			],
 		},

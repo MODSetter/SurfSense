@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { SearchSpace } from "@/contracts/types/search-space.types";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 
 type GatewayConnection = {
@@ -82,13 +82,14 @@ export function MessagingChannelsContent() {
 	const discordGatewayEnabled = gatewayConfig?.discord_enabled ?? false;
 
 	const fetchConnections = useCallback(async (platform?: GatewayPlatform) => {
-		const query = platform ? `?platform=${encodeURIComponent(platform)}` : "";
-		const res = await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/connections${query}`);
+		const res = await authenticatedFetch(
+			buildBackendUrl("/api/v1/gateway/connections", platform ? { platform } : undefined)
+		);
 		return (await res.json()) as GatewayConnection[];
 	}, []);
 
 	const fetchGatewayConfig = useCallback(async () => {
-		const res = await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/config`);
+		const res = await authenticatedFetch(buildBackendUrl("/api/v1/gateway/config"));
 		return (await res.json()) as GatewayConfig;
 	}, []);
 
@@ -125,7 +126,9 @@ export function MessagingChannelsContent() {
 
 	const refreshBaileysHealth = useCallback(async () => {
 		if (whatsappMode !== "baileys") return;
-		const res = await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/whatsapp/baileys/health`);
+		const res = await authenticatedFetch(
+			buildBackendUrl("/api/v1/gateway/whatsapp/baileys/health")
+		);
 		if (!res.ok) return;
 		const data = (await res.json()) as BaileysHealth;
 		setBaileysHealth(data);
@@ -136,7 +139,7 @@ export function MessagingChannelsContent() {
 	}, [refreshBaileysHealth]);
 
 	async function startPairing(platform: PairingPlatform) {
-		const res = await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/bindings/start`, {
+		const res = await authenticatedFetch(buildBackendUrl("/api/v1/gateway/bindings/start"), {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ platform, search_space_id: searchSpaceId }),
@@ -148,7 +151,7 @@ export function MessagingChannelsContent() {
 
 	async function installSlackGateway() {
 		const res = await authenticatedFetch(
-			`${BACKEND_URL}/api/v1/gateway/slack/install?search_space_id=${searchSpaceId}`
+			buildBackendUrl("/api/v1/gateway/slack/install", { search_space_id: searchSpaceId })
 		);
 		if (!res.ok) return;
 		const data = (await res.json()) as { auth_url?: string };
@@ -159,7 +162,7 @@ export function MessagingChannelsContent() {
 
 	async function installDiscordGateway() {
 		const res = await authenticatedFetch(
-			`${BACKEND_URL}/api/v1/gateway/discord/install?search_space_id=${searchSpaceId}`
+			buildBackendUrl("/api/v1/gateway/discord/install", { search_space_id: searchSpaceId })
 		);
 		if (!res.ok) return;
 		const data = (await res.json()) as { auth_url?: string };
@@ -181,8 +184,8 @@ export function MessagingChannelsContent() {
 	async function revoke(connection: GatewayConnection) {
 		const url =
 			connection.route_type === "account" && connection.account_id
-				? `${BACKEND_URL}/api/v1/gateway/accounts/${connection.account_id}`
-				: `${BACKEND_URL}/api/v1/gateway/bindings/${connection.id}`;
+				? buildBackendUrl(`/api/v1/gateway/accounts/${connection.account_id}`)
+				: buildBackendUrl(`/api/v1/gateway/bindings/${connection.id}`);
 		await authenticatedFetch(url, {
 			method: "DELETE",
 		});
@@ -205,8 +208,8 @@ export function MessagingChannelsContent() {
 		);
 		const url =
 			connection.route_type === "account" && connection.account_id
-				? `${BACKEND_URL}/api/v1/gateway/accounts/${connection.account_id}/search-space`
-				: `${BACKEND_URL}/api/v1/gateway/bindings/${connection.id}/search-space`;
+				? buildBackendUrl(`/api/v1/gateway/accounts/${connection.account_id}/search-space`)
+				: buildBackendUrl(`/api/v1/gateway/bindings/${connection.id}/search-space`);
 		const res = await authenticatedFetch(url, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
@@ -222,9 +225,12 @@ export function MessagingChannelsContent() {
 	}
 
 	async function resume(connection: GatewayConnection) {
-		await authenticatedFetch(`${BACKEND_URL}/api/v1/gateway/bindings/${connection.id}/resume`, {
-			method: "POST",
-		});
+		await authenticatedFetch(
+			buildBackendUrl(`/api/v1/gateway/bindings/${connection.id}/resume`),
+			{
+				method: "POST",
+			}
+		);
 		await refreshPlatform(connection.platform as GatewayPlatform);
 	}
 

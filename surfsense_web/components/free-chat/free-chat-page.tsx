@@ -33,7 +33,7 @@ import {
 	updateThinkingSteps,
 	updateToolCall,
 } from "@/lib/chat/streaming-state";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
 import { FreeThread } from "./free-thread";
 import { RemoveAdsBanner } from "./remove-ads-banner";
@@ -176,7 +176,7 @@ export function FreeChatPage() {
 			if (!webSearchEnabled) reqBody.disabled_tools = ["web_search"];
 			if (turnstileToken) reqBody.turnstile_token = turnstileToken;
 
-			const response = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/stream`, {
+			const response = await fetch(buildBackendUrl("/api/v1/public/anon-chat/stream"), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
