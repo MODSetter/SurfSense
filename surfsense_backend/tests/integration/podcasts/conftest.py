@@ -217,7 +217,7 @@ def build_spec(
                 slot=1, name="Guest", role=SpeakerRole.GUEST, voice_id=voice_ids[1]
             ),
         ],
-        duration=DurationTarget(min_minutes=10, max_minutes=20),
+        duration=DurationTarget(min_seconds=600, max_seconds=1200),
     )
 
 
