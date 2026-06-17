@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { DownloadOriginalButton } from "@/components/documents/download-original-button";
 import { VersionHistoryButton } from "@/components/documents/version-history";
+import { PlateErrorBoundary } from "@/components/editor/plate-error-boundary";
 import { SourceCodeEditor } from "@/components/editor/source-code-editor";
 import {
 	fetchMemoryEditorDocument,
@@ -41,7 +42,8 @@ const PlateEditor = dynamic(
 	{ ssr: false, loading: () => <EditorPanelSkeleton /> }
 );
 
-const LARGE_DOCUMENT_THRESHOLD = 2 * 1024 * 1024; // 2MB
+const LARGE_DOCUMENT_THRESHOLD = 1 * 1024 * 1024; // 1MB, matches backend
+const LARGE_DOCUMENT_LINE_THRESHOLD = 5000;
 
 interface EditorContent {
 	document_id: number;
@@ -49,9 +51,11 @@ interface EditorContent {
 	document_type?: string;
 	source_markdown: string;
 	content_size_bytes?: number;
+	line_count?: number;
 	chunk_count?: number;
 	viewer_mode?: ViewerMode;
 	editor_plate_max_bytes?: number;
+	editor_plate_max_lines?: number;
 }
 
 const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
@@ -116,6 +120,15 @@ function EditorPanelSkeleton() {
 
 function getUtf8ByteSize(value: string): number {
 	return new TextEncoder().encode(value).byteLength;
+}
+
+function countLines(value: string): number {
+	if (!value) return 0;
+	let count = 1;
+	for (let i = 0; i < value.length; i++) {
+		if (value.charCodeAt(i) === 10) count++;
+	}
+	return count;
 }
 
 function formatBytes(bytes: number): string {
@@ -184,10 +197,17 @@ export function EditorPanelContent({
 	);
 
 	const plateMaxBytes = editorDoc?.editor_plate_max_bytes ?? LARGE_DOCUMENT_THRESHOLD;
-	const isLargeDocument = (editorDoc?.content_size_bytes ?? 0) > plateMaxBytes;
+	const plateMaxLines = editorDoc?.editor_plate_max_lines ?? LARGE_DOCUMENT_LINE_THRESHOLD;
+	const docSizeBytes = editorDoc?.content_size_bytes ?? 0;
+	const docLineCount =
+		editorDoc?.line_count ??
+		(editorDoc?.source_markdown ? countLines(editorDoc.source_markdown) : 0);
+	const isLargeDocument = docSizeBytes > plateMaxBytes || docLineCount > plateMaxLines;
 	const viewerMode: ViewerMode = isMemoryMode
 		? "plate"
-		: (editorDoc?.viewer_mode ?? (isLargeDocument ? "monaco" : "plate"));
+		: editorDoc?.viewer_mode === "monaco" || isLargeDocument
+			? "monaco"
+			: "plate";
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -421,7 +441,8 @@ export function EditorPanelContent({
 				setEditedMarkdown(null);
 				if (!options?.silent) {
 					const savedSizeBytes = getUtf8ByteSize(markdownRef.current);
-					if (savedSizeBytes > plateMaxBytes) {
+					const savedLineCount = countLines(markdownRef.current);
+					if (savedSizeBytes > plateMaxBytes || savedLineCount > plateMaxLines) {
 						toast.success("Document saved. It will reopen in raw markdown mode.");
 					} else {
 						toast.success("Document saved! Reindexing in background...");
@@ -447,6 +468,7 @@ export function EditorPanelContent({
 			memoryLimits,
 			memoryScope,
 			plateMaxBytes,
+			plateMaxLines,
 			resolveLocalVirtualPath,
 			searchSpaceId,
 		]
@@ -467,8 +489,12 @@ export function EditorPanelContent({
 	const localFileLanguage = inferMonacoLanguageFromPath(localFilePath);
 	const activeMarkdown = editedMarkdown ?? editorDoc?.source_markdown ?? "";
 	const activeMarkdownSizeBytes = useMemo(() => getUtf8ByteSize(activeMarkdown), [activeMarkdown]);
-	const isNearPlateLimit = activeMarkdownSizeBytes >= plateMaxBytes * 0.9;
-	const isOverPlateLimit = activeMarkdownSizeBytes > plateMaxBytes;
+	const activeMarkdownLineCount = useMemo(() => countLines(activeMarkdown), [activeMarkdown]);
+	const isNearPlateLimit =
+		activeMarkdownSizeBytes >= plateMaxBytes * 0.9 ||
+		activeMarkdownLineCount >= plateMaxLines * 0.9;
+	const isOverPlateLimit =
+		activeMarkdownSizeBytes > plateMaxBytes || activeMarkdownLineCount > plateMaxLines;
 	const showPlateSizeWarning =
 		showEditingActions && !isMemoryMode && !isLocalFileMode && isNearPlateLimit;
 	const memoryLimitState = isMemoryMode
@@ -481,6 +507,13 @@ export function EditorPanelContent({
 				? "text-orange-500"
 				: "text-muted-foreground";
 	const saveDisabled = saving || !hasUnsavedChanges || (memoryLimitState?.isOverLimit ?? false);
+	const editorInstanceKey = `${
+		isMemoryMode
+			? `memory-${memoryScope ?? "user"}`
+			: isLocalFileMode
+				? (localFilePath ?? "local-file")
+				: documentId
+	}-${isEditing ? "editing" : "viewing"}`;
 
 	const handleCancelEditing = useCallback(() => {
 		const savedContent = editorDoc?.source_markdown ?? "";
@@ -525,7 +558,7 @@ export function EditorPanelContent({
 			<AlertDescription className="flex items-center justify-between gap-4">
 				<span>
 					This document is too large for the editor (
-					{Math.round((editorDoc.content_size_bytes ?? 0) / 1024 / 1024)}MB,{" "}
+					{formatBytes(editorDoc.content_size_bytes ?? 0)}, {docLineCount.toLocaleString()} lines,{" "}
 					{editorDoc.chunk_count ?? 0} chunks). Showing raw markdown below.
 				</span>
 				<Button
@@ -802,36 +835,43 @@ export function EditorPanelContent({
 								<FileText className="size-4" />
 								<AlertDescription>
 									{isOverPlateLimit
-										? `This document is ${formatBytes(activeMarkdownSizeBytes)}, above the rich editor limit of ${formatBytes(plateMaxBytes)}. You can save, but it will reopen in raw markdown mode.`
-										: `This document is approaching the rich editor limit (${formatBytes(activeMarkdownSizeBytes)} of ${formatBytes(plateMaxBytes)}).`}
+										? `This document is ${formatBytes(activeMarkdownSizeBytes)} and ${activeMarkdownLineCount.toLocaleString()} lines, above the rich editor limit of ${formatBytes(plateMaxBytes)} or ${plateMaxLines.toLocaleString()} lines. You can save, but it will reopen in raw markdown mode.`
+										: `This document is approaching the rich editor limit (${formatBytes(activeMarkdownSizeBytes)} of ${formatBytes(plateMaxBytes)}, ${activeMarkdownLineCount.toLocaleString()} of ${plateMaxLines.toLocaleString()} lines).`}
 								</AlertDescription>
 							</Alert>
 						)}
 						<div className="flex-1 min-h-0 overflow-hidden">
-							<PlateEditor
-								key={`${
-									isMemoryMode
-										? `memory-${memoryScope ?? "user"}`
-										: isLocalFileMode
-											? (localFilePath ?? "local-file")
-											: documentId
-								}-${isEditing ? "editing" : "viewing"}`}
-								preset="full"
-								markdown={editorDoc.source_markdown}
-								onMarkdownChange={handleMarkdownChange}
-								readOnly={!isEditing}
-								placeholder="Start writing..."
-								editorVariant="default"
-								allowModeToggle={false}
-								reserveToolbarSpace
-								defaultEditing={isEditing}
-								className="**:[[role=toolbar]]:bg-sidebar!"
-								// Render `[citation:N]` badges in view mode only.
-								// Edit mode keeps raw text so the user can edit/delete
-								// tokens directly. `local_file` never reaches this branch
-								// (handled by the source_code editor above).
-								enableCitations={!isEditing && !isLocalFileMode && !isMemoryMode}
-							/>
+							<PlateErrorBoundary
+								key={`plate-boundary-${editorInstanceKey}`}
+								fallback={
+									<SourceCodeEditor
+										path={`${editorDoc.title || "document"}.md`}
+										language="markdown"
+										value={editorDoc.source_markdown}
+										readOnly
+										onChange={() => {}}
+									/>
+								}
+							>
+								<PlateEditor
+									key={editorInstanceKey}
+									preset="full"
+									markdown={editorDoc.source_markdown}
+									onMarkdownChange={handleMarkdownChange}
+									readOnly={!isEditing}
+									placeholder="Start writing..."
+									editorVariant="default"
+									allowModeToggle={false}
+									reserveToolbarSpace
+									defaultEditing={isEditing}
+									className="**:[[role=toolbar]]:bg-sidebar!"
+									// Render `[citation:N]` badges in view mode only.
+									// Edit mode keeps raw text so the user can edit/delete
+									// tokens directly. `local_file` never reaches this branch
+									// (handled by the source_code editor above).
+									enableCitations={!isEditing && !isLocalFileMode && !isMemoryMode}
+								/>
+							</PlateErrorBoundary>
 						</div>
 					</div>
 				) : (
