@@ -6,12 +6,19 @@ import hashlib
 from datetime import UTC, datetime
 from typing import Any
 
+from app.notifications.service.messages.text import format_title
+
 
 def operation_id(document_type: str, filename: str, search_space_id: int) -> str:
     """Build a unique id for a document processing run."""
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
     filename_hash = hashlib.md5(filename.encode()).hexdigest()[:8]
     return f"doc_{document_type}_{search_space_id}_{timestamp}_{filename_hash}"
+
+
+def started_title(document_name: str) -> str:
+    """Title shown when document processing is queued."""
+    return format_title("Processing: ", document_name)
 
 
 def progress(
@@ -44,11 +51,11 @@ def completion(
 ) -> tuple[str, str, str, dict[str, Any]]:
     """Compute the final title, message, status, and metadata for a finished run."""
     if error_message:
-        title = f"Failed: {document_name}"
+        title = format_title("Failed: ", document_name)
         message = f"Processing failed: {error_message}"
         status = "failed"
     else:
-        title = f"Ready: {document_name}"
+        title = format_title("Ready: ", document_name)
         message = "Now searchable!"
         status = "completed"
 
