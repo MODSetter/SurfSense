@@ -38,7 +38,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-EDITOR_PLATE_MAX_BYTES = 5 * 1024 * 1024
+EDITOR_PLATE_MAX_BYTES = 1 * 1024 * 1024
+EDITOR_PLATE_MAX_LINES = 5000
 
 
 @router.get("/search-spaces/{search_space_id}/documents/{document_id}/editor-content")
@@ -83,16 +84,23 @@ async def get_editor_content(
 
     def _build_response(md: str) -> dict:
         size_bytes = len(md.encode("utf-8"))
-        viewer_mode = "monaco" if size_bytes > EDITOR_PLATE_MAX_BYTES else "plate"
+        line_count = md.count("\n") + 1
+        too_large = (
+            size_bytes > EDITOR_PLATE_MAX_BYTES
+            or line_count > EDITOR_PLATE_MAX_LINES
+        )
+        viewer_mode = "monaco" if too_large else "plate"
         return {
             "document_id": document.id,
             "title": document.title,
             "document_type": document.document_type.value,
             "source_markdown": md,
             "content_size_bytes": size_bytes,
+            "line_count": line_count,
             "chunk_count": chunk_count,
             "viewer_mode": viewer_mode,
             "editor_plate_max_bytes": EDITOR_PLATE_MAX_BYTES,
+            "editor_plate_max_lines": EDITOR_PLATE_MAX_LINES,
             "updated_at": document.updated_at.isoformat()
             if document.updated_at
             else None,
