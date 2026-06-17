@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+# Matches notifications.title VARCHAR(200).
+TITLE_MAX_LENGTH = 200
+
 # Notifications newer than this are live-synced; older ones load via the list endpoint.
 SYNC_WINDOW_DAYS = 14
 
