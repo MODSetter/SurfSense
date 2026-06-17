@@ -959,6 +959,9 @@ class Config:
     CHUNK_RECONCILE_ENABLED = (
         os.getenv("CHUNK_RECONCILE_ENABLED", "true").strip().lower() == "true"
     )
+    INDEXING_CHUNK_INSERT_BATCH_SIZE = int(
+        os.getenv("INDEXING_CHUNK_INSERT_BATCH_SIZE", "200")
+    )
 
     # Proxy provider selection. Maps to a ProxyProvider implementation registered
     # in app/utils/proxy/registry.py. Add new vendors there and switch via this var.
