@@ -61,3 +61,21 @@ def test_completion_failure():
     assert message == "Processing failed: bad"
     assert status == "failed"
     assert meta["processing_stage"] == "failed"
+
+
+def test_started_title_truncates_long_name():
+    """Very long filenames are truncated to fit the notification title column."""
+    long_name = "a" * 250
+    title = msg.started_title(long_name)
+    assert len(title) <= 200
+    assert title.startswith("Processing: ")
+    assert title.endswith("...")
+
+
+def test_completion_truncates_long_name():
+    """Completion titles truncate long document names."""
+    long_name = "b" * 250
+    title, _, _, _ = msg.completion(long_name, document_id=1)
+    assert len(title) <= 200
+    assert title.startswith("Ready: ")
+    assert title.endswith("...")
