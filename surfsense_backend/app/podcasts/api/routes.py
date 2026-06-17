@@ -27,14 +27,14 @@ from app.db import (
     get_async_session,
 )
 from app.podcasts.generation.brief import propose_brief
-from app.podcasts.persistence import Podcast, PodcastRepository
+from app.podcasts.persistence import Podcast, PodcastRepository, PodcastStatus
 from app.podcasts.service import (
     InvalidTransitionError,
     PodcastService,
     PreconditionFailedError,
     SpecConflictError,
 )
-from app.podcasts.storage import open_audio_stream, purge_audio
+from app.podcasts.storage import audio_exists, open_audio_stream, purge_audio
 from app.podcasts.tasks import draft_transcript_task
 from app.podcasts.tts import get_text_to_speech
 from app.podcasts.voices import (
@@ -172,8 +172,8 @@ async def create_podcast(
         session,
         search_space_id=body.search_space_id,
         speaker_count=body.speaker_count,
-        min_minutes=body.min_minutes,
-        max_minutes=body.max_minutes,
+        min_seconds=body.min_seconds,
+        max_seconds=body.max_seconds,
         focus=body.focus,
     )
     await service.attach_brief(podcast, spec)
@@ -287,6 +287,11 @@ async def stream_podcast(
     podcast = await _load(session, user, podcast_id, Permission.PODCASTS_READ)
 
     if podcast.storage_key:
+        # Verify first so a missing object is a 404, not a mid-stream crash.
+        if not await audio_exists(podcast):
+            raise HTTPException(
+                status_code=404, detail="Podcast audio is no longer available"
+            )
         return StreamingResponse(
             open_audio_stream(podcast),
             media_type="audio/mpeg",
@@ -310,7 +315,10 @@ async def stream_podcast(
             },
         )
 
-    raise HTTPException(status_code=404, detail="Podcast audio not found")
+    # No audio: terminal states never will have any, otherwise it's in flight.
+    if PodcastStatus(podcast.status).is_terminal:
+        raise HTTPException(status_code=404, detail="Podcast audio not found")
+    raise HTTPException(status_code=409, detail="Podcast audio is not ready yet")
 
 
 async def _require(

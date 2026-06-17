@@ -47,6 +47,11 @@ export type PodcastStyle = z.infer<typeof podcastStyle>;
 
 export const MAX_SPEAKERS = 6;
 
+export const MAX_DURATION_SECONDS = 24 * 60 * 60;
+export const MIN_DURATION_SECONDS = 15;
+export const DEFAULT_MIN_SECONDS = 20;
+export const DEFAULT_MAX_SECONDS = 30;
+
 export const speakerSpec = z.object({
 	slot: z.number().int().min(0),
 	name: z.string().min(1).max(120),
@@ -55,10 +60,40 @@ export const speakerSpec = z.object({
 });
 export type SpeakerSpec = z.infer<typeof speakerSpec>;
 
-export const durationTarget = z.object({
-	min_minutes: z.number().int().min(1),
-	max_minutes: z.number().int().min(1),
-});
+export const durationTarget = z.preprocess(
+	(raw) => {
+		if (
+			raw &&
+			typeof raw === "object" &&
+			"min_minutes" in raw &&
+			!("min_seconds" in raw)
+		) {
+			const legacy = raw as { min_minutes: number; max_minutes: number };
+			return {
+				min_seconds: legacy.min_minutes * 60,
+				max_seconds: legacy.max_minutes * 60,
+			};
+		}
+		return raw;
+	},
+	z
+		.object({
+			min_seconds: z
+				.number()
+				.int()
+				.min(MIN_DURATION_SECONDS)
+				.max(MAX_DURATION_SECONDS),
+			max_seconds: z
+				.number()
+				.int()
+				.min(MIN_DURATION_SECONDS)
+				.max(MAX_DURATION_SECONDS),
+		})
+		.refine((duration) => duration.max_seconds >= duration.min_seconds, {
+			message: "Max length must be at least min length",
+			path: ["max_seconds"],
+		}),
+);
 export type DurationTarget = z.infer<typeof durationTarget>;
 
 export const podcastSpec = z

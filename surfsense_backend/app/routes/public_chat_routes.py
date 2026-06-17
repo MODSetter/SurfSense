@@ -103,8 +103,14 @@ async def stream_public_podcast(
     if storage_key:
         from app.file_storage.factory import get_storage_backend
 
+        backend = get_storage_backend()
+        # Verify first so a missing object is a 404, not a mid-stream crash.
+        if not await backend.exists(storage_key):
+            raise HTTPException(
+                status_code=404, detail="Podcast audio is no longer available"
+            )
         return StreamingResponse(
-            get_storage_backend().open_stream(storage_key),
+            backend.open_stream(storage_key),
             media_type="audio/mpeg",
             headers={"Accept-Ranges": "bytes"},
         )

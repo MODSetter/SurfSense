@@ -1,3 +1,4 @@
+import logging
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -33,6 +34,8 @@ from app.config import config
 
 if config.AUTH_TYPE == "GOOGLE":
     from fastapi_users.db import SQLAlchemyBaseOAuthAccountTableUUID
+
+logger = logging.getLogger(__name__)
 
 DATABASE_URL = config.DATABASE_URL
 
@@ -2726,6 +2729,28 @@ from app.podcasts.persistence import (  # noqa: E402, F401
     PodcastStatus,
 )
 
+
+def _build_connect_args() -> dict:
+    """Build driver connect_args, including a protective idle-in-transaction
+    timeout for asyncpg connections.
+
+    A single abandoned ``idle in transaction`` session can hold table/row locks
+    indefinitely and wedge writes plus boot-time DDL (the classic "FastAPI
+    stuck at application startup" failure). Setting
+    ``idle_in_transaction_session_timeout`` server-side makes Postgres reap such
+    sessions automatically. It never affects sessions that are actively running
+    statements — only ones that opened a transaction and went idle.
+    """
+    connect_args: dict = {}
+    idle_ms = config.DB_IDLE_IN_TX_TIMEOUT_MS
+    # ``server_settings`` is asyncpg-specific; only apply it for that driver.
+    if idle_ms and idle_ms > 0 and DATABASE_URL and "asyncpg" in DATABASE_URL:
+        connect_args["server_settings"] = {
+            "idle_in_transaction_session_timeout": str(idle_ms)
+        }
+    return connect_args
+
+
 engine = create_async_engine(
     DATABASE_URL,
     pool_size=30,
@@ -2733,6 +2758,7 @@ engine = create_async_engine(
     pool_recycle=1800,
     pool_pre_ping=True,
     pool_timeout=30,
+    connect_args=_build_connect_args(),
 )
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -2757,54 +2783,117 @@ async def shielded_async_session():
             await session.close()
 
 
-async def setup_indexes():
-    async with engine.begin() as conn:
-        # Create indexes
-        # Document embedding indexes
-        await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS document_vector_index ON documents USING hnsw (embedding public.vector_cosine_ops)"
-            )
+# (index_name, table, CREATE statement). Built with CONCURRENTLY so an index
+# build only takes a non-blocking ShareUpdateExclusiveLock — ingestion
+# INSERT/UPDATE on documents/chunks keep flowing while the index builds, and a
+# slow build can never freeze the FastAPI lifespan or block writers.
+_INDEX_DEFINITIONS: list[tuple[str, str, str]] = [
+    (
+        "document_vector_index",
+        "documents",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS document_vector_index ON documents USING hnsw (embedding public.vector_cosine_ops)",
+    ),
+    (
+        "document_search_index",
+        "documents",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS document_search_index ON documents USING gin (to_tsvector('english', content))",
+    ),
+    (
+        "chucks_vector_index",
+        "chunks",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS chucks_vector_index ON chunks USING hnsw (embedding public.vector_cosine_ops)",
+    ),
+    (
+        "chucks_search_index",
+        "chunks",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS chucks_search_index ON chunks USING gin (to_tsvector('english', content))",
+    ),
+    # pg_trgm index for efficient ILIKE '%term%' searches on titles — critical
+    # for the document mention picker (@mentions) to scale.
+    (
+        "idx_documents_title_trgm",
+        "documents",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_title_trgm ON documents USING gin (title gin_trgm_ops)",
+    ),
+    (
+        "idx_documents_search_space_id",
+        "documents",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_search_space_id ON documents (search_space_id)",
+    ),
+    # Covering index for "recent documents" query — enables index-only scan.
+    (
+        "idx_documents_search_space_updated",
+        "documents",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_search_space_updated ON documents (search_space_id, updated_at DESC NULLS LAST) INCLUDE (id, title, document_type)",
+    ),
+]
+
+
+async def _drop_invalid_index(conn, name: str) -> None:
+    """Drop a leftover *invalid* index so it can be rebuilt.
+
+    A ``CREATE INDEX CONCURRENTLY`` that is interrupted (timeout, crash,
+    cancellation) leaves behind an ``indisvalid = false`` index. Because the
+    name now exists, a later ``CREATE INDEX CONCURRENTLY IF NOT EXISTS`` would
+    skip it and the broken index would persist forever. Detect and drop it
+    first.
+    """
+    result = await conn.execute(
+        text("SELECT indisvalid FROM pg_index WHERE indexrelid = to_regclass(:n)"),
+        {"n": name},
+    )
+    row = result.first()
+    if row is not None and row[0] is False:
+        logger.warning(
+            "[startup] dropping invalid leftover index %s before rebuild", name
         )
-        await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS document_search_index ON documents USING gin (to_tsvector('english', content))"
-            )
-        )
-        # Document Chuck Indexes
-        await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS chucks_vector_index ON chunks USING hnsw (embedding public.vector_cosine_ops)"
-            )
-        )
-        await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS chucks_search_index ON chunks USING gin (to_tsvector('english', content))"
-            )
-        )
-        # pg_trgm indexes for efficient ILIKE '%term%' searches on titles
-        # Critical for document mention picker (@mentions) to scale
-        await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS idx_documents_title_trgm ON documents USING gin (title gin_trgm_ops)"
-            )
-        )
-        # B-tree index on search_space_id for fast filtering
-        await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS idx_documents_search_space_id ON documents (search_space_id)"
-            )
-        )
-        # Covering index for "recent documents" query - enables index-only scan
-        await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS idx_documents_search_space_updated ON documents (search_space_id, updated_at DESC NULLS LAST) INCLUDE (id, title, document_type)"
-            )
-        )
+        await conn.execute(text(f'DROP INDEX CONCURRENTLY IF EXISTS "{name}"'))
+
+
+async def setup_indexes() -> None:
+    """Ensure search/vector indexes exist without ever blocking startup.
+
+    Each index is created with ``CONCURRENTLY`` (so it never takes a blocking
+    SHARE lock on documents/chunks) under a short per-session ``lock_timeout``
+    (so a contended boot fails fast instead of hanging the lifespan forever).
+    Failures are logged and swallowed per-index — a missing index just gets
+    retried on the next boot rather than crash-looping the API.
+    """
+    lock_timeout_ms = int(config.DB_DDL_LOCK_TIMEOUT_MS)
+    # AUTOCOMMIT is mandatory: CREATE INDEX CONCURRENTLY cannot run inside a
+    # transaction block.
+    async with engine.connect() as base_conn:
+        conn = await base_conn.execution_options(isolation_level="AUTOCOMMIT")
+        await conn.execute(text(f"SET lock_timeout = {lock_timeout_ms}"))
+        for name, table, ddl in _INDEX_DEFINITIONS:
+            try:
+                await _drop_invalid_index(conn, name)
+                await conn.execute(text(ddl))
+            except Exception as exc:
+                # Non-fatal by design: a missing index is retried next boot.
+                logger.warning(
+                    "[startup] index %s on %s not ready (%s: %s); "
+                    "will retry on next boot",
+                    name,
+                    table,
+                    exc.__class__.__name__,
+                    exc,
+                )
 
 
 async def create_db_and_tables():
+    if not config.DB_BOOTSTRAP_ON_STARTUP:
+        logger.info(
+            "[startup] DB bootstrap skipped (DB_BOOTSTRAP_ON_STARTUP=FALSE); "
+            "schema/indexes are expected to be managed by migrations"
+        )
+        return
+
+    lock_timeout_ms = int(config.DB_DDL_LOCK_TIMEOUT_MS)
     async with engine.begin() as conn:
+        # Fail fast instead of hanging forever if another session holds a
+        # conflicting lock on a table we need to touch.
+        await conn.execute(text(f"SET LOCAL lock_timeout = {lock_timeout_ms}"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)

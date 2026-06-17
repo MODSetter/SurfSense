@@ -120,6 +120,9 @@ class FakeStorageBackend:
     async def open_stream(self, key: str) -> AsyncIterator[bytes]:
         yield self.objects.get(key, b"audio-bytes")
 
+    async def exists(self, key: str) -> bool:
+        return key in self.objects
+
     async def delete(self, key: str) -> None:
         self.deleted.append(key)
 
@@ -214,7 +217,7 @@ def build_spec(
                 slot=1, name="Guest", role=SpeakerRole.GUEST, voice_id=voice_ids[1]
             ),
         ],
-        duration=DurationTarget(min_minutes=10, max_minutes=20),
+        duration=DurationTarget(min_seconds=600, max_seconds=1200),
     )
 
 

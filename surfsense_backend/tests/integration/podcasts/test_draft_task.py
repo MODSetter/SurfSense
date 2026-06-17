@@ -76,7 +76,7 @@ async def test_quota_denial_fails_the_podcast_without_a_transcript(
     async def _deny(**_kwargs):
         raise QuotaInsufficientError(
             usage_type="podcast_generation",
-            balance_micros=0,
+            balance_micros=5_000_000,
             remaining_micros=0,
         )
         yield  # pragma: no cover - unreachable, satisfies the CM protocol

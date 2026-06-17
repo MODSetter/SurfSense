@@ -31,8 +31,8 @@ def make_spec():
         language: str = "en",
         style: PodcastStyle = PodcastStyle.CONVERSATIONAL,
         speakers: list[SpeakerSpec] | None = None,
-        min_minutes: int = 10,
-        max_minutes: int = 20,
+        min_seconds: int = 600,
+        max_seconds: int = 1200,
         focus: str | None = None,
     ) -> PodcastSpec:
         if speakers is None:
@@ -54,7 +54,7 @@ def make_spec():
             language=language,
             style=style,
             speakers=speakers,
-            duration=DurationTarget(min_minutes=min_minutes, max_minutes=max_minutes),
+            duration=DurationTarget(min_seconds=min_seconds, max_seconds=max_seconds),
             focus=focus,
         )
 

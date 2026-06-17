@@ -105,7 +105,7 @@ async def test_ainvoke_propagates_quota_insufficient_error(monkeypatch):
     async def _denying_billable_call(**_kwargs):
         raise QuotaInsufficientError(
             usage_type="vision_extraction",
-            balance_micros=0,
+            balance_micros=5_000_000,
             remaining_micros=0,
         )
         yield  # unreachable but required for asynccontextmanager type

@@ -98,7 +98,7 @@ async def _denying_billable_call(**kwargs):
     _CALL_LOG.append(kwargs)
     raise QuotaInsufficientError(
         usage_type=kwargs.get("usage_type", "?"),
-        balance_micros=0,
+        balance_micros=5_000_000,
         remaining_micros=0,
     )
     yield SimpleNamespace()  # pragma: no cover
