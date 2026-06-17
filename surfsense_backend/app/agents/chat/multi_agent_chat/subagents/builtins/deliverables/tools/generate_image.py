@@ -143,6 +143,8 @@ def create_generate_image_tool(
                         choose_auto_model_candidate(candidates, search_space_id)["id"]
                     )
 
+                provider_base_url: str | None = None
+
                 if config_id < 0:
                     global_model = _get_global_model(config_id)
                     if not global_model or not has_capability(
@@ -162,6 +164,7 @@ def create_generate_image_tool(
                         global_model["model_id"],
                     )
                     gen_kwargs.update(resolved_kwargs)
+                    provider_base_url = resolved_kwargs.get("api_base")
 
                     response = await aimage_generation(
                         prompt=prompt, model=model_string, **gen_kwargs
@@ -203,6 +206,7 @@ def create_generate_image_tool(
                         db_model.model_id,
                     )
                     gen_kwargs.update(resolved_kwargs)
+                    provider_base_url = resolved_kwargs.get("api_base")
 
                     response = await aimage_generation(
                         prompt=prompt, model=model_string, **gen_kwargs
@@ -241,8 +245,19 @@ def create_generate_image_tool(
 
             # b64_json (e.g. gpt-image-1) is served via our backend endpoint so
             # megabytes of base64 don't bloat the LLM context.
+            # Some OpenAI-compatible backends (e.g. Xinference) return a relative
+            # URL like /files/image.png. Browsers can't resolve these, so we
+            # prepend the provider's base origin when the URL starts with "/".
             if first_image.get("url"):
-                image_url = first_image["url"]
+                raw_url: str = first_image["url"]
+                if raw_url.startswith("/") and provider_base_url:
+                    from urllib.parse import urlparse
+
+                    parsed = urlparse(provider_base_url)
+                    origin = f"{parsed.scheme}://{parsed.netloc}"
+                    image_url = f"{origin}{raw_url}"
+                else:
+                    image_url = raw_url
             elif first_image.get("b64_json"):
                 backend_url = config.BACKEND_URL or "http://localhost:8000"
                 image_url = (
