@@ -2,10 +2,10 @@
 
 import { Search } from "lucide-react";
 import type { FC } from "react";
+import { useIsSelfHosted } from "@/components/providers/runtime-config";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { usePlatform } from "@/hooks/use-platform";
-import { useIsSelfHosted } from "@/components/providers/runtime-config";
 import { ConnectorCard } from "../components/connector-card";
 import {
 	COMPOSIO_CONNECTORS,

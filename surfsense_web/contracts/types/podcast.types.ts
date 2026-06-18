@@ -62,12 +62,7 @@ export type SpeakerSpec = z.infer<typeof speakerSpec>;
 
 export const durationTarget = z.preprocess(
 	(raw) => {
-		if (
-			raw &&
-			typeof raw === "object" &&
-			"min_minutes" in raw &&
-			!("min_seconds" in raw)
-		) {
+		if (raw && typeof raw === "object" && "min_minutes" in raw && !("min_seconds" in raw)) {
 			const legacy = raw as { min_minutes: number; max_minutes: number };
 			return {
 				min_seconds: legacy.min_minutes * 60,
@@ -78,21 +73,13 @@ export const durationTarget = z.preprocess(
 	},
 	z
 		.object({
-			min_seconds: z
-				.number()
-				.int()
-				.min(MIN_DURATION_SECONDS)
-				.max(MAX_DURATION_SECONDS),
-			max_seconds: z
-				.number()
-				.int()
-				.min(MIN_DURATION_SECONDS)
-				.max(MAX_DURATION_SECONDS),
+			min_seconds: z.number().int().min(MIN_DURATION_SECONDS).max(MAX_DURATION_SECONDS),
+			max_seconds: z.number().int().min(MIN_DURATION_SECONDS).max(MAX_DURATION_SECONDS),
 		})
 		.refine((duration) => duration.max_seconds >= duration.min_seconds, {
 			message: "Max length must be at least min length",
 			path: ["max_seconds"],
-		}),
+		})
 );
 export type DurationTarget = z.infer<typeof durationTarget>;
 

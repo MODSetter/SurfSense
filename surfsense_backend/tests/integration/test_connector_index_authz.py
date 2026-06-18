@@ -15,6 +15,7 @@ boundary.
 
 from __future__ import annotations
 
+import contextlib
 import uuid
 from unittest.mock import AsyncMock, patch
 
@@ -97,14 +98,16 @@ class TestConnectorIndexCrossSpaceAuthz:
             db_session, victim, space_a, SearchSourceConnectorType.GITHUB_CONNECTOR
         )
 
-        with patch(_CHECK_PERMISSION, new=AsyncMock()) as check_permission_mock:
-            with pytest.raises(HTTPException) as exc_info:
-                await index_connector_content(
-                    connector_id=connector_a.id,
-                    search_space_id=space_b.id,  # the attacker's own space
-                    session=db_session,
-                    user=attacker,
-                )
+        with (
+            patch(_CHECK_PERMISSION, new=AsyncMock()) as check_permission_mock,
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await index_connector_content(
+                connector_id=connector_a.id,
+                search_space_id=space_b.id,  # the attacker's own space
+                session=db_session,
+                user=attacker,
+            )
 
         assert exc_info.value.status_code == 404
         # Rejected at the search-space reconciliation, never reaching (or relying
@@ -124,18 +127,18 @@ class TestConnectorIndexCrossSpaceAuthz:
             db_session, owner, space, SearchSourceConnectorType.CLICKUP_CONNECTOR
         )
 
-        with patch(_CHECK_PERMISSION, new=AsyncMock()) as check_permission_mock:
-            try:
-                await index_connector_content(
-                    connector_id=connector.id,
-                    search_space_id=space.id,  # the connector's own space
-                    session=db_session,
-                    user=owner,
-                )
-            except Exception:
-                # Any downstream indexing behaviour is irrelevant to the authz
-                # contract under test; we only assert what space was authorized.
-                pass
+        # Any downstream indexing behaviour is irrelevant to the authz contract
+        # under test; we only assert what space was authorized.
+        with (
+            patch(_CHECK_PERMISSION, new=AsyncMock()) as check_permission_mock,
+            contextlib.suppress(Exception),
+        ):
+            await index_connector_content(
+                connector_id=connector.id,
+                search_space_id=space.id,  # the connector's own space
+                session=db_session,
+                user=owner,
+            )
 
         check_permission_mock.assert_awaited_once()
         # The space passed to check_permission must be the connector's own space.

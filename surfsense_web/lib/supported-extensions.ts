@@ -91,5 +91,7 @@ export function getSupportedExtensionsSet(
 	acceptedFileTypes?: Record<string, string[]>,
 	etlService?: string
 ): Set<string> {
-	return new Set(getSupportedExtensions(acceptedFileTypes, etlService).map((ext) => ext.toLowerCase()));
+	return new Set(
+		getSupportedExtensions(acceptedFileTypes, etlService).map((ext) => ext.toLowerCase())
+	);
 }

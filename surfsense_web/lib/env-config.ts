@@ -26,10 +26,7 @@ type BackendUrlParam = string | number | boolean | null | undefined;
  * BACKEND_URL is explicitly configured, the same path resolves against that
  * absolute backend origin.
  */
-export function buildBackendUrl(
-	path: string,
-	params?: Record<string, BackendUrlParam>
-): string {
+export function buildBackendUrl(path: string, params?: Record<string, BackendUrlParam>): string {
 	const backendPath = path.startsWith("/") ? path : `/${path}`;
 	const queryParams = new URLSearchParams();
 

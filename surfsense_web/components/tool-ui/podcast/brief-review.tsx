@@ -24,8 +24,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-	MAX_DURATION_SECONDS,
 	type LanguageOptions,
+	MAX_DURATION_SECONDS,
 	MAX_SPEAKERS,
 	MIN_DURATION_SECONDS,
 	type PodcastSpec,
@@ -68,7 +68,7 @@ interface BriefReviewProps {
 export function BriefReview({ podcast, spec }: BriefReviewProps) {
 	const [draft, setDraft] = useState<PodcastSpec>(spec);
 	const [durationUnit, setDurationUnit] = useState<DurationUnit>(() =>
-		defaultDurationUnit(spec.duration.max_seconds),
+		defaultDurationUnit(spec.duration.max_seconds)
 	);
 	const [voices, setVoices] = useState<VoiceOption[] | null>(null);
 	const [offering, setOffering] = useState<LanguageOptions | null>(null);
@@ -361,7 +361,7 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 							value={formatDurationForUnit(draft.duration.min_seconds, durationUnit)}
 							onChange={(e) => {
 								const seconds = clampDurationSeconds(
-									fromUnitValue(Number(e.target.value), durationUnit),
+									fromUnitValue(Number(e.target.value), durationUnit)
 								);
 								setDraft((current) => ({
 									...current,
@@ -381,15 +381,9 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 							value={formatDurationForUnit(draft.duration.max_seconds, durationUnit)}
 							onChange={(e) => {
 								const parsed = Number(e.target.value);
-								const fallback = secondsToUnitValue(
-									draft.duration.min_seconds,
-									durationUnit,
-								);
+								const fallback = secondsToUnitValue(draft.duration.min_seconds, durationUnit);
 								const seconds = clampDurationSeconds(
-									fromUnitValue(
-										Number.isFinite(parsed) ? parsed : fallback,
-										durationUnit,
-									),
+									fromUnitValue(Number.isFinite(parsed) ? parsed : fallback, durationUnit)
 								);
 								setDraft((current) => ({
 									...current,
@@ -426,9 +420,7 @@ export function BriefReview({ podcast, spec }: BriefReviewProps) {
 				<Button
 					type="button"
 					onClick={handleApprove}
-					disabled={
-						isSubmitting || draft.duration.max_seconds < draft.duration.min_seconds
-					}
+					disabled={isSubmitting || draft.duration.max_seconds < draft.duration.min_seconds}
 				>
 					{isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
 					{isDirty ? "Approve changes & draft transcript" : "Approve & draft transcript"}

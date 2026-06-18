@@ -1,8 +1,8 @@
 import { loader } from "fumadocs-core/source";
 import type { MetadataRoute } from "next";
 import { blog, changelog } from "@/.source/server";
-import { source as docsSource } from "@/lib/source";
 import { SERVER_BACKEND_URL } from "@/lib/env-config";
+import { source as docsSource } from "@/lib/source";
 
 const blogSource = loader({
 	baseUrl: "/blog",
