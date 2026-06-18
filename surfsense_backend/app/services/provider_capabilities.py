@@ -49,51 +49,6 @@ import litellm
 logger = logging.getLogger(__name__)
 
 
-# Provider-name → LiteLLM model-prefix map.
-#
-# Owned here because ``app.services.provider_capabilities`` is the
-# only edge that's safe to call from ``app.config``'s YAML loader at
-# class-body init time. ``app.agents.chat.runtime.llm_config`` re-exports
-# this constant under the historical ``PROVIDER_MAP`` name; placing the
-# map there directly would re-introduce the
-# ``app.config -> ... -> deliverables/tools/generate_image ->
-# app.config`` cycle that prompted the move.
-_PROVIDER_PREFIX_MAP: dict[str, str] = {
-    "OPENAI": "openai",
-    "ANTHROPIC": "anthropic",
-    "GROQ": "groq",
-    "COHERE": "cohere",
-    "GOOGLE": "gemini",
-    "OLLAMA": "ollama_chat",
-    "MISTRAL": "mistral",
-    "AZURE_OPENAI": "azure",
-    "OPENROUTER": "openrouter",
-    "XAI": "xai",
-    "BEDROCK": "bedrock",
-    "VERTEX_AI": "vertex_ai",
-    "TOGETHER_AI": "together_ai",
-    "FIREWORKS_AI": "fireworks_ai",
-    "DEEPSEEK": "openai",
-    "ALIBABA_QWEN": "openai",
-    "MOONSHOT": "openai",
-    "ZHIPU": "openai",
-    "GITHUB_MODELS": "github",
-    "REPLICATE": "replicate",
-    "PERPLEXITY": "perplexity",
-    "ANYSCALE": "anyscale",
-    "DEEPINFRA": "deepinfra",
-    "CEREBRAS": "cerebras",
-    "SAMBANOVA": "sambanova",
-    "AI21": "ai21",
-    "CLOUDFLARE": "cloudflare",
-    "DATABRICKS": "databricks",
-    "COMETAPI": "cometapi",
-    "HUGGINGFACE": "huggingface",
-    "MINIMAX": "openai",
-    "CUSTOM": "custom",
-}
-
-
 def _candidate_model_strings(
     *,
     provider: str | None,
@@ -123,12 +78,7 @@ def _candidate_model_strings(
         seen.add(key)
         candidates.append(key)
 
-    provider_prefix: str | None = None
-    if provider:
-        provider_prefix = _PROVIDER_PREFIX_MAP.get(provider.upper(), provider.lower())
-    if custom_provider:
-        # ``custom_provider`` overrides everything for CUSTOM/proxy setups.
-        provider_prefix = custom_provider
+    provider_prefix = custom_provider or provider
 
     primary_model = base_model or model_name
     bare_model = model_name

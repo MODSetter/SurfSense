@@ -28,7 +28,7 @@ class DocumentProcessingNotificationHandler(BaseNotificationHandler):
     ) -> Notification:
         """Open the notification when document processing is queued."""
         operation_id = msg.operation_id(document_type, document_name, search_space_id)
-        title = f"Processing: {document_name}"
+        title = msg.started_title(document_name)
         message = "Waiting in queue"
 
         metadata = {

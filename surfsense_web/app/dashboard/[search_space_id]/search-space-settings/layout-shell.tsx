@@ -1,15 +1,6 @@
 "use client";
 
-import {
-	BookText,
-	Bot,
-	CircleUser,
-	Earth,
-	ImageIcon,
-	ListChecks,
-	ScanEye,
-	UserKey,
-} from "lucide-react";
+import { BookText, Cpu, Earth, Settings, UserKey } from "lucide-react";
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -20,10 +11,7 @@ import { cn } from "@/lib/utils";
 
 export type SearchSpaceSettingsTab =
 	| "general"
-	| "roles"
 	| "models"
-	| "image-models"
-	| "vision-models"
 	| "team-roles"
 	| "prompts"
 	| "public-links";
@@ -55,27 +43,12 @@ export function SearchSpaceSettingsLayoutShell({
 			{
 				value: "general" as const,
 				label: t("nav_general"),
-				icon: <CircleUser className="h-4 w-4" />,
-			},
-			{
-				value: "roles" as const,
-				label: t("nav_role_assignments"),
-				icon: <ListChecks className="h-4 w-4" />,
+				icon: <Settings className="h-4 w-4" />,
 			},
 			{
 				value: "models" as const,
-				label: t("nav_agent_models"),
-				icon: <Bot className="h-4 w-4" />,
-			},
-			{
-				value: "image-models" as const,
-				label: t("nav_image_models"),
-				icon: <ImageIcon className="h-4 w-4" />,
-			},
-			{
-				value: "vision-models" as const,
-				label: t("nav_vision_models"),
-				icon: <ScanEye className="h-4 w-4" />,
+				label: t("nav_models"),
+				icon: <Cpu className="h-4 w-4" />,
 			},
 			{
 				value: "team-roles" as const,

@@ -43,6 +43,7 @@ import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
+import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import {
 	DEFAULT_EXCLUDE_PATTERNS,
@@ -78,7 +79,7 @@ import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
@@ -226,6 +227,7 @@ function AuthenticatedDocumentsSidebarBase({
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const platformElectronAPI = useElectronAPI();
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
+	const { etlService } = useRuntimeConfig();
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
@@ -618,7 +620,8 @@ function AuthenticatedDocumentsSidebarBase({
 					folderName: matched.name,
 					searchSpaceId,
 					excludePatterns: matched.excludePatterns ?? DEFAULT_EXCLUDE_PATTERNS,
-					fileExtensions: matched.fileExtensions ?? Array.from(getSupportedExtensionsSet()),
+					fileExtensions:
+						matched.fileExtensions ?? Array.from(getSupportedExtensionsSet(undefined, etlService)),
 					rootFolderId: folder.id,
 				});
 				toast.success(`Re-scan complete: ${matched.name}`);
@@ -626,7 +629,7 @@ function AuthenticatedDocumentsSidebarBase({
 				toast.error((err as Error)?.message || "Failed to re-scan folder");
 			}
 		},
-		[searchSpaceId, electronAPI]
+		[searchSpaceId, electronAPI, etlService]
 	);
 
 	const handleStopWatching = useCallback(
@@ -748,7 +751,9 @@ function AuthenticatedDocumentsSidebarBase({
 					.trim()
 					.slice(0, 80) || "folder";
 			await doExport(
-				`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${ctx.folder.id}`,
+				buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`, {
+					folder_id: ctx.folder.id,
+				}),
 				`${safeName}.zip`
 			);
 			toast.success(`Folder "${ctx.folder.name}" exported`);
@@ -800,7 +805,9 @@ function AuthenticatedDocumentsSidebarBase({
 						.trim()
 						.slice(0, 80) || "folder";
 				await doExport(
-					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/export?folder_id=${folder.id}`,
+					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`, {
+						folder_id: folder.id,
+					}),
 					`${safeName}.zip`
 				);
 				toast.success(`Folder "${folder.name}" exported`);
@@ -820,8 +827,8 @@ function AuthenticatedDocumentsSidebarBase({
 				try {
 					const endpoint =
 						doc.document_type === "USER_MEMORY"
-							? `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/users/me/memory`
-							: `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/memory`;
+							? buildBackendUrl("/api/v1/users/me/memory")
+							: buildBackendUrl(`/api/v1/searchspaces/${searchSpaceId}/memory`);
 					const response = await authenticatedFetch(endpoint, { method: "GET" });
 					if (!response.ok) {
 						const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
@@ -849,7 +856,9 @@ function AuthenticatedDocumentsSidebarBase({
 
 			try {
 				const response = await authenticatedFetch(
-					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${doc.id}/export?format=${format}`,
+					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/documents/${doc.id}/export`, {
+						format,
+					}),
 					{ method: "GET" }
 				);
 
@@ -1028,8 +1037,8 @@ function AuthenticatedDocumentsSidebarBase({
 			}
 			const endpoint =
 				doc.document_type === "USER_MEMORY"
-					? `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/users/me/memory/reset`
-					: `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/memory/reset`;
+					? buildBackendUrl("/api/v1/users/me/memory/reset")
+					: buildBackendUrl(`/api/v1/searchspaces/${searchSpaceId}/memory/reset`);
 			try {
 				const response = await authenticatedFetch(endpoint, { method: "POST" });
 				if (!response.ok) {
@@ -1149,6 +1158,7 @@ function AuthenticatedDocumentsSidebarBase({
 	const showCloudSkeleton =
 		currentFilesystemTab === "cloud" &&
 		(zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete");
+	const connectorButtonLabel = connectorCount > 0 ? "Manage connectors" : "Connect your connectors";
 
 	const cloudContent = (
 		<>
@@ -1161,9 +1171,7 @@ function AuthenticatedDocumentsSidebarBase({
 				className="shrink-0 mx-4 mt-6 mb-2.5 h-auto select-none justify-start gap-2 bg-muted px-3 py-1.5 text-xs text-muted-foreground"
 			>
 				<Unplug className="size-4 shrink-0" />
-				<span className="truncate">
-					{connectorCount > 0 ? "Manage connectors" : "Connect your connectors"}
-				</span>
+				<span className="truncate">{connectorButtonLabel}</span>
 				{connectorCount > 0 && (
 					<span className="shrink-0 rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
 						{connectorCount}

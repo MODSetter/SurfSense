@@ -32,6 +32,23 @@ from app.db import TokenUsage
 logger = logging.getLogger(__name__)
 
 
+def _bare_model_name(model: str) -> str:
+    """Return a model identifier with any provider routing prefix stripped.
+
+    LiteLLM's ``get_llm_provider`` consumes the provider prefix we add in
+    ``to_litellm`` (e.g. ``azure/gpt-5.2-chat`` → ``gpt-5.2-chat`` because
+    ``azure`` is in ``litellm.provider_list``). The token-tracking success
+    callback therefore reports ``kwargs["model"]`` *without* that prefix,
+    while model metadata is registered under the *prefixed* string. Normalising
+    both sides to the last path segment lets the two reconcile so the per-model
+    breakdown carries provider/display_name and the UI attributes the turn to
+    the correct connection instead of falling back to a bare-name collision.
+    """
+    if not model:
+        return model
+    return model.split("/")[-1]
+
+
 @dataclass
 class TokenCallRecord:
     model: str
@@ -40,6 +57,10 @@ class TokenCallRecord:
     total_tokens: int
     cost_micros: int = 0
     call_kind: str = "chat"
+    model_ref: str | None = None
+    model_id: str | None = None
+    display_name: str | None = None
+    provider: str | None = None
 
 
 @dataclass
@@ -47,6 +68,46 @@ class TurnTokenAccumulator:
     """Accumulates token usage across all LLM calls within a single user turn."""
 
     calls: list[TokenCallRecord] = field(default_factory=list)
+    model_metadata: dict[str, dict[str, str | None]] = field(default_factory=dict)
+    # Secondary index keyed by the bare model name (provider prefix stripped) so
+    # the LiteLLM callback — which never sees our routing prefix — can still
+    # reconcile its ``kwargs["model"]`` back to the registered metadata.
+    model_metadata_by_bare: dict[str, dict[str, str | None]] = field(
+        default_factory=dict
+    )
+
+    def register_model_metadata(
+        self,
+        *,
+        model: str,
+        model_ref: str | None,
+        model_id: str | None,
+        display_name: str | None,
+        provider: str | None,
+    ) -> None:
+        """Attach resolved model metadata for later LiteLLM callback attribution."""
+        metadata = {
+            "model_ref": model_ref,
+            "model_id": model_id,
+            "display_name": display_name,
+            "provider": provider,
+        }
+        self.model_metadata[model] = metadata
+        # Index every reconcilable alias: the prefixed string's bare form and
+        # the resolved ``model_id`` (which for some providers is itself the bare
+        # deployment LiteLLM reports). Exact lookups always take precedence.
+        self.model_metadata_by_bare[_bare_model_name(model)] = metadata
+        if model_id:
+            self.model_metadata_by_bare.setdefault(_bare_model_name(model_id), metadata)
+
+    def _lookup_metadata(self, model: str) -> dict[str, str | None]:
+        """Resolve registered metadata for a callback model, tolerating the
+        provider-prefix stripping LiteLLM applies before the success callback
+        fires (see :func:`_bare_model_name`)."""
+        exact = self.model_metadata.get(model)
+        if exact is not None:
+            return exact
+        return self.model_metadata_by_bare.get(_bare_model_name(model), {})
 
     def add(
         self,
@@ -57,9 +118,14 @@ class TurnTokenAccumulator:
         cost_micros: int = 0,
         call_kind: str = "chat",
     ) -> None:
+        metadata = self._lookup_metadata(model)
         self.calls.append(
             TokenCallRecord(
                 model=model,
+                model_ref=metadata.get("model_ref"),
+                model_id=metadata.get("model_id"),
+                display_name=metadata.get("display_name"),
+                provider=metadata.get("provider"),
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
@@ -68,13 +134,18 @@ class TurnTokenAccumulator:
             )
         )
 
-    def per_message_summary(self) -> dict[str, dict[str, int]]:
+    def per_message_summary(self) -> dict[str, dict[str, Any]]:
         """Return token counts (and cost) grouped by model name."""
-        by_model: dict[str, dict[str, int]] = {}
+        by_model: dict[str, dict[str, Any]] = {}
         for c in self.calls:
             entry = by_model.setdefault(
                 c.model,
                 {
+                    "model": c.model,
+                    "model_ref": c.model_ref,
+                    "model_id": c.model_id,
+                    "display_name": c.display_name,
+                    "provider": c.provider,
                     "prompt_tokens": 0,
                     "completion_tokens": 0,
                     "total_tokens": 0,
@@ -140,6 +211,27 @@ def start_turn() -> TurnTokenAccumulator:
 
 def get_current_accumulator() -> TurnTokenAccumulator | None:
     return _turn_accumulator.get()
+
+
+def register_model_usage_metadata(
+    *,
+    model: str,
+    model_ref: str | None,
+    model_id: str | None,
+    display_name: str | None,
+    provider: str | None,
+) -> None:
+    """Register resolved model metadata with the current turn, if one exists."""
+    acc = _turn_accumulator.get()
+    if acc is None:
+        return
+    acc.register_model_metadata(
+        model=model,
+        model_ref=model_ref,
+        model_id=model_id,
+        display_name=display_name,
+        provider=provider,
+    )
 
 
 @asynccontextmanager

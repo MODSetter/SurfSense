@@ -7,7 +7,7 @@ import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { AnonModel } from "@/contracts/types/anonymous-chat.types";
-import { BACKEND_URL } from "@/lib/env-config";
+import { SERVER_BACKEND_URL } from "@/lib/env-config";
 
 interface PageProps {
 	params: Promise<{ model_slug: string }>;
@@ -16,7 +16,7 @@ interface PageProps {
 async function getModel(slug: string): Promise<AnonModel | null> {
 	try {
 		const res = await fetch(
-			`${BACKEND_URL}/api/v1/public/anon-chat/models/${encodeURIComponent(slug)}`,
+			`${SERVER_BACKEND_URL}/api/v1/public/anon-chat/models/${encodeURIComponent(slug)}`,
 			{ next: { revalidate: 300 } }
 		);
 		if (!res.ok) return null;
@@ -28,7 +28,7 @@ async function getModel(slug: string): Promise<AnonModel | null> {
 
 async function getAllModels(): Promise<AnonModel[]> {
 	try {
-		const res = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/models`, {
+		const res = await fetch(`${SERVER_BACKEND_URL}/api/v1/public/anon-chat/models`, {
 			next: { revalidate: 300 },
 		});
 		if (!res.ok) return [];
@@ -136,7 +136,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export async function generateStaticParams() {
 	const models = await getAllModels();
-	return models.filter((m) => m.seo_slug).map((m) => ({ model_slug: m.seo_slug! }));
+	return models.flatMap((m) => (m.seo_slug ? [{ model_slug: m.seo_slug }] : []));
 }
 
 export default async function FreeModelPage({ params }: PageProps) {

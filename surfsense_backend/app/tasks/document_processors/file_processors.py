@@ -1,8 +1,9 @@
 """
 File document processors orchestrating content extraction and indexing.
 
-Delegates content extraction to ``app.etl_pipeline.EtlPipelineService`` and
-keeps only orchestration concerns (notifications, logging, page limits, saving).
+Delegates content extraction to the cache-aware ``extract_with_cache`` facade
+(over ``EtlPipelineService``) and keeps only orchestration concerns
+(notifications, logging, page limits, saving).
 """
 
 from __future__ import annotations
@@ -116,8 +117,8 @@ async def _log_page_divergence(
 
 async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | None:
     """Extract content from a non-document file (plaintext/direct_convert/audio/image) via the unified ETL pipeline."""
+    from app.etl_pipeline.cache import extract_with_cache
     from app.etl_pipeline.etl_document import EtlRequest
-    from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
 
     await _notify(ctx, "parsing", "Processing file")
     await ctx.task_logger.log_task_progress(
@@ -136,8 +137,9 @@ async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | No
 
         vision_llm = await get_vision_llm(ctx.session, ctx.search_space_id)
 
-    etl_result = await EtlPipelineService(vision_llm=vision_llm).extract(
-        EtlRequest(file_path=ctx.file_path, filename=ctx.filename)
+    etl_result = await extract_with_cache(
+        EtlRequest(file_path=ctx.file_path, filename=ctx.filename),
+        vision_llm=vision_llm,
     )
 
     with contextlib.suppress(Exception):
@@ -183,8 +185,8 @@ async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | No
 
 async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
     """Route a document file to the configured ETL service via the unified pipeline."""
+    from app.etl_pipeline.cache import extract_with_cache
     from app.etl_pipeline.etl_document import EtlRequest, ProcessingMode
-    from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
     from app.services.etl_credit_service import (
         EtlCreditService,
         InsufficientCreditsError,
@@ -237,13 +239,14 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
 
         vision_llm = await get_vision_llm(ctx.session, ctx.search_space_id)
 
-    etl_result = await EtlPipelineService(vision_llm=vision_llm).extract(
+    etl_result = await extract_with_cache(
         EtlRequest(
             file_path=ctx.file_path,
             filename=ctx.filename,
             estimated_pages=estimated_pages,
             processing_mode=mode,
-        )
+        ),
+        vision_llm=vision_llm,
     )
 
     with contextlib.suppress(Exception):
@@ -381,7 +384,6 @@ async def _extract_file_content(
         Tuple of (markdown_content, etl_service_name, billable_pages).
     """
     from app.etl_pipeline.etl_document import EtlRequest, ProcessingMode
-    from app.etl_pipeline.etl_pipeline_service import EtlPipelineService
     from app.etl_pipeline.file_classifier import (
         FileCategory,
         classify_file as etl_classify,
@@ -432,13 +434,16 @@ async def _extract_file_content(
 
         vision_llm = await get_vision_llm(session, search_space_id)
 
-    result = await EtlPipelineService(vision_llm=vision_llm).extract(
+    from app.etl_pipeline.cache import extract_with_cache
+
+    result = await extract_with_cache(
         EtlRequest(
             file_path=file_path,
             filename=filename,
             estimated_pages=estimated_pages,
             processing_mode=mode,
-        )
+        ),
+        vision_llm=vision_llm,
     )
 
     with contextlib.suppress(Exception):

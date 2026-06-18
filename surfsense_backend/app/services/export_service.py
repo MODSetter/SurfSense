@@ -62,7 +62,7 @@ async def _get_document_markdown(
     chunk_result = await session.execute(
         select(Chunk.content)
         .filter(Chunk.document_id == document.id)
-        .order_by(Chunk.id)
+        .order_by(Chunk.position, Chunk.id)
     )
     chunks = chunk_result.scalars().all()
     if chunks:

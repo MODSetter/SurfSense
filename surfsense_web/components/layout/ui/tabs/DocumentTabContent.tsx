@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 
 const LARGE_DOCUMENT_THRESHOLD = 2 * 1024 * 1024; // 2MB
 
@@ -108,10 +108,12 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 			}
 
 			try {
-				const url = new URL(
-					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
+				const response = await authenticatedFetch(
+					buildBackendUrl(
+						`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
+					),
+					{ method: "GET" }
 				);
-				const response = await authenticatedFetch(url.toString(), { method: "GET" });
 
 				if (controller.signal.aborted) return;
 
@@ -165,7 +167,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 		setSaving(true);
 		try {
 			const response = await authenticatedFetch(
-				`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`,
+				buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`),
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -323,7 +325,9 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 										setDownloading(true);
 										try {
 											const response = await authenticatedFetch(
-												`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`,
+												buildBackendUrl(
+													`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`
+												),
 												{ method: "GET" }
 											);
 											if (!response.ok) throw new Error("Download failed");

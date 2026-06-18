@@ -14,6 +14,8 @@ from litellm.exceptions import (
 )
 from sqlalchemy.exc import IntegrityError as IntegrityError
 
+from app.services.llm_error_adapter import LLMErrorCategory, adapt_llm_exception
+
 # Tuples for use directly in except clauses.
 RETRYABLE_LLM_ERRORS = (
     RateLimitError,
@@ -97,38 +99,20 @@ def safe_exception_message(exc: Exception) -> str:
 
 def llm_retryable_message(exc: Exception) -> str:
     try:
-        if isinstance(exc, RateLimitError):
-            return PipelineMessages.RATE_LIMIT
-        if isinstance(exc, Timeout):
-            return PipelineMessages.LLM_TIMEOUT
-        if isinstance(exc, ServiceUnavailableError):
-            return PipelineMessages.LLM_UNAVAILABLE
-        if isinstance(exc, BadGatewayError):
-            return PipelineMessages.LLM_BAD_GATEWAY
-        if isinstance(exc, InternalServerError):
-            return PipelineMessages.LLM_SERVER_ERROR
-        if isinstance(exc, APIConnectionError):
-            return PipelineMessages.LLM_CONNECTION
-        return safe_exception_message(exc)
+        adapted = adapt_llm_exception(exc)
+        if adapted.category is LLMErrorCategory.UNKNOWN:
+            return safe_exception_message(exc)
+        return adapted.user_message
     except Exception:
         return "Something went wrong when calling the LLM."
 
 
 def llm_permanent_message(exc: Exception) -> str:
     try:
-        if isinstance(exc, AuthenticationError):
-            return PipelineMessages.LLM_AUTH
-        if isinstance(exc, PermissionDeniedError):
-            return PipelineMessages.LLM_PERMISSION
-        if isinstance(exc, NotFoundError):
-            return PipelineMessages.LLM_NOT_FOUND
-        if isinstance(exc, BadRequestError):
-            return PipelineMessages.LLM_BAD_REQUEST
-        if isinstance(exc, UnprocessableEntityError):
-            return PipelineMessages.LLM_UNPROCESSABLE
-        if isinstance(exc, APIResponseValidationError):
-            return PipelineMessages.LLM_RESPONSE
-        return safe_exception_message(exc)
+        adapted = adapt_llm_exception(exc)
+        if adapted.category is LLMErrorCategory.UNKNOWN:
+            return safe_exception_message(exc)
+        return adapted.user_message
     except Exception:
         return "Something went wrong when calling the LLM."
 

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { AnonModel, AnonQuotaResponse } from "@/contracts/types/anonymous-chat.types";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { readSSEStream } from "@/lib/chat/streaming-state";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import { QuotaBar } from "./quota-bar";
@@ -81,7 +81,7 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 				content: m.content,
 			}));
 
-			const response = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/stream`, {
+			const response = await fetch(buildBackendUrl("/api/v1/public/anon-chat/stream"), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
@@ -188,9 +188,6 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 							</div>
 						</div>
 						<h2 className="text-xl font-semibold mb-2">{model.name}</h2>
-						{model.description && (
-							<p className="text-sm text-muted-foreground max-w-md">{model.description}</p>
-						)}
 						<p className="text-xs text-muted-foreground mt-4">
 							Free to use &middot; No login required &middot; Start typing below
 						</p>

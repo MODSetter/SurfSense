@@ -37,7 +37,7 @@ import {
 	getAssetLabel,
 	usePrimaryDownload,
 } from "@/lib/desktop-download-utils";
-import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
+import { BUILD_TIME_AUTH_TYPE, buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
@@ -314,14 +314,14 @@ export function HeroSection() {
 }
 
 function GetStartedButton() {
-	const isGoogleAuth = AUTH_TYPE === "GOOGLE";
+	const isGoogleAuth = BUILD_TIME_AUTH_TYPE === "GOOGLE";
 	const [isRedirecting, setIsRedirecting] = useState(false);
 
 	const handleGoogleLogin = () => {
 		if (isRedirecting) return;
 		setIsRedirecting(true);
 		trackLoginAttempt("google");
-		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
+		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
 	};
 
 	if (isGoogleAuth) {

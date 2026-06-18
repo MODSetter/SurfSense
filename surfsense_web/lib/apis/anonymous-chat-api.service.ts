@@ -7,7 +7,7 @@ import {
 	getAnonModelResponse,
 	getAnonModelsResponse,
 } from "@/contracts/types/anonymous-chat.types";
-import { BACKEND_URL } from "../env-config";
+import { buildBackendUrl } from "../env-config";
 import { ValidationError } from "../error";
 
 const BASE = "/api/v1/public/anon-chat";
@@ -17,14 +17,8 @@ export type AnonUploadResult =
 	| { ok: false; reason: "quota_exceeded" };
 
 class AnonymousChatApiService {
-	private baseUrl: string;
-
-	constructor(baseUrl: string) {
-		this.baseUrl = baseUrl;
-	}
-
 	private fullUrl(path: string): string {
-		return `${this.baseUrl}${BASE}${path}`;
+		return buildBackendUrl(`${BASE}${path}`);
 	}
 
 	getModels = async (): Promise<AnonModel[]> => {
@@ -102,4 +96,4 @@ class AnonymousChatApiService {
 	};
 }
 
-export const anonymousChatApiService = new AnonymousChatApiService(BACKEND_URL);
+export const anonymousChatApiService = new AnonymousChatApiService();

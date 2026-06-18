@@ -18,6 +18,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.tasks.chat.llm_history_normalizer import (
+    assistant_content_to_llm_text,
+    user_content_to_llm_content,
+)
+
 if TYPE_CHECKING:
     from app.db import ChatVisibility
 
@@ -95,17 +100,28 @@ async def bootstrap_history_from_db(
     langchain_messages: list[HumanMessage | AIMessage] = []
 
     for msg in db_messages:
-        text_content = extract_text_content(msg.content)
-        if not text_content:
-            continue
         if msg.role == "user":
+            user_content = user_content_to_llm_content(
+                msg.content,
+                allow_images=False,
+            )
+            if not user_content:
+                continue
             if is_shared:
                 author_name = (
                     msg.author.display_name if msg.author else None
                 ) or "A team member"
-                text_content = f"**[{author_name}]:** {text_content}"
-            langchain_messages.append(HumanMessage(content=text_content))
+                if isinstance(user_content, str):
+                    user_content = f"**[{author_name}]:** {user_content}"
+                elif user_content and user_content[0].get("type") == "text":
+                    user_content[0] = {
+                        **user_content[0],
+                        "text": f"**[{author_name}]:** {user_content[0].get('text', '')}",
+                    }
+            langchain_messages.append(HumanMessage(content=user_content))
         elif msg.role == "assistant":
-            langchain_messages.append(AIMessage(content=text_content))
+            assistant_text = assistant_content_to_llm_text(msg.content)
+            if assistant_text:
+                langchain_messages.append(AIMessage(content=assistant_text))
 
     return langchain_messages

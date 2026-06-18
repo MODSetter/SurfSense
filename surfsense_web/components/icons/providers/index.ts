@@ -1,8 +1,10 @@
 export { default as Ai21Icon } from "./ai21.svg";
 export { default as AnthropicIcon } from "./anthropic.svg";
 export { default as AnyscaleIcon } from "./anyscale.svg";
+export { default as AzureIcon } from "./azure.svg";
 export { default as BedrockIcon } from "./bedrock.svg";
 export { default as CerebrasIcon } from "./cerebras.svg";
+export { default as ClaudeIcon } from "./claude.svg";
 export { default as CohereIcon } from "./cohere.svg";
 export { default as CometApiIcon } from "./cometapi.svg";
 export { default as DatabricksIcon } from "./dbrx.svg";
@@ -13,6 +15,7 @@ export { default as GeminiIcon } from "./gemini.svg";
 export { default as GitHubModelsIcon } from "./github.svg";
 export { default as GroqIcon } from "./groq.svg";
 export { default as HuggingFaceIcon } from "./huggingface.svg";
+export { default as LmStudioIcon } from "./lm-studio.svg";
 export { default as MiniMaxIcon } from "./minimax.svg";
 export { default as MistralIcon } from "./mistral.svg";
 export { default as MoonshotIcon } from "./moonshot.svg";

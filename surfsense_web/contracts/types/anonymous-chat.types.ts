@@ -3,7 +3,6 @@ import { z } from "zod";
 export const anonModel = z.object({
 	id: z.number(),
 	name: z.string(),
-	description: z.string().nullable().optional(),
 	provider: z.string(),
 	model_name: z.string(),
 	billing_tier: z.string().default("free"),

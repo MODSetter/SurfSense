@@ -35,7 +35,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 import { inferMonacoLanguageFromPath } from "@/lib/editor-language";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 
 const PlateEditor = dynamic(
 	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
@@ -280,10 +280,12 @@ export function EditorPanelContent({
 					return;
 				}
 
-				const url = new URL(
-					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
+				const response = await authenticatedFetch(
+					buildBackendUrl(
+						`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
+					),
+					{ method: "GET" }
 				);
-				const response = await authenticatedFetch(url.toString(), { method: "GET" });
 
 				if (controller.signal.aborted) return;
 
@@ -422,7 +424,7 @@ export function EditorPanelContent({
 					return;
 				}
 				const response = await authenticatedFetch(
-					`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`,
+					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`),
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
@@ -529,7 +531,9 @@ export function EditorPanelContent({
 		setDownloading(true);
 		try {
 			const response = await authenticatedFetch(
-				`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`,
+				buildBackendUrl(
+					`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`
+				),
 				{ method: "GET" }
 			);
 			if (!response.ok) throw new Error("Download failed");

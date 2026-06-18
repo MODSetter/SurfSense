@@ -27,9 +27,10 @@ jobs:
       PLAYWRIGHT_TEST_EMAIL: e2e-test@surfsense.net
       PLAYWRIGHT_TEST_PASSWORD: E2eTestPassword123!
       # Frontend env: Playwright's webServer (surfsense_web/playwright.config.ts)
-      # spawns `pnpm build && pnpm start` in CI; these get baked into the build.
+      # spawns `pnpm build && pnpm start` in CI.
       NEXT_PUBLIC_FASTAPI_BACKEND_URL: http://localhost:8000
-      NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: LOCAL
+      SURFSENSE_BACKEND_INTERNAL_URL: http://localhost:8000
+      AUTH_TYPE: LOCAL
       # Shared secret for the test-only POST /__e2e__/auth/token endpoint.
       # Must match docker-compose.e2e.yml's backend env (x-backend-env).
       E2E_MINT_SECRET: e2e-mint-secret-not-for-production

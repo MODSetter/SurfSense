@@ -10,70 +10,53 @@ from langgraph.types import Command
 from litellm import aimage_generation
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.agents.chat.multi_agent_chat.shared.receipts.command import with_receipt
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receipt
 from app.config import config
 from app.db import (
     ImageGeneration,
-    ImageGenerationConfig,
+    Model,
     SearchSpace,
     shielded_async_session,
 )
+from app.services.auto_model_pin_service import (
+    auto_model_candidates,
+    choose_auto_model_candidate,
+)
 from app.services.image_gen_router_service import (
     IMAGE_GEN_AUTO_MODE_ID,
-    ImageGenRouterService,
     is_image_gen_auto_mode,
 )
-from app.services.provider_api_base import resolve_api_base
+from app.services.model_capabilities import has_capability
+from app.services.model_resolver import to_litellm
 from app.utils.signed_image_urls import generate_image_token
 
 logger = logging.getLogger(__name__)
 
-# Provider mapping (same as routes)
-_PROVIDER_MAP = {
-    "OPENAI": "openai",
-    "AZURE_OPENAI": "azure",
-    "GOOGLE": "gemini",
-    "VERTEX_AI": "vertex_ai",
-    "BEDROCK": "bedrock",
-    "RECRAFT": "recraft",
-    "OPENROUTER": "openrouter",
-    "XINFERENCE": "xinference",
-    "NSCALE": "nscale",
-}
+
+def _get_global_model(model_id: int) -> dict | None:
+    return next((m for m in config.GLOBAL_MODELS if m.get("id") == model_id), None)
 
 
-def _resolve_provider_prefix(provider: str, custom_provider: str | None) -> str:
-    if custom_provider:
-        return custom_provider
-    return _PROVIDER_MAP.get(provider.upper(), provider.lower())
-
-
-def _build_model_string(
-    provider: str, model_name: str, custom_provider: str | None
-) -> str:
-    return f"{_resolve_provider_prefix(provider, custom_provider)}/{model_name}"
-
-
-def _get_global_image_gen_config(config_id: int) -> dict | None:
-    """Get a global image gen config by negative ID."""
-    for cfg in config.GLOBAL_IMAGE_GEN_CONFIGS:
-        if cfg.get("id") == config_id:
-            return cfg
-    return None
+def _get_global_connection(connection_id: int) -> dict | None:
+    return next(
+        (c for c in config.GLOBAL_CONNECTIONS if c.get("id") == connection_id),
+        None,
+    )
 
 
 def create_generate_image_tool(
     search_space_id: int,
     db_session: AsyncSession,
-    image_generation_config_id_override: int | None = None,
+    image_gen_model_id_override: int | None = None,
 ):
     """Create ``generate_image`` with bound search space; DB work uses a per-call session.
 
-    ``image_generation_config_id_override``: when set (automations running on a
-    captured model), use this config id instead of reading the search space's
-    live ``image_generation_config_id``.
+    ``image_gen_model_id_override``: when set (automations running on a
+    captured model), use this model id instead of reading the search space's
+    live ``image_gen_model_id``.
     """
     del db_session  # tool uses a fresh per-call session instead
 
@@ -118,26 +101,23 @@ def create_generate_image_tool(
             # task's session is shared across every tool; without isolation,
             # autoflushes from a concurrent writer poison this tool too.
             async with shielded_async_session() as session:
-                if image_generation_config_id_override is not None:
+                result = await session.execute(
+                    select(SearchSpace).filter(SearchSpace.id == search_space_id)
+                )
+                search_space = result.scalars().first()
+                if not search_space:
+                    return _failed(
+                        {"error": "Search space not found"},
+                        error="Search space not found",
+                    )
+
+                if image_gen_model_id_override is not None:
                     # Automation run: use the captured image model, insulated from
                     # later search-space changes. No search-space read needed.
-                    config_id = (
-                        image_generation_config_id_override or IMAGE_GEN_AUTO_MODE_ID
-                    )
+                    config_id = image_gen_model_id_override or IMAGE_GEN_AUTO_MODE_ID
                 else:
-                    result = await session.execute(
-                        select(SearchSpace).filter(SearchSpace.id == search_space_id)
-                    )
-                    search_space = result.scalars().first()
-                    if not search_space:
-                        return _failed(
-                            {"error": "Search space not found"},
-                            error="Search space not found",
-                        )
-
                     config_id = (
-                        search_space.image_generation_config_id
-                        or IMAGE_GEN_AUTO_MODE_ID
+                        search_space.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
                     )
 
                 # size/quality/style are intentionally omitted: valid values
@@ -147,73 +127,86 @@ def create_generate_image_tool(
                     gen_kwargs["n"] = n
 
                 if is_image_gen_auto_mode(config_id):
-                    if not ImageGenRouterService.is_initialized():
+                    candidates = await auto_model_candidates(
+                        session,
+                        search_space_id=search_space_id,
+                        user_id=search_space.user_id,
+                        capability="image_gen",
+                    )
+                    if not candidates:
                         err = (
-                            "No image generation models configured. "
+                            "No image generation models available. "
                             "Please add an image model in Settings > Image Models."
                         )
                         return _failed({"error": err}, error=err)
-                    response = await ImageGenRouterService.aimage_generation(
-                        prompt=prompt, model="auto", **gen_kwargs
+                    config_id = int(
+                        choose_auto_model_candidate(candidates, search_space_id)["id"]
                     )
-                elif config_id < 0:
-                    cfg = _get_global_image_gen_config(config_id)
-                    if not cfg:
-                        err = f"Image generation config {config_id} not found"
+
+                provider_base_url: str | None = None
+
+                if config_id < 0:
+                    global_model = _get_global_model(config_id)
+                    if not global_model or not has_capability(
+                        global_model, "image_gen"
+                    ):
+                        err = f"Image generation model {config_id} not found"
+                        return _failed({"error": err}, error=err)
+                    global_connection = _get_global_connection(
+                        global_model["connection_id"]
+                    )
+                    if not global_connection:
+                        err = f"Image generation connection for model {config_id} not found"
                         return _failed({"error": err}, error=err)
 
-                    provider_prefix = _resolve_provider_prefix(
-                        cfg.get("provider", ""), cfg.get("custom_provider")
+                    model_string, resolved_kwargs = to_litellm(
+                        global_connection,
+                        global_model["model_id"],
                     )
-                    model_string = f"{provider_prefix}/{cfg['model_name']}"
-                    gen_kwargs["api_key"] = cfg.get("api_key")
-                    # Defense-in-depth: an empty ``api_base`` must not fall
-                    # through to LiteLLM's global ``api_base`` (e.g. Azure).
-                    api_base = resolve_api_base(
-                        provider=cfg.get("provider"),
-                        provider_prefix=provider_prefix,
-                        config_api_base=cfg.get("api_base"),
-                    )
-                    if api_base:
-                        gen_kwargs["api_base"] = api_base
-                    if cfg.get("api_version"):
-                        gen_kwargs["api_version"] = cfg["api_version"]
-                    if cfg.get("litellm_params"):
-                        gen_kwargs.update(cfg["litellm_params"])
+                    gen_kwargs.update(resolved_kwargs)
+                    provider_base_url = resolved_kwargs.get("api_base")
 
                     response = await aimage_generation(
                         prompt=prompt, model=model_string, **gen_kwargs
                     )
                 else:
-                    # Positive ID = user-created ImageGenerationConfig
+                    # Positive ID = Model + Connection
                     cfg_result = await session.execute(
-                        select(ImageGenerationConfig).filter(
-                            ImageGenerationConfig.id == config_id
-                        )
+                        select(Model)
+                        .options(selectinload(Model.connection))
+                        .filter(Model.id == config_id, Model.enabled.is_(True))
                     )
-                    db_cfg = cfg_result.scalars().first()
-                    if not db_cfg:
-                        err = f"Image generation config {config_id} not found"
+                    db_model = cfg_result.scalars().first()
+                    if (
+                        not db_model
+                        or not db_model.connection
+                        or not db_model.connection.enabled
+                    ):
+                        err = f"Image generation model {config_id} not found"
+                        return _failed({"error": err}, error=err)
+                    conn = db_model.connection
+                    if (
+                        conn.search_space_id is not None
+                        and conn.search_space_id != search_space_id
+                    ):
+                        err = f"Image generation model {config_id} not found"
+                        return _failed({"error": err}, error=err)
+                    if (
+                        conn.user_id is not None
+                        and conn.user_id != search_space.user_id
+                    ):
+                        err = f"Image generation model {config_id} not found"
+                        return _failed({"error": err}, error=err)
+                    if not has_capability(db_model, "image_gen"):
+                        err = f"Model {config_id} is not image-generation capable"
                         return _failed({"error": err}, error=err)
 
-                    provider_prefix = _resolve_provider_prefix(
-                        db_cfg.provider.value, db_cfg.custom_provider
+                    model_string, resolved_kwargs = to_litellm(
+                        db_model.connection,
+                        db_model.model_id,
                     )
-                    model_string = f"{provider_prefix}/{db_cfg.model_name}"
-                    gen_kwargs["api_key"] = db_cfg.api_key
-                    # Defense-in-depth: an empty ``api_base`` must not fall
-                    # through to LiteLLM's global ``api_base`` (e.g. Azure).
-                    api_base = resolve_api_base(
-                        provider=db_cfg.provider.value,
-                        provider_prefix=provider_prefix,
-                        config_api_base=db_cfg.api_base,
-                    )
-                    if api_base:
-                        gen_kwargs["api_base"] = api_base
-                    if db_cfg.api_version:
-                        gen_kwargs["api_version"] = db_cfg.api_version
-                    if db_cfg.litellm_params:
-                        gen_kwargs.update(db_cfg.litellm_params)
+                    gen_kwargs.update(resolved_kwargs)
+                    provider_base_url = resolved_kwargs.get("api_base")
 
                     response = await aimage_generation(
                         prompt=prompt, model=model_string, **gen_kwargs
@@ -230,7 +223,7 @@ def create_generate_image_tool(
                     prompt=prompt,
                     model=getattr(response, "_hidden_params", {}).get("model"),
                     n=n,
-                    image_generation_config_id=config_id,
+                    image_gen_model_id=config_id,
                     response_data=response_dict,
                     search_space_id=search_space_id,
                     access_token=access_token,
@@ -252,8 +245,19 @@ def create_generate_image_tool(
 
             # b64_json (e.g. gpt-image-1) is served via our backend endpoint so
             # megabytes of base64 don't bloat the LLM context.
+            # Some OpenAI-compatible backends (e.g. Xinference) return a relative
+            # URL like /files/image.png. Browsers can't resolve these, so we
+            # prepend the provider's base origin when the URL starts with "/".
             if first_image.get("url"):
-                image_url = first_image["url"]
+                raw_url: str = first_image["url"]
+                if raw_url.startswith("/") and provider_base_url:
+                    from urllib.parse import urlparse
+
+                    parsed = urlparse(provider_base_url)
+                    origin = f"{parsed.scheme}://{parsed.netloc}"
+                    image_url = f"{origin}{raw_url}"
+                else:
+                    image_url = raw_url
             elif first_image.get("b64_json"):
                 backend_url = config.BACKEND_URL or "http://localhost:8000"
                 image_url = (

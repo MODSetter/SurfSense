@@ -18,7 +18,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version == '3.13.*' and sys_platform == 'linux' and extra != 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra == 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -50,7 +56,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version >= '3.14' and sys_platform == 'win32' and extra != 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra == 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -82,7 +94,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra == 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -114,7 +132,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten' and extra != 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra == 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -146,7 +170,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version < '3.13' and sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra == 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -183,7 +213,14 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version >= '3.14' and sys_platform == 'linux' and extra != 'extra-16-surf-new-backend-cpu' and extra == 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -215,7 +252,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version < '3.13' and sys_platform == 'linux' and extra != 'extra-16-surf-new-backend-cpu' and extra == 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -247,7 +290,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version >= '3.14' and sys_platform == 'emscripten' and extra != 'extra-16-surf-new-backend-cpu' and extra == 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -279,7 +328,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version == '3.13.*' and sys_platform == 'win32' and extra != 'extra-16-surf-new-backend-cpu' and extra == 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -311,6 +366,9 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-16-surf-new-backend-cpu' and extra == 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
     "python_version < '0'",
     "python_version < '0'",
@@ -327,7 +385,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version < '3.13' and sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-16-surf-new-backend-cpu' and extra == 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -364,7 +428,14 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version >= '3.14' and sys_platform == 'linux' and extra == 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -396,7 +467,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version < '3.13' and sys_platform == 'linux' and extra == 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -428,7 +505,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version >= '3.14' and sys_platform == 'emscripten' and extra == 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -460,7 +543,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version == '3.13.*' and sys_platform == 'win32' and extra == 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -492,6 +581,9 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
     "python_version < '0'",
     "python_version < '0'",
@@ -508,7 +600,13 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version < '3.13' and sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -545,7 +643,14 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version >= '3.14' and sys_platform == 'win32' and extra != 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -592,7 +697,16 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -624,7 +738,16 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten' and extra != 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -686,7 +809,16 @@ resolution-markers = [
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_full_version < '3.13' and sys_platform != 'win32' and extra != 'extra-16-surf-new-backend-cpu' and extra != 'extra-16-surf-new-backend-cu126' and extra != 'extra-16-surf-new-backend-cu128'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
     "python_version < '0'",
@@ -3200,22 +3332,6 @@ wheels = [
 ]
 
 [[package]]
-name = "flower"
-version = "2.0.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "celery" },
-    { name = "humanize" },
-    { name = "prometheus-client" },
-    { name = "pytz" },
-    { name = "tornado" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/09/a1/357f1b5d8946deafdcfdd604f51baae9de10aafa2908d0b7322597155f92/flower-2.0.1.tar.gz", hash = "sha256:5ab717b979530770c16afb48b50d2a98d23c3e9fe39851dcf6bc4d01845a02a0", size = 3220408 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/ff/ee2f67c0ff146ec98b5df1df637b2bc2d17beeb05df9f427a67bd7a7d79c/flower-2.0.1-py2.py3-none-any.whl", hash = "sha256:9db2c621eeefbc844c8dd88be64aef61e84e2deb29b271e02ab2b5b9f01068e2", size = 383553 },
-]
-
-[[package]]
 name = "flupy"
 version = "1.2.3"
 source = { registry = "https://pypi.org/simple" }
@@ -3911,15 +4027,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7c/b7/8cb61d2eece5fb05a83271da168186721c450eb74e3c31f7ef3169fa475b/huggingface_hub-0.36.2.tar.gz", hash = "sha256:1934304d2fb224f8afa3b87007d58501acfda9215b334eed53072dd5e815ff7a", size = 649782 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a8/af/48ac8483240de756d2438c380746e7130d1c6f75802ef22f3c6d49982787/huggingface_hub-0.36.2-py3-none-any.whl", hash = "sha256:48f0c8eac16145dfce371e9d2d7772854a4f591bcb56c9cf548accf531d54270", size = 566395 },
-]
-
-[[package]]
-name = "humanize"
-version = "4.15.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ba/66/a3921783d54be8a6870ac4ccffcd15c4dc0dd7fcce51c6d63b8c63935276/humanize-4.15.0.tar.gz", hash = "sha256:1dd098483eb1c7ee8e32eb2e99ad1910baefa4b75c3aff3a82f4d78688993b10", size = 83599 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c5/7b/bca5613a0c3b542420cf92bd5e5fb8ebd5435ce1011a091f66bb7693285e/humanize-4.15.0-py3-none-any.whl", hash = "sha256:b1186eb9f5a9749cd9cb8565aee77919dd7c8d076161cf44d70e59e3301e1769", size = 132203 },
 ]
 
 [[package]]
@@ -7440,15 +7547,6 @@ wheels = [
 ]
 
 [[package]]
-name = "prometheus-client"
-version = "0.24.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f0/58/a794d23feb6b00fc0c72787d7e87d872a6730dd9ed7c7b3e954637d8f280/prometheus_client-0.24.1.tar.gz", hash = "sha256:7e0ced7fbbd40f7b84962d5d2ab6f17ef88a72504dcf7c0b40737b43b2a461f9", size = 85616 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/74/c3/24a2f845e3917201628ecaba4f18bab4d18a337834c1df2a159ee9d22a42/prometheus_client-0.24.1-py3-none-any.whl", hash = "sha256:150db128af71a5c2482b36e588fc8a6b95e498750da4b17065947c16070f4055", size = 64057 },
-]
-
-[[package]]
 name = "prompt-toolkit"
 version = "3.0.52"
 source = { registry = "https://pypi.org/simple" }
@@ -9614,7 +9712,7 @@ wheels = [
 
 [[package]]
 name = "surf-new-backend"
-version = "0.0.28"
+version = "0.0.29"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
@@ -9639,7 +9737,6 @@ dependencies = [
     { name = "fastapi-users", extra = ["oauth", "sqlalchemy"] },
     { name = "faster-whisper" },
     { name = "firecrawl-py" },
-    { name = "flower" },
     { name = "fractional-indexing" },
     { name = "github3-py" },
     { name = "gitingest" },
@@ -9758,7 +9855,6 @@ requires-dist = [
     { name = "fastapi-users", extras = ["oauth", "sqlalchemy"], specifier = ">=15.0.3" },
     { name = "faster-whisper", specifier = ">=1.1.0" },
     { name = "firecrawl-py", specifier = ">=4.9.0" },
-    { name = "flower", specifier = ">=2.0.1" },
     { name = "fractional-indexing", specifier = ">=0.1.3" },
     { name = "github3-py", specifier = "==4.0.1" },
     { name = "gitingest", specifier = ">=0.3.1" },

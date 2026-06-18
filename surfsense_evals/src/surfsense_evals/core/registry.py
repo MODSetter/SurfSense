@@ -53,8 +53,8 @@ class RunContext:
         return self.suite_state.search_space_id
 
     @property
-    def agent_llm_id(self) -> int:
-        return self.suite_state.agent_llm_id
+    def chat_model_id(self) -> int:
+        return self.suite_state.chat_model_id
 
     @property
     def provider_model(self) -> str:

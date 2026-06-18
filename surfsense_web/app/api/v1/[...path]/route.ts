@@ -14,7 +14,11 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 function getBackendBaseUrl() {
-	const base = process.env.FASTAPI_BACKEND_INTERNAL_URL || "http://localhost:8000";
+	const base =
+		process.env.SURFSENSE_BACKEND_INTERNAL_URL ||
+		// TODO: Remove FASTAPI_BACKEND_INTERNAL_URL after the post-Caddy env migration window.
+		process.env.FASTAPI_BACKEND_INTERNAL_URL ||
+		"http://backend:8000";
 	return base.endsWith("/") ? base.slice(0, -1) : base;
 }
 

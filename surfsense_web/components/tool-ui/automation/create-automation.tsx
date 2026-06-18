@@ -2,7 +2,7 @@
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import { AlertCircle, CornerDownLeftIcon, ExternalLink, Pencil, Workflow } from "lucide-react";
+import { AlarmClock, AlertCircle, CornerDownLeftIcon, ExternalLink, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -113,7 +113,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const eligibleModels = useAutomationEligibleModels();
 	const [modelSelection, setModelSelection] = useState<AutomationModelSelection>({
-		agentLlmId: 0,
+		chatModelId: 0,
 		imageConfigId: 0,
 		visionConfigId: 0,
 	});
@@ -121,7 +121,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 	// default. No effect seeds async hook data into state.
 	const resolvedModels = useMemo<AutomationModelSelection>(
 		() => ({
-			agentLlmId: modelSelection.agentLlmId || eligibleModels.llm.defaultId || 0,
+			chatModelId: modelSelection.chatModelId || eligibleModels.llm.defaultId || 0,
 			imageConfigId: modelSelection.imageConfigId || eligibleModels.image.defaultId || 0,
 			visionConfigId: modelSelection.visionConfigId || eligibleModels.vision.defaultId || 0,
 		}),
@@ -133,7 +133,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 		]
 	);
 	const modelsResolved =
-		resolvedModels.agentLlmId !== 0 &&
+		resolvedModels.chatModelId !== 0 &&
 		resolvedModels.imageConfigId !== 0 &&
 		resolvedModels.visionConfigId !== 0;
 
@@ -147,9 +147,9 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 			definition: {
 				...baseDefinition,
 				models: {
-					agent_llm_id: resolvedModels.agentLlmId,
-					image_generation_config_id: resolvedModels.imageConfigId,
-					vision_llm_config_id: resolvedModels.visionConfigId,
+					chat_model_id: resolvedModels.chatModelId,
+					image_gen_model_id: resolvedModels.imageConfigId,
+					vision_model_id: resolvedModels.visionConfigId,
 				},
 			},
 		};
@@ -162,9 +162,9 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 			trigger_type:
 				(triggers[0] as { type?: string } | undefined)?.type ??
 				(triggers.length ? undefined : "none"),
-			agent_llm_id: resolvedModels.agentLlmId,
-			image_generation_config_id: resolvedModels.imageConfigId,
-			vision_llm_config_id: resolvedModels.visionConfigId,
+			chat_model_id: resolvedModels.chatModelId,
+			image_gen_model_id: resolvedModels.imageConfigId,
+			vision_model_id: resolvedModels.visionConfigId,
 		});
 		onDecision({
 			type: "edit",
@@ -211,7 +211,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-[box-shadow] duration-300">
 			<div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 select-none">
 				<div className="flex items-start gap-3 min-w-0">
-					<Workflow className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
+					<AlarmClock className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
 					<div className="min-w-0">
 						<p className="text-sm font-semibold text-foreground">
 							{phase === "rejected"
@@ -404,7 +404,7 @@ function SavedCard({ result }: { result: SavedResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="flex items-start gap-3 px-5 pt-5 pb-4">
-				<Workflow className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
+				<AlarmClock className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" aria-hidden />
 				<div className="min-w-0">
 					<p className="text-sm font-semibold text-foreground">Automation saved</p>
 					<p className="text-xs text-muted-foreground mt-0.5">{result.name}</p>

@@ -54,7 +54,7 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
     mock_chunk_hybrid = MagicMock(return_value=["chunk1"])
     mock_chunk_hybrid.__name__ = "chunk_text_hybrid"
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.chunk_text_hybrid",
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text_hybrid",
         mock_chunk_hybrid,
     )
     mock_embed = MagicMock(
@@ -62,13 +62,21 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
     )
     mock_embed.__name__ = "embed_texts"
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+        "app.indexing_pipeline.cache.cached_indexing.embed_texts",
         mock_embed,
     )
-    # Bypass set_committed_value, which requires a real ORM instance (not MagicMock).
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.attach_chunks_to_document",
-        MagicMock(),
+        pipeline,
+        "_load_existing_chunks",
+        AsyncMock(return_value=[]),
+    )
+
+    async def _noop_persist(_session, doc, *_args, **_kwargs):
+        doc.status = DocumentStatus.ready()
+
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.persist_scratch_index",
+        _noop_persist,
     )
 
     connector_doc = make_connector_document(
@@ -102,22 +110,31 @@ async def test_non_code_documents_use_hybrid_chunker(
     mock_chunk_hybrid = MagicMock(return_value=["chunk1"])
     mock_chunk_hybrid.__name__ = "chunk_text_hybrid"
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.chunk_text_hybrid",
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text_hybrid",
         mock_chunk_hybrid,
     )
     mock_chunk_code = MagicMock(return_value=["chunk1"])
     mock_chunk_code.__name__ = "chunk_text"
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text",
         mock_chunk_code,
     )
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+        "app.indexing_pipeline.cache.cached_indexing.embed_texts",
         MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]),
     )
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.attach_chunks_to_document",
-        MagicMock(),
+        pipeline,
+        "_load_existing_chunks",
+        AsyncMock(return_value=[]),
+    )
+
+    async def _noop_persist(_session, doc, *_args, **_kwargs):
+        doc.status = DocumentStatus.ready()
+
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.persist_scratch_index",
+        _noop_persist,
     )
 
     connector_doc = make_connector_document(

@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { getClientPlatform } from "../agent-filesystem";
 import { getBearerToken, handleUnauthorized, refreshAccessToken } from "../auth-utils";
 import {
@@ -31,8 +31,6 @@ export type RequestOptions = {
 };
 
 class BaseApiService {
-	baseUrl: string;
-
 	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/refresh"];
 
 	// Prefixes that don't require auth (checked with startsWith)
@@ -44,12 +42,9 @@ class BaseApiService {
 		return typeof window !== "undefined" ? getBearerToken() || "" : "";
 	}
 
-	constructor(baseUrl: string) {
-		this.baseUrl = baseUrl;
-	}
-
 	// Keep for backward compatibility, but token is now always read from localStorage
 	setBearerToken(_bearerToken: string) {
+		void _bearerToken;
 		// No-op: token is now always read fresh from localStorage via the getter
 	}
 
@@ -93,11 +88,6 @@ class BaseApiService {
 				},
 			};
 
-			// Validate the base URL
-			if (!this.baseUrl) {
-				throw new AppError("Base URL is not set.");
-			}
-
 			// Validate the bearer token
 			const isNoAuthEndpoint =
 				this.noAuthEndpoints.includes(url) ||
@@ -107,8 +97,7 @@ class BaseApiService {
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
 
-			// Construct the full URL
-			const fullUrl = new URL(url, this.baseUrl).toString();
+			const fullUrl = buildBackendUrl(url);
 
 			// Prepare fetch options
 			const fetchOptions: RequestInit = {
@@ -384,7 +373,8 @@ class BaseApiService {
 		options?: Omit<RequestOptions, "method" | "responseType" | "body"> & { body: FormData }
 	) {
 		// Remove Content-Type from options headers if present
-		const { "Content-Type": _, ...headersWithoutContentType } = options?.headers ?? {};
+		const headersWithoutContentType = { ...(options?.headers ?? {}) };
+		delete headersWithoutContentType["Content-Type"];
 
 		return this.request(url, responseSchema, {
 			method: "POST",
@@ -399,4 +389,4 @@ class BaseApiService {
 	}
 }
 
-export const baseApiService = new BaseApiService(BACKEND_URL);
+export const baseApiService = new BaseApiService();

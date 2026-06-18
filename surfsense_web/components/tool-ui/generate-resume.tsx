@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { getAuthHeaders } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 	"pdfjs-dist/build/pdf.worker.min.mjs",
@@ -223,7 +223,7 @@ function ResumeCard({
 		const previewPath = shareToken
 			? `/api/v1/public/${shareToken}/reports/${reportId}/preview`
 			: `/api/v1/reports/${reportId}/preview`;
-		setPdfUrl(`${BACKEND_URL}${previewPath}`);
+		setPdfUrl(buildBackendUrl(previewPath));
 
 		if (autoOpen && isDesktop && !autoOpenedRef.current) {
 			autoOpenedRef.current = true;

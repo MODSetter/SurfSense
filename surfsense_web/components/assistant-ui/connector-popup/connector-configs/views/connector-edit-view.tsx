@@ -13,7 +13,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { getReauthEndpoint } from "@/lib/connector-telemetry";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
@@ -95,12 +95,13 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		if (!spaceId || !reauthEndpoint) return;
 		setReauthing(true);
 		try {
-			const backendUrl = BACKEND_URL;
-			const url = new URL(`${backendUrl}${reauthEndpoint}`);
-			url.searchParams.set("connector_id", String(connector.id));
-			url.searchParams.set("space_id", String(spaceId));
-			url.searchParams.set("return_url", window.location.pathname);
-			const response = await authenticatedFetch(url.toString());
+			const response = await authenticatedFetch(
+				buildBackendUrl(reauthEndpoint, {
+					connector_id: connector.id,
+					space_id: spaceId,
+					return_url: window.location.pathname,
+				})
+			);
 			if (!response.ok) {
 				const data = await response.json().catch(() => ({}));
 				toast.error(data.detail ?? "Failed to initiate re-authentication.");

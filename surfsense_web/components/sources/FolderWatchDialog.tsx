@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -48,6 +49,7 @@ export function FolderWatchDialog({
 	const [submitting, setSubmitting] = useState(false);
 	const [progress, setProgress] = useState<FolderSyncProgress | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
+	const { etlService } = useRuntimeConfig();
 
 	useEffect(() => {
 		if (open && initialFolder) {
@@ -55,7 +57,10 @@ export function FolderWatchDialog({
 		}
 	}, [open, initialFolder]);
 
-	const supportedExtensions = useMemo(() => Array.from(getSupportedExtensionsSet()), []);
+	const supportedExtensions = useMemo(
+		() => Array.from(getSupportedExtensionsSet(undefined, etlService)),
+		[etlService]
+	);
 
 	const handleSelectFolder = useCallback(async () => {
 		const api = window.electronAPI;

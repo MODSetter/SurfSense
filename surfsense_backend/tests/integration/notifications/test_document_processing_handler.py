@@ -78,3 +78,23 @@ async def test_processing_completed_failure(
     assert done.title == "Failed: report.pdf"
     assert done.message == "Processing failed: bad file"
     assert done.notification_metadata["status"] == "failed"
+
+
+async def test_processing_started_truncates_long_filename(
+    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+):
+    """A long filename is truncated in the title but kept in metadata."""
+    long_name = "a" * 250
+
+    notification = await handler.notify_processing_started(
+        session=db_session,
+        user_id=db_user.id,
+        document_type="FILE",
+        document_name=long_name,
+        search_space_id=db_search_space.id,
+    )
+
+    assert len(notification.title) <= 200
+    assert notification.title.startswith("Processing: ")
+    assert notification.title.endswith("...")
+    assert notification.notification_metadata["document_name"] == long_name

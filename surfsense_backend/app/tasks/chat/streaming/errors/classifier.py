@@ -12,6 +12,7 @@ from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import (
     is_cancel_requested,
 )
 from app.agents.chat.runtime.errors import BusyError
+from app.services.llm_error_adapter import LLMErrorCategory, adapt_llm_exception
 
 TURN_CANCELLING_INITIAL_DELAY_MS = 200
 TURN_CANCELLING_BACKOFF_FACTOR = 2
@@ -102,6 +103,9 @@ def _extract_provider_error_code(parsed: dict[str, Any] | None) -> int | None:
 
 def is_provider_rate_limited(exc: BaseException) -> bool:
     """Return True if the exception looks like an upstream HTTP 429 / rate limit."""
+    if adapt_llm_exception(exc).category is LLMErrorCategory.RATE_LIMITED:
+        return True
+
     raw = str(exc)
     lowered = raw.lower()
     if "ratelimit" in type(exc).__name__.lower():
@@ -129,6 +133,85 @@ def is_provider_rate_limited(exc: BaseException) -> bool:
         or "rate-limited" in lowered
         or "temporarily rate-limited upstream" in lowered
     )
+
+
+def _provider_error_extra(adapted: Any) -> dict[str, Any] | None:
+    extra: dict[str, Any] = {"provider_error_category": adapted.category.value}
+    if adapted.provider_status_code is not None:
+        extra["provider_status_code"] = adapted.provider_status_code
+    if adapted.provider_error_type:
+        extra["provider_error_type"] = adapted.provider_error_type
+    return extra
+
+
+def _classify_provider_exception(
+    exc: Exception,
+) -> (
+    tuple[str, str, Literal["info", "warn", "error"], bool, str, dict[str, Any] | None]
+    | None
+):
+    adapted = adapt_llm_exception(exc)
+
+    if adapted.category is LLMErrorCategory.RATE_LIMITED:
+        return (
+            "rate_limited",
+            "RATE_LIMITED",
+            "warn",
+            True,
+            "This model is temporarily rate-limited. Please try again in a few seconds or switch models.",
+            _provider_error_extra(adapted),
+        )
+
+    if adapted.category in {
+        LLMErrorCategory.AUTH_FAILED,
+        LLMErrorCategory.PERMISSION_DENIED,
+    }:
+        return (
+            "model_auth_failed",
+            "MODEL_AUTH_FAILED",
+            "warn",
+            True,
+            "This model's API key is invalid or expired. Switch models, or update the API key.",
+            _provider_error_extra(adapted),
+        )
+
+    if adapted.category is LLMErrorCategory.MODEL_NOT_FOUND:
+        return (
+            "model_not_found",
+            "MODEL_NOT_FOUND",
+            "warn",
+            True,
+            "The selected model is unavailable or no longer exists. Switch to another model and try again.",
+            _provider_error_extra(adapted),
+        )
+
+    if adapted.category is LLMErrorCategory.CONTEXT_LIMIT:
+        return (
+            "model_context_limit",
+            "MODEL_CONTEXT_LIMIT",
+            "warn",
+            True,
+            "This request is too large for the selected model. Try a model with a larger context window or reduce the input.",
+            _provider_error_extra(adapted),
+        )
+
+    if adapted.category in {
+        LLMErrorCategory.TIMEOUT,
+        LLMErrorCategory.PROVIDER_UNAVAILABLE,
+        LLMErrorCategory.BAD_GATEWAY,
+        LLMErrorCategory.CONNECTION_FAILED,
+        LLMErrorCategory.SERVER_ERROR,
+    }:
+        return (
+            "model_provider_unavailable",
+            "MODEL_PROVIDER_UNAVAILABLE",
+            "warn",
+            True,
+            "The selected model provider is temporarily unavailable. Please try again or switch models.",
+            _provider_error_extra(adapted),
+        )
+
+    return None
 
 
 def classify_stream_exception(
@@ -167,15 +250,9 @@ def classify_stream_exception(
             None,
         )
 
-    if is_provider_rate_limited(exc):
-        return (
-            "rate_limited",
-            "RATE_LIMITED",
-            "warn",
-            True,
-            "This model is temporarily rate-limited. Please try again in a few seconds or switch models.",
-            None,
-        )
+    provider_classification = _classify_provider_exception(exc)
+    if provider_classification is not None:
+        return provider_classification
 
     return (
         "server_error",

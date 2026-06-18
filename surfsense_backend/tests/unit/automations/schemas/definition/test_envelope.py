@@ -40,24 +40,24 @@ def test_automation_definition_models_round_trip() -> None:
         name="Daily digest",
         plan=[PlanStep(step_id="s1", action="agent_task")],
         models=AutomationModels(
-            agent_llm_id=-1,
-            image_generation_config_id=5,
-            vision_llm_config_id=-1,
+            chat_model_id=-1,
+            image_gen_model_id=5,
+            vision_model_id=-1,
         ),
     )
 
     dumped = definition.model_dump(mode="json", by_alias=True)
     assert dumped["models"] == {
-        "agent_llm_id": -1,
-        "image_generation_config_id": 5,
-        "vision_llm_config_id": -1,
+        "chat_model_id": -1,
+        "image_gen_model_id": 5,
+        "vision_model_id": -1,
     }
 
     restored = AutomationDefinition.model_validate(dumped)
     assert restored.models is not None
-    assert restored.models.agent_llm_id == -1
-    assert restored.models.image_generation_config_id == 5
-    assert restored.models.vision_llm_config_id == -1
+    assert restored.models.chat_model_id == -1
+    assert restored.models.image_gen_model_id == 5
+    assert restored.models.vision_model_id == -1
 
 
 def test_automation_definition_rejects_unknown_top_level_field() -> None:

@@ -26,9 +26,9 @@ import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import {
-	globalNewLLMConfigsAtom,
-	newLLMConfigsAtom,
-} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+	globalModelConnectionsAtom,
+	modelConnectionsAtom,
+} from "@/atoms/model-connections/model-connections-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import {
 	CitationMetadataProvider,
@@ -37,7 +37,10 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
 import { RevertTurnButton } from "@/components/assistant-ui/revert-turn-button";
-import { useTokenUsage } from "@/components/assistant-ui/token-usage-context";
+import {
+	type TokenUsageModelBreakdown,
+	useTokenUsage,
+} from "@/components/assistant-ui/token-usage-context";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
@@ -268,29 +271,81 @@ function formatTurnCost(micros: number): string {
 	return "$0";
 }
 
+function normalizeUsageModelKey(modelKey: string): string {
+	return modelKey.trim().replace(/^~/, "");
+}
+
+function bareModelKey(modelKey: string): string {
+	const normalized = normalizeUsageModelKey(modelKey);
+	const parts = normalized.split("/");
+	return parts[parts.length - 1] || normalized;
+}
+
+function inferProviderFromModelKey(modelKey: string) {
+	const normalized = normalizeUsageModelKey(modelKey);
+	const [provider] = normalized.split("/");
+	return provider && provider !== normalized ? provider : null;
+}
+
+function titleCaseModelPart(part: string) {
+	if (!part) return "";
+	const upper = part.toUpperCase();
+	if (/^\d+(\.\d+)?[BKM]$/.test(upper)) return upper;
+	if (["gpt", "oai", "api", "llm", "vlm"].includes(part.toLowerCase())) return upper;
+	return part.charAt(0).toUpperCase() + part.slice(1);
+}
+
+function humanizeModelId(modelKey: string): string {
+	const bare = bareModelKey(modelKey)
+		.replace(/:latest$/i, "")
+		.replace(/[-_]+/g, " ")
+		.trim();
+	if (!bare) return modelKey;
+	return bare.split(/\s+/).map(titleCaseModelPart).join(" ");
+}
+
 const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ chatTurnId }) => {
 	const messageId = useAuiState(({ message }) => message?.id);
 	const createdAt = useAuiState(({ message }) => message?.createdAt);
 	const usage = useTokenUsage(messageId);
 
-	const { data: localConfigs } = useAtomValue(newLLMConfigsAtom);
-	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
+	const { data: globalConnections = [] } = useAtomValue(globalModelConnectionsAtom);
+	const { data: localConnections = [] } = useAtomValue(modelConnectionsAtom);
 
-	const configByModel = useMemo(() => {
-		const map = new Map<string, { name: string; provider: string }>();
-		for (const c of [...(globalConfigs ?? []), ...(localConfigs ?? [])]) {
-			map.set(c.model_name, { name: c.name, provider: c.provider });
+	const modelConnectionByKey = useMemo(() => {
+		const map = new Map<string, { name: string; provider: string; modelId: string }>();
+		for (const connection of [...globalConnections, ...localConnections]) {
+			for (const model of connection.models) {
+				const normalizedModelId = normalizeUsageModelKey(model.model_id);
+				const entry = {
+					name: model.display_name || model.model_id,
+					provider: connection.provider,
+					modelId: model.model_id,
+				};
+				map.set(model.model_id, entry);
+				map.set(normalizedModelId, entry);
+				map.set(bareModelKey(model.model_id), entry);
+			}
 		}
 		return map;
-	}, [localConfigs, globalConfigs]);
+	}, [globalConnections, localConnections]);
 
-	const resolveModel = (modelKey: string) => {
-		const parts = modelKey.split("/");
-		const bare = parts[parts.length - 1] ?? modelKey;
-		const config = configByModel.get(modelKey) ?? configByModel.get(bare);
-		return config
-			? { name: config.name, icon: getProviderIcon(config.provider, { className: "size-3.5" }) }
-			: { name: modelKey, icon: null };
+	const resolveModel = (modelKey: string, counts: TokenUsageModelBreakdown) => {
+		const normalizedKey = normalizeUsageModelKey(counts.model_id || counts.model || modelKey);
+		const connectionModel =
+			modelConnectionByKey.get(modelKey) ??
+			modelConnectionByKey.get(normalizeUsageModelKey(modelKey)) ??
+			modelConnectionByKey.get(normalizedKey) ??
+			modelConnectionByKey.get(bareModelKey(normalizedKey));
+		const provider =
+			counts.provider || connectionModel?.provider || inferProviderFromModelKey(normalizedKey);
+		const modelId = counts.model_id || connectionModel?.modelId || modelKey;
+		const name = counts.display_name || connectionModel?.name || humanizeModelId(modelId);
+		return {
+			name,
+			modelId,
+			icon: provider ? getProviderIcon(provider, { className: "size-3.5 shrink-0" }) : null,
+		};
 	};
 
 	const modelBreakdown = usage ? (usage.usage ?? usage.model_breakdown) : undefined;
@@ -319,12 +374,12 @@ const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ ch
 						<ActionBarMorePrimitive.Separator className="bg-popover-border mx-1 my-1 h-px" />
 						{models.length > 0 ? (
 							models.map(([model, counts]) => {
-								const { name, icon } = resolveModel(model);
+								const { name, icon } = resolveModel(model, counts);
 								const costMicros = counts.cost_micros;
 								return (
 									<ActionBarMorePrimitive.Item
 										key={model}
-										className="focus:bg-accent focus:text-accent-foreground relative flex cursor-default flex-col items-start gap-0.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
+										className="focus:bg-accent focus:text-accent-foreground relative flex cursor-default flex-col items-start gap-1 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none"
 										onSelect={(e) => e.preventDefault()}
 									>
 										<span className="flex items-center gap-1.5 text-xs font-medium">

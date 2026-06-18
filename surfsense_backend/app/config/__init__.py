@@ -78,8 +78,7 @@ def load_global_llm_configs():
         # stamps) never leak into the cached YAML structure.
         configs = copy.deepcopy(data.get("global_llm_configs", []))
 
-        # Lazy import keeps the `app.config` -> `app.services` edge one-way
-        # and matches the `provider_api_base` pattern used elsewhere.
+        # Lazy import keeps the `app.config` -> `app.services` edge one-way.
         from app.services.provider_capabilities import derive_supports_image_input
 
         seen_slugs: dict[str, int] = {}
@@ -104,7 +103,7 @@ def load_global_llm_configs():
                     else None
                 )
                 cfg["supports_image_input"] = derive_supports_image_input(
-                    provider=cfg.get("provider"),
+                    provider=cfg.get("provider") or cfg.get("litellm_provider"),
                     model_name=cfg.get("model_name"),
                     base_model=base_model,
                     custom_provider=cfg.get("custom_provider"),
@@ -120,10 +119,10 @@ def load_global_llm_configs():
                 else:
                     seen_slugs[slug] = cfg.get("id", 0)
 
-        # Stamp Auto (Fastest) ranking metadata. YAML configs are always
+        # Stamp Auto ranking metadata. YAML configs are always
         # Tier A — operator-curated, locked first when premium-eligible.
         # The OpenRouter refresh tick later re-stamps health for any cfg
-        # whose provider == "OPENROUTER" via _enrich_health.
+        # whose provider == "openrouter" via _enrich_health.
         try:
             from app.services.quality_score import static_score_yaml
 
@@ -133,7 +132,7 @@ def load_global_llm_configs():
                 cfg["quality_score_static"] = static_q
                 cfg["quality_score"] = static_q
                 cfg["quality_score_health"] = None
-                # YAML cfgs whose provider is OPENROUTER are also subject
+                # YAML cfgs whose provider is openrouter are also subject
                 # to health gating against their own /endpoints data — a
                 # hand-picked dead OR model is still dead. _enrich_health
                 # re-stamps health_gated for them on the next refresh tick.
@@ -209,42 +208,6 @@ def load_global_image_gen_configs():
     except Exception as e:
         print(f"Warning: Failed to load global image generation configs: {e}")
         return []
-
-
-def load_global_vision_llm_configs():
-    data = _global_config_data()
-    if not data:
-        return []
-
-    try:
-        configs = copy.deepcopy(data.get("global_vision_llm_configs", []) or [])
-        for cfg in configs:
-            if isinstance(cfg, dict):
-                cfg.setdefault("billing_tier", "free")
-        return configs
-    except Exception as e:
-        print(f"Warning: Failed to load global vision LLM configs: {e}")
-        return []
-
-
-def load_vision_llm_router_settings():
-    default_settings = {
-        "routing_strategy": "usage-based-routing",
-        "num_retries": 3,
-        "allowed_fails": 3,
-        "cooldown_time": 60,
-    }
-
-    data = _global_config_data()
-    if not data:
-        return default_settings
-
-    try:
-        settings = data.get("vision_llm_router_settings", {})
-        return {**default_settings, **settings}
-    except Exception as e:
-        print(f"Warning: Failed to load vision LLM router settings: {e}")
-        return default_settings
 
 
 def load_image_gen_router_settings():
@@ -363,8 +326,8 @@ def initialize_openrouter_integration():
         else:
             print("Info: OpenRouter integration enabled but no models fetched")
 
-        # Image generation + vision LLM emissions are opt-in (issue L).
-        # Both reuse the catalogue already cached by ``service.initialize``
+        # Image generation emissions reuse the catalogue already cached by
+        # ``service.initialize``
         # so we don't make additional network calls here.
         if settings.get("image_generation_enabled"):
             try:
@@ -378,19 +341,24 @@ def initialize_openrouter_integration():
             except Exception as e:
                 print(f"Warning: Failed to inject OpenRouter image-gen configs: {e}")
 
-        if settings.get("vision_enabled"):
-            try:
-                vision_configs = service.get_vision_llm_configs()
-                if vision_configs:
-                    config.GLOBAL_VISION_LLM_CONFIGS.extend(vision_configs)
-                    print(
-                        f"Info: OpenRouter integration added {len(vision_configs)} "
-                        f"vision LLM models"
-                    )
-            except Exception as e:
-                print(f"Warning: Failed to inject OpenRouter vision-LLM configs: {e}")
+        refresh_global_model_catalog()
     except Exception as e:
         print(f"Warning: Failed to initialize OpenRouter integration: {e}")
+
+
+def materialize_global_configs():
+    from app.services.global_model_catalog import materialize_global_model_catalog
+
+    return materialize_global_model_catalog(
+        chat_configs=getattr(config, "GLOBAL_LLM_CONFIGS", []),
+        image_configs=getattr(config, "GLOBAL_IMAGE_GEN_CONFIGS", []),
+    )
+
+
+def refresh_global_model_catalog():
+    connections, models = materialize_global_configs()
+    config.GLOBAL_CONNECTIONS = connections
+    config.GLOBAL_MODELS = models
 
 
 def initialize_pricing_registration():
@@ -430,7 +398,10 @@ def initialize_llm_router():
     router_settings = config.ROUTER_SETTINGS
 
     if not all_configs:
-        print("Info: No global LLM configs found, Auto mode will not be available")
+        print(
+            "Info: No global LLM configs found; global Auto pool is unavailable. "
+            "Auto can still use enabled BYOK models."
+        )
         return
 
     try:
@@ -473,32 +444,6 @@ def initialize_image_gen_router():
         )
     except Exception as e:
         print(f"Warning: Failed to initialize Image Generation Router: {e}")
-
-
-def initialize_vision_llm_router():
-    vision_configs = load_global_vision_llm_configs()
-    # Reuse the router settings already parsed at Config construction. The
-    # *configs* list is intentionally re-read from YAML (it must exclude the
-    # OpenRouter-injected dynamic models held in config.GLOBAL_VISION_LLM_CONFIGS).
-    router_settings = config.VISION_LLM_ROUTER_SETTINGS
-
-    if not vision_configs:
-        print(
-            "Info: No global vision LLM configs found, "
-            "Vision LLM Auto mode will not be available"
-        )
-        return
-
-    try:
-        from app.services.vision_llm_router_service import VisionLLMRouterService
-
-        VisionLLMRouterService.initialize(vision_configs, router_settings)
-        print(
-            f"Info: Vision LLM Router initialized with {len(vision_configs)} models "
-            f"(strategy: {router_settings.get('routing_strategy', 'usage-based-routing')})"
-        )
-    except Exception as e:
-        print(f"Warning: Failed to initialize Vision LLM Router: {e}")
 
 
 class Config:
@@ -612,14 +557,15 @@ class Config:
     # Platform web search (SearXNG)
     SEARXNG_DEFAULT_HOST = os.getenv("SEARXNG_DEFAULT_HOST")
 
-    NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL")
+    SURFSENSE_PUBLIC_URL = os.getenv("SURFSENSE_PUBLIC_URL")
+    NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL") or SURFSENSE_PUBLIC_URL
     # Backend URL to override the http to https in the OAuth redirect URI
-    BACKEND_URL = os.getenv("BACKEND_URL")
+    BACKEND_URL = os.getenv("BACKEND_URL") or SURFSENSE_PUBLIC_URL
 
-    # Messaging gateway (Telegram v1)
+    # Messaging gateway
     # Global master switch: when FALSE, no gateway supervisors/workers start and all
-    # gateway HTTP routes return 404, regardless of the per-channel flags below.
-    GATEWAY_ENABLED = os.getenv("GATEWAY_ENABLED", "TRUE").upper() == "TRUE"
+    # gated gateway HTTP routes return 404, regardless of the per-channel flags below.
+    GATEWAY_ENABLED = os.getenv("GATEWAY_ENABLED", "FALSE").upper() == "TRUE"
     TELEGRAM_SHARED_BOT_TOKEN = os.getenv("TELEGRAM_SHARED_BOT_TOKEN")
     TELEGRAM_SHARED_BOT_USERNAME = os.getenv("TELEGRAM_SHARED_BOT_USERNAME")
     TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET")
@@ -784,7 +730,7 @@ class Config:
         os.getenv("QUOTA_DEFAULT_IMAGE_RESERVE_MICROS", "50000")
     )
 
-    # Per-podcast reservation (in micro-USD). One agent LLM call generating
+    # Per-podcast reservation (in micro-USD). One chat model call generating
     # a transcript, typically 5k-20k completion tokens. $0.20 covers a long
     # premium-model run. Tune via env.
     QUOTA_DEFAULT_PODCAST_RESERVE_MICROS = int(
@@ -890,6 +836,13 @@ class Config:
     # LLM instances are now managed per-user through the LLMConfig system
     # Legacy environment variables removed in favor of user-specific configurations
 
+    # True when an operator-provided global_llm_config.yaml is present.
+    # Used to gate the per-search-space LLM onboarding flow: when a global
+    # config file exists, search spaces inherit it and onboarding is skipped.
+    GLOBAL_LLM_CONFIG_FILE_EXISTS = (
+        BASE_DIR / "app" / "config" / "global_llm_config.yaml"
+    ).exists()
+
     # Global LLM Configurations (optional)
     # Load from global_llm_config.yaml if available
     # These can be used as default options for users
@@ -904,11 +857,17 @@ class Config:
     # Router settings for Image Generation Auto mode
     IMAGE_GEN_ROUTER_SETTINGS = load_image_gen_router_settings()
 
-    # Global Vision LLM Configurations (optional)
-    GLOBAL_VISION_LLM_CONFIGS = load_global_vision_llm_configs()
+    # Virtual GLOBAL connection/model catalog. This is server-only metadata
+    # derived from global_llm_config.yaml; GLOBAL keys are not stored in DB.
+    from app.services.global_model_catalog import (
+        materialize_global_model_catalog as _materialize_global_model_catalog,
+    )
 
-    # Router settings for Vision LLM Auto mode
-    VISION_LLM_ROUTER_SETTINGS = load_vision_llm_router_settings()
+    GLOBAL_CONNECTIONS, GLOBAL_MODELS = _materialize_global_model_catalog(
+        chat_configs=GLOBAL_LLM_CONFIGS,
+        image_configs=GLOBAL_IMAGE_GEN_CONFIGS,
+    )
+    del _materialize_global_model_catalog
 
     # OpenRouter Integration settings (optional)
     OPENROUTER_INTEGRATION_SETTINGS = load_openrouter_integration_settings()
@@ -973,6 +932,47 @@ class Config:
         # Optional: Azure Document Intelligence accelerator for supported file types
         AZURE_DI_ENDPOINT = os.getenv("AZURE_DI_ENDPOINT")
         AZURE_DI_KEY = os.getenv("AZURE_DI_KEY")
+
+    # ETL parse cache: reuse parser output for identical bytes across workspaces.
+    ETL_CACHE_ENABLED = (
+        os.getenv("ETL_CACHE_ENABLED", "false").strip().lower() == "true"
+    )
+    # Bump to invalidate every cached entry after a parser/behaviour change.
+    ETL_CACHE_PARSER_VERSION = int(os.getenv("ETL_CACHE_PARSER_VERSION", "1"))
+    ETL_CACHE_TTL_DAYS = int(os.getenv("ETL_CACHE_TTL_DAYS", "90"))
+    ETL_CACHE_MAX_TOTAL_MB = int(os.getenv("ETL_CACHE_MAX_TOTAL_MB", "5120"))
+    ETL_CACHE_EVICTION_BATCH = int(os.getenv("ETL_CACHE_EVICTION_BATCH", "500"))
+    # Optional dedicated blob storage; unset reuses the main file_storage backend.
+    ETL_CACHE_STORAGE_BACKEND = os.getenv("ETL_CACHE_STORAGE_BACKEND")
+    ETL_CACHE_STORAGE_CONTAINER = os.getenv("ETL_CACHE_STORAGE_CONTAINER")
+    ETL_CACHE_STORAGE_LOCAL_PATH = os.getenv("ETL_CACHE_STORAGE_LOCAL_PATH")
+
+    # Embedding cache: reuse chunk+embedding output for identical markdown across
+    # workspaces. Blobs share the ETL_CACHE_STORAGE_* backend.
+    EMBEDDING_CACHE_ENABLED = (
+        os.getenv("EMBEDDING_CACHE_ENABLED", "false").strip().lower() == "true"
+    )
+    # Bump to invalidate every cached embedding set after a chunker change.
+    EMBEDDING_CACHE_CHUNKER_VERSION = int(
+        os.getenv("EMBEDDING_CACHE_CHUNKER_VERSION", "1")
+    )
+    EMBEDDING_CACHE_TTL_DAYS = int(os.getenv("EMBEDDING_CACHE_TTL_DAYS", "90"))
+    EMBEDDING_CACHE_MAX_TOTAL_MB = int(
+        os.getenv("EMBEDDING_CACHE_MAX_TOTAL_MB", "5120")
+    )
+    EMBEDDING_CACHE_EVICTION_BATCH = int(
+        os.getenv("EMBEDDING_CACHE_EVICTION_BATCH", "500")
+    )
+
+    # Incremental re-indexing: on document edits, keep chunk rows whose text is
+    # unchanged (reusing their embeddings) and embed only new/changed chunks.
+    # Kill switch -- disabling falls back to delete-all + full re-embed.
+    CHUNK_RECONCILE_ENABLED = (
+        os.getenv("CHUNK_RECONCILE_ENABLED", "true").strip().lower() == "true"
+    )
+    INDEXING_CHUNK_INSERT_BATCH_SIZE = int(
+        os.getenv("INDEXING_CHUNK_INSERT_BATCH_SIZE", "200")
+    )
 
     # Proxy provider selection. Maps to a ProxyProvider implementation registered
     # in app/utils/proxy/registry.py. Add new vendors there and switch via this var.

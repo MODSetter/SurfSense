@@ -6,11 +6,10 @@ import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
+import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { Button } from "@/components/ui/button";
-import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { setRedirectPath } from "@/lib/auth-utils";
-import { AUTH_TYPE } from "@/lib/env-config";
 import { AmbientBackground } from "./AmbientBackground";
 import { GoogleLoginButton } from "./GoogleLoginButton";
 import { LocalLoginForm } from "./LocalLoginForm";
@@ -19,8 +18,7 @@ function LoginContent() {
 	const t = useTranslations("auth");
 	const tCommon = useTranslations("common");
 	const router = useRouter();
-	const [authType, setAuthType] = useState<string | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+	const { authType } = useRuntimeConfig();
 	const [urlError, setUrlError] = useState<{ title: string; message: string } | null>(null);
 	const searchParams = useSearchParams();
 
@@ -96,19 +94,7 @@ function LoginContent() {
 				duration: 4000,
 			});
 		}
-
-		// Get the auth type from centralized config
-		setAuthType(AUTH_TYPE);
-		setIsLoading(false);
-	}, [searchParams, t, tCommon]);
-
-	// Use global loading screen for auth type determination - spinner animation won't reset
-	useGlobalLoadingEffect(isLoading);
-
-	// Show nothing while loading - the GlobalLoadingProvider handles the loading UI
-	if (isLoading) {
-		return null;
-	}
+	}, [router, searchParams, t, tCommon]);
 
 	if (authType === "GOOGLE") {
 		return <GoogleLoginButton />;

@@ -86,8 +86,7 @@ async def get_editor_content(
         size_bytes = len(md.encode("utf-8"))
         line_count = md.count("\n") + 1
         too_large = (
-            size_bytes > EDITOR_PLATE_MAX_BYTES
-            or line_count > EDITOR_PLATE_MAX_LINES
+            size_bytes > EDITOR_PLATE_MAX_BYTES or line_count > EDITOR_PLATE_MAX_LINES
         )
         viewer_mode = "monaco" if too_large else "plate"
         return {
@@ -127,7 +126,7 @@ async def get_editor_content(
     chunk_contents_result = await session.execute(
         select(Chunk.content)
         .filter(Chunk.document_id == document_id)
-        .order_by(Chunk.id)
+        .order_by(Chunk.position, Chunk.id)
     )
     chunk_contents = chunk_contents_result.scalars().all()
 
@@ -213,7 +212,7 @@ async def download_document_markdown(
         chunk_contents_result = await session.execute(
             select(Chunk.content)
             .filter(Chunk.document_id == document_id)
-            .order_by(Chunk.id)
+            .order_by(Chunk.position, Chunk.id)
         )
         chunk_contents = chunk_contents_result.scalars().all()
         if chunk_contents:
@@ -362,7 +361,7 @@ async def export_document(
         chunk_contents_result = await session.execute(
             select(Chunk.content)
             .filter(Chunk.document_id == document_id)
-            .order_by(Chunk.id)
+            .order_by(Chunk.position, Chunk.id)
         )
         chunk_contents = chunk_contents_result.scalars().all()
         if chunk_contents:

@@ -41,14 +41,14 @@ def test_state_roundtrip_per_suite(tmp_env):  # noqa: ARG001
     assert get_suite_state(config, "medical") is None
     state = SuiteState(
         search_space_id=1,
-        agent_llm_id=-10042,
+        chat_model_id=-10042,
         provider_model="anthropic/claude-sonnet-4.5",
         created_at="2026-05-11T20-30-00Z",
     )
     set_suite_state(config, "medical", state)
     legal = SuiteState(
         search_space_id=2,
-        agent_llm_id=-1,
+        chat_model_id=-1,
         provider_model="openai/gpt-5",
         created_at="2026-05-11T21-00-00Z",
     )
@@ -84,25 +84,19 @@ def test_paths_are_per_suite(tmp_env):  # noqa: ARG001
 # ---------------------------------------------------------------------------
 
 
-def test_legacy_state_back_compat_defaults_to_head_to_head():
-    """state.json files written before scenarios shipped must still load.
+def test_minimal_state_defaults_to_head_to_head():
+    """Missing scenario / vision / native fields default safely."""
 
-    Missing ``scenario`` / ``vision_*`` / ``native_arm_model`` keys all
-    default to ``head-to-head`` / ``None`` so old setups keep working
-    after upgrade — the runner's behaviour exactly mirrors the legacy
-    one (both arms answer with ``provider_model``).
-    """
-
-    legacy = {
+    payload = {
         "search_space_id": 7,
-        "agent_llm_id": -123,
+        "chat_model_id": -123,
         "provider_model": "anthropic/claude-sonnet-4.5",
         "created_at": "2026-05-11T20-30-00Z",
         "ingestion_maps": {},
     }
-    state = SuiteState.from_dict(legacy)
+    state = SuiteState.from_dict(payload)
     assert state.scenario == DEFAULT_SCENARIO == "head-to-head"
-    assert state.vision_llm_config_id is None
+    assert state.vision_model_id is None
     assert state.vision_provider_model is None
     assert state.native_arm_model is None
     # The native arm should still answer with the same slug as SurfSense.
@@ -118,7 +112,7 @@ def test_unknown_scenario_falls_back_to_default():
 
     payload = {
         "search_space_id": 1,
-        "agent_llm_id": -1,
+        "chat_model_id": -1,
         "provider_model": "openai/gpt-5",
         "scenario": "unknown-scenario-name",
     }
@@ -130,11 +124,11 @@ def test_cost_arbitrage_state_persists_native_arm_model(tmp_env):  # noqa: ARG00
     config = load_config()
     state = SuiteState(
         search_space_id=42,
-        agent_llm_id=-1,
+        chat_model_id=-1,
         provider_model="openai/gpt-5.4-mini",
         created_at="2026-05-11T20-30-00Z",
         scenario="cost-arbitrage",
-        vision_llm_config_id=-101,
+        vision_model_id=-101,
         vision_provider_model="anthropic/claude-sonnet-4.5",
         native_arm_model="anthropic/claude-sonnet-4.5",
     )
@@ -142,7 +136,7 @@ def test_cost_arbitrage_state_persists_native_arm_model(tmp_env):  # noqa: ARG00
 
     fetched = get_suite_state(config, "medical")
     assert fetched.scenario == "cost-arbitrage"
-    assert fetched.vision_llm_config_id == -101
+    assert fetched.vision_model_id == -101
     assert fetched.vision_provider_model == "anthropic/claude-sonnet-4.5"
     assert fetched.native_arm_model == "anthropic/claude-sonnet-4.5"
     # Cost arbitrage's whole point: native arm slug != surfsense slug.

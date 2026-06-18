@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { DEFAULT_SHORTCUTS, keyEventToAccelerator } from "@/components/desktop/shortcut-recorder";
+import { useIsGoogleAuth } from "@/components/providers/runtime-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,9 +18,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { setBearerToken } from "@/lib/auth-utils";
-import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 
-const isGoogleAuth = AUTH_TYPE === "GOOGLE";
 type ShortcutKey = "generalAssist" | "quickAsk" | "screenshotAssist";
 type ShortcutMap = typeof DEFAULT_SHORTCUTS;
 
@@ -189,6 +189,7 @@ function HotkeyRow({
 export default function DesktopLoginPage() {
 	const router = useRouter();
 	const api = useElectronAPI();
+	const isGoogleAuth = useIsGoogleAuth();
 	const [{ mutateAsync: login, isPending: isLoggingIn }] = useAtom(loginMutationAtom);
 
 	const [email, setEmail] = useState("");
@@ -239,7 +240,7 @@ export default function DesktopLoginPage() {
 	const handleGoogleLogin = () => {
 		if (isGoogleRedirecting) return;
 		setIsGoogleRedirecting(true);
-		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
+		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
 	};
 
 	const autoSetSearchSpace = async () => {

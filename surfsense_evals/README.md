@@ -77,7 +77,7 @@ The walkthrough above is `--scenario head-to-head` (default): both arms answer w
 | `symmetric-cheap`  | `--provider-model` (cheap, text-only)  | `--provider-model` (same)      | Does pre-extracted image context let a non-vision LLM reason over image-heavy docs?      |
 | `cost-arbitrage`   | `--native-arm-model` (vision)          | `--provider-model` (cheap)     | How close does SurfSense get to a vision-native baseline at a fraction of per-query cost?|
 
-In all three modes the **ingest-time** vision LLM is set on the SearchSpace's `vision_llm_config_id` (auto-picked from the strongest registered global OpenRouter vision config — `claude-sonnet-4.5` > `claude-opus-4.7` > `gpt-5` > `gemini-2.5-pro`, override with `--vision-llm <slug>`). What changes is which slug the *answering* models hit per arm.
+In all three modes the **ingest-time** vision LLM is set on the SearchSpace's `vision_model_id` (auto-picked from the strongest registered global OpenRouter vision-capable model — `claude-sonnet-4.5` > `claude-opus-4.7` > `gpt-5` > `gemini-2.5-pro`, override with `--vision-llm <slug>`). What changes is which slug the *answering* models hit per arm.
 
 ### Ingest with vision, evaluate with a non-vision LLM (`symmetric-cheap`)
 
@@ -118,7 +118,7 @@ python -m surfsense_evals report --suite medical
 
 Notes:
 - `cost-arbitrage` requires both `--provider-model` (the cheap SurfSense slug) AND `--native-arm-model <vision slug>`.
-- `--vision-llm <slug>` is optional; if omitted the harness queries `GET /api/v1/global-vision-llm-configs` and auto-picks the strongest registered one. Pass `--no-vision-llm-setup` if you want to keep whatever vision config is already attached to the SearchSpace.
+- `--vision-llm <slug>` is optional; if omitted the harness queries `GET /api/v1/model-connections/global` and auto-picks the strongest registered vision-capable model. Pass `--no-vision-llm-setup` if you want to keep whatever vision model is already attached to the SearchSpace.
 - The runner's "looks text-only" warning is suppressed (or relabelled as informational) for `symmetric-cheap` so intentional asymmetry doesn't read as a misconfiguration.
 - All three scenario fields (`scenario`, `provider_model`, `native_arm_model`, `vision_provider_model`) are persisted to `state.json` and recorded in `run_artifact.extra` + the report header — no need to retrace what was set.
 

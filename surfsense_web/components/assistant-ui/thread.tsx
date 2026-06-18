@@ -48,10 +48,10 @@ import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dial
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
-	globalNewLLMConfigsAtom,
-	llmPreferencesAtom,
-	newLLMConfigsAtom,
-} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+	globalModelConnectionsAtom,
+	modelConnectionsAtom,
+	modelRolesAtom,
+} from "@/atoms/model-connections/model-connections-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
@@ -68,6 +68,7 @@ import {
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { ChatExamplePrompts } from "@/components/new-chat/chat-example-prompts";
+import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ComposerSuggestionPopoverContent } from "@/components/new-chat/composer-suggestion-popup";
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
@@ -521,6 +522,11 @@ const Composer: FC = () => {
 		editorRef.current?.focus();
 	}, [isDesktop, showDocumentPopover, showPromptPicker, threadId]);
 
+	const handleChatModelSelected = useCallback(() => {
+		if (!isDesktop) return;
+		editorRef.current?.focus();
+	}, [isDesktop]);
+
 	// Close document picker when a sidebar slide-out panel (inbox, etc.) opens.
 	// React only on changes to the tick — comparing against the previously-seen
 	// value preserves the one-shot semantics of the prior window-event approach
@@ -931,7 +937,11 @@ const Composer: FC = () => {
 							className="min-h-[48px] sm:min-h-[24px] **:data-slate-placeholder:font-normal"
 						/>
 					</div>
-					<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
+					<ComposerAction
+						isBlockedByOtherUser={isBlockedByOtherUser}
+						searchSpaceId={Number(search_space_id)}
+						onChatModelSelected={handleChatModelSelected}
+					/>
 					<ConnectorIndicator showTrigger={false} />
 				</div>
 				<ConnectToolsBanner
@@ -950,9 +960,15 @@ const Composer: FC = () => {
 
 interface ComposerActionProps {
 	isBlockedByOtherUser?: boolean;
+	searchSpaceId: number;
+	onChatModelSelected?: () => void;
 }
 
-const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false }) => {
+const ComposerAction: FC<ComposerActionProps> = ({
+	isBlockedByOtherUser = false,
+	searchSpaceId,
+	onChatModelSelected,
+}) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
@@ -980,9 +996,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		if (url) setPendingScreenImages((prev) => [...prev, url]);
 	}, [electronAPI, setPendingScreenImages]);
 
-	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
-	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
-	const { data: preferences } = useAtomValue(llmPreferencesAtom);
+	const { data: globalModelConnections } = useAtomValue(globalModelConnectionsAtom);
+	const { data: modelConnections } = useAtomValue(modelConnectionsAtom);
+	const { data: modelRoles } = useAtomValue(modelRolesAtom);
 
 	const { data: agentTools } = useAtomValue(agentToolsAtom);
 	const disabledTools = useAtomValue(disabledToolsAtom);
@@ -1069,15 +1085,18 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	}, [hydrateDisabled]);
 
 	const hasModelConfigured = useMemo(() => {
-		if (!preferences) return false;
-		const agentLlmId = preferences.agent_llm_id;
-		if (agentLlmId === null || agentLlmId === undefined) return false;
-
-		if (agentLlmId <= 0) {
-			return globalConfigs?.some((c) => c.id === agentLlmId) ?? false;
+		const chatModelId = modelRoles?.chat_model_id ?? 0;
+		if (chatModelId === 0) {
+			return [...(globalModelConnections ?? []), ...(modelConnections ?? [])].some((connection) =>
+				connection.models.some((model) => model.enabled && Boolean(model.supports_chat))
+			);
 		}
-		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;
-	}, [preferences, globalConfigs, userConfigs]);
+		return [...(globalModelConnections ?? []), ...(modelConnections ?? [])].some((connection) =>
+			connection.models.some(
+				(model) => model.id === chatModelId && model.enabled && Boolean(model.supports_chat)
+			)
+		);
+	}, [modelRoles?.chat_model_id, globalModelConnections, modelConnections]);
 
 	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 
@@ -1559,6 +1578,11 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				</div>
 			)}
 			<div className="flex items-center gap-2">
+				<ChatHeader
+					searchSpaceId={searchSpaceId}
+					className="h-9 max-w-[44vw] px-2 sm:max-w-[220px] sm:px-3"
+					onChatModelSelected={onChatModelSelected}
+				/>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
@@ -1566,7 +1590,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								isBlockedByOtherUser
 									? "Wait for AI to finish responding"
 									: !hasModelConfigured
-										? "Please select a model from the header to start chatting"
+										? "Please select a model to start chatting"
 										: isComposerEmpty
 											? "Enter a message or add a screenshot to send"
 											: "Send message"

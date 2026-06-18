@@ -7,10 +7,10 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
+import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
-import { AUTH_TYPE } from "@/lib/env-config";
 import { ValidationError } from "@/lib/error";
 import { trackLoginAttempt, trackLoginFailure, trackLoginSuccess } from "@/lib/posthog/events";
 
@@ -26,7 +26,7 @@ export function LocalLoginForm() {
 		title: null,
 		message: null,
 	});
-	const authType = AUTH_TYPE;
+	const { authType } = useRuntimeConfig();
 	const router = useRouter();
 	const [{ mutateAsync: login, isPending: isLoggingIn }] = useAtom(loginMutationAtom);
 

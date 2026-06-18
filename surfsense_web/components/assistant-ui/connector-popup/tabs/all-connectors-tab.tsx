@@ -2,10 +2,10 @@
 
 import { Search } from "lucide-react";
 import type { FC } from "react";
+import { useIsSelfHosted } from "@/components/providers/runtime-config";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { usePlatform } from "@/hooks/use-platform";
-import { isSelfHosted } from "@/lib/env-config";
 import { ConnectorCard } from "../components/connector-card";
 import {
 	COMPOSIO_CONNECTORS,
@@ -22,6 +22,11 @@ type OAuthConnector = (typeof OAUTH_CONNECTORS)[number];
 type ComposioConnector = (typeof COMPOSIO_CONNECTORS)[number];
 type OtherConnector = (typeof OTHER_CONNECTORS)[number];
 type CrawlerConnector = (typeof CRAWLERS)[number];
+type DeploymentFilterableConnector = {
+	readonly id: string;
+	readonly selfHostedOnly?: boolean;
+	readonly desktopOnly?: boolean;
+};
 
 /**
  * Extract the display name from a full connector name.
@@ -66,14 +71,14 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	onManage,
 	onViewAccountsList,
 }) => {
-	const selfHosted = isSelfHosted();
+	const selfHosted = useIsSelfHosted();
 	const { isDesktop } = usePlatform();
 
 	const matchesSearch = (title: string, description: string) =>
 		title.toLowerCase().includes(searchQuery.toLowerCase()) ||
 		description.toLowerCase().includes(searchQuery.toLowerCase());
 
-	const passesDeploymentFilter = (c: { selfHostedOnly?: boolean; desktopOnly?: boolean }) =>
+	const passesDeploymentFilter = (c: DeploymentFilterableConnector) =>
 		(!c.selfHostedOnly || selfHosted) && (!c.desktopOnly || isDesktop);
 
 	// Filter connectors based on search and deployment mode

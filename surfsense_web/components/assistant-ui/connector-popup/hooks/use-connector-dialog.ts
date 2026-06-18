@@ -16,7 +16,7 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
 import { OAUTH_RESULT_COOKIE, parseOAuthCallbackResult } from "@/contracts/types/oauth.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import {
 	trackConnectorConnected,
 	trackConnectorDeleted,
@@ -351,9 +351,7 @@ export const useConnectorDialog = () => {
 			trackConnectorSetupStarted(Number(searchSpaceId), connector.connectorType, "oauth_click");
 
 			try {
-				// Check if authEndpoint already has query parameters
-				const separator = connector.authEndpoint.includes("?") ? "&" : "?";
-				const url = `${BACKEND_URL}${connector.authEndpoint}${separator}space_id=${searchSpaceId}`;
+				const url = buildBackendUrl(connector.authEndpoint, { space_id: searchSpaceId });
 
 				const response = await authenticatedFetch(url, { method: "GET" });
 

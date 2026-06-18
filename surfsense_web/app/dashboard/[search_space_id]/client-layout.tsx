@@ -4,15 +4,15 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
-import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
 import {
-	globalNewLLMConfigsAtom,
-	llmPreferencesAtom,
-} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+	globalLlmConfigStatusAtom,
+	globalModelConnectionsAtom,
+	modelConnectionsAtom,
+	modelRolesAtom,
+} from "@/atoms/model-connections/model-connections-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
 import { LayoutDataProvider } from "@/components/layout";
@@ -34,30 +34,30 @@ export function DashboardClientLayout({
 	const router = useRouter();
 	const pathname = usePathname();
 	const { search_space_id } = useParams();
+	const activeSearchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const setActiveSearchSpaceIdState = useSetAtom(activeSearchSpaceIdAtom);
 	const setPendingUserImageUrls = useSetAtom(pendingUserImageDataUrlsAtom);
 
-	const {
-		data: preferences = {},
-		isFetching: loading,
-		error,
-		refetch: refetchPreferences,
-	} = useAtomValue(llmPreferencesAtom);
-	const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
-		useAtomValue(globalNewLLMConfigsAtom);
-	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
-
-	const isOnboardingComplete = useCallback(() => {
-		return isLlmOnboardingComplete(preferences.agent_llm_id, globalConfigs.length > 0);
-	}, [preferences.agent_llm_id, globalConfigs.length]);
+	const { data: modelRoles = {}, isLoading: loading, error } = useAtomValue(modelRolesAtom);
+	const { data: globalConnections = [], isLoading: globalConfigsLoading } = useAtomValue(
+		globalModelConnectionsAtom
+	);
+	const { data: modelConnections = [], isLoading: modelConnectionsLoading } =
+		useAtomValue(modelConnectionsAtom);
+	const { data: globalConfigStatus, isLoading: globalConfigStatusLoading } =
+		useAtomValue(globalLlmConfigStatusAtom);
 
 	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
-	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
-	const hasAttemptedAutoConfig = useRef(false);
 
 	const isOnboardingPage = pathname?.includes("/onboard");
 	const isOwner = access?.is_owner ?? false;
+	const isSearchSpaceReady = activeSearchSpaceId === searchSpaceId;
+
+	useEffect(() => {
+		if (isSearchSpaceReady) return;
+		setHasCheckedOnboarding(false);
+	}, [isSearchSpaceReady]);
 
 	useEffect(() => {
 		if (isOnboardingPage) {
@@ -66,13 +66,27 @@ export function DashboardClientLayout({
 		}
 
 		if (
+			isSearchSpaceReady &&
 			!loading &&
 			!accessLoading &&
 			!globalConfigsLoading &&
-			!hasCheckedOnboarding &&
-			!isAutoConfiguring
+			!globalConfigStatusLoading &&
+			!modelConnectionsLoading &&
+			!hasCheckedOnboarding
 		) {
-			const onboardingComplete = isOnboardingComplete();
+			// Onboarding is only relevant when no operator-provided
+			// global_llm_config.yaml exists. When it does, search spaces inherit
+			// the global config and should never be forced into onboarding.
+			if (globalConfigStatus?.exists) {
+				setHasCheckedOnboarding(true);
+				return;
+			}
+
+			const onboardingComplete = isLlmOnboardingComplete(
+				modelRoles.chat_model_id,
+				globalConnections,
+				modelConnections
+			);
 
 			if (onboardingComplete) {
 				setHasCheckedOnboarding(true);
@@ -84,56 +98,25 @@ export function DashboardClientLayout({
 				return;
 			}
 
-			if (globalConfigs.length > 0 && !hasAttemptedAutoConfig.current) {
-				hasAttemptedAutoConfig.current = true;
-				setIsAutoConfiguring(true);
-
-				const autoConfigureWithGlobal = async () => {
-					try {
-						const firstGlobalConfig = globalConfigs[0];
-						await updatePreferences({
-							search_space_id: Number(searchSpaceId),
-							data: {
-								agent_llm_id: firstGlobalConfig.id,
-							},
-						});
-
-						await refetchPreferences();
-
-						toast.success("AI configured automatically!", {
-							description: `Using ${firstGlobalConfig.name}. Customize in Settings.`,
-						});
-
-						setHasCheckedOnboarding(true);
-					} catch (error) {
-						console.error("Auto-configuration failed:", error);
-						router.push(`/dashboard/${searchSpaceId}/onboard`);
-					} finally {
-						setIsAutoConfiguring(false);
-					}
-				};
-
-				autoConfigureWithGlobal();
-				return;
-			}
-
 			router.push(`/dashboard/${searchSpaceId}/onboard`);
 			setHasCheckedOnboarding(true);
 		}
 	}, [
+		isSearchSpaceReady,
 		loading,
 		accessLoading,
 		globalConfigsLoading,
-		isOnboardingComplete,
+		globalConfigStatusLoading,
+		globalConfigStatus,
+		modelConnectionsLoading,
+		modelRoles.chat_model_id,
+		globalConnections,
+		modelConnections,
 		isOnboardingPage,
 		isOwner,
-		isAutoConfiguring,
-		globalConfigs,
 		router,
 		searchSpaceId,
 		hasCheckedOnboarding,
-		updatePreferences,
-		refetchPreferences,
 	]);
 
 	const electronAPI = useElectronAPI();
@@ -185,10 +168,14 @@ export function DashboardClientLayout({
 
 	// Determine if we should show loading
 	const shouldShowLoading =
-		(!hasCheckedOnboarding &&
-			(loading || accessLoading || globalConfigsLoading) &&
-			!isOnboardingPage) ||
-		isAutoConfiguring;
+		!hasCheckedOnboarding &&
+		(!isSearchSpaceReady ||
+			loading ||
+			accessLoading ||
+			globalConfigsLoading ||
+			globalConfigStatusLoading ||
+			modelConnectionsLoading) &&
+		!isOnboardingPage;
 
 	// Use global loading screen - spinner animation won't reset
 	useGlobalLoadingEffect(shouldShowLoading);

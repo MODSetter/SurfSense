@@ -16,7 +16,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import type { AnonModel } from "@/contracts/types/anonymous-chat.types";
-import { BACKEND_URL } from "@/lib/env-config";
+import { SERVER_BACKEND_URL } from "@/lib/env-config";
 
 export const metadata: Metadata = {
 	title: "Free AI Chat, No Login Required | SurfSense",
@@ -94,7 +94,7 @@ export const metadata: Metadata = {
 
 async function getModels(): Promise<AnonModel[]> {
 	try {
-		const res = await fetch(`${BACKEND_URL}/api/v1/public/anon-chat/models`, {
+		const res = await fetch(`${SERVER_BACKEND_URL}/api/v1/public/anon-chat/models`, {
 			next: { revalidate: 300 },
 		});
 		if (!res.ok) return [];
@@ -246,11 +246,6 @@ export default async function FreeHubPage() {
 													className="group flex flex-col gap-0.5"
 												>
 													<span className="font-medium group-hover:underline">{model.name}</span>
-													{model.description && (
-														<span className="text-xs text-muted-foreground line-clamp-1">
-															{model.description}
-														</span>
-													)}
 												</Link>
 											</TableCell>
 											<TableCell>

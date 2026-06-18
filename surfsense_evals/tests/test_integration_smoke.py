@@ -27,7 +27,7 @@ async def test_smoke_against_localhost():
         pytest.skip("No credentials in environment; skipping integration smoke")
     bundle = await acquire_token(config)
     async with client_with_auth(config, bundle) as client:
-        response = await client.get(f"{config.surfsense_api_base}/api/v1/global-new-llm-configs")
+        response = await client.get(f"{config.surfsense_api_base}/api/v1/model-connections/global")
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:

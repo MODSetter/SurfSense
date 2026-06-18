@@ -108,8 +108,11 @@ async function buildElectron() {
     sourcemap: true,
     minify: false,
     define: {
+      'process.env.HOSTED_BACKEND_URL': JSON.stringify(
+        process.env.HOSTED_BACKEND_URL || desktopEnv.HOSTED_BACKEND_URL || ''
+      ),
       'process.env.HOSTED_FRONTEND_URL': JSON.stringify(
-        process.env.HOSTED_FRONTEND_URL || desktopEnv.HOSTED_FRONTEND_URL || 'https://surfsense.net'
+        process.env.HOSTED_FRONTEND_URL || desktopEnv.HOSTED_FRONTEND_URL || 'https://surfsense.com'
       ),
       'process.env.POSTHOG_KEY': JSON.stringify(
         process.env.POSTHOG_KEY || desktopEnv.POSTHOG_KEY || ''

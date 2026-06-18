@@ -43,11 +43,13 @@ export async function startNextServer(): Promise<void> {
 
   const standalonePath = getStandalonePath();
   const serverScript = path.join(standalonePath, 'server.js');
+  const backendInternalUrl = process.env.SURFSENSE_BACKEND_INTERNAL_URL || process.env.HOSTED_BACKEND_URL;
 
   const child = utilityProcess.fork(serverScript, [], {
     cwd: standalonePath,
     env: {
       ...process.env,
+      ...(backendInternalUrl ? { SURFSENSE_BACKEND_INTERNAL_URL: backendInternalUrl } : {}),
       PORT: String(serverPort),
       // Loopback bind: avoids 0.0.0.0 leaking into request.url and redirect origins.
       HOSTNAME: SERVER_HOST,

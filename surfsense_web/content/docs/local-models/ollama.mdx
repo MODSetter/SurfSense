@@ -1,0 +1,102 @@
+---
+title: Ollama
+description: Connect Ollama to SurfSense
+---
+
+# Connect Ollama
+
+Connect to your Ollama local server. Add it from
+**Search Space Settings > Models**.
+
+## Base URL
+
+Choose the URL from where the SurfSense backend runs.
+
+### SurfSense Runs in Docker
+
+Use this when SurfSense is running from Docker and Ollama is running on your computer.
+
+```text
+http://host.docker.internal:11434
+```
+
+<Callout type="info">
+This is the default in SurfSense.
+</Callout>
+
+### Ollama Runs in Docker
+
+Use this only when Ollama is a service in the same Compose stack as SurfSense.
+
+```text
+http://ollama:11434
+```
+
+### SurfSense Runs Without Docker
+
+Use this when SurfSense and Ollama both run directly on the same computer.
+
+```text
+http://localhost:11434
+```
+
+### Ollama Runs on Another Computer
+
+Use this when Ollama is running on another machine in your network.
+
+```text
+http://<host>:11434
+```
+
+Replace `<host>` with the LAN IP or domain for that machine.
+
+## Add the Connection
+
+1. Open Search Space Settings.
+2. Go to Models.
+3. Select Ollama.
+4. Set API Base URL.
+5. Leave API Key empty unless your endpoint needs one.
+6. Select the models you want to enable.
+7. Save the connection.
+
+Do not add `/v1` to the URL. SurfSense uses Ollama native routes such as `/api/version` and `/api/tags`.
+
+## Verify
+
+From the host:
+
+```bash
+curl http://localhost:11434/api/version
+```
+
+From the SurfSense backend container:
+
+```bash
+docker compose exec backend curl http://host.docker.internal:11434/api/version
+docker compose exec backend curl http://host.docker.internal:11434/api/tags
+```
+
+## Troubleshooting
+
+### Name or service not known
+
+The backend cannot resolve the host name.
+
+Use `http://host.docker.internal:11434` unless you run Ollama as a Compose service named `ollama`.
+
+### Connection refused
+
+Ollama is not reachable from the backend.
+
+Start Ollama and confirm that port `11434` is open.
+
+### No models found
+
+Pull at least one model:
+
+```bash
+ollama pull llama3.2
+```
+
+Then refresh model discovery in SurfSense.

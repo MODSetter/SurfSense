@@ -508,7 +508,7 @@ class KBPostgresBackend(BackendProtocol):
             chunk_rows = await session.execute(
                 select(Chunk.id, Chunk.content)
                 .where(Chunk.document_id == document.id)
-                .order_by(Chunk.id)
+                .order_by(Chunk.position, Chunk.id)
             )
             chunks = [
                 {"chunk_id": row.id, "content": row.content} for row in chunk_rows.all()
@@ -725,7 +725,7 @@ class KBPostgresBackend(BackendProtocol):
                         .join(Document, Document.id == Chunk.document_id)
                         .where(Document.search_space_id == self.search_space_id)
                         .where(Chunk.content.ilike(f"%{pattern}%"))
-                        .order_by(Chunk.document_id, Chunk.id)
+                        .order_by(Chunk.document_id, Chunk.position, Chunk.id)
                     )
                     chunk_rows = await session.execute(sub)
                     per_doc: dict[int, int] = {}

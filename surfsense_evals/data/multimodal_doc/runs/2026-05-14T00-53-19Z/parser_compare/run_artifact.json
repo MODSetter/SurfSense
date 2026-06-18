@@ -9,7 +9,7 @@
       "llamacloud_premium_lc",
       "surfsense_agentic"
     ],
-    "agent_llm_id": -5138454,
+    "chat_model_id": -5138454,
     "concurrency": 2,
     "llm_model": "anthropic/claude-sonnet-4.5",
     "n_pdfs": 30,

@@ -1,7 +1,7 @@
 import { mustGetQuery } from "@rocicorp/zero";
 import { handleQueryRequest } from "@rocicorp/zero/server";
 import { NextResponse } from "next/server";
-import { BACKEND_URL } from "@/lib/env-config";
+import { SERVER_BACKEND_URL } from "@/lib/env-config";
 import type { Context } from "@/types/zero";
 import { queries } from "@/zero/queries";
 import { schema } from "@/zero/schema";
@@ -11,11 +11,7 @@ import { schema } from "@/zero/schema";
 // (e.g. http://backend:8000). The browser-facing NEXT_PUBLIC_FASTAPI_BACKEND_URL
 // (e.g. http://localhost:8929) does NOT resolve from inside the frontend
 // container and would make every authenticated Zero query fail with a 503.
-const backendURL = (
-	process.env.FASTAPI_BACKEND_INTERNAL_URL ||
-	process.env.BACKEND_URL ||
-	"http://localhost:8000"
-).replace(/\/$/, "");
+const backendURL = SERVER_BACKEND_URL.replace(/\/$/, "");
 
 async function authenticateRequest(
 	request: Request

@@ -14,7 +14,7 @@ import {
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { BACKEND_URL } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { speakerLabel } from "./schema";
 
 // Public snapshots predate the transcript.turns shape and keep their own.
@@ -121,7 +121,7 @@ export function PodcastPlayer({
 					);
 				} else {
 					const [audioResponse, detail] = await Promise.all([
-						authenticatedFetch(`${BACKEND_URL}/api/v1/podcasts/${podcastId}/stream`, {
+						authenticatedFetch(buildBackendUrl(`/api/v1/podcasts/${podcastId}/stream`), {
 							method: "GET",
 							signal: controller.signal,
 						}),

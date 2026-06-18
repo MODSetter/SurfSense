@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
+import { BUILD_TIME_AUTH_TYPE, buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
@@ -46,14 +46,14 @@ interface SignInButtonProps {
 }
 
 export const SignInButton = ({ variant = "desktop" }: SignInButtonProps) => {
-	const isGoogleAuth = AUTH_TYPE === "GOOGLE";
+	const isGoogleAuth = BUILD_TIME_AUTH_TYPE === "GOOGLE";
 	const [isRedirecting, setIsRedirecting] = useState(false);
 
 	const handleGoogleLogin = () => {
 		if (isRedirecting) return;
 		setIsRedirecting(true);
 		trackLoginAttempt("google");
-		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
+		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
 	};
 
 	const getClassName = () => {
