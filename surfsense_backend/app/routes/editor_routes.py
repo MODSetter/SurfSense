@@ -42,6 +42,34 @@ EDITOR_PLATE_MAX_BYTES = 1 * 1024 * 1024
 EDITOR_PLATE_MAX_LINES = 5000
 
 
+def _raise_no_canonical_body(document: Document) -> None:
+    """Translate a missing source_markdown into a status-aware HTTP error."""
+    doc_status = document.status or {}
+    state = (
+        doc_status.get("state", "ready") if isinstance(doc_status, dict) else "ready"
+    )
+
+    if state in ("pending", "processing"):
+        raise HTTPException(
+            status_code=409,
+            detail="This document is still being processed. Please wait a moment and try again.",
+        )
+    if state == "failed":
+        reason = (
+            doc_status.get("reason", "Unknown error")
+            if isinstance(doc_status, dict)
+            else "Unknown error"
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=f"Processing failed: {reason}. You can delete this document and re-upload it.",
+        )
+    raise HTTPException(
+        status_code=400,
+        detail="This document has no editable content. It may not have been processed correctly. Try re-indexing or re-uploading it.",
+    )
+
+
 @router.get("/search-spaces/{search_space_id}/documents/{document_id}/editor-content")
 async def get_editor_content(
     search_space_id: int,
@@ -52,8 +80,9 @@ async def get_editor_content(
     """
     Get document content for editing.
 
-    Returns source_markdown for the Plate.js editor.
-    Falls back to blocknote_document → markdown conversion, then chunk reconstruction.
+    Returns source_markdown (the canonical body) for the Plate.js editor, with a
+    one-time migration from legacy blocknote_document. Never reconstructs the
+    body from chunks.
 
     Requires DOCUMENTS_READ permission.
     """
@@ -123,52 +152,9 @@ async def get_editor_content(
         await session.commit()
         return _build_response(empty_markdown)
 
-    chunk_contents_result = await session.execute(
-        select(Chunk.content)
-        .filter(Chunk.document_id == document_id)
-        .order_by(Chunk.position, Chunk.id)
-    )
-    chunk_contents = chunk_contents_result.scalars().all()
-
-    if not chunk_contents:
-        doc_status = document.status or {}
-        state = (
-            doc_status.get("state", "ready")
-            if isinstance(doc_status, dict)
-            else "ready"
-        )
-        if state in ("pending", "processing"):
-            raise HTTPException(
-                status_code=409,
-                detail="This document is still being processed. Please wait a moment and try again.",
-            )
-        if state == "failed":
-            reason = (
-                doc_status.get("reason", "Unknown error")
-                if isinstance(doc_status, dict)
-                else "Unknown error"
-            )
-            raise HTTPException(
-                status_code=422,
-                detail=f"Processing failed: {reason}. You can delete this document and re-upload it.",
-            )
-        raise HTTPException(
-            status_code=400,
-            detail="This document has no content. It may not have been processed correctly. Try deleting and re-uploading it.",
-        )
-
-    markdown_content = "\n\n".join(chunk_contents)
-
-    if not markdown_content.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="This document appears to be empty. Try re-uploading or editing it to add content.",
-        )
-
-    document.source_markdown = markdown_content
-    await session.commit()
-
-    return _build_response(markdown_content)
+    # No canonical body. Chunks are an index artifact, never the source of
+    # truth, so surface the processing state instead of rebuilding from them.
+    _raise_no_canonical_body(document)
 
 
 @router.get(
@@ -181,8 +167,9 @@ async def download_document_markdown(
     user: User = Depends(current_active_user),
 ):
     """
-    Download the full document content as a .md file.
-    Reconstructs markdown from source_markdown or chunks.
+    Download the canonical document body as a .md file.
+
+    Serves source_markdown, migrating legacy blocknote_document when present.
     """
     await check_permission(
         session,
@@ -208,15 +195,6 @@ async def download_document_markdown(
         from app.utils.blocknote_to_markdown import blocknote_to_markdown
 
         markdown = blocknote_to_markdown(document.blocknote_document)
-    if markdown is None:
-        chunk_contents_result = await session.execute(
-            select(Chunk.content)
-            .filter(Chunk.document_id == document_id)
-            .order_by(Chunk.position, Chunk.id)
-        )
-        chunk_contents = chunk_contents_result.scalars().all()
-        if chunk_contents:
-            markdown = "\n\n".join(chunk_contents)
 
     if not markdown or not markdown.strip():
         raise HTTPException(
@@ -357,15 +335,6 @@ async def export_document(
         from app.utils.blocknote_to_markdown import blocknote_to_markdown
 
         markdown_content = blocknote_to_markdown(document.blocknote_document)
-    if markdown_content is None:
-        chunk_contents_result = await session.execute(
-            select(Chunk.content)
-            .filter(Chunk.document_id == document_id)
-            .order_by(Chunk.position, Chunk.id)
-        )
-        chunk_contents = chunk_contents_result.scalars().all()
-        if chunk_contents:
-            markdown_content = "\n\n".join(chunk_contents)
 
     if not markdown_content or not markdown_content.strip():
         raise HTTPException(status_code=400, detail="Document has no content to export")
