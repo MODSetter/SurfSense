@@ -11,13 +11,13 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ searchSpaceId, className, onChatModelSelected }: ChatHeaderProps) {
 	return (
-		<div className="flex items-center gap-2">
+		<div className="flex min-w-0 shrink-0 items-center gap-2">
 			<ModelSelector
 				searchSpaceId={searchSpaceId}
 				className={className}
 				onChatModelSelected={onChatModelSelected}
 			/>
-			<ImageModelSelector searchSpaceId={searchSpaceId} className={className} />
+			<ImageModelSelector searchSpaceId={searchSpaceId} className={className} mobileIconOnly />
 		</div>
 	);
 }
