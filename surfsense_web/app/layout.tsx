@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { Roboto } from "next/font/google";
+import Script from "next/script";
 import { AnnouncementToastProvider } from "@/components/announcements/AnnouncementToastProvider";
 import { DesktopUpdateToast } from "@/components/desktop/desktop-update-toast";
 import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
@@ -16,8 +17,13 @@ import {
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/contexts/LocaleContext";
+import { BUILD_TIME_AUTH_TYPE } from "@/lib/env-config";
 import { PlatformProvider } from "@/contexts/platform-context";
 import { ReactQueryClientProvider } from "@/lib/query-client/query-client.provider";
+import {
+	getRuntimeAuthInitScript,
+	resolveRuntimeAuthUiMode,
+} from "@/lib/runtime-auth-config";
 import { cn } from "@/lib/utils";
 
 const roboto = Roboto({
@@ -131,8 +137,15 @@ export default function RootLayout({
 	// Language can be switched dynamically through LanguageSwitcher component
 	// Locale state is managed by LocaleContext and persisted in localStorage
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html
+			lang="en"
+			data-surfsense-auth-type={resolveRuntimeAuthUiMode(BUILD_TIME_AUTH_TYPE)}
+			suppressHydrationWarning
+		>
 			<head>
+				<Script id="surfsense-runtime-auth-init" strategy="beforeInteractive">
+					{getRuntimeAuthInitScript(BUILD_TIME_AUTH_TYPE)}
+				</Script>
 				<link rel="preconnect" href="https://api.github.com" />
 				<OrganizationJsonLd />
 				<WebSiteJsonLd />

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { BUILD_TIME_AUTH_TYPE, buildBackendUrl } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
@@ -46,7 +46,6 @@ interface SignInButtonProps {
 }
 
 export const SignInButton = ({ variant = "desktop" }: SignInButtonProps) => {
-	const isGoogleAuth = BUILD_TIME_AUTH_TYPE === "GOOGLE";
 	const [isRedirecting, setIsRedirecting] = useState(false);
 
 	const handleGoogleLogin = () => {
@@ -56,44 +55,45 @@ export const SignInButton = ({ variant = "desktop" }: SignInButtonProps) => {
 		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
 	};
 
-	const getClassName = () => {
+	const getGoogleClassName = () => {
 		if (variant === "desktop") {
-			return isGoogleAuth
-				? "hidden rounded-full border border-white bg-white px-5 py-2 text-sm font-medium text-[#1f1f1f] shadow-sm hover:bg-zinc-100 hover:text-[#1f1f1f] md:flex dark:border-white"
-				: "hidden rounded-full bg-black px-8 py-2 text-sm font-bold text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] md:block dark:bg-white dark:text-black";
+			return "hidden rounded-full border border-white bg-white px-5 py-2 text-sm font-medium text-[#1f1f1f] shadow-sm hover:bg-zinc-100 hover:text-[#1f1f1f] md:flex dark:border-white";
 		}
 		if (variant === "compact") {
-			return isGoogleAuth
-				? "rounded-full border border-white bg-white px-4 py-1.5 text-sm font-medium text-[#1f1f1f] shadow-sm hover:bg-zinc-100 hover:text-[#1f1f1f] dark:border-white"
-				: "rounded-full bg-black px-6 py-1.5 text-sm font-bold text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black";
+			return "rounded-full border border-white bg-white px-4 py-1.5 text-sm font-medium text-[#1f1f1f] shadow-sm hover:bg-zinc-100 hover:text-[#1f1f1f] dark:border-white";
 		}
 		// mobile
-		return isGoogleAuth
-			? "w-full rounded-lg border border-white bg-white px-8 py-2.5 font-medium text-[#1f1f1f] shadow-sm hover:bg-zinc-100 hover:text-[#1f1f1f] dark:border-white touch-manipulation"
-			: "w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black text-center touch-manipulation";
+		return "w-full rounded-lg border border-white bg-white px-8 py-2.5 font-medium text-[#1f1f1f] shadow-sm hover:bg-zinc-100 hover:text-[#1f1f1f] dark:border-white touch-manipulation";
 	};
 
-	if (isGoogleAuth) {
-		return (
+	const getLocalClassName = () => {
+		if (variant === "desktop") {
+			return "hidden rounded-full bg-black px-8 py-2 text-sm font-bold text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] md:block dark:bg-white dark:text-black";
+		}
+		if (variant === "compact") {
+			return "rounded-full bg-black px-6 py-1.5 text-sm font-bold text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black";
+		}
+		return "w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black text-center touch-manipulation";
+	};
+
+	return (
+		<>
 			<Button
 				type="button"
 				variant="ghost"
 				onClick={handleGoogleLogin}
 				disabled={isRedirecting}
 				className={cn(
-					"flex items-center justify-center gap-2 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50",
-					getClassName()
+					"runtime-auth-google flex items-center justify-center gap-2 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50",
+					getGoogleClassName()
 				)}
 			>
 				<GoogleLogo className="h-4 w-4" />
 				<span>Sign In</span>
 			</Button>
-		);
-	}
-
-	return (
-		<Link href="/login" className={getClassName()}>
-			Sign In
-		</Link>
+			<Link href="/login" className={cn("runtime-auth-local", getLocalClassName())}>
+				Sign In
+			</Link>
+		</>
 	);
 };
