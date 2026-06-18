@@ -68,7 +68,7 @@ def upgrade() -> None:
         # has NULL last_login -> the migration is idempotent and resumable.
         op.execute(f"DROP TABLE IF EXISTS {USER_SCRATCH};")
         op.execute(
-            f'CREATE UNLOGGED TABLE {USER_SCRATCH} AS '
+            f"CREATE UNLOGGED TABLE {USER_SCRATCH} AS "
             'SELECT id FROM "user" WHERE last_login IS NULL;'
         )
         op.execute(f"ALTER TABLE {USER_SCRATCH} ADD PRIMARY KEY (id);")

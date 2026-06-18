@@ -38,8 +38,12 @@ async def test_remembered_set_recalls_as_equivalent_vectors(
     stored = EmbeddingSet(
         summary_embedding=np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32),
         chunks=[
-            CachedChunk("first chunk", np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)),
-            CachedChunk("second chunk", np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32)),
+            CachedChunk(
+                "first chunk", np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+            ),
+            CachedChunk(
+                "second chunk", np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32)
+            ),
         ],
     )
 

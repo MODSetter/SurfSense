@@ -71,7 +71,10 @@ async def _make_connector(
         connector_type=connector_type,
         # A stored credential the indexer would use — the thing a cross-tenant
         # index must never be able to abuse.
-        config={"GITHUB_PAT": "victim-secret-pat", "repo_full_names": ["octocat/Hello-World"]},
+        config={
+            "GITHUB_PAT": "victim-secret-pat",
+            "repo_full_names": ["octocat/Hello-World"],
+        },
         is_indexable=True,
         search_space_id=space.id,
         user_id=owner.id,

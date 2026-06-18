@@ -87,11 +87,11 @@ def upgrade() -> None:
             ).scalar()
             or 0
         )
-        total_rows_display = f"~{total_rows:,}" if total_rows > 0 else "an unknown number of"
+        total_rows_display = (
+            f"~{total_rows:,}" if total_rows > 0 else "an unknown number of"
+        )
 
-        bounds = bind.execute(
-            sa.text("SELECT min(id), max(id) FROM chunks")
-        ).one()
+        bounds = bind.execute(sa.text("SELECT min(id), max(id) FROM chunks")).one()
         min_id, max_id = bounds[0], bounds[1]
 
         if min_id is None:
@@ -167,9 +167,7 @@ def upgrade() -> None:
             op.execute(f"DROP TABLE IF EXISTS {SCRATCH_TABLE};")
 
         logger.info("creating index ix_chunks_position...")
-        op.execute(
-            "CREATE INDEX IF NOT EXISTS ix_chunks_position ON chunks(position);"
-        )
+        op.execute("CREATE INDEX IF NOT EXISTS ix_chunks_position ON chunks(position);")
         logger.info("creating index ix_chunks_document_id_position...")
         op.execute(
             "CREATE INDEX IF NOT EXISTS ix_chunks_document_id_position "

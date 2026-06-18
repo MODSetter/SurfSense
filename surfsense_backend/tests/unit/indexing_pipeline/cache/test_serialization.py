@@ -23,7 +23,9 @@ def test_round_trip_preserves_texts_and_vectors():
 
     assert [c.text for c in restored.chunks] == [c.text for c in original.chunks]
     assert restored.chunk_count == 3
-    assert np.allclose(restored.summary_embedding, original.summary_embedding, atol=1e-6)
+    assert np.allclose(
+        restored.summary_embedding, original.summary_embedding, atol=1e-6
+    )
     for got, want in zip(restored.chunks, original.chunks, strict=True):
         assert np.allclose(got.embedding, want.embedding, atol=1e-6)
 

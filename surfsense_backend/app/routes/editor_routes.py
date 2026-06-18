@@ -86,8 +86,7 @@ async def get_editor_content(
         size_bytes = len(md.encode("utf-8"))
         line_count = md.count("\n") + 1
         too_large = (
-            size_bytes > EDITOR_PLATE_MAX_BYTES
-            or line_count > EDITOR_PLATE_MAX_LINES
+            size_bytes > EDITOR_PLATE_MAX_BYTES or line_count > EDITOR_PLATE_MAX_LINES
         )
         viewer_mode = "monaco" if too_large else "plate"
         return {

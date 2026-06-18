@@ -20,9 +20,7 @@ pytestmark = pytest.mark.integration
 
 
 def _key(sha: str) -> ParseKey:
-    return ParseKey.for_document(
-        sha, etl_service="LLAMACLOUD", mode="basic", version=1
-    )
+    return ParseKey.for_document(sha, etl_service="LLAMACLOUD", mode="basic", version=1)
 
 
 def _result(markdown: str) -> EtlResult:
@@ -48,7 +46,9 @@ async def test_expired_entries_are_pruned(
     monkeypatch, cache_local_storage, clean_cache_table
 ):
     monkeypatch.setattr(config, "ETL_CACHE_ENABLED", True)
-    monkeypatch.setattr(config, "ETL_CACHE_TTL_DAYS", -1)  # cutoff in the future -> stale
+    monkeypatch.setattr(
+        config, "ETL_CACHE_TTL_DAYS", -1
+    )  # cutoff in the future -> stale
     monkeypatch.setattr(config, "ETL_CACHE_MAX_TOTAL_MB", 10_000)  # size phase no-op
 
     key = _key("a" * 64)

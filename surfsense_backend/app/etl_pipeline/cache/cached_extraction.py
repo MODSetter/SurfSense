@@ -20,9 +20,7 @@ logger = logging.getLogger(__name__)
 _HASH_CHUNK = 1024 * 1024
 
 
-async def extract_with_cache(
-    request: EtlRequest, *, vision_llm=None
-) -> EtlResult:
+async def extract_with_cache(request: EtlRequest, *, vision_llm=None) -> EtlResult:
     """Drop-in for ``EtlPipelineService.extract`` that reuses prior parser output."""
     settings = load_etl_cache_settings()
 

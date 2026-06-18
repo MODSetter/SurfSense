@@ -38,7 +38,9 @@ def resolve_cache_backend() -> StorageBackend:
 
     if backend == "local":
         if not settings.storage_local_root:
-            raise ValueError("ETL_CACHE_STORAGE_LOCAL_PATH is required for local cache.")
+            raise ValueError(
+                "ETL_CACHE_STORAGE_LOCAL_PATH is required for local cache."
+            )
         from app.file_storage.backends.local import LocalFileBackend
 
         return LocalFileBackend(settings.storage_local_root)

@@ -17,9 +17,7 @@ pytestmark = pytest.mark.integration
 
 
 def _key(sha: str = "c" * 64) -> ParseKey:
-    return ParseKey.for_document(
-        sha, etl_service="LLAMACLOUD", mode="basic", version=1
-    )
+    return ParseKey.for_document(sha, etl_service="LLAMACLOUD", mode="basic", version=1)
 
 
 async def test_recall_is_a_miss_for_an_unknown_key(db_session, cache_local_storage):

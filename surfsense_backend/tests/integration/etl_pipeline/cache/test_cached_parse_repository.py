@@ -18,9 +18,7 @@ pytestmark = pytest.mark.integration
 
 
 def _key(sha: str) -> ParseKey:
-    return ParseKey.for_document(
-        sha, etl_service="LLAMACLOUD", mode="basic", version=1
-    )
+    return ParseKey.for_document(sha, etl_service="LLAMACLOUD", mode="basic", version=1)
 
 
 async def _insert(repo, *, sha, size=100, storage_key=None):

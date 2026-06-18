@@ -22,13 +22,13 @@ class EmbeddingCacheStore:
     def backend_name(self) -> str:
         return self._backend.backend_name
 
-    async def save(self, key: EmbeddingKey, embedding_set: EmbeddingSet) -> tuple[str, int]:
+    async def save(
+        self, key: EmbeddingKey, embedding_set: EmbeddingSet
+    ) -> tuple[str, int]:
         """Persist the embedding set and return its storage key and byte size."""
         blob = serialize(embedding_set)
         storage_key = build_embedding_object_key(key)
-        await self._backend.put(
-            storage_key, blob, content_type=_EMBEDDING_CONTENT_TYPE
-        )
+        await self._backend.put(storage_key, blob, content_type=_EMBEDDING_CONTENT_TYPE)
         return storage_key, len(blob)
 
     async def load(self, storage_key: str) -> EmbeddingSet:

@@ -34,7 +34,9 @@ async def _evict() -> None:
         index = CachedParseRepository(session)
 
         cutoff = datetime.now(UTC) - timedelta(days=settings.ttl_days)
-        expired = await index.select_expired(cutoff=cutoff, limit=settings.eviction_batch)
+        expired = await index.select_expired(
+            cutoff=cutoff, limit=settings.eviction_batch
+        )
         await _drop(index, store, expired, phase="ttl")
 
         total = await index.total_size_bytes()

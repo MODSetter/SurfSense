@@ -31,7 +31,9 @@ def serialize(embedding_set: EmbeddingSet) -> bytes:
     for chunk in embedding_set.chunks:
         vector = np.asarray(chunk.embedding, dtype=np.float32).reshape(-1)
         if vector.shape[0] != dim:
-            raise ValueError("All vectors in an embedding set must share one dimension.")
+            raise ValueError(
+                "All vectors in an embedding set must share one dimension."
+            )
         rows.append(vector)
         texts.append(chunk.text)
 
@@ -67,5 +69,7 @@ def deserialize(blob: bytes) -> EmbeddingSet:
 
     return EmbeddingSet(
         summary_embedding=matrix[0],
-        chunks=[CachedChunk(text=texts[i], embedding=matrix[i + 1]) for i in range(count)],
+        chunks=[
+            CachedChunk(text=texts[i], embedding=matrix[i + 1]) for i in range(count)
+        ],
     )

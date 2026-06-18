@@ -927,7 +927,9 @@ class Config:
         AZURE_DI_KEY = os.getenv("AZURE_DI_KEY")
 
     # ETL parse cache: reuse parser output for identical bytes across workspaces.
-    ETL_CACHE_ENABLED = os.getenv("ETL_CACHE_ENABLED", "false").strip().lower() == "true"
+    ETL_CACHE_ENABLED = (
+        os.getenv("ETL_CACHE_ENABLED", "false").strip().lower() == "true"
+    )
     # Bump to invalidate every cached entry after a parser/behaviour change.
     ETL_CACHE_PARSER_VERSION = int(os.getenv("ETL_CACHE_PARSER_VERSION", "1"))
     ETL_CACHE_TTL_DAYS = int(os.getenv("ETL_CACHE_TTL_DAYS", "90"))
@@ -948,7 +950,9 @@ class Config:
         os.getenv("EMBEDDING_CACHE_CHUNKER_VERSION", "1")
     )
     EMBEDDING_CACHE_TTL_DAYS = int(os.getenv("EMBEDDING_CACHE_TTL_DAYS", "90"))
-    EMBEDDING_CACHE_MAX_TOTAL_MB = int(os.getenv("EMBEDDING_CACHE_MAX_TOTAL_MB", "5120"))
+    EMBEDDING_CACHE_MAX_TOTAL_MB = int(
+        os.getenv("EMBEDDING_CACHE_MAX_TOTAL_MB", "5120")
+    )
     EMBEDDING_CACHE_EVICTION_BATCH = int(
         os.getenv("EMBEDDING_CACHE_EVICTION_BATCH", "500")
     )

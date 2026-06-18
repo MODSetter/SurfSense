@@ -66,9 +66,7 @@ async def test_identical_uploads_are_parsed_once_then_served_from_cache(
     assert second.content_type == "application/pdf"
 
 
-async def test_disabled_cache_parses_every_time(
-    tmp_path, monkeypatch, counting_parser
-):
+async def test_disabled_cache_parses_every_time(tmp_path, monkeypatch, counting_parser):
     monkeypatch.setattr(config, "ETL_CACHE_ENABLED", False)
     monkeypatch.setattr(config, "ETL_SERVICE", "LLAMACLOUD")
 
