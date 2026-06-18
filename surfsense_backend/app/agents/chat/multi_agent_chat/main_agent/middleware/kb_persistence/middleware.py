@@ -18,7 +18,6 @@ skipped (e.g. client disconnect).
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -58,9 +57,8 @@ from app.db import (
     FolderRevision,
     shielded_async_session,
 )
-from app.indexing_pipeline.document_chunker import chunk_text
+from app.indexing_pipeline.cache.cached_indexing import build_chunk_embeddings
 from app.utils.document_converters import (
-    embed_texts,
     generate_content_hash,
     generate_unique_identifier_hash,
 )
@@ -234,24 +232,23 @@ async def _create_document(
     session.add(doc)
     await session.flush()
 
-    summary_embedding = (await asyncio.to_thread(embed_texts, [content]))[0]
+    summary_embedding, chunk_embeddings = await build_chunk_embeddings(
+        content, use_code_chunker=False
+    )
     doc.embedding = summary_embedding
-    chunks = chunk_text(content)
-    if chunks:
-        chunk_embeddings = await asyncio.to_thread(embed_texts, chunks)
-        session.add_all(
-            [
-                Chunk(
-                    document_id=doc.id,
-                    content=text,
-                    embedding=embedding,
-                    position=i,
-                )
-                for i, (text, embedding) in enumerate(
-                    zip(chunks, chunk_embeddings, strict=True)
-                )
-            ]
-        )
+    session.add_all(
+        [
+            Chunk(
+                document_id=doc.id,
+                content=sl.text,
+                embedding=embedding,
+                position=i,
+                start_char=sl.start_char,
+                end_char=sl.end_char,
+            )
+            for i, (sl, embedding) in enumerate(chunk_embeddings)
+        ]
+    )
     return doc
 
 
@@ -287,26 +284,25 @@ async def _update_document(
         search_space_id,
     )
 
-    summary_embedding = (await asyncio.to_thread(embed_texts, [content]))[0]
+    summary_embedding, chunk_embeddings = await build_chunk_embeddings(
+        content, use_code_chunker=False
+    )
     document.embedding = summary_embedding
 
     await session.execute(delete(Chunk).where(Chunk.document_id == document.id))
-    chunks = chunk_text(content)
-    if chunks:
-        chunk_embeddings = await asyncio.to_thread(embed_texts, chunks)
-        session.add_all(
-            [
-                Chunk(
-                    document_id=document.id,
-                    content=text,
-                    embedding=embedding,
-                    position=i,
-                )
-                for i, (text, embedding) in enumerate(
-                    zip(chunks, chunk_embeddings, strict=True)
-                )
-            ]
-        )
+    session.add_all(
+        [
+            Chunk(
+                document_id=document.id,
+                content=sl.text,
+                embedding=embedding,
+                position=i,
+                start_char=sl.start_char,
+                end_char=sl.end_char,
+            )
+            for i, (sl, embedding) in enumerate(chunk_embeddings)
+        ]
+    )
     return document
 
 
