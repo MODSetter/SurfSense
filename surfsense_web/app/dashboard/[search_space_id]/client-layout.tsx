@@ -44,9 +44,8 @@ export function DashboardClientLayout({
 	);
 	const { data: modelConnections = [], isLoading: modelConnectionsLoading } =
 		useAtomValue(modelConnectionsAtom);
-	const { data: globalConfigStatus, isLoading: globalConfigStatusLoading } = useAtomValue(
-		globalLlmConfigStatusAtom
-	);
+	const { data: globalConfigStatus, isLoading: globalConfigStatusLoading } =
+		useAtomValue(globalLlmConfigStatusAtom);
 
 	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);

@@ -25,9 +25,8 @@ export default function OnboardPage() {
 	);
 	const { data: connections = [] } = useAtomValue(modelConnectionsAtom);
 	const { data: roles = {}, isLoading: rolesLoading } = useAtomValue(modelRolesAtom);
-	const { data: globalConfigStatus, isLoading: globalConfigStatusLoading } = useAtomValue(
-		globalLlmConfigStatusAtom
-	);
+	const { data: globalConfigStatus, isLoading: globalConfigStatusLoading } =
+		useAtomValue(globalLlmConfigStatusAtom);
 
 	useEffect(() => {
 		if (!getBearerToken()) redirectToLogin();
