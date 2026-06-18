@@ -1463,8 +1463,10 @@ class Chunk(BaseModel, TimestampMixin):
     content = Column(Text, nullable=False)
     embedding = Column(Vector(config.embedding_model_instance.dimension))
     # Explicit document order; ids don't follow it since incremental
-    # re-indexing keeps unchanged rows across edits.
-    position = Column(Integer, nullable=False, server_default="0", index=True)
+    # re-indexing keeps unchanged rows across edits. Deliberately not indexed:
+    # ordering reads are document-scoped (covered by ix_chunks_document_id) and
+    # building a position index on the large chunks table is not worth it.
+    position = Column(Integer, nullable=False, server_default="0")
 
     document_id = Column(
         Integer,
