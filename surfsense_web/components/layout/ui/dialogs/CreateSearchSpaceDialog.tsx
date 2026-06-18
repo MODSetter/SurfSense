@@ -67,7 +67,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 
 			trackSearchSpaceCreated(result.id, values.name);
 
-			router.push(`/dashboard/${result.id}/onboard`);
+			router.push(`/dashboard/${result.id}/new-chat`);
 		} catch (error) {
 			console.error("Failed to create search space:", error);
 			setIsSubmitting(false);

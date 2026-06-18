@@ -4,6 +4,7 @@ import { useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import {
+	globalLlmConfigStatusAtom,
 	globalModelConnectionsAtom,
 	modelConnectionsAtom,
 	modelRolesAtom,
@@ -24,6 +25,9 @@ export default function OnboardPage() {
 	);
 	const { data: connections = [] } = useAtomValue(modelConnectionsAtom);
 	const { data: roles = {}, isLoading: rolesLoading } = useAtomValue(modelRolesAtom);
+	const { data: globalConfigStatus, isLoading: globalConfigStatusLoading } = useAtomValue(
+		globalLlmConfigStatusAtom
+	);
 
 	useEffect(() => {
 		if (!getBearerToken()) redirectToLogin();
@@ -40,10 +44,22 @@ export default function OnboardPage() {
 		connections
 	);
 
-	const isLoading = globalLoading || rolesLoading;
-	useGlobalLoadingEffect(isLoading);
+	const isLoading = globalLoading || rolesLoading || globalConfigStatusLoading;
 
-	if (isLoading) return null;
+	// Onboarding only applies when no global_llm_config.yaml exists. If a global
+	// config is present (or onboarding is already complete), leave this page.
+	const shouldLeaveOnboarding =
+		!isLoading && (Boolean(globalConfigStatus?.exists) || onboardingComplete);
+
+	useEffect(() => {
+		if (shouldLeaveOnboarding) {
+			router.replace(`/dashboard/${searchSpaceId}/new-chat`);
+		}
+	}, [shouldLeaveOnboarding, router, searchSpaceId]);
+
+	useGlobalLoadingEffect(isLoading || shouldLeaveOnboarding);
+
+	if (isLoading || shouldLeaveOnboarding) return null;
 
 	return (
 		<div className="flex min-h-screen select-none flex-col items-center justify-center bg-main-panel p-4">

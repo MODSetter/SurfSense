@@ -6,6 +6,8 @@ import {
 	connectionListResponse,
 	connectionRead,
 	connectionUpdateRequest,
+	type GlobalLlmConfigStatus,
+	globalLlmConfigStatus,
 	type ModelCreateRequest,
 	type ModelPreviewRead,
 	type ModelProviderRead,
@@ -32,6 +34,10 @@ import { baseApiService } from "./base-api.service";
 class ModelConnectionsApiService {
 	getGlobalConnections = async (): Promise<ConnectionRead[]> => {
 		return baseApiService.get(`/api/v1/global-model-connections`, connectionListResponse);
+	};
+
+	getGlobalLlmConfigStatus = async (): Promise<GlobalLlmConfigStatus> => {
+		return baseApiService.get(`/api/v1/global-llm-config-status`, globalLlmConfigStatus);
 	};
 
 	getModelProviders = async (): Promise<ModelProviderRead[]> => {

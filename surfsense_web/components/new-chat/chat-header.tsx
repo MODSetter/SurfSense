@@ -1,5 +1,6 @@
 "use client";
 
+import { ImageModelSelector } from "./image-model-selector";
 import { ModelSelector } from "./model-selector";
 
 interface ChatHeaderProps {
@@ -16,6 +17,7 @@ export function ChatHeader({ searchSpaceId, className, onChatModelSelected }: Ch
 				className={className}
 				onChatModelSelected={onChatModelSelected}
 			/>
+			<ImageModelSelector searchSpaceId={searchSpaceId} className={className} />
 		</div>
 	);
 }

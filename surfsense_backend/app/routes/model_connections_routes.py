@@ -317,6 +317,12 @@ async def _assert_connection_access(
         )
 
 
+@router.get("/global-llm-config-status")
+async def global_llm_config_status(user: User = Depends(current_active_user)):
+    del user
+    return {"exists": config.GLOBAL_LLM_CONFIG_FILE_EXISTS}
+
+
 @router.get("/global-model-connections", response_model=list[ConnectionRead])
 async def list_global_connections(user: User = Depends(current_active_user)):
     del user

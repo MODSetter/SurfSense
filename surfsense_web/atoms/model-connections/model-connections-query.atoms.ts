@@ -11,6 +11,13 @@ export const globalModelConnectionsAtom = atomWithQuery(() => ({
 	queryFn: () => modelConnectionsApiService.getGlobalConnections(),
 }));
 
+export const globalLlmConfigStatusAtom = atomWithQuery(() => ({
+	queryKey: cacheKeys.modelConnections.globalConfigStatus(),
+	enabled: !!getBearerToken(),
+	staleTime: 60 * 60 * 1000,
+	queryFn: () => modelConnectionsApiService.getGlobalLlmConfigStatus(),
+}));
+
 export const modelProvidersAtom = atomWithQuery(() => ({
 	queryKey: cacheKeys.modelConnections.providers(),
 	enabled: !!getBearerToken(),

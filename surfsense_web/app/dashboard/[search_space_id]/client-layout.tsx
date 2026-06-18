@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import {
+	globalLlmConfigStatusAtom,
 	globalModelConnectionsAtom,
 	modelConnectionsAtom,
 	modelRolesAtom,
@@ -43,6 +44,9 @@ export function DashboardClientLayout({
 	);
 	const { data: modelConnections = [], isLoading: modelConnectionsLoading } =
 		useAtomValue(modelConnectionsAtom);
+	const { data: globalConfigStatus, isLoading: globalConfigStatusLoading } = useAtomValue(
+		globalLlmConfigStatusAtom
+	);
 
 	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
@@ -67,9 +71,18 @@ export function DashboardClientLayout({
 			!loading &&
 			!accessLoading &&
 			!globalConfigsLoading &&
+			!globalConfigStatusLoading &&
 			!modelConnectionsLoading &&
 			!hasCheckedOnboarding
 		) {
+			// Onboarding is only relevant when no operator-provided
+			// global_llm_config.yaml exists. When it does, search spaces inherit
+			// the global config and should never be forced into onboarding.
+			if (globalConfigStatus?.exists) {
+				setHasCheckedOnboarding(true);
+				return;
+			}
+
 			const onboardingComplete = isLlmOnboardingComplete(
 				modelRoles.chat_model_id,
 				globalConnections,
@@ -94,6 +107,8 @@ export function DashboardClientLayout({
 		loading,
 		accessLoading,
 		globalConfigsLoading,
+		globalConfigStatusLoading,
+		globalConfigStatus,
 		modelConnectionsLoading,
 		modelRoles.chat_model_id,
 		globalConnections,
@@ -159,6 +174,7 @@ export function DashboardClientLayout({
 			loading ||
 			accessLoading ||
 			globalConfigsLoading ||
+			globalConfigStatusLoading ||
 			modelConnectionsLoading) &&
 		!isOnboardingPage;
 

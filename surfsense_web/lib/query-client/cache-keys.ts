@@ -39,6 +39,7 @@ export const cacheKeys = {
 	modelConnections: {
 		all: (searchSpaceId: number) => ["model-connections", searchSpaceId] as const,
 		global: () => ["model-connections", "global"] as const,
+		globalConfigStatus: () => ["model-connections", "global-config-status"] as const,
 		providers: () => ["model-connections", "providers"] as const,
 		roles: (searchSpaceId: number) => ["model-roles", searchSpaceId] as const,
 	},
