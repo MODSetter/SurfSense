@@ -1251,7 +1251,6 @@ async def list_thread_snapshots(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     List all public snapshots for this thread.
 
@@ -1263,7 +1262,7 @@ async def list_thread_snapshots(
         snapshots=await list_snapshots_for_thread(
             session=session,
             thread_id=thread_id,
-            user=user,
+            auth=auth,
         )
     )
 
@@ -1275,7 +1274,6 @@ async def delete_thread_snapshot(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Delete a specific snapshot.
 
@@ -1287,7 +1285,7 @@ async def delete_thread_snapshot(
         session=session,
         thread_id=thread_id,
         snapshot_id=snapshot_id,
-        user=user,
+        auth=auth,
     )
     return {"message": "Snapshot deleted successfully"}
 
