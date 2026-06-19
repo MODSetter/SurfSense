@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     SearchSourceConnector,
@@ -25,7 +26,7 @@ from app.db import (
     get_async_session,
 )
 from app.schemas.slack_auth_credentials import SlackAuthCredentialsBase
-from app.users import current_active_user
+from app.users import current_active_user, require_session_context
 from app.utils.connector_naming import (
     check_duplicate_connector,
     extract_identifier_from_credentials,
@@ -78,7 +79,10 @@ def get_token_encryption() -> TokenEncryption:
 
 
 @router.get("/auth/slack/connector/add")
-async def connect_slack(space_id: int, user: User = Depends(current_active_user)):
+async def connect_slack(
+    space_id: int,
+    auth: AuthContext = Depends(require_session_context),
+):
     """
     Initiate Slack OAuth flow.
 
@@ -89,6 +93,7 @@ async def connect_slack(space_id: int, user: User = Depends(current_active_user)
     Returns:
         Authorization URL for redirect
     """
+    user = auth.user
     try:
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")

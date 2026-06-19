@@ -10,16 +10,16 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.connectors.airtable_connector import fetch_airtable_user_email
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
-from app.users import current_active_user
+from app.users import require_session_context
 from app.utils.connector_naming import (
     check_duplicate_connector,
     generate_unique_connector_name,
@@ -78,7 +78,10 @@ def make_basic_auth_header(client_id: str, client_secret: str) -> str:
 
 
 @router.get("/auth/airtable/connector/add")
-async def connect_airtable(space_id: int, user: User = Depends(current_active_user)):
+async def connect_airtable(
+    space_id: int,
+    auth: AuthContext = Depends(require_session_context),
+):
     """
     Initiate Airtable OAuth flow.
 
@@ -89,6 +92,7 @@ async def connect_airtable(space_id: int, user: User = Depends(current_active_us
     Returns:
         Authorization URL for redirect
     """
+    user = auth.user
     try:
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")

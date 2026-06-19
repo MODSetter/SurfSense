@@ -14,9 +14,10 @@ from fastapi_users.authentication import (
 from fastapi_users.db import SQLAlchemyUserDatabase
 from pydantic import BaseModel
 from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.auth.context import AuthContext
+from app.config import config
 from app.db import (
     Prompt,
     SearchSpace,
@@ -31,7 +32,6 @@ from app.db import (
 from app.prompts.system_defaults import SYSTEM_PROMPT_DEFAULTS
 from app.utils.pat import PAT_PREFIX, maybe_touch_last_used, resolve_pat
 from app.utils.refresh_tokens import create_refresh_token
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -308,6 +308,12 @@ async def get_auth_context(
     session: AsyncSession = Depends(get_async_session),
     user_manager: UserManager = Depends(get_user_manager),
 ) -> AuthContext:
+    """Resolve the authenticated principal.
+
+    Use this for authorization-sensitive routes where session-vs-PAT matters.
+    FastAPI-Users still handles JWT mechanics; PATs are resolved here so RBAC
+    receives the full SurfSense principal instead of a bare User.
+    """
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         raise HTTPException(
@@ -346,12 +352,18 @@ async def get_auth_context(
 async def current_active_user(
     auth: AuthContext = Depends(get_auth_context),
 ) -> User:
+    """Compatibility wrapper for identity-only routes.
+
+    Do not use this for space-scoped authorization or session-grade account
+    actions. Those should depend on get_auth_context or require_session_context.
+    """
     return auth.user
 
 
 async def require_session_context(
     auth: AuthContext = Depends(get_auth_context),
 ) -> AuthContext:
+    """Require an interactive session and reject PAT-authenticated requests."""
     if not auth.is_session:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

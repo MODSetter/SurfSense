@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
+from app.auth.context import AuthContext
 from app.db import User, async_session_maker
 from app.schemas.auth import (
     LogoutAllResponse,
@@ -13,7 +14,7 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     RefreshTokenResponse,
 )
-from app.users import current_active_user, get_jwt_strategy
+from app.users import get_jwt_strategy, require_session_context
 from app.utils.refresh_tokens import (
     revoke_all_user_tokens,
     revoke_refresh_token,
@@ -83,11 +84,14 @@ async def revoke_token(request: LogoutRequest):
 
 
 @router.post("/logout-all", response_model=LogoutAllResponse)
-async def logout_all_devices(user: User = Depends(current_active_user)):
+async def logout_all_devices(
+    auth: AuthContext = Depends(require_session_context),
+):
     """
     Logout from all devices by revoking all refresh tokens for the user.
     Requires valid access token.
     """
+    user = auth.user
     await revoke_all_user_tokens(user.id)
     logger.info(f"User {user.id} logged out from all devices")
     return LogoutAllResponse()

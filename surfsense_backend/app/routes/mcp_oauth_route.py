@@ -20,14 +20,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
-from app.users import current_active_user
+from app.users import require_session_context
 from app.utils.connector_naming import generate_unique_connector_name
 from app.utils.oauth_security import (
     OAuthStateManager,
@@ -164,8 +164,9 @@ def _frontend_redirect(
 async def connect_mcp_service(
     service: str,
     space_id: int,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ):
+    user = auth.user
     from app.services.mcp_oauth.registry import get_service
 
     svc = get_service(service)
@@ -523,9 +524,10 @@ async def reauth_mcp_service(
     space_id: int,
     connector_id: int,
     return_url: str | None = None,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
+    user = auth.user
     from app.services.mcp_oauth.registry import get_service
 
     svc = get_service(service)

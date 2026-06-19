@@ -15,15 +15,15 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
 from app.schemas.atlassian_auth_credentials import AtlassianAuthCredentialsBase
-from app.users import current_active_user
+from app.users import require_session_context
 from app.utils.connector_naming import (
     check_duplicate_connector,
     extract_identifier_from_credentials,
@@ -77,7 +77,10 @@ def get_token_encryption() -> TokenEncryption:
 
 
 @router.get("/auth/confluence/connector/add")
-async def connect_confluence(space_id: int, user: User = Depends(current_active_user)):
+async def connect_confluence(
+    space_id: int,
+    auth: AuthContext = Depends(require_session_context),
+):
     """
     Initiate Confluence OAuth flow.
 
@@ -88,6 +91,7 @@ async def connect_confluence(space_id: int, user: User = Depends(current_active_
     Returns:
         Authorization URL for redirect
     """
+    user = auth.user
     try:
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
@@ -421,10 +425,11 @@ async def reauth_confluence(
     space_id: int,
     connector_id: int,
     return_url: str | None = None,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
     """Initiate Confluence re-authentication to upgrade OAuth scopes."""
+    user = auth.user
     try:
         from sqlalchemy.future import select
 

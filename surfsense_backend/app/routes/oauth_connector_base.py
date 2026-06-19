@@ -24,14 +24,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
-from app.users import current_active_user
+from app.users import require_session_context
 from app.utils.connector_naming import (
     check_duplicate_connector,
     generate_unique_connector_name,
@@ -361,8 +361,9 @@ class OAuthConnectorRoute:
         @router.get(f"{oauth.auth_prefix}/connector/add")
         async def connect(
             space_id: int,
-            user: User = Depends(current_active_user),
+            auth: AuthContext = Depends(require_session_context),
         ):
+            user = auth.user
             if not space_id:
                 raise HTTPException(status_code=400, detail="space_id is required")
 
@@ -406,9 +407,10 @@ class OAuthConnectorRoute:
             space_id: int,
             connector_id: int,
             return_url: str | None = None,
-            user: User = Depends(current_active_user),
+            auth: AuthContext = Depends(require_session_context),
             session: AsyncSession = Depends(get_async_session),
         ):
+            user = auth.user
             result = await session.execute(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.id == connector_id,

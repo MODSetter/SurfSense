@@ -15,15 +15,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.connectors.google_gmail_connector import fetch_google_user_email
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
-from app.users import current_active_user
+from app.users import require_session_context
 from app.utils.connector_naming import (
     check_duplicate_connector,
     generate_unique_connector_name,
@@ -92,7 +92,10 @@ def get_google_flow():
 
 
 @router.get("/auth/google/gmail/connector/add")
-async def connect_gmail(space_id: int, user: User = Depends(current_active_user)):
+async def connect_gmail(
+    space_id: int,
+    auth: AuthContext = Depends(require_session_context),
+):
     """
     Initiate Google Gmail OAuth flow.
 
@@ -102,6 +105,7 @@ async def connect_gmail(space_id: int, user: User = Depends(current_active_user)
     Returns:
         JSON with auth_url to redirect user to Google authorization
     """
+    user = auth.user
     try:
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
@@ -145,10 +149,11 @@ async def reauth_gmail(
     space_id: int,
     connector_id: int,
     return_url: str | None = None,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
     """Initiate Gmail re-authentication for an existing connector."""
+    user = auth.user
     try:
         result = await session.execute(
             select(SearchSourceConnector).filter(

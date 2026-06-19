@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     SearchSourceConnector,
@@ -35,7 +36,7 @@ from app.services.composio_service import (
     TOOLKIT_TO_CONNECTOR_TYPE,
     ComposioService,
 )
-from app.users import current_active_user
+from app.users import current_active_user, require_session_context
 from app.utils.connector_naming import (
     count_connectors_of_type,
     get_base_name_for_type,
@@ -98,7 +99,7 @@ async def initiate_composio_auth(
     toolkit_id: str = Query(
         ..., description="Composio toolkit ID (e.g., 'googledrive', 'gmail')"
     ),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ):
     """
     Initiate Composio OAuth flow for a specific toolkit.
@@ -110,6 +111,7 @@ async def initiate_composio_auth(
     Returns:
         JSON with auth_url to redirect user to Composio authorization
     """
+    user = auth.user
     if not ComposioService.is_enabled():
         raise HTTPException(
             status_code=503,
@@ -446,7 +448,7 @@ async def reauth_composio_connector(
     space_id: int,
     connector_id: int,
     return_url: str | None = None,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -460,6 +462,7 @@ async def reauth_composio_connector(
         connector_id: ID of the existing Composio connector to re-authenticate
         return_url: Optional frontend path to redirect to after completion
     """
+    user = auth.user
     if not ComposioService.is_enabled():
         raise HTTPException(
             status_code=503, detail="Composio integration is not enabled."
