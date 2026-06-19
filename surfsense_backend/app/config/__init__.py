@@ -919,6 +919,10 @@ class Config:
     REFRESH_TOKEN_LIFETIME_SECONDS = int(
         os.getenv("REFRESH_TOKEN_LIFETIME_SECONDS", str(14 * 24 * 60 * 60))  # 2 weeks
     )
+    _PAT_MAX_EXPIRY_DAYS = os.getenv("PAT_MAX_EXPIRY_DAYS", "").strip()
+    PAT_MAX_EXPIRY_DAYS = (
+        int(_PAT_MAX_EXPIRY_DAYS) if _PAT_MAX_EXPIRY_DAYS else None
+    )
 
     # ETL Service
     ETL_SERVICE = os.getenv("ETL_SERVICE")
