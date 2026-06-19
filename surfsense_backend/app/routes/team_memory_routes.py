@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import User, get_async_session
 from app.services.memory import (
     MemoryRead,
@@ -15,7 +16,7 @@ from app.services.memory import (
     reset_memory,
     save_memory,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_search_space_access
 
 router = APIRouter()
@@ -29,9 +30,10 @@ class TeamMemoryUpdate(BaseModel):
 async def get_team_memory(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
-    await check_search_space_access(session, user, search_space_id)
+    user = auth.user
+    await check_search_space_access(session, auth, search_space_id)
     memory_md = await read_memory(
         scope=MemoryScope.TEAM,
         target_id=search_space_id,
@@ -45,9 +47,10 @@ async def update_team_memory(
     search_space_id: int,
     body: TeamMemoryUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
-    await check_search_space_access(session, user, search_space_id)
+    user = auth.user
+    await check_search_space_access(session, auth, search_space_id)
     result = await save_memory(
         scope=MemoryScope.TEAM,
         target_id=search_space_id,
@@ -63,9 +66,10 @@ async def update_team_memory(
 async def reset_team_memory(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
-    await check_search_space_access(session, user, search_space_id)
+    user = auth.user
+    await check_search_space_access(session, auth, search_space_id)
     result = await reset_memory(
         scope=MemoryScope.TEAM,
         target_id=search_space_id,

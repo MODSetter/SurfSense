@@ -28,6 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import (
     Report,
     SearchSpace,
@@ -42,7 +43,7 @@ from app.templates.export_helpers import (
     get_reference_docx_path,
     get_typst_template_path,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_search_space_access
 
 logger = logging.getLogger(__name__)
@@ -158,8 +159,9 @@ def _normalize_latex_delimiters(text: str) -> str:
 async def _get_report_with_access(
     report_id: int,
     session: AsyncSession,
-    user: User,
+    auth: AuthContext,
 ) -> Report:
+    user = auth.user
     """Fetch a report and verify the user belongs to its search space.
 
     Raises HTTPException(404) if not found, HTTPException(403) if no access.
@@ -172,7 +174,7 @@ async def _get_report_with_access(
 
     # Lightweight membership check - no granular RBAC, just "is the user a
     # member of the search space this report belongs to?"
-    await check_search_space_access(session, user, report.search_space_id)
+    await check_search_space_access(session, auth, report.search_space_id)
 
     return report
 
@@ -206,8 +208,9 @@ async def read_reports(
     limit: int = Query(default=100, ge=1, le=MAX_REPORT_LIST_LIMIT),
     search_space_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     List reports the user has access to.
     Filters by search space membership.
@@ -215,7 +218,7 @@ async def read_reports(
     try:
         if search_space_id is not None:
             # Verify the caller is a member of the requested search space
-            await check_search_space_access(session, user, search_space_id)
+            await check_search_space_access(session, auth, search_space_id)
 
             result = await session.execute(
                 select(Report)
@@ -247,8 +250,9 @@ async def read_reports(
 async def read_report(
     report_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Get a specific report by ID (metadata only, no content).
     """
@@ -266,8 +270,9 @@ async def read_report(
 async def read_report_content(
     report_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Get full Markdown content of a report, including version siblings.
     """
@@ -298,8 +303,9 @@ async def update_report_content(
     report_id: int,
     body: ReportContentUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Update the Markdown content of a report.
 
@@ -339,8 +345,9 @@ async def update_report_content(
 async def preview_report_pdf(
     report_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Return a compiled PDF preview for Typst-based reports (resumes).
 
@@ -394,8 +401,9 @@ async def export_report(
         description="Export format: pdf, docx, html, latex, epub, odt, or plain",
     ),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Export a report in the requested format.
     """
@@ -568,8 +576,9 @@ async def export_report(
 async def delete_report(
     report_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Delete a report.
     """
