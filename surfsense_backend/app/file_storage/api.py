@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.db import Document, Permission, User, get_async_session
+from app.db import Document, Permission, get_async_session
 from app.file_storage.persistence.enums import DocumentFileKind
 from app.file_storage.schemas import DocumentFileRead
 from app.file_storage.service import (
@@ -25,7 +25,7 @@ router = APIRouter()
 
 
 async def _load_readable_document(
-    *, document_id: int, session: AsyncSession, user: User
+    *, document_id: int, session: AsyncSession, auth: AuthContext
 ) -> Document:
     """Load a document the user may read, or raise 404/403."""
     document = (
@@ -60,9 +60,8 @@ async def read_document_files(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ) -> list[DocumentFileRead]:
-    user = auth.user
     """Return metadata for every stored file of a document (gates the UI)."""
-    await _load_readable_document(document_id=document_id, session=session, user=user)
+    await _load_readable_document(document_id=document_id, session=session, auth=auth)
     records = await list_document_files(session, document_id=document_id)
     return [DocumentFileRead.model_validate(r) for r in records]
 
@@ -73,9 +72,8 @@ async def download_original_document_file(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ) -> StreamingResponse:
-    user = auth.user
     """Stream the document's original uploaded file."""
-    await _load_readable_document(document_id=document_id, session=session, user=user)
+    await _load_readable_document(document_id=document_id, session=session, auth=auth)
 
     record = await get_document_file(
         session, document_id=document_id, kind=DocumentFileKind.ORIGINAL
