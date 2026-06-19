@@ -51,7 +51,7 @@ Open **Settings → SurfSense** in Obsidian and fill in:
 | Setting | Value |
 | --- | --- |
 | Server URL | `https://surfsense.com` for SurfSense Cloud, or your self-hosted URL |
-| API token | Copy from the *Connectors → Obsidian* dialog in the SurfSense web app |
+| API token | Create a personal access token from the *Connectors → Obsidian* dialog or *User settings → API access* in the SurfSense web app |
 | Search space | Pick the search space this vault should sync into |
 | Vault name | Defaults to your Obsidian vault name; rename if you have multiple vaults |
 | Sync mode | *Auto* (recommended) or *Manual* |
@@ -61,11 +61,6 @@ Open **Settings → SurfSense** in Obsidian and fill in:
 The connector row appears automatically inside SurfSense the first time the
 plugin successfully calls `/obsidian/connect`. You can manage or delete it
 from *Connectors → Obsidian* in the web app.
-
-> **Token lifetime.** The web app currently issues 24-hour JWTs. If you see
-> *"token expired"* in the plugin status bar, paste a fresh token from the
-> SurfSense web app. Long-lived personal access tokens are coming in a future
-> release.
 
 ## Mobile
 
