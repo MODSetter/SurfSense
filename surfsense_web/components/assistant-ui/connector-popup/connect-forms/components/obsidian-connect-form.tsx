@@ -2,10 +2,12 @@
 
 import { Check, Copy, Info } from "lucide-react";
 import type { FC } from "react";
+import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import { useApiKey } from "@/hooks/use-api-key";
+import { usePats } from "@/hooks/use-pats";
+import { copyToClipboard } from "@/lib/utils";
 import { getConnectorBenefits } from "../connector-benefits";
 import type { ConnectFormProps } from "../index";
 
@@ -26,11 +28,21 @@ const PLUGIN_RELEASES_URL =
  * nothing to validate or persist from this side.
  */
 export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
-	const { apiKey, isLoading, copied, copyToClipboard } = useApiKey();
+	const { createdToken, isMutating, createToken } = usePats();
+	const [copied, setCopied] = useState(false);
 
 	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		onBack();
+	};
+
+	const createAndCopyToken = async () => {
+		const token = await createToken({ label: "Obsidian plugin", expires_in_days: null });
+		const success = await copyToClipboard(token.token);
+		if (success) {
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		}
 	};
 
 	return (
@@ -82,48 +94,51 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 
 					<div className="h-px bg-border/60" />
 
-					{/* Step 2 — Copy API key */}
+					{/* Step 2 — Create PAT */}
 					<article>
 						<header className="mb-3 flex items-center gap-2">
 							<div className="flex size-7 items-center justify-center rounded-md border border-slate-400/30 text-xs font-medium">
 								2
 							</div>
-							<h3 className="text-sm font-medium sm:text-base">Copy your API key</h3>
+							<h3 className="text-sm font-medium sm:text-base">
+								Create a personal access token
+							</h3>
 						</header>
 						<p className="mb-3 text-[11px] text-muted-foreground sm:text-xs">
-							Paste this into the plugin's <span className="font-medium">API token</span> setting.
-							The token expires after 24 hours. Long-lived personal access tokens are coming in a
-							future release.
+							Create a token and paste it into the plugin's{" "}
+							<span className="font-medium">API token</span> setting. The token is shown only once.
 						</p>
 
-						{isLoading ? (
-							<div className="h-10 w-full animate-pulse rounded-md border border-border/60 bg-muted/30" />
-						) : apiKey ? (
+						{createdToken ? (
 							<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
 								<div className="min-w-0 flex-1 overflow-x-auto scrollbar-hide">
 									<p className="cursor-text select-all whitespace-nowrap font-mono text-[10px] text-muted-foreground">
-										{apiKey}
+										{createdToken.token}
 									</p>
 								</div>
 								<Button
 									type="button"
 									variant="ghost"
 									size="icon"
-									onClick={copyToClipboard}
+									onClick={() => copyToClipboard(createdToken.token)}
 									className="size-7 shrink-0 text-muted-foreground hover:text-accent-foreground"
-									aria-label={copied ? "Copied" : "Copy API key"}
+									aria-label="Copy personal access token"
 								>
-									{copied ? (
-										<Check className="size-3.5 text-green-500" />
-									) : (
-										<Copy className="size-3.5" />
-									)}
+									<Copy className="size-3.5" />
 								</Button>
 							</div>
 						) : (
-							<p className="text-center text-xs text-muted-foreground/60">
-								No API key available — try refreshing the page.
-							</p>
+							<Button
+								type="button"
+								variant="secondary"
+								size="sm"
+								disabled={isMutating}
+								onClick={createAndCopyToken}
+								className="gap-2 text-xs sm:text-sm"
+							>
+								{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+								{copied ? "Created and copied" : "Create and copy token"}
+							</Button>
 						)}
 					</article>
 
