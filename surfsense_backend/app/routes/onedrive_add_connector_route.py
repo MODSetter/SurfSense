@@ -27,16 +27,16 @@ from app.connectors.onedrive import OneDriveClient, list_folder_contents
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
-from app.users import current_active_user, require_session_context
+from app.users import get_auth_context, require_session_context
 from app.utils.connector_naming import (
     check_duplicate_connector,
     extract_identifier_from_credentials,
     generate_unique_connector_name,
 )
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
+from app.utils.rbac import check_search_space_access
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -418,10 +418,11 @@ async def list_onedrive_folders(
     connector_id: int,
     parent_id: str | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """List folders and files in user's OneDrive."""
     connector = None
+    user = auth.user
     try:
         result = await session.execute(
             select(SearchSourceConnector).filter(
@@ -436,6 +437,8 @@ async def list_onedrive_folders(
             raise HTTPException(
                 status_code=404, detail="OneDrive connector not found or access denied"
             )
+
+        await check_search_space_access(session, auth, connector.search_space_id)
 
         onedrive_client = OneDriveClient(session, connector_id)
         items, error = await list_folder_contents(onedrive_client, parent_id=parent_id)

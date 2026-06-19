@@ -27,7 +27,6 @@ from app.config import config
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
 from app.services.composio_service import (
@@ -36,12 +35,13 @@ from app.services.composio_service import (
     TOOLKIT_TO_CONNECTOR_TYPE,
     ComposioService,
 )
-from app.users import current_active_user, require_session_context
+from app.users import get_auth_context, require_session_context
 from app.utils.connector_naming import (
     count_connectors_of_type,
     get_base_name_for_type,
 )
 from app.utils.oauth_security import OAuthStateManager
+from app.utils.rbac import check_search_space_access
 
 logger = logging.getLogger(__name__)
 
@@ -69,13 +69,16 @@ def get_state_manager() -> OAuthStateManager:
 
 
 @router.get("/composio/toolkits")
-async def list_composio_toolkits(user: User = Depends(current_active_user)):
+async def list_composio_toolkits(
+    auth: AuthContext = Depends(require_session_context),
+):
     """
     List available Composio toolkits.
 
     Returns:
         JSON with list of available toolkits and their metadata.
     """
+    del auth
     if not ComposioService.is_enabled():
         raise HTTPException(
             status_code=503,
@@ -647,7 +650,7 @@ async def list_composio_drive_folders(
     connector_id: int,
     parent_id: str | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     List folders AND files in user's Google Drive via Composio.
@@ -662,6 +665,7 @@ async def list_composio_drive_folders(
         )
 
     connector = None
+    user = auth.user
     try:
         result = await session.execute(
             select(SearchSourceConnector).filter(
@@ -678,6 +682,8 @@ async def list_composio_drive_folders(
                 status_code=404,
                 detail="Composio Google Drive connector not found or access denied",
             )
+
+        await check_search_space_access(session, auth, connector.search_space_id)
 
         composio_connected_account_id = connector.config.get(
             "composio_connected_account_id"
