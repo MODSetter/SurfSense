@@ -71,7 +71,7 @@ class _KBBackendStub(KBPostgresBackend):
     def __init__(self, *, children=None, file_data=None) -> None:
         self.als_info = AsyncMock(return_value=children or [])
         self._load_file_data = AsyncMock(
-            return_value=(file_data, 17) if file_data is not None else None
+            return_value=(file_data, 17, None) if file_data is not None else None
         )
 
 

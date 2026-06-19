@@ -73,7 +73,7 @@ def create_edit_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
             loaded = await backend._load_file_data(validated)
             if loaded is None:
                 return f"Error: File '{validated}' not found"
-            _, doc_id_to_attach = loaded
+            _, doc_id_to_attach, _ = loaded
 
         res: EditResult = await backend.aedit(
             validated, old_string, new_string, replace_all=replace_all
