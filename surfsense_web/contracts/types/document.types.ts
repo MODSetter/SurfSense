@@ -70,10 +70,15 @@ export const documentWithChunks = document.extend({
 			id: z.number(),
 			content: z.string(),
 			created_at: z.string(),
+			start_char: z.number().nullable().optional(),
+			end_char: z.number().nullable().optional(),
 		})
 	),
 	total_chunks: z.number().optional().default(0),
 	chunk_start_index: z.number().optional().default(0),
+	// 1-based inclusive line range of the cited chunk within source_markdown.
+	cited_start_line: z.number().nullable().optional(),
+	cited_end_line: z.number().nullable().optional(),
 });
 
 /**
