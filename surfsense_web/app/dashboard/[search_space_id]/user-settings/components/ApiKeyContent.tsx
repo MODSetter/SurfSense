@@ -1,109 +1,197 @@
 "use client";
 
-import { Check, Copy, Info } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useCallback, useRef, useState } from "react";
+import { Check, Copy, Info, Plus, Trash2 } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useApiKey } from "@/hooks/use-api-key";
+import { usePats } from "@/hooks/use-pats";
 import { copyToClipboard as copyToClipboardUtil } from "@/lib/utils";
 
 export function ApiKeyContent() {
-	const t = useTranslations("userSettings");
-	const { apiKey, isLoading, copied, copyToClipboard } = useApiKey();
-	const [copiedUsage, setCopiedUsage] = useState(false);
-	const usageCopyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+	const { tokens, createdToken, setCreatedToken, isLoading, isMutating, createToken, deleteToken } =
+		usePats();
+	const [createOpen, setCreateOpen] = useState(false);
+	const [label, setLabel] = useState("");
+	const [expiresInDays, setExpiresInDays] = useState("");
+	const [copiedToken, setCopiedToken] = useState(false);
 
-	const copyUsageToClipboard = useCallback(async () => {
-		const text = `Authorization: Bearer ${apiKey || "YOUR_API_KEY"}`;
-		const success = await copyToClipboardUtil(text);
+	const sortedTokens = useMemo(() => tokens, [tokens]);
+
+	const handleCreate = useCallback(async () => {
+		const trimmedLabel = label.trim();
+		if (!trimmedLabel) return;
+
+		await createToken({
+			label: trimmedLabel,
+			expires_in_days: expiresInDays ? Number(expiresInDays) : null,
+		});
+		setLabel("");
+		setExpiresInDays("");
+		setCreateOpen(false);
+	}, [createToken, expiresInDays, label]);
+
+	const copyCreatedToken = useCallback(async () => {
+		if (!createdToken) return;
+		const success = await copyToClipboardUtil(createdToken.token);
 		if (success) {
-			setCopiedUsage(true);
-			if (usageCopyTimeoutRef.current) clearTimeout(usageCopyTimeoutRef.current);
-			usageCopyTimeoutRef.current = setTimeout(() => setCopiedUsage(false), 2000);
+			setCopiedToken(true);
+			setTimeout(() => setCopiedToken(false), 2000);
 		}
-	}, [apiKey]);
+	}, [createdToken]);
+
+	const handleDelete = useCallback(
+		async (id: number, tokenLabel: string) => {
+			if (!window.confirm(`Delete personal access token "${tokenLabel}"? This cannot be undone.`)) {
+				return;
+			}
+			await deleteToken(id);
+		},
+		[deleteToken]
+	);
 
 	return (
 		<div className="space-y-6 min-w-0 overflow-hidden">
 			<Alert>
 				<Info />
-				<AlertDescription>{t("api_key_warning_description")}</AlertDescription>
+				<AlertDescription>
+					Personal access tokens are long-lived credentials for extensions, Obsidian, and
+					programmatic API clients. Copy a token when you create it; it is shown only once.
+				</AlertDescription>
 			</Alert>
 
-			<div className="min-w-0 overflow-hidden">
-				<h3 className="mb-4 text-sm font-semibold tracking-tight">{t("your_api_key")}</h3>
+			<div className="flex items-center justify-between gap-3">
+				<div>
+					<h3 className="text-sm font-semibold tracking-tight">Personal access tokens</h3>
+					<p className="text-xs text-muted-foreground">
+						Expired tokens stay listed until you delete them.
+					</p>
+				</div>
+				<Button size="sm" onClick={() => setCreateOpen(true)}>
+					<Plus className="mr-2 h-4 w-4" />
+					Create token
+				</Button>
+			</div>
+
+			<div className="min-w-0 overflow-hidden rounded-lg border border-border/60">
 				{isLoading ? (
-					<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
-						<div className="min-w-0 flex-1 overflow-hidden">
-							<Skeleton className="h-3 w-full bg-accent" />
-						</div>
-						<div className="h-6 w-6 shrink-0" />
+					<div className="space-y-3 p-4">
+						<Skeleton className="h-12 w-full" />
+						<Skeleton className="h-12 w-full" />
 					</div>
-				) : apiKey ? (
-					<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
-						<div className="min-w-0 flex-1 overflow-x-auto scrollbar-hide">
-							<p className="font-mono text-[10px] text-muted-foreground whitespace-nowrap select-all cursor-text">
-								{apiKey}
-							</p>
-						</div>
-						<TooltipProvider>
-							<Tooltip>
-								<TooltipTrigger asChild>
+				) : sortedTokens.length > 0 ? (
+					<div className="divide-y divide-border/60">
+						{sortedTokens.map((token) => {
+							const expiresAt = token.expires_at ? new Date(token.expires_at) : null;
+							const isExpired = expiresAt ? expiresAt.getTime() <= Date.now() : false;
+							return (
+								<div key={token.id} className="flex items-center gap-3 p-4">
+									<div className="min-w-0 flex-1">
+										<div className="flex items-center gap-2">
+											<p className="truncate text-sm font-medium">{token.label}</p>
+											{isExpired ? <Badge variant="secondary">Expired</Badge> : null}
+										</div>
+										<p className="font-mono text-xs text-muted-foreground">{token.prefix}...</p>
+										<p className="text-xs text-muted-foreground">
+											Expires: {expiresAt ? expiresAt.toLocaleDateString() : "Never"} · Last used:{" "}
+											{token.last_used_at
+												? new Date(token.last_used_at).toLocaleString()
+												: "Never"}
+										</p>
+									</div>
 									<Button
 										variant="ghost"
 										size="icon"
-										onClick={copyToClipboard}
-										className="h-6 w-6 shrink-0 text-muted-foreground hover:text-accent-foreground"
+										disabled={isMutating}
+										onClick={() => handleDelete(token.id, token.label)}
 									>
-										{copied ? (
-											<Check className="h-3 w-3 text-green-500" />
-										) : (
-											<Copy className="h-3 w-3" />
-										)}
+										<Trash2 className="h-4 w-4 text-muted-foreground" />
 									</Button>
-								</TooltipTrigger>
-								<TooltipContent>{copied ? t("copied") : t("copy")}</TooltipContent>
-							</Tooltip>
-						</TooltipProvider>
+								</div>
+							);
+						})}
 					</div>
 				) : (
-					<p className="text-center text-muted-foreground/60">{t("no_api_key")}</p>
+					<p className="p-6 text-center text-sm text-muted-foreground">
+						No personal access tokens yet.
+					</p>
 				)}
 			</div>
 
-			<div className="min-w-0 overflow-hidden">
-				<h3 className="mb-2 text-sm font-semibold tracking-tight">{t("usage_title")}</h3>
-				<p className="mb-4 text-[11px] text-muted-foreground/60">{t("usage_description")}</p>
-				<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
-					<div className="min-w-0 flex-1 overflow-x-auto scrollbar-hide">
-						<pre className="font-mono text-[10px] text-muted-foreground whitespace-nowrap select-all cursor-text">
-							<code>Authorization: Bearer {apiKey || "YOUR_API_KEY"}</code>
-						</pre>
+			<Dialog open={createOpen} onOpenChange={setCreateOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Create personal access token</DialogTitle>
+						<DialogDescription>
+							Name this token so you can recognize where it is used later.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-4">
+						<div className="space-y-2">
+							<Label htmlFor="pat-label">Label</Label>
+							<Input
+								id="pat-label"
+								value={label}
+								onChange={(event) => setLabel(event.target.value)}
+								placeholder="Obsidian vault"
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="pat-expiry">Expires in days (optional)</Label>
+							<Input
+								id="pat-expiry"
+								type="number"
+								min={1}
+								value={expiresInDays}
+								onChange={(event) => setExpiresInDays(event.target.value)}
+								placeholder="Never expires"
+							/>
+						</div>
 					</div>
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={copyUsageToClipboard}
-									className="h-6 w-6 shrink-0 text-muted-foreground hover:text-accent-foreground"
-								>
-									{copiedUsage ? (
-										<Check className="h-3 w-3 text-green-500" />
-									) : (
-										<Copy className="h-3 w-3" />
-									)}
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>{copiedUsage ? t("copied") : t("copy")}</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
-				</div>
-			</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setCreateOpen(false)}>
+							Cancel
+						</Button>
+						<Button disabled={isMutating || !label.trim()} onClick={handleCreate}>
+							Create token
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog open={!!createdToken} onOpenChange={(open) => !open && setCreatedToken(null)}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Copy your token now</DialogTitle>
+						<DialogDescription>
+							This token is shown only once. Store it somewhere secure before closing this
+							dialog.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 p-2">
+						<code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-xs">
+							{createdToken?.token}
+						</code>
+						<Button variant="outline" size="sm" onClick={copyCreatedToken}>
+							{copiedToken ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+						</Button>
+					</div>
+					<DialogFooter>
+						<Button onClick={() => setCreatedToken(null)}>Done</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
