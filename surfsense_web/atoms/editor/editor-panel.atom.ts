@@ -1,6 +1,11 @@
 import { atom } from "jotai";
 import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right-panel.atom";
 
+export interface EditorLineRange {
+	start: number;
+	end: number;
+}
+
 interface EditorPanelState {
 	isOpen: boolean;
 	kind: "document" | "local_file" | "memory";
@@ -9,6 +14,10 @@ interface EditorPanelState {
 	searchSpaceId: number | null;
 	memoryScope: "user" | "team" | null;
 	title: string | null;
+	// Citation line anchor: when set, the editor opens the raw source view
+	// scrolled to and highlighting this 1-based inclusive line range.
+	highlightLines: EditorLineRange | null;
+	forceSourceView: boolean;
 }
 
 const initialState: EditorPanelState = {
@@ -19,6 +28,8 @@ const initialState: EditorPanelState = {
 	searchSpaceId: null,
 	memoryScope: null,
 	title: null,
+	highlightLines: null,
+	forceSourceView: false,
 };
 
 export const editorPanelAtom = atom<EditorPanelState>(initialState);
@@ -33,7 +44,14 @@ export const openEditorPanelAtom = atom(
 		get,
 		set,
 		payload:
-			| { documentId: number; searchSpaceId: number; title?: string; kind?: "document" }
+			| {
+					documentId: number;
+					searchSpaceId: number;
+					title?: string;
+					kind?: "document";
+					highlightLines?: EditorLineRange | null;
+					forceSourceView?: boolean;
+			  }
 			| {
 					kind: "local_file";
 					localFilePath: string;
@@ -59,6 +77,8 @@ export const openEditorPanelAtom = atom(
 				searchSpaceId: payload.searchSpaceId ?? null,
 				memoryScope: null,
 				title: payload.title ?? null,
+				highlightLines: null,
+				forceSourceView: false,
 			});
 			set(rightPanelTabAtom, "editor");
 			set(rightPanelCollapsedAtom, false);
@@ -73,6 +93,8 @@ export const openEditorPanelAtom = atom(
 				searchSpaceId: payload.searchSpaceId ?? null,
 				memoryScope: payload.memoryScope,
 				title: payload.title ?? null,
+				highlightLines: null,
+				forceSourceView: false,
 			});
 			set(rightPanelTabAtom, "editor");
 			set(rightPanelCollapsedAtom, false);
@@ -86,6 +108,8 @@ export const openEditorPanelAtom = atom(
 			searchSpaceId: payload.searchSpaceId,
 			memoryScope: null,
 			title: payload.title ?? null,
+			highlightLines: payload.highlightLines ?? null,
+			forceSourceView: payload.forceSourceView ?? false,
 		});
 		set(rightPanelTabAtom, "editor");
 		set(rightPanelCollapsedAtom, false);
