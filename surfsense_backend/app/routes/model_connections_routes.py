@@ -5,6 +5,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     Connection,
@@ -14,7 +15,6 @@ from app.db import (
     NewChatThread,
     Permission,
     SearchSpace,
-    User,
     get_async_session,
 )
 from app.schemas import (
@@ -42,7 +42,7 @@ from app.services.model_connection_service import (
     verify_connection,
 )
 from app.services.provider_registry import REGISTRY
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 router = APIRouter()
@@ -257,8 +257,8 @@ async def _default_unset_roles(
 
 
 @router.get("/model-providers", response_model=list[ModelProviderRead])
-async def list_model_providers(user: User = Depends(current_active_user)):
-    del user
+async def list_model_providers(auth: AuthContext = Depends(get_auth_context)):
+    del auth
     local_only = {"ollama_chat", "lm_studio"}
     return [
         ModelProviderRead(
@@ -298,14 +298,15 @@ async def _load_connection(session: AsyncSession, connection_id: int) -> Connect
 
 async def _assert_connection_access(
     session: AsyncSession,
-    user: User,
+    auth: AuthContext,
     conn: Connection,
     permission: str = Permission.LLM_CONFIGS_CREATE.value,
 ) -> None:
+    user = auth.user
     if conn.search_space_id:
         await check_permission(
             session,
-            user,
+            auth,
             conn.search_space_id,
             permission,
             "You don't have permission to manage model connections in this search space",
@@ -318,14 +319,14 @@ async def _assert_connection_access(
 
 
 @router.get("/global-llm-config-status")
-async def global_llm_config_status(user: User = Depends(current_active_user)):
-    del user
+async def global_llm_config_status(auth: AuthContext = Depends(get_auth_context)):
+    del auth
     return {"exists": config.GLOBAL_LLM_CONFIG_FILE_EXISTS}
 
 
 @router.get("/global-model-connections", response_model=list[ConnectionRead])
-async def list_global_connections(user: User = Depends(current_active_user)):
-    del user
+async def list_global_connections(auth: AuthContext = Depends(get_auth_context)):
+    del auth
     models_by_connection: dict[int, list[dict]] = {}
     for model in config.GLOBAL_MODELS:
         models_by_connection.setdefault(model["connection_id"], []).append(model)
@@ -339,13 +340,14 @@ async def list_global_connections(user: User = Depends(current_active_user)):
 async def list_connections(
     search_space_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     stmt = select(Connection).options(selectinload(Connection.models))
     if search_space_id is not None:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.LLM_CONFIGS_CREATE.value,
             "You don't have permission to view model connections in this search space",
@@ -363,8 +365,9 @@ async def list_connections(
 async def create_connection(
     data: ConnectionCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     if data.scope == ConnectionScope.GLOBAL:
         raise HTTPException(status_code=400, detail="GLOBAL connections are YAML-only")
     if data.scope == ConnectionScope.SEARCH_SPACE:
@@ -372,7 +375,7 @@ async def create_connection(
             raise HTTPException(status_code=400, detail="search_space_id is required")
         await check_permission(
             session,
-            user,
+            auth,
             data.search_space_id,
             Permission.LLM_CONFIGS_CREATE.value,
             "You don't have permission to create model connections in this search space",
@@ -411,12 +414,13 @@ async def create_connection(
 async def preview_connection_models(
     data: ConnectionCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     if data.scope == ConnectionScope.SEARCH_SPACE and data.search_space_id is not None:
         await check_permission(
             session,
-            user,
+            auth,
             data.search_space_id,
             Permission.LLM_CONFIGS_CREATE.value,
             "You don't have permission to create model connections in this search space",
@@ -445,12 +449,13 @@ async def preview_connection_models(
 async def test_preview_connection_model(
     data: ModelTestPreview,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     if data.scope == ConnectionScope.SEARCH_SPACE and data.search_space_id is not None:
         await check_permission(
             session,
-            user,
+            auth,
             data.search_space_id,
             Permission.LLM_CONFIGS_CREATE.value,
             "You don't have permission to create model connections in this search space",
@@ -491,11 +496,11 @@ async def update_connection(
     connection_id: int,
     data: ConnectionUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     conn = await _load_connection(session, connection_id)
     await _assert_connection_access(
-        session, user, conn, Permission.LLM_CONFIGS_UPDATE.value
+        session, auth, conn, Permission.LLM_CONFIGS_UPDATE.value
     )
     search_space_id = conn.search_space_id
     for key, value in data.model_dump(exclude_unset=True).items():
@@ -512,11 +517,11 @@ async def update_connection(
 async def delete_connection(
     connection_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     conn = await _load_connection(session, connection_id)
     await _assert_connection_access(
-        session, user, conn, Permission.LLM_CONFIGS_DELETE.value
+        session, auth, conn, Permission.LLM_CONFIGS_DELETE.value
     )
     search_space_id = conn.search_space_id
     await session.delete(conn)
@@ -533,11 +538,11 @@ async def delete_connection(
 async def verify_model_connection(
     connection_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     conn = await _load_connection(session, connection_id)
     await _assert_connection_access(
-        session, user, conn, Permission.LLM_CONFIGS_CREATE.value
+        session, auth, conn, Permission.LLM_CONFIGS_CREATE.value
     )
     result = await verify_connection(conn)
     return VerifyConnectionResponse(
@@ -551,11 +556,11 @@ async def verify_model_connection(
 async def discover_connection_models(
     connection_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     conn = await _load_connection(session, connection_id)
     await _assert_connection_access(
-        session, user, conn, Permission.LLM_CONFIGS_CREATE.value
+        session, auth, conn, Permission.LLM_CONFIGS_CREATE.value
     )
     try:
         discovered = await discover_models(conn)
@@ -595,11 +600,11 @@ async def add_manual_model(
     connection_id: int,
     data: ModelCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     conn = await _load_connection(session, connection_id)
     await _assert_connection_access(
-        session, user, conn, Permission.LLM_CONFIGS_UPDATE.value
+        session, auth, conn, Permission.LLM_CONFIGS_UPDATE.value
     )
 
     model_id = data.model_id.strip()
@@ -640,11 +645,11 @@ async def bulk_update_models(
     connection_id: int,
     data: ModelsBulkUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     conn = await _load_connection(session, connection_id)
     await _assert_connection_access(
-        session, user, conn, Permission.LLM_CONFIGS_UPDATE.value
+        session, auth, conn, Permission.LLM_CONFIGS_UPDATE.value
     )
     search_space_id = conn.search_space_id
 
@@ -674,7 +679,7 @@ async def update_model(
     model_id: int,
     data: ModelUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     result = await session.execute(
         select(Model)
@@ -685,7 +690,7 @@ async def update_model(
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
     await _assert_connection_access(
-        session, user, model.connection, Permission.LLM_CONFIGS_UPDATE.value
+        session, auth, model.connection, Permission.LLM_CONFIGS_UPDATE.value
     )
     search_space_id = model.connection.search_space_id
     update = data.model_dump(exclude_unset=True)
@@ -704,7 +709,7 @@ async def update_model(
 async def test_connection_model(
     model_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     result = await session.execute(
         select(Model)
@@ -715,7 +720,7 @@ async def test_connection_model(
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
     await _assert_connection_access(
-        session, user, model.connection, Permission.LLM_CONFIGS_UPDATE.value
+        session, auth, model.connection, Permission.LLM_CONFIGS_UPDATE.value
     )
     result = await test_model(model.connection, model)
     await session.commit()
@@ -730,11 +735,11 @@ async def test_connection_model(
 async def get_model_roles(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.LLM_CONFIGS_CREATE.value,
         "You don't have permission to view model roles in this search space",
@@ -756,11 +761,11 @@ async def update_model_roles(
     search_space_id: int,
     data: ModelRolesUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.LLM_CONFIGS_UPDATE.value,
         "You don't have permission to update model roles in this search space",

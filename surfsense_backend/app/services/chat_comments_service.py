@@ -9,6 +9,7 @@ from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth.context import AuthContext
 from app.db import (
     ChatComment,
     ChatCommentMention,
@@ -138,8 +139,9 @@ async def get_comment_thread_participants(
 async def get_comments_for_message(
     session: AsyncSession,
     message_id: int,
-    user: User,
+    auth: AuthContext,
 ) -> CommentListResponse:
+    user = auth.user
     """
     Get all comments for a message with their replies.
 
@@ -169,7 +171,7 @@ async def get_comments_for_message(
     # Check permission to read comments
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.COMMENTS_READ.value,
         "You don't have permission to read comments in this search space",
@@ -268,8 +270,9 @@ async def get_comments_for_message(
 async def get_comments_for_messages_batch(
     session: AsyncSession,
     message_ids: list[int],
-    user: User,
+    auth: AuthContext,
 ) -> CommentBatchResponse:
+    user = auth.user
     """
     Batch-fetch comments for multiple messages in a single DB round-trip.
 
@@ -295,7 +298,7 @@ async def get_comments_for_messages_batch(
     for ss_id in search_space_ids:
         await check_permission(
             session,
-            user,
+            auth,
             ss_id,
             Permission.COMMENTS_READ.value,
             "You don't have permission to read comments in this search space",
@@ -409,8 +412,9 @@ async def create_comment(
     session: AsyncSession,
     message_id: int,
     content: str,
-    user: User,
+    auth: AuthContext,
 ) -> CommentResponse:
+    user = auth.user
     """
     Create a top-level comment on an AI response.
 
@@ -521,8 +525,9 @@ async def create_reply(
     session: AsyncSession,
     comment_id: int,
     content: str,
-    user: User,
+    auth: AuthContext,
 ) -> CommentReplyResponse:
+    user = auth.user
     """
     Create a reply to an existing comment.
 
@@ -657,8 +662,9 @@ async def update_comment(
     session: AsyncSession,
     comment_id: int,
     content: str,
-    user: User,
+    auth: AuthContext,
 ) -> CommentReplyResponse:
+    user = auth.user
     """
     Update a comment's content (author only).
 
@@ -797,8 +803,9 @@ async def update_comment(
 async def delete_comment(
     session: AsyncSession,
     comment_id: int,
-    user: User,
+    auth: AuthContext,
 ) -> dict:
+    user = auth.user
     """
     Delete a comment (author or user with COMMENTS_DELETE permission).
 
@@ -844,9 +851,10 @@ async def delete_comment(
 
 async def get_user_mentions(
     session: AsyncSession,
-    user: User,
+    auth: AuthContext,
     search_space_id: int | None = None,
 ) -> MentionListResponse:
+    user = auth.user
     """
     Get mentions for the current user, optionally filtered by search space.
 

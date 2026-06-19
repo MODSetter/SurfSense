@@ -5,6 +5,7 @@ Routes for chat comments and mentions.
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import User, get_async_session
 from app.schemas.chat_comments import (
     CommentBatchRequest,
@@ -25,7 +26,7 @@ from app.services.chat_comments_service import (
     get_user_mentions,
     update_comment,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 
 router = APIRouter()
 
@@ -34,8 +35,9 @@ router = APIRouter()
 async def batch_list_comments(
     request: CommentBatchRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Batch-fetch comments for multiple messages in one request."""
     return await get_comments_for_messages_batch(session, request.message_ids, user)
 
@@ -44,8 +46,9 @@ async def batch_list_comments(
 async def list_comments(
     message_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """List all comments for a message with their replies."""
     return await get_comments_for_message(session, message_id, user)
 
@@ -55,8 +58,9 @@ async def add_comment(
     message_id: int,
     request: CommentCreateRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Create a top-level comment on an AI response."""
     return await create_comment(session, message_id, request.content, user)
 
@@ -66,8 +70,9 @@ async def add_reply(
     comment_id: int,
     request: CommentCreateRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Reply to an existing comment."""
     return await create_reply(session, comment_id, request.content, user)
 
@@ -77,8 +82,9 @@ async def edit_comment(
     comment_id: int,
     request: CommentUpdateRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Update a comment's content (author only)."""
     return await update_comment(session, comment_id, request.content, user)
 
@@ -87,8 +93,9 @@ async def edit_comment(
 async def remove_comment(
     comment_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Delete a comment (author or user with COMMENTS_DELETE permission)."""
     return await delete_comment(session, comment_id, user)
 
@@ -102,7 +109,8 @@ async def remove_comment(
 async def list_mentions(
     search_space_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """List mentions for the current user."""
     return await get_user_mentions(session, user, search_space_id)

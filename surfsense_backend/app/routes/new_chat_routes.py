@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from app.auth.context import AuthContext
 from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import (
     get_cancel_state,
     is_cancel_requested,
@@ -75,7 +76,7 @@ from app.tasks.chat.streaming.flows import (
     stream_new_chat,
     stream_resume_chat,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.perf import get_perf_logger
 from app.utils.rbac import check_permission
 from app.utils.user_message_multimodal import (
@@ -595,8 +596,9 @@ async def list_threads(
     search_space_id: int,
     limit: int | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     List all accessible threads for the current user in a search space.
     Returns threads and archived_threads for ThreadListPrimitive.
@@ -615,7 +617,7 @@ async def list_threads(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.CHATS_READ.value,
             "You don't have permission to read chats in this search space",
@@ -702,8 +704,9 @@ async def search_threads(
     search_space_id: int,
     title: str,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Search accessible threads by title in a search space.
 
@@ -721,7 +724,7 @@ async def search_threads(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.CHATS_READ.value,
             "You don't have permission to read chats in this search space",
@@ -794,8 +797,9 @@ async def search_threads(
 async def create_thread(
     thread: NewChatThreadCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Create a new chat thread.
 
@@ -807,7 +811,7 @@ async def create_thread(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             thread.search_space_id,
             Permission.CHATS_CREATE.value,
             "You don't have permission to create chats in this search space",
@@ -852,8 +856,9 @@ async def create_thread(
 async def get_thread_messages(
     thread_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Get a thread with all its messages.
     This is used by ThreadHistoryAdapter.load() to restore conversation.
@@ -877,7 +882,7 @@ async def get_thread_messages(
         # Check permission to read chats in this search space
         await check_permission(
             session,
-            user,
+            auth,
             thread.search_space_id,
             Permission.CHATS_READ.value,
             "You don't have permission to read chats in this search space",
@@ -936,8 +941,9 @@ async def get_thread_messages(
 async def get_thread_full(
     thread_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Get full thread details with all messages.
 
@@ -964,7 +970,7 @@ async def get_thread_full(
 
         await check_permission(
             session,
-            user,
+            auth,
             thread.search_space_id,
             Permission.CHATS_READ.value,
             "You don't have permission to read chats in this search space",
@@ -1005,8 +1011,9 @@ async def update_thread(
     thread_id: int,
     thread_update: NewChatThreadUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Update a thread (title, archived status).
     Used for renaming and archiving threads.
@@ -1027,7 +1034,7 @@ async def update_thread(
 
         await check_permission(
             session,
-            user,
+            auth,
             db_thread.search_space_id,
             Permission.CHATS_UPDATE.value,
             "You don't have permission to update chats in this search space",
@@ -1074,8 +1081,9 @@ async def update_thread(
 async def delete_thread(
     thread_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Delete a thread and all its messages.
 
@@ -1095,7 +1103,7 @@ async def delete_thread(
 
         await check_permission(
             session,
-            user,
+            auth,
             db_thread.search_space_id,
             Permission.CHATS_DELETE.value,
             "You don't have permission to delete chats in this search space",
@@ -1146,8 +1154,9 @@ async def update_thread_visibility(
     thread_id: int,
     visibility_update: NewChatThreadVisibilityUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Update the visibility/sharing settings of a thread.
 
@@ -1168,7 +1177,7 @@ async def update_thread_visibility(
 
         await check_permission(
             session,
-            user,
+            auth,
             db_thread.search_space_id,
             Permission.CHATS_UPDATE.value,
             "You don't have permission to update chats in this search space",
@@ -1217,8 +1226,9 @@ async def update_thread_visibility(
 async def create_thread_snapshot(
     thread_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Create a public snapshot of the thread.
 
@@ -1239,8 +1249,9 @@ async def create_thread_snapshot(
 async def list_thread_snapshots(
     thread_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     List all public snapshots for this thread.
 
@@ -1262,8 +1273,9 @@ async def delete_thread_snapshot(
     thread_id: int,
     snapshot_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Delete a specific snapshot.
 
@@ -1290,8 +1302,9 @@ async def append_message(
     thread_id: int,
     request: Request,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     .. deprecated:: 2026-05
        Replaced by the **SSE-based message ID handshake**. The streaming
@@ -1370,7 +1383,7 @@ async def append_message(
 
         await check_permission(
             session,
-            user,
+            auth,
             thread.search_space_id,
             Permission.CHATS_UPDATE.value,
             "You don't have permission to update chats in this search space",
@@ -1597,8 +1610,9 @@ async def list_messages(
     skip: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     List messages in a thread with pagination.
 
@@ -1620,7 +1634,7 @@ async def list_messages(
 
         await check_permission(
             session,
-            user,
+            auth,
             thread.search_space_id,
             Permission.CHATS_READ.value,
             "You don't have permission to read chats in this search space",
@@ -1662,7 +1676,7 @@ async def list_messages(
 
 @router.get("/agent/tools", response_model=list[AgentToolInfo])
 async def list_agent_tools(
-    _user: User = Depends(current_active_user),
+    _auth: AuthContext = Depends(get_auth_context),
 ):
     """Return the list of built-in agent tools with their metadata.
 
@@ -1691,8 +1705,9 @@ async def handle_new_chat(
     request: NewChatRequest,
     http_request: Request,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Stream chat responses from the deep agent.
 
@@ -1717,7 +1732,7 @@ async def handle_new_chat(
 
         await check_permission(
             session,
-            user,
+            auth,
             thread.search_space_id,
             Permission.CHATS_CREATE.value,
             "You don't have permission to chat in this search space",
@@ -1821,8 +1836,9 @@ async def cancel_active_turn(
     thread_id: int,
     response: Response,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Signal cancellation for the currently running turn on ``thread_id``."""
     result = await session.execute(
         select(NewChatThread).filter(NewChatThread.id == thread_id)
@@ -1833,7 +1849,7 @@ async def cancel_active_turn(
 
     await check_permission(
         session,
-        user,
+        auth,
         thread.search_space_id,
         Permission.CHATS_UPDATE.value,
         "You don't have permission to update chats in this search space",
@@ -1873,8 +1889,9 @@ async def cancel_active_turn(
 async def get_turn_status(
     thread_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     result = await session.execute(
         select(NewChatThread).filter(NewChatThread.id == thread_id)
     )
@@ -1884,7 +1901,7 @@ async def get_turn_status(
 
     await check_permission(
         session,
-        user,
+        auth,
         thread.search_space_id,
         Permission.CHATS_READ.value,
         "You don't have permission to view chats in this search space",
@@ -1911,8 +1928,9 @@ async def regenerate_response(
     request: RegenerateRequest,
     http_request: Request,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Regenerate the AI response for a chat thread.
 
@@ -1947,7 +1965,7 @@ async def regenerate_response(
 
         await check_permission(
             session,
-            user,
+            auth,
             thread.search_space_id,
             Permission.CHATS_UPDATE.value,
             "You don't have permission to update chats in this search space",
@@ -2356,8 +2374,9 @@ async def resume_chat(
     request: ResumeRequest,
     http_request: Request,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     try:
         result = await session.execute(
             select(NewChatThread).filter(NewChatThread.id == thread_id)
@@ -2369,7 +2388,7 @@ async def resume_chat(
 
         await check_permission(
             session,
-            user,
+            auth,
             thread.search_space_id,
             Permission.CHATS_CREATE.value,
             "You don't have permission to chat in this search space",
