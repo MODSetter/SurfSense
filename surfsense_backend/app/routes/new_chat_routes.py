@@ -1228,7 +1228,6 @@ async def create_thread_snapshot(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Create a public snapshot of the thread.
 
@@ -1239,7 +1238,7 @@ async def create_thread_snapshot(
     return await create_snapshot(
         session=session,
         thread_id=thread_id,
-        user=user,
+        auth=auth,
     )
 
 

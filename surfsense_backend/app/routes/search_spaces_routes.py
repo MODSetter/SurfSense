@@ -438,7 +438,6 @@ async def list_search_space_snapshots(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     List all public chat snapshots for a search space.
 
@@ -450,6 +449,6 @@ async def list_search_space_snapshots(
     snapshots = await list_snapshots_for_search_space(
         session=session,
         search_space_id=search_space_id,
-        user=user,
+        auth=auth,
     )
     return PublicChatSnapshotsBySpaceResponse(snapshots=snapshots)
