@@ -149,6 +149,8 @@ export function EditorPanelContent({
 	searchSpaceId,
 	title,
 	onClose,
+	highlightLines = null,
+	forceSourceView = false,
 }: {
 	kind?: "document" | "local_file" | "memory";
 	documentId?: number;
@@ -157,6 +159,8 @@ export function EditorPanelContent({
 	searchSpaceId?: number;
 	title: string | null;
 	onClose?: () => void;
+	highlightLines?: { start: number; end: number } | null;
+	forceSourceView?: boolean;
 }) {
 	const electronAPI = useElectronAPI();
 	const [editorDoc, setEditorDoc] = useState<EditorContent | null>(null);
@@ -205,7 +209,7 @@ export function EditorPanelContent({
 	const isLargeDocument = docSizeBytes > plateMaxBytes || docLineCount > plateMaxLines;
 	const viewerMode: ViewerMode = isMemoryMode
 		? "plate"
-		: editorDoc?.viewer_mode === "monaco" || isLargeDocument
+		: editorDoc?.viewer_mode === "monaco" || isLargeDocument || forceSourceView
 			? "monaco"
 			: "plate";
 
@@ -828,6 +832,7 @@ export function EditorPanelContent({
 								value={editorDoc.source_markdown}
 								readOnly
 								onChange={() => {}}
+								highlightLines={highlightLines}
 							/>
 						</div>
 					</div>
@@ -918,6 +923,8 @@ function DesktopEditorPanel() {
 				searchSpaceId={panelState.searchSpaceId ?? undefined}
 				title={panelState.title}
 				onClose={closePanel}
+				highlightLines={panelState.highlightLines}
+				forceSourceView={panelState.forceSourceView}
 			/>
 		</div>
 	);
@@ -957,6 +964,8 @@ function MobileEditorDrawer() {
 						memoryScope={panelState.memoryScope ?? undefined}
 						searchSpaceId={panelState.searchSpaceId ?? undefined}
 						title={panelState.title}
+						highlightLines={panelState.highlightLines}
+						forceSourceView={panelState.forceSourceView}
 					/>
 				</div>
 			</DrawerContent>
