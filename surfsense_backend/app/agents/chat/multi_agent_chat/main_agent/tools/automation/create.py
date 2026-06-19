@@ -30,6 +30,7 @@ from pydantic import ValidationError
 from app.agents.chat.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
     request_approval,
 )
+from app.auth.context import AuthContext
 from app.automations.schemas.api import AutomationCreate
 from app.automations.services.automation import AutomationService
 from app.db import User, async_session_maker
@@ -47,6 +48,7 @@ def create_create_automation_tool(
     search_space_id: int,
     user_id: str | UUID,
     llm: Any,
+    auth_context: AuthContext | None = None,
 ):
     """Factory for the ``create_automation`` tool.
 
@@ -172,7 +174,8 @@ def create_create_automation_tool(
                         "status": "error",
                         "message": "user not found in this session",
                     }
-                service = AutomationService(session=session, user=user)
+                auth = auth_context or AuthContext.system(user, source="agent")
+                service = AutomationService(session=session, auth=auth)
                 created = await service.create(final_validated)
                 return {
                     "status": "saved",

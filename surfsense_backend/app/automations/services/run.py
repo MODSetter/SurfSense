@@ -8,17 +8,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.automations.persistence.models.automation import Automation
 from app.automations.persistence.models.run import AutomationRun
-from app.db import Permission, User, get_async_session
-from app.users import current_active_user
+from app.auth.context import AuthContext
+from app.db import Permission, get_async_session
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 
 class RunService:
     """Read-only access to ``AutomationRun`` history."""
 
-    def __init__(self, *, session: AsyncSession, user: User) -> None:
+    def __init__(self, *, session: AsyncSession, auth: AuthContext) -> None:
         self.session = session
-        self.user = user
+        self.auth = auth
 
     async def list(
         self,
@@ -63,7 +64,7 @@ class RunService:
             )
         await check_permission(
             self.session,
-            self.user,
+            self.auth,
             automation.search_space_id,
             permission,
             f"You don't have permission to {permission.split(':')[1]} automations in this search space",
@@ -73,6 +74,6 @@ class RunService:
 
 def get_run_service(
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> RunService:
-    return RunService(session=session, user=user)
+    return RunService(session=session, auth=auth)
