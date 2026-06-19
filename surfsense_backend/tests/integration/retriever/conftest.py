@@ -40,11 +40,19 @@ def _make_document(
     )
 
 
-def _make_chunk(*, content: str, document_id: int) -> Chunk:
+def _make_chunk(
+    *,
+    content: str,
+    document_id: int,
+    start_char: int | None = None,
+    end_char: int | None = None,
+) -> Chunk:
     return Chunk(
         content=content,
         document_id=document_id,
         embedding=DUMMY_EMBEDDING,
+        start_char=start_char,
+        end_char=end_char,
     )
 
 
@@ -91,6 +99,8 @@ async def seed_large_doc(
         _make_chunk(
             content="quarterly performance review summary note content",
             document_id=small_doc.id,
+            start_char=0,
+            end_char=10,
         ),
     ]
 
