@@ -28,6 +28,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
@@ -42,6 +43,7 @@ from app.routes.obsidian_plugin_routes import (
     obsidian_stats,
     obsidian_sync,
 )
+from app.routes.search_spaces_routes import create_default_roles_and_membership
 from app.schemas.obsidian_plugin import (
     ConnectRequest,
     DeleteAck,
@@ -63,6 +65,10 @@ pytestmark = pytest.mark.integration
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _auth(user: User) -> AuthContext:
+    return AuthContext.session(user)
 
 
 def _make_note_payload(vault_id: str, path: str, content_hash: str) -> NotePayload:
@@ -102,6 +108,8 @@ async def race_user_and_space(async_engine):
         )
         space = SearchSpace(name="Race Space", user_id=user_id)
         setup.add_all([user, space])
+        await setup.flush()
+        await create_default_roles_and_membership(setup, space.id, user_id)
         await setup.commit()
         await setup.refresh(space)
         space_id = space.id
@@ -115,6 +123,14 @@ async def race_user_and_space(async_engine):
         await cleanup.execute(
             text("DELETE FROM search_source_connectors WHERE user_id = :uid"),
             {"uid": user_id},
+        )
+        await cleanup.execute(
+            text("DELETE FROM search_space_memberships WHERE search_space_id = :id"),
+            {"id": space_id},
+        )
+        await cleanup.execute(
+            text("DELETE FROM search_space_roles WHERE search_space_id = :id"),
+            {"id": space_id},
         )
         await cleanup.execute(
             text("DELETE FROM searchspaces WHERE id = :id"),
@@ -154,7 +170,7 @@ class TestConnectRace:
                     search_space_id=space_id,
                     vault_fingerprint=fingerprint,
                 )
-                await obsidian_connect(payload, user=fresh_user, session=s)
+                await obsidian_connect(payload, auth=_auth(fresh_user), session=s)
 
         results = await asyncio.gather(_call("a"), _call("b"), return_exceptions=True)
         for r in results:
@@ -281,7 +297,7 @@ class TestConnectRace:
                     search_space_id=space_id,
                     vault_fingerprint=fingerprint,
                 ),
-                user=fresh_user,
+                auth=_auth(fresh_user),
                 session=s,
             )
 
@@ -294,7 +310,7 @@ class TestConnectRace:
                     search_space_id=space_id,
                     vault_fingerprint=fingerprint,
                 ),
-                user=fresh_user,
+                auth=_auth(fresh_user),
                 session=s,
             )
 
@@ -337,7 +353,7 @@ class TestWireContractSmoke:
                 search_space_id=db_search_space.id,
                 vault_fingerprint="fp-" + uuid.uuid4().hex,
             ),
-            user=db_user,
+            auth=_auth(db_user),
             session=db_session,
         )
         assert connect_resp.connector_id > 0
@@ -361,7 +377,7 @@ class TestWireContractSmoke:
                         _make_note_payload(vault_id, "fail.md", "hash-fail"),
                     ],
                 ),
-                user=db_user,
+                auth=_auth(db_user),
                 session=db_session,
             )
 
@@ -394,7 +410,7 @@ class TestWireContractSmoke:
                         _make_note_payload(vault_id, "fail.md", "h2"),
                     ],
                 ),
-                user=db_user,
+                auth=_auth(db_user),
                 session=db_session,
             )
         assert sync_resp.indexed == 1
@@ -420,7 +436,7 @@ class TestWireContractSmoke:
                         RenameItem(old_path="missing.md", new_path="x.md"),
                     ],
                 ),
-                user=db_user,
+                auth=_auth(db_user),
                 session=db_session,
             )
         assert isinstance(rename_resp, RenameAck)
@@ -441,7 +457,7 @@ class TestWireContractSmoke:
         ):
             delete_resp = await obsidian_delete_notes(
                 DeleteBatchRequest(vault_id=vault_id, paths=["b.md", "ghost.md"]),
-                user=db_user,
+                auth=_auth(db_user),
                 session=db_session,
             )
         assert isinstance(delete_resp, DeleteAck)
@@ -456,7 +472,7 @@ class TestWireContractSmoke:
         # upsert_note was mocked) but the response shape is what we care
         # about.
         manifest_resp = await obsidian_manifest(
-            vault_id=vault_id, user=db_user, session=db_session
+            vault_id=vault_id, auth=_auth(db_user), session=db_session
         )
         assert isinstance(manifest_resp, ManifestResponse)
         assert manifest_resp.vault_id == vault_id
@@ -464,7 +480,7 @@ class TestWireContractSmoke:
 
         # 6. /stats — same; row count is 0 because upsert_note was mocked.
         stats_resp = await obsidian_stats(
-            vault_id=vault_id, user=db_user, session=db_session
+            vault_id=vault_id, auth=_auth(db_user), session=db_session
         )
         assert isinstance(stats_resp, StatsResponse)
         assert stats_resp.vault_id == vault_id
@@ -482,7 +498,7 @@ class TestWireContractSmoke:
                 search_space_id=db_search_space.id,
                 vault_fingerprint="fp-" + uuid.uuid4().hex,
             ),
-            user=db_user,
+            auth=_auth(db_user),
             session=db_session,
         )
 
@@ -511,7 +527,7 @@ class TestWireContractSmoke:
                         binary_note,
                     ],
                 ),
-                user=db_user,
+                auth=_auth(db_user),
                 session=db_session,
             )
 
@@ -533,7 +549,7 @@ class TestWireContractSmoke:
                 search_space_id=db_search_space.id,
                 vault_fingerprint="fp-" + uuid.uuid4().hex,
             ),
-            user=db_user,
+            auth=_auth(db_user),
             session=db_session,
         )
 
@@ -562,7 +578,7 @@ class TestWireContractSmoke:
                         bad_note,
                     ],
                 ),
-                user=db_user,
+                auth=_auth(db_user),
                 session=db_session,
             )
 
@@ -587,7 +603,7 @@ class TestWireContractSmoke:
                 search_space_id=db_search_space.id,
                 vault_fingerprint="fp-" + uuid.uuid4().hex,
             ),
-            user=db_user,
+            auth=_auth(db_user),
             session=db_session,
         )
 
@@ -616,7 +632,7 @@ class TestWireContractSmoke:
                         mismatched,
                     ],
                 ),
-                user=db_user,
+                auth=_auth(db_user),
                 session=db_session,
             )
 

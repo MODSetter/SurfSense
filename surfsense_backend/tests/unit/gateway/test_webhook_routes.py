@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.auth.context import AuthContext
 from app.db import ExternalChatAccount, ExternalChatAccountMode, ExternalChatPlatform
 from app.routes import gateway_webhook_routes as routes
 
@@ -333,7 +334,9 @@ async def test_discord_gateway_install_returns_oauth_url(monkeypatch, mocker):
 
     response = await routes.install_discord_gateway(
         search_space_id=123,
-        user=SimpleNamespace(id="00000000-0000-0000-0000-000000000001"),
+        auth=AuthContext.session(
+            SimpleNamespace(id="00000000-0000-0000-0000-000000000001")
+        ),
         session=mocker.AsyncMock(),
     )
 

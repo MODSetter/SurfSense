@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import (
     ChatVisibility,
     SearchSpace,
@@ -31,6 +32,10 @@ from app.schemas.new_chat import (
 )
 
 pytestmark = pytest.mark.integration
+
+
+def _auth(user: User) -> AuthContext:
+    return AuthContext.session(user)
 
 
 @pytest_asyncio.fixture
@@ -85,7 +90,7 @@ async def _create_thread(
             visibility=ChatVisibility.PRIVATE,
         ),
         session=db_session,
-        user=db_user,
+        auth=_auth(db_user),
     )
 
 
@@ -108,13 +113,13 @@ async def test_private_thread_is_hidden_from_other_search_space_member(
     member_threads = await new_chat_routes.list_threads(
         search_space_id=db_search_space.id,
         session=db_session,
-        user=db_member,
+        auth=_auth(db_member),
     )
     member_search = await new_chat_routes.search_threads(
         search_space_id=db_search_space.id,
         title="Visibility",
         session=db_session,
-        user=db_member,
+        auth=_auth(db_member),
     )
 
     assert thread.id not in _active_thread_ids(member_threads)
@@ -123,7 +128,7 @@ async def test_private_thread_is_hidden_from_other_search_space_member(
         await new_chat_routes.get_thread_full(
             thread_id=thread.id,
             session=db_session,
-            user=db_member,
+            auth=_auth(db_member),
         )
     assert exc_info.value.status_code == 403
 
@@ -142,24 +147,24 @@ async def test_creator_can_share_thread_and_member_can_list_search_read_it(
             visibility=ChatVisibility.SEARCH_SPACE,
         ),
         session=db_session,
-        user=db_user,
+        auth=_auth(db_user),
     )
 
     member_threads = await new_chat_routes.list_threads(
         search_space_id=db_search_space.id,
         session=db_session,
-        user=db_member,
+        auth=_auth(db_member),
     )
     member_search = await new_chat_routes.search_threads(
         search_space_id=db_search_space.id,
         title="Visibility",
         session=db_session,
-        user=db_member,
+        auth=_auth(db_member),
     )
     full_thread = await new_chat_routes.get_thread_full(
         thread_id=thread.id,
         session=db_session,
-        user=db_member,
+        auth=_auth(db_member),
     )
 
     assert updated.visibility == ChatVisibility.SEARCH_SPACE
@@ -181,20 +186,20 @@ async def test_rename_and_archive_do_not_reset_shared_visibility(
             visibility=ChatVisibility.SEARCH_SPACE,
         ),
         session=db_session,
-        user=db_user,
+        auth=_auth(db_user),
     )
 
     renamed = await new_chat_routes.update_thread(
         thread_id=thread.id,
         thread_update=NewChatThreadUpdate(title="Renamed Shared Chat"),
         session=db_session,
-        user=db_user,
+        auth=_auth(db_user),
     )
     archived = await new_chat_routes.update_thread(
         thread_id=thread.id,
         thread_update=NewChatThreadUpdate(archived=True),
         session=db_session,
-        user=db_user,
+        auth=_auth(db_user),
     )
 
     assert renamed.visibility == ChatVisibility.SEARCH_SPACE
@@ -215,7 +220,7 @@ async def test_non_creator_cannot_change_shared_thread_back_to_private(
             visibility=ChatVisibility.SEARCH_SPACE,
         ),
         session=db_session,
-        user=db_user,
+        auth=_auth(db_user),
     )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -225,7 +230,7 @@ async def test_non_creator_cannot_change_shared_thread_back_to_private(
                 visibility=ChatVisibility.PRIVATE,
             ),
             session=db_session,
-            user=db_member,
+            auth=_auth(db_member),
         )
 
     assert exc_info.value.status_code == 403
@@ -244,7 +249,7 @@ async def test_creator_can_make_shared_thread_private_again(
             visibility=ChatVisibility.SEARCH_SPACE,
         ),
         session=db_session,
-        user=db_user,
+        auth=_auth(db_user),
     )
 
     private_again = await new_chat_routes.update_thread_visibility(
@@ -253,18 +258,18 @@ async def test_creator_can_make_shared_thread_private_again(
             visibility=ChatVisibility.PRIVATE,
         ),
         session=db_session,
-        user=db_user,
+        auth=_auth(db_user),
     )
     member_threads = await new_chat_routes.list_threads(
         search_space_id=db_search_space.id,
         session=db_session,
-        user=db_member,
+        auth=_auth(db_member),
     )
     member_search = await new_chat_routes.search_threads(
         search_space_id=db_search_space.id,
         title="Visibility",
         session=db_session,
-        user=db_member,
+        auth=_auth(db_member),
     )
 
     assert private_again.visibility == ChatVisibility.PRIVATE
@@ -274,6 +279,6 @@ async def test_creator_can_make_shared_thread_private_again(
         await new_chat_routes.get_thread_full(
             thread_id=thread.id,
             session=db_session,
-            user=db_member,
+            auth=_auth(db_member),
         )
     assert exc_info.value.status_code == 403

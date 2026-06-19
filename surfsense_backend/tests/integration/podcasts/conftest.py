@@ -24,6 +24,7 @@ from httpx import ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.app import app, limiter
+from app.auth.context import AuthContext
 from app.config import config as app_config
 from app.db import SearchSpace, User, get_async_session
 from app.podcasts.persistence import Podcast, PodcastStatus
@@ -39,7 +40,7 @@ from app.podcasts.schemas import (
 from app.podcasts.service import PodcastService
 from app.podcasts.tts import SynthesisRequest, SynthesizedAudio, TextToSpeech
 from app.routes.search_spaces_routes import create_default_roles_and_membership
-from app.users import current_active_user
+from app.users import get_auth_context
 
 pytestmark = pytest.mark.integration
 
@@ -54,12 +55,12 @@ async def client(
     async def override_session() -> AsyncGenerator[AsyncSession, None]:
         yield db_session
 
-    async def override_user() -> User:
-        return db_user
+    async def override_auth() -> AuthContext:
+        return AuthContext.session(db_user)
 
     previous_overrides = app.dependency_overrides.copy()
     app.dependency_overrides[get_async_session] = override_session
-    app.dependency_overrides[current_active_user] = override_user
+    app.dependency_overrides[get_auth_context] = override_auth
 
     try:
         async with httpx.AsyncClient(
@@ -290,7 +291,7 @@ def act_as():
     """
 
     def _act(user: User) -> None:
-        app.dependency_overrides[current_active_user] = lambda: user
+        app.dependency_overrides[get_auth_context] = lambda: AuthContext.session(user)
 
     return _act
 
