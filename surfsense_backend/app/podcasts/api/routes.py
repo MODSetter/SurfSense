@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.config import config as app_config
 from app.db import (
     Permission,
@@ -42,7 +43,7 @@ from app.podcasts.voices import (
     provider_from_service,
     render_voice_preview,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 from .schemas import (
@@ -63,8 +64,9 @@ async def list_podcasts(
     skip: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     if skip < 0 or limit < 1:
         raise HTTPException(status_code=400, detail="Invalid pagination parameters")
 
@@ -132,8 +134,9 @@ async def list_languages():
 @router.get("/podcasts/voices/{voice_id}/preview")
 async def preview_voice(
     voice_id: str,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """A short audio sample of a voice, so users pick by sound."""
     if not app_config.TTS_SERVICE:
         raise HTTPException(status_code=503, detail="No TTS provider configured")
@@ -156,8 +159,9 @@ async def preview_voice(
 async def create_podcast(
     body: CreatePodcastRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     await _require(session, user, body.search_space_id, Permission.PODCASTS_CREATE)
 
     service = PodcastService(session)
@@ -185,8 +189,9 @@ async def create_podcast(
 async def get_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     podcast = await _load(session, user, podcast_id, Permission.PODCASTS_READ)
     return PodcastDetail.of(podcast)
 
@@ -196,8 +201,9 @@ async def update_spec(
     podcast_id: int,
     body: UpdateSpecRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
         await PodcastService(session).update_spec(
@@ -211,8 +217,9 @@ async def update_spec(
 async def approve_brief(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Approve the brief and start drafting the transcript."""
     podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
@@ -228,8 +235,9 @@ async def approve_brief(
 async def regenerate_transcript(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Reopen the brief gate for a fresh take; drafting waits for re-approval."""
     podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
@@ -242,8 +250,9 @@ async def regenerate_transcript(
 async def revert_regeneration(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Back out of a regeneration and return to the finished episode."""
     podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
@@ -256,8 +265,9 @@ async def revert_regeneration(
 async def cancel_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
         await PodcastService(session).cancel(podcast)
@@ -269,8 +279,9 @@ async def cancel_podcast(
 async def delete_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     podcast = await _load(session, user, podcast_id, Permission.PODCASTS_DELETE)
     await purge_audio(podcast)
     await session.delete(podcast)
@@ -282,8 +293,9 @@ async def delete_podcast(
 async def stream_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     podcast = await _load(session, user, podcast_id, Permission.PODCASTS_READ)
 
     if podcast.storage_key:
@@ -323,13 +335,14 @@ async def stream_podcast(
 
 async def _require(
     session: AsyncSession,
-    user: User,
+    auth: AuthContext,
     search_space_id: int,
     permission: Permission,
 ) -> None:
+    user = auth.user
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         permission.value,
         "You don't have permission for podcasts in this search space",
@@ -338,10 +351,11 @@ async def _require(
 
 async def _load(
     session: AsyncSession,
-    user: User,
+    auth: AuthContext,
     podcast_id: int,
     permission: Permission,
 ) -> Podcast:
+    user = auth.user
     podcast = await PodcastRepository(session).get(podcast_id)
     if podcast is None:
         raise HTTPException(status_code=404, detail="Podcast not found")

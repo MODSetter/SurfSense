@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     ExternalChatAccount,
@@ -20,7 +21,7 @@ from app.db import (
     get_async_session,
 )
 from app.gateway.whatsapp.adapter_baileys import WhatsAppBaileysAdapter
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_search_space_access
 
 router = APIRouter(prefix="/gateway/whatsapp/baileys", tags=["gateway"])
@@ -60,11 +61,12 @@ async def _get_user_whatsapp_account(
 @router.post("/pair")
 async def request_pairing_code(
     body: BaileysPairRequest,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, Any]:
+    user = auth.user
     _ensure_baileys_enabled()
-    await check_search_space_access(session, user, body.search_space_id)
+    await check_search_space_access(session, auth, body.search_space_id)
     adapter = WhatsAppBaileysAdapter()
     try:
         pairing = await adapter.request_pairing_code(phone_number=body.phone_number)
@@ -97,8 +99,9 @@ async def request_pairing_code(
 
 @router.get("/health")
 async def bridge_health(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
+    user = auth.user
     _ensure_baileys_enabled()
     adapter = WhatsAppBaileysAdapter()
     try:

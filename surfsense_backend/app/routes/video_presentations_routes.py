@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import (
     Permission,
     SearchSpace,
@@ -25,7 +26,7 @@ from app.db import (
     get_async_session,
 )
 from app.schemas import VideoPresentationRead
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 router = APIRouter()
@@ -37,8 +38,9 @@ async def read_video_presentations(
     limit: int = 100,
     search_space_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     List video presentations the user has access to.
     Requires VIDEO_PRESENTATIONS_READ permission for the search space(s).
@@ -49,7 +51,7 @@ async def read_video_presentations(
         if search_space_id is not None:
             await check_permission(
                 session,
-                user,
+                auth,
                 search_space_id,
                 Permission.VIDEO_PRESENTATIONS_READ.value,
                 "You don't have permission to read video presentations in this search space",
@@ -89,8 +91,9 @@ async def read_video_presentations(
 async def read_video_presentation(
     video_presentation_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Get a specific video presentation by ID.
     Requires authentication with VIDEO_PRESENTATIONS_READ permission.
@@ -112,7 +115,7 @@ async def read_video_presentation(
 
         await check_permission(
             session,
-            user,
+            auth,
             video_pres.search_space_id,
             Permission.VIDEO_PRESENTATIONS_READ.value,
             "You don't have permission to read video presentations in this search space",
@@ -132,8 +135,9 @@ async def read_video_presentation(
 async def delete_video_presentation(
     video_presentation_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Delete a video presentation.
     Requires VIDEO_PRESENTATIONS_DELETE permission for the search space.
@@ -151,7 +155,7 @@ async def delete_video_presentation(
 
         await check_permission(
             session,
-            user,
+            auth,
             db_video_pres.search_space_id,
             Permission.VIDEO_PRESENTATIONS_DELETE.value,
             "You don't have permission to delete video presentations in this search space",
@@ -175,8 +179,9 @@ async def stream_slide_audio(
     video_presentation_id: int,
     slide_number: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Stream the audio file for a specific slide in a video presentation.
     The slide_number is 1-based. Audio path is read from the slides JSONB.
@@ -194,7 +199,7 @@ async def stream_slide_audio(
 
         await check_permission(
             session,
-            user,
+            auth,
             video_pres.search_space_id,
             Permission.VIDEO_PRESENTATIONS_READ.value,
             "You don't have permission to access video presentations in this search space",

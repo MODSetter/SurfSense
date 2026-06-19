@@ -16,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     ImageGeneration,
@@ -46,7 +47,7 @@ from app.services.image_gen_router_service import (
 )
 from app.services.model_capabilities import has_capability
 from app.services.model_resolver import to_litellm
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 from app.utils.signed_image_urls import verify_image_token
 
@@ -231,8 +232,9 @@ async def _execute_image_generation(
 async def create_image_generation(
     data: ImageGenerationCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Create and execute an image generation request.
 
     Premium configs are gated by the user's shared premium credit pool.
@@ -256,7 +258,7 @@ async def create_image_generation(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             data.search_space_id,
             Permission.IMAGE_GENERATIONS_CREATE.value,
             "You don't have permission to create image generations in this search space",
@@ -351,8 +353,9 @@ async def list_image_generations(
     skip: int = 0,
     limit: int = 50,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """List image generations."""
     if skip < 0 or limit < 1:
         raise HTTPException(status_code=400, detail="Invalid pagination parameters")
@@ -363,7 +366,7 @@ async def list_image_generations(
         if search_space_id is not None:
             await check_permission(
                 session,
-                user,
+                auth,
                 search_space_id,
                 Permission.IMAGE_GENERATIONS_READ.value,
                 "You don't have permission to read image generations in this search space",
@@ -403,8 +406,9 @@ async def list_image_generations(
 async def get_image_generation(
     image_gen_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Get a specific image generation by ID."""
     try:
         result = await session.execute(
@@ -416,7 +420,7 @@ async def get_image_generation(
 
         await check_permission(
             session,
-            user,
+            auth,
             image_gen.search_space_id,
             Permission.IMAGE_GENERATIONS_READ.value,
             "You don't have permission to read image generations in this search space",
@@ -435,8 +439,9 @@ async def get_image_generation(
 async def delete_image_generation(
     image_gen_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Delete an image generation record."""
     try:
         result = await session.execute(
@@ -448,7 +453,7 @@ async def delete_image_generation(
 
         await check_permission(
             session,
-            user,
+            auth,
             db_image_gen.search_space_id,
             Permission.IMAGE_GENERATIONS_DELETE.value,
             "You don't have permission to delete image generations in this search space",

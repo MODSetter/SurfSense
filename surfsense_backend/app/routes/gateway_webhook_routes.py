@@ -20,6 +20,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     ExternalChatAccount,
@@ -51,7 +52,7 @@ from app.observability.metrics import (
     record_gateway_inbox_write,
     record_gateway_webhook_parse_error,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 from app.utils.rbac import check_search_space_access
 
@@ -250,14 +251,15 @@ def _telegram_message(payload: dict[str, Any]) -> dict[str, Any] | None:
 @router.get("/slack/install")
 async def install_slack_gateway(
     search_space_id: int,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
+    user = auth.user
     if not _slack_gateway_enabled():
         raise HTTPException(
             status_code=500, detail="Slack gateway OAuth is not configured"
         )
-    await check_search_space_access(session, user, search_space_id)
+    await check_search_space_access(session, auth, search_space_id)
     state = _get_state_manager().generate_secure_state(search_space_id, user.id)
     auth_params = {
         "client_id": config.GATEWAY_SLACK_CLIENT_ID,
@@ -409,14 +411,15 @@ async def slack_gateway_callback(
 @router.get("/discord/install")
 async def install_discord_gateway(
     search_space_id: int,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
+    user = auth.user
     if not _discord_gateway_enabled():
         raise HTTPException(
             status_code=500, detail="Discord gateway OAuth is not configured"
         )
-    await check_search_space_access(session, user, search_space_id)
+    await check_search_space_access(session, auth, search_space_id)
     state = _get_state_manager().generate_secure_state(search_space_id, user.id)
     auth_params = {
         "client_id": config.DISCORD_CLIENT_ID,
@@ -712,10 +715,11 @@ async def telegram_webhook(
 @router.post("/bindings/start", response_model=StartBindingResponse)
 async def start_binding(
     body: StartBindingRequest,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> StartBindingResponse:
-    await check_search_space_access(session, user, body.search_space_id)
+    user = auth.user
+    await check_search_space_access(session, auth, body.search_space_id)
     code = generate_pairing_code()
     if body.platform == ExternalChatPlatform.TELEGRAM:
         if not _telegram_gateway_enabled():
@@ -774,9 +778,10 @@ async def start_binding(
 
 @router.get("/bindings")
 async def list_bindings(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> list[dict[str, Any]]:
+    user = auth.user
     result = await session.execute(
         select(ExternalChatBinding, ExternalChatAccount)
         .join(
@@ -803,9 +808,10 @@ async def list_bindings(
 @router.get("/connections")
 async def list_connections(
     platform: ExternalChatPlatform | None = None,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> list[dict[str, Any]]:
+    user = auth.user
     active_whatsapp_mode = _active_whatsapp_account_mode()
     if platform == ExternalChatPlatform.WHATSAPP and active_whatsapp_mode is None:
         return []
@@ -946,9 +952,10 @@ async def list_connections(
 
 @router.get("/platforms")
 async def list_platforms(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> list[dict[str, Any]]:
+    user = auth.user
     result = await session.execute(
         select(ExternalChatAccount).where(
             (ExternalChatAccount.owner_user_id == user.id)
@@ -970,8 +977,9 @@ async def list_platforms(
 
 @config_router.get("/config")
 async def get_gateway_config(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, bool | str]:
+    user = auth.user
     if not config.GATEWAY_ENABLED:
         return {
             "enabled": False,
@@ -993,9 +1001,10 @@ async def get_gateway_config(
 async def update_binding_search_space(
     binding_id: int,
     body: UpdateBindingSearchSpaceRequest,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, bool]:
+    user = auth.user
     binding = await session.get(ExternalChatBinding, binding_id)
     if binding is None or binding.user_id != user.id:
         raise HTTPException(status_code=404, detail="Binding not found")
@@ -1010,7 +1019,7 @@ async def update_binding_search_space(
     if account is None or _is_inactive_whatsapp_account(account):
         raise HTTPException(status_code=404, detail="Binding not found")
 
-    await check_search_space_access(session, user, body.search_space_id)
+    await check_search_space_access(session, auth, body.search_space_id)
     if binding.search_space_id != body.search_space_id:
         binding.search_space_id = body.search_space_id
         binding.new_chat_thread_id = None
@@ -1023,9 +1032,10 @@ async def update_binding_search_space(
 async def update_gateway_account_search_space(
     account_id: int,
     body: UpdateAccountSearchSpaceRequest,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, bool]:
+    user = auth.user
     account = await session.get(ExternalChatAccount, account_id)
     if (
         account is None
@@ -1036,7 +1046,7 @@ async def update_gateway_account_search_space(
     ):
         raise HTTPException(status_code=404, detail="Gateway account not found")
 
-    await check_search_space_access(session, user, body.search_space_id)
+    await check_search_space_access(session, auth, body.search_space_id)
     account.owner_search_space_id = body.search_space_id
     account.updated_at = datetime.now(UTC)
 
@@ -1061,9 +1071,10 @@ async def update_gateway_account_search_space(
 @router.delete("/bindings/{binding_id}")
 async def delete_binding(
     binding_id: int,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, bool]:
+    user = auth.user
     binding = await session.get(ExternalChatBinding, binding_id)
     if binding is None or binding.user_id != user.id:
         raise HTTPException(status_code=404, detail="Binding not found")
@@ -1078,9 +1089,10 @@ async def delete_binding(
 @router.delete("/accounts/{account_id}")
 async def delete_gateway_account(
     account_id: int,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, bool]:
+    user = auth.user
     account = await session.get(ExternalChatAccount, account_id)
     if (
         account is None
@@ -1114,9 +1126,10 @@ async def delete_gateway_account(
 @router.post("/bindings/{binding_id}/resume")
 async def resume_external_chat_binding(
     binding_id: int,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, bool]:
+    user = auth.user
     binding = await session.get(ExternalChatBinding, binding_id)
     if binding is None or binding.user_id != user.id:
         raise HTTPException(status_code=404, detail="Binding not found")
