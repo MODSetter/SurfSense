@@ -18,12 +18,16 @@ import { FENCED_OR_INLINE_CODE } from "@/lib/markdown/code-regions";
  * sometimes emit.
  */
 export const CITATION_REGEX =
-	/[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+|urlcite\d+|(?:doc-)?-?\d+(?:\s*,\s*(?:doc-)?-?\d+)*)\s*\u200B?[\]】]/g;
+	/[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+|urlcite\d+|d\d+#L\d+-\d+|(?:doc-)?-?\d+(?:\s*,\s*(?:doc-)?-?\d+)*)\s*\u200B?[\]】]/g;
+
+/** Matches the knowledge-base line-citation form `d<documentId>#L<start>-<end>`. */
+const LINE_CITATION_REGEX = /^d(\d+)#L(\d+)-(\d+)$/;
 
 /** A single parsed citation reference. */
 export type CitationToken =
 	| { kind: "url"; url: string }
-	| { kind: "chunk"; chunkId: number; isDocsChunk: boolean };
+	| { kind: "chunk"; chunkId: number; isDocsChunk: boolean }
+	| { kind: "line"; documentId: number; startLine: number; endLine: number };
 
 /** Output of `parseTextWithCitations` — interleaved text + citation tokens. */
 export type ParsedSegment = string | CitationToken;
@@ -95,7 +99,15 @@ export function parseTextWithCitations(text: string, urlMap: CitationUrlMap): Pa
 
 		const captured = match[1];
 
-		if (captured.startsWith("http://") || captured.startsWith("https://")) {
+		const lineMatch = LINE_CITATION_REGEX.exec(captured);
+		if (lineMatch) {
+			segments.push({
+				kind: "line",
+				documentId: Number.parseInt(lineMatch[1], 10),
+				startLine: Number.parseInt(lineMatch[2], 10),
+				endLine: Number.parseInt(lineMatch[3], 10),
+			});
+		} else if (captured.startsWith("http://") || captured.startsWith("https://")) {
 			segments.push({ kind: "url", url: captured.trim() });
 		} else if (captured.startsWith("urlcite")) {
 			const url = urlMap.get(captured);
