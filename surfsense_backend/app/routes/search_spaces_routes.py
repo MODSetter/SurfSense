@@ -11,7 +11,6 @@ from app.db import (
     SearchSpace,
     SearchSpaceMembership,
     SearchSpaceRole,
-    User,
     get_async_session,
     get_default_roles_config,
 )
@@ -22,7 +21,7 @@ from app.schemas import (
     SearchSpaceUpdate,
     SearchSpaceWithStats,
 )
-from app.users import get_auth_context
+from app.users import allow_any_principal, get_auth_context, require_session_context
 from app.utils.rbac import check_permission, check_search_space_access
 
 logger = logging.getLogger(__name__)
@@ -76,7 +75,7 @@ async def create_default_roles_and_membership(
 async def create_search_space(
     search_space: SearchSpaceCreate,
     session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(require_session_context),
 ):
     user = auth.user
     try:
@@ -111,7 +110,7 @@ async def read_search_spaces(
     limit: int = 200,
     owned_only: bool = False,
     session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(allow_any_principal),
 ):
     user = auth.user
     """
@@ -209,7 +208,6 @@ async def read_search_space(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Get a specific search space by ID.
     Requires SETTINGS_VIEW permission or membership.
@@ -243,7 +241,6 @@ async def update_search_space(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Update a search space.
     Requires SETTINGS_UPDATE permission.
@@ -289,7 +286,6 @@ async def update_search_space_api_access(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Toggle programmatic API/PAT access for a search space.
     Requires API_ACCESS_MANAGE permission.
@@ -373,7 +369,6 @@ async def delete_search_space(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Delete a search space.
     Requires SETTINGS_DELETE permission (only owners have this by default).

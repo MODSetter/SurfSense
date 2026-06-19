@@ -53,7 +53,7 @@ from app.services.obsidian_plugin_indexer import (
     upsert_note,
 )
 from app.tasks.celery_tasks.obsidian_tasks import index_obsidian_attachment_task
-from app.users import get_auth_context
+from app.users import allow_any_principal, get_auth_context
 from app.utils.rbac import check_search_space_access
 
 logger = logging.getLogger(__name__)
@@ -255,7 +255,7 @@ async def _ensure_search_space_access(
 
 @router.get("/health", response_model=HealthResponse)
 async def obsidian_health(
-    _auth: AuthContext = Depends(get_auth_context),
+    _auth: AuthContext = Depends(allow_any_principal),
 ) -> HealthResponse:
     """Return the API contract handshake; plugin caches it per onload."""
     return HealthResponse(

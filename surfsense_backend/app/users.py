@@ -349,15 +349,16 @@ async def get_auth_context(
     return AuthContext.session(user)
 
 
-async def current_active_user(
+async def allow_any_principal(
     auth: AuthContext = Depends(get_auth_context),
-) -> User:
-    """Compatibility wrapper for identity-only routes.
+) -> AuthContext:
+    """Allow either session or PAT principals for bootstrap probes only.
 
-    Do not use this for space-scoped authorization or session-grade account
-    actions. Those should depend on get_auth_context or require_session_context.
+    Routes using this dependency intentionally have no search-space gate.
+    Adding a new call site is a security decision and must be covered by
+    the fail-closed PAT allowlist test.
     """
-    return auth.user
+    return auth
 
 
 async def require_session_context(

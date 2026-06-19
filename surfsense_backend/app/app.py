@@ -56,7 +56,7 @@ from app.routes import router as crud_router
 from app.routes.auth_routes import router as auth_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.session_events import register_session_hooks
-from app.users import SECRET, auth_backend, fastapi_users, get_auth_context
+from app.users import SECRET, allow_any_principal, auth_backend, fastapi_users
 from app.utils.perf import log_system_snapshot
 
 _error_logger = logging.getLogger("surfsense.errors")
@@ -1033,7 +1033,7 @@ async def readiness_check():
 
 @app.get("/verify-token")
 async def authenticated_route(
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(allow_any_principal),
     session: AsyncSession = Depends(get_async_session),
 ):
     return {"message": "Token is valid", "method": auth.method}
