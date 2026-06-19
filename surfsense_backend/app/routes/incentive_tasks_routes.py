@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import (
     INCENTIVE_TASKS_CONFIG,
     IncentiveTaskType,
-    User,
     UserIncentiveTask,
     get_async_session,
 )
@@ -21,19 +21,20 @@ from app.schemas.incentive_tasks import (
     IncentiveTasksResponse,
     TaskAlreadyCompletedResponse,
 )
-from app.users import current_active_user
+from app.users import require_session_context
 
 router = APIRouter(prefix="/incentive-tasks", tags=["incentive-tasks"])
 
 
 @router.get("", response_model=IncentiveTasksResponse)
 async def get_incentive_tasks(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> IncentiveTasksResponse:
     """
     Get all available incentive tasks with the user's completion status.
     """
+    user = auth.user
     # Get all completed tasks for this user
     result = await session.execute(
         select(UserIncentiveTask).where(UserIncentiveTask.user_id == user.id)
@@ -75,7 +76,7 @@ async def get_incentive_tasks(
 )
 async def complete_task(
     task_type: IncentiveTaskType,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> CompleteTaskResponse | TaskAlreadyCompletedResponse:
     """
@@ -84,6 +85,7 @@ async def complete_task(
     Each task can only be completed once. If the task was already completed,
     returns the existing completion information without awarding additional credit.
     """
+    user = auth.user
     # Validate task type exists in config
     task_config = INCENTIVE_TASKS_CONFIG.get(task_type)
     if not task_config:

@@ -26,9 +26,9 @@ from app.agents.chat.multi_agent_chat.shared.feature_flags import (
     AgentFeatureFlags,
     get_flags,
 )
+from app.auth.context import AuthContext
 from app.config import config
-from app.db import User
-from app.users import current_active_user
+from app.users import require_session_context
 
 router = APIRouter()
 
@@ -75,6 +75,6 @@ class AgentFeatureFlagsRead(BaseModel):
 
 @router.get("/agent/flags", response_model=AgentFeatureFlagsRead)
 async def get_agent_flags(
-    _user: User = Depends(current_active_user),
+    _auth: AuthContext = Depends(require_session_context),
 ) -> AgentFeatureFlagsRead:
     return AgentFeatureFlagsRead.from_flags(get_flags())

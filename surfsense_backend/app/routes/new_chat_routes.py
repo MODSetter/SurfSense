@@ -1334,8 +1334,8 @@ async def append_message(
     Requires CHATS_UPDATE permission.
     """
     try:
-        # Capture ``user.id`` as a primitive UUID up front. The
-        # ``current_active_user`` dependency hands us a ``User`` ORM
+        # Capture ``user.id`` as a primitive UUID up front. The auth
+        # dependency hands us a ``User`` ORM
         # row bound to ``session``; if the outer ``except
         # IntegrityError`` block below ever fires (an unexpected
         # constraint like a foreign key violation — the common

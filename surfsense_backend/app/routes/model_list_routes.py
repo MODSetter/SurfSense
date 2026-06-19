@@ -10,9 +10,9 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.db import User
+from app.auth.context import AuthContext
 from app.services.model_list_service import get_model_list
-from app.users import current_active_user
+from app.users import require_session_context
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class ModelListItem(BaseModel):
 
 @router.get("/models", response_model=list[ModelListItem])
 async def list_available_models(
-    user: User = Depends(current_active_user),
+    _auth: AuthContext = Depends(require_session_context),
 ):
     """
     Return all available models grouped by provider.

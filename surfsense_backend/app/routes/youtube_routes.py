@@ -8,8 +8,8 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Query
 from scrapling.fetchers import AsyncFetcher
 
-from app.db import User
-from app.users import current_active_user
+from app.auth.context import AuthContext
+from app.users import require_session_context
 from app.utils.proxy import get_proxy_url
 
 router = APIRouter()
@@ -29,7 +29,7 @@ _INNERTUBE_CLIENT = {
 @router.get("/youtube/playlist-videos")
 async def get_playlist_videos(
     url: str = Query(..., description="YouTube playlist URL"),
-    _user: User = Depends(current_active_user),
+    _auth: AuthContext = Depends(require_session_context),
 ):
     """Resolve a YouTube playlist URL into individual video URLs."""
     match = _PLAYLIST_ID_RE.search(url)
