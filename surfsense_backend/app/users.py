@@ -3,7 +3,7 @@ import uuid
 from datetime import UTC, datetime
 
 import httpx
-from fastapi import Depends, Request, Response
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, models
 from fastapi_users.authentication import (
@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy import update
 
 from app.config import config
+from app.auth.context import AuthContext
 from app.db import (
     Prompt,
     SearchSpace,
@@ -23,11 +24,14 @@ from app.db import (
     SearchSpaceRole,
     User,
     async_session_maker,
+    get_async_session,
     get_default_roles_config,
     get_user_db,
 )
 from app.prompts.system_defaults import SYSTEM_PROMPT_DEFAULTS
+from app.utils.pat import PAT_PREFIX, maybe_touch_last_used, resolve_pat
 from app.utils.refresh_tokens import create_refresh_token
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -298,5 +302,62 @@ auth_backend = AuthenticationBackend(
 
 fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
 
-current_active_user = fastapi_users.current_user(active=True)
+
+async def get_auth_context(
+    request: Request,
+    session: AsyncSession = Depends(get_async_session),
+    user_manager: UserManager = Depends(get_user_manager),
+) -> AuthContext:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized",
+        )
+
+    scheme, _, token = auth_header.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized",
+        )
+
+    if token.startswith(PAT_PREFIX):
+        pat = await resolve_pat(session, token)
+        if pat and pat.user and pat.user.is_active:
+            maybe_touch_last_used(pat)
+            return AuthContext.pat_auth(pat.user, pat)
+
+    try:
+        user = await get_jwt_strategy().read_token(token, user_manager)
+    except Exception:
+        logger.exception("Failed to read access token")
+        user = None
+
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized",
+        )
+
+    return AuthContext.session(user)
+
+
+async def current_active_user(
+    auth: AuthContext = Depends(get_auth_context),
+) -> User:
+    return auth.user
+
+
+async def require_session_context(
+    auth: AuthContext = Depends(get_auth_context),
+) -> AuthContext:
+    if not auth.is_session:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This action requires an interactive session",
+        )
+    return auth
+
+
 current_optional_user = fastapi_users.current_user(active=True, optional=True)
