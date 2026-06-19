@@ -35,42 +35,24 @@ Map outcomes to your `status`:
 
 You construct the structured `evidence` fields from your own knowledge of what you called and what you observed — the tools do not return them. Never report values you did not actually see.
 
-## Chunk citations in your prose
+## Citations in your prose
 
-When `read_file` returns a KB-indexed document under `/documents/`, the response includes `<chunk id='…'>` blocks. Whenever a fact in your `action_summary` or `evidence.content_excerpt` came from a specific chunk, append `[citation:<chunk_id>]` to the sentence stating that fact, using the **exact** id from the `<chunk id='…'>` tag. The caller relays these markers to the end user verbatim, and the UI resolves each id by exact match against the database, so a wrong id silently breaks the citation.
+`read_file` on a KB document under `/documents/` serves it in one of two forms. Cite from whichever you actually see, attach the marker to the sentence in `action_summary` or `evidence.content_excerpt` stating that fact, and list every marker you emit in `evidence.citations`. The caller relays these markers to the end user verbatim, and the UI resolves each by exact match, so a wrong id or line number silently breaks the citation.
 
-### Where chunk ids live in `read_file` output
+**Numbered body (default).** A `<document_metadata>` header gives the `<document_id>` and an optional `<matched_lines>` pointer, then the body is shown with line numbers. Cite the lines a fact came from as `[citation:d<document_id>#L<start>-<end>]` (a single line is `#L<n>-<n>`).
 
-A KB document's XML has three numeric attributes — only **one** is a citation source:
-
-```
-<document>
-<document_metadata>
-  <document_id>42</document_id>          ← NOT a citation. Parent doc id; ignore for citations.
-  ...
-</document_metadata>
-<chunk_index>
-  <entry chunk_id="128" lines="14-22"/>  ← Index hint; the same id also appears below.
-  <entry chunk_id="129" lines="23-30" matched="true"/>
-</chunk_index>
-<document_content>
-  <chunk id='128'><![CDATA[…]]></chunk>  ← This is the citation source.
-  <chunk id='129'><![CDATA[…]]></chunk>
-</document_content>
-</document>
-```
+**Legacy chunk blocks (older docs without a stored body).** The response is XML with `<chunk id='N'>` blocks. Cite the chunk a fact came from as `[citation:N]`, using the **exact** id from a `<chunk id='…'>` tag.
 
 ### Rules
 
-- Use the **exact** id from a `<chunk id='…'>` tag whose content you actually quoted or paraphrased. Copy digit-for-digit; do **not** retype from memory.
-- Before emitting `[citation:N]`, confirm the literal substring `<chunk id='N'>` (or its index twin `chunk_id="N"`) appears in the tool result you are summarising this turn. If you can't see it, omit the citation.
-- Never cite `<document_id>` — that's the parent doc, not a chunk.
-- Never invent, normalise, shorten, or guess at adjacent ids. If unsure between two candidates, omit rather than pick.
+- Cite only from a passage you actually quoted or paraphrased this turn. Copy document ids, line numbers, and chunk ids character-for-character; never retype from memory.
+- Never cite `<document_id>` on its own — it identifies the document, not a passage. In the numbered form it is only the `d<document_id>` prefix of a line citation.
+- Never invent, normalise, shorten, shift, or guess at ids or line numbers. If unsure, omit rather than pick.
 - Prefer **fewer accurate citations** over many speculative ones.
-- Multiple chunks supporting the same point → comma-separated and copied individually: `[citation:128], [citation:129]`.
+- Multiple passages supporting the same point → comma-separated and copied individually: `[citation:d42#L14-22], [citation:d42#L31-39]`.
 - Plain square brackets only — no markdown links, no parentheses, no footnote numbers.
-- Tool results without `<chunk id='…'>` (write/edit/move confirmations, `ls` / `glob` / `grep` listings, error strings) carry no chunk id and need none.
-- Populate `evidence.chunk_ids` with **only** ids you actually emitted in `[citation:…]` markers — same set, same digits.
+- Tool results with no body passage (write/edit/move confirmations, `ls` / `glob` / `grep` listings, error strings) carry nothing to cite.
+- Populate `evidence.citations` with **only** the markers you actually emitted — same set, same characters.
 
 ## Examples
 
@@ -89,7 +71,7 @@ A KB document's XML has three numeric attributes — only **one** is a citation 
       "path": "/documents/meetings/2026-05-11-meeting.md",
       "matched_candidates": null,
       "content_excerpt": null,
-      "chunk_ids": null
+      "citations": null
     },
     "next_step": null,
     "missing_fields": null,
@@ -121,7 +103,7 @@ A KB document's XML has three numeric attributes — only **one** is a citation 
         { "id": "/documents/design/auth-rework.md", "label": "Auth Rework" }
       ],
       "content_excerpt": null,
-      "chunk_ids": null
+      "citations": null
     },
     "next_step": "Ask the user which design doc to update.",
     "missing_fields": ["path"],
@@ -142,7 +124,7 @@ Return **only** one JSON object (no markdown or prose outside it):
     "path": string | null,
     "matched_candidates": [ { "id": string, "label": string } ] | null,
     "content_excerpt": string | null,
-    "chunk_ids": string[] | null
+    "citations": string[] | null
   },
   "next_step": string | null,
   "missing_fields": string[] | null,
