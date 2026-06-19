@@ -12,6 +12,7 @@ import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/features/chat-messages/hitl";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { DocumentsSidebar } from "../sidebar";
 
@@ -196,6 +197,9 @@ export function RightPanel({
 	const citationState = useAtomValue(citationPanelAtom);
 	const closeCitation = useSetAtom(closeCitationPanelAtom);
 	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
+	// Desktop-only surface; mobile uses the dedicated Mobile* drawers. Without
+	// this guard both render together and two editors fight over one model.
+	const isDesktop = useMediaQuery("(min-width: 1024px)");
 
 	const documentsOpen = documentsPanel?.open ?? false;
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
@@ -267,7 +271,7 @@ export function RightPanel({
 		<CollapseButton onClick={() => setCollapsed(true)} />
 	) : null;
 
-	if (!isVisible) return null;
+	if (!isVisible || !isDesktop) return null;
 
 	return (
 		<aside
