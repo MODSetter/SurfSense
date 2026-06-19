@@ -1577,7 +1577,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 					<span>Select a model</span>
 				</div>
 			)}
-			<div className="flex items-center gap-2">
+			<div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
 				<ChatHeader
 					searchSpaceId={searchSpaceId}
 					className="h-9 max-w-[44vw] px-2 sm:max-w-[220px] sm:px-3"
@@ -1600,7 +1600,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 							variant="default"
 							size="icon"
 							className={cn(
-								"aui-composer-send size-9 rounded-full",
+								"aui-composer-send size-9 shrink-0 rounded-full",
 								isSendDisabled && "cursor-not-allowed opacity-50"
 							)}
 							aria-label="Send message"
@@ -1617,7 +1617,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 							type="button"
 							variant="default"
 							size="icon"
-							className="aui-composer-cancel size-9 rounded-full"
+							className="aui-composer-cancel size-9 shrink-0 rounded-full"
 							aria-label="Stop generating"
 						>
 							<SquareIcon className="aui-composer-cancel-icon size-3.5 fill-current" />

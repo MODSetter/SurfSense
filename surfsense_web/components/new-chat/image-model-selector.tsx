@@ -33,6 +33,7 @@ import { providerDisplay } from "../settings/model-connections/provider-metadata
 interface ImageModelSelectorProps {
 	searchSpaceId: number;
 	className?: string;
+	mobileIconOnly?: boolean;
 }
 
 type ImageModel = ModelRead & {
@@ -95,7 +96,11 @@ function groupedModels(models: ImageModel[]) {
 	}, {});
 }
 
-export function ImageModelSelector({ searchSpaceId, className }: ImageModelSelectorProps) {
+export function ImageModelSelector({
+	searchSpaceId,
+	className,
+	mobileIconOnly = false,
+}: ImageModelSelectorProps) {
 	const router = useRouter();
 	const isMobile = useIsMobile();
 	const [open, setOpen] = useState(false);
@@ -126,6 +131,7 @@ export function ImageModelSelector({ searchSpaceId, className }: ImageModelSelec
 	const groups = useMemo(() => groupedModels(visibleImageModels), [visibleImageModels]);
 	const loading = globalLoading || connectionsLoading;
 	const hasSearchQuery = search.trim().length > 0;
+	const showIconOnlyTrigger = isMobile && mobileIconOnly;
 
 	function handleOpenChange(nextOpen: boolean) {
 		if (!nextOpen) setSearch("");
@@ -252,12 +258,14 @@ export function ImageModelSelector({ searchSpaceId, className }: ImageModelSelec
 			type="button"
 			variant="ghost"
 			size="sm"
+			aria-label="Select image model"
 			className={cn(
 				"h-8 min-w-0 gap-2 rounded-md px-3 text-muted-foreground transition-colors",
 				"select-none",
 				"hover:bg-foreground/10 hover:text-foreground",
 				"data-[state=open]:bg-foreground/10 data-[state=open]:text-foreground",
-				className
+				className,
+				showIconOnlyTrigger && "h-9 w-auto shrink-0 justify-center gap-1 px-2"
 			)}
 		>
 			{selected ? (
@@ -265,9 +273,11 @@ export function ImageModelSelector({ searchSpaceId, className }: ImageModelSelec
 			) : (
 				<ImagePlus className="size-4 shrink-0" />
 			)}
-			<span className="min-w-0 flex-1 truncate text-sm">
-				{selected ? modelName(selected) : "Auto"}
-			</span>
+			{showIconOnlyTrigger ? null : (
+					<span className="min-w-0 flex-1 truncate text-sm">
+						{selected ? modelName(selected) : "Auto"}
+					</span>
+			)}
 			<ChevronDown className="h-3.5 w-3.5 shrink-0" />
 		</Button>
 	);
