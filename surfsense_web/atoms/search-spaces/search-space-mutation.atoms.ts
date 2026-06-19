@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import type {
 	CreateSearchSpaceRequest,
 	DeleteSearchSpaceRequest,
+	UpdateSearchSpaceApiAccessRequest,
 	UpdateSearchSpaceRequest,
 } from "@/contracts/types/search-space.types";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
@@ -46,6 +47,28 @@ export const updateSearchSpaceMutationAtom = atomWithMutation((get) => {
 					queryKey: cacheKeys.searchSpaces.detail(String(request.id)),
 				});
 			}
+		},
+	};
+});
+
+export const updateSearchSpaceApiAccessMutationAtom = atomWithMutation((get) => {
+	const activeSearchSpaceId = get(activeSearchSpaceIdAtom);
+
+	return {
+		mutationKey: ["update-search-space-api-access", activeSearchSpaceId],
+		enabled: !!activeSearchSpaceId,
+		mutationFn: async (request: UpdateSearchSpaceApiAccessRequest) => {
+			return searchSpacesApiService.updateSearchSpaceApiAccess(request);
+		},
+
+		onSuccess: (_, request: UpdateSearchSpaceApiAccessRequest) => {
+			toast.success("API access updated successfully");
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.searchSpaces.all,
+			});
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.searchSpaces.detail(String(request.id)),
+			});
 		},
 	};
 });
