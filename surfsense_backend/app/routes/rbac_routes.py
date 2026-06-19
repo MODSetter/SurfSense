@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+from app.auth.context import AuthContext
 from app.db import (
     Permission,
     SearchSpace,
@@ -43,7 +44,7 @@ from app.schemas import (
     RoleUpdate,
     UserSearchSpaceAccess,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import (
     check_permission,
     check_search_space_access,
@@ -107,6 +108,8 @@ PERMISSION_DESCRIPTIONS = {
     "settings:view": "View search space settings",
     "settings:update": "Modify search space settings",
     "settings:delete": "Delete the entire search space",
+    # API access
+    "api_access:manage": "Enable or disable programmatic API access for a search space",
     # Automations
     "automations:create": "Create automations from chat or JSON",
     "automations:read": "View automations, their triggers, and run history",
@@ -120,8 +123,9 @@ PERMISSION_DESCRIPTIONS = {
 
 @router.get("/permissions", response_model=PermissionsListResponse)
 async def list_all_permissions(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     List all available permissions that can be assigned to roles.
     """
@@ -156,8 +160,9 @@ async def create_role(
     search_space_id: int,
     role_data: RoleCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Create a new custom role in a search space.
     Requires ROLES_CREATE permission.
@@ -165,7 +170,7 @@ async def create_role(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.ROLES_CREATE.value,
             "You don't have permission to create roles",
@@ -237,8 +242,9 @@ async def create_role(
 async def list_roles(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     List all roles in a search space.
     Requires ROLES_READ permission.
@@ -246,7 +252,7 @@ async def list_roles(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.ROLES_READ.value,
             "You don't have permission to view roles",
@@ -275,8 +281,9 @@ async def get_role(
     search_space_id: int,
     role_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Get a specific role by ID.
     Requires ROLES_READ permission.
@@ -284,7 +291,7 @@ async def get_role(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.ROLES_READ.value,
             "You don't have permission to view roles",
@@ -320,8 +327,9 @@ async def update_role(
     role_id: int,
     role_update: RoleUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Update a role.
     Requires ROLES_UPDATE permission.
@@ -330,7 +338,7 @@ async def update_role(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.ROLES_UPDATE.value,
             "You don't have permission to update roles",
@@ -417,8 +425,9 @@ async def delete_role(
     search_space_id: int,
     role_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Delete a custom role.
     Requires ROLES_DELETE permission.
@@ -427,7 +436,7 @@ async def delete_role(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.ROLES_DELETE.value,
             "You don't have permission to delete roles",
@@ -474,8 +483,9 @@ async def delete_role(
 async def list_members(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     List all members of a search space.
     Requires MEMBERS_VIEW permission.
@@ -483,7 +493,7 @@ async def list_members(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.MEMBERS_VIEW.value,
             "You don't have permission to view members",
@@ -539,8 +549,9 @@ async def update_member_role(
     membership_id: int,
     membership_update: MembershipUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Update a member's role.
     Requires MEMBERS_MANAGE_ROLES permission.
@@ -549,7 +560,7 @@ async def update_member_role(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.MEMBERS_MANAGE_ROLES.value,
             "You don't have permission to manage member roles",
@@ -629,8 +640,9 @@ async def update_member_role(
 async def leave_search_space(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Leave a search space (remove own membership).
     Owners cannot leave their search space.
@@ -675,8 +687,9 @@ async def remove_member(
     search_space_id: int,
     membership_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Remove a member from a search space.
     Requires MEMBERS_REMOVE permission.
@@ -685,7 +698,7 @@ async def remove_member(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.MEMBERS_REMOVE.value,
             "You don't have permission to remove members",
@@ -733,8 +746,9 @@ async def create_invite(
     search_space_id: int,
     invite_data: InviteCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Create a new invite link for a search space.
     Requires MEMBERS_INVITE permission.
@@ -742,7 +756,7 @@ async def create_invite(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.MEMBERS_INVITE.value,
             "You don't have permission to create invites",
@@ -798,8 +812,9 @@ async def create_invite(
 async def list_invites(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     List all invites for a search space.
     Requires MEMBERS_INVITE permission.
@@ -807,7 +822,7 @@ async def list_invites(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.MEMBERS_INVITE.value,
             "You don't have permission to view invites",
@@ -837,8 +852,9 @@ async def update_invite(
     invite_id: int,
     invite_update: InviteUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Update an invite.
     Requires MEMBERS_INVITE permission.
@@ -846,7 +862,7 @@ async def update_invite(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.MEMBERS_INVITE.value,
             "You don't have permission to update invites",
@@ -903,8 +919,9 @@ async def revoke_invite(
     search_space_id: int,
     invite_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Revoke (delete) an invite.
     Requires MEMBERS_INVITE permission.
@@ -912,7 +929,7 @@ async def revoke_invite(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.MEMBERS_INVITE.value,
             "You don't have permission to revoke invites",
@@ -1022,8 +1039,9 @@ async def get_invite_info(
 async def accept_invite(
     request: InviteAcceptRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Accept an invite and join a search space.
     """
@@ -1120,13 +1138,14 @@ async def accept_invite(
 async def get_my_access(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Get the current user's access info for a search space.
     """
     try:
-        membership = await check_search_space_access(session, user, search_space_id)
+        membership = await check_search_space_access(session, auth, search_space_id)
 
         # Get search space name
         result = await session.execute(
