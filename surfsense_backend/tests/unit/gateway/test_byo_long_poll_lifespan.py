@@ -38,7 +38,9 @@ async def cleanup_supervisors():
 
 @pytest.mark.asyncio
 async def test_start_byo_long_poll_noops_when_mode_is_webhook(monkeypatch):
+    monkeypatch.setattr(byo_long_poll.config, "GATEWAY_ENABLED", True)
     monkeypatch.setattr(byo_long_poll.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "webhook")
+    monkeypatch.setattr(byo_long_poll.config, "GATEWAY_WHATSAPP_INTAKE_MODE", "disabled")
 
     await byo_long_poll.start_byo_long_poll_supervisors()
 
@@ -47,9 +49,11 @@ async def test_start_byo_long_poll_noops_when_mode_is_webhook(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_start_byo_long_poll_noops_when_no_byo_accounts(mocker, monkeypatch):
+    monkeypatch.setattr(byo_long_poll.config, "GATEWAY_ENABLED", True)
     monkeypatch.setattr(
         byo_long_poll.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "longpoll"
     )
+    monkeypatch.setattr(byo_long_poll.config, "GATEWAY_WHATSAPP_INTAKE_MODE", "disabled")
     session = mocker.AsyncMock()
     session.execute.return_value = ScalarResult([])
     monkeypatch.setattr(
@@ -67,9 +71,11 @@ async def test_start_byo_long_poll_noops_when_no_byo_accounts(mocker, monkeypatc
 async def test_start_byo_long_poll_spawns_one_supervisor_per_account(
     mocker, monkeypatch
 ):
+    monkeypatch.setattr(byo_long_poll.config, "GATEWAY_ENABLED", True)
     monkeypatch.setattr(
         byo_long_poll.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "longpoll"
     )
+    monkeypatch.setattr(byo_long_poll.config, "GATEWAY_WHATSAPP_INTAKE_MODE", "disabled")
     accounts = [mocker.Mock(id=1), mocker.Mock(id=2)]
     session = mocker.AsyncMock()
     session.execute.return_value = ScalarResult(accounts)
@@ -115,9 +121,11 @@ async def test_supervisor_retries_after_run_returns(mocker, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_shutdown_cancels_running_supervisors(mocker, monkeypatch):
+    monkeypatch.setattr(byo_long_poll.config, "GATEWAY_ENABLED", True)
     monkeypatch.setattr(
         byo_long_poll.config, "GATEWAY_TELEGRAM_INTAKE_MODE", "longpoll"
     )
+    monkeypatch.setattr(byo_long_poll.config, "GATEWAY_WHATSAPP_INTAKE_MODE", "disabled")
     session = mocker.AsyncMock()
     session.execute.return_value = ScalarResult([mocker.Mock(id=1)])
     monkeypatch.setattr(
