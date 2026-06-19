@@ -112,20 +112,25 @@ async def _resolve_doc_context(
     return paths, bodies
 
 
-def _line_label(chunk: dict[str, Any], body: str | None) -> str:
-    """``[lines X-Y]`` for a span-bearing chunk, or '' when spans are absent."""
+def _citation_token(chunk: dict[str, Any], body: str | None, doc_id: int | None) -> str:
+    """Ready-to-copy ``[citation:dID#Lstart-end]`` token, or '' without spans."""
     start = chunk.get("start_char")
     end = chunk.get("end_char")
-    if not body or not isinstance(start, int) or not isinstance(end, int):
+    if (
+        not body
+        or not isinstance(doc_id, int)
+        or not isinstance(start, int)
+        or not isinstance(end, int)
+    ):
         return ""
     start_line, end_line = char_span_to_line_range(body, start, end)
-    if start_line == end_line:
-        return f"[line {start_line}]"
-    return f"[lines {start_line}-{end_line}]"
+    return f"[citation:d{doc_id}#L{start_line}-{end_line}]"
 
 
-def _render_passage(chunk: dict[str, Any], body: str | None) -> str | None:
-    """Render one matched chunk as an indented, line-annotated passage."""
+def _render_passage(
+    chunk: dict[str, Any], body: str | None, doc_id: int | None
+) -> str | None:
+    """Render one matched chunk as an indented passage tagged with its token."""
     content = (chunk.get("content") or "").strip()
     if not content:
         return None
@@ -133,12 +138,14 @@ def _render_passage(chunk: dict[str, Any], body: str | None) -> str | None:
     if len(content) > _PER_DOC_SNIPPET_CHARS:
         snippet += " ..."
     indented = snippet.replace("\n", "\n   ")
-    label = _line_label(chunk, body)
-    head = f"\n   {label}" if label else ""
+    token = _citation_token(chunk, body, doc_id)
+    head = f"\n   {token}" if token else ""
     return f"{head}\n   {indented}"
 
 
-def _matched_passages(doc: dict[str, Any], body: str | None) -> str:
+def _matched_passages(
+    doc: dict[str, Any], body: str | None, doc_id: int | None
+) -> str:
     """Render the RRF-matched chunks; '' when none can be rendered."""
     by_id = {
         c.get("chunk_id"): c
@@ -150,7 +157,7 @@ def _matched_passages(doc: dict[str, Any], body: str | None) -> str:
         chunk = by_id.get(chunk_id)
         if chunk is None:
             continue
-        passage = _render_passage(chunk, body)
+        passage = _render_passage(chunk, body, doc_id)
         if passage:
             rendered.append(passage)
     return "".join(rendered)
@@ -194,11 +201,12 @@ def _format_hits(
         path = paths.get(doc_id) if isinstance(doc_id, int) else None
         body = bodies.get(doc_id) if isinstance(doc_id, int) else None
 
-        header = f"\n{rank}. {title} (type={doc_type}, score={score_str})" + (
+        id_str = f"id={doc_id}, " if isinstance(doc_id, int) else ""
+        header = f"\n{rank}. {title} ({id_str}type={doc_type}, score={score_str})" + (
             f"\n   path: {path}" if path else ""
         )
 
-        passages = _matched_passages(doc, body)
+        passages = _matched_passages(doc, body, doc_id if isinstance(doc_id, int) else None)
         entry = header + (passages or _fallback_snippet(doc))
         if total + len(entry) > _MAX_TOTAL_CHARS:
             lines.append("\n<!-- additional matches truncated to fit context -->")
@@ -207,8 +215,9 @@ def _format_hits(
         total += len(entry)
 
     lines.append(
-        "\n\nTo read a full document, delegate to the knowledge_base specialist "
-        "with `task`, referencing the path above."
+        "\n\nTo cite a matched passage, copy its [citation:dID#Lstart-end] token "
+        "verbatim. To quote more context or read the full document, delegate to "
+        "the knowledge_base specialist with `task` using the path above."
     )
     lines.append("\n</knowledge_base_results>")
     return "".join(lines)

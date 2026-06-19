@@ -51,20 +51,28 @@ def test_renders_matched_passage_not_top_of_doc() -> None:
     assert "Intro paragraph." not in out
 
 
-def test_includes_line_range_when_spans_present() -> None:
+def test_emits_copyable_line_citation_token_when_spans_present() -> None:
     out = _format_hits([_hit()], paths={7: "/documents/note.md"}, bodies={7: _BODY}, query="q")
-    # "Matched passage here." sits on line 3 of the body.
-    assert "line 3" in out
+    # "Matched passage here." sits on line 3 of the body; the hit must surface
+    # a ready-to-copy token so the agent can cite without a separate read.
+    assert "[citation:d7#L3-3]" in out
 
 
-def test_omits_line_range_when_spans_absent() -> None:
+def test_header_includes_document_id() -> None:
+    out = _format_hits([_hit()], paths={7: "/documents/note.md"}, bodies={7: _BODY}, query="q")
+    assert "id=7" in out
+
+
+def test_omits_citation_token_when_spans_absent() -> None:
     hit = _hit()
     for chunk in hit["chunks"]:
         chunk["start_char"] = None
         chunk["end_char"] = None
     out = _format_hits([hit], paths={7: "/documents/note.md"}, bodies={7: _BODY}, query="q")
     assert "Matched passage here." in out
-    assert "[line" not in out
+    # No concrete, copyable token for this document without spans (the closing
+    # instruction's placeholder template doesn't count).
+    assert "[citation:d7#L" not in out
 
 
 def test_falls_back_to_content_when_no_matched_ids() -> None:
