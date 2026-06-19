@@ -42,7 +42,7 @@ from app.services.model_connection_service import (
     verify_connection,
 )
 from app.services.provider_registry import REGISTRY
-from app.users import get_auth_context
+from app.users import get_auth_context, require_session_context
 from app.utils.rbac import check_permission
 
 router = APIRouter()
@@ -257,7 +257,7 @@ async def _default_unset_roles(
 
 
 @router.get("/model-providers", response_model=list[ModelProviderRead])
-async def list_model_providers(auth: AuthContext = Depends(get_auth_context)):
+async def list_model_providers(auth: AuthContext = Depends(require_session_context)):
     del auth
     local_only = {"ollama_chat", "lm_studio"}
     return [
@@ -301,6 +301,7 @@ async def _assert_connection_access(
     auth: AuthContext,
     conn: Connection,
     permission: str = Permission.LLM_CONFIGS_CREATE.value,
+    allow_spaceless_pat: bool = False,
 ) -> None:
     user = auth.user
     if conn.search_space_id:
@@ -316,16 +317,21 @@ async def _assert_connection_access(
         raise HTTPException(
             status_code=403, detail="Connection does not belong to user"
         )
+    if auth.is_gated and not allow_spaceless_pat:
+        raise HTTPException(
+            status_code=403,
+            detail="Managing personal model connections requires an interactive session",
+        )
 
 
 @router.get("/global-llm-config-status")
-async def global_llm_config_status(auth: AuthContext = Depends(get_auth_context)):
+async def global_llm_config_status(auth: AuthContext = Depends(require_session_context)):
     del auth
     return {"exists": config.GLOBAL_LLM_CONFIG_FILE_EXISTS}
 
 
 @router.get("/global-model-connections", response_model=list[ConnectionRead])
-async def list_global_connections(auth: AuthContext = Depends(get_auth_context)):
+async def list_global_connections(auth: AuthContext = Depends(require_session_context)):
     del auth
     models_by_connection: dict[int, list[dict]] = {}
     for model in config.GLOBAL_MODELS:
@@ -380,6 +386,11 @@ async def create_connection(
             Permission.LLM_CONFIGS_CREATE.value,
             "You don't have permission to create model connections in this search space",
         )
+    elif auth.is_gated:
+        raise HTTPException(
+            status_code=403,
+            detail="Managing personal model connections requires an interactive session",
+        )
     payload = data.model_dump(exclude={"search_space_id", "models"})
 
     conn = Connection(
@@ -425,6 +436,11 @@ async def preview_connection_models(
             Permission.LLM_CONFIGS_CREATE.value,
             "You don't have permission to create model connections in this search space",
         )
+    elif auth.is_gated:
+        raise HTTPException(
+            status_code=403,
+            detail="Testing personal model connections requires an interactive session",
+        )
 
     draft = Connection(
         provider=data.provider,
@@ -459,6 +475,11 @@ async def test_preview_connection_model(
             data.search_space_id,
             Permission.LLM_CONFIGS_CREATE.value,
             "You don't have permission to create model connections in this search space",
+        )
+    elif auth.is_gated:
+        raise HTTPException(
+            status_code=403,
+            detail="Testing personal model connections requires an interactive session",
         )
 
     model_id = data.model_id.strip()
