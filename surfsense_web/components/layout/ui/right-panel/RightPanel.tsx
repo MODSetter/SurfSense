@@ -308,6 +308,8 @@ export function RightPanel({
 							searchSpaceId={editorState.searchSpaceId ?? undefined}
 							title={editorState.title}
 							onClose={closeEditor}
+							highlightLines={editorState.highlightLines}
+							forceSourceView={editorState.forceSourceView}
 						/>
 					</div>
 				)}

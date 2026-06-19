@@ -49,15 +49,20 @@ export function SourceCodeEditor({
 		}
 		const range = highlightLinesRef.current;
 		if (!range) return;
-		const start = Math.max(1, Math.floor(range.start));
-		const end = Math.max(start, Math.floor(range.end));
-		decorationsRef.current = editor.createDecorationsCollection([
-			{
-				range: new monaco.Range(start, 1, end, 1),
-				options: { isWholeLine: true, className: "citation-line-highlight" },
-			},
-		]);
-		editor.revealLinesInCenter(start, end);
+		const lineCount = editor.getModel()?.getLineCount() ?? range.end;
+		const start = Math.min(Math.max(1, Math.floor(range.start)), lineCount);
+		const end = Math.min(Math.max(start, Math.floor(range.end)), lineCount);
+		try {
+			decorationsRef.current = editor.createDecorationsCollection([
+				{
+					range: new monaco.Range(start, 1, end, 1),
+					options: { isWholeLine: true, className: "citation-line-highlight" },
+				},
+			]);
+		} catch {
+			// Decoration failure must not block the reveal below.
+		}
+		editor.revealLinesInCenter(start, end, monaco.editor.ScrollType.Immediate);
 	}, []);
 
 	useEffect(() => {
@@ -138,8 +143,14 @@ export function SourceCodeEditor({
 					monacoRef.current = monaco;
 					editorRef.current = editor;
 					applySidebarTheme(monaco);
-					// Defer one frame so the model is laid out before revealing.
-					requestAnimationFrame(() => applyHighlight());
+					// Reveal now, then once more after the first layout settles:
+					// the panel slide-in animation means the editor often has no
+					// usable viewport height on the initial frame.
+					applyHighlight();
+					const layoutSub = editor.onDidLayoutChange(() => {
+						applyHighlight();
+						layoutSub.dispose();
+					});
 					if (!isManualSaveEnabled) return;
 					editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
 						void onSaveRef.current?.();
