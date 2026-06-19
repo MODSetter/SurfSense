@@ -33,7 +33,7 @@ from app.agents.chat.multi_agent_chat.subagents.shared.hitl.approvals.self_gated
 from app.auth.context import AuthContext
 from app.automations.schemas.api import AutomationCreate
 from app.automations.services.automation import AutomationService
-from app.db import User, async_session_maker
+from app.db import async_session_maker
 from app.utils.content_utils import extract_text_content
 
 from .prompt import build_draft_prompt
@@ -58,8 +58,6 @@ def create_create_automation_tool(
     ``AsyncSession`` is opened per call to avoid stale sessions on
     compiled-agent cache hits (same pattern as the Notion / memory tools).
     """
-    uid = UUID(user_id) if isinstance(user_id, str) else user_id
-
     @tool
     async def create_automation(intent: str, runtime: ToolRuntime) -> dict[str, Any]:
         """Draft + save an automation from a natural-language intent.
@@ -167,15 +165,17 @@ def create_create_automation_tool(
                     "issues": _format_validation_issues(exc),
                 }
 
+            if auth_context is None:
+                logger.error(
+                    "create_automation called without AuthContext; refusing to persist"
+                )
+                return {
+                    "status": "error",
+                    "message": "authorization context missing for automation creation",
+                }
+
             async with async_session_maker() as session:
-                user = await session.get(User, uid)
-                if user is None:
-                    return {
-                        "status": "error",
-                        "message": "user not found in this session",
-                    }
-                auth = auth_context or AuthContext.system(user, source="agent")
-                service = AutomationService(session=session, auth=auth)
+                service = AutomationService(session=session, auth=auth_context)
                 created = await service.create(final_validated)
                 return {
                     "status": "saved",

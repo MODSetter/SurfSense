@@ -13,6 +13,7 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
     FilesystemSelection,
 )
 from app.agents.chat.runtime.llm_config import AgentConfig
+from app.auth.context import AuthContext
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 
@@ -33,6 +34,7 @@ async def build_main_agent_for_thread(
     filesystem_selection: FilesystemSelection | None,
     disabled_tools: list[str] | None = None,
     mentioned_document_ids: list[int] | None = None,
+    auth_context: AuthContext | None = None,
 ) -> Any:
     return await agent_factory(
         llm=llm,
@@ -48,4 +50,5 @@ async def build_main_agent_for_thread(
         filesystem_selection=filesystem_selection,
         disabled_tools=disabled_tools,
         mentioned_document_ids=mentioned_document_ids,
+        auth_context=auth_context,
     )

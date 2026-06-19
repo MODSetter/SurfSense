@@ -24,7 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.auth.context import AuthContext
 from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import (
     get_cancel_state,
     is_cancel_requested,
@@ -37,6 +36,7 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
     FilesystemSelection,
     LocalFilesystemMount,
 )
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     ChatComment,
@@ -1810,6 +1810,7 @@ async def handle_new_chat(
                 filesystem_selection=filesystem_selection,
                 request_id=getattr(http_request.state, "request_id", "unknown"),
                 user_image_data_urls=image_urls,
+                auth_context=auth,
             ),
             media_type="text/event-stream",
             headers={
@@ -2306,6 +2307,7 @@ async def regenerate_response(
                     filesystem_selection=filesystem_selection,
                     request_id=getattr(http_request.state, "request_id", "unknown"),
                     user_image_data_urls=regenerate_image_urls or None,
+                    auth_context=auth,
                     flow="regenerate",
                 ):
                     yield chunk
@@ -2432,6 +2434,7 @@ async def resume_chat(
                 filesystem_selection=filesystem_selection,
                 request_id=getattr(http_request.state, "request_id", "unknown"),
                 disabled_tools=request.disabled_tools,
+                auth_context=auth,
             ),
             media_type="text/event-stream",
             headers={
