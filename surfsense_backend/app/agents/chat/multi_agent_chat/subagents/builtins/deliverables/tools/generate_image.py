@@ -240,24 +240,23 @@ def create_generate_image_tool(
                     error="No images were generated",
                 )
 
+            # Update all image URLs in response_dict to be absolute (for the serving endpoint)
+            from urllib.parse import urlparse
+            for image in images:
+                if image.get("url"):
+                    raw_url: str = image["url"]
+                    if raw_url.startswith("/") and provider_base_url:
+                        parsed = urlparse(provider_base_url)
+                        origin = f"{parsed.scheme}://{parsed.netloc}"
+                        image["url"] = f"{origin}{raw_url}"  # Update the stored dict!
+
             first_image = images[0]
             revised_prompt = first_image.get("revised_prompt", prompt)
 
             # b64_json (e.g. gpt-image-1) is served via our backend endpoint so
             # megabytes of base64 don't bloat the LLM context.
-            # Some OpenAI-compatible backends (e.g. Xinference) return a relative
-            # URL like /files/image.png. Browsers can't resolve these, so we
-            # prepend the provider's base origin when the URL starts with "/".
             if first_image.get("url"):
-                raw_url: str = first_image["url"]
-                if raw_url.startswith("/") and provider_base_url:
-                    from urllib.parse import urlparse
-
-                    parsed = urlparse(provider_base_url)
-                    origin = f"{parsed.scheme}://{parsed.netloc}"
-                    image_url = f"{origin}{raw_url}"
-                else:
-                    image_url = raw_url
+                image_url = first_image["url"]
             elif first_image.get("b64_json"):
                 backend_url = config.BACKEND_URL or "http://localhost:8000"
                 image_url = (
