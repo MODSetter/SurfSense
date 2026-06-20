@@ -270,6 +270,12 @@ button {
 	contain-intrinsic-size: 0 40px;
 }
 
+/* Monaco whole-line highlight for a cited source span (Phase E). */
+.citation-line-highlight {
+	background-color: color-mix(in srgb, var(--primary) 16%, transparent);
+	box-shadow: inset 2px 0 0 0 var(--primary);
+}
+
 @source "../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}";
 @source "../node_modules/streamdown/dist/*.js";
 @source "../node_modules/@streamdown/code/dist/*.js";

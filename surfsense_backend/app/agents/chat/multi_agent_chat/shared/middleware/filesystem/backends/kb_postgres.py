@@ -45,6 +45,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.document_xml import (
     build_document_xml,
 )
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.numbered_document import (
+    build_read_preamble,
+    compute_matched_line_ranges,
+)
 from app.agents.chat.runtime.path_resolver import (
     DOCUMENTS_ROOT,
     build_path_index,
@@ -62,6 +66,12 @@ _GREP_MAX_PER_DOC = 5
 
 def _basename(path: str) -> str:
     return path.rsplit("/", 1)[-1]
+
+
+def _metadata_url(metadata: dict[str, Any]) -> str:
+    return (
+        metadata.get("url") or metadata.get("source") or metadata.get("page_url") or ""
+    )
 
 
 def _is_under(child: str, parent: str) -> bool:
@@ -460,8 +470,11 @@ class KBPostgresBackend(BackendProtocol):
         loaded = await self._load_file_data(file_path)
         if loaded is None:
             return f"Error: File '{file_path}' not found"
-        file_data, _ = loaded
-        return format_read_response(file_data, offset, limit)
+        file_data, _, preamble = loaded
+        body = format_read_response(file_data, offset, limit)
+        if preamble and offset == 0:
+            return preamble + body
+        return body
 
     def read(self, file_path: str, offset: int = 0, limit: int = 2000) -> str:  # type: ignore[override]
         return asyncio.run(self.aread(file_path, offset, limit))
@@ -469,12 +482,14 @@ class KBPostgresBackend(BackendProtocol):
     async def _load_file_data(
         self,
         path: str,
-    ) -> tuple[dict[str, Any], int | None] | None:
+    ) -> tuple[dict[str, Any], int | None, str | None] | None:
         """Lazy-load a virtual KB document into a deepagents ``FileData``.
 
-        Returns ``(file_data, doc_id)`` or ``None`` if the path doesn't map
-        to any known document. ``doc_id`` is ``None`` for the synthetic
-        anonymous document so the caller doesn't track it as a DB-backed file.
+        Returns ``(file_data, doc_id, preamble)`` or ``None`` if the path
+        doesn't map to any known document. ``doc_id`` is ``None`` for the
+        synthetic anonymous document. ``preamble`` is the metadata header to
+        show above a numbered ``source_markdown`` body (``None`` for the legacy
+        chunk-reconstructed XML reads used when a document has no body).
         """
         anon = self._kb_anon_doc()
         if anon and str(anon.get("path") or "") == path:
@@ -492,7 +507,7 @@ class KBPostgresBackend(BackendProtocol):
             }
             xml = build_document_xml(doc_payload, matched_chunk_ids=set())
             file_data = create_file_data(xml)
-            return file_data, None
+            return file_data, None, None
 
         if not path.startswith(DOCUMENTS_ROOT):
             return None
@@ -505,41 +520,58 @@ class KBPostgresBackend(BackendProtocol):
             )
             if document is None:
                 return None
-            chunk_rows = await session.execute(
-                select(Chunk.id, Chunk.content)
-                .where(Chunk.document_id == document.id)
-                .order_by(Chunk.position, Chunk.id)
-            )
-            chunks = [
-                {"chunk_id": row.id, "content": row.content} for row in chunk_rows.all()
-            ]
-
-        doc_payload = {
-            "document_id": document.id,
-            "chunks": chunks,
-            "matched_chunk_ids": list(self._matched_chunk_ids(document.id)),
-            "document": {
-                "id": document.id,
-                "title": document.title,
-                "document_type": (
-                    document.document_type.value
-                    if getattr(document, "document_type", None) is not None
-                    else "UNKNOWN"
-                ),
-                "metadata": dict(document.document_metadata or {}),
-            },
-            "source": (
+            source_markdown = document.source_markdown or ""
+            document_type = (
                 document.document_type.value
                 if getattr(document, "document_type", None) is not None
                 else "UNKNOWN"
-            ),
+            )
+            metadata = dict(document.document_metadata or {})
+            chunk_rows = await session.execute(
+                select(Chunk.id, Chunk.content, Chunk.start_char, Chunk.end_char)
+                .where(Chunk.document_id == document.id)
+                .order_by(Chunk.position, Chunk.id)
+            )
+            chunk_records = chunk_rows.all()
+            document_id = document.id
+            document_title = document.title
+
+        matched = self._matched_chunk_ids(document_id)
+
+        # Canonical read: serve the verbatim body with cat -n line numbers that
+        # line up with chunk char spans, so the agent cites real source lines.
+        if source_markdown:
+            ranges = compute_matched_line_ranges(
+                source_markdown,
+                [(r.id, r.start_char, r.end_char) for r in chunk_records],
+                matched,
+            )
+            preamble = build_read_preamble(
+                document_id=document_id,
+                document_type=document_type,
+                title=document_title,
+                url=_metadata_url(metadata),
+                matched_line_ranges=ranges,
+            )
+            return create_file_data(source_markdown), document_id, preamble
+
+        # Legacy fallback: no canonical body, reconstruct from chunks as XML.
+        doc_payload = {
+            "document_id": document_id,
+            "chunks": [
+                {"chunk_id": r.id, "content": r.content} for r in chunk_records
+            ],
+            "matched_chunk_ids": list(matched),
+            "document": {
+                "id": document_id,
+                "title": document_title,
+                "document_type": document_type,
+                "metadata": metadata,
+            },
+            "source": document_type,
         }
-        xml = build_document_xml(
-            doc_payload,
-            matched_chunk_ids=self._matched_chunk_ids(document.id),
-        )
-        file_data = create_file_data(xml)
-        return file_data, document.id
+        xml = build_document_xml(doc_payload, matched_chunk_ids=matched)
+        return create_file_data(xml), document_id, None
 
     # ------------------------------------------------------------------ writes
 
@@ -571,7 +603,7 @@ class KBPostgresBackend(BackendProtocol):
             loaded = await self._load_file_data(file_path)
             if loaded is None:
                 return EditResult(error=f"Error: File '{file_path}' not found")
-            file_data, _ = loaded
+            file_data, _, _ = loaded
 
         content = file_data_to_string(file_data)
         result = perform_string_replacement(

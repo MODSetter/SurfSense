@@ -1467,6 +1467,11 @@ class Chunk(BaseModel, TimestampMixin):
     # ordering reads are document-scoped (covered by ix_chunks_document_id) and
     # building a position index on the large chunks table is not worth it.
     position = Column(Integer, nullable=False, server_default="0")
+    # Half-open char span into the document's source_markdown the chunk was cut
+    # from. Nullable: historical rows predate spans and populate on reindex.
+    # Invariant for span-aware rows: source_markdown[start_char:end_char] == content.
+    start_char = Column(Integer, nullable=True)
+    end_char = Column(Integer, nullable=True)
 
     document_id = Column(
         Integer,

@@ -440,8 +440,15 @@ class ChucksHybridSearchRetriever:
             chunk_filter = numbered.c.rn <= _MAX_FETCH_CHUNKS_PER_DOC
 
         # Select only the columns we need (skip Chunk.embedding ~12KB/row).
+        # start_char/end_char carry the citation span; None for legacy rows.
         chunk_query = (
-            select(Chunk.id, Chunk.content, Chunk.document_id)
+            select(
+                Chunk.id,
+                Chunk.content,
+                Chunk.document_id,
+                Chunk.start_char,
+                Chunk.end_char,
+            )
             .join(numbered, Chunk.id == numbered.c.chunk_id)
             .where(chunk_filter)
             .order_by(Chunk.document_id, Chunk.position, Chunk.id)
@@ -476,7 +483,14 @@ class ChucksHybridSearchRetriever:
             if doc_id not in doc_map:
                 continue
             doc_entry = doc_map[doc_id]
-            doc_entry["chunks"].append({"chunk_id": row.id, "content": row.content})
+            doc_entry["chunks"].append(
+                {
+                    "chunk_id": row.id,
+                    "content": row.content,
+                    "start_char": row.start_char,
+                    "end_char": row.end_char,
+                }
+            )
             if row.id in matched_chunk_ids:
                 doc_entry["matched_chunk_ids"].append(row.id)
 
