@@ -130,7 +130,9 @@ async def load_llm_bundle(
             billing_tier="free",
         )
         return (
-            SanitizedChatLiteLLM(model=model_string, **litellm_kwargs),
+            SanitizedChatLiteLLM(
+                model=model_string, **{**litellm_kwargs, "streaming": True}
+            ),
             agent_config,
             None,
         )
@@ -174,7 +176,9 @@ async def load_llm_bundle(
         billing_tier=str(global_model.get("billing_tier", "free")).lower(),
     )
     return (
-        SanitizedChatLiteLLM(model=model_string, **litellm_kwargs),
+        SanitizedChatLiteLLM(
+            model=model_string, **{**litellm_kwargs, "streaming": True}
+        ),
         agent_config,
         None,
     )

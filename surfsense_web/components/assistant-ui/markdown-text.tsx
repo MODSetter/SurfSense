@@ -110,7 +110,7 @@ const MarkdownTextImpl = () => {
 	return (
 		<CitationUrlMapContext.Provider value={urlMapRef}>
 			<MarkdownTextPrimitive
-				smooth={false}
+				smooth
 				remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: false }]]}
 				rehypePlugins={[rehypeKatex]}
 				className="aui-md"

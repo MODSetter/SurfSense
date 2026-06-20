@@ -3,9 +3,10 @@
 import { type Descendant, KEYS } from "platejs";
 import { createPlatePlugin, type PlateElementProps } from "platejs/react";
 import type { FC } from "react";
-import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
+import { InlineCitation, LineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
 import {
 	CITATION_REGEX,
+	type CitationToken,
 	type CitationUrlMap,
 	parseTextWithCitations,
 } from "@/lib/citations/citation-parser";
@@ -17,9 +18,12 @@ import {
  */
 export type CitationElementNode = {
 	type: "citation";
-	kind: "chunk" | "doc" | "url";
+	kind: "chunk" | "doc" | "url" | "line";
 	chunkId?: number;
 	url?: string;
+	documentId?: number;
+	startLine?: number;
+	endLine?: number;
 	/** Original literal token that produced this citation node. */
 	rawText: string;
 	children: [{ text: "" }];
@@ -33,11 +37,22 @@ const CitationElement: FC<PlateElementProps<CitationElementNode>> = ({
 	element,
 }) => {
 	const isUrl = element.kind === "url";
+	const isLine =
+		element.kind === "line" &&
+		element.documentId !== undefined &&
+		element.startLine !== undefined &&
+		element.endLine !== undefined;
 	return (
 		<span {...attributes} className="inline-flex align-baseline">
 			<span contentEditable={false}>
 				{isUrl && element.url ? (
 					<UrlCitation url={element.url} />
+				) : isLine ? (
+					<LineCitation
+						documentId={element.documentId as number}
+						startLine={element.startLine as number}
+						endLine={element.endLine as number}
+					/>
 				) : element.chunkId !== undefined ? (
 					<InlineCitation chunkId={element.chunkId} isDocsChunk={element.kind === "doc"} />
 				) : null}
@@ -97,15 +112,23 @@ function copyMarks(textNode: SlateText): Record<string, unknown> {
 	return marks;
 }
 
-function makeCitationElement(
-	rawText: string,
-	segment: { kind: "url"; url: string } | { kind: "chunk"; chunkId: number; isDocsChunk: boolean }
-): CitationElementNode {
+function makeCitationElement(rawText: string, segment: CitationToken): CitationElementNode {
 	if (segment.kind === "url") {
 		return {
 			type: CITATION_TYPE,
 			kind: "url",
 			url: segment.url,
+			rawText,
+			children: [{ text: "" }],
+		};
+	}
+	if (segment.kind === "line") {
+		return {
+			type: CITATION_TYPE,
+			kind: "line",
+			documentId: segment.documentId,
+			startLine: segment.startLine,
+			endLine: segment.endLine,
 			rawText,
 			children: [{ text: "" }],
 		};

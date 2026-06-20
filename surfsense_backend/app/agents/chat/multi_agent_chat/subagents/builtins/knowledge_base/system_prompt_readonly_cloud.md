@@ -28,41 +28,21 @@ Reply in plain prose:
 - If the workspace does not contain the requested information, say so explicitly. Do not fabricate paths or content.
 - If the question is genuinely ambiguous after a thorough lookup, list the candidates with their paths and stop.
 
-## Chunk citations
+## Citations
 
-When the evidence for a claim came from a `read_file` response that included `<chunk id='…'>` blocks (i.e. a KB-indexed document under `/documents/`), append `[citation:<chunk_id>]` to the sentence stating that claim. The caller passes these markers through to the end user verbatim, and the UI resolves each id by exact match against the database, so a wrong id silently breaks the citation.
+`read_file` on a KB document under `/documents/` serves it in one of two forms; cite a claim from whichever you actually see, alongside the path. The caller passes these markers through to the end user verbatim, and the UI resolves each by exact match, so a wrong id or line number silently breaks the citation.
 
-### Where chunk ids live in `read_file` output
-
-A KB document's XML has three numeric attributes — only **one** is a citation source:
-
-```
-<document>
-<document_metadata>
-  <document_id>42</document_id>          ← NOT a citation. Parent doc id; ignore for citations.
-  ...
-</document_metadata>
-<chunk_index>
-  <entry chunk_id="128" lines="14-22"/>  ← Index hint; the same id also appears below.
-  <entry chunk_id="129" lines="23-30" matched="true"/>
-</chunk_index>
-<document_content>
-  <chunk id='128'><![CDATA[…]]></chunk>  ← This is the citation source.
-  <chunk id='129'><![CDATA[…]]></chunk>
-</document_content>
-</document>
-```
+- **Numbered body (default).** A `<document_metadata>` header gives the `<document_id>`, and the body is shown with line numbers. Cite the lines a claim came from as `[citation:d<document_id>#L<start>-<end>]` (a single line is `#L<n>-<n>`).
+- **Legacy chunk blocks (older docs).** XML with `<chunk id='N'>` blocks. Cite the chunk a claim came from as `[citation:N]`.
 
 ### Rules
 
-- Use the **exact** id from a `<chunk id='…'>` tag whose content you actually quoted or paraphrased. Copy digit-for-digit; do **not** retype from memory.
-- Before emitting `[citation:N]`, confirm the literal substring `<chunk id='N'>` (or its index twin `chunk_id="N"`) appears in the tool result you are summarising this turn. If you can't see it, omit the citation.
-- Never cite `<document_id>` — that's the parent doc, not a chunk.
-- Never invent, normalise, shorten, or guess at adjacent ids. If unsure between two candidates, omit rather than pick.
-- Prefer **fewer accurate citations** over many speculative ones. One correct `[citation:128]` is more useful than a string of wrong ids.
-- Multiple chunks supporting the same point → comma-separated and copied individually: `[citation:128], [citation:129]`.
+- Copy document ids, line numbers, and chunk ids character-for-character; never retype from memory. If you cannot see the id/lines for a claim, omit the citation.
+- Never cite `<document_id>` on its own — in the numbered form it is only the `d<document_id>` prefix of a line citation.
+- Never invent, normalise, shorten, shift, or guess. Prefer **fewer accurate citations** over many speculative ones.
+- Multiple passages supporting the same point → comma-separated and copied individually.
 - Plain square brackets only — no markdown links, no parentheses, no footnote numbers.
-- If a claim came from a tool result that did **not** carry a chunk id (`ls`, `glob`, `grep` listings, error strings, or files without `<chunk id='…'>`), skip the citation.
-- The absolute path under `/documents/` is always required; chunk citations are additive, they do not replace the path reference.
+- Listings (`ls` / `glob` / `grep`), error strings, and files without either form carry nothing to cite.
+- The absolute path under `/documents/` is always required; citations are additive, they do not replace the path reference.
 
-Example: `The Q2 roadmap lists three milestones (/documents/planning/q2-roadmap.md) [citation:128], [citation:129].`
+Example: `The Q2 roadmap lists three milestones (/documents/planning/q2-roadmap.md) [citation:d42#L3-9].`

@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Spinner } from "@/components/ui/spinner";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -17,6 +17,8 @@ interface SourceCodeEditorProps {
 	readOnly?: boolean;
 	fontSize?: number;
 	onSave?: () => Promise<void> | void;
+	/** 1-based inclusive line range to reveal and highlight (e.g. a citation). */
+	highlightLines?: { start: number; end: number } | null;
 }
 
 export function SourceCodeEditor({
@@ -27,10 +29,45 @@ export function SourceCodeEditor({
 	readOnly = false,
 	fontSize = 12,
 	onSave,
+	highlightLines = null,
 }: SourceCodeEditorProps) {
 	const { resolvedTheme } = useTheme();
 	const onSaveRef = useRef(onSave);
 	const monacoRef = useRef<any>(null);
+	const editorRef = useRef<any>(null);
+	const decorationsRef = useRef<any>(null);
+	const highlightLinesRef = useRef(highlightLines);
+	highlightLinesRef.current = highlightLines;
+
+	const applyHighlight = useCallback(() => {
+		const editor = editorRef.current;
+		const monaco = monacoRef.current;
+		if (!editor || !monaco) return;
+		if (decorationsRef.current) {
+			decorationsRef.current.clear();
+			decorationsRef.current = null;
+		}
+		const range = highlightLinesRef.current;
+		if (!range) return;
+		const lineCount = editor.getModel()?.getLineCount() ?? range.end;
+		const start = Math.min(Math.max(1, Math.floor(range.start)), lineCount);
+		const end = Math.min(Math.max(start, Math.floor(range.end)), lineCount);
+		try {
+			decorationsRef.current = editor.createDecorationsCollection([
+				{
+					range: new monaco.Range(start, 1, end, 1),
+					options: { isWholeLine: true, className: "citation-line-highlight" },
+				},
+			]);
+		} catch {
+			// Decoration failure must not block the reveal below.
+		}
+		editor.revealLinesInCenter(start, end, monaco.editor.ScrollType.Immediate);
+	}, []);
+
+	useEffect(() => {
+		applyHighlight();
+	}, [applyHighlight, highlightLines?.start, highlightLines?.end]);
 	const normalizedModelPath = (() => {
 		const raw = (path || "local-file.txt").trim();
 		const withLeadingSlash = raw.startsWith("/") ? raw : `/${raw}`;
@@ -104,7 +141,16 @@ export function SourceCodeEditor({
 				}}
 				onMount={(editor, monaco) => {
 					monacoRef.current = monaco;
+					editorRef.current = editor;
 					applySidebarTheme(monaco);
+					// Reveal now, then once more after the first layout settles:
+					// the panel slide-in animation means the editor often has no
+					// usable viewport height on the initial frame.
+					applyHighlight();
+					const layoutSub = editor.onDidLayoutChange(() => {
+						applyHighlight();
+						layoutSub.dispose();
+					});
 					if (!isManualSaveEnabled) return;
 					editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
 						void onSaveRef.current?.();
