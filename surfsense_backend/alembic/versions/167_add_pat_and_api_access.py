@@ -1,7 +1,7 @@
 """Add personal access tokens and search-space API access gate.
 
-Revision ID: 166
-Revises: 165
+Revision ID: 167
+Revises: 166
 """
 
 from collections.abc import Sequence
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "166"
-down_revision: str | None = "165"
+revision: str = "167"
+down_revision: str | None = "166"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
