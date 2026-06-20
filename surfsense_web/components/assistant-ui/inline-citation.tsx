@@ -2,9 +2,11 @@
 
 import { useSetAtom } from "jotai";
 import { FileText } from "lucide-react";
+import { useParams } from "next/navigation";
 import type { FC } from "react";
 import { useId, useState } from "react";
 import { openCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
+import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { useCitationMetadata } from "@/components/assistant-ui/citation-metadata-context";
 import { CitationPanelContent } from "@/components/citation-panel/citation-panel";
 import { Citation } from "@/components/tool-ui/citation";
@@ -105,6 +107,50 @@ const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 				</DrawerContent>
 			</Drawer>
 		</>
+	);
+};
+
+interface LineCitationProps {
+	documentId: number;
+	startLine: number;
+	endLine: number;
+}
+
+/**
+ * Inline citation for a knowledge-base document line range
+ * (`[citation:d<documentId>#L<start>-<end>]`). Clicking opens the document in
+ * the editor's read-only source view, scrolled to and highlighting the cited
+ * lines — the same anchor the citation panel uses for chunk citations.
+ */
+export const LineCitation: FC<LineCitationProps> = ({ documentId, startLine, endLine }) => {
+	const openEditorPanel = useSetAtom(openEditorPanelAtom);
+	const params = useParams();
+	const searchSpaceId = Number(params?.search_space_id);
+
+	const label = startLine === endLine ? `L${startLine}` : `L${startLine}-${endLine}`;
+
+	const handleClick = () => {
+		if (!Number.isFinite(searchSpaceId)) return;
+		openEditorPanel({
+			documentId,
+			searchSpaceId,
+			highlightLines: { start: startLine, end: endLine },
+			forceSourceView: true,
+		});
+	};
+
+	return (
+		<Button
+			type="button"
+			variant="ghost"
+			onClick={handleClick}
+			className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-md bg-popover px-1.5 text-[11px] font-medium text-popover-foreground/80 align-baseline"
+			title={`View cited lines ${startLine}–${endLine}`}
+			aria-label={`View cited document lines ${startLine} to ${endLine}`}
+		>
+			<FileText className="size-3" />
+			{label}
+		</Button>
 	);
 };
 

@@ -131,6 +131,7 @@ export function ModelSelector({
 	const groups = useMemo(() => groupedModels(visibleChatModels), [visibleChatModels]);
 	const loading = globalLoading || connectionsLoading;
 	const hasSearchQuery = search.trim().length > 0;
+	const showIconOnlyTrigger = isMobile;
 
 	function handleOpenChange(nextOpen: boolean) {
 		if (!nextOpen) setSearch("");
@@ -276,15 +277,18 @@ export function ModelSelector({
 				"select-none",
 				"hover:bg-foreground/10 hover:text-foreground",
 				"data-[state=open]:bg-foreground/10 data-[state=open]:text-foreground",
-				className
+				className,
+				showIconOnlyTrigger && "h-9 w-auto shrink-0 justify-center gap-1 px-2"
 			)}
 		>
 			{selected
 				? getProviderIcon(selected.provider, { className: "size-4 shrink-0" })
 				: getProviderIcon(AUTO_PROVIDER_ICON_KEY, { className: "size-4 shrink-0" })}
-			<span className="min-w-0 flex-1 truncate text-sm">
-				{selected ? modelName(selected) : "Auto"}
-			</span>
+			{showIconOnlyTrigger ? null : (
+				<span className="min-w-0 flex-1 truncate text-sm">
+					{selected ? modelName(selected) : "Auto"}
+				</span>
+			)}
 			<ChevronDown className="h-3.5 w-3.5 shrink-0" />
 		</Button>
 	);

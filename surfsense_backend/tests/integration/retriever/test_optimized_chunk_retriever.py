@@ -98,6 +98,32 @@ async def test_chunks_ordered_by_id(db_session, seed_large_doc):
         assert chunk_ids == sorted(chunk_ids), "Chunks not ordered by ID"
 
 
+async def test_chunk_spans_returned(db_session, seed_large_doc):
+    """Each chunk dict carries start_char/end_char (the citation span)."""
+    space_id = seed_large_doc["search_space"].id
+    small_doc_id = seed_large_doc["small_doc"].id
+
+    retriever = ChucksHybridSearchRetriever(db_session)
+    results = await retriever.hybrid_search(
+        query_text="quarterly performance review summary",
+        top_k=10,
+        search_space_id=space_id,
+        query_embedding=DUMMY_EMBEDDING,
+    )
+
+    for result in results:
+        for chunk in result["chunks"]:
+            assert "start_char" in chunk
+            assert "end_char" in chunk
+        if result["document"].get("id") == small_doc_id:
+            seeded = result["chunks"][0]
+            assert seeded["start_char"] == 0
+            assert seeded["end_char"] == 10
+            break
+    else:
+        pytest.fail("Small doc not found in search results")
+
+
 async def test_score_is_positive_float(db_session, seed_large_doc):
     """Each result should have a positive float score from RRF."""
     space_id = seed_large_doc["search_space"].id

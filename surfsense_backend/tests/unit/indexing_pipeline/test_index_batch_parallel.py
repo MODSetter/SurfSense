@@ -37,12 +37,9 @@ def _make_orm_doc(connector_doc, doc_id):
 async def test_index_calls_embed_and_chunk_via_to_thread(
     pipeline, make_connector_document, monkeypatch
 ):
-    """index() runs the chunker and embed_texts via asyncio.to_thread, not blocking the loop.
+    """index() runs the chunker and embed_texts via asyncio.to_thread, not blocking the loop."""
+    from app.indexing_pipeline.document_chunker import ChunkSlice
 
-    Routing between ``chunk_text`` (code path) and ``chunk_text_hybrid`` (default
-    path, see issue #1334) is verified separately in
-    ``test_non_code_documents_use_hybrid_chunker``.
-    """
     to_thread_calls = []
     original_to_thread = asyncio.to_thread
 
@@ -51,11 +48,11 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
         return await original_to_thread(func, *args, **kwargs)
 
     monkeypatch.setattr(asyncio, "to_thread", tracking_to_thread)
-    mock_chunk_hybrid = MagicMock(return_value=["chunk1"])
-    mock_chunk_hybrid.__name__ = "chunk_text_hybrid"
+    mock_chunker = MagicMock(return_value=[ChunkSlice("chunk1", 0, 6)])
+    mock_chunker.__name__ = "chunk_markdown_with_spans"
     monkeypatch.setattr(
-        "app.indexing_pipeline.cache.cached_indexing.chunk_text_hybrid",
-        mock_chunk_hybrid,
+        "app.indexing_pipeline.cache.cached_indexing.chunk_markdown_with_spans",
+        mock_chunker,
     )
     mock_embed = MagicMock(
         side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]
@@ -90,34 +87,25 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
 
     await pipeline.index(document, connector_doc)
 
-    # Either chunker entry point satisfies the "chunking runs off the event
-    # loop" contract this test guards. Routing between the two is verified
-    # in test_non_code_documents_use_hybrid_chunker.
-    assert {"chunk_text", "chunk_text_hybrid"} & set(to_thread_calls)
+    assert "chunk_markdown_with_spans" in to_thread_calls
     assert "embed_texts" in to_thread_calls
     assert document.status == DocumentStatus.ready()
 
 
-async def test_non_code_documents_use_hybrid_chunker(
+async def test_non_code_documents_use_prose_chunker(
     pipeline, make_connector_document, monkeypatch
 ):
-    """Non-code documents route through ``chunk_text_hybrid`` (issue #1334).
+    """Non-code documents chunk with use_code_chunker=False (issue #1334).
 
-    The hybrid chunker preserves Markdown table integrity by avoiding splits
-    mid-row. Only documents flagged with ``should_use_code_chunker=True``
-    should take the ``chunk_text`` path.
+    The table-aware prose path keeps Markdown tables intact; only documents
+    flagged with ``should_use_code_chunker=True`` request the code chunker.
     """
-    mock_chunk_hybrid = MagicMock(return_value=["chunk1"])
-    mock_chunk_hybrid.__name__ = "chunk_text_hybrid"
+    from app.indexing_pipeline.document_chunker import ChunkSlice
+
+    mock_chunker = MagicMock(return_value=[ChunkSlice("chunk1", 0, 6)])
     monkeypatch.setattr(
-        "app.indexing_pipeline.cache.cached_indexing.chunk_text_hybrid",
-        mock_chunk_hybrid,
-    )
-    mock_chunk_code = MagicMock(return_value=["chunk1"])
-    mock_chunk_code.__name__ = "chunk_text"
-    monkeypatch.setattr(
-        "app.indexing_pipeline.cache.cached_indexing.chunk_text",
-        mock_chunk_code,
+        "app.indexing_pipeline.cache.cached_indexing.chunk_markdown_with_spans",
+        mock_chunker,
     )
     monkeypatch.setattr(
         "app.indexing_pipeline.cache.cached_indexing.embed_texts",
@@ -149,8 +137,49 @@ async def test_non_code_documents_use_hybrid_chunker(
 
     await pipeline.index(document, connector_doc)
 
-    mock_chunk_hybrid.assert_called_once()
-    mock_chunk_code.assert_not_called()
+    mock_chunker.assert_called_once()
+    assert mock_chunker.call_args.args[1] is False
+
+
+async def test_code_documents_request_code_chunker(
+    pipeline, make_connector_document, monkeypatch
+):
+    """Code-flagged documents forward use_code_chunker=True to the chunker."""
+    from app.indexing_pipeline.document_chunker import ChunkSlice
+
+    mock_chunker = MagicMock(return_value=[ChunkSlice("chunk1", 0, 6)])
+    monkeypatch.setattr(
+        "app.indexing_pipeline.cache.cached_indexing.chunk_markdown_with_spans",
+        mock_chunker,
+    )
+    monkeypatch.setattr(
+        "app.indexing_pipeline.cache.cached_indexing.embed_texts",
+        MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]),
+    )
+    monkeypatch.setattr(pipeline, "_load_existing_chunks", AsyncMock(return_value=[]))
+
+    async def _noop_persist(_session, doc, *_args, **_kwargs):
+        doc.status = DocumentStatus.ready()
+
+    monkeypatch.setattr(
+        "app.indexing_pipeline.indexing_pipeline_service.persist_scratch_index",
+        _noop_persist,
+    )
+
+    connector_doc = make_connector_document(
+        document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
+        unique_id="repo-1",
+        search_space_id=1,
+        should_use_code_chunker=True,
+    )
+    document = MagicMock(spec=Document)
+    document.id = 1
+    document.status = DocumentStatus.pending()
+
+    await pipeline.index(document, connector_doc)
+
+    mock_chunker.assert_called_once()
+    assert mock_chunker.call_args.args[1] is True
 
 
 def _mock_session_factory(orm_docs_by_id):

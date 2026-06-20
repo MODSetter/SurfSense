@@ -75,7 +75,7 @@ async def cloud_move_file(
         loaded = await backend._load_file_data(source)
         if loaded is None:
             return f"Error: source '{source}' not found."
-        source_file_data, loaded_doc_id = loaded
+        source_file_data, loaded_doc_id, _ = loaded
         if source_doc_id is None:
             source_doc_id = loaded_doc_id
 

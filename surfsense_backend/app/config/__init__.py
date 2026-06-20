@@ -957,8 +957,9 @@ class Config:
         os.getenv("EMBEDDING_CACHE_ENABLED", "false").strip().lower() == "true"
     )
     # Bump to invalidate every cached embedding set after a chunker change.
+    # v2: chunks became exact (raw) slices of source_markdown for citation spans.
     EMBEDDING_CACHE_CHUNKER_VERSION = int(
-        os.getenv("EMBEDDING_CACHE_CHUNKER_VERSION", "1")
+        os.getenv("EMBEDDING_CACHE_CHUNKER_VERSION", "2")
     )
     EMBEDDING_CACHE_TTL_DAYS = int(os.getenv("EMBEDDING_CACHE_TTL_DAYS", "90"))
     EMBEDDING_CACHE_MAX_TOTAL_MB = int(

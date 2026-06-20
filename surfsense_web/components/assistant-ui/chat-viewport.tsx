@@ -27,8 +27,8 @@ export interface ChatViewportProps {
 export const ChatViewport: FC<ChatViewportProps> = ({ children, footer }) => (
 	<ThreadPrimitive.Viewport
 		turnAnchor="top"
-		autoScroll={false}
-		scrollToBottomOnRunStart={false}
+		autoScroll
+		scrollToBottomOnRunStart
 		scrollToBottomOnInitialize
 		scrollToBottomOnThreadSwitch
 		className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 scroll-smooth"
