@@ -16,18 +16,21 @@ _LIVE_SEARCH_CONNECTORS: set[str] = {
     "TAVILY_API",
     "LINKUP_API",
     "BAIDU_SEARCH_API",
+    "CRW_API",
 }
 
 _LIVE_CONNECTOR_SPECS: dict[str, tuple[str, bool, bool, dict[str, Any]]] = {
     "TAVILY_API": ("search_tavily", False, True, {}),
     "LINKUP_API": ("search_linkup", False, False, {"mode": "standard"}),
     "BAIDU_SEARCH_API": ("search_baidu", False, True, {}),
+    "CRW_API": ("search_crw", False, True, {}),
 }
 
 _CONNECTOR_LABELS: dict[str, str] = {
     "TAVILY_API": "Tavily",
     "LINKUP_API": "Linkup",
     "BAIDU_SEARCH_API": "Baidu",
+    "CRW_API": "fastCRW",
 }
 
 
@@ -210,24 +213,16 @@ def create_web_search_tool(
                 continue
             all_documents.extend(result)
 
-        seen_urls: set[str] = set()
-        deduplicated: list[dict[str, Any]] = []
-        for doc in all_documents:
-            url = ((doc.get("document") or {}).get("metadata") or {}).get("url", "")
-            if url and url in seen_urls:
-                continue
-            if url:
-                seen_urls.add(url)
-            deduplicated.append(doc)
-
-        formatted = _format_web_results(deduplicated)
+        # Do not deduplicate by URL: each chunk is a distinct source entry that
+        # citation tracking relies on. Collapsing by URL would drop evidence
+        # returned by different live-search engines for the same page.
+        formatted = _format_web_results(all_documents)
 
         perf.info(
-            "[web_search] query=%r engines=%d results=%d deduped=%d chars=%d in %.3fs",
+            "[web_search] query=%r engines=%d results=%d chars=%d in %.3fs",
             query[:60],
             len(tasks),
             len(all_documents),
-            len(deduplicated),
             len(formatted),
             time.perf_counter() - t0,
         )

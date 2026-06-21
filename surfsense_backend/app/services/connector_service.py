@@ -835,6 +835,208 @@ class ConnectorService:
 
         return result_object, documents
 
+    async def search_crw(
+        self,
+        user_query: str,
+        search_space_id: int,
+        top_k: int = 20,
+    ) -> tuple:
+        """
+        Search using fastCRW and return both sources and documents.
+
+        fastCRW is a Firecrawl-compatible web scraper (single binary; self-host
+        or cloud). Results come from the ``POST /v1/search`` endpoint, which
+        returns a ``{success, data: [{title, url, description, markdown?}]}``
+        envelope.
+
+        Args:
+            user_query: User's search query
+            search_space_id: Search space ID
+            top_k: Maximum number of results to return
+
+        Returns:
+            tuple: (sources_info_dict, documents_list)
+        """
+        # Get CRW connector configuration
+        crw_connector = await self.get_connector_by_type(
+            SearchSourceConnectorType.CRW_API, search_space_id
+        )
+
+        if not crw_connector:
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+
+        config = crw_connector.config or {}
+        api_key = config.get("CRW_API_KEY")
+
+        # Default to the managed cloud; allow self-host override via CRW_BASE_URL.
+        base_url = (config.get("CRW_BASE_URL") or "https://fastcrw.com/api").rstrip("/")
+        search_endpoint = f"{base_url}/v1/search"
+
+        # Bearer auth (self-host instances may run without auth → key optional).
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        payload = {
+            "query": user_query,
+            "limit": top_k,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                response = await client.post(
+                    search_endpoint,
+                    headers=headers,
+                    json=payload,
+                )
+                response.raise_for_status()
+        except httpx.TimeoutException as exc:
+            print(f"ERROR: fastCRW API request timeout after 90s: {exc!r}")
+            print(f"Endpoint: {search_endpoint}")
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+        except httpx.HTTPStatusError as exc:
+            print(f"ERROR: fastCRW API HTTP Status Error: {exc.response.status_code}")
+            print(f"Response text: {exc.response.text[:500]}")
+            print(f"Request URL: {exc.request.url}")
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+        except httpx.RequestError as exc:
+            print(f"ERROR: fastCRW API Request Error: {type(exc).__name__}: {exc!r}")
+            print(f"Endpoint: {search_endpoint}")
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+        except Exception as exc:
+            print(
+                f"ERROR: Unexpected error calling fastCRW API: {type(exc).__name__}: {exc!r}"
+            )
+            print(f"Endpoint: {search_endpoint}")
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+
+        try:
+            data = response.json()
+        except ValueError as e:
+            print(f"ERROR: Failed to decode JSON response from fastCRW: {e}")
+            print(f"Response status: {response.status_code}")
+            print(f"Response text: {response.text[:500]}")  # First 500 chars
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+
+        # Guard against unexpected JSON shapes: a non-object envelope would
+        # raise on .get(...) and fail the whole request instead of degrading.
+        if not isinstance(data, dict):
+            print("WARNING: fastCRW returned a non-object JSON envelope")
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+
+        # Firecrawl-compatible envelope: failures set success=False and error.
+        if data.get("success") is False:
+            print(
+                f"WARNING: fastCRW API returned error - "
+                f"Code: {data.get('error_code')}, Message: {data.get('error')}"
+            )
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+
+        crw_results = data.get("data", [])
+
+        if not isinstance(crw_results, list):
+            print("WARNING: fastCRW returned a non-list `data` payload")
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+
+        if not crw_results:
+            return {
+                "id": 13,
+                "name": "fastCRW Search",
+                "type": "CRW_API",
+                "sources": [],
+            }, []
+
+        sources_list: list[dict[str, Any]] = []
+        documents: list[dict[str, Any]] = []
+
+        async with self.counter_lock:
+            for result in crw_results:
+                if not isinstance(result, dict):
+                    continue
+                title = result.get("title", "fastCRW Result")
+                url = result.get("url", "")
+                # Prefer the full markdown when present, fall back to the snippet.
+                content = result.get("markdown") or result.get("description", "")
+
+                source = {
+                    "id": self.source_id_counter,
+                    "title": title,
+                    "description": result.get("description", ""),
+                    "url": url,
+                }
+                sources_list.append(source)
+
+                document = {
+                    "chunk_id": self.source_id_counter,
+                    "content": content,
+                    "score": 1.0,  # fastCRW doesn't provide relevance scores
+                    "document": {
+                        "id": self.source_id_counter,
+                        "title": title,
+                        "document_type": "CRW_API",
+                        "metadata": {
+                            "url": url,
+                            "source": "CRW_API",
+                        },
+                    },
+                }
+                documents.append(document)
+                self.source_id_counter += 1
+
+        result_object = {
+            "id": 13,
+            "name": "fastCRW Search",
+            "type": "CRW_API",
+            "sources": sources_list,
+        }
+
+        return result_object, documents
+
     async def search_slack(
         self,
         user_query: str,

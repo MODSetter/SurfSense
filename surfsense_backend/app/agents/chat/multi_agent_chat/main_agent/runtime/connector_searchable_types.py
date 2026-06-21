@@ -17,13 +17,14 @@ from typing import Any
 
 # Maps SearchSourceConnectorType enum values to the searchable document/connector types
 # used by pre-search middleware and web_search.
-# Live search connectors (TAVILY_API, LINKUP_API, BAIDU_SEARCH_API) are routed to
-# the web_search tool; all others are considered local/indexed data.
+# Live search connectors (TAVILY_API, LINKUP_API, BAIDU_SEARCH_API, CRW_API) are
+# routed to the web_search tool; all others are considered local/indexed data.
 _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
     # Live search connectors (handled by web_search tool)
     "TAVILY_API": "TAVILY_API",
     "LINKUP_API": "LINKUP_API",
     "BAIDU_SEARCH_API": "BAIDU_SEARCH_API",
+    "CRW_API": "CRW_API",
     # Local/indexed connectors (handled by KB pre-search middleware)
     "SLACK_CONNECTOR": "SLACK_CONNECTOR",
     "TEAMS_CONNECTOR": "TEAMS_CONNECTOR",
