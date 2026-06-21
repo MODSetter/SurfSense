@@ -220,7 +220,7 @@ services:
         condition: service_started
 
   zero-cache:
-    image: rocicorp/zero:1.4.0
+    image: rocicorp/zero:1.6.0
     ports:
       - "${ZERO_CACHE_PORT:-4848}:4848"
     extra_hosts:

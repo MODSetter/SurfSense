@@ -82,7 +82,7 @@
 		"@remotion/media": "^4.0.438",
 		"@remotion/player": "^4.0.438",
 		"@remotion/web-renderer": "^4.0.438",
-		"@rocicorp/zero": "1.4.0",
+		"@rocicorp/zero": "1.6.0",
 		"@slate-serializers/html": "^2.2.3",
 		"@streamdown/code": "^1.0.2",
 		"@streamdown/math": "^1.0.2",

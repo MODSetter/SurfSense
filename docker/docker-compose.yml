@@ -250,7 +250,7 @@ services:
     restart: unless-stopped
 
   zero-cache:
-    image: rocicorp/zero:1.4.0
+    image: rocicorp/zero:1.6.0
     expose:
       - "4848"
     extra_hosts:
