@@ -11,7 +11,7 @@ export function withArtifactAnchor(
 ): ToolCallMessagePartComponent {
 	function AnchoredTool(props: ToolCallMessagePartProps) {
 		return (
-			<div {...{ [ARTIFACT_ANCHOR_ATTR]: props.toolCallId }} className="scroll-mt-4">
+			<div {...{ [ARTIFACT_ANCHOR_ATTR]: props.toolCallId }}>
 				<Tool {...props} />
 			</div>
 		);

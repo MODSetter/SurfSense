@@ -3,8 +3,10 @@ import { AudioLines, Contact, FileText, ImageIcon, Presentation } from "lucide-r
 import type { ComponentType } from "react";
 import { openReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { Button } from "@/components/ui/button";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { scrollToArtifact } from "../lib/scroll-to-artifact";
 import type { ArtifactKind, ChatArtifact } from "../model/artifact";
+import { closeArtifactsPanelAtom } from "../state/artifacts-panel.atom";
 
 const KIND_META: Record<
 	ArtifactKind,
@@ -19,20 +21,28 @@ const KIND_META: Record<
 
 export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 	const openReportPanel = useSetAtom(openReportPanelAtom);
+	const closeArtifactsPanel = useSetAtom(closeArtifactsPanelAtom);
+	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const meta = KIND_META[artifact.kind];
 	const Icon = meta.icon;
 	const isReportLike = artifact.kind === "report" || artifact.kind === "resume";
 
 	const handleOpen = () => {
-		scrollToArtifact(artifact.toolCallId);
-		// Reports and resumes get the richer side-panel viewer in addition to the jump.
+		// Reports/resumes open in the report viewer, which claims the tab itself.
 		if (isReportLike && artifact.entityId != null) {
 			openReportPanel({
 				reportId: artifact.entityId,
 				title: artifact.title,
 				contentType: artifact.contentType,
 			});
+			scrollToArtifact(artifact.toolCallId);
+			return;
 		}
+
+		// Inline media has no viewer — just jump to the card. Mobile dismisses the
+		// drawer first since it covers the chat; desktop leaves the panel open.
+		if (!isDesktop) closeArtifactsPanel();
+		scrollToArtifact(artifact.toolCallId);
 	};
 
 	return (
