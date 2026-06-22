@@ -21,3 +21,13 @@ export interface ChatArtifact {
 	/** Report panel content type — "typst" for resumes, "markdown" otherwise. */
 	contentType: "markdown" | "typst";
 }
+
+/** Maps deliverable tool names to artifact kinds. Mirrors the body tools in assistant-message. */
+export const ARTIFACT_TOOL_KINDS: Record<string, ArtifactKind> = {
+	generate_report: "report",
+	generate_resume: "resume",
+	generate_podcast: "podcast",
+	generate_video_presentation: "video",
+	generate_image: "image",
+	display_image: "image",
+};
