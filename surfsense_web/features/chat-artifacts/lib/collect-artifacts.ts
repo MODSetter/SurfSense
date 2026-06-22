@@ -1,4 +1,32 @@
-import type { ArtifactKind, ArtifactStatus } from "../model/artifact";
+import type { ThreadMessageLike } from "@assistant-ui/react";
+import {
+	ARTIFACT_TOOL_KINDS,
+	type ArtifactKind,
+	type ArtifactStatus,
+	type ChatArtifact,
+} from "../model/artifact";
+
+interface ToolCallPart {
+	type: "tool-call";
+	toolCallId: string;
+	toolName: string;
+	args?: Record<string, unknown>;
+	result?: unknown;
+}
+
+function isToolCallPart(part: unknown): part is ToolCallPart {
+	return (
+		typeof part === "object" &&
+		part !== null &&
+		(part as { type?: unknown }).type === "tool-call" &&
+		typeof (part as { toolCallId?: unknown }).toolCallId === "string" &&
+		typeof (part as { toolName?: unknown }).toolName === "string"
+	);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+	return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+}
 
 function firstString(...values: unknown[]): string | null {
 	for (const value of values) {
@@ -63,4 +91,49 @@ function describeArtifact(
 			};
 		}
 	}
+}
+
+/**
+ * Aggregate the deliverable artifacts referenced across a thread's messages.
+ *
+ * Scans assistant tool-call parts, keeps recognized deliverable tools, and
+ * dedupes by backing entity (so a regenerated report collapses to one entry,
+ * refreshed in place to keep chronological order). Errored deliverables are
+ * dropped — they have nothing to open or jump to.
+ */
+export function collectArtifacts(messages: readonly ThreadMessageLike[]): ChatArtifact[] {
+	const byKey = new Map<string, ChatArtifact>();
+
+	for (const message of messages) {
+		if (message.role !== "assistant" || !Array.isArray(message.content)) continue;
+
+		for (const part of message.content) {
+			if (!isToolCallPart(part)) continue;
+			const kind = ARTIFACT_TOOL_KINDS[part.toolName];
+			if (!kind) continue;
+
+			const args = asRecord(part.args);
+			const result = asRecord(part.result);
+			const { title, entityId, status } = describeArtifact(
+				kind,
+				args,
+				result,
+				part.result !== undefined
+			);
+			if (status === "error") continue;
+
+			const key = entityId != null ? `${kind}:${entityId}` : part.toolCallId;
+			byKey.set(key, {
+				key,
+				kind,
+				title,
+				status,
+				toolCallId: part.toolCallId,
+				entityId,
+				contentType: kind === "resume" ? "typst" : "markdown",
+			});
+		}
+	}
+
+	return Array.from(byKey.values());
 }
