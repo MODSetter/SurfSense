@@ -1,11 +1,17 @@
 "use client";
 
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { LayersIcon, XIcon } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import type { ArtifactKind, ChatArtifact } from "../model/artifact";
-import { chatArtifactsAtom } from "../state/artifacts-panel.atom";
+import {
+	artifactsPanelOpenAtom,
+	chatArtifactsAtom,
+	closeArtifactsPanelAtom,
+} from "../state/artifacts-panel.atom";
 import { ArtifactRow } from "./artifact-row";
 
 const GROUP_ORDER: { kind: ArtifactKind; label: string }[] = [
@@ -80,5 +86,38 @@ export function ArtifactsPanelContent({ onClose }: { onClose?: () => void }) {
 			</div>
 			<ArtifactGroups artifacts={artifacts} />
 		</>
+	);
+}
+
+/**
+ * Mobile artifacts drawer. Desktop renders inside the layout-level RightPanel
+ * tab instead, so this no-ops on large screens.
+ */
+export function MobileArtifactsPanel() {
+	const isOpen = useAtomValue(artifactsPanelOpenAtom);
+	const close = useSetAtom(closeArtifactsPanelAtom);
+	const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+	if (isDesktop || !isOpen) return null;
+
+	return (
+		<Drawer
+			open={isOpen}
+			onOpenChange={(open) => {
+				if (!open) close();
+			}}
+			shouldScaleBackground={false}
+		>
+			<DrawerContent
+				className="h-[85vh] max-h-[85vh] z-80 overflow-hidden bg-sidebar"
+				overlayClassName="z-80"
+			>
+				<DrawerHandle />
+				<DrawerTitle className="sr-only">Artifacts</DrawerTitle>
+				<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+					<ArtifactsPanelContent onClose={close} />
+				</div>
+			</DrawerContent>
+		</Drawer>
 	);
 }
