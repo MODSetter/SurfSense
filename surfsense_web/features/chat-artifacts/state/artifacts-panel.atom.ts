@@ -29,3 +29,8 @@ export const closeArtifactsPanelAtom = atom(null, (get, set) => {
 		set(preArtifactsCollapsedAtom, null);
 	}
 });
+
+export const toggleArtifactsPanelAtom = atom(null, (get, set) => {
+	if (get(artifactsPanelOpenAtom)) set(closeArtifactsPanelAtom);
+	else set(openArtifactsPanelAtom);
+});
