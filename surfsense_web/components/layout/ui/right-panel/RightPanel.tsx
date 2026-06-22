@@ -8,9 +8,14 @@ import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel
 import { citationPanelAtom, closeCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
-import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right-panel.atom";
+import {
+	type RightPanelTab,
+	rightPanelCollapsedAtom,
+	rightPanelTabAtom,
+} from "@/atoms/layout/right-panel.atom";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { artifactsPanelOpenAtom, closeArtifactsPanelAtom } from "@/features/chat-artifacts";
 import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/features/chat-messages/hitl";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -44,6 +49,14 @@ const ReportPanelContent = dynamic(
 	() =>
 		import("@/components/report-panel/report-panel").then((m) => ({
 			default: m.ReportPanelContent,
+		})),
+	{ ssr: false, loading: () => null }
+);
+
+const ArtifactsPanelContent = dynamic(
+	() =>
+		import("@/features/chat-artifacts").then((m) => ({
+			default: m.ArtifactsPanelContent,
 		})),
 	{ ssr: false, loading: () => null }
 );
@@ -101,6 +114,7 @@ export function RightPanelToggleButton({
 	const editorState = useAtomValue(editorPanelAtom);
 	const hitlEditState = useAtomValue(hitlEditPanelAtom);
 	const citationState = useAtomValue(citationPanelAtom);
+	const artifactsOpen = useAtomValue(artifactsPanelOpenAtom);
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen =
 		editorState.isOpen &&
@@ -111,7 +125,8 @@ export function RightPanelToggleButton({
 				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.chunkId != null;
-	const hasContent = documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen;
+	const hasContent =
+		documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
 	const label = collapsed ? "Expand panel" : "Collapse panel";
 
 	if (!hasContent) return null;
@@ -153,6 +168,7 @@ export function RightPanelExpandButton() {
 	const editorState = useAtomValue(editorPanelAtom);
 	const hitlEditState = useAtomValue(hitlEditPanelAtom);
 	const citationState = useAtomValue(citationPanelAtom);
+	const artifactsOpen = useAtomValue(artifactsPanelOpenAtom);
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen =
 		editorState.isOpen &&
@@ -163,7 +179,8 @@ export function RightPanelExpandButton() {
 				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.chunkId != null;
-	const hasContent = documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen;
+	const hasContent =
+		documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
 
 	if (!collapsed || !hasContent) return null;
 
@@ -180,7 +197,30 @@ const PANEL_WIDTHS = {
 	editor: 640,
 	"hitl-edit": 640,
 	citation: 560,
+	artifacts: 420,
 } as const;
+
+/**
+ * Priority order used to fall back to another open surface when the active
+ * tab's content closes. Artifacts sit just above the always-available sources
+ * tab.
+ */
+const TAB_FALLBACK_ORDER: RightPanelTab[] = [
+	"hitl-edit",
+	"citation",
+	"editor",
+	"report",
+	"artifacts",
+	"sources",
+];
+
+function resolveEffectiveTab(
+	activeTab: RightPanelTab,
+	openByTab: Record<RightPanelTab, boolean>
+): RightPanelTab {
+	if (openByTab[activeTab]) return activeTab;
+	return TAB_FALLBACK_ORDER.find((tab) => openByTab[tab]) ?? "sources";
+}
 
 export function RightPanel({
 	documentsPanel,
@@ -196,6 +236,8 @@ export function RightPanel({
 	const closeHitlEdit = useSetAtom(closeHitlEditPanelAtom);
 	const citationState = useAtomValue(citationPanelAtom);
 	const closeCitation = useSetAtom(closeCitationPanelAtom);
+	const artifactsOpen = useAtomValue(artifactsPanelOpenAtom);
+	const closeArtifacts = useSetAtom(closeArtifactsPanelAtom);
 	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
 	// Desktop-only surface; mobile uses the dedicated Mobile* drawers. Without
 	// this guard both render together and two editors fight over one model.
@@ -214,13 +256,14 @@ export function RightPanel({
 	const citationOpen = citationState.isOpen && citationState.chunkId != null;
 
 	useEffect(() => {
-		if (!reportOpen && !editorOpen && !hitlEditOpen && !citationOpen) return;
+		if (!reportOpen && !editorOpen && !hitlEditOpen && !citationOpen && !artifactsOpen) return;
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
 				if (hitlEditOpen) closeHitlEdit();
 				else if (citationOpen) closeCitation();
 				else if (editorOpen) closeEditor();
 				else if (reportOpen) closeReport();
+				else if (artifactsOpen) closeArtifacts();
 			}
 		};
 		document.addEventListener("keydown", handleKeyDown);
@@ -230,41 +273,26 @@ export function RightPanel({
 		editorOpen,
 		hitlEditOpen,
 		citationOpen,
+		artifactsOpen,
 		closeReport,
 		closeEditor,
 		closeHitlEdit,
 		closeCitation,
+		closeArtifacts,
 	]);
 
 	const isVisible =
-		(documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen) && !collapsed;
+		(documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen) &&
+		!collapsed;
 
-	let effectiveTab = activeTab;
-	if (effectiveTab === "hitl-edit" && !hitlEditOpen) {
-		effectiveTab = citationOpen
-			? "citation"
-			: editorOpen
-				? "editor"
-				: reportOpen
-					? "report"
-					: "sources";
-	} else if (effectiveTab === "citation" && !citationOpen) {
-		effectiveTab = editorOpen ? "editor" : reportOpen ? "report" : "sources";
-	} else if (effectiveTab === "editor" && !editorOpen) {
-		effectiveTab = citationOpen ? "citation" : reportOpen ? "report" : "sources";
-	} else if (effectiveTab === "report" && !reportOpen) {
-		effectiveTab = citationOpen ? "citation" : editorOpen ? "editor" : "sources";
-	} else if (effectiveTab === "sources" && !documentsOpen) {
-		effectiveTab = hitlEditOpen
-			? "hitl-edit"
-			: citationOpen
-				? "citation"
-				: editorOpen
-					? "editor"
-					: reportOpen
-						? "report"
-						: "sources";
-	}
+	const effectiveTab = resolveEffectiveTab(activeTab, {
+		sources: documentsOpen,
+		report: reportOpen,
+		editor: editorOpen,
+		"hitl-edit": hitlEditOpen,
+		citation: citationOpen,
+		artifacts: artifactsOpen,
+	});
 
 	const targetWidth = PANEL_WIDTHS[effectiveTab];
 	const collapseButton = showCollapseButton ? (
@@ -333,6 +361,11 @@ export function RightPanel({
 				{effectiveTab === "citation" && citationOpen && citationState.chunkId != null && (
 					<div className="h-full flex flex-col">
 						<CitationPanelContent chunkId={citationState.chunkId} onClose={closeCitation} />
+					</div>
+				)}
+				{effectiveTab === "artifacts" && artifactsOpen && (
+					<div className="h-full flex flex-col">
+						<ArtifactsPanelContent onClose={closeArtifacts} />
 					</div>
 				)}
 			</div>
