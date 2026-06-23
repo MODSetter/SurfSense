@@ -19,9 +19,6 @@ class ExistingChunk:
     id: int
     content: str
     position: int
-    # Stored char span; None for legacy rows indexed before spans existed.
-    start_char: int | None = None
-    end_char: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

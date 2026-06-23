@@ -58,10 +58,8 @@ def create_read_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
             loaded = await backend._load_file_data(validated)
             if loaded is None:
                 return f"Error: File '{validated}' not found"
-            file_data, doc_id, preamble = loaded
+            file_data, doc_id = loaded
             rendered = format_read_response(file_data, offset, limit)
-            if preamble and offset == 0:
-                rendered = preamble + rendered
             update: dict[str, Any] = {
                 "files": {validated: file_data},
                 "messages": [

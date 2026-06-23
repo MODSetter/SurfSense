@@ -46,13 +46,6 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({
 
 	const cited = useMemo(() => data?.chunks.find((c) => c.id === chunkId) ?? null, [data, chunkId]);
 
-	const citedLineLabel = useMemo(() => {
-		const start = data?.cited_start_line;
-		const end = data?.cited_end_line;
-		if (start == null || end == null) return null;
-		return start === end ? `Line ${start}` : `Lines ${start}–${end}`;
-	}, [data?.cited_start_line, data?.cited_end_line]);
-
 	const totalChunks = data?.total_chunks ?? data?.chunks.length ?? 0;
 	const startIndex = data?.chunk_start_index ?? 0;
 	const hasMoreAbove = startIndex > 0;
@@ -82,15 +75,10 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({
 
 	const handleOpenFullDocument = () => {
 		if (!data) return;
-		const hasLineAnchor = data.cited_start_line != null && data.cited_end_line != null;
 		openEditorPanel({
 			documentId: data.id,
 			searchSpaceId: data.search_space_id,
 			title: data.title,
-			highlightLines: hasLineAnchor
-				? { start: data.cited_start_line as number, end: data.cited_end_line as number }
-				: null,
-			forceSourceView: hasLineAnchor,
 		});
 	};
 
@@ -122,7 +110,6 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({
 						</p>
 					</div>
 					<div className="flex items-center gap-3 shrink-0 text-[11px] text-muted-foreground">
-						{citedLineLabel && <span>{citedLineLabel}</span>}
 						{totalChunks > 0 && <span>{totalChunks} chunks</span>}
 						{!isLoading && !error && data && (
 							<Button
@@ -185,9 +172,7 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({
 												Chunk #{chunk.id}
 											</span>
 											{isCited && (
-												<span className="text-[11px] font-semibold text-primary">
-													{citedLineLabel ? `Cited chunk · ${citedLineLabel}` : "Cited chunk"}
-												</span>
+												<span className="text-[11px] font-semibold text-primary">Cited chunk</span>
 											)}
 										</div>
 										<div className="text-sm">

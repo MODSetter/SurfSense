@@ -73,10 +73,6 @@ class DocumentWithChunksRead(DocumentRead):
     chunks: list[ChunkRead] = []
     total_chunks: int = 0
     chunk_start_index: int = 0
-    # 1-based inclusive line range of the cited chunk within source_markdown;
-    # None when the chunk predates char spans or the body is unavailable.
-    cited_start_line: int | None = None
-    cited_end_line: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

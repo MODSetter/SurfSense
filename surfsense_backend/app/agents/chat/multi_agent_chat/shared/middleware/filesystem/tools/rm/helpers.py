@@ -74,7 +74,7 @@ async def cloud_rm(
         loaded = await backend._load_file_data(validated)
         if loaded is None:
             return f"Error: file '{validated}' not found."
-        _, resolved_doc_id, _ = loaded
+        _, resolved_doc_id = loaded
 
     files_update: dict[str, Any] = {validated: None}
     update: dict[str, Any] = {
