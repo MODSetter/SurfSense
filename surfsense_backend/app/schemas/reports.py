@@ -24,6 +24,7 @@ class ReportRead(BaseModel):
     report_metadata: dict[str, Any] | None = None
     report_group_id: int | None = None
     content_type: str = "markdown"
+    thread_id: int | None = None
     created_at: datetime
 
     class Config:

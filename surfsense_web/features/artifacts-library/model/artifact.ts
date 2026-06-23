@@ -18,4 +18,6 @@ export interface LibraryArtifact {
 	createdAt: string;
 	/** Report panel content type — "typst" for resumes, "markdown" otherwise. */
 	contentType: "markdown" | "typst";
+	/** Chat thread that produced this artifact, when the source recorded one. */
+	sourceThreadId?: number | null;
 }

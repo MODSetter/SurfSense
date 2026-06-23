@@ -17,6 +17,7 @@ export const reportListItem = z.object({
 	title: z.string(),
 	content_type: z.string().default("markdown"),
 	report_metadata: reportMetadata,
+	thread_id: z.number().nullish(),
 	created_at: z.string(),
 });
 export type ReportListItem = z.infer<typeof reportListItem>;

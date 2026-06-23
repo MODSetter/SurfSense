@@ -84,6 +84,7 @@ class PodcastSummary(BaseModel):
     status: PodcastStatus
     created_at: datetime
     search_space_id: int
+    thread_id: int | None = None
 
 
 class PodcastDetail(BaseModel):

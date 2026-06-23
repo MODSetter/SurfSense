@@ -121,7 +121,12 @@ export function ArtifactsLibrary({ searchSpaceId }: { searchSpaceId: number }) {
 								</h2>
 								<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 									{items.map((artifact) => (
-										<ArtifactCard key={artifact.key} artifact={artifact} onOpen={handleOpen} />
+										<ArtifactCard
+											key={artifact.key}
+											artifact={artifact}
+											searchSpaceId={searchSpaceId}
+											onOpen={handleOpen}
+										/>
 									))}
 								</div>
 							</section>

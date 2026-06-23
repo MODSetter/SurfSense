@@ -39,6 +39,7 @@ async function fetchLibraryArtifacts(searchSpaceId: number): Promise<LibraryArti
 			status: report.report_metadata?.status === "failed" ? "error" : "ready",
 			createdAt: report.created_at,
 			contentType: isResume ? "typst" : "markdown",
+			sourceThreadId: report.thread_id,
 		});
 	}
 
@@ -51,6 +52,7 @@ async function fetchLibraryArtifacts(searchSpaceId: number): Promise<LibraryArti
 			status: podcastStatus(podcast.status),
 			createdAt: podcast.created_at,
 			contentType: "markdown",
+			sourceThreadId: podcast.thread_id,
 		});
 	}
 
@@ -63,6 +65,7 @@ async function fetchLibraryArtifacts(searchSpaceId: number): Promise<LibraryArti
 			status: videoStatus(video.status),
 			createdAt: video.created_at,
 			contentType: "markdown",
+			sourceThreadId: video.thread_id,
 		});
 	}
 

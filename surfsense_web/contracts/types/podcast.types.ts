@@ -163,6 +163,7 @@ export const podcastSummary = z.object({
 	status: podcastStatus,
 	created_at: z.string(),
 	search_space_id: z.number(),
+	thread_id: z.number().nullish(),
 });
 export type PodcastSummary = z.infer<typeof podcastSummary>;
 

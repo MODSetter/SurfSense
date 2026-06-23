@@ -13,6 +13,7 @@ export const videoPresentationListItem = z.object({
 	status: videoPresentationStatus.default("ready"),
 	created_at: z.string(),
 	search_space_id: z.number(),
+	thread_id: z.number().nullish(),
 });
 export type VideoPresentationListItem = z.infer<typeof videoPresentationListItem>;
 
