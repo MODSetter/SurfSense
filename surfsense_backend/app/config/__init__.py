@@ -918,6 +918,7 @@ class Config:
     ACCESS_TOKEN_LIFETIME_SECONDS = int(
         os.getenv("ACCESS_TOKEN_LIFETIME_SECONDS", str(30 * 60))  # 30 minutes
     )
+    MIN_ISSUED_AT = int(os.getenv("MIN_ISSUED_AT", "0"))
     REFRESH_TOKEN_LIFETIME_SECONDS = int(
         os.getenv("REFRESH_TOKEN_LIFETIME_SECONDS", str(14 * 24 * 60 * 60))  # 2 weeks
     )

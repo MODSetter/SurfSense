@@ -807,6 +807,7 @@ allowed_origins.extend(
     ]
 )
 
+app.add_middleware(CsrfOriginMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -821,7 +822,6 @@ app.add_middleware(
     # FRONTEND_URL to BACKEND_URL.
     max_age=86400,
 )
-app.add_middleware(CsrfOriginMiddleware)
 
 # Password / email-based auth routers are only mounted when not running in
 # Google-OAuth-only mode. Mounting them in OAuth-only prod previously left
