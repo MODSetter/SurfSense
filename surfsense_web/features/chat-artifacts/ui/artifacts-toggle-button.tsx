@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { LayersIcon } from "lucide-react";
+import { Boxes } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,7 @@ export function ArtifactsToggleButton() {
 						isOpen && "bg-accent text-accent-foreground"
 					)}
 				>
-					<LayersIcon className="h-4 w-4" />
+					<Boxes className="h-4 w-4" />
 					<span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground tabular-nums">
 						{artifacts.length}
 					</span>

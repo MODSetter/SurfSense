@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { LayersIcon, XIcon } from "lucide-react";
+import { Boxes, XIcon } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
@@ -32,7 +32,7 @@ function groupByKind(artifacts: ChatArtifact[]): { label: string; items: ChatArt
 function EmptyState() {
 	return (
 		<div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center select-none">
-			<LayersIcon className="size-6 text-muted-foreground/60" />
+			<Boxes className="size-6 text-muted-foreground/60" />
 			<p className="text-sm font-medium text-foreground">No artifacts yet</p>
 			<p className="text-xs text-muted-foreground">
 				Reports, podcasts, presentations, and images you generate will appear here.
