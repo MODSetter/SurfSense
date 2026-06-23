@@ -7,9 +7,18 @@ const REDIRECT_PATH_KEY = "surfsense_redirect_path";
 const BEARER_TOKEN_KEY = "surfsense_bearer_token";
 const REFRESH_TOKEN_KEY = "surfsense_refresh_token";
 
-// Flag to prevent multiple simultaneous refresh attempts
-let isRefreshing = false;
-let refreshPromise: Promise<string | null> | null = null;
+let desktopBearerToken: string | null = null;
+let desktopRefreshToken: string | null = null;
+
+function isDesktopClient(): boolean {
+	return typeof window !== "undefined" && !!window.electronAPI;
+}
+
+function purgeLegacyStoredTokens(): void {
+	if (typeof window === "undefined") return;
+	localStorage.removeItem(BEARER_TOKEN_KEY);
+	localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
 
 /** Path prefixes for routes that do not require auth (no current-user fetch, no redirect on 401) */
 const PUBLIC_ROUTE_PREFIXES = [
@@ -53,8 +62,9 @@ export function handleUnauthorized(): void {
 	const pathname = window.location.pathname;
 
 	// Always clear tokens
-	localStorage.removeItem(BEARER_TOKEN_KEY);
-	localStorage.removeItem(REFRESH_TOKEN_KEY);
+	purgeLegacyStoredTokens();
+	desktopBearerToken = null;
+	desktopRefreshToken = null;
 
 	// Only redirect on protected routes; stay on public pages (e.g. /docs)
 	if (!isPublicRoute(pathname)) {
@@ -93,8 +103,8 @@ export function getAndClearRedirectPath(): string | null {
  * Gets the bearer token from localStorage
  */
 export function getBearerToken(): string | null {
-	if (typeof window === "undefined") return null;
-	return localStorage.getItem(BEARER_TOKEN_KEY);
+	if (typeof window === "undefined" || !isDesktopClient()) return null;
+	return desktopBearerToken;
 }
 
 /**
@@ -102,7 +112,8 @@ export function getBearerToken(): string | null {
  */
 export function setBearerToken(token: string): void {
 	if (typeof window === "undefined") return;
-	localStorage.setItem(BEARER_TOKEN_KEY, token);
+	purgeLegacyStoredTokens();
+	desktopBearerToken = isDesktopClient() ? token : null;
 	syncTokensToElectron();
 }
 
@@ -112,14 +123,15 @@ export function setBearerToken(token: string): void {
 export function clearBearerToken(): void {
 	if (typeof window === "undefined") return;
 	localStorage.removeItem(BEARER_TOKEN_KEY);
+	desktopBearerToken = null;
 }
 
 /**
  * Gets the refresh token from localStorage
  */
 export function getRefreshToken(): string | null {
-	if (typeof window === "undefined") return null;
-	return localStorage.getItem(REFRESH_TOKEN_KEY);
+	if (typeof window === "undefined" || !isDesktopClient()) return null;
+	return desktopRefreshToken;
 }
 
 /**
@@ -127,7 +139,8 @@ export function getRefreshToken(): string | null {
  */
 export function setRefreshToken(token: string): void {
 	if (typeof window === "undefined") return;
-	localStorage.setItem(REFRESH_TOKEN_KEY, token);
+	purgeLegacyStoredTokens();
+	desktopRefreshToken = isDesktopClient() ? token : null;
 	syncTokensToElectron();
 }
 
@@ -137,6 +150,7 @@ export function setRefreshToken(token: string): void {
 export function clearRefreshToken(): void {
 	if (typeof window === "undefined") return;
 	localStorage.removeItem(REFRESH_TOKEN_KEY);
+	desktopRefreshToken = null;
 }
 
 /**
@@ -153,8 +167,8 @@ export function clearAllTokens(): void {
  */
 function syncTokensToElectron(): void {
 	if (typeof window === "undefined" || !window.electronAPI?.setAuthTokens) return;
-	const bearer = localStorage.getItem(BEARER_TOKEN_KEY) || "";
-	const refresh = localStorage.getItem(REFRESH_TOKEN_KEY) || "";
+	const bearer = desktopBearerToken || "";
+	const refresh = desktopRefreshToken || "";
 	if (bearer) {
 		window.electronAPI.setAuthTokens(bearer, refresh);
 	}
@@ -171,11 +185,18 @@ export async function ensureTokensFromElectron(): Promise<boolean> {
 	if (getBearerToken()) return true;
 
 	try {
+		if (window.electronAPI.getAccessToken) {
+			const token = await window.electronAPI.getAccessToken();
+			if (token) {
+				desktopBearerToken = token;
+				return true;
+			}
+		}
 		const tokens = await window.electronAPI.getAuthTokens();
 		if (tokens?.bearer) {
-			localStorage.setItem(BEARER_TOKEN_KEY, tokens.bearer);
+			desktopBearerToken = tokens.bearer;
 			if (tokens.refresh) {
-				localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
+				desktopRefreshToken = tokens.refresh;
 			}
 			return true;
 		}
@@ -191,16 +212,24 @@ export async function ensureTokensFromElectron(): Promise<boolean> {
  */
 export async function logout(): Promise<boolean> {
 	const refreshToken = getRefreshToken();
+	const isDesktop = isDesktopClient();
+
+	if (isDesktop && window.electronAPI?.logout) {
+		await window.electronAPI.logout();
+		clearAllTokens();
+		return true;
+	}
 
 	// Call backend to revoke the refresh token
-	if (refreshToken) {
+	if (refreshToken || !isDesktop) {
 		try {
 			const response = await fetch(buildBackendUrl("/auth/jwt/revoke"), {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({ refresh_token: refreshToken }),
+				credentials: "include",
+				...(refreshToken ? { body: JSON.stringify({ refresh_token: refreshToken }) } : {}),
 			});
 
 			if (!response.ok) {
@@ -221,7 +250,7 @@ export async function logout(): Promise<boolean> {
  * Checks if the user is authenticated (has a token)
  */
 export function isAuthenticated(): boolean {
-	return !!getBearerToken();
+	return isDesktopClient() ? !!getBearerToken() : true;
 }
 
 /**
@@ -259,50 +288,56 @@ export function getAuthHeaders(additionalHeaders?: Record<string, string>): Reco
  * Attempts to refresh the access token using the stored refresh token.
  * Returns the new access token if successful, null otherwise.
  */
-export async function refreshAccessToken(): Promise<string | null> {
-	// If already refreshing, wait for that request to complete
-	if (isRefreshing && refreshPromise) {
-		return refreshPromise;
-	}
-
+async function doRefreshSession(): Promise<string | null> {
 	const currentRefreshToken = getRefreshToken();
-	if (!currentRefreshToken) {
+	if (isDesktopClient() && !currentRefreshToken) {
+		if (window.electronAPI?.refreshAccessToken) {
+			const token = await window.electronAPI.refreshAccessToken();
+			if (token) {
+				desktopBearerToken = token;
+			}
+			return token;
+		}
 		return null;
 	}
 
-	isRefreshing = true;
-	refreshPromise = (async () => {
-		try {
-			const response = await fetch(buildBackendUrl("/auth/jwt/refresh"), {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({ refresh_token: currentRefreshToken }),
-			});
+	try {
+		const response = await fetch(buildBackendUrl("/auth/jwt/refresh"), {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			credentials: "include",
+			...(currentRefreshToken ? { body: JSON.stringify({ refresh_token: currentRefreshToken }) } : {}),
+		});
 
-			if (!response.ok) {
-				// Refresh failed, clear tokens
-				clearAllTokens();
-				return null;
-			}
-
-			const data = await response.json();
-			if (data.access_token && data.refresh_token) {
-				setBearerToken(data.access_token);
-				setRefreshToken(data.refresh_token);
-				return data.access_token;
-			}
+		if (!response.ok) {
+			clearAllTokens();
 			return null;
-		} catch {
-			return null;
-		} finally {
-			isRefreshing = false;
-			refreshPromise = null;
 		}
-	})();
 
-	return refreshPromise;
+		const data = await response.json();
+		if (isDesktopClient() && data.access_token) {
+			setBearerToken(data.access_token);
+			if (data.refresh_token) {
+				setRefreshToken(data.refresh_token);
+			}
+		}
+		return data.access_token ?? null;
+	} catch {
+		return null;
+	}
+}
+
+export async function refreshSession(): Promise<string | null> {
+	if (typeof navigator !== "undefined" && "locks" in navigator) {
+		return navigator.locks.request("ss-token-refresh", () => doRefreshSession());
+	}
+	return doRefreshSession();
+}
+
+export async function refreshAccessToken(): Promise<string | null> {
+	return refreshSession();
 }
 
 /**
@@ -321,6 +356,7 @@ export async function authenticatedFetch(
 	const response = await fetch(url, {
 		...fetchOptions,
 		headers,
+		credentials: "include",
 	});
 
 	// Handle 401 Unauthorized
@@ -337,6 +373,7 @@ export async function authenticatedFetch(
 				return fetch(url, {
 					...fetchOptions,
 					headers: retryHeaders,
+					credentials: "include",
 				});
 			}
 		}
