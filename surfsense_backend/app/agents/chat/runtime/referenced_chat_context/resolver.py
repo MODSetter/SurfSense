@@ -11,10 +11,16 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import ChatVisibility, NewChatMessage, NewChatMessageRole, NewChatThread
+from app.db import (
+    ChatVisibility,
+    NewChatMessage,
+    NewChatMessageRole,
+    NewChatThread,
+    SearchSpace,
+)
 from app.tasks.chat.llm_history_normalizer import (
     assistant_content_to_llm_text,
     user_content_to_llm_content,
@@ -25,18 +31,20 @@ from .models import ReferencedChat, ReferencedChatTurn
 logger = logging.getLogger(__name__)
 
 
-def _accessible_thread_filter(user_uuid: UUID | None):
+def _accessible_thread_filter(user_uuid: UUID | None, *, include_legacy: bool):
     """Visibility predicate mirroring ``new_chat_routes.search_threads``.
 
-    A thread is referenceable when the requester created it or it is
-    shared with the search space. Legacy null-creator threads are
-    excluded (fail-closed) — referencing them is a rare edge case not
-    worth widening the surface for.
+    A thread is referenceable when the requester created it, it is shared
+    with the search space, or it is a legacy null-creator thread and the
+    requester owns the search space (``include_legacy``). Anything else is
+    dropped (fail-closed).
     """
-    shared = NewChatThread.visibility == ChatVisibility.SEARCH_SPACE
-    if user_uuid is None:
-        return shared
-    return (NewChatThread.created_by_id == user_uuid) | shared
+    conditions = [NewChatThread.visibility == ChatVisibility.SEARCH_SPACE]
+    if user_uuid is not None:
+        conditions.append(NewChatThread.created_by_id == user_uuid)
+    if include_legacy:
+        conditions.append(NewChatThread.created_by_id.is_(None))
+    return or_(*conditions)
 
 
 async def resolve_referenced_chats(
@@ -74,14 +82,30 @@ async def resolve_referenced_chats(
     if not requested_ids:
         return []
 
+    # Legacy null-creator threads are referenceable only by the search-space
+    # owner, matching ``search_threads`` (the source the picker reads from).
+    include_legacy = False
+    if user_uuid is not None:
+        owner_id = await session.scalar(
+            select(SearchSpace.user_id).where(SearchSpace.id == search_space_id)
+        )
+        include_legacy = owner_id == user_uuid
+
     thread_rows = await session.execute(
         select(NewChatThread).where(
             NewChatThread.id.in_(requested_ids),
             NewChatThread.search_space_id == search_space_id,
-            _accessible_thread_filter(user_uuid),
+            _accessible_thread_filter(user_uuid, include_legacy=include_legacy),
         )
     )
     threads_by_id = {row.id: row for row in thread_rows.scalars().all()}
+    logger.info(
+        "resolve_referenced_chats: requested=%s accessible=%s space=%s user=%s",
+        requested_ids,
+        sorted(threads_by_id.keys()),
+        search_space_id,
+        user_uuid,
+    )
     if not threads_by_id:
         return []
 
