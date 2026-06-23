@@ -1,4 +1,4 @@
-import { app, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { IPC_CHANNELS } from './channels';
 import {
   getPermissionsStatus,
@@ -52,8 +52,59 @@ import {
   type AgentFilesystemTreeWatchOptions,
 } from '../modules/agent-filesystem-tree-watcher';
 import { installDownloadedUpdate } from '../modules/auto-updater';
+import { secretStore } from '../modules/secret-store';
+import { startGoogleOAuth } from '../modules/oauth';
 
-let authTokens: { bearer: string; refresh: string } | null = null;
+const REFRESH_TOKEN_KEY = 'surfsense_refresh_token';
+let accessToken: string | null = null;
+let refreshInFlight: Promise<string | null> | null = null;
+
+function getBackendUrl(): string {
+  return (process.env.HOSTED_BACKEND_URL || process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || '').replace(
+    /\/+$/,
+    ''
+  );
+}
+
+function broadcastAuthChanged(): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send(IPC_CHANNELS.AUTH_CHANGED, { authed: !!accessToken, accessToken });
+  }
+}
+
+async function storeTokens(tokens: { bearer: string; refresh?: string | null }): Promise<void> {
+  accessToken = tokens.bearer || null;
+  if (tokens.refresh) {
+    await secretStore.set(REFRESH_TOKEN_KEY, tokens.refresh);
+  }
+  broadcastAuthChanged();
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const refresh = await secretStore.get(REFRESH_TOKEN_KEY);
+    const backendUrl = getBackendUrl();
+    if (!refresh || !backendUrl) return null;
+
+    const response = await fetch(`${backendUrl}/auth/jwt/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refresh }),
+    });
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as { access_token?: string; refresh_token?: string | null };
+    if (!data.access_token) return null;
+    await storeTokens({ bearer: data.access_token, refresh: data.refresh_token });
+    return data.access_token;
+  })().finally(() => {
+    refreshInFlight = null;
+  });
+
+  return refreshInFlight;
+}
 
 export function registerIpcHandlers(): void {
   ipcMain.on(IPC_CHANNELS.OPEN_EXTERNAL, (_event, url: string) => {
@@ -173,12 +224,55 @@ export function registerIpcHandlers(): void {
     }
   );
 
-  ipcMain.handle(IPC_CHANNELS.SET_AUTH_TOKENS, (_event, tokens: { bearer: string; refresh: string }) => {
-    authTokens = tokens;
+  ipcMain.handle(IPC_CHANNELS.SET_AUTH_TOKENS, async (_event, tokens: { bearer: string; refresh: string }) => {
+    await storeTokens(tokens);
   });
 
-  ipcMain.handle(IPC_CHANNELS.GET_AUTH_TOKENS, () => {
-    return authTokens;
+  ipcMain.handle(IPC_CHANNELS.GET_AUTH_TOKENS, async () => {
+    if (!accessToken) {
+      await refreshAccessToken();
+    }
+    return accessToken ? { bearer: accessToken, refresh: '' } : null;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_ACCESS_TOKEN, async () => {
+    if (!accessToken) {
+      await refreshAccessToken();
+    }
+    return accessToken;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.REFRESH_ACCESS_TOKEN, () => {
+    return refreshAccessToken();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.LOGOUT, async () => {
+    const backendUrl = getBackendUrl();
+    const refresh = await secretStore.get(REFRESH_TOKEN_KEY);
+    if (backendUrl && refresh) {
+      try {
+        await fetch(`${backendUrl}/auth/jwt/revoke`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refresh }),
+        });
+      } catch {
+        // Local logout is fail-closed even if the server revoke call fails.
+      }
+    }
+    accessToken = null;
+    await secretStore.clear(REFRESH_TOKEN_KEY);
+    broadcastAuthChanged();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.AUTH_START_GOOGLE, async () => {
+    const backendUrl = getBackendUrl();
+    if (!backendUrl) {
+      throw new Error('Backend URL is not configured');
+    }
+    const tokens = await startGoogleOAuth(backendUrl);
+    await storeTokens({ bearer: tokens.access_token, refresh: tokens.refresh_token });
+    return { ok: true };
   });
 
   ipcMain.handle(IPC_CHANNELS.GET_SHORTCUTS, () => getShortcuts());
