@@ -58,6 +58,11 @@
 	--highlight: oklch(0.852 0.199 91.936);
 }
 
+html[data-surfsense-auth-type="GOOGLE"] .runtime-auth-local,
+html[data-surfsense-auth-type="LOCAL"] .runtime-auth-google {
+	display: none;
+}
+
 .dark {
 	--background: oklch(0.145 0 0);
 	--foreground: oklch(0.985 0 0);
