@@ -28,6 +28,7 @@ from app.agents.chat.runtime.checkpointer import (
     setup_checkpointer_tables,
 )
 from app.auth.context import AuthContext
+from app.auth.csrf import CsrfOriginMiddleware
 from app.config import (
     config,
     initialize_image_gen_router,
@@ -54,7 +55,10 @@ from app.observability.bootstrap import init_otel, shutdown_otel
 from app.rate_limiter import get_real_client_ip, limiter
 from app.routes import router as crud_router
 from app.routes.auth_routes import router as auth_router
-from app.schemas import UserCreate, UserRead, UserUpdate
+from app.routes.auth_routes import session_router
+from app.routes.users_routes import router as users_router
+from app.routes.zero_context_routes import router as zero_context_router
+from app.schemas import UserCreate, UserRead
 from app.session_events import register_session_hooks
 from app.users import SECRET, allow_any_principal, auth_backend, fastapi_users
 from app.utils.perf import log_system_snapshot
@@ -817,6 +821,7 @@ app.add_middleware(
     # FRONTEND_URL to BACKEND_URL.
     max_age=86400,
 )
+app.add_middleware(CsrfOriginMiddleware)
 
 # Password / email-based auth routers are only mounted when not running in
 # Google-OAuth-only mode. Mounting them in OAuth-only prod previously left
@@ -855,16 +860,14 @@ if config.AUTH_TYPE != "GOOGLE":
         tags=["auth"],
     )
 
-# /users/me (read/update profile) is needed in every auth mode, so it stays
-# mounted unconditionally.
-app.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate),
-    prefix="/users",
-    tags=["users"],
-)
+# /users/me uses the unified auth resolver so web cookie sessions, desktop bearer
+# sessions, and PAT principals all resolve through the same authority.
+app.include_router(users_router)
 
 # Include custom auth routes (refresh token, logout)
 app.include_router(auth_router)
+app.include_router(session_router)
+app.include_router(zero_context_router)
 
 if config.AUTH_TYPE == "GOOGLE":
     from fastapi.responses import RedirectResponse

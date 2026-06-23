@@ -17,6 +17,7 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
+from app.auth.session_cookies import write_session
 from app.config import config
 from app.db import (
     Prompt,
@@ -40,6 +41,7 @@ class BearerResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str
+    access_expires_at: int
 
 
 SECRET = config.SECRET_KEY
@@ -263,10 +265,12 @@ class CustomBearerTransport(BearerTransport):
         import jwt
 
         # Decode JWT to get user_id for refresh token creation
+        access_expires_at = 0
         try:
             payload = jwt.decode(
                 token, SECRET, algorithms=["HS256"], options={"verify_aud": False}
             )
+            access_expires_at = int(payload["exp"])
             user_id = uuid.UUID(payload.get("sub"))
             refresh_token = await create_refresh_token(user_id)
         except Exception as e:
@@ -278,17 +282,28 @@ class CustomBearerTransport(BearerTransport):
             access_token=token,
             refresh_token=refresh_token,
             token_type="bearer",
+            access_expires_at=access_expires_at,
         )
 
         if config.AUTH_TYPE == "GOOGLE":
-            redirect_url = (
-                f"{config.NEXT_FRONTEND_URL}/auth/callback"
-                f"?token={bearer_response.access_token}"
-                f"&refresh_token={bearer_response.refresh_token}"
+            response = RedirectResponse(
+                f"{config.NEXT_FRONTEND_URL}/auth/callback",
+                status_code=302,
             )
-            return RedirectResponse(redirect_url, status_code=302)
+            write_session(
+                response,
+                bearer_response.access_token,
+                bearer_response.refresh_token,
+            )
+            return response
         else:
-            return JSONResponse(bearer_response.model_dump())
+            response = JSONResponse(bearer_response.model_dump())
+            write_session(
+                response,
+                bearer_response.access_token,
+                bearer_response.refresh_token,
+            )
+            return response
 
 
 bearer_transport = CustomBearerTransport(tokenUrl="auth/jwt/login")
@@ -315,38 +330,42 @@ async def get_auth_context(
     receives the full SurfSense principal instead of a bare User.
     """
     auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized",
-        )
+    if auth_header:
+        scheme, _, credential = auth_header.partition(" ")
+        is_bearer = scheme.lower() == "bearer" and bool(credential)
+        token = credential if is_bearer else auth_header.strip()
 
-    scheme, _, token = auth_header.partition(" ")
-    if scheme.lower() != "bearer" or not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized",
-        )
+        if token.startswith(PAT_PREFIX):
+            pat = await resolve_pat(session, token)
+            if pat and pat.user and pat.user.is_active:
+                maybe_touch_last_used(pat)
+                return AuthContext.pat_auth(pat.user, pat)
 
-    if token.startswith(PAT_PREFIX):
-        pat = await resolve_pat(session, token)
-        if pat and pat.user and pat.user.is_active:
-            maybe_touch_last_used(pat)
-            return AuthContext.pat_auth(pat.user, pat)
+        if is_bearer:
+            try:
+                user = await get_jwt_strategy().read_token(token, user_manager)
+            except Exception:
+                logger.exception("Failed to read bearer access token")
+                user = None
 
-    try:
-        user = await get_jwt_strategy().read_token(token, user_manager)
-    except Exception:
-        logger.exception("Failed to read access token")
-        user = None
+            if user and user.is_active:
+                return AuthContext.session(user)
 
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized",
-        )
+    cookie_token = request.cookies.get(config.SESSION_COOKIE_NAME)
+    if cookie_token:
+        try:
+            user = await get_jwt_strategy().read_token(cookie_token, user_manager)
+        except Exception:
+            logger.exception("Failed to read session cookie access token")
+            user = None
 
-    return AuthContext.session(user)
+        if user and user.is_active:
+            return AuthContext.session(user)
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Unauthorized",
+    )
 
 
 async def allow_any_principal(
@@ -372,5 +391,3 @@ async def require_session_context(
         )
     return auth
 
-
-current_optional_user = fastapi_users.current_user(active=True, optional=True)
