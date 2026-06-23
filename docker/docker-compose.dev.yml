@@ -243,6 +243,10 @@ services:
       - ZERO_CVR_MAX_CONNS=${ZERO_CVR_MAX_CONNS:-30}
       - ZERO_QUERY_URL=${ZERO_QUERY_URL:-http://frontend:3000/api/zero/query}
       - ZERO_MUTATE_URL=${ZERO_MUTATE_URL:-http://frontend:3000/api/zero/mutate}
+      - ZERO_QUERY_FORWARD_COOKIES=${ZERO_QUERY_FORWARD_COOKIES:-true}
+      - ZERO_QUERY_API_KEY=${ZERO_QUERY_API_KEY:-}
+      - ZERO_AUTH_REVALIDATE_INTERVAL_SECONDS=${ZERO_AUTH_REVALIDATE_INTERVAL_SECONDS:-60}
+      - ZERO_AUTH_RETRANSFORM_INTERVAL_SECONDS=${ZERO_AUTH_RETRANSFORM_INTERVAL_SECONDS:-60}
     volumes:
       - zero_cache_data:/data
     restart: unless-stopped
