@@ -12,7 +12,7 @@ import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
-import { getAuthHeaders } from "@/lib/auth-utils";
+import { getAuthHeaders } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/accordion";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
-import { authenticatedFetch } from "@/lib/auth-utils";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { speakerLabel } from "./schema";
 
