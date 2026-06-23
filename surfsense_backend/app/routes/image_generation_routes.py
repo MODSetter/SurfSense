@@ -213,13 +213,27 @@ async def _execute_image_generation(
         )
 
     # Store response
-    image_gen.response_data = (
+    response_dict = (
         response.model_dump() if hasattr(response, "model_dump") else dict(response)
     )
     if not image_gen.model and hasattr(response, "_hidden_params"):
         hidden = response._hidden_params
         if isinstance(hidden, dict) and hidden.get("model"):
             image_gen.model = hidden["model"]
+
+    # Fix relative URLs in response data (for the serving endpoint)
+    from urllib.parse import urlparse
+    images = response_dict.get("data", [])
+    provider_base_url = resolved_kwargs.get("api_base")
+    for image in images:
+        if image.get("url"):
+            raw_url: str = image["url"]
+            if raw_url.startswith("/") and provider_base_url:
+                parsed = urlparse(provider_base_url)
+                origin = f"{parsed.scheme}://{parsed.netloc}"
+                image["url"] = f"{origin}{raw_url}"
+
+    image_gen.response_data = response_dict
 
 
 # =============================================================================
