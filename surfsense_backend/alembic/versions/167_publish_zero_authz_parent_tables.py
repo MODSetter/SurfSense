@@ -1,7 +1,7 @@
 """publish Zero authz parent tables
 
-Revision ID: 168
-Revises: 167
+Revision ID: 167
+Revises: 166
 """
 
 from collections.abc import Sequence
@@ -9,8 +9,8 @@ from collections.abc import Sequence
 from alembic import op
 from app.zero_publication import apply_publication
 
-revision: str = "168"
-down_revision: str | None = "167"
+revision: str = "167"
+down_revision: str | None = "166"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
