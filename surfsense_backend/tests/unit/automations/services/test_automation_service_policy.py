@@ -15,6 +15,7 @@ import pytest
 from fastapi import HTTPException
 
 import app.automations.services.automation as automation_mod
+from app.auth.context import AuthContext
 from app.automations.schemas.api import AutomationCreate, AutomationUpdate
 from app.automations.schemas.definition.envelope import (
     AutomationDefinition,
@@ -45,7 +46,8 @@ class _FakeSession:
 
 def _service(search_space: Any) -> AutomationService:
     return AutomationService(
-        session=_FakeSession(search_space), user=SimpleNamespace(id="u-1")
+        session=_FakeSession(search_space),
+        auth=AuthContext.session(SimpleNamespace(id="u-1")),
     )
 
 

@@ -3,14 +3,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db import Prompt, SearchSpaceMembership, User, get_async_session
+from app.auth.context import AuthContext
+from app.db import Prompt, SearchSpaceMembership, get_async_session
 from app.schemas.prompts import (
     PromptCreate,
     PromptRead,
     PromptUpdate,
     PublicPromptRead,
 )
-from app.users import current_active_user
+from app.users import require_session_context
 
 router = APIRouter(tags=["Prompts"])
 
@@ -19,8 +20,9 @@ router = APIRouter(tags=["Prompts"])
 async def list_prompts(
     search_space_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ):
+    user = auth.user
     query = select(Prompt).where(Prompt.user_id == user.id)
     if search_space_id is not None:
         query = query.where(Prompt.search_space_id == search_space_id)
@@ -33,8 +35,9 @@ async def list_prompts(
 async def create_prompt(
     body: PromptCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ):
+    user = auth.user
     if body.search_space_id is not None:
         membership = await session.execute(
             select(SearchSpaceMembership).where(
@@ -67,8 +70,9 @@ async def update_prompt(
     prompt_id: int,
     body: PromptUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ):
+    user = auth.user
     result = await session.execute(
         select(Prompt).where(
             Prompt.id == prompt_id,
@@ -99,8 +103,9 @@ async def update_prompt(
 async def delete_prompt(
     prompt_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ):
+    user = auth.user
     result = await session.execute(
         select(Prompt).where(
             Prompt.id == prompt_id,
@@ -119,8 +124,9 @@ async def delete_prompt(
 @router.get("/prompts/public", response_model=list[PublicPromptRead])
 async def list_public_prompts(
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ):
+    user = auth.user
     result = await session.execute(
         select(Prompt)
         .options(selectinload(Prompt.user))
@@ -141,8 +147,9 @@ async def list_public_prompts(
 async def copy_public_prompt(
     prompt_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ):
+    user = auth.user
     result = await session.execute(
         select(Prompt).where(
             Prompt.id == prompt_id,

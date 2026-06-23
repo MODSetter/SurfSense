@@ -18,12 +18,12 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.config import config as app_config
 from app.db import (
     Permission,
     SearchSpace,
     SearchSpaceMembership,
-    User,
     get_async_session,
 )
 from app.podcasts.generation.brief import propose_brief
@@ -42,7 +42,7 @@ from app.podcasts.voices import (
     provider_from_service,
     render_voice_preview,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 from .schemas import (
@@ -63,13 +63,14 @@ async def list_podcasts(
     skip: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     if skip < 0 or limit < 1:
         raise HTTPException(status_code=400, detail="Invalid pagination parameters")
 
     if search_space_id is not None:
-        await _require(session, user, search_space_id, Permission.PODCASTS_READ)
+        await _require(session, auth, search_space_id, Permission.PODCASTS_READ)
         query = (
             select(Podcast)
             .where(Podcast.search_space_id == search_space_id)
@@ -132,7 +133,7 @@ async def list_languages():
 @router.get("/podcasts/voices/{voice_id}/preview")
 async def preview_voice(
     voice_id: str,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """A short audio sample of a voice, so users pick by sound."""
     if not app_config.TTS_SERVICE:
@@ -156,9 +157,9 @@ async def preview_voice(
 async def create_podcast(
     body: CreatePodcastRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
-    await _require(session, user, body.search_space_id, Permission.PODCASTS_CREATE)
+    await _require(session, auth, body.search_space_id, Permission.PODCASTS_CREATE)
 
     service = PodcastService(session)
     podcast = await service.create(
@@ -185,9 +186,9 @@ async def create_podcast(
 async def get_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
-    podcast = await _load(session, user, podcast_id, Permission.PODCASTS_READ)
+    podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_READ)
     return PodcastDetail.of(podcast)
 
 
@@ -196,9 +197,9 @@ async def update_spec(
     podcast_id: int,
     body: UpdateSpecRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
-    podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
+    podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
         await PodcastService(session).update_spec(
             podcast, body.spec, body.expected_version
@@ -211,10 +212,10 @@ async def update_spec(
 async def approve_brief(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """Approve the brief and start drafting the transcript."""
-    podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
+    podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
         await PodcastService(session).begin_drafting(podcast)
     await session.commit()
@@ -228,10 +229,10 @@ async def approve_brief(
 async def regenerate_transcript(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """Reopen the brief gate for a fresh take; drafting waits for re-approval."""
-    podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
+    podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
         await PodcastService(session).regenerate(podcast)
     await session.commit()
@@ -242,10 +243,10 @@ async def regenerate_transcript(
 async def revert_regeneration(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """Back out of a regeneration and return to the finished episode."""
-    podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
+    podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
         await PodcastService(session).revert_regeneration(podcast)
     await session.commit()
@@ -256,9 +257,9 @@ async def revert_regeneration(
 async def cancel_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
-    podcast = await _load(session, user, podcast_id, Permission.PODCASTS_UPDATE)
+    podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_UPDATE)
     async with _lifecycle_errors():
         await PodcastService(session).cancel(podcast)
     await session.commit()
@@ -269,9 +270,9 @@ async def cancel_podcast(
 async def delete_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
-    podcast = await _load(session, user, podcast_id, Permission.PODCASTS_DELETE)
+    podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_DELETE)
     await purge_audio(podcast)
     await session.delete(podcast)
     await session.commit()
@@ -282,9 +283,9 @@ async def delete_podcast(
 async def stream_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
-    podcast = await _load(session, user, podcast_id, Permission.PODCASTS_READ)
+    podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_READ)
 
     if podcast.storage_key:
         # Verify first so a missing object is a 404, not a mid-stream crash.
@@ -323,13 +324,13 @@ async def stream_podcast(
 
 async def _require(
     session: AsyncSession,
-    user: User,
+    auth: AuthContext,
     search_space_id: int,
     permission: Permission,
 ) -> None:
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         permission.value,
         "You don't have permission for podcasts in this search space",
@@ -338,14 +339,14 @@ async def _require(
 
 async def _load(
     session: AsyncSession,
-    user: User,
+    auth: AuthContext,
     podcast_id: int,
     permission: Permission,
 ) -> Podcast:
     podcast = await PodcastRepository(session).get(podcast_id)
     if podcast is None:
         raise HTTPException(status_code=404, detail="Podcast not found")
-    await _require(session, user, podcast.search_space_id, permission)
+    await _require(session, auth, podcast.search_space_id, permission)
     return podcast
 
 

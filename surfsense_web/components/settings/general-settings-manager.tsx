@@ -5,11 +5,15 @@ import { useAtomValue } from "jotai";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { updateSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
+import {
+	updateSearchSpaceApiAccessMutationAtom,
+	updateSearchSpaceMutationAtom,
+} from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { buildBackendUrl } from "@/lib/env-config";
@@ -35,10 +39,14 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 	});
 
 	const { mutateAsync: updateSearchSpace } = useAtomValue(updateSearchSpaceMutationAtom);
+	const { mutateAsync: updateSearchSpaceApiAccess } = useAtomValue(
+		updateSearchSpaceApiAccessMutationAtom
+	);
 
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
 	const [saving, setSaving] = useState(false);
+	const [savingApiAccess, setSavingApiAccess] = useState(false);
 	const [isExporting, setIsExporting] = useState(false);
 	const hasSearchSpace = !!searchSpace;
 	const searchSpaceName = searchSpace?.name;
@@ -113,6 +121,25 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 		handleSave();
 	};
 
+	const handleApiAccessToggle = useCallback(
+		async (enabled: boolean) => {
+			try {
+				setSavingApiAccess(true);
+				await updateSearchSpaceApiAccess({
+					id: searchSpaceId,
+					api_access_enabled: enabled,
+				});
+				await fetchSearchSpace();
+			} catch (error) {
+				console.error("Error updating API access:", error);
+				toast.error(error instanceof Error ? error.message : "Failed to update API access");
+			} finally {
+				setSavingApiAccess(false);
+			}
+		},
+		[fetchSearchSpace, searchSpaceId, updateSearchSpaceApiAccess]
+	);
+
 	if (loading) {
 		return (
 			<div className="space-y-4 md:space-y-6">
@@ -178,6 +205,22 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 					</Button>
 				</div>
 			</form>
+
+			<div className="border-t pt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+				<div className="space-y-1">
+					<Label htmlFor="api-access-enabled">Programmatic API access</Label>
+					<p className="text-xs text-muted-foreground">
+						Allow personal access tokens to use this search space. Web and desktop sessions are
+						not affected.
+					</p>
+				</div>
+				<Switch
+					id="api-access-enabled"
+					checked={!!searchSpace?.api_access_enabled}
+					disabled={savingApiAccess}
+					onCheckedChange={handleApiAccessToggle}
+				/>
+			</div>
 
 			<div className="border-t pt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<div className="space-y-1">

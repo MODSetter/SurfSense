@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import User, get_async_session
+from app.auth.context import AuthContext
+from app.db import get_async_session
 from app.services.memory import (
     MemoryRead,
     MemoryScope,
@@ -15,7 +16,7 @@ from app.services.memory import (
     reset_memory,
     save_memory,
 )
-from app.users import current_active_user
+from app.users import require_session_context
 
 router = APIRouter()
 
@@ -26,9 +27,10 @@ class MemoryUpdate(BaseModel):
 
 @router.get("/users/me/memory", response_model=MemoryRead)
 async def get_user_memory(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
+    user = auth.user
     memory_md = await read_memory(
         scope=MemoryScope.USER,
         target_id=user.id,
@@ -40,9 +42,10 @@ async def get_user_memory(
 @router.put("/users/me/memory", response_model=MemoryRead)
 async def update_user_memory(
     body: MemoryUpdate,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
+    user = auth.user
     result = await save_memory(
         scope=MemoryScope.USER,
         target_id=user.id,
@@ -56,9 +59,10 @@ async def update_user_memory(
 
 @router.post("/users/me/memory/reset", response_model=MemoryRead)
 async def reset_user_memory(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
+    user = auth.user
     result = await reset_memory(
         scope=MemoryScope.USER,
         target_id=user.id,

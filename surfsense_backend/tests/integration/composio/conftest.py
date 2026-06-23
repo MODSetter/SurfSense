@@ -15,6 +15,7 @@ from httpx import ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.app import app, limiter
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     SearchSourceConnector,
@@ -22,7 +23,7 @@ from app.db import (
     User,
     get_async_session,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 
 pytestmark = pytest.mark.integration
 
@@ -40,12 +41,12 @@ async def client(
     async def override_session() -> AsyncGenerator[AsyncSession, None]:
         yield db_session
 
-    async def override_user() -> User:
-        return db_user
+    async def override_auth() -> AuthContext:
+        return AuthContext.session(db_user)
 
     previous_overrides = app.dependency_overrides.copy()
     app.dependency_overrides[get_async_session] = override_session
-    app.dependency_overrides[current_active_user] = override_user
+    app.dependency_overrides[get_auth_context] = override_auth
 
     try:
         async with httpx.AsyncClient(

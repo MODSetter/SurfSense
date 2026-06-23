@@ -23,6 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.connectors.google_drive import (
     GoogleDriveClient,
@@ -33,10 +34,9 @@ from app.connectors.google_gmail_connector import fetch_google_user_email
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
-from app.users import current_active_user
+from app.users import get_auth_context, require_session_context
 from app.utils.connector_naming import (
     check_duplicate_connector,
     generate_unique_connector_name,
@@ -46,6 +46,7 @@ from app.utils.oauth_security import (
     TokenEncryption,
     generate_code_verifier,
 )
+from app.utils.rbac import check_search_space_access
 
 # Relax token scope validation for Google OAuth
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
@@ -110,7 +111,10 @@ def get_google_flow():
 
 
 @router.get("/auth/google/drive/connector/add")
-async def connect_drive(space_id: int, user: User = Depends(current_active_user)):
+async def connect_drive(
+    space_id: int,
+    auth: AuthContext = Depends(require_session_context),
+):
     """
     Initiate Google Drive OAuth flow.
 
@@ -120,6 +124,7 @@ async def connect_drive(space_id: int, user: User = Depends(current_active_user)
     Returns:
         JSON with auth_url to redirect user to Google authorization
     """
+    user = auth.user
     try:
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
@@ -165,7 +170,7 @@ async def reauth_drive(
     space_id: int,
     connector_id: int,
     return_url: str | None = None,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -178,6 +183,7 @@ async def reauth_drive(
     Returns:
         JSON with auth_url to redirect user to Google authorization
     """
+    user = auth.user
     try:
         result = await session.execute(
             select(SearchSourceConnector).filter(
@@ -472,7 +478,7 @@ async def list_google_drive_folders(
     connector_id: int,
     parent_id: str | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     List folders AND files in user's Google Drive with hierarchical support.
@@ -492,6 +498,7 @@ async def list_google_drive_folders(
             ]
         }
     """
+    user = auth.user
     try:
         # Get connector and verify ownership
         result = await session.execute(
@@ -509,6 +516,8 @@ async def list_google_drive_folders(
                 status_code=404,
                 detail="Google Drive connector not found or access denied",
             )
+
+        await check_search_space_access(session, auth, connector.search_space_id)
 
         # Initialize Drive client (credentials will be loaded on first API call)
         drive_client = GoogleDriveClient(session, connector_id)

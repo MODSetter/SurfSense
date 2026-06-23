@@ -60,6 +60,7 @@ def _build_create_automation_tool(deps: dict[str, Any]) -> BaseTool:
     return create_create_automation_tool(
         search_space_id=deps["search_space_id"],
         user_id=deps["user_id"],
+        auth_context=deps.get("auth_context"),
         llm=deps["llm"],
     )
 

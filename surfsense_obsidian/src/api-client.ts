@@ -22,11 +22,11 @@ import type {
  *
  * Auth + wire contract:
  *   - Every request carries `Authorization: Bearer <token>` only. No
- *     custom headers — the backend identifies the caller from the JWT
+ *     custom headers — the backend identifies the caller from the PAT
  *     and feature-detects the API via the `capabilities` array on
  *     `/health` and `/connect`.
  *   - 401 surfaces as `AuthError` so the orchestrator can show the
- *     "token expired, paste a fresh one" UX.
+ *     "token invalid or expired" UX.
  *   - HealthResponse / ConnectResponse use index signatures so any
  *     additive backend field (e.g. new capabilities) parses without
  *     breaking the decoder. This mirrors `ConfigDict(extra='ignore')`

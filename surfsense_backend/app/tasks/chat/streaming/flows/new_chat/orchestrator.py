@@ -35,6 +35,7 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
     FilesystemMode,
     FilesystemSelection,
 )
+from app.auth.context import AuthContext
 from app.db import ChatVisibility, async_session_maker
 from app.observability import otel as ot
 from app.services.new_streaming_service import VercelStreamingService
@@ -136,6 +137,7 @@ async def stream_new_chat(
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
     user_image_data_urls: list[str] | None = None,
+    auth_context: AuthContext | None = None,
     flow: Literal["new", "regenerate"] = "new",
 ) -> AsyncGenerator[str, None]:
     """Stream a new chat turn using the SurfSense deep agent.
@@ -412,6 +414,7 @@ async def stream_new_chat(
             filesystem_selection=filesystem_selection,
             disabled_tools=disabled_tools,
             mentioned_document_ids=mentioned_document_ids,
+            auth_context=auth_context,
         )
         _perf_log.info(
             "[stream_new_chat] Agent created in %.3fs", time.perf_counter() - _t0
@@ -664,6 +667,7 @@ async def stream_new_chat(
                 filesystem_selection=filesystem_selection,
                 disabled_tools=disabled_tools,
                 mentioned_document_ids=mentioned_document_ids,
+                auth_context=auth_context,
             )
             _perf_log.info(
                 "[stream_new_chat] Runtime rate-limit recovery repinned "

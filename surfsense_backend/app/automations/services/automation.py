@@ -27,17 +27,19 @@ from app.automations.services.model_policy import (
 )
 from app.automations.triggers import get_trigger
 from app.automations.triggers.builtin.schedule import compute_next_fire_at
-from app.db import Permission, SearchSpace, User, get_async_session
-from app.users import current_active_user
+from app.auth.context import AuthContext
+from app.db import Permission, SearchSpace, get_async_session
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 
 class AutomationService:
     """Lifecycle of the ``Automation`` resource."""
 
-    def __init__(self, *, session: AsyncSession, user: User) -> None:
+    def __init__(self, *, session: AsyncSession, auth: AuthContext) -> None:
         self.session = session
-        self.user = user
+        self.auth = auth
+        self.user = auth.user
 
     async def create(self, payload: AutomationCreate) -> Automation:
         """Create an automation and its initial triggers in one transaction."""
@@ -235,7 +237,7 @@ class AutomationService:
     async def _authorize(self, search_space_id: int, permission: str) -> None:
         await check_permission(
             self.session,
-            self.user,
+            self.auth,
             search_space_id,
             permission,
             f"You don't have permission to {permission.split(':')[1]} automations in this search space",
@@ -274,6 +276,6 @@ def _build_trigger(spec: TriggerCreate) -> AutomationTrigger:
 
 def get_automation_service(
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> AutomationService:
-    return AutomationService(session=session, user=user)
+    return AutomationService(session=session, auth=auth)

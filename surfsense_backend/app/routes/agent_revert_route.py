@@ -5,7 +5,7 @@ here" affordance. To prevent accidental usage during the gap we return
 ``503 Service Unavailable`` until the ``SURFSENSE_ENABLE_REVERT_ROUTE``
 flag flips. Once enabled, the route runs:
 
-1. Authentication via :func:`current_active_user`.
+1. Authentication via an interactive session context.
 2. Action lookup; 404 if the action does not belong to the thread.
 3. Authorization via :func:`app.services.revert_service.can_revert`.
 4. Revert dispatch via :func:`app.services.revert_service.revert_action`.
@@ -33,9 +33,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import get_flags
+from app.auth.context import AuthContext
 from app.db import (
     AgentActionLog,
-    User,
     get_async_session,
 )
 from app.services.revert_service import (
@@ -45,7 +45,7 @@ from app.services.revert_service import (
     load_thread,
     revert_action,
 )
-from app.users import current_active_user
+from app.users import require_session_context
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +57,9 @@ async def revert_agent_action(
     thread_id: int,
     action_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ) -> dict:
+    user = auth.user
     flags = get_flags()
     if flags.disable_new_agent_stack or not flags.enable_revert_route:
         raise HTTPException(
@@ -269,7 +270,7 @@ async def revert_agent_turn(
     thread_id: int,
     chat_turn_id: str,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ) -> RevertTurnResponse:
     """Revert every reversible action emitted during ``chat_turn_id``.
 
@@ -281,6 +282,7 @@ async def revert_agent_turn(
     Partial success is intentional and returned with HTTP 200. Callers
     must inspect ``results[*].status`` to find rows that need attention.
     """
+    user = auth.user
 
     flags = get_flags()
     if flags.disable_new_agent_stack or not flags.enable_revert_route:

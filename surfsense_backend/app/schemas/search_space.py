@@ -24,11 +24,16 @@ class SearchSpaceUpdate(BaseModel):
     ai_file_sort_enabled: bool | None = None
 
 
+class SearchSpaceApiAccessUpdate(BaseModel):
+    api_access_enabled: bool
+
+
 class SearchSpaceRead(SearchSpaceBase, IDModel, TimestampModel):
     id: int
     created_at: datetime
     user_id: uuid.UUID
     citations_enabled: bool
+    api_access_enabled: bool = False
     qna_custom_instructions: str | None = None
     shared_memory_md: str | None = None
     ai_file_sort_enabled: bool = False

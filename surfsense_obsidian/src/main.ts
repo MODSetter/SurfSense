@@ -248,7 +248,7 @@ export default class SurfSensePlugin extends Plugin {
 		const now = Date.now();
 		if (now - this.lastAuthToastAt < 10_000) return;
 		this.lastAuthToastAt = now;
-		new Notice("Surfsense: API token expired or invalid. Paste a fresh token in settings.", 8000);
+		new Notice("Surfsense: API token is invalid or expired. Check your token in settings.", 8000);
 	}
 
 	async loadSettings() {

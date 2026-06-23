@@ -9,7 +9,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Document, Permission, User, get_async_session
+from app.auth.context import AuthContext
+from app.db import Document, Permission, get_async_session
 from app.file_storage.persistence.enums import DocumentFileKind
 from app.file_storage.schemas import DocumentFileRead
 from app.file_storage.service import (
@@ -17,14 +18,14 @@ from app.file_storage.service import (
     list_document_files,
     open_document_file_stream,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 router = APIRouter()
 
 
 async def _load_readable_document(
-    *, document_id: int, session: AsyncSession, user: User
+    *, document_id: int, session: AsyncSession, auth: AuthContext
 ) -> Document:
     """Load a document the user may read, or raise 404/403."""
     document = (
@@ -35,7 +36,7 @@ async def _load_readable_document(
 
     await check_permission(
         session,
-        user,
+        auth,
         document.search_space_id,
         Permission.DOCUMENTS_READ.value,
         "You don't have permission to read documents in this search space",
@@ -57,10 +58,10 @@ def _content_disposition(filename: str) -> str:
 async def read_document_files(
     document_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> list[DocumentFileRead]:
     """Return metadata for every stored file of a document (gates the UI)."""
-    await _load_readable_document(document_id=document_id, session=session, user=user)
+    await _load_readable_document(document_id=document_id, session=session, auth=auth)
     records = await list_document_files(session, document_id=document_id)
     return [DocumentFileRead.model_validate(r) for r in records]
 
@@ -69,10 +70,10 @@ async def read_document_files(
 async def download_original_document_file(
     document_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> StreamingResponse:
     """Stream the document's original uploaded file."""
-    await _load_readable_document(document_id=document_id, session=session, user=user)
+    await _load_readable_document(document_id=document_id, session=session, auth=auth)
 
     record = await get_document_file(
         session, document_id=document_id, kind=DocumentFileKind.ORIGINAL

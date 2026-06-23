@@ -54,6 +54,7 @@ from .notes_routes import router as notes_router
 from .notion_add_connector_route import router as notion_add_connector_router
 from .obsidian_plugin_routes import router as obsidian_plugin_router
 from .onedrive_add_connector_route import router as onedrive_add_connector_router
+from .personal_access_tokens_routes import router as personal_access_tokens_router
 from .prompts_routes import router as prompts_router
 from .public_chat_routes import router as public_chat_router
 from .rbac_routes import router as rbac_router
@@ -113,6 +114,7 @@ router.include_router(slack_add_connector_router)
 router.include_router(teams_add_connector_router)
 router.include_router(onedrive_add_connector_router)
 router.include_router(obsidian_plugin_router)  # Obsidian plugin push API
+router.include_router(personal_access_tokens_router)  # Personal access token manager
 router.include_router(discord_add_connector_router)
 router.include_router(jira_add_connector_router)
 router.include_router(confluence_add_connector_router)

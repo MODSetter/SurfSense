@@ -7,9 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import Permission, User, get_async_session
 from app.services.export_service import build_export_zip
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 logger = logging.getLogger(__name__)
@@ -24,12 +25,13 @@ async def export_knowledge_base(
         None, description="Export only this folder's subtree"
     ),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Export documents as a ZIP of markdown files preserving folder structure."""
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.DOCUMENTS_READ.value,
         "You don't have permission to export documents in this search space",

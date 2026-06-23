@@ -29,6 +29,7 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
     FilesystemMode,
     FilesystemSelection,
 )
+from app.auth.context import AuthContext
 from app.db import ChatVisibility, async_session_maker
 from app.observability import otel as ot
 from app.services.chat_session_state_service import set_ai_responding
@@ -102,6 +103,7 @@ async def stream_resume_chat(
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
     disabled_tools: list[str] | None = None,
+    auth_context: AuthContext | None = None,
 ) -> AsyncGenerator[str, None]:
     """Resume a paused HITL turn with the user's decisions.
 
@@ -346,6 +348,7 @@ async def stream_resume_chat(
             thread_visibility=visibility,
             filesystem_selection=filesystem_selection,
             disabled_tools=disabled_tools,
+            auth_context=auth_context,
         )
         _perf_log.info(
             "[stream_resume] Agent created in %.3fs", time.perf_counter() - _t0
@@ -481,6 +484,7 @@ async def stream_resume_chat(
                 thread_visibility=visibility,
                 filesystem_selection=filesystem_selection,
                 disabled_tools=disabled_tools,
+                auth_context=auth_context,
             )
             _perf_log.info(
                 "[stream_resume] Runtime rate-limit recovery repinned "

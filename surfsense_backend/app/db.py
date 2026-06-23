@@ -368,6 +368,9 @@ class Permission(StrEnum):
     SETTINGS_UPDATE = "settings:update"
     SETTINGS_DELETE = "settings:delete"  # Delete the entire search space
 
+    # API Access
+    API_ACCESS_MANAGE = "api_access:manage"
+
     # Public Sharing
     PUBLIC_SHARING_VIEW = "public_sharing:view"
     PUBLIC_SHARING_CREATE = "public_sharing:create"
@@ -1693,6 +1696,9 @@ class SearchSpace(BaseModel, TimestampMixin):
     citations_enabled = Column(
         Boolean, nullable=False, default=True
     )  # Enable/disable citations
+    api_access_enabled = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     qna_custom_instructions = Column(
         Text, nullable=True, default=""
     )  # User's custom instructions
@@ -2330,6 +2336,11 @@ if config.AUTH_TYPE == "GOOGLE":
             back_populates="user",
             cascade="all, delete-orphan",
         )
+        personal_access_tokens = relationship(
+            "PersonalAccessToken",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
 
 else:
 
@@ -2459,6 +2470,11 @@ else:
         # Refresh tokens for this user
         refresh_tokens = relationship(
             "RefreshToken",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
+        personal_access_tokens = relationship(
+            "PersonalAccessToken",
             back_populates="user",
             cascade="all, delete-orphan",
         )
@@ -2710,6 +2726,36 @@ class RefreshToken(Base, TimestampMixin):
     @property
     def is_valid(self) -> bool:
         return not self.is_expired and not self.is_revoked
+
+
+class PersonalAccessToken(BaseModel, TimestampMixin):
+    """
+    Stores hashed Personal Access Tokens for programmatic API access.
+    Plaintext tokens are shown once on creation and are never persisted.
+    """
+
+    __tablename__ = "personal_access_tokens"
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user = relationship("User", back_populates="personal_access_tokens")
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    token_prefix = Column(String(16), nullable=False)
+    label = Column(String, nullable=False)
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)
+    last_used_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    @property
+    def is_expired(self) -> bool:
+        return self.expires_at is not None and datetime.now(UTC) >= self.expires_at
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.is_expired
 
 
 # Register model packages that live outside this file so their classes

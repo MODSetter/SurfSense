@@ -5,22 +5,23 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.auth.context import AuthContext
 from app.db import (
     Permission,
     SearchSpace,
     SearchSpaceMembership,
     SearchSpaceRole,
-    User,
     get_async_session,
     get_default_roles_config,
 )
 from app.schemas import (
+    SearchSpaceApiAccessUpdate,
     SearchSpaceCreate,
     SearchSpaceRead,
     SearchSpaceUpdate,
     SearchSpaceWithStats,
 )
-from app.users import current_active_user
+from app.users import allow_any_principal, get_auth_context, require_session_context
 from app.utils.rbac import check_permission, check_search_space_access
 
 logger = logging.getLogger(__name__)
@@ -74,8 +75,9 @@ async def create_default_roles_and_membership(
 async def create_search_space(
     search_space: SearchSpaceCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ):
+    user = auth.user
     try:
         search_space_data = search_space.model_dump()
 
@@ -108,8 +110,9 @@ async def read_search_spaces(
     limit: int = 200,
     owned_only: bool = False,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(allow_any_principal),
 ):
+    user = auth.user
     """
     Get all search spaces the user has access to, with member count and ownership info.
 
@@ -123,11 +126,17 @@ async def read_search_spaces(
         # Exclude spaces that are pending background deletion
         not_deleting = ~SearchSpace.name.startswith("[DELETING] ")
 
+        api_access_filter = (
+            SearchSpace.api_access_enabled == True  # noqa: E712
+            if auth.is_gated
+            else True
+        )
+
         if owned_only:
             # Return only search spaces where user is the original creator (user_id)
             result = await session.execute(
                 select(SearchSpace)
-                .filter(SearchSpace.user_id == user.id, not_deleting)
+                .filter(SearchSpace.user_id == user.id, not_deleting, api_access_filter)
                 .order_by(SearchSpace.id.asc())
                 .offset(skip)
                 .limit(limit)
@@ -137,7 +146,11 @@ async def read_search_spaces(
             result = await session.execute(
                 select(SearchSpace)
                 .join(SearchSpaceMembership)
-                .filter(SearchSpaceMembership.user_id == user.id, not_deleting)
+                .filter(
+                    SearchSpaceMembership.user_id == user.id,
+                    not_deleting,
+                    api_access_filter,
+                )
                 .order_by(SearchSpace.id.asc())
                 .offset(skip)
                 .limit(limit)
@@ -174,6 +187,7 @@ async def read_search_spaces(
                     created_at=space.created_at,
                     user_id=space.user_id,
                     citations_enabled=space.citations_enabled,
+                    api_access_enabled=space.api_access_enabled,
                     qna_custom_instructions=space.qna_custom_instructions,
                     ai_file_sort_enabled=space.ai_file_sort_enabled,
                     member_count=member_count,
@@ -192,7 +206,7 @@ async def read_search_spaces(
 async def read_search_space(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Get a specific search space by ID.
@@ -200,7 +214,7 @@ async def read_search_space(
     """
     try:
         # Check if user has access (is a member)
-        await check_search_space_access(session, user, search_space_id)
+        await check_search_space_access(session, auth, search_space_id)
 
         result = await session.execute(
             select(SearchSpace).filter(SearchSpace.id == search_space_id)
@@ -225,7 +239,7 @@ async def update_search_space(
     search_space_id: int,
     search_space_update: SearchSpaceUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Update a search space.
@@ -235,7 +249,7 @@ async def update_search_space(
         # Check permission
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.SETTINGS_UPDATE.value,
             "You don't have permission to update this search space",
@@ -265,17 +279,65 @@ async def update_search_space(
         ) from e
 
 
+@router.put("/searchspaces/{search_space_id}/api-access", response_model=SearchSpaceRead)
+async def update_search_space_api_access(
+    search_space_id: int,
+    body: SearchSpaceApiAccessUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    """
+    Toggle programmatic API/PAT access for a search space.
+    Requires API_ACCESS_MANAGE permission.
+    """
+    try:
+        if not auth.is_session:
+            raise HTTPException(
+                status_code=403,
+                detail="This action requires an interactive session",
+            )
+
+        await check_permission(
+            session,
+            auth,
+            search_space_id,
+            Permission.API_ACCESS_MANAGE.value,
+            "You don't have permission to manage API access for this search space",
+        )
+
+        result = await session.execute(
+            select(SearchSpace).filter(SearchSpace.id == search_space_id)
+        )
+        db_search_space = result.scalars().first()
+
+        if not db_search_space:
+            raise HTTPException(status_code=404, detail="Search space not found")
+
+        db_search_space.api_access_enabled = body.api_access_enabled
+        await session.commit()
+        await session.refresh(db_search_space)
+        return db_search_space
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update API access: {e!s}"
+        ) from e
+
+
 @router.post("/searchspaces/{search_space_id}/ai-sort")
 async def trigger_ai_sort(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Trigger a full AI file sort for all documents in the search space."""
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.SETTINGS_UPDATE.value,
             "You don't have permission to trigger AI sort on this search space",
@@ -305,7 +367,7 @@ async def trigger_ai_sort(
 async def delete_search_space(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Delete a search space.
@@ -318,7 +380,7 @@ async def delete_search_space(
         # Check permission - only those with SETTINGS_DELETE can delete
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.SETTINGS_DELETE.value,
             "You don't have permission to delete this search space",
@@ -374,7 +436,7 @@ async def delete_search_space(
 async def list_search_space_snapshots(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     List all public chat snapshots for a search space.
@@ -387,6 +449,6 @@ async def list_search_space_snapshots(
     snapshots = await list_snapshots_for_search_space(
         session=session,
         search_space_id=search_space_id,
-        user=user,
+        auth=auth,
     )
     return PublicChatSnapshotsBySpaceResponse(snapshots=snapshots)

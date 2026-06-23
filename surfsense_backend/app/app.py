@@ -27,6 +27,7 @@ from app.agents.chat.runtime.checkpointer import (
     close_checkpointer,
     setup_checkpointer_tables,
 )
+from app.auth.context import AuthContext
 from app.config import (
     config,
     initialize_image_gen_router,
@@ -34,7 +35,7 @@ from app.config import (
     initialize_openrouter_integration,
     initialize_pricing_registration,
 )
-from app.db import User, create_db_and_tables, get_async_session
+from app.db import create_db_and_tables, get_async_session
 from app.exceptions import GENERIC_5XX_MESSAGE, ISSUES_URL, SurfSenseError
 from app.gateway.byo_long_poll import (
     start_byo_long_poll_supervisors,
@@ -55,7 +56,7 @@ from app.routes import router as crud_router
 from app.routes.auth_routes import router as auth_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.session_events import register_session_hooks
-from app.users import SECRET, auth_backend, current_active_user, fastapi_users
+from app.users import SECRET, allow_any_principal, auth_backend, fastapi_users
 from app.utils.perf import log_system_snapshot
 
 _error_logger = logging.getLogger("surfsense.errors")
@@ -1032,7 +1033,7 @@ async def readiness_check():
 
 @app.get("/verify-token")
 async def authenticated_route(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(allow_any_principal),
     session: AsyncSession = Depends(get_async_session),
 ):
-    return {"message": "Token is valid"}
+    return {"message": "Token is valid", "method": auth.method}

@@ -34,6 +34,7 @@ from app.agents.chat.runtime.llm_config import AgentConfig
 from app.agents.chat.runtime.prompt_caching import (
     apply_litellm_prompt_caching,
 )
+from app.auth.context import AuthContext
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 from app.services.user_tool_allowlist import (
@@ -73,6 +74,7 @@ async def create_multi_agent_chat_deep_agent(
     anon_session_id: str | None = None,
     filesystem_selection: FilesystemSelection | None = None,
     image_gen_model_id: int | None = None,
+    auth_context: AuthContext | None = None,
 ):
     """Deep agent with SurfSense tools/middleware; registry route subagents behind ``task`` when enabled.
 
@@ -139,6 +141,7 @@ async def create_multi_agent_chat_deep_agent(
         "connector_service": connector_service,
         "firecrawl_api_key": firecrawl_api_key,
         "user_id": user_id,
+        "auth_context": auth_context,
         "thread_id": thread_id,
         "thread_visibility": visibility,
         "available_connectors": available_connectors,

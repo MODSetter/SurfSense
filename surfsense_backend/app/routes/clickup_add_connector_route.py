@@ -16,15 +16,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
 from app.schemas.clickup_auth_credentials import ClickUpAuthCredentialsBase
-from app.users import current_active_user
+from app.users import require_session_context
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,10 @@ def get_token_encryption() -> TokenEncryption:
 
 
 @router.get("/auth/clickup/connector/add")
-async def connect_clickup(space_id: int, user: User = Depends(current_active_user)):
+async def connect_clickup(
+    space_id: int,
+    auth: AuthContext = Depends(require_session_context),
+):
     """
     Initiate ClickUp OAuth flow.
 
@@ -72,6 +75,7 @@ async def connect_clickup(space_id: int, user: User = Depends(current_active_use
     Returns:
         Authorization URL for redirect
     """
+    user = auth.user
     try:
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")

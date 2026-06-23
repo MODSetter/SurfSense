@@ -17,15 +17,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
 from app.schemas.notion_auth_credentials import NotionAuthCredentialsBase
-from app.users import current_active_user
+from app.users import require_session_context
 from app.utils.connector_naming import (
     check_duplicate_connector,
     extract_identifier_from_credentials,
@@ -76,7 +76,10 @@ def make_basic_auth_header(client_id: str, client_secret: str) -> str:
 
 
 @router.get("/auth/notion/connector/add")
-async def connect_notion(space_id: int, user: User = Depends(current_active_user)):
+async def connect_notion(
+    space_id: int,
+    auth: AuthContext = Depends(require_session_context),
+):
     """
     Initiate Notion OAuth flow.
 
@@ -87,6 +90,7 @@ async def connect_notion(space_id: int, user: User = Depends(current_active_user
     Returns:
         Authorization URL for redirect
     """
+    user = auth.user
     try:
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
@@ -131,10 +135,11 @@ async def reauth_notion(
     space_id: int,
     connector_id: int,
     return_url: str | None = None,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
     """Initiate Notion re-authentication for an existing connector."""
+    user = auth.user
     try:
         result = await session.execute(
             select(SearchSourceConnector).filter(
