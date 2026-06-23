@@ -11,6 +11,7 @@ import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
+import { getPostLoginRedirectPath } from "@/lib/auth-utils";
 import { ValidationError } from "@/lib/error";
 import { trackLoginAttempt, trackLoginFailure, trackLoginSuccess } from "@/lib/posthog/events";
 
@@ -47,14 +48,9 @@ export function LocalLoginForm() {
 			// Track successful login
 			trackLoginSuccess("local");
 
-			// Set flag so TokenHandler knows local login was already tracked
-			if (typeof window !== "undefined") {
-				sessionStorage.setItem("login_success_tracked", "true");
-			}
-
 			// Small delay to show success message
 			setTimeout(() => {
-				router.push("/auth/callback");
+				router.push(getPostLoginRedirectPath());
 			}, 500);
 		} catch (err) {
 			if (err instanceof ValidationError) {
