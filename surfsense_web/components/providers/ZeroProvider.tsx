@@ -7,15 +7,11 @@ import {
 } from "@rocicorp/zero/react";
 import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { useSession } from "@/hooks/use-session";
-import {
-	getBearerToken,
-	handleUnauthorized,
-	isPublicRoute,
-	refreshAccessToken,
-} from "@/lib/auth-utils";
+import { getDesktopAccessToken } from "@/lib/auth-fetch";
+import { handleUnauthorized, isPublicRoute, refreshSession } from "@/lib/auth-utils";
 import { queries } from "@/zero/queries";
 import { schema } from "@/zero/schema";
 
@@ -36,13 +32,18 @@ function ZeroAuthSync({ isDesktop }: { isDesktop: boolean }) {
 	useEffect(() => {
 		if (connectionState.name !== "needs-auth") return;
 
-		refreshAccessToken().then((newToken) => {
-			if (!newToken) {
+		refreshSession().then(async (refreshed) => {
+			if (!refreshed) {
 				handleUnauthorized();
 				return;
 			}
 
 			if (isDesktop) {
+				const newToken = await getDesktopAccessToken();
+				if (!newToken) {
+					handleUnauthorized();
+					return;
+				}
 				zero.connection.connect({ auth: newToken });
 			} else {
 				zero.connection.connect();
@@ -95,8 +96,19 @@ function ZeroClientProvider({
 	isDesktop: boolean;
 }) {
 	const cacheURL = useMemo(() => getCacheURL(), []);
-	const auth = isDesktop ? getBearerToken() || undefined : undefined;
+	const [desktopAuth, setDesktopAuth] = useState<string | undefined>(undefined);
 	const context = useMemo(() => ({ userId: userID }), [userID]);
+
+	useEffect(() => {
+		if (!isDesktop) return;
+		let isMounted = true;
+		getDesktopAccessToken().then((token) => {
+			if (isMounted) setDesktopAuth(token || undefined);
+		});
+		return () => {
+			isMounted = false;
+		};
+	}, [isDesktop]);
 
 	const opts = useMemo(
 		() => ({
@@ -105,9 +117,9 @@ function ZeroClientProvider({
 			queries,
 			context,
 			cacheURL,
-			auth,
+			auth: isDesktop ? desktopAuth : undefined,
 		}),
-		[userID, context, cacheURL, auth]
+		[userID, context, cacheURL, isDesktop, desktopAuth]
 	);
 
 	return (

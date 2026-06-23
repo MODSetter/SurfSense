@@ -4,14 +4,12 @@ type SpaceScopedQuery = {
 	where: (...args: unknown[]) => SpaceScopedQuery;
 };
 
-const DENIED_SPACE_ID = -1;
-
 export function canReadSpace(ctx: Context, searchSpaceId: number): boolean {
 	return !!ctx?.allowedSpaceIds?.includes(searchSpaceId);
 }
 
 export function denySpace<T extends SpaceScopedQuery>(query: T): T {
-	return query.where("searchSpaceId", DENIED_SPACE_ID) as T;
+	return query.where(({ or }: { or: (...args: unknown[]) => unknown }) => or()) as T;
 }
 
 export function constrainToAllowedSpaces<T extends SpaceScopedQuery>(query: T, ctx: Context): T {

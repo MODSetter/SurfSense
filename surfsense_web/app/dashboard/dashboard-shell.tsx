@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { USER_QUERY_KEY } from "@/atoms/user/user-query.atoms";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { useSession } from "@/hooks/use-session";
-import { ensureTokensFromElectron, redirectToLogin } from "@/lib/auth-utils";
+import { redirectToLogin } from "@/lib/auth-utils";
 import { queryClient } from "@/lib/query-client/client";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -16,9 +16,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
 	useEffect(() => {
 		async function checkAuth() {
-			if (typeof window !== "undefined" && window.electronAPI) {
-				await ensureTokensFromElectron();
-			}
 			if (session.status === "loading") return;
 			if (session.status === "unauthenticated") {
 				redirectToLogin();
