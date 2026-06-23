@@ -13,13 +13,15 @@ import { Logo } from "@/components/Logo";
 import { ModelProviderConnectionsPanel } from "@/components/settings/model-connections/model-provider-connections-panel";
 import { Button } from "@/components/ui/button";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
-import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+import { useSession } from "@/hooks/use-session";
+import { redirectToLogin } from "@/lib/auth-utils";
 import { hasEnabledChatModel, isLlmOnboardingComplete } from "@/lib/onboarding";
 
 export default function OnboardPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
+	const session = useSession();
 	const { data: globalConnections = [], isLoading: globalLoading } = useAtomValue(
 		globalModelConnectionsAtom
 	);
@@ -29,8 +31,8 @@ export default function OnboardPage() {
 		useAtomValue(globalLlmConfigStatusAtom);
 
 	useEffect(() => {
-		if (!getBearerToken()) redirectToLogin();
-	}, []);
+		if (session.status === "unauthenticated") redirectToLogin();
+	}, [session.status]);
 
 	const hasUsableChatModel = useMemo(
 		() => hasEnabledChatModel([...globalConnections, ...connections]),
@@ -43,7 +45,8 @@ export default function OnboardPage() {
 		connections
 	);
 
-	const isLoading = globalLoading || rolesLoading || globalConfigStatusLoading;
+	const isLoading =
+		session.status === "loading" || globalLoading || rolesLoading || globalConfigStatusLoading;
 
 	// Onboarding only applies when no global_llm_config.yaml exists. If a global
 	// config is present (or onboarding is already complete), leave this page.
