@@ -33,6 +33,10 @@ from app.agents.chat.runtime.mention_resolver import (
     resolve_mentions,
     substitute_in_text,
 )
+from app.agents.chat.runtime.referenced_chat_context import (
+    render_referenced_chats_block,
+    resolve_referenced_chats,
+)
 from app.db import (
     ChatVisibility,
     NewChatThread,
@@ -67,6 +71,8 @@ async def build_new_chat_input_state(
     mentioned_folder_ids: list[int] | None,
     mentioned_connectors: list[dict[str, Any]] | None,
     mentioned_documents: list[dict[str, Any]] | None,
+    mentioned_thread_ids: list[int] | None,
+    requesting_user_id: str | None,
     needs_history_bootstrap: bool,
     thread_visibility: ChatVisibility,
     current_user_display_name: str | None,
@@ -112,10 +118,22 @@ async def build_new_chat_input_state(
         mentioned_documents=mentioned_documents,
     )
 
+    # Referenced-chat context is path-independent, so resolve it in every
+    # filesystem mode (unlike the doc/folder mention substitution above).
+    referenced_chats = await resolve_referenced_chats(
+        session,
+        search_space_id=search_space_id,
+        requesting_user_id=requesting_user_id,
+        current_chat_id=chat_id,
+        mentioned_thread_ids=mentioned_thread_ids,
+    )
+    referenced_chat_context = render_referenced_chats_block(referenced_chats)
+
     final_query = _render_query_with_context(
         agent_user_query=agent_user_query,
         mentioned_connectors=mentioned_connectors,
         recent_reports=recent_reports,
+        referenced_chat_context=referenced_chat_context,
     )
 
     if thread_visibility == ChatVisibility.SEARCH_SPACE and current_user_display_name:
@@ -203,10 +221,13 @@ def _render_query_with_context(
     agent_user_query: str,
     mentioned_connectors: list[dict[str, Any]] | None,
     recent_reports: list[Report],
+    referenced_chat_context: str | None = None,
 ) -> str:
-    """Prepend the ``<mentioned_connectors>`` then ``<report_context>`` blocks.
+    """Prepend ``<mentioned_connectors>``, ``<report_context>``, then
+    ``<referenced_chat_context>`` blocks.
 
-    Order is load-bearing for legacy parity.
+    Order of connectors then reports is load-bearing for legacy parity;
+    referenced chats are appended last as read-only background.
     """
     context_parts: list[str] = []
 
@@ -232,6 +253,9 @@ def _render_query_with_context(
             "leave parent_report_id unset.\n"
             "</report_context>"
         )
+
+    if referenced_chat_context:
+        context_parts.append(referenced_chat_context)
 
     if context_parts:
         context = "\n\n".join(context_parts)
