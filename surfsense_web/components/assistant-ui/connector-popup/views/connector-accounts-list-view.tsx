@@ -10,7 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import { authenticatedFetch } from "@/lib/auth-utils";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getReauthEndpoint } from "@/lib/connector-telemetry";
 import { buildBackendUrl } from "@/lib/env-config";
 import { formatRelativeDate } from "@/lib/format-date";
