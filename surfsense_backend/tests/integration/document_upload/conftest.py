@@ -286,12 +286,9 @@ def _mock_external_apis(monkeypatch):
         "app.indexing_pipeline.cache.cached_indexing.embed_texts",
         MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]),
     )
-    from app.indexing_pipeline.document_chunker import ChunkSlice
-
-    chunk = "Test chunk content."
     monkeypatch.setattr(
-        "app.indexing_pipeline.cache.cached_indexing.chunk_markdown_with_spans",
-        MagicMock(return_value=[ChunkSlice(chunk, 0, len(chunk))]),
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text",
+        MagicMock(return_value=["Test chunk content."]),
     )
 
 

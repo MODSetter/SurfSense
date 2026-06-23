@@ -18,22 +18,16 @@ _V1 = "Intro paragraph.\n\nBody paragraph.\n\nOutro paragraph."
 
 @pytest.fixture
 def paragraph_chunker(monkeypatch):
-    """One slice per markdown paragraph, so edits map to chunk-level diffs."""
-    from app.indexing_pipeline.document_chunker import ChunkSlice
+    """One chunk per markdown paragraph, so edits map to chunk-level diffs."""
 
-    def _split(markdown, *_args, **_kwargs):
-        slices = []
-        cursor = 0
-        for para in markdown.split("\n\n"):
-            start = markdown.index(para, cursor)
-            cursor = start + len(para)
-            if para.strip():
-                slices.append(ChunkSlice(para, start, cursor))
-        return slices
+    def _split(markdown, **_kwargs):
+        return [p for p in markdown.split("\n\n") if p.strip()]
 
     monkeypatch.setattr(
-        "app.indexing_pipeline.cache.cached_indexing.chunk_markdown_with_spans",
-        _split,
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text", _split
+    )
+    monkeypatch.setattr(
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text_hybrid", _split
     )
 
 

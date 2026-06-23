@@ -58,6 +58,11 @@
 	--highlight: oklch(0.852 0.199 91.936);
 }
 
+html[data-surfsense-auth-type="GOOGLE"] .runtime-auth-local,
+html[data-surfsense-auth-type="LOCAL"] .runtime-auth-google {
+	display: none;
+}
+
 .dark {
 	--background: oklch(0.145 0 0);
 	--foreground: oklch(0.985 0 0);
@@ -268,12 +273,6 @@ button {
 .sidebar-item-lazy {
 	content-visibility: auto;
 	contain-intrinsic-size: 0 40px;
-}
-
-/* Monaco whole-line highlight for a cited source span (Phase E). */
-.citation-line-highlight {
-	background-color: color-mix(in srgb, var(--primary) 16%, transparent);
-	box-shadow: inset 2px 0 0 0 var(--primary);
 }
 
 @source "../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}";

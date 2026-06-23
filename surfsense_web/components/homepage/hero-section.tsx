@@ -37,7 +37,7 @@ import {
 	getAssetLabel,
 	usePrimaryDownload,
 } from "@/lib/desktop-download-utils";
-import { BUILD_TIME_AUTH_TYPE, buildBackendUrl } from "@/lib/env-config";
+import { buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
@@ -314,7 +314,6 @@ export function HeroSection() {
 }
 
 function GetStartedButton() {
-	const isGoogleAuth = BUILD_TIME_AUTH_TYPE === "GOOGLE";
 	const [isRedirecting, setIsRedirecting] = useState(false);
 
 	const handleGoogleLogin = () => {
@@ -324,29 +323,26 @@ function GetStartedButton() {
 		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
 	};
 
-	if (isGoogleAuth) {
-		return (
+	return (
+		<>
 			<Button
 				type="button"
 				variant="ghost"
 				onClick={handleGoogleLogin}
 				disabled={isRedirecting}
-				className="h-14 w-full cursor-pointer gap-3 rounded-lg border border-white bg-white text-center text-base font-medium text-[#1f1f1f] shadow-sm transition duration-150 hover:bg-zinc-100 hover:text-[#1f1f1f] sm:w-56 dark:border-white"
+				className="runtime-auth-google h-14 w-full cursor-pointer gap-3 rounded-lg border border-white bg-white text-center text-base font-medium text-[#1f1f1f] shadow-sm transition duration-150 hover:bg-zinc-100 hover:text-[#1f1f1f] sm:w-56 dark:border-white"
 			>
 				<GoogleLogo className="h-5 w-5" />
 				<span>Continue with Google</span>
 			</Button>
-		);
-	}
-
-	return (
-		<Button
-			asChild
-			variant="ghost"
-			className="h-14 w-full rounded-lg bg-black text-center text-base font-medium text-white shadow-sm ring-1 shadow-black/10 ring-black/10 transition duration-150 active:scale-98 hover:bg-black sm:w-52 dark:bg-white dark:text-black dark:hover:bg-white"
-		>
-			<Link href="/login">Get Started</Link>
-		</Button>
+			<Button
+				asChild
+				variant="ghost"
+				className="runtime-auth-local h-14 w-full rounded-lg bg-black text-center text-base font-medium text-white shadow-sm ring-1 shadow-black/10 ring-black/10 transition duration-150 active:scale-98 hover:bg-black sm:w-52 dark:bg-white dark:text-black dark:hover:bg-white"
+			>
+				<Link href="/login">Get Started</Link>
+			</Button>
+		</>
 	);
 }
 

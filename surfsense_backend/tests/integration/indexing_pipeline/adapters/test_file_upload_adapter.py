@@ -176,14 +176,9 @@ async def test_reindex_sets_status_ready(db_session, db_search_space, db_user, m
 @pytest.mark.usefixtures("patched_embed_texts")
 async def test_reindex_replaces_chunks(db_session, db_search_space, db_user, mocker):
     """Reindexing replaces old chunks with new content rather than appending."""
-    from app.indexing_pipeline.document_chunker import ChunkSlice
-
     mocker.patch(
-        "app.indexing_pipeline.cache.cached_indexing.chunk_markdown_with_spans",
-        side_effect=[
-            [ChunkSlice("Original chunk.", 0, len("Original chunk."))],
-            [ChunkSlice("Updated chunk.", 0, len("Updated chunk."))],
-        ],
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text_hybrid",
+        side_effect=[["Original chunk."], ["Updated chunk."]],
     )
 
     adapter = UploadDocumentAdapter(db_session)

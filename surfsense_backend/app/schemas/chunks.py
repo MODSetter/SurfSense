@@ -17,7 +17,4 @@ class ChunkUpdate(ChunkBase):
 
 
 class ChunkRead(ChunkBase, IDModel, TimestampModel):
-    start_char: int | None = None
-    end_char: int | None = None
-
     model_config = ConfigDict(from_attributes=True)
