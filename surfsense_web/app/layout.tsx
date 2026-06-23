@@ -5,6 +5,7 @@ import { Roboto } from "next/font/google";
 import Script from "next/script";
 import { AnnouncementToastProvider } from "@/components/announcements/AnnouncementToastProvider";
 import { DesktopUpdateToast } from "@/components/desktop/desktop-update-toast";
+import { AuthCutoverPurge } from "@/components/providers/AuthCutoverPurge";
 import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
 import { I18nProvider } from "@/components/providers/I18nProvider";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
@@ -164,6 +165,7 @@ export default function RootLayout({
 								<PlatformProvider>
 									<RootProvider>
 										<ReactQueryClientProvider>
+											<AuthCutoverPurge />
 											<ZeroProvider>
 												<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
 											</ZeroProvider>
