@@ -59,6 +59,11 @@ const REFRESH_TOKEN_KEY = 'surfsense_refresh_token';
 let accessToken: string | null = null;
 let refreshInFlight: Promise<string | null> | null = null;
 
+type DesktopAuthResponse = {
+  access_token?: string;
+  refresh_token?: string | null;
+};
+
 function getBackendUrl(): string {
   return (process.env.HOSTED_BACKEND_URL || process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || '').replace(
     /\/+$/,
@@ -224,17 +229,6 @@ export function registerIpcHandlers(): void {
     }
   );
 
-  ipcMain.handle(IPC_CHANNELS.SET_AUTH_TOKENS, async (_event, tokens: { bearer: string; refresh: string }) => {
-    await storeTokens(tokens);
-  });
-
-  ipcMain.handle(IPC_CHANNELS.GET_AUTH_TOKENS, async () => {
-    if (!accessToken) {
-      await refreshAccessToken();
-    }
-    return accessToken ? { bearer: accessToken, refresh: '' } : null;
-  });
-
   ipcMain.handle(IPC_CHANNELS.GET_ACCESS_TOKEN, async () => {
     if (!accessToken) {
       await refreshAccessToken();
@@ -274,6 +268,41 @@ export function registerIpcHandlers(): void {
     await storeTokens({ bearer: tokens.access_token, refresh: tokens.refresh_token });
     return { ok: true };
   });
+
+  ipcMain.handle(
+    IPC_CHANNELS.AUTH_LOGIN_PASSWORD,
+    async (_event, payload: { email: string; password: string }) => {
+      const backendUrl = getBackendUrl();
+      if (!backendUrl) {
+        throw new Error('Backend URL is not configured');
+      }
+
+      const response = await fetch(`${backendUrl}/auth/desktop/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let detail = 'Password login failed';
+        try {
+          const error = (await response.json()) as { detail?: string };
+          detail = error.detail || detail;
+        } catch {
+          // Keep the generic error if the backend did not return JSON.
+        }
+        throw new Error(detail);
+      }
+
+      const tokens = (await response.json()) as DesktopAuthResponse;
+      if (!tokens.access_token || !tokens.refresh_token) {
+        throw new Error('Password login did not return desktop tokens');
+      }
+
+      await storeTokens({ bearer: tokens.access_token, refresh: tokens.refresh_token });
+      return { ok: true };
+    }
+  );
 
   ipcMain.handle(IPC_CHANNELS.GET_SHORTCUTS, () => getShortcuts());
 
