@@ -38,10 +38,15 @@ class LogoutAllResponse(BaseModel):
 
 class SessionResponse(BaseModel):
     authenticated: bool = True
-    access_expires_at: int
+    access_expires_at: int | None = None
 
 
 class DesktopSessionRequest(BaseModel):
     code: str
     code_verifier: str
     redirect_uri: str
+
+
+class DesktopLoginRequest(BaseModel):
+    email: str
+    password: str

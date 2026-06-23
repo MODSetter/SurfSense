@@ -2,9 +2,10 @@
 
 import logging
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from urllib.parse import urlparse
 
 import httpx
-import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
@@ -12,20 +13,31 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.auth.session_cookies import clear_session, read_refresh, write_session
+from app.auth.session_cookies import (
+    access_expires_at,
+    clear_session,
+    issue,
+    read_refresh,
+)
 from app.config import config
 from app.db import User, async_session_maker, get_async_session
 from app.rate_limiter import limiter
 from app.schemas.auth import (
+    DesktopLoginRequest,
+    DesktopSessionRequest,
     LogoutAllResponse,
     LogoutRequest,
     LogoutResponse,
-    DesktopSessionRequest,
     RefreshTokenRequest,
     RefreshTokenResponse,
     SessionResponse,
 )
-from app.users import SECRET, UserManager, get_auth_context, get_jwt_strategy, get_user_manager
+from app.users import (
+    UserManager,
+    get_auth_context,
+    get_jwt_strategy,
+    get_user_manager,
+)
 from app.utils.refresh_tokens import (
     create_refresh_token,
     revoke_all_user_tokens,
@@ -40,36 +52,13 @@ router = APIRouter(prefix="/auth/jwt", tags=["auth"])
 session_router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _access_expires_at(access_token: str) -> int:
-    payload = jwt.decode(
-        access_token,
-        SECRET,
-        algorithms=["HS256"],
-        options={"verify_aud": False},
-    )
-    return int(payload["exp"])
-
-
-def _request_access_token(request: Request) -> str | None:
-    cookie_token = request.cookies.get(config.SESSION_COOKIE_NAME)
-    if cookie_token:
-        return cookie_token
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        return None
-    scheme, _, token = auth_header.partition(" ")
-    if scheme.lower() == "bearer" and token:
-        return token
-    return None
-
-
 async def _load_user(user_id) -> User | None:
     async with async_session_maker() as session:
         result = await session.execute(select(User).where(User.id == user_id))
         return result.scalars().first()
 
 
-@router.post("/refresh", response_model=RefreshTokenResponse)
+@router.post("/refresh", response_model=None)
 @limiter.limit("30/minute")
 async def refresh_access_token(
     request: Request,
@@ -80,7 +69,7 @@ async def refresh_access_token(
     Exchange a valid refresh token for a new access token and refresh token.
     Implements token rotation for security.
     """
-    refresh_token = read_refresh(request, body)
+    refresh_token, mode = read_refresh(request, body)
     if not refresh_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -101,19 +90,18 @@ async def refresh_access_token(
             detail="User not found",
         )
 
-    # Generate new access token
     strategy = get_jwt_strategy()
     access_token = await strategy.write_token(user)
 
-    if request.cookies.get(config.REFRESH_COOKIE_NAME) and rotation.refresh_token:
-        write_session(response, access_token, rotation.refresh_token, request)
-
     logger.info(f"Refreshed token for user {user.id}")
 
-    return RefreshTokenResponse(
-        access_token=access_token,
-        refresh_token=rotation.refresh_token,
-        access_expires_at=_access_expires_at(access_token),
+    return issue(
+        response,
+        mode,
+        access=access_token,
+        refresh=rotation.refresh_token,
+        access_expires_at=access_expires_at(access_token),
+        request=request,
     )
 
 
@@ -127,7 +115,7 @@ async def revoke_token(
     Logout current device by revoking the provided refresh token.
     Does not require authentication - just the refresh token.
     """
-    refresh_token = read_refresh(request, body)
+    refresh_token, _mode = read_refresh(request, body)
     revoked = await revoke_refresh_token(refresh_token) if refresh_token else False
     clear_session(response, request)
     if revoked:
@@ -158,7 +146,7 @@ async def logout_all_devices(
         user = None
 
     if user is None:
-        refresh_token = read_refresh(request, body)
+        refresh_token, _mode = read_refresh(request, body)
         token_record = await validate_refresh_token(refresh_token) if refresh_token else None
         if token_record:
             user = await _load_user(token_record.user_id)
@@ -178,12 +166,55 @@ async def logout_all_devices(
 @session_router.get("/session", response_model=SessionResponse)
 async def get_session(
     request: Request,
-    _auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(get_auth_context),
 ):
-    access_token = _request_access_token(request)
-    if not access_token:
+    if auth.method == "pat":
+        return SessionResponse(access_expires_at=None)
+
+    access_token = request.cookies.get(config.SESSION_COOKIE_NAME)
+    if access_token is None:
+        auth_header = request.headers.get("Authorization")
+        if auth_header:
+            scheme, _, token = auth_header.partition(" ")
+            if scheme.lower() == "bearer" and token:
+                access_token = token
+
+    if access_token is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
-    return SessionResponse(access_expires_at=_access_expires_at(access_token))
+    return SessionResponse(access_expires_at=access_expires_at(access_token))
+
+
+@session_router.post("/desktop/login", response_model=RefreshTokenResponse)
+@limiter.limit("5/minute")
+async def desktop_password_login(
+    request: Request,
+    body: DesktopLoginRequest,
+    user_manager: UserManager = Depends(get_user_manager),
+):
+    if config.AUTH_TYPE == "GOOGLE":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    if not config.REGISTRATION_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registration is disabled",
+        )
+
+    credentials = SimpleNamespace(username=body.email, password=body.password)
+    user = await user_manager.authenticate(credentials)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="LOGIN_BAD_CREDENTIALS",
+        )
+
+    app_access_token = await get_jwt_strategy().write_token(user)
+    app_refresh_token = await create_refresh_token(user.id)
+    await user_manager.on_after_login(user, request, None)
+    return RefreshTokenResponse(
+        access_token=app_access_token,
+        refresh_token=app_refresh_token,
+        access_expires_at=access_expires_at(app_access_token),
+    )
 
 
 @session_router.post("/desktop/session", response_model=RefreshTokenResponse)
@@ -193,7 +224,17 @@ async def create_desktop_session(
     body: DesktopSessionRequest,
     user_manager: UserManager = Depends(get_user_manager),
 ):
-    if not body.redirect_uri.startswith("http://127.0.0.1:"):
+    parsed_redirect = urlparse(body.redirect_uri)
+    try:
+        redirect_port = parsed_redirect.port
+    except ValueError:
+        redirect_port = None
+    if not (
+        parsed_redirect.scheme == "http"
+        and parsed_redirect.hostname in {"127.0.0.1", "::1"}
+        and redirect_port is not None
+        and parsed_redirect.path == "/callback"
+    ):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid redirect URI")
     if not config.GOOGLE_DESKTOP_CLIENT_ID:
         raise HTTPException(
@@ -238,6 +279,7 @@ async def create_desktop_session(
     if not claims.get("sub") or not claims.get("email"):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google identity token")
 
+    email_verified = bool(claims.get("email_verified"))
     user = await user_manager.oauth_callback(
         "google",
         access_token,
@@ -250,13 +292,13 @@ async def create_desktop_session(
         ),
         refresh_token=token_data.get("refresh_token"),
         request=request,
-        associate_by_email=True,
-        is_verified_by_default=True,
+        associate_by_email=email_verified,
+        is_verified_by_default=email_verified,
     )
     app_access_token = await get_jwt_strategy().write_token(user)
     app_refresh_token = await create_refresh_token(user.id)
     return RefreshTokenResponse(
         access_token=app_access_token,
         refresh_token=app_refresh_token,
-        access_expires_at=_access_expires_at(app_access_token),
+        access_expires_at=access_expires_at(app_access_token),
     )
