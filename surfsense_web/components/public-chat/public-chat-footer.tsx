@@ -6,8 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useSession } from "@/hooks/use-session";
 import { publicChatApiService } from "@/lib/apis/public-chat-api.service";
-import { getBearerToken } from "@/lib/auth-utils";
 
 interface PublicChatFooterProps {
 	shareToken: string;
@@ -15,6 +15,7 @@ interface PublicChatFooterProps {
 
 export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 	const router = useRouter();
+	const session = useSession();
 	const [isCloning, setIsCloning] = useState(false);
 	const hasAutoCloned = useRef(false);
 
@@ -40,19 +41,21 @@ export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 	// this is a one-time post-login check. (Vercel Best Practice: rerender-defer-reads 5.2)
 	useEffect(() => {
 		const action = new URLSearchParams(window.location.search).get("action");
-		const token = getBearerToken();
 
 		// Only auto-clone once, if authenticated and action=clone is present
-		if (action === "clone" && token && !hasAutoCloned.current && !isCloning) {
+		if (
+			action === "clone" &&
+			session.authenticated &&
+			!hasAutoCloned.current &&
+			!isCloning
+		) {
 			hasAutoCloned.current = true;
 			triggerClone();
 		}
-	}, [isCloning, triggerClone]);
+	}, [isCloning, session.authenticated, triggerClone]);
 
 	const handleCopyAndContinue = async () => {
-		const token = getBearerToken();
-
-		if (!token) {
+		if (!session.authenticated) {
 			// Include action=clone in the returnUrl so it persists after login
 			const returnUrl = encodeURIComponent(`/public/${shareToken}?action=clone`);
 			router.push(`/login?returnUrl=${returnUrl}`);
