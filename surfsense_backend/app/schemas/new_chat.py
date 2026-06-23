@@ -203,11 +203,12 @@ class NewChatUserImagePart(BaseModel):
 class MentionedDocumentInfo(BaseModel):
     """Display metadata for a single ``@``-mention chip.
 
-    Carries a knowledge-base document, knowledge-base folder, or
-    connected account (discriminated by ``kind``). Each kind uses its
-    real identity fields: docs carry ``document_type``, folders carry
-    only their folder id/title, and connectors carry ``connector_type``
-    plus account metadata.
+    Carries a knowledge-base document, knowledge-base folder, connected
+    account, or another chat thread (discriminated by ``kind``). Each
+    kind uses its real identity fields: docs carry ``document_type``,
+    folders carry only their folder id/title, connectors carry
+    ``connector_type`` plus account metadata, and threads carry only
+    their thread id/title.
 
     ``kind`` defaults to ``"doc"`` so legacy clients and persisted rows
     that predate folder mentions deserialise unchanged.
@@ -216,13 +217,14 @@ class MentionedDocumentInfo(BaseModel):
     id: int
     title: str = Field(..., min_length=1, max_length=500)
     document_type: str | None = Field(default=None, min_length=1, max_length=100)
-    kind: Literal["doc", "folder", "connector"] = Field(
+    kind: Literal["doc", "folder", "connector", "thread"] = Field(
         default="doc",
         description=(
             "Discriminator for the chip's referent: ``doc`` is a "
             "knowledge-base ``Document`` row, ``folder`` is a "
-            "knowledge-base ``Folder`` row, and ``connector`` is a "
-            "concrete connected account."
+            "knowledge-base ``Folder`` row, ``connector`` is a "
+            "concrete connected account, and ``thread`` is another "
+            "``NewChatThread`` referenced as read-only context."
         ),
     )
     connector_type: str | None = Field(default=None, max_length=100)
@@ -271,6 +273,16 @@ class NewChatRequest(BaseModel):
             "Display/context metadata for selected connector accounts. "
             "Kept separate from document/folder id arrays so tools can "
             "prefer the exact account the user selected."
+        ),
+    )
+    mentioned_thread_ids: list[int] | None = Field(
+        default=None,
+        description=(
+            "Other chat thread IDs the user @-mentioned. Each is "
+            "resolved (access-checked, same search space) into a "
+            "read-only ``<referenced_chat_context>`` block prepended to "
+            "the agent query. Display chips persist via the "
+            "``mentioned_documents`` list (kind=``thread``)."
         ),
     )
     disabled_tools: list[str] | None = (
@@ -343,6 +355,14 @@ class RegenerateRequest(BaseModel):
     )
     mentioned_connector_ids: list[int] | None = None
     mentioned_connectors: list[MentionedDocumentInfo] | None = None
+    mentioned_thread_ids: list[int] | None = Field(
+        default=None,
+        description=(
+            "Other chat thread IDs the user @-mentioned on the edited "
+            "user turn. Only used when ``user_query`` is non-None (edit). "
+            "Mirrors ``NewChatRequest.mentioned_thread_ids``."
+        ),
+    )
     disabled_tools: list[str] | None = None
     filesystem_mode: Literal["cloud", "desktop_local_folder"] = "cloud"
     client_platform: Literal["web", "desktop"] = "web"
