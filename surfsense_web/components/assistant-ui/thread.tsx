@@ -38,6 +38,7 @@ import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import {
 	type MentionedDocumentInfo,
 	mentionedDocumentsAtom,
+	submittedMentionsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import {
@@ -446,6 +447,7 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 
 const Composer: FC = () => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
+	const setSubmittedMentions = useSetAtom(submittedMentionsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
@@ -573,6 +575,13 @@ const Composer: FC = () => {
 							id: d.id,
 							title: d.title,
 							kind: "folder",
+						};
+					}
+					if (d.kind === "thread") {
+						return {
+							id: d.id,
+							title: d.title,
+							kind: "thread",
 						};
 					}
 					return {
@@ -770,6 +779,10 @@ const Composer: FC = () => {
 			setClipboardInitialText(undefined);
 		}
 
+		// Capture chips before the reset below clears the live atom, so
+		// the async ``onNew`` still sees them.
+		setSubmittedMentions(mentionedDocuments);
+
 		aui.composer().send();
 		editorRef.current?.clear();
 		setIsComposerInputEmpty(true);
@@ -781,6 +794,8 @@ const Composer: FC = () => {
 		isBlockedByOtherUser,
 		clipboardInitialText,
 		aui,
+		mentionedDocuments,
+		setSubmittedMentions,
 		setMentionedDocuments,
 	]);
 
@@ -788,7 +803,7 @@ const Composer: FC = () => {
 		(
 			docId: number,
 			docType?: string,
-			kind?: "doc" | "folder" | "connector",
+			kind?: "doc" | "folder" | "connector" | "thread",
 			connectorType?: string
 		) => {
 			setMentionedDocuments((prev) => {
@@ -876,6 +891,8 @@ const Composer: FC = () => {
 							<DocumentMentionPicker
 								ref={documentPickerRef}
 								searchSpaceId={Number(search_space_id)}
+								enableChatMentions
+								currentChatId={threadId}
 								onSelectionChange={handleDocumentsMention}
 								onDone={() => {
 									setShowDocumentPopover(false);
