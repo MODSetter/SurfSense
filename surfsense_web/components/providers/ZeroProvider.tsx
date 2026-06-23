@@ -6,9 +6,16 @@ import {
 	ZeroProvider as ZeroReactProvider,
 } from "@rocicorp/zero/react";
 import { useAtomValue } from "jotai";
-import { useEffect, useMemo, useRef } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useMemo } from "react";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import { getBearerToken, handleUnauthorized, refreshAccessToken } from "@/lib/auth-utils";
+import { useSession } from "@/hooks/use-session";
+import {
+	getBearerToken,
+	handleUnauthorized,
+	isPublicRoute,
+	refreshAccessToken,
+} from "@/lib/auth-utils";
 import { queries } from "@/zero/queries";
 import { schema } from "@/zero/schema";
 
@@ -22,48 +29,74 @@ function getCacheURL() {
 	return "http://localhost:4848";
 }
 
-function ZeroAuthSync() {
+function ZeroAuthSync({ isDesktop }: { isDesktop: boolean }) {
 	const zero = useZero();
 	const connectionState = useConnectionState();
-	const isRefreshingRef = useRef(false);
 
 	useEffect(() => {
-		if (connectionState.name !== "needs-auth" || isRefreshingRef.current) return;
+		if (connectionState.name !== "needs-auth") return;
 
-		isRefreshingRef.current = true;
+		refreshAccessToken().then((newToken) => {
+			if (!newToken) {
+				handleUnauthorized();
+				return;
+			}
 
-		refreshAccessToken()
-			.then((newToken) => {
-				if (newToken) {
-					zero.connection.connect({ auth: newToken });
-				} else {
-					handleUnauthorized();
-				}
-			})
-			.finally(() => {
-				isRefreshingRef.current = false;
-			});
-	}, [connectionState, zero]);
+			if (isDesktop) {
+				zero.connection.connect({ auth: newToken });
+			} else {
+				zero.connection.connect();
+			}
+		});
+	}, [connectionState.name, isDesktop, zero]);
+
+	useEffect(() => {
+		if (typeof window === "undefined" || !window.electronAPI?.onAuthChanged) return;
+		return window.electronAPI.onAuthChanged(({ accessToken }) => {
+			if (accessToken) {
+				zero.connection.connect({ auth: accessToken });
+			}
+		});
+	}, [zero]);
 
 	return null;
 }
 
-export function ZeroProvider({ children }: { children: React.ReactNode }) {
-	const { data: user } = useAtomValue(currentUserAtom);
-	const cacheURL = useMemo(() => getCacheURL(), []);
+function AuthenticatedZeroProvider({
+	children,
+	isDesktop,
+}: {
+	children: React.ReactNode;
+	isDesktop: boolean;
+}) {
+	const { data: user, isLoading } = useAtomValue(currentUserAtom);
 
 	const userId = user?.id;
-	const hasUser = !!userId;
-	const userID = hasUser ? String(userId) : "anon";
-	// getBearerToken() returns a string (a primitive), so it's safe to read
-	// on every render — reference equality holds as long as the token is
-	// unchanged, which keeps the memoized `opts` below stable.
-	const auth = hasUser ? getBearerToken() || undefined : undefined;
+	const userID = userId ? String(userId) : undefined;
 
-	const context = useMemo(
-		() => (hasUser ? { userId: String(userId) } : undefined),
-		[hasUser, userId]
+	if (isLoading || !userID) {
+		return <>{children}</>;
+	}
+
+	return (
+		<ZeroClientProvider userID={userID} isDesktop={isDesktop}>
+			{children}
+		</ZeroClientProvider>
 	);
+}
+
+function ZeroClientProvider({
+	children,
+	userID,
+	isDesktop,
+}: {
+	children: React.ReactNode;
+	userID: string;
+	isDesktop: boolean;
+}) {
+	const cacheURL = useMemo(() => getCacheURL(), []);
+	const auth = isDesktop ? getBearerToken() || undefined : undefined;
+	const context = useMemo(() => ({ userId: userID }), [userID]);
 
 	const opts = useMemo(
 		() => ({
@@ -79,8 +112,37 @@ export function ZeroProvider({ children }: { children: React.ReactNode }) {
 
 	return (
 		<ZeroReactProvider {...opts}>
-			{hasUser && <ZeroAuthSync />}
+			<ZeroAuthSync isDesktop={isDesktop} />
 			{children}
 		</ZeroReactProvider>
 	);
+}
+
+function WebZeroProvider({ children }: { children: React.ReactNode }) {
+	const session = useSession();
+
+	if (session.status !== "authenticated") {
+		return <>{children}</>;
+	}
+
+	return <AuthenticatedZeroProvider isDesktop={false}>{children}</AuthenticatedZeroProvider>;
+}
+
+function DesktopZeroProvider({ children }: { children: React.ReactNode }) {
+	return <AuthenticatedZeroProvider isDesktop>{children}</AuthenticatedZeroProvider>;
+}
+
+export function ZeroProvider({ children }: { children: React.ReactNode }) {
+	const pathname = usePathname();
+	const isDesktop = typeof window !== "undefined" && !!window.electronAPI;
+
+	if (!isDesktop && isPublicRoute(pathname)) {
+		return <>{children}</>;
+	}
+
+	if (isDesktop) {
+		return <DesktopZeroProvider>{children}</DesktopZeroProvider>;
+	}
+
+	return <WebZeroProvider>{children}</WebZeroProvider>;
 }
