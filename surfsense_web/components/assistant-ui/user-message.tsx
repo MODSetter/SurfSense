@@ -6,9 +6,16 @@ import {
 	useMessagePartText,
 } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { CheckIcon, CopyIcon, Folder as FolderIcon, Pencil, Plug } from "lucide-react";
+import {
+	CheckIcon,
+	CopyIcon,
+	Folder as FolderIcon,
+	MessageSquare,
+	Pencil,
+	Plug,
+} from "lucide-react";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { type FC, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
@@ -66,6 +73,7 @@ const UserTextPart: FC = () => {
 	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const mentionedDocs = (messageId ? messageDocumentsMap[messageId] : undefined) ?? [];
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
+	const router = useRouter();
 	const params = useParams();
 	const searchSpaceIdParam = params?.search_space_id;
 	const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
@@ -91,6 +99,17 @@ const UserTextPart: FC = () => {
 		[openEditorPanel, resolvedSearchSpaceId]
 	);
 
+	const handleOpenThread = useCallback(
+		(threadId: number) => {
+			if (!resolvedSearchSpaceId) {
+				toast.error("Cannot open chat outside a search space.");
+				return;
+			}
+			router.push(`/dashboard/${resolvedSearchSpaceId}/new-chat/${threadId}`);
+		},
+		[resolvedSearchSpaceId, router]
+	);
+
 	const segments = parseMentionSegments(text, mentionedDocs);
 
 	return (
@@ -101,8 +120,11 @@ const UserTextPart: FC = () => {
 				}
 				const isFolder = segment.doc.kind === "folder";
 				const isConnector = segment.doc.kind === "connector";
+				const isThread = segment.doc.kind === "thread";
 				const icon = isFolder ? (
 					<FolderIcon className="size-3.5" />
+				) : isThread ? (
+					<MessageSquare className="size-3.5" />
 				) : isConnector ? (
 					(getConnectorIcon(segment.doc.connector_type, "size-3.5") ?? (
 						<Plug className="size-3.5" />
@@ -118,14 +140,18 @@ const UserTextPart: FC = () => {
 						tooltip={
 							isFolder
 								? `Folder: ${segment.doc.title}`
-								: isConnector
-									? `Connector account: ${segment.doc.title}`
-									: segment.doc.title
+								: isThread
+									? `Chat: ${segment.doc.title}`
+									: isConnector
+										? `Connector account: ${segment.doc.title}`
+										: segment.doc.title
 						}
 						onClick={
-							isFolder || isConnector
-								? undefined
-								: () => handleOpenDoc(segment.doc.id, segment.doc.title)
+							isThread
+								? () => handleOpenThread(segment.doc.id)
+								: isFolder || isConnector
+									? undefined
+									: () => handleOpenDoc(segment.doc.id, segment.doc.title)
 						}
 						className="mx-0.5"
 					/>

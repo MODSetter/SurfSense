@@ -3,7 +3,14 @@
 import { useQuery as useZeroQuery } from "@rocicorp/zero/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { ChevronLeft, ChevronRight, Files, Folder as FolderIcon, Unplug } from "lucide-react";
+import {
+	ChevronLeft,
+	ChevronRight,
+	Files,
+	Folder as FolderIcon,
+	MessageSquare,
+	Unplug,
+} from "lucide-react";
 import {
 	Fragment,
 	forwardRef,
@@ -15,7 +22,10 @@ import {
 	useRef,
 	useState,
 } from "react";
-import type { MentionedDocumentInfo } from "@/atoms/chat/mentioned-documents.atom";
+import {
+	type MentionedDocumentInfo,
+	makeThreadMention,
+} from "@/atoms/chat/mentioned-documents.atom";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { getConnectorTitle } from "@/components/assistant-ui/connector-popup/constants/connector-constants";
 import { getConnectorDisplayName } from "@/components/assistant-ui/connector-popup/tabs/all-connectors-tab";
@@ -40,6 +50,7 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import { searchThreads } from "@/lib/chat/thread-persistence";
 import { queries } from "@/zero/queries";
 
 export type DocumentMentionPickerRef = ComposerSuggestionNavigatorRef;
@@ -50,6 +61,14 @@ interface DocumentMentionPickerProps {
 	onDone: () => void;
 	initialSelectedDocuments?: MentionedDocumentInfo[];
 	externalSearch?: string;
+	/**
+	 * Surface the "Chats" view so the user can reference other
+	 * conversations. Off by default so non-chat callers (e.g. automation
+	 * task inputs) keep their original doc/folder/connector surface.
+	 */
+	enableChatMentions?: boolean;
+	/** Active thread id, excluded so a chat can't reference itself. */
+	currentChatId?: number | null;
 }
 
 const PAGE_SIZE = 20;
@@ -62,7 +81,8 @@ type BrowseView =
 	| { kind: "root" }
 	| { kind: "files-folders" }
 	| { kind: "connectors" }
-	| { kind: "connector-type"; connectorType: string; title: string };
+	| { kind: "connector-type"; connectorType: string; title: string }
+	| { kind: "chats" };
 
 type ResourceNodeValue =
 	| { kind: "view"; view: BrowseView }
@@ -78,6 +98,7 @@ function isMentionedContextItem(value: unknown): value is MentionedDocumentInfo 
 	if (typeof item.id !== "number" || typeof item.title !== "string") return false;
 	if (item.kind === "doc") return typeof item.document_type === "string";
 	if (item.kind === "folder") return true;
+	if (item.kind === "thread") return true;
 	if (item.kind === "connector") {
 		return typeof item.connector_type === "string" && typeof item.account_name === "string";
 	}
@@ -125,6 +146,7 @@ export function promoteRecentMention(searchSpaceId: number, mention: MentionedDo
 
 function getMentionIcon(mention: MentionedDocumentInfo) {
 	if (mention.kind === "folder") return <FolderIcon className="size-4" />;
+	if (mention.kind === "thread") return <MessageSquare className="size-4" />;
 	if (mention.kind === "connector") {
 		return getConnectorIcon(mention.connector_type, "size-4") ?? <Unplug className="size-4" />;
 	}
@@ -148,6 +170,11 @@ function refreshRecentMention(
 	if (mention.kind === "folder") {
 		const folder = folders.find((item) => item.id === mention.id);
 		return folder ? makeFolderMention({ id: folder.id, title: folder.name }) : null;
+	}
+	if (mention.kind === "thread") {
+		// Threads aren't in the doc/folder/connector lists; keep the
+		// recent as-is (validated against the live thread search instead).
+		return mention;
 	}
 	const connector = connectors.find(
 		(item) => item.id === mention.id && item.connector_type === mention.connector_type
@@ -216,11 +243,32 @@ function mentionMatchesSearch(mention: MentionedDocumentInfo, searchLower: strin
 	].some((value) => value.toLowerCase().includes(searchLower));
 }
 
+function makeThreadMentions(
+	threads: { id: number; title: string }[],
+	currentChatId?: number | null
+): Extract<MentionedDocumentInfo, { kind: "thread" }>[] {
+	return threads
+		.filter((thread) => thread.id !== currentChatId)
+		.map((thread) => makeThreadMention({ id: thread.id, title: thread.title }))
+		.filter(
+			(mention): mention is Extract<MentionedDocumentInfo, { kind: "thread" }> =>
+				mention.kind === "thread"
+		);
+}
+
 export const DocumentMentionPicker = forwardRef<
 	DocumentMentionPickerRef,
 	DocumentMentionPickerProps
 >(function DocumentMentionPicker(
-	{ searchSpaceId, onSelectionChange, onDone, initialSelectedDocuments = [], externalSearch = "" },
+	{
+		searchSpaceId,
+		onSelectionChange,
+		onDone,
+		initialSelectedDocuments = [],
+		externalSearch = "",
+		enableChatMentions = false,
+		currentChatId = null,
+	},
 	ref
 ) {
 	const search = externalSearch;
@@ -353,6 +401,21 @@ export const DocumentMentionPicker = forwardRef<
 		() => activeConnectors.map(makeConnectorMention),
 		[activeConnectors]
 	);
+
+	// Threads are fetched on demand: when the user opens the Chats view
+	// or types a search. An empty title returns recent threads (the
+	// backend ``ilike '%%'`` matches all, newest first).
+	const { data: threadResults = [], isLoading: isThreadsLoading } = useQuery({
+		queryKey: ["composer-mention-threads", searchSpaceId, debouncedSearch],
+		queryFn: () => searchThreads(searchSpaceId, debouncedSearch.trim()),
+		staleTime: 60 * 1000,
+		enabled: enableChatMentions && !!searchSpaceId && (view.kind === "chats" || hasSearch),
+		placeholderData: keepPreviousData,
+	});
+	const threadMentions = useMemo(
+		() => (enableChatMentions ? makeThreadMentions(threadResults, currentChatId) : []),
+		[enableChatMentions, threadResults, currentChatId]
+	);
 	const recentDocMentions = useMemo(
 		() => recentMentions.filter((mention) => mention.kind === "doc"),
 		[recentMentions]
@@ -447,10 +510,20 @@ export const DocumentMentionPicker = forwardRef<
 				type: "branch",
 				disabled: activeConnectors.length === 0,
 				value: { kind: "view", view: { kind: "connectors" } },
-			}
+			},
 		);
+		if (enableChatMentions) {
+			nodes.push({
+				id: "chats",
+				label: "Chats",
+				subtitle: "Reference another conversation",
+				icon: <MessageSquare className="size-4" />,
+				type: "branch",
+				value: { kind: "view", view: { kind: "chats" } },
+			});
+		}
 		return nodes;
-	}, [activeConnectors.length, recentRootNodes]);
+	}, [activeConnectors.length, enableChatMentions, recentRootNodes]);
 
 	const searchNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
 		const searchLower = (isSingleCharSearch ? deferredSearch : debouncedSearch)
@@ -488,7 +561,17 @@ export const DocumentMentionPicker = forwardRef<
 				value: { kind: "mention" as const, mention },
 			}));
 
-		return [...docNodes, ...folderNodes, ...connectorNodes];
+		const threadNodes = threadMentions.map((mention) => ({
+			id: getMentionDocKey(mention),
+			label: mention.title,
+			subtitle: "Chat",
+			icon: <MessageSquare className="size-4" />,
+			type: "item" as const,
+			disabled: selectedKeys.has(getMentionDocKey(mention)),
+			value: { kind: "mention" as const, mention },
+		}));
+
+		return [...docNodes, ...folderNodes, ...connectorNodes, ...threadNodes];
 	}, [
 		actualDocuments,
 		connectorMentions,
@@ -497,6 +580,7 @@ export const DocumentMentionPicker = forwardRef<
 		folderMentions,
 		isSingleCharSearch,
 		selectedKeys,
+		threadMentions,
 	]);
 
 	const connectorTypeEntries = useMemo(() => {
@@ -535,6 +619,17 @@ export const DocumentMentionPicker = forwardRef<
 				};
 			});
 			return [...folders, ...docs];
+		}
+		if (view.kind === "chats") {
+			return threadMentions.map((mention) => ({
+				id: getMentionDocKey(mention),
+				label: mention.title,
+				subtitle: "Chat",
+				icon: <MessageSquare className="size-4" />,
+				type: "item" as const,
+				disabled: selectedKeys.has(getMentionDocKey(mention)),
+				value: { kind: "mention" as const, mention },
+			}));
 		}
 		if (view.kind === "connectors") {
 			return connectorTypeEntries.map(([connectorType, typeConnectors]) => ({
@@ -576,6 +671,7 @@ export const DocumentMentionPicker = forwardRef<
 		folderMentions,
 		rootNodes,
 		selectedKeys,
+		threadMentions,
 		view,
 	]);
 
@@ -625,12 +721,14 @@ export const DocumentMentionPicker = forwardRef<
 
 	const isRootBrowseView = !hasSearch && view.kind === "root";
 	const isVisibleViewLoading = hasSearch
-		? isTitleSearchLoading || isConnectorsLoading
+		? isTitleSearchLoading || isConnectorsLoading || isThreadsLoading
 		: view.kind === "files-folders"
 			? isTitleSearchLoading
 			: view.kind === "connectors" || view.kind === "connector-type"
 				? isConnectorsLoading
-				: false;
+				: view.kind === "chats"
+					? isThreadsLoading
+					: false;
 	const actualLoading =
 		isVisibleViewLoading && !isSingleCharSearch && visibleNodes.length === 0 && !isRootBrowseView;
 
@@ -641,7 +739,9 @@ export const DocumentMentionPicker = forwardRef<
 				? "Files & Folders"
 				: view.kind === "connectors"
 					? "Connectors"
-					: view.title;
+					: view.kind === "chats"
+						? "Chats"
+						: view.title;
 
 	return (
 		<ComposerSuggestionList

@@ -1,6 +1,11 @@
 "use client";
 
-import { Folder as FolderIcon, Plug as PlugIcon, X as XIcon } from "lucide-react";
+import {
+	Folder as FolderIcon,
+	MessageSquare as MessageSquareIcon,
+	Plug as PlugIcon,
+	X as XIcon,
+} from "lucide-react";
 import type { NodeEntry, TElement } from "platejs";
 import type { PlateElementProps } from "platejs/react";
 import {
@@ -26,7 +31,7 @@ import type { Document } from "@/contracts/types/document.types";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { cn } from "@/lib/utils";
 
-export type MentionKind = "doc" | "folder" | "connector";
+export type MentionKind = "doc" | "folder" | "connector" | "thread";
 
 export interface MentionedDocument {
 	id: number;
@@ -165,6 +170,7 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 
 	const isFolder = element.kind === "folder";
 	const isConnector = element.kind === "connector";
+	const isThread = element.kind === "thread";
 	const ctx = useContext(MentionEditorContext);
 
 	return (
@@ -175,6 +181,8 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 						<span className="flex items-center justify-center transition-opacity group-hover:opacity-0">
 							{isFolder ? (
 								<FolderIcon className="h-3 w-3" />
+							) : isThread ? (
+								<MessageSquareIcon className="h-3 w-3" />
 							) : isConnector ? (
 								(getConnectorIcon(
 									element.connector_type ?? element.document_type ?? "UNKNOWN",
