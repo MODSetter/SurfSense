@@ -12,8 +12,8 @@ import { Logo } from "@/components/Logo";
 import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useSession } from "@/hooks/use-session";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
-import { getBearerToken } from "@/lib/auth-utils";
 import { AppError, ValidationError } from "@/lib/error";
 import {
 	trackRegistrationAttempt,
@@ -37,18 +37,19 @@ export default function RegisterPage() {
 		message: null,
 	});
 	const router = useRouter();
+	const session = useSession();
 	const [{ mutateAsync: register, isPending: isRegistering }] = useAtom(registerMutationAtom);
 
 	// Check authentication type and redirect if not LOCAL
 	useEffect(() => {
-		if (getBearerToken()) {
+		if (session.status === "authenticated") {
 			router.replace("/dashboard");
 			return;
 		}
 		if (authType !== "LOCAL") {
 			router.push("/login");
 		}
-	}, [authType, router]);
+	}, [authType, router, session.status]);
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();

@@ -38,7 +38,7 @@ export function LocalLoginForm() {
 		trackLoginAttempt("local");
 
 		try {
-			const data = await login({
+			await login({
 				username,
 				password,
 				grant_type: "password",
@@ -54,7 +54,7 @@ export function LocalLoginForm() {
 
 			// Small delay to show success message
 			setTimeout(() => {
-				router.push(`/auth/callback?token=${data.access_token}`);
+				router.push("/auth/callback");
 			}, 500);
 		} catch (err) {
 			if (err instanceof ValidationError) {
