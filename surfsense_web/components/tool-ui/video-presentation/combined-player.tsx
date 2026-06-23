@@ -127,7 +127,6 @@ export function CombinedPlayer({ slides }: CombinedPlayerProps) {
 				compositionHeight={1080}
 				style={{ width: "100%", aspectRatio: "16/9" }}
 				controls
-				autoPlay
 				loop
 				acknowledgeRemotionLicense
 			/>
