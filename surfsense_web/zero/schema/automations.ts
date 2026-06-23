@@ -1,5 +1,12 @@
 import { json, number, string, table } from "@rocicorp/zero";
 
+export const automationTable = table("automations")
+	.columns({
+		id: number(),
+		searchSpaceId: number().from("search_space_id"),
+	})
+	.primaryKey("id");
+
 // Thin live row: status + per-step progress only. Heavy fields
 // (definition_snapshot, inputs, output, artifacts, error) stay on REST
 // (`GET /automations/{id}/runs/{run_id}`) and load on detail expand.

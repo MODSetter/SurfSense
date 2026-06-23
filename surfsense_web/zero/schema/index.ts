@@ -1,6 +1,11 @@
 import { createBuilder, createSchema, relationships } from "@rocicorp/zero";
-import { automationRunTable } from "./automations";
-import { chatCommentTable, chatSessionStateTable, newChatMessageTable } from "./chat";
+import { automationRunTable, automationTable } from "./automations";
+import {
+	chatCommentTable,
+	chatSessionStateTable,
+	newChatMessageTable,
+	newChatThreadTable,
+} from "./chat";
 import { documentTable, searchSourceConnectorTable } from "./documents";
 import { folderTable } from "./folders";
 import { notificationTable } from "./inbox";
@@ -18,13 +23,39 @@ const chatCommentRelationships = relationships(chatCommentTable, ({ one }) => ({
 		destSchema: chatCommentTable,
 		destField: ["id"],
 	}),
+	thread: one({
+		sourceField: ["threadId"],
+		destSchema: newChatThreadTable,
+		destField: ["id"],
+	}),
 }));
 
-const newChatMessageRelationships = relationships(newChatMessageTable, ({ many }) => ({
+const newChatMessageRelationships = relationships(newChatMessageTable, ({ one, many }) => ({
 	comments: many({
 		sourceField: ["id"],
 		destSchema: chatCommentTable,
 		destField: ["messageId"],
+	}),
+	thread: one({
+		sourceField: ["threadId"],
+		destSchema: newChatThreadTable,
+		destField: ["id"],
+	}),
+}));
+
+const chatSessionStateThreadRelationships = relationships(chatSessionStateTable, ({ one }) => ({
+	thread: one({
+		sourceField: ["threadId"],
+		destSchema: newChatThreadTable,
+		destField: ["id"],
+	}),
+}));
+
+const automationRunRelationships = relationships(automationRunTable, ({ one }) => ({
+	automation: one({
+		sourceField: ["automationId"],
+		destSchema: automationTable,
+		destField: ["id"],
 	}),
 }));
 
@@ -34,14 +65,21 @@ export const schema = createSchema({
 		documentTable,
 		folderTable,
 		searchSourceConnectorTable,
+		newChatThreadTable,
 		newChatMessageTable,
 		chatCommentTable,
 		chatSessionStateTable,
 		userTable,
+		automationTable,
 		automationRunTable,
 		podcastTable,
 	],
-	relationships: [chatCommentRelationships, newChatMessageRelationships],
+	relationships: [
+		chatCommentRelationships,
+		newChatMessageRelationships,
+		chatSessionStateThreadRelationships,
+		automationRunRelationships,
+	],
 });
 
 export type Schema = typeof schema;
