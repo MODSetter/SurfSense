@@ -28,6 +28,11 @@ export type MentionedDocumentInfo =
 			kind: "connector";
 			connector_type: string;
 			account_name: string;
+	  }
+	| {
+			id: number;
+			title: string;
+			kind: "thread";
 	  };
 
 /**
@@ -49,7 +54,10 @@ export function toMentionedDocumentInfo(
 ): MentionedDocumentInfo {
 	if (
 		"kind" in input &&
-		(input.kind === "doc" || input.kind === "folder" || input.kind === "connector")
+		(input.kind === "doc" ||
+			input.kind === "folder" ||
+			input.kind === "connector" ||
+			input.kind === "thread")
 	) {
 		return input;
 	}
@@ -73,27 +81,44 @@ export function makeFolderMention(input: { id: number; name: string }): Mentione
 }
 
 /**
+ * Build a thread-mention chip from a thread row (id + title). Used to
+ * reference another conversation as read-only context.
+ */
+export function makeThreadMention(input: { id: number; title: string }): MentionedDocumentInfo {
+	return {
+		id: input.id,
+		title: input.title,
+		kind: "thread",
+	};
+}
+
+/**
  * Atom to store the full context objects attached via @-mention chips in
  * the current chat composer. Persists across component remounts.
  */
 export const mentionedDocumentsAtom = atom<MentionedDocumentInfo[]>([]);
 
 /**
- * Derived read-only atom that maps deduplicated mention chips into
- * backend payload fields. Each mention kind maps to its own explicit
- * payload bucket so non-document context never has to masquerade as a
- * document type.
+ * Chips captured at submit time, so they survive the composer resetting
+ * the live atom on send. Consumed (and reset) by the send handler.
  */
-export const mentionedDocumentIdsAtom = atom((get) => {
-	const allMentions = get(mentionedDocumentsAtom);
+export const submittedMentionsAtom = atom<MentionedDocumentInfo[] | null>(null);
+
+/**
+ * Map mention chips to their backend payload buckets. Each kind gets its
+ * own bucket so non-document context never masquerades as a document.
+ */
+export function deriveMentionedPayload(mentions: ReadonlyArray<MentionedDocumentInfo>) {
 	const seen = new Set<string>();
-	const deduped = allMentions.filter((m) => {
+	const deduped = mentions.filter((m) => {
 		const key =
 			m.kind === "doc"
 				? `doc:${m.document_type}:${m.id}`
 				: m.kind === "connector"
 					? `connector:${m.connector_type}:${m.id}`
-					: `folder:${m.id}`;
+					: m.kind === "thread"
+						? `thread:${m.id}`
+						: `folder:${m.id}`;
 		if (seen.has(key)) return false;
 		seen.add(key);
 		return true;
@@ -101,10 +126,12 @@ export const mentionedDocumentIdsAtom = atom((get) => {
 	const docs = deduped.filter((m) => m.kind === "doc");
 	const folders = deduped.filter((m) => m.kind === "folder");
 	const connectors = deduped.filter((m) => m.kind === "connector");
+	const threads = deduped.filter((m) => m.kind === "thread");
 	return {
 		document_ids: docs.map((doc) => doc.id),
 		folder_ids: folders.map((f) => f.id),
 		connector_ids: connectors.map((c) => c.id),
+		thread_ids: threads.map((t) => t.id),
 		connectors: connectors.map((c) => ({
 			id: c.id,
 			title: c.title,
@@ -113,7 +140,7 @@ export const mentionedDocumentIdsAtom = atom((get) => {
 			account_name: c.account_name,
 		})),
 	};
-});
+}
 
 /**
  * Atom to store mentioned chips per message ID.
