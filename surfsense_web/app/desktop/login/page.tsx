@@ -17,8 +17,7 @@ import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
-import { setBearerToken } from "@/lib/auth-utils";
-import { buildBackendUrl } from "@/lib/env-config";
+import { setBearerToken, setRefreshToken } from "@/lib/auth-utils";
 
 type ShortcutKey = "generalAssist" | "quickAsk" | "screenshotAssist";
 type ShortcutMap = typeof DEFAULT_SHORTCUTS;
@@ -237,10 +236,17 @@ export default function DesktopLoginPage() {
 		[updateShortcut]
 	);
 
-	const handleGoogleLogin = () => {
+	const handleGoogleLogin = async () => {
 		if (isGoogleRedirecting) return;
 		setIsGoogleRedirecting(true);
-		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
+		try {
+			await api?.startGoogleOAuth?.();
+			await autoSetSearchSpace();
+			router.push("/auth/callback");
+		} catch (error) {
+			setIsGoogleRedirecting(false);
+			toast.error(error instanceof Error ? error.message : "Google sign-in failed");
+		}
 	};
 
 	const autoSetSearchSpace = async () => {
@@ -266,16 +272,20 @@ export default function DesktopLoginPage() {
 				password,
 				grant_type: "password",
 			});
+			const refreshToken = (data as { refresh_token?: string | null }).refresh_token;
 
 			if (typeof window !== "undefined") {
 				sessionStorage.setItem("login_success_tracked", "true");
 			}
 
 			setBearerToken(data.access_token);
+			if (refreshToken) {
+				setRefreshToken(refreshToken);
+			}
 			await autoSetSearchSpace();
 
 			setTimeout(() => {
-				router.push(`/auth/callback?token=${data.access_token}`);
+				router.push("/auth/callback");
 			}, 300);
 		} catch (err) {
 			if (err instanceof Error) {

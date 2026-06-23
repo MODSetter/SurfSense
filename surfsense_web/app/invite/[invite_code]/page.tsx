@@ -30,8 +30,9 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import type { AcceptInviteResponse } from "@/contracts/types/invites.types";
+import { useSession } from "@/hooks/use-session";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
-import { getBearerToken, setRedirectPath } from "@/lib/auth-utils";
+import { setRedirectPath } from "@/lib/auth-utils";
 import {
 	trackSearchSpaceInviteAccepted,
 	trackSearchSpaceInviteDeclined,
@@ -43,6 +44,7 @@ export default function InviteAcceptPage() {
 	const params = useParams();
 	const router = useRouter();
 	const inviteCode = params.invite_code as string;
+	const session = useSession();
 
 	const { data: inviteInfo = null, isLoading: loading } = useQuery({
 		queryKey: cacheKeys.invites.info(inviteCode),
@@ -81,11 +83,9 @@ export default function InviteAcceptPage() {
 
 	// Check if user is logged in
 	useEffect(() => {
-		if (typeof window !== "undefined") {
-			const token = getBearerToken();
-			setIsLoggedIn(!!token);
-		}
-	}, []);
+		if (session.status === "loading") return;
+		setIsLoggedIn(session.status === "authenticated");
+	}, [session.status]);
 
 	const handleAccept = async () => {
 		setAccepting(true);
