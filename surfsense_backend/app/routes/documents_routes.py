@@ -37,7 +37,6 @@ from app.schemas import (
 from app.services.task_dispatcher import TaskDispatcher, get_task_dispatcher
 from app.users import current_active_user
 from app.utils.rbac import check_permission
-from app.utils.text_spans import char_span_to_line_range
 
 try:
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
@@ -968,12 +967,9 @@ async def get_document_by_chunk_id(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Resolve a chunk id to its document plus a window of surrounding chunks.
-
-    Returns the cited chunk's 1-based line range (cited_start_line/
-    cited_end_line) when char spans exist, so callers can anchor the citation
-    to exact source lines. Uses SQL-level pagination to avoid loading all
-    chunks into memory.
+    """
+    Retrieves a document based on a chunk ID, including a window of chunks around the cited one.
+    Uses SQL-level pagination to avoid loading all chunks into memory.
     """
     try:
         from sqlalchemy import and_, func, or_
@@ -1037,17 +1033,6 @@ async def get_document_by_chunk_id(
         )
         windowed_chunks = windowed_result.scalars().all()
 
-        cited_start_line: int | None = None
-        cited_end_line: int | None = None
-        if (
-            chunk.start_char is not None
-            and chunk.end_char is not None
-            and document.source_markdown
-        ):
-            cited_start_line, cited_end_line = char_span_to_line_range(
-                document.source_markdown, chunk.start_char, chunk.end_char
-            )
-
         return DocumentWithChunksRead(
             id=document.id,
             title=document.title,
@@ -1062,8 +1047,6 @@ async def get_document_by_chunk_id(
             chunks=windowed_chunks,
             total_chunks=total_chunks,
             chunk_start_index=start,
-            cited_start_line=cited_start_line,
-            cited_end_line=cited_end_line,
         )
     except HTTPException:
         raise

@@ -69,25 +69,13 @@ class _FakeSession:
 
 @pytest.fixture(autouse=True)
 def _stub_embeddings_and_chunks(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Avoid loading the embedding model in unit tests.
-
-    Mirrors the legacy stub: one chunk spanning the whole content, with a
-    zero summary/chunk vector, routed through the shared span builder.
-    """
-    from app.indexing_pipeline.document_chunker import ChunkSlice
-
-    async def _fake_build_chunk_embeddings(content: str, *, use_code_chunker: bool):
-        summary = np.zeros(8, dtype=np.float32)
-        pairs = (
-            [(ChunkSlice(content, 0, len(content)), np.zeros(8, dtype=np.float32))]
-            if content
-            else []
-        )
-        return summary, pairs
-
+    """Avoid loading the embedding model in unit tests."""
     monkeypatch.setattr(
-        kb_persistence, "build_chunk_embeddings", _fake_build_chunk_embeddings
+        kb_persistence,
+        "embed_texts",
+        lambda texts: [np.zeros(8, dtype=np.float32) for _ in texts],
     )
+    monkeypatch.setattr(kb_persistence, "chunk_text", lambda content: [content])
 
 
 @pytest.mark.asyncio

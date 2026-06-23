@@ -158,12 +158,13 @@ def patched_embed_texts_raises(monkeypatch) -> MagicMock:
 
 @pytest.fixture
 def patched_chunk_text(monkeypatch) -> MagicMock:
-    from app.indexing_pipeline.document_chunker import ChunkSlice
-
-    text = "Test chunk content."
-    mock = MagicMock(return_value=[ChunkSlice(text, 0, len(text))])
+    mock = MagicMock(return_value=["Test chunk content."])
     monkeypatch.setattr(
-        "app.indexing_pipeline.cache.cached_indexing.chunk_markdown_with_spans",
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text",
+        mock,
+    )
+    monkeypatch.setattr(
+        "app.indexing_pipeline.cache.cached_indexing.chunk_text_hybrid",
         mock,
     )
     return mock
