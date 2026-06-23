@@ -109,7 +109,8 @@ def _build_user_content(
         [{"type": "text", "text": "..."},
          {"type": "image", "image": "data:..."},
          {"type": "mentioned-documents", "documents": [{"id": int,
-            "title": str, "kind": "doc" | "folder" | "connector", ...},
+            "title": str, "kind": "doc" | "folder" | "connector" | "thread",
+            ...},
             ...]}]
 
     The companion reader is
@@ -135,7 +136,11 @@ def _build_user_content(
             title = doc.get("title")
             document_type = doc.get("document_type")
             kind_raw = doc.get("kind", "doc")
-            kind = kind_raw if kind_raw in ("doc", "folder", "connector") else "doc"
+            kind = (
+                kind_raw
+                if kind_raw in ("doc", "folder", "connector", "thread")
+                else "doc"
+            )
             if doc_id is None or title is None:
                 continue
             if kind == "doc" and document_type is None:
