@@ -6,7 +6,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { getAuthHeaders } from "@/lib/auth-utils";
+import { getAuthHeaders } from "@/lib/auth-fetch";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 	"pdfjs-dist/build/pdf.worker.min.mjs",
