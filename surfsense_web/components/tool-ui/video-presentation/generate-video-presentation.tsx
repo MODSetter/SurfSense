@@ -485,7 +485,7 @@ function VideoPresentationPlayer({
 	);
 }
 
-function StatusPoller({
+export function StatusPoller({
 	presentationId,
 	title,
 	shareToken,

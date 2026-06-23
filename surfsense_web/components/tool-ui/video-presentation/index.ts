@@ -1,1 +1,4 @@
-export { GenerateVideoPresentationToolUI } from "./generate-video-presentation";
+export {
+	GenerateVideoPresentationToolUI,
+	StatusPoller as VideoPresentationViewer,
+} from "./generate-video-presentation";
