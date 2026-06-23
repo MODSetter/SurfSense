@@ -5,7 +5,7 @@ import { buildBackendUrl } from "@/lib/env-config";
 
 type SessionState =
 	| { status: "loading"; authenticated: false; accessExpiresAt: null }
-	| { status: "authenticated"; authenticated: true; accessExpiresAt: number }
+	| { status: "authenticated"; authenticated: true; accessExpiresAt: number | null }
 	| { status: "unauthenticated"; authenticated: false; accessExpiresAt: null };
 
 export function useSession() {
@@ -30,7 +30,7 @@ export function useSession() {
 			}
 			const data = (await response.json()) as {
 				authenticated: boolean;
-				access_expires_at: number;
+				access_expires_at: number | null;
 			};
 			setState({
 				status: "authenticated",

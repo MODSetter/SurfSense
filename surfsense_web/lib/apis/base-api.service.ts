@@ -1,7 +1,7 @@
 import type { ZodType } from "zod";
 import { buildBackendUrl } from "@/lib/env-config";
 import { getClientPlatform } from "../agent-filesystem";
-import { getBearerToken, handleUnauthorized, refreshAccessToken } from "../auth-utils";
+import { handleUnauthorized, refreshSession } from "../auth-utils";
 import {
 	AbortedError,
 	AppError,
@@ -53,27 +53,19 @@ class BaseApiService {
 	noAuthEndpoints: string[] = [
 		"/auth/jwt/login",
 		"/auth/register",
-		"/auth/refresh",
 		"/auth/jwt/refresh",
 	];
 
 	// Prefixes that don't require auth (checked with startsWith)
 	noAuthPrefixes: string[] = ["/api/v1/public/"];
 
-	// Use a getter to always read fresh token from localStorage
-	// This ensures the token is always up-to-date after login/logout
-	get bearerToken(): string {
-		return typeof window !== "undefined" ? getBearerToken() || "" : "";
-	}
-
 	get isDesktopClient(): boolean {
 		return typeof window !== "undefined" && !!window.electronAPI;
 	}
 
-	// Keep for backward compatibility, but token is now always read from localStorage
-	setBearerToken(_bearerToken: string) {
-		void _bearerToken;
-		// No-op: token is now always read fresh from localStorage via the getter
+	private async getDesktopAccessToken(): Promise<string> {
+		if (!this.isDesktopClient) return "";
+		return (await window.electronAPI?.getAccessToken?.()) || "";
 	}
 
 	async request<T, R extends ResponseType = ResponseType.JSON>(
@@ -97,11 +89,15 @@ class BaseApiService {
 			 * REQUEST
 			 * ----------
 			 */
+			const isNoAuthEndpoint =
+				this.noAuthEndpoints.includes(url) ||
+				this.noAuthPrefixes.some((prefix) => url.startsWith(prefix)) ||
+				/^\/api\/v1\/invites\/[^/]+\/info$/.test(url);
+			const desktopAccessToken =
+				this.isDesktopClient && !isNoAuthEndpoint ? await this.getDesktopAccessToken() : "";
 			const defaultOptions: RequestOptions = {
 				headers: {
-					...(this.isDesktopClient && this.bearerToken
-						? { Authorization: `Bearer ${this.bearerToken}` }
-						: {}),
+					...(desktopAccessToken ? { Authorization: `Bearer ${desktopAccessToken}` } : {}),
 					"X-SurfSense-Client-Platform":
 						typeof window === "undefined" ? "web" : getClientPlatform(),
 				},
@@ -118,13 +114,8 @@ class BaseApiService {
 				},
 			};
 
-			// Validate the bearer token
-			const isNoAuthEndpoint =
-				this.noAuthEndpoints.includes(url) ||
-				this.noAuthPrefixes.some((prefix) => url.startsWith(prefix)) ||
-				/^\/api\/v1\/invites\/[^/]+\/info$/.test(url);
 			const refreshRetryKey = getRefreshRetryKey(mergedOptions.method, url);
-			if (this.isDesktopClient && !this.bearerToken && !isNoAuthEndpoint) {
+			if (this.isDesktopClient && !desktopAccessToken && !isNoAuthEndpoint) {
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
 
@@ -185,8 +176,9 @@ class BaseApiService {
 					if (options?._isRetry) {
 						blockRefreshRetry(refreshRetryKey);
 					} else if (!isNoAuthEndpoint && !isRefreshRetryBlocked(refreshRetryKey)) {
-						const newToken = await refreshAccessToken();
-						if (newToken) {
+						const refreshed = await refreshSession();
+						if (refreshed) {
+							const newToken = this.isDesktopClient ? await this.getDesktopAccessToken() : "";
 							return this.request(url, responseSchema, {
 								...mergedOptions,
 								headers: {
@@ -417,9 +409,6 @@ class BaseApiService {
 			...options,
 			headers: {
 				// Don't set Content-Type - let browser set it with multipart boundary
-				...(this.isDesktopClient && this.bearerToken
-					? { Authorization: `Bearer ${this.bearerToken}` }
-					: {}),
 				...headersWithoutContentType,
 			},
 			responseType: ResponseType.JSON,
