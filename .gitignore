@@ -11,6 +11,9 @@ debug.log
 references/
 references
 
+# Source package: exempt from the broad "references" scratch-folder ignore above.
+!surfsense_backend/app/agents/chat/runtime/references/
+
 # Playwright (E2E test artifacts)
 surfsense_web/playwright/.auth/
 surfsense_web/playwright-report/
