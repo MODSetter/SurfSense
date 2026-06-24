@@ -6,6 +6,7 @@ Revises: 168
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
 from alembic import op
 
 revision: str = "169"
@@ -14,7 +15,28 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _oauth_account_table_exists() -> bool:
+    bind = op.get_bind()
+    return bool(
+        bind.execute(
+            sa.text(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'oauth_account'
+                )
+                """
+            )
+        ).scalar()
+    )
+
+
 def upgrade() -> None:
+    if not _oauth_account_table_exists():
+        return
+
     op.execute(
         """
         UPDATE oauth_account AS legacy
@@ -32,6 +54,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if not _oauth_account_table_exists():
+        return
+
     op.execute(
         """
         UPDATE oauth_account AS canonical
