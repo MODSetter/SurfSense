@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.chat.runtime.path_resolver import build_path_index
 from app.schemas.new_chat import MentionedDocumentInfo
 
-from .chats import resolve_chat_references
+from .chat import resolve_chat_references
 from .connectors import resolve_connector_references
 from .documents import resolve_document_references
 from .folders import resolve_folder_references
