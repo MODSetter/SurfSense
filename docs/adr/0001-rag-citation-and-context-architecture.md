@@ -356,7 +356,7 @@ Per mention type (note the channel — direct vs delegated):
 | `@document` | doc id + path | direct `search_knowledge_base(scope={document_ids:[id]})`, or delegated `task(knowledge_base, read …)` | `kb_chunk` / `kb_document` |
 | `@folder` | folder id + path | direct `search_knowledge_base(scope={folder_ids:[id]})`, or delegated browse | `kb_chunk` |
 | `@connector account` | connector_id + account | `task(<connector>, "… connector_id=id")` | `connector_item` |
-| `@chat` | thread id + title | **read channel** (not `scope`): load thread turns directly, access-checked, via the existing `referenced_chat_context` resolver | `chat_turn` |
+| `@chat` | thread id + title | **on-demand read** (not `scope`): pointer only; model calls `read_chat(thread_id)` when it needs the conversation, reusing the access-checked `referenced_chat_context` resolver | `chat_turn` |
 | anonymous upload | session doc ref | direct `search_knowledge_base(scope=anon)` / delegated read | `anon_chunk` |
 
 ---
@@ -421,18 +421,14 @@ Keep / add:
 10. **Delete the legacy `kb_priority` / `kb_matched_chunk_ids` plumbing**; add a
     dedicated `citation_registry` field to state rather than overloading old
     fields. ✅
+11. **`@chat` is a non-indexed read reference** (chats aren't in `Document`/`Chunk`):
+    pointer only, loaded **on demand** via a `read_chat(thread_id)` tool that reuses
+    the access-checked `referenced_chat_context` resolver and registers each surfaced
+    turn as `chat_turn`. ✅
 
 ## 9. Open items
 
-1. **`@chat` read mode.** Confirmed: chats are not KB-indexed, so `@chat` is a read
-   reference, not `scope`. The remaining choice is *when* the turns load:
-   - **(a) Eager inject** — keep the current `referenced_chat_context` budgeted
-     injection; the transcript is in context up front. Simple, already built; costs
-     tokens even when the chat is only tangentially referenced.
-   - **(b) On-demand read tool** — `@chat` renders as a pointer only; the model calls
-     `read_chat(thread_id)` when it actually needs the conversation. Consistent with
-     the pull model and context hygiene; adds a tool + a round-trip.
-   Both register each surfaced turn as `chat_turn`. Decision pending.
+_None — all decisions locked. See §8._
 
 ## 10. Rollout (suggested)
 
