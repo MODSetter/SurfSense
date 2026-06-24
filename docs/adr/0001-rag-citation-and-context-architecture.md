@@ -225,14 +225,16 @@ scope = {
     "document_ids": [42],
     "folder_ids": [],
     "connector_ids": [],
-    "thread_ids": [],
 }
 ```
 
 - Becomes `WHERE` constraints on the chunk search (`document_id IN (...)`, etc.).
 - **Agent-controlled, not automatic.** "in this doc" → agent passes scope; "related"
   → agent omits it.
-- Uniform across mention types: doc/folder/connector/chat are just keys here.
+- Spans only **KB-indexed** references (doc/folder/connector). Chats are **not**
+  KB-indexed (no `CHAT` document type; they live in `NewChatThread` /
+  `NewChatMessage`, not `Document`/`Chunk`), so `@chat` never appears in `scope` —
+  it uses the separate read channel in §5.
 - **How it reaches the retriever depends on the channel:**
   - direct `search_knowledge_base` → `scope` is a **structured tool arg** the
     orchestrator passes (new arg to add — current tool has no `scope`).
@@ -338,6 +340,15 @@ When the user mentions anything:
 3. The agent decides: direct `search_knowledge_base(query, scope)` (scoped
    question) or delegated `task(knowledge_base, …)` read (whole-object intent).
 
+References split into **two kinds** by whether the source is searchable:
+
+- **Searchable references** (`@document`, `@folder`, `@connector`, anon upload) — the
+  source is KB-indexed, so they become `scope` and are pulled via
+  `search_knowledge_base` / delegated read. Pointer + pull.
+- **Read references** (`@chat`) — the source is **not** KB-indexed, so there is
+  nothing to "search". The thread is a finite, user-selected artifact; its turns are
+  loaded directly (access-checked) and citable as `chat_turn`. Pointer + read.
+
 Per mention type (note the channel — direct vs delegated):
 
 | Mention | Ambient note | Retrieval behavior | Citation kind on use |
@@ -345,7 +356,7 @@ Per mention type (note the channel — direct vs delegated):
 | `@document` | doc id + path | direct `search_knowledge_base(scope={document_ids:[id]})`, or delegated `task(knowledge_base, read …)` | `kb_chunk` / `kb_document` |
 | `@folder` | folder id + path | direct `search_knowledge_base(scope={folder_ids:[id]})`, or delegated browse | `kb_chunk` |
 | `@connector account` | connector_id + account | `task(<connector>, "… connector_id=id")` | `connector_item` |
-| `@chat` | thread id | direct `search_knowledge_base(scope={thread_ids:[id]})` (⚠ if chats are KB-indexed; else delegated read) | `chat_turn` |
+| `@chat` | thread id + title | **read channel** (not `scope`): load thread turns directly, access-checked, via the existing `referenced_chat_context` resolver | `chat_turn` |
 | anonymous upload | session doc ref | direct `search_knowledge_base(scope=anon)` / delegated read | `anon_chunk` |
 
 ---
@@ -413,7 +424,15 @@ Keep / add:
 
 ## 9. Open items
 
-_None — all decisions locked. See §8._
+1. **`@chat` read mode.** Confirmed: chats are not KB-indexed, so `@chat` is a read
+   reference, not `scope`. The remaining choice is *when* the turns load:
+   - **(a) Eager inject** — keep the current `referenced_chat_context` budgeted
+     injection; the transcript is in context up front. Simple, already built; costs
+     tokens even when the chat is only tangentially referenced.
+   - **(b) On-demand read tool** — `@chat` renders as a pointer only; the model calls
+     `read_chat(thread_id)` when it actually needs the conversation. Consistent with
+     the pull model and context hygiene; adds a tool + a round-trip.
+   Both register each surfaced turn as `chat_turn`. Decision pending.
 
 ## 10. Rollout (suggested)
 
