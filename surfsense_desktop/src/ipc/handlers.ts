@@ -54,6 +54,7 @@ import {
 import { installDownloadedUpdate } from '../modules/auto-updater';
 import { secretStore } from '../modules/secret-store';
 import { startGoogleOAuth } from '../modules/oauth';
+import { createMainWindow, getMainWindow } from '../modules/window';
 
 const REFRESH_TOKEN_KEY = 'surfsense_refresh_token';
 let accessToken: string | null = null;
@@ -83,6 +84,16 @@ async function storeTokens(tokens: { bearer: string; refresh?: string | null }):
     await secretStore.set(REFRESH_TOKEN_KEY, tokens.refresh);
   }
   broadcastAuthChanged();
+}
+
+function showDashboardAfterAuth(): void {
+  const win = getMainWindow();
+  if (!win || win.isDestroyed()) {
+    createMainWindow('/dashboard');
+    return;
+  }
+  win.show();
+  win.focus();
 }
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -266,6 +277,7 @@ export function registerIpcHandlers(): void {
     }
     const tokens = await startGoogleOAuth(backendUrl);
     await storeTokens({ bearer: tokens.access_token, refresh: tokens.refresh_token });
+    showDashboardAfterAuth();
     return { ok: true };
   });
 
