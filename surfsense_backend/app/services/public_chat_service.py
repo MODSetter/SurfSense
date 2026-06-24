@@ -435,7 +435,6 @@ async def list_snapshots_for_thread(
     thread_id: int,
     auth: AuthContext,
 ) -> list[dict]:
-    user = auth.user
     """List all public snapshots for a thread."""
     from app.config import config
 
@@ -482,7 +481,6 @@ async def list_snapshots_for_search_space(
     search_space_id: int,
     auth: AuthContext,
 ) -> list[dict]:
-    user = auth.user
     """List all public snapshots for a search space."""
     from app.config import config
 
@@ -540,7 +538,6 @@ async def delete_snapshot(
     snapshot_id: int,
     auth: AuthContext,
 ) -> bool:
-    user = auth.user
     """Delete a specific snapshot. Only thread owner can delete."""
     # Get snapshot with thread
     result = await session.execute(

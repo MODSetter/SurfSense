@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 PAT_PREFIX = "ss_pat_"
 PAT_TOKEN_BYTES = 32
 LAST_USED_THROTTLE = timedelta(minutes=10)
+_last_used_tasks: set[asyncio.Task[None]] = set()
 
 
 def generate_pat() -> str:
@@ -70,4 +71,6 @@ def maybe_touch_last_used(pat: PersonalAccessToken) -> None:
     if last_used_at is not None and now - last_used_at < LAST_USED_THROTTLE:
         return
 
-    asyncio.create_task(_touch_last_used(pat.id))
+    task = asyncio.create_task(_touch_last_used(pat.id))
+    _last_used_tasks.add(task)
+    task.add_done_callback(_last_used_tasks.discard)
