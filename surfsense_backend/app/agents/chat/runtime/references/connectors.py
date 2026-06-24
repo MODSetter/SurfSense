@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import SearchSourceConnector
 from app.schemas.new_chat import MentionedDocumentInfo
 
-from .models import ReferenceKind, ResolvedReference
+from .models import ConnectorReference
 
 
 def connector_pointer_fields(
@@ -32,7 +32,7 @@ async def resolve_connector_references(
     search_space_id: int,
     connector_ids: list[int],
     chips: list[MentionedDocumentInfo] | None = None,
-) -> list[ResolvedReference]:
+) -> list[ConnectorReference]:
     """Map ``@connector`` ids to references; ids outside the space are dropped.
 
     The DB check only confirms the connector belongs to this search space;
@@ -57,7 +57,7 @@ async def resolve_connector_references(
         chip.id: chip for chip in (chips or []) if chip.kind == "connector"
     }
 
-    references: list[ResolvedReference] = []
+    references: list[ConnectorReference] = []
     for connector_id in dict.fromkeys(connector_ids):
         row = accessible.get(connector_id)
         if row is None:
@@ -71,8 +71,7 @@ async def resolve_connector_references(
             fallback_name=str(row.name or ""),
         )
         references.append(
-            ResolvedReference(
-                kind=ReferenceKind.CONNECTOR,
+            ConnectorReference(
                 entity_id=connector_id,
                 label=label,
                 provider=provider,

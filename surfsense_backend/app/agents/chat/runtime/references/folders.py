@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.chat.runtime.path_resolver import DOCUMENTS_ROOT, PathIndex
 from app.db import Folder
 
-from .models import ReferenceKind, ResolvedReference
+from .models import FolderReference
 
 
 def folder_pointer_path(folder_id: int, folder_paths: dict[int, str]) -> str:
@@ -23,7 +23,7 @@ async def resolve_folder_references(
     search_space_id: int,
     folder_ids: list[int],
     index: PathIndex,
-) -> list[ResolvedReference]:
+) -> list[FolderReference]:
     """Map folder ids to references in input order; unknown ids are dropped."""
     if not folder_ids:
         return []
@@ -36,14 +36,13 @@ async def resolve_folder_references(
     )
     folders_by_id = {row.id: row for row in rows.scalars().all()}
 
-    references: list[ResolvedReference] = []
+    references: list[FolderReference] = []
     for folder_id in dict.fromkeys(folder_ids):
         folder = folders_by_id.get(folder_id)
         if folder is None:
             continue
         references.append(
-            ResolvedReference(
-                kind=ReferenceKind.FOLDER,
+            FolderReference(
                 entity_id=folder.id,
                 label=str(folder.name or "untitled"),
                 path=folder_pointer_path(folder.id, index.folder_paths),

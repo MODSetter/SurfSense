@@ -7,7 +7,13 @@ retrieve from. Actual content is pulled later via tools, never injected here.
 
 from __future__ import annotations
 
-from .models import ReferenceKind, ResolvedReference
+from .models import (
+    ChatReference,
+    ConnectorReference,
+    DocumentReference,
+    FolderReference,
+    Reference,
+)
 
 _HEADER = (
     "The user pointed at these with @ this turn. They are scope, not content "
@@ -15,7 +21,7 @@ _HEADER = (
 )
 
 
-def render_reference_pointers(references: list[ResolvedReference]) -> str | None:
+def render_reference_pointers(references: list[Reference]) -> str | None:
     """Render references as one read-only pointer block.
 
     Returns ``None`` when there is nothing to render so callers can skip the
@@ -33,21 +39,23 @@ def render_reference_pointers(references: list[ResolvedReference]) -> str | None
     )
 
 
-def _render_pointer(reference: ResolvedReference) -> str:
+def _render_pointer(reference: Reference) -> str:
     """One ``- {kind} {id} — {handle}`` line, shaped per kind."""
     head = f"- {reference.kind.value} {reference.entity_id} — "
     return head + _handle(reference)
 
 
-def _handle(reference: ResolvedReference) -> str:
-    """The human-reachable handle: connector provider, a path, or a title."""
+def _handle(reference: Reference) -> str:
+    """The human-reachable handle: a path, a connector provider, or a title."""
     label = _clean(reference.label)
-    if reference.kind is ReferenceKind.CONNECTOR:
-        provider = _clean(reference.provider) if reference.provider else ""
-        return f"{provider} ({label})" if provider else label
-    if reference.path:
-        return f'"{label}" ({reference.path})'
-    return f'"{label}"'
+    match reference:
+        case DocumentReference() | FolderReference():
+            return f'"{label}" ({reference.path})'
+        case ConnectorReference():
+            provider = _clean(reference.provider) if reference.provider else ""
+            return f"{provider} ({label})" if provider else label
+        case ChatReference():
+            return f'"{label}"'
 
 
 def _clean(text: str) -> str:

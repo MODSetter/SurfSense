@@ -15,7 +15,14 @@ from .chats import resolve_chat_references
 from .connectors import resolve_connector_references
 from .documents import resolve_document_references
 from .folders import resolve_folder_references
-from .models import ReferenceKind, ResolvedReference
+from .models import (
+    ChatReference,
+    ConnectorReference,
+    DocumentReference,
+    FolderReference,
+    Reference,
+    ReferenceKind,
+)
 from .reference_pointers import render_reference_pointers
 
 
@@ -30,13 +37,13 @@ async def resolve_references(
     connector_ids: list[int] | None = None,
     connector_chips: list[MentionedDocumentInfo] | None = None,
     thread_ids: list[int] | None = None,
-) -> list[ResolvedReference]:
+) -> list[Reference]:
     """Resolve a turn's ``@``-references into one ordered pointer list.
 
     Order is documents, folders, connectors, chats. The path index is built
     once and shared by the document and folder resolvers.
     """
-    references: list[ResolvedReference] = []
+    references: list[Reference] = []
 
     if document_ids or folder_ids:
         index = await build_path_index(session, search_space_id)
@@ -76,8 +83,12 @@ async def resolve_references(
 
 
 __all__ = [
+    "ChatReference",
+    "ConnectorReference",
+    "DocumentReference",
+    "FolderReference",
+    "Reference",
     "ReferenceKind",
-    "ResolvedReference",
     "render_reference_pointers",
     "resolve_references",
 ]

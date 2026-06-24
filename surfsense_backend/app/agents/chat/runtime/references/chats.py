@@ -14,7 +14,7 @@ from app.agents.chat.runtime.referenced_chat_context.resolver import (
     resolve_referenced_chats,
 )
 
-from .models import ReferenceKind, ResolvedReference
+from .models import ChatReference
 
 
 async def resolve_chat_references(
@@ -24,7 +24,7 @@ async def resolve_chat_references(
     requesting_user_id: str | None,
     current_chat_id: int,
     thread_ids: list[int],
-) -> list[ResolvedReference]:
+) -> list[ChatReference]:
     """Map ``@chat`` thread ids to access-checked pointers (titles only)."""
     if not thread_ids:
         return []
@@ -37,12 +37,7 @@ async def resolve_chat_references(
         mentioned_thread_ids=thread_ids,
     )
     return [
-        ResolvedReference(
-            kind=ReferenceKind.CHAT,
-            entity_id=chat.thread_id,
-            label=chat.title,
-        )
-        for chat in chats
+        ChatReference(entity_id=chat.thread_id, label=chat.title) for chat in chats
     ]
 
 

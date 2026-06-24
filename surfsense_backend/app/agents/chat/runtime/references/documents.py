@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.chat.runtime.path_resolver import PathIndex, doc_to_virtual_path
 from app.db import Document
 
-from .models import ReferenceKind, ResolvedReference
+from .models import DocumentReference
 
 
 async def resolve_document_references(
@@ -17,7 +17,7 @@ async def resolve_document_references(
     search_space_id: int,
     document_ids: list[int],
     index: PathIndex,
-) -> list[ResolvedReference]:
+) -> list[DocumentReference]:
     """Map document ids to references in input order; unknown ids are dropped.
 
     Best-effort and fail-closed: an id outside ``search_space_id`` (deleted or
@@ -34,15 +34,14 @@ async def resolve_document_references(
     )
     documents_by_id = {row.id: row for row in rows.scalars().all()}
 
-    references: list[ResolvedReference] = []
+    references: list[DocumentReference] = []
     for document_id in dict.fromkeys(document_ids):
         document = documents_by_id.get(document_id)
         if document is None:
             continue
         title = str(document.title or "untitled")
         references.append(
-            ResolvedReference(
-                kind=ReferenceKind.DOCUMENT,
+            DocumentReference(
                 entity_id=document.id,
                 label=title,
                 path=doc_to_virtual_path(

@@ -5,8 +5,10 @@ from __future__ import annotations
 import pytest
 
 from app.agents.chat.runtime.references import (
-    ReferenceKind,
-    ResolvedReference,
+    ChatReference,
+    ConnectorReference,
+    DocumentReference,
+    FolderReference,
     render_reference_pointers,
 )
 
@@ -20,10 +22,8 @@ def test_returns_none_when_no_references() -> None:
 def test_wraps_block_and_keeps_reference_order() -> None:
     block = render_reference_pointers(
         [
-            ResolvedReference(
-                kind=ReferenceKind.DOCUMENT, entity_id=42, label="Q3 Notes"
-            ),
-            ResolvedReference(kind=ReferenceKind.CHAT, entity_id=5, label="Pricing"),
+            DocumentReference(entity_id=42, label="Q3 Notes", path="/documents/q3.xml"),
+            ChatReference(entity_id=5, label="Pricing"),
         ]
     )
 
@@ -36,8 +36,7 @@ def test_wraps_block_and_keeps_reference_order() -> None:
 def test_document_with_path_shows_title_and_path() -> None:
     block = render_reference_pointers(
         [
-            ResolvedReference(
-                kind=ReferenceKind.DOCUMENT,
+            DocumentReference(
                 entity_id=42,
                 label="Q3 Launch Notes",
                 path="/documents/Launch/Q3.xml",
@@ -51,14 +50,7 @@ def test_document_with_path_shows_title_and_path() -> None:
 
 def test_folder_with_path_renders_with_folder_kind() -> None:
     block = render_reference_pointers(
-        [
-            ResolvedReference(
-                kind=ReferenceKind.FOLDER,
-                entity_id=7,
-                label="Specs",
-                path="/documents/Specs/",
-            )
-        ]
+        [FolderReference(entity_id=7, label="Specs", path="/documents/Specs/")]
     )
 
     assert block is not None
@@ -67,14 +59,7 @@ def test_folder_with_path_renders_with_folder_kind() -> None:
 
 def test_connector_shows_provider_and_account() -> None:
     block = render_reference_pointers(
-        [
-            ResolvedReference(
-                kind=ReferenceKind.CONNECTOR,
-                entity_id=12,
-                label="work@acme.com",
-                provider="Gmail",
-            )
-        ]
+        [ConnectorReference(entity_id=12, label="work@acme.com", provider="Gmail")]
     )
 
     assert block is not None
@@ -83,11 +68,7 @@ def test_connector_shows_provider_and_account() -> None:
 
 def test_connector_without_provider_falls_back_to_label() -> None:
     block = render_reference_pointers(
-        [
-            ResolvedReference(
-                kind=ReferenceKind.CONNECTOR, entity_id=12, label="work@acme.com"
-            )
-        ]
+        [ConnectorReference(entity_id=12, label="work@acme.com")]
     )
 
     assert block is not None
@@ -96,7 +77,7 @@ def test_connector_without_provider_falls_back_to_label() -> None:
 
 def test_chat_shows_quoted_title() -> None:
     block = render_reference_pointers(
-        [ResolvedReference(kind=ReferenceKind.CHAT, entity_id=5, label="Pricing debate")]
+        [ChatReference(entity_id=5, label="Pricing debate")]
     )
 
     assert block is not None
@@ -105,13 +86,7 @@ def test_chat_shows_quoted_title() -> None:
 
 def test_label_whitespace_is_collapsed_to_one_line() -> None:
     block = render_reference_pointers(
-        [
-            ResolvedReference(
-                kind=ReferenceKind.DOCUMENT,
-                entity_id=1,
-                label="line one\nline two",
-            )
-        ]
+        [DocumentReference(entity_id=1, label="line one\nline two", path="/d.xml")]
     )
 
     assert block is not None
