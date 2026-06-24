@@ -75,7 +75,10 @@ async def resolve_google_user(
     account id regardless of the current email claim.
     """
     if not claims.get("sub") or not claims.get("email"):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google identity token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google identity token",
+        )
 
     sub = claims["sub"]
     email_verified = bool(claims.get("email_verified"))
@@ -202,7 +205,9 @@ async def logout_all_devices(
     """
     user: User | None = None
     try:
-        auth = await get_auth_context(request, session=session, user_manager=user_manager)
+        auth = await get_auth_context(
+            request, session=session, user_manager=user_manager
+        )
         if auth.is_session:
             user = auth.user
     except HTTPException:
@@ -210,7 +215,9 @@ async def logout_all_devices(
 
     if user is None:
         refresh_token, _mode = read_refresh(request, body)
-        token_record = await validate_refresh_token(refresh_token) if refresh_token else None
+        token_record = (
+            await validate_refresh_token(refresh_token) if refresh_token else None
+        )
         if token_record:
             user = await _load_user(token_record.user_id)
 
@@ -243,7 +250,9 @@ async def get_session(
                 access_token = token
 
     if access_token is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
+        )
     return SessionResponse(access_expires_at=access_expires_at(access_token))
 
 
@@ -298,7 +307,9 @@ async def create_desktop_session(
         and redirect_port is not None
         and parsed_redirect.path == "/callback"
     ):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid redirect URI")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid redirect URI"
+        )
     if not config.GOOGLE_DESKTOP_CLIENT_ID:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -316,15 +327,21 @@ async def create_desktop_session(
         token_payload["client_secret"] = config.GOOGLE_DESKTOP_CLIENT_SECRET
 
     async with httpx.AsyncClient(timeout=10) as client:
-        token_response = await client.post("https://oauth2.googleapis.com/token", data=token_payload)
+        token_response = await client.post(
+            "https://oauth2.googleapis.com/token", data=token_payload
+        )
         if token_response.status_code >= 400:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="OAuth exchange failed")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="OAuth exchange failed"
+            )
         token_data = token_response.json()
 
     id_token = token_data.get("id_token")
     access_token = token_data.get("access_token")
     if not id_token or not access_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="OAuth exchange failed")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="OAuth exchange failed"
+        )
 
     try:
         claims = google_id_token.verify_oauth2_token(

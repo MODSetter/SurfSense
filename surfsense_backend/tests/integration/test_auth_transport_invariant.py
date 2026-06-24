@@ -56,7 +56,9 @@ def test_cookie_transport_re_stamps_access_without_refresh_body_or_cookie():
 
     set_cookie_headers = response.headers.getlist("set-cookie")
     assert any(config.SESSION_COOKIE_NAME in header for header in set_cookie_headers)
-    assert not any(config.REFRESH_COOKIE_NAME in header for header in set_cookie_headers)
+    assert not any(
+        config.REFRESH_COOKIE_NAME in header for header in set_cookie_headers
+    )
 
 
 def test_header_transport_returns_body_tokens_without_cookies():

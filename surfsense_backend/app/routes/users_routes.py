@@ -4,7 +4,12 @@ from fastapi import APIRouter, Depends, Request
 
 from app.auth.context import AuthContext
 from app.schemas import UserRead, UserUpdate
-from app.users import UserManager, get_auth_context, get_user_manager, require_session_context
+from app.users import (
+    UserManager,
+    get_auth_context,
+    get_user_manager,
+    require_session_context,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -23,5 +28,7 @@ async def update_current_user_profile(
     auth: AuthContext = Depends(require_session_context),
     user_manager: UserManager = Depends(get_user_manager),
 ):
-    updated_user = await user_manager.update(update, auth.user, safe=True, request=request)
+    updated_user = await user_manager.update(
+        update, auth.user, safe=True, request=request
+    )
     return updated_user

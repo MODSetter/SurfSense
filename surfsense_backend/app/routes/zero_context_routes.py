@@ -1,7 +1,7 @@
 """Zero sync authentication context routes."""
 
-from pydantic import BaseModel
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext

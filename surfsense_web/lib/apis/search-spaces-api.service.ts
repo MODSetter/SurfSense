@@ -13,11 +13,11 @@ import {
 	getSearchSpacesRequest,
 	getSearchSpacesResponse,
 	leaveSearchSpaceResponse,
-	type UpdateSearchSpaceRequest,
 	type UpdateSearchSpaceApiAccessRequest,
-	updateSearchSpaceRequest,
+	type UpdateSearchSpaceRequest,
 	updateSearchSpaceApiAccessRequest,
 	updateSearchSpaceApiAccessResponse,
+	updateSearchSpaceRequest,
 	updateSearchSpaceResponse,
 } from "@/contracts/types/search-space.types";
 import { ValidationError } from "../error";

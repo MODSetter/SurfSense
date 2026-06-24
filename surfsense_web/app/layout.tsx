@@ -18,13 +18,10 @@ import {
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/contexts/LocaleContext";
-import { BUILD_TIME_AUTH_TYPE } from "@/lib/env-config";
 import { PlatformProvider } from "@/contexts/platform-context";
+import { BUILD_TIME_AUTH_TYPE } from "@/lib/env-config";
 import { ReactQueryClientProvider } from "@/lib/query-client/query-client.provider";
-import {
-	getRuntimeAuthInitScript,
-	resolveRuntimeAuthUiMode,
-} from "@/lib/runtime-auth-config";
+import { getRuntimeAuthInitScript, resolveRuntimeAuthUiMode } from "@/lib/runtime-auth-config";
 import { cn } from "@/lib/utils";
 
 const roboto = Roboto({

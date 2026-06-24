@@ -43,12 +43,7 @@ export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 		const action = new URLSearchParams(window.location.search).get("action");
 
 		// Only auto-clone once, if authenticated and action=clone is present
-		if (
-			action === "clone" &&
-			session.authenticated &&
-			!hasAutoCloned.current &&
-			!isCloning
-		) {
+		if (action === "clone" && session.authenticated && !hasAutoCloned.current && !isCloning) {
 			hasAutoCloned.current = true;
 			triggerClone();
 		}

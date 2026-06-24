@@ -23,8 +23,7 @@ function validateZeroCacheRequest(request: Request): NextResponse | null {
 async function authenticateRequest(
 	request: Request
 ): Promise<
-	| { ctx: Exclude<Context, undefined>; error?: never }
-	| { ctx?: never; error: NextResponse }
+	{ ctx: Exclude<Context, undefined>; error?: never } | { ctx?: never; error: NextResponse }
 > {
 	const authHeader = request.headers.get("Authorization");
 	const cookieHeader = request.headers.get("Cookie");

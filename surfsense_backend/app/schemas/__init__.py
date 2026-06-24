@@ -242,9 +242,9 @@ __all__ = [
     "SearchSourceConnectorCreate",
     "SearchSourceConnectorRead",
     "SearchSourceConnectorUpdate",
+    "SearchSpaceApiAccessUpdate",
     # Search space schemas
     "SearchSpaceBase",
-    "SearchSpaceApiAccessUpdate",
     "SearchSpaceCreate",
     "SearchSpaceRead",
     "SearchSpaceUpdate",

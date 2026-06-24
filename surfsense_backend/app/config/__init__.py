@@ -948,9 +948,7 @@ class Config:
         if origin.strip()
     ]
     _PAT_MAX_EXPIRY_DAYS = os.getenv("PAT_MAX_EXPIRY_DAYS", "").strip()
-    PAT_MAX_EXPIRY_DAYS = (
-        int(_PAT_MAX_EXPIRY_DAYS) if _PAT_MAX_EXPIRY_DAYS else None
-    )
+    PAT_MAX_EXPIRY_DAYS = int(_PAT_MAX_EXPIRY_DAYS) if _PAT_MAX_EXPIRY_DAYS else None
 
     # ETL Service
     ETL_SERVICE = os.getenv("ETL_SERVICE")

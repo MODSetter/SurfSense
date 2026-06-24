@@ -20,7 +20,13 @@ export function constrainToAllowedSpaces<T extends SpaceScopedQuery>(query: T, c
 	if (allowedSpaceIds.length === 1) {
 		return query.where("searchSpaceId", allowedSpaceIds[0]) as T;
 	}
-	return query.where(({ cmp, or }: { cmp: (column: string, value: number) => unknown; or: (...args: unknown[]) => unknown }) =>
-		or(...allowedSpaceIds.map((id) => cmp("searchSpaceId", id)))
+	return query.where(
+		({
+			cmp,
+			or,
+		}: {
+			cmp: (column: string, value: number) => unknown;
+			or: (...args: unknown[]) => unknown;
+		}) => or(...allowedSpaceIds.map((id) => cmp("searchSpaceId", id)))
 	) as T;
 }

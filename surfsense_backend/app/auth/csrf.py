@@ -43,7 +43,10 @@ class CsrfOriginMiddleware(BaseHTTPMiddleware):
 
         # PAT/Bearer credentials are not ambient browser credentials and are not
         # CSRF-able. Enforce only when the web session cookie is the credential.
-        if request.headers.get("Authorization") or config.SESSION_COOKIE_NAME not in request.cookies:
+        if (
+            request.headers.get("Authorization")
+            or config.SESSION_COOKIE_NAME not in request.cookies
+        ):
             return await call_next(request)
 
         origin = request.headers.get("Origin") or _origin_from_url(

@@ -949,9 +949,7 @@ if config.AUTH_TYPE == "GOOGLE":
     )
     async def google_authorize(request: Request, response: Response):
         """Return Google's authorization URL, matching fastapi-users' shape."""
-        return {
-            "authorization_url": await _google_authorization_url(request, response)
-        }
+        return {"authorization_url": await _google_authorization_url(request, response)}
 
     @app.get(
         "/auth/google/callback",
@@ -1015,7 +1013,9 @@ if config.AUTH_TYPE == "GOOGLE":
                 data=token_payload,
             )
         if token_response.status_code >= 400:
-            _error_logger.warning("Web Google OAuth exchange failed: %s", token_response.text)
+            _error_logger.warning(
+                "Web Google OAuth exchange failed: %s", token_response.text
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="OAuth exchange failed",

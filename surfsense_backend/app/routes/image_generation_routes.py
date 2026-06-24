@@ -24,7 +24,6 @@ from app.db import (
     Permission,
     SearchSpace,
     SearchSpaceMembership,
-    User,
     get_async_session,
 )
 from app.schemas import (
@@ -224,6 +223,7 @@ async def _execute_image_generation(
 
     # Fix relative URLs in response data (for the serving endpoint)
     from urllib.parse import urlparse
+
     images = response_dict.get("data", [])
     provider_base_url = resolved_kwargs.get("api_base")
     for image in images:
@@ -422,7 +422,6 @@ async def get_image_generation(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Get a specific image generation by ID."""
     try:
         result = await session.execute(
@@ -455,7 +454,6 @@ async def delete_image_generation(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Delete an image generation record."""
     try:
         result = await session.execute(

@@ -88,7 +88,9 @@ def clear_session(response: Response, request: Request | None = None) -> None:
         )
 
 
-def read_refresh(request: Request, body: Any | None = None) -> tuple[str | None, TransportMode]:
+def read_refresh(
+    request: Request, body: Any | None = None
+) -> tuple[str | None, TransportMode]:
     cookie = request.cookies.get(config.REFRESH_COOKIE_NAME)
     if cookie:
         return cookie, TransportMode.COOKIE

@@ -4,11 +4,7 @@ let desktopAccessToken: string | null = null;
 let didSubscribeToDesktopAuth = false;
 
 function subscribeToDesktopAuth(): void {
-	if (
-		didSubscribeToDesktopAuth ||
-		typeof window === "undefined" ||
-		!window.electronAPI
-	) {
+	if (didSubscribeToDesktopAuth || typeof window === "undefined" || !window.electronAPI) {
 		return;
 	}
 	didSubscribeToDesktopAuth = true;

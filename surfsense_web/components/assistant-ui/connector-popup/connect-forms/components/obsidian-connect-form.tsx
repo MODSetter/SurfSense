@@ -100,9 +100,7 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 							<div className="flex size-7 items-center justify-center rounded-md border border-slate-400/30 text-xs font-medium">
 								2
 							</div>
-							<h3 className="text-sm font-medium sm:text-base">
-								Create a personal access token
-							</h3>
+							<h3 className="text-sm font-medium sm:text-base">Create a personal access token</h3>
 						</header>
 						<p className="mb-3 text-[11px] text-muted-foreground sm:text-xs">
 							Create a token and paste it into the plugin's{" "}

@@ -50,11 +50,7 @@ export type RequestOptions = {
 };
 
 class BaseApiService {
-	noAuthEndpoints: string[] = [
-		"/auth/jwt/login",
-		"/auth/register",
-		"/auth/jwt/refresh",
-	];
+	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/jwt/refresh"];
 
 	// Prefixes that don't require auth (checked with startsWith)
 	noAuthPrefixes: string[] = ["/api/v1/public/"];

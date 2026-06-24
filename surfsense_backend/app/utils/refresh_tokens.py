@@ -51,7 +51,9 @@ async def create_refresh_token(
     token_hash = hash_token(token)
     now = datetime.now(UTC)
     if absolute_expiry is None:
-        absolute_expiry = now + timedelta(seconds=config.REFRESH_ABSOLUTE_LIFETIME_SECONDS)
+        absolute_expiry = now + timedelta(
+            seconds=config.REFRESH_ABSOLUTE_LIFETIME_SECONDS
+        )
     expires_at = min(
         now + timedelta(seconds=config.REFRESH_TOKEN_LIFETIME_SECONDS),
         absolute_expiry,

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.db import User, get_async_session
+from app.db import get_async_session
 from app.services.memory import (
     MemoryRead,
     MemoryScope,
@@ -32,7 +32,6 @@ async def get_team_memory(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     await check_search_space_access(session, auth, search_space_id)
     memory_md = await read_memory(
         scope=MemoryScope.TEAM,
@@ -49,7 +48,6 @@ async def update_team_memory(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     await check_search_space_access(session, auth, search_space_id)
     result = await save_memory(
         scope=MemoryScope.TEAM,
@@ -68,7 +66,6 @@ async def reset_team_memory(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     await check_search_space_access(session, auth, search_space_id)
     result = await reset_memory(
         scope=MemoryScope.TEAM,

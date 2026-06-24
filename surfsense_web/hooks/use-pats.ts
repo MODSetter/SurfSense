@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type {
-	CreatePatRequest,
 	CreatedPat,
+	CreatePatRequest,
 	PersonalAccessToken,
 } from "@/contracts/types/pat.types";
 import { patsApiService } from "@/lib/apis/pats-api.service";

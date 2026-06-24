@@ -105,9 +105,7 @@ export function ApiKeyContent() {
 										<p className="font-mono text-xs text-muted-foreground">{token.prefix}...</p>
 										<p className="text-xs text-muted-foreground">
 											Expires: {expiresAt ? expiresAt.toLocaleDateString() : "Never"} · Last used:{" "}
-											{token.last_used_at
-												? new Date(token.last_used_at).toLocaleString()
-												: "Never"}
+											{token.last_used_at ? new Date(token.last_used_at).toLocaleString() : "Never"}
 										</p>
 									</div>
 									<Button
@@ -175,8 +173,7 @@ export function ApiKeyContent() {
 					<DialogHeader>
 						<DialogTitle>Copy your token now</DialogTitle>
 						<DialogDescription>
-							This token is shown only once. Store it somewhere secure before closing this
-							dialog.
+							This token is shown only once. Store it somewhere secure before closing this dialog.
 						</DialogDescription>
 					</DialogHeader>
 					<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 p-2">

@@ -40,7 +40,6 @@ from app.db import (
     Permission,
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     async_session_maker,
     get_async_session,
 )
@@ -286,7 +285,6 @@ async def read_search_source_connectors(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     List all search source connectors for a search space.
     Requires CONNECTORS_READ permission.
@@ -330,7 +328,6 @@ async def read_search_source_connector(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Get a specific search source connector by ID.
     Requires CONNECTORS_READ permission.
@@ -565,7 +562,6 @@ async def delete_search_source_connector(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Delete a search source connector and all its associated documents.
 
@@ -2735,7 +2731,6 @@ async def list_mcp_connectors(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     List all MCP connectors for a search space.
 
@@ -2787,7 +2782,6 @@ async def get_mcp_connector(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Get a specific MCP connector by ID.
 
@@ -2841,7 +2835,6 @@ async def update_mcp_connector(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Update an MCP connector.
 
@@ -2918,7 +2911,6 @@ async def delete_mcp_connector(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Delete an MCP connector.
 
@@ -2977,7 +2969,6 @@ async def test_mcp_server_connection(
     server_config: dict = Body(...),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Test connection to an MCP server and fetch available tools.
 
@@ -3058,7 +3049,6 @@ async def get_drive_picker_token(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Return an OAuth access token + client ID for the Google Picker API."""
     result = await session.execute(
         select(SearchSourceConnector).filter(SearchSourceConnector.id == connector_id)

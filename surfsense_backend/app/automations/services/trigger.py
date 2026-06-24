@@ -8,13 +8,13 @@ from fastapi import Depends, HTTPException
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.automations.persistence.enums.trigger_type import TriggerType
 from app.automations.persistence.models.automation import Automation
 from app.automations.persistence.models.trigger import AutomationTrigger
 from app.automations.schemas.api import TriggerCreate, TriggerUpdate
 from app.automations.triggers import get_trigger
 from app.automations.triggers.builtin.schedule import compute_next_fire_at
-from app.auth.context import AuthContext
 from app.db import Permission, get_async_session
 from app.users import get_auth_context
 from app.utils.rbac import check_permission

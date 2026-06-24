@@ -210,8 +210,8 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 				<div className="space-y-1">
 					<Label htmlFor="api-access-enabled">Programmatic API access</Label>
 					<p className="text-xs text-muted-foreground">
-						Allow personal access tokens to use this search space. Web and desktop sessions are
-						not affected.
+						Allow personal access tokens to use this search space. Web and desktop sessions are not
+						affected.
 					</p>
 				</div>
 				<Switch

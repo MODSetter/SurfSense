@@ -58,6 +58,7 @@ def create_create_automation_tool(
     ``AsyncSession`` is opened per call to avoid stale sessions on
     compiled-agent cache hits (same pattern as the Notion / memory tools).
     """
+
     @tool
     async def create_automation(intent: str, runtime: ToolRuntime) -> dict[str, Any]:
         """Draft + save an automation from a natural-language intent.

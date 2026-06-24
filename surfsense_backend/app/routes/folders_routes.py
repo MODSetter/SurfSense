@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.auth.context import AuthContext
-from app.db import Document, Folder, Permission, User, get_async_session
+from app.db import Document, Folder, Permission, get_async_session
 from app.schemas import (
     BulkDocumentMove,
     DocumentMove,
@@ -95,7 +95,6 @@ async def list_folders(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """List all folders in a search space (flat). Requires DOCUMENTS_READ permission."""
     try:
         await check_permission(
@@ -127,7 +126,6 @@ async def get_folder(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Get a single folder. Requires DOCUMENTS_READ permission."""
     try:
         folder = await session.get(Folder, folder_id)
@@ -158,7 +156,6 @@ async def get_folder_breadcrumb(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Get ancestor chain for breadcrumb display. Requires DOCUMENTS_READ permission."""
     try:
         folder = await session.get(Folder, folder_id)
@@ -203,7 +200,6 @@ async def stop_watching_folder(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Clear the watched flag from a folder's metadata."""
     folder = await session.get(Folder, folder_id)
     if not folder:
@@ -232,7 +228,6 @@ async def update_folder(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Rename a folder. Requires DOCUMENTS_UPDATE permission."""
     try:
         folder = await session.get(Folder, folder_id)
@@ -273,7 +268,6 @@ async def move_folder(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Move a folder to a new parent. Requires DOCUMENTS_UPDATE permission."""
     try:
         folder = await session.get(Folder, folder_id)
@@ -334,7 +328,6 @@ async def reorder_folder(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Reorder a folder among its siblings via fractional indexing. Requires DOCUMENTS_UPDATE."""
     try:
         folder = await session.get(Folder, folder_id)
@@ -376,7 +369,6 @@ async def delete_folder(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Mark documents for deletion and dispatch Celery to delete docs first, then folders."""
     try:
         folder = await session.get(Folder, folder_id)
@@ -451,7 +443,6 @@ async def move_document(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Move a document to a folder (or root). Requires DOCUMENTS_UPDATE permission."""
     try:
         result = await session.execute(
@@ -498,7 +489,6 @@ async def bulk_move_documents(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Move multiple documents to a folder (or root). Requires DOCUMENTS_UPDATE permission."""
     try:
         if not request.document_ids:

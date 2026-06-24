@@ -401,4 +401,3 @@ async def require_session_context(
             detail="This action requires an interactive session",
         )
     return auth
-

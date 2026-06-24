@@ -9,13 +9,7 @@ import { useEffect, useState } from "react";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { CreateSearchSpaceDialog } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 
 function ErrorScreen({ message }: { message: string }) {

@@ -13,7 +13,6 @@ from app.db import (
     Permission,
     SearchSpace,
     SearchSpaceMembership,
-    User,
     get_async_session,
 )
 from app.schemas import LogCreate, LogRead, LogUpdate
@@ -29,7 +28,6 @@ async def create_log(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Create a new log entry.
     Note: This is typically called internally. Requires LOGS_READ permission (since logs are usually system-generated).
@@ -141,7 +139,6 @@ async def read_log(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Get a specific log by ID.
     Requires LOGS_READ permission for the search space.
@@ -178,7 +175,6 @@ async def update_log(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Update a log entry.
     Requires LOGS_READ permission (logs are typically updated by system).
@@ -222,7 +218,6 @@ async def delete_log(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Delete a log entry.
     Requires LOGS_DELETE permission for the search space.
@@ -262,7 +257,6 @@ async def get_logs_summary(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Get a summary of logs for a search space in the last X hours.
     Requires LOGS_READ permission for the search space.
