@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi_users import exceptions as fastapi_users_exceptions
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from sqlalchemy import select
@@ -56,6 +57,68 @@ async def _load_user(user_id) -> User | None:
     async with async_session_maker() as session:
         result = await session.execute(select(User).where(User.id == user_id))
         return result.scalars().first()
+
+
+async def resolve_google_user(
+    *,
+    user_manager: UserManager,
+    request: Request,
+    google_access_token: str,
+    claims: dict,
+    expires_at: int | None = None,
+    google_refresh_token: str | None = None,
+) -> User:
+    """Resolve a Google identity with one policy for web and desktop OAuth.
+
+    Email-based account linking is only allowed when Google asserts that the
+    email is verified. Existing OAuth accounts continue to resolve by provider
+    account id regardless of the current email claim.
+    """
+    if not claims.get("sub") or not claims.get("email"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google identity token")
+
+    sub = claims["sub"]
+    email_verified = bool(claims.get("email_verified"))
+
+    canonical_user = await user_manager.user_db.get_by_oauth_account("google", sub)
+    if canonical_user is None:
+        legacy_account_id = f"people/{sub}"
+        legacy_user = await user_manager.user_db.get_by_oauth_account(
+            "google", legacy_account_id
+        )
+        if legacy_user is not None:
+            # Fallback for pre-sub Google OAuth rows created by the old web flow.
+            # TODO: Remove after oauth_account is fully backfilled to bare Google
+            # sub and production has zero google rows with account_id LIKE 'people/%'.
+            for oauth_account in legacy_user.oauth_accounts:
+                if (
+                    oauth_account.oauth_name == "google"
+                    and oauth_account.account_id == legacy_account_id
+                ):
+                    await user_manager.user_db.update_oauth_account(
+                        legacy_user,
+                        oauth_account,
+                        {"account_id": sub},
+                    )
+                    break
+
+    try:
+        return await user_manager.oauth_callback(
+            "google",
+            google_access_token,
+            sub,
+            claims["email"],
+            expires_at=expires_at,
+            refresh_token=google_refresh_token,
+            request=request,
+            associate_by_email=email_verified,
+            is_verified_by_default=email_verified,
+        )
+    except fastapi_users_exceptions.UserAlreadyExists as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OAUTH_USER_ALREADY_EXISTS",
+        ) from exc
 
 
 @router.post("/refresh", response_model=None)
@@ -276,24 +339,17 @@ async def create_desktop_session(
             detail="Invalid Google identity token",
         ) from exc
 
-    if not claims.get("sub") or not claims.get("email"):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google identity token")
-
-    email_verified = bool(claims.get("email_verified"))
-    user = await user_manager.oauth_callback(
-        "google",
-        access_token,
-        claims["sub"],
-        claims["email"],
+    user = await resolve_google_user(
+        user_manager=user_manager,
+        request=request,
+        google_access_token=access_token,
+        claims=claims,
         expires_at=(
             int(datetime.now(UTC).timestamp()) + int(token_data["expires_in"])
             if token_data.get("expires_in")
             else None
         ),
-        refresh_token=token_data.get("refresh_token"),
-        request=request,
-        associate_by_email=email_verified,
-        is_verified_by_default=email_verified,
+        google_refresh_token=token_data.get("refresh_token"),
     )
     app_access_token = await get_jwt_strategy().write_token(user)
     app_refresh_token = await create_refresh_token(user.id)

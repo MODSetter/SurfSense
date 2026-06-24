@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from threading import Lock
 
 import redis
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -54,8 +54,11 @@ from app.observability import metrics as ot_metrics
 from app.observability.bootstrap import init_otel, shutdown_otel
 from app.rate_limiter import get_real_client_ip, limiter
 from app.routes import router as crud_router
-from app.routes.auth_routes import router as auth_router
-from app.routes.auth_routes import session_router
+from app.routes.auth_routes import (
+    resolve_google_user,
+    router as auth_router,
+    session_router,
+)
 from app.routes.users_routes import router as users_router
 from app.routes.zero_context_routes import router as zero_context_router
 from app.schemas import UserCreate, UserRead
@@ -893,36 +896,183 @@ if config.AUTH_TYPE == "GOOGLE":
         parsed_url = urlparse(config.BACKEND_URL)
         csrf_cookie_domain = parsed_url.hostname
 
-    app.include_router(
-        fastapi_users.get_oauth_router(
-            google_oauth_client,
-            auth_backend,
-            SECRET,
-            is_verified_by_default=True,
-            csrf_token_cookie_secure=is_secure_context,
-            csrf_token_cookie_samesite=csrf_cookie_samesite,
-            csrf_token_cookie_httponly=False,  # Required for cross-site OAuth in Firefox/Safari
+    from fastapi_users.jwt import decode_jwt
+    from fastapi_users.router.oauth import (
+        CSRF_TOKEN_COOKIE_NAME,
+        CSRF_TOKEN_KEY,
+        STATE_TOKEN_AUDIENCE,
+        generate_state_token,
+    )
+    from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token as google_id_token
+
+    from app.users import get_user_manager
+
+    def _google_callback_url(request: Request) -> str:
+        if config.BACKEND_URL:
+            return f"{config.BACKEND_URL}/auth/google/callback"
+        return str(request.url_for("google_oauth_callback"))
+
+    def _set_google_oauth_csrf_cookie(response: Response, csrf_token: str) -> None:
+        response.set_cookie(
+            key=CSRF_TOKEN_COOKIE_NAME,
+            value=csrf_token,
+            max_age=3600,
+            path="/",
+            domain=csrf_cookie_domain,
+            secure=is_secure_context,
+            httponly=False,  # Required for cross-site OAuth in Firefox/Safari
+            samesite=csrf_cookie_samesite,
         )
-        if not config.BACKEND_URL
-        else fastapi_users.get_oauth_router(
-            google_oauth_client,
-            auth_backend,
+
+    async def _google_authorization_url(request: Request, response: Response) -> str:
+        import secrets
+
+        csrf_token = secrets.token_urlsafe(32)
+        state = generate_state_token(
+            {CSRF_TOKEN_KEY: csrf_token},
             SECRET,
-            is_verified_by_default=True,
-            redirect_url=f"{config.BACKEND_URL}/auth/google/callback",
-            csrf_token_cookie_secure=is_secure_context,
-            csrf_token_cookie_samesite=csrf_cookie_samesite,
-            csrf_token_cookie_httponly=False,  # Required for cross-site OAuth in Firefox/Safari
-            csrf_token_cookie_domain=csrf_cookie_domain,  # Explicitly set cookie domain
-        ),
-        prefix="/auth/google",
+            lifetime_seconds=3600,
+        )
+        authorization_url = await google_oauth_client.get_authorization_url(
+            _google_callback_url(request),
+            state,
+            scope=["openid", "email", "profile"],
+        )
+        _set_google_oauth_csrf_cookie(response, csrf_token)
+        return authorization_url
+
+    @app.get(
+        "/auth/google/authorize",
         tags=["auth"],
-        # REGISTRATION_ENABLED is a master auth kill switch: when set to FALSE
-        # it blocks BOTH new OAuth signups AND login of existing OAuth users
-        # (the fastapi-users OAuth router shares one callback for create+login,
-        # so this dependency closes both paths together).
         dependencies=[Depends(registration_allowed)],
     )
+    async def google_authorize(request: Request, response: Response):
+        """Return Google's authorization URL, matching fastapi-users' shape."""
+        return {
+            "authorization_url": await _google_authorization_url(request, response)
+        }
+
+    @app.get(
+        "/auth/google/callback",
+        name="google_oauth_callback",
+        tags=["auth"],
+        dependencies=[Depends(registration_allowed)],
+    )
+    async def google_oauth_callback(
+        request: Request,
+        user_manager=Depends(get_user_manager),
+    ):
+        """Handle web Google OAuth with the same verified-email policy as desktop."""
+        import secrets
+
+        import httpx
+        import jwt as pyjwt
+
+        state = request.query_params.get("state")
+        code = request.query_params.get("code")
+        if not state or not code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="OAuth callback missing code or state",
+            )
+
+        try:
+            state_data = decode_jwt(state, SECRET, [STATE_TOKEN_AUDIENCE])
+        except pyjwt.DecodeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ACCESS_TOKEN_DECODE_ERROR",
+            ) from exc
+        except pyjwt.ExpiredSignatureError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ACCESS_TOKEN_ALREADY_EXPIRED",
+            ) from exc
+
+        cookie_csrf_token = request.cookies.get(CSRF_TOKEN_COOKIE_NAME)
+        state_csrf_token = state_data.get(CSRF_TOKEN_KEY)
+        if (
+            not cookie_csrf_token
+            or not state_csrf_token
+            or not secrets.compare_digest(cookie_csrf_token, state_csrf_token)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="OAUTH_INVALID_STATE",
+            )
+
+        token_payload = {
+            "client_id": config.GOOGLE_OAUTH_CLIENT_ID,
+            "client_secret": config.GOOGLE_OAUTH_CLIENT_SECRET,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": _google_callback_url(request),
+        }
+        async with httpx.AsyncClient(timeout=10) as client:
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data=token_payload,
+            )
+        if token_response.status_code >= 400:
+            _error_logger.warning("Web Google OAuth exchange failed: %s", token_response.text)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="OAuth exchange failed",
+            )
+
+        token_data = token_response.json()
+        google_access_token = token_data.get("access_token")
+        google_id_token_value = token_data.get("id_token")
+        if not google_access_token or not google_id_token_value:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="OAuth exchange failed",
+            )
+
+        try:
+            claims = google_id_token.verify_oauth2_token(
+                google_id_token_value,
+                google_requests.Request(),
+                config.GOOGLE_OAUTH_CLIENT_ID,
+            )
+        except Exception as exc:
+            _error_logger.warning("Web Google id_token verification failed: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Google identity token",
+            ) from exc
+
+        expires_at = (
+            int(datetime.now(UTC).timestamp()) + int(token_data["expires_in"])
+            if token_data.get("expires_in")
+            else None
+        )
+        user = await resolve_google_user(
+            user_manager=user_manager,
+            request=request,
+            google_access_token=google_access_token,
+            claims=claims,
+            expires_at=expires_at,
+            google_refresh_token=token_data.get("refresh_token"),
+        )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="LOGIN_BAD_CREDENTIALS",
+            )
+
+        response = await auth_backend.login(auth_backend.get_strategy(), user)
+        await user_manager.on_after_login(user, request, response)
+        response.delete_cookie(
+            key=CSRF_TOKEN_COOKIE_NAME,
+            path="/",
+            domain=csrf_cookie_domain,
+            secure=is_secure_context,
+            samesite=csrf_cookie_samesite,
+            httponly=False,
+        )
+        return response
 
     # Add a redirect-based authorize endpoint for Firefox/Safari compatibility
     # This endpoint performs a server-side redirect instead of returning JSON
@@ -947,43 +1097,9 @@ if config.AUTH_TYPE == "GOOGLE":
         This fixes CSRF cookie issues in Firefox and Safari where cookies set
         via cross-origin fetch requests are not sent on subsequent redirects.
         """
-        import secrets
-
-        from fastapi_users.router.oauth import generate_state_token
-
-        # Generate CSRF token
-        csrf_token = secrets.token_urlsafe(32)
-
-        # Build state token
-        state_data = {"csrftoken": csrf_token}
-        state = generate_state_token(state_data, SECRET, lifetime_seconds=3600)
-
-        # Get the callback URL
-        if config.BACKEND_URL:
-            redirect_url = f"{config.BACKEND_URL}/auth/google/callback"
-        else:
-            redirect_url = str(request.url_for("oauth:google.jwt.callback"))
-
-        # Get authorization URL from Google
-        authorization_url = await google_oauth_client.get_authorization_url(
-            redirect_url,
-            state,
-            scope=["openid", "email", "profile"],
-        )
-
-        # Create redirect response and set CSRF cookie
-        response = RedirectResponse(url=authorization_url, status_code=302)
-        response.set_cookie(
-            key="fastapiusersoauthcsrf",
-            value=csrf_token,
-            max_age=3600,
-            path="/",
-            domain=csrf_cookie_domain,
-            secure=is_secure_context,
-            httponly=False,  # Required for cross-site OAuth in Firefox/Safari
-            samesite=csrf_cookie_samesite,
-        )
-
+        response = RedirectResponse(url="", status_code=302)
+        authorization_url = await _google_authorization_url(request, response)
+        response.headers["location"] = authorization_url
         return response
 
 
