@@ -11,11 +11,11 @@ from typing import TYPE_CHECKING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat.multi_agent_chat.shared.citations import CitationRegistry
-from app.agents.chat.multi_agent_chat.shared.retrieved_context import (
-    render_retrieved_context,
+from app.agents.chat.multi_agent_chat.shared.document_render import (
+    render_search_context,
 )
 
-from .adapter import to_retrieved_document
+from .adapter import to_renderable_document
 from .hybrid_search import search_chunks
 from .models import DocumentHit, SearchScope
 from .reranking import rerank_hits
@@ -59,8 +59,8 @@ def build_context(
 ) -> str | None:
     """Rerank → adapt → render. Pure given ``hits``, so it is unit-testable."""
     ranked = rerank_hits(query, hits, reranker)
-    documents = [to_retrieved_document(hit) for hit in ranked]
-    return render_retrieved_context(documents, registry)
+    documents = [to_renderable_document(hit) for hit in ranked]
+    return render_search_context(documents, registry)
 
 
 __all__ = ["build_context", "search_knowledge_base_context"]

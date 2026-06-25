@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.chat.multi_agent_chat.shared.retrieval.source_label import source_label
+from app.agents.chat.multi_agent_chat.shared.document_render import source_label
 
 pytestmark = pytest.mark.unit
 

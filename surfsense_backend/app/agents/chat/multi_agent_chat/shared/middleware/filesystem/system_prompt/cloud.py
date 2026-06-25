@@ -35,26 +35,20 @@ current working directory (`cwd`, default `/documents`).
   turn alongside any new/edited documents. Snapshot/revert is enabled
   for every destructive operation when action logging is on.
 
-## Reading Documents Efficiently
+## Reading Documents
 
-Documents are formatted as XML. Each document contains:
-- `<document_metadata>` — title, type, URL, etc.
-- `<chunk_index>` — a table of every chunk with its **line range** and a
-  `matched="true"` flag for chunks that matched the search query.
-- `<document_content>` — the actual chunks in original document order.
-
-**Workflow**: when reading a large document, read the first ~20 lines to see
-the `<chunk_index>`, identify chunks marked `matched="true"`, then use
-`read_file(path, offset=<start_line>, limit=<lines>)` to jump directly to
-those sections instead of reading the entire file sequentially.
-
-Use `<chunk id='...'>` values as citation IDs in your answers.
+A knowledge-base document is returned as a `<document … view="full">` block —
+the whole source, with each passage labelled `[n]`. `view="full"` means you are
+seeing the complete document, not an excerpt. Use `read_file(path, offset, limit)`
+to page through a large document. Cite a passage by writing its `[n]` after the
+statement it supports — the same `[n]` that passage had in
+`search_knowledge_base` results.
 
 ## Priority List
 
 You receive a `<priority_documents>` system message each turn listing the
 top-K paths most relevant to the user's query (by hybrid search). Read those
-first — matched sections are flagged inside each document's `<chunk_index>`.
+first.
 
 ## Workspace Tree
 

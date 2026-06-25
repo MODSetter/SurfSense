@@ -1,8 +1,10 @@
-"""Build a short, honest source label for a retrieved document.
+"""Build a short, honest source label for a knowledge-base document.
 
 A label orients the model about where a passage came from — e.g. ``Slack`` or
 ``Web · docs.python.org``. It is derived only from the document's type and any
-URL in its metadata, so it never asserts detail we don't actually have.
+URL in its metadata, so it never asserts detail we don't actually have. Search
+hits and full reads both build their ``<document source=…>`` from here, so the
+label a passage carries is identical whichever surface it arrives through.
 """
 
 from __future__ import annotations

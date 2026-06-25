@@ -37,8 +37,8 @@ def build_backend_resolver(
 
     In cloud mode the resolver returns a fresh :class:`KBPostgresBackend`
     bound to the current ``runtime`` so the backend can read staging state
-    (``staged_dirs``, ``pending_moves``, ``files`` cache, ``kb_anon_doc``,
-    ``kb_matched_chunk_ids``) for each tool call. When no ``search_space_id``
+    (``staged_dirs``, ``pending_moves``, ``files`` cache, ``kb_anon_doc``)
+    for each tool call. When no ``search_space_id``
     is provided, the resolver falls back to :class:`StateBackend` (used by
     sub-agents and tests that don't need DB-backed reads).
 

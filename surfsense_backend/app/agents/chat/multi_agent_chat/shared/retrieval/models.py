@@ -2,7 +2,7 @@
 
 ``SearchScope`` is the optional filter a search runs under. ``DocumentHit`` /
 ``ChunkHit`` are the retriever's typed output — matched chunks grouped by their
-document — which the adapter turns into renderable ``RetrievedDocument``s.
+document — which the adapter turns into renderable ``RenderableDocument``s.
 """
 
 from __future__ import annotations

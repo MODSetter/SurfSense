@@ -1,11 +1,11 @@
-"""Tests for mapping a DocumentHit to a renderable RetrievedDocument."""
+"""Tests for mapping a DocumentHit to a renderable document."""
 
 from __future__ import annotations
 
 import pytest
 
 from app.agents.chat.multi_agent_chat.shared.retrieval.adapter import (
-    to_retrieved_document,
+    to_renderable_document,
 )
 from app.agents.chat.multi_agent_chat.shared.retrieval.models import (
     ChunkHit,
@@ -15,7 +15,7 @@ from app.agents.chat.multi_agent_chat.shared.retrieval.models import (
 pytestmark = pytest.mark.unit
 
 
-def test_maps_identity_source_label_and_passages() -> None:
+def test_maps_identity_source_and_passages() -> None:
     hit = DocumentHit(
         document_id=42,
         title="Q3 Launch Notes",
@@ -28,13 +28,14 @@ def test_maps_identity_source_label_and_passages() -> None:
         ],
     )
 
-    document = to_retrieved_document(hit)
+    document = to_renderable_document(hit)
 
-    assert document.document_id == 42
     assert document.title == "Q3 Launch Notes"
-    assert document.source_label == "Slack"
-    assert [(p.chunk_id, p.content) for p in document.passages] == [(880, "a"), (881, "b")]
-    assert all(p.document_id == 42 for p in document.passages)
+    assert document.source == "Slack"
+    assert [
+        (p.locator["chunk_id"], p.content) for p in document.passages
+    ] == [(880, "a"), (881, "b")]
+    assert all(p.locator["document_id"] == 42 for p in document.passages)
 
 
 def test_document_with_no_chunks_maps_to_no_passages() -> None:
@@ -47,4 +48,4 @@ def test_document_with_no_chunks_maps_to_no_passages() -> None:
         chunks=[],
     )
 
-    assert to_retrieved_document(hit).passages == []
+    assert to_renderable_document(hit).passages == []
