@@ -1,6 +1,6 @@
 # CI Pivot MVP — Umbrella Plan
 
-> Master roadmap for the Competitive Intelligence pivot. Each phase becomes its own subplan saved in this folder (`content_research/pivot/`).
+> Master roadmap for the Competitive Intelligence pivot. Each phase becomes its own subplan saved in this folder (`plans/backend/`).
 
 This is the high-level roadmap. It is sequenced to match the agreed order: rename first, then connector restructure, then Pipelines.
 
@@ -35,7 +35,7 @@ flowchart TD
 - Full rename SearchSpace -> WorkSpace across DB, API, URLs, code, satellite apps.
 - Canonical names (proposed defaults): DB table `workspaces`, column `workspace_id`, RBAC tables `workspace_roles` / `workspace_memberships` / `workspace_invites`, API base `/workspaces` (consolidating today's `/searchspaces` vs `/search-spaces` split), URL segment `[workspace_id]`, settings folder `workspace-settings`, TS type `Workspace`.
 - Connectors get a `category` discriminator: `DATA_SOURCE` (Type 1) vs `MCP_TOOL` (Type 2). Type 1 keeps only file/cloud data sources (WebURL crawler, Google Drive, OneDrive, Dropbox, YouTube, file uploads) plus deferred platform connectors. Everything else moves to MCP. Artifacts stay in the existing `deliverables` agent system (not routed through MCP).
-- Web search APIs (Tavily, SearXNG, Linkup, Baidu, Serper) are repurposed as a SOURCE-DISCOVERY helper: they suggest URLs the user can add to the Universal WebURL Crawler when setting up pipelines (they are not a standalone connector type and do not index data).
+- Web search APIs (SearXNG, Linkup, Baidu) are repurposed as a SOURCE-DISCOVERY helper: they suggest URLs the user can add to the Universal WebURL Crawler when setting up pipelines (they are not a standalone connector type and do not index data). NOTE: Tavily and Serper are being REMOVED from the search infra and are not part of this set.
 - Obsidian and Circleback (push/webhook sources) are DISABLED for the MVP.
 - MCP-availability audit complete: BookStack (community MCP servers), Elasticsearch (official Elastic Agent Builder MCP), and Luma (community MCP servers) all have MCP available, so none are disabled — they migrate to Type-2.
 - `Pipeline` and `PipelineRun` are new first-class tables. A Pipeline references a connector + config + schedule + KB destination. File upload creates/uses a pipeline and registers a run; uploads always save to KB.
@@ -69,7 +69,16 @@ flowchart TD
 - Consolidate API to `/workspaces` and fix the `/searchspaces` vs `/search-spaces` inconsistency.
 - High-touch files: `routes/search_spaces_routes.py`, `routes/rbac_routes.py`, `utils/rbac.py` (`check_search_space_access`), `schemas/search_space.py`, plus `search_space_id` threading through agents/Redis keys/storage paths (`documents/{id}/...`).
 
-### Phase 3 — Connector two-type restructure (backend) [`subplan: 03-connector-two-type-backend.md`]
+### Phase 3 — WebURL Crawler & Crawl Billing (backend) [`subplans: 03a–03d`]
+
+The Universal WebURL Crawler is the flagship Type-1 data source (the moat). This phase hardens it on a single framework (Scrapling), generalizes proxy support, introduces pay-as-you-go crawl credits, and (deferred) adds opt-in captcha solving. It is broken into focused subplans:
+
+- **`03a-crawler-core.md`** — Standardize the fetch layer on Scrapling. **Remove Firecrawl entirely** (no other frameworks). Define crisp per-URL success/empty/failure semantics, keep Trafilatura extraction, and expose a single billable "successful crawl" signal (one unit per URL that yields usable content, regardless of how many internal fallback tiers ran).
+- **`03b-proxy-expansion.md`** — Add a BYO `CustomProxyProvider` (the only new provider — **no branded vendors**) alongside `anonymous_proxies`, selectable via a **single, app-wide** `Config.PROXY_PROVIDER`. Add bounded client-side rotation+retry via Scrapling's `ProxyRotator`/`is_proxy_error` **only** when the active provider is pool-backed (`CUSTOM_PROXY_URLS`); single-endpoint providers (incl. `anonymous_proxies`) stay the default and no-op the retry. **No per-connector/per-crawl selection** (one provider app-wide); a per-pipeline override is left as a no-op seam for Phase 5/6.
+- **`03c-crawl-billing.md`** — Charge crawl credits at **$1 / 1000 successful requests = 1000 micro-USD per successful crawl**, drawn from the existing credit wallet (`credit_micros_balance`), gated by a new `WEB_CRAWL_CREDIT_BILLING_ENABLED` flag (off for self-hosted). Two surfaces: **connector/pipeline crawls** billed to the **workspace owner** via a dedicated `WebCrawlCreditService` (mirrors `EtlCreditService`'s gate → `check_credits` → `charge_credits`, **not** `billable_call`); **chat scrapes** fold their crawl cost into the chat turn's existing bill (turn accumulator). No DB migration (uses the existing free-form `web_crawl` usage_type).
+- **`03d-captcha-solving.md`** *(DEFERRED — sequenced last, non-MVP-blocking)* — Covers the captcha types Scrapling does **not** (reCAPTCHA v2/v3, hCaptcha, image) via `captchatools`. `captchatools` is **itself** the provider registry (`new_harvester(solving_site=…)` across capmonster/2captcha/anticaptcha/capsolver/captchaai), so we do **not** rebuild a provider hierarchy — our layer is thin: config resolution + a StealthyFetcher `page_action` that detects the sitekey, harvests a token, and injects it. Scrapling already handles Cloudflare Turnstile (`03a`). Flags the **billing asymmetry** (solvers charge per *attempt*, `03c` bills per *success*) for resolution at build time. Requires a paid solver account.
+
+### Phase 4 — Connector two-type restructure (backend) [`subplan: 04-connector-two-type-backend.md`]
 
 - Add `category` (`DATA_SOURCE` / `MCP_TOOL`) to `SearchSourceConnector` (replaces ad hoc `is_indexable`): `db.py` enum/model, schema, Alembic migration + data backfill that tags existing rows.
 - Adjust backend routing/indexing so only Type-1 keeps the `/index` + Celery path; Type-2 resolves via MCP tools.
@@ -94,26 +103,27 @@ flowchart TD
 
 **Web search APIs — repurposed (not a connector type):**
 
-- Tavily, SearXNG, Linkup, Baidu, Serper become a source-discovery helper for the Universal WebURL Crawler: given a topic/competitor, suggest candidate URLs the user can add to a pipeline. Reuses the existing web-search services; backend endpoint here, UX deferred to frontend umbrella.
+- SearXNG, Linkup, Baidu become a source-discovery helper for the Universal WebURL Crawler: given a topic/competitor, suggest candidate URLs the user can add to a pipeline. Reuses the existing web-search services; backend endpoint here, UX deferred to frontend umbrella. (Tavily and Serper are removed from the search infra — see resolved log.)
 
 **Disabled for MVP:**
 
 - Obsidian (plugin push) and Circleback (meeting webhook) — disabled for the pivot MVP.
 
-### Phase 4 — Pipelines data model [`subplan: 04-pipelines-model.md`]
+### Phase 5 — Pipelines data model [`subplan: 05-pipelines-model.md`]
 
 - New tables: `pipelines` (workspace_id, user_id, connector_id, name, config JSON, schedule/cron, `save_to_kb` bool, `destination_folder_id` nullable, enabled, next_scheduled_at) and `pipeline_runs` (pipeline_id, status, trigger = manual/scheduled/upload, timestamps, doc counts, error, optional raw-result blob ref).
 - Models + Pydantic schemas + Alembic migration + backend Zero publication entry.
 - Pipelines API routes: CRUD + manual run trigger + list runs.
 
-### Phase 5 — Pipeline execution + scheduling [`subplan: 05-pipelines-exec.md`]
+### Phase 6 — Pipeline execution + scheduling [`subplan: 06-pipelines-exec.md`]
 
 - Run engine: pipeline run -> invoke connector fetch (WebURL crawler for MVP) -> if `save_to_kb`, route through `IndexingPipelineService` into the destination folder -> write `PipelineRun` record.
+- **Crawl billing wiring (carry-over from `03c`):** `03c` meters crawls inside `webcrawler_indexer`. A pipeline run that crawls but has `save_to_kb=false` must NOT bypass billing — wire the pipeline fetch through the same `WebCrawlCreditService` (pre-check + charge on `crawls_succeeded`) regardless of the KB-save branch, ideally recording `charged_micros` on the `PipelineRun` for idempotency. Otherwise non-KB pipeline crawls are free by accident.
 - Scheduling: reuse the Celery Beat meta-scheduler pattern (`schedule_checker_task.py`, `periodic_scheduler.py`) for cron + manual triggers.
 - When `save_to_kb` is off, persist the raw fetch result on the run (blob via `file_storage`) so it is retrievable without indexing.
 - Chat agent context: expose pipeline run history to the `multi_agent_chat` agent (read-only) — via a tool (e.g. `list_pipelines` / `get_pipeline_runs`) and/or a context middleware injection (similar to `KnowledgeTreeMiddleware`). Scope strictly to the active workspace. Gives the agent awareness of recent runs, statuses, schedules, and last-fetched timestamps.
 
-### Phase 6 — File upload as a pipeline + KB-save-secondary [`subplan: 06-upload-pipeline-kb.md`]
+### Phase 7 — File upload as a pipeline + KB-save-secondary [`subplan: 07-upload-pipeline-kb.md`]
 
 - Wire file upload (`documents_routes.py` fileupload flow) to create/use an "Uploads" pipeline and register a `PipelineRun`; uploads always `save_to_kb = true`.
 - Generalize KB saving to be opt-in for non-upload pipelines via `save_to_kb` + destination folder.
@@ -136,10 +146,16 @@ These are recorded for continuity but are NOT planned in this umbrella. They sta
 
 ## Resolved decisions log
 
-- Web search APIs (Tavily/SearXNG/Linkup/Baidu/Serper): repurposed as source-discovery helper for the WebURL Crawler (suggest URLs for pipelines); not a standalone connector type.
+- Web search APIs (SearXNG/Linkup/Baidu): repurposed as source-discovery helper for the WebURL Crawler (suggest URLs for pipelines); not a standalone connector type.
+- Tavily and Serper: REMOVED from the search infra. They are dropped as search providers entirely (not repurposed). Phase 4's source-discovery endpoint must build only on the remaining providers (SearXNG, Linkup, Baidu).
 - Obsidian + Circleback: disabled for MVP.
 - MCP-availability audit: BookStack, Elasticsearch, Luma all have MCP available -> migrate to Type-2, none disabled.
 - Rename transition policy: HARD CUTOVER of the external API (paths + JSON field names) in Phase 2 — no backward-compat aliases. Rationale: the frontend is (re)built against the corrected backend later, so there is no old client to keep alive; backend correctness is verified via the test suite + OpenAPI rather than the existing UI.
+- WebURL Crawler framework: STANDARDIZE on Scrapling; **remove Firecrawl entirely** (no other scraping frameworks now or planned). Scrapling's `StealthyFetcher` handles Cloudflare; captcha-tools (deferred) covers the rest.
+- Crawl billing: reuse the existing credit wallet (`credit_micros_balance`) with a new `web_crawl` usage_type. Price: **$1 / 1000 successful requests** (1000 micro-USD per success). Connector/pipeline crawls bill the **workspace owner**; chat scrapes fold their crawl cost into the already-billed chat turn. Gated by `WEB_CRAWL_CREDIT_BILLING_ENABLED` (off for self-hosted); no DB migration required.
+- Billable unit: one unit per URL that returns usable extracted content, regardless of how many internal fallback tiers were attempted (not per HTTP fetch, not per URL-processed).
+- Captcha solving (captcha-tools): DEFERRED to the last Phase-3 subplan (`03d`); non-MVP-blocking.
+- Roadmap: WebURL Crawler & Crawl Billing inserted as the new Phase 3; connector two-type → Phase 4; pipelines → Phases 5/6/7.
 
 ## Subplan index (backend)
 
@@ -147,9 +163,13 @@ These are recorded for continuity but are NOT planned in this umbrella. They sta
 |-------|--------------|--------|
 | 1 | `01-rename-db.md` | drafted |
 | 2 | `02-rename-backend.md` | drafted |
-| 3 | `03-connector-two-type-backend.md` | not started |
-| 4 | `04-pipelines-model.md` | not started |
-| 5 | `05-pipelines-exec.md` | not started |
-| 6 | `06-upload-pipeline-kb.md` | not started |
+| 3 | `03a-crawler-core.md` | drafted |
+| 3 | `03b-proxy-expansion.md` | drafted |
+| 3 | `03c-crawl-billing.md` | drafted |
+| 3 | `03d-captcha-solving.md` | drafted (deferred — last) |
+| 4 | `04-connector-two-type-backend.md` | not started |
+| 5 | `05-pipelines-model.md` | not started |
+| 6 | `06-pipelines-exec.md` | not started |
+| 7 | `07-upload-pipeline-kb.md` | not started |
 
 Frontend & client subplans will be added under a separate umbrella later (see "Deferred — Frontend & client phases").
