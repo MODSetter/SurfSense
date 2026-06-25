@@ -440,6 +440,12 @@ _None — all decisions locked. See §8._
 5. Move workspace tree to ambient plane.
 6. Extend registry to connector/web/chat sources.
 
+Built in parallel ahead of cutover (not yet wired): `shared/retrieval/`,
+`shared/retrieved_context/`, `shared/citations/`, and the new on-contract prompt
+`base/citation_contract.md` (teaches `[n]` / `[1][2]`). At cutover its contents
+replace `base/citations_on.md` and `citation_contract.md` is deleted, so the
+composer needs no change; `citations_off.md` stays as-is.
+
 ---
 
 ## 11. After-plan follow-ups (separate workstreams)
