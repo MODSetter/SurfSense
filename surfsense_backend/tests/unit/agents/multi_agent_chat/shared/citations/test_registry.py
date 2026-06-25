@@ -1,4 +1,4 @@
-"""Unit tests for the citation registry spine (ADR 0001 §3)."""
+"""Unit tests for the citation registry spine."""
 
 from __future__ import annotations
 
