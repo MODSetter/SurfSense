@@ -379,13 +379,18 @@ the ambient plane.
 Remove from the hot path:
 
 - `KnowledgePriorityMiddleware` search branch (planner LLM, embedding, hybrid
-  search in `before_agent`).
+  search in `before_agent`). ✅ **Done** — the whole `knowledge_search.py`
+  module is deleted.
 - `fetch_mentioned_documents` eager chunk pull.
 - `<priority_documents>` pre-injection and `KbContextProjectionMiddleware`
-  priority projection.
+  priority projection. ✅ **Done** — `<priority_documents>` is no longer
+  produced anywhere; `KbContextProjectionMiddleware` is trimmed to a pure
+  `<workspace_tree>` projector. The `enable_kb_priority_preinjection` flag and
+  every `<priority_documents>` prompt reference are removed.
 - `kb_priority` state plumbing (deleted per §8.10; add a dedicated
-  `citation_registry` field instead). `kb_matched_chunk_ids` is already gone
-  (build-order Step 5).
+  `citation_registry` field instead). ✅ **Done** — `kb_priority` /
+  `KbPriorityEntry` are removed from state + reducers. `kb_matched_chunk_ids`
+  is already gone (build-order Step 5).
 
 Keep / add:
 
@@ -486,11 +491,15 @@ behavior tests, and the on-contract prompt `base/citation_contract.md`
 4. **Mentions → scope.** Map `@document`/`@folder` mentions to
    `SearchScope(document_ids=…)` for the tool; retire `kb_priority` mention
    surfacing.
-5. **Remove the old eager path.** Retire `KnowledgePriorityMiddleware`,
-   `kb_context_projection`, and the old `search_knowledge_base` hybrid helper in
-   `knowledge_search.py`; later `ChucksHybridSearchRetriever` (after migrating
-   `ConnectorService`). Migrate `web_search` to register `WEB_RESULT` so all
-   citations unify on `[n]` — **done**, see §12 build-order Step 6.
+5. **Remove the old eager path.** ✅ **Done** — `KnowledgePriorityMiddleware`
+   and the old `search_knowledge_base` hybrid helper in `knowledge_search.py`
+   are deleted (the whole module is gone); `kb_context_projection` is trimmed to
+   a tree-only projector (kept because it still projects `<workspace_tree>` to
+   subagents); `kb_priority` state + the `enable_kb_priority_preinjection` flag +
+   all `<priority_documents>` prompt references are removed. Still pending:
+   `ChucksHybridSearchRetriever` (after migrating `ConnectorService`). Migrate
+   `web_search` to register `WEB_RESULT` so all citations unify on `[n]` —
+   **done**, see §12 build-order Step 6.
 
 ---
 

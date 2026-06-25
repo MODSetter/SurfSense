@@ -44,12 +44,6 @@ to page through a large document. Cite a passage by writing its `[n]` after the
 statement it supports — the same `[n]` that passage had in
 `search_knowledge_base` results.
 
-## Priority List
-
-You receive a `<priority_documents>` system message each turn listing the
-top-K paths most relevant to the user's query (by hybrid search). Read those
-first.
-
 ## Workspace Tree
 
 You receive a `<workspace_tree>` system message each turn with the current

@@ -13,7 +13,6 @@ extra fields needed to implement Postgres-backed virtual filesystem semantics:
 * ``dirty_paths`` — paths whose state file content differs from DB.
 * ``dirty_path_tool_calls`` — sidecar map ``path -> latest tool_call_id`` for
   dirty paths; used to bind the per-path snapshot to an action_id.
-* ``kb_priority`` — top-K priority hints rendered into a system message.
 * ``kb_anon_doc`` — Redis-loaded anonymous document (if any).
 * ``citation_registry`` — per-conversation ``[n]`` -> source map for citations.
 * ``tree_version`` — bumped by persistence; invalidates the tree render cache.
@@ -67,14 +66,6 @@ class PendingDelete(TypedDict, total=False):
 
     path: str
     tool_call_id: str
-
-
-class KbPriorityEntry(TypedDict, total=False):
-    path: str
-    score: float
-    document_id: int | None
-    title: str
-    mentioned: bool
 
 
 class KbAnonDoc(TypedDict, total=False):
@@ -161,9 +152,6 @@ class SurfSenseFilesystemState(FilesystemState):
     to the latest action_id (the one the user is most likely to revert).
     """
 
-    kb_priority: NotRequired[Annotated[list[KbPriorityEntry], _replace_reducer]]
-    """Top-K priority hints rendered as a system message before the user turn."""
-
     kb_anon_doc: NotRequired[Annotated[KbAnonDoc | None, _replace_reducer]]
     """Anonymous-session document loaded from Redis (read-only, no DB row)."""
 
@@ -212,7 +200,6 @@ class SurfSenseFilesystemState(FilesystemState):
 
 __all__ = [
     "KbAnonDoc",
-    "KbPriorityEntry",
     "PendingDelete",
     "PendingMove",
     "SurfSenseFilesystemState",

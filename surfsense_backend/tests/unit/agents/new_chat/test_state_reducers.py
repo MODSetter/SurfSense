@@ -161,7 +161,6 @@ class TestInitialFilesystemState:
         assert state["doc_id_by_path"] == {}
         assert state["dirty_paths"] == []
         assert state["dirty_path_tool_calls"] == {}
-        assert state["kb_priority"] == []
         assert state["kb_anon_doc"] is None
         assert state["tree_version"] == 0
 

@@ -11,9 +11,9 @@ MUST live on this context object instead of being captured into a
 middleware ``__init__`` closure. Middlewares read fields back via
 ``runtime.context.<field>``; tools read them via ``runtime.context``.
 
-This object is read inside both ``KnowledgePriorityMiddleware`` (for
-``mentioned_document_ids``) and any future middleware that needs
-per-request state without invalidating the compiled-agent cache.
+This object is read by the ``search_knowledge_base`` tool (for
+``mentioned_document_ids``) and any middleware that needs per-request
+state without invalidating the compiled-agent cache.
 """
 
 from __future__ import annotations
@@ -43,13 +43,12 @@ class SurfSenseContextSchema:
     Phase 1.5 fields:
         search_space_id: Search space the request is scoped to.
         mentioned_document_ids: KB documents the user @-mentioned this turn.
-            Read by ``KnowledgePriorityMiddleware`` to seed its priority
-            list. Stays out of the compiled-agent cache key — that's the
-            whole point of putting it here.
+            Read by the ``search_knowledge_base`` tool to pin these docs
+            into the retrieval scope. Stays out of the compiled-agent cache
+            key — that's the whole point of putting it here.
         mentioned_folder_ids: KB folders the user @-mentioned this turn
-            (cloud filesystem mode). Surfaced as ``[USER-MENTIONED]``
-            entries in ``<priority_documents>`` so the agent prioritises
-            walking those folders with ``ls`` / ``find_documents``.
+            (cloud filesystem mode). Pinned into the ``search_knowledge_base``
+            retrieval scope so matches from those folders are prioritised.
         file_operation_contract: One-shot file operation contract for the
             upcoming turn (reserved; not currently populated).
         turn_id / request_id: Correlation IDs surfaced by the streaming

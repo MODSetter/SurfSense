@@ -53,14 +53,6 @@ class AgentFeatureFlags:
     # Skills + subagents
     enable_skills: bool = True
     enable_specialized_subagents: bool = True
-    enable_kb_planner_runnable: bool = True
-
-    # KB retrieval mode — when False (default), the main agent retrieves KB
-    # content lazily via the on-demand ``search_knowledge_base`` tool and the
-    # expensive per-turn pre-injection (planner LLM + embed + hybrid search,
-    # ~2.3s) is skipped; explicit @-mentions are still surfaced cheaply. Set
-    # True to restore the original eager ``<priority_documents>`` pre-injection.
-    enable_kb_priority_preinjection: bool = False
 
     # Snapshot / revert
     enable_action_log: bool = True
@@ -118,9 +110,6 @@ class AgentFeatureFlags:
                 enable_llm_tool_selector=False,
                 enable_skills=False,
                 enable_specialized_subagents=False,
-                enable_kb_planner_runnable=False,
-                # Full rollback restores the original eager KB pre-injection.
-                enable_kb_priority_preinjection=True,
                 enable_action_log=False,
                 enable_revert_route=False,
                 enable_plugin_loader=False,
@@ -155,12 +144,6 @@ class AgentFeatureFlags:
             enable_skills=_env_bool("SURFSENSE_ENABLE_SKILLS", True),
             enable_specialized_subagents=_env_bool(
                 "SURFSENSE_ENABLE_SPECIALIZED_SUBAGENTS", True
-            ),
-            enable_kb_planner_runnable=_env_bool(
-                "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE", True
-            ),
-            enable_kb_priority_preinjection=_env_bool(
-                "SURFSENSE_ENABLE_KB_PRIORITY_PREINJECTION", False
             ),
             # Snapshot / revert
             enable_action_log=_env_bool("SURFSENSE_ENABLE_ACTION_LOG", True),
@@ -198,7 +181,6 @@ class AgentFeatureFlags:
                 self.enable_llm_tool_selector,
                 self.enable_skills,
                 self.enable_specialized_subagents,
-                self.enable_kb_planner_runnable,
                 self.enable_action_log,
                 self.enable_revert_route,
                 self.enable_plugin_loader,

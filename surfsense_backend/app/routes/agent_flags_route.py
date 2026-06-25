@@ -53,7 +53,6 @@ class AgentFeatureFlagsRead(BaseModel):
 
     enable_skills: bool
     enable_specialized_subagents: bool
-    enable_kb_planner_runnable: bool
 
     enable_action_log: bool
     enable_revert_route: bool

@@ -2,7 +2,7 @@
 
 These reducers back the extra state fields used by the cloud-mode filesystem
 agent (`cwd`, `staged_dirs`, `pending_moves`, `dirty_paths`, `doc_id_by_path`,
-`kb_priority`, `kb_anon_doc`, `tree_version`).
+`kb_anon_doc`, `tree_version`).
 
 Tools mutate these fields ONLY via `Command(update={...})` returns; the
 reducers are responsible for merging successive updates atomically and for
@@ -258,7 +258,6 @@ def _initial_filesystem_state() -> dict[str, Any]:
         "doc_id_by_path": {},
         "dirty_paths": [],
         "dirty_path_tool_calls": {},
-        "kb_priority": [],
         "kb_anon_doc": None,
         "tree_version": 0,
     }

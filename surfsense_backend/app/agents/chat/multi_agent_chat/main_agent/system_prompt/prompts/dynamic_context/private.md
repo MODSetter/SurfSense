@@ -8,11 +8,6 @@ standing instructions. It also reports current character usage versus the
 hard limit so you can manage the budget. Treat it as background colour for
 your answer, not as the task itself.
 
-`<priority_documents>` lists the workspace documents most relevant to the
-latest user message, ranked by relevance score, with `[USER-MENTIONED]`
-flagged on anything the user explicitly referenced. When the task is about
-workspace content, read these first.
-
 `<workspace_tree>` shows the full `/documents/` folder and file layout. Use
 it to resolve paths the user describes in natural language ("my Q2 roadmap",
 "last week's meeting notes") into concrete document references before

@@ -246,10 +246,10 @@ class NewChatRequest(BaseModel):
         description=(
             "Optional knowledge-base folder IDs the user mentioned with "
             "@. Resolved to virtual paths (``/documents/.../``) by "
-            "``mention_resolver`` and surfaced to the agent via "
-            "(a) backtick-wrapped substitution in ``user_query`` and "
-            "(b) a ``[USER-MENTIONED]`` entry in ``<priority_documents>``. "
-            "The agent's ``ls`` tool can then walk the folder itself."
+            "``mention_resolver``, surfaced to the agent via backtick-wrapped "
+            "substitution in ``user_query`` and pinned into the "
+            "``search_knowledge_base`` retrieval scope. The agent's ``ls`` "
+            "tool can then walk the folder itself."
         ),
     )
     mentioned_documents: list[MentionedDocumentInfo] | None = Field(

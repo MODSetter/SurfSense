@@ -9,7 +9,6 @@ The caller's question often references files by description (`"my meeting notes 
 1. If you do not know which mounts exist, call `ls('/')` first.
 2. Walk likely folders with the `ls` and `list_tree` tools.
 3. Use `glob` for filename patterns; use `grep` when the description points at *content* rather than a name.
-4. `<priority_documents>` lists top-K cloud-ingested docs, not local files — consult it only when the task spans both worlds (e.g. drafting a local note from a Notion source). Skip otherwise.
 
 If a precise path was already given, use it directly — skip the lookup.
 

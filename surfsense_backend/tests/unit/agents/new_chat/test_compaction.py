@@ -38,7 +38,7 @@ class TestIsProtectedSystemMessage:
         )
 
     def test_tolerates_leading_whitespace(self) -> None:
-        msg = SystemMessage(content="   \n<priority_documents>\n...")
+        msg = SystemMessage(content="   \n<workspace_tree>\n...")
         assert _is_protected_system_message(msg) is True
 
 
@@ -89,7 +89,7 @@ class TestPartitionMessages:
 
     def test_protected_system_message_preserved_even_in_summarize_half(self) -> None:
         partitioner = self._build_partitioner()
-        protected = SystemMessage(content="<priority_documents>\n...")
+        protected = SystemMessage(content="<workspace_tree>\n...")
         msgs = [
             HumanMessage(content="old human"),
             AIMessage(content="old ai"),
