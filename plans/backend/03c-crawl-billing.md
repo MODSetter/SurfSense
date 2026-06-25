@@ -127,6 +127,6 @@ One unit per `CrawlOutcomeStatus.SUCCESS` — a URL that yielded usable extracte
 
 ## Out of scope (hand-offs)
 
-- Per-**pipeline** run accounting / `charged_micros` persistence for idempotency → Phases 5–7.
+- Per-**pipeline** run accounting / `charged_micros` persistence for idempotency → Phases 5–7. Specifically, **Phase 6 moves pipeline-run billing out of the indexer to the run level**: it adds a `bill: bool = True` param to this indexer wiring and calls `index_crawled_urls(bill=False)` from the pipeline engine, which then does its own `check_credits` + `charge_credits(crawls_succeeded)` and stamps `PipelineRun.charged_micros` (idempotency). So this phase's in-indexer billing keeps serving the **connector `/index` + periodic** paths; the "pipeline crawls" half of the objective is refined by `06`. Structure the §2 wiring so it's easy to gate behind that flag.
 - Captcha-solver upstream cost pass-through → `03d` (deferred).
 - Surfacing crawl spend in the credit-status UI → frontend umbrella.

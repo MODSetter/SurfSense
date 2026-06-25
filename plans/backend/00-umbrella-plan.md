@@ -95,22 +95,24 @@ Split into two independently testable subplans:
 
 ### Phase 5 — Pipelines data model [`subplan: 05-pipelines-model.md`]
 
-- New tables: `pipelines` (workspace_id, user_id, connector_id, name, config JSON, schedule/cron, `save_to_kb` bool, `destination_folder_id` nullable, enabled, next_scheduled_at) and `pipeline_runs` (pipeline_id, status, trigger = manual/scheduled/upload, timestamps, doc counts, error, optional raw-result blob ref).
+- New tables: `pipelines` (workspace_id, `created_by_id` nullable SET-NULL [creator metadata, **not** owner], connector_id nullable, name, config JSONB, `schedule_cron` + `schedule_timezone` + enabled + next_scheduled_at, `save_to_kb` bool, `destination_folder_id` nullable) and `pipeline_runs` (pipeline_id, status, trigger = manual/scheduled/upload, timestamps, doc counts, `crawls_*`, `charged_micros`, error, optional raw-result blob ref).
 - Models + Pydantic schemas + Alembic migration + backend Zero publication entry.
 - Pipelines API routes: CRUD + manual run trigger + list runs.
 
 ### Phase 6 — Pipeline execution + scheduling [`subplan: 06-pipelines-exec.md`]
 
-- Run engine: pipeline run -> invoke connector fetch (WebURL crawler for MVP) -> if `save_to_kb`, route through `IndexingPipelineService` into the destination folder -> write `PipelineRun` record.
+- Run engine: pipeline run -> invoke connector fetch (WebURL crawler for MVP) -> if `save_to_kb`, persist to the destination folder (the crawler writes `Document`s directly via `index_crawled_urls`, extended with a `folder_id` param; it does **not** use `IndexingPipelineService`, which is the file/Composio path) -> write `PipelineRun` record. (06 verified the crawler indexer is its own KB-write path.)
 - **Crawl billing wiring (carry-over from `03c`):** `03c` meters crawls inside `webcrawler_indexer`. A pipeline run that crawls but has `save_to_kb=false` must NOT bypass billing — wire the pipeline fetch through the same `WebCrawlCreditService` (pre-check + charge on `crawls_succeeded`) regardless of the KB-save branch, ideally recording `charged_micros` on the `PipelineRun` for idempotency. Otherwise non-KB pipeline crawls are free by accident.
-- Scheduling: reuse the Celery Beat meta-scheduler pattern (`schedule_checker_task.py`, `periodic_scheduler.py`) for cron + manual triggers.
+- Scheduling: a Celery Beat tick over `pipelines.next_scheduled_at`, modeled on the **automations** cron **selector** (`automations/triggers/builtin/schedule/selector.py` — cron + `FOR UPDATE SKIP LOCKED` + self-heal, reusing the `croniter` util), which fits `schedule_cron` better than the connector `frequency_minutes` checker. Plus the de-dup guard (a pipeline over a connector disables that connector's own periodic indexing) so the two minute-level scans never double-crawl/bill.
 - When `save_to_kb` is off, persist the raw fetch result on the run (blob via `file_storage`) so it is retrievable without indexing.
 - Chat agent context: expose pipeline run history to the `multi_agent_chat` agent (read-only) — via a tool (e.g. `list_pipelines` / `get_pipeline_runs`) and/or a context middleware injection (similar to `KnowledgeTreeMiddleware`). Scope strictly to the active workspace. Gives the agent awareness of recent runs, statuses, schedules, and last-fetched timestamps.
 
 ### Phase 7 — File upload as a pipeline + KB-save-secondary [`subplan: 07-upload-pipeline-kb.md`]
 
-- Wire file upload (`documents_routes.py` fileupload flow) to create/use an "Uploads" pipeline and register a `PipelineRun`; uploads always `save_to_kb = true`.
-- Generalize KB saving to be opt-in for non-upload pipelines via `save_to_kb` + destination folder.
+- Wire file upload (`documents_routes.py` `fileupload` + `folder-upload` flows) to lazily get-or-create a **singleton "Uploads" pipeline** per workspace (`connector_id = NULL`, `save_to_kb = true`) and register a `PipelineRun(trigger=upload)`; uploads always `save_to_kb = true`.
+- **Key design fact:** uploads are **route-recorded, not engine-executed** — Phase 6's engine fails `connector_id IS NULL` runs, so the upload routes themselves write a terminal audit `PipelineRun` (the existing upload code stays the executor). The run is an upload-*event* record; per-file ETL outcomes stay on `Document.status` (accurate per-file roll-up needs the deferred `documents.pipeline_run_id` provenance column).
+- A small migration adds a partial unique index `ON pipelines(workspace_id) WHERE connector_id IS NULL` (enforces the singleton + race-safe get-or-create).
+- KB-save-secondary: the opt-in `save_to_kb` + destination folder for connector pipelines already shipped in Phases 5–6; Phase 7 only records the inverse invariant (uploads always KB) and guards the connector default stays `False`.
 
 ## Deferred — Frontend & client phases (separate umbrella, planned LATER)
 
@@ -124,8 +126,8 @@ These are recorded for continuity but are NOT planned in this umbrella. They sta
 ## Open items to confirm during subplanning
 
 - ~~Rename transition: hard cutover vs temporary API aliases~~ RESOLVED: HARD CUTOVER (see resolved log + 02-rename-backend.md). The frontend is rebuilt against the corrected backend in its own umbrella; backend is verified via tests/OpenAPI, not the old UI.
-- Whether existing connector periodic-indexing config is migrated into Pipelines or coexists during MVP.
-- Chat agent run-history access: tool vs middleware injection vs both (default: tool).
+- ~~Whether existing connector periodic-indexing config is migrated into Pipelines or coexists during MVP.~~ RESOLVED (Phase 5): COEXIST — connector periodic path stays untouched; pipelines add a sibling `next_scheduled_at` scan. Phase 6 owns the de-dup guard (a pipeline over a connector disables that connector's `periodic_indexing_enabled`) to avoid double crawl/bill. See `05-pipelines-model.md`.
+- ~~Chat agent run-history access: tool vs middleware injection vs both (default: tool).~~ RESOLVED (Phase 6): **tool** — a read-only main-agent `get_pipeline_runs` tool (registry pattern), workspace-scoped via its build-time `search_space_id`, opening its own `shielded_async_session()` (like `KnowledgeTreeMiddleware`). Always-on `<pipeline_activity>` middleware injection is deferred (per-turn token cost). See `06-pipelines-exec.md`.
 - ~~Type-2 MCP migration depth~~ RESOLVED (Phase 4): branded natives are tagged `MIGRATING` and turned OFF for MVP (not re-pointed to MCP yet); only the generic `MCP_CONNECTOR` is a functional Type-2. Real MCP re-pointing is post-MVP.
 
 ## Resolved decisions log
@@ -143,6 +145,9 @@ These are recorded for continuity but are NOT planned in this umbrella. They sta
 - Billable unit: one unit per URL that returns usable extracted content, regardless of how many internal fallback tiers were attempted (not per HTTP fetch, not per URL-processed).
 - Captcha solving (captcha-tools): DEFERRED to the last Phase-3 subplan (`03d`); non-MVP-blocking.
 - Roadmap: WebURL Crawler & Crawl Billing inserted as the new Phase 3; connector two-type → Phase 4; pipelines → Phases 5/6/7.
+- Phase 5 pipelines data model: two new tables `pipelines` (mutable) + `pipeline_runs` (append-only), modeled on `automations`/`automation_runs`; ORM lives in `db.py` next to connectors/folders. `connector_id` nullable (NULL = Phase-7 Uploads), eligibility enforced at create via 04a's `is_pipeline_eligible`. Schedule = `schedule_cron` + `schedule_timezone` (default UTC) + `next_scheduled_at` (cron, matching automations). `pipeline_runs` pre-includes `charged_micros`/`crawls_*`/`result_blob_key` so Phase 6 needs no extra migration. Both tables published to Zero **full-row** (like folders/connectors). Routes reuse `CONNECTORS_*` permissions. Phase 5 ships the data model + API surface only; the `/run` endpoint enqueues a Phase-6 task stub.
+- Phase 7 uploads-as-pipeline: a **singleton "Uploads" pipeline** per workspace (`connector_id NULL`, `save_to_kb=true`), lazily get-or-created (race-safe via a partial unique index `ON pipelines(workspace_id) WHERE connector_id IS NULL`). Each `fileupload`/`folder-upload` request writes a **terminal audit `PipelineRun(trigger=upload, status=succeeded, documents_indexed=<accepted count>)`** — uploads are **route-recorded, not engine-executed** (Phase 6 fails NULL-connector runs by design; existing upload code stays the executor). Best-effort via an **inner** try/except (never 5xx the upload — the route's outer handler would otherwise 500 an already-committed upload). No crawl billing (uploads aren't crawls; `charged_micros` NULL). Per-file ETL truth stays on `Document.status`; accurate roll-up needs the deferred `documents.pipeline_run_id` provenance. Connector `save_to_kb` default stays `False` (opt-in for connectors, mandatory for uploads). Phase 7 also **guards Phase-5's generic CRUD** against the system Uploads pipeline: `POST /pipelines` rejects `connector_id=None` (supersedes Phase 5's permissive create), `/run` and schedule-`PUT` reject NULL-connector pipelines, and Phase 6's scheduler `_claim_due` filters `connector_id IS NOT NULL` as a backstop (so the Uploads pipeline can never be manually-run or scheduled into perpetually-failing runs). See `07-upload-pipeline-kb.md`.
+- Phase 6 pipeline execution: run engine mirrors **automations** (thin Celery `run_pipeline(run_id)` → `execute_pipeline_run`; PENDING-gated, idempotent terminal no-op; `pending→running→succeeded/failed` with timing/counts/error). MVP executor = **WebURL crawler only** (other types fail cleanly). `save_to_kb=true` reuses `index_crawled_urls` extended with a `folder_id` param (lands in the destination folder); `save_to_kb=false` runs a **fetch-only** loop and persists one JSON blob via `file_storage` (`result_blob_key`). **Crawl billing is owned by the run engine** for the pipeline path (pre-check on `len(urls)` + charge `crawls_succeeded` + idempotent `charged_micros`), calling the crawler with a new `bill=False` seam (the connector `/index`+periodic paths keep `03c`'s in-indexer `bill=True`) — so non-KB runs are billed identically. Scheduler = a `pipeline_schedule_select` Beat tick modeled on the automations cron **selector** (cron + `FOR UPDATE SKIP LOCKED` + self-heal, using the existing `croniter` util), plus the **de-dup guard** (a pipeline over a connector disables that connector's `periodic_indexing_enabled`). Chat context = the `get_pipeline_runs` tool. Carries a small additive `05` amendment: a `schedule_timezone` column (cron util needs a tz). See `06-pipelines-exec.md`.
 
 ## Subplan index (backend)
 
@@ -156,8 +161,8 @@ These are recorded for continuity but are NOT planned in this umbrella. They sta
 | 3 | `03d-captcha-solving.md` | drafted (deferred — last) |
 | 4 | `04a-connector-category.md` | drafted |
 | 4 | `04b-source-discovery.md` | drafted |
-| 5 | `05-pipelines-model.md` | not started |
-| 6 | `06-pipelines-exec.md` | not started |
-| 7 | `07-upload-pipeline-kb.md` | not started |
+| 5 | `05-pipelines-model.md` | drafted |
+| 6 | `06-pipelines-exec.md` | drafted |
+| 7 | `07-upload-pipeline-kb.md` | drafted |
 
 Frontend & client subplans will be added under a separate umbrella later (see "Deferred — Frontend & client phases").

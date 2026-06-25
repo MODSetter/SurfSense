@@ -82,7 +82,7 @@ These reference `search_space_id` by COLUMN but the index/constraint NAME does n
 
 ### Conventions (from the repo)
 
-- Revision ids are plain integers; head is `165` (`revision="165"`, `down_revision="164"`) — [surfsense_backend/alembic/versions/165_add_chunk_position.py](surfsense_backend/alembic/versions/165_add_chunk_position.py) lines 25-26. New file: `166_rename_searchspace_to_workspace.py` with `revision="166"`, `down_revision="165"`.
+- Revision ids are plain integers; the new migration chains after the **then-current head** — verify with `alembic heads` at implementation time, since the head advances as other PRs merge. Today the head is `166` ([surfsense_backend/alembic/versions/166_add_pat_and_api_access.py](surfsense_backend/alembic/versions/166_add_pat_and_api_access.py)), so the new file would be `167_rename_searchspace_to_workspace.py` with `revision="167"`, `down_revision="166"`. (Note: Phase 4b and Phase 5 each add a migration too; whichever lands first takes the next integer — chain by actual head, not by these illustrative numbers.)
 - Migrations run one-per-transaction under an advisory lock — [surfsense_backend/alembic/env.py](surfsense_backend/alembic/env.py) lines 77, 80-95. So all renames below land atomically.
 - Raw `op.execute("ALTER TABLE ...")` is the house style (e.g. [165_add_chunk_position.py](surfsense_backend/alembic/versions/165_add_chunk_position.py) lines 39-49).
 

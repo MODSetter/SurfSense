@@ -83,7 +83,7 @@ class CrawlOutcomeStatus(str, Enum):
     FAILED  = "failed"    # invalid URL or every tier errored
 ```
 
-`crawl_url()` returns a small dataclass `CrawlOutcome(status, result, error, tier)` (or, to minimize churn, keep the tuple and add a third element). Either way the **billable success predicate is single-sourced**: `status == SUCCESS`.
+`crawl_url()` returns a small dataclass `CrawlOutcome(status, result, error, tier)` — **commit to the dataclass** (not a tuple): `03c` keys billing off `status == SUCCESS`, and Phase 6's fetch-only path (`06-pipelines-exec.md`) consumes `outcome.status` / `outcome.result` / `outcome.error` as attributes, so a tuple form would break that consumer. The **billable success predicate is single-sourced**: `status == CrawlOutcomeStatus.SUCCESS`.
 
 | Outcome | When | Billable (`03c`)? | Document status (indexer) |
 |---------|------|-------------------|---------------------------|
@@ -95,7 +95,9 @@ class CrawlOutcomeStatus(str, Enum):
 
 ### Success counter for the indexer
 
-Add an explicit `crawls_succeeded` counter in `index_crawled_urls()` incremented whenever `crawl_url` returns `SUCCESS` (right after line 297's call, before the dedupe/unchanged branches), and surface it in the task-success metadata (lines 455–466) and return value. This is the hand-off point `03c` meters against.
+Add an explicit `crawls_succeeded` counter in `index_crawled_urls()` incremented whenever `crawl_url` returns `SUCCESS` (right after line 297's call, before the dedupe/unchanged branches), and surface it in the task-success metadata (lines 455–466). `03c` meters against this **in-function** counter (it charges inside the indexer — the count does not need to escape via the return).
+
+> **Do NOT widen the positional return tuple.** The shared `_run_indexing_with_notifications` wrapper unpacks every indexer's return **by length** (`search_source_connectors_routes.py:1499–1507`: `if len(result) == 3: a,b,c = result else: a,b = result`) — a 3-tuple would mislabel `crawls_succeeded` as `documents_skipped`, a 4-tuple would raise `ValueError`. Keep the existing `(total_processed, error)` shape. **Phase 6** (`06-pipelines-exec.md`) later exposes `crawls_succeeded`/`documents_indexed`/`crawls_attempted` to the pipeline run engine via an optional `stats` **out-param** (plus `folder_id`/`urls`/`bill`), not via the return — so `03a` only needs the counter + metadata here.
 
 ### Chat scrape tool
 
@@ -105,7 +107,7 @@ Drop the Firecrawl-only `formats=["markdown"]` arg (markdown is already the Traf
 
 1. **Rip out Firecrawl** across the surface table above (crawler, dep, validators, indexer, chat plumbing, automations, tests) — code-only, no env/docs change.
 2. **Refactor `crawl_url`** to the 3-tier Scrapling ladder + explicit `CrawlOutcome`; enable `solve_cloudflare` on the stealthy tier.
-3. **Add `crawls_succeeded`** counting in `webcrawler_indexer.py` + expose in result/metadata.
+3. **Add `crawls_succeeded`** counting in `webcrawler_indexer.py` + expose in **task metadata only** (03c bills off the in-function counter). **Do not change the positional return tuple** (the shared wrapper unpacks by length; Phase 6 adds a `stats` out-param).
 4. **Update both `scrape_webpage` tools** to drop `firecrawl_api_key` + `formats`.
 5. **Tests:** unit tests for `crawl_url` outcomes (mock Scrapling fetchers → SUCCESS/EMPTY/FAILED); update `test_dependencies.py`; assert the indexer's `crawls_succeeded` count.
 
