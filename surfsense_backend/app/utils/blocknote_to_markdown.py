@@ -133,7 +133,7 @@ def _render_block(
         code_text = _render_inline_content(content) if content else ""
         lines.append(f"{prefix}```{language}")
         for code_line in code_text.split("\n"):
-            lines.append(f"{prefix}{code_line}")
+            lines.append(code_line)
         lines.append(f"{prefix}```")
 
     elif block_type == "table":
