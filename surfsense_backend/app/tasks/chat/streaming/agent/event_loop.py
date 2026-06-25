@@ -81,6 +81,7 @@ async def stream_agent_events(
     result.final_message_parts = final_assistant_parts_from_messages(
         state_values.get("messages")
     )
+    result.citation_registry = state_values.get("citation_registry")
 
     # Safety net: if astream_events was cancelled before
     # KnowledgeBasePersistenceMiddleware.aafter_agent ran, any staged work

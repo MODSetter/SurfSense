@@ -39,3 +39,7 @@ class StreamResult:
     # state. Used after streaming completes as a provider-agnostic persistence
     # backfill when no text chunks reached the live stream.
     final_message_parts: list[dict[str, Any]] = field(default_factory=list)
+    # Per-conversation citation registry captured from the final LangGraph state
+    # (a ``CitationRegistry`` or its serialized dict). Read at finalize to rewrite
+    # the model's ``[n]`` ordinals into ``[citation:<payload>]`` markers.
+    citation_registry: Any | None = field(default=None, repr=False)

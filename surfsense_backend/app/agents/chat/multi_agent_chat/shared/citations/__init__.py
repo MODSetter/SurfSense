@@ -9,11 +9,13 @@ from .markers import to_frontend_payload
 from .models import CitationEntry, CitationSourceType
 from .normalizer import normalize_citations
 from .registry import CitationRegistry, make_key
+from .state import load_registry
 
 __all__ = [
     "CitationEntry",
     "CitationRegistry",
     "CitationSourceType",
+    "load_registry",
     "make_key",
     "normalize_citations",
     "to_frontend_payload",

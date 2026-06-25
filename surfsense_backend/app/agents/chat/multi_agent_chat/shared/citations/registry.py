@@ -57,5 +57,35 @@ class CitationRegistry(BaseModel):
         """Map ``[n]`` back to its source; unknown → ``None`` so bad citations drop."""
         return self.by_n.get(n)
 
+    def merge(self, other: CitationRegistry) -> CitationRegistry:
+        """Union ``self`` with ``other`` (find-or-create), returning a new registry.
+
+        Needed because separate branches (parent + subagents, parallel tool calls)
+        each register into a registry forked from the same base. A plain replace
+        would drop one branch's mappings; this unions them so ``[n]`` stays globally
+        consistent and no source is lost:
+
+        - A source already in ``self`` keeps its existing ``[n]``.
+        - A source only in ``other`` keeps its ``[n]`` when that slot is free.
+        - A collision (same ``[n]``, different source on each side) re-mints the
+          ``other`` entry to a fresh ``[n]`` and advances ``next_n`` past both.
+
+        Pure: neither registry is mutated. Entries are folded in ascending ``[n]``
+        order so the result is deterministic.
+        """
+        merged = self.model_copy(deep=True)
+        for n in sorted(other.by_n):
+            entry = other.by_n[n]
+            key = make_key(entry.source_type, entry.locator)
+            if key in merged.by_key:
+                continue
+            if n in merged.by_n:
+                merged.register(entry.source_type, entry.locator, entry.display)
+            else:
+                merged.by_n[n] = entry.model_copy(deep=True)
+                merged.by_key[key] = n
+                merged.next_n = max(merged.next_n, n + 1)
+        return merged
+
 
 __all__ = ["CitationRegistry", "make_key"]

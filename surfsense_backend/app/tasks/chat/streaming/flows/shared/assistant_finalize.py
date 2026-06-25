@@ -22,8 +22,12 @@ Never raises (best-effort, logs only).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from app.agents.chat.multi_agent_chat.shared.citations import (
+    CitationRegistry,
+    normalize_citations,
+)
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.utils.perf import get_perf_logger
 
@@ -31,6 +35,35 @@ if TYPE_CHECKING:
     from app.services.token_tracking_service import TokenAccumulator
 
 _perf_log = get_perf_logger()
+
+
+def _as_registry(raw: Any) -> CitationRegistry | None:
+    """Coerce the captured state value into a registry, tolerating a serialized dict."""
+    if isinstance(raw, CitationRegistry):
+        return raw
+    if isinstance(raw, dict):
+        try:
+            return CitationRegistry.model_validate(raw)
+        except Exception:
+            return None
+    return None
+
+
+def _resolve_citations(
+    content_payload: list[dict[str, Any]], raw_registry: Any
+) -> list[dict[str, Any]]:
+    """Rewrite ``[n]`` -> ``[citation:<payload>]`` in each text part before persisting.
+
+    No-op when the turn registered no citable sources; ``web_search``'s existing
+    ``[citation:url]`` markers pass through untouched (the regex matches bare ``[n]``).
+    """
+    registry = _as_registry(raw_registry)
+    if registry is None or not registry.by_n:
+        return content_payload
+    for part in content_payload:
+        if part.get("type") == "text" and isinstance(part.get("text"), str):
+            part["text"] = normalize_citations(part["text"], registry)
+    return content_payload
 
 
 async def finalize_assistant_message(
@@ -78,6 +111,9 @@ async def finalize_assistant_message(
     content_payload = merge_streamed_and_final_parts(
         content_payload,
         stream_result.final_message_parts,
+    )
+    content_payload = _resolve_citations(
+        content_payload, stream_result.citation_registry
     )
 
     if builder_stats is not None:
