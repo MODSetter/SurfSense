@@ -208,10 +208,9 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 
 			<div className="border-t pt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<div className="space-y-1">
-					<Label htmlFor="api-access-enabled">Programmatic API access</Label>
+					<Label htmlFor="api-access-enabled">API key access</Label>
 					<p className="text-xs text-muted-foreground">
-						Allow personal access tokens to use this search space. Web and desktop sessions are not
-						affected.
+						Allow API keys to access this search space.
 					</p>
 				</div>
 				<Switch

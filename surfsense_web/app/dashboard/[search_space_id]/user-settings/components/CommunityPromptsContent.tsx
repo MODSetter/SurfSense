@@ -38,13 +38,13 @@ export function CommunityPromptsContent() {
 	const list = prompts ?? [];
 
 	return (
-		<div className="space-y-6 min-w-0 overflow-hidden">
+		<div className="space-y-6 min-w-0">
 			<p className="text-sm text-muted-foreground">
 				Prompts shared by other users. Add any to your collection with one click.
 			</p>
 
 			{isLoading && (
-				<div className="space-y-2">
+				<div className="-m-1 space-y-2 p-1">
 					{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
 						<Card key={key} className="border-accent bg-accent/20">
 							<CardContent className="p-4 flex flex-col gap-3 min-h-24">
@@ -76,7 +76,7 @@ export function CommunityPromptsContent() {
 			)}
 
 			{!isLoading && !isError && list.length > 0 && (
-				<div className="space-y-2">
+				<div className="-m-1 space-y-2 p-1">
 					{list.map((prompt) => (
 						<Card
 							key={prompt.id}
