@@ -8,7 +8,6 @@ webhook fulfillment (idempotent), and the reconciliation fallback.
 from __future__ import annotations
 
 from types import SimpleNamespace
-from urllib.parse import parse_qs, urlparse
 
 import asyncpg
 import httpx
@@ -63,18 +62,13 @@ def _extract_access_token(response: httpx.Response) -> str | None:
     if response.status_code == 200:
         return response.json()["access_token"]
 
-    if response.status_code == 302:
-        location = response.headers.get("location", "")
-        return parse_qs(urlparse(location).query).get("token", [None])[0]
-
     return None
 
 
 async def _authenticate_test_user(client: httpx.AsyncClient) -> str:
     response = await client.post(
-        "/auth/jwt/login",
-        data={"username": TEST_EMAIL, "password": TEST_PASSWORD},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        "/auth/desktop/login",
+        json={"email": TEST_EMAIL, "password": TEST_PASSWORD},
     )
     token = _extract_access_token(response)
     if token:
@@ -89,9 +83,8 @@ async def _authenticate_test_user(client: httpx.AsyncClient) -> str:
     )
 
     response = await client.post(
-        "/auth/jwt/login",
-        data={"username": TEST_EMAIL, "password": TEST_PASSWORD},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        "/auth/desktop/login",
+        json={"email": TEST_EMAIL, "password": TEST_PASSWORD},
     )
     token = _extract_access_token(response)
     assert token, f"Login failed ({response.status_code}): {response.text}"

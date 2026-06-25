@@ -23,11 +23,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _render_inline_content(content: list[dict[str, Any]] | None) -> str:
+def _render_inline_content(
+    content: list[dict[str, Any]] | None,
+    inherited_styles: dict[str, Any] | None = None,
+) -> str:
     """Convert BlockNote inline content array to a markdown string."""
     if not content:
         return ""
 
+    inherited_styles = inherited_styles or {}
     parts: list[str] = []
     for item in content:
         if not isinstance(item, dict):
@@ -37,7 +41,10 @@ def _render_inline_content(content: list[dict[str, Any]] | None) -> str:
 
         if item_type == "text":
             text = item.get("text", "")
-            styles: dict[str, Any] = item.get("styles", {})
+            styles: dict[str, Any] = {
+                **inherited_styles,
+                **item.get("styles", {}),
+            }
 
             # Apply inline styles (order: code first so nested marks don't break it)
             if styles.get("code"):
@@ -56,7 +63,11 @@ def _render_inline_content(content: list[dict[str, Any]] | None) -> str:
         elif item_type == "link":
             href = item.get("href", "")
             link_content = item.get("content", [])
-            link_text = _render_inline_content(link_content) if link_content else href
+            link_text = (
+                _render_inline_content(link_content, inherited_styles)
+                if link_content
+                else href
+            )
             parts.append(f"[{link_text}]({href})")
 
         else:
@@ -89,6 +100,7 @@ def _render_block(
     """
     block_type = block.get("type", "paragraph")
     props: dict[str, Any] = block.get("props", {})
+    styles: dict[str, Any] = block.get("styles", {})
     content = block.get("content")
     children: list[dict[str, Any]] = block.get("children", [])
     prefix = "  " * indent  # 2-space indent per nesting level
@@ -98,17 +110,17 @@ def _render_block(
     # --- Block type handlers ---
 
     if block_type == "paragraph":
-        text = _render_inline_content(content) if content else ""
+        text = _render_inline_content(content, styles) if content else ""
         lines.append(f"{prefix}{text}")
 
     elif block_type == "heading":
         level = props.get("level", 1)
         hashes = "#" * min(max(level, 1), 6)
-        text = _render_inline_content(content) if content else ""
+        text = _render_inline_content(content, styles) if content else ""
         lines.append(f"{prefix}{hashes} {text}")
 
     elif block_type == "bulletListItem":
-        text = _render_inline_content(content) if content else ""
+        text = _render_inline_content(content, styles) if content else ""
         lines.append(f"{prefix}- {text}")
 
     elif block_type == "numberedListItem":
@@ -118,13 +130,13 @@ def _render_block(
             numbered_list_counter = int(start)
         else:
             numbered_list_counter += 1
-        text = _render_inline_content(content) if content else ""
+        text = _render_inline_content(content, styles) if content else ""
         lines.append(f"{prefix}{numbered_list_counter}. {text}")
 
     elif block_type == "checkListItem":
         checked = props.get("checked", False)
         marker = "[x]" if checked else "[ ]"
-        text = _render_inline_content(content) if content else ""
+        text = _render_inline_content(content, styles) if content else ""
         lines.append(f"{prefix}- {marker} {text}")
 
     elif block_type == "codeBlock":

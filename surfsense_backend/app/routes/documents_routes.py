@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.auth.context import AuthContext
 from app.agents.chat.runtime.path_resolver import virtual_path_to_doc
+from app.auth.context import AuthContext
 from app.db import (
     Chunk,
     Document,
@@ -18,7 +18,6 @@ from app.db import (
     Permission,
     SearchSpace,
     SearchSpaceMembership,
-    User,
     get_async_session,
 )
 from app.schemas import (
@@ -684,7 +683,6 @@ async def search_document_titles(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Lightweight document title search optimized for mention picker (@mentions).
 
@@ -789,7 +787,6 @@ async def get_document_by_virtual_path(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Resolve a knowledge-base document by its agent-facing virtual path.
 
     The agent renders every document under ``/documents/...`` with a
@@ -847,7 +844,6 @@ async def get_documents_status(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Batch status endpoint for documents in a search space.
 
@@ -1071,7 +1067,6 @@ async def get_watched_folders(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Return root folders that are marked as watched (metadata->>'watched' = 'true')."""
     await check_permission(
         session,
@@ -1113,7 +1108,6 @@ async def get_document_chunks_paginated(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Paginated chunk loading for a document.
     Supports both page-based and offset-based access.
@@ -1175,7 +1169,6 @@ async def read_document(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Get a specific document by ID.
     Requires DOCUMENTS_READ permission for the search space.
@@ -1230,7 +1223,6 @@ async def update_document(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Update a document.
     Requires DOCUMENTS_UPDATE permission for the search space.
@@ -1290,7 +1282,6 @@ async def delete_document(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Delete a document.
     Requires DOCUMENTS_DELETE permission for the search space.
@@ -1536,7 +1527,6 @@ async def folder_mtime_check(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Pre-upload optimization: check which files need uploading based on mtime.
 
     Returns the subset of relative paths where the file is new or has a
@@ -1754,7 +1744,6 @@ async def folder_unlink(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Handle file deletion events from the desktop watcher.
 
     For each relative path, find the matching document and delete it.
@@ -1809,7 +1798,6 @@ async def folder_sync_finalize(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Finalize a full folder scan by deleting orphaned documents.
 
     The client sends the complete list of relative paths currently in the

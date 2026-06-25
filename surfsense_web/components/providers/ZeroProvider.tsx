@@ -5,14 +5,22 @@ import {
 	useZero,
 	ZeroProvider as ZeroReactProvider,
 } from "@rocicorp/zero/react";
-import { useAtomValue } from "jotai";
-import { useEffect, useMemo, useRef } from "react";
-import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import { getBearerToken, handleUnauthorized, refreshAccessToken } from "@/lib/auth-utils";
+import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useSession } from "@/hooks/use-session";
+import { getDesktopAccessToken } from "@/lib/auth-fetch";
+import { handleUnauthorized, isPublicRoute, refreshSession } from "@/lib/auth-utils";
+import { buildBackendUrl } from "@/lib/env-config";
+import type { Context } from "@/types/zero";
 import { queries } from "@/zero/queries";
 import { schema } from "@/zero/schema";
 
 const configuredCacheURL = process.env.NEXT_PUBLIC_ZERO_CACHE_URL;
+type ZeroContext = Exclude<Context, undefined>;
+type LoadedZeroContext = {
+	context: ZeroContext;
+	desktopAuth?: string;
+};
 
 function getCacheURL() {
 	if (configuredCacheURL) return configuredCacheURL;
@@ -22,48 +30,155 @@ function getCacheURL() {
 	return "http://localhost:4848";
 }
 
-function ZeroAuthSync() {
+async function fetchZeroContext(isDesktop: boolean): Promise<LoadedZeroContext | null> {
+	const headers: HeadersInit = {};
+	let desktopAuth: string | undefined;
+
+	if (isDesktop) {
+		const token = await getDesktopAccessToken();
+		if (!token) return null;
+		desktopAuth = token;
+		headers.Authorization = `Bearer ${token}`;
+	}
+
+	const response = await fetch(buildBackendUrl("/zero/context"), {
+		credentials: "include",
+		headers,
+	});
+
+	if (!response.ok) return null;
+
+	return {
+		context: (await response.json()) as ZeroContext,
+		desktopAuth,
+	};
+}
+
+function ZeroAuthSync({ isDesktop }: { isDesktop: boolean }) {
 	const zero = useZero();
 	const connectionState = useConnectionState();
-	const isRefreshingRef = useRef(false);
 
 	useEffect(() => {
-		if (connectionState.name !== "needs-auth" || isRefreshingRef.current) return;
+		if (connectionState.name !== "needs-auth") return;
 
-		isRefreshingRef.current = true;
+		refreshSession().then(async (refreshed) => {
+			if (!refreshed) {
+				handleUnauthorized();
+				return;
+			}
 
-		refreshAccessToken()
-			.then((newToken) => {
-				if (newToken) {
-					zero.connection.connect({ auth: newToken });
-				} else {
+			if (isDesktop) {
+				const newToken = await getDesktopAccessToken();
+				if (!newToken) {
 					handleUnauthorized();
+					return;
 				}
-			})
-			.finally(() => {
-				isRefreshingRef.current = false;
-			});
-	}, [connectionState, zero]);
+				zero.connection.connect({ auth: newToken });
+			} else {
+				zero.connection.connect();
+			}
+		});
+	}, [connectionState.name, isDesktop, zero]);
+
+	useEffect(() => {
+		if (typeof window === "undefined" || !window.electronAPI?.onAuthChanged) return;
+		return window.electronAPI.onAuthChanged(({ accessToken }) => {
+			if (accessToken) {
+				zero.connection.connect({ auth: accessToken });
+			}
+		});
+	}, [zero]);
 
 	return null;
 }
 
-export function ZeroProvider({ children }: { children: React.ReactNode }) {
-	const { data: user } = useAtomValue(currentUserAtom);
-	const cacheURL = useMemo(() => getCacheURL(), []);
+function AuthenticatedZeroProvider({
+	children,
+	isDesktop,
+}: {
+	children: React.ReactNode;
+	isDesktop: boolean;
+}) {
+	const [loadedContext, setLoadedContext] = useState<LoadedZeroContext | null>(null);
 
-	const userId = user?.id;
-	const hasUser = !!userId;
-	const userID = hasUser ? String(userId) : "anon";
-	// getBearerToken() returns a string (a primitive), so it's safe to read
-	// on every render — reference equality holds as long as the token is
-	// unchanged, which keeps the memoized `opts` below stable.
-	const auth = hasUser ? getBearerToken() || undefined : undefined;
+	useEffect(() => {
+		let isMounted = true;
 
-	const context = useMemo(
-		() => (hasUser ? { userId: String(userId) } : undefined),
-		[hasUser, userId]
+		const load = async () => {
+			const nextContext = await fetchZeroContext(isDesktop);
+			if (isMounted) {
+				setLoadedContext(nextContext);
+			}
+		};
+
+		void load();
+
+		if (!isDesktop || typeof window === "undefined" || !window.electronAPI?.onAuthChanged) {
+			return () => {
+				isMounted = false;
+			};
+		}
+
+		const unsubscribe = window.electronAPI.onAuthChanged(({ accessToken }) => {
+			if (!accessToken) {
+				setLoadedContext(null);
+				return;
+			}
+			void load();
+		});
+
+		return () => {
+			isMounted = false;
+			unsubscribe();
+		};
+	}, [isDesktop]);
+
+	if (!loadedContext) {
+		return <>{children}</>;
+	}
+
+	return (
+		<ZeroClientProvider
+			userID={loadedContext.context.userId}
+			context={loadedContext.context}
+			isDesktop={isDesktop}
+			initialDesktopAuth={loadedContext.desktopAuth}
+		>
+			{children}
+		</ZeroClientProvider>
 	);
+}
+
+function ZeroClientProvider({
+	children,
+	userID,
+	context,
+	isDesktop,
+	initialDesktopAuth,
+}: {
+	children: React.ReactNode;
+	userID: string;
+	context: ZeroContext;
+	isDesktop: boolean;
+	initialDesktopAuth?: string;
+}) {
+	const cacheURL = useMemo(() => getCacheURL(), []);
+	const [desktopAuth, setDesktopAuth] = useState<string | undefined>(initialDesktopAuth);
+
+	useEffect(() => {
+		setDesktopAuth(initialDesktopAuth);
+	}, [initialDesktopAuth]);
+
+	useEffect(() => {
+		if (!isDesktop) return;
+		let isMounted = true;
+		getDesktopAccessToken().then((token) => {
+			if (isMounted) setDesktopAuth(token || undefined);
+		});
+		return () => {
+			isMounted = false;
+		};
+	}, [isDesktop]);
 
 	const opts = useMemo(
 		() => ({
@@ -72,15 +187,44 @@ export function ZeroProvider({ children }: { children: React.ReactNode }) {
 			queries,
 			context,
 			cacheURL,
-			auth,
+			auth: isDesktop ? desktopAuth : undefined,
 		}),
-		[userID, context, cacheURL, auth]
+		[userID, context, cacheURL, isDesktop, desktopAuth]
 	);
 
 	return (
 		<ZeroReactProvider {...opts}>
-			{hasUser && <ZeroAuthSync />}
+			<ZeroAuthSync isDesktop={isDesktop} />
 			{children}
 		</ZeroReactProvider>
 	);
+}
+
+function WebZeroProvider({ children }: { children: React.ReactNode }) {
+	const session = useSession();
+
+	if (session.status !== "authenticated") {
+		return <>{children}</>;
+	}
+
+	return <AuthenticatedZeroProvider isDesktop={false}>{children}</AuthenticatedZeroProvider>;
+}
+
+function DesktopZeroProvider({ children }: { children: React.ReactNode }) {
+	return <AuthenticatedZeroProvider isDesktop>{children}</AuthenticatedZeroProvider>;
+}
+
+export function ZeroProvider({ children }: { children: React.ReactNode }) {
+	const pathname = usePathname();
+	const isDesktop = typeof window !== "undefined" && !!window.electronAPI;
+
+	if (!isDesktop && isPublicRoute(pathname)) {
+		return <>{children}</>;
+	}
+
+	if (isDesktop) {
+		return <DesktopZeroProvider>{children}</DesktopZeroProvider>;
+	}
+
+	return <WebZeroProvider>{children}</WebZeroProvider>;
 }

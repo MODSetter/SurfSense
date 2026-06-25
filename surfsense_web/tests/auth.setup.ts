@@ -4,9 +4,9 @@ import { announcements } from "../lib/announcements/announcements-data";
 import { acquireTestToken } from "./helpers/api/auth";
 
 /**
- * One-time authentication setup. Acquires a bearer token for the seeded
- * e2e user (rate-limit-free /__e2e__/auth/token first, /auth/jwt/login
- * fallback) and persists it via localStorage so every test in the
+ * One-time authentication setup. Acquires an access token for the seeded
+ * e2e user (rate-limit-free /__e2e__/auth/token first, desktop login
+ * fallback) and persists it as the session cookie so every test in the
  * chromium project starts already authenticated.
  *
  * Also pre-seeds the localStorage flags that gate the two new-user UI
@@ -18,7 +18,9 @@ import { acquireTestToken } from "./helpers/api/auth";
 
 const authFile = path.join(__dirname, "..", "playwright", ".auth", "user.json");
 
-const STORAGE_KEY = "surfsense_bearer_token";
+const PORT = process.env.PORT || "3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${PORT}`;
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "surfsense_session";
 const ANNOUNCEMENTS_KEY = "surfsense_announcements_state";
 
 /** Decode the user id (`sub`) from a JWT without verifying the signature. */
@@ -45,17 +47,24 @@ setup("authenticate", async ({ page, request }) => {
 	const announcementIds = announcements.map((a) => a.id);
 	const announcementState = { readIds: announcementIds, toastedIds: announcementIds };
 
+	await page.context().addCookies([
+		{
+			name: SESSION_COOKIE_NAME,
+			value: access_token,
+			url: BASE_URL,
+			httpOnly: true,
+			sameSite: "Lax",
+		},
+	]);
+
 	await page.addInitScript(
-		({ key, token, announcementsKey, state, uid }) => {
-			localStorage.setItem(key, token);
+		({ announcementsKey, state, uid }) => {
 			localStorage.setItem(announcementsKey, JSON.stringify(state));
 			if (uid) {
 				localStorage.setItem(`surfsense-tour-${uid}`, "true");
 			}
 		},
 		{
-			key: STORAGE_KEY,
-			token: access_token,
 			announcementsKey: ANNOUNCEMENTS_KEY,
 			state: announcementState,
 			uid: userId,

@@ -279,7 +279,9 @@ async def update_search_space(
         ) from e
 
 
-@router.put("/searchspaces/{search_space_id}/api-access", response_model=SearchSpaceRead)
+@router.put(
+    "/searchspaces/{search_space_id}/api-access", response_model=SearchSpaceRead
+)
 async def update_search_space_api_access(
     search_space_id: int,
     body: SearchSpaceApiAccessUpdate,

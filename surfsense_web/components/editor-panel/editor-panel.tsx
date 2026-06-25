@@ -33,7 +33,7 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { inferMonacoLanguageFromPath } from "@/lib/editor-language";
 import { buildBackendUrl } from "@/lib/env-config";
 
@@ -274,12 +274,6 @@ export function EditorPanelContent({
 				if (!documentId || !searchSpaceId) {
 					throw new Error("Missing document context");
 				}
-				const token = getBearerToken();
-				if (!token) {
-					redirectToLogin();
-					return;
-				}
-
 				const response = await authenticatedFetch(
 					buildBackendUrl(
 						`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
@@ -416,12 +410,6 @@ export function EditorPanelContent({
 
 				if (!searchSpaceId || !documentId) {
 					throw new Error("Missing document context");
-				}
-				const token = getBearerToken();
-				if (!token) {
-					toast.error("Please login to save");
-					redirectToLogin();
-					return;
 				}
 				const response = await authenticatedFetch(
 					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`),

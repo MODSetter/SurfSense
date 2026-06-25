@@ -52,6 +52,16 @@ AUTOMATION_RUN_COLS = [
     "created_at",
 ]
 
+AUTOMATION_COLS = [
+    "id",
+    "search_space_id",
+]
+
+NEW_CHAT_THREAD_COLS = [
+    "id",
+    "search_space_id",
+]
+
 # Enough to drive the lifecycle UI by push: status, the reviewable brief, and
 # its version. The bulky source_content and transcript are deliberately excluded
 # and fetched over REST when a gate opens.
@@ -73,10 +83,12 @@ ZERO_PUBLICATION: Mapping[str, Sequence[str] | None] = {
     "documents": DOCUMENT_COLS,
     "folders": None,
     "search_source_connectors": None,
+    "new_chat_threads": NEW_CHAT_THREAD_COLS,
     "new_chat_messages": None,
     "chat_comments": None,
     "chat_session_state": None,
     "user": USER_COLS,
+    "automations": AUTOMATION_COLS,
     "automation_runs": AUTOMATION_RUN_COLS,
     "podcasts": PODCAST_COLS,
 }

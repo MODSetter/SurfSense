@@ -46,8 +46,8 @@ async def test_acquire_token_jwt_mode_short_circuits():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_acquire_token_local_mode_posts_form():
-    respx.post("http://test/auth/jwt/login").mock(
+async def test_acquire_token_local_mode_posts_desktop_login_json():
+    respx.post("http://test/auth/desktop/login").mock(
         return_value=httpx.Response(
             200, json={"access_token": "T", "refresh_token": "R", "token_type": "bearer"}
         )

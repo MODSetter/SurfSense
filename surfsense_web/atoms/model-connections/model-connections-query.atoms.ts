@@ -1,26 +1,26 @@
 import { atomWithQuery } from "jotai-tanstack-query";
 import { modelConnectionsApiService } from "@/lib/apis/model-connections-api.service";
-import { getBearerToken } from "@/lib/auth-utils";
+import { isAuthenticated } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { activeSearchSpaceIdAtom } from "../search-spaces/search-space-query.atoms";
 
 export const globalModelConnectionsAtom = atomWithQuery(() => ({
 	queryKey: cacheKeys.modelConnections.global(),
-	enabled: !!getBearerToken(),
+	enabled: isAuthenticated(),
 	staleTime: 10 * 60 * 1000,
 	queryFn: () => modelConnectionsApiService.getGlobalConnections(),
 }));
 
 export const globalLlmConfigStatusAtom = atomWithQuery(() => ({
 	queryKey: cacheKeys.modelConnections.globalConfigStatus(),
-	enabled: !!getBearerToken(),
+	enabled: isAuthenticated(),
 	staleTime: 60 * 60 * 1000,
 	queryFn: () => modelConnectionsApiService.getGlobalLlmConfigStatus(),
 }));
 
 export const modelProvidersAtom = atomWithQuery(() => ({
 	queryKey: cacheKeys.modelConnections.providers(),
-	enabled: !!getBearerToken(),
+	enabled: isAuthenticated(),
 	staleTime: 60 * 60 * 1000,
 	queryFn: () => modelConnectionsApiService.getModelProviders(),
 }));

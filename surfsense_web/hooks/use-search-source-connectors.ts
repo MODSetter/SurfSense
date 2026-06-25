@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { authenticatedFetch } from "@/lib/auth-utils";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 export interface SearchSourceConnector {
 	id: number;

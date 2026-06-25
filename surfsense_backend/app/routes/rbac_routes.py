@@ -125,7 +125,6 @@ PERMISSION_DESCRIPTIONS = {
 async def list_all_permissions(
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     List all available permissions that can be assigned to roles.
     """
@@ -162,7 +161,6 @@ async def create_role(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Create a new custom role in a search space.
     Requires ROLES_CREATE permission.
@@ -244,7 +242,6 @@ async def list_roles(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     List all roles in a search space.
     Requires ROLES_READ permission.
@@ -283,7 +280,6 @@ async def get_role(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Get a specific role by ID.
     Requires ROLES_READ permission.
@@ -329,7 +325,6 @@ async def update_role(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Update a role.
     Requires ROLES_UPDATE permission.
@@ -427,7 +422,6 @@ async def delete_role(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Delete a custom role.
     Requires ROLES_DELETE permission.
@@ -485,7 +479,6 @@ async def list_members(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     List all members of a search space.
     Requires MEMBERS_VIEW permission.
@@ -551,7 +544,6 @@ async def update_member_role(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Update a member's role.
     Requires MEMBERS_MANAGE_ROLES permission.
@@ -689,7 +681,6 @@ async def remove_member(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Remove a member from a search space.
     Requires MEMBERS_REMOVE permission.
@@ -814,7 +805,6 @@ async def list_invites(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     List all invites for a search space.
     Requires MEMBERS_INVITE permission.
@@ -854,7 +844,6 @@ async def update_invite(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Update an invite.
     Requires MEMBERS_INVITE permission.
@@ -921,7 +910,6 @@ async def revoke_invite(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Revoke (delete) an invite.
     Requires MEMBERS_INVITE permission.

@@ -21,7 +21,6 @@ from app.db import (
     Permission,
     SearchSpace,
     SearchSpaceMembership,
-    User,
     VideoPresentation,
     get_async_session,
 )
@@ -93,7 +92,6 @@ async def read_video_presentation(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Get a specific video presentation by ID.
     Requires authentication with VIDEO_PRESENTATIONS_READ permission.
@@ -137,7 +135,6 @@ async def delete_video_presentation(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Delete a video presentation.
     Requires VIDEO_PRESENTATIONS_DELETE permission for the search space.
@@ -181,7 +178,6 @@ async def stream_slide_audio(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Stream the audio file for a specific slide in a video presentation.
     The slide_number is 1-based. Audio path is read from the slides JSONB.

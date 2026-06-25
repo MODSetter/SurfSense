@@ -30,14 +30,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.context import AuthContext
 from app.agents.chat.multi_agent_chat.shared.feature_flags import get_flags
+from app.auth.context import AuthContext
 from app.db import (
     AgentPermissionRule,
     NewChatThread,
     Permission,
     SearchSpace,
-    User,
     get_async_session,
 )
 from app.users import get_auth_context
@@ -136,7 +135,6 @@ def _to_read(row: AgentPermissionRule) -> AgentPermissionRuleRead:
 async def _ensure_search_space_membership_admin(
     session: AsyncSession, auth: AuthContext, search_space_id: int
 ) -> None:
-    user = auth.user
     """Curating agent rules == "settings" administration on the space."""
     space = await session.get(SearchSpace, search_space_id)
     if space is None:

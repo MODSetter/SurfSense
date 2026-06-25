@@ -10,7 +10,7 @@ import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 
 const LARGE_DOCUMENT_THRESHOLD = 2 * 1024 * 1024; // 2MB
@@ -101,12 +101,6 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 		changeCountRef.current = 0;
 
 		const doFetch = async () => {
-			const token = getBearerToken();
-			if (!token) {
-				redirectToLogin();
-				return;
-			}
-
 			try {
 				const response = await authenticatedFetch(
 					buildBackendUrl(
@@ -157,13 +151,6 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 	}, []);
 
 	const handleSave = useCallback(async () => {
-		const token = getBearerToken();
-		if (!token) {
-			toast.error("Please login to save");
-			redirectToLogin();
-			return;
-		}
-
 		setSaving(true);
 		try {
 			const response = await authenticatedFetch(

@@ -40,8 +40,12 @@ export const IPC_CHANNELS = {
   READ_AGENT_LOCAL_FILE_TEXT: 'agent-filesystem:read-local-file-text',
   WRITE_AGENT_LOCAL_FILE_TEXT: 'agent-filesystem:write-local-file-text',
   // Auth token sync across windows
-  GET_AUTH_TOKENS: 'auth:get-tokens',
-  SET_AUTH_TOKENS: 'auth:set-tokens',
+  GET_ACCESS_TOKEN: 'auth:get-access-token',
+  REFRESH_ACCESS_TOKEN: 'auth:refresh-access-token',
+  LOGOUT: 'auth:logout',
+  AUTH_CHANGED: 'auth:changed',
+  AUTH_START_GOOGLE: 'auth:start-google',
+  AUTH_LOGIN_PASSWORD: 'auth:login-password',
   // Keyboard shortcut configuration
   GET_SHORTCUTS: 'shortcuts:get',
   SET_SHORTCUTS: 'shortcuts:set',

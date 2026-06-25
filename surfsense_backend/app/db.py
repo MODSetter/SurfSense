@@ -2714,9 +2714,10 @@ class RefreshToken(Base, TimestampMixin):
         index=True,
     )
     user = relationship("User", back_populates="refresh_tokens")
-    token_hash = Column(String(256), unique=True, nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
     expires_at = Column(TIMESTAMP(timezone=True), nullable=False, index=True)
-    is_revoked = Column(Boolean, default=False, nullable=False)
+    revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    absolute_expiry = Column(TIMESTAMP(timezone=True), nullable=True)
     family_id = Column(UUID(as_uuid=True), nullable=False, index=True)
 
     @property
@@ -2725,7 +2726,7 @@ class RefreshToken(Base, TimestampMixin):
 
     @property
     def is_valid(self) -> bool:
-        return not self.is_expired and not self.is_revoked
+        return not self.is_expired and self.revoked_at is None
 
 
 class PersonalAccessToken(BaseModel, TimestampMixin):

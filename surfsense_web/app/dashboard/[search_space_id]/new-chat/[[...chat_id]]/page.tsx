@@ -69,7 +69,7 @@ import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { useThreadDetail, useThreadMessages } from "@/hooks/use-thread-queries";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { getBearerToken } from "@/lib/auth-utils";
+import { getDesktopAccessToken } from "@/lib/auth-fetch";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -917,29 +917,26 @@ export default function NewChatPage() {
 	// Cancel ongoing request
 	const cancelRun = useCallback(async () => {
 		if (threadId) {
-			const token = getBearerToken();
-			if (token) {
-				try {
-					const response = await fetch(
-						buildBackendUrl(`/api/v1/threads/${threadId}/cancel-active-turn`),
-						{
-							method: "POST",
-							headers: {
-								Authorization: `Bearer ${token}`,
-							},
-						}
-					);
-					if (response.ok) {
-						const payload = (await response.json()) as {
-							error_code?: string;
-						};
-						if (payload.error_code === "TURN_CANCELLING") {
-							recentCancelRequestedAtRef.current = Date.now();
-						}
+			const token = await getDesktopAccessToken();
+			try {
+				const response = await fetch(
+					buildBackendUrl(`/api/v1/threads/${threadId}/cancel-active-turn`),
+					{
+						method: "POST",
+						headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+						credentials: "include",
 					}
-				} catch (error) {
-					console.warn("[NewChatPage] Failed to signal cancel-active-turn:", error);
+				);
+				if (response.ok) {
+					const payload = (await response.json()) as {
+						error_code?: string;
+					};
+					if (payload.error_code === "TURN_CANCELLING") {
+						recentCancelRequestedAtRef.current = Date.now();
+					}
 				}
+			} catch (error) {
+				console.warn("[NewChatPage] Failed to signal cancel-active-turn:", error);
 			}
 		}
 		if (abortControllerRef.current) {
@@ -964,11 +961,7 @@ export default function NewChatPage() {
 
 			if (!userQuery.trim() && userImages.length === 0) return;
 
-			const token = getBearerToken();
-			if (!token) {
-				toast.error("Not authenticated. Please log in again.");
-				return;
-			}
+			const token = await getDesktopAccessToken();
 
 			// Lazy thread creation: create thread on first message if it doesn't exist
 			let currentThreadId = threadId;
@@ -1149,8 +1142,9 @@ export default function NewChatPage() {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
+							...(token ? { Authorization: `Bearer ${token}` } : {}),
 						},
+						credentials: "include",
 						body: JSON.stringify({
 							chat_id: currentThreadId,
 							user_query: userQuery.trim(),
@@ -1537,12 +1531,7 @@ export default function NewChatPage() {
 			stagedDecisionsByInterruptIdRef.current.clear();
 			setIsRunning(true);
 
-			const token = getBearerToken();
-			if (!token) {
-				toast.error("Not authenticated. Please log in again.");
-				setIsRunning(false);
-				return;
-			}
+			const token = await getDesktopAccessToken();
 
 			const controller = new AbortController();
 			abortControllerRef.current = controller;
@@ -1648,8 +1637,9 @@ export default function NewChatPage() {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
+							...(token ? { Authorization: `Bearer ${token}` } : {}),
 						},
+						credentials: "include",
 						body: JSON.stringify({
 							search_space_id: searchSpaceId,
 							decisions,
@@ -1981,11 +1971,7 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 
-			const token = getBearerToken();
-			if (!token) {
-				toast.error("Not authenticated. Please log in again.");
-				return;
-			}
+			const token = await getDesktopAccessToken();
 
 			// Extract the original user query BEFORE removing messages (for reload mode)
 			let userQueryToDisplay: string | undefined;
@@ -2104,8 +2090,9 @@ export default function NewChatPage() {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
+							...(token ? { Authorization: `Bearer ${token}` } : {}),
 						},
+						credentials: "include",
 						body: JSON.stringify(requestBody),
 						signal: controller.signal,
 					})

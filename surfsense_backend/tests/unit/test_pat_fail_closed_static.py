@@ -32,11 +32,7 @@ CONNECTOR_LISTERS = [
 
 
 def _python_files() -> list[Path]:
-    return [
-        path
-        for path in APP_ROOT.rglob("*.py")
-        if "__pycache__" not in path.parts
-    ]
+    return [path for path in APP_ROOT.rglob("*.py") if "__pycache__" not in path.parts]
 
 
 def test_current_active_user_is_removed_from_app_tree() -> None:

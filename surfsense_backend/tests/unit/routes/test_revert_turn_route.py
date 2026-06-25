@@ -450,7 +450,9 @@ class TestRevertTurnDispatch:
                 thread_id=1,
                 chat_turn_id="ct-mixed-all",
                 session=session,
-                auth=AuthContext.session(_FakeUser()),  # only id=7 has a different user_id
+                auth=AuthContext.session(
+                    _FakeUser()
+                ),  # only id=7 has a different user_id
             )
 
         assert response.total == len(rows) == 6

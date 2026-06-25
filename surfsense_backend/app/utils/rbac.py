@@ -80,6 +80,28 @@ async def get_user_permissions(
     return []
 
 
+async def get_allowed_read_space_ids(
+    session: AsyncSession,
+    auth: AuthContext,
+) -> list[int]:
+    """Return search spaces the principal may read through sync transports.
+
+    This mirrors the basic REST search-space access rule: membership is required,
+    and PAT principals are additionally constrained by the per-space API gate.
+    """
+    stmt = (
+        select(SearchSpaceMembership.search_space_id)
+        .join(SearchSpace, SearchSpace.id == SearchSpaceMembership.search_space_id)
+        .filter(SearchSpaceMembership.user_id == auth.user.id)
+        .order_by(SearchSpaceMembership.search_space_id)
+    )
+    if auth.is_gated:
+        stmt = stmt.filter(SearchSpace.api_access_enabled == True)  # noqa: E712
+
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
 async def _enforce_api_access_gate(
     session: AsyncSession,
     auth: AuthContext,

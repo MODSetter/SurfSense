@@ -274,9 +274,9 @@ export function ImageModelSelector({
 				<ImagePlus className="size-4 shrink-0" />
 			)}
 			{showIconOnlyTrigger ? null : (
-					<span className="min-w-0 flex-1 truncate text-sm">
-						{selected ? modelName(selected) : "Auto"}
-					</span>
+				<span className="min-w-0 flex-1 truncate text-sm">
+					{selected ? modelName(selected) : "Auto"}
+				</span>
 			)}
 			<ChevronDown className="h-3.5 w-3.5 shrink-0" />
 		</Button>

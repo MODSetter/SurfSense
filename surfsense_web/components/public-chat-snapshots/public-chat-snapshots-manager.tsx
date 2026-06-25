@@ -115,7 +115,7 @@ export function PublicChatSnapshotsManager({
 			<Alert variant="destructive">
 				<AlertCircle className="h-4 w-4" />
 				<AlertDescription>
-					Failed to load public chat links. Please try again later.
+					Failed to load public chats. Please try again later.
 				</AlertDescription>
 			</Alert>
 		);
@@ -127,7 +127,7 @@ export function PublicChatSnapshotsManager({
 			<Alert>
 				<Info />
 				<AlertDescription>
-					You don't have permission to view public chat links in this search space.
+					You don't have permission to view public chats in this search space.
 				</AlertDescription>
 			</Alert>
 		);
@@ -140,8 +140,8 @@ export function PublicChatSnapshotsManager({
 			<Alert>
 				<Info />
 				<AlertDescription>
-					Public chat links allow anyone with the URL to view a snapshot of a chat. These links do
-					not update when the original chat changes.
+					Public chats allow anyone with the URL to view a snapshot of a chat. They do not update
+					when the original chat changes.
 				</AlertDescription>
 			</Alert>
 

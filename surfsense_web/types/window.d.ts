@@ -141,8 +141,14 @@ interface ElectronAPI {
 		searchSpaceId?: number | null
 	) => Promise<LocalTextFileResult>;
 	// Auth token sync across windows
-	getAuthTokens: () => Promise<{ bearer: string; refresh: string } | null>;
-	setAuthTokens: (bearer: string, refresh: string) => Promise<void>;
+	getAccessToken: () => Promise<string | null>;
+	refreshAccessToken: () => Promise<string | null>;
+	logout: () => Promise<void>;
+	startGoogleOAuth: () => Promise<{ ok: true }>;
+	loginPassword: (email: string, password: string) => Promise<{ ok: true }>;
+	onAuthChanged: (
+		callback: (payload: { authed: boolean; accessToken: string | null }) => void
+	) => () => void;
 	// Keyboard shortcut configuration
 	getShortcuts: () => Promise<{
 		generalAssist: string;

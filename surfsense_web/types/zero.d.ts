@@ -3,6 +3,7 @@ import type { Schema } from "@/zero/schema/index";
 export type Context =
 	| {
 			userId: string;
+			allowedSpaceIds?: number[];
 	  }
 	| undefined;
 
