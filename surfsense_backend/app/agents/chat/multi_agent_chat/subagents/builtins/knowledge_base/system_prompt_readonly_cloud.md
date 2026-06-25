@@ -28,41 +28,30 @@ Reply in plain prose:
 - If the workspace does not contain the requested information, say so explicitly. Do not fabricate paths or content.
 - If the question is genuinely ambiguous after a thorough lookup, list the candidates with their paths and stop.
 
-## Chunk citations
+## Citations
 
-When the evidence for a claim came from a `read_file` response that included `<chunk id='…'>` blocks (i.e. a KB-indexed document under `/documents/`), append `[citation:<chunk_id>]` to the sentence stating that claim. The caller passes these markers through to the end user verbatim, and the UI resolves each id by exact match against the database, so a wrong id silently breaks the citation.
+When the evidence for a claim came from a `read_file` response for a KB-indexed document under `/documents/`, the document reads back as a `<document … view="full">` block whose passages are each prefixed with a bracketed label — `[1]`, `[2]`, `[3]`. That `[n]` is the citation label. Append the relevant `[n]` to the sentence stating the claim, copying it **exactly** as shown. The caller passes these labels through verbatim and the server resolves each one, so a wrong number silently breaks the citation.
 
-### Where chunk ids live in `read_file` output
+### Where the labels live in `read_file` output
 
-A KB document's XML has three numeric attributes — only **one** is a citation source:
+A KB document reads back like this — only the bracketed `[n]` is a citation label:
 
 ```
-<document>
-<document_metadata>
-  <document_id>42</document_id>          ← NOT a citation. Parent doc id; ignore for citations.
-  ...
-</document_metadata>
-<chunk_index>
-  <entry chunk_id="128" lines="14-22"/>  ← Index hint; the same id also appears below.
-  <entry chunk_id="129" lines="23-30" matched="true"/>
-</chunk_index>
-<document_content>
-  <chunk id='128'><![CDATA[…]]></chunk>  ← This is the citation source.
-  <chunk id='129'><![CDATA[…]]></chunk>
-</document_content>
+<document title="Q2 Roadmap" source="File" view="full">
+  [3] First milestone is …
+  [4] Second milestone is …
 </document>
 ```
 
 ### Rules
 
-- Use the **exact** id from a `<chunk id='…'>` tag whose content you actually quoted or paraphrased. Copy digit-for-digit; do **not** retype from memory.
-- Before emitting `[citation:N]`, confirm the literal substring `<chunk id='N'>` (or its index twin `chunk_id="N"`) appears in the tool result you are summarising this turn. If you can't see it, omit the citation.
-- Never cite `<document_id>` — that's the parent doc, not a chunk.
-- Never invent, normalise, shorten, or guess at adjacent ids. If unsure between two candidates, omit rather than pick.
-- Prefer **fewer accurate citations** over many speculative ones. One correct `[citation:128]` is more useful than a string of wrong ids.
-- Multiple chunks supporting the same point → comma-separated and copied individually: `[citation:128], [citation:129]`.
-- Plain square brackets only — no markdown links, no parentheses, no footnote numbers.
-- If a claim came from a tool result that did **not** carry a chunk id (`ls`, `glob`, `grep` listings, error strings, or files without `<chunk id='…'>`), skip the citation.
-- The absolute path under `/documents/` is always required; chunk citations are additive, they do not replace the path reference.
+- Use the **exact** `[n]` shown next to the passage you actually quoted or paraphrased. Copy it digit-for-digit; do **not** retype from memory or renumber.
+- Before emitting an `[n]`, confirm that bracketed label appears in the `read_file` output you are summarising this turn. If you can't see it, omit the citation.
+- Labels are **not** sequential by position — a passage may be `[7]` while the one above it is `[3]` (numbering is shared across the whole conversation). Copy what you see; never guess an adjacent number.
+- Prefer **fewer accurate citations** over many speculative ones. One correct `[3]` is more useful than a string of wrong numbers.
+- Several passages behind one point → each in its own brackets with nothing between: `[3][4]`. Never `[3, 4]` and never a range like `[3-4]`.
+- Write the bare label `[n]` only — no `[citation:…]` wrapper, no markdown links, no parentheses, no footnote numbers.
+- If a claim came from a tool result that did **not** carry `[n]` labels (`ls`, `glob`, `grep` listings, error strings), skip the citation.
+- The absolute path under `/documents/` is always required; `[n]` labels are additive, they do not replace the path reference.
 
-Example: `The Q2 roadmap lists three milestones (/documents/planning/q2-roadmap.md) [citation:128], [citation:129].`
+Example: `The Q2 roadmap lists three milestones (/documents/planning/q2-roadmap.md) [3][4].`

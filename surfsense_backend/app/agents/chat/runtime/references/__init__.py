@@ -13,7 +13,7 @@ from app.schemas.new_chat import MentionedDocumentInfo
 
 from .chat import resolve_chat_references
 from .connectors import resolve_connector_references
-from .documents import resolve_document_references
+from .documents import referenced_document_ids, resolve_document_references
 from .folders import resolve_folder_references
 from .models import (
     ChatReference,
@@ -89,6 +89,7 @@ __all__ = [
     "FolderReference",
     "Reference",
     "ReferenceKind",
+    "referenced_document_ids",
     "render_reference_pointers",
     "resolve_references",
 ]

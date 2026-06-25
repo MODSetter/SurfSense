@@ -5,11 +5,6 @@ This middleware runs ``before_agent`` on every turn and writes:
 * ``state["kb_priority"]`` — the top-K most relevant documents for the
   current user message, used to render a ``<priority_documents>`` system
   message immediately before the user turn.
-* ``state["kb_matched_chunk_ids"]`` — internal hand-off mapping
-  (``Document.id`` → matched chunk IDs) consumed by
-  :class:`KBPostgresBackend._load_file_data` when the agent first reads each
-  document, so the XML wrapper can flag matched sections in
-  ``<chunk_index>``.
 
 The previous "scoped filesystem" behaviour (synthetic ``ls`` + state
 ``files`` seeding) is intentionally removed: documents are now lazy-loaded
@@ -816,7 +811,6 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         ]
         update: dict[str, Any] = {
             "kb_priority": priority,
-            "kb_matched_chunk_ids": {},
         }
         if self.inject_system_message:
             new_messages = list(state.get("messages") or [])
@@ -930,7 +924,7 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             merged.append(doc)
 
         _t_materialize = time.perf_counter()
-        priority, matched_chunk_ids = await self._materialize_priority(merged)
+        priority = await self._materialize_priority(merged)
 
         if folder_mention_ids:
             folder_entries = await self._materialize_folder_priority(folder_mention_ids)
@@ -957,7 +951,6 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
         update: dict[str, Any] = {
             "kb_priority": priority,
-            "kb_matched_chunk_ids": matched_chunk_ids,
         }
         if self.inject_system_message:
             new_messages = list(messages)
@@ -1016,13 +1009,12 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
     async def _materialize_priority(
         self, merged: list[dict[str, Any]]
-    ) -> tuple[list[dict[str, Any]], dict[int, list[int]]]:
-        """Resolve canonical paths and matched chunk ids for the priority list."""
+    ) -> list[dict[str, Any]]:
+        """Resolve canonical paths for the priority list."""
         priority: list[dict[str, Any]] = []
-        matched_chunk_ids: dict[int, list[int]] = {}
 
         if not merged:
-            return priority, matched_chunk_ids
+            return priority
 
         _t0 = time.perf_counter()
         async with shielded_async_session() as session:
@@ -1067,18 +1059,12 @@ class KnowledgePriorityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                     "mentioned": bool(doc.get("_user_mentioned")),
                 }
             )
-            if isinstance(doc_id, int):
-                chunk_ids = doc.get("matched_chunk_ids") or []
-                if chunk_ids:
-                    matched_chunk_ids[doc_id] = [
-                        int(cid) for cid in chunk_ids if isinstance(cid, int | str)
-                    ]
         _perf_log.info(
             "[kb_priority.materialize] db=%.3fs docs=%d",
             time.perf_counter() - _t0,
             len(merged),
         )
-        return priority, matched_chunk_ids
+        return priority
 
 
 __all__ = [

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.chat.runtime.path_resolver import PathIndex, doc_to_virtual_path
 from app.db import Document
 
-from .models import DocumentReference
+from ..models import DocumentReference
 
 
 async def resolve_document_references(

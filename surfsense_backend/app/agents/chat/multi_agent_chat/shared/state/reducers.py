@@ -2,7 +2,7 @@
 
 These reducers back the extra state fields used by the cloud-mode filesystem
 agent (`cwd`, `staged_dirs`, `pending_moves`, `dirty_paths`, `doc_id_by_path`,
-`kb_priority`, `kb_matched_chunk_ids`, `kb_anon_doc`, `tree_version`).
+`kb_priority`, `kb_anon_doc`, `tree_version`).
 
 Tools mutate these fields ONLY via `Command(update={...})` returns; the
 reducers are responsible for merging successive updates atomically and for
@@ -19,6 +19,8 @@ any real virtual path, document title, or dict key produced by the agent.
 from __future__ import annotations
 
 from typing import Any, Final, TypeVar
+
+from app.agents.chat.multi_agent_chat.shared.citations import CitationRegistry
 
 _CLEAR: Final[str] = "\x00__SURFSENSE_FILESYSTEM_CLEAR__\x00"
 """Reset sentinel; pass it inside a list/dict update to request a reset.
@@ -204,6 +206,41 @@ def _int_counter_merge_reducer(
     return base
 
 
+def _as_registry(value: Any) -> CitationRegistry | None:
+    """Coerce a state value into a ``CitationRegistry``.
+
+    The checkpointer serializes ``Command.update`` via ``ormsgpack`` *before*
+    reducers run, so an update can arrive as a plain ``dict`` rather than a model.
+    """
+    if value is None:
+        return None
+    if isinstance(value, CitationRegistry):
+        return value
+    if isinstance(value, dict):
+        return CitationRegistry.model_validate(value)
+    return None
+
+
+def _citation_registry_merge_reducer(
+    left: Any,
+    right: Any,
+) -> CitationRegistry | None:
+    """Union two citation registries instead of replacing.
+
+    Find-or-create across both sides so ``[n]`` stays globally consistent when
+    branches (parent + subagents, parallel tool calls) each register into a
+    registry forked from the same base. Collisions re-mint rather than drop. See
+    :meth:`CitationRegistry.merge`.
+    """
+    right_reg = _as_registry(right)
+    left_reg = _as_registry(left)
+    if right_reg is None:
+        return left_reg
+    if left_reg is None:
+        return right_reg
+    return left_reg.merge(right_reg)
+
+
 def _initial_filesystem_state() -> dict[str, Any]:
     """Default empty values for SurfSense filesystem state fields.
 
@@ -222,7 +259,6 @@ def _initial_filesystem_state() -> dict[str, Any]:
         "dirty_paths": [],
         "dirty_path_tool_calls": {},
         "kb_priority": [],
-        "kb_matched_chunk_ids": {},
         "kb_anon_doc": None,
         "tree_version": 0,
     }
@@ -231,6 +267,7 @@ def _initial_filesystem_state() -> dict[str, Any]:
 __all__ = [
     "_CLEAR",
     "_add_unique_reducer",
+    "_citation_registry_merge_reducer",
     "_dict_merge_with_tombstones_reducer",
     "_initial_filesystem_state",
     "_int_counter_merge_reducer",
