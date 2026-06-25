@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { AlarmClock, AlertTriangle, Inbox, LibraryBig } from "lucide-react";
+import { AlarmClock, AlertTriangle, Boxes, Inbox, LibraryBig } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -328,6 +328,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	// in the sidebar (also surfaced in the icon rail's collapsed mode via this
 	// list). Announcements has been moved to the avatar dropdown.
 	const isAutomationsActive = pathname?.includes("/automations") === true;
+	const isArtifactsActive = pathname?.endsWith("/artifacts") === true;
 	const navItems: NavItem[] = useMemo(
 		() =>
 			(
@@ -344,6 +345,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						url: `/dashboard/${searchSpaceId}/automations`,
 						icon: AlarmClock,
 						isActive: isAutomationsActive,
+					},
+					{
+						title: "Artifacts",
+						url: `/dashboard/${searchSpaceId}/artifacts`,
+						icon: Boxes,
+						isActive: isArtifactsActive,
 					},
 					isMobile
 						? {
@@ -362,6 +369,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			totalUnreadCount,
 			searchSpaceId,
 			isAutomationsActive,
+			isArtifactsActive,
 		]
 	);
 

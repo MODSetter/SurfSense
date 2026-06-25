@@ -1,6 +1,12 @@
 import { atom } from "jotai";
 
-export type RightPanelTab = "sources" | "report" | "editor" | "hitl-edit" | "citation";
+export type RightPanelTab =
+	| "sources"
+	| "report"
+	| "editor"
+	| "hitl-edit"
+	| "citation"
+	| "artifacts";
 
 export const rightPanelTabAtom = atom<RightPanelTab>("sources");
 

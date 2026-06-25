@@ -52,6 +52,7 @@ import {
 } from "@/components/assistant-ui/token-usage-context";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSyncChatArtifacts } from "@/features/chat-artifacts";
 import {
 	type HitlDecision,
 	PendingInterruptProvider,
@@ -135,6 +136,13 @@ const MobileReportPanel = dynamic(
 	() =>
 		import("@/components/report-panel/report-panel").then((m) => ({
 			default: m.MobileReportPanel,
+		})),
+	{ ssr: false }
+);
+const MobileArtifactsPanel = dynamic(
+	() =>
+		import("@/features/chat-artifacts/ui/artifacts-panel").then((m) => ({
+			default: m.MobileArtifactsPanel,
 		})),
 	{ ssr: false }
 );
@@ -2488,6 +2496,9 @@ export default function NewChatPage() {
 		await handleRegenerate(null);
 	}, [handleRegenerate]);
 
+	// Surface the thread's deliverables to the layout-level artifacts sidebar.
+	useSyncChatArtifacts(messages);
+
 	// Create external store runtime
 	const runtime = useExternalStoreRuntime({
 		messages,
@@ -2547,6 +2558,7 @@ export default function NewChatPage() {
 						<MobileReportPanel />
 						<MobileEditorPanel />
 						<MobileHitlEditPanel />
+						<MobileArtifactsPanel />
 					</div>
 				</PendingInterruptProvider>
 				<EditMessageDialog
