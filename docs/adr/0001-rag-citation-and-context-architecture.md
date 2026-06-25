@@ -383,8 +383,9 @@ Remove from the hot path:
 - `fetch_mentioned_documents` eager chunk pull.
 - `<priority_documents>` pre-injection and `KbContextProjectionMiddleware`
   priority projection.
-- `kb_priority` / `kb_matched_chunk_ids` state plumbing (deleted per §8.10; add a
-  dedicated `citation_registry` field instead).
+- `kb_priority` state plumbing (deleted per §8.10; add a dedicated
+  `citation_registry` field instead). `kb_matched_chunk_ids` is already gone
+  (build-order Step 5).
 
 Keep / add:
 
@@ -425,26 +426,71 @@ Keep / add:
     pointer only, loaded **on demand** via a `read_chat(thread_id)` tool that reuses
     the access-checked `referenced_chat_context` resolver and registers each surfaced
     turn as `chat_turn`. ✅
+12. **One document render for both surfaces.** RAG excerpts
+    (`search_knowledge_base`) and full reads (`read_file`) render through a *single*
+    document renderer — same envelope, same `[n]` contract. Completeness is carried
+    by `view="excerpt"` vs `view="full"`, **not** an `is_complete` boolean and **not**
+    a numeric coverage count: `view="excerpt"` alone tells the model it saw a slice.
+    (A `chunks_shown`/`total_chunks` count was considered and dropped — it never had a
+    total to show for search excerpts, and full reads already say `view="full"`.) Raw
+    ids and `metadata_json` are dropped from the model's view.
+    **No `<chunk_index>` seek table** — a full read returns the whole document as one
+    numbered document block (an index keyed by internal ids gives the agent no actionable
+    signal, and any `[n]`-keyed/preview index adds cognitive load that risks
+    degrading the primary answer). Supersedes the standalone `<retrieved_context>`
+    shape and the removed `is_complete`. See §12. (planned)
 
 ## 9. Open items
 
-_None — all decisions locked. See §8._
+_All decisions locked (§8). Decision #12 is locked but **not yet built** — see the
+§12 schema and the rollout follow-ups._
 
-## 10. Rollout (suggested)
+## 10. Rollout
 
-1. Citation registry + resolver (state + register/resolve) — no behavior change yet.
-2. `search_knowledge_base` returns registered chunks; render `<retrieved_context>`;
-   normalize `[n]` → `[citation:n]`.
-3. Wire reranker; add chunk overlap in indexing.
-4. Convert mentions to ambient scope + `scope` arg; delete priority pre-injection.
-5. Move workspace tree to ambient plane.
-6. Extend registry to connector/web/chat sources.
+### Already built in parallel (committed, not yet wired)
 
-Built in parallel ahead of cutover (not yet wired): `shared/retrieval/`,
-`shared/retrieved_context/`, `shared/citations/`, and the new on-contract prompt
-`base/citation_contract.md` (teaches `[n]` / `[1][2]`). At cutover its contents
-replace `base/citations_on.md` and `citation_contract.md` is deleted, so the
-composer needs no change; `citations_off.md` stays as-is.
+`shared/citations/` (registry, markers, normalizer), `shared/retrieved_context/`
+(renderer), `shared/retrieval/` (hybrid search + rerank + service), hybrid-search
+behavior tests, and the on-contract prompt `base/citation_contract.md`
+(`[n]` / `[1][2]`).
+
+### Two findings that shape the cutover
+
+- **The agent is already pull-based by default.** `enable_kb_priority_preinjection`
+  is `False` and `KnowledgePriorityMiddleware` runs `mentions_only=True`; an
+  on-demand `search_knowledge_base` tool already exists. So the cutover *upgrades
+  the existing pull tool to the citation spine* — it does not remove eager RAG
+  (already gated off).
+- **The production citation prompt is local to the agent**, at
+  `main_agent/system_prompt/prompts/citations/on.md` (two-channel
+  `[citation:chunk_id]`). The composer's `base/citations_on.md` only serves the
+  anonymous/automation path. Both must learn the `[n]` contract.
+
+### Phased cutover
+
+0. **Registry on state.** Add `citation_registry: CitationRegistry` to
+   `SurfSenseFilesystemState` with a replace reducer; confirm checkpointer
+   round-trip.
+1. **Swap the KB tool.** Rewrite `search_knowledge_base` to call
+   `search_knowledge_base_context` (renders `<retrieved_context>` with `[n]`,
+   mutates the registry) and persist the registry via `Command(update=...)`.
+2. **Normalize `[n]` → `[citation:<payload>]`.** Finalize-time first (rewrite the
+   completed assistant text from the checkpointed registry before DB persist);
+   buffered live-stream normalization is a follow-up. Bare-`[n]` only, so
+   web_search `[citation:url]` markers are untouched.
+3. **Prompt contract (both surfaces).** Update `main_agent/.../citations/on.md`
+   (production) to teach the `[n]` channel alongside the existing web_search/`task`
+   channels; reconcile the composer path by folding `citation_contract.md` into
+   `base/citations_on.md` (then delete `citation_contract.md`). `citations_off.md`
+   stays.
+4. **Mentions → scope.** Map `@document`/`@folder` mentions to
+   `SearchScope(document_ids=…)` for the tool; retire `kb_priority` mention
+   surfacing.
+5. **Remove the old eager path.** Retire `KnowledgePriorityMiddleware`,
+   `kb_context_projection`, and the old `search_knowledge_base` hybrid helper in
+   `knowledge_search.py`; later `ChucksHybridSearchRetriever` (after migrating
+   `ConnectorService`). Migrate `web_search` to register `WEB_RESULT` so all
+   citations unify on `[n]` — **done**, see §12 build-order Step 6.
 
 ---
 
@@ -458,3 +504,122 @@ lost:
   collapse *perceived* latency from pull-based retrieval. See §4.5. This is the
   mitigation for pull's only real cost, but it touches the streaming pipeline, not
   the retrieval/citation path — so it ships independently.
+
+---
+
+## 12. Unified document render (search + read)
+
+The model meets a knowledge-base document in two moments: as **excerpts** from a
+search, and as a **full read** of one object. Today these use two unrelated
+shapes (compact text for search; `<document_metadata>` + `<chunk_index>` +
+`<chunk id>` XML for reads), with two different citation tokens. That doubles the
+schema the model must learn and is a hallucination surface. We collapse both onto
+**one renderer**.
+
+### Principles
+
+- **One envelope, two views.** The same renderer renders a document whether it
+  arrives partial (search) or complete (read). Only the `view` and the set of
+  passages shown differ.
+- **`[n]` is the only citable token**, in both views, assigned by the shared
+  registry (find-or-create). A chunk first seen in search keeps its `[n]` when the
+  same doc is later read in full.
+- **Completeness is the `view` word, nothing more.** A search result is inherently
+  excerpts; a read is inherently the whole object. No `is_complete` flag, no numeric
+  coverage count. `view="excerpt"` tells the model it saw a slice (so it should read
+  the doc before claiming the doc "only" says X); `view="full"` says it has the whole
+  object. A `chunks_shown`/`total_chunks` count was considered and rejected: search
+  excerpts have no total on hand (and we won't add a count query for it), and full
+  reads are already self-evident from `view`.
+- **Drop noise.** Raw `document_id` / `chunk_id` and the `metadata_json` blob
+  leave the model's view (they stay server-side as registry keys). The model
+  sees `title`, `source`, and `[n]` passages.
+- **No seek table.** A full read returns the whole document as one numbered
+  document block; the `<chunk_index>` line-range map is dropped. It was keyed by internal
+  `chunk_id` (which the model never sees), so it gave the agent nothing actionable
+  to seek by. Re-keying it to `[n]` or adding chunk previews would only add cognitive
+  load the agent must reconcile against the actual content — a hallucination/quality
+  risk that outweighs the token savings on the rare genuinely-large read. Simpler:
+  hand over the document, numbered, and let the model read it.
+
+### Shape
+
+Excerpt (from `search_knowledge_base`):
+
+```xml
+<document title="Q3 Launch Notes" source="Slack · #launch · 2026-03-02" view="excerpt">
+  [3] We agreed to push launch to March 10.
+  [4] Marketing will be notified next week.
+</document>
+```
+
+Full (from a read):
+
+```xml
+<document title="Q3 Launch Notes" source="Slack · #launch · 2026-03-02" view="full">
+  [3] We agreed to push launch to March 10.
+  [4] Marketing will be notified next week.
+  [7] …
+  …(all chunks, numbered)
+</document>
+```
+
+`<retrieved_context>` becomes simply "N documents in excerpt view"; a read is
+"one document in full view". This supersedes the standalone `<retrieved_context>`
+renderer decision and confirms the earlier removal of `is_complete`.
+
+### Build order (one step at a time)
+
+1. **Registry merge reducer** — `citation_registry` merges (find-or-create union,
+   re-mint on collision) instead of replacing, so parent/subagent (and parallel)
+   registrations stay globally consistent. Pure; independently testable. ✅
+2. **One document renderer** with a `view` parameter; point `search_knowledge_base`
+   at it (excerpt view), replacing today's `retrieved_context` renderer. ✅
+3. **Register-on-read + full view** — the KB read path registers its chunks and
+   renders through the same renderer (full view); the whole document is returned
+   numbered, with **no `<chunk_index>`**. The `read_file` tool loads the document
+   via `KBPostgresBackend.aload_document`, renders it against the conversation
+   registry, and persists `citation_registry`; `build_document_xml` is deleted. ✅
+4. **Retire Channel C** — now that KB reads emit `[n]` (Step 3), the
+   knowledge_base read/specialist path cites bare `[n]` instead of
+   `[citation:chunk_id]`. The KB subagent prompts (cloud/desktop, full/read-only)
+   and `description_readonly.md` were rewritten to the `<document view="full">`
+   `[n]` format, the `evidence.chunk_ids` field became `evidence.citations`, and
+   `citations/on.md` folds the KB relay into Channel A (preserve `[n]` from a
+   specialist verbatim). Channel C is **narrowed, not deleted**: it still covers
+   `task` specialists that emit `[citation:id]` — today only the deliverables
+   `knowledge_base` tool, which builds its own `<chunk id>` XML and is not yet on
+   the registry/`[n]` spine. Migrating that tool (and then fully deleting
+   Channel C) is a follow-up. ✅
+5. **Delete `kb_matched_chunk_ids`** — with no seek table and no `matched` flag, the
+   search→read highlighting hand-off has no consumer. Removed: the state field
+   (`filesystem_state.py`) and its reducer default (`reducers.py`); the
+   `search_knowledge_base` tool's `_matched_chunk_ids` writer; the dead
+   `KnowledgePriorityMiddleware` writes plus the `matched_chunk_ids` return of
+   `_materialize_priority` (`knowledge_search.py`); and the stale
+   `<chunk_index>` / `matched="true"` / `<chunk id>` rendering prose in the cloud
+   filesystem prompt (`cloud.py`), rewritten to the `<document view="full">` `[n]`
+   read format. The `resolver.py` docstring reference was dropped and the two
+   integration assertions that read the field now assert scope confinement via the
+   rendered `<retrieved_context>` titles. (The retriever-layer `matched_chunk_ids`
+   in `chunks_hybrid_search.py` is a separate output shape and is untouched.) ✅
+6. **Web onto the registry (Channel B → A)** — `web_search` now registers each
+   result as a `WEB_RESULT` (locator `{url}`) and renders a `<web_results>` block
+   of `<document view="excerpt">` blocks with `[n]` labels, returning a
+   `Command(update={messages, citation_registry})` like `search_knowledge_base`.
+   `markers.py` already maps `WEB_RESULT → url`, so `[n]` resolves end-to-end with
+   no frontend change. To enable this, the renderer was generalized: a
+   `RenderablePassage` now carries a generic `locator: dict` (KB fills
+   `{document_id, chunk_id}`; web fills `{url}`) instead of fixed KB fields, and a
+   dedicated **citation-state middleware** declares the `citation_registry` channel
+   for the `research` subagent (which doesn't use the filesystem state). The two
+   duplicate `web_search` implementations were collapsed into the shared
+   `app/agents/chat/shared/tools/web_search.py`; the `research` copy was deleted.
+   Prompts updated: `citations/on.md` drops the web channel (web is now Channel A
+   `[n]`; only the legacy `[citation:id]` specialist relay remains, relabelled
+   Channel B), the research subagent prompt cites `[n]`, the main `web_search`
+   description teaches `<web_results>`/`[n]`, `off.md` suppresses `[n]` too, and
+   stale `<chunk_index>`/`[citation:chunk_id]` references in `dynamic_context` and
+   the grok/openai_codex provider hints were corrected to `[n]`. `scrape_webpage`
+   stays uncited (raw page text, no `[n]`) — a fact from a scrape reports its URL
+   instead. Connectors and chat turns remain unmigrated (future workstreams). ✅

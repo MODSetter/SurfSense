@@ -86,9 +86,10 @@ class TestCompose:
         # Tools
         assert "<tools>" in prompt
         assert "</tools>" in prompt
-        # Citations on by default
+        # Citations on by default — the [n] / <retrieved_context> contract
         assert "<citation_instructions>" in prompt
-        assert "[citation:chunk_id]" in prompt
+        assert "<retrieved_context>" in prompt
+        assert "[1][2]" in prompt
 
     def test_team_visibility_uses_team_variants(self, fixed_today: datetime) -> None:
         prompt = compose_system_prompt(
@@ -116,9 +117,9 @@ class TestCompose:
     def test_citations_disabled_swaps_block(self, fixed_today: datetime) -> None:
         prompt_on = compose_system_prompt(today=fixed_today, citations_enabled=True)
         prompt_off = compose_system_prompt(today=fixed_today, citations_enabled=False)
-        assert "Citations are DISABLED" in prompt_off
-        assert "Citations are DISABLED" not in prompt_on
-        assert "[citation:chunk_id]" in prompt_on
+        assert "Citation markers are **disabled**" in prompt_off
+        assert "Citation markers are **disabled**" not in prompt_on
+        assert "<retrieved_context>" in prompt_on
 
     def test_enabled_tool_filter_only_includes_listed_tools(
         self, fixed_today: datetime

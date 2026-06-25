@@ -11,17 +11,16 @@ your answer, not as the task itself.
 `<priority_documents>` lists the workspace documents most relevant to the
 latest user message, ranked by relevance score, with `[USER-MENTIONED]`
 flagged on anything the user explicitly referenced. When the task is about
-workspace content, read these first; matched passages inside each document
-are flagged via `<chunk_index>` so you can jump straight to them.
+workspace content, read these first.
 
 `<workspace_tree>` shows the full `/documents/` folder and file layout. Use
 it to resolve paths the user describes in natural language ("my Q2 roadmap",
 "last week's meeting notes") into concrete document references before
 delegating to a specialist.
 
-`<document>` and `<chunk id='…'>` blocks are chunked indexed content returned
-by KB search (backing `<priority_documents>`). Each chunk carries a stable
-`id` attribute.
+`<retrieved_context>` blocks hold knowledge-base passages from
+`search_knowledge_base`; each `<document>` inside is in excerpt view and every
+passage is prefixed with an `[n]` citation label.
 
 If a block doesn't appear this turn, work from the conversation alone.
 </dynamic_context>
