@@ -1,7 +1,7 @@
 # Phase 3d — Captcha solving (DEFERRED — sequenced last, non-MVP-blocking)
 
 > Part of **Phase 3 — WebURL Crawler & Crawl Billing**. See `00-umbrella-plan.md`.
-> **Status: deferred.** Build only after `03a`/`03b`/`03c` ship and there's a real need. Depends on `03a` (the StealthyFetcher tier) and the per-crawl proxy from `03b`. Touches the crawl billing model from `03c`.
+> **Status: deferred.** Build only after `03a`/`03b`/`03c` ship and there's a real need. Depends on `03a` (the StealthyFetcher tier) and the app-wide proxy provider from `03b` (env-selected `get_active_provider()`, accessed via the zero-arg `get_proxy_url()`). Touches the crawl billing model from `03c`.
 
 ## Why deferred
 
@@ -23,11 +23,11 @@ Scrapling already solves **Cloudflare Turnstile/Interstitial** via `solve_cloudf
 ## Sketch (when built)
 
 1. **Config layer** (`app/utils/captcha/`, mirroring `app/utils/proxy/`'s config resolution from `03b`):
-   - `CaptchaConfig` = `(enabled, solving_site, api_key)`, resolved from env defaults or per-connector config (same `resolve_*` pattern as proxy in `03b`).
+   - `CaptchaConfig` = `(enabled, solving_site, api_key)`, resolved from **env only** — one app-wide config, mirroring `03b`'s env-only single-provider model (`get_active_provider()`); **no per-connector config** (that path was dropped in `03b`).
    - Env: `CAPTCHA_SOLVING_ENABLED` (default FALSE), `CAPTCHA_SOLVER_PROVIDER`, `CAPTCHA_SOLVER_API_KEY`. Off by default → zero captcha attempts (and zero solver cost).
 2. **Detection + injection `page_action` factory** — builds a callback passed to `StealthyFetcher.async_fetch(..., page_action=…)`:
    - Detect sitekey in DOM (`.g-recaptcha[data-sitekey]`, `.h-captcha[data-sitekey]`, reCAPTCHA-v3 via `grecaptcha.execute`).
-   - Harvest: `new_harvester(solving_site, api_key, sitekey, captcha_url=page.url, captcha_type=…).get_token(proxy=<the 03b per-crawl proxy>, user_agent=<page UA>)`.
+   - Harvest: `new_harvester(solving_site, api_key, sitekey, captcha_url=page.url, captcha_type=…).get_token(proxy=<the exact proxy endpoint used for THIS crawl>, user_agent=<page UA>)` — see the IP-binding caveat below.
    - Inject token + dispatch events / invoke callback; submit; wait for navigation.
 3. **Crawler escalation**: only the StealthyFetcher tier attempts solving; a captcha detected on a lower tier escalates to StealthyFetcher (the ladder already ends there per `03a`).
 4. **Dependency**: add `captchatools` to `pyproject.toml` (build-time only).
@@ -48,7 +48,7 @@ Recommendation leaning **(a)** (separate per-attempt unit) because the upstream 
 - **Solver-tier only.** No captcha solving on the HTTP/DynamicFetcher tiers; must escalate to StealthyFetcher (slower, browser-backed).
 - **Latency & flakiness.** Solves take 10–60s and aren't guaranteed; tune timeouts and a max-attempts cap so a single URL can't burn unbounded solver credit.
 - **Solver-account balance.** `ErrNoBalance`/`ErrWrongAPIKey` (`README.md:136–155`) must surface clearly and disable solving rather than loop.
-- **Proxy coherence.** Pass the **same** per-crawl proxy (`03b`) to `get_token(proxy=…)` so the solve happens from the same IP as the crawl (some captchas IP-bind the token).
+- **Proxy coherence (rotating-pool caveat).** Some captchas IP-bind the token, so the solver must egress from the **same IP** as the crawl. Under `03b`'s single app-wide provider this is automatic for single-endpoint providers (`anonymous_proxies`, single-URL `custom`). But a **pool-backed `CustomProxyProvider`** returns the *next* endpoint on each zero-arg `get_proxy_url()` call — so the `page_action` must **reuse the endpoint actually used for this crawl tier** (capture it once, pass it to `get_token(proxy=…)`), NOT call `get_proxy_url()` again (which would rotate to a different IP). This needs a small seam to surface the crawl's chosen endpoint into the `page_action` — note it when `03d` is built on top of `03b`'s rotation.
 - **Policy / ToS.** Automated captcha solving may violate a target site's terms; gate behind the explicit `CAPTCHA_SOLVING_ENABLED` flag and treat as an opt-in, owner-acknowledged capability.
 
 ## Out of scope

@@ -34,10 +34,10 @@ flowchart TD
 
 - Full rename SearchSpace -> WorkSpace across DB, API, URLs, code, satellite apps.
 - Canonical names (proposed defaults): DB table `workspaces`, column `workspace_id`, RBAC tables `workspace_roles` / `workspace_memberships` / `workspace_invites`, API base `/workspaces` (consolidating today's `/searchspaces` vs `/search-spaces` split), URL segment `[workspace_id]`, settings folder `workspace-settings`, TS type `Workspace`.
-- Connectors get a `category` discriminator: `DATA_SOURCE` (Type 1) vs `MCP_TOOL` (Type 2). Type 1 keeps only file/cloud data sources (WebURL crawler, Google Drive, OneDrive, Dropbox, YouTube, file uploads) plus deferred platform connectors. Everything else moves to MCP. Artifacts stay in the existing `deliverables` agent system (not routed through MCP).
+- Connectors split into two types via a STATIC code registry (`connector_type` → category/availability), NOT a DB column. Type 1 = `DATA_SOURCE` (pull → pipelines/KB): WebURL crawler, Google Drive (native + Composio), OneDrive, Dropbox, file uploads, plus deferred platform connectors. (YouTube is DEFERRED — no backend connector exists today.) Type 2 = `MCP_TOOL` (act in chat): only the generic `MCP_CONNECTOR` is functional for MVP. All branded natives are deprecated (`MIGRATING`, turned off) pending a post-MVP MCP re-point — they are NOT functionally moved to MCP in this MVP. Artifacts stay in the existing `deliverables` agent system (not routed through MCP). (Full model: Phase 4 below / `04a`.)
 - Web search APIs (SearXNG, Linkup, Baidu) are repurposed as a SOURCE-DISCOVERY helper: they suggest URLs the user can add to the Universal WebURL Crawler when setting up pipelines (they are not a standalone connector type and do not index data). NOTE: Tavily and Serper are being REMOVED from the search infra and are not part of this set.
 - Obsidian and Circleback (push/webhook sources) are DISABLED for the MVP.
-- MCP-availability audit complete: BookStack (community MCP servers), Elasticsearch (official Elastic Agent Builder MCP), and Luma (community MCP servers) all have MCP available, so none are disabled — they migrate to Type-2.
+- MCP-availability audit complete: BookStack (community MCP servers), Elasticsearch (official Elastic Agent Builder MCP), and Luma (community MCP servers) all have MCP available, so none are `DISABLED` — they're tagged `MIGRATING` (turned off for MVP like the other branded natives, pending the post-MVP MCP re-point).
 - `Pipeline` and `PipelineRun` are new first-class tables. A Pipeline references a connector + config + schedule + KB destination. File upload creates/uses a pipeline and registers a run; uploads always save to KB.
 - The chat agent gets read-only access to pipeline run history (pipelines + their recent runs/status) as context, so it can reason about what was fetched, when, and whether runs succeeded — even for data not saved to the KB.
 - Deferred (post-MVP): platform scraper implementations, public pay-as-you-go API for Type-1 connectors, public MCP server exposing the KB.
@@ -78,36 +78,20 @@ The Universal WebURL Crawler is the flagship Type-1 data source (the moat). This
 - **`03c-crawl-billing.md`** — Charge crawl credits at **$1 / 1000 successful requests = 1000 micro-USD per successful crawl**, drawn from the existing credit wallet (`credit_micros_balance`), gated by a new `WEB_CRAWL_CREDIT_BILLING_ENABLED` flag (off for self-hosted). Two surfaces: **connector/pipeline crawls** billed to the **workspace owner** via a dedicated `WebCrawlCreditService` (mirrors `EtlCreditService`'s gate → `check_credits` → `charge_credits`, **not** `billable_call`); **chat scrapes** fold their crawl cost into the chat turn's existing bill (turn accumulator). No DB migration (uses the existing free-form `web_crawl` usage_type).
 - **`03d-captcha-solving.md`** *(DEFERRED — sequenced last, non-MVP-blocking)* — Covers the captcha types Scrapling does **not** (reCAPTCHA v2/v3, hCaptcha, image) via `captchatools`. `captchatools` is **itself** the provider registry (`new_harvester(solving_site=…)` across capmonster/2captcha/anticaptcha/capsolver/captchaai), so we do **not** rebuild a provider hierarchy — our layer is thin: config resolution + a StealthyFetcher `page_action` that detects the sitekey, harvests a token, and injects it. Scrapling already handles Cloudflare Turnstile (`03a`). Flags the **billing asymmetry** (solvers charge per *attempt*, `03c` bills per *success*) for resolution at build time. Requires a paid solver account.
 
-### Phase 4 — Connector two-type restructure (backend) [`subplan: 04-connector-two-type-backend.md`]
+### Phase 4 — Connector two-type restructure (backend) [`subplans: 04a–04b`]
 
-- Add `category` (`DATA_SOURCE` / `MCP_TOOL`) to `SearchSourceConnector` (replaces ad hoc `is_indexable`): `db.py` enum/model, schema, Alembic migration + data backfill that tags existing rows.
-- Adjust backend routing/indexing so only Type-1 keeps the `/index` + Celery path; Type-2 resolves via MCP tools.
-- Add a backend source-discovery endpoint for the WebURL Crawler (reuses existing web-search services); UI surfacing is deferred to the frontend umbrella.
-- Frontend connector UI restructure is DEFERRED.
+Split into two independently testable subplans:
 
-**Type 1 — Data Sources (pull -> feed pipelines/KB).** Keep only:
+- **`04a-connector-category.md`** — Connector taxonomy + availability gating + the MCP routing-gap fix. Introduce a **static registry** keyed by `connector_type` → (`category` = `DATA_SOURCE` | `MCP_TOOL`, `availability` = `AVAILABLE` | `MIGRATING` | `DISABLED`), exposed as computed fields on the connector schema/API. Keep `is_indexable` (orthogonal capability flag — still gates the real `/index` + periodic machinery; NOT replaced). Gate creation/index/subagent-build/pipeline-eligibility off the registry. Fix the `MCP_CONNECTOR` subagent routing-map gap. **No DB migration** (registry is code).
+- **`04b-source-discovery.md`** — Web-search repurposing. **Drop all 5 search-API `connector_type` enum values** (`SERPER_API`, `TAVILY_API`, `SEARXNG_API`, `LINKUP_API`, `BAIDU_SEARCH_API`) + their connector paths; relocate survivors to platform/env config (SearXNG already env-based; **Linkup + Baidu keys move from per-connector `config` to platform env**); rewire the chat `web_search` tool onto platform providers; add a backend **source-discovery endpoint** suggesting candidate URLs for the WebURL Crawler. **Has a (destructive) migration** to delete the 5 connector types' rows.
 
-- Universal WebURL Crawler (functional for MVP; from current `WEBCRAWLER_CONNECTOR`). Gets a source-discovery assist powered by the web search APIs (see below) to suggest URLs for pipelines.
-- Google Drive (native + Composio) — `google_drive_indexer.py`.
-- OneDrive — `onedrive_indexer.py`.
-- Dropbox — `dropbox_indexer.py`.
-- YouTube — promote from frontend-only/document handling to a real Type-1 connector (extra work: no backend connector today).
-- File uploads.
-- Platform connectors (coming soon, not built): LinkedIn, Amazon, Google, Instagram, Zillow/Redfin, Walmart, eBay, Crunchbase, TikTok, Indeed/Glassdoor.
+**Locked model (MVP):**
 
-**Type 2 — MCP Tools (act in chat/automations).** Migrate existing connectors to MCP (all audited services have an MCP available):
-
-- Notion, GitHub, Confluence, Slack, Teams, Linear, Jira, ClickUp, Airtable, Discord, Gmail, Google Calendar. (Linear/Jira/ClickUp/Slack/Airtable already store MCP server URL + OAuth in `config`.)
-- BookStack (community MCP), Elasticsearch (official Elastic Agent Builder MCP, 9.2+), Luma (community MCP) — confirmed MCP available, migrate rather than disable.
-- Fix known gap: `MCP_CONNECTOR` is missing from the subagent routing map (`constants.py`) — generic MCP tools get discovered but skipped.
-
-**Web search APIs — repurposed (not a connector type):**
-
-- SearXNG, Linkup, Baidu become a source-discovery helper for the Universal WebURL Crawler: given a topic/competitor, suggest candidate URLs the user can add to a pipeline. Reuses the existing web-search services; backend endpoint here, UX deferred to frontend umbrella. (Tavily and Serper are removed from the search infra — see resolved log.)
-
-**Disabled for MVP:**
-
-- Obsidian (plugin push) and Circleback (meeting webhook) — disabled for the pivot MVP.
+- **Functional Type-1 (Data Sources — can create pipelines + feed KB):** Universal WebURL Crawler (`WEBCRAWLER_CONNECTOR`), Google Drive (native + Composio), OneDrive, Dropbox, plus file uploads. YouTube is **deferred** (no backend connector exists today — net-new work; reserve the slot). Deferred "coming soon" platforms: LinkedIn, Amazon, Google, Instagram, Zillow/Redfin, Walmart, eBay, Crunchbase, TikTok, Indeed/Glassdoor.
+- **Functional Type-2 (MCP Tools — act in chat, NO pipelines):** ONLY the generic `MCP_CONNECTOR` (bring-your-own MCP server). The `MCP_CONNECTOR` routing-gap fix (04a) is what makes it work.
+- **Deprecated for MVP ("migrating to MCP soon", `availability = MIGRATING`):** every branded native — current indexers (Notion, GitHub, Confluence, BookStack, Elasticsearch) AND act-only ones (Slack, Teams, Linear, Jira, ClickUp, Airtable, Discord, Gmail, Google Calendar, Luma, + Composio Gmail/Calendar). Behaviour: block new creation, disable `/index`+periodic + their chat subagents; KEEP existing rows + already-indexed KB docs **searchable** (via the always-on knowledge-base subagent). Real MCP migration is post-MVP.
+- **Disabled for MVP (`availability = DISABLED`):** Obsidian (plugin push) and Circleback (meeting webhook) — distinct from MIGRATING (not MCP-bound).
+- Frontend connector UI restructure is DEFERRED (frontend umbrella).
 
 ### Phase 5 — Pipelines data model [`subplan: 05-pipelines-model.md`]
 
@@ -142,14 +126,17 @@ These are recorded for continuity but are NOT planned in this umbrella. They sta
 - ~~Rename transition: hard cutover vs temporary API aliases~~ RESOLVED: HARD CUTOVER (see resolved log + 02-rename-backend.md). The frontend is rebuilt against the corrected backend in its own umbrella; backend is verified via tests/OpenAPI, not the old UI.
 - Whether existing connector periodic-indexing config is migrated into Pipelines or coexists during MVP.
 - Chat agent run-history access: tool vs middleware injection vs both (default: tool).
-- Type-2 MCP migration depth: actually re-point native connectors (Notion/GitHub/Gmail/etc.) to MCP servers now, vs keep their existing native integration and just re-tag them under the MCP-Tools category for MVP.
+- ~~Type-2 MCP migration depth~~ RESOLVED (Phase 4): branded natives are tagged `MIGRATING` and turned OFF for MVP (not re-pointed to MCP yet); only the generic `MCP_CONNECTOR` is a functional Type-2. Real MCP re-pointing is post-MVP.
 
 ## Resolved decisions log
 
 - Web search APIs (SearXNG/Linkup/Baidu): repurposed as source-discovery helper for the WebURL Crawler (suggest URLs for pipelines); not a standalone connector type.
 - Tavily and Serper: REMOVED from the search infra. They are dropped as search providers entirely (not repurposed). Phase 4's source-discovery endpoint must build only on the remaining providers (SearXNG, Linkup, Baidu).
 - Obsidian + Circleback: disabled for MVP.
-- MCP-availability audit: BookStack, Elasticsearch, Luma all have MCP available -> migrate to Type-2, none disabled.
+- MCP-availability audit: BookStack, Elasticsearch, Luma all have MCP available -> eligible for Type-2 (so deprecated as `MIGRATING`, not `DISABLED`). For MVP they are turned off pending the post-MVP MCP re-point, like the other branded natives.
+- Phase 4 connector taxonomy: modeled as a STATIC code registry (`connector_type` -> category/availability), NOT a DB column — no migration in 04a; `is_indexable` is KEPT (orthogonal). Only the generic `MCP_CONNECTOR` is a functional Type-2 for MVP; all branded natives (indexers + act-only, incl. Composio Gmail/Calendar) are `MIGRATING` (new-create blocked, `/index`+periodic+their subagents off, existing KB docs stay searchable). The `MCP_CONNECTOR` subagent routing-map gap (`constants.py`) is fixed in 04a.
+- Phase 4 search APIs: all 5 enum values dropped (`SERPER_API`/`TAVILY_API`/`SEARXNG_API`/`LINKUP_API`/`BAIDU_SEARCH_API`) in 04b. Survivors (SearXNG/Linkup/Baidu) become PLATFORM providers keyed by env (Linkup/Baidu keys move from per-connector `config` to env — app-wide, not per-workspace). 04b carries a destructive migration deleting the 5 connector types' rows.
+- Phase 4 structure: split into 04a (taxonomy/gating/MCP-fix, no migration) and 04b (search repurposing + source-discovery endpoint, with migration); intended order 04a -> 04b (both orders safe).
 - Rename transition policy: HARD CUTOVER of the external API (paths + JSON field names) in Phase 2 — no backward-compat aliases. Rationale: the frontend is (re)built against the corrected backend later, so there is no old client to keep alive; backend correctness is verified via the test suite + OpenAPI rather than the existing UI.
 - WebURL Crawler framework: STANDARDIZE on Scrapling; **remove Firecrawl entirely** (no other scraping frameworks now or planned). Scrapling's `StealthyFetcher` handles Cloudflare; captcha-tools (deferred) covers the rest.
 - Crawl billing: reuse the existing credit wallet (`credit_micros_balance`) with a new `web_crawl` usage_type. Price: **$1 / 1000 successful requests** (1000 micro-USD per success). Connector/pipeline crawls bill the **workspace owner**; chat scrapes fold their crawl cost into the already-billed chat turn. Gated by `WEB_CRAWL_CREDIT_BILLING_ENABLED` (off for self-hosted); no DB migration required.
@@ -167,7 +154,8 @@ These are recorded for continuity but are NOT planned in this umbrella. They sta
 | 3 | `03b-proxy-expansion.md` | drafted |
 | 3 | `03c-crawl-billing.md` | drafted |
 | 3 | `03d-captcha-solving.md` | drafted (deferred — last) |
-| 4 | `04-connector-two-type-backend.md` | not started |
+| 4 | `04a-connector-category.md` | drafted |
+| 4 | `04b-source-discovery.md` | drafted |
 | 5 | `05-pipelines-model.md` | not started |
 | 6 | `06-pipelines-exec.md` | not started |
 | 7 | `07-upload-pipeline-kb.md` | not started |
