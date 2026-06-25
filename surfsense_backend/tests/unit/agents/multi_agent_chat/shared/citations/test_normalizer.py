@@ -65,11 +65,30 @@ def test_web_result_rewrites_to_url() -> None:
     )
 
 
-def test_index_expression_is_left_alone() -> None:
+def test_word_glued_citation_is_rewritten() -> None:
+    # The model frequently writes citations glued to the preceding word
+    # (``docs[1]``); these must still resolve to a marker, not leak as raw text.
     registry = _registry_with_chunks(42)
 
-    assert normalize_citations("Read arr[1] carefully.", registry) == (
-        "Read arr[1] carefully."
+    assert normalize_citations("verifying against docs[1].", registry) == (
+        "verifying against docs[citation:42]."
+    )
+
+
+def test_word_glued_unknown_ordinal_drops() -> None:
+    # A glued ordinal that doesn't resolve drops harmlessly (no broken marker,
+    # no raw ``[n]`` leak) rather than being preserved as array-index syntax.
+    registry = _registry_with_chunks(42)
+
+    assert normalize_citations("see notes[9] later", registry) == "see notes later"
+
+
+def test_array_index_inside_code_is_left_alone() -> None:
+    # Genuine array/index syntax is protected by the code-region carve-out.
+    registry = _registry_with_chunks(42)
+
+    assert normalize_citations("Read `arr[1]` carefully.", registry) == (
+        "Read `arr[1]` carefully."
     )
 
 

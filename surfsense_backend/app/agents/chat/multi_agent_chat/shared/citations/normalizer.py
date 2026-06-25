@@ -19,10 +19,14 @@ from .registry import CitationRegistry
 # code-region pattern so ordinals inside examples are never rewritten.
 _CODE_REGION = re.compile(r"```[\s\S]*?```|`[^`\n]+`")
 
-# A single ordinal in a bracket: `[1]`, `[12]`. Not preceded by a word char, so
-# index expressions like `arr[1]` are left alone, while adjacent citations like
-# `[1][2]` (second bracket follows `]`) are both rewritten.
-_ORDINAL = re.compile(r"(?<!\w)\[\s*(\d+)\s*\]")
+# A single ordinal in a bracket: `[1]`, `[12]`. We deliberately match even when
+# glued to the preceding word (`docs[17]`) because the model very frequently
+# writes citations that way — requiring a non-word char before `[` (to dodge
+# `arr[1]`) silently dropped those citations, leaving raw `[n]` that both fails to
+# render and reads like array indexing. Genuine code/array syntax is instead
+# protected by the code-region carve-out below; an unresolved ordinal drops
+# harmlessly. Adjacent citations `[1][2]` are each rewritten.
+_ORDINAL = re.compile(r"\[\s*(\d+)\s*\]")
 
 
 def normalize_citations(text: str, registry: CitationRegistry) -> str:
