@@ -1,10 +1,11 @@
 """Main-agent middleware list assembly: one line per slot.
 
 The main agent is a pure router — filesystem reads/writes are owned by the
-``knowledge_base`` subagent and delegated via the ``task`` tool. The stack
-here only renders KB context (workspace tree + priority docs), projects it
-into system messages, and commits any subagent-side staged writes at end of
-turn (cloud mode).
+``knowledge_base`` subagent and delegated via the ``task`` tool. Knowledge-base
+retrieval is pull-based: the ``search_knowledge_base`` tool runs the hybrid
+search on demand and renders ``<retrieved_context>`` with ``[n]`` citation
+labels. The stack here computes the workspace tree, commits any subagent-side
+staged writes at end of turn (cloud mode), and wires the supporting middleware.
 """
 
 from __future__ import annotations
@@ -32,9 +33,6 @@ from app.agents.chat.multi_agent_chat.shared.middleware.anthropic_cache import (
 )
 from app.agents.chat.multi_agent_chat.shared.middleware.compaction import (
     build_compaction_mw,
-)
-from app.agents.chat.multi_agent_chat.shared.middleware.kb_context_projection import (
-    build_kb_context_projection_mw,
 )
 from app.agents.chat.multi_agent_chat.shared.middleware.patch_tool_calls import (
     build_patch_tool_calls_mw,
@@ -84,7 +82,6 @@ from .context_editing import build_context_editing_mw
 from .dedup_hitl import build_dedup_hitl_mw
 from .doom_loop import build_doom_loop_mw
 from .kb_persistence import build_kb_persistence_mw
-from .knowledge_priority import build_knowledge_priority_mw
 from .knowledge_tree import build_knowledge_tree_mw
 from .noop_injection import build_noop_injection_mw
 from .otel_span import build_otel_mw
@@ -237,16 +234,6 @@ def build_main_agent_deepagent_middleware(
             search_space_id=search_space_id,
             llm=llm,
         ),
-        build_knowledge_priority_mw(
-            llm=llm,
-            search_space_id=search_space_id,
-            filesystem_mode=filesystem_mode,
-            available_connectors=available_connectors,
-            available_document_types=available_document_types,
-            mentioned_document_ids=mentioned_document_ids,
-            preinjection_enabled=flags.enable_kb_priority_preinjection,
-        ),
-        build_kb_context_projection_mw(),
         build_kb_persistence_mw(
             filesystem_mode=filesystem_mode,
             search_space_id=search_space_id,

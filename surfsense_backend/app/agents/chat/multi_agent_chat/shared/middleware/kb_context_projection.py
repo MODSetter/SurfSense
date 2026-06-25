@@ -1,4 +1,4 @@
-"""Project ``workspace_tree_text`` + ``kb_priority`` from state into SystemMessages."""
+"""Project ``workspace_tree_text`` from state into a SystemMessage."""
 
 from __future__ import annotations
 
@@ -14,18 +14,15 @@ from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
 )
 from app.utils.perf import get_perf_logger
 
-from .knowledge_search import _render_priority_message
-
 _perf_log = get_perf_logger()
 
 
 class KbContextProjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
-    """Emit ``<workspace_tree>`` + ``<priority_documents>`` from shared state.
+    """Emit the ``<workspace_tree>`` from shared state.
 
     Read-only consumer: no DB, no LLM, no state writes. The orchestrator's
-    renderer middlewares populate the source fields; this projection lets any
-    agent (orchestrator or subagent) put the same content in front of its
-    own LLM call.
+    ``KnowledgeTreeMiddleware`` populates ``workspace_tree_text``; this
+    projection lets a subagent put the same tree in front of its own LLM call.
     """
 
     tools = ()
@@ -39,28 +36,19 @@ class KbContextProjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         del runtime
         start = time.perf_counter()
         tree_text = state.get("workspace_tree_text")
-        priority = state.get("kb_priority")
-        if not tree_text and not priority:
+        if not tree_text:
             _perf_log.info(
-                "[kb_context_projection] tree=0 priority=0 elapsed=%.3fs",
+                "[kb_context_projection] tree=0 elapsed=%.3fs",
                 time.perf_counter() - start,
             )
             return None
 
         messages = list(state.get("messages") or [])
         insert_at = max(len(messages) - 1, 0)
-        tree_chars = 0
-        if tree_text:
-            tree_chars = len(tree_text)
-            messages.insert(insert_at, SystemMessage(content=tree_text))
-        priority_count = 0
-        if priority:
-            priority_count = len(priority) if hasattr(priority, "__len__") else 1
-            messages.insert(insert_at, _render_priority_message(priority))
+        messages.insert(insert_at, SystemMessage(content=tree_text))
         _perf_log.info(
-            "[kb_context_projection] tree_chars=%d priority_items=%d elapsed=%.3fs",
-            tree_chars,
-            priority_count,
+            "[kb_context_projection] tree_chars=%d elapsed=%.3fs",
+            len(tree_text),
             time.perf_counter() - start,
         )
         return {"messages": messages}

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
@@ -225,23 +224,6 @@ def patched_embed(monkeypatch):
     mock = MagicMock(return_value=DUMMY_EMBEDDING)
     monkeypatch.setattr("app.config.config.embedding_model_instance.embed", mock)
     return mock
-
-
-@pytest.fixture
-def patched_shielded_session(async_engine, monkeypatch):
-    """Replace ``shielded_async_session`` in the knowledge_base module
-    with one that yields sessions from the test engine."""
-    test_maker = async_sessionmaker(async_engine, expire_on_commit=False)
-
-    @asynccontextmanager
-    async def _test_shielded():
-        async with test_maker() as session:
-            yield session
-
-    monkeypatch.setattr(
-        "app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.knowledge_base.shielded_async_session",
-        _test_shielded,
-    )
 
 
 # ---------------------------------------------------------------------------

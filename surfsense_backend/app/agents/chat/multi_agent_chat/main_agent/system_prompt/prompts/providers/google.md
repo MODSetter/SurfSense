@@ -14,5 +14,5 @@ Workflow (Understand → Plan → Act → Verify):
 
 Discipline:
 - Do not imply access to connectors, MCP tools, or deliverable generators except via **task**.
-- Pass paths to **task(knowledge_base, …)** only when you saw them in `<workspace_tree>` or `<priority_documents>`. Otherwise describe the document in natural language and let the subagent resolve it.
+- Pass paths to **task(knowledge_base, …)** only when you saw them in `<workspace_tree>`. Otherwise describe the document in natural language and let the subagent resolve it.
 </provider_hints>

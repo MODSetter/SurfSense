@@ -90,8 +90,8 @@ class TestSubstituteInText:
 
 class TestResolveMentions:
     """``resolve_mentions`` resolves chip ids → virtual paths and emits
-    a ``ResolvedMentionSet`` whose id partitions feed
-    ``KnowledgePriorityMiddleware``."""
+    a ``ResolvedMentionSet`` whose id partitions feed the
+    ``search_knowledge_base`` retrieval scope."""
 
     @pytest.mark.asyncio
     async def test_returns_empty_when_no_mentions(self):

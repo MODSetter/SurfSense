@@ -4,7 +4,6 @@ This module is the single source of truth for mapping ``Document`` rows to
 virtual paths under ``/documents/`` and back. It is used by:
 
 * :class:`KnowledgeTreeMiddleware` (rendering the workspace tree)
-* :class:`KnowledgePriorityMiddleware` (computing priority paths)
 * :class:`KBPostgresBackend` (``als_info`` / ``aread`` / move operations)
 * :class:`KnowledgeBasePersistenceMiddleware` (resolving moves and creates)
 

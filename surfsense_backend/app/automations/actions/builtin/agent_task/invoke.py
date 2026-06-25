@@ -78,7 +78,7 @@ async def _resolve_mention_context(
     Automation always runs in cloud filesystem mode, so we mirror the chat
     ``new_chat`` flow: substitute ``@title`` tokens with canonical
     ``/documents/...`` paths, prepend a ``<mentioned_connectors>`` block, and
-    build a ``SurfSenseContextSchema`` that ``KnowledgePriorityMiddleware``
+    build a ``SurfSenseContextSchema`` that the ``search_knowledge_base`` tool
     reads via ``runtime.context``. Returns ``(query, None)`` unchanged when
     there are no mentions.
     """
@@ -210,7 +210,7 @@ async def run_agent_task(
             runtime_context.turn_id = turn_id
 
         # The compiled graph declares ``context_schema=SurfSenseContextSchema``;
-        # mentions only reach ``KnowledgePriorityMiddleware`` via ``context=``.
+        # mentions only reach the ``search_knowledge_base`` tool via ``context=``.
         invoke_kwargs: dict[str, Any] = {"config": config}
         if runtime_context is not None:
             invoke_kwargs["context"] = runtime_context

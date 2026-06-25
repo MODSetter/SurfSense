@@ -23,6 +23,45 @@ from app.services.llm_service import get_agent_llm
 
 logger = logging.getLogger(__name__)
 
+
+def _report_search_types(
+    available_connectors: list[str] | None,
+    available_document_types: list[str] | None,
+) -> tuple[str, ...] | None:
+    """Build the document-type scope for the shared KB search.
+
+    ``None`` means "search every indexed type"; a tuple narrows the scope to the
+    connectors/document types the search space actually has.
+    """
+    types: set[str] = set()
+    if available_document_types:
+        types.update(available_document_types)
+    if available_connectors:
+        types.update(available_connectors)
+    return tuple(sorted(types)) or None
+
+
+def _render_kb_hits_for_report(hits: list[Any]) -> str:
+    """Render KB hits as plain titled source text for the report writer.
+
+    Citations are intentionally omitted from reports for now, so no ``[n]``
+    labels or chunk ids are emitted — just titled document content for grounding.
+    """
+    from app.agents.chat.multi_agent_chat.shared.document_render import source_label
+
+    blocks: list[str] = []
+    for hit in hits:
+        label = source_label(hit.document_type, hit.metadata)
+        header = f"{hit.title} ({label})" if label else hit.title
+        body = "\n\n".join(
+            chunk.content.strip() for chunk in hit.chunks if chunk.content.strip()
+        )
+        if not body:
+            continue
+        blocks.append(f"## {header}\n\n{body}")
+    return "\n\n".join(blocks)
+
+
 # ─── Shared Formatting Rules ────────────────────────────────────────────────
 # Reusable formatting instructions appended to section-level and review prompts.
 
@@ -788,31 +827,46 @@ def create_generate_report_tool(
                     f"{query_count} queries: {search_queries[:5]}"
                 )
                 try:
-                    from .knowledge_base import search_knowledge_base_async
+                    from app.agents.chat.multi_agent_chat.shared.retrieval.hybrid_search import (
+                        search_chunks,
+                    )
+                    from app.agents.chat.multi_agent_chat.shared.retrieval.models import (
+                        DocumentHit,
+                        SearchScope,
+                    )
+
+                    scope = SearchScope(
+                        document_types=_report_search_types(
+                            available_connectors, available_document_types
+                        )
+                    )
 
                     # Each query gets its own short-lived session.
-                    async def _run_single_query(q: str) -> str:
+                    async def _run_single_query(q: str) -> list[DocumentHit]:
                         async with shielded_async_session() as kb_session:
-                            kb_connector_svc = ConnectorService(
-                                kb_session, search_space_id
-                            )
-                            return await search_knowledge_base_async(
-                                query=q,
+                            return await search_chunks(
+                                kb_session,
                                 search_space_id=search_space_id,
-                                db_session=kb_session,
-                                connector_service=kb_connector_svc,
+                                query=q,
+                                scope=scope,
                                 top_k=10,
-                                available_connectors=available_connectors,
-                                available_document_types=available_document_types,
                             )
 
-                    kb_results = await asyncio.gather(
+                    hits_per_query = await asyncio.gather(
                         *[_run_single_query(q) for q in search_queries[:5]]
                     )
 
-                    kb_text_parts = [r for r in kb_results if r and r.strip()]
-                    if kb_text_parts:
-                        kb_combined = "\n\n---\n\n".join(kb_text_parts)
+                    seen_doc_ids: set[int] = set()
+                    merged_hits: list[DocumentHit] = []
+                    for hits in hits_per_query:
+                        for hit in hits:
+                            if hit.document_id in seen_doc_ids:
+                                continue
+                            seen_doc_ids.add(hit.document_id)
+                            merged_hits.append(hit)
+
+                    kb_combined = _render_kb_hits_for_report(merged_hits)
+                    if kb_combined.strip():
                         if effective_source.strip():
                             effective_source = (
                                 effective_source
@@ -822,20 +876,17 @@ def create_generate_report_tool(
                         else:
                             effective_source = kb_combined
 
-                        # Count docs found (rough: count <document> tags)
-                        doc_count = kb_combined.count("<document>")
+                        doc_count = len(merged_hits)
                         dispatch_custom_event(
                             "report_progress",
                             {
                                 "phase": "kb_search_done",
-                                "message": f"Found {doc_count} relevant documents"
-                                if doc_count
-                                else f"Found results from {len(kb_text_parts)} queries",
+                                "message": f"Found {doc_count} relevant documents",
                             },
                         )
                         logger.info(
                             f"[generate_report] KB search added ~{len(kb_combined)} chars "
-                            f"from {len(kb_text_parts)} queries"
+                            f"from {doc_count} documents"
                         )
                     else:
                         dispatch_custom_event(
