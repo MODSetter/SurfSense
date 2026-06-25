@@ -18,9 +18,8 @@ from .models import RetrievedDocument, RetrievedPassage
 _HEADER = (
     "These are excerpts from the user's knowledge base, selected for this query.\n"
     "A document is a full source (a file, a Slack thread, a Notion page); a chunk\n"
-    "is one ordered fragment of it. Each document is tagged (partial) when only\n"
-    "some of its chunks were retrieved or (complete) when all of them are shown\n"
-    "here, so you know whether you have the whole source or only parts of it.\n"
+    "is one ordered fragment of it. You are seeing only the chunks that matched\n"
+    "this query, not the whole source.\n"
     "Cite a chunk with [n]."
 )
 
@@ -61,10 +60,9 @@ def _render_document(
 
 
 def _render_header(document: RetrievedDocument) -> str:
-    """``Document: "Title"  (source)  (partial|complete)``."""
+    """``Document: "Title"  (source)``."""
     source = f"  ({document.source_label})" if document.source_label else ""
-    completeness = "(complete)" if document.is_complete else "(partial)"
-    return f'Document: "{_clean(document.title)}"{source}  {completeness}'
+    return f'Document: "{_clean(document.title)}"{source}'
 
 
 def _render_passage(

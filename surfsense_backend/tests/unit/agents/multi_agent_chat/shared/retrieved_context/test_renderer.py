@@ -23,13 +23,11 @@ def _document(
     chunk_ids: list[int],
     *,
     source_label: str | None = None,
-    is_complete: bool = False,
 ) -> RetrievedDocument:
     return RetrievedDocument(
         document_id=document_id,
         title=title,
         source_label=source_label,
-        is_complete=is_complete,
         passages=[
             RetrievedPassage(document_id=document_id, chunk_id=cid, content=f"text {cid}")
             for cid in chunk_ids
@@ -73,20 +71,20 @@ def test_registers_passages_with_chunk_locators() -> None:
     assert entry.display["title"] == "Doc"
 
 
-def test_header_shows_source_and_completeness() -> None:
+def test_header_shows_source_when_present() -> None:
     registry = CitationRegistry()
 
     block = render_retrieved_context(
         [
-            _document(1, "Q3", [1], source_label="Slack · #launch", is_complete=False),
-            _document(2, "Plan", [2], is_complete=True),
+            _document(1, "Q3", [1], source_label="Slack · #launch"),
+            _document(2, "Plan", [2]),
         ],
         registry,
     )
 
     assert block is not None
-    assert 'Document: "Q3"  (Slack · #launch)  (partial)' in block
-    assert 'Document: "Plan"  (complete)' in block
+    assert 'Document: "Q3"  (Slack · #launch)' in block
+    assert 'Document: "Plan"' in block
 
 
 def test_wraps_block_and_explains_chunk_vs_document() -> None:

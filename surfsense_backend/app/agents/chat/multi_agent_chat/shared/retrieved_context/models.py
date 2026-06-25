@@ -21,17 +21,11 @@ class RetrievedPassage:
 
 @dataclass(frozen=True)
 class RetrievedDocument:
-    """A source document and the passages retrieved from it, in order.
-
-    ``is_complete`` is ``True`` when every chunk of the document is present in
-    this block, so the model knows whether it is seeing the whole source or
-    only excerpts.
-    """
+    """A source document and the passages retrieved from it, in order."""
 
     document_id: int
     title: str
     source_label: str | None = None
-    is_complete: bool = False
     passages: list[RetrievedPassage] = field(default_factory=list)
 
 
