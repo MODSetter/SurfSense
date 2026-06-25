@@ -23,6 +23,9 @@ def to_frontend_payload(entry: CitationEntry) -> str | None:
             url = locator.get("url")
             return url or None
         case _:
+            # Connector items and chat turns have no client-side renderer yet
+            # (the frontend resolves only chunk ids and URLs), so they stay
+            # unmarked until both a registration path and a renderer exist.
             return None
 
 
