@@ -69,7 +69,10 @@ class Podcast(BaseModel, TimestampMixin):
     file_location = Column(Text, nullable=True)
 
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     search_space = relationship("SearchSpace", back_populates="podcasts")
 
