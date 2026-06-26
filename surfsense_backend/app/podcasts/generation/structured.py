@@ -7,6 +7,7 @@ parse here keeps every generation node validating replies the same way.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -16,7 +17,13 @@ from app.utils.content_utils import extract_text_content, strip_markdown_fences
 if TYPE_CHECKING:
     from langchain_core.messages import BaseMessage
 
+logger = logging.getLogger(__name__)
+
 T = TypeVar("T", bound=BaseModel)
+
+# How much of the raw reply to include in logs when a parse fails, so the actual
+# malformation is diagnosable without dumping an entire episode's worth of text.
+_LOG_SNIPPET_CHARS = 2000
 
 
 class StructuredOutputError(RuntimeError):
@@ -41,10 +48,21 @@ async def invoke_json[T: BaseModel](
         try:
             return model.model_validate_json(content[start:end])
         except (ValidationError, ValueError) as exc:
+            logger.error(
+                "Failed to parse %s from model reply: %s\nRaw reply: %s",
+                model.__name__,
+                exc,
+                content[:_LOG_SNIPPET_CHARS],
+            )
             raise StructuredOutputError(
-                f"could not parse {model.__name__} from model reply"
+                f"could not parse {model.__name__} from model reply: {exc}"
             ) from exc
 
+    logger.error(
+        "No JSON object found for %s in model reply.\nRaw reply: %s",
+        model.__name__,
+        content[:_LOG_SNIPPET_CHARS],
+    )
     raise StructuredOutputError(
         f"no JSON object found for {model.__name__} in model reply"
     )
