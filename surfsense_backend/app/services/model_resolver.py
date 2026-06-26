@@ -59,6 +59,10 @@ def to_litellm(
     kwargs: dict[str, Any] = {}
     if api_key:
         kwargs["api_key"] = api_key
+    elif provider == "lm_studio":
+        # LiteLLM's OpenAI-compatible adapter expects an api_key value even
+        # when LM Studio accepts unauthenticated local requests.
+        kwargs["api_key"] = "not-needed"
 
     prefix = spec.litellm_prefix or str(provider)
     model_string = f"{prefix}/{model_id}" if prefix else model_id
