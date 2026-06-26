@@ -21,9 +21,9 @@ def test_scalar_value_is_implicit_equality() -> None:
 
 
 def test_multiple_fields_are_anded() -> None:
-    flt = {"document_type": "FILE", "search_space_id": 7}
-    assert matches(flt, {"document_type": "FILE", "search_space_id": 7}) is True
-    assert matches(flt, {"document_type": "FILE", "search_space_id": 9}) is False
+    flt = {"document_type": "FILE", "workspace_id": 7}
+    assert matches(flt, {"document_type": "FILE", "workspace_id": 7}) is True
+    assert matches(flt, {"document_type": "FILE", "workspace_id": 9}) is False
 
 
 def test_gt_operator_compares_greater_than() -> None:
@@ -97,12 +97,12 @@ def test_missing_field_never_matches_and_never_raises() -> None:
 
 def test_logical_operators_compose_with_fields() -> None:
     flt = {
-        "search_space_id": 7,
+        "workspace_id": 7,
         "$or": [{"document_type": "FILE"}, {"document_type": "WEBPAGE"}],
     }
-    assert matches(flt, {"search_space_id": 7, "document_type": "FILE"}) is True
-    assert matches(flt, {"search_space_id": 9, "document_type": "FILE"}) is False
-    assert matches(flt, {"search_space_id": 7, "document_type": "SLACK"}) is False
+    assert matches(flt, {"workspace_id": 7, "document_type": "FILE"}) is True
+    assert matches(flt, {"workspace_id": 9, "document_type": "FILE"}) is False
+    assert matches(flt, {"workspace_id": 7, "document_type": "SLACK"}) is False
 
 
 def test_unknown_field_operator_raises_filter_error() -> None:

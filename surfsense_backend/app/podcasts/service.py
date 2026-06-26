@@ -86,12 +86,12 @@ class PodcastService:
         self._repo = PodcastRepository(session)
 
     async def create(
-        self, *, title: str, search_space_id: int, thread_id: int | None = None
+        self, *, title: str, workspace_id: int, thread_id: int | None = None
     ) -> Podcast:
         """Create a fresh podcast in ``PENDING`` awaiting its brief."""
         podcast = Podcast(
             title=title,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             thread_id=thread_id,
             status=PodcastStatus.PENDING,
             spec_version=1,

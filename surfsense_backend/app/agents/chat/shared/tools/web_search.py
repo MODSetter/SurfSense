@@ -115,7 +115,7 @@ def _to_renderable_web_documents(
 async def _search_live_connector(
     connector: str,
     query: str,
-    search_space_id: int,
+    workspace_id: int,
     top_k: int,
     semaphore: asyncio.Semaphore,
 ) -> list[dict[str, Any]]:
@@ -128,7 +128,7 @@ async def _search_live_connector(
     method_name, _includes_date_range, includes_top_k, extra_kwargs = spec
     kwargs: dict[str, Any] = {
         "user_query": query,
-        "search_space_id": search_space_id,
+        "workspace_id": workspace_id,
         **extra_kwargs,
     }
     if includes_top_k:
@@ -137,7 +137,7 @@ async def _search_live_connector(
     try:
         t0 = time.perf_counter()
         async with semaphore, shielded_async_session() as session:
-            svc = ConnectorService(session, search_space_id)
+            svc = ConnectorService(session, workspace_id)
             _, chunks = await getattr(svc, method_name)(**kwargs)
             perf.info(
                 "[web_search] connector=%s results=%d in %.3fs",
@@ -152,7 +152,7 @@ async def _search_live_connector(
 
 
 def create_web_search_tool(
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     available_connectors: list[str] | None = None,
 ) -> BaseTool:
     """Factory for the ``web_search`` tool.
@@ -178,7 +178,7 @@ def create_web_search_tool(
         "All configured engines are queried in parallel and results are merged."
     )
 
-    _search_space_id = search_space_id
+    _workspace_id = workspace_id
     _active_live = active_live_connectors
 
     async def _web_search_impl(
@@ -213,14 +213,14 @@ def create_web_search_tool(
 
             tasks.append(asyncio.ensure_future(_searxng()))
 
-        if _search_space_id is not None:
+        if _workspace_id is not None:
             for connector in _active_live:
                 tasks.append(
                     asyncio.ensure_future(
                         _search_live_connector(
                             connector=connector,
                             query=query,
-                            search_space_id=_search_space_id,
+                            workspace_id=_workspace_id,
                             top_k=clamped_top_k,
                             semaphore=semaphore,
                         )

@@ -22,7 +22,7 @@ _MIME_MAP: dict[str, str] = {
 
 def create_create_google_drive_file_tool(
     db_session: AsyncSession | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     user_id: str | None = None,
 ):
     @tool
@@ -67,7 +67,7 @@ def create_create_google_drive_file_tool(
             f"create_google_drive_file called: name='{name}', type='{file_type}'"
         )
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if db_session is None or workspace_id is None or user_id is None:
             return {
                 "status": "error",
                 "message": "Google Drive tool not properly configured. Please contact support.",
@@ -82,7 +82,7 @@ def create_create_google_drive_file_tool(
         try:
             metadata_service = GoogleDriveToolMetadataService(db_session)
             context = await metadata_service.get_creation_context(
-                search_space_id, user_id
+                workspace_id, user_id
             )
 
             if "error" in context:
@@ -149,7 +149,7 @@ def create_create_google_drive_file_tool(
                 result = await db_session.execute(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.id == final_connector_id,
-                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.workspace_id == workspace_id,
                         SearchSourceConnector.user_id == user_id,
                         SearchSourceConnector.connector_type.in_(_drive_types),
                     )
@@ -164,7 +164,7 @@ def create_create_google_drive_file_tool(
             else:
                 result = await db_session.execute(
                     select(SearchSourceConnector).filter(
-                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.workspace_id == workspace_id,
                         SearchSourceConnector.user_id == user_id,
                         SearchSourceConnector.connector_type.in_(_drive_types),
                     )
@@ -288,7 +288,7 @@ def create_create_google_drive_file_tool(
                     web_view_link=created.get("webViewLink"),
                     content=final_content,
                     connector_id=actual_connector_id,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                 )
                 if kb_result["status"] == "success":

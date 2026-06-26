@@ -28,7 +28,7 @@ DOCUMENT_COLS = [
     "id",
     "title",
     "document_type",
-    "search_space_id",
+    "workspace_id",
     "folder_id",
     "created_by_id",
     "status",
@@ -54,12 +54,12 @@ AUTOMATION_RUN_COLS = [
 
 AUTOMATION_COLS = [
     "id",
-    "search_space_id",
+    "workspace_id",
 ]
 
 NEW_CHAT_THREAD_COLS = [
     "id",
-    "search_space_id",
+    "workspace_id",
 ]
 
 # Enough to drive the lifecycle UI by push: status, the reviewable brief, and
@@ -73,7 +73,7 @@ PODCAST_COLS = [
     "spec_version",
     "duration_seconds",
     "error",
-    "search_space_id",
+    "workspace_id",
     "thread_id",
     "created_at",
 ]

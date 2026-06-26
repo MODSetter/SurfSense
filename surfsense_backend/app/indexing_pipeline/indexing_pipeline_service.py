@@ -73,7 +73,7 @@ class PlaceholderInfo:
     title: str
     document_type: DocumentType
     unique_id: str
-    search_space_id: int
+    workspace_id: int
     connector_id: int | None
     created_by_id: str
     metadata: dict = field(default_factory=dict)
@@ -111,7 +111,7 @@ class IndexingPipelineService:
         for p in placeholders:
             try:
                 uid_hash = compute_identifier_hash(
-                    p.document_type.value, p.unique_id, p.search_space_id
+                    p.document_type.value, p.unique_id, p.workspace_id
                 )
                 uid_hashes.setdefault(uid_hash, p)
             except Exception:
@@ -145,7 +145,7 @@ class IndexingPipelineService:
                     content_hash=content_hash,
                     unique_identifier_hash=uid_hash,
                     document_metadata=p.metadata or {},
-                    search_space_id=p.search_space_id,
+                    workspace_id=p.workspace_id,
                     connector_id=p.connector_id,
                     created_by_id=p.created_by_id,
                     updated_at=datetime.now(UTC),
@@ -186,7 +186,7 @@ class IndexingPipelineService:
                 continue
 
             legacy_hash = compute_identifier_hash(
-                legacy_type, doc.unique_id, doc.search_space_id
+                legacy_type, doc.unique_id, doc.workspace_id
             )
             result = await self.session.execute(
                 select(Document).filter(Document.unique_identifier_hash == legacy_hash)
@@ -196,7 +196,7 @@ class IndexingPipelineService:
                 continue
 
             native_hash = compute_identifier_hash(
-                doc.document_type.value, doc.unique_id, doc.search_space_id
+                doc.document_type.value, doc.unique_id, doc.workspace_id
             )
             existing.unique_identifier_hash = native_hash
             existing.document_type = doc.document_type
@@ -235,14 +235,14 @@ class IndexingPipelineService:
         seen_hashes: set[str] = set()
         batch_ctx = PipelineLogContext(
             connector_id=connector_docs[0].connector_id if connector_docs else 0,
-            search_space_id=connector_docs[0].search_space_id if connector_docs else 0,
+            workspace_id=connector_docs[0].workspace_id if connector_docs else 0,
             unique_id="batch",
         )
 
         for connector_doc in connector_docs:
             ctx = PipelineLogContext(
                 connector_id=connector_doc.connector_id,
-                search_space_id=connector_doc.search_space_id,
+                workspace_id=connector_doc.workspace_id,
                 unique_id=connector_doc.unique_id,
             )
             try:
@@ -318,7 +318,7 @@ class IndexingPipelineService:
                     unique_identifier_hash=unique_identifier_hash,
                     source_markdown=connector_doc.source_markdown,
                     document_metadata=connector_doc.metadata,
-                    search_space_id=connector_doc.search_space_id,
+                    workspace_id=connector_doc.workspace_id,
                     connector_id=connector_doc.connector_id,
                     created_by_id=connector_doc.created_by_id,
                     updated_at=datetime.now(UTC),
@@ -358,7 +358,7 @@ class IndexingPipelineService:
         """
         ctx = PipelineLogContext(
             connector_id=connector_doc.connector_id,
-            search_space_id=connector_doc.search_space_id,
+            workspace_id=connector_doc.workspace_id,
             unique_id=connector_doc.unique_id,
             doc_id=document.id,
         )
@@ -565,13 +565,13 @@ class IndexingPipelineService:
         return len(new_texts)
 
     async def _enqueue_ai_sort_if_enabled(self, document: Document) -> None:
-        """Fire-and-forget: enqueue incremental AI sort if the search space has it enabled."""
+        """Fire-and-forget: enqueue incremental AI sort if the workspace has it enabled."""
         try:
-            from app.db import SearchSpace
+            from app.db import Workspace
 
             result = await self.session.execute(
-                select(SearchSpace.ai_file_sort_enabled).where(
-                    SearchSpace.id == document.search_space_id
+                select(Workspace.ai_file_sort_enabled).where(
+                    Workspace.id == document.workspace_id
                 )
             )
             enabled = result.scalar()
@@ -581,7 +581,7 @@ class IndexingPipelineService:
             from app.tasks.celery_tasks.document_tasks import ai_sort_document_task
 
             user_id = str(document.created_by_id) if document.created_by_id else ""
-            ai_sort_document_task.delay(document.search_space_id, user_id, document.id)
+            ai_sort_document_task.delay(document.workspace_id, user_id, document.id)
         except Exception:
             logging.getLogger(__name__).warning(
                 "Failed to enqueue AI sort for document %s", document.id, exc_info=True

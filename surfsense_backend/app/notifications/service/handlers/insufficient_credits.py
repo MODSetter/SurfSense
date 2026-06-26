@@ -26,12 +26,12 @@ class InsufficientCreditsNotificationHandler(BaseNotificationHandler):
         user_id: UUID,
         document_name: str,
         document_type: str,
-        search_space_id: int,
+        workspace_id: int,
         balance_micros: int,
         required_micros: int,
     ) -> Notification:
         """Notify that a document was blocked by insufficient credit."""
-        operation_id = msg.operation_id(document_name, search_space_id)
+        operation_id = msg.operation_id(document_name, workspace_id)
         title, message = msg.summary(document_name, balance_micros, required_micros)
 
         metadata = {
@@ -43,13 +43,13 @@ class InsufficientCreditsNotificationHandler(BaseNotificationHandler):
             "status": "failed",
             "error_type": "insufficient_credits",
             # Where the inbox item links to.
-            "action_url": f"/dashboard/{search_space_id}/buy-more",
+            "action_url": f"/dashboard/{workspace_id}/buy-more",
             "action_label": "Buy credits",
         }
 
         notification = Notification(
             user_id=user_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             type=self.notification_type,
             title=title,
             message=message,

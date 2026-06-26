@@ -29,12 +29,12 @@ logger = logging.getLogger(__name__)
 
 async def fetch_mcp_connector_metadata_maps(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
 ) -> tuple[dict[int, str], dict[str, str]]:
     """Resolve connector id and display name to connector type for MCP tool routing."""
     result = await session.execute(
         select(SearchSourceConnector).filter(
-            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.workspace_id == workspace_id,
             cast(SearchSourceConnector.config, JSONB).has_key("server_config"),
         ),
     )
@@ -101,13 +101,13 @@ def partition_mcp_tools_by_connector(
 
 async def load_mcp_tools_by_connector(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
 ) -> dict[str, list[BaseTool]]:
     """Load MCP tools and route them to each subagent as a flat list.
 
     ``bypass_internal_hitl=True`` is set so tool gating is uniformly the
     consuming subagent's :class:`PermissionMiddleware` responsibility.
     """
-    flat = await load_mcp_tools(session, search_space_id, bypass_internal_hitl=True)
-    id_map, name_map = await fetch_mcp_connector_metadata_maps(session, search_space_id)
+    flat = await load_mcp_tools(session, workspace_id, bypass_internal_hitl=True)
+    id_map, name_map = await fetch_mcp_connector_metadata_maps(session, workspace_id)
     return partition_mcp_tools_by_connector(flat, id_map, name_map)

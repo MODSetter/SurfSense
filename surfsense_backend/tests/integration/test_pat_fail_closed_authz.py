@@ -7,9 +7,9 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.db import PersonalAccessToken, SearchSpace, User
+from app.db import PersonalAccessToken, Workspace, User
 from app.users import allow_any_principal, require_session_context
-from app.utils.rbac import check_search_space_access
+from app.utils.rbac import check_workspace_access
 
 pytestmark = pytest.mark.integration
 
@@ -43,29 +43,29 @@ async def test_pat_is_allowed_by_bootstrap_dependency(db_user: User):
 async def test_pat_is_rejected_for_api_disabled_space(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
-    db_search_space.api_access_enabled = False
+    db_workspace.api_access_enabled = False
     await db_session.flush()
     auth = _pat_auth(db_user)
 
     with pytest.raises(HTTPException) as exc_info:
-        await check_search_space_access(db_session, auth, db_search_space.id)
+        await check_workspace_access(db_session, auth, db_workspace.id)
 
     assert exc_info.value.status_code == 403
-    assert exc_info.value.detail == "API access is not enabled for this search space."
+    assert exc_info.value.detail == "API access is not enabled for this workspace."
 
 
 async def test_pat_is_allowed_for_api_enabled_space(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
-    db_search_space.api_access_enabled = True
+    db_workspace.api_access_enabled = True
     await db_session.flush()
     auth = _pat_auth(db_user)
 
-    membership = await check_search_space_access(db_session, auth, db_search_space.id)
+    membership = await check_workspace_access(db_session, auth, db_workspace.id)
 
     assert membership.user_id == db_user.id
-    assert membership.search_space_id == db_search_space.id
+    assert membership.workspace_id == db_workspace.id

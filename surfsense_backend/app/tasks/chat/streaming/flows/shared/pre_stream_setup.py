@@ -12,7 +12,7 @@ from app.services.connector_service import ConnectorService
 async def setup_connector_and_firecrawl(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
 ) -> tuple[ConnectorService, str | None]:
     """Build the per-turn connector service and pull the firecrawl API key.
 
@@ -20,10 +20,10 @@ async def setup_connector_and_firecrawl(
     ``None`` when no web-crawler connector is configured (the agent simply
     skips firecrawl-backed tools in that case).
     """
-    connector_service = ConnectorService(session, search_space_id=search_space_id)
+    connector_service = ConnectorService(session, workspace_id=workspace_id)
     firecrawl_api_key: str | None = None
     webcrawler_connector = await connector_service.get_connector_by_type(
-        SearchSourceConnectorType.WEBCRAWLER_CONNECTOR, search_space_id
+        SearchSourceConnectorType.WEBCRAWLER_CONNECTOR, workspace_id
     )
     if webcrawler_connector and webcrawler_connector.config:
         firecrawl_api_key = webcrawler_connector.config.get("FIRECRAWL_API_KEY")

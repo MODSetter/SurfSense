@@ -62,7 +62,7 @@ async def reroute_to_next_auto_pin(
     session: AsyncSession,
     *,
     chat_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
     current_llm_config_id: int,
     requires_image_input: bool,
@@ -79,7 +79,7 @@ async def reroute_to_next_auto_pin(
     pinned = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=chat_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         selected_llm_config_id=0,
         exclude_config_ids={current_llm_config_id},
@@ -93,7 +93,7 @@ def log_rate_limit_recovered(
     flow: Literal["new", "regenerate", "resume"],
     request_id: str | None,
     chat_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
     previous_config_id: int,
     new_config_id: int,
@@ -115,7 +115,7 @@ def log_rate_limit_recovered(
         is_expected=True,
         request_id=request_id,
         thread_id=chat_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         message=(
             "Auto-pinned model hit runtime rate limit; switched to "

@@ -14,7 +14,7 @@ from app.db import (
     DocumentType,
     DocumentVersion,
     Folder,
-    SearchSpace,
+    Workspace,
     User,
 )
 
@@ -66,7 +66,7 @@ class TestFullIndexer:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """I1: Single new .md file is indexed with status READY."""
@@ -76,7 +76,7 @@ class TestFullIndexer:
 
         count, _skipped, _root_folder_id, err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -90,7 +90,7 @@ class TestFullIndexer:
                 await db_session.execute(
                     select(Document).where(
                         Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                        Document.search_space_id == db_search_space.id,
+                        Document.workspace_id == db_workspace.id,
                     )
                 )
             )
@@ -106,7 +106,7 @@ class TestFullIndexer:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """I2: Second run on unchanged directory creates no new documents."""
@@ -116,7 +116,7 @@ class TestFullIndexer:
 
         count1, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -125,7 +125,7 @@ class TestFullIndexer:
 
         count2, _, _, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -139,7 +139,7 @@ class TestFullIndexer:
                 .select_from(Document)
                 .where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+                    Document.workspace_id == db_workspace.id,
                 )
             )
         ).scalar_one()
@@ -150,7 +150,7 @@ class TestFullIndexer:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """I3: Modified file content triggers re-index and creates a version."""
@@ -161,7 +161,7 @@ class TestFullIndexer:
 
         _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -172,7 +172,7 @@ class TestFullIndexer:
 
         count, _, _, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -187,7 +187,7 @@ class TestFullIndexer:
                     .join(Document)
                     .where(
                         Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                        Document.search_space_id == db_search_space.id,
+                        Document.workspace_id == db_workspace.id,
                     )
                 )
             )
@@ -201,7 +201,7 @@ class TestFullIndexer:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """I4: Deleted file is removed from DB on re-sync."""
@@ -212,7 +212,7 @@ class TestFullIndexer:
 
         _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -224,7 +224,7 @@ class TestFullIndexer:
                 .select_from(Document)
                 .where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+                    Document.workspace_id == db_workspace.id,
                 )
             )
         ).scalar_one()
@@ -234,7 +234,7 @@ class TestFullIndexer:
 
         await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -247,7 +247,7 @@ class TestFullIndexer:
                 .select_from(Document)
                 .where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+                    Document.workspace_id == db_workspace.id,
                 )
             )
         ).scalar_one()
@@ -258,7 +258,7 @@ class TestFullIndexer:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """I5: Batch mode with a single file only processes that file."""
@@ -270,7 +270,7 @@ class TestFullIndexer:
 
         count, _, _, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -283,7 +283,7 @@ class TestFullIndexer:
                 await db_session.execute(
                     select(Document).where(
                         Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                        Document.search_space_id == db_search_space.id,
+                        Document.workspace_id == db_workspace.id,
                     )
                 )
             )
@@ -305,7 +305,7 @@ class TestFolderMirroring:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """F1: First sync creates a root Folder and returns root_folder_id."""
@@ -315,7 +315,7 @@ class TestFolderMirroring:
 
         _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -333,7 +333,7 @@ class TestFolderMirroring:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """F2: Nested dirs create Folder rows with correct parent_id chain."""
@@ -348,7 +348,7 @@ class TestFolderMirroring:
 
         await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -357,7 +357,7 @@ class TestFolderMirroring:
         folders = (
             (
                 await db_session.execute(
-                    select(Folder).where(Folder.search_space_id == db_search_space.id)
+                    select(Folder).where(Folder.workspace_id == db_workspace.id)
                 )
             )
             .scalars()
@@ -381,7 +381,7 @@ class TestFolderMirroring:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """F3: Re-sync reuses existing Folder rows, no duplicates."""
@@ -393,7 +393,7 @@ class TestFolderMirroring:
 
         _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -402,7 +402,7 @@ class TestFolderMirroring:
         folders_before = (
             (
                 await db_session.execute(
-                    select(Folder).where(Folder.search_space_id == db_search_space.id)
+                    select(Folder).where(Folder.workspace_id == db_workspace.id)
                 )
             )
             .scalars()
@@ -412,7 +412,7 @@ class TestFolderMirroring:
 
         await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -422,7 +422,7 @@ class TestFolderMirroring:
         folders_after = (
             (
                 await db_session.execute(
-                    select(Folder).where(Folder.search_space_id == db_search_space.id)
+                    select(Folder).where(Folder.workspace_id == db_workspace.id)
                 )
             )
             .scalars()
@@ -437,7 +437,7 @@ class TestFolderMirroring:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """F4: Documents get correct folder_id based on their directory."""
@@ -450,7 +450,7 @@ class TestFolderMirroring:
 
         _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -461,7 +461,7 @@ class TestFolderMirroring:
                 await db_session.execute(
                     select(Document).where(
                         Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                        Document.search_space_id == db_search_space.id,
+                        Document.workspace_id == db_workspace.id,
                     )
                 )
             )
@@ -485,7 +485,7 @@ class TestFolderMirroring:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """F5: Deleted dir's empty Folder row is cleaned up on re-sync."""
@@ -502,7 +502,7 @@ class TestFolderMirroring:
 
         _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -517,7 +517,7 @@ class TestFolderMirroring:
 
         await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -539,7 +539,7 @@ class TestFolderMirroring:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """F6: Single-file mode creates missing Folder rows and assigns correct folder_id."""
@@ -549,7 +549,7 @@ class TestFolderMirroring:
 
         _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -561,7 +561,7 @@ class TestFolderMirroring:
 
         count, _, _, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -597,7 +597,7 @@ class TestFolderMirroring:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """F7: Deleting the only file in a subfolder via batch mode removes empty Folder rows."""
@@ -610,7 +610,7 @@ class TestFolderMirroring:
 
         _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -626,7 +626,7 @@ class TestFolderMirroring:
 
         await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -656,7 +656,7 @@ class TestBatchMode:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
         patched_batch_sessions,
     ):
@@ -669,7 +669,7 @@ class TestBatchMode:
 
         count, failed, _root_folder_id, err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -689,7 +689,7 @@ class TestBatchMode:
                 await db_session.execute(
                     select(Document).where(
                         Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                        Document.search_space_id == db_search_space.id,
+                        Document.workspace_id == db_workspace.id,
                     )
                 )
             )
@@ -707,7 +707,7 @@ class TestBatchMode:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
         patched_batch_sessions,
     ):
@@ -720,7 +720,7 @@ class TestBatchMode:
 
         count, failed, _, err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -740,7 +740,7 @@ class TestBatchMode:
                 await db_session.execute(
                     select(Document).where(
                         Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                        Document.search_space_id == db_search_space.id,
+                        Document.workspace_id == db_workspace.id,
                     )
                 )
             )
@@ -762,7 +762,7 @@ class TestPipelineIntegration:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         mocker,
     ):
         """P1: LOCAL_FOLDER_FILE ConnectorDocument through prepare+index to READY."""
@@ -776,7 +776,7 @@ class TestPipelineIntegration:
             source_markdown="## Local file\n\nContent from disk.",
             unique_id="test-folder:test.md",
             document_type=DocumentType.LOCAL_FOLDER_FILE,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             connector_id=None,
             created_by_id=str(db_user.id),
         )
@@ -794,7 +794,7 @@ class TestPipelineIntegration:
                 await db_session.execute(
                     select(Document).where(
                         Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                        Document.search_space_id == db_search_space.id,
+                        Document.workspace_id == db_workspace.id,
                     )
                 )
             )
@@ -816,7 +816,7 @@ class TestDirectConvert:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """DC1: CSV file is indexed as a markdown table, not raw comma-separated text."""
@@ -826,7 +826,7 @@ class TestDirectConvert:
 
         count, _skipped, _root_folder_id, err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -839,7 +839,7 @@ class TestDirectConvert:
             await db_session.execute(
                 select(Document).where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+                    Document.workspace_id == db_workspace.id,
                 )
             )
         ).scalar_one()
@@ -853,7 +853,7 @@ class TestDirectConvert:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """DC2: TSV file is indexed as a markdown table."""
@@ -865,7 +865,7 @@ class TestDirectConvert:
 
         count, _skipped, _root_folder_id, err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -878,7 +878,7 @@ class TestDirectConvert:
             await db_session.execute(
                 select(Document).where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+                    Document.workspace_id == db_workspace.id,
                 )
             )
         ).scalar_one()
@@ -891,7 +891,7 @@ class TestDirectConvert:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """DC3: HTML file is indexed as clean markdown, not raw HTML."""
@@ -901,7 +901,7 @@ class TestDirectConvert:
 
         count, _skipped, _root_folder_id, err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -914,7 +914,7 @@ class TestDirectConvert:
             await db_session.execute(
                 select(Document).where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+                    Document.workspace_id == db_workspace.id,
                 )
             )
         ).scalar_one()
@@ -927,7 +927,7 @@ class TestDirectConvert:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """DC4: CSV via single-file batch mode also produces a markdown table."""
@@ -937,7 +937,7 @@ class TestDirectConvert:
 
         count, _skipped, _root_folder_id, err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -951,7 +951,7 @@ class TestDirectConvert:
             await db_session.execute(
                 select(Document).where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == db_search_space.id,
+                    Document.workspace_id == db_workspace.id,
                 )
             )
         ).scalar_one()
@@ -984,7 +984,7 @@ class TestEtlCredits:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """CR1: Successful full-scan sync debits user.credit_micros_balance."""
@@ -998,7 +998,7 @@ class TestEtlCredits:
 
         count, _skipped, _root_folder_id, err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -1017,7 +1017,7 @@ class TestEtlCredits:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """CR2: Full-scan skips file when the wallet is empty."""
@@ -1030,7 +1030,7 @@ class TestEtlCredits:
 
         count, _skipped, _root_folder_id, _err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -1048,7 +1048,7 @@ class TestEtlCredits:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """CR3: Single-file mode debits balance on success."""
@@ -1062,7 +1062,7 @@ class TestEtlCredits:
 
         count, _skipped, _root_folder_id, err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -1082,7 +1082,7 @@ class TestEtlCredits:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """CR4: Single-file mode skips file when the wallet is empty."""
@@ -1095,7 +1095,7 @@ class TestEtlCredits:
 
         count, _skipped, _root_folder_id, err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -1116,7 +1116,7 @@ class TestEtlCredits:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """CR5: Re-syncing an unchanged file does not consume additional credit."""
@@ -1129,7 +1129,7 @@ class TestEtlCredits:
 
         count1, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -1142,7 +1142,7 @@ class TestEtlCredits:
 
         count2, _, _, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -1160,7 +1160,7 @@ class TestEtlCredits:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
         patched_batch_sessions,
     ):
@@ -1177,7 +1177,7 @@ class TestEtlCredits:
 
         count, failed, _root_folder_id, _err = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -1209,7 +1209,7 @@ class TestIndexingProgressFlag:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """IP1: Full-scan mode clears indexing_in_progress after completion."""
@@ -1219,7 +1219,7 @@ class TestIndexingProgressFlag:
 
         _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -1237,7 +1237,7 @@ class TestIndexingProgressFlag:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """IP2: Single-file (Chokidar) mode clears indexing_in_progress after completion."""
@@ -1246,7 +1246,7 @@ class TestIndexingProgressFlag:
         (tmp_path / "root.md").write_text("root")
         _, _, root_folder_id, _ = await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -1256,7 +1256,7 @@ class TestIndexingProgressFlag:
 
         await index_local_folder(
             session=db_session,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
             folder_path=str(tmp_path),
             folder_name="test-folder",
@@ -1275,7 +1275,7 @@ class TestIndexingProgressFlag:
         self,
         db_session: AsyncSession,
         db_user: User,
-        db_search_space: SearchSpace,
+        db_workspace: Workspace,
         tmp_path: Path,
     ):
         """IP3: indexing_in_progress is True on the root folder while indexing is running."""
@@ -1294,7 +1294,7 @@ class TestIndexingProgressFlag:
             folder = (
                 await db_session.execute(
                     select(Folder).where(
-                        Folder.search_space_id == db_search_space.id,
+                        Folder.workspace_id == db_workspace.id,
                         Folder.parent_id.is_(None),
                     )
                 )
@@ -1308,7 +1308,7 @@ class TestIndexingProgressFlag:
         try:
             _, _, root_folder_id, _ = await index_local_folder(
                 session=db_session,
-                search_space_id=db_search_space.id,
+                workspace_id=db_workspace.id,
                 user_id=str(db_user.id),
                 folder_path=str(tmp_path),
                 folder_name="test-folder",

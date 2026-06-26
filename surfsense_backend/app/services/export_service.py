@@ -81,7 +81,7 @@ class ExportResult:
 
 async def build_export_zip(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     folder_id: int | None = None,
 ) -> ExportResult:
     """Build a ZIP archive of markdown documents preserving folder structure.
@@ -93,13 +93,13 @@ async def build_export_zip(
     """
     if folder_id is not None:
         folder = await session.get(Folder, folder_id)
-        if not folder or folder.search_space_id != search_space_id:
+        if not folder or folder.workspace_id != workspace_id:
             raise ValueError("Folder not found")
         target_folder_ids = set(await get_folder_subtree_ids(session, folder_id))
     else:
         target_folder_ids = None
 
-    folder_query = select(Folder).where(Folder.search_space_id == search_space_id)
+    folder_query = select(Folder).where(Folder.workspace_id == workspace_id)
     if target_folder_ids is not None:
         folder_query = folder_query.where(Folder.id.in_(target_folder_ids))
     folder_result = await session.execute(folder_query)
@@ -109,7 +109,7 @@ async def build_export_zip(
 
     batch_size = 100
 
-    base_doc_query = select(Document).where(Document.search_space_id == search_space_id)
+    base_doc_query = select(Document).where(Document.workspace_id == workspace_id)
     if target_folder_ids is not None:
         base_doc_query = base_doc_query.where(Document.folder_id.in_(target_folder_ids))
     base_doc_query = base_doc_query.order_by(Document.id)

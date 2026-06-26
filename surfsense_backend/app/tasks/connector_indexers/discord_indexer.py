@@ -116,7 +116,7 @@ def _build_batch_document_string(
 async def index_discord_messages(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None = None,
     end_date: str | None = None,
@@ -139,7 +139,7 @@ async def index_discord_messages(
     Args:
         session: Database session
         connector_id: ID of the Discord connector
-        search_space_id: ID of the search space to store documents in
+        workspace_id: ID of the workspace to store documents in
         user_id: ID of the user
         start_date: Start date for indexing (YYYY-MM-DD format)
         end_date: End date for indexing (YYYY-MM-DD format)
@@ -150,7 +150,7 @@ async def index_discord_messages(
     Returns:
         Tuple containing (number of documents indexed, error message or None)
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     # Log task start
     log_entry = await task_logger.log_task_start(
@@ -506,12 +506,12 @@ async def index_discord_messages(
                             unique_identifier_hash = generate_unique_identifier_hash(
                                 DocumentType.DISCORD_CONNECTOR,
                                 unique_identifier,
-                                search_space_id,
+                                workspace_id,
                             )
 
                             # Generate content hash
                             content_hash = generate_content_hash(
-                                combined_document_string, search_space_id
+                                combined_document_string, workspace_id
                             )
 
                             # Check if document with this unique identifier already exists
@@ -579,7 +579,7 @@ async def index_discord_messages(
 
                             # Create new document with PENDING status (visible in UI immediately)
                             document = Document(
-                                search_space_id=search_space_id,
+                                workspace_id=workspace_id,
                                 title=f"{guild_name}#{channel_name}",
                                 document_type=DocumentType.DISCORD_CONNECTOR,
                                 document_metadata={

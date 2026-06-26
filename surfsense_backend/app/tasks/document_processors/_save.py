@@ -28,7 +28,7 @@ async def save_file_document(
     session: AsyncSession,
     file_name: str,
     markdown_content: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     etl_service: str,
     connector: dict | None = None,
@@ -43,7 +43,7 @@ async def save_file_document(
         session: Database session
         file_name: Name of the processed file
         markdown_content: Markdown content to store
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         etl_service: Name of the ETL service (UNSTRUCTURED, LLAMACLOUD, DOCLING)
         connector: Optional connector info for Google Drive files
@@ -53,9 +53,9 @@ async def save_file_document(
     """
     try:
         primary_hash, legacy_hash = get_google_drive_unique_identifier(
-            connector, file_name, search_space_id
+            connector, file_name, workspace_id
         )
-        content_hash = generate_content_hash(markdown_content, search_space_id)
+        content_hash = generate_content_hash(markdown_content, workspace_id)
 
         existing_document = await find_existing_document_with_migration(
             session, primary_hash, legacy_hash, content_hash
@@ -99,7 +99,7 @@ async def save_file_document(
             doc_type = DocumentType.GOOGLE_DRIVE_FILE
 
         document = Document(
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             title=file_name,
             document_type=doc_type,
             document_metadata=doc_metadata,

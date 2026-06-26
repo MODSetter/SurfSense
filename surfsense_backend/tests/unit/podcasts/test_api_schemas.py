@@ -22,7 +22,7 @@ def _podcast(*, status: PodcastStatus = PodcastStatus.PENDING, **columns) -> Pod
     """A persisted-looking row: the id and created_at a saved podcast would carry."""
     podcast = Podcast(
         title="Episode",
-        search_space_id=3,
+        workspace_id=3,
         status=status,
         spec_version=1,
         **columns,

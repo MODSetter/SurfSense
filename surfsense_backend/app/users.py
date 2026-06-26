@@ -22,9 +22,9 @@ from app.auth.session_cookies import access_expires_at, write_session
 from app.config import config
 from app.db import (
     Prompt,
-    SearchSpace,
-    SearchSpaceMembership,
-    SearchSpaceRole,
+    Workspace,
+    WorkspaceMembership,
+    WorkspaceRole,
     User,
     async_session_maker,
     get_async_session,
@@ -146,34 +146,34 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
     async def on_after_register(self, user: User, request: Request | None = None):
         """
-        Called after a user registers. Creates a default search space for the user
+        Called after a user registers. Creates a default workspace for the user
         so they can start chatting immediately without manual setup.
         """
-        logger.info(f"User {user.id} has registered. Creating default search space...")
+        logger.info(f"User {user.id} has registered. Creating default workspace...")
 
         try:
             async with async_session_maker() as session:
-                # Create default search space
-                default_search_space = SearchSpace(
-                    name="My Search Space",
-                    description="Your personal search space",
+                # Create default workspace
+                default_workspace = Workspace(
+                    name="My Workspace",
+                    description="Your personal workspace",
                     user_id=user.id,
                 )
-                session.add(default_search_space)
-                await session.flush()  # Get the search space ID
+                session.add(default_workspace)
+                await session.flush()  # Get the workspace ID
 
                 # Create default roles
                 default_roles = get_default_roles_config()
                 owner_role_id = None
 
                 for role_config in default_roles:
-                    db_role = SearchSpaceRole(
+                    db_role = WorkspaceRole(
                         name=role_config["name"],
                         description=role_config["description"],
                         permissions=role_config["permissions"],
                         is_default=role_config["is_default"],
                         is_system_role=role_config["is_system_role"],
-                        search_space_id=default_search_space.id,
+                        workspace_id=default_workspace.id,
                     )
                     session.add(db_role)
                     await session.flush()
@@ -182,9 +182,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                         owner_role_id = db_role.id
 
                 # Create owner membership
-                owner_membership = SearchSpaceMembership(
+                owner_membership = WorkspaceMembership(
                     user_id=user.id,
-                    search_space_id=default_search_space.id,
+                    workspace_id=default_workspace.id,
                     role_id=owner_role_id,
                     is_owner=True,
                 )
@@ -204,11 +204,11 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
                 await session.commit()
                 logger.info(
-                    f"Created default search space (ID: {default_search_space.id}) for user {user.id}"
+                    f"Created default workspace (ID: {default_workspace.id}) for user {user.id}"
                 )
         except Exception as e:
             logger.error(
-                f"Failed to create default search space for user {user.id}: {e}"
+                f"Failed to create default workspace for user {user.id}: {e}"
             )
 
     async def on_after_forgot_password(
@@ -384,7 +384,7 @@ async def allow_any_principal(
 ) -> AuthContext:
     """Allow either session or PAT principals for bootstrap probes only.
 
-    Routes using this dependency intentionally have no search-space gate.
+    Routes using this dependency intentionally have no workspace gate.
     Adding a new call site is a security decision and must be covered by
     the fail-closed PAT allowlist test.
     """

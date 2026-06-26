@@ -110,8 +110,8 @@ class MentionContextResponse(BaseModel):
     thread_id: int
     thread_title: str
     message_id: int
-    search_space_id: int
-    search_space_name: str
+    workspace_id: int
+    workspace_name: str
 
 
 class MentionCommentResponse(BaseModel):

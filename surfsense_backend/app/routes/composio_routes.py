@@ -41,7 +41,7 @@ from app.utils.connector_naming import (
     get_base_name_for_type,
 )
 from app.utils.oauth_security import OAuthStateManager
-from app.utils.rbac import check_search_space_access
+from app.utils.rbac import check_workspace_access
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,7 @@ async def initiate_composio_auth(
     Initiate Composio OAuth flow for a specific toolkit.
 
     Query params:
-        space_id: Search space ID to add connector to
+        space_id: Workspace ID to add connector to
         toolkit_id: Composio toolkit ID (e.g., "googledrive", "gmail", "googlecalendar")
 
     Returns:
@@ -334,7 +334,7 @@ async def composio_callback(
         existing_connector_result = await session.execute(
             select(SearchSourceConnector).where(
                 SearchSourceConnector.connector_type == connector_type,
-                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.workspace_id == space_id,
                 SearchSourceConnector.user_id == user_id,
                 SearchSourceConnector.name == connector_name,
             )
@@ -395,7 +395,7 @@ async def composio_callback(
                 name=connector_name,
                 connector_type=connector_type,
                 config=connector_config,
-                search_space_id=space_id,
+                workspace_id=space_id,
                 user_id=user_id,
                 is_indexable=toolkit_id in INDEXABLE_TOOLKITS,
             )
@@ -461,7 +461,7 @@ async def reauth_composio_connector(
     after the user completes the OAuth flow again.
 
     Query params:
-        space_id: Search space ID the connector belongs to
+        space_id: Workspace ID the connector belongs to
         connector_id: ID of the existing Composio connector to re-authenticate
         return_url: Optional frontend path to redirect to after completion
     """
@@ -481,7 +481,7 @@ async def reauth_composio_connector(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.workspace_id == space_id,
                 SearchSourceConnector.connector_type.in_(COMPOSIO_CONNECTOR_TYPES),
             )
         )
@@ -594,7 +594,7 @@ async def composio_reauth_callback(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == reauth_connector_id,
                 SearchSourceConnector.user_id == user_id,
-                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.workspace_id == space_id,
             )
         )
         connector = result.scalars().first()
@@ -683,7 +683,7 @@ async def list_composio_drive_folders(
                 detail="Composio Google Drive connector not found or access denied",
             )
 
-        await check_search_space_access(session, auth, connector.search_space_id)
+        await check_workspace_access(session, auth, connector.workspace_id)
 
         composio_connected_account_id = connector.config.get(
             "composio_connected_account_id"

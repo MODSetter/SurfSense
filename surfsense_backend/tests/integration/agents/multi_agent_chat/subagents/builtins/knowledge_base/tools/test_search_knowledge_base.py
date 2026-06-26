@@ -48,7 +48,7 @@ def _axis(index: int) -> list[float]:
 async def _add_document(
     db_session,
     *,
-    search_space_id: int,
+    workspace_id: int,
     title: str,
     text: str,
     folder_id: int | None = None,
@@ -58,7 +58,7 @@ async def _add_document(
         document_type=DocumentType.FILE,
         content=text,
         content_hash=uuid.uuid4().hex,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         folder_id=folder_id,
         status={"state": "ready"},
     )
@@ -71,8 +71,8 @@ async def _add_document(
     return document
 
 
-async def _add_folder(db_session, *, search_space_id: int, name: str = "Folder"):
-    folder = Folder(name=name, position="0", search_space_id=search_space_id)
+async def _add_folder(db_session, *, workspace_id: int, name: str = "Folder"):
+    folder = Folder(name=name, position="0", workspace_id=workspace_id)
     db_session.add(folder)
     await db_session.flush()
     return folder
@@ -109,15 +109,15 @@ def _mentions(*, document_ids=(), folder_ids=()):
 
 
 async def test_tool_returns_retrieved_context_with_numbered_passages(
-    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+    db_session, db_workspace, _tool_uses_test_session, _pinned_embedding
 ):
     await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="Asyncio Guide",
         text="The asyncio library enables concurrency.",
     )
-    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+    tool = create_search_knowledge_base_tool(workspace_id=db_workspace.id)
 
     result = await _invoke(tool, "asyncio")
 
@@ -129,15 +129,15 @@ async def test_tool_returns_retrieved_context_with_numbered_passages(
 
 
 async def test_tool_populates_citation_registry_on_state(
-    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+    db_session, db_workspace, _tool_uses_test_session, _pinned_embedding
 ):
     await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="Asyncio Guide",
         text="The asyncio library enables concurrency.",
     )
-    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+    tool = create_search_knowledge_base_tool(workspace_id=db_workspace.id)
 
     result = await _invoke(tool, "asyncio")
 
@@ -147,15 +147,15 @@ async def test_tool_populates_citation_registry_on_state(
 
 
 async def test_tool_reuses_existing_registry_numbering(
-    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+    db_session, db_workspace, _tool_uses_test_session, _pinned_embedding
 ):
     await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="Asyncio Guide",
         text="The asyncio library enables concurrency.",
     )
-    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+    tool = create_search_knowledge_base_tool(workspace_id=db_workspace.id)
 
     first = await _invoke(tool, "asyncio")
     carried = first.update["citation_registry"]
@@ -166,9 +166,9 @@ async def test_tool_reuses_existing_registry_numbering(
 
 
 async def test_tool_reports_no_matches_without_touching_state(
-    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+    db_session, db_workspace, _tool_uses_test_session, _pinned_embedding
 ):
-    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+    tool = create_search_knowledge_base_tool(workspace_id=db_workspace.id)
 
     result = await _invoke(tool, "nonexistent-term-zzz")
 
@@ -177,9 +177,9 @@ async def test_tool_reports_no_matches_without_touching_state(
 
 
 async def test_tool_rejects_empty_query(
-    db_search_space, _tool_uses_test_session, _pinned_embedding
+    db_workspace, _tool_uses_test_session, _pinned_embedding
 ):
-    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+    tool = create_search_knowledge_base_tool(workspace_id=db_workspace.id)
 
     result = await _invoke(tool, "   ")
 
@@ -188,21 +188,21 @@ async def test_tool_rejects_empty_query(
 
 
 async def test_document_mention_confines_search_to_pinned_doc(
-    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+    db_session, db_workspace, _tool_uses_test_session, _pinned_embedding
 ):
     pinned = await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="Pinned",
         text="asyncio appears in the pinned doc.",
     )
     await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="Other",
         text="asyncio appears in the other doc.",
     )
-    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+    tool = create_search_knowledge_base_tool(workspace_id=db_workspace.id)
 
     result = await _invoke(tool, "asyncio", context=_mentions(document_ids=[pinned.id]))
 
@@ -213,23 +213,23 @@ async def test_document_mention_confines_search_to_pinned_doc(
 
 
 async def test_folder_mention_confines_search_to_folder_documents(
-    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+    db_session, db_workspace, _tool_uses_test_session, _pinned_embedding
 ):
-    folder = await _add_folder(db_session, search_space_id=db_search_space.id)
+    folder = await _add_folder(db_session, workspace_id=db_workspace.id)
     await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="Inside",
         text="asyncio appears inside the folder.",
         folder_id=folder.id,
     )
     await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="Outside",
         text="asyncio appears outside the folder.",
     )
-    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+    tool = create_search_knowledge_base_tool(workspace_id=db_workspace.id)
 
     result = await _invoke(tool, "asyncio", context=_mentions(folder_ids=[folder.id]))
 
@@ -240,7 +240,7 @@ async def test_folder_mention_confines_search_to_folder_documents(
 
 
 async def test_document_mention_via_state_confines_search(
-    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+    db_session, db_workspace, _tool_uses_test_session, _pinned_embedding
 ):
     """The real subagent path: mentions arrive on ``runtime.state`` (no context).
 
@@ -250,17 +250,17 @@ async def test_document_mention_via_state_confines_search(
     """
     pinned = await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="Pinned",
         text="asyncio appears in the pinned doc.",
     )
     await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="Other",
         text="asyncio appears in the other doc.",
     )
-    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+    tool = create_search_knowledge_base_tool(workspace_id=db_workspace.id)
 
     result = await _invoke(
         tool,
@@ -275,24 +275,24 @@ async def test_document_mention_via_state_confines_search(
 
 
 async def test_folder_mention_via_state_confines_search(
-    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+    db_session, db_workspace, _tool_uses_test_session, _pinned_embedding
 ):
     """Folder pins delivered via state (subagent path) scope to the folder's docs."""
-    folder = await _add_folder(db_session, search_space_id=db_search_space.id)
+    folder = await _add_folder(db_session, workspace_id=db_workspace.id)
     await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="Inside",
         text="asyncio appears inside the folder.",
         folder_id=folder.id,
     )
     await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="Outside",
         text="asyncio appears outside the folder.",
     )
-    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+    tool = create_search_knowledge_base_tool(workspace_id=db_workspace.id)
 
     result = await _invoke(
         tool,
@@ -307,22 +307,22 @@ async def test_folder_mention_via_state_confines_search(
 
 
 async def test_state_mentions_take_precedence_over_context(
-    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+    db_session, db_workspace, _tool_uses_test_session, _pinned_embedding
 ):
     """When both carry pins, state wins (the forwarded subagent pin is authoritative)."""
     state_doc = await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="StatePinned",
         text="asyncio appears in the state-pinned doc.",
     )
     context_doc = await _add_document(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         title="ContextPinned",
         text="asyncio appears in the context-pinned doc.",
     )
-    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+    tool = create_search_knowledge_base_tool(workspace_id=db_workspace.id)
 
     result = await _invoke(
         tool,

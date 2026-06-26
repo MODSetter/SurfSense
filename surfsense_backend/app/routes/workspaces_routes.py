@@ -8,21 +8,21 @@ from sqlalchemy.future import select
 from app.auth.context import AuthContext
 from app.db import (
     Permission,
-    SearchSpace,
-    SearchSpaceMembership,
-    SearchSpaceRole,
+    Workspace,
+    WorkspaceMembership,
+    WorkspaceRole,
     get_async_session,
     get_default_roles_config,
 )
 from app.schemas import (
-    SearchSpaceApiAccessUpdate,
-    SearchSpaceCreate,
-    SearchSpaceRead,
-    SearchSpaceUpdate,
-    SearchSpaceWithStats,
+    WorkspaceApiAccessUpdate,
+    WorkspaceCreate,
+    WorkspaceRead,
+    WorkspaceUpdate,
+    WorkspaceWithStats,
 )
 from app.users import allow_any_principal, get_auth_context, require_session_context
-from app.utils.rbac import check_permission, check_search_space_access
+from app.utils.rbac import check_permission, check_workspace_access
 
 logger = logging.getLogger(__name__)
 
@@ -31,29 +31,29 @@ router = APIRouter()
 
 async def create_default_roles_and_membership(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     owner_user_id,
 ) -> None:
     """
-    Create default system roles for a search space and add the owner as a member.
+    Create default system roles for a workspace and add the owner as a member.
 
     Args:
         session: Database session
-        search_space_id: The ID of the newly created search space
-        owner_user_id: The UUID of the user who created the search space
+        workspace_id: The ID of the newly created workspace
+        owner_user_id: The UUID of the user who created the workspace
     """
     # Create default roles
     default_roles = get_default_roles_config()
     owner_role_id = None
 
     for role_config in default_roles:
-        db_role = SearchSpaceRole(
+        db_role = WorkspaceRole(
             name=role_config["name"],
             description=role_config["description"],
             permissions=role_config["permissions"],
             is_default=role_config["is_default"],
             is_system_role=role_config["is_system_role"],
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
         )
         session.add(db_role)
         await session.flush()  # Get the ID
@@ -62,50 +62,50 @@ async def create_default_roles_and_membership(
             owner_role_id = db_role.id
 
     # Create owner membership
-    owner_membership = SearchSpaceMembership(
+    owner_membership = WorkspaceMembership(
         user_id=owner_user_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         role_id=owner_role_id,
         is_owner=True,
     )
     session.add(owner_membership)
 
 
-@router.post("/searchspaces", response_model=SearchSpaceRead)
-async def create_search_space(
-    search_space: SearchSpaceCreate,
+@router.post("/workspaces", response_model=WorkspaceRead)
+async def create_workspace(
+    workspace: WorkspaceCreate,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(require_session_context),
 ):
     user = auth.user
     try:
-        search_space_data = search_space.model_dump()
+        workspace_data = workspace.model_dump()
 
         # citations_enabled defaults to True (handled by Pydantic schema)
         # qna_custom_instructions defaults to None/empty (handled by DB)
 
-        db_search_space = SearchSpace(**search_space_data, user_id=user.id)
-        session.add(db_search_space)
-        await session.flush()  # Get the search space ID
+        db_workspace = Workspace(**workspace_data, user_id=user.id)
+        session.add(db_workspace)
+        await session.flush()  # Get the workspace ID
 
         # Create default roles and owner membership
-        await create_default_roles_and_membership(session, db_search_space.id, user.id)
+        await create_default_roles_and_membership(session, db_workspace.id, user.id)
 
         await session.commit()
-        await session.refresh(db_search_space)
-        return db_search_space
+        await session.refresh(db_workspace)
+        return db_workspace
     except HTTPException:
         raise
     except Exception as e:
         await session.rollback()
-        logger.error(f"Failed to create search space: {e!s}", exc_info=True)
+        logger.error(f"Failed to create workspace: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to create search space: {e!s}"
+            status_code=500, detail=f"Failed to create workspace: {e!s}"
         ) from e
 
 
-@router.get("/searchspaces", response_model=list[SearchSpaceWithStats])
-async def read_search_spaces(
+@router.get("/workspaces", response_model=list[WorkspaceWithStats])
+async def read_workspaces(
     skip: int = 0,
     limit: int = 200,
     owned_only: bool = False,
@@ -114,73 +114,73 @@ async def read_search_spaces(
 ):
     user = auth.user
     """
-    Get all search spaces the user has access to, with member count and ownership info.
+    Get all workspaces the user has access to, with member count and ownership info.
 
     Args:
         skip: Number of items to skip
         limit: Maximum number of items to return
-        owned_only: If True, only return search spaces owned by the user.
-                   If False (default), return all search spaces the user has access to.
+        owned_only: If True, only return workspaces owned by the user.
+                   If False (default), return all workspaces the user has access to.
     """
     try:
         # Exclude spaces that are pending background deletion
-        not_deleting = ~SearchSpace.name.startswith("[DELETING] ")
+        not_deleting = ~Workspace.name.startswith("[DELETING] ")
 
         api_access_filter = (
-            SearchSpace.api_access_enabled == True  # noqa: E712
+            Workspace.api_access_enabled == True  # noqa: E712
             if auth.is_gated
             else True
         )
 
         if owned_only:
-            # Return only search spaces where user is the original creator (user_id)
+            # Return only workspaces where user is the original creator (user_id)
             result = await session.execute(
-                select(SearchSpace)
-                .filter(SearchSpace.user_id == user.id, not_deleting, api_access_filter)
-                .order_by(SearchSpace.id.asc())
+                select(Workspace)
+                .filter(Workspace.user_id == user.id, not_deleting, api_access_filter)
+                .order_by(Workspace.id.asc())
                 .offset(skip)
                 .limit(limit)
             )
         else:
-            # Return all search spaces the user has membership in
+            # Return all workspaces the user has membership in
             result = await session.execute(
-                select(SearchSpace)
-                .join(SearchSpaceMembership)
+                select(Workspace)
+                .join(WorkspaceMembership)
                 .filter(
-                    SearchSpaceMembership.user_id == user.id,
+                    WorkspaceMembership.user_id == user.id,
                     not_deleting,
                     api_access_filter,
                 )
-                .order_by(SearchSpace.id.asc())
+                .order_by(Workspace.id.asc())
                 .offset(skip)
                 .limit(limit)
             )
 
-        search_spaces = result.scalars().all()
+        workspaces = result.scalars().all()
 
-        # Get member counts and ownership info for each search space
-        search_spaces_with_stats = []
-        for space in search_spaces:
+        # Get member counts and ownership info for each workspace
+        workspaces_with_stats = []
+        for space in workspaces:
             # Get member count
             count_result = await session.execute(
-                select(func.count(SearchSpaceMembership.id)).filter(
-                    SearchSpaceMembership.search_space_id == space.id
+                select(func.count(WorkspaceMembership.id)).filter(
+                    WorkspaceMembership.workspace_id == space.id
                 )
             )
             member_count = count_result.scalar() or 1
 
             # Check if current user is owner
             ownership_result = await session.execute(
-                select(SearchSpaceMembership).filter(
-                    SearchSpaceMembership.search_space_id == space.id,
-                    SearchSpaceMembership.user_id == user.id,
-                    SearchSpaceMembership.is_owner == True,  # noqa: E712
+                select(WorkspaceMembership).filter(
+                    WorkspaceMembership.workspace_id == space.id,
+                    WorkspaceMembership.user_id == user.id,
+                    WorkspaceMembership.is_owner == True,  # noqa: E712
                 )
             )
             is_owner = ownership_result.scalars().first() is not None
 
-            search_spaces_with_stats.append(
-                SearchSpaceWithStats(
+            workspaces_with_stats.append(
+                WorkspaceWithStats(
                     id=space.id,
                     name=space.name,
                     description=space.description,
@@ -195,54 +195,54 @@ async def read_search_spaces(
                 )
             )
 
-        return search_spaces_with_stats
+        return workspaces_with_stats
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to fetch search spaces: {e!s}"
+            status_code=500, detail=f"Failed to fetch workspaces: {e!s}"
         ) from e
 
 
-@router.get("/searchspaces/{search_space_id}", response_model=SearchSpaceRead)
-async def read_search_space(
-    search_space_id: int,
+@router.get("/workspaces/{workspace_id}", response_model=WorkspaceRead)
+async def read_workspace(
+    workspace_id: int,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     """
-    Get a specific search space by ID.
+    Get a specific workspace by ID.
     Requires SETTINGS_VIEW permission or membership.
     """
     try:
         # Check if user has access (is a member)
-        await check_search_space_access(session, auth, search_space_id)
+        await check_workspace_access(session, auth, workspace_id)
 
         result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == search_space_id)
+            select(Workspace).filter(Workspace.id == workspace_id)
         )
-        search_space = result.scalars().first()
+        workspace = result.scalars().first()
 
-        if not search_space:
-            raise HTTPException(status_code=404, detail="Search space not found")
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
 
-        return search_space
+        return workspace
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to fetch search space: {e!s}"
+            status_code=500, detail=f"Failed to fetch workspace: {e!s}"
         ) from e
 
 
-@router.put("/searchspaces/{search_space_id}", response_model=SearchSpaceRead)
-async def update_search_space(
-    search_space_id: int,
-    search_space_update: SearchSpaceUpdate,
+@router.put("/workspaces/{workspace_id}", response_model=WorkspaceRead)
+async def update_workspace(
+    workspace_id: int,
+    workspace_update: WorkspaceUpdate,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     """
-    Update a search space.
+    Update a workspace.
     Requires SETTINGS_UPDATE permission.
     """
     try:
@@ -250,46 +250,46 @@ async def update_search_space(
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.SETTINGS_UPDATE.value,
-            "You don't have permission to update this search space",
+            "You don't have permission to update this workspace",
         )
 
         result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == search_space_id)
+            select(Workspace).filter(Workspace.id == workspace_id)
         )
-        db_search_space = result.scalars().first()
+        db_workspace = result.scalars().first()
 
-        if not db_search_space:
-            raise HTTPException(status_code=404, detail="Search space not found")
+        if not db_workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
 
-        update_data = search_space_update.model_dump(exclude_unset=True)
+        update_data = workspace_update.model_dump(exclude_unset=True)
 
         for key, value in update_data.items():
-            setattr(db_search_space, key, value)
+            setattr(db_workspace, key, value)
         await session.commit()
-        await session.refresh(db_search_space)
-        return db_search_space
+        await session.refresh(db_workspace)
+        return db_workspace
     except HTTPException:
         raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(
-            status_code=500, detail=f"Failed to update search space: {e!s}"
+            status_code=500, detail=f"Failed to update workspace: {e!s}"
         ) from e
 
 
 @router.put(
-    "/searchspaces/{search_space_id}/api-access", response_model=SearchSpaceRead
+    "/workspaces/{workspace_id}/api-access", response_model=WorkspaceRead
 )
-async def update_search_space_api_access(
-    search_space_id: int,
-    body: SearchSpaceApiAccessUpdate,
+async def update_workspace_api_access(
+    workspace_id: int,
+    body: WorkspaceApiAccessUpdate,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     """
-    Toggle programmatic API/PAT access for a search space.
+    Toggle programmatic API/PAT access for a workspace.
     Requires API_ACCESS_MANAGE permission.
     """
     try:
@@ -302,23 +302,23 @@ async def update_search_space_api_access(
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.API_ACCESS_MANAGE.value,
-            "You don't have permission to manage API access for this search space",
+            "You don't have permission to manage API access for this workspace",
         )
 
         result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == search_space_id)
+            select(Workspace).filter(Workspace.id == workspace_id)
         )
-        db_search_space = result.scalars().first()
+        db_workspace = result.scalars().first()
 
-        if not db_search_space:
-            raise HTTPException(status_code=404, detail="Search space not found")
+        if not db_workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
 
-        db_search_space.api_access_enabled = body.api_access_enabled
+        db_workspace.api_access_enabled = body.api_access_enabled
         await session.commit()
-        await session.refresh(db_search_space)
-        return db_search_space
+        await session.refresh(db_workspace)
+        return db_workspace
     except HTTPException:
         raise
     except Exception as e:
@@ -328,33 +328,33 @@ async def update_search_space_api_access(
         ) from e
 
 
-@router.post("/searchspaces/{search_space_id}/ai-sort")
+@router.post("/workspaces/{workspace_id}/ai-sort")
 async def trigger_ai_sort(
-    search_space_id: int,
+    workspace_id: int,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     user = auth.user
-    """Trigger a full AI file sort for all documents in the search space."""
+    """Trigger a full AI file sort for all documents in the workspace."""
     try:
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.SETTINGS_UPDATE.value,
-            "You don't have permission to trigger AI sort on this search space",
+            "You don't have permission to trigger AI sort on this workspace",
         )
 
         result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == search_space_id)
+            select(Workspace).filter(Workspace.id == workspace_id)
         )
-        db_search_space = result.scalars().first()
-        if not db_search_space:
-            raise HTTPException(status_code=404, detail="Search space not found")
+        db_workspace = result.scalars().first()
+        if not db_workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
 
-        from app.tasks.celery_tasks.document_tasks import ai_sort_search_space_task
+        from app.tasks.celery_tasks.document_tasks import ai_sort_workspace_task
 
-        ai_sort_search_space_task.delay(search_space_id, str(user.id))
+        ai_sort_workspace_task.delay(workspace_id, str(user.id))
         return {"message": "AI sort started"}
     except HTTPException:
         raise
@@ -365,14 +365,14 @@ async def trigger_ai_sort(
         ) from e
 
 
-@router.delete("/searchspaces/{search_space_id}", response_model=dict)
-async def delete_search_space(
-    search_space_id: int,
+@router.delete("/workspaces/{workspace_id}", response_model=dict)
+async def delete_workspace(
+    workspace_id: int,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     """
-    Delete a search space.
+    Delete a workspace.
     Requires SETTINGS_DELETE permission (only owners have this by default).
 
     Heavy cascade deletion (documents, chunks, threads, etc.) is dispatched
@@ -383,74 +383,74 @@ async def delete_search_space(
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.SETTINGS_DELETE.value,
-            "You don't have permission to delete this search space",
+            "You don't have permission to delete this workspace",
         )
 
         result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == search_space_id)
+            select(Workspace).filter(Workspace.id == workspace_id)
         )
-        db_search_space = result.scalars().first()
+        db_workspace = result.scalars().first()
 
-        if not db_search_space:
-            raise HTTPException(status_code=404, detail="Search space not found")
+        if not db_workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
 
-        if (db_search_space.name or "").startswith("[DELETING] "):
+        if (db_workspace.name or "").startswith("[DELETING] "):
             raise HTTPException(
                 status_code=409,
-                detail="Search space is already being deleted.",
+                detail="Workspace is already being deleted.",
             )
 
         # Soft-delete marker (length-safe for String(100)) so users see pending state.
         prefix = "[DELETING] "
         max_len = 100
         available = max_len - len(prefix)
-        base_name = db_search_space.name or ""
-        db_search_space.name = f"{prefix}{base_name[:available]}"
+        base_name = db_workspace.name or ""
+        db_workspace.name = f"{prefix}{base_name[:available]}"
         await session.commit()
 
         # Dispatch durable background deletion via Celery.
         # If queue dispatch fails, revert name to avoid stuck "[DELETING]" state.
         try:
-            from app.tasks.celery_tasks.document_tasks import delete_search_space_task
+            from app.tasks.celery_tasks.document_tasks import delete_workspace_task
 
-            delete_search_space_task.delay(search_space_id)
+            delete_workspace_task.delay(workspace_id)
         except Exception as dispatch_error:
-            db_search_space.name = base_name
+            db_workspace.name = base_name
             await session.commit()
             raise HTTPException(
                 status_code=503,
                 detail="Failed to queue background deletion. Please try again.",
             ) from dispatch_error
 
-        return {"message": "Search space deleted successfully"}
+        return {"message": "Workspace deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(
-            status_code=500, detail=f"Failed to delete search space: {e!s}"
+            status_code=500, detail=f"Failed to delete workspace: {e!s}"
         ) from e
 
 
-@router.get("/searchspaces/{search_space_id}/snapshots")
-async def list_search_space_snapshots(
-    search_space_id: int,
+@router.get("/workspaces/{workspace_id}/snapshots")
+async def list_workspace_snapshots(
+    workspace_id: int,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     """
-    List all public chat snapshots for a search space.
+    List all public chat snapshots for a workspace.
 
     Requires PUBLIC_SHARING_VIEW permission.
     """
     from app.schemas.new_chat import PublicChatSnapshotsBySpaceResponse
-    from app.services.public_chat_service import list_snapshots_for_search_space
+    from app.services.public_chat_service import list_snapshots_for_workspace
 
-    snapshots = await list_snapshots_for_search_space(
+    snapshots = await list_snapshots_for_workspace(
         session=session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         auth=auth,
     )
     return PublicChatSnapshotsBySpaceResponse(snapshots=snapshots)

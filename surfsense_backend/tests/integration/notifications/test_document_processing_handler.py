@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import SearchSpace, User
+from app.db import Workspace, User
 from app.notifications.service import NotificationService
 
 pytestmark = pytest.mark.integration
@@ -13,22 +13,22 @@ pytestmark = pytest.mark.integration
 handler = NotificationService.document_processing
 
 
-async def _started(db_session, db_user, db_search_space, *, name="report.pdf"):
+async def _started(db_session, db_user, db_workspace, *, name="report.pdf"):
     """Open a document-processing notification to update in the tests below."""
     return await handler.notify_processing_started(
         session=db_session,
         user_id=db_user.id,
         document_type="FILE",
         document_name=name,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
 
 async def test_processing_started_queues(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """Starting processing queues a notification in the 'queued' stage."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     assert notification.type == "document_processing"
     assert notification.title == "Processing: report.pdf"
@@ -37,10 +37,10 @@ async def test_processing_started_queues(
 
 
 async def test_processing_progress_maps_stage(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """A progress update maps the stage to its user-facing message."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     updated = await handler.notify_processing_progress(
         session=db_session, notification=notification, stage="parsing"
@@ -51,10 +51,10 @@ async def test_processing_progress_maps_stage(
 
 
 async def test_processing_completed_success(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """Successful processing reports ready/searchable and a completed status."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     done = await handler.notify_processing_completed(
         session=db_session, notification=notification, document_id=99
@@ -66,10 +66,10 @@ async def test_processing_completed_success(
 
 
 async def test_processing_completed_failure(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """Failed processing reports a failed status with the error in the message."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     done = await handler.notify_processing_completed(
         session=db_session, notification=notification, error_message="bad file"
@@ -81,7 +81,7 @@ async def test_processing_completed_failure(
 
 
 async def test_processing_started_truncates_long_filename(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """A long filename is truncated in the title but kept in metadata."""
     long_name = "a" * 250
@@ -91,7 +91,7 @@ async def test_processing_started_truncates_long_filename(
         user_id=db_user.id,
         document_type="FILE",
         document_name=long_name,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
     assert len(notification.title) <= 200

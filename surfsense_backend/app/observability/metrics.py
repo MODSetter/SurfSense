@@ -534,12 +534,12 @@ def record_tool_call_error(*, tool_name: str) -> None:
 
 
 def record_kb_search_duration(
-    duration_ms: float, *, search_space_id: int | None, surface: str
+    duration_ms: float, *, workspace_id: int | None, surface: str
 ) -> None:
     _record(
         _kb_search_duration(),
         duration_ms,
-        {"search_space.id": search_space_id, "search.surface": surface},
+        {"search_space.id": workspace_id, "search.surface": surface},
     )
 
 

@@ -29,7 +29,7 @@ _DEFAULT_TOP_K = 10
 async def search_knowledge_base_context(
     db_session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     query: str,
     registry: CitationRegistry,
     scope: SearchScope | None = None,
@@ -42,7 +42,7 @@ async def search_knowledge_base_context(
     """
     hits = await search_chunks(
         db_session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         query=query,
         scope=scope or SearchScope(),
         top_k=top_k,

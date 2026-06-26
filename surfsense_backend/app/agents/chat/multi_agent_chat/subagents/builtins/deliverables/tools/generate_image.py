@@ -1,4 +1,4 @@
-"""Image generation via litellm; resolves model config from the search space and returns UI-ready payloads."""
+"""Image generation via litellm; resolves model config from the workspace and returns UI-ready payloads."""
 
 import hashlib
 import logging
@@ -18,7 +18,7 @@ from app.config import config
 from app.db import (
     ImageGeneration,
     Model,
-    SearchSpace,
+    Workspace,
     shielded_async_session,
 )
 from app.services.auto_model_pin_service import (
@@ -48,14 +48,14 @@ def _get_global_connection(connection_id: int) -> dict | None:
 
 
 def create_generate_image_tool(
-    search_space_id: int,
+    workspace_id: int,
     db_session: AsyncSession,
     image_gen_model_id_override: int | None = None,
 ):
-    """Create ``generate_image`` with bound search space; DB work uses a per-call session.
+    """Create ``generate_image`` with bound workspace; DB work uses a per-call session.
 
     ``image_gen_model_id_override``: when set (automations running on a
-    captured model), use this model id instead of reading the search space's
+    captured model), use this model id instead of reading the workspace's
     live ``image_gen_model_id``.
     """
     del db_session  # tool uses a fresh per-call session instead
@@ -102,22 +102,22 @@ def create_generate_image_tool(
             # autoflushes from a concurrent writer poison this tool too.
             async with shielded_async_session() as session:
                 result = await session.execute(
-                    select(SearchSpace).filter(SearchSpace.id == search_space_id)
+                    select(Workspace).filter(Workspace.id == workspace_id)
                 )
-                search_space = result.scalars().first()
-                if not search_space:
+                workspace = result.scalars().first()
+                if not workspace:
                     return _failed(
-                        {"error": "Search space not found"},
-                        error="Search space not found",
+                        {"error": "Workspace not found"},
+                        error="Workspace not found",
                     )
 
                 if image_gen_model_id_override is not None:
                     # Automation run: use the captured image model, insulated from
-                    # later search-space changes. No search-space read needed.
+                    # later workspace changes. No workspace read needed.
                     config_id = image_gen_model_id_override or IMAGE_GEN_AUTO_MODE_ID
                 else:
                     config_id = (
-                        search_space.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
+                        workspace.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
                     )
 
                 # size/quality/style are intentionally omitted: valid values
@@ -129,8 +129,8 @@ def create_generate_image_tool(
                 if is_image_gen_auto_mode(config_id):
                     candidates = await auto_model_candidates(
                         session,
-                        search_space_id=search_space_id,
-                        user_id=search_space.user_id,
+                        workspace_id=workspace_id,
+                        user_id=workspace.user_id,
                         capability="image_gen",
                     )
                     if not candidates:
@@ -140,7 +140,7 @@ def create_generate_image_tool(
                         )
                         return _failed({"error": err}, error=err)
                     config_id = int(
-                        choose_auto_model_candidate(candidates, search_space_id)["id"]
+                        choose_auto_model_candidate(candidates, workspace_id)["id"]
                     )
 
                 provider_base_url: str | None = None
@@ -186,14 +186,14 @@ def create_generate_image_tool(
                         return _failed({"error": err}, error=err)
                     conn = db_model.connection
                     if (
-                        conn.search_space_id is not None
-                        and conn.search_space_id != search_space_id
+                        conn.workspace_id is not None
+                        and conn.workspace_id != workspace_id
                     ):
                         err = f"Image generation model {config_id} not found"
                         return _failed({"error": err}, error=err)
                     if (
                         conn.user_id is not None
-                        and conn.user_id != search_space.user_id
+                        and conn.user_id != workspace.user_id
                     ):
                         err = f"Image generation model {config_id} not found"
                         return _failed({"error": err}, error=err)
@@ -225,7 +225,7 @@ def create_generate_image_tool(
                     n=n,
                     image_gen_model_id=config_id,
                     response_data=response_dict,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     access_token=access_token,
                 )
                 session.add(db_image_gen)

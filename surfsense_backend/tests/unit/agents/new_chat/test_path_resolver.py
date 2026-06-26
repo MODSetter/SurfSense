@@ -149,7 +149,7 @@ class TestVirtualPathToDoc:
 
         document = await virtual_path_to_doc(
             session,
-            search_space_id=5,
+            workspace_id=5,
             virtual_path=f"{DOCUMENTS_ROOT}/{encoded_basename}",
         )
         assert document is target_doc
@@ -169,7 +169,7 @@ class TestVirtualPathToDoc:
 
         document = await virtual_path_to_doc(
             session,
-            search_space_id=5,
+            workspace_id=5,
             virtual_path=f"{DOCUMENTS_ROOT}/Calendar_ Happy birthday!.xml",
         )
         assert document is None
@@ -191,7 +191,7 @@ class TestVirtualPathToDoc:
 
         document = await virtual_path_to_doc(
             session,
-            search_space_id=5,
+            workspace_id=5,
             virtual_path=f"{DOCUMENTS_ROOT}/Plain Note.xml",
         )
         assert document is target_doc
@@ -217,7 +217,7 @@ class TestVirtualPathToDoc:
 
         document = await virtual_path_to_doc(
             session,
-            search_space_id=5,
+            workspace_id=5,
             virtual_path=f"{DOCUMENTS_ROOT}/2025-W2.pdf.xml",
         )
         assert document is target_doc
@@ -239,7 +239,7 @@ class TestVirtualPathToDoc:
 
         document = await virtual_path_to_doc(
             session,
-            search_space_id=5,
+            workspace_id=5,
             virtual_path=f"{DOCUMENTS_ROOT}/2025-W2.pdf",
         )
         assert document is target_doc

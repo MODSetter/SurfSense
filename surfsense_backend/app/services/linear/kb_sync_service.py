@@ -34,7 +34,7 @@ class LinearKBSyncService:
         issue_url: str | None,
         description: str | None,
         connector_id: int,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str,
     ) -> dict:
         from app.tasks.connector_indexers.base import (
@@ -46,7 +46,7 @@ class LinearKBSyncService:
 
         try:
             unique_hash = generate_unique_identifier_hash(
-                DocumentType.LINEAR_CONNECTOR, issue_id, search_space_id
+                DocumentType.LINEAR_CONNECTOR, issue_id, workspace_id
             )
 
             existing = await check_document_by_unique_identifier(
@@ -68,7 +68,7 @@ class LinearKBSyncService:
                 f"# {issue_identifier}: {issue_title}\n\n{indexable_content}"
             )
 
-            content_hash = generate_content_hash(issue_content, search_space_id)
+            content_hash = generate_content_hash(issue_content, workspace_id)
 
             with self.db_session.no_autoflush:
                 dup = await check_duplicate_document_by_hash(
@@ -107,7 +107,7 @@ class LinearKBSyncService:
                 content_hash=content_hash,
                 unique_identifier_hash=unique_hash,
                 embedding=summary_embedding,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
@@ -155,7 +155,7 @@ class LinearKBSyncService:
         document_id: int,
         issue_id: str,
         user_id: str,
-        search_space_id: int,
+        workspace_id: int,
     ) -> dict:
         """Re-index a Linear issue document after it has been updated via the API.
 
@@ -163,7 +163,7 @@ class LinearKBSyncService:
             document_id: The KB document ID to update.
             issue_id: The Linear issue UUID to fetch fresh content from.
             user_id: Used to select the correct LLM configuration.
-            search_space_id: Used to select the correct LLM configuration.
+            workspace_id: Used to select the correct LLM configuration.
 
         Returns:
             dict with 'status': 'success' | 'not_indexed' | 'error'.
@@ -214,7 +214,7 @@ class LinearKBSyncService:
             document.title = f"{issue_identifier}: {issue_title}"
             document.content = summary_content
             document.content_hash = generate_content_hash(
-                issue_content, search_space_id
+                issue_content, workspace_id
             )
             document.embedding = summary_embedding
             from sqlalchemy.orm.attributes import flag_modified

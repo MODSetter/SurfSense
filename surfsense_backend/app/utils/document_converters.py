@@ -257,28 +257,28 @@ async def convert_document_to_markdown(elements):
     return "".join(markdown_parts)
 
 
-def generate_content_hash(content: str, search_space_id: int) -> str:
-    """Generate SHA-256 hash for the given content combined with search space ID."""
-    combined_data = f"{search_space_id}:{content}"
+def generate_content_hash(content: str, workspace_id: int) -> str:
+    """Generate SHA-256 hash for the given content combined with workspace ID."""
+    combined_data = f"{workspace_id}:{content}"
     return hashlib.sha256(combined_data.encode("utf-8")).hexdigest()
 
 
 def generate_unique_identifier_hash(
     document_type: DocumentType,
     unique_identifier: str | int | float,
-    search_space_id: int,
+    workspace_id: int,
 ) -> str:
     """
     Generate SHA-256 hash for a unique document identifier from connector sources.
 
     This function creates a consistent hash based on the document type, its unique
-    identifier from the source system, and the search space ID. This helps prevent
+    identifier from the source system, and the workspace ID. This helps prevent
     duplicate documents when syncing from various connectors like Slack, Notion, Jira, etc.
 
     Args:
         document_type: The type of document (e.g., SLACK_CONNECTOR, NOTION_CONNECTOR)
         unique_identifier: The unique ID from the source system (e.g., message ID, page ID)
-        search_space_id: The search space this document belongs to
+        workspace_id: The workspace this document belongs to
 
     Returns:
         str: SHA-256 hash string representing the unique document identifier
@@ -294,7 +294,7 @@ def generate_unique_identifier_hash(
     # Convert unique_identifier to string to handle different types
     identifier_str = str(unique_identifier)
 
-    # Combine document type value, unique identifier, and search space ID
-    combined_data = f"{document_type.value}:{identifier_str}:{search_space_id}"
+    # Combine document type value, unique identifier, and workspace ID
+    combined_data = f"{document_type.value}:{identifier_str}:{workspace_id}"
 
     return hashlib.sha256(combined_data.encode("utf-8")).hexdigest()

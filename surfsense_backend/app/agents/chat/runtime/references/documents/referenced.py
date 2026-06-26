@@ -3,7 +3,7 @@
 Reference resolution, not retrieval: this answers "which knowledge-base
 documents did the user point at this turn?". ``@document`` ids pass through;
 ``@folder`` ids expand to the documents directly inside each folder within this
-search space (direct children only, not nested subfolders). The caller turns the
+workspace (direct children only, not nested subfolders). The caller turns the
 returned ids into a retrieval ``SearchScope``.
 """
 
@@ -18,7 +18,7 @@ from app.db import Document
 async def referenced_document_ids(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     document_ids: list[int] | None = None,
     folder_ids: list[int] | None = None,
 ) -> tuple[int, ...]:
@@ -28,7 +28,7 @@ async def referenced_document_ids(
     if folders:
         rows = await session.execute(
             select(Document.id).where(
-                Document.search_space_id == search_space_id,
+                Document.workspace_id == workspace_id,
                 Document.folder_id.in_(folders),
             )
         )

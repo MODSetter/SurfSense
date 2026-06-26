@@ -35,18 +35,18 @@ def _last_ai_text(messages: list) -> str | None:
 
 
 @pytest.mark.asyncio
-async def test_agent_runs_a_scripted_text_turn(db_session, db_user, db_search_space):
+async def test_agent_runs_a_scripted_text_turn(db_session, db_user, db_workspace):
     """A freshly assembled agent streams a scripted final-text turn to completion."""
     harness = build_scripted_harness(turns=[ScriptedTurn(text="done")])
 
     agent = await create_multi_agent_chat_deep_agent(
         llm=harness.model,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         db_session=db_session,
         connector_service=ConnectorService(db_session),
         checkpointer=InMemorySaver(),
         user_id=str(db_user.id),
-        thread_id=db_search_space.id,
+        thread_id=db_workspace.id,
         agent_config=None,
     )
 
@@ -59,7 +59,7 @@ async def test_agent_runs_a_scripted_text_turn(db_session, db_user, db_search_sp
 
 
 @pytest.mark.asyncio
-async def test_agent_routes_a_scripted_tool_call(db_session, db_user, db_search_space):
+async def test_agent_routes_a_scripted_tool_call(db_session, db_user, db_workspace):
     """The compiled graph routes a model tool call to its tool and resumes."""
     harness = build_scripted_harness(
         turns=[
@@ -79,12 +79,12 @@ async def test_agent_routes_a_scripted_tool_call(db_session, db_user, db_search_
 
     agent = await create_multi_agent_chat_deep_agent(
         llm=harness.model,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         db_session=db_session,
         connector_service=ConnectorService(db_session),
         checkpointer=InMemorySaver(),
         user_id=str(db_user.id),
-        thread_id=db_search_space.id,
+        thread_id=db_workspace.id,
         agent_config=None,
         additional_tools=harness.tools,
     )
@@ -101,7 +101,7 @@ async def test_agent_routes_a_scripted_tool_call(db_session, db_user, db_search_
 
 @pytest.mark.asyncio
 async def test_agent_checkpoint_round_trips_across_turns(
-    db_session, db_user, db_search_space
+    db_session, db_user, db_workspace
 ):
     """Turn 2 sees turn 1's history, proving the checkpoint serializes and reloads.
 
@@ -118,12 +118,12 @@ async def test_agent_checkpoint_round_trips_across_turns(
     async def _build():
         return await create_multi_agent_chat_deep_agent(
             llm=harness.model,
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             db_session=db_session,
             connector_service=ConnectorService(db_session),
             checkpointer=checkpointer,
             user_id=str(db_user.id),
-            thread_id=db_search_space.id,
+            thread_id=db_workspace.id,
             agent_config=None,
         )
 

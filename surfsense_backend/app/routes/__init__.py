@@ -61,7 +61,7 @@ from .rbac_routes import router as rbac_router
 from .reports_routes import router as reports_router
 from .sandbox_routes import router as sandbox_router
 from .search_source_connectors_routes import router as search_source_connectors_router
-from .search_spaces_routes import router as search_spaces_router
+from .workspaces_routes import router as workspaces_router
 from .slack_add_connector_route import router as slack_add_connector_router
 from .stripe_routes import router as stripe_router
 from .team_memory_routes import router as team_memory_router
@@ -71,7 +71,7 @@ from .youtube_routes import router as youtube_router
 
 router = APIRouter()
 
-router.include_router(search_spaces_router)
+router.include_router(workspaces_router)
 router.include_router(rbac_router)  # RBAC routes for roles, members, invites
 router.include_router(editor_router)
 router.include_router(export_router)
@@ -92,7 +92,7 @@ router.include_router(agent_revert_router)  # POST /threads/{id}/revert/{action_
 router.include_router(agent_action_log_router)  # GET /threads/{id}/actions
 router.include_router(
     agent_permissions_router
-)  # CRUD for /searchspaces/{id}/agent/permissions/rules
+)  # CRUD for /workspaces/{id}/agent/permissions/rules
 router.include_router(agent_flags_router)  # GET /agent/flags
 router.include_router(sandbox_router)  # Sandbox file downloads (Daytona)
 router.include_router(chat_comments_router)
@@ -135,6 +135,6 @@ router.include_router(stripe_router)  # Stripe checkout for additional page pack
 router.include_router(youtube_router)  # YouTube playlist resolution
 router.include_router(prompts_router)
 router.include_router(memory_router)  # User personal memory (memory.md style)
-router.include_router(team_memory_router)  # Search-space team memory
+router.include_router(team_memory_router)  # Workspace team memory
 router.include_router(automations_router)  # Automations CRUD + run history
 router.include_router(file_storage_router)  # Original file metadata + download

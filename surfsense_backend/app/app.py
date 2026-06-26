@@ -465,7 +465,7 @@ async def _warm_agent_jit_caches() -> None:
     Doing one throwaway compile during ``lifespan`` startup pre-pays
     that cost so the *first real request* doesn't. We do NOT prime
     :mod:`agent_cache` because the cache key requires real
-    ``thread_id`` / ``user_id`` / ``search_space_id`` / etc. — the
+    ``thread_id`` / ``user_id`` / ``workspace_id`` / etc. — the
     throwaway agent is genuinely thrown away and immediately collected.
 
     Safety

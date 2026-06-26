@@ -63,7 +63,7 @@ def get_youtube_video_id(url: str) -> str | None:
 async def add_youtube_video_document(
     session: AsyncSession,
     url: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     notification=None,
 ) -> Document:
@@ -77,7 +77,7 @@ async def add_youtube_video_document(
     Args:
         session: Database session for storing the document
         url: YouTube video URL (supports standard, shortened, and embed formats)
-        search_space_id: ID of the search space to add the document to
+        workspace_id: ID of the workspace to add the document to
         user_id: ID of the user
         notification: Optional notification object — if provided, the document_id
             is stored in its metadata right after document creation so the stale
@@ -91,7 +91,7 @@ async def add_youtube_video_document(
         SQLAlchemyError: If there's a database error
         RuntimeError: If the video processing fails
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     # Log task start
     log_entry = await task_logger.log_task_start(
@@ -125,7 +125,7 @@ async def add_youtube_video_document(
 
         # Generate unique identifier hash for this YouTube video
         unique_identifier_hash = generate_unique_identifier_hash(
-            DocumentType.YOUTUBE_VIDEO, video_id, search_space_id
+            DocumentType.YOUTUBE_VIDEO, video_id, workspace_id
         )
 
         # Check if document with this unique identifier already exists
@@ -181,7 +181,7 @@ async def add_youtube_video_document(
                 embedding=None,
                 chunks=[],  # Empty at creation
                 status=DocumentStatus.pending(),  # PENDING status - visible in UI
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
             )
@@ -346,7 +346,7 @@ async def add_youtube_video_document(
         combined_document_string = "\n".join(document_parts)
 
         # Generate content hash
-        content_hash = generate_content_hash(combined_document_string, search_space_id)
+        content_hash = generate_content_hash(combined_document_string, workspace_id)
 
         # For existing documents, check if content has changed
         if not is_new_document and existing_document.content_hash == content_hash:

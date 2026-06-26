@@ -28,7 +28,7 @@ def load_tools(
     d = {**(dependencies or {}), **kwargs}
     common = {
         "db_session": d["db_session"],
-        "search_space_id": d["search_space_id"],
+        "workspace_id": d["workspace_id"],
         "user_id": d["user_id"],
     }
     return [

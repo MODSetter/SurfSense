@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def create_read_luma_event_tool(
     db_session: AsyncSession | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     user_id: str | None = None,
 ):
     @tool
@@ -26,11 +26,11 @@ def create_read_luma_event_tool(
             Dictionary with status and full event details including
             description, attendees count, meeting URL.
         """
-        if db_session is None or search_space_id is None or user_id is None:
+        if db_session is None or workspace_id is None or user_id is None:
             return {"status": "error", "message": "Luma tool not properly configured."}
 
         try:
-            connector = await get_luma_connector(db_session, search_space_id, user_id)
+            connector = await get_luma_connector(db_session, workspace_id, user_id)
             if not connector:
                 return {"status": "error", "message": "No Luma connector found."}
 

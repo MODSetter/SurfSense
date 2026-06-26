@@ -839,8 +839,8 @@ class Config:
     # Legacy environment variables removed in favor of user-specific configurations
 
     # True when an operator-provided global_llm_config.yaml is present.
-    # Used to gate the per-search-space LLM onboarding flow: when a global
-    # config file exists, search spaces inherit it and onboarding is skipped.
+    # Used to gate the per-workspace LLM onboarding flow: when a global
+    # config file exists, workspaces inherit it and onboarding is skipped.
     GLOBAL_LLM_CONFIG_FILE_EXISTS = (
         BASE_DIR / "app" / "config" / "global_llm_config.yaml"
     ).exists()

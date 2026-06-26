@@ -38,7 +38,7 @@ def _after_flush(session: Session, flush_context: object) -> None:
 
         result = payload_if_entered_folder(
             document_id=obj.id,
-            search_space_id=obj.search_space_id,
+            workspace_id=obj.workspace_id,
             new_folder_id=new_folder_id,
             previous_folder_id=previous_folder_id,
             folder_id_changed=True,
@@ -72,7 +72,7 @@ def _after_commit(session: Session) -> None:
             default_bus.publish(
                 item["event_type"],
                 item["payload"],
-                search_space_id=item["search_space_id"],
+                workspace_id=item["workspace_id"],
             )
         )
         for item in pending

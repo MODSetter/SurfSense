@@ -103,7 +103,7 @@ def _build_connector_doc(
     markdown_content: str,
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
 ) -> ConnectorDocument:
     """Map a raw Gmail API message dict to a ConnectorDocument."""
@@ -142,7 +142,7 @@ def _build_connector_doc(
         source_markdown=markdown_content,
         unique_id=message_id,
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=connector_id,
         created_by_id=user_id,
         metadata=metadata,
@@ -152,7 +152,7 @@ def _build_connector_doc(
 async def index_google_gmail_messages(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None = None,
     end_date: str | None = None,
@@ -166,7 +166,7 @@ async def index_google_gmail_messages(
     Args:
         session: Database session
         connector_id: ID of the Gmail connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         start_date: Start date for filtering messages (YYYY-MM-DD format)
         end_date: End date for filtering messages (YYYY-MM-DD format)
@@ -177,7 +177,7 @@ async def index_google_gmail_messages(
     Returns:
         Tuple of (number_of_indexed_messages, number_of_skipped_messages, status_message)
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     log_entry = await task_logger.log_task_start(
         task_name="google_gmail_messages_indexing",
@@ -401,7 +401,7 @@ async def index_google_gmail_messages(
                 title=_gmail_subject(msg),
                 document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
                 unique_id=msg.get("id", ""),
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
                 created_by_id=user_id,
                 metadata={
@@ -443,7 +443,7 @@ async def index_google_gmail_messages(
                     message,
                     markdown_content,
                     connector_id=connector_id,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                 )
 
@@ -493,7 +493,7 @@ async def index_google_gmail_messages(
             await mark_connector_documents_failed(
                 session,
                 document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 failures=stuck_placeholders,
             )
 

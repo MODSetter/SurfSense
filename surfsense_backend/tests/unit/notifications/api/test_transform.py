@@ -53,7 +53,7 @@ def _notification(**overrides) -> Notification:
     defaults = {
         "id": 1,
         "user_id": uuid.uuid4(),
-        "search_space_id": 3,
+        "workspace_id": 3,
         "type": "document_processing",
         "title": "Title",
         "message": "Message",

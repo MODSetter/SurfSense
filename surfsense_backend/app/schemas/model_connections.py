@@ -34,7 +34,7 @@ class ConnectionRead(BaseModel):
     api_key: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
     scope: ConnectionScope | str
-    search_space_id: int | None = None
+    workspace_id: int | None = None
     user_id: uuid.UUID | None = None
     enabled: bool
     has_api_key: bool
@@ -76,7 +76,7 @@ class ConnectionCreate(BaseModel):
     api_key: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
     scope: ConnectionScope = ConnectionScope.SEARCH_SPACE
-    search_space_id: int | None = None
+    workspace_id: int | None = None
     enabled: bool = True
     models: list[ModelSelection] = Field(default_factory=list)
 

@@ -150,7 +150,7 @@ class ConnectRequest(_PluginBase):
 
     vault_id: str
     vault_name: str
-    search_space_id: int
+    workspace_id: int
     vault_fingerprint: str = Field(
         ...,
         description=(
@@ -167,7 +167,7 @@ class ConnectResponse(_PluginBase):
 
     connector_id: int
     vault_id: str
-    search_space_id: int
+    workspace_id: int
     capabilities: list[str]
     server_time_utc: datetime
 

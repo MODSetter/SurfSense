@@ -1,6 +1,6 @@
 """Lock that the executor propagates the captured model snapshot into the
 ``ActionContext``, so runs resolve their own model (insulated from chat /
-search-space changes) and not the live search space.
+workspace changes) and not the live workspace.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ pytestmark = pytest.mark.unit
 def _run() -> SimpleNamespace:
     return SimpleNamespace(
         id=1,
-        automation=SimpleNamespace(search_space_id=42, created_by_user_id="u-1"),
+        automation=SimpleNamespace(workspace_id=42, created_by_user_id="u-1"),
     )
 
 
@@ -39,7 +39,7 @@ def test_build_action_ctx_propagates_captured_models() -> None:
         models,
     )
 
-    assert ctx.search_space_id == 42
+    assert ctx.workspace_id == 42
     assert ctx.chat_model_id == -1
     assert ctx.image_gen_model_id == 5
     assert ctx.vision_model_id == -1

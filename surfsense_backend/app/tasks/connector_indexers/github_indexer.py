@@ -51,7 +51,7 @@ MAX_DIGEST_CHARS = 500_000  # ~125k tokens
 async def index_github_repos(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None = None,  # Ignored - GitHub indexes full repo snapshots
     end_date: str | None = None,  # Ignored - GitHub indexes full repo snapshots
@@ -71,7 +71,7 @@ async def index_github_repos(
     Args:
         session: Database session
         connector_id: ID of the GitHub connector
-        search_space_id: ID of the search space to store documents in
+        workspace_id: ID of the workspace to store documents in
         user_id: ID of the user
         start_date: Ignored - kept for API compatibility
         end_date: Ignored - kept for API compatibility
@@ -83,7 +83,7 @@ async def index_github_repos(
     """
     # Note: start_date and end_date are intentionally unused
     _ = start_date, end_date
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     # Log task start
     log_entry = await task_logger.log_task_start(
@@ -220,12 +220,12 @@ async def index_github_repos(
 
                 # Generate unique identifier based on repo name
                 unique_identifier_hash = generate_unique_identifier_hash(
-                    DocumentType.GITHUB_CONNECTOR, repo_full_name, search_space_id
+                    DocumentType.GITHUB_CONNECTOR, repo_full_name, workspace_id
                 )
 
                 # Generate content hash from digest
                 full_content = digest.full_digest
-                content_hash = generate_content_hash(full_content, search_space_id)
+                content_hash = generate_content_hash(full_content, workspace_id)
 
                 # Check if document with this unique identifier already exists
                 existing_document = await check_document_by_unique_identifier(
@@ -278,7 +278,7 @@ async def index_github_repos(
 
                 # Create new document with PENDING status (visible in UI immediately)
                 document = Document(
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     title=repo_full_name,
                     document_type=DocumentType.GITHUB_CONNECTOR,
                     document_metadata={

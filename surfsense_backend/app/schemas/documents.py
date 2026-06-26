@@ -30,7 +30,7 @@ class DocumentBase(BaseModel):
     content: (
         list[ExtensionDocumentContent] | list[str] | str
     )  # Updated to allow string content
-    search_space_id: int
+    workspace_id: int
 
 
 class DocumentsCreate(DocumentBase):
@@ -59,7 +59,7 @@ class DocumentRead(BaseModel):
     unique_identifier_hash: str | None
     created_at: datetime
     updated_at: datetime | None
-    search_space_id: int
+    workspace_id: int
     folder_id: int | None = None
     created_by_id: UUID | None = None
     created_by_name: str | None = None

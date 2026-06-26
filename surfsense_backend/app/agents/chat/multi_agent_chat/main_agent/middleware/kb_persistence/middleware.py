@@ -83,11 +83,11 @@ def _basename(path: str) -> str:
 async def _ensure_folder_hierarchy(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     created_by_id: str | None,
     folder_parts: list[str],
 ) -> int | None:
-    """Ensure a chain of folder names exists under the search space.
+    """Ensure a chain of folder names exists under the workspace.
 
     Returns the leaf folder id, or ``None`` if ``folder_parts`` is empty
     (i.e. a document directly under ``/documents/``).
@@ -98,7 +98,7 @@ async def _ensure_folder_hierarchy(
     for raw in folder_parts:
         name = safe_folder_segment(str(raw))
         query = select(Folder).where(
-            Folder.search_space_id == search_space_id,
+            Folder.workspace_id == workspace_id,
             Folder.name == name,
         )
         if parent_id is None:
@@ -112,7 +112,7 @@ async def _ensure_folder_hierarchy(
                 select(Folder.position).order_by(Folder.position.desc()).limit(1)
             )
             sibling_query = sibling_query.where(
-                Folder.search_space_id == search_space_id
+                Folder.workspace_id == workspace_id
             )
             if parent_id is None:
                 sibling_query = sibling_query.where(Folder.parent_id.is_(None))
@@ -124,7 +124,7 @@ async def _ensure_folder_hierarchy(
                 name=name,
                 position=generate_key_between(last_position, None),
                 parent_id=parent_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 created_by_id=created_by_id,
                 updated_at=datetime.now(UTC),
             )
@@ -137,7 +137,7 @@ async def _ensure_folder_hierarchy(
 async def _resolve_folder_id(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     folder_parts: list[str],
 ) -> int | None:
     """Look up an existing folder chain without creating anything.
@@ -151,7 +151,7 @@ async def _resolve_folder_id(
     for raw in folder_parts:
         name = safe_folder_segment(str(raw))
         query = select(Folder).where(
-            Folder.search_space_id == search_space_id,
+            Folder.workspace_id == workspace_id,
             Folder.name == name,
         )
         query = (
@@ -185,7 +185,7 @@ async def _create_document(
     *,
     virtual_path: str,
     content: str,
-    search_space_id: int,
+    workspace_id: int,
     created_by_id: str | None,
 ) -> Document:
     """Create a NOTE Document + Chunks for ``virtual_path``."""
@@ -194,21 +194,21 @@ async def _create_document(
         raise ValueError(f"invalid /documents path '{virtual_path}'")
     folder_id = await _ensure_folder_hierarchy(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         created_by_id=created_by_id,
         folder_parts=folder_parts,
     )
     unique_identifier_hash = generate_unique_identifier_hash(
         DocumentType.NOTE,
         virtual_path,
-        search_space_id,
+        workspace_id,
     )
     # Pre-check the path-derived unique_identifier_hash so a duplicate path
     # surfaces as a clean ValueError instead of an INSERT IntegrityError that
     # poisons the session. Content is intentionally not unique (cp a b).
     path_collision = await session.execute(
         select(Document.id).where(
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
             Document.unique_identifier_hash == unique_identifier_hash,
         )
     )
@@ -217,7 +217,7 @@ async def _create_document(
             f"a document already exists at path '{virtual_path}' "
             "(unique_identifier_hash collision)"
         )
-    content_hash = generate_content_hash(content, search_space_id)
+    content_hash = generate_content_hash(content, workspace_id)
     doc = Document(
         title=title,
         document_type=DocumentType.NOTE,
@@ -226,7 +226,7 @@ async def _create_document(
         content_hash=content_hash,
         unique_identifier_hash=unique_identifier_hash,
         source_markdown=content,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         folder_id=folder_id,
         created_by_id=created_by_id,
         updated_at=datetime.now(UTC),
@@ -261,13 +261,13 @@ async def _update_document(
     doc_id: int,
     content: str,
     virtual_path: str,
-    search_space_id: int,
+    workspace_id: int,
 ) -> Document | None:
     """Update an existing Document's content + chunks."""
     result = await session.execute(
         select(Document).where(
             Document.id == doc_id,
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
         )
     )
     document = result.scalar_one_or_none()
@@ -276,7 +276,7 @@ async def _update_document(
 
     document.content = content
     document.source_markdown = content
-    document.content_hash = generate_content_hash(content, search_space_id)
+    document.content_hash = generate_content_hash(content, workspace_id)
     document.updated_at = datetime.now(UTC)
     metadata = dict(document.document_metadata or {})
     metadata["virtual_path"] = virtual_path
@@ -284,7 +284,7 @@ async def _update_document(
     document.unique_identifier_hash = generate_unique_identifier_hash(
         DocumentType.NOTE,
         virtual_path,
-        search_space_id,
+        workspace_id,
     )
 
     summary_embedding = (await asyncio.to_thread(embed_texts, [content]))[0]
@@ -318,7 +318,7 @@ async def _update_document(
 async def _apply_move(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     created_by_id: str | None,
     move: dict[str, Any],
     doc_id_by_path: dict[str, int],
@@ -341,14 +341,14 @@ async def _apply_move(
         result = await session.execute(
             select(Document).where(
                 Document.id == doc_id,
-                Document.search_space_id == search_space_id,
+                Document.workspace_id == workspace_id,
             )
         )
         document = result.scalar_one_or_none()
     if document is None:
         document = await virtual_path_to_doc(
             session,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             virtual_path=source,
         )
     if document is None:
@@ -364,7 +364,7 @@ async def _apply_move(
         return None
     folder_id = await _ensure_folder_hierarchy(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         created_by_id=created_by_id,
         folder_parts=folder_parts,
     )
@@ -377,7 +377,7 @@ async def _apply_move(
     document.unique_identifier_hash = generate_unique_identifier_hash(
         DocumentType.NOTE,
         dest,
-        search_space_id,
+        workspace_id,
     )
     document.updated_at = datetime.now(UTC)
 
@@ -501,7 +501,7 @@ async def _snapshot_document_pre_write(
     *,
     doc: Document,
     action_id: int | None,
-    search_space_id: int,
+    workspace_id: int,
     turn_id: str | None = None,
     deferred_dispatches: list[int] | None = None,
 ) -> int | None:
@@ -517,7 +517,7 @@ async def _snapshot_document_pre_write(
             payload = _doc_revision_payload(doc, chunks_before=chunks)
             rev = DocumentRevision(
                 document_id=doc.id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 created_by_turn_id=turn_id,
                 agent_action_id=action_id,
                 **payload,
@@ -544,7 +544,7 @@ async def _snapshot_document_pre_create(
     session: AsyncSession,
     *,
     action_id: int | None,
-    search_space_id: int,
+    workspace_id: int,
     turn_id: str | None = None,
     deferred_dispatches: list[int] | None = None,
 ) -> int | None:
@@ -558,7 +558,7 @@ async def _snapshot_document_pre_create(
         async with session.begin_nested():
             rev = DocumentRevision(
                 document_id=None,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 content_before=None,
                 title_before=None,
                 folder_id_before=None,
@@ -586,7 +586,7 @@ async def _snapshot_document_pre_move(
     *,
     doc: Document,
     action_id: int | None,
-    search_space_id: int,
+    workspace_id: int,
     turn_id: str | None = None,
     deferred_dispatches: list[int] | None = None,
 ) -> int | None:
@@ -596,7 +596,7 @@ async def _snapshot_document_pre_move(
             payload = _doc_revision_payload(doc, chunks_before=None)
             rev = DocumentRevision(
                 document_id=doc.id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 created_by_turn_id=turn_id,
                 agent_action_id=action_id,
                 **payload,
@@ -624,7 +624,7 @@ async def _snapshot_folder_pre_mkdir(
     *,
     folder: Folder,
     action_id: int | None,
-    search_space_id: int,
+    workspace_id: int,
     turn_id: str | None = None,
     deferred_dispatches: list[int] | None = None,
 ) -> int | None:
@@ -637,7 +637,7 @@ async def _snapshot_folder_pre_mkdir(
         async with session.begin_nested():
             rev = FolderRevision(
                 folder_id=folder.id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 name_before=None,
                 parent_id_before=None,
                 position_before=None,
@@ -670,7 +670,7 @@ async def _snapshot_folder_pre_mkdir(
 async def commit_staged_filesystem_state(
     state: dict[str, Any] | AgentState,
     *,
-    search_space_id: int,
+    workspace_id: int,
     created_by_id: str | None,
     filesystem_mode: FilesystemMode = FilesystemMode.CLOUD,
     thread_id: int | None = None,
@@ -814,7 +814,7 @@ async def commit_staged_filesystem_state(
                     continue
                 folder_id = await _ensure_folder_hierarchy(
                     session,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     created_by_id=created_by_id,
                     folder_parts=folder_parts_full,
                 )
@@ -833,7 +833,7 @@ async def commit_staged_filesystem_state(
                                 session,
                                 folder=folder_row,
                                 action_id=action_id,
-                                search_space_id=search_space_id,
+                                workspace_id=workspace_id,
                                 turn_id=tcid,
                                 deferred_dispatches=deferred_dispatches,
                             )
@@ -851,14 +851,14 @@ async def commit_staged_filesystem_state(
                             res_pre = await session.execute(
                                 select(Document).where(
                                     Document.id == doc_id_pre,
-                                    Document.search_space_id == search_space_id,
+                                    Document.workspace_id == workspace_id,
                                 )
                             )
                             document_pre = res_pre.scalar_one_or_none()
                         if document_pre is None:
                             document_pre = await virtual_path_to_doc(
                                 session,
-                                search_space_id=search_space_id,
+                                workspace_id=workspace_id,
                                 virtual_path=source,
                             )
                         if document_pre is not None:
@@ -866,14 +866,14 @@ async def commit_staged_filesystem_state(
                                 session,
                                 doc=document_pre,
                                 action_id=action_id,
-                                search_space_id=search_space_id,
+                                workspace_id=workspace_id,
                                 turn_id=tcid,
                                 deferred_dispatches=deferred_dispatches,
                             )
 
                 applied = await _apply_move(
                     session,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     created_by_id=created_by_id,
                     move=move,
                     doc_id_by_path=doc_id_by_path,
@@ -937,7 +937,7 @@ async def commit_staged_filesystem_state(
                     # INSERT (which would hit the path-derived unique hash).
                     existing = await virtual_path_to_doc(
                         session,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         virtual_path=path,
                     )
                     if existing is not None:
@@ -948,7 +948,7 @@ async def commit_staged_filesystem_state(
                         result_doc = await session.execute(
                             select(Document).where(
                                 Document.id == doc_id,
-                                Document.search_space_id == search_space_id,
+                                Document.workspace_id == workspace_id,
                             )
                         )
                         existing_doc = result_doc.scalar_one_or_none()
@@ -957,7 +957,7 @@ async def commit_staged_filesystem_state(
                                 session,
                                 doc=existing_doc,
                                 action_id=action_id,
-                                search_space_id=search_space_id,
+                                workspace_id=workspace_id,
                                 turn_id=tcid,
                                 deferred_dispatches=deferred_dispatches,
                             )
@@ -966,7 +966,7 @@ async def commit_staged_filesystem_state(
                         doc_id=doc_id,
                         content=content,
                         virtual_path=path,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                     )
                     if updated is not None:
                         committed_updates.append(
@@ -974,7 +974,7 @@ async def commit_staged_filesystem_state(
                                 "id": updated.id,
                                 "title": updated.title,
                                 "documentType": DocumentType.NOTE.value,
-                                "searchSpaceId": search_space_id,
+                                "workspaceId": workspace_id,
                                 "folderId": updated.folder_id,
                                 "createdById": str(created_by_id)
                                 if created_by_id
@@ -991,7 +991,7 @@ async def commit_staged_filesystem_state(
                         placeholder_revision_id = await _snapshot_document_pre_create(
                             session,
                             action_id=action_id,
-                            search_space_id=search_space_id,
+                            workspace_id=workspace_id,
                             turn_id=tcid,
                             deferred_dispatches=deferred_dispatches,
                         )
@@ -1001,7 +1001,7 @@ async def commit_staged_filesystem_state(
                                 session,
                                 virtual_path=path,
                                 content=content,
-                                search_space_id=search_space_id,
+                                workspace_id=workspace_id,
                                 created_by_id=created_by_id,
                             )
                     except ValueError as exc:
@@ -1045,7 +1045,7 @@ async def commit_staged_filesystem_state(
                             "id": new_doc.id,
                             "title": new_doc.title,
                             "documentType": DocumentType.NOTE.value,
-                            "searchSpaceId": search_space_id,
+                            "workspaceId": workspace_id,
                             "folderId": new_doc.folder_id,
                             "createdById": str(created_by_id)
                             if created_by_id
@@ -1069,14 +1069,14 @@ async def commit_staged_filesystem_state(
                     result = await session.execute(
                         select(Document).where(
                             Document.id == doc_id_for_delete,
-                            Document.search_space_id == search_space_id,
+                            Document.workspace_id == workspace_id,
                         )
                     )
                     document_to_delete = result.scalar_one_or_none()
                 if document_to_delete is None:
                     document_to_delete = await virtual_path_to_doc(
                         session,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         virtual_path=final,
                     )
                 if document_to_delete is None:
@@ -1100,7 +1100,7 @@ async def commit_staged_filesystem_state(
                             )
                             rev = DocumentRevision(
                                 document_id=doc_pk,
-                                search_space_id=search_space_id,
+                                workspace_id=workspace_id,
                                 created_by_turn_id=tcid,
                                 agent_action_id=action_id,
                                 **payload,
@@ -1130,7 +1130,7 @@ async def commit_staged_filesystem_state(
                         "id": doc_pk,
                         "title": doc_title,
                         "documentType": DocumentType.NOTE.value,
-                        "searchSpaceId": search_space_id,
+                        "workspaceId": workspace_id,
                         "folderId": doc_folder_id,
                         "createdById": str(created_by_id) if created_by_id else None,
                         "virtualPath": final,
@@ -1151,7 +1151,7 @@ async def commit_staged_filesystem_state(
                     continue
                 folder_id = await _resolve_folder_id(
                     session,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     folder_parts=folder_parts,
                 )
                 if folder_id is None:
@@ -1163,7 +1163,7 @@ async def commit_staged_filesystem_state(
                 docs_in_folder = await session.execute(
                     select(Document.id)
                     .where(Document.folder_id == folder_id)
-                    .where(Document.search_space_id == search_space_id)
+                    .where(Document.workspace_id == workspace_id)
                     .limit(1)
                 )
                 if docs_in_folder.scalar_one_or_none() is not None:
@@ -1175,7 +1175,7 @@ async def commit_staged_filesystem_state(
                 child_folders = await session.execute(
                     select(Folder.id)
                     .where(Folder.parent_id == folder_id)
-                    .where(Folder.search_space_id == search_space_id)
+                    .where(Folder.workspace_id == workspace_id)
                     .limit(1)
                 )
                 if child_folders.scalar_one_or_none() is not None:
@@ -1203,7 +1203,7 @@ async def commit_staged_filesystem_state(
                         if snapshot_enabled and action_id is not None:
                             rev = FolderRevision(
                                 folder_id=folder_pk,
-                                search_space_id=search_space_id,
+                                workspace_id=workspace_id,
                                 name_before=folder_name,
                                 parent_id_before=folder_parent_id,
                                 position_before=folder_position,
@@ -1232,7 +1232,7 @@ async def commit_staged_filesystem_state(
                     {
                         "id": folder_pk,
                         "name": folder_name,
-                        "searchSpaceId": search_space_id,
+                        "workspaceId": workspace_id,
                         "parentId": folder_parent_id,
                         "virtualPath": final,
                     }
@@ -1242,7 +1242,7 @@ async def commit_staged_filesystem_state(
             await session.commit()
     except Exception:  # pragma: no cover - rollback safety net
         logger.exception(
-            "kb_persistence: commit failed (search_space=%s)", search_space_id
+            "kb_persistence: commit failed (workspace=%s)", workspace_id
         )
         # Outer commit raised: everything above rolled back, so drop the
         # deferred dispatches.
@@ -1402,9 +1402,9 @@ async def commit_staged_filesystem_state(
     _ = turn_id_for_revision  # diagnostic-only; silence unused lint
 
     logger.info(
-        "kb_persistence: commit (search_space=%s) creates=%d updates=%d "
+        "kb_persistence: commit (workspace=%s) creates=%d updates=%d "
         "moves=%d staged_dirs=%d deletes=%d folder_deletes=%d discarded=%d",
-        search_space_id,
+        workspace_id,
         len(committed_creates),
         len(committed_updates),
         len(applied_moves),
@@ -1430,12 +1430,12 @@ class KnowledgeBasePersistenceMiddleware(AgentMiddleware):  # type: ignore[type-
     def __init__(
         self,
         *,
-        search_space_id: int,
+        workspace_id: int,
         created_by_id: str | None,
         filesystem_mode: FilesystemMode,
         thread_id: int | None = None,
     ) -> None:
-        self.search_space_id = search_space_id
+        self.workspace_id = workspace_id
         self.created_by_id = created_by_id
         self.filesystem_mode = filesystem_mode
         self.thread_id = thread_id
@@ -1450,7 +1450,7 @@ class KnowledgeBasePersistenceMiddleware(AgentMiddleware):  # type: ignore[type-
             return None
         return await commit_staged_filesystem_state(
             state,
-            search_space_id=self.search_space_id,
+            workspace_id=self.workspace_id,
             created_by_id=self.created_by_id,
             filesystem_mode=self.filesystem_mode,
             thread_id=self._resolve_thread_id(),

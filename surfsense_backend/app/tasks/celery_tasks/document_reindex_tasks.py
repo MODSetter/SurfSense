@@ -41,7 +41,7 @@ async def _reindex_document(document_id: int, user_id: str):
             logger.error(f"Document {document_id} not found")
             return
 
-        task_logger = TaskLoggingService(session, document.search_space_id)
+        task_logger = TaskLoggingService(session, document.workspace_id)
 
         log_entry = await task_logger.log_task_start(
             task_name="document_reindex",
