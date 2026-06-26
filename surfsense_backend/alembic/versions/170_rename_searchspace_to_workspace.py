@@ -1,15 +1,8 @@
 """rename searchspace schema to workspace
 
-Physically renames the SearchSpace schema to WorkSpace: tables, the
-``search_space_id`` / ``owner_search_space_id`` columns, the named
-constraints/indexes/sequences that embed the old name, and the auto-named
-FK/PK/sequence objects. The Zero publication is reconciled to the renamed
-``workspace_id`` column lists via the blessed ``apply_publication`` path
-(never raw DROP/CREATE PUBLICATION -- see migration 116).
-
-This is the existing-deployment upgrade path (chains after head 169). The
-from-scratch ``alembic upgrade head`` path is a separate, pre-existing concern
-(0_initial uses create_all of the current ORM); it is out of scope here.
+Renames the SearchSpace tables/columns/constraints/indexes/sequences to the
+workspace_* names the ORM already declares, and reconciles the Zero publication
+to match.
 
 Revision ID: 170
 Revises: 169
@@ -488,8 +481,9 @@ def upgrade() -> None:
     for old, new in SEQUENCE_RENAMES:
         _rename_sequence(conn, old, new)
 
-    # Reconcile to the new workspace_id shape (blessed SET TABLE path); no-op
-    # if the publication does not exist.
+    # Reconcile to the new workspace_id shape via the blessed apply_publication
+    # path (ALTER ... SET TABLE) -- never raw DROP/CREATE PUBLICATION (bug #1355,
+    # migration 116). No-op if the publication does not exist.
     apply_publication(conn)
 
 
