@@ -31,6 +31,10 @@
 		flush_interval -1
 	}
 
+	# Zero sync auth context is a backend (FastAPI) endpoint. More specific than
+	# /zero/*, so Caddy's matcher-specificity sort routes it here, not to zero-cache.
+	reverse_proxy /zero/context backend:8000
+
 	# Zero accepts a single path-component base URL (Zero >= 0.6).
 	# Preserve /zero so browser cacheURL can be ${SURFSENSE_PUBLIC_URL}/zero.
 	reverse_proxy /zero/* zero-cache:4848
