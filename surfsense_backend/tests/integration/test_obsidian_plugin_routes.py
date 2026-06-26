@@ -133,7 +133,7 @@ async def race_user_and_space(async_engine):
             {"id": space_id},
         )
         await cleanup.execute(
-            text("DELETE FROM searchspaces WHERE id = :id"),
+            text("DELETE FROM workspaces WHERE id = :id"),
             {"id": space_id},
         )
         await cleanup.execute(

@@ -32,7 +32,7 @@ class DocumentFile(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

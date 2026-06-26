@@ -50,7 +50,7 @@ class Notification(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )

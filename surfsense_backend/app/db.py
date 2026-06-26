@@ -608,7 +608,7 @@ class NewChatThread(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
 
@@ -791,7 +791,7 @@ class ExternalChatAccount(Base, TimestampMixin):
     owner_search_space_id = Column(
         "owner_workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=True,
     )
     is_system_account = Column(
@@ -906,7 +906,7 @@ class ExternalChatBinding(Base, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
     state = Column(
@@ -1125,7 +1125,7 @@ class TokenUsage(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -1331,7 +1331,7 @@ class Folder(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -1396,7 +1396,7 @@ class Document(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
 
@@ -1523,7 +1523,7 @@ class VideoPresentation(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
     search_space = relationship("SearchSpace", back_populates="video_presentations")
@@ -1553,7 +1553,7 @@ class Report(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
     search_space = relationship("SearchSpace", back_populates="reports")
@@ -1584,7 +1584,7 @@ class Connection(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=True,
     )
     user_id = Column(
@@ -1698,7 +1698,7 @@ class ImageGeneration(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
     created_by_id = Column(
@@ -1714,7 +1714,7 @@ class ImageGeneration(BaseModel, TimestampMixin):
 
 
 class SearchSpace(BaseModel, TimestampMixin):
-    __tablename__ = "searchspaces"
+    __tablename__ = "workspaces"
 
     name = Column(String(100), nullable=False, index=True)
     description = Column(String(500), nullable=True)
@@ -1910,7 +1910,7 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
     search_space = relationship(
@@ -1940,7 +1940,7 @@ class Log(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
     search_space = relationship("SearchSpace", back_populates="logs")
@@ -2083,7 +2083,7 @@ class SearchSpaceRole(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
     search_space = relationship("SearchSpace", back_populates="roles")
@@ -2117,7 +2117,7 @@ class SearchSpaceMembership(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
     role_id = Column(
@@ -2162,7 +2162,7 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
     # Role to assign when invite is used (null means use default role)
@@ -2223,7 +2223,7 @@ class Prompt(BaseModel, TimestampMixin):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
@@ -2553,7 +2553,7 @@ class AgentActionLog(BaseModel):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -2625,7 +2625,7 @@ class DocumentRevision(BaseModel):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -2667,7 +2667,7 @@ class FolderRevision(BaseModel):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -2704,7 +2704,7 @@ class AgentPermissionRule(BaseModel):
     search_space_id = Column(
         "workspace_id",
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

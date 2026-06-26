@@ -199,7 +199,7 @@ async def committed_google_data(async_engine):
 
     async with async_engine.begin() as conn:
         await conn.execute(
-            text("DELETE FROM searchspaces WHERE id = :sid"), {"sid": space_id}
+            text("DELETE FROM workspaces WHERE id = :sid"), {"sid": space_id}
         )
 
 
@@ -306,5 +306,5 @@ async def cleanup_space(async_engine, space_id: int):
     """Delete a search space (cascades to connectors/documents)."""
     async with async_engine.begin() as conn:
         await conn.execute(
-            text("DELETE FROM searchspaces WHERE id = :sid"), {"sid": space_id}
+            text("DELETE FROM workspaces WHERE id = :sid"), {"sid": space_id}
         )
