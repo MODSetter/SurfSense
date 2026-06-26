@@ -6,7 +6,7 @@ import {
 	ZeroProvider as ZeroReactProvider,
 } from "@rocicorp/zero/react";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "@/hooks/use-session";
 import { getDesktopAccessToken } from "@/lib/auth-fetch";
 import { handleUnauthorized, isPublicRoute, refreshSession } from "@/lib/auth-utils";
@@ -54,30 +54,74 @@ async function fetchZeroContext(isDesktop: boolean): Promise<LoadedZeroContext |
 	};
 }
 
+// Cap how many times we will refresh the session in response to Zero's
+// `needs-auth` state before giving up. Without this, a persistent auth failure
+// in zero-cache makes the connection cycle needs-auth -> connecting -> needs-auth
+// indefinitely, each cycle firing a `/auth/jwt/refresh` and quickly tripping the
+// backend rate limiter (HTTP 429).
+const MAX_ZERO_AUTH_REFRESH_ATTEMPTS = 3;
+const ZERO_AUTH_REFRESH_BASE_DELAY_MS = 1_000;
+const ZERO_AUTH_REFRESH_MAX_DELAY_MS = 30_000;
+
 function ZeroAuthSync({ isDesktop }: { isDesktop: boolean }) {
 	const zero = useZero();
 	const connectionState = useConnectionState();
+	const refreshAttemptsRef = useRef(0);
+	const refreshInFlightRef = useRef(false);
+
+	// Once a connection is established, clear the backoff so future
+	// auth expirations get a fresh set of refresh attempts.
+	useEffect(() => {
+		if (connectionState.name === "connected") {
+			refreshAttemptsRef.current = 0;
+		}
+	}, [connectionState.name]);
 
 	useEffect(() => {
 		if (connectionState.name !== "needs-auth") return;
+		if (refreshInFlightRef.current) return;
 
-		refreshSession().then(async (refreshed) => {
-			if (!refreshed) {
-				handleUnauthorized();
-				return;
-			}
+		if (refreshAttemptsRef.current >= MAX_ZERO_AUTH_REFRESH_ATTEMPTS) {
+			handleUnauthorized();
+			return;
+		}
 
-			if (isDesktop) {
-				const newToken = await getDesktopAccessToken();
-				if (!newToken) {
-					handleUnauthorized();
-					return;
-				}
-				zero.connection.connect({ auth: newToken });
-			} else {
-				zero.connection.connect();
-			}
-		});
+		const attempt = refreshAttemptsRef.current;
+		const delayMs =
+			attempt === 0
+				? 0
+				: Math.min(
+						ZERO_AUTH_REFRESH_BASE_DELAY_MS * 2 ** (attempt - 1),
+						ZERO_AUTH_REFRESH_MAX_DELAY_MS
+					);
+
+		refreshInFlightRef.current = true;
+		const timer = setTimeout(() => {
+			refreshAttemptsRef.current += 1;
+			refreshSession()
+				.then(async (refreshed) => {
+					if (!refreshed) {
+						handleUnauthorized();
+						return;
+					}
+
+					if (isDesktop) {
+						const newToken = await getDesktopAccessToken();
+						if (!newToken) {
+							handleUnauthorized();
+							return;
+						}
+						zero.connection.connect({ auth: newToken });
+					} else {
+						zero.connection.connect();
+					}
+				})
+				.finally(() => {
+					refreshInFlightRef.current = false;
+				});
+		}, delayMs);
+
+		return () => clearTimeout(timer);
 	}, [connectionState.name, isDesktop, zero]);
 
 	useEffect(() => {

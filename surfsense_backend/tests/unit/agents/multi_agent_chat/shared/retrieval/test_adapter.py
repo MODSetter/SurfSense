@@ -32,9 +32,10 @@ def test_maps_identity_source_and_passages() -> None:
 
     assert document.title == "Q3 Launch Notes"
     assert document.source == "Slack"
-    assert [
-        (p.locator["chunk_id"], p.content) for p in document.passages
-    ] == [(880, "a"), (881, "b")]
+    assert [(p.locator["chunk_id"], p.content) for p in document.passages] == [
+        (880, "a"),
+        (881, "b"),
+    ]
     assert all(p.locator["document_id"] == 42 for p in document.passages)
 
 

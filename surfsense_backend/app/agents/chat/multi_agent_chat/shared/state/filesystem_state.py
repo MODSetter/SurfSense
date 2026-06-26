@@ -162,6 +162,20 @@ class SurfSenseFilesystemState(FilesystemState):
     normalizer. Merges (union, find-or-create) so parallel/subagent registrations
     stay globally consistent instead of clobbering each other."""
 
+    mentioned_document_ids: NotRequired[Annotated[list[int], _replace_reducer]]
+    """``@``-mentioned ``Document.id`` pins for this turn.
+
+    Sourced from the per-invocation ``runtime.context`` on the main graph and
+    forwarded into subagent state by the ``task`` tool (subagents are not
+    compiled with a ``context_schema``). Read by ``search_knowledge_base`` to
+    confine retrieval to the pinned documents."""
+
+    mentioned_folder_ids: NotRequired[Annotated[list[int], _replace_reducer]]
+    """``@``-mentioned ``Folder.id`` pins for this turn.
+
+    Same provenance as :data:`mentioned_document_ids`; expanded to the folder's
+    documents by ``search_knowledge_base`` to scope retrieval."""
+
     tree_version: NotRequired[Annotated[int, _replace_reducer]]
     """Monotonically increasing counter; bumped when commits change the KB tree."""
 

@@ -33,9 +33,7 @@ def render_search_context(
     blocks = [
         block
         for document in documents
-        if (
-            block := render_document(document, view="excerpt", registry=registry)
-        )
+        if (block := render_document(document, view="excerpt", registry=registry))
         is not None
     ]
     if not blocks:

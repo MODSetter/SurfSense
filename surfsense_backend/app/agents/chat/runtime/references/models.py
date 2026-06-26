@@ -8,11 +8,11 @@ a class-level discriminator used by the renderer and scope builder.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import ClassVar
 
 
-class ReferenceKind(str, Enum):
+class ReferenceKind(StrEnum):
     """What the user pointed at; the value is the label shown to the model."""
 
     DOCUMENT = "document"

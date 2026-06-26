@@ -1,4 +1,4 @@
-"""Behavior tests for the ``search_knowledge_base`` main-agent tool.
+"""Behavior tests for the ``search_knowledge_base`` knowledge_base-subagent tool.
 
 These exercise the tool through its public contract: seed a real document,
 invoke the tool, and assert on the ``Command`` it returns — the rendered
@@ -6,6 +6,12 @@ invoke the tool, and assert on the ``Command`` it returns — the rendered
 back on state is populated.
 The tool's own DB session is redirected to the test session, and the embedding
 leg is pinned so the search is deterministic without a live model.
+
+``@``-mention scoping is covered along BOTH delivery paths: via ``runtime.state``
+(the real subagent path — the ``task`` tool forwards the mentions into state
+because subagents have no ``context_schema``) and via ``runtime.context`` (the
+fallback for any direct main-graph invocation). State takes precedence when both
+are present.
 """
 
 from __future__ import annotations
@@ -18,11 +24,13 @@ import pytest
 from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 
-from app.agents.chat.multi_agent_chat.main_agent.tools import search_knowledge_base
-from app.agents.chat.multi_agent_chat.main_agent.tools.search_knowledge_base import (
+from app.agents.chat.multi_agent_chat.shared.citations import CitationRegistry
+from app.agents.chat.multi_agent_chat.subagents.builtins.knowledge_base.tools import (
+    search_knowledge_base,
+)
+from app.agents.chat.multi_agent_chat.subagents.builtins.knowledge_base.tools.search_knowledge_base import (
     create_search_knowledge_base_tool,
 )
-from app.agents.chat.multi_agent_chat.shared.citations import CitationRegistry
 from app.config import config
 from app.db import Chunk, Document, DocumentType, Folder
 
@@ -89,9 +97,7 @@ def _pinned_embedding(monkeypatch):
 
 
 async def _invoke(tool, query: str, state: dict | None = None, context=None):
-    runtime = SimpleNamespace(
-        state=state or {}, tool_call_id="call-1", context=context
-    )
+    runtime = SimpleNamespace(state=state or {}, tool_call_id="call-1", context=context)
     return await tool.coroutine(query, runtime)
 
 
@@ -198,9 +204,7 @@ async def test_document_mention_confines_search_to_pinned_doc(
     )
     tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
 
-    result = await _invoke(
-        tool, "asyncio", context=_mentions(document_ids=[pinned.id])
-    )
+    result = await _invoke(tool, "asyncio", context=_mentions(document_ids=[pinned.id]))
 
     # Search is confined to the pinned doc: only its content is rendered.
     content = result.update["messages"][0].content
@@ -227,11 +231,106 @@ async def test_folder_mention_confines_search_to_folder_documents(
     )
     tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
 
-    result = await _invoke(
-        tool, "asyncio", context=_mentions(folder_ids=[folder.id])
-    )
+    result = await _invoke(tool, "asyncio", context=_mentions(folder_ids=[folder.id]))
 
     # Search is confined to the folder's document: only its content is rendered.
     content = result.update["messages"][0].content
     assert "Inside" in content
     assert "Outside" not in content
+
+
+async def test_document_mention_via_state_confines_search(
+    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+):
+    """The real subagent path: mentions arrive on ``runtime.state`` (no context).
+
+    The ``task`` tool forwards ``mentioned_document_ids`` into subagent state
+    because subagents are compiled without a ``context_schema``. This asserts
+    the tool honors that state-delivered pin without any ``runtime.context``.
+    """
+    pinned = await _add_document(
+        db_session,
+        search_space_id=db_search_space.id,
+        title="Pinned",
+        text="asyncio appears in the pinned doc.",
+    )
+    await _add_document(
+        db_session,
+        search_space_id=db_search_space.id,
+        title="Other",
+        text="asyncio appears in the other doc.",
+    )
+    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+
+    result = await _invoke(
+        tool,
+        "asyncio",
+        state={"mentioned_document_ids": [pinned.id]},
+        context=None,
+    )
+
+    content = result.update["messages"][0].content
+    assert "Pinned" in content
+    assert "Other" not in content
+
+
+async def test_folder_mention_via_state_confines_search(
+    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+):
+    """Folder pins delivered via state (subagent path) scope to the folder's docs."""
+    folder = await _add_folder(db_session, search_space_id=db_search_space.id)
+    await _add_document(
+        db_session,
+        search_space_id=db_search_space.id,
+        title="Inside",
+        text="asyncio appears inside the folder.",
+        folder_id=folder.id,
+    )
+    await _add_document(
+        db_session,
+        search_space_id=db_search_space.id,
+        title="Outside",
+        text="asyncio appears outside the folder.",
+    )
+    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+
+    result = await _invoke(
+        tool,
+        "asyncio",
+        state={"mentioned_folder_ids": [folder.id]},
+        context=None,
+    )
+
+    content = result.update["messages"][0].content
+    assert "Inside" in content
+    assert "Outside" not in content
+
+
+async def test_state_mentions_take_precedence_over_context(
+    db_session, db_search_space, _tool_uses_test_session, _pinned_embedding
+):
+    """When both carry pins, state wins (the forwarded subagent pin is authoritative)."""
+    state_doc = await _add_document(
+        db_session,
+        search_space_id=db_search_space.id,
+        title="StatePinned",
+        text="asyncio appears in the state-pinned doc.",
+    )
+    context_doc = await _add_document(
+        db_session,
+        search_space_id=db_search_space.id,
+        title="ContextPinned",
+        text="asyncio appears in the context-pinned doc.",
+    )
+    tool = create_search_knowledge_base_tool(search_space_id=db_search_space.id)
+
+    result = await _invoke(
+        tool,
+        "asyncio",
+        state={"mentioned_document_ids": [state_doc.id]},
+        context=_mentions(document_ids=[context_doc.id]),
+    )
+
+    content = result.update["messages"][0].content
+    assert "StatePinned" in content
+    assert "ContextPinned" not in content

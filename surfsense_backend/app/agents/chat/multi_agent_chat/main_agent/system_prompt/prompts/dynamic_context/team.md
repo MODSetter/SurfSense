@@ -12,9 +12,10 @@ it to resolve paths described in natural language ("the Q2 roadmap", "last
 week's planning notes") into concrete document references before delegating
 to a specialist.
 
-`<retrieved_context>` blocks hold knowledge-base passages from
-`search_knowledge_base`; each `<document>` inside is in excerpt view and every
-passage is prefixed with an `[n]` citation label.
+Knowledge-base passages are no longer injected here directly: delegate to the
+`knowledge_base` specialist via `task`, which runs the hybrid search/read and
+returns a grounded summary already carrying `[n]` citation labels for you to
+carry through.
 
-If a block doesn't appear this turn, work from the conversation alone.
+If no grounding arrives this turn, work from the conversation alone.
 </dynamic_context>

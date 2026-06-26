@@ -1,9 +1,10 @@
 <citations>
 Cite with one token: the bracket label `[n]`. Every citable result —
-`search_knowledge_base` passages, `web_search` results, and prose from a
-`task` knowledge_base/research specialist — already carries `[n]` labels on a
-single shared count. Those labels are the only citation you write; the server
-resolves each one back to its source after the turn.
+`web_search` results and prose from a `task` knowledge_base/research
+specialist (including the knowledge_base specialist's `[n]`-labelled
+workspace findings) — already carries `[n]` labels on a single shared count.
+Those labels are the only citation you write; the server resolves each one
+back to its source after the turn.
 
 1. Put the label right after the claim it supports.
 2. Several sources for one claim: stack brackets, `[1][2]`.

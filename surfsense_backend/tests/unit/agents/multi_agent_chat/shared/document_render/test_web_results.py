@@ -49,7 +49,9 @@ def test_wraps_in_web_results_container() -> None:
     assert block.startswith("<web_results>")
     assert block.endswith("</web_results>")
     assert "cite a result with its [n]" in block
-    assert '<document title="Example" source="Web · example.com" view="excerpt">' in block
+    assert (
+        '<document title="Example" source="Web · example.com" view="excerpt">' in block
+    )
     assert "[1] the answer is 42" in block
 
 

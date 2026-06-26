@@ -1,11 +1,12 @@
 """Main-agent middleware list assembly: one line per slot.
 
-The main agent is a pure router — filesystem reads/writes are owned by the
-``knowledge_base`` subagent and delegated via the ``task`` tool. Knowledge-base
-retrieval is pull-based: the ``search_knowledge_base`` tool runs the hybrid
-search on demand and renders ``<retrieved_context>`` with ``[n]`` citation
-labels. The stack here computes the workspace tree, commits any subagent-side
-staged writes at end of turn (cloud mode), and wires the supporting middleware.
+The main agent is a pure router — both filesystem reads/writes AND knowledge-base
+retrieval are owned by the ``knowledge_base`` subagent and reached via the
+``task`` tool. That subagent runs the hybrid ``search_knowledge_base`` (rendering
+``<retrieved_context>`` with ``[n]`` citation labels) and the FS tools on demand;
+the main agent only sees the specialist's grounded summary. The stack here
+computes the workspace tree, commits any subagent-side staged writes at end of
+turn (cloud mode), and wires the supporting middleware.
 """
 
 from __future__ import annotations

@@ -23,7 +23,11 @@ def _hit(document_id: int, chunk_id: int) -> DocumentHit:
         document_type="FILE",
         metadata={},
         score=1.0 / document_id,
-        chunks=[ChunkHit(chunk_id=chunk_id, content=f"text {chunk_id}", position=0, score=1.0)],
+        chunks=[
+            ChunkHit(
+                chunk_id=chunk_id, content=f"text {chunk_id}", position=0, score=1.0
+            )
+        ],
     )
 
 

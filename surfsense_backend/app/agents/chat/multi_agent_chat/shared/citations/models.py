@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class CitationSourceType(str, Enum):
+class CitationSourceType(StrEnum):
     """Source kind of a citable unit; the value is the stable wire/dedup form."""
 
     KB_CHUNK = "kb_chunk"

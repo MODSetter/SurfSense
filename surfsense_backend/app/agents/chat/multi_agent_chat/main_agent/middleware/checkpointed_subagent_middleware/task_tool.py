@@ -343,6 +343,28 @@ def build_task_tool_with_parent_config(
         cleaned = hint.strip()
         return cleaned or None
 
+    def _forward_mention_pins(subagent_state: dict, runtime: ToolRuntime) -> None:
+        """Carry the turn's ``@``-mention pins from main context into subagent state.
+
+        Subagents are compiled without a ``context_schema`` and invoked without
+        ``context=``, so ``runtime.context`` (which holds the ``@``-mentioned
+        document/folder ids) does not reach them. The ``task`` tool runs in the
+        main runtime, which *does* have the context, so we copy the pins into the
+        forwarded state where ``search_knowledge_base`` reads them. Only set keys
+        when present so we never clobber pins already on state (e.g. nested
+        ``ask_knowledge_base`` re-entry).
+        """
+        ctx = getattr(runtime, "context", None)
+        if ctx is None:
+            return
+        for state_key, ctx_attr in (
+            ("mentioned_document_ids", "mentioned_document_ids"),
+            ("mentioned_folder_ids", "mentioned_folder_ids"),
+        ):
+            value = getattr(ctx, ctx_attr, None)
+            if value:
+                subagent_state[state_key] = list(value)
+
     def _validate_and_prepare_state(
         subagent_type: str, description: str, runtime: ToolRuntime
     ) -> tuple[Runnable, dict]:
@@ -350,6 +372,7 @@ def build_task_tool_with_parent_config(
         subagent_state = {
             k: v for k, v in runtime.state.items() if k not in EXCLUDED_STATE_KEYS
         }
+        _forward_mention_pins(subagent_state, runtime)
         hint = _resolve_context_hint(subagent_type, description, runtime)
         if hint:
             # Tagged block so the subagent prompt can pattern-match the section.

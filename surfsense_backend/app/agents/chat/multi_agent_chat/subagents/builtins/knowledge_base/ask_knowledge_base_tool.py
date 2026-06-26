@@ -35,8 +35,21 @@ def _wrap_result(result: dict, tool_call_id: str) -> Command:
             "expected at least one assistant message."
         )
     last_text = (getattr(messages[-1], "text", None) or "").rstrip()
+    # Carry reducer-backed state (notably citation_registry, populated by the
+    # read-only graph's search_knowledge_base call) back up to the caller so
+    # [n] labels emitted via ask_knowledge_base resolve at turn end. Drop
+    # ``messages`` — we synthesize our own ToolMessage — and anything the
+    # subagent boundary excludes.
+    forwarded_state = {
+        k: v
+        for k, v in result.items()
+        if k not in EXCLUDED_STATE_KEYS and k != "messages"
+    }
     return Command(
-        update={"messages": [ToolMessage(last_text, tool_call_id=tool_call_id)]}
+        update={
+            **forwarded_state,
+            "messages": [ToolMessage(last_text, tool_call_id=tool_call_id)],
+        }
     )
 
 

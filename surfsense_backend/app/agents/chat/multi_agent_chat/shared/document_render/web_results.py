@@ -34,21 +34,13 @@ def render_web_results(
     blocks = [
         block
         for document in documents
-        if (
-            block := render_document(document, view="excerpt", registry=registry)
-        )
+        if (block := render_document(document, view="excerpt", registry=registry))
         is not None
     ]
     if not blocks:
         return None
 
-    return (
-        "<web_results>\n"
-        + _HEADER
-        + "\n"
-        + "\n".join(blocks)
-        + "\n</web_results>"
-    )
+    return "<web_results>\n" + _HEADER + "\n" + "\n".join(blocks) + "\n</web_results>"
 
 
 __all__ = ["render_web_results"]

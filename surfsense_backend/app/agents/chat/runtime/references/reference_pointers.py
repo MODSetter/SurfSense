@@ -33,9 +33,7 @@ def render_reference_pointers(references: list[Reference]) -> str | None:
     lines = [_render_pointer(reference) for reference in references]
     return (
         "<referenced_this_turn>\n"
-        f"{_HEADER}\n"
-        + "\n".join(lines)
-        + "\n</referenced_this_turn>"
+        f"{_HEADER}\n" + "\n".join(lines) + "\n</referenced_this_turn>"
     )
 
 

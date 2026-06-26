@@ -20,6 +20,7 @@ from app.agents.chat.multi_agent_chat.subagents.shared.spec import SurfSenseSuba
 from .middleware_stack import build_kb_middleware
 from .prompts import load_description, load_readonly_system_prompt, load_system_prompt
 from .tools.index import DESTRUCTIVE_FS_OPS
+from .tools.search_knowledge_base import create_search_knowledge_base_tool
 
 NAME = "knowledge_base"
 READONLY_NAME = "knowledge_base_readonly"
@@ -30,6 +31,15 @@ KB_RULESET = Ruleset(
 )
 
 _KB_READONLY_RULESET = Ruleset(origin=READONLY_NAME, rules=[])
+
+
+def _build_search_knowledge_base_tool(dependencies: dict[str, Any]) -> BaseTool:
+    """Construct the hybrid-RAG ``search_knowledge_base`` tool from shared deps."""
+    return create_search_knowledge_base_tool(
+        search_space_id=dependencies["search_space_id"],
+        available_connectors=dependencies.get("available_connectors"),
+        available_document_types=dependencies.get("available_document_types"),
+    )
 
 
 def build_subagent(
@@ -49,7 +59,7 @@ def build_subagent(
             "description": load_description(),
             "system_prompt": load_system_prompt(filesystem_mode),
             "model": llm,
-            "tools": [],
+            "tools": [_build_search_knowledge_base_tool(dependencies)],
             "middleware": build_kb_middleware(
                 llm=llm,
                 dependencies=dependencies,
@@ -78,7 +88,7 @@ def build_readonly_subagent(
             "description": "Read-only knowledge_base specialist (invoked via ask_knowledge_base).",
             "system_prompt": load_readonly_system_prompt(filesystem_mode),
             "model": llm,
-            "tools": [],
+            "tools": [_build_search_knowledge_base_tool(dependencies)],
             "middleware": build_kb_middleware(
                 llm=llm,
                 dependencies=dependencies,

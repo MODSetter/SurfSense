@@ -25,7 +25,6 @@ from app.agents.chat.shared.tools.web_search import create_web_search_tool
 from app.db import ChatVisibility
 
 from .scrape_webpage import create_scrape_webpage_tool
-from .search_knowledge_base import create_search_knowledge_base_tool
 from .update_memory import (
     create_update_memory_tool,
     create_update_team_memory_tool,
@@ -34,14 +33,6 @@ from .update_memory import (
 
 def _build_scrape_webpage_tool(deps: dict[str, Any]) -> BaseTool:
     return create_scrape_webpage_tool(firecrawl_api_key=deps.get("firecrawl_api_key"))
-
-
-def _build_search_knowledge_base_tool(deps: dict[str, Any]) -> BaseTool:
-    return create_search_knowledge_base_tool(
-        search_space_id=deps["search_space_id"],
-        available_connectors=deps.get("available_connectors"),
-        available_document_types=deps.get("available_document_types"),
-    )
 
 
 def _build_web_search_tool(deps: dict[str, Any]) -> BaseTool:
@@ -85,10 +76,6 @@ def _build_update_memory_tool(deps: dict[str, Any]) -> BaseTool:
 _MAIN_AGENT_TOOL_FACTORIES: dict[
     str, tuple[Callable[[dict[str, Any]], BaseTool], tuple[str, ...]]
 ] = {
-    "search_knowledge_base": (
-        _build_search_knowledge_base_tool,
-        ("search_space_id",),
-    ),
     "scrape_webpage": (_build_scrape_webpage_tool, ()),
     "web_search": (_build_web_search_tool, ()),
     "create_automation": (

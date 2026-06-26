@@ -1,11 +1,12 @@
-"""On-demand ``search_knowledge_base`` main-agent tool (citation-spine RAG).
+"""On-demand ``search_knowledge_base`` knowledge_base-subagent tool (citation-spine RAG).
 
-The main agent calls this when it decides it needs knowledge-base content. The
-tool runs one hybrid search, renders the matched passages as a
-``<retrieved_context>`` block whose passages carry server-assigned ``[n]``
-labels, and persists the conversation's ``CitationRegistry`` onto graph state so
-the ``[n]`` -> ``[citation:<payload>]`` normalizer can resolve them after the
-turn.
+The knowledge_base subagent calls this when it needs hybrid semantic + keyword
+retrieval over the user's indexed knowledge base. The tool runs one hybrid
+search, renders the matched passages as a ``<retrieved_context>`` block whose
+passages carry server-assigned ``[n]`` labels, and persists the conversation's
+``CitationRegistry`` onto graph state so the ``[n]`` -> ``[citation:<payload>]``
+normalizer can resolve them after the turn. The registry merges across the
+subagent boundary (reducer-backed, forwarded by ``task``/``ask_knowledge_base``).
 """
 
 from __future__ import annotations
@@ -62,6 +63,29 @@ def _search_types(
     return tuple(sorted(types)) or None
 
 
+def _resolve_mention_pins(
+    runtime: ToolRuntime[None, SurfSenseFilesystemState],
+) -> tuple[list[int] | None, list[int] | None]:
+    """Read the turn's ``@``-mention pins, preferring state over context.
+
+    On a subagent graph the pins arrive via forwarded **state** (the ``task``
+    tool copies them off the main ``runtime.context`` since subagents have no
+    ``context_schema``). On the main graph — or any future direct invocation
+    with ``context=`` — they arrive via ``runtime.context``. State wins when
+    both are present; context is the fallback.
+    """
+    state = getattr(runtime, "state", None) or {}
+    document_ids = state.get("mentioned_document_ids")
+    folder_ids = state.get("mentioned_folder_ids")
+    if document_ids or folder_ids:
+        return document_ids or None, folder_ids or None
+    ctx = getattr(runtime, "context", None)
+    return (
+        getattr(ctx, "mentioned_document_ids", None),
+        getattr(ctx, "mentioned_folder_ids", None),
+    )
+
+
 async def _build_search_scope(
     session: AsyncSession,
     *,
@@ -70,12 +94,12 @@ async def _build_search_scope(
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
 ) -> SearchScope:
     """Assemble the retrieval scope: workspace document-type filter + @-mention pins."""
-    ctx = getattr(runtime, "context", None)
+    mentioned_document_ids, mentioned_folder_ids = _resolve_mention_pins(runtime)
     document_ids = await referenced_document_ids(
         session,
         search_space_id=search_space_id,
-        document_ids=getattr(ctx, "mentioned_document_ids", None),
-        folder_ids=getattr(ctx, "mentioned_folder_ids", None),
+        document_ids=mentioned_document_ids,
+        folder_ids=mentioned_folder_ids,
     )
     return SearchScope(
         document_types=document_types,

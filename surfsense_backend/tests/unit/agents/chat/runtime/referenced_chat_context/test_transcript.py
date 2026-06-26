@@ -7,8 +7,8 @@ import pytest
 from app.agents.chat.runtime.referenced_chat_context import (
     ReferencedChat,
     render_referenced_chats_block,
+    transcript as transcript_mod,
 )
-from app.agents.chat.runtime.referenced_chat_context import transcript as transcript_mod
 from app.agents.chat.runtime.referenced_chat_context.models import ReferencedChatTurn
 
 pytestmark = pytest.mark.unit
@@ -77,9 +77,7 @@ def test_oversized_single_turn_is_partially_filled_to_use_budget(
 ) -> None:
     monkeypatch.setattr(transcript_mod, "_MAX_CHARS_PER_REFERENCE", 40)
 
-    block = render_referenced_chats_block(
-        [_chat(1, "T", [("assistant", "x" * 500)])]
-    )
+    block = render_referenced_chats_block([_chat(1, "T", [("assistant", "x" * 500)])])
 
     assert block is not None
     # The turn is too big to keep whole, so its tail fills the budget with a

@@ -53,9 +53,7 @@ async def resolve_connector_references(
     )
     accessible = {row.id: row for row in rows.all()}
 
-    chip_by_id = {
-        chip.id: chip for chip in (chips or []) if chip.kind == "connector"
-    }
+    chip_by_id = {chip.id: chip for chip in (chips or []) if chip.kind == "connector"}
 
     references: list[ConnectorReference] = []
     for connector_id in dict.fromkeys(connector_ids):

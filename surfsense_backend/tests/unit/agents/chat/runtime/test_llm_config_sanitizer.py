@@ -3,11 +3,26 @@
 from __future__ import annotations
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, SystemMessage
 
 from app.agents.chat.runtime.llm_config import _sanitize_messages
 
 pytestmark = pytest.mark.unit
+
+
+def test_sanitize_messages_drops_whitespace_only_system_text_block() -> None:
+    # Mirrors TodoListMiddleware appending ``{"type":"text","text":"\n\n"}`` to
+    # the system message: Anthropic rejects whitespace-only system blocks.
+    original = SystemMessage(
+        content=[
+            {"type": "text", "text": "real system prompt"},
+            {"type": "text", "text": "\n\n"},
+        ]
+    )
+
+    sanitized = _sanitize_messages([original])
+
+    assert sanitized[0].content == "real system prompt"
 
 
 def test_sanitize_messages_strips_provider_specific_thinking_blocks() -> None:
