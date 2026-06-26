@@ -71,8 +71,7 @@ import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { useThreadDetail, useThreadMessages } from "@/hooks/use-thread-queries";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { getDesktopAccessToken } from "@/lib/auth-fetch";
-import { refreshSession } from "@/lib/auth-utils";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -288,16 +287,6 @@ const TURN_CANCELLING_INITIAL_DELAY_MS = 200;
 const TURN_CANCELLING_BACKOFF_FACTOR = 2;
 const TURN_CANCELLING_MAX_DELAY_MS = 1500;
 const RECENT_CANCEL_WINDOW_MS = 5_000;
-
-async function getRequestHeadersWithCurrentDesktopAuth(
-	headers: Record<string, string> = {}
-): Promise<Record<string, string>> {
-	const token = await getDesktopAccessToken({ forceRefresh: true });
-	return {
-		...headers,
-		...(token ? { Authorization: `Bearer ${token}` } : {}),
-	};
-}
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -699,18 +688,10 @@ export default function NewChatPage() {
 
 	const fetchWithTurnCancellingRetry = useCallback(async (runFetch: () => Promise<Response>) => {
 		const maxAttempts = 4;
-		let didRefreshAuth = false;
 		for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
 			const response = await runFetch();
 			if (response.ok) {
 				return response;
-			}
-			if (response.status === 401 && !didRefreshAuth) {
-				didRefreshAuth = true;
-				const refreshed = await refreshSession();
-				if (refreshed) {
-					continue;
-				}
 			}
 			const error = await toHttpResponseError(response);
 			const withMeta = error as Error & { errorCode?: string; retryAfterMs?: number };
@@ -952,12 +933,10 @@ export default function NewChatPage() {
 	const cancelRun = useCallback(async () => {
 		if (threadId) {
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					buildBackendUrl(`/api/v1/threads/${threadId}/cancel-active-turn`),
 					{
 						method: "POST",
-						headers: await getRequestHeadersWithCurrentDesktopAuth(),
-						credentials: "include",
 					}
 				);
 				if (response.ok) {
@@ -1174,13 +1153,12 @@ export default function NewChatPage() {
 				const hasConnectorIds = mentionPayload.connector_ids.length > 0;
 				const hasThreadIds = mentionPayload.thread_ids.length > 0;
 
-				const response = await fetchWithTurnCancellingRetry(async () =>
-					fetch(buildBackendUrl("/api/v1/new_chat"), {
+				const response = await fetchWithTurnCancellingRetry(() =>
+					authenticatedFetch(buildBackendUrl("/api/v1/new_chat"), {
 						method: "POST",
-						headers: await getRequestHeadersWithCurrentDesktopAuth({
+						headers: {
 							"Content-Type": "application/json",
-						}),
-						credentials: "include",
+						},
 						body: JSON.stringify({
 							chat_id: currentThreadId,
 							user_query: userQuery.trim(),
@@ -1660,13 +1638,12 @@ export default function NewChatPage() {
 				const selection = await getAgentFilesystemSelection(searchSpaceId, {
 					localFilesystemEnabled,
 				});
-				const response = await fetchWithTurnCancellingRetry(async () =>
-					fetch(buildBackendUrl(`/api/v1/threads/${resumeThreadId}/resume`), {
+				const response = await fetchWithTurnCancellingRetry(() =>
+					authenticatedFetch(buildBackendUrl(`/api/v1/threads/${resumeThreadId}/resume`), {
 						method: "POST",
-						headers: await getRequestHeadersWithCurrentDesktopAuth({
+						headers: {
 							"Content-Type": "application/json",
-						}),
-						credentials: "include",
+						},
 						body: JSON.stringify({
 							search_space_id: searchSpaceId,
 							decisions,
@@ -2114,13 +2091,12 @@ export default function NewChatPage() {
 						requestBody.revert_actions = true;
 					}
 				}
-				const response = await fetchWithTurnCancellingRetry(async () =>
-					fetch(getRegenerateUrl(threadId), {
+				const response = await fetchWithTurnCancellingRetry(() =>
+					authenticatedFetch(getRegenerateUrl(threadId), {
 						method: "POST",
-						headers: await getRequestHeadersWithCurrentDesktopAuth({
+						headers: {
 							"Content-Type": "application/json",
-						}),
-						credentials: "include",
+						},
 						body: JSON.stringify(requestBody),
 						signal: controller.signal,
 					})
