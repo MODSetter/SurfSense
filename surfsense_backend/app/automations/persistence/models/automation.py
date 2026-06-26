@@ -25,6 +25,7 @@ class Automation(BaseModel, TimestampMixin):
     __tablename__ = "automations"
 
     search_space_id = Column(
+        "workspace_id",
         Integer,
         ForeignKey("searchspaces.id", ondelete="CASCADE"),
         nullable=False,
