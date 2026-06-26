@@ -93,17 +93,6 @@ class ConnectionUpdate(BaseModel):
     enabled: bool | None = None
 
 
-class ModelCreate(BaseModel):
-    """Manually register a model id on a connection.
-
-    For providers without a usable ``/models`` endpoint (Perplexity, MiniMax,
-    Azure deployments, etc.) or to pin a single model from a noisy provider.
-    """
-
-    model_id: str = Field(..., max_length=255)
-    display_name: str | None = Field(None, max_length=255)
-
-
 class ModelUpdate(BaseModel):
     display_name: str | None = Field(None, max_length=255)
     enabled: bool | None = None
