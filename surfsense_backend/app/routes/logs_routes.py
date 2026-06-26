@@ -5,6 +5,7 @@ from sqlalchemy import and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.auth.context import AuthContext
 from app.db import (
     Log,
     LogLevel,
@@ -12,11 +13,10 @@ from app.db import (
     Permission,
     SearchSpace,
     SearchSpaceMembership,
-    User,
     get_async_session,
 )
 from app.schemas import LogCreate, LogRead, LogUpdate
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 router = APIRouter()
@@ -26,7 +26,7 @@ router = APIRouter()
 async def create_log(
     log: LogCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Create a new log entry.
@@ -36,7 +36,7 @@ async def create_log(
         # Check if the user has access to the search space
         await check_permission(
             session,
-            user,
+            auth,
             log.search_space_id,
             Permission.LOGS_READ.value,
             "You don't have permission to access logs in this search space",
@@ -67,8 +67,9 @@ async def read_logs(
     start_date: datetime | None = None,
     end_date: datetime | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Get logs with optional filtering.
     Requires LOGS_READ permission for the search space(s).
@@ -81,7 +82,7 @@ async def read_logs(
             # Check permission for specific search space
             await check_permission(
                 session,
-                user,
+                auth,
                 search_space_id,
                 Permission.LOGS_READ.value,
                 "You don't have permission to read logs in this search space",
@@ -136,7 +137,7 @@ async def read_logs(
 async def read_log(
     log_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Get a specific log by ID.
@@ -152,7 +153,7 @@ async def read_log(
         # Check permission for the search space
         await check_permission(
             session,
-            user,
+            auth,
             log.search_space_id,
             Permission.LOGS_READ.value,
             "You don't have permission to read logs in this search space",
@@ -172,7 +173,7 @@ async def update_log(
     log_id: int,
     log_update: LogUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Update a log entry.
@@ -188,7 +189,7 @@ async def update_log(
         # Check permission for the search space
         await check_permission(
             session,
-            user,
+            auth,
             db_log.search_space_id,
             Permission.LOGS_READ.value,
             "You don't have permission to access logs in this search space",
@@ -215,7 +216,7 @@ async def update_log(
 async def delete_log(
     log_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Delete a log entry.
@@ -231,7 +232,7 @@ async def delete_log(
         # Check permission for the search space
         await check_permission(
             session,
-            user,
+            auth,
             db_log.search_space_id,
             Permission.LOGS_DELETE.value,
             "You don't have permission to delete logs in this search space",
@@ -254,7 +255,7 @@ async def get_logs_summary(
     search_space_id: int,
     hours: int = 24,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Get a summary of logs for a search space in the last X hours.
@@ -264,7 +265,7 @@ async def get_logs_summary(
         # Check permission
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.LOGS_READ.value,
             "You don't have permission to read logs in this search space",

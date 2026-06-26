@@ -13,7 +13,10 @@ import {
 	getSearchSpacesRequest,
 	getSearchSpacesResponse,
 	leaveSearchSpaceResponse,
+	type UpdateSearchSpaceApiAccessRequest,
 	type UpdateSearchSpaceRequest,
+	updateSearchSpaceApiAccessRequest,
+	updateSearchSpaceApiAccessResponse,
 	updateSearchSpaceRequest,
 	updateSearchSpaceResponse,
 } from "@/contracts/types/search-space.types";
@@ -100,6 +103,24 @@ class SearchSpacesApiService {
 		return baseApiService.put(`/api/v1/searchspaces/${request.id}`, updateSearchSpaceResponse, {
 			body: parsedRequest.data.data,
 		});
+	};
+
+	updateSearchSpaceApiAccess = async (request: UpdateSearchSpaceApiAccessRequest) => {
+		const parsedRequest = updateSearchSpaceApiAccessRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.put(
+			`/api/v1/searchspaces/${request.id}/api-access`,
+			updateSearchSpaceApiAccessResponse,
+			{
+				body: { api_access_enabled: parsedRequest.data.api_access_enabled },
+			}
+		);
 	};
 
 	/**

@@ -35,6 +35,7 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
     FilesystemMode,
     FilesystemSelection,
 )
+from app.auth.context import AuthContext
 from app.db import ChatVisibility, async_session_maker
 from app.observability import otel as ot
 from app.services.new_streaming_service import VercelStreamingService
@@ -128,6 +129,7 @@ async def stream_new_chat(
     mentioned_connector_ids: list[int] | None = None,
     mentioned_connectors: list[dict[str, Any]] | None = None,
     mentioned_documents: list[dict[str, Any]] | None = None,
+    mentioned_thread_ids: list[int] | None = None,
     checkpoint_id: str | None = None,
     needs_history_bootstrap: bool = False,
     thread_visibility: ChatVisibility | None = None,
@@ -136,6 +138,7 @@ async def stream_new_chat(
     filesystem_selection: FilesystemSelection | None = None,
     request_id: str | None = None,
     user_image_data_urls: list[str] | None = None,
+    auth_context: AuthContext | None = None,
     flow: Literal["new", "regenerate"] = "new",
 ) -> AsyncGenerator[str, None]:
     """Stream a new chat turn using the SurfSense deep agent.
@@ -412,6 +415,7 @@ async def stream_new_chat(
             filesystem_selection=filesystem_selection,
             disabled_tools=disabled_tools,
             mentioned_document_ids=mentioned_document_ids,
+            auth_context=auth_context,
         )
         _perf_log.info(
             "[stream_new_chat] Agent created in %.3fs", time.perf_counter() - _t0
@@ -430,6 +434,8 @@ async def stream_new_chat(
             mentioned_folder_ids=mentioned_folder_ids,
             mentioned_connectors=mentioned_connectors,
             mentioned_documents=mentioned_documents,
+            mentioned_thread_ids=mentioned_thread_ids,
+            requesting_user_id=user_id,
             needs_history_bootstrap=needs_history_bootstrap,
             thread_visibility=visibility,
             current_user_display_name=current_user_display_name,
@@ -664,6 +670,7 @@ async def stream_new_chat(
                 filesystem_selection=filesystem_selection,
                 disabled_tools=disabled_tools,
                 mentioned_document_ids=mentioned_document_ids,
+                auth_context=auth_context,
             )
             _perf_log.info(
                 "[stream_new_chat] Runtime rate-limit recovery repinned "

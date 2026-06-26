@@ -83,7 +83,10 @@ def _sanitize_content(content: Any) -> Any:
             block_type = block.get("type", "text")
             if block_type not in _UNIVERSAL_CONTENT_TYPES:
                 continue
-            if block_type == "text" and not block.get("text"):
+            # Drop blank text blocks. Anthropic rejects whitespace-only system
+            # blocks ("text content blocks must contain non-whitespace text"),
+            # so treat whitespace-only as empty rather than only "".
+            if block_type == "text" and not str(block.get("text") or "").strip():
                 continue
             filtered.append(block)
 

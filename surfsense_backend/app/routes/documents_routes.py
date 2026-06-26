@@ -8,6 +8,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.agents.chat.runtime.path_resolver import virtual_path_to_doc
+from app.auth.context import AuthContext
 from app.db import (
     Chunk,
     Document,
@@ -17,7 +18,6 @@ from app.db import (
     Permission,
     SearchSpace,
     SearchSpaceMembership,
-    User,
     get_async_session,
 )
 from app.schemas import (
@@ -35,7 +35,7 @@ from app.schemas import (
     PaginatedResponse,
 )
 from app.services.task_dispatcher import TaskDispatcher, get_task_dispatcher
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 try:
@@ -60,8 +60,9 @@ MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024  # 500 MB per file
 async def create_documents(
     request: DocumentsCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Create new documents.
     Requires DOCUMENTS_CREATE permission.
@@ -70,7 +71,7 @@ async def create_documents(
         # Check permission
         await check_permission(
             session,
-            user,
+            auth,
             request.search_space_id,
             Permission.DOCUMENTS_CREATE.value,
             "You don't have permission to create documents in this search space",
@@ -128,9 +129,10 @@ async def create_documents_file_upload(
     use_vision_llm: bool = Form(False),
     processing_mode: str = Form("basic"),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
     dispatcher: TaskDispatcher = Depends(get_task_dispatcher),
 ):
+    user = auth.user
     """
     Upload files as documents with real-time status tracking.
 
@@ -159,7 +161,7 @@ async def create_documents_file_upload(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.DOCUMENTS_CREATE.value,
             "You don't have permission to create documents in this search space",
@@ -340,8 +342,9 @@ async def read_documents(
     sort_by: str = "created_at",
     sort_order: str = "desc",
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     List documents the user has access to, with optional filtering and pagination.
     Requires DOCUMENTS_READ permission for the search space(s).
@@ -369,7 +372,7 @@ async def read_documents(
         if search_space_id is not None:
             await check_permission(
                 session,
-                user,
+                auth,
                 search_space_id,
                 Permission.DOCUMENTS_READ.value,
                 "You don't have permission to read documents in this search space",
@@ -519,8 +522,9 @@ async def search_documents(
     search_space_id: int | None = None,
     document_types: str | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Search documents by title substring, optionally filtered by search_space_id and document_types.
     Requires DOCUMENTS_READ permission for the search space(s).
@@ -549,7 +553,7 @@ async def search_documents(
         if search_space_id is not None:
             await check_permission(
                 session,
-                user,
+                auth,
                 search_space_id,
                 Permission.DOCUMENTS_READ.value,
                 "You don't have permission to read documents in this search space",
@@ -677,7 +681,7 @@ async def search_document_titles(
     page: int = 0,
     page_size: int = 20,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Lightweight document title search optimized for mention picker (@mentions).
@@ -703,7 +707,7 @@ async def search_document_titles(
         # Check permission for the search space
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.DOCUMENTS_READ.value,
             "You don't have permission to read documents in this search space",
@@ -781,7 +785,7 @@ async def get_document_by_virtual_path(
     search_space_id: int,
     virtual_path: str,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """Resolve a knowledge-base document by its agent-facing virtual path.
 
@@ -804,7 +808,7 @@ async def get_document_by_virtual_path(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.DOCUMENTS_READ.value,
             "You don't have permission to read documents in this search space",
@@ -838,7 +842,7 @@ async def get_documents_status(
     search_space_id: int,
     document_ids: str,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Batch status endpoint for documents in a search space.
@@ -849,7 +853,7 @@ async def get_documents_status(
     try:
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.DOCUMENTS_READ.value,
             "You don't have permission to read documents in this search space",
@@ -905,8 +909,9 @@ async def get_documents_status(
 async def get_document_type_counts(
     search_space_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Get counts of documents by type for search spaces the user has access to.
     Requires DOCUMENTS_READ permission for the search space(s).
@@ -926,7 +931,7 @@ async def get_document_type_counts(
             # Check permission for specific search space
             await check_permission(
                 session,
-                user,
+                auth,
                 search_space_id,
                 Permission.DOCUMENTS_READ.value,
                 "You don't have permission to read documents in this search space",
@@ -965,7 +970,7 @@ async def get_document_by_chunk_id(
         5, ge=0, description="Number of chunks before/after the cited chunk to include"
     ),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Retrieves a document based on a chunk ID, including a window of chunks around the cited one.
@@ -995,7 +1000,7 @@ async def get_document_by_chunk_id(
 
         await check_permission(
             session,
-            user,
+            auth,
             document.search_space_id,
             Permission.DOCUMENTS_READ.value,
             "You don't have permission to read documents in this search space",
@@ -1060,12 +1065,12 @@ async def get_document_by_chunk_id(
 async def get_watched_folders(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """Return root folders that are marked as watched (metadata->>'watched' = 'true')."""
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.DOCUMENTS_READ.value,
         "You don't have permission to read documents in this search space",
@@ -1101,7 +1106,7 @@ async def get_document_chunks_paginated(
         None, ge=0, description="Direct offset; overrides page * page_size"
     ),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Paginated chunk loading for a document.
@@ -1120,7 +1125,7 @@ async def get_document_chunks_paginated(
 
         await check_permission(
             session,
-            user,
+            auth,
             document.search_space_id,
             Permission.DOCUMENTS_READ.value,
             "You don't have permission to read documents in this search space",
@@ -1162,7 +1167,7 @@ async def get_document_chunks_paginated(
 async def read_document(
     document_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Get a specific document by ID.
@@ -1182,7 +1187,7 @@ async def read_document(
         # Check permission for the search space
         await check_permission(
             session,
-            user,
+            auth,
             document.search_space_id,
             Permission.DOCUMENTS_READ.value,
             "You don't have permission to read documents in this search space",
@@ -1216,7 +1221,7 @@ async def update_document(
     document_id: int,
     document_update: DocumentUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Update a document.
@@ -1236,7 +1241,7 @@ async def update_document(
         # Check permission for the search space
         await check_permission(
             session,
-            user,
+            auth,
             db_document.search_space_id,
             Permission.DOCUMENTS_UPDATE.value,
             "You don't have permission to update documents in this search space",
@@ -1275,7 +1280,7 @@ async def update_document(
 async def delete_document(
     document_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Delete a document.
@@ -1311,7 +1316,7 @@ async def delete_document(
         # Check permission for the search space
         await check_permission(
             session,
-            user,
+            auth,
             document.search_space_id,
             Permission.DOCUMENTS_DELETE.value,
             "You don't have permission to delete documents in this search space",
@@ -1355,8 +1360,9 @@ async def delete_document(
 async def list_document_versions(
     document_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """List all versions for a document, ordered by version_number descending."""
     document = (
         await session.execute(select(Document).where(Document.id == document_id))
@@ -1396,8 +1402,9 @@ async def get_document_version(
     document_id: int,
     version_number: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Get full version content including source_markdown."""
     document = (
         await session.execute(select(Document).where(Document.id == document_id))
@@ -1434,8 +1441,9 @@ async def restore_document_version(
     document_id: int,
     version_number: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Restore a previous version: snapshot current state, then overwrite document content."""
     document = (
         await session.execute(select(Document).where(Document.id == document_id))
@@ -1517,7 +1525,7 @@ class FolderSyncFinalizeRequest(PydanticBaseModel):
 async def folder_mtime_check(
     request: FolderMtimeCheckRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """Pre-upload optimization: check which files need uploading based on mtime.
 
@@ -1528,7 +1536,7 @@ async def folder_mtime_check(
 
     await check_permission(
         session,
-        user,
+        auth,
         request.search_space_id,
         Permission.DOCUMENTS_CREATE.value,
         "You don't have permission to create documents in this search space",
@@ -1587,8 +1595,9 @@ async def folder_upload(
     use_vision_llm: bool = Form(False),
     processing_mode: str = Form("basic"),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Upload files from the desktop app for folder indexing.
 
     Files are written to temp storage and dispatched to a Celery task.
@@ -1603,7 +1612,7 @@ async def folder_upload(
 
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.DOCUMENTS_CREATE.value,
         "You don't have permission to create documents in this search space",
@@ -1733,7 +1742,7 @@ async def folder_upload(
 async def folder_unlink(
     request: FolderUnlinkRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """Handle file deletion events from the desktop watcher.
 
@@ -1746,7 +1755,7 @@ async def folder_unlink(
 
     await check_permission(
         session,
-        user,
+        auth,
         request.search_space_id,
         Permission.DOCUMENTS_DELETE.value,
         "You don't have permission to delete documents in this search space",
@@ -1787,7 +1796,7 @@ async def folder_unlink(
 async def folder_sync_finalize(
     request: FolderSyncFinalizeRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """Finalize a full folder scan by deleting orphaned documents.
 
@@ -1803,7 +1812,7 @@ async def folder_sync_finalize(
 
     await check_permission(
         session,
-        user,
+        auth,
         request.search_space_id,
         Permission.DOCUMENTS_DELETE.value,
         "You don't have permission to delete documents in this search space",

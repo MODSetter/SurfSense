@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import pytest
 
+from app.agents.chat.multi_agent_chat.shared.citations import (
+    CitationRegistry,
+    CitationSourceType,
+)
 from app.agents.chat.multi_agent_chat.shared.state.reducers import (
     _CLEAR,
     _add_unique_reducer,
+    _citation_registry_merge_reducer,
     _dict_merge_with_tombstones_reducer,
     _initial_filesystem_state,
     _list_append_reducer,
@@ -93,6 +98,57 @@ class TestDictMergeWithTombstones:
         }
 
 
+def _kb_registry(chunk_id: int) -> CitationRegistry:
+    registry = CitationRegistry()
+    registry.register(
+        CitationSourceType.KB_CHUNK, {"document_id": 1, "chunk_id": chunk_id}
+    )
+    return registry
+
+
+class TestCitationRegistryMergeReducer:
+    def test_none_left_returns_right(self):
+        right = _kb_registry(10)
+        assert _citation_registry_merge_reducer(None, right) is right
+
+    def test_none_right_returns_left(self):
+        left = _kb_registry(10)
+        assert _citation_registry_merge_reducer(left, None) is left
+
+    def test_both_none_returns_none(self):
+        assert _citation_registry_merge_reducer(None, None) is None
+
+    def test_unions_two_registries(self):
+        left = _kb_registry(10)
+        right = _kb_registry(11)
+
+        merged = _citation_registry_merge_reducer(left, right)
+
+        chunk_ids = {entry.locator["chunk_id"] for entry in merged.by_n.values()}
+        assert chunk_ids == {10, 11}
+
+    def test_coerces_serialized_dict_update(self):
+        # The checkpointer serializes Command.update via ormsgpack before the
+        # reducer runs, so `right` can arrive as a plain dict.
+        left = _kb_registry(10)
+        right = _kb_registry(11).model_dump()
+
+        merged = _citation_registry_merge_reducer(left, right)
+
+        chunk_ids = {entry.locator["chunk_id"] for entry in merged.by_n.values()}
+        assert chunk_ids == {10, 11}
+
+    def test_coerces_both_sides_from_dict(self):
+        left = _kb_registry(10).model_dump()
+        right = _kb_registry(11).model_dump()
+
+        merged = _citation_registry_merge_reducer(left, right)
+
+        assert isinstance(merged, CitationRegistry)
+        chunk_ids = {entry.locator["chunk_id"] for entry in merged.by_n.values()}
+        assert chunk_ids == {10, 11}
+
+
 class TestInitialFilesystemState:
     def test_default_shape(self):
         state = _initial_filesystem_state()
@@ -105,8 +161,6 @@ class TestInitialFilesystemState:
         assert state["doc_id_by_path"] == {}
         assert state["dirty_paths"] == []
         assert state["dirty_path_tool_calls"] == {}
-        assert state["kb_priority"] == []
-        assert state["kb_matched_chunk_ids"] == {}
         assert state["kb_anon_doc"] is None
         assert state["tree_version"] == 0
 

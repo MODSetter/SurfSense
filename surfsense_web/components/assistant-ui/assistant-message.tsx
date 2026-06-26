@@ -58,6 +58,7 @@ import {
 	DrawerTitle,
 } from "@/components/ui/drawer";
 import { DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { withArtifactAnchor } from "@/features/chat-artifacts";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
@@ -433,12 +434,12 @@ const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ ch
  * body and is picked up by the timeline instead.
  */
 const BODY_TOOLS = {
-	generate_report: GenerateReportToolUI,
-	generate_resume: GenerateResumeToolUI,
-	generate_podcast: GeneratePodcastToolUI,
-	generate_video_presentation: GenerateVideoPresentationToolUI,
-	display_image: GenerateImageToolUI,
-	generate_image: GenerateImageToolUI,
+	generate_report: withArtifactAnchor(GenerateReportToolUI),
+	generate_resume: withArtifactAnchor(GenerateResumeToolUI),
+	generate_podcast: withArtifactAnchor(GeneratePodcastToolUI),
+	generate_video_presentation: withArtifactAnchor(GenerateVideoPresentationToolUI),
+	display_image: withArtifactAnchor(GenerateImageToolUI),
+	generate_image: withArtifactAnchor(GenerateImageToolUI),
 } as const;
 
 const NullBodyTool: ToolCallMessagePartComponent = () => null;

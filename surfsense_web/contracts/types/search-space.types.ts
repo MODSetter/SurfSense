@@ -8,6 +8,7 @@ export const searchSpace = z.object({
 	created_at: z.string(),
 	user_id: z.string(),
 	citations_enabled: z.boolean(),
+	api_access_enabled: z.boolean().optional().default(false),
 	qna_custom_instructions: z.string().nullable(),
 	shared_memory_md: z.string().nullable().optional(),
 	ai_file_sort_enabled: z.boolean().optional().default(false),
@@ -55,6 +56,7 @@ export const updateSearchSpaceRequest = z.object({
 			name: true,
 			description: true,
 			citations_enabled: true,
+			api_access_enabled: true,
 			qna_custom_instructions: true,
 			ai_file_sort_enabled: true,
 		})
@@ -62,6 +64,16 @@ export const updateSearchSpaceRequest = z.object({
 });
 
 export const updateSearchSpaceResponse = searchSpace.omit({ member_count: true, is_owner: true });
+
+export const updateSearchSpaceApiAccessRequest = z.object({
+	id: z.number(),
+	api_access_enabled: z.boolean(),
+});
+
+export const updateSearchSpaceApiAccessResponse = searchSpace.omit({
+	member_count: true,
+	is_owner: true,
+});
 
 /**
  * Delete search space
@@ -89,5 +101,7 @@ export type GetSearchSpaceRequest = z.infer<typeof getSearchSpaceRequest>;
 export type GetSearchSpaceResponse = z.infer<typeof getSearchSpaceResponse>;
 export type UpdateSearchSpaceRequest = z.infer<typeof updateSearchSpaceRequest>;
 export type UpdateSearchSpaceResponse = z.infer<typeof updateSearchSpaceResponse>;
+export type UpdateSearchSpaceApiAccessRequest = z.infer<typeof updateSearchSpaceApiAccessRequest>;
+export type UpdateSearchSpaceApiAccessResponse = z.infer<typeof updateSearchSpaceApiAccessResponse>;
 export type DeleteSearchSpaceRequest = z.infer<typeof deleteSearchSpaceRequest>;
 export type DeleteSearchSpaceResponse = z.infer<typeof deleteSearchSpaceResponse>;

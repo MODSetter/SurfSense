@@ -16,7 +16,7 @@ const ApiKeyForm = () => {
 
 	const validateForm = () => {
 		if (!apiKey) {
-			setError("API key is required");
+			setError("Personal access token is required");
 			return false;
 		}
 		setError("");
@@ -39,11 +39,11 @@ const ApiKeyForm = () => {
 			setLoading(false);
 
 			if (response.ok) {
-				// Store the API key as the token
+				// Store the PAT as the bearer token for existing background handlers.
 				await storage.set("token", apiKey);
 				navigation("/");
 			} else {
-				setError("Invalid API key. Please check and try again.");
+				setError("Invalid personal access token. Please check and try again.");
 			}
 		} catch (error) {
 			setLoading(false);
@@ -67,15 +67,15 @@ const ApiKeyForm = () => {
 
 				<div className="bg-gray-800/70 backdrop-blur-sm rounded-xl shadow-xl border border-gray-700 p-6">
 					<div className="space-y-6">
-						<h2 className="text-xl font-medium text-white">Enter your API Key</h2>
+						<h2 className="text-xl font-medium text-white">Enter your personal access token</h2>
 						<p className="text-gray-400 text-sm">
-							Your API key connects this extension to the SurfSense.
+							Your personal access token connects this extension to SurfSense.
 						</p>
 
 						<form onSubmit={handleSubmit} className="space-y-4">
 							<div className="space-y-2">
 								<label htmlFor="apiKey" className="text-sm font-medium text-gray-300">
-									API Key
+									Personal access token
 								</label>
 								<input
 									type="text"
@@ -83,7 +83,7 @@ const ApiKeyForm = () => {
 									value={apiKey}
 									onChange={(e) => setApiKey(e.target.value)}
 									className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 text-white placeholder:text-gray-500"
-									placeholder="Enter your API key"
+									placeholder="Enter your personal access token"
 								/>
 								{error && <p className="text-red-400 text-sm mt-1">{error}</p>}
 							</div>
@@ -106,7 +106,7 @@ const ApiKeyForm = () => {
 
 						<div className="text-center mt-4">
 							<p className="text-sm text-gray-400">
-								Need an API key?{" "}
+								Need a personal access token?{" "}
 								<a
 									href="https://www.surfsense.com"
 									target="_blank"

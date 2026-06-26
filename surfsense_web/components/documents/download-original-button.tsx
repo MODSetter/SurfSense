@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { authenticatedFetch } from "@/lib/auth-utils";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 
 interface DownloadOriginalButtonProps {

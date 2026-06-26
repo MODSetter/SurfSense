@@ -5,8 +5,8 @@ SurfSense supports ``AUTH_TYPE=LOCAL`` (email + password) and
 There is no headless equivalent of the Google flow, so the harness handles
 both modes by treating the JWT as the universal credential:
 
-* **LOCAL**: harness POSTs form-encoded ``username`` + ``password`` to
-  ``/auth/jwt/login``, reads ``{access_token, refresh_token}``.
+* **LOCAL**: harness POSTs JSON ``email`` + ``password`` to
+  ``/auth/desktop/login``, reads ``{access_token, refresh_token}``.
 * **GOOGLE / pre-issued JWT**: operator pastes their existing JWT (and
   optionally refresh token) into ``SURFSENSE_JWT`` /
   ``SURFSENSE_REFRESH_TOKEN``; harness skips login.
@@ -22,7 +22,7 @@ MIRAGE runs.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -40,9 +40,8 @@ _NO_CREDENTIALS_MESSAGE = (
     "No SurfSense credentials configured. Set ONE of:\n"
     "  (LOCAL)  SURFSENSE_USER_EMAIL + SURFSENSE_USER_PASSWORD\n"
     "  (GOOGLE) SURFSENSE_JWT (and optionally SURFSENSE_REFRESH_TOKEN)\n"
-    "For GOOGLE: log in to SurfSense in your browser, open DevTools → "
-    "Application → Local Storage → copy `surfsense_bearer_token` and "
-    "`surfsense_refresh_token` into those env vars."
+    "For GOOGLE: use a PAT or operator-issued bearer token and set "
+    "SURFSENSE_JWT (plus SURFSENSE_REFRESH_TOKEN if available)."
 )
 
 
@@ -69,7 +68,7 @@ async def acquire_token(config: Config, *, http: httpx.AsyncClient | None = None
     1. ``SURFSENSE_JWT`` set → use it directly. Refresh token captured if
        supplied.
     2. ``SURFSENSE_USER_EMAIL`` + ``SURFSENSE_USER_PASSWORD`` set →
-       form-encoded POST to ``/auth/jwt/login``.
+       JSON POST to ``/auth/desktop/login``.
     3. Neither → raise ``CredentialError``.
 
     The optional ``http`` argument lets tests inject a mocked client; if
@@ -86,9 +85,9 @@ async def acquire_token(config: Config, *, http: httpx.AsyncClient | None = None
     if config.has_local_mode():
         async def _login(client: httpx.AsyncClient) -> TokenBundle:
             response = await client.post(
-                f"{config.surfsense_api_base}/auth/jwt/login",
-                data={
-                    "username": config.surfsense_user_email,
+                f"{config.surfsense_api_base}/auth/desktop/login",
+                json={
+                    "email": config.surfsense_user_email,
                     "password": config.surfsense_user_password,
                 },
                 headers={"Accept": "application/json"},

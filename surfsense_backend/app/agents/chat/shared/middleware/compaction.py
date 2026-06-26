@@ -4,7 +4,7 @@ Extends ``SummarizationMiddleware`` with three SurfSense behaviors:
 
 1. A structured summary template (:data:`SURFSENSE_SUMMARY_PROMPT`) instead of
    the base freeform prompt.
-2. Protected SystemMessages (injected hints like ``<priority_documents>``) are
+2. Protected SystemMessages (injected hints like ``<workspace_tree>``) are
    kept verbatim instead of being summarized away.
 3. ``content=None`` is sanitized before ``get_buffer_string`` (some providers
    stream tool-only AIMessages with ``None`` content, which would crash it).
@@ -77,7 +77,6 @@ Respond ONLY with the structured summary. Do not include any text before or afte
 # compaction step happens *before* re-injection in some paths, so we
 # must preserve them verbatim across the cutoff.
 PROTECTED_SYSTEM_PREFIXES: tuple[str, ...] = (
-    "<priority_documents>",  # KnowledgePriorityMiddleware
     "<workspace_tree>",  # KnowledgeTreeMiddleware
     "<file_operation_contract>",  # reserved file-operation contract prefix
     "<user_memory>",  # MemoryInjectionMiddleware

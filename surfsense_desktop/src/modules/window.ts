@@ -94,6 +94,10 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
     session.defaultSession.webRequest.onBeforeRequest(rewriteFilter, (details, callback) => {
       try {
         const u = new URL(details.url);
+        if (!u.pathname.includes('/connectors/callback')) {
+          callback({});
+          return;
+        }
         const originalHost = u.host;
         const local = new URL(getServerOrigin());
         u.protocol = local.protocol;

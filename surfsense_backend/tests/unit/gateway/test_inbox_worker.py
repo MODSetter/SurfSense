@@ -27,6 +27,7 @@ async def test_inbox_worker_claims_and_processes_in_fastapi_process(
 async def test_start_stop_gateway_inbox_worker(mocker, monkeypatch):
     started = asyncio.Event()
     stopped = asyncio.Event()
+    monkeypatch.setattr(inbox_worker.config, "GATEWAY_ENABLED", True)
 
     async def run_forever():
         started.set()

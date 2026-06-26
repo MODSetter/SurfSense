@@ -1,6 +1,6 @@
 "use client";
 
-import { authenticatedFetch } from "@/lib/auth-utils";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 
 export type MemoryScope = "user" | "team";

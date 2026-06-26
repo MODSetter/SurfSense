@@ -7,7 +7,7 @@ import {
 	useExternalStoreRuntime,
 } from "@assistant-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom, useStore } from "jotai";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -22,10 +22,11 @@ import {
 	setTargetCommentIdAtom,
 } from "@/atoms/chat/current-thread.atom";
 import {
+	deriveMentionedPayload,
 	type MentionedDocumentInfo,
-	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
 	messageDocumentsMapAtom,
+	submittedMentionsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import {
@@ -52,6 +53,7 @@ import {
 } from "@/components/assistant-ui/token-usage-context";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSyncChatArtifacts } from "@/features/chat-artifacts";
 import {
 	type HitlDecision,
 	PendingInterruptProvider,
@@ -69,7 +71,7 @@ import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { useThreadDetail, useThreadMessages } from "@/hooks/use-thread-queries";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { getBearerToken } from "@/lib/auth-utils";
+import { getDesktopAccessToken } from "@/lib/auth-fetch";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -135,6 +137,13 @@ const MobileReportPanel = dynamic(
 	() =>
 		import("@/components/report-panel/report-panel").then((m) => ({
 			default: m.MobileReportPanel,
+		})),
+	{ ssr: false }
+);
+const MobileArtifactsPanel = dynamic(
+	() =>
+		import("@/features/chat-artifacts/ui/artifacts-panel").then((m) => ({
+			default: m.MobileArtifactsPanel,
 		})),
 	{ ssr: false }
 );
@@ -206,7 +215,7 @@ const MentionedDocumentInfoSchema = z.object({
 	title: z.string(),
 	document_type: z.string().optional(),
 	kind: z
-		.union([z.literal("doc"), z.literal("folder"), z.literal("connector")])
+		.union([z.literal("doc"), z.literal("folder"), z.literal("connector"), z.literal("thread")])
 		.optional()
 		.default("doc"),
 	connector_type: z.string().optional(),
@@ -242,6 +251,13 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 						id: doc.id,
 						title: doc.title,
 						kind: "folder",
+					};
+				}
+				if (doc.kind === "thread") {
+					return {
+						id: doc.id,
+						title: doc.title,
+						kind: "thread",
 					};
 				}
 				return {
@@ -433,8 +449,7 @@ export default function NewChatPage() {
 	// Get disabled tools from the tool toggle UI
 	const disabledTools = useAtomValue(disabledToolsAtom);
 
-	// Get mentioned document IDs from the composer.
-	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
+	const jotaiStore = useStore();
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
@@ -917,29 +932,26 @@ export default function NewChatPage() {
 	// Cancel ongoing request
 	const cancelRun = useCallback(async () => {
 		if (threadId) {
-			const token = getBearerToken();
-			if (token) {
-				try {
-					const response = await fetch(
-						buildBackendUrl(`/api/v1/threads/${threadId}/cancel-active-turn`),
-						{
-							method: "POST",
-							headers: {
-								Authorization: `Bearer ${token}`,
-							},
-						}
-					);
-					if (response.ok) {
-						const payload = (await response.json()) as {
-							error_code?: string;
-						};
-						if (payload.error_code === "TURN_CANCELLING") {
-							recentCancelRequestedAtRef.current = Date.now();
-						}
+			const token = await getDesktopAccessToken();
+			try {
+				const response = await fetch(
+					buildBackendUrl(`/api/v1/threads/${threadId}/cancel-active-turn`),
+					{
+						method: "POST",
+						headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+						credentials: "include",
 					}
-				} catch (error) {
-					console.warn("[NewChatPage] Failed to signal cancel-active-turn:", error);
+				);
+				if (response.ok) {
+					const payload = (await response.json()) as {
+						error_code?: string;
+					};
+					if (payload.error_code === "TURN_CANCELLING") {
+						recentCancelRequestedAtRef.current = Date.now();
+					}
 				}
+			} catch (error) {
+				console.warn("[NewChatPage] Failed to signal cancel-active-turn:", error);
 			}
 		}
 		if (abortControllerRef.current) {
@@ -959,16 +971,22 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 
+			// Prefer the submit-time snapshot; fall back to the live atom
+			// for the send-button path.
+			const submittedSnapshot = jotaiStore.get(submittedMentionsAtom);
+			jotaiStore.set(submittedMentionsAtom, null);
+			const activeMentions = submittedSnapshot ?? mentionedDocuments;
+			const mentionPayload = deriveMentionedPayload(activeMentions);
+			if (activeMentions.length > 0) {
+				setMentionedDocuments([]);
+			}
+
 			const urlsSnapshot = [...pendingUserImageUrls];
 			const { userQuery, userImages } = extractUserTurnForNewChatApi(message, urlsSnapshot);
 
 			if (!userQuery.trim() && userImages.length === 0) return;
 
-			const token = getBearerToken();
-			if (!token) {
-				toast.error("Not authenticated. Please log in again.");
-				return;
-			}
+			const token = await getDesktopAccessToken();
 
 			// Lazy thread creation: create thread on first message if it doesn't exist
 			let currentThreadId = threadId;
@@ -1060,9 +1078,9 @@ export default function NewChatPage() {
 			trackChatMessageSent(searchSpaceId, currentThreadId, {
 				hasAttachments: userImages.length > 0,
 				hasMentionedDocuments:
-					mentionedDocumentIds.document_ids.length > 0 ||
-					mentionedDocumentIds.folder_ids.length > 0 ||
-					mentionedDocumentIds.connector_ids.length > 0,
+					mentionPayload.document_ids.length > 0 ||
+					mentionPayload.folder_ids.length > 0 ||
+					mentionPayload.connector_ids.length > 0,
 				messageLength: userQuery.length,
 			});
 
@@ -1072,7 +1090,7 @@ export default function NewChatPage() {
 			// can render the correct chip type on reload.
 			const allMentionedDocs: MentionedDocumentInfo[] = [];
 			const seenDocKeys = new Set<string>();
-			for (const doc of mentionedDocuments) {
+			for (const doc of activeMentions) {
 				const key = getMentionDocKey(doc);
 				if (seenDocKeys.has(key)) continue;
 				seenDocKeys.add(key);
@@ -1134,23 +1152,20 @@ export default function NewChatPage() {
 					})
 					.filter((m) => m.content.length > 0);
 
-				// Get mentioned document IDs for context (separate fields for backend)
-				const hasDocumentIds = mentionedDocumentIds.document_ids.length > 0;
-				const hasFolderIds = mentionedDocumentIds.folder_ids.length > 0;
-				const hasConnectorIds = mentionedDocumentIds.connector_ids.length > 0;
-
-				// Clear mentioned documents after capturing them
-				if (hasDocumentIds || hasFolderIds || hasConnectorIds) {
-					setMentionedDocuments([]);
-				}
+				// Backend expects each mention kind in its own payload bucket.
+				const hasDocumentIds = mentionPayload.document_ids.length > 0;
+				const hasFolderIds = mentionPayload.folder_ids.length > 0;
+				const hasConnectorIds = mentionPayload.connector_ids.length > 0;
+				const hasThreadIds = mentionPayload.thread_ids.length > 0;
 
 				const response = await fetchWithTurnCancellingRetry(() =>
 					fetch(buildBackendUrl("/api/v1/new_chat"), {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
+							...(token ? { Authorization: `Bearer ${token}` } : {}),
 						},
+						credentials: "include",
 						body: JSON.stringify({
 							chat_id: currentThreadId,
 							user_query: userQuery.trim(),
@@ -1159,19 +1174,13 @@ export default function NewChatPage() {
 							client_platform: selection.client_platform,
 							local_filesystem_mounts: selection.local_filesystem_mounts,
 							messages: messageHistory,
-							mentioned_document_ids: hasDocumentIds
-								? mentionedDocumentIds.document_ids
-								: undefined,
-							mentioned_folder_ids: hasFolderIds ? mentionedDocumentIds.folder_ids : undefined,
-							mentioned_connector_ids: hasConnectorIds
-								? mentionedDocumentIds.connector_ids
-								: undefined,
-							mentioned_connectors: hasConnectorIds ? mentionedDocumentIds.connectors : undefined,
-							// Full mention metadata (docs + folders, with
-							// ``kind`` discriminator) so the BE can embed a
-							// ``mentioned-documents`` ContentPart on the
-							// persisted user message (replaces the old FE-side
-							// injection in ``persistUserTurn``).
+							mentioned_document_ids: hasDocumentIds ? mentionPayload.document_ids : undefined,
+							mentioned_folder_ids: hasFolderIds ? mentionPayload.folder_ids : undefined,
+							mentioned_connector_ids: hasConnectorIds ? mentionPayload.connector_ids : undefined,
+							mentioned_connectors: hasConnectorIds ? mentionPayload.connectors : undefined,
+							mentioned_thread_ids: hasThreadIds ? mentionPayload.thread_ids : undefined,
+							// Full mention metadata so the backend can persist a
+							// ``mentioned-documents`` ContentPart on the user message.
 							mentioned_documents: allMentionedDocs.length > 0 ? allMentionedDocs : undefined,
 							disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
 							...(userImages.length > 0 ? { user_images: userImages } : {}),
@@ -1491,7 +1500,7 @@ export default function NewChatPage() {
 			threadId,
 			searchSpaceId,
 			messages,
-			mentionedDocumentIds,
+			jotaiStore,
 			mentionedDocuments,
 			setMentionedDocuments,
 			setMessageDocumentsMap,
@@ -1537,12 +1546,7 @@ export default function NewChatPage() {
 			stagedDecisionsByInterruptIdRef.current.clear();
 			setIsRunning(true);
 
-			const token = getBearerToken();
-			if (!token) {
-				toast.error("Not authenticated. Please log in again.");
-				setIsRunning(false);
-				return;
-			}
+			const token = await getDesktopAccessToken();
 
 			const controller = new AbortController();
 			abortControllerRef.current = controller;
@@ -1648,8 +1652,9 @@ export default function NewChatPage() {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
+							...(token ? { Authorization: `Bearer ${token}` } : {}),
 						},
+						credentials: "include",
 						body: JSON.stringify({
 							search_space_id: searchSpaceId,
 							decisions,
@@ -1981,11 +1986,7 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 
-			const token = getBearerToken();
-			if (!token) {
-				toast.error("Not authenticated. Please log in again.");
-				return;
-			}
+			const token = await getDesktopAccessToken();
 
 			// Extract the original user query BEFORE removing messages (for reload mode)
 			let userQueryToDisplay: string | undefined;
@@ -2067,6 +2068,9 @@ export default function NewChatPage() {
 					.filter((d) => d.kind === "folder")
 					.map((d) => d.id);
 				const regenerateConnectors = sourceMentionedDocs.filter((d) => d.kind === "connector");
+				const regenerateThreadIds = sourceMentionedDocs
+					.filter((d) => d.kind === "thread")
+					.map((d) => d.id);
 
 				const requestBody: Record<string, unknown> = {
 					search_space_id: searchSpaceId,
@@ -2080,6 +2084,7 @@ export default function NewChatPage() {
 					mentioned_connector_ids:
 						regenerateConnectors.length > 0 ? regenerateConnectors.map((d) => d.id) : undefined,
 					mentioned_connectors: regenerateConnectors.length > 0 ? regenerateConnectors : undefined,
+					mentioned_thread_ids: regenerateThreadIds.length > 0 ? regenerateThreadIds : undefined,
 					// Full mention metadata for the regenerate-specific
 					// source list. Only meaningful for edit (the BE only
 					// re-persists a user row when ``user_query`` is set);
@@ -2104,8 +2109,9 @@ export default function NewChatPage() {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
+							...(token ? { Authorization: `Bearer ${token}` } : {}),
 						},
+						credentials: "include",
 						body: JSON.stringify(requestBody),
 						signal: controller.signal,
 					})
@@ -2501,6 +2507,9 @@ export default function NewChatPage() {
 		await handleRegenerate(null);
 	}, [handleRegenerate]);
 
+	// Surface the thread's deliverables to the layout-level artifacts sidebar.
+	useSyncChatArtifacts(messages);
+
 	// Create external store runtime
 	const runtime = useExternalStoreRuntime({
 		messages,
@@ -2560,6 +2569,7 @@ export default function NewChatPage() {
 						<MobileReportPanel />
 						<MobileEditorPanel />
 						<MobileHitlEditPanel />
+						<MobileArtifactsPanel />
 					</div>
 				</PendingInterruptProvider>
 				<EditMessageDialog

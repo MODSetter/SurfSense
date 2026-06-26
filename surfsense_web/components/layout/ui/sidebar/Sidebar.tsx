@@ -145,6 +145,10 @@ export function Sidebar({
 		() => navItems.find((item) => item.url.endsWith("/automations")),
 		[navItems]
 	);
+	const artifactsItem = useMemo(
+		() => navItems.find((item) => item.url.endsWith("/artifacts")),
+		[navItems]
+	);
 	const documentsItem = useMemo(
 		() => navItems.find((item) => item.url === "#documents"),
 		[navItems]
@@ -153,7 +157,10 @@ export function Sidebar({
 		() =>
 			navItems.filter(
 				(item) =>
-					item.url !== "#inbox" && item.url !== "#documents" && !item.url.endsWith("/automations")
+					item.url !== "#inbox" &&
+					item.url !== "#documents" &&
+					!item.url.endsWith("/automations") &&
+					!item.url.endsWith("/artifacts")
 			),
 		[navItems]
 	);
@@ -240,6 +247,16 @@ export function Sidebar({
 						isCollapsed={isCollapsed}
 						isActive={automationsItem.isActive}
 						tooltipContent={isCollapsed ? automationsItem.title : undefined}
+					/>
+				)}
+				{artifactsItem && (
+					<SidebarButton
+						icon={artifactsItem.icon}
+						label={artifactsItem.title}
+						onClick={() => onNavItemClick?.(artifactsItem)}
+						isCollapsed={isCollapsed}
+						isActive={artifactsItem.isActive}
+						tooltipContent={isCollapsed ? artifactsItem.title : undefined}
 					/>
 				)}
 				{documentsItem && (

@@ -3,6 +3,7 @@ import {
 	languageOptions,
 	type PodcastSpec,
 	podcastDetail,
+	podcastSummaryList,
 	updateSpecRequest,
 	voiceOption,
 } from "@/contracts/types/podcast.types";
@@ -14,6 +15,14 @@ const BASE = "/api/v1/podcasts";
 const voiceOptionList = z.array(voiceOption);
 
 class PodcastsApiService {
+	list = async (searchSpaceId: number, limit = 200) => {
+		const qs = new URLSearchParams({
+			search_space_id: String(searchSpaceId),
+			limit: String(limit),
+		}).toString();
+		return baseApiService.get(`${BASE}?${qs}`, podcastSummaryList);
+	};
+
 	// Full state including the deserialized brief and transcript; thin lifecycle
 	// fields (status, spec, spec_version) also arrive live via Zero.
 	getDetail = async (podcastId: number) => {

@@ -104,6 +104,7 @@ from .search_source_connector import (
     SearchSourceConnectorUpdate,
 )
 from .search_space import (
+    SearchSpaceApiAccessUpdate,
     SearchSpaceBase,
     SearchSpaceCreate,
     SearchSpaceRead,
@@ -241,6 +242,7 @@ __all__ = [
     "SearchSourceConnectorCreate",
     "SearchSourceConnectorRead",
     "SearchSourceConnectorUpdate",
+    "SearchSpaceApiAccessUpdate",
     # Search space schemas
     "SearchSpaceBase",
     "SearchSpaceCreate",

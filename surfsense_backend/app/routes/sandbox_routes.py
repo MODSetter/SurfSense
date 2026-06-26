@@ -10,8 +10,9 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.db import NewChatThread, Permission, User, get_async_session
-from app.users import current_active_user
+from app.auth.context import AuthContext
+from app.db import NewChatThread, Permission, get_async_session
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ async def download_sandbox_file(
     thread_id: int,
     path: str = Query(..., description="Absolute path of the file inside the sandbox"),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """Download a file from the Daytona sandbox associated with a chat thread."""
 
@@ -68,7 +69,7 @@ async def download_sandbox_file(
 
     await check_permission(
         session,
-        user,
+        auth,
         thread.search_space_id,
         Permission.CHATS_READ.value,
         "You don't have permission to access files in this thread",

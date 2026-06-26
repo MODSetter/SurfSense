@@ -6,6 +6,7 @@ import { memo, useEffect, useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { materialDark, materialLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 
+import { MermaidDiagram } from "@/components/assistant-ui/mermaid-diagram";
 import { Button } from "@/components/ui/button";
 import { cn, copyToClipboard } from "@/lib/utils";
 
@@ -40,6 +41,7 @@ function MarkdownCodeBlockComponent({
 	isDarkMode,
 }: MarkdownCodeBlockProps) {
 	const [hasCopied, setHasCopied] = useState(false);
+	const normalizedLanguage = language.toLowerCase();
 
 	useEffect(() => {
 		if (!hasCopied) return;
@@ -47,7 +49,7 @@ function MarkdownCodeBlockComponent({
 		return () => clearTimeout(timer);
 	}, [hasCopied]);
 
-	return (
+	const codeBlock = (
 		<div className="mt-4 overflow-hidden rounded-md bg-accent">
 			<div className="flex items-center justify-between gap-4 px-4 py-2 font-semibold text-muted-foreground text-sm">
 				<span className="lowercase text-xs">{language}</span>
@@ -78,6 +80,12 @@ function MarkdownCodeBlockComponent({
 			</SyntaxHighlighter>
 		</div>
 	);
+
+	if (normalizedLanguage === "mermaid") {
+		return <MermaidDiagram source={codeText} isDarkMode={isDarkMode} fallback={codeBlock} />;
+	}
+
+	return codeBlock;
 }
 
 export const MarkdownCodeBlock = memo(MarkdownCodeBlockComponent);

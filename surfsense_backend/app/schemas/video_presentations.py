@@ -44,6 +44,7 @@ class VideoPresentationRead(VideoPresentationBase):
     status: VideoPresentationStatusEnum = VideoPresentationStatusEnum.READY
     created_at: datetime
     slide_count: int | None = None
+    thread_id: int | None = None
 
     class Config:
         from_attributes = True
@@ -68,6 +69,7 @@ class VideoPresentationRead(VideoPresentationBase):
             "status": obj.status,
             "created_at": obj.created_at,
             "slide_count": len(obj.slides) if obj.slides else None,
+            "thread_id": obj.thread_id,
         }
         return cls(**data)
 

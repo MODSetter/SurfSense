@@ -33,13 +33,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.connectors.github_connector import GitHubConnector
 from app.db import (
     Permission,
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     async_session_maker,
     get_async_session,
 )
@@ -56,7 +56,7 @@ from app.schemas import (
     SearchSourceConnectorUpdate,
 )
 from app.services.composio_service import ComposioService, get_composio_service
-from app.users import current_active_user
+from app.users import get_auth_context
 
 # NOTE: connector indexer functions are imported lazily inside each
 # ``run_*_indexing`` helper to break a circular import cycle:
@@ -143,8 +143,9 @@ class GitHubPATRequest(BaseModel):
 @router.post("/github/repositories", response_model=list[dict[str, Any]])
 async def list_github_repositories(
     pat_request: GitHubPATRequest,
-    user: User = Depends(current_active_user),  # Ensure the user is logged in
+    auth: AuthContext = Depends(get_auth_context),  # Ensure the user is logged in
 ):
+    user = auth.user
     """
     Fetches a list of repositories accessible by the provided GitHub PAT.
     The PAT is used for this request only and is not stored.
@@ -173,8 +174,9 @@ async def create_search_source_connector(
         ..., description="ID of the search space to associate the connector with"
     ),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Create a new search source connector.
     Requires CONNECTORS_CREATE permission.
@@ -186,7 +188,7 @@ async def create_search_source_connector(
         # Check if user has permission to create connectors
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.CONNECTORS_CREATE.value,
             "You don't have permission to create connectors in this search space",
@@ -281,7 +283,7 @@ async def read_search_source_connectors(
     limit: int = 100,
     search_space_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     List all search source connectors for a search space.
@@ -297,7 +299,7 @@ async def read_search_source_connectors(
         # Check if user has permission to read connectors
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.CONNECTORS_READ.value,
             "You don't have permission to view connectors in this search space",
@@ -324,7 +326,7 @@ async def read_search_source_connectors(
 async def read_search_source_connector(
     connector_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Get a specific search source connector by ID.
@@ -345,7 +347,7 @@ async def read_search_source_connector(
         # Check permission
         await check_permission(
             session,
-            user,
+            auth,
             connector.search_space_id,
             Permission.CONNECTORS_READ.value,
             "You don't have permission to view this connector",
@@ -367,8 +369,9 @@ async def update_search_source_connector(
     connector_id: int,
     connector_update: SearchSourceConnectorUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Update a search source connector.
     Requires CONNECTORS_UPDATE permission.
@@ -386,7 +389,7 @@ async def update_search_source_connector(
     # Check permission
     await check_permission(
         session,
-        user,
+        auth,
         db_connector.search_space_id,
         Permission.CONNECTORS_UPDATE.value,
         "You don't have permission to update this connector",
@@ -557,7 +560,7 @@ async def update_search_source_connector(
 async def delete_search_source_connector(
     connector_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Delete a search source connector and all its associated documents.
@@ -588,7 +591,7 @@ async def delete_search_source_connector(
         # Check permission
         await check_permission(
             session,
-            user,
+            auth,
             db_connector.search_space_id,
             Permission.CONNECTORS_DELETE.value,
             "You don't have permission to delete this connector",
@@ -725,8 +728,9 @@ async def index_connector_content(
         description="[Google Drive only] Structured request with folders and files to index",
     ),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Index content from a KB connector to a search space.
 
@@ -760,7 +764,7 @@ async def index_connector_content(
         # the read/update/delete handlers — not the client-supplied query param.
         await check_permission(
             session,
-            user,
+            auth,
             connector.search_space_id,
             Permission.CONNECTORS_UPDATE.value,
             "You don't have permission to index content in this search space",
@@ -2645,8 +2649,9 @@ async def create_mcp_connector(
     connector_data: MCPConnectorCreate,
     search_space_id: int = Query(..., description="Search space ID"),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Create a new MCP (Model Context Protocol) connector.
 
@@ -2669,7 +2674,7 @@ async def create_mcp_connector(
         # Check user has permission to create connectors
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.CONNECTORS_CREATE.value,
             "You don't have permission to create connectors in this search space",
@@ -2724,7 +2729,7 @@ async def create_mcp_connector(
 async def list_mcp_connectors(
     search_space_id: int = Query(..., description="Search space ID"),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     List all MCP connectors for a search space.
@@ -2741,7 +2746,7 @@ async def list_mcp_connectors(
         # Check user has permission to read connectors
         await check_permission(
             session,
-            user,
+            auth,
             search_space_id,
             Permission.CONNECTORS_READ.value,
             "You don't have permission to view connectors in this search space",
@@ -2775,7 +2780,7 @@ async def list_mcp_connectors(
 async def get_mcp_connector(
     connector_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Get a specific MCP connector by ID.
@@ -2805,7 +2810,7 @@ async def get_mcp_connector(
         # Check user has permission to read connectors
         await check_permission(
             session,
-            user,
+            auth,
             connector.search_space_id,
             Permission.CONNECTORS_READ.value,
             "You don't have permission to view this connector",
@@ -2828,7 +2833,7 @@ async def update_mcp_connector(
     connector_id: int,
     connector_update: MCPConnectorUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Update an MCP connector.
@@ -2859,7 +2864,7 @@ async def update_mcp_connector(
         # Check user has permission to update connectors
         await check_permission(
             session,
-            user,
+            auth,
             connector.search_space_id,
             Permission.CONNECTORS_UPDATE.value,
             "You don't have permission to update this connector",
@@ -2904,7 +2909,7 @@ async def update_mcp_connector(
 async def delete_mcp_connector(
     connector_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Delete an MCP connector.
@@ -2931,7 +2936,7 @@ async def delete_mcp_connector(
         # Check user has permission to delete connectors
         await check_permission(
             session,
-            user,
+            auth,
             connector.search_space_id,
             Permission.CONNECTORS_DELETE.value,
             "You don't have permission to delete this connector",
@@ -2962,7 +2967,7 @@ async def delete_mcp_connector(
 @router.post("/connectors/mcp/test")
 async def test_mcp_server_connection(
     server_config: dict = Body(...),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Test connection to an MCP server and fetch available tools.
@@ -3042,7 +3047,7 @@ DRIVE_CONNECTOR_TYPES = {
 async def get_drive_picker_token(
     connector_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """Return an OAuth access token + client ID for the Google Picker API."""
     result = await session.execute(
@@ -3054,7 +3059,7 @@ async def get_drive_picker_token(
 
     await check_permission(
         session,
-        user,
+        auth,
         connector.search_space_id,
         Permission.CONNECTORS_READ.value,
         "You don't have permission to access this connector",
@@ -3164,8 +3169,9 @@ async def trust_mcp_tool(
     connector_id: int,
     body: MCPTrustToolRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Add a tool to the MCP connector's trusted (always-allow) list.
 
     Once trusted, the tool executes without HITL approval on subsequent
@@ -3209,8 +3215,9 @@ async def untrust_mcp_tool(
     connector_id: int,
     body: MCPTrustToolRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """Remove a tool from the MCP connector's trusted list.
 
     The tool will require HITL approval again on subsequent calls.

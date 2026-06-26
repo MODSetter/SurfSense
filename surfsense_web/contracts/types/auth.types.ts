@@ -7,8 +7,8 @@ export const loginRequest = z.object({
 });
 
 export const loginResponse = z.object({
-	access_token: z.string(),
-	token_type: z.string(),
+	authenticated: z.boolean(),
+	access_expires_at: z.number(),
 });
 
 export const registerRequest = loginRequest.omit({ grant_type: true, username: true }).extend({

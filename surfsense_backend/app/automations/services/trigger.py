@@ -8,23 +8,24 @@ from fastapi import Depends, HTTPException
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.automations.persistence.enums.trigger_type import TriggerType
 from app.automations.persistence.models.automation import Automation
 from app.automations.persistence.models.trigger import AutomationTrigger
 from app.automations.schemas.api import TriggerCreate, TriggerUpdate
 from app.automations.triggers import get_trigger
 from app.automations.triggers.builtin.schedule import compute_next_fire_at
-from app.db import Permission, User, get_async_session
-from app.users import current_active_user
+from app.db import Permission, get_async_session
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 
 class TriggerService:
     """Lifecycle of the ``AutomationTrigger`` sub-resource."""
 
-    def __init__(self, *, session: AsyncSession, user: User) -> None:
+    def __init__(self, *, session: AsyncSession, auth: AuthContext) -> None:
         self.session = session
-        self.user = user
+        self.auth = auth
 
     async def add(
         self, *, automation_id: int, payload: TriggerCreate
@@ -101,7 +102,7 @@ class TriggerService:
             )
         await check_permission(
             self.session,
-            self.user,
+            self.auth,
             automation.search_space_id,
             permission,
             f"You don't have permission to {permission.split(':')[1]} automations in this search space",
@@ -144,6 +145,6 @@ def _initial_next_fire(
 
 def get_trigger_service(
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> TriggerService:
-    return TriggerService(session=session, user=user)
+    return TriggerService(session=session, auth=auth)

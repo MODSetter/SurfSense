@@ -31,15 +31,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import get_flags
+from app.auth.context import AuthContext
 from app.db import (
     AgentPermissionRule,
     NewChatThread,
     Permission,
     SearchSpace,
-    User,
     get_async_session,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 logger = logging.getLogger(__name__)
@@ -133,7 +133,7 @@ def _to_read(row: AgentPermissionRule) -> AgentPermissionRuleRead:
 
 
 async def _ensure_search_space_membership_admin(
-    session: AsyncSession, user: User, search_space_id: int
+    session: AsyncSession, auth: AuthContext, search_space_id: int
 ) -> None:
     """Curating agent rules == "settings" administration on the space."""
     space = await session.get(SearchSpace, search_space_id)
@@ -141,7 +141,7 @@ async def _ensure_search_space_membership_admin(
         raise HTTPException(status_code=404, detail="Search space not found.")
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.SETTINGS_UPDATE.value,
         "You don't have permission to manage agent permission rules in this space.",
@@ -160,8 +160,9 @@ async def _ensure_search_space_membership_admin(
 async def list_rules(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> list[AgentPermissionRuleRead]:
+    user = auth.user
     _flag_guard()
     await _ensure_search_space_membership_admin(session, user, search_space_id)
 
@@ -183,8 +184,9 @@ async def create_rule(
     search_space_id: int,
     payload: AgentPermissionRuleCreate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> AgentPermissionRuleRead:
+    user = auth.user
     _flag_guard()
     await _ensure_search_space_membership_admin(session, user, search_space_id)
 
@@ -232,8 +234,9 @@ async def update_rule(
     rule_id: int,
     payload: AgentPermissionRuleUpdate,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> AgentPermissionRuleRead:
+    user = auth.user
     _flag_guard()
     await _ensure_search_space_membership_admin(session, user, search_space_id)
 
@@ -266,8 +269,9 @@ async def delete_rule(
     search_space_id: int,
     rule_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> None:
+    user = auth.user
     _flag_guard()
     await _ensure_search_space_membership_admin(session, user, search_space_id)
 

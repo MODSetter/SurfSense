@@ -11,7 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import User, get_async_session
+from app.auth.context import AuthContext
+from app.db import get_async_session
 from app.schemas.new_chat import (
     CloneResponse,
     PublicChatResponse,
@@ -23,7 +24,7 @@ from app.services.public_chat_service import (
     get_snapshot_report,
     get_snapshot_video_presentation,
 )
-from app.users import current_active_user
+from app.users import require_session_context
 
 router = APIRouter(prefix="/public", tags=["public"])
 
@@ -46,8 +47,9 @@ async def read_public_chat(
 async def clone_public_chat(
     share_token: str,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ):
+    user = auth.user
     """
     Clone a public chat snapshot to the user's account.
 

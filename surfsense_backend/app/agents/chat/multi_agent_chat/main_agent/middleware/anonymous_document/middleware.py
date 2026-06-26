@@ -6,8 +6,6 @@ read-only). This middleware loads it once on the first turn into
 
 * :class:`KnowledgeTreeMiddleware` can render the synthetic ``/documents``
   view without touching the DB.
-* :class:`KnowledgePriorityMiddleware` skips hybrid search and emits a
-  degenerate priority list.
 * :class:`KBPostgresBackend` (``als_info`` / ``aread`` / ``_load_file_data``)
   recognises the synthetic path.
 

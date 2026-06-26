@@ -49,7 +49,7 @@ export const deletePublicChatSnapshotMutationAtom = atomWithMutation(() => ({
 		toast.success("Public link deleted");
 	},
 	onError: (error: Error) => {
-		console.error("Failed to delete public chat link:", error);
+		console.error("Failed to delete public chat:", error);
 		toast.error("Failed to delete public link");
 	},
 }));

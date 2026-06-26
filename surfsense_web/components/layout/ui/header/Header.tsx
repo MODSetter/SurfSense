@@ -7,6 +7,7 @@ import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-quer
 import { activeTabAtom } from "@/atoms/tabs/tabs.atom";
 import { ActionLogButton } from "@/components/agent-action-log/action-log-button";
 import { ChatShareButton } from "@/components/new-chat/chat-share-button";
+import { ArtifactsToggleButton } from "@/features/chat-artifacts";
 import type { ThreadRecord } from "@/lib/chat/thread-persistence";
 
 interface HeaderProps {
@@ -71,6 +72,7 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 			{/* Right side - Actions */}
 			<div className="ml-auto flex items-center gap-2">
 				{hasThread && <ActionLogButton threadId={currentThreadState.id} />}
+				{hasThread && <ArtifactsToggleButton />}
 				{threadForButton && <ChatShareButton thread={threadForButton} />}
 			</div>
 		</header>

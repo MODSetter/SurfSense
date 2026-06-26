@@ -23,6 +23,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
@@ -109,7 +110,7 @@ class TestConnectorIndexCrossSpaceAuthz:
                 connector_id=connector_a.id,
                 search_space_id=space_b.id,  # the attacker's own space
                 session=db_session,
-                user=attacker,
+                auth=AuthContext.session(attacker),
             )
 
         assert exc_info.value.status_code == 404
@@ -140,7 +141,7 @@ class TestConnectorIndexCrossSpaceAuthz:
                 connector_id=connector.id,
                 search_space_id=space.id,  # the connector's own space
                 session=db_session,
-                user=owner,
+                auth=AuthContext.session(owner),
             )
 
         check_permission_mock.assert_awaited_once()

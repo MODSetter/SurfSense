@@ -9,7 +9,7 @@ import { z } from "zod";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { baseApiService } from "@/lib/apis/base-api.service";
-import { authenticatedFetch } from "@/lib/auth-utils";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { compileCheck, compileToComponent } from "@/lib/remotion/compile-check";
 import { FPS } from "@/lib/remotion/constants";
@@ -485,7 +485,7 @@ function VideoPresentationPlayer({
 	);
 }
 
-function StatusPoller({
+export function StatusPoller({
 	presentationId,
 	title,
 	shareToken,

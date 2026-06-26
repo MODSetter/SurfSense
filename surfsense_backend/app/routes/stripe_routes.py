@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from stripe import SignatureVerificationError, StripeClient, StripeError
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     CreditPurchase,
@@ -39,7 +40,7 @@ from app.schemas.stripe import (
     StripeWebhookResponse,
     UpdateAutoReloadSettingsRequest,
 )
-from app.users import current_active_user
+from app.users import require_session_context
 
 logger = logging.getLogger(__name__)
 
@@ -456,7 +457,7 @@ async def _reconcile_auto_reload_payment_intent(
 )
 async def create_credit_checkout_session(
     body: CreateCreditCheckoutSessionRequest,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     db_session: AsyncSession = Depends(get_async_session),
 ) -> CreateCreditCheckoutSessionResponse:
     """Create a Stripe Checkout Session for buying credit packs.
@@ -466,6 +467,7 @@ async def create_credit_checkout_session(
     cost reported by LiteLLM (premium calls) or ``MICROS_PER_PAGE`` per page
     (ETL), so $1 of credit always buys $1 worth of usage at cost.
     """
+    user = auth.user
     _ensure_credit_buying_enabled()
     stripe_client = get_stripe_client()
     price_id = _get_required_credit_price_id()
@@ -644,7 +646,7 @@ async def stripe_webhook(
 @router.get("/finalize-checkout", response_model=FinalizeCheckoutResponse)
 async def finalize_checkout(
     session_id: str,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     db_session: AsyncSession = Depends(get_async_session),
 ) -> FinalizeCheckoutResponse:
     """Synchronously fulfil a credit checkout session from the success page.
@@ -659,6 +661,7 @@ async def finalize_checkout(
     Authorization: the session's ``client_reference_id`` must match the
     authenticated user's id.
     """
+    user = auth.user
     stripe_client = get_stripe_client()
 
     try:
@@ -718,13 +721,14 @@ async def finalize_checkout(
 
 @router.get("/credit-status", response_model=CreditStripeStatusResponse)
 async def get_credit_status(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ) -> CreditStripeStatusResponse:
     """Return credit-buying availability and current balance for the frontend.
 
     ``credit_micros_balance`` is in micro-USD (1_000_000 = $1.00); the FE
     divides by 1M when displaying.
     """
+    user = auth.user
     return CreditStripeStatusResponse(
         credit_buying_enabled=config.STRIPE_CREDIT_BUYING_ENABLED,
         credit_micros_balance=user.credit_micros_balance,
@@ -733,12 +737,13 @@ async def get_credit_status(
 
 @router.get("/credit-purchases", response_model=CreditPurchaseHistoryResponse)
 async def get_credit_purchases(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     db_session: AsyncSession = Depends(get_async_session),
     offset: int = 0,
     limit: int = 50,
 ) -> CreditPurchaseHistoryResponse:
     """Return the authenticated user's credit purchase history."""
+    user = auth.user
     limit = min(limit, 100)
     purchases = (
         (
@@ -759,7 +764,7 @@ async def get_credit_purchases(
 
 @router.get("/purchases", response_model=PagePurchaseHistoryResponse)
 async def get_page_purchases(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     db_session: AsyncSession = Depends(get_async_session),
     offset: int = 0,
     limit: int = 50,
@@ -768,6 +773,7 @@ async def get_page_purchases(
 
     Page buying is removed; this endpoint stays for historical records.
     """
+    user = auth.user
     limit = min(limit, 100)
     purchases = (
         (
@@ -804,7 +810,7 @@ def _auto_reload_settings_response(user: User) -> AutoReloadSettingsResponse:
 )
 async def create_auto_reload_setup_session(
     body: CreateAutoReloadSetupSessionRequest,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     db_session: AsyncSession = Depends(get_async_session),
 ) -> CreateAutoReloadSetupSessionResponse:
     """Start a ``mode=setup`` checkout session to save a card for auto-reload.
@@ -813,6 +819,7 @@ async def create_auto_reload_setup_session(
     Customer so the card can later be charged off-session. On completion the
     webhook stores the resulting payment method on the user.
     """
+    user = auth.user
     _ensure_auto_reload_enabled()
     _ensure_credit_buying_enabled()
     stripe_client = get_stripe_client()
@@ -871,16 +878,17 @@ async def create_auto_reload_setup_session(
 
 @router.get("/auto-reload", response_model=AutoReloadSettingsResponse)
 async def get_auto_reload_settings(
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
 ) -> AutoReloadSettingsResponse:
     """Return the user's auto-reload configuration and saved-card state."""
+    user = auth.user
     return _auto_reload_settings_response(user)
 
 
 @router.put("/auto-reload", response_model=AutoReloadSettingsResponse)
 async def update_auto_reload_settings(
     body: UpdateAutoReloadSettingsRequest,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     db_session: AsyncSession = Depends(get_async_session),
 ) -> AutoReloadSettingsResponse:
     """Update auto-reload preferences.
@@ -889,6 +897,7 @@ async def update_auto_reload_settings(
     at least ``AUTO_RELOAD_MIN_AMOUNT_MICROS``. Disabling always succeeds and
     clears any prior failure flag.
     """
+    user = auth.user
     _ensure_auto_reload_enabled()
 
     locked = (

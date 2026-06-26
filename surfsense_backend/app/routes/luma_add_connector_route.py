@@ -6,13 +6,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.auth.context import AuthContext
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
-from app.users import current_active_user
+from app.users import require_session_context
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class AddLumaConnectorRequest(BaseModel):
 @router.post("/connectors/luma/add")
 async def add_luma_connector(
     request: AddLumaConnectorRequest,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -46,6 +46,7 @@ async def add_luma_connector(
     Raises:
         HTTPException: If connector already exists or validation fails
     """
+    user = auth.user
     try:
         # Check if a Luma connector already exists for this search space and user
         result = await session.execute(
@@ -118,7 +119,7 @@ async def add_luma_connector(
 @router.delete("/connectors/luma")
 async def delete_luma_connector(
     space_id: int,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -135,6 +136,7 @@ async def delete_luma_connector(
     Raises:
         HTTPException: If connector doesn't exist
     """
+    user = auth.user
     try:
         result = await session.execute(
             select(SearchSourceConnector).filter(
@@ -173,7 +175,7 @@ async def delete_luma_connector(
 @router.get("/connectors/luma/test")
 async def test_luma_connector(
     space_id: int,
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -190,6 +192,7 @@ async def test_luma_connector(
     Raises:
         HTTPException: If connector doesn't exist or test fails
     """
+    user = auth.user
     try:
         # Get the Luma connector for this search space and user
         result = await session.execute(

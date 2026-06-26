@@ -21,6 +21,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth.context import AuthContext
 from app.db import (
     ChatVisibility,
     NewChatMessage,
@@ -163,8 +164,9 @@ def compute_content_hash(messages: list[dict]) -> str:
 async def create_snapshot(
     session: AsyncSession,
     thread_id: int,
-    user: User,
+    auth: AuthContext,
 ) -> dict:
+    user = auth.user
     """
     Create a public snapshot of a chat thread.
 
@@ -186,7 +188,7 @@ async def create_snapshot(
 
     await check_permission(
         session,
-        user,
+        auth,
         thread.search_space_id,
         Permission.PUBLIC_SHARING_CREATE.value,
         "You don't have permission to create public share links",
@@ -431,7 +433,7 @@ async def get_public_chat(
 async def list_snapshots_for_thread(
     session: AsyncSession,
     thread_id: int,
-    user: User,
+    auth: AuthContext,
 ) -> list[dict]:
     """List all public snapshots for a thread."""
     from app.config import config
@@ -447,7 +449,7 @@ async def list_snapshots_for_thread(
     # Check permission to view public share links
     await check_permission(
         session,
-        user,
+        auth,
         thread.search_space_id,
         Permission.PUBLIC_SHARING_VIEW.value,
         "You don't have permission to view public share links",
@@ -477,14 +479,14 @@ async def list_snapshots_for_thread(
 async def list_snapshots_for_search_space(
     session: AsyncSession,
     search_space_id: int,
-    user: User,
+    auth: AuthContext,
 ) -> list[dict]:
     """List all public snapshots for a search space."""
     from app.config import config
 
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.PUBLIC_SHARING_VIEW.value,
         "You don't have permission to view public share links",
@@ -534,7 +536,7 @@ async def delete_snapshot(
     session: AsyncSession,
     thread_id: int,
     snapshot_id: int,
-    user: User,
+    auth: AuthContext,
 ) -> bool:
     """Delete a specific snapshot. Only thread owner can delete."""
     # Get snapshot with thread
@@ -553,7 +555,7 @@ async def delete_snapshot(
 
     await check_permission(
         session,
-        user,
+        auth,
         snapshot.thread.search_space_id,
         Permission.PUBLIC_SHARING_DELETE.value,
         "You don't have permission to delete public share links",

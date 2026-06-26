@@ -1,5 +1,49 @@
 from app.services.global_model_catalog import materialize_global_model_catalog
-from app.services.model_resolver import ensure_v1, to_litellm
+from app.services.model_resolver import ensure_v1, strip_version_suffix, to_litellm
+
+
+def test_anthropic_resolver_strips_trailing_v1_from_api_base() -> None:
+    # LiteLLM's Anthropic handler appends ``/v1/messages``; a base URL ending in
+    # ``/v1`` (the frontend default) would otherwise yield ``/v1/v1/messages``.
+    model, kwargs = to_litellm(
+        {
+            "provider": "anthropic",
+            "base_url": "https://api.anthropic.com/v1",
+            "api_key": "sk-ant-test",
+            "extra": {},
+        },
+        "claude-opus-4-8",
+    )
+
+    assert model == "anthropic/claude-opus-4-8"
+    assert kwargs["api_base"] == "https://api.anthropic.com"
+
+
+def test_anthropic_resolver_keeps_root_api_base() -> None:
+    _model, kwargs = to_litellm(
+        {
+            "provider": "anthropic",
+            "base_url": "https://api.anthropic.com",
+            "api_key": "sk-ant-test",
+            "extra": {},
+        },
+        "claude-opus-4-8",
+    )
+
+    assert kwargs["api_base"] == "https://api.anthropic.com"
+
+
+def test_strip_version_suffix() -> None:
+    assert strip_version_suffix("https://api.anthropic.com/v1") == (
+        "https://api.anthropic.com"
+    )
+    assert strip_version_suffix("https://api.anthropic.com/v1/") == (
+        "https://api.anthropic.com"
+    )
+    assert strip_version_suffix("https://api.anthropic.com") == (
+        "https://api.anthropic.com"
+    )
+    assert strip_version_suffix(None) is None
 
 
 def test_openai_compatible_resolver_uses_explicit_api_base() -> None:

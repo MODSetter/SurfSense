@@ -9,9 +9,10 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Document, DocumentType, Permission, User, get_async_session
+from app.auth.context import AuthContext
+from app.db import Document, DocumentType, Permission, get_async_session
 from app.schemas import DocumentRead, PaginatedResponse
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 router = APIRouter()
@@ -27,8 +28,9 @@ async def create_note(
     search_space_id: int,
     request: CreateNoteRequest,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Create a new note document.
 
@@ -37,7 +39,7 @@ async def create_note(
     # Check RBAC permission
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.DOCUMENTS_CREATE.value,
         "You don't have permission to create notes in this search space",
@@ -98,7 +100,7 @@ async def list_notes(
     page: int | None = None,
     page_size: int = 50,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     List all notes in a search space.
@@ -108,7 +110,7 @@ async def list_notes(
     # Check RBAC permission
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.DOCUMENTS_READ.value,
         "You don't have permission to read notes in this search space",
@@ -191,7 +193,7 @@ async def delete_note(
     search_space_id: int,
     note_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Delete a note.
@@ -201,7 +203,7 @@ async def delete_note(
     # Check RBAC permission
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.DOCUMENTS_DELETE.value,
         "You don't have permission to delete notes in this search space",

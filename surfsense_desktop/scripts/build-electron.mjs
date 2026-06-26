@@ -114,6 +114,9 @@ async function buildElectron() {
       'process.env.HOSTED_FRONTEND_URL': JSON.stringify(
         process.env.HOSTED_FRONTEND_URL || desktopEnv.HOSTED_FRONTEND_URL || 'https://surfsense.com'
       ),
+      'process.env.GOOGLE_DESKTOP_CLIENT_ID': JSON.stringify(
+        process.env.GOOGLE_DESKTOP_CLIENT_ID || desktopEnv.GOOGLE_DESKTOP_CLIENT_ID || ''
+      ),
       'process.env.POSTHOG_KEY': JSON.stringify(
         process.env.POSTHOG_KEY || desktopEnv.POSTHOG_KEY || ''
       ),

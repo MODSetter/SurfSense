@@ -67,7 +67,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("API token")
 			.setDesc(
-				"Paste your Surfsense API token (expires after 24 hours; re-paste when you see an auth error).",
+				"Paste your Surfsense personal access token from the web app.",
 			)
 			.addText((text) => {
 				text.inputEl.type = "password";

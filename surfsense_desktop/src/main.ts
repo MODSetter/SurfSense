@@ -17,6 +17,7 @@ import {
   syncAutoLaunchOnStartup,
   wasLaunchedAtLogin,
 } from './modules/auto-launch';
+import { purgeLegacyAuthCutover } from './modules/auth-cutover';
 
 registerGlobalErrorHandlers();
 app.setName('SurfSense');
@@ -29,6 +30,7 @@ registerIpcHandlers();
 
 app.whenReady().then(async () => {
   initAnalytics();
+  await purgeLegacyAuthCutover();
   const launchedAtLogin = wasLaunchedAtLogin();
   const startedHidden = shouldStartHidden();
   trackEvent('desktop_app_launched', {

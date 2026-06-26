@@ -80,9 +80,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.WRITE_AGENT_LOCAL_FILE_TEXT, virtualPath, content, searchSpaceId),
 
   // Auth token sync across windows
-  getAuthTokens: () => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTH_TOKENS),
-  setAuthTokens: (bearer: string, refresh: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.SET_AUTH_TOKENS, { bearer, refresh }),
+  getAccessToken: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ACCESS_TOKEN),
+  refreshAccessToken: () => ipcRenderer.invoke(IPC_CHANNELS.REFRESH_ACCESS_TOKEN),
+  logout: () => ipcRenderer.invoke(IPC_CHANNELS.LOGOUT),
+  startGoogleOAuth: () => ipcRenderer.invoke(IPC_CHANNELS.AUTH_START_GOOGLE),
+  loginPassword: (email: string, password: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.AUTH_LOGIN_PASSWORD, { email, password }),
+  onAuthChanged: (callback: (payload: { authed: boolean; accessToken: string | null }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: { authed: boolean; accessToken: string | null }) =>
+      callback(payload);
+    ipcRenderer.on(IPC_CHANNELS.AUTH_CHANGED, listener);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.AUTH_CHANGED, listener);
+  },
 
   // Keyboard shortcut configuration
   getShortcuts: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SHORTCUTS),

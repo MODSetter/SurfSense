@@ -5,6 +5,7 @@ import { Roboto } from "next/font/google";
 import Script from "next/script";
 import { AnnouncementToastProvider } from "@/components/announcements/AnnouncementToastProvider";
 import { DesktopUpdateToast } from "@/components/desktop/desktop-update-toast";
+import { AuthCutoverPurge } from "@/components/providers/AuthCutoverPurge";
 import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
 import { I18nProvider } from "@/components/providers/I18nProvider";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
@@ -17,13 +18,10 @@ import {
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/contexts/LocaleContext";
-import { BUILD_TIME_AUTH_TYPE } from "@/lib/env-config";
 import { PlatformProvider } from "@/contexts/platform-context";
+import { BUILD_TIME_AUTH_TYPE } from "@/lib/env-config";
 import { ReactQueryClientProvider } from "@/lib/query-client/query-client.provider";
-import {
-	getRuntimeAuthInitScript,
-	resolveRuntimeAuthUiMode,
-} from "@/lib/runtime-auth-config";
+import { getRuntimeAuthInitScript, resolveRuntimeAuthUiMode } from "@/lib/runtime-auth-config";
 import { cn } from "@/lib/utils";
 
 const roboto = Roboto({
@@ -164,6 +162,7 @@ export default function RootLayout({
 								<PlatformProvider>
 									<RootProvider>
 										<ReactQueryClientProvider>
+											<AuthCutoverPurge />
 											<ZeroProvider>
 												<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
 											</ZeroProvider>

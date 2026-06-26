@@ -19,6 +19,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
+from app.auth.context import AuthContext
 from app.routes import agent_revert_route
 from app.services.revert_service import RevertOutcome
 
@@ -147,7 +148,7 @@ class TestFlagGuard:
                 thread_id=1,
                 chat_turn_id="42:1700000000000",
                 session=session,
-                user=_FakeUser(),
+                auth=AuthContext.session(_FakeUser()),
             )
         assert getattr(exc.value, "status_code", None) == 503
 
@@ -167,7 +168,7 @@ class TestRevertTurnDispatch:
                 thread_id=1,
                 chat_turn_id="ct-empty",
                 session=session,
-                user=_FakeUser(),
+                auth=AuthContext.session(_FakeUser()),
             )
         assert response.status == "ok"
         assert response.total == 0
@@ -209,7 +210,7 @@ class TestRevertTurnDispatch:
                 thread_id=1,
                 chat_turn_id="ct-3",
                 session=session,
-                user=_FakeUser(),
+                auth=AuthContext.session(_FakeUser()),
             )
 
         assert response.status == "ok"
@@ -248,7 +249,7 @@ class TestRevertTurnDispatch:
                 thread_id=1,
                 chat_turn_id="ct-i",
                 session=session,
-                user=_FakeUser(),
+                auth=AuthContext.session(_FakeUser()),
             )
         assert response.status == "ok"
         assert response.already_reverted == 1
@@ -275,7 +276,7 @@ class TestRevertTurnDispatch:
                 thread_id=1,
                 chat_turn_id="ct-rev",
                 session=session,
-                user=_FakeUser(),
+                auth=AuthContext.session(_FakeUser()),
             )
         assert response.status == "ok"
         assert response.results[0].status == "skipped"
@@ -315,7 +316,7 @@ class TestRevertTurnDispatch:
                 thread_id=1,
                 chat_turn_id="ct-mix",
                 session=session,
-                user=_FakeUser(),
+                auth=AuthContext.session(_FakeUser()),
             )
         assert response.status == "partial"
         assert response.reverted == 1
@@ -354,7 +355,7 @@ class TestRevertTurnDispatch:
                 thread_id=1,
                 chat_turn_id="ct-fail",
                 session=session,
-                user=_FakeUser(),
+                auth=AuthContext.session(_FakeUser()),
             )
         assert response.status == "partial"
         assert response.failed == 1
@@ -386,7 +387,7 @@ class TestRevertTurnDispatch:
                 thread_id=1,
                 chat_turn_id="ct-perm",
                 session=session,
-                user=_FakeUser(id="not-owner"),
+                auth=AuthContext.session(_FakeUser(id="not-owner")),
             )
         assert response.status == "partial"
         assert response.results[0].status == "permission_denied"
@@ -449,7 +450,9 @@ class TestRevertTurnDispatch:
                 thread_id=1,
                 chat_turn_id="ct-mixed-all",
                 session=session,
-                user=_FakeUser(),  # only id=7 has a different user_id
+                auth=AuthContext.session(
+                    _FakeUser()
+                ),  # only id=7 has a different user_id
             )
 
         assert response.total == len(rows) == 6
@@ -518,7 +521,7 @@ class TestRevertTurnDispatch:
                 thread_id=1,
                 chat_turn_id="ct-race",
                 session=session,
-                user=_FakeUser(),
+                auth=AuthContext.session(_FakeUser()),
             )
 
         assert response.failed == 0, (

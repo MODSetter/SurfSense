@@ -22,8 +22,7 @@ function handleDeepLink(url: string) {
     path: parsed.pathname,
   });
   if (parsed.hostname === 'auth' && parsed.pathname === '/callback') {
-    const params = parsed.searchParams.toString();
-    win.loadURL(`${getServerOrigin()}/auth/callback?${params}`);
+    win.loadURL(`${getServerOrigin()}/dashboard`);
   }
 
   win.show();

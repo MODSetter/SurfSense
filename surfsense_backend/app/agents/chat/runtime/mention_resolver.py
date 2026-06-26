@@ -74,8 +74,9 @@ class ResolvedMentionSet:
     ``@Project``).
 
     ``mentioned_document_ids`` is an ordered, deduped list consumed by
-    the priority middleware downstream — see
-    ``KnowledgePriorityMiddleware._compute_priority_paths``.
+    the on-demand ``search_knowledge_base`` tool downstream (via
+    ``referenced_document_ids``) to pin @-mentioned docs into the
+    retrieval scope.
     """
 
     mentions: list[ResolvedMention] = field(default_factory=list)
@@ -113,8 +114,8 @@ async def resolve_mentions(
 
     * Legacy clients that haven't migrated to the unified chip list
       still send the id arrays — we treat the union as authoritative.
-    * The id arrays are the canonical input to
-      ``KnowledgePriorityMiddleware`` (via ``SurfSenseContextSchema``);
+    * The id arrays are the canonical input to the retrieval scope
+      (via ``SurfSenseContextSchema`` → ``referenced_document_ids``);
       returning the deduped, validated lists lets the route forward
       them unchanged.
 

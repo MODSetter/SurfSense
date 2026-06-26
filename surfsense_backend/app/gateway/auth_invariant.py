@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import ExternalChatBinding, Permission, User
 from app.gateway.bindings import suspend_binding
 from app.observability.metrics import record_gateway_auth_invariant_failure
@@ -39,11 +40,13 @@ async def assert_authorization_invariant(
     if user is None:
         await _fail(session, binding, "owner_missing")
 
+    auth = AuthContext.system(user, source="gateway")
+
     try:
-        await check_search_space_access(session, user, binding.search_space_id)
+        await check_search_space_access(session, auth, binding.search_space_id)
         await check_permission(
             session,
-            user,
+            auth,
             binding.search_space_id,
             Permission.CHATS_CREATE.value,
             "External chat owner no longer has permission to chat in this search space",

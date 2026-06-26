@@ -1,6 +1,6 @@
 import { atomWithQuery } from "jotai-tanstack-query";
 import { agentFlagsApiService } from "@/lib/apis/agent-flags-api.service";
-import { getBearerToken } from "@/lib/auth-utils";
+import { isAuthenticated } from "@/lib/auth-utils";
 
 export const AGENT_FLAGS_QUERY_KEY = ["agent", "flags"] as const;
 
@@ -12,6 +12,6 @@ export const AGENT_FLAGS_QUERY_KEY = ["agent", "flags"] as const;
 export const agentFlagsAtom = atomWithQuery(() => ({
 	queryKey: AGENT_FLAGS_QUERY_KEY,
 	staleTime: 10 * 60 * 1000,
-	enabled: !!getBearerToken(),
+	enabled: isAuthenticated(),
 	queryFn: () => agentFlagsApiService.get(),
 }));

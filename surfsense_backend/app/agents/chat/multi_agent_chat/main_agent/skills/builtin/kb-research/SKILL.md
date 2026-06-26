@@ -15,7 +15,7 @@ allowed-tools: scrape_webpage, read_file, ls_tree, grep, web_search
 1. Decompose the user's question into 2-4 specific, citation-worthy sub-questions.
 2. For each sub-question, run **one** targeted KB search (focused on terms the user would have written, not synonyms). Open the most relevant 2-3 documents fully via `read_file` if their excerpts are too short.
 3. Use `grep` to find supporting passages in long files instead of re-reading them end to end.
-4. Cite every claim with `[citation:chunk_id]` exactly as the chunk tag specifies.
+4. Cite every claim with the `[n]` label shown on the passage you used (search results and `read_file` output both carry them); never write a chunk id, URL, or title yourself.
 
 ## What good output looks like
 - Short paragraphs with inline citations.

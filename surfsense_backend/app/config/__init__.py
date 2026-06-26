@@ -768,6 +768,8 @@ class Config:
     # Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
     GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+    GOOGLE_DESKTOP_CLIENT_ID = os.getenv("GOOGLE_DESKTOP_CLIENT_ID")
+    GOOGLE_DESKTOP_CLIENT_SECRET = os.getenv("GOOGLE_DESKTOP_CLIENT_SECRET")
     GOOGLE_PICKER_API_KEY = os.getenv("GOOGLE_PICKER_API_KEY")
 
     # Google Calendar redirect URI
@@ -914,11 +916,39 @@ class Config:
 
     # JWT Token Lifetimes
     ACCESS_TOKEN_LIFETIME_SECONDS = int(
-        os.getenv("ACCESS_TOKEN_LIFETIME_SECONDS", str(24 * 60 * 60))  # 1 day
+        os.getenv("ACCESS_TOKEN_LIFETIME_SECONDS", str(30 * 60))  # 30 minutes
     )
+    MIN_ISSUED_AT = int(os.getenv("MIN_ISSUED_AT", "0"))
     REFRESH_TOKEN_LIFETIME_SECONDS = int(
         os.getenv("REFRESH_TOKEN_LIFETIME_SECONDS", str(14 * 24 * 60 * 60))  # 2 weeks
     )
+    REFRESH_ROTATION_GRACE_SECONDS = int(
+        os.getenv("REFRESH_ROTATION_GRACE_SECONDS", "45")
+    )
+    REFRESH_ABSOLUTE_LIFETIME_SECONDS = int(
+        os.getenv("REFRESH_ABSOLUTE_LIFETIME_SECONDS", str(30 * 24 * 60 * 60))
+    )
+    if REFRESH_ABSOLUTE_LIFETIME_SECONDS <= REFRESH_TOKEN_LIFETIME_SECONDS:
+        raise ValueError(
+            "REFRESH_ABSOLUTE_LIFETIME_SECONDS must be greater than "
+            "REFRESH_TOKEN_LIFETIME_SECONDS so the sliding inactivity window works."
+        )
+    SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "surfsense_session")
+    REFRESH_COOKIE_NAME = os.getenv("REFRESH_COOKIE_NAME", "surfsense_refresh")
+    SESSION_COOKIE_SECURE_POLICY = os.getenv(
+        "SESSION_COOKIE_SECURE_POLICY", "auto"
+    ).lower()
+    SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "lax").lower()
+    if SESSION_COOKIE_SAMESITE == "none":
+        raise ValueError("SESSION_COOKIE_SAMESITE=none is not supported")
+    COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN") or None
+    CSRF_ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv("CSRF_ALLOWED_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    _PAT_MAX_EXPIRY_DAYS = os.getenv("PAT_MAX_EXPIRY_DAYS", "").strip()
+    PAT_MAX_EXPIRY_DAYS = int(_PAT_MAX_EXPIRY_DAYS) if _PAT_MAX_EXPIRY_DAYS else None
 
     # ETL Service
     ETL_SERVICE = os.getenv("ETL_SERVICE")

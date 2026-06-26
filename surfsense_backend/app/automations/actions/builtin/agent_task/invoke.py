@@ -16,7 +16,8 @@ from app.agents.chat.runtime.mention_resolver import (
     substitute_in_text,
 )
 from app.agents.chat.shared.context import SurfSenseContextSchema
-from app.db import ChatVisibility, async_session_maker
+from app.auth.context import AuthContext
+from app.db import ChatVisibility, User, async_session_maker
 from app.schemas.new_chat import MentionedDocumentInfo
 
 from ...types import ActionContext
@@ -77,7 +78,7 @@ async def _resolve_mention_context(
     Automation always runs in cloud filesystem mode, so we mirror the chat
     ``new_chat`` flow: substitute ``@title`` tokens with canonical
     ``/documents/...`` paths, prepend a ``<mentioned_connectors>`` block, and
-    build a ``SurfSenseContextSchema`` that ``KnowledgePriorityMiddleware``
+    build a ``SurfSenseContextSchema`` that the ``search_knowledge_base`` tool
     reads via ``runtime.context``. Returns ``(query, None)`` unchanged when
     there are no mentions.
     """
@@ -147,6 +148,12 @@ async def run_agent_task(
     decision = "approve" if auto_approve_all else "reject"
 
     async with async_session_maker() as agent_session:
+        auth_context = None
+        if ctx.creator_user_id:
+            user = await agent_session.get(User, ctx.creator_user_id)
+            if user is not None:
+                auth_context = AuthContext.system(user, source="automation")
+
         deps = await build_dependencies(
             session=agent_session,
             search_space_id=ctx.search_space_id,
@@ -168,6 +175,7 @@ async def run_agent_task(
             thread_visibility=ChatVisibility.PRIVATE,
             mentioned_document_ids=mentioned_document_ids,
             image_gen_model_id=ctx.image_gen_model_id,
+            auth_context=auth_context,
         )
 
         agent_query, runtime_context = await _resolve_mention_context(
@@ -202,7 +210,7 @@ async def run_agent_task(
             runtime_context.turn_id = turn_id
 
         # The compiled graph declares ``context_schema=SurfSenseContextSchema``;
-        # mentions only reach ``KnowledgePriorityMiddleware`` via ``context=``.
+        # mentions only reach the ``search_knowledge_base`` tool via ``context=``.
         invoke_kwargs: dict[str, Any] = {"config": config}
         if runtime_context is not None:
             invoke_kwargs["context"] = runtime_context

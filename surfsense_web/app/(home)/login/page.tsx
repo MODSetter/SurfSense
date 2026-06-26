@@ -30,8 +30,7 @@ function LoginContent() {
 		const logout = searchParams.get("logout");
 		const returnUrl = searchParams.get("returnUrl");
 
-		// Save returnUrl to localStorage so it persists through OAuth flows (e.g., Google)
-		// This is read by TokenHandler after successful authentication
+		// Save returnUrl for client-side login flows that can redirect directly after success.
 		if (returnUrl) {
 			setRedirectPath(decodeURIComponent(returnUrl));
 		}

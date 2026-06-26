@@ -12,45 +12,66 @@ import { schema } from "@/zero/schema";
 // (e.g. http://localhost:8929) does NOT resolve from inside the frontend
 // container and would make every authenticated Zero query fail with a 503.
 const backendURL = SERVER_BACKEND_URL.replace(/\/$/, "");
+const zeroQueryApiKey = process.env.ZERO_QUERY_API_KEY;
+
+function validateZeroCacheRequest(request: Request): NextResponse | null {
+	if (!zeroQueryApiKey) return null;
+	if (request.headers.get("X-Api-Key") === zeroQueryApiKey) return null;
+	return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+}
 
 async function authenticateRequest(
 	request: Request
-): Promise<{ ctx: Context; error?: never } | { ctx?: never; error: NextResponse }> {
+): Promise<
+	{ ctx: Exclude<Context, undefined>; error?: never } | { ctx?: never; error: NextResponse }
+> {
 	const authHeader = request.headers.get("Authorization");
-	if (!authHeader?.startsWith("Bearer ")) {
-		return { ctx: undefined };
+	const cookieHeader = request.headers.get("Cookie");
+	const headers: HeadersInit = {};
+	if (authHeader?.startsWith("Bearer ")) {
+		headers.Authorization = authHeader;
+	} else if (cookieHeader) {
+		headers.Cookie = cookieHeader;
+	} else {
+		return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
 	}
 
 	try {
-		const res = await fetch(`${backendURL}/users/me`, {
-			headers: { Authorization: authHeader },
+		const res = await fetch(`${backendURL}/zero/context`, {
+			headers,
 		});
 
 		if (!res.ok) {
 			return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
 		}
 
-		const user = await res.json();
-		return { ctx: { userId: String(user.id) } };
+		const ctx = (await res.json()) as Exclude<Context, undefined>;
+		return { ctx };
 	} catch {
 		return { error: NextResponse.json({ error: "Auth service unavailable" }, { status: 503 }) };
 	}
 }
 
 export async function POST(request: Request) {
+	const forbidden = validateZeroCacheRequest(request);
+	if (forbidden) {
+		return forbidden;
+	}
+
 	const auth = await authenticateRequest(request);
 	if (auth.error) {
 		return auth.error;
 	}
 
-	const result = await handleQueryRequest(
-		(name, args) => {
+	const result = await handleQueryRequest({
+		handler: (name, args) => {
 			const query = mustGetQuery(queries, name);
 			return query.fn({ args, ctx: auth.ctx });
 		},
 		schema,
-		request
-	);
+		request,
+		userID: auth.ctx.userId,
+	});
 
 	return NextResponse.json(result);
 }

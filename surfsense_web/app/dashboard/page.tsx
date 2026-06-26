@@ -1,23 +1,15 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { CreateSearchSpaceDialog } from "@/components/layout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 
 function ErrorScreen({ message }: { message: string }) {
@@ -25,29 +17,20 @@ function ErrorScreen({ message }: { message: string }) {
 	const router = useRouter();
 
 	return (
-		<div className="flex min-h-screen flex-col items-center justify-center gap-4">
+		<div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.5 }}
+				className="w-full max-w-xl"
 			>
-				<Card className="w-full max-w-[400px] border-destructive/20 bg-background/60 backdrop-blur-sm">
-					<CardHeader className="pb-2">
-						<div className="flex items-center gap-2">
-							<AlertCircle className="h-5 w-5 text-destructive" />
-							<CardTitle className="text-xl font-medium">{t("error")}</CardTitle>
-						</div>
-						<CardDescription>{t("something_wrong")}</CardDescription>
+				<Card className="w-full border-0 bg-transparent shadow-none">
+					<CardHeader className="pb-10">
+						<CardTitle className="text-xl font-medium">{t("error")}</CardTitle>
+						<CardDescription className="max-w-lg">{message}</CardDescription>
 					</CardHeader>
-					<CardContent>
-						<Alert variant="destructive" className="border-destructive/30 bg-destructive/10">
-							<AlertCircle className="h-4 w-4" />
-							<AlertTitle>{t("error_details")}</AlertTitle>
-							<AlertDescription className="mt-2">{message}</AlertDescription>
-						</Alert>
-					</CardContent>
-					<CardFooter className="flex justify-end gap-2 border-t pt-4">
-						<Button variant="outline" onClick={() => router.refresh()}>
+					<CardFooter className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end">
+						<Button variant="secondary" onClick={() => router.refresh()}>
 							{t("try_again")}
 						</Button>
 						<Button onClick={() => router.push("/")}>{t("go_home")}</Button>
@@ -91,7 +74,6 @@ export default function DashboardPage() {
 	const router = useRouter();
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-	const t = useTranslations("dashboard");
 	const { data: searchSpaces = [], isLoading, error } = useAtomValue(searchSpacesAtom);
 
 	useEffect(() => {

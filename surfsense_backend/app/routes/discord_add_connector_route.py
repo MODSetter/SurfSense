@@ -15,21 +15,22 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
 from app.schemas.discord_auth_credentials import DiscordAuthCredentialsBase
-from app.users import current_active_user
+from app.users import get_auth_context, require_session_context
 from app.utils.connector_naming import (
     check_duplicate_connector,
     extract_identifier_from_credentials,
     generate_unique_connector_name,
 )
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
+from app.utils.rbac import check_search_space_access
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,10 @@ def get_token_encryption() -> TokenEncryption:
 
 
 @router.get("/auth/discord/connector/add")
-async def connect_discord(space_id: int, user: User = Depends(current_active_user)):
+async def connect_discord(
+    space_id: int,
+    auth: AuthContext = Depends(require_session_context),
+):
     """
     Initiate Discord OAuth flow.
 
@@ -88,6 +92,7 @@ async def connect_discord(space_id: int, user: User = Depends(current_active_use
     Returns:
         Authorization URL for redirect
     """
+    user = auth.user
     try:
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
@@ -610,7 +615,7 @@ def _compute_channel_permissions(
 async def get_discord_channels(
     connector_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Get list of Discord text channels for a connector with permission info.
@@ -628,6 +633,7 @@ async def get_discord_channels(
     """
     from sqlalchemy import select
 
+    user = auth.user
     try:
         # Get connector and verify ownership
         result = await session.execute(
@@ -645,6 +651,8 @@ async def get_discord_channels(
                 status_code=404,
                 detail="Discord connector not found or access denied",
             )
+
+        await check_search_space_access(session, auth, connector.search_space_id)
 
         # Get credentials and decrypt bot token
         credentials = DiscordAuthCredentialsBase.from_dict(connector.config)

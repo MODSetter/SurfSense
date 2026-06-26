@@ -18,7 +18,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Chunk, Document, DocumentType, Permission, User, get_async_session
+from app.auth.context import AuthContext
+from app.db import Chunk, Document, DocumentType, Permission, get_async_session
 from app.routes.reports_routes import (
     _FILE_EXTENSIONS,
     _MEDIA_TYPES,
@@ -31,7 +32,7 @@ from app.templates.export_helpers import (
     get_reference_docx_path,
     get_typst_template_path,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ async def get_editor_content(
     search_space_id: int,
     document_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Get document content for editing.
@@ -60,7 +61,7 @@ async def get_editor_content(
     # Check RBAC permission
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.DOCUMENTS_READ.value,
         "You don't have permission to read documents in this search space",
@@ -178,7 +179,7 @@ async def download_document_markdown(
     search_space_id: int,
     document_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """
     Download the full document content as a .md file.
@@ -186,7 +187,7 @@ async def download_document_markdown(
     """
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.DOCUMENTS_READ.value,
         "You don't have permission to read documents in this search space",
@@ -244,8 +245,9 @@ async def save_document(
     document_id: int,
     data: dict[str, Any],
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
+    user = auth.user
     """
     Save document markdown and trigger reindexing.
     Called when user clicks 'Save & Exit'.
@@ -259,7 +261,7 @@ async def save_document(
     # Check RBAC permission
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.DOCUMENTS_UPDATE.value,
         "You don't have permission to update documents in this search space",
@@ -331,12 +333,12 @@ async def export_document(
         description="Export format: pdf, docx, html, latex, epub, odt, or plain",
     ),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ):
     """Export a document in the requested format (reuses the report export pipeline)."""
     await check_permission(
         session,
-        user,
+        auth,
         search_space_id,
         Permission.DOCUMENTS_READ.value,
         "You don't have permission to read documents in this search space",

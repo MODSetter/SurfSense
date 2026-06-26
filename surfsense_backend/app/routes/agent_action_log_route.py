@@ -29,14 +29,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import get_flags
+from app.auth.context import AuthContext
 from app.db import (
     AgentActionLog,
     NewChatThread,
     Permission,
-    User,
     get_async_session,
 )
-from app.users import current_active_user
+from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 logger = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ async def list_thread_actions(
     page: int = Query(0, ge=0),
     page_size: int = Query(50, ge=1, le=200),
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> AgentActionListResponse:
     """List agent actions for a thread, newest first.
 
@@ -132,7 +132,7 @@ async def list_thread_actions(
 
     await check_permission(
         session,
-        user,
+        auth,
         thread.search_space_id,
         Permission.CHATS_READ.value,
         "You don't have permission to view this thread's action log.",

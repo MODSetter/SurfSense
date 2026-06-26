@@ -40,6 +40,7 @@ import pytest_asyncio
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import (
     ChatVisibility,
     NewChatMessage,
@@ -395,7 +396,7 @@ class TestAppendMessageRecoveryAfterFinalize:
             thread_id=thread_id,
             request=request,
             session=db_session,
-            user=db_user,
+            auth=AuthContext.session(db_user),
         )
 
         # Response must echo the SERVER's rich payload, not the FE's
@@ -469,7 +470,7 @@ class TestAppendMessageRecoveryAfterFinalize:
             thread_id=thread_id,
             request=_FakeRequest(fe_request_body),
             session=db_session,
-            user=db_user,
+            auth=AuthContext.session(db_user),
         )
         assert fe_response.role == NewChatMessageRole.ASSISTANT
 
@@ -552,7 +553,7 @@ class TestAppendMessageRecoveryAfterFinalize:
                 }
             ),
             session=db_session,
-            user=db_user,
+            auth=AuthContext.session(db_user),
         )
         assert ok_response.role == NewChatMessageRole.USER
         assert ok_response.turn_id is None

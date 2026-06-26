@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.db import ExternalChatBinding, NewChatMessage
 from app.gateway.auth_invariant import assert_authorization_invariant
 from app.gateway.base.translator import BaseStreamTranslator, GatewayStreamEvent
@@ -64,6 +65,7 @@ async def call_agent_for_gateway(
     request_id: str | None = None,
 ) -> None:
     user = await assert_authorization_invariant(session, binding)
+    auth_context = AuthContext.system(user, source="gateway")
     thread = await get_or_create_thread_for_binding(session, binding)
     await session.commit()
 
@@ -81,6 +83,7 @@ async def call_agent_for_gateway(
             current_user_display_name=user.display_name or "A team member",
             disabled_tools=sorted(DEFAULT_HITL_TOOL_NAMES),
             request_id=request_id or "gateway",
+            auth_context=auth_context,
         )
         events = _events_from_sse(stream)
         try:

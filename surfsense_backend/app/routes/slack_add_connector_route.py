@@ -17,21 +17,22 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    User,
     get_async_session,
 )
 from app.schemas.slack_auth_credentials import SlackAuthCredentialsBase
-from app.users import current_active_user
+from app.users import get_auth_context, require_session_context
 from app.utils.connector_naming import (
     check_duplicate_connector,
     extract_identifier_from_credentials,
     generate_unique_connector_name,
 )
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
+from app.utils.rbac import check_search_space_access
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,10 @@ def get_token_encryption() -> TokenEncryption:
 
 
 @router.get("/auth/slack/connector/add")
-async def connect_slack(space_id: int, user: User = Depends(current_active_user)):
+async def connect_slack(
+    space_id: int,
+    auth: AuthContext = Depends(require_session_context),
+):
     """
     Initiate Slack OAuth flow.
 
@@ -89,6 +93,7 @@ async def connect_slack(space_id: int, user: User = Depends(current_active_user)
     Returns:
         Authorization URL for redirect
     """
+    user = auth.user
     try:
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
@@ -525,7 +530,7 @@ async def refresh_slack_token(
 async def get_slack_channels(
     connector_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> list[dict[str, Any]]:
     """
     Get list of Slack channels with bot membership status.
@@ -541,6 +546,7 @@ async def get_slack_channels(
     Returns:
         List of channels with id, name, is_private, and is_member fields
     """
+    user = auth.user
     try:
         # Get the connector and verify ownership
         result = await session.execute(
@@ -558,6 +564,8 @@ async def get_slack_channels(
                 status_code=404,
                 detail="Slack connector not found or access denied",
             )
+
+        await check_search_space_access(session, auth, connector.search_space_id)
 
         # Get credentials and decrypt bot token
         credentials = SlackAuthCredentialsBase.from_dict(connector.config)

@@ -1,9 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { BUILD_TIME_AUTH_TYPE } from "@/lib/env-config";
-import {
-	RUNTIME_AUTH_TYPE_COOKIE_NAME,
-	resolveRuntimeAuthUiMode,
-} from "@/lib/runtime-auth-config";
+import { RUNTIME_AUTH_TYPE_COOKIE_NAME, resolveRuntimeAuthUiMode } from "@/lib/runtime-auth-config";
 
 export function proxy(request: NextRequest) {
 	const response = NextResponse.next();
