@@ -916,7 +916,7 @@ class Config:
 
     # JWT Token Lifetimes
     ACCESS_TOKEN_LIFETIME_SECONDS = int(
-        os.getenv("ACCESS_TOKEN_LIFETIME_SECONDS", str(30 * 60))  # 30 minutes
+        os.getenv("ACCESS_TOKEN_LIFETIME_SECONDS", str(60 * 60))  # 60 minutes
     )
     MIN_ISSUED_AT = int(os.getenv("MIN_ISSUED_AT", "0"))
     REFRESH_TOKEN_LIFETIME_SECONDS = int(
