@@ -74,11 +74,6 @@ export const connectionUpdateRequest = z.object({
 	enabled: z.boolean().optional(),
 });
 
-export const modelCreateRequest = z.object({
-	model_id: z.string().min(1),
-	display_name: z.string().nullable().optional(),
-});
-
 export const modelUpdateRequest = z.object({
 	display_name: z.string().nullable().optional(),
 	enabled: z.boolean().optional(),
@@ -135,7 +130,6 @@ export type ConnectionRead = z.infer<typeof connectionRead>;
 export type ConnectionCreateRequest = z.infer<typeof connectionCreateRequest>;
 export type ModelTestPreviewRequest = z.infer<typeof modelTestPreviewRequest>;
 export type ConnectionUpdateRequest = z.infer<typeof connectionUpdateRequest>;
-export type ModelCreateRequest = z.infer<typeof modelCreateRequest>;
 export type ModelUpdateRequest = z.infer<typeof modelUpdateRequest>;
 export type ModelsBulkUpdateRequest = z.infer<typeof modelsBulkUpdateRequest>;
 export type ModelRoles = z.infer<typeof modelRoles>;

@@ -202,11 +202,6 @@ def _discovery_error_message(conn: Connection, exc: httpx.HTTPError) -> str:
     return _docker_hint(base_url, exc)
 
 
-def _allowlist(conn: Connection) -> set[str]:
-    raw = (conn.extra or {}).get("model_ids") or []
-    return {str(item).strip() for item in raw if str(item).strip()}
-
-
 def _litellm_info(model_string: str, model_id: str) -> dict[str, Any]:
     with contextlib.suppress(Exception):
         info = litellm.get_model_info(model=model_string)
@@ -438,7 +433,6 @@ async def _discover_bedrock_models(conn: Connection) -> list[dict[str, Any]]:
 
 
 async def discover_models(conn: Connection) -> list[dict[str, Any]]:
-    allowlist = _allowlist(conn)
     spec = spec_for(conn.provider)
 
     try:
@@ -459,8 +453,6 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
     except httpx.HTTPError as exc:
         raise ModelDiscoveryError(_discovery_error_message(conn, exc)) from exc
 
-    if allowlist:
-        results = [item for item in results if item["model_id"] in allowlist]
     return results
 
 

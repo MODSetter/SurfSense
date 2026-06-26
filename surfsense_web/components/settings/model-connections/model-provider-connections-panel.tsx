@@ -201,22 +201,6 @@ export function ModelProviderConnectionsPanel({
 		);
 	}
 
-	function addConnectModel(modelId: string) {
-		setConnectModels((current) => {
-			if (current.some((model) => model.model_id === modelId)) return current;
-			return [
-				...current,
-				{
-					model_id: modelId,
-					display_name: modelId,
-					source: "MANUAL",
-					enabled: true,
-					metadata: {},
-				},
-			];
-		});
-	}
-
 	function toggleConnectModel(model: SelectableModel, enabled: boolean) {
 		setConnectModels((current) =>
 			current.map((item) => (item.model_id === model.model_id ? { ...item, enabled } : item))
@@ -277,7 +261,6 @@ export function ModelProviderConnectionsPanel({
 				previewModels={connectModels}
 				isPreviewingModels={previewModels.isPending}
 				onPreviewModels={refreshConnectModels}
-				onAddPreviewModel={addConnectModel}
 				onTogglePreviewModel={toggleConnectModel}
 				onBulkTogglePreviewModels={bulkToggleConnectModels}
 			/>
