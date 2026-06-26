@@ -34,9 +34,9 @@ class Notification(BaseModel, TimestampMixin):
         ),
         # Serves the paginated inbox list query.
         Index(
-            "ix_notifications_user_space_created",
+            "ix_notifications_user_workspace_created",
             "user_id",
-            "search_space_id",
+            "workspace_id",
             "created_at",
         ),
     )
@@ -48,6 +48,7 @@ class Notification(BaseModel, TimestampMixin):
         index=True,
     )
     search_space_id = Column(
+        "workspace_id",
         Integer,
         ForeignKey("searchspaces.id", ondelete="CASCADE"),
         nullable=True,
