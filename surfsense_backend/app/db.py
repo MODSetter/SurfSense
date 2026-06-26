@@ -2102,7 +2102,7 @@ class SearchSpaceMembership(BaseModel, TimestampMixin):
     Each user can be a member of multiple search spaces with different roles.
     """
 
-    __tablename__ = "search_space_memberships"
+    __tablename__ = "workspace_memberships"
     __table_args__ = (
         UniqueConstraint(
             "user_id",
