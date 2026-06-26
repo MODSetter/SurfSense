@@ -54,7 +54,7 @@ The cleanest existing analogue to model against.
 
 ### Zero publication mechanics
 
-- `zero_publication.py`: `ZERO_PUBLICATION` map (`:71–82`) is the single source of truth; `None` ⇒ publish full row (e.g. `folders`, `search_source_connectors`), a list ⇒ column subset (e.g. `AUTOMATION_RUN_COLS` `:44–53`). `apply_publication(conn)` (`:151`) reconciles via `ALTER PUBLICATION ... SET TABLE`; a migration just calls it (template: `159_publish_podcasts_to_zero.py:21–22`). `_format_table_entry` omits a table until it physically exists with all its canonical columns (`:113–140`), so the migration **must create the tables before** calling `apply_publication`. The `_0_version` allowlist (`{"documents","user","podcasts"}`, `:106`) applies **only to column-list tables** — irrelevant here since we publish full-row.
+- `zero_publication.py`: `ZERO_PUBLICATION` map (`:81–94`; line numbers post-`main`-merge, which added `automations`/`new_chat_threads` entries) is the single source of truth; `None` ⇒ publish full row (e.g. `folders`, `search_source_connectors`), a list ⇒ column subset (e.g. `AUTOMATION_RUN_COLS` `:44–53`). `apply_publication(conn)` (`:163`) reconciles via `ALTER PUBLICATION ... SET TABLE`; a migration just calls it (template: `159_publish_podcasts_to_zero.py:21–22`). `_format_table_entry` omits a table until it physically exists with all its canonical columns (`:125–152`), so the migration **must create the tables before** calling `apply_publication`. The `_0_version` allowlist (`{"documents","user","podcasts"}`, `:118`) applies **only to column-list tables** — irrelevant here since we publish full-row.
 
 ### The meta-scheduler we coexist with (Phase-6 reuse target)
 
@@ -63,7 +63,7 @@ The cleanest existing analogue to model against.
 
 ### Alembic head
 
-Today's head is **`166`** (`alembic/versions/166_add_pat_and_api_access.py`; sequential integer-prefixed files). By the time Phase 5 is implemented, Phase 1 (rename) and Phase 4b (search-enum drop) have each added a migration ahead of `166`. **Set `down_revision` to the then-current head** — verify with `alembic heads`; do not hardcode `166`.
+As of the latest `main` sync the head is **`169`** (`alembic/versions/169_migrate_google_oauth_account_ids_to_sub.py`; chain `166→167→168→169`, sequential integer-prefixed files). By the time Phase 5 is implemented, Phase 1 (rename) and Phase 4b (search-enum drop) have each added a migration ahead of `169`. **Set `down_revision` to the then-current head** — verify with `alembic heads`; do not hardcode a number.
 
 ## Target design
 
@@ -241,14 +241,14 @@ class PipelineRunList(BaseModel):
 
 ### 6. Zero publication (`zero_publication.py`)
 
-Add to `ZERO_PUBLICATION` (`:71–82`), both **full-row**:
+Add to `ZERO_PUBLICATION` (`:81–94`), both **full-row**:
 
 ```python
     "pipelines": None,
     "pipeline_runs": None,
 ```
 
-Full-row (like `folders`/`search_source_connectors`) — no `_0_version` allowlist edit needed, no column-drift migrations later. (If a bulky column is ever added and must be excluded, switch that table to an explicit COLS list and handle the `_0_version` seam at `:106` then.) `verify_publication` will then expect both tables; the migration's `apply_publication` call (§4) reconciles them.
+Full-row (like `folders`/`search_source_connectors`) — no `_0_version` allowlist edit needed, no column-drift migrations later. (If a bulky column is ever added and must be excluded, switch that table to an explicit COLS list and handle the `_0_version` seam at `:118` then.) `verify_publication` will then expect both tables; the migration's `apply_publication` call (§4) reconciles them.
 
 > **Client sync is not live until the frontend lands (safe).** Publishing backend-side only makes the rows *available* to Zero; nothing syncs to a client until the (deferred) frontend Zero schema + permissions include these tables. Publishing now is harmless and matches the existing pattern (e.g. `automation_runs` was published by migration before/independent of its UI). This entry exists so the chat-agent run-history context (Phase 6) and a later Pipelines UI get push for free.
 
