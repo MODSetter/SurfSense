@@ -47,8 +47,7 @@ class Notification(BaseModel, TimestampMixin):
         nullable=False,
         index=True,
     )
-    search_space_id = Column(
-        "workspace_id",
+    workspace_id = Column(
         Integer,
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=True,
@@ -70,4 +69,4 @@ class Notification(BaseModel, TimestampMixin):
     )
 
     user = relationship("User", back_populates="notifications")
-    search_space = relationship("SearchSpace", back_populates="notifications")
+    workspace = relationship("Workspace", back_populates="notifications")

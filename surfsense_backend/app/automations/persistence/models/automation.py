@@ -24,8 +24,7 @@ from ..enums.automation_status import AutomationStatus
 class Automation(BaseModel, TimestampMixin):
     __tablename__ = "automations"
 
-    search_space_id = Column(
-        "workspace_id",
+    workspace_id = Column(
         Integer,
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
@@ -66,7 +65,7 @@ class Automation(BaseModel, TimestampMixin):
         index=True,
     )
 
-    search_space = relationship("SearchSpace", back_populates="automations")
+    workspace = relationship("Workspace", back_populates="automations")
     created_by = relationship("User", back_populates="automations")
     triggers = relationship(
         "AutomationTrigger",
