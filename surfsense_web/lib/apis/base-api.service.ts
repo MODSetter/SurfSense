@@ -1,4 +1,5 @@
 import type { ZodType } from "zod";
+import { getDesktopAccessToken } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { getClientPlatform } from "../agent-filesystem";
 import { handleUnauthorized, refreshSession } from "../auth-utils";
@@ -59,11 +60,6 @@ class BaseApiService {
 		return typeof window !== "undefined" && !!window.electronAPI;
 	}
 
-	private async getDesktopAccessToken(): Promise<string> {
-		if (!this.isDesktopClient) return "";
-		return (await window.electronAPI?.getAccessToken?.()) || "";
-	}
-
 	async request<T, R extends ResponseType = ResponseType.JSON>(
 		url: string,
 		responseSchema?: ZodType<T>,
@@ -90,7 +86,7 @@ class BaseApiService {
 				this.noAuthPrefixes.some((prefix) => url.startsWith(prefix)) ||
 				/^\/api\/v1\/invites\/[^/]+\/info$/.test(url);
 			const desktopAccessToken =
-				this.isDesktopClient && !isNoAuthEndpoint ? await this.getDesktopAccessToken() : "";
+				this.isDesktopClient && !isNoAuthEndpoint ? (await getDesktopAccessToken()) || "" : "";
 			const defaultOptions: RequestOptions = {
 				headers: {
 					...(desktopAccessToken ? { Authorization: `Bearer ${desktopAccessToken}` } : {}),
@@ -174,7 +170,9 @@ class BaseApiService {
 					} else if (!isNoAuthEndpoint && !isRefreshRetryBlocked(refreshRetryKey)) {
 						const refreshed = await refreshSession();
 						if (refreshed) {
-							const newToken = this.isDesktopClient ? await this.getDesktopAccessToken() : "";
+							const newToken = this.isDesktopClient
+								? (await getDesktopAccessToken({ forceRefresh: true })) || ""
+								: "";
 							return this.request(url, responseSchema, {
 								...mergedOptions,
 								headers: {
