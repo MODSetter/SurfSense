@@ -16,9 +16,8 @@ TEST_PASSWORD = "testpassword123"
 async def get_auth_token(client: httpx.AsyncClient) -> str:
     """Log in and return a Bearer JWT token, registering the user first if needed."""
     response = await client.post(
-        "/auth/jwt/login",
-        data={"username": TEST_EMAIL, "password": TEST_PASSWORD},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        "/auth/desktop/login",
+        json={"email": TEST_EMAIL, "password": TEST_PASSWORD},
     )
     if response.status_code == 200:
         return response.json()["access_token"]
@@ -32,9 +31,8 @@ async def get_auth_token(client: httpx.AsyncClient) -> str:
     )
 
     response = await client.post(
-        "/auth/jwt/login",
-        data={"username": TEST_EMAIL, "password": TEST_PASSWORD},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        "/auth/desktop/login",
+        json={"email": TEST_EMAIL, "password": TEST_PASSWORD},
     )
     assert response.status_code == 200, (
         f"Login after registration failed ({response.status_code}): {response.text}"

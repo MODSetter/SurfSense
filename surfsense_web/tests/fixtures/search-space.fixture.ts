@@ -22,26 +22,21 @@ export type SearchSpaceFixtures = {
 	searchSpace: SearchSpaceRow;
 };
 
-const STORAGE_KEY = "surfsense_bearer_token";
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "surfsense_session";
 
-// Reuse the token written by tests/auth.setup.ts; on cache miss we
+// Reuse the session cookie written by tests/auth.setup.ts; on cache miss we
 // mint a fresh one via /__e2e__/auth/token (rate-limit-free).
 const AUTH_STATE_PATH = path.join(__dirname, "..", "..", "playwright", ".auth", "user.json");
 
-function loadCachedBearerToken(): string | null {
+function loadCachedSessionToken(): string | null {
 	try {
 		const raw = fs.readFileSync(AUTH_STATE_PATH, "utf8");
 		const parsed = JSON.parse(raw) as {
-			origins?: Array<{
-				origin?: string;
-				localStorage?: Array<{ name?: string; value?: string }>;
-			}>;
+			cookies?: Array<{ name?: string; value?: string }>;
 		};
-		for (const origin of parsed.origins ?? []) {
-			for (const entry of origin.localStorage ?? []) {
-				if (entry.name === STORAGE_KEY && entry.value) {
-					return entry.value;
-				}
+		for (const cookie of parsed.cookies ?? []) {
+			if (cookie.name === SESSION_COOKIE_NAME && cookie.value) {
+				return cookie.value;
 			}
 		}
 	} catch {
@@ -53,7 +48,7 @@ function loadCachedBearerToken(): string | null {
 export const searchSpaceFixtures = base.extend<SearchSpaceFixtures, { apiTokenWorker: string }>({
 	apiTokenWorker: [
 		async ({ playwright }, use) => {
-			const cached = loadCachedBearerToken();
+			const cached = loadCachedSessionToken();
 			if (cached) {
 				await use(cached);
 				return;

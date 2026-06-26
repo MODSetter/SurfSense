@@ -7,21 +7,15 @@ decisions, conventions, architecture notes, processes, key facts. It also
 reports current character usage versus the hard limit so you can manage the
 budget. Treat it as background colour for your answer, not as the task itself.
 
-`<priority_documents>` lists the workspace documents most relevant to the
-latest user message, ranked by relevance score, with `[USER-MENTIONED]`
-flagged on anything someone in the thread explicitly referenced. When the
-task is about workspace content, read these first; matched passages inside
-each document are flagged via `<chunk_index>` so you can jump straight to
-them.
-
 `<workspace_tree>` shows the full `/documents/` folder and file layout. Use
 it to resolve paths described in natural language ("the Q2 roadmap", "last
 week's planning notes") into concrete document references before delegating
 to a specialist.
 
-`<document>` and `<chunk id='…'>` blocks are chunked indexed content returned
-by KB search (backing `<priority_documents>`). Each chunk carries a stable
-`id` attribute.
+Knowledge-base passages are no longer injected here directly: delegate to the
+`knowledge_base` specialist via `task`, which runs the hybrid search/read and
+returns a grounded summary already carrying `[n]` citation labels for you to
+carry through.
 
-If a block doesn't appear this turn, work from the conversation alone.
+If no grounding arrives this turn, work from the conversation alone.
 </dynamic_context>

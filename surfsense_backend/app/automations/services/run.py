@@ -6,9 +6,9 @@ from fastapi import Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.context import AuthContext
 from app.automations.persistence.models.automation import Automation
 from app.automations.persistence.models.run import AutomationRun
-from app.auth.context import AuthContext
 from app.db import Permission, get_async_session
 from app.users import get_auth_context
 from app.utils.rbac import check_permission

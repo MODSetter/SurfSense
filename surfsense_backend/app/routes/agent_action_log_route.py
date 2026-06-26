@@ -28,13 +28,12 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.context import AuthContext
 from app.agents.chat.multi_agent_chat.shared.feature_flags import get_flags
+from app.auth.context import AuthContext
 from app.db import (
     AgentActionLog,
     NewChatThread,
     Permission,
-    User,
     get_async_session,
 )
 from app.users import get_auth_context
@@ -114,7 +113,6 @@ async def list_thread_actions(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ) -> AgentActionListResponse:
-    user = auth.user
     """List agent actions for a thread, newest first.
 
     Authorization:

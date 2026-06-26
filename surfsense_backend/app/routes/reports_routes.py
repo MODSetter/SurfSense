@@ -33,7 +33,6 @@ from app.db import (
     Report,
     SearchSpace,
     SearchSpaceMembership,
-    User,
     get_async_session,
 )
 from app.schemas import ReportContentRead, ReportContentUpdate, ReportRead
@@ -161,7 +160,6 @@ async def _get_report_with_access(
     session: AsyncSession,
     auth: AuthContext,
 ) -> Report:
-    user = auth.user
     """Fetch a report and verify the user belongs to its search space.
 
     Raises HTTPException(404) if not found, HTTPException(403) if no access.

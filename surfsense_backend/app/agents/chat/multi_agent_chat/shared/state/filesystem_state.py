@@ -13,9 +13,8 @@ extra fields needed to implement Postgres-backed virtual filesystem semantics:
 * ``dirty_paths`` — paths whose state file content differs from DB.
 * ``dirty_path_tool_calls`` — sidecar map ``path -> latest tool_call_id`` for
   dirty paths; used to bind the per-path snapshot to an action_id.
-* ``kb_priority`` — top-K priority hints rendered into a system message.
-* ``kb_matched_chunk_ids`` — internal hand-off for matched-chunk highlighting.
 * ``kb_anon_doc`` — Redis-loaded anonymous document (if any).
+* ``citation_registry`` — per-conversation ``[n]`` -> source map for citations.
 * ``tree_version`` — bumped by persistence; invalidates the tree render cache.
 * ``workspace_tree_text`` — pre-rendered ``<workspace_tree>`` body for the turn.
 
@@ -30,9 +29,11 @@ from typing import Annotated, Any, NotRequired
 from deepagents.middleware.filesystem import FilesystemState
 from typing_extensions import TypedDict
 
+from app.agents.chat.multi_agent_chat.shared.citations import CitationRegistry
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import Receipt
 from app.agents.chat.multi_agent_chat.shared.state.reducers import (
     _add_unique_reducer,
+    _citation_registry_merge_reducer,
     _dict_merge_with_tombstones_reducer,
     _int_counter_merge_reducer,
     _list_append_reducer,
@@ -65,14 +66,6 @@ class PendingDelete(TypedDict, total=False):
 
     path: str
     tool_call_id: str
-
-
-class KbPriorityEntry(TypedDict, total=False):
-    path: str
-    score: float
-    document_id: int | None
-    title: str
-    mentioned: bool
 
 
 class KbAnonDoc(TypedDict, total=False):
@@ -159,14 +152,29 @@ class SurfSenseFilesystemState(FilesystemState):
     to the latest action_id (the one the user is most likely to revert).
     """
 
-    kb_priority: NotRequired[Annotated[list[KbPriorityEntry], _replace_reducer]]
-    """Top-K priority hints rendered as a system message before the user turn."""
-
-    kb_matched_chunk_ids: NotRequired[Annotated[dict[int, list[int]], _replace_reducer]]
-    """Internal: ``Document.id`` -> list of matched chunk IDs from hybrid search."""
-
     kb_anon_doc: NotRequired[Annotated[KbAnonDoc | None, _replace_reducer]]
     """Anonymous-session document loaded from Redis (read-only, no DB row)."""
+
+    citation_registry: NotRequired[
+        Annotated[CitationRegistry, _citation_registry_merge_reducer]
+    ]
+    """Per-conversation ``[n]`` -> source map; written by retrieval, read by the
+    normalizer. Merges (union, find-or-create) so parallel/subagent registrations
+    stay globally consistent instead of clobbering each other."""
+
+    mentioned_document_ids: NotRequired[Annotated[list[int], _replace_reducer]]
+    """``@``-mentioned ``Document.id`` pins for this turn.
+
+    Sourced from the per-invocation ``runtime.context`` on the main graph and
+    forwarded into subagent state by the ``task`` tool (subagents are not
+    compiled with a ``context_schema``). Read by ``search_knowledge_base`` to
+    confine retrieval to the pinned documents."""
+
+    mentioned_folder_ids: NotRequired[Annotated[list[int], _replace_reducer]]
+    """``@``-mentioned ``Folder.id`` pins for this turn.
+
+    Same provenance as :data:`mentioned_document_ids`; expanded to the folder's
+    documents by ``search_knowledge_base`` to scope retrieval."""
 
     tree_version: NotRequired[Annotated[int, _replace_reducer]]
     """Monotonically increasing counter; bumped when commits change the KB tree."""
@@ -206,7 +214,6 @@ class SurfSenseFilesystemState(FilesystemState):
 
 __all__ = [
     "KbAnonDoc",
-    "KbPriorityEntry",
     "PendingDelete",
     "PendingMove",
     "SurfSenseFilesystemState",

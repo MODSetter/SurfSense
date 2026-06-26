@@ -12,9 +12,15 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TranscriptTurn(BaseModel):
-    """A single spoken line by one speaker."""
+    """A single spoken line by one speaker.
 
-    model_config = ConfigDict(extra="forbid")
+    Drafting models (especially GPT-5-family) often decorate each turn with
+    extra keys like ``speaker_name``, ``emotion`` or ``tone``. The renderer only
+    needs ``speaker`` + ``text``, so unknown keys are ignored rather than
+    rejected — otherwise one stray field would fail the whole segment parse.
+    """
+
+    model_config = ConfigDict(extra="ignore")
 
     speaker: int = Field(..., ge=0, description="The PodcastSpec speaker slot speaking")
     text: str = Field(..., min_length=1)

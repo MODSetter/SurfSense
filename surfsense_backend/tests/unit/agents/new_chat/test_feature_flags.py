@@ -28,7 +28,6 @@ def _clear_all(monkeypatch: pytest.MonkeyPatch) -> None:
         "SURFSENSE_ENABLE_LLM_TOOL_SELECTOR",
         "SURFSENSE_ENABLE_SKILLS",
         "SURFSENSE_ENABLE_SPECIALIZED_SUBAGENTS",
-        "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE",
         "SURFSENSE_ENABLE_ACTION_LOG",
         "SURFSENSE_ENABLE_REVERT_ROUTE",
         "SURFSENSE_ENABLE_PLUGIN_LOADER",
@@ -57,7 +56,6 @@ def test_defaults_match_shipped_agent_stack(monkeypatch: pytest.MonkeyPatch) -> 
     assert flags.enable_llm_tool_selector is False
     assert flags.enable_skills is True
     assert flags.enable_specialized_subagents is True
-    assert flags.enable_kb_planner_runnable is True
     assert flags.enable_action_log is True
     assert flags.enable_revert_route is True
     assert flags.enable_plugin_loader is False
@@ -122,7 +120,6 @@ def test_each_flag_can_be_set_independently(monkeypatch: pytest.MonkeyPatch) -> 
         "enable_llm_tool_selector": "SURFSENSE_ENABLE_LLM_TOOL_SELECTOR",
         "enable_skills": "SURFSENSE_ENABLE_SKILLS",
         "enable_specialized_subagents": "SURFSENSE_ENABLE_SPECIALIZED_SUBAGENTS",
-        "enable_kb_planner_runnable": "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE",
         "enable_action_log": "SURFSENSE_ENABLE_ACTION_LOG",
         "enable_revert_route": "SURFSENSE_ENABLE_REVERT_ROUTE",
         "enable_plugin_loader": "SURFSENSE_ENABLE_PLUGIN_LOADER",

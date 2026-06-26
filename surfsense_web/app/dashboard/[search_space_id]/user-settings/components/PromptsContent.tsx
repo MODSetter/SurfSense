@@ -148,7 +148,7 @@ export function PromptsContent() {
 	const list = prompts ?? [];
 
 	return (
-		<div className="space-y-6 min-w-0 overflow-hidden">
+		<div className="space-y-6 min-w-0">
 			<div className="flex items-center justify-between">
 				<p className="text-sm text-muted-foreground">
 					Create prompt templates triggered with <ShortcutKbd keys={["/"]} className="ml-0" /> in
@@ -276,7 +276,7 @@ export function PromptsContent() {
 			</Dialog>
 
 			{isLoading && (
-				<div className="space-y-2">
+				<div className="-m-1 space-y-2 p-1">
 					{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
 						<Card key={key} className="border-accent bg-accent/20">
 							<CardContent className="p-4 flex flex-col gap-3 min-h-24">
@@ -308,7 +308,7 @@ export function PromptsContent() {
 			)}
 
 			{!isLoading && !isError && list.length > 0 && (
-				<div className="space-y-2">
+				<div className="-m-1 space-y-2 p-1">
 					{list.map((prompt) => (
 						<div
 							key={prompt.id}

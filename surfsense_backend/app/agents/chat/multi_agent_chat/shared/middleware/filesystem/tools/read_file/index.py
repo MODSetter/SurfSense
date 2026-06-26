@@ -4,14 +4,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Any
 
-from deepagents.backends.utils import format_read_response, validate_path
+from deepagents.backends.utils import (
+    create_file_data,
+    format_read_response,
+    validate_path,
+)
 from langchain.tools import ToolRuntime
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 
+from app.agents.chat.multi_agent_chat.shared.citations import load_registry
 from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.kb_postgres import (
     KBPostgresBackend,
+    render_full_document,
 )
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
@@ -55,10 +61,12 @@ def create_read_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
 
         backend = mw._get_backend(runtime)
         if isinstance(backend, KBPostgresBackend):
-            loaded = await backend._load_file_data(validated)
+            loaded = await backend.aload_document(validated)
             if loaded is None:
                 return f"Error: File '{validated}' not found"
-            file_data, doc_id = loaded
+            document, doc_id = loaded
+            registry = load_registry(runtime.state)
+            file_data = create_file_data(render_full_document(document, registry))
             rendered = format_read_response(file_data, offset, limit)
             update: dict[str, Any] = {
                 "files": {validated: file_data},
@@ -68,6 +76,7 @@ def create_read_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
                         tool_call_id=runtime.tool_call_id,
                     )
                 ],
+                "citation_registry": registry,
             }
             if doc_id is not None:
                 update["doc_id_by_path"] = {validated: doc_id}

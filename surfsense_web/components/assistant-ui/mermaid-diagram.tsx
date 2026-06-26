@@ -28,11 +28,7 @@ function initializeMermaid() {
 	mermaidInitialized = true;
 }
 
-function MermaidDiagramComponent({
-	source,
-	isDarkMode,
-	fallback,
-}: MermaidDiagramProps) {
+function MermaidDiagramComponent({ source, isDarkMode, fallback }: MermaidDiagramProps) {
 	const id = useId();
 	const [svg, setSvg] = useState<string | null>(null);
 	const [hasError, setHasError] = useState(false);
@@ -107,11 +103,7 @@ function MermaidDiagramComponent({
 					aria-label={hasCopied ? "Copied Mermaid source" : "Copy Mermaid source"}
 				>
 					<span className="sr-only">Copy Source</span>
-					{hasCopied ? (
-						<CheckIcon className="!size-3" />
-					) : (
-						<CopyIcon className="!size-3" />
-					)}
+					{hasCopied ? <CheckIcon className="!size-3" /> : <CopyIcon className="!size-3" />}
 				</Button>
 			</div>
 

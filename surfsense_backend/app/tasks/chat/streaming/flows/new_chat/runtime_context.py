@@ -22,7 +22,8 @@ def build_new_chat_runtime_context(
     request_id: str | None,
     turn_id: str,
 ) -> SurfSenseContextSchema:
-    """``mentioned_document_ids`` is consumed by ``KnowledgePriorityMiddleware``.
+    """``mentioned_document_ids`` is consumed by the ``search_knowledge_base``
+    tool (via ``referenced_document_ids``) to pin mentioned docs into scope.
 
     ``accepted_folder_ids`` (post-resolve) wins over the raw
     ``mentioned_folder_ids`` from the request: the resolver drops chips that

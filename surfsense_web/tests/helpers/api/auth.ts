@@ -1,11 +1,11 @@
 import type { APIRequestContext } from "@playwright/test";
 
 /**
- * Direct backend auth helper. Uses the same /auth/jwt/login endpoint the
- * UI uses; mirrors lib/apis/auth-api.service.ts.
+ * Direct backend auth helper. Uses the desktop login endpoint when the
+ * rate-limit-free e2e mint endpoint is unavailable.
  *
  * Returns a bearer token specs can attach to API calls when they don't
- * want to go through the browser. The browser-side auth (localStorage)
+ * want to go through the browser. The browser-side auth (cookie storage)
  * is set up separately by tests/auth.setup.ts.
  */
 
@@ -18,7 +18,7 @@ const E2E_MINT_SECRET = process.env.E2E_MINT_SECRET || "local-e2e-mint-secret-no
 /**
  * Mints a JWT for the seeded e2e user via the test-only endpoint mounted
  * by surfsense_backend/tests/e2e/run_backend.py. Bypasses the production
- * /auth/jwt/login rate limit (5/min/IP), so it's safe to call from any
+ * desktop login rate limit, so it's safe to call from any
  * worker / retry. Returns 404 from the backend when the endpoint isn't
  * mounted (i.e. someone is pointing the suite at a non-e2e backend).
  */
@@ -46,18 +46,17 @@ export async function mintTestToken(
 }
 
 export async function loginAsTestUser(request: APIRequestContext): Promise<string> {
-	const response = await request.post(`${BACKEND_URL}/auth/jwt/login`, {
-		form: {
-			username: TEST_USER_EMAIL,
+	const response = await request.post(`${BACKEND_URL}/auth/desktop/login`, {
+		data: {
+			email: TEST_USER_EMAIL,
 			password: TEST_USER_PASSWORD,
-			grant_type: "password",
 		},
-		headers: { "Content-Type": "application/x-www-form-urlencoded" },
+		headers: { "Content-Type": "application/json" },
 	});
 
 	if (!response.ok()) {
 		throw new Error(
-			`Login to ${BACKEND_URL}/auth/jwt/login failed (${response.status()}): ${await response.text()}`
+			`Login to ${BACKEND_URL}/auth/desktop/login failed (${response.status()}): ${await response.text()}`
 		);
 	}
 
@@ -70,7 +69,7 @@ export async function loginAsTestUser(request: APIRequestContext): Promise<strin
 
 /**
  * Get a bearer token by trying the rate-limit-free mint endpoint first
- * and falling back to /auth/jwt/login if the e2e endpoint isn't mounted
+ * and falling back to /auth/desktop/login if the e2e endpoint isn't mounted
  * (e.g. running against a non-e2e backend in local dev).
  */
 export async function acquireTestToken(request: APIRequestContext): Promise<string> {

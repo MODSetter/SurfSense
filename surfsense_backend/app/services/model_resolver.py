@@ -24,6 +24,21 @@ def ensure_v1(base_url: str | None) -> str | None:
     return f"{stripped}/v1"
 
 
+def strip_version_suffix(base_url: str | None) -> str | None:
+    """Drop a trailing ``/v1`` segment from a base URL.
+
+    Native SDK transports (e.g. Anthropic) expect the API root and append the
+    version path (``/v1/messages``) themselves. A base URL that already carries
+    ``/v1`` would otherwise produce ``/v1/v1/messages`` and a 404.
+    """
+    if not base_url:
+        return None
+    stripped = base_url.rstrip("/")
+    if stripped.endswith("/v1"):
+        return stripped[: -len("/v1")]
+    return stripped
+
+
 def _conn_value(conn: Connection | Mapping[str, Any], key: str) -> Any:
     if isinstance(conn, Mapping):
         return conn.get(key)
@@ -48,11 +63,14 @@ def to_litellm(
     prefix = spec.litellm_prefix or str(provider)
     model_string = f"{prefix}/{model_id}" if prefix else model_id
     if base_url:
-        api_base = (
-            ensure_v1(base_url)
-            if spec.transport == Transport.OPENAI_COMPATIBLE
-            else base_url.rstrip("/")
-        )
+        if spec.transport == Transport.OPENAI_COMPATIBLE:
+            api_base = ensure_v1(base_url)
+        elif provider == "anthropic":
+            # LiteLLM's Anthropic handler appends ``/v1/messages`` to api_base,
+            # so a base URL ending in ``/v1`` must be reduced to the API root.
+            api_base = strip_version_suffix(base_url)
+        else:
+            api_base = base_url.rstrip("/")
         kwargs["api_base"] = api_base
 
     if api_version := extra.get("api_version"):
@@ -90,5 +108,6 @@ def native_connection_from_config(config: Mapping[str, Any]) -> dict[str, Any]:
 __all__ = [
     "ensure_v1",
     "native_connection_from_config",
+    "strip_version_suffix",
     "to_litellm",
 ]

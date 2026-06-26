@@ -7,6 +7,9 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 
+from app.agents.chat.multi_agent_chat.shared.middleware.citation_state import (
+    build_citation_state_mw,
+)
 from app.agents.chat.multi_agent_chat.subagents.shared.md_file_reader import (
     read_md_file,
 )
@@ -31,6 +34,12 @@ def build_subagent(
         or "Handles research tasks for this workspace."
     )
     system_prompt = read_md_file(__package__, "system_prompt").strip()
+    # web_search registers WEB_RESULT citations via Command(update=...); the
+    # citation-state middleware declares the channel so those [n] merge back up.
+    middleware_with_citations = {
+        **(middleware_stack or {}),
+        "citation_state": build_citation_state_mw(),
+    }
     return pack_subagent(
         name=NAME,
         description=description,
@@ -39,5 +48,5 @@ def build_subagent(
         ruleset=RULESET,
         dependencies=dependencies,
         model=model,
-        middleware_stack=middleware_stack,
+        middleware_stack=middleware_with_citations,
     )

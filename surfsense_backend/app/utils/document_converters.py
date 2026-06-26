@@ -221,7 +221,11 @@ async def convert_element_to_markdown(element) -> str:
         "EmailAddress": lambda x: f"`{x}`",
         "Image": lambda x: f"![{x}]({x})",
         "PageBreak": lambda x: "\n---\n",
-        "Table": lambda x: f"```html\n{element.metadata['text_as_html']}\n```",
+        "Table": lambda x: (
+            f"```html\n{element.metadata['text_as_html']}\n```"
+            if element.metadata.get("text_as_html")
+            else x
+        ),
         "Header": lambda x: f"## {x}\n\n",
         "Footer": lambda x: f"*{x}*\n\n",
         "CodeSnippet": lambda x: f"```\n{x}\n```",

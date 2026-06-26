@@ -37,13 +37,4 @@ directory (`cwd`).
 - Cross-mount moves are not supported.
 - Desktop deletes hit disk immediately and cannot be undone via the
   agent's revert flow — confirm before calling `rm`/`rmdir`.
-
-## Priority List
-
-You may receive a `<priority_documents>` system message listing the top-K
-documents from the user's SurfSense knowledge base — these are cloud-ingested
-via connectors (Notion, Slack, etc.), not local files. Treat it as a hint:
-consult it when the task spans both local and cloud sources (e.g. drafting a
-local note from a Notion summary); skip when the task is purely about local
-files.
 """

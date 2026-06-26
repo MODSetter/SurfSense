@@ -2,16 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { getBearerToken } from "@/lib/auth-utils";
+import { useSession } from "@/hooks/use-session";
 
 export function AuthRedirect() {
 	const router = useRouter();
+	const session = useSession();
 
 	useEffect(() => {
-		if (getBearerToken()) {
+		if (session.status === "authenticated") {
 			router.replace("/dashboard");
 		}
-	}, [router]);
+	}, [router, session.status]);
 
 	return null;
 }

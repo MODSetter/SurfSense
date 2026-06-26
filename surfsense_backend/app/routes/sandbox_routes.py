@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.auth.context import AuthContext
-from app.db import NewChatThread, Permission, User, get_async_session
+from app.db import NewChatThread, Permission, get_async_session
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
@@ -50,7 +50,6 @@ async def download_sandbox_file(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Download a file from the Daytona sandbox associated with a chat thread."""
 
     from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox import (

@@ -30,7 +30,6 @@ from app.db import (
     ExternalChatHealthStatus,
     ExternalChatPeerKind,
     ExternalChatPlatform,
-    User,
     get_async_session,
 )
 from app.gateway.accounts import (
@@ -979,7 +978,6 @@ async def list_platforms(
 async def get_gateway_config(
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, bool | str]:
-    user = auth.user
     if not config.GATEWAY_ENABLED:
         return {
             "enabled": False,

@@ -1,12 +1,10 @@
 "use client";
 
-import { useAtom } from "jotai";
 import { Crop, Eye, EyeOff, Rocket, RotateCcw, Zap } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { DEFAULT_SHORTCUTS, keyEventToAccelerator } from "@/components/desktop/shortcut-recorder";
 import { useIsGoogleAuth } from "@/components/providers/runtime-config";
 import { Button } from "@/components/ui/button";
@@ -17,8 +15,7 @@ import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
-import { setBearerToken } from "@/lib/auth-utils";
-import { buildBackendUrl } from "@/lib/env-config";
+import { getPostLoginRedirectPath } from "@/lib/auth-utils";
 
 type ShortcutKey = "generalAssist" | "quickAsk" | "screenshotAssist";
 type ShortcutMap = typeof DEFAULT_SHORTCUTS;
@@ -190,12 +187,12 @@ export default function DesktopLoginPage() {
 	const router = useRouter();
 	const api = useElectronAPI();
 	const isGoogleAuth = useIsGoogleAuth();
-	const [{ mutateAsync: login, isPending: isLoggingIn }] = useAtom(loginMutationAtom);
 
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [loginError, setLoginError] = useState<string | null>(null);
+	const [isLoggingIn, setIsLoggingIn] = useState(false);
 	const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
 
 	const [shortcuts, setShortcuts] = useState(DEFAULT_SHORTCUTS);
@@ -237,10 +234,17 @@ export default function DesktopLoginPage() {
 		[updateShortcut]
 	);
 
-	const handleGoogleLogin = () => {
+	const handleGoogleLogin = async () => {
 		if (isGoogleRedirecting) return;
 		setIsGoogleRedirecting(true);
-		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
+		try {
+			await api?.startGoogleOAuth?.();
+			await autoSetSearchSpace();
+			router.push(getPostLoginRedirectPath());
+		} catch (error) {
+			setIsGoogleRedirecting(false);
+			toast.error(error instanceof Error ? error.message : "Google sign-in failed");
+		}
 	};
 
 	const autoSetSearchSpace = async () => {
@@ -259,23 +263,19 @@ export default function DesktopLoginPage() {
 	const handleLocalLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setLoginError(null);
+		if (isLoggingIn) return;
+		setIsLoggingIn(true);
 
 		try {
-			const data = await login({
-				username: email,
-				password,
-				grant_type: "password",
-			});
-
-			if (typeof window !== "undefined") {
-				sessionStorage.setItem("login_success_tracked", "true");
+			if (!api?.loginPassword) {
+				throw new Error("Desktop password login is not available");
 			}
+			await api.loginPassword(email, password);
 
-			setBearerToken(data.access_token);
 			await autoSetSearchSpace();
 
 			setTimeout(() => {
-				router.push(`/auth/callback?token=${data.access_token}`);
+				router.push(getPostLoginRedirectPath());
 			}, 300);
 		} catch (err) {
 			if (err instanceof Error) {
@@ -283,6 +283,8 @@ export default function DesktopLoginPage() {
 			} else {
 				setLoginError("Login failed. Please check your credentials.");
 			}
+		} finally {
+			setIsLoggingIn(false);
 		}
 	};
 

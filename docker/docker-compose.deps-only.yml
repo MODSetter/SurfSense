@@ -99,7 +99,7 @@ services:
   # container to run migrations, so you must run `uv run alembic upgrade head`
   # from `surfsense_backend/` on the host BEFORE `docker compose up -d`.
   zero-cache:
-    image: rocicorp/zero:1.4.0
+    image: rocicorp/zero:1.6.0
     ports:
       - "${ZERO_CACHE_PORT:-4848}:4848"
     extra_hosts:
@@ -120,6 +120,10 @@ services:
       - ZERO_CVR_MAX_CONNS=${ZERO_CVR_MAX_CONNS:-30}
       - ZERO_QUERY_URL=${ZERO_QUERY_URL:-http://host.docker.internal:3000/api/zero/query}
       - ZERO_MUTATE_URL=${ZERO_MUTATE_URL:-http://host.docker.internal:3000/api/zero/mutate}
+      - ZERO_QUERY_FORWARD_COOKIES=${ZERO_QUERY_FORWARD_COOKIES:-true}
+      - ZERO_QUERY_API_KEY=${ZERO_QUERY_API_KEY:-}
+      - ZERO_AUTH_REVALIDATE_INTERVAL_SECONDS=${ZERO_AUTH_REVALIDATE_INTERVAL_SECONDS:-60}
+      - ZERO_AUTH_RETRANSFORM_INTERVAL_SECONDS=${ZERO_AUTH_RETRANSFORM_INTERVAL_SECONDS:-60}
     volumes:
       - zero_cache_data:/data
     restart: unless-stopped

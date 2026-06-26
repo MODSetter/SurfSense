@@ -242,6 +242,7 @@ def create_generate_image_tool(
 
             # Update all image URLs in response_dict to be absolute (for the serving endpoint)
             from urllib.parse import urlparse
+
             for image in images:
                 if image.get("url"):
                     raw_url: str = image["url"]

@@ -20,6 +20,13 @@ export const newChatMessageTable = table("new_chat_messages")
 	})
 	.primaryKey("id");
 
+export const newChatThreadTable = table("new_chat_threads")
+	.columns({
+		id: number(),
+		searchSpaceId: number().from("search_space_id"),
+	})
+	.primaryKey("id");
+
 export const chatCommentTable = table("chat_comments")
 	.columns({
 		id: number(),

@@ -42,8 +42,15 @@ from langchain.tools import ToolRuntime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.document_xml import (
-    build_document_xml,
+from app.agents.chat.multi_agent_chat.shared.citations import (
+    CitationRegistry,
+    CitationSourceType,
+)
+from app.agents.chat.multi_agent_chat.shared.document_render import (
+    RenderableDocument,
+    RenderablePassage,
+    render_document,
+    source_label,
 )
 from app.agents.chat.runtime.path_resolver import (
     DOCUMENTS_ROOT,
@@ -58,6 +65,21 @@ logger = logging.getLogger(__name__)
 _TEMP_PREFIX = "temp_"
 _GREP_MAX_TOTAL_MATCHES = 50
 _GREP_MAX_PER_DOC = 5
+
+_EMPTY_DOCUMENT_NOTICE = "(This document has no readable content.)"
+
+
+def render_full_document(
+    document: RenderableDocument,
+    registry: CitationRegistry,
+) -> str:
+    """Render a whole KB document (``view="full"``), registering each chunk's ``[n]``.
+
+    Falls back to a short notice when the document has no chunks, so a read never
+    returns blank.
+    """
+    rendered = render_document(document, view="full", registry=registry)
+    return rendered if rendered is not None else _EMPTY_DOCUMENT_NOTICE
 
 
 def _basename(path: str) -> str:
@@ -126,13 +148,6 @@ class KBPostgresBackend(BackendProtocol):
     def _kb_anon_doc(self) -> dict[str, Any] | None:
         anon = self.state.get("kb_anon_doc")
         return anon if isinstance(anon, dict) else None
-
-    def _matched_chunk_ids(self, doc_id: int) -> set[int]:
-        mapping = self.state.get("kb_matched_chunk_ids") or {}
-        try:
-            return set(mapping.get(doc_id, []) or [])
-        except TypeError:
-            return set()
 
     @staticmethod
     def _file_data_size(file_data: dict[str, Any]) -> int:
@@ -466,80 +481,93 @@ class KBPostgresBackend(BackendProtocol):
     def read(self, file_path: str, offset: int = 0, limit: int = 2000) -> str:  # type: ignore[override]
         return asyncio.run(self.aread(file_path, offset, limit))
 
-    async def _load_file_data(
+    async def aload_document(
         self,
         path: str,
-    ) -> tuple[dict[str, Any], int | None] | None:
-        """Lazy-load a virtual KB document into a deepagents ``FileData``.
+    ) -> tuple[RenderableDocument, int | None] | None:
+        """Lazy-load a virtual KB document as a :class:`RenderableDocument`.
 
-        Returns ``(file_data, doc_id)`` or ``None`` if the path doesn't map
-        to any known document. ``doc_id`` is ``None`` for the synthetic
-        anonymous document so the caller doesn't track it as a DB-backed file.
+        Returns ``(document, doc_id)`` with every chunk in document order, or
+        ``None`` if the path maps to no known document. ``doc_id`` is ``None``
+        for the synthetic anonymous upload so the caller doesn't track it as a
+        DB-backed file. Pure data — rendering and citation registration happen in
+        the caller (see :meth:`_load_file_data` and the ``read_file`` tool).
         """
         anon = self._kb_anon_doc()
         if anon and str(anon.get("path") or "") == path:
-            doc_payload = {
-                "document_id": -1,
-                "chunks": list(anon.get("chunks") or []),
-                "matched_chunk_ids": [],
-                "document": {
-                    "id": -1,
-                    "title": anon.get("title") or "uploaded_document",
-                    "document_type": "FILE",
-                    "metadata": {"source": "anonymous_upload"},
-                },
-                "source": "FILE",
-            }
-            xml = build_document_xml(doc_payload, matched_chunk_ids=set())
-            file_data = create_file_data(xml)
-            return file_data, None
+            document = RenderableDocument(
+                title=str(anon.get("title") or "uploaded_document"),
+                source="Uploaded file",
+                passages=[
+                    RenderablePassage(
+                        content=str(chunk.get("content", "")),
+                        locator={
+                            "document_id": -1,
+                            "chunk_id": int(chunk["chunk_id"]),
+                        },
+                        source_type=CitationSourceType.ANON_CHUNK,
+                    )
+                    for chunk in (anon.get("chunks") or [])
+                    if isinstance(chunk, dict) and chunk.get("chunk_id") is not None
+                ],
+            )
+            return document, None
 
         if not path.startswith(DOCUMENTS_ROOT):
             return None
 
         async with shielded_async_session() as session:
-            document = await virtual_path_to_doc(
+            document_row = await virtual_path_to_doc(
                 session,
                 search_space_id=self.search_space_id,
                 virtual_path=path,
             )
-            if document is None:
+            if document_row is None:
                 return None
             chunk_rows = await session.execute(
                 select(Chunk.id, Chunk.content)
-                .where(Chunk.document_id == document.id)
+                .where(Chunk.document_id == document_row.id)
                 .order_by(Chunk.position, Chunk.id)
             )
-            chunks = [
-                {"chunk_id": row.id, "content": row.content} for row in chunk_rows.all()
-            ]
+            chunks = chunk_rows.all()
 
-        doc_payload = {
-            "document_id": document.id,
-            "chunks": chunks,
-            "matched_chunk_ids": list(self._matched_chunk_ids(document.id)),
-            "document": {
-                "id": document.id,
-                "title": document.title,
-                "document_type": (
-                    document.document_type.value
-                    if getattr(document, "document_type", None) is not None
-                    else "UNKNOWN"
-                ),
-                "metadata": dict(document.document_metadata or {}),
-            },
-            "source": (
-                document.document_type.value
-                if getattr(document, "document_type", None) is not None
-                else "UNKNOWN"
-            ),
-        }
-        xml = build_document_xml(
-            doc_payload,
-            matched_chunk_ids=self._matched_chunk_ids(document.id),
+        document_type = (
+            document_row.document_type.value
+            if getattr(document_row, "document_type", None) is not None
+            else None
         )
-        file_data = create_file_data(xml)
-        return file_data, document.id
+        metadata = dict(document_row.document_metadata or {})
+        document = RenderableDocument(
+            title=document_row.title,
+            source=source_label(document_type, metadata),
+            passages=[
+                RenderablePassage(
+                    content=row.content,
+                    locator={"document_id": document_row.id, "chunk_id": row.id},
+                )
+                for row in chunks
+            ],
+        )
+        return document, document_row.id
+
+    async def _load_file_data(
+        self,
+        path: str,
+    ) -> tuple[dict[str, Any], int | None] | None:
+        """Render a virtual KB document into a deepagents ``FileData``.
+
+        Used by the filesystem ops (move/edit existence + content staging) and the
+        backend's own ``aread``/``aedit``. These have no conversation registry to
+        persist into, so the ``[n]`` labels are minted into a throwaway registry —
+        the canonical, citation-persisting read is the ``read_file`` tool, which
+        renders from :meth:`aload_document` against the state registry.
+        """
+        loaded = await self.aload_document(path)
+        if loaded is None:
+            return None
+        document, doc_id = loaded
+        rendered = render_full_document(document, CitationRegistry())
+        return create_file_data(rendered), doc_id
 
     # ------------------------------------------------------------------ writes
 
@@ -1037,4 +1065,5 @@ __all__ = [
     "KBPostgresBackend",
     "list_tree_listing",
     "paginate_listing",
+    "render_full_document",
 ]

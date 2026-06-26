@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.db import Document, DocumentType, Permission, User, get_async_session
+from app.db import Document, DocumentType, Permission, get_async_session
 from app.schemas import DocumentRead, PaginatedResponse
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
@@ -102,7 +102,6 @@ async def list_notes(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     List all notes in a search space.
 
@@ -196,7 +195,6 @@ async def delete_note(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Delete a note.
 

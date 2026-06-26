@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.db import Permission, User, get_async_session
+from app.db import Permission, get_async_session
 from app.services.export_service import build_export_zip
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
@@ -27,7 +27,6 @@ async def export_knowledge_base(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Export documents as a ZIP of markdown files preserving folder structure."""
     await check_permission(
         session,

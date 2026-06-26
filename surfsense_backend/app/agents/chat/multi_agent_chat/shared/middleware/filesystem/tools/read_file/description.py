@@ -10,11 +10,11 @@ Usage:
 - By default, reads up to 100 lines from the beginning.
 - Use `offset` and `limit` for pagination when files are large.
 - Results include line numbers.
-- Documents contain a `<chunk_index>` near the top listing every chunk with
-  its line range and a `matched="true"` flag for search-relevant chunks.
-  Read the index first, then jump to matched chunks with
-  `read_file(path, offset=<start_line>, limit=<num_lines>)`.
-- Use chunk IDs (`<chunk id='...'>`) as citations in answers.
+- A knowledge-base document is returned as a `<document … view="full">` block:
+  the whole source, with each passage labelled `[n]`. `view="full"` means you are
+  seeing the complete document, not an excerpt.
+- Cite a passage by writing its `[n]` after the statement it supports — the same
+  `[n]` you would use for that passage from `search_knowledge_base`.
 """
 
 

@@ -77,7 +77,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        "ALTER TABLE searchspaces DROP COLUMN IF EXISTS api_access_enabled"
-    )
+    op.execute("ALTER TABLE searchspaces DROP COLUMN IF EXISTS api_access_enabled")
     op.execute("DROP TABLE IF EXISTS personal_access_tokens")

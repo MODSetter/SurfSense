@@ -101,7 +101,6 @@ async def request_pairing_code(
 async def bridge_health(
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
-    user = auth.user
     _ensure_baileys_enabled()
     adapter = WhatsAppBaileysAdapter()
     try:

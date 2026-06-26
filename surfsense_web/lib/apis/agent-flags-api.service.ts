@@ -19,7 +19,6 @@ const AgentFeatureFlagsSchema = z.object({
 
 	enable_skills: z.boolean(),
 	enable_specialized_subagents: z.boolean(),
-	enable_kb_planner_runnable: z.boolean(),
 
 	enable_action_log: z.boolean(),
 	enable_revert_route: z.boolean(),

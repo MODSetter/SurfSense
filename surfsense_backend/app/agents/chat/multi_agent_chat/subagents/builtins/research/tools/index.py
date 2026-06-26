@@ -7,9 +7,9 @@ from typing import Any
 from langchain_core.tools import BaseTool
 
 from app.agents.chat.multi_agent_chat.shared.permissions import Ruleset
+from app.agents.chat.shared.tools.web_search import create_web_search_tool
 
 from .scrape_webpage import create_scrape_webpage_tool
-from .web_search import create_web_search_tool
 
 NAME = "research"
 

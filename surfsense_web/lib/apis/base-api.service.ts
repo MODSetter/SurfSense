@@ -1,7 +1,7 @@
 import type { ZodType } from "zod";
 import { buildBackendUrl } from "@/lib/env-config";
 import { getClientPlatform } from "../agent-filesystem";
-import { getBearerToken, handleUnauthorized, refreshAccessToken } from "../auth-utils";
+import { handleUnauthorized, refreshSession } from "../auth-utils";
 import {
 	AbortedError,
 	AppError,
@@ -19,6 +19,25 @@ enum ResponseType {
 	// Add more response types as needed
 }
 
+const REFRESH_RETRY_BLOCK_MS = 30_000;
+const refreshRetryBlockedUntil = new Map<string, number>();
+
+function getRefreshRetryKey(method: RequestOptions["method"], url: string): string {
+	return `${method}:${url}`;
+}
+
+function isRefreshRetryBlocked(key: string): boolean {
+	const blockedUntil = refreshRetryBlockedUntil.get(key);
+	if (!blockedUntil) return false;
+	if (Date.now() < blockedUntil) return true;
+	refreshRetryBlockedUntil.delete(key);
+	return false;
+}
+
+function blockRefreshRetry(key: string): void {
+	refreshRetryBlockedUntil.set(key, Date.now() + REFRESH_RETRY_BLOCK_MS);
+}
+
 export type RequestOptions = {
 	method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 	headers?: Record<string, string>;
@@ -31,21 +50,18 @@ export type RequestOptions = {
 };
 
 class BaseApiService {
-	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/refresh"];
+	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/jwt/refresh"];
 
 	// Prefixes that don't require auth (checked with startsWith)
 	noAuthPrefixes: string[] = ["/api/v1/public/"];
 
-	// Use a getter to always read fresh token from localStorage
-	// This ensures the token is always up-to-date after login/logout
-	get bearerToken(): string {
-		return typeof window !== "undefined" ? getBearerToken() || "" : "";
+	get isDesktopClient(): boolean {
+		return typeof window !== "undefined" && !!window.electronAPI;
 	}
 
-	// Keep for backward compatibility, but token is now always read from localStorage
-	setBearerToken(_bearerToken: string) {
-		void _bearerToken;
-		// No-op: token is now always read fresh from localStorage via the getter
+	private async getDesktopAccessToken(): Promise<string> {
+		if (!this.isDesktopClient) return "";
+		return (await window.electronAPI?.getAccessToken?.()) || "";
 	}
 
 	async request<T, R extends ResponseType = ResponseType.JSON>(
@@ -69,9 +85,15 @@ class BaseApiService {
 			 * REQUEST
 			 * ----------
 			 */
+			const isNoAuthEndpoint =
+				this.noAuthEndpoints.includes(url) ||
+				this.noAuthPrefixes.some((prefix) => url.startsWith(prefix)) ||
+				/^\/api\/v1\/invites\/[^/]+\/info$/.test(url);
+			const desktopAccessToken =
+				this.isDesktopClient && !isNoAuthEndpoint ? await this.getDesktopAccessToken() : "";
 			const defaultOptions: RequestOptions = {
 				headers: {
-					Authorization: `Bearer ${this.bearerToken || ""}`,
+					...(desktopAccessToken ? { Authorization: `Bearer ${desktopAccessToken}` } : {}),
 					"X-SurfSense-Client-Platform":
 						typeof window === "undefined" ? "web" : getClientPlatform(),
 				},
@@ -88,12 +110,8 @@ class BaseApiService {
 				},
 			};
 
-			// Validate the bearer token
-			const isNoAuthEndpoint =
-				this.noAuthEndpoints.includes(url) ||
-				this.noAuthPrefixes.some((prefix) => url.startsWith(prefix)) ||
-				/^\/api\/v1\/invites\/[^/]+\/info$/.test(url);
-			if (!this.bearerToken && !isNoAuthEndpoint) {
+			const refreshRetryKey = getRefreshRetryKey(mergedOptions.method, url);
+			if (this.isDesktopClient && !desktopAccessToken && !isNoAuthEndpoint) {
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
 
@@ -104,6 +122,7 @@ class BaseApiService {
 				method: mergedOptions.method,
 				headers: mergedOptions.headers,
 				signal: mergedOptions.signal,
+				credentials: "include",
 			};
 
 			// Automatically stringify body if Content-Type is application/json and body is an object
@@ -150,18 +169,22 @@ class BaseApiService {
 
 				// Handle 401 - try to refresh token first (only once)
 				if (response.status === 401) {
-					if (!options?._isRetry) {
-						const newToken = await refreshAccessToken();
-						if (newToken) {
+					if (options?._isRetry) {
+						blockRefreshRetry(refreshRetryKey);
+					} else if (!isNoAuthEndpoint && !isRefreshRetryBlocked(refreshRetryKey)) {
+						const refreshed = await refreshSession();
+						if (refreshed) {
+							const newToken = this.isDesktopClient ? await this.getDesktopAccessToken() : "";
 							return this.request(url, responseSchema, {
 								...mergedOptions,
 								headers: {
 									...mergedOptions.headers,
-									Authorization: `Bearer ${newToken}`,
+									...(this.isDesktopClient ? { Authorization: `Bearer ${newToken}` } : {}),
 								},
 								_isRetry: true,
 							} as RequestOptions & { responseType?: R });
 						}
+						blockRefreshRetry(refreshRetryKey);
 					}
 					handleUnauthorized();
 					throw new AuthenticationError(
@@ -196,6 +219,7 @@ class BaseApiService {
 						);
 				}
 			}
+			refreshRetryBlockedUntil.delete(getRefreshRetryKey(mergedOptions.method, url));
 
 			// biome-ignore lint/suspicious: Unknown
 			let data;
@@ -381,7 +405,6 @@ class BaseApiService {
 			...options,
 			headers: {
 				// Don't set Content-Type - let browser set it with multipart boundary
-				Authorization: `Bearer ${this.bearerToken}`,
 				...headersWithoutContentType,
 			},
 			responseType: ResponseType.JSON,

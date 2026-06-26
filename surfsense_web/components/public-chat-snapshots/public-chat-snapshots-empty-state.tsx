@@ -1,12 +1,10 @@
-import { Link2Off } from "lucide-react";
-
 interface PublicChatSnapshotsEmptyStateProps {
 	title?: string;
 	description?: string;
 }
 
 export function PublicChatSnapshotsEmptyState({
-	title = "No public chat links",
+	title = "No public chats",
 	description = "When you create public links to share chats, they will appear here.",
 }: PublicChatSnapshotsEmptyStateProps) {
 	return (

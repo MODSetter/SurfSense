@@ -325,7 +325,9 @@ async def _assert_connection_access(
 
 
 @router.get("/global-llm-config-status")
-async def global_llm_config_status(auth: AuthContext = Depends(require_session_context)):
+async def global_llm_config_status(
+    auth: AuthContext = Depends(require_session_context),
+):
     del auth
     return {"exists": config.GLOBAL_LLM_CONFIG_FILE_EXISTS}
 

@@ -125,12 +125,6 @@ const FLAG_GROUPS: FlagGroup[] = [
 				description: "Spin up explore / report_writer / connector_negotiator subagents.",
 				envVar: "SURFSENSE_ENABLE_SPECIALIZED_SUBAGENTS",
 			},
-			{
-				key: "enable_kb_planner_runnable",
-				label: "KB planner runnable",
-				description: "Compile a private planner sub-agent for KB search.",
-				envVar: "SURFSENSE_ENABLE_KB_PLANNER_RUNNABLE",
-			},
 		],
 	},
 	{

@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
 		headers: {
 			Authorization: request.headers.get("authorization") || "",
 			"X-API-Key": request.headers.get("x-api-key") || "",
+			Cookie: request.headers.get("cookie") || "",
 		},
 		cache: "no-store",
 	});

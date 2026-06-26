@@ -4,19 +4,39 @@ Web search tool for the SurfSense agent.
 Provides a unified tool for real-time web searches that dispatches to all
 configured search engines: the platform SearXNG instance (always available)
 plus any user-configured live-search connectors (Tavily, Linkup, Baidu).
+
+Each result is registered into the conversation citation registry as a
+``WEB_RESULT`` and rendered with a server-assigned ``[n]`` label, so the model
+cites the web exactly like the knowledge base — one ``[n]`` spine, no special
+web citation form.
 """
 
-import asyncio
-import json
-import time
-from typing import Any
+from __future__ import annotations
 
-from langchain_core.tools import StructuredTool
-from pydantic import BaseModel, Field
+import asyncio
+import time
+from typing import TYPE_CHECKING, Annotated, Any
+from urllib.parse import urlparse
+
+from langchain.tools import ToolRuntime
+from langchain_core.messages import ToolMessage
+from langchain_core.tools import BaseTool, StructuredTool
+from langgraph.types import Command
 
 from app.db import shielded_async_session
 from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
+
+if TYPE_CHECKING:
+    from app.agents.chat.multi_agent_chat.shared.document_render import (
+        RenderableDocument,
+    )
+
+# NOTE: imports from ``app.agents.chat.multi_agent_chat`` are done lazily inside
+# the functions below. This module lives under ``app.agents.chat.shared`` but is
+# imported during the ``multi_agent_chat`` package's own init cascade (via the
+# research subagent); importing that package at module load would re-enter a
+# partially-initialized module. Lazy imports break that cycle.
 
 _LIVE_SEARCH_CONNECTORS: set[str] = {
     "TAVILY_API",
@@ -37,28 +57,29 @@ _CONNECTOR_LABELS: dict[str, str] = {
 }
 
 
-class WebSearchInput(BaseModel):
-    """Input schema for the web_search tool."""
-
-    query: str = Field(
-        description="The search query to look up on the web. Use specific, descriptive terms.",
-    )
-    top_k: int = Field(
-        default=10,
-        description="Number of results to retrieve (default: 10, max: 50).",
-    )
+def _web_source_label(url: str) -> str:
+    """A compact, human-readable source for the ``<document source=…>`` attr."""
+    domain = urlparse(url).netloc.removeprefix("www.") if url else ""
+    return f"Web · {domain}" if domain else "Web"
 
 
-def _format_web_results(
+def _to_renderable_web_documents(
     documents: list[dict[str, Any]],
     *,
     max_chars: int = 50_000,
-) -> str:
-    """Format web search results into XML suitable for the LLM context."""
-    if not documents:
-        return "No web search results found."
+) -> list[RenderableDocument]:
+    """Map raw web results to renderable documents, one passage (the snippet) each.
 
-    parts: list[str] = []
+    A result with no URL is skipped: ``url`` is the citation locator, so without
+    it the result cannot be registered or resolved.
+    """
+    from app.agents.chat.multi_agent_chat.shared.citations import CitationSourceType
+    from app.agents.chat.multi_agent_chat.shared.document_render import (
+        RenderableDocument,
+        RenderablePassage,
+    )
+
+    renderables: list[RenderableDocument] = []
     total_chars = 0
 
     for doc in documents:
@@ -67,36 +88,28 @@ def _format_web_results(
         title = doc_info.get("title") or "Web Result"
         url = metadata.get("url") or ""
         content = (doc.get("content") or "").strip()
-        source = metadata.get("document_type") or doc.get("source") or "WEB_SEARCH"
-        if not content:
+        if not content or not url:
             continue
 
-        metadata_json = json.dumps(metadata, ensure_ascii=False)
-        doc_xml = "\n".join(
-            [
-                "<document>",
-                "<document_metadata>",
-                f"  <document_type>{source}</document_type>",
-                f"  <title><![CDATA[{title}]]></title>",
-                f"  <url><![CDATA[{url}]]></url>",
-                f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>",
-                "</document_metadata>",
-                "<document_content>",
-                f"  <chunk id='{url}'><![CDATA[{content}]]></chunk>",
-                "</document_content>",
-                "</document>",
-                "",
-            ]
-        )
-
-        if total_chars + len(doc_xml) > max_chars:
-            parts.append("<!-- Output truncated to fit context window -->")
+        total_chars += len(content)
+        if total_chars > max_chars:
             break
 
-        parts.append(doc_xml)
-        total_chars += len(doc_xml)
+        renderables.append(
+            RenderableDocument(
+                title=title,
+                source=_web_source_label(url),
+                passages=[
+                    RenderablePassage(
+                        content=content,
+                        locator={"url": url},
+                        source_type=CitationSourceType.WEB_RESULT,
+                    )
+                ],
+            )
+        )
 
-    return "\n".join(parts).strip() or "No web search results found."
+    return renderables
 
 
 async def _search_live_connector(
@@ -141,7 +154,7 @@ async def _search_live_connector(
 def create_web_search_tool(
     search_space_id: int | None = None,
     available_connectors: list[str] | None = None,
-) -> StructuredTool:
+) -> BaseTool:
     """Factory for the ``web_search`` tool.
 
     Dispatches in parallel to the platform SearXNG instance and any
@@ -168,7 +181,17 @@ def create_web_search_tool(
     _search_space_id = search_space_id
     _active_live = active_live_connectors
 
-    async def _web_search_impl(query: str, top_k: int = 10) -> str:
+    async def _web_search_impl(
+        query: Annotated[
+            str,
+            "The search query to look up on the web. Use specific, descriptive terms.",
+        ],
+        runtime: ToolRuntime,
+        top_k: Annotated[
+            int,
+            "Number of results to retrieve (default: 10, max: 50).",
+        ] = 10,
+    ) -> Command | str:
         from app.services import web_search_service
 
         perf = get_perf_logger()
@@ -226,22 +249,39 @@ def create_web_search_tool(
                 seen_urls.add(url)
             deduplicated.append(doc)
 
-        formatted = _format_web_results(deduplicated)
+        from app.agents.chat.multi_agent_chat.shared.citations import load_registry
+        from app.agents.chat.multi_agent_chat.shared.document_render import (
+            render_web_results,
+        )
+
+        registry = load_registry(getattr(runtime, "state", None))
+        renderables = _to_renderable_web_documents(deduplicated)
+        rendered = render_web_results(renderables, registry)
 
         perf.info(
-            "[web_search] query=%r engines=%d results=%d deduped=%d chars=%d in %.3fs",
+            "[web_search] query=%r engines=%d results=%d deduped=%d renderable=%d in %.3fs",
             query[:60],
             len(tasks),
             len(all_documents),
             len(deduplicated),
-            len(formatted),
+            len(renderables),
             time.perf_counter() - t0,
         )
-        return formatted
 
-    return StructuredTool(
+        if rendered is None:
+            return "No web search results found."
+
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(content=rendered, tool_call_id=runtime.tool_call_id)
+                ],
+                "citation_registry": registry,
+            }
+        )
+
+    return StructuredTool.from_function(
         name="web_search",
         description=description,
         coroutine=_web_search_impl,
-        args_schema=WebSearchInput,
     )

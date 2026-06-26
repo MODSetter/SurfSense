@@ -1,7 +1,8 @@
-"""Research-stage tools: web search and scrape."""
+"""Research-stage tools: web search (shared) and scrape."""
+
+from app.agents.chat.shared.tools.web_search import create_web_search_tool
 
 from .scrape_webpage import create_scrape_webpage_tool
-from .web_search import create_web_search_tool
 
 __all__ = [
     "create_scrape_webpage_tool",

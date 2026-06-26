@@ -19,7 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.db import Chunk, Document, DocumentType, Permission, User, get_async_session
+from app.db import Chunk, Document, DocumentType, Permission, get_async_session
 from app.routes.reports_routes import (
     _FILE_EXTENSIONS,
     _MEDIA_TYPES,
@@ -50,7 +50,6 @@ async def get_editor_content(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Get document content for editing.
 
@@ -182,7 +181,6 @@ async def download_document_markdown(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Download the full document content as a .md file.
     Reconstructs markdown from source_markdown or chunks.
@@ -337,7 +335,6 @@ async def export_document(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Export a document in the requested format (reuses the report export pipeline)."""
     await check_permission(
         session,
