@@ -762,7 +762,7 @@ class Config:
     TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
 
     # Auth
-    AUTH_TYPE = os.getenv("AUTH_TYPE")
+    AUTH_TYPE = os.getenv("AUTH_TYPE", "LOCAL")
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"
 
     # Google OAuth
