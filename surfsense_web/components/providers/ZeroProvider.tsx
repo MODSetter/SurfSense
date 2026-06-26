@@ -8,7 +8,7 @@ import {
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "@/hooks/use-session";
-import { getDesktopAccessToken } from "@/lib/auth-fetch";
+import { authenticatedFetch, getDesktopAccessToken } from "@/lib/auth-fetch";
 import { handleUnauthorized, isPublicRoute, refreshSession } from "@/lib/auth-utils";
 import { buildBackendUrl } from "@/lib/env-config";
 import type { Context } from "@/types/zero";
@@ -31,46 +31,14 @@ function getCacheURL() {
 }
 
 async function fetchZeroContext(isDesktop: boolean): Promise<LoadedZeroContext | null> {
-	const buildHeaders = async (
-		forceRefresh = false
-	): Promise<{ headers: HeadersInit; desktopAuth?: string } | null> => {
-		const headers: HeadersInit = {};
-
-		if (isDesktop) {
-			const token = await getDesktopAccessToken({ forceRefresh });
-			if (!token) return null;
-			headers.Authorization = `Bearer ${token}`;
-			return { headers, desktopAuth: token };
-		}
-
-		return { headers };
-	};
-
-	const request = async (forceRefresh = false) => {
-		const auth = await buildHeaders(forceRefresh);
-		if (!auth) return null;
-		const response = await fetch(buildBackendUrl("/zero/context"), {
-			credentials: "include",
-			headers: auth.headers,
-		});
-		return { response, desktopAuth: auth.desktopAuth };
-	};
-
-	let result = await request();
-	if (result?.response.status === 401) {
-		const refreshed = await refreshSession();
-		if (refreshed) {
-			result = await request(true);
-		}
-	}
-
-	if (!result) return null;
-	const { response, desktopAuth } = result;
+	const response = await authenticatedFetch(buildBackendUrl("/zero/context"), {
+		skipAuthRedirect: true,
+	});
 	if (!response.ok) return null;
 
 	return {
 		context: (await response.json()) as ZeroContext,
-		desktopAuth,
+		desktopAuth: isDesktop ? (await getDesktopAccessToken()) || undefined : undefined,
 	};
 }
 
@@ -126,7 +94,7 @@ function ZeroAuthSync({ isDesktop }: { isDesktop: boolean }) {
 					}
 
 					if (isDesktop) {
-						const newToken = await getDesktopAccessToken();
+						const newToken = await getDesktopAccessToken({ forceRefresh: true });
 						if (!newToken) {
 							handleUnauthorized();
 							return;
