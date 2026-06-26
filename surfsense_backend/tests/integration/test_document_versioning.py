@@ -7,14 +7,14 @@ import pytest_asyncio
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Document, DocumentType, DocumentVersion, SearchSpace, User
+from app.db import Document, DocumentType, DocumentVersion, Workspace, User
 
 pytestmark = pytest.mark.integration
 
 
 @pytest_asyncio.fixture
 async def db_document(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ) -> Document:
     doc = Document(
         title="Test Doc",
@@ -24,7 +24,7 @@ async def db_document(
         content_hash="abc123",
         unique_identifier_hash="local_folder:test-folder:test.md",
         source_markdown="# Test\n\nOriginal content.",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         created_by_id=db_user.id,
     )
     db_session.add(doc)

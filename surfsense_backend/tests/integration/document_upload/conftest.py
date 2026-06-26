@@ -34,7 +34,7 @@ from tests.utils.helpers import (
     auth_headers,
     delete_document,
     get_auth_token,
-    get_search_space_id,
+    get_workspace_id,
 )
 
 limiter.enabled = False
@@ -66,7 +66,7 @@ class InlineTaskDispatcher:
         document_id: int,
         temp_path: str,
         filename: str,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str,
         use_vision_llm: bool = False,
         processing_mode: str = "basic",
@@ -80,7 +80,7 @@ class InlineTaskDispatcher:
                 document_id,
                 temp_path,
                 filename,
-                search_space_id,
+                workspace_id,
                 user_id,
                 use_vision_llm=use_vision_llm,
                 processing_mode=processing_mode,
@@ -107,7 +107,7 @@ async def _ensure_tables():
 
 
 # ---------------------------------------------------------------------------
-# Auth & search space (session-scoped, via the in-process app)
+# Auth & workspace (session-scoped, via the in-process app)
 # ---------------------------------------------------------------------------
 
 
@@ -121,12 +121,12 @@ async def auth_token(_ensure_tables) -> str:
 
 
 @pytest.fixture(scope="session")
-async def search_space_id(auth_token: str) -> int:
-    """Discover the first search space belonging to the test user."""
+async def workspace_id(auth_token: str) -> int:
+    """Discover the first workspace belonging to the test user."""
     async with httpx.AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test", timeout=30.0
     ) as c:
-        return await get_search_space_id(c, auth_token)
+        return await get_workspace_id(c, auth_token)
 
 
 @pytest.fixture(scope="session")
@@ -155,19 +155,19 @@ def cleanup_doc_ids() -> list[int]:
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def _purge_test_search_space(search_space_id: int):
+async def _purge_test_workspace(workspace_id: int):
     """Delete stale documents from previous runs before the session starts."""
     conn = await asyncpg.connect(_ASYNCPG_URL)
     try:
         result = await conn.execute(
             "DELETE FROM documents WHERE workspace_id = $1",
-            search_space_id,
+            workspace_id,
         )
         deleted = int(result.split()[-1])
         if deleted:
             print(
                 f"\n[purge] Deleted {deleted} stale document(s) "
-                f"from search space {search_space_id}"
+                f"from workspace {workspace_id}"
             )
     finally:
         await conn.close()

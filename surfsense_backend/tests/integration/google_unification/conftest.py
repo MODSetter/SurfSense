@@ -18,7 +18,7 @@ from app.db import (
     DocumentType,
     SearchSourceConnector,
     SearchSourceConnectorType,
-    SearchSpace,
+    Workspace,
     User,
 )
 
@@ -31,7 +31,7 @@ def make_document(
     title: str,
     document_type: DocumentType,
     content: str,
-    search_space_id: int,
+    workspace_id: int,
     created_by_id: str,
 ) -> Document:
     """Build a Document instance with unique hashes and a dummy embedding."""
@@ -43,7 +43,7 @@ def make_document(
         content_hash=f"content-{uid}",
         unique_identifier_hash=f"uid-{uid}",
         source_markdown=content,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         created_by_id=created_by_id,
         embedding=DUMMY_EMBEDDING,
         updated_at=datetime.now(UTC),
@@ -66,35 +66,35 @@ def make_chunk(*, content: str, document_id: int) -> Chunk:
 
 @pytest_asyncio.fixture
 async def seed_google_docs(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """Insert a native Drive doc, a legacy Composio Drive doc, and a FILE doc.
 
     Returns a dict with keys ``native_doc``, ``legacy_doc``, ``file_doc``,
-    plus ``search_space`` and ``user``.
+    plus ``workspace`` and ``user``.
     """
     user_id = str(db_user.id)
-    space_id = db_search_space.id
+    space_id = db_workspace.id
 
     native_doc = make_document(
         title="Native Drive Document",
         document_type=DocumentType.GOOGLE_DRIVE_FILE,
         content="quarterly report from native google drive connector",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=user_id,
     )
     legacy_doc = make_document(
         title="Legacy Composio Drive Document",
         document_type=DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
         content="quarterly report from composio google drive connector",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=user_id,
     )
     file_doc = make_document(
         title="Uploaded PDF",
         document_type=DocumentType.FILE,
         content="unrelated uploaded file about quarterly reports",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=user_id,
     )
 
@@ -121,7 +121,7 @@ async def seed_google_docs(
         "native_doc": native_doc,
         "legacy_doc": legacy_doc,
         "file_doc": file_doc,
-        "search_space": db_search_space,
+        "workspace": db_workspace,
         "user": db_user,
     }
 
@@ -136,8 +136,8 @@ async def seed_google_docs(
 async def committed_google_data(async_engine):
     """Insert native, legacy, and FILE docs via a committed transaction.
 
-    Yields ``{"search_space_id": int, "user_id": str}``.
-    Cleans up by deleting the search space (cascades to documents / chunks).
+    Yields ``{"workspace_id": int, "user_id": str}``.
+    Cleans up by deleting the workspace (cascades to documents / chunks).
     """
     space_id = None
 
@@ -155,7 +155,7 @@ async def committed_google_data(async_engine):
         session.add(user)
         await session.flush()
 
-        space = SearchSpace(name=f"Google Test {uuid.uuid4().hex[:6]}", user_id=user.id)
+        space = Workspace(name=f"Google Test {uuid.uuid4().hex[:6]}", user_id=user.id)
         session.add(space)
         await session.flush()
         space_id = space.id
@@ -165,21 +165,21 @@ async def committed_google_data(async_engine):
             title="Native Drive Doc",
             document_type=DocumentType.GOOGLE_DRIVE_FILE,
             content="quarterly budget from native google drive",
-            search_space_id=space_id,
+            workspace_id=space_id,
             created_by_id=user_id,
         )
         legacy_doc = make_document(
             title="Legacy Composio Drive Doc",
             document_type=DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
             content="quarterly budget from composio google drive",
-            search_space_id=space_id,
+            workspace_id=space_id,
             created_by_id=user_id,
         )
         file_doc = make_document(
             title="Plain File",
             document_type=DocumentType.FILE,
             content="quarterly budget uploaded as file",
-            search_space_id=space_id,
+            workspace_id=space_id,
             created_by_id=user_id,
         )
         session.add_all([native_doc, legacy_doc, file_doc])
@@ -195,7 +195,7 @@ async def committed_google_data(async_engine):
             )
         await session.flush()
 
-    yield {"search_space_id": space_id, "user_id": user_id}
+    yield {"workspace_id": space_id, "user_id": user_id}
 
     async with async_engine.begin() as conn:
         await conn.execute(
@@ -257,7 +257,7 @@ async def seed_connector(
 ):
     """Seed a connector with committed data. Returns dict and cleanup function.
 
-    Yields ``{"connector_id", "search_space_id", "user_id"}``.
+    Yields ``{"connector_id", "workspace_id", "user_id"}``.
     """
     space_id = None
 
@@ -275,7 +275,7 @@ async def seed_connector(
         session.add(user)
         await session.flush()
 
-        space = SearchSpace(
+        space = Workspace(
             name=f"{name_prefix} {uuid.uuid4().hex[:6]}", user_id=user.id
         )
         session.add(space)
@@ -287,7 +287,7 @@ async def seed_connector(
             connector_type=connector_type,
             is_indexable=True,
             config=config,
-            search_space_id=space_id,
+            workspace_id=space_id,
             user_id=user.id,
         )
         session.add(connector)
@@ -297,13 +297,13 @@ async def seed_connector(
 
     return {
         "connector_id": connector_id,
-        "search_space_id": space_id,
+        "workspace_id": space_id,
         "user_id": user_id,
     }
 
 
 async def cleanup_space(async_engine, space_id: int):
-    """Delete a search space (cascades to connectors/documents)."""
+    """Delete a workspace (cascades to connectors/documents)."""
     async with async_engine.begin() as conn:
         await conn.execute(
             text("DELETE FROM workspaces WHERE id = :sid"), {"sid": space_id}

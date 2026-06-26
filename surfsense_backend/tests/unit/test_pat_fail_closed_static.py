@@ -16,7 +16,7 @@ ALLOW_ANY_EXPECTED = {
     "routes/obsidian_plugin_routes.py": (
         "_auth: AuthContext = Depends(allow_any_principal)"
     ),
-    "routes/search_spaces_routes.py": (
+    "routes/workspaces_routes.py": (
         "auth: AuthContext = Depends(allow_any_principal)"
     ),
 }
@@ -60,12 +60,12 @@ def test_allow_any_principal_is_only_used_by_bootstrap_allowlist() -> None:
         assert expected_snippet in text
 
 
-def test_connector_listers_route_pat_through_search_space_gate() -> None:
+def test_connector_listers_route_pat_through_workspace_gate() -> None:
     for rel_path in CONNECTOR_LISTERS:
         text = (APP_ROOT / rel_path).read_text()
         assert "auth: AuthContext = Depends(get_auth_context)" in text, rel_path
         assert (
-            "await check_search_space_access(session, auth, connector.search_space_id)"
+            "await check_workspace_access(session, auth, connector.workspace_id)"
             in text
         ), rel_path
 

@@ -19,13 +19,13 @@ async def test_search_google_drive_includes_legacy_composio_docs(
     async_engine, committed_google_data, patched_session_factory, patched_embed
 ):
     """search_google_drive returns both GOOGLE_DRIVE_FILE and COMPOSIO_GOOGLE_DRIVE_CONNECTOR docs."""
-    space_id = committed_google_data["search_space_id"]
+    space_id = committed_google_data["workspace_id"]
 
     async with patched_session_factory() as session:
-        service = ConnectorService(session, search_space_id=space_id)
+        service = ConnectorService(session, workspace_id=space_id)
         _, raw_docs = await service.search_google_drive(
             user_query="quarterly budget",
-            search_space_id=space_id,
+            workspace_id=space_id,
             top_k=10,
         )
 
@@ -51,13 +51,13 @@ async def test_search_files_does_not_include_google_types(
     async_engine, committed_google_data, patched_session_factory, patched_embed
 ):
     """search_files returns only FILE docs, not Google Drive docs."""
-    space_id = committed_google_data["search_space_id"]
+    space_id = committed_google_data["workspace_id"]
 
     async with patched_session_factory() as session:
-        service = ConnectorService(session, search_space_id=space_id)
+        service = ConnectorService(session, workspace_id=space_id)
         _, raw_docs = await service.search_files(
             user_query="quarterly budget",
-            search_space_id=space_id,
+            workspace_id=space_id,
             top_k=10,
         )
 

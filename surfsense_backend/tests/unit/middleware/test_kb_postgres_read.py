@@ -28,7 +28,7 @@ pytestmark = pytest.mark.unit
 
 
 def _backend(state: dict) -> KBPostgresBackend:
-    return KBPostgresBackend(search_space_id=1, runtime=SimpleNamespace(state=state))
+    return KBPostgresBackend(workspace_id=1, runtime=SimpleNamespace(state=state))
 
 
 def test_render_full_document_uses_full_view_and_registers() -> None:

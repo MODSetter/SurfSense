@@ -13,7 +13,7 @@ pytestmark = pytest.mark.unit
 
 
 def _event() -> Event:
-    return Event(event_type="x.happened", payload={"k": "v"}, search_space_id=1)
+    return Event(event_type="x.happened", payload={"k": "v"}, workspace_id=1)
 
 
 async def _noop(_event: Event) -> None:
@@ -152,13 +152,13 @@ async def test_publish_builds_a_stamped_event_and_fans_it_out() -> None:
         received.append(event)
 
     bus.subscribe(handler)
-    await bus.publish("document.indexed", {"document_id": 42}, search_space_id=7)
+    await bus.publish("document.indexed", {"document_id": 42}, workspace_id=7)
 
     assert len(received) == 1
     event = received[0]
     assert event.event_type == "document.indexed"
     assert event.payload == {"document_id": 42}
-    assert event.search_space_id == 7
+    assert event.workspace_id == 7
     # Engine-stamped identity/time on the way through.
     assert event.event_id
     assert event.occurred_at
@@ -172,10 +172,10 @@ async def test_publish_defaults_payload_to_empty_dict() -> None:
         received.append(event)
 
     bus.subscribe(handler)
-    await bus.publish("x.happened", search_space_id=1)
+    await bus.publish("x.happened", workspace_id=1)
 
     assert received[0].payload == {}
 
 
 async def test_publish_with_no_subscribers_is_a_noop() -> None:
-    await EventBus().publish("x.happened", search_space_id=1)  # must not raise
+    await EventBus().publish("x.happened", workspace_id=1)  # must not raise

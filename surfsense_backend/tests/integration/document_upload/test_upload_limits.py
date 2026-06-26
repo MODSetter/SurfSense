@@ -34,14 +34,14 @@ class TestPerFileSizeLimit:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
     ):
         oversized = io.BytesIO(b"\x00" * (500 * 1024 * 1024 + 1))
         resp = await client.post(
             "/api/v1/documents/fileupload",
             headers=headers,
             files=[("files", ("big.pdf", oversized, "application/pdf"))],
-            data={"search_space_id": str(search_space_id)},
+            data={"workspace_id": str(workspace_id)},
         )
         assert resp.status_code == 413
         assert "per-file limit" in resp.json()["detail"].lower()
@@ -50,7 +50,7 @@ class TestPerFileSizeLimit:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
     ):
         at_limit = io.BytesIO(b"\x00" * (500 * 1024 * 1024))
@@ -58,7 +58,7 @@ class TestPerFileSizeLimit:
             "/api/v1/documents/fileupload",
             headers=headers,
             files=[("files", ("exact500mb.txt", at_limit, "text/plain"))],
-            data={"search_space_id": str(search_space_id)},
+            data={"workspace_id": str(workspace_id)},
         )
         assert resp.status_code == 200
         cleanup_doc_ids.extend(resp.json().get("document_ids", []))
@@ -76,7 +76,7 @@ class TestNoFileCountLimit:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
     ):
         files = [
@@ -87,7 +87,7 @@ class TestNoFileCountLimit:
             "/api/v1/documents/fileupload",
             headers=headers,
             files=files,
-            data={"search_space_id": str(search_space_id)},
+            data={"workspace_id": str(workspace_id)},
         )
         assert resp.status_code == 200
         cleanup_doc_ids.extend(resp.json().get("document_ids", []))

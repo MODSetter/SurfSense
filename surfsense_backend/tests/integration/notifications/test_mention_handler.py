@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import SearchSpace, User
+from app.db import Workspace, User
 from app.notifications.service import NotificationService
 
 pytestmark = pytest.mark.integration
@@ -13,7 +13,7 @@ pytestmark = pytest.mark.integration
 handler = NotificationService.mention
 
 
-async def _notify(db_session, db_user, db_search_space, *, mention_id=1, preview="hi"):
+async def _notify(db_session, db_user, db_workspace, *, mention_id=1, preview="hi"):
     """Raise an @mention notification for the assertions in the tests below."""
     return await handler.notify_new_mention(
         session=db_session,
@@ -28,15 +28,15 @@ async def _notify(db_session, db_user, db_search_space, *, mention_id=1, preview
         author_avatar_url=None,
         author_email="alice@surfsense.net",
         content_preview=preview,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
 
 async def test_new_mention_title_and_message(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """A mention notification names the author and carries the comment preview."""
-    notification = await _notify(db_session, db_user, db_search_space, preview="hello")
+    notification = await _notify(db_session, db_user, db_workspace, preview="hello")
 
     assert notification.type == "new_mention"
     assert notification.title == "Alice mentioned you"
@@ -44,21 +44,21 @@ async def test_new_mention_title_and_message(
 
 
 async def test_new_mention_truncates_long_preview(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """A long comment preview is truncated in the mention message."""
     notification = await _notify(
-        db_session, db_user, db_search_space, preview="x" * 150
+        db_session, db_user, db_workspace, preview="x" * 150
     )
 
     assert notification.message == "x" * 100 + "..."
 
 
 async def test_new_mention_is_idempotent(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """Re-notifying the same mention id reuses the existing notification row."""
-    first = await _notify(db_session, db_user, db_search_space, mention_id=7)
-    second = await _notify(db_session, db_user, db_search_space, mention_id=7)
+    first = await _notify(db_session, db_user, db_workspace, mention_id=7)
+    second = await _notify(db_session, db_user, db_workspace, mention_id=7)
 
     assert second.id == first.id

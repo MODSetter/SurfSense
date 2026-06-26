@@ -24,12 +24,12 @@ async def test_calls_prepare_then_index_per_document(pipeline, make_connector_do
     doc1 = make_connector_document(
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
         unique_id="msg-1",
-        search_space_id=1,
+        workspace_id=1,
     )
     doc2 = make_connector_document(
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
         unique_id="msg-2",
-        search_space_id=1,
+        workspace_id=1,
     )
 
     orm1 = MagicMock(spec=Document)
@@ -63,7 +63,7 @@ async def test_skips_document_without_matching_connector_doc(
     doc1 = make_connector_document(
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
         unique_id="msg-1",
-        search_space_id=1,
+        workspace_id=1,
     )
 
     orphan_orm = MagicMock(spec=Document)

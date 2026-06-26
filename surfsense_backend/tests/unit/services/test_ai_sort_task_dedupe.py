@@ -11,7 +11,7 @@ def test_lock_key_format():
     from app.tasks.celery_tasks.document_tasks import _ai_sort_lock_key
 
     key = _ai_sort_lock_key(42)
-    assert key == "ai_sort:search_space:42:lock"
+    assert key == "ai_sort:workspace:42:lock"
 
 
 def test_lock_prevents_duplicate_run():
@@ -31,11 +31,11 @@ def test_lock_prevents_duplicate_run():
     ):
         import asyncio
 
-        from app.tasks.celery_tasks.document_tasks import _ai_sort_search_space_async
+        from app.tasks.celery_tasks.document_tasks import _ai_sort_workspace_async
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(_ai_sort_search_space_async(1, "user-123"))
+            loop.run_until_complete(_ai_sort_workspace_async(1, "user-123"))
         finally:
             loop.close()
 

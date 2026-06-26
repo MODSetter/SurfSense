@@ -32,12 +32,12 @@ def _patch_common_bundle_dependencies(monkeypatch: pytest.MonkeyPatch):
 
     _CapturedChatLiteLLM.calls = []
 
-    async def _fake_search_space(
-        _session: Any, _search_space_id: int
+    async def _fake_workspace(
+        _session: Any, _workspace_id: int
     ) -> SimpleNamespace:
         return SimpleNamespace(id=42, user_id="user-1")
 
-    monkeypatch.setattr(llm_bundle, "_load_search_space", _fake_search_space)
+    monkeypatch.setattr(llm_bundle, "_load_workspace", _fake_workspace)
     monkeypatch.setattr(llm_bundle, "SanitizedChatLiteLLM", _CapturedChatLiteLLM)
     monkeypatch.setattr(llm_bundle, "register_model_usage_metadata", lambda **_kw: None)
     monkeypatch.setattr(
@@ -65,9 +65,9 @@ async def test_load_llm_bundle_enables_streaming_for_db_models(
         connection=connection,
     )
 
-    async def _fake_db_model(_session: Any, *, model_id: int, search_space: Any) -> Any:
+    async def _fake_db_model(_session: Any, *, model_id: int, workspace: Any) -> Any:
         assert model_id == 7
-        assert search_space.id == 42
+        assert workspace.id == 42
         return model
 
     monkeypatch.setattr(llm_bundle, "_load_db_model", _fake_db_model)
@@ -83,7 +83,7 @@ async def test_load_llm_bundle_enables_streaming_for_db_models(
     llm, agent_config, error = await llm_bundle.load_llm_bundle(
         object(),
         config_id=7,
-        search_space_id=42,
+        workspace_id=42,
     )
 
     assert error is None
@@ -140,7 +140,7 @@ async def test_load_llm_bundle_enables_streaming_for_global_models(
     llm, agent_config, error = await llm_bundle.load_llm_bundle(
         object(),
         config_id=-11,
-        search_space_id=42,
+        workspace_id=42,
     )
 
     assert error is None

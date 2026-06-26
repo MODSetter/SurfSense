@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import SearchSpace, User
+from app.db import Workspace, User
 from app.notifications.service import NotificationService
 
 pytestmark = pytest.mark.integration
@@ -19,7 +19,7 @@ pytestmark = pytest.mark.integration
 async def test_indexing_started_opens_notification(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """Starting indexing opens an unread notification with connecting-stage metadata."""
     notification = await NotificationService.connector_indexing.notify_indexing_started(
@@ -28,7 +28,7 @@ async def test_indexing_started_opens_notification(
         connector_id=42,
         connector_name="Notion - My Workspace",
         connector_type="NOTION_CONNECTOR",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
     assert notification.id is not None
@@ -50,7 +50,7 @@ async def test_indexing_started_opens_notification(
 async def _started(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
     *,
     connector_name: str = "Notion - My Workspace",
 ):
@@ -61,17 +61,17 @@ async def _started(
         connector_id=42,
         connector_name=connector_name,
         connector_type="NOTION_CONNECTOR",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
 
 async def test_indexing_progress_reports_stage_and_percent(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """Progress updates surface the stage message and compute a percent complete."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     updated = await NotificationService.connector_indexing.notify_indexing_progress(
         session=db_session,
@@ -93,10 +93,10 @@ async def test_indexing_progress_reports_stage_and_percent(
 async def test_indexing_completed_clean_success(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """A clean multi-file sync reports ready/completed with plural wording."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     done = await NotificationService.connector_indexing.notify_indexing_completed(
         session=db_session,
@@ -113,10 +113,10 @@ async def test_indexing_completed_clean_success(
 async def test_indexing_completed_singular_file(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """A single synced file uses singular 'file' wording."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     done = await NotificationService.connector_indexing.notify_indexing_completed(
         session=db_session,
@@ -130,10 +130,10 @@ async def test_indexing_completed_singular_file(
 async def test_indexing_completed_nothing_to_sync(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """Completing with nothing new reports 'Already up to date!'."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     done = await NotificationService.connector_indexing.notify_indexing_completed(
         session=db_session,
@@ -149,10 +149,10 @@ async def test_indexing_completed_nothing_to_sync(
 async def test_indexing_completed_hard_failure(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """An error with nothing synced reports a hard failure."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     done = await NotificationService.connector_indexing.notify_indexing_completed(
         session=db_session,
@@ -170,10 +170,10 @@ async def test_indexing_completed_hard_failure(
 async def test_indexing_completed_partial_with_error_note(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """An error after partial progress still completes, with an appended note."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     done = await NotificationService.connector_indexing.notify_indexing_completed(
         session=db_session,
@@ -190,10 +190,10 @@ async def test_indexing_completed_partial_with_error_note(
 async def test_retry_progress_frames_delay_as_providers(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """A retry message frames the delay as the provider's, using its short name."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     retry = await NotificationService.connector_indexing.notify_retry_progress(
         session=db_session,
@@ -214,10 +214,10 @@ async def test_retry_progress_frames_delay_as_providers(
 async def test_retry_progress_shows_wait_and_synced_count(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """A retry surfaces the wait time and how many items synced so far."""
-    notification = await _started(db_session, db_user, db_search_space)
+    notification = await _started(db_session, db_user, db_workspace)
 
     retry = await NotificationService.connector_indexing.notify_retry_progress(
         session=db_session,
