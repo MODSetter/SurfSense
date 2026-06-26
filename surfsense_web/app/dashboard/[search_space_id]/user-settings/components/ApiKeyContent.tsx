@@ -134,7 +134,9 @@ export function ApiKeyContent() {
 											</p>
 											<p className="text-xs text-muted-foreground">
 												Expires: {expiresAt ? expiresAt.toLocaleDateString() : "Never"} · Last used:{" "}
-												{token.last_used_at ? new Date(token.last_used_at).toLocaleString() : "Never"}
+												{token.last_used_at
+													? new Date(token.last_used_at).toLocaleString()
+													: "Never"}
 											</p>
 										</div>
 									</div>
@@ -153,9 +155,7 @@ export function ApiKeyContent() {
 					})}
 				</div>
 			) : (
-				<p className="py-6 text-center text-sm text-muted-foreground">
-					No API keys yet.
-				</p>
+				<p className="py-6 text-center text-sm text-muted-foreground">No API keys yet.</p>
 			)}
 
 			<Dialog open={createOpen} onOpenChange={setCreateOpen}>

@@ -114,9 +114,7 @@ export function PublicChatSnapshotsManager({
 		return (
 			<Alert variant="destructive">
 				<AlertCircle className="h-4 w-4" />
-				<AlertDescription>
-					Failed to load public chats. Please try again later.
-				</AlertDescription>
+				<AlertDescription>Failed to load public chats. Please try again later.</AlertDescription>
 			</Alert>
 		);
 	}

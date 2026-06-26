@@ -510,7 +510,7 @@ export const DocumentMentionPicker = forwardRef<
 				type: "branch",
 				disabled: activeConnectors.length === 0,
 				value: { kind: "view", view: { kind: "connectors" } },
-			},
+			}
 		);
 		if (enableChatMentions) {
 			nodes.push({

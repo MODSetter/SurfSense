@@ -22,8 +22,8 @@ import {
 	setTargetCommentIdAtom,
 } from "@/atoms/chat/current-thread.atom";
 import {
-	type MentionedDocumentInfo,
 	deriveMentionedPayload,
+	type MentionedDocumentInfo,
 	mentionedDocumentsAtom,
 	messageDocumentsMapAtom,
 	submittedMentionsAtom,
@@ -215,12 +215,7 @@ const MentionedDocumentInfoSchema = z.object({
 	title: z.string(),
 	document_type: z.string().optional(),
 	kind: z
-		.union([
-			z.literal("doc"),
-			z.literal("folder"),
-			z.literal("connector"),
-			z.literal("thread"),
-		])
+		.union([z.literal("doc"), z.literal("folder"), z.literal("connector"), z.literal("thread")])
 		.optional()
 		.default("doc"),
 	connector_type: z.string().optional(),
@@ -1179,13 +1174,9 @@ export default function NewChatPage() {
 							client_platform: selection.client_platform,
 							local_filesystem_mounts: selection.local_filesystem_mounts,
 							messages: messageHistory,
-							mentioned_document_ids: hasDocumentIds
-								? mentionPayload.document_ids
-								: undefined,
+							mentioned_document_ids: hasDocumentIds ? mentionPayload.document_ids : undefined,
 							mentioned_folder_ids: hasFolderIds ? mentionPayload.folder_ids : undefined,
-							mentioned_connector_ids: hasConnectorIds
-								? mentionPayload.connector_ids
-								: undefined,
+							mentioned_connector_ids: hasConnectorIds ? mentionPayload.connector_ids : undefined,
 							mentioned_connectors: hasConnectorIds ? mentionPayload.connectors : undefined,
 							mentioned_thread_ids: hasThreadIds ? mentionPayload.thread_ids : undefined,
 							// Full mention metadata so the backend can persist a
@@ -2093,8 +2084,7 @@ export default function NewChatPage() {
 					mentioned_connector_ids:
 						regenerateConnectors.length > 0 ? regenerateConnectors.map((d) => d.id) : undefined,
 					mentioned_connectors: regenerateConnectors.length > 0 ? regenerateConnectors : undefined,
-					mentioned_thread_ids:
-						regenerateThreadIds.length > 0 ? regenerateThreadIds : undefined,
+					mentioned_thread_ids: regenerateThreadIds.length > 0 ? regenerateThreadIds : undefined,
 					// Full mention metadata for the regenerate-specific
 					// source list. Only meaningful for edit (the BE only
 					// re-persists a user row when ``user_query`` is set);
