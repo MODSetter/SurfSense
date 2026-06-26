@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { refreshSession } from "@/lib/auth-utils";
 import { buildBackendUrl } from "@/lib/env-config";
 
 type SessionState =
@@ -17,6 +18,13 @@ async function getSessionHeaders(): Promise<HeadersInit> {
 	return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+async function fetchSession(): Promise<Response> {
+	return fetch(buildBackendUrl("/auth/session"), {
+		credentials: "include",
+		headers: await getSessionHeaders(),
+	});
+}
+
 export function useSession() {
 	const [state, setState] = useState<SessionState>({
 		status: "loading",
@@ -26,10 +34,13 @@ export function useSession() {
 
 	const refresh = useCallback(async () => {
 		try {
-			const response = await fetch(buildBackendUrl("/auth/session"), {
-				credentials: "include",
-				headers: await getSessionHeaders(),
-			});
+			let response = await fetchSession();
+			if (response.status === 401) {
+				const refreshed = await refreshSession();
+				if (refreshed) {
+					response = await fetchSession();
+				}
+			}
 			if (!response.ok) {
 				setState({
 					status: "unauthenticated",

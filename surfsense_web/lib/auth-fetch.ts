@@ -3,6 +3,10 @@ import { handleUnauthorized, isDesktopClient, refreshSession } from "@/lib/auth-
 let desktopAccessToken: string | null = null;
 let didSubscribeToDesktopAuth = false;
 
+type DesktopAccessTokenOptions = {
+	forceRefresh?: boolean;
+};
+
 function subscribeToDesktopAuth(): void {
 	if (didSubscribeToDesktopAuth || typeof window === "undefined" || !window.electronAPI) {
 		return;
@@ -17,10 +21,12 @@ function subscribeToDesktopAuth(): void {
 	});
 }
 
-export async function getDesktopAccessToken(): Promise<string | null> {
+export async function getDesktopAccessToken(
+	options: DesktopAccessTokenOptions = {}
+): Promise<string | null> {
 	if (!isDesktopClient()) return null;
 	subscribeToDesktopAuth();
-	if (desktopAccessToken) return desktopAccessToken;
+	if (desktopAccessToken && !options.forceRefresh) return desktopAccessToken;
 	const token = (await window.electronAPI?.getAccessToken?.()) || null;
 	desktopAccessToken = token;
 	return token;
@@ -55,7 +61,7 @@ export async function authenticatedFetch(
 		if (!skipRefresh) {
 			const refreshed = await refreshSession();
 			if (refreshed) {
-				const newToken = await getDesktopAccessToken();
+				const newToken = await getDesktopAccessToken({ forceRefresh: true });
 				return fetch(url, {
 					...fetchOptions,
 					headers: {
