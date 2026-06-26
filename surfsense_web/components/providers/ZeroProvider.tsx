@@ -250,7 +250,7 @@ export function ZeroProvider({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 	const isDesktop = typeof window !== "undefined" && !!window.electronAPI;
 
-	if (!isDesktop && isPublicRoute(pathname)) {
+	if (isPublicRoute(pathname)) {
 		return <>{children}</>;
 	}
 
