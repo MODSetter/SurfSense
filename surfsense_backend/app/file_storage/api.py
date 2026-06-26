@@ -37,9 +37,9 @@ async def _load_readable_document(
     await check_permission(
         session,
         auth,
-        document.search_space_id,
+        document.workspace_id,
         Permission.DOCUMENTS_READ.value,
-        "You don't have permission to read documents in this search space",
+        "You don't have permission to read documents in this workspace",
     )
     return document
 

@@ -48,7 +48,7 @@ catalog.register(
 def payload_if_entered_folder(
     *,
     document_id: int,
-    search_space_id: int,
+    workspace_id: int,
     new_folder_id: int | None,
     previous_folder_id: int | None,
     folder_id_changed: bool,
@@ -73,7 +73,7 @@ def payload_if_entered_folder(
 
     return {
         "event_type": EVENT_TYPE,
-        "search_space_id": search_space_id,
+        "workspace_id": workspace_id,
         "payload": {
             "document_id": document_id,
             "folder_id": new_folder_id,

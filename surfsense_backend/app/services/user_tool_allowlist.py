@@ -1,6 +1,6 @@
 """User-scoped trusted-tools list backed by ``SearchSourceConnector.config``.
 
-Storage is per ``(user_id, search_space_id, connector_id)`` under
+Storage is per ``(user_id, workspace_id, connector_id)`` under
 ``connector.config['trusted_tools']``. The list only ever encodes
 ``allow`` decisions; coded ``deny`` rules cannot be overridden here.
 """
@@ -108,7 +108,7 @@ async def fetch_user_allowlist_rulesets(
     session: AsyncSession,
     *,
     user_id: uuid.UUID,
-    search_space_id: int,
+    workspace_id: int,
 ) -> dict[str, Ruleset]:
     """Project the user's trusted tools into per-subagent ``allow`` rulesets.
 
@@ -122,7 +122,7 @@ async def fetch_user_allowlist_rulesets(
             SearchSourceConnector.config,
         ).where(
             SearchSourceConnector.user_id == user_id,
-            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.workspace_id == workspace_id,
         )
     )
 

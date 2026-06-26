@@ -28,7 +28,7 @@ def _to_calendar_boundary(value: str, *, is_end: bool) -> str:
 
 def create_search_calendar_events_tool(
     db_session: AsyncSession | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     user_id: str | None = None,
 ):
     @tool
@@ -48,7 +48,7 @@ def create_search_calendar_events_tool(
             Dictionary with status and a list of events including
             event_id, summary, start, end, location, attendees.
         """
-        if db_session is None or search_space_id is None or user_id is None:
+        if db_session is None or workspace_id is None or user_id is None:
             return {
                 "status": "error",
                 "message": "Calendar tool not properly configured.",
@@ -59,7 +59,7 @@ def create_search_calendar_events_tool(
         try:
             result = await db_session.execute(
                 select(SearchSourceConnector).filter(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type.in_(_CALENDAR_TYPES),
                 )

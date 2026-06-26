@@ -9,7 +9,7 @@ from app.auth.context import AuthContext
 from app.db import ExternalChatBinding, Permission, User
 from app.gateway.bindings import suspend_binding
 from app.observability.metrics import record_gateway_auth_invariant_failure
-from app.utils.rbac import check_permission, check_search_space_access
+from app.utils.rbac import check_permission, check_workspace_access
 
 
 class GatewaySuspendedError(RuntimeError):
@@ -43,13 +43,13 @@ async def assert_authorization_invariant(
     auth = AuthContext.system(user, source="gateway")
 
     try:
-        await check_search_space_access(session, auth, binding.search_space_id)
+        await check_workspace_access(session, auth, binding.workspace_id)
         await check_permission(
             session,
             auth,
-            binding.search_space_id,
+            binding.workspace_id,
             Permission.CHATS_CREATE.value,
-            "External chat owner no longer has permission to chat in this search space",
+            "External chat owner no longer has permission to chat in this workspace",
         )
     except HTTPException as exc:
         await _fail(session, binding, f"rbac_{exc.status_code}")

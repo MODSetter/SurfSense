@@ -22,7 +22,7 @@ def load_tools(
     d = {**(dependencies or {}), **kwargs}
     return [
         create_web_search_tool(
-            search_space_id=d.get("search_space_id"),
+            workspace_id=d.get("workspace_id"),
             available_connectors=d.get("available_connectors"),
         ),
         create_scrape_webpage_tool(firecrawl_api_key=d.get("firecrawl_api_key")),

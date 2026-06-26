@@ -70,7 +70,7 @@ async def finalize_assistant_message(
     *,
     stream_result: StreamResult | None,
     chat_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
     accumulator: TokenAccumulator,
     log_prefix: str,
@@ -140,7 +140,7 @@ async def finalize_assistant_message(
     await finalize_assistant_turn(
         message_id=stream_result.assistant_message_id,
         chat_id=chat_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         turn_id=stream_result.turn_id,
         content=content_payload,

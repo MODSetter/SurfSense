@@ -18,7 +18,7 @@ Why a wrapper instead of plumbing ``user_id`` through every caller:
   Dropbox, local-folder, file-processor, ETL pipeline) each calling
   ``parse_with_vision_llm(...)``. Adding a ``user_id`` argument to each is
   invasive, error-prone, and easy for a future indexer to forget.
-* Per the design (issue M), we always debit the *search-space owner*, not
+* Per the design (issue M), we always debit the *workspace owner*, not
   the triggering user, so ``user_id`` is fully derivable from the search
   space the caller is already operating on. The wrapper captures it once
   at construction time.
@@ -56,7 +56,7 @@ class QuotaCheckedVisionLLM:
         inner_llm: Any,
         *,
         user_id: UUID,
-        search_space_id: int,
+        workspace_id: int,
         billing_tier: str,
         base_model: str,
         quota_reserve_tokens: int | None,
@@ -64,7 +64,7 @@ class QuotaCheckedVisionLLM:
     ) -> None:
         self._inner = inner_llm
         self._user_id = user_id
-        self._search_space_id = search_space_id
+        self._workspace_id = workspace_id
         self._billing_tier = billing_tier
         self._base_model = base_model
         self._quota_reserve_tokens = quota_reserve_tokens
@@ -81,7 +81,7 @@ class QuotaCheckedVisionLLM:
         """
         async with billable_call(
             user_id=self._user_id,
-            search_space_id=self._search_space_id,
+            workspace_id=self._workspace_id,
             billing_tier=self._billing_tier,
             base_model=self._base_model,
             quota_reserve_tokens=self._quota_reserve_tokens,

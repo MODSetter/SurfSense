@@ -7,7 +7,7 @@ subsequent turns are stable.
 
 Single-writer invariant: this module is the only writer of
 ``NewChatThread.pinned_llm_config_id`` (aside from the bulk clear in
-``model_connections_routes`` when a search space's ``chat_model_id`` changes).
+``model_connections_routes`` when a workspace's ``chat_model_id`` changes).
 Therefore a non-NULL value unambiguously means "this thread has an
 Auto-resolved pin"; no separate source/policy column is needed.
 """
@@ -366,7 +366,7 @@ def _global_candidates(
 async def _db_candidates(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | UUID | None,
     capability: str,
     requires_image_input: bool = False,
@@ -388,7 +388,7 @@ async def _db_candidates(
         conn = model.connection
         if not conn:
             continue
-        if conn.search_space_id is not None and conn.search_space_id != search_space_id:
+        if conn.workspace_id is not None and conn.workspace_id != workspace_id:
             continue
         if (
             conn.user_id is not None
@@ -430,7 +430,7 @@ async def _db_candidates(
 async def auto_model_candidates(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | UUID | None,
     capability: str,
     requires_image_input: bool = False,
@@ -445,7 +445,7 @@ async def auto_model_candidates(
     shared_global_cooled_down_ids = _shared_runtime_cooled_down_ids(global_ids)
     db_candidates = await _db_candidates(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         capability=capability,
         requires_image_input=requires_image_input,
@@ -517,7 +517,7 @@ async def resolve_or_get_pinned_llm_config_id(
     session: AsyncSession,
     *,
     thread_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | UUID | None,
     selected_llm_config_id: int,
     force_repin_free: bool = False,
@@ -550,9 +550,9 @@ async def resolve_or_get_pinned_llm_config_id(
     )
     if thread is None:
         raise ValueError(f"Thread {thread_id} not found")
-    if thread.search_space_id != search_space_id:
+    if thread.workspace_id != workspace_id:
         raise ValueError(
-            f"Thread {thread_id} does not belong to search space {search_space_id}"
+            f"Thread {thread_id} does not belong to workspace {workspace_id}"
         )
 
     # Explicit model selected: clear any stale pin.
@@ -569,7 +569,7 @@ async def resolve_or_get_pinned_llm_config_id(
     excluded_ids = {int(cid) for cid in (exclude_config_ids or set())}
     candidates = await auto_model_candidates(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         capability="chat",
         requires_image_input=requires_image_input,
@@ -595,9 +595,9 @@ async def resolve_or_get_pinned_llm_config_id(
     ):
         pinned_cfg = candidate_by_id[int(pinned_id)]
         logger.info(
-            "auto_pin_reused thread_id=%s search_space_id=%s resolved_config_id=%s tier=%s",
+            "auto_pin_reused thread_id=%s workspace_id=%s resolved_config_id=%s tier=%s",
             thread_id,
-            search_space_id,
+            workspace_id,
             pinned_id,
             _tier_of(pinned_cfg),
         )
@@ -622,16 +622,16 @@ async def resolve_or_get_pinned_llm_config_id(
         # the user's image attachment instead of suspecting a cooldown.
         if requires_image_input:
             logger.info(
-                "auto_pin_repinned_for_image thread_id=%s search_space_id=%s "
+                "auto_pin_repinned_for_image thread_id=%s workspace_id=%s "
                 "previous_config_id=%s",
                 thread_id,
-                search_space_id,
+                workspace_id,
                 pinned_id,
             )
         logger.info(
-            "auto_pin_invalid thread_id=%s search_space_id=%s pinned_config_id=%s",
+            "auto_pin_invalid thread_id=%s workspace_id=%s pinned_config_id=%s",
             thread_id,
-            search_space_id,
+            workspace_id,
             pinned_id,
         )
 
@@ -663,27 +663,27 @@ async def resolve_or_get_pinned_llm_config_id(
 
     if force_repin_free:
         logger.info(
-            "auto_pin_forced_free_repin thread_id=%s search_space_id=%s previous_config_id=%s resolved_config_id=%s",
+            "auto_pin_forced_free_repin thread_id=%s workspace_id=%s previous_config_id=%s resolved_config_id=%s",
             thread_id,
-            search_space_id,
+            workspace_id,
             pinned_id,
             selected_id,
         )
 
     if pinned_id is None:
         logger.info(
-            "auto_pin_created thread_id=%s search_space_id=%s resolved_config_id=%s tier=%s premium_eligible=%s",
+            "auto_pin_created thread_id=%s workspace_id=%s resolved_config_id=%s tier=%s premium_eligible=%s",
             thread_id,
-            search_space_id,
+            workspace_id,
             selected_id,
             selected_tier,
             premium_eligible,
         )
     else:
         logger.info(
-            "auto_pin_repaired thread_id=%s search_space_id=%s previous_config_id=%s resolved_config_id=%s tier=%s premium_eligible=%s",
+            "auto_pin_repaired thread_id=%s workspace_id=%s previous_config_id=%s resolved_config_id=%s tier=%s premium_eligible=%s",
             thread_id,
-            search_space_id,
+            workspace_id,
             pinned_id,
             selected_id,
             selected_tier,

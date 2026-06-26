@@ -31,7 +31,7 @@ from app.db import (
     PodcastStatus,
     PublicChatSnapshot,
     Report,
-    SearchSpaceMembership,
+    WorkspaceMembership,
     User,
     VideoPresentation,
     VideoPresentationStatus,
@@ -189,7 +189,7 @@ async def create_snapshot(
     await check_permission(
         session,
         auth,
-        thread.search_space_id,
+        thread.workspace_id,
         Permission.PUBLIC_SHARING_CREATE.value,
         "You don't have permission to create public share links",
     )
@@ -450,7 +450,7 @@ async def list_snapshots_for_thread(
     await check_permission(
         session,
         auth,
-        thread.search_space_id,
+        thread.workspace_id,
         Permission.PUBLIC_SHARING_VIEW.value,
         "You don't have permission to view public share links",
     )
@@ -476,18 +476,18 @@ async def list_snapshots_for_thread(
     ]
 
 
-async def list_snapshots_for_search_space(
+async def list_snapshots_for_workspace(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     auth: AuthContext,
 ) -> list[dict]:
-    """List all public snapshots for a search space."""
+    """List all public snapshots for a workspace."""
     from app.config import config
 
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.PUBLIC_SHARING_VIEW.value,
         "You don't have permission to view public share links",
     )
@@ -495,7 +495,7 @@ async def list_snapshots_for_search_space(
     result = await session.execute(
         select(PublicChatSnapshot)
         .join(NewChatThread, PublicChatSnapshot.thread_id == NewChatThread.id)
-        .filter(NewChatThread.search_space_id == search_space_id)
+        .filter(NewChatThread.workspace_id == workspace_id)
         .order_by(PublicChatSnapshot.created_at.desc())
     )
     snapshots = result.scalars().all()
@@ -556,7 +556,7 @@ async def delete_snapshot(
     await check_permission(
         session,
         auth,
-        snapshot.thread.search_space_id,
+        snapshot.thread.workspace_id,
         Permission.PUBLIC_SHARING_DELETE.value,
         "You don't have permission to delete public share links",
     )
@@ -603,27 +603,27 @@ async def delete_affected_snapshots(
 # =============================================================================
 
 
-async def get_user_default_search_space(
+async def get_user_default_workspace(
     session: AsyncSession,
     user_id: UUID,
 ) -> int | None:
     """
-    Get user's default search space for cloning.
+    Get user's default workspace for cloning.
 
-    Returns the first search space where user is owner, or None if not found.
+    Returns the first workspace where user is owner, or None if not found.
     """
     result = await session.execute(
-        select(SearchSpaceMembership)
+        select(WorkspaceMembership)
         .filter(
-            SearchSpaceMembership.user_id == user_id,
-            SearchSpaceMembership.is_owner.is_(True),
+            WorkspaceMembership.user_id == user_id,
+            WorkspaceMembership.is_owner.is_(True),
         )
         .limit(1)
     )
     membership = result.scalars().first()
 
     if membership:
-        return membership.search_space_id
+        return membership.workspace_id
 
     return None
 
@@ -650,10 +650,10 @@ async def clone_from_snapshot(
             status_code=404, detail="Chat not found or no longer public"
         )
 
-    target_search_space_id = await get_user_default_search_space(session, user.id)
+    target_workspace_id = await get_user_default_workspace(session, user.id)
 
-    if target_search_space_id is None:
-        raise HTTPException(status_code=400, detail="No search space found for user")
+    if target_workspace_id is None:
+        raise HTTPException(status_code=400, detail="No workspace found for user")
 
     data = snapshot.snapshot_data
     messages_data = data.get("messages", [])
@@ -664,7 +664,7 @@ async def clone_from_snapshot(
         title=data.get("title", "Cloned Chat"),
         archived=False,
         visibility=ChatVisibility.PRIVATE,
-        search_space_id=target_search_space_id,
+        workspace_id=target_workspace_id,
         created_by_id=user.id,
         cloned_from_thread_id=snapshot.thread_id,
         cloned_from_snapshot_id=snapshot.id,
@@ -726,7 +726,7 @@ async def clone_from_snapshot(
                                 storage_key=podcast_info.get("storage_key"),
                                 file_location=podcast_info.get("file_path"),
                                 status=PodcastStatus.READY,
-                                search_space_id=target_search_space_id,
+                                workspace_id=target_workspace_id,
                                 thread_id=new_thread.id,
                             )
                             session.add(new_podcast)
@@ -754,7 +754,7 @@ async def clone_from_snapshot(
                                 title=report_info.get("title", "Cloned Report"),
                                 content=report_info.get("content"),
                                 report_metadata=report_info.get("report_metadata"),
-                                search_space_id=target_search_space_id,
+                                workspace_id=target_workspace_id,
                                 thread_id=new_thread.id,
                             )
                             session.add(new_report)
@@ -783,7 +783,7 @@ async def clone_from_snapshot(
 
     return {
         "thread_id": new_thread.id,
-        "search_space_id": target_search_space_id,
+        "workspace_id": target_workspace_id,
     }
 
 

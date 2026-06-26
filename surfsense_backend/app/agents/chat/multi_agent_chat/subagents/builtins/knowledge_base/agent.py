@@ -36,7 +36,7 @@ _KB_READONLY_RULESET = Ruleset(origin=READONLY_NAME, rules=[])
 def _build_search_knowledge_base_tool(dependencies: dict[str, Any]) -> BaseTool:
     """Construct the hybrid-RAG ``search_knowledge_base`` tool from shared deps."""
     return create_search_knowledge_base_tool(
-        search_space_id=dependencies["search_space_id"],
+        workspace_id=dependencies["workspace_id"],
         available_connectors=dependencies.get("available_connectors"),
         available_document_types=dependencies.get("available_document_types"),
     )

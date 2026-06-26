@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 def create_update_notion_page_tool(
     db_session: AsyncSession | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     user_id: str | None = None,
     connector_id: int | None = None,
 ):
@@ -24,7 +24,7 @@ def create_update_notion_page_tool(
 
     Args:
         db_session: Database session for accessing Notion connector
-        search_space_id: Search space ID to find the Notion connector
+        workspace_id: Workspace ID to find the Notion connector
         user_id: User ID for fetching user-specific context
         connector_id: Optional specific connector ID (if known)
 
@@ -73,7 +73,7 @@ def create_update_notion_page_tool(
             f"update_notion_page called: page_title='{page_title}', content_length={len(content) if content else 0}"
         )
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if db_session is None or workspace_id is None or user_id is None:
             logger.error(
                 "Notion tool not properly configured - missing required parameters"
             )
@@ -92,7 +92,7 @@ def create_update_notion_page_tool(
         try:
             metadata_service = NotionToolMetadataService(db_session)
             context = await metadata_service.get_update_context(
-                search_space_id, user_id, page_title
+                workspace_id, user_id, page_title
             )
 
             if "error" in context:
@@ -165,7 +165,7 @@ def create_update_notion_page_tool(
                 result = await db_session.execute(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.id == final_connector_id,
-                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.workspace_id == workspace_id,
                         SearchSourceConnector.user_id == user_id,
                         SearchSourceConnector.connector_type
                         == SearchSourceConnectorType.NOTION_CONNECTOR,
@@ -175,7 +175,7 @@ def create_update_notion_page_tool(
 
                 if not connector:
                     logger.error(
-                        f"Invalid connector_id={final_connector_id} for search_space_id={search_space_id}"
+                        f"Invalid connector_id={final_connector_id} for workspace_id={workspace_id}"
                     )
                     return {
                         "status": "error",
@@ -212,7 +212,7 @@ def create_update_notion_page_tool(
                     document_id=document_id,
                     appended_content=final_content,
                     user_id=user_id,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     appended_block_ids=result.get("appended_block_ids"),
                 )
 

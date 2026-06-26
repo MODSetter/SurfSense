@@ -48,7 +48,7 @@ class MentionNotificationHandler(BaseNotificationHandler):
         author_avatar_url: str | None,
         author_email: str,
         content_preview: str,
-        search_space_id: int,
+        workspace_id: int,
     ) -> Notification:
         """Notify a mentioned user; idempotent on ``mention_id``."""
         existing = await self.find_notification_by_mention(session, mention_id)
@@ -77,7 +77,7 @@ class MentionNotificationHandler(BaseNotificationHandler):
         try:
             notification = Notification(
                 user_id=mentioned_user_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 type=self.notification_type,
                 title=title,
                 message=message,

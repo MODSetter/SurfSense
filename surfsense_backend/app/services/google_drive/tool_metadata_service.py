@@ -103,8 +103,8 @@ class GoogleDriveToolMetadataService:
             return inner, None
         return data, None
 
-    async def get_creation_context(self, search_space_id: int, user_id: str) -> dict:
-        accounts = await self._get_google_drive_accounts(search_space_id, user_id)
+    async def get_creation_context(self, workspace_id: int, user_id: str) -> dict:
+        accounts = await self._get_google_drive_accounts(workspace_id, user_id)
 
         if not accounts:
             return {
@@ -132,7 +132,7 @@ class GoogleDriveToolMetadataService:
         }
 
     async def get_trash_context(
-        self, search_space_id: int, user_id: str, file_name: str
+        self, workspace_id: int, user_id: str, file_name: str
     ) -> dict:
         result = await self._db_session.execute(
             select(Document)
@@ -141,7 +141,7 @@ class GoogleDriveToolMetadataService:
             )
             .filter(
                 and_(
-                    Document.search_space_id == search_space_id,
+                    Document.workspace_id == workspace_id,
                     Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
                     func.lower(Document.title) == func.lower(file_name),
                     SearchSourceConnector.user_id == user_id,
@@ -198,13 +198,13 @@ class GoogleDriveToolMetadataService:
         }
 
     async def _get_google_drive_accounts(
-        self, search_space_id: int, user_id: str
+        self, workspace_id: int, user_id: str
     ) -> list[GoogleDriveAccount]:
         result = await self._db_session.execute(
             select(SearchSourceConnector)
             .filter(
                 and_(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type.in_(
                         [

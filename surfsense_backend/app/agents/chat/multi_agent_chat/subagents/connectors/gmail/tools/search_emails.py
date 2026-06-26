@@ -17,7 +17,7 @@ _GMAIL_TYPES = [
 
 def create_search_gmail_tool(
     db_session: AsyncSession | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     user_id: str | None = None,
 ):
     @tool
@@ -38,7 +38,7 @@ def create_search_gmail_tool(
             Dictionary with status and a list of email summaries including
             message_id, subject, from, date, snippet.
         """
-        if db_session is None or search_space_id is None or user_id is None:
+        if db_session is None or workspace_id is None or user_id is None:
             return {"status": "error", "message": "Gmail tool not properly configured."}
 
         max_results = min(max_results, 20)
@@ -46,7 +46,7 @@ def create_search_gmail_tool(
         try:
             result = await db_session.execute(
                 select(SearchSourceConnector).filter(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type.in_(_GMAIL_TYPES),
                 )

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def create_list_teams_channels_tool(
     db_session: AsyncSession | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     user_id: str | None = None,
 ):
     @tool
@@ -23,11 +23,11 @@ def create_list_teams_channels_tool(
             Dictionary with status and a list of teams, each containing
             team_id, team_name, and a list of channels (id, name).
         """
-        if db_session is None or search_space_id is None or user_id is None:
+        if db_session is None or workspace_id is None or user_id is None:
             return {"status": "error", "message": "Teams tool not properly configured."}
 
         try:
-            connector = await get_teams_connector(db_session, search_space_id, user_id)
+            connector = await get_teams_connector(db_session, workspace_id, user_id)
             if not connector:
                 return {"status": "error", "message": "No Teams connector found."}
 

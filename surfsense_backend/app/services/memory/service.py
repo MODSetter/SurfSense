@@ -11,7 +11,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import SearchSpace, User
+from app.db import Workspace, User
 from app.services.memory.document import parse_memory_document, render_memory_document
 from app.services.memory.rewrite import forced_rewrite
 from app.services.memory.schemas import MemoryLimits
@@ -90,7 +90,7 @@ async def _load_target(
     scope: MemoryScope | str,
     target_id: str | int | UUID,
     session: AsyncSession,
-) -> User | SearchSpace | None:
+) -> User | Workspace | None:
     normalized = _normalize_scope(scope)
     if normalized is MemoryScope.USER:
         result = await session.execute(
@@ -98,18 +98,18 @@ async def _load_target(
         )
         return result.scalars().first()
     result = await session.execute(
-        select(SearchSpace).where(SearchSpace.id == int(target_id))
+        select(Workspace).where(Workspace.id == int(target_id))
     )
     return result.scalars().first()
 
 
-def _get_memory(target: User | SearchSpace, scope: MemoryScope) -> str:
+def _get_memory(target: User | Workspace, scope: MemoryScope) -> str:
     if scope is MemoryScope.USER:
         return getattr(target, "memory_md", None) or ""
     return getattr(target, "shared_memory_md", None) or ""
 
 
-def _set_memory(target: User | SearchSpace, scope: MemoryScope, content: str) -> None:
+def _set_memory(target: User | Workspace, scope: MemoryScope, content: str) -> None:
     if scope is MemoryScope.USER:
         target.memory_md = content
     else:
@@ -150,7 +150,7 @@ async def save_memory(
             status="error",
             message="User not found."
             if normalized is MemoryScope.USER
-            else "Search space not found.",
+            else "Workspace not found.",
         )
 
     old_memory = _get_memory(target, normalized)

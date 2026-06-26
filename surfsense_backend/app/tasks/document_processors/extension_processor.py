@@ -27,7 +27,7 @@ from .base import (
 async def add_extension_received_document(
     session: AsyncSession,
     content: ExtensionDocumentContent,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
 ) -> Document | None:
     """
@@ -36,13 +36,13 @@ async def add_extension_received_document(
     Args:
         session: Database session
         content: Document content from extension
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
 
     Returns:
         Document object if successful, None if failed
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     # Log task start
     log_entry = await task_logger.log_task_start(
@@ -90,11 +90,11 @@ async def add_extension_received_document(
 
         # Generate unique identifier hash for this extension document (using URL)
         unique_identifier_hash = generate_unique_identifier_hash(
-            DocumentType.EXTENSION, content.metadata.VisitedWebPageURL, search_space_id
+            DocumentType.EXTENSION, content.metadata.VisitedWebPageURL, workspace_id
         )
 
         # Generate content hash
-        content_hash = generate_content_hash(combined_document_string, search_space_id)
+        content_hash = generate_content_hash(combined_document_string, workspace_id)
 
         # Check if document with this unique identifier already exists
         existing_document = await check_document_by_unique_identifier(
@@ -146,7 +146,7 @@ async def add_extension_received_document(
         else:
             # Create new document
             document = Document(
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 title=content.metadata.VisitedWebPageTitle,
                 document_type=DocumentType.EXTENSION,
                 document_metadata=content.metadata.model_dump(),

@@ -30,7 +30,7 @@ class AutoReloadFailedNotificationHandler(BaseNotificationHandler):
     ) -> Notification:
         """Notify that an off-session auto-reload charge was declined.
 
-        Not tied to a search space (``search_space_id`` is None); the action
+        Not tied to a workspace (``workspace_id`` is None); the action
         links to the billing settings so the user can fix their card.
         """
         op_id = msg.operation_id(payment_intent_id or "")
@@ -42,7 +42,7 @@ class AutoReloadFailedNotificationHandler(BaseNotificationHandler):
             operation_id=op_id,
             title=title,
             message=message,
-            search_space_id=None,
+            workspace_id=None,
             initial_metadata={
                 "amount_micros": amount_micros,
                 "payment_intent_id": payment_intent_id,

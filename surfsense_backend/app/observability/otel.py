@@ -254,14 +254,14 @@ def model_call_span(
 
 def kb_search_span(
     *,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     query_chars: int | None = None,
     extra: dict[str, Any] | None = None,
 ):
     """Span around knowledge-base search routines."""
     attrs: dict[str, Any] = {}
-    if search_space_id is not None:
-        attrs["search_space.id"] = int(search_space_id)
+    if workspace_id is not None:
+        attrs["search_space.id"] = int(workspace_id)
     if query_chars is not None:
         attrs["query.chars"] = int(query_chars)
     if extra:
@@ -289,7 +289,7 @@ def kb_persist_span(
 def chat_request_span(
     *,
     chat_id: int | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     flow: str | None = None,
     request_id: str | None = None,
     turn_id: str | None = None,
@@ -302,8 +302,8 @@ def chat_request_span(
     attrs: dict[str, Any] = {}
     if chat_id is not None:
         attrs["chat.id"] = int(chat_id)
-    if search_space_id is not None:
-        attrs["search_space.id"] = int(search_space_id)
+    if workspace_id is not None:
+        attrs["search_space.id"] = int(workspace_id)
     if flow:
         attrs["chat.flow"] = flow
     if request_id:

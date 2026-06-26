@@ -28,7 +28,7 @@ class ConfluenceKBSyncService:
         space_id: str,
         body_content: str | None,
         connector_id: int,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str,
     ) -> dict:
         from app.tasks.connector_indexers.base import (
@@ -40,7 +40,7 @@ class ConfluenceKBSyncService:
 
         try:
             unique_hash = generate_unique_identifier_hash(
-                DocumentType.CONFLUENCE_CONNECTOR, page_id, search_space_id
+                DocumentType.CONFLUENCE_CONNECTOR, page_id, workspace_id
             )
 
             existing = await check_document_by_unique_identifier(
@@ -55,7 +55,7 @@ class ConfluenceKBSyncService:
 
             page_content = f"# {page_title}\n\n{indexable_content}"
 
-            content_hash = generate_content_hash(page_content, search_space_id)
+            content_hash = generate_content_hash(page_content, workspace_id)
 
             with self.db_session.no_autoflush:
                 dup = await check_duplicate_document_by_hash(
@@ -85,7 +85,7 @@ class ConfluenceKBSyncService:
                 content_hash=content_hash,
                 unique_identifier_hash=unique_hash,
                 embedding=summary_embedding,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
@@ -126,7 +126,7 @@ class ConfluenceKBSyncService:
         document_id: int,
         page_id: str,
         user_id: str,
-        search_space_id: int,
+        workspace_id: int,
     ) -> dict:
         from app.tasks.connector_indexers.base import (
             get_current_timestamp,
@@ -170,7 +170,7 @@ class ConfluenceKBSyncService:
 
             document.title = page_title
             document.content = summary_content
-            document.content_hash = generate_content_hash(page_content, search_space_id)
+            document.content_hash = generate_content_hash(page_content, workspace_id)
             document.embedding = summary_embedding
 
             from sqlalchemy.orm.attributes import flag_modified
