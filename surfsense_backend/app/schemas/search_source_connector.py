@@ -73,7 +73,7 @@ class SearchSourceConnectorUpdate(BaseModel):
 
 
 class SearchSourceConnectorRead(SearchSourceConnectorBase, IDModel, TimestampModel):
-    search_space_id: int
+    workspace_id: int
     user_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
@@ -129,7 +129,7 @@ class MCPConnectorRead(BaseModel):
     name: str
     connector_type: SearchSourceConnectorType
     server_config: MCPServerConfig
-    search_space_id: int
+    workspace_id: int
     user_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
@@ -148,7 +148,7 @@ class MCPConnectorRead(BaseModel):
             name=connector.name,
             connector_type=connector.connector_type,
             server_config=server_config,
-            search_space_id=connector.search_space_id,
+            workspace_id=connector.workspace_id,
             user_id=connector.user_id,
             created_at=connector.created_at,
             updated_at=connector.updated_at,

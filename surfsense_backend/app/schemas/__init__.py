@@ -84,7 +84,7 @@ from .rbac_schemas import (
     RoleCreate,
     RoleRead,
     RoleUpdate,
-    UserSearchSpaceAccess,
+    UserWorkspaceAccess,
 )
 from .reports import (
     ReportBase,
@@ -103,13 +103,13 @@ from .search_source_connector import (
     SearchSourceConnectorRead,
     SearchSourceConnectorUpdate,
 )
-from .search_space import (
-    SearchSpaceApiAccessUpdate,
-    SearchSpaceBase,
-    SearchSpaceCreate,
-    SearchSpaceRead,
-    SearchSpaceUpdate,
-    SearchSpaceWithStats,
+from .workspace import (
+    WorkspaceApiAccessUpdate,
+    WorkspaceBase,
+    WorkspaceCreate,
+    WorkspaceRead,
+    WorkspaceUpdate,
+    WorkspaceWithStats,
 )
 from .stripe import (
     CreateCreditCheckoutSessionRequest,
@@ -242,13 +242,13 @@ __all__ = [
     "SearchSourceConnectorCreate",
     "SearchSourceConnectorRead",
     "SearchSourceConnectorUpdate",
-    "SearchSpaceApiAccessUpdate",
-    # Search space schemas
-    "SearchSpaceBase",
-    "SearchSpaceCreate",
-    "SearchSpaceRead",
-    "SearchSpaceUpdate",
-    "SearchSpaceWithStats",
+    "WorkspaceApiAccessUpdate",
+    # Workspace schemas
+    "WorkspaceBase",
+    "WorkspaceCreate",
+    "WorkspaceRead",
+    "WorkspaceUpdate",
+    "WorkspaceWithStats",
     "StripeWebhookResponse",
     "ThreadHistoryLoadResponse",
     "ThreadListItem",
@@ -257,7 +257,7 @@ __all__ = [
     # User schemas
     "UserCreate",
     "UserRead",
-    "UserSearchSpaceAccess",
+    "UserWorkspaceAccess",
     "UserUpdate",
     "VerifyConnectionResponse",
     # Video Presentation schemas
