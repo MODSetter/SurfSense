@@ -160,7 +160,7 @@ async def _purge_test_search_space(search_space_id: int):
     conn = await asyncpg.connect(_ASYNCPG_URL)
     try:
         result = await conn.execute(
-            "DELETE FROM documents WHERE search_space_id = $1",
+            "DELETE FROM documents WHERE workspace_id = $1",
             search_space_id,
         )
         deleted = int(result.split()[-1])

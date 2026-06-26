@@ -606,7 +606,10 @@ class NewChatThread(BaseModel, TimestampMixin):
 
     # Foreign keys
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     # Track who created this chat thread (for visibility filtering)
@@ -786,7 +789,10 @@ class ExternalChatAccount(Base, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=True
     )
     owner_search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
+        "owner_workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=True,
     )
     is_system_account = Column(
         Boolean, nullable=False, default=False, server_default="false"
@@ -898,7 +904,10 @@ class ExternalChatBinding(Base, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     state = Column(
         SQLAlchemyEnum(
@@ -979,7 +988,7 @@ class ExternalChatBinding(Base, TimestampMixin):
         ),
         Index("ix_external_chat_bindings_user_state", "user_id", "state"),
         Index(
-            "ix_external_chat_bindings_search_space_state", "search_space_id", "state"
+            "ix_external_chat_bindings_workspace_state", "workspace_id", "state"
         ),
     )
 
@@ -1114,6 +1123,7 @@ class TokenUsage(BaseModel, TimestampMixin):
         index=True,
     )
     search_space_id = Column(
+        "workspace_id",
         Integer,
         ForeignKey("searchspaces.id", ondelete="CASCADE"),
         nullable=False,
@@ -1319,6 +1329,7 @@ class Folder(BaseModel, TimestampMixin):
         index=True,
     )
     search_space_id = Column(
+        "workspace_id",
         Integer,
         ForeignKey("searchspaces.id", ondelete="CASCADE"),
         nullable=False,
@@ -1383,7 +1394,10 @@ class Document(BaseModel, TimestampMixin):
     updated_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)
 
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     folder_id = Column(
@@ -1507,7 +1521,10 @@ class VideoPresentation(BaseModel, TimestampMixin):
     )
 
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     search_space = relationship("SearchSpace", back_populates="video_presentations")
 
@@ -1534,7 +1551,10 @@ class Report(BaseModel, TimestampMixin):
     )  # e.g. "executive_summary", "deep_research"
 
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     search_space = relationship("SearchSpace", back_populates="reports")
 
@@ -1562,7 +1582,10 @@ class Connection(BaseModel, TimestampMixin):
     enabled = Column(Boolean, nullable=False, default=True, server_default="true")
 
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=True,
     )
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=True
@@ -1580,8 +1603,8 @@ class Connection(BaseModel, TimestampMixin):
 
     __table_args__ = (
         CheckConstraint(
-            "(scope = 'GLOBAL' AND search_space_id IS NULL AND user_id IS NULL) OR "
-            "(scope = 'SEARCH_SPACE' AND search_space_id IS NOT NULL AND user_id IS NOT NULL) OR "
+            "(scope = 'GLOBAL' AND workspace_id IS NULL AND user_id IS NULL) OR "
+            "(scope = 'SEARCH_SPACE' AND workspace_id IS NOT NULL AND user_id IS NOT NULL) OR "
             "(scope = 'USER' AND user_id IS NOT NULL)",
             name="ck_connections_scope_owner",
         ),
@@ -1673,7 +1696,10 @@ class ImageGeneration(BaseModel, TimestampMixin):
 
     # Foreign keys
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     created_by_id = Column(
         UUID(as_uuid=True),
@@ -1830,11 +1856,11 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     __tablename__ = "search_source_connectors"
     __table_args__ = (
         UniqueConstraint(
-            "search_space_id",
+            "workspace_id",
             "user_id",
             "connector_type",
             "name",
-            name="uq_searchspace_user_connector_type_name",
+            name="uq_workspace_user_connector_type_name",
         ),
         # Mirrors migration 129; backs the ``/obsidian/connect`` upsert.
         Index(
@@ -1882,7 +1908,10 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     next_scheduled_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     search_space = relationship(
         "SearchSpace", back_populates="search_source_connectors"
@@ -1909,7 +1938,10 @@ class Log(BaseModel, TimestampMixin):
     log_metadata = Column(JSON, nullable=True, default={})  # Additional context data
 
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     search_space = relationship("SearchSpace", back_populates="logs")
 
@@ -2033,9 +2065,9 @@ class SearchSpaceRole(BaseModel, TimestampMixin):
     __tablename__ = "search_space_roles"
     __table_args__ = (
         UniqueConstraint(
-            "search_space_id",
+            "workspace_id",
             "name",
-            name="uq_searchspace_role_name",
+            name="uq_workspace_role_name",
         ),
     )
 
@@ -2049,7 +2081,10 @@ class SearchSpaceRole(BaseModel, TimestampMixin):
     is_system_role = Column(Boolean, nullable=False, default=False)
 
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     search_space = relationship("SearchSpace", back_populates="roles")
 
@@ -2071,8 +2106,8 @@ class SearchSpaceMembership(BaseModel, TimestampMixin):
     __table_args__ = (
         UniqueConstraint(
             "user_id",
-            "search_space_id",
-            name="uq_user_searchspace_membership",
+            "workspace_id",
+            name="uq_user_workspace_membership",
         ),
     )
 
@@ -2080,7 +2115,10 @@ class SearchSpaceMembership(BaseModel, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     role_id = Column(
         Integer,
@@ -2122,7 +2160,10 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
     invite_code = Column(String(64), nullable=False, unique=True, index=True)
 
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+        "workspace_id",
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     # Role to assign when invite is used (null means use default role)
     role_id = Column(
@@ -2180,6 +2221,7 @@ class Prompt(BaseModel, TimestampMixin):
         index=True,
     )
     search_space_id = Column(
+        "workspace_id",
         Integer,
         ForeignKey("searchspaces.id", ondelete="CASCADE"),
         nullable=True,
@@ -2509,6 +2551,7 @@ class AgentActionLog(BaseModel):
         index=True,
     )
     search_space_id = Column(
+        "workspace_id",
         Integer,
         ForeignKey("searchspaces.id", ondelete="CASCADE"),
         nullable=False,
@@ -2580,6 +2623,7 @@ class DocumentRevision(BaseModel):
         index=True,
     )
     search_space_id = Column(
+        "workspace_id",
         Integer,
         ForeignKey("searchspaces.id", ondelete="CASCADE"),
         nullable=False,
@@ -2621,6 +2665,7 @@ class FolderRevision(BaseModel):
         index=True,
     )
     search_space_id = Column(
+        "workspace_id",
         Integer,
         ForeignKey("searchspaces.id", ondelete="CASCADE"),
         nullable=False,
@@ -2657,6 +2702,7 @@ class AgentPermissionRule(BaseModel):
     __tablename__ = "agent_permission_rules"
 
     search_space_id = Column(
+        "workspace_id",
         Integer,
         ForeignKey("searchspaces.id", ondelete="CASCADE"),
         nullable=False,
@@ -2687,7 +2733,7 @@ class AgentPermissionRule(BaseModel):
 
     __table_args__ = (
         UniqueConstraint(
-            "search_space_id",
+            "workspace_id",
             "user_id",
             "thread_id",
             "permission",
@@ -2865,15 +2911,15 @@ _INDEX_DEFINITIONS: list[tuple[str, str, str]] = [
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_title_trgm ON documents USING gin (title gin_trgm_ops)",
     ),
     (
-        "idx_documents_search_space_id",
+        "idx_documents_workspace_id",
         "documents",
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_search_space_id ON documents (search_space_id)",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_workspace_id ON documents (workspace_id)",
     ),
     # Covering index for "recent documents" query — enables index-only scan.
     (
-        "idx_documents_search_space_updated",
+        "idx_documents_workspace_updated",
         "documents",
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_search_space_updated ON documents (search_space_id, updated_at DESC NULLS LAST) INCLUDE (id, title, document_type)",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_workspace_updated ON documents (workspace_id, updated_at DESC NULLS LAST) INCLUDE (id, title, document_type)",
     ),
 ]
 
