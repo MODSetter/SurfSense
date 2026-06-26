@@ -33,7 +33,6 @@ interface ProviderConnectDialogProps {
 	previewModels?: SelectableModel[];
 	isPreviewingModels?: boolean;
 	onPreviewModels?: (draft: ConnectionDraft) => void;
-	onAddPreviewModel?: (modelId: string) => void;
 	onTogglePreviewModel?: (model: SelectableModel, enabled: boolean) => void;
 	onBulkTogglePreviewModels?: (models: SelectableModel[], enabled: boolean) => void;
 }
@@ -53,7 +52,6 @@ export function ProviderConnectDialog({
 	previewModels = [],
 	isPreviewingModels = false,
 	onPreviewModels,
-	onAddPreviewModel,
 	onTogglePreviewModel,
 	onBulkTogglePreviewModels,
 }: ProviderConnectDialogProps) {
@@ -130,18 +128,21 @@ export function ProviderConnectDialog({
 						<DefaultConnectForm {...formProps} />
 					)}
 
-					<Separator className="bg-muted-foreground/20" />
+					{!isAzure ? (
+						<>
+							<Separator className="bg-muted-foreground/20" />
 
-					<ModelsSelectionPanel
-						models={previewModels}
-						description={modelDescription}
-						isRefreshing={isPreviewingModels}
-						refreshLabel={`Refresh ${meta.name} models`}
-						onRefresh={canRefreshModels ? () => onPreviewModels?.(currentDraft) : undefined}
-						onAddManual={onAddPreviewModel}
-						onToggleModel={onTogglePreviewModel}
-						onBulkToggle={onBulkTogglePreviewModels}
-					/>
+							<ModelsSelectionPanel
+								models={previewModels}
+								description={modelDescription}
+								isRefreshing={isPreviewingModels}
+								refreshLabel={`Refresh ${meta.name} models`}
+								onRefresh={canRefreshModels ? () => onPreviewModels?.(currentDraft) : undefined}
+								onToggleModel={onTogglePreviewModel}
+								onBulkToggle={onBulkTogglePreviewModels}
+							/>
+						</>
+					) : null}
 				</div>
 				<ConnectFormFooter
 					onCancel={() => onOpenChange(false)}
