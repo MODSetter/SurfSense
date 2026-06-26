@@ -72,6 +72,7 @@ import { useThreadDetail, useThreadMessages } from "@/hooks/use-thread-queries";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getDesktopAccessToken } from "@/lib/auth-fetch";
+import { refreshSession } from "@/lib/auth-utils";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -688,10 +689,18 @@ export default function NewChatPage() {
 
 	const fetchWithTurnCancellingRetry = useCallback(async (runFetch: () => Promise<Response>) => {
 		const maxAttempts = 4;
+		let didRefreshAuth = false;
 		for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
 			const response = await runFetch();
 			if (response.ok) {
 				return response;
+			}
+			if (response.status === 401 && !didRefreshAuth) {
+				didRefreshAuth = true;
+				const refreshed = await refreshSession();
+				if (refreshed) {
+					continue;
+				}
 			}
 			const error = await toHttpResponseError(response);
 			const withMeta = error as Error & { errorCode?: string; retryAfterMs?: number };
