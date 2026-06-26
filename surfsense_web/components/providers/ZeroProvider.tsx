@@ -31,21 +31,41 @@ function getCacheURL() {
 }
 
 async function fetchZeroContext(isDesktop: boolean): Promise<LoadedZeroContext | null> {
-	const headers: HeadersInit = {};
-	let desktopAuth: string | undefined;
+	const buildHeaders = async (
+		forceRefresh = false
+	): Promise<{ headers: HeadersInit; desktopAuth?: string } | null> => {
+		const headers: HeadersInit = {};
 
-	if (isDesktop) {
-		const token = await getDesktopAccessToken();
-		if (!token) return null;
-		desktopAuth = token;
-		headers.Authorization = `Bearer ${token}`;
+		if (isDesktop) {
+			const token = await getDesktopAccessToken({ forceRefresh });
+			if (!token) return null;
+			headers.Authorization = `Bearer ${token}`;
+			return { headers, desktopAuth: token };
+		}
+
+		return { headers };
+	};
+
+	const request = async (forceRefresh = false) => {
+		const auth = await buildHeaders(forceRefresh);
+		if (!auth) return null;
+		const response = await fetch(buildBackendUrl("/zero/context"), {
+			credentials: "include",
+			headers: auth.headers,
+		});
+		return { response, desktopAuth: auth.desktopAuth };
+	};
+
+	let result = await request();
+	if (result?.response.status === 401) {
+		const refreshed = await refreshSession();
+		if (refreshed) {
+			result = await request(true);
+		}
 	}
 
-	const response = await fetch(buildBackendUrl("/zero/context"), {
-		credentials: "include",
-		headers,
-	});
-
+	if (!result) return null;
+	const { response, desktopAuth } = result;
 	if (!response.ok) return null;
 
 	return {
