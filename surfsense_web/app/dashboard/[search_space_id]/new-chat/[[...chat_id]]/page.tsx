@@ -289,6 +289,16 @@ const TURN_CANCELLING_BACKOFF_FACTOR = 2;
 const TURN_CANCELLING_MAX_DELAY_MS = 1500;
 const RECENT_CANCEL_WINDOW_MS = 5_000;
 
+async function getRequestHeadersWithCurrentDesktopAuth(
+	headers: Record<string, string> = {}
+): Promise<Record<string, string>> {
+	const token = await getDesktopAccessToken({ forceRefresh: true });
+	return {
+		...headers,
+		...(token ? { Authorization: `Bearer ${token}` } : {}),
+	};
+}
+
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -941,13 +951,12 @@ export default function NewChatPage() {
 	// Cancel ongoing request
 	const cancelRun = useCallback(async () => {
 		if (threadId) {
-			const token = await getDesktopAccessToken();
 			try {
 				const response = await fetch(
 					buildBackendUrl(`/api/v1/threads/${threadId}/cancel-active-turn`),
 					{
 						method: "POST",
-						headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+						headers: await getRequestHeadersWithCurrentDesktopAuth(),
 						credentials: "include",
 					}
 				);
@@ -994,8 +1003,6 @@ export default function NewChatPage() {
 			const { userQuery, userImages } = extractUserTurnForNewChatApi(message, urlsSnapshot);
 
 			if (!userQuery.trim() && userImages.length === 0) return;
-
-			const token = await getDesktopAccessToken();
 
 			// Lazy thread creation: create thread on first message if it doesn't exist
 			let currentThreadId = threadId;
@@ -1167,13 +1174,12 @@ export default function NewChatPage() {
 				const hasConnectorIds = mentionPayload.connector_ids.length > 0;
 				const hasThreadIds = mentionPayload.thread_ids.length > 0;
 
-				const response = await fetchWithTurnCancellingRetry(() =>
+				const response = await fetchWithTurnCancellingRetry(async () =>
 					fetch(buildBackendUrl("/api/v1/new_chat"), {
 						method: "POST",
-						headers: {
+						headers: await getRequestHeadersWithCurrentDesktopAuth({
 							"Content-Type": "application/json",
-							...(token ? { Authorization: `Bearer ${token}` } : {}),
-						},
+						}),
 						credentials: "include",
 						body: JSON.stringify({
 							chat_id: currentThreadId,
@@ -1555,8 +1561,6 @@ export default function NewChatPage() {
 			stagedDecisionsByInterruptIdRef.current.clear();
 			setIsRunning(true);
 
-			const token = await getDesktopAccessToken();
-
 			const controller = new AbortController();
 			abortControllerRef.current = controller;
 
@@ -1656,13 +1660,12 @@ export default function NewChatPage() {
 				const selection = await getAgentFilesystemSelection(searchSpaceId, {
 					localFilesystemEnabled,
 				});
-				const response = await fetchWithTurnCancellingRetry(() =>
+				const response = await fetchWithTurnCancellingRetry(async () =>
 					fetch(buildBackendUrl(`/api/v1/threads/${resumeThreadId}/resume`), {
 						method: "POST",
-						headers: {
+						headers: await getRequestHeadersWithCurrentDesktopAuth({
 							"Content-Type": "application/json",
-							...(token ? { Authorization: `Bearer ${token}` } : {}),
-						},
+						}),
 						credentials: "include",
 						body: JSON.stringify({
 							search_space_id: searchSpaceId,
@@ -1995,8 +1998,6 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 
-			const token = await getDesktopAccessToken();
-
 			// Extract the original user query BEFORE removing messages (for reload mode)
 			let userQueryToDisplay: string | undefined;
 			let originalUserMessageContent: ThreadMessageLike["content"] | null = null;
@@ -2113,13 +2114,12 @@ export default function NewChatPage() {
 						requestBody.revert_actions = true;
 					}
 				}
-				const response = await fetchWithTurnCancellingRetry(() =>
+				const response = await fetchWithTurnCancellingRetry(async () =>
 					fetch(getRegenerateUrl(threadId), {
 						method: "POST",
-						headers: {
+						headers: await getRequestHeadersWithCurrentDesktopAuth({
 							"Content-Type": "application/json",
-							...(token ? { Authorization: `Bearer ${token}` } : {}),
-						},
+						}),
 						credentials: "include",
 						body: JSON.stringify(requestBody),
 						signal: controller.signal,
