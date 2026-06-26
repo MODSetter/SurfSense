@@ -30,7 +30,7 @@ from app.utils.connector_naming import (
     generate_unique_connector_name,
 )
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
-from app.utils.rbac import check_search_space_access
+from app.utils.rbac import check_workspace_access
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ async def connect_discord(
     Initiate Discord OAuth flow.
 
     Args:
-        space_id: The search space ID
+        space_id: The workspace ID
         user: Current authenticated user
 
     Returns:
@@ -333,7 +333,7 @@ async def discord_callback(
             connector_type=SearchSourceConnectorType.DISCORD_CONNECTOR,
             is_indexable=False,
             config=connector_config,
-            search_space_id=space_id,
+            workspace_id=space_id,
             user_id=user_id,
         )
         session.add(new_connector)
@@ -652,7 +652,7 @@ async def get_discord_channels(
                 detail="Discord connector not found or access denied",
             )
 
-        await check_search_space_access(session, auth, connector.search_space_id)
+        await check_workspace_access(session, auth, connector.workspace_id)
 
         # Get credentials and decrypt bot token
         credentials = DiscordAuthCredentialsBase.from_dict(connector.config)

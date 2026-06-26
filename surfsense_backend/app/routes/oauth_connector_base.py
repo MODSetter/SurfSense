@@ -415,7 +415,7 @@ class OAuthConnectorRoute:
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.id == connector_id,
                     SearchSourceConnector.user_id == user.id,
-                    SearchSourceConnector.search_space_id == space_id,
+                    SearchSourceConnector.workspace_id == space_id,
                     SearchSourceConnector.connector_type == oauth.connector_type,
                 )
             )
@@ -530,7 +530,7 @@ class OAuthConnectorRoute:
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.id == reauth_connector_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.search_space_id == space_id,
+                        SearchSourceConnector.workspace_id == space_id,
                         SearchSourceConnector.connector_type == oauth.connector_type,
                     )
                 )
@@ -597,7 +597,7 @@ class OAuthConnectorRoute:
                 connector_type=oauth.connector_type,
                 is_indexable=oauth.is_indexable,
                 config=connector_config,
-                search_space_id=space_id,
+                workspace_id=space_id,
                 user_id=user_id,
             )
             session.add(new_connector)

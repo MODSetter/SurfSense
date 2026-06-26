@@ -19,8 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.context import AuthContext
 from app.db import (
     Permission,
-    SearchSpace,
-    SearchSpaceMembership,
+    Workspace,
+    WorkspaceMembership,
     VideoPresentation,
     get_async_session,
 )
@@ -35,38 +35,38 @@ router = APIRouter()
 async def read_video_presentations(
     skip: int = 0,
     limit: int = 100,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     user = auth.user
     """
     List video presentations the user has access to.
-    Requires VIDEO_PRESENTATIONS_READ permission for the search space(s).
+    Requires VIDEO_PRESENTATIONS_READ permission for the workspace(s).
     """
     if skip < 0 or limit < 1:
         raise HTTPException(status_code=400, detail="Invalid pagination parameters")
     try:
-        if search_space_id is not None:
+        if workspace_id is not None:
             await check_permission(
                 session,
                 auth,
-                search_space_id,
+                workspace_id,
                 Permission.VIDEO_PRESENTATIONS_READ.value,
-                "You don't have permission to read video presentations in this search space",
+                "You don't have permission to read video presentations in this workspace",
             )
             result = await session.execute(
                 select(VideoPresentation)
-                .filter(VideoPresentation.search_space_id == search_space_id)
+                .filter(VideoPresentation.workspace_id == workspace_id)
                 .offset(skip)
                 .limit(limit)
             )
         else:
             result = await session.execute(
                 select(VideoPresentation)
-                .join(SearchSpace)
-                .join(SearchSpaceMembership)
-                .filter(SearchSpaceMembership.user_id == user.id)
+                .join(Workspace)
+                .join(WorkspaceMembership)
+                .filter(WorkspaceMembership.user_id == user.id)
                 .offset(skip)
                 .limit(limit)
             )
@@ -114,9 +114,9 @@ async def read_video_presentation(
         await check_permission(
             session,
             auth,
-            video_pres.search_space_id,
+            video_pres.workspace_id,
             Permission.VIDEO_PRESENTATIONS_READ.value,
-            "You don't have permission to read video presentations in this search space",
+            "You don't have permission to read video presentations in this workspace",
         )
 
         return VideoPresentationRead.from_orm_with_slides(video_pres)
@@ -137,7 +137,7 @@ async def delete_video_presentation(
 ):
     """
     Delete a video presentation.
-    Requires VIDEO_PRESENTATIONS_DELETE permission for the search space.
+    Requires VIDEO_PRESENTATIONS_DELETE permission for the workspace.
     """
     try:
         result = await session.execute(
@@ -153,9 +153,9 @@ async def delete_video_presentation(
         await check_permission(
             session,
             auth,
-            db_video_pres.search_space_id,
+            db_video_pres.workspace_id,
             Permission.VIDEO_PRESENTATIONS_DELETE.value,
-            "You don't have permission to delete video presentations in this search space",
+            "You don't have permission to delete video presentations in this workspace",
         )
 
         await session.delete(db_video_pres)
@@ -196,9 +196,9 @@ async def stream_slide_audio(
         await check_permission(
             session,
             auth,
-            video_pres.search_space_id,
+            video_pres.workspace_id,
             Permission.VIDEO_PRESENTATIONS_READ.value,
-            "You don't have permission to access video presentations in this search space",
+            "You don't have permission to access video presentations in this workspace",
         )
 
         slides = video_pres.slides or []
