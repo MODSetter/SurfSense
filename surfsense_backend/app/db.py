@@ -2136,7 +2136,7 @@ class SearchSpaceMembership(BaseModel, TimestampMixin):
     # Reference to the invite used to join (null if owner/creator)
     invited_by_invite_id = Column(
         Integer,
-        ForeignKey("search_space_invites.id", ondelete="SET NULL"),
+        ForeignKey("workspace_invites.id", ondelete="SET NULL"),
         nullable=True,
     )
 
@@ -2154,7 +2154,7 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
     Users can create invite links with specific roles that others can use to join.
     """
 
-    __tablename__ = "search_space_invites"
+    __tablename__ = "workspace_invites"
 
     # Unique invite code (used in invite URLs)
     invite_code = Column(String(64), nullable=False, unique=True, index=True)
