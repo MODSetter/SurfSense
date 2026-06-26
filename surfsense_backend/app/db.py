@@ -2062,7 +2062,7 @@ class SearchSpaceRole(BaseModel, TimestampMixin):
     Each search space can have multiple roles with different permission sets.
     """
 
-    __tablename__ = "search_space_roles"
+    __tablename__ = "workspace_roles"
     __table_args__ = (
         UniqueConstraint(
             "workspace_id",
@@ -2122,7 +2122,7 @@ class SearchSpaceMembership(BaseModel, TimestampMixin):
     )
     role_id = Column(
         Integer,
-        ForeignKey("search_space_roles.id", ondelete="SET NULL"),
+        ForeignKey("workspace_roles.id", ondelete="SET NULL"),
         nullable=True,
     )
     # Indicates if this user is the original creator/owner of the search space
@@ -2168,7 +2168,7 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
     # Role to assign when invite is used (null means use default role)
     role_id = Column(
         Integer,
-        ForeignKey("search_space_roles.id", ondelete="SET NULL"),
+        ForeignKey("workspace_roles.id", ondelete="SET NULL"),
         nullable=True,
     )
     # User who created this invite
