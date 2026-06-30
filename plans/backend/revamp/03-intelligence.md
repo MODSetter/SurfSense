@@ -87,6 +87,40 @@ description reworded       → code: no rule → ASK AGENT → NOISE
 - Exposes **`refresh(lens)`**. *Who* calls it (manual / agent / external cron / optional automation) is
   the **Triggers** domain's concern — Intelligence has **no dependency** on any scheduler.
 
+## Refresh execution & idempotency — ride the invoking surface (no new run table)
+
+`refresh(lens)` is a **headless unit of work**; the **run/audit record + idempotency live on whatever
+surface invoked it**, so we do *not* rebuild old Phase-6 `pipeline_runs`:
+
+- **Recurring (in-app):** invoked by the **CI automation action** (`05`) → the existing
+  **`AutomationRun`** is the run record (status / error / timing / `step_results`) and the automations
+  executor already provides the **PENDING→running idempotency gate** (safe under Celery `acks_late`
+  redelivery). This is exactly the rigor old `06` hand-built — reused, not re-written.
+- **Chat (manual / agent):** invoked via the chat **job record** (`01`) + `deliverable_wait` — status
+  lives there.
+- **Billing idempotency is per *capability call*, not per run:** each `executor` bills a success once
+  via the billing service (`01`); the **content-hash pre-check** (step 2) is what prevents needless
+  re-crawls/charges on an unchanged page. So no run-level `charged_micros` ledger is required for MVP.
+
+Net: the only genuinely new state is the **Timeline** (`04`); execution accounting is borrowed from
+`AutomationRun` / the job record.
+
+## User-supplied context files (the F idea, generalized)
+
+A CI chat/Lens may have an associated **context folder** (a normal `Folder`): files the user uploads
+*in that CI chat* (e.g. "our own price list", a competitor brochure) land there directly — **not** the
+global KB. Those files are **decision context**, and the **judge step (5) may consult them** when
+ruling materiality:
+
+```
+competitor price 12.00 → 9.90   + user's context file says "our price is 10.00"
+   → agent: competitor crossed *below our price* → MATERIAL (and explain why)
+```
+
+So the user's private context **shapes what counts as material** — a real differentiator, and it
+reuses the existing `Folder`/upload machinery without resurrecting KB indexing. **MVP-optional**
+(the loop works without it); design the seam now so judgement can read the folder later.
+
 ## MVP cut vs north star
 
 - **MVP:** agent-designed-schema flow (conversational, sample-grounded, human-locked) · single entity
@@ -105,6 +139,11 @@ description reworded       → code: no rule → ASK AGENT → NOISE
 5. Materiality = deterministic numeric/clear rules in code + agent only on ambiguous.
 6. Content-hash pre-check short-circuits unchanged pages before any LLM spend.
 7. `app/intelligence/` Apache-2; `refresh(lens)` is trigger-agnostic.
+8. **No new run table** — refresh audit/idempotency ride `AutomationRun` (recurring) or the chat job
+   record; billing idempotency is per-capability-call + the content-hash gate. Only Timeline (`04`) is
+   new state.
+9. **CI context folder** (F): user files uploaded in a CI chat land in a dedicated `Folder` and may
+   feed the judge step; reuses existing upload machinery, **not** the KB. MVP-optional seam.
 
 ## Open questions (carry forward)
 
@@ -112,3 +151,4 @@ description reworded       → code: no rule → ASK AGENT → NOISE
   confirmation for MVP?).
 - Versioning policy on re-lock (new version vs in-place) — lean new version.
 - Where the schema-design agent itself runs (a setup capability? a chat sub-flow?).
+- Context-folder → judge wiring (how much of the folder to load; per-Lens vs per-chat scope).
