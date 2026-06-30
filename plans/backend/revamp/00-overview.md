@@ -38,3 +38,66 @@ PRODUCT B — decision-grounded CI   ③ Intelligence + ④ Timeline  (+ ⑤ Tri
 | ④ | Timeline | durable time-shaped truth; deltas not snapshots; no change → no row | `04-timeline.md` |
 | ⑤ | Triggers | when a Lens refreshes; `refresh(lens)` callers; recurrence+delivery = optional CI action on automations | `05-triggers.md` |
 | ⑥ | Orchestration | the human-facing CI-expert subagent (intent routing, verb chains, Lens crafting) + its tools | `06-orchestration.md` |
+
+## Reconciliation with the old plans
+
+| Old plan | Fate | Where it goes |
+|----------|------|---------------|
+| `04a-connector-category.md` | **demoted to hygiene** | the genuine MCP-routing fix survives in ② (consume-user-MCP); the taxonomy work is not core |
+| `04b-source-discovery.md` | **absorbed** | becomes the `web.discover` capability in ① |
+| `05-pipelines-model.md` | **dissolved** | the "pipeline" concept → the `Lens` (③) + Timeline tables (④); no `pipeline`/`pipeline_runs` |
+| `06-pipelines-exec.md` | **dissolved** | execution → the hot loop (③); scheduling/runs/delivery → **reuse automations** via a CI action (⑤) — its selector + `AutomationRun`, **not** a rebuilt cron |
+| `07-upload-pipeline-kb.md` | **dropped (crawl→KB + uploads-as-pipeline audit)** | "don't index *crawled* data" holds. **User file-upload-to-KB remains a pre-existing, untouched feature.** For CI, uploaded files land in a dedicated **context `Folder`** (not the KB) and may feed the judge (`03`, F) |
+
+**Net:** the old `05/06/07` pipeline+KB stack is replaced by `①②③④⑤⑥`. KB indexing of *crawled* data is
+out; *user uploads* still work (and gain a CI context-folder role).
+
+## Build sequence (proposed)
+
+1. **① Capabilities** — registry + the verb `executor`s over Acquisition (unblocks everything).
+2. **② Access** — REST + API keys (day-one endpoints) and chat tools; MCP fast-follow.
+3. **④ Timeline** — the three tables (state must exist before the loop writes it).
+4. **③ Intelligence** — schema-design agent + hot loop + materiality evaluator.
+5. **⑤ Triggers** — manual/agent/external-cron; then the CI **automation action** (recurrence +
+   delivery) reusing the automations selector + `AutomationRun`.
+6. **⑥ Orchestration** — the `analyst` CI-expert subagent + tools + prompt (the human-facing seam;
+   built atop ①–④, can grow alongside them).
+
+## Consolidated open forks (need your call)
+
+1. Primitive **name** — using `Lens` as a working label; confirm or replace.
+2. Schema **review-&-lock** UX before frontend exists — pure-chat confirmation for MVP?
+3. Timeline ORM home — `app/db.py` vs dedicated `app/timeline/`.
+4. Recurrence = CI **action** on automations (default) vs a thin CI automation **shape** (fallback).
+
+*(Resolved: the "built-in scheduler tick" fork — we reuse the automations schedule selector via a CI
+action instead of building a tick. See `05`.)*
+
+## Confirmed decisions (locked across docs)
+
+- **Natural language is the only human-facing surface.** Users never name verbs; the chat agent
+  understands intent, composes the verbs, and answers in plain language. An **intent router**
+  classifies one-shot (A) vs standing-concern (B) from the wording (one clarifying question if
+  ambiguous). Raw verbs live only on the REST/MCP dev doors.
+- MVP surface = Google Maps actor + general web crawler, exposed chat + REST (MCP fast-follow).
+- Verbs namespaced per platform (`web.*`, `maps.*`); `web.scrape` takes a URL **array** (inline-or-job).
+- **Don't index** crawled data into the KB; the Timeline (deltas) is the only persisted CI state.
+- CI is **decoupled from automations** (automations = one optional Trigger adapter).
+- Intelligence: **agent-designed schema** (sample-grounded, human-locked, versioned) in MVP; single
+  entity per Lens; materiality = code thresholds (numeric/clear) + agent on ambiguous; content-hash
+  pre-check before LLM spend.
+- Orchestration is a first-class deliverable: a **net-new CI-expert subagent** (`analyst`, working
+  name) on the existing chat runtime, with registry-backed verb tools + Lens/Timeline tools; intent
+  routing lives in its prompt, the headless logic stays in ③/④.
+- **Recurrence + alert delivery = a CI *action* on the existing automations** (not a new scheduler,
+  not a new shape): reuses the hardened schedule selector, `AutomationRun` (audit + idempotency), and
+  automations' delivery. CI core still runs with **zero** automations dependency (manual/agent/cron).
+- **No new run table:** refresh audit/idempotency ride `AutomationRun` or the chat job record; billing
+  idempotency is per-capability-call + the content-hash pre-check. Only the Timeline is new state.
+- **Billing is delegated to the billing service:** verbs declare a `billing_unit`; `03c` is the first
+  provider; `maps.*` / `web.discover` register their own units there (pricing stays pluggable).
+- The **Google Maps actor is net-new** (not in shipped Phases 1–3) and is designed/built as a
+  **separate effort**; `maps.*` verbs are contracts against it and don't block this design.
+- **CI context files (F):** files uploaded in a CI chat land in a dedicated `Folder` (not the KB) and
+  may feed the materiality judge — the user's private context shapes what counts as material.
+- License: new domains **Apache-2**; the moat stays in proprietary Acquisition + the Maps extractor.
