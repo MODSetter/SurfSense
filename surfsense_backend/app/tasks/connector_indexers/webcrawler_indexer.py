@@ -13,7 +13,10 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.connectors.webcrawler_connector import WebCrawlerConnector
+from app.proprietary.web_crawler import (
+    CrawlOutcomeStatus,
+    WebCrawlerConnector,
+)
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
@@ -111,9 +114,6 @@ async def index_crawled_urls(
                 f"Connector with ID {connector_id} not found or is not a webcrawler connector",
             )
 
-        # Get the Firecrawl API key from the connector config (optional)
-        api_key = connector.config.get("FIRECRAWL_API_KEY")
-
         # Get URLs from connector config
         raw_initial_urls = connector.config.get("INITIAL_URLS")
         urls = parse_webcrawler_urls(raw_initial_urls)
@@ -132,11 +132,10 @@ async def index_crawled_urls(
             f"Initializing webcrawler client for connector {connector_id}",
             {
                 "stage": "client_initialization",
-                "use_firecrawl": bool(api_key),
             },
         )
 
-        crawler = WebCrawlerConnector(firecrawl_api_key=api_key)
+        crawler = WebCrawlerConnector()
 
         # Validate URLs
         if not urls:
@@ -169,6 +168,10 @@ async def index_crawled_urls(
         documents_skipped = 0
         documents_failed = 0
         duplicate_content_count = 0
+        # Explicit "crawl succeeded" count: one per URL that yielded usable
+        # extracted content, independent of downstream KB dedupe/unchanged
+        # bucketing. This is the billable unit Phase 3c meters on.
+        crawls_succeeded = 0
 
         # Heartbeat tracking - update notification periodically to prevent appearing stuck
         last_heartbeat_time = time.time()
@@ -294,15 +297,26 @@ async def index_crawled_urls(
                 )
 
                 # Crawl the URL
-                crawl_result, error = await crawler.crawl_url(url)
+                outcome = await crawler.crawl_url(url)
 
-                if error or not crawl_result:
-                    logger.warning(f"Failed to crawl URL {url}: {error}")
-                    document.status = DocumentStatus.failed(error or "Crawl failed")
+                if (
+                    outcome.status is not CrawlOutcomeStatus.SUCCESS
+                    or not outcome.result
+                ):
+                    logger.warning(f"Failed to crawl URL {url}: {outcome.error}")
+                    document.status = DocumentStatus.failed(
+                        outcome.error or "Crawl failed"
+                    )
                     document.updated_at = get_current_timestamp()
                     await session.commit()
                     documents_failed += 1
                     continue
+
+                # A tier extracted usable content: count the successful crawl now,
+                # before the dedupe/unchanged branches (those still represent a
+                # successful crawl and must bill — see 03c).
+                crawls_succeeded += 1
+                crawl_result = outcome.result
 
                 # Extract content and metadata
                 content = crawl_result.get("content", "")
@@ -457,6 +471,7 @@ async def index_crawled_urls(
             f"Successfully completed crawled web page indexing for connector {connector_id}",
             {
                 "urls_processed": total_processed,
+                "crawls_succeeded": crawls_succeeded,
                 "documents_indexed": documents_indexed,
                 "documents_updated": documents_updated,
                 "documents_skipped": documents_skipped,

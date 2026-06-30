@@ -12,7 +12,10 @@ from requests import Session
 from scrapling.fetchers import AsyncFetcher
 from youtube_transcript_api import YouTubeTranscriptApi
 
-from app.connectors.webcrawler_connector import WebCrawlerConnector
+from app.proprietary.web_crawler import (
+    CrawlOutcomeStatus,
+    WebCrawlerConnector,
+)
 from app.tasks.document_processors.youtube_processor import get_youtube_video_id
 from app.utils.proxy import get_proxy_url, get_requests_proxies
 
@@ -161,13 +164,9 @@ async def _scrape_youtube_video(
     }
 
 
-def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
+def create_scrape_webpage_tool():
     """
     Factory function to create the scrape_webpage tool.
-
-    Args:
-        firecrawl_api_key: Optional Firecrawl API key for premium web scraping.
-                          Falls back to Chromium/Trafilatura if not provided.
 
     Returns:
         A configured tool function for scraping webpages.
@@ -223,10 +222,10 @@ def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
             if video_id:
                 return await _scrape_youtube_video(url, video_id, max_length)
 
-            connector = WebCrawlerConnector(firecrawl_api_key=firecrawl_api_key)
-            result, error = await connector.crawl_url(url, formats=["markdown"])
+            connector = WebCrawlerConnector()
+            outcome = await connector.crawl_url(url)
 
-            if error:
+            if outcome.status is not CrawlOutcomeStatus.SUCCESS or not outcome.result:
                 return {
                     "id": scrape_id,
                     "assetId": url,
@@ -234,20 +233,10 @@ def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
                     "href": url,
                     "title": domain or "Webpage",
                     "domain": domain,
-                    "error": error,
+                    "error": outcome.error or "No content returned from crawler",
                 }
 
-            if not result:
-                return {
-                    "id": scrape_id,
-                    "assetId": url,
-                    "kind": "article",
-                    "href": url,
-                    "title": domain or "Webpage",
-                    "domain": domain,
-                    "error": "No content returned from crawler",
-                }
-
+            result = outcome.result
             content = result.get("content", "")
             metadata = result.get("metadata", {})
 

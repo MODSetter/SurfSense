@@ -332,9 +332,8 @@ def test_validate_connector_config_invalid():
     with pytest.raises(ValueError):
         validate_connector_config("SEARXNG_API", {"SEARXNG_HOST": "not-a-url"})
 
-    # Invalid email format (if JIRA was enabled, etc. We test with WEBCRAWLER's custom validation)
-    # Firecrawl key format error:
+    # WEBCRAWLER_CONNECTOR custom validation: malformed INITIAL_URLS rejected.
     with pytest.raises(ValueError):
         validate_connector_config(
-            "WEBCRAWLER_CONNECTOR", {"FIRECRAWL_API_KEY": "invalid-prefix-key"}
+            "WEBCRAWLER_CONNECTOR", {"INITIAL_URLS": "not-a-url"}
         )

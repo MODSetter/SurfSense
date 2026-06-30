@@ -25,5 +25,5 @@ def load_tools(
             workspace_id=d.get("workspace_id"),
             available_connectors=d.get("available_connectors"),
         ),
-        create_scrape_webpage_tool(firecrawl_api_key=d.get("firecrawl_api_key")),
+        create_scrape_webpage_tool(),
     ]

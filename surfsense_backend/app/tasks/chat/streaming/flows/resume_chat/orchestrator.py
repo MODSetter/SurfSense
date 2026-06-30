@@ -62,7 +62,7 @@ from app.tasks.chat.streaming.flows.shared.first_frames import (
 from app.tasks.chat.streaming.flows.shared.llm_bundle import load_llm_bundle
 from app.tasks.chat.streaming.flows.shared.pre_stream_setup import (
     get_chat_checkpointer,
-    setup_connector_and_firecrawl,
+    setup_connector_service,
 )
 from app.tasks.chat.streaming.flows.shared.premium_quota import (
     CreditReservation,
@@ -314,11 +314,11 @@ async def stream_resume_chat(
         # --- Pre-stream setup ---
 
         _t0 = time.perf_counter()
-        connector_service, firecrawl_api_key = await setup_connector_and_firecrawl(
+        connector_service = await setup_connector_service(
             session, workspace_id=workspace_id
         )
         _perf_log.info(
-            "[stream_resume] Connector service + firecrawl key in %.3fs",
+            "[stream_resume] Connector service in %.3fs",
             time.perf_counter() - _t0,
         )
 
@@ -344,7 +344,6 @@ async def stream_resume_chat(
             user_id=user_id,
             thread_id=chat_id,
             agent_config=agent_config,
-            firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
             filesystem_selection=filesystem_selection,
             disabled_tools=disabled_tools,
@@ -480,7 +479,6 @@ async def stream_resume_chat(
                 user_id=user_id,
                 thread_id=chat_id,
                 agent_config=agent_config,
-                firecrawl_api_key=firecrawl_api_key,
                 thread_visibility=visibility,
                 filesystem_selection=filesystem_selection,
                 disabled_tools=disabled_tools,

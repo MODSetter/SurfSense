@@ -1,25 +1,34 @@
+# SurfSense proprietary crawler engine.
+#
+# This module is part of the ``app.proprietary`` package and is licensed
+# SEPARATELY from the Apache-2.0 project root. See ``app/proprietary/LICENSE``.
+# Do not relicense or redistribute this file under Apache-2.0.
 """
 WebCrawler Connector Module
 
-A module for crawling web pages and extracting content using Firecrawl or
-Scrapling's tiered fetchers, with Trafilatura for HTML -> markdown extraction.
-Provides a unified interface for web scraping.
+A single-framework (Scrapling) web crawler with Trafilatura for HTML -> markdown
+extraction. Provides a unified interface for web scraping.
 
-Fallback order:
-  1. Firecrawl                 (if API key is configured)
-  2. Scrapling AsyncFetcher    (fast static HTTP, no browser subprocess)
-  3. Scrapling DynamicFetcher  (full browser, run in a thread)
-  4. Scrapling StealthyFetcher (anti-bot stealth browser, run in a thread)
+Fallback ladder (the ``FetchStrategy`` seam — see ``plans/backend/03a-crawler-core.md``):
+  1. Scrapling AsyncFetcher    (fast static HTTP, TLS-impersonated, no subprocess)
+  2. Scrapling DynamicFetcher  (full browser, run in a thread)
+  3. Scrapling StealthyFetcher (patchright-Chromium anti-bot + Cloudflare solving,
+                                run in a thread)
+
+Every tier returns extracted content via the same ``CrawlOutcome`` contract, so
+callers (indexer, chat tool, crawl billing) depend only on the outcome, never on
+which tier produced it.
 """
 
 import asyncio
 import logging
 import time
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 
 import trafilatura
 import validators
-from firecrawl import AsyncFirecrawlApp
 from scrapling.fetchers import AsyncFetcher, DynamicFetcher, StealthyFetcher
 
 from app.utils.proxy import get_proxy_url
@@ -30,76 +39,68 @@ logger = logging.getLogger(__name__)
 _PERF = "[webcrawler][perf]"
 
 
+class CrawlOutcomeStatus(str, Enum):
+    """Deterministic per-URL crawl result, single-sourcing the billable signal."""
+
+    SUCCESS = "success"  # a tier returned usable extracted content
+    EMPTY = "empty"  # fetched, but no usable content after ALL tiers
+    FAILED = "failed"  # invalid URL or every tier errored / was unavailable
+
+
+@dataclass
+class CrawlOutcome:
+    """Explicit ``crawl_url`` result shared by every caller.
+
+    The **billable success predicate is single-sourced**:
+    ``status == CrawlOutcomeStatus.SUCCESS`` (Phase 3c meters on it). Picking a
+    dataclass over a tuple lets later subplans append fields without breaking
+    callers (03d adds ``captcha_attempts``/``captcha_solved`` for per-attempt
+    billing; 03e's block classifier can attach a ``block_type``).
+    """
+
+    status: CrawlOutcomeStatus
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    tier: str | None = None
+
+
 class WebCrawlerConnector:
     """Class for crawling web pages and extracting content."""
 
-    def __init__(self, firecrawl_api_key: str | None = None):
-        """
-        Initialize the WebCrawlerConnector class.
-
-        Args:
-            firecrawl_api_key: Firecrawl API key (optional). If provided, Firecrawl will be tried first
-                             and Scrapling will be used as fallback if Firecrawl fails. If not provided,
-                             Scrapling fetchers are used directly.
-        """
-        self.firecrawl_api_key = firecrawl_api_key
-        self.use_firecrawl = bool(firecrawl_api_key)
-
-    def set_api_key(self, api_key: str) -> None:
-        """
-        Set the Firecrawl API key and enable Firecrawl usage.
-
-        Args:
-            api_key: Firecrawl API key
-        """
-        self.firecrawl_api_key = api_key
-        self.use_firecrawl = True
-
-    async def crawl_url(
-        self, url: str, formats: list[str] | None = None
-    ) -> tuple[dict[str, Any] | None, str | None]:
+    async def crawl_url(self, url: str) -> CrawlOutcome:
         """
         Crawl a single URL and extract its content.
 
-        Fallback order:
-          1. Firecrawl (if API key configured)
-          2. Scrapling AsyncFetcher (fast static HTTP, no subprocess)
-          3. Scrapling DynamicFetcher (full browser, run in a thread)
-          4. Scrapling StealthyFetcher (anti-bot stealth browser, run in a thread)
+        Fallback ladder:
+          1. Scrapling AsyncFetcher (fast static HTTP, TLS-impersonated)
+          2. Scrapling DynamicFetcher (full browser, run in a thread)
+          3. Scrapling StealthyFetcher (anti-bot stealth browser + Cloudflare
+             solving, run in a thread)
 
         Args:
             url: URL to crawl
-            formats: List of formats to extract (e.g., ["markdown", "html"]) - only for Firecrawl
 
         Returns:
-            Tuple containing (crawl result dict, error message or None)
-            Result dict contains:
-                - content: Extracted content (markdown or HTML)
+            A ``CrawlOutcome``. On ``SUCCESS``, ``result`` is a dict containing:
+                - content: Extracted content (markdown)
                 - metadata: Page metadata (title, description, etc.)
-                - source: Original URL
-                - crawler_type: Type of crawler used
+                - crawler_type: Identifier of the tier that produced the content
         """
         total_start = time.perf_counter()
         try:
             if not validators.url(url):
-                return None, f"Invalid URL: {url}"
+                return CrawlOutcome(
+                    status=CrawlOutcomeStatus.FAILED,
+                    error=f"Invalid URL: {url}",
+                )
 
             errors: list[str] = []
+            # True once any tier fetched the page but extraction yielded nothing
+            # (distinguishes EMPTY from FAILED, where every tier raised/was
+            # unavailable).
+            reached_without_content = False
 
-            # --- 1. Firecrawl (premium, if configured) ---
-            if self.use_firecrawl:
-                tier_start = time.perf_counter()
-                try:
-                    logger.info(f"[webcrawler] Using Firecrawl for: {url}")
-                    result = await self._crawl_with_firecrawl(url, formats)
-                    self._log_tier_outcome("firecrawl", url, tier_start, "success")
-                    self._log_total(url, "firecrawl", total_start)
-                    return result, None
-                except Exception as exc:
-                    errors.append(f"Firecrawl: {exc!s}")
-                    self._log_tier_outcome("firecrawl", url, tier_start, "error", exc)
-
-            # --- 2. Scrapling AsyncFetcher (fast static HTTP) ---
+            # --- 1. Scrapling AsyncFetcher (fast static HTTP) ---
             tier_start = time.perf_counter()
             try:
                 logger.info(f"[webcrawler] Using Scrapling AsyncFetcher for: {url}")
@@ -109,7 +110,12 @@ class WebCrawlerConnector:
                         "scrapling-static", url, tier_start, "success"
                     )
                     self._log_total(url, "scrapling-static", total_start)
-                    return result, None
+                    return CrawlOutcome(
+                        status=CrawlOutcomeStatus.SUCCESS,
+                        result=result,
+                        tier="scrapling-static",
+                    )
+                reached_without_content = True
                 errors.append("Scrapling static: empty extraction")
                 self._log_tier_outcome("scrapling-static", url, tier_start, "empty")
             except Exception as exc:
@@ -118,7 +124,7 @@ class WebCrawlerConnector:
                     "scrapling-static", url, tier_start, "error", exc
                 )
 
-            # --- 3. Scrapling DynamicFetcher (full browser) ---
+            # --- 2. Scrapling DynamicFetcher (full browser) ---
             tier_start = time.perf_counter()
             try:
                 logger.info(f"[webcrawler] Using Scrapling DynamicFetcher for: {url}")
@@ -128,7 +134,12 @@ class WebCrawlerConnector:
                         "scrapling-dynamic", url, tier_start, "success"
                     )
                     self._log_total(url, "scrapling-dynamic", total_start)
-                    return result, None
+                    return CrawlOutcome(
+                        status=CrawlOutcomeStatus.SUCCESS,
+                        result=result,
+                        tier="scrapling-dynamic",
+                    )
+                reached_without_content = True
                 errors.append("Scrapling dynamic: empty extraction")
                 self._log_tier_outcome("scrapling-dynamic", url, tier_start, "empty")
             except NotImplementedError:
@@ -145,7 +156,7 @@ class WebCrawlerConnector:
                     "scrapling-dynamic", url, tier_start, "error", exc
                 )
 
-            # --- 4. Scrapling StealthyFetcher (anti-bot, last resort) ---
+            # --- 3. Scrapling StealthyFetcher (anti-bot, last resort) ---
             tier_start = time.perf_counter()
             try:
                 logger.info(f"[webcrawler] Using Scrapling StealthyFetcher for: {url}")
@@ -155,7 +166,12 @@ class WebCrawlerConnector:
                         "scrapling-stealthy", url, tier_start, "success"
                     )
                     self._log_total(url, "scrapling-stealthy", total_start)
-                    return result, None
+                    return CrawlOutcome(
+                        status=CrawlOutcomeStatus.SUCCESS,
+                        result=result,
+                        tier="scrapling-stealthy",
+                    )
+                reached_without_content = True
                 errors.append("Scrapling stealthy: empty extraction")
                 self._log_tier_outcome("scrapling-stealthy", url, tier_start, "empty")
             except NotImplementedError:
@@ -173,11 +189,22 @@ class WebCrawlerConnector:
                 )
 
             self._log_total(url, "none", total_start)
-            return None, f"All crawl methods failed for {url}. {'; '.join(errors)}"
+            if reached_without_content:
+                return CrawlOutcome(
+                    status=CrawlOutcomeStatus.EMPTY,
+                    error=f"No content extracted for {url}. {'; '.join(errors)}",
+                )
+            return CrawlOutcome(
+                status=CrawlOutcomeStatus.FAILED,
+                error=f"All crawl methods failed for {url}. {'; '.join(errors)}",
+            )
 
         except Exception as e:
             self._log_total(url, "error", total_start)
-            return None, f"Error crawling URL {url}: {e!s}"
+            return CrawlOutcome(
+                status=CrawlOutcomeStatus.FAILED,
+                error=f"Error crawling URL {url}: {e!s}",
+            )
 
     @staticmethod
     def _log_tier_outcome(
@@ -220,57 +247,6 @@ class WebCrawlerConnector:
             total_ms,
         )
 
-    async def _crawl_with_firecrawl(
-        self, url: str, formats: list[str] | None = None
-    ) -> dict[str, Any]:
-        """
-        Crawl URL using Firecrawl.
-
-        Args:
-            url: URL to crawl
-            formats: List of formats to extract
-
-        Returns:
-            Dict containing crawled content and metadata
-
-        Raises:
-            ValueError: If Firecrawl scraping fails
-        """
-        if not self.firecrawl_api_key:
-            raise ValueError("Firecrawl API key not set. Call set_api_key() first.")
-
-        firecrawl_app = AsyncFirecrawlApp(api_key=self.firecrawl_api_key)
-
-        # Default to markdown format
-        if formats is None:
-            formats = ["markdown"]
-
-        # v2 API returns Document directly and raises an exception on failure
-        scrape_result = await firecrawl_app.scrape(url, formats=formats)
-
-        if not scrape_result:
-            raise ValueError("Firecrawl returned no result")
-
-        # Extract content based on format
-        content = scrape_result.markdown or scrape_result.html or ""
-
-        # Extract metadata - v2 returns DocumentMetadata object
-        metadata_obj = scrape_result.metadata
-        metadata = metadata_obj.model_dump() if metadata_obj else {}
-
-        return {
-            "content": content,
-            "metadata": {
-                "source": url,
-                "title": metadata.get("title", url),
-                "description": metadata.get("description", ""),
-                "language": metadata.get("language", ""),
-                "sourceURL": metadata.get("source_url", url),
-                **metadata,
-            },
-            "crawler_type": "firecrawl",
-        }
-
     async def _crawl_with_async_fetcher(self, url: str) -> dict[str, Any] | None:
         """
         Crawl URL using Scrapling's AsyncFetcher (static HTTP) + Trafilatura.
@@ -281,9 +257,13 @@ class WebCrawlerConnector:
         rendered SPAs) so the caller can fall through to the browser tiers.
         """
         fetch_start = time.perf_counter()
+        # ``impersonate="chrome"`` makes curl_cffi present a real Chrome TLS
+        # ClientHello (JA3/JA4) instead of its default fingerprint, keeping the
+        # static tier coherent with the browser tiers' UA (see 03e §2b).
         page = await AsyncFetcher.get(
             url,
             stealthy_headers=True,
+            impersonate="chrome",
             proxy=get_proxy_url(),
             timeout=20,
         )
@@ -340,7 +320,7 @@ class WebCrawlerConnector:
 
     async def _crawl_with_stealthy(self, url: str) -> dict[str, Any] | None:
         """
-        Crawl URL using Scrapling's StealthyFetcher (Camoufox) + Trafilatura.
+        Crawl URL using Scrapling's StealthyFetcher (patchright-Chromium) + Trafilatura.
 
         Last-resort tier with anti-bot features. Runs the sync fetch in a worker
         thread for the same event-loop-safety reasons as DynamicFetcher. Falls
@@ -351,11 +331,14 @@ class WebCrawlerConnector:
     def _crawl_with_stealthy_sync(self, url: str) -> dict[str, Any] | None:
         """Synchronous StealthyFetcher crawl executed in a worker thread."""
         fetch_start = time.perf_counter()
+        # ``solve_cloudflare=True`` runs the full Turnstile/Interstitial challenge
+        # loop; scoped to this last-resort tier only (it spins up the browser).
         page = StealthyFetcher.fetch(
             url,
             headless=True,
             network_idle=True,
             block_ads=True,
+            solve_cloudflare=True,
             proxy=get_proxy_url(),
         )
         fetch_ms = (time.perf_counter() - fetch_start) * 1000

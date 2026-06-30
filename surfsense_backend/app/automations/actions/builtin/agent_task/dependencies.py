@@ -16,7 +16,7 @@ from app.automations.services.model_policy import (
 from app.db import Workspace
 from app.tasks.chat.streaming.flows.shared.llm_bundle import load_llm_bundle
 from app.tasks.chat.streaming.flows.shared.pre_stream_setup import (
-    setup_connector_and_firecrawl,
+    setup_connector_service,
 )
 
 
@@ -31,7 +31,6 @@ class AgentDependencies:
     llm: Any
     agent_config: Any
     connector_service: Any
-    firecrawl_api_key: str | None
     checkpointer: Any
 
 
@@ -82,7 +81,7 @@ async def build_dependencies(
     if err is not None or llm is None:
         raise DependencyError(err or "failed to load chat model config")
 
-    connector_service, firecrawl_api_key = await setup_connector_and_firecrawl(
+    connector_service = await setup_connector_service(
         session, workspace_id=workspace_id
     )
     # Per-task InMemorySaver: the shared Postgres checkpointer's connection
@@ -100,6 +99,5 @@ async def build_dependencies(
         llm=llm,
         agent_config=agent_config,
         connector_service=connector_service,
-        firecrawl_api_key=firecrawl_api_key,
         checkpointer=checkpointer,
     )

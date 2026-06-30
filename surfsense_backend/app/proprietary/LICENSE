@@ -1,0 +1,11 @@
+SurfSense Proprietary / Source-Available License (PLACEHOLDER)
+
+All files in this directory tree (app/proprietary/**) are NOT covered by the
+Apache License 2.0 that governs the rest of this repository.
+
+The final license text is TBD. Until it is finalized, ALL RIGHTS ARE RESERVED:
+the code in this directory may not be copied, modified, redistributed, sublicensed,
+or relicensed (including under Apache-2.0) without the explicit prior written
+permission of the copyright holder.
+
+Copyright (c) 2026 SurfSense. All rights reserved.

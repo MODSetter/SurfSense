@@ -54,7 +54,7 @@ We are **not** a single browser; we're the `03a` tier ladder. The harness theref
 
 ### S3. HTTP/TLS tier (AsyncFetcher / `Fetcher` — curl_cffi impersonation)
 
-Our HTTP tier is `curl_cffi`-based and *can* impersonate a real Chrome TLS stack (`references/Scrapling/scrapling/fetchers/requests.py:29`; `engines/static.py:6–9,36–47`) — **but only if `impersonate=` is set.** It currently is **not** (`webcrawler_connector.py:284–289` passes `stealthy_headers=True` only), so today this tier's JA3 is curl_cffi's default and **will fail parity**. This row is therefore the *driver* for the `03e §2b` `impersonate="chrome"` lever: run it before (red) and after (green) that fix.
+Our HTTP tier is `curl_cffi`-based and impersonates a real Chrome TLS stack (`references/Scrapling/scrapling/fetchers/requests.py:29`; `engines/static.py:6–9,36–47`) **only when `impersonate=` is set** — which `03a` **now ships** (`app/proprietary/web_crawler/connector.py`, the `AsyncFetcher.get` call passes `impersonate="chrome"`). This row therefore **validates the shipped parity** rather than driving a fix: confirm the static tier's JA3/JA4 matches a real Chrome (the `03e §2b` lever). If you ever need a before/after, temporarily drop `impersonate=` to reproduce the curl_cffi-default (red) baseline.
 
 - `tls.peet.ws/api/all` (+ `/api/clean`) — JSON **JA3/JA4/Akamai-HTTP2/PeetPrint**; diff against a real-Chrome baseline.
 - `httpbin.co/headers` (or httpbingo) — header set/order/UA sanity.

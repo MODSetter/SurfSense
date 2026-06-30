@@ -171,7 +171,6 @@ async def run_agent_task(
             user_id=user_id,
             thread_id=None,
             agent_config=deps.agent_config,
-            firecrawl_api_key=deps.firecrawl_api_key,
             thread_visibility=ChatVisibility.PRIVATE,
             mentioned_document_ids=mentioned_document_ids,
             image_gen_model_id=ctx.image_gen_model_id,

@@ -109,7 +109,7 @@ RUN --mount=type=secret,id=HF_TOKEN \
     HF_TOKEN="$(cat /run/secrets/HF_TOKEN 2>/dev/null || true)" \
     python -c "from chonkie import AutoEmbeddings; AutoEmbeddings.get_embeddings('${EMBEDDING_MODEL}')"
 
-# Install Scrapling's browser engines (patchright Chromium + Camoufox).
+# Install Scrapling's browser engines (patchright Chromium).
 # Scrapling pulls playwright/patchright via the `fetchers` extra; `scrapling install`
 # downloads the matching browser binaries used by DynamicFetcher/StealthyFetcher.
 RUN scrapling install

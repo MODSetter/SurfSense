@@ -39,9 +39,9 @@ def patched_side_effects(monkeypatch: pytest.MonkeyPatch):
     """Stub the connector setup + checkpointer so only policy/LLM logic runs."""
 
     async def _fake_setup(_session, *, workspace_id):
-        return (SimpleNamespace(name="connector"), "fc-key")
+        return SimpleNamespace(name="connector")
 
-    monkeypatch.setattr(deps_mod, "setup_connector_and_firecrawl", _fake_setup)
+    monkeypatch.setattr(deps_mod, "setup_connector_service", _fake_setup)
     return None
 
 
@@ -78,7 +78,7 @@ async def test_build_dependencies_resolves_captured_chat_model_id(
 
     assert captured == {"config_id": -7, "workspace_id": 42}
     assert result.llm.name == "llm"
-    assert result.firecrawl_api_key == "fc-key"
+    assert result.connector_service.name == "connector"
 
 
 async def test_build_dependencies_validates_captured_ids(

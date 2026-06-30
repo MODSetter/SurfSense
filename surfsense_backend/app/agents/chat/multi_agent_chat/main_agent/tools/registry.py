@@ -31,8 +31,8 @@ from .update_memory import (
 )
 
 
-def _build_scrape_webpage_tool(deps: dict[str, Any]) -> BaseTool:
-    return create_scrape_webpage_tool(firecrawl_api_key=deps.get("firecrawl_api_key"))
+def _build_scrape_webpage_tool(_deps: dict[str, Any]) -> BaseTool:
+    return create_scrape_webpage_tool()
 
 
 def _build_web_search_tool(deps: dict[str, Any]) -> BaseTool:

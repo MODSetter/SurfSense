@@ -3,7 +3,7 @@
 > Part of **Phase 3 — WebURL Crawler & Crawl Billing**. See `00-umbrella-plan.md`.
 > Depends on `03a-crawler-core.md` (Scrapling-only crawler). Siblings: `03c-crawl-billing.md`, `03e-stealth-hardening.md`, `03d-captcha-solving.md`.
 
-> **Implementation note.** Same convention as `03a`: Phases 1–2 are **SHIPPED**, so the live code already says `workspace_id`/`Workspace` — substitute for the old `search_space_*`/`SearchSpace` names in citations below and grep the new name. Crucially, the `webcrawler_connector.py` line numbers below (e.g. the three tiers at 287/329/359) and the `scrape_webpage.py` lines **predate `03a`'s Firecrawl removal + `crawl_url` refactor**, so they will have moved by the time `03b` is implemented. Locate code by **symbol/grep**, not absolute lines.
+> **Implementation note.** Same convention as `03a`: Phases 1–2 are **SHIPPED**, so the live code already says `workspace_id`/`Workspace` — substitute for the old `search_space_*`/`SearchSpace` names in citations below and grep the new name. Crucially, `03a` is **now IMPLEMENTED**: the crawler moved to **`app/proprietary/web_crawler/connector.py`** (non-Apache-2 boundary) with Firecrawl removed and `crawl_url` refactored — the three Scrapling tiers now pass `proxy=get_proxy_url()` at **267/309/342** (not the pre-refactor 287/329/359). Locate code by **symbol/grep** against the new path, not absolute lines.
 
 ## Objective
 
@@ -31,7 +31,7 @@ The zero-arg getters are used in **more than just the crawler**, so any signatur
 
 | Consumer | File:line | Uses |
 |----------|-----------|------|
-| WebURL crawler (all 3 Scrapling tiers) | `connectors/webcrawler_connector.py` (287, 329, 359) | `get_proxy_url()` |
+| WebURL crawler (all 3 Scrapling tiers) | `proprietary/web_crawler/connector.py` (267, 309, 342) | `get_proxy_url()` |
 | YouTube transcript route | `routes/youtube_routes.py` (78, 119) | `get_proxy_url()` |
 | YouTube processor (indexing) | `tasks/document_processors/youtube_processor.py` (223, 229) | `get_requests_proxies()`, `get_proxy_url()` |
 | Chat scrape tools (YouTube branch) | `main_agent/tools/scrape_webpage.py` (80, 93), `research/tools/scrape_webpage.py` (74, 87) | `get_requests_proxies()`, `get_proxy_url()` |

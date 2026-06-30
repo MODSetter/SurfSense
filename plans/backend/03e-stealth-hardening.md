@@ -34,7 +34,7 @@ A residential IP in Berlin behind an `en-US`/`America/New_York` browser is an in
 
 ### 2b. HTTP-tier TLS fingerprint (the AsyncFetcher tier — `impersonate`)
 
-The cheap static tier (`03a` tier 1) is the **first** thing every crawl hits, yet it currently sets `stealthy_headers=True` but **no** `impersonate` (`webcrawler_connector.py:284–289`), so its TLS ClientHello is curl_cffi's default JA3 — a non-browser signature that fingerprinting WAFs flag before the body even loads. Pass an `impersonate="chrome"` profile (Scrapling's static engine selects a matching curl_cffi browser profile — `references/Scrapling/scrapling/engines/static.py:36–47`) so the HTTP tier's **JA3/JA4/HTTP-2** matches a real Chrome and coheres with the browser tiers' UA. Cheap, safe, default-on. `03f §S3` is the test that validates parity against `tls.peet.ws`.
+The cheap static tier (`03a` tier 1) is the **first** thing every crawl hits. `03a` **already ships `impersonate="chrome"`** on it (`app/proprietary/web_crawler/connector.py`, the `AsyncFetcher.get` call) — Scrapling's static engine selects a matching curl_cffi browser profile (`references/Scrapling/scrapling/engines/static.py:36–47`), so the HTTP tier's **JA3/JA4/HTTP-2** already matches a real Chrome and coheres with the browser tiers' UA. `03e`'s remaining work here is **not** to add it, but to (a) fold the `impersonate` profile into the centralized per-tier kwargs builder (below) so it stays the single source of truth, and (b) keep the chosen profile coherent with the proxy exit / UA. `03f §S3` validates the shipped parity against `tls.peet.ws`.
 
 ### 3. Persistent per-domain profiles (look like a returning human)
 
@@ -92,7 +92,7 @@ Add (all default OFF / conservative; next to the `03b`/`03c` knobs in `config/__
 ## Work items
 
 1. **Geoip coherence** — resolve proxy exit geo → `locale`/`timezone_id`; thread the crawl's chosen endpoint into the strategy context (shared seam with `03d`).
-2. **Fingerprint flags** — wire `hide_canvas`/`block_webrtc`/`google_search`/`extra_headers`/`additional_args` from config into the StealthyFetcher tier. Also add `impersonate="chrome"` to the AsyncFetcher (HTTP) tier (§2b) so its TLS coheres. **Centralize this into a single per-tier kwargs builder** (one function that returns the StealthyFetcher / AsyncFetcher kwargs from config) — the crawler *and* `03f`'s harness both import it, so the scorecard grades the exact browser we ship (no test-vs-prod drift).
+2. **Fingerprint flags** — wire `hide_canvas`/`block_webrtc`/`google_search`/`extra_headers`/`additional_args` from config into the StealthyFetcher tier. The AsyncFetcher (HTTP) tier **already carries `impersonate="chrome"`** (shipped in `03a`, §2b) — **fold it into** the builder below, don't re-add it. **Centralize this into a single per-tier kwargs builder** (one function that returns the StealthyFetcher / AsyncFetcher kwargs from config) — the crawler *and* `03f`'s harness both import it, so the scorecard grades the exact browser we ship (no test-vs-prod drift).
 3. **Persistent profiles** — per-domain `user_data_dir` under `CRAWL_PERSISTENT_PROFILES_DIR` (shared volume).
 4. **Headed + Xvfb** — `headless=False` path gated by flag; Xvfb + fonts in the worker image.
 5. **Humanization** — a `page_action` humanizer (mouse/scroll/dwell) composing with `03d`'s injector; optional `init_script` shims.
