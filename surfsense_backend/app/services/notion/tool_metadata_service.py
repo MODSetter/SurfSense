@@ -74,8 +74,8 @@ class NotionToolMetadataService:
     def __init__(self, db_session: AsyncSession):
         self._db_session = db_session
 
-    async def get_creation_context(self, search_space_id: int, user_id: str) -> dict:
-        accounts = await self._get_notion_accounts(search_space_id, user_id)
+    async def get_creation_context(self, workspace_id: int, user_id: str) -> dict:
+        accounts = await self._get_notion_accounts(workspace_id, user_id)
 
         if not accounts:
             return {
@@ -85,7 +85,7 @@ class NotionToolMetadataService:
             }
 
         parent_pages = await self._get_parent_pages_by_account(
-            search_space_id, accounts
+            workspace_id, accounts
         )
 
         accounts_with_status = []
@@ -123,7 +123,7 @@ class NotionToolMetadataService:
         }
 
     async def get_update_context(
-        self, search_space_id: int, user_id: str, page_title: str
+        self, workspace_id: int, user_id: str, page_title: str
     ) -> dict:
         result = await self._db_session.execute(
             select(Document)
@@ -132,7 +132,7 @@ class NotionToolMetadataService:
             )
             .filter(
                 and_(
-                    Document.search_space_id == search_space_id,
+                    Document.workspace_id == workspace_id,
                     Document.document_type == DocumentType.NOTION_CONNECTOR,
                     func.lower(Document.title) == func.lower(page_title),
                     SearchSourceConnector.user_id == user_id,
@@ -202,18 +202,18 @@ class NotionToolMetadataService:
         }
 
     async def get_delete_context(
-        self, search_space_id: int, user_id: str, page_title: str
+        self, workspace_id: int, user_id: str, page_title: str
     ) -> dict:
-        return await self.get_update_context(search_space_id, user_id, page_title)
+        return await self.get_update_context(workspace_id, user_id, page_title)
 
     async def _get_notion_accounts(
-        self, search_space_id: int, user_id: str
+        self, workspace_id: int, user_id: str
     ) -> list[NotionAccount]:
         result = await self._db_session.execute(
             select(SearchSourceConnector)
             .filter(
                 and_(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type
                     == SearchSourceConnectorType.NOTION_CONNECTOR,
@@ -243,7 +243,7 @@ class NotionToolMetadataService:
             return True
 
     async def _get_parent_pages_by_account(
-        self, search_space_id: int, accounts: list[NotionAccount]
+        self, workspace_id: int, accounts: list[NotionAccount]
     ) -> dict:
         parent_pages = {}
 
@@ -252,7 +252,7 @@ class NotionToolMetadataService:
                 select(Document)
                 .filter(
                     and_(
-                        Document.search_space_id == search_space_id,
+                        Document.workspace_id == workspace_id,
                         Document.connector_id == account.id,
                         Document.document_type == DocumentType.NOTION_CONNECTOR,
                     )

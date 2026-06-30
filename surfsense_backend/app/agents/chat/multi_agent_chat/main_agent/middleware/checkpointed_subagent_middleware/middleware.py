@@ -40,7 +40,7 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
         subagents: list[SubAgent | CompiledSubAgent],
         system_prompt: str | None = TASK_SYSTEM_PROMPT,
         task_description: str | None = None,
-        search_space_id: int | None = None,
+        workspace_id: int | None = None,
     ) -> None:
         self._surf_checkpointer = checkpointer
         super(SubAgentMiddleware, self).__init__()
@@ -50,11 +50,11 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
             )
         self._backend = backend
         self._subagents = subagents
-        # Search-space id is captured at build time (the orchestrator runs in
-        # exactly one search space for its lifetime). The spawn-paused kill
+        # Workspace id is captured at build time (the orchestrator runs in
+        # exactly one workspace for its lifetime). The spawn-paused kill
         # switch keys on it so an operator can quarantine one workspace
         # without affecting the rest of the deployment.
-        self._search_space_id = search_space_id
+        self._workspace_id = workspace_id
 
         # Lazy subagent compilation. Compiling a subagent graph via
         # ``create_agent`` is expensive (~250-400ms each) and there can be up
@@ -75,7 +75,7 @@ class SurfSenseCheckpointedSubAgentMiddleware(SubAgentMiddleware):
         task_tool = build_task_tool_with_parent_config(
             descriptors,
             task_description,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             resolve_subagent=self._resolve_subagent,
         )
         if system_prompt and descriptors:

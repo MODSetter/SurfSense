@@ -56,7 +56,7 @@ _MCP_CACHE_MAX_SIZE = 50
 _MCP_DISCOVERY_TIMEOUT_SECONDS = 30
 _TOOL_CALL_MAX_RETRIES = 3
 _TOOL_CALL_RETRY_DELAY = 1.5  # seconds, doubles per attempt
-# Keyed by ``(search_space_id, bypass_internal_hitl)`` so single-agent and
+# Keyed by ``(workspace_id, bypass_internal_hitl)`` so single-agent and
 # multi-agent paths cannot share tool closures with different HITL wiring.
 _MCPCacheKey = tuple[int, bool]
 _mcp_tools_cache: dict[_MCPCacheKey, tuple[float, list[StructuredTool]]] = {}
@@ -814,7 +814,7 @@ async def _refresh_connector_token(
     await session.commit()
     await session.refresh(connector)
 
-    invalidate_mcp_tools_cache(connector.search_space_id)
+    invalidate_mcp_tools_cache(connector.workspace_id)
 
     return new_access
 
@@ -990,7 +990,7 @@ async def _mark_connector_auth_expired(connector_id: int) -> None:
                 "Marked MCP connector %s as auth_expired after unrecoverable 401",
                 connector_id,
             )
-            invalidate_mcp_tools_cache(connector.search_space_id)
+            invalidate_mcp_tools_cache(connector.workspace_id)
 
     except Exception:
         logger.warning(
@@ -1000,10 +1000,10 @@ async def _mark_connector_auth_expired(connector_id: int) -> None:
         )
 
 
-def invalidate_mcp_tools_cache(search_space_id: int | None = None) -> None:
+def invalidate_mcp_tools_cache(workspace_id: int | None = None) -> None:
     """Invalidate cached MCP tools (both ``bypass_internal_hitl`` variants together)."""
-    if search_space_id is not None:
-        for key in [k for k in _mcp_tools_cache if k[0] == search_space_id]:
+    if workspace_id is not None:
+        for key in [k for k in _mcp_tools_cache if k[0] == workspace_id]:
             _mcp_tools_cache.pop(key, None)
     else:
         _mcp_tools_cache.clear()
@@ -1099,27 +1099,27 @@ async def discover_single_mcp_connector(connector_id: int) -> None:
 
 async def load_mcp_tools(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     *,
     bypass_internal_hitl: bool = False,
 ) -> list[StructuredTool]:
     """Load all MCP tools from the user's active MCP server connectors.
 
-    Results are cached per ``(search_space_id, bypass_internal_hitl)`` for up
+    Results are cached per ``(workspace_id, bypass_internal_hitl)`` for up
     to 5 minutes; bypass is keyed because each variant builds a different tool
     closure (with vs. without the in-wrapper ``request_approval`` gate).
     """
     _evict_expired_mcp_cache()
 
     now = time.monotonic()
-    cache_key: _MCPCacheKey = (search_space_id, bypass_internal_hitl)
+    cache_key: _MCPCacheKey = (workspace_id, bypass_internal_hitl)
     cached = _mcp_tools_cache.get(cache_key)
     if cached is not None:
         cached_at, cached_tools = cached
         if now - cached_at < _MCP_CACHE_TTL_SECONDS:
             logger.info(
-                "Using cached MCP tools for search space %s (%d tools, age=%.0fs, bypass_hitl=%s)",
-                search_space_id,
+                "Using cached MCP tools for workspace %s (%d tools, age=%.0fs, bypass_hitl=%s)",
+                workspace_id,
                 len(cached_tools),
                 now - cached_at,
                 bypass_internal_hitl,
@@ -1132,7 +1132,7 @@ async def load_mcp_tools(
         # Cast JSON -> JSONB so we can use has_key to filter by the presence of "server_config".
         result = await session.execute(
             select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == search_space_id,
+                SearchSourceConnector.workspace_id == workspace_id,
                 cast(SearchSourceConnector.config, JSONB).has_key("server_config"),
             ),
         )
@@ -1322,9 +1322,9 @@ async def load_mcp_tools(
             del _mcp_tools_cache[oldest_key]
 
         logger.info(
-            "Loaded %d MCP tools for search space %d (bypass_hitl=%s)",
+            "Loaded %d MCP tools for workspace %d (bypass_hitl=%s)",
             len(tools),
-            search_space_id,
+            workspace_id,
             bypass_internal_hitl,
         )
         return tools

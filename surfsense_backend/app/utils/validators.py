@@ -13,59 +13,59 @@ import validators
 from fastapi import HTTPException
 
 
-def validate_search_space_id(search_space_id: Any) -> int:
+def validate_workspace_id(workspace_id: Any) -> int:
     """
-    Validate and convert search_space_id to integer.
+    Validate and convert workspace_id to integer.
 
     Args:
-        search_space_id: The search space ID to validate
+        workspace_id: The workspace ID to validate
 
     Returns:
-        int: Validated search space ID
+        int: Validated workspace ID
 
     Raises:
         HTTPException: If validation fails
     """
-    if search_space_id is None:
-        raise HTTPException(status_code=400, detail="search_space_id is required")
+    if workspace_id is None:
+        raise HTTPException(status_code=400, detail="workspace_id is required")
 
-    if isinstance(search_space_id, bool):
+    if isinstance(workspace_id, bool):
         raise HTTPException(
-            status_code=400, detail="search_space_id must be an integer, not a boolean"
+            status_code=400, detail="workspace_id must be an integer, not a boolean"
         )
 
-    if isinstance(search_space_id, int):
-        if search_space_id <= 0:
+    if isinstance(workspace_id, int):
+        if workspace_id <= 0:
             raise HTTPException(
-                status_code=400, detail="search_space_id must be a positive integer"
+                status_code=400, detail="workspace_id must be a positive integer"
             )
-        return search_space_id
+        return workspace_id
 
-    if isinstance(search_space_id, str):
+    if isinstance(workspace_id, str):
         # Check if it's a valid integer string
-        if not search_space_id.strip():
+        if not workspace_id.strip():
             raise HTTPException(
-                status_code=400, detail="search_space_id cannot be empty"
+                status_code=400, detail="workspace_id cannot be empty"
             )
 
         # Check for valid integer format (no leading zeros, no decimal points)
-        if not re.match(r"^[1-9]\d*$", search_space_id.strip()):
+        if not re.match(r"^[1-9]\d*$", workspace_id.strip()):
             raise HTTPException(
                 status_code=400,
-                detail="search_space_id must be a valid positive integer",
+                detail="workspace_id must be a valid positive integer",
             )
 
-        value = int(search_space_id.strip())
+        value = int(workspace_id.strip())
         # Regex already guarantees value > 0, but check retained for clarity
         if value <= 0:
             raise HTTPException(
-                status_code=400, detail="search_space_id must be a positive integer"
+                status_code=400, detail="workspace_id must be a positive integer"
             )
         return value
 
     raise HTTPException(
         status_code=400,
-        detail="search_space_id must be an integer or string representation of an integer",
+        detail="workspace_id must be an integer or string representation of an integer",
     )
 
 

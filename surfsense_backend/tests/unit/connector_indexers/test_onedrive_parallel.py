@@ -63,7 +63,7 @@ async def test_single_file_returns_one_connector_document(
         mock_onedrive_client,
         [_make_file_dict("f1", "test.txt")],
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 
@@ -88,7 +88,7 @@ async def test_multiple_files_all_produce_documents(
         mock_onedrive_client,
         files,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 
@@ -115,7 +115,7 @@ async def test_one_download_exception_does_not_block_others(
         mock_onedrive_client,
         files,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 
@@ -141,7 +141,7 @@ async def test_etl_error_counts_as_download_failure(
         mock_onedrive_client,
         files,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 
@@ -179,7 +179,7 @@ async def test_concurrency_bounded_by_semaphore(
         mock_onedrive_client,
         files,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
         max_concurrency=2,
     )
@@ -218,7 +218,7 @@ async def test_heartbeat_fires_during_parallel_downloads(
         mock_onedrive_client,
         files,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
         on_heartbeat=_on_heartbeat,
     )

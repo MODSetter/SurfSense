@@ -58,7 +58,7 @@ _perf_log = get_perf_logger()
 
 async def create_multi_agent_chat_deep_agent(
     llm: BaseChatModel,
-    search_space_id: int,
+    workspace_id: int,
     db_session: AsyncSession,
     connector_service: ConnectorService,
     checkpointer: Checkpointer,
@@ -78,9 +78,9 @@ async def create_multi_agent_chat_deep_agent(
 ):
     """Deep agent with SurfSense tools/middleware; registry route subagents behind ``task`` when enabled.
 
-    ``image_gen_model_id`` overrides the search space's image model for
+    ``image_gen_model_id`` overrides the workspace's image model for
     this invocation (used by automations to run on their captured model). When
-    ``None``, the ``generate_image`` tool resolves the live search-space pref.
+    ``None``, the ``generate_image`` tool resolves the live workspace pref.
     """
     _t_agent_total = time.perf_counter()
 
@@ -89,7 +89,7 @@ async def create_multi_agent_chat_deep_agent(
     filesystem_selection = filesystem_selection or FilesystemSelection()
     backend_resolver = build_backend_resolver(
         filesystem_selection,
-        search_space_id=search_space_id
+        workspace_id=workspace_id
         if filesystem_selection.mode == FilesystemMode.CLOUD
         else None,
     )
@@ -100,12 +100,12 @@ async def create_multi_agent_chat_deep_agent(
     _t0 = time.perf_counter()
     try:
         connector_types = await connector_service.get_available_connectors(
-            search_space_id
+            workspace_id
         )
         available_connectors = map_connectors_to_searchable_types(connector_types)
 
         available_document_types = await connector_service.get_available_document_types(
-            search_space_id
+            workspace_id
         )
 
     except Exception as e:
@@ -136,7 +136,7 @@ async def create_multi_agent_chat_deep_agent(
     )
 
     dependencies: dict[str, Any] = {
-        "search_space_id": search_space_id,
+        "workspace_id": workspace_id,
         "db_session": db_session,
         "connector_service": connector_service,
         "firecrawl_api_key": firecrawl_api_key,
@@ -156,7 +156,7 @@ async def create_multi_agent_chat_deep_agent(
     _t0 = time.perf_counter()
     try:
         mcp_tools_by_agent = await load_mcp_tools_by_connector(
-            db_session, search_space_id
+            db_session, workspace_id
         )
     except Exception as e:
         # Degrade to builtins-only rather than aborting the turn: a transient
@@ -193,7 +193,7 @@ async def create_multi_agent_chat_deep_agent(
                 user_allowlist_by_subagent = await fetch_user_allowlist_rulesets(
                     db_session,
                     user_id=user_uuid,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                 )
             except Exception as e:
                 logging.warning(
@@ -291,7 +291,7 @@ async def create_multi_agent_chat_deep_agent(
         final_system_prompt=final_system_prompt,
         backend_resolver=backend_resolver,
         filesystem_mode=filesystem_selection.mode,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         thread_id=thread_id,
         visibility=visibility,

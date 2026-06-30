@@ -53,7 +53,7 @@ from app.observability.metrics import (
 )
 from app.users import get_auth_context
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
-from app.utils.rbac import check_search_space_access
+from app.utils.rbac import check_workspace_access
 
 router = APIRouter(prefix="/gateway", tags=["gateway"])
 config_router = APIRouter(prefix="/gateway", tags=["gateway"])
@@ -170,7 +170,7 @@ def _slack_event_kind(payload: dict[str, Any]) -> str:
 
 class StartBindingRequest(BaseModel):
     platform: ExternalChatPlatform = ExternalChatPlatform.TELEGRAM
-    search_space_id: int
+    workspace_id: int
 
 
 class StartBindingResponse(BaseModel):
@@ -180,12 +180,12 @@ class StartBindingResponse(BaseModel):
     expires_at: datetime
 
 
-class UpdateBindingSearchSpaceRequest(BaseModel):
-    search_space_id: int
+class UpdateBindingWorkspaceRequest(BaseModel):
+    workspace_id: int
 
 
-class UpdateAccountSearchSpaceRequest(BaseModel):
-    search_space_id: int
+class UpdateAccountWorkspaceRequest(BaseModel):
+    workspace_id: int
 
 
 def _active_whatsapp_account_mode() -> ExternalChatAccountMode | None:
@@ -249,7 +249,7 @@ def _telegram_message(payload: dict[str, Any]) -> dict[str, Any] | None:
 
 @router.get("/slack/install")
 async def install_slack_gateway(
-    search_space_id: int,
+    workspace_id: int,
     auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
@@ -258,8 +258,8 @@ async def install_slack_gateway(
         raise HTTPException(
             status_code=500, detail="Slack gateway OAuth is not configured"
         )
-    await check_search_space_access(session, auth, search_space_id)
-    state = _get_state_manager().generate_secure_state(search_space_id, user.id)
+    await check_workspace_access(session, auth, workspace_id)
+    state = _get_state_manager().generate_secure_state(workspace_id, user.id)
     auth_params = {
         "client_id": config.GATEWAY_SLACK_CLIENT_ID,
         "scope": ",".join(SLACK_BOT_SCOPES),
@@ -382,7 +382,7 @@ async def slack_gateway_callback(
                 ExternalChatBinding(
                     account_id=account.id,
                     user_id=user_id,
-                    search_space_id=space_id,
+                    workspace_id=space_id,
                     state=ExternalChatBindingState.BOUND,
                     external_peer_id=peer_id,
                     external_peer_kind=ExternalChatPeerKind.DIRECT,
@@ -395,7 +395,7 @@ async def slack_gateway_callback(
                 )
             )
         elif binding.user_id == user_id:
-            binding.search_space_id = space_id
+            binding.workspace_id = space_id
             binding.external_metadata = {
                 **(binding.external_metadata or {}),
                 "kind": "slack_user",
@@ -409,7 +409,7 @@ async def slack_gateway_callback(
 
 @router.get("/discord/install")
 async def install_discord_gateway(
-    search_space_id: int,
+    workspace_id: int,
     auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, str]:
@@ -418,8 +418,8 @@ async def install_discord_gateway(
         raise HTTPException(
             status_code=500, detail="Discord gateway OAuth is not configured"
         )
-    await check_search_space_access(session, auth, search_space_id)
-    state = _get_state_manager().generate_secure_state(search_space_id, user.id)
+    await check_workspace_access(session, auth, workspace_id)
+    state = _get_state_manager().generate_secure_state(workspace_id, user.id)
     auth_params = {
         "client_id": config.DISCORD_CLIENT_ID,
         "scope": " ".join(DISCORD_GATEWAY_SCOPES),
@@ -559,7 +559,7 @@ async def discord_gateway_callback(
                 ExternalChatBinding(
                     account_id=account.id,
                     user_id=user_id,
-                    search_space_id=space_id,
+                    workspace_id=space_id,
                     state=ExternalChatBindingState.BOUND,
                     external_peer_id=peer_id,
                     external_peer_kind=ExternalChatPeerKind.DIRECT,
@@ -568,7 +568,7 @@ async def discord_gateway_callback(
                 )
             )
         elif binding.user_id == user_id:
-            binding.search_space_id = space_id
+            binding.workspace_id = space_id
             binding.external_username = discord_username or binding.external_username
             binding.external_metadata = {
                 **(binding.external_metadata or {}),
@@ -718,7 +718,7 @@ async def start_binding(
     session: AsyncSession = Depends(get_async_session),
 ) -> StartBindingResponse:
     user = auth.user
-    await check_search_space_access(session, auth, body.search_space_id)
+    await check_workspace_access(session, auth, body.workspace_id)
     code = generate_pairing_code()
     if body.platform == ExternalChatPlatform.TELEGRAM:
         if not _telegram_gateway_enabled():
@@ -758,7 +758,7 @@ async def start_binding(
     binding = ExternalChatBinding(
         account_id=account.id,
         user_id=user.id,
-        search_space_id=body.search_space_id,
+        workspace_id=body.workspace_id,
         state=ExternalChatBindingState.PENDING,
         pairing_code=code,
         pairing_code_expires_at=expires_at,
@@ -794,7 +794,7 @@ async def list_bindings(
             "id": binding.id,
             "platform": account.platform.value,
             "state": binding.state.value,
-            "search_space_id": binding.search_space_id,
+            "workspace_id": binding.workspace_id,
             "external_display_name": binding.external_display_name,
             "external_username": binding.external_username,
             "external_metadata": binding.external_metadata,
@@ -869,7 +869,7 @@ async def list_connections(
         workspace_id = None
         route_type = "binding"
         connection_id = binding.id
-        search_space_id = binding.search_space_id
+        workspace_id = binding.workspace_id
         display_name = binding.external_display_name or binding.external_username
         if account.platform == ExternalChatPlatform.SLACK:
             workspace_name = account_state.get("team_name")
@@ -886,8 +886,8 @@ async def list_connections(
                 baileys_account_ids.add(int(account.id))
                 route_type = "account"
                 connection_id = account.id
-                search_space_id = (
-                    account.owner_search_space_id or binding.search_space_id
+                workspace_id = (
+                    account.owner_workspace_id or binding.workspace_id
                 )
                 display_name = "WhatsApp Bridge"
 
@@ -899,7 +899,7 @@ async def list_connections(
                 "platform": account.platform.value,
                 "mode": account.mode.value,
                 "state": binding.state.value,
-                "search_space_id": search_space_id,
+                "workspace_id": workspace_id,
                 "display_name": display_name or workspace_name,
                 "external_username": (
                     None
@@ -921,7 +921,7 @@ async def list_connections(
                 ExternalChatAccount.owner_user_id == user.id,
                 ExternalChatAccount.platform == ExternalChatPlatform.WHATSAPP,
                 ExternalChatAccount.mode == ExternalChatAccountMode.SELF_HOST_BYO,
-                ExternalChatAccount.owner_search_space_id.is_not(None),
+                ExternalChatAccount.owner_workspace_id.is_not(None),
             )
         )
         for account in account_result.scalars():
@@ -936,7 +936,7 @@ async def list_connections(
                     "platform": account.platform.value,
                     "mode": account.mode.value,
                     "state": "bound",
-                    "search_space_id": account.owner_search_space_id,
+                    "workspace_id": account.owner_workspace_id,
                     "display_name": "WhatsApp Bridge",
                     "external_username": None,
                     "workspace_name": account_state.get("display_phone_number"),
@@ -995,10 +995,10 @@ async def get_gateway_config(
     }
 
 
-@router.patch("/bindings/{binding_id}/search-space")
-async def update_binding_search_space(
+@router.patch("/bindings/{binding_id}/workspace")
+async def update_binding_workspace(
     binding_id: int,
-    body: UpdateBindingSearchSpaceRequest,
+    body: UpdateBindingWorkspaceRequest,
     auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, bool]:
@@ -1017,19 +1017,19 @@ async def update_binding_search_space(
     if account is None or _is_inactive_whatsapp_account(account):
         raise HTTPException(status_code=404, detail="Binding not found")
 
-    await check_search_space_access(session, auth, body.search_space_id)
-    if binding.search_space_id != body.search_space_id:
-        binding.search_space_id = body.search_space_id
+    await check_workspace_access(session, auth, body.workspace_id)
+    if binding.workspace_id != body.workspace_id:
+        binding.workspace_id = body.workspace_id
         binding.new_chat_thread_id = None
     binding.updated_at = datetime.now(UTC)
     await session.commit()
     return {"ok": True}
 
 
-@router.patch("/accounts/{account_id}/search-space")
-async def update_gateway_account_search_space(
+@router.patch("/accounts/{account_id}/workspace")
+async def update_gateway_account_workspace(
     account_id: int,
-    body: UpdateAccountSearchSpaceRequest,
+    body: UpdateAccountWorkspaceRequest,
     auth: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict[str, bool]:
@@ -1044,8 +1044,8 @@ async def update_gateway_account_search_space(
     ):
         raise HTTPException(status_code=404, detail="Gateway account not found")
 
-    await check_search_space_access(session, auth, body.search_space_id)
-    account.owner_search_space_id = body.search_space_id
+    await check_workspace_access(session, auth, body.workspace_id)
+    account.owner_workspace_id = body.workspace_id
     account.updated_at = datetime.now(UTC)
 
     result = await session.execute(
@@ -1058,7 +1058,7 @@ async def update_gateway_account_search_space(
         )
     )
     for binding in result.scalars():
-        binding.search_space_id = body.search_space_id
+        binding.workspace_id = body.workspace_id
         binding.new_chat_thread_id = None
         binding.updated_at = datetime.now(UTC)
 
@@ -1113,7 +1113,7 @@ async def delete_gateway_account(
     for binding in result.scalars():
         revoke_binding(binding)
 
-    account.owner_search_space_id = None
+    account.owner_workspace_id = None
     account.suspended_at = datetime.now(UTC)
     account.suspended_reason = "disconnected"
     account.updated_at = datetime.now(UTC)

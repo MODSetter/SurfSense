@@ -10,12 +10,12 @@ GRAPH_API = "https://graph.microsoft.com/v1.0"
 
 async def get_teams_connector(
     db_session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
 ) -> SearchSourceConnector | None:
     result = await db_session.execute(
         select(SearchSourceConnector).filter(
-            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.workspace_id == workspace_id,
             SearchSourceConnector.user_id == user_id,
             SearchSourceConnector.connector_type
             == SearchSourceConnectorType.TEAMS_CONNECTOR,

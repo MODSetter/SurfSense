@@ -21,7 +21,7 @@ from app.agents.chat.runtime.llm_config import (
     SanitizedChatLiteLLM,
 )
 from app.config import config
-from app.db import Model, SearchSpace
+from app.db import Model, Workspace
 from app.services.model_capabilities import has_capability
 from app.services.model_resolver import to_litellm
 from app.services.token_tracking_service import register_model_usage_metadata
@@ -55,11 +55,11 @@ def _agent_config_from_resolved(
     )
 
 
-async def _load_search_space(
-    session: AsyncSession, search_space_id: int
-) -> SearchSpace | None:
+async def _load_workspace(
+    session: AsyncSession, workspace_id: int
+) -> Workspace | None:
     result = await session.execute(
-        select(SearchSpace).where(SearchSpace.id == search_space_id)
+        select(Workspace).where(Workspace.id == workspace_id)
     )
     return result.scalars().first()
 
@@ -68,7 +68,7 @@ async def _load_db_model(
     session: AsyncSession,
     *,
     model_id: int,
-    search_space: SearchSpace,
+    workspace: Workspace,
 ) -> Model | None:
     result = await session.execute(
         select(Model)
@@ -79,9 +79,9 @@ async def _load_db_model(
     if not model or not model.connection or not model.connection.enabled:
         return None
     conn = model.connection
-    if conn.search_space_id is not None and conn.search_space_id != search_space.id:
+    if conn.workspace_id is not None and conn.workspace_id != workspace.id:
         return None
-    if conn.user_id is not None and conn.user_id != search_space.user_id:
+    if conn.user_id is not None and conn.user_id != workspace.user_id:
         return None
     return model
 
@@ -90,17 +90,17 @@ async def load_llm_bundle(
     session: AsyncSession,
     *,
     config_id: int,
-    search_space_id: int,
+    workspace_id: int,
 ) -> tuple[Any, AgentConfig | None, str | None]:
-    search_space = await _load_search_space(session, search_space_id)
-    if not search_space:
-        return None, None, f"Search space {search_space_id} not found"
+    workspace = await _load_workspace(session, workspace_id)
+    if not workspace:
+        return None, None, f"Workspace {workspace_id} not found"
 
     if config_id > 0:
         model = await _load_db_model(
             session,
             model_id=config_id,
-            search_space=search_space,
+            workspace=workspace,
         )
         if not model or not has_capability(model, "chat"):
             return (

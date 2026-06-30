@@ -124,7 +124,7 @@ async def create_anonymous_chat_agent(
             tools (used when the user toggles web search off).
     """
     tools = (
-        [create_web_search_tool(search_space_id=None, available_connectors=None)]
+        [create_web_search_tool(workspace_id=None, available_connectors=None)]
         if enable_web_search
         else []
     )

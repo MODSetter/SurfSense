@@ -101,7 +101,7 @@ class TestFormatTreeRendering:
         docs = [_Row(**spec) for spec in doc_specs]
 
         mw = KnowledgeTreeMiddleware(
-            search_space_id=1,
+            workspace_id=1,
             filesystem_mode=None,  # type: ignore[arg-type]
         )
         return mw._format_tree(index, docs)

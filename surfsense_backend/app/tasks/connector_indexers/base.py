@@ -137,7 +137,7 @@ async def mark_connector_documents_failed(
     session: AsyncSession,
     *,
     document_type: DocumentType,
-    search_space_id: int,
+    workspace_id: int,
     failures: list[tuple[str, str]],
 ) -> int:
     """Transition placeholder/in-progress documents to ``failed`` by source id.
@@ -159,7 +159,7 @@ async def mark_connector_documents_failed(
             if not unique_id:
                 continue
             uid_hash = compute_identifier_hash(
-                document_type.value, unique_id, search_space_id
+                document_type.value, unique_id, workspace_id
             )
             existing = await check_document_by_unique_identifier(session, uid_hash)
             if existing is None:

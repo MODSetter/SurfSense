@@ -93,7 +93,7 @@ def _action(*, tool_name: str, action_id: int = 7):
         id=action_id,
         tool_name=tool_name,
         thread_id=1,
-        search_space_id=2,
+        workspace_id=2,
         user_id="user-1",
         reverse_descriptor=None,
     )
@@ -111,7 +111,7 @@ def _doc_revision(
     revision = MagicMock()
     revision.id = 100
     revision.document_id = document_id
-    revision.search_space_id = 2
+    revision.workspace_id = 2
     revision.content_before = content_before
     revision.title_before = title_before
     revision.folder_id_before = folder_id_before
@@ -130,7 +130,7 @@ def _folder_revision(
     revision = MagicMock()
     revision.id = 200
     revision.folder_id = folder_id
-    revision.search_space_id = 2
+    revision.workspace_id = 2
     revision.name_before = name_before
     revision.parent_id_before = parent_id_before
     revision.position_before = position_before

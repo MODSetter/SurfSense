@@ -97,10 +97,10 @@ def finalize(state: TranscriptState, config: RunnableConfig) -> dict[str, Any]:
 
 
 async def _require_llm(state: TranscriptState, tc: TranscriptConfig):
-    llm = await get_agent_llm(state.db_session, tc.search_space_id)
+    llm = await get_agent_llm(state.db_session, tc.workspace_id)
     if llm is None:
         raise RuntimeError(
-            f"no agent LLM configured for search space {tc.search_space_id}"
+            f"no agent LLM configured for workspace {tc.workspace_id}"
         )
     return llm
 

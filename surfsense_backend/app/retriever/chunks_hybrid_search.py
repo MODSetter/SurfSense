@@ -14,29 +14,29 @@ def _instrument_search(mode: str):
     def _decorator(func):
         @functools.wraps(func)
         async def _wrapper(
-            self, query_text: str, top_k: int, search_space_id: int, *args, **kwargs
+            self, query_text: str, top_k: int, workspace_id: int, *args, **kwargs
         ):
             t0 = time.perf_counter()
             with ot.kb_search_span(
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 query_chars=len(query_text),
                 extra={"search.surface": "chunks", "search.mode": mode},
             ) as sp:
                 try:
                     result = await func(
-                        self, query_text, top_k, search_space_id, *args, **kwargs
+                        self, query_text, top_k, workspace_id, *args, **kwargs
                     )
                 except Exception:
                     ot_metrics.record_kb_search_duration(
                         (time.perf_counter() - t0) * 1000,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         surface="chunks",
                     )
                     raise
                 sp.set_attribute("result.count", len(result))
                 ot_metrics.record_kb_search_duration(
                     (time.perf_counter() - t0) * 1000,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     surface="chunks",
                 )
                 return result
@@ -61,7 +61,7 @@ class ChucksHybridSearchRetriever:
         self,
         query_text: str,
         top_k: int,
-        search_space_id: int,
+        workspace_id: int,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> list:
@@ -71,7 +71,7 @@ class ChucksHybridSearchRetriever:
         Args:
             query_text: The search query text
             top_k: Number of results to return
-            search_space_id: The search space ID to search within
+            workspace_id: The workspace ID to search within
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
@@ -96,12 +96,12 @@ class ChucksHybridSearchRetriever:
             time.perf_counter() - t_embed,
         )
 
-        # Build the query filtered by search space
+        # Build the query filtered by workspace
         query = (
             select(Chunk)
-            .options(joinedload(Chunk.document).joinedload(Document.search_space))
+            .options(joinedload(Chunk.document).joinedload(Document.workspace))
             .join(Document, Chunk.document_id == Document.id)
-            .where(Document.search_space_id == search_space_id)
+            .where(Document.workspace_id == workspace_id)
         )
 
         # Add time-based filtering if provided
@@ -122,7 +122,7 @@ class ChucksHybridSearchRetriever:
             time.perf_counter() - t_db,
             len(chunks),
             time.perf_counter() - t0,
-            search_space_id,
+            workspace_id,
         )
 
         return chunks
@@ -132,7 +132,7 @@ class ChucksHybridSearchRetriever:
         self,
         query_text: str,
         top_k: int,
-        search_space_id: int,
+        workspace_id: int,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> list:
@@ -142,7 +142,7 @@ class ChucksHybridSearchRetriever:
         Args:
             query_text: The search query text
             top_k: Number of results to return
-            search_space_id: The search space ID to search within
+            workspace_id: The workspace ID to search within
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
@@ -161,12 +161,12 @@ class ChucksHybridSearchRetriever:
         tsvector = func.to_tsvector("english", Chunk.content)
         tsquery = func.plainto_tsquery("english", query_text)
 
-        # Build the query filtered by search space
+        # Build the query filtered by workspace
         query = (
             select(Chunk)
-            .options(joinedload(Chunk.document).joinedload(Document.search_space))
+            .options(joinedload(Chunk.document).joinedload(Document.workspace))
             .join(Document, Chunk.document_id == Document.id)
-            .where(Document.search_space_id == search_space_id)
+            .where(Document.workspace_id == workspace_id)
             .where(
                 tsvector.op("@@")(tsquery)
             )  # Only include results that match the query
@@ -188,7 +188,7 @@ class ChucksHybridSearchRetriever:
             "[chunk_search] full_text_search in %.3fs results=%d space=%d",
             time.perf_counter() - t0,
             len(chunks),
-            search_space_id,
+            workspace_id,
         )
 
         return chunks
@@ -198,7 +198,7 @@ class ChucksHybridSearchRetriever:
         self,
         query_text: str,
         top_k: int,
-        search_space_id: int,
+        workspace_id: int,
         document_type: str | list[str] | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -213,7 +213,7 @@ class ChucksHybridSearchRetriever:
         Args:
             query_text: The search query text
             top_k: Number of documents to return
-            search_space_id: The search space ID to search within
+            workspace_id: The workspace ID to search within
             document_type: Optional document type to filter results (e.g., "FILE", "CRAWLED_URL")
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -252,10 +252,10 @@ class ChucksHybridSearchRetriever:
         tsvector = func.to_tsvector("english", Chunk.content)
         tsquery = func.plainto_tsquery("english", query_text)
 
-        # Base conditions for chunk filtering - search space is required.
+        # Base conditions for chunk filtering - workspace is required.
         # Exclude documents in "deleting" state (background deletion in progress).
         base_conditions = [
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
             func.coalesce(Document.status["state"].astext, "ready") != "deleting",
         ]
 
@@ -284,7 +284,7 @@ class ChucksHybridSearchRetriever:
         if end_date is not None:
             base_conditions.append(Document.updated_at <= end_date)
 
-        # CTE for semantic search filtered by search space
+        # CTE for semantic search filtered by workspace
         semantic_search_cte = (
             select(
                 Chunk.id,
@@ -302,7 +302,7 @@ class ChucksHybridSearchRetriever:
             .cte("semantic_search")
         )
 
-        # CTE for keyword search filtered by search space
+        # CTE for keyword search filtered by workspace
         keyword_search_cte = (
             select(
                 Chunk.id,
@@ -355,7 +355,7 @@ class ChucksHybridSearchRetriever:
             "[chunk_search] hybrid_search RRF query in %.3fs results=%d space=%d type=%s",
             time.perf_counter() - t_rrf,
             len(chunks_with_scores),
-            search_space_id,
+            workspace_id,
             document_type,
         )
 
@@ -493,7 +493,7 @@ class ChucksHybridSearchRetriever:
             "[chunk_search] hybrid_search TOTAL in %.3fs docs=%d space=%d type=%s",
             time.perf_counter() - t0,
             len(final_docs),
-            search_space_id,
+            workspace_id,
             document_type,
         )
         return final_docs

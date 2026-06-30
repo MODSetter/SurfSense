@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 def create_create_calendar_event_tool(
     db_session: AsyncSession | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     user_id: str | None = None,
 ):
     @tool
@@ -62,7 +62,7 @@ def create_create_calendar_event_tool(
             f"create_calendar_event called: summary='{summary}', start='{start_datetime}', end='{end_datetime}'"
         )
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if db_session is None or workspace_id is None or user_id is None:
             return {
                 "status": "error",
                 "message": "Google Calendar tool not properly configured. Please contact support.",
@@ -71,7 +71,7 @@ def create_create_calendar_event_tool(
         try:
             metadata_service = GoogleCalendarToolMetadataService(db_session)
             context = await metadata_service.get_creation_context(
-                search_space_id, user_id
+                workspace_id, user_id
             )
 
             if "error" in context:
@@ -138,7 +138,7 @@ def create_create_calendar_event_tool(
                 result = await db_session.execute(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.id == final_connector_id,
-                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.workspace_id == workspace_id,
                         SearchSourceConnector.user_id == user_id,
                         SearchSourceConnector.connector_type.in_(_calendar_types),
                     )
@@ -153,7 +153,7 @@ def create_create_calendar_event_tool(
             else:
                 result = await db_session.execute(
                     select(SearchSourceConnector).filter(
-                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.workspace_id == workspace_id,
                         SearchSourceConnector.user_id == user_id,
                         SearchSourceConnector.connector_type.in_(_calendar_types),
                     )
@@ -318,7 +318,7 @@ def create_create_calendar_event_tool(
                     html_link=created.get("htmlLink"),
                     description=final_description,
                     connector_id=actual_connector_id,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                 )
                 if kb_result["status"] == "success":

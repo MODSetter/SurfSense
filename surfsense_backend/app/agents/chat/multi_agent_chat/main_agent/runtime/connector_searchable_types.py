@@ -1,7 +1,7 @@
 """Map configured connectors to the searchable document/connector types.
 
 This is agent-agnostic infrastructure shared by every agent factory (single-
-and multi-agent). It translates the connectors a search space has enabled into
+and multi-agent). It translates the connectors a workspace has enabled into
 the set of searchable type strings that pre-search middleware and ``web_search``
 understand, and always layers in the document types that exist independently of
 any connector (uploads, notes, extension captures, YouTube).

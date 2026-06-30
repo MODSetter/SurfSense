@@ -51,13 +51,13 @@ def create_update_memory_tool(
 
 
 def create_update_team_memory_tool(
-    search_space_id: int,
+    workspace_id: int,
     db_session: AsyncSession,
     llm: Any | None = None,
 ):
     @tool
     async def update_memory(updated_memory: str) -> dict[str, Any]:
-        """Update the team's shared memory document for this search space.
+        """Update the team's shared memory document for this workspace.
 
         The current team memory is shown in <team_memory>. Pass the FULL updated
         markdown document, not a diff.
@@ -65,7 +65,7 @@ def create_update_team_memory_tool(
         try:
             result = await save_memory(
                 scope=MemoryScope.TEAM,
-                target_id=search_space_id,
+                target_id=workspace_id,
                 content=updated_memory,
                 session=db_session,
                 llm=llm,

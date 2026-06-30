@@ -2,6 +2,10 @@
 
 Part of [00-umbrella-plan.md](00-umbrella-plan.md), Phase 2. Backend only (`surfsense_backend`).
 
+> **Status: SHIPPED** · as of 2026-06-27 · branch `feat/rename-searchspace-to-workspace` · PR [#1546](https://github.com/MODSetter/SurfSense/pull/1546)
+> Last commit of this phase: `902b3374e` (backend code/API rename, Waves A–F + carve-outs). Phase 1 + Phase 2 shipped as one atomic PR.
+> The sections below are the **original design/rationale**; the as-built state + how to re-verify live in the [Implementation record](#implementation-record-as-built) at the bottom. Ground truth for files/commits is the PR, not this doc.
+
 ## Goal
 
 Remove the Phase 1 shim and complete the SYMBOLIC rename `SearchSpace -> Workspace` / `search_space_id -> workspace_id` across the ~150 backend files, then consolidate the three live URL spellings (`/searchspaces`, `/search-spaces`, `/search-space`) onto a single canonical `/workspaces`. After this phase the physical DB (Phase 1) and the Python/API surface speak the same name.
@@ -131,3 +135,54 @@ These do not move with a symbol rename; each is decided here.
 - Satellite apps (desktop, Obsidian, browser extension, evals) + docs — deferred.
 - Connector `category` discriminator and `SearchSourceConnector` handling — Phase 4 ([04a-connector-category.md](04a-connector-category.md)).
 - Enum VALUE migration and observability-key rename — deliberately deferred announced changes.
+
+---
+
+## Implementation record (as-built)
+
+Whole-PR footprint (vs `ci_mvp`): **452 files, +5317/-4781** — 325 under `app/`, 124 under `tests/`, and **exactly 2** `alembic/versions/` files (`168` idempotency + `170` rename), confirming the immutable-replay-log carve-out (#9) held.
+
+The plan's Waves A–F were executed in order, as described above; what follows records only what diverged from that design and the evidence that it landed cleanly.
+
+### Deviations from the plan
+
+- **Bulk rename executed via scoped Python codemods** (multiple passes), strictly limited to `app/` + `tests/` (never `alembic/versions/`), instead of IDE/`ast-grep`. Same scope rule and same carve-out exclusions as designed.
+- **camelCase `searchSpaceId` -> `workspaceId`**: a camelCase payload key (in `app/agents/chat/multi_agent_chat/main_agent/middleware/kb_persistence/middleware.py`) was renamed too — decided internal/transient, so it follows the hard cutover. The plan enumerated snake/Pascal/Title/hyphen variants; this camelCase variant was caught in a follow-up codemod pass (residual `searchSpaceId` in `app/` now = 0).
+- All other carve-outs honored exactly as decided (below).
+
+### Carve-outs as-shipped (verified by residual grep)
+
+KEPT (intentional):
+- Enum VALUES `'SEARCH_SPACE'` (`ConnectionScope`, `ChatVisibility`) — value migration deferred (carve-out 1).
+- Celery wire task names `"delete_search_space_background"`, `"ai_sort_search_space"` (carve-out 2). Python functions renamed (`ai_sort_workspace_task`, `delete_workspace_task`); producer and worker agree because dispatch is via `.delay()` on the task object (no hardcoded `send_task("ai_sort_search_space")`).
+- OTel/metric key `search_space.id` (carve-out 5) — 3 sites (`observability/otel.py` x2, `observability/metrics.py`); dashboards/alerts depend on it.
+- API error code `"SEARCH_SPACE_FORBIDDEN"` (external contract string).
+- `SearchSourceConnector` class/table (carve-out 8, unrelated taxonomy).
+- Historical `alembic/versions/*` (carve-out 9, immutable replay log).
+
+RENAMED (accepted transient deploy cost):
+- Redis keys `surfsense:spawn_paused:{workspace_id}`, `ai_sort:workspace:{workspace_id}:lock` (carve-out 3) + `.env.example` runbook.
+- Event payload key (carve-out 4) and LangGraph state-channel key (carve-out 10) -> `workspace_id`; default seed name -> `"My Workspace"` (carve-out 11).
+
+### Verify current state (re-runnable)
+
+Each line is a command + the last captured result. Re-run to confirm the *current* truth instead of trusting the snapshot. Run from `surfsense_backend/`.
+
+- **Full backend suite** — `uv run pytest tests/unit tests/integration`
+  → last (2026-06-27): `3016 passed, 1 skipped` in ~101s. The skip is a Windows-only event-loop test (`tests/unit/tasks/test_celery_async_runner.py:302`).
+- **Schema drift @170** — `AUTH_TYPE=LOCAL DATABASE_URL=…surfsense_oldshape uv run alembic check`
+  → last (2026-06-27): `No new upgrade operations detected.`
+- **Route hard-cutover** — load `app.app:app` and inspect `{r.path for r in app.routes}`
+  → last (2026-06-27): legacy `/searchspaces` `/search-spaces` `/search-space` = 0 each; canonical `/workspaces` = 26 (of 278 routes).
+- **Residual symbols** — `rg -ni 'search.?space' app`
+  → last (2026-06-27): 52 hits, all carve-outs (enum `SEARCH_SPACE` values dominate; 3× OTel `search_space.id`; 2× Celery wire names; 1× `SEARCH_SPACE_FORBIDDEN`). No stray attribute/relationship/route residue.
+- **`alembic/versions/` immutability** — `git diff --stat ci_mvp..HEAD -- surfsense_backend/alembic/versions`
+  → last (2026-06-27): only `168` + `170` (guard against carve-out 9).
+
+### Known caveats at deploy (team-acknowledged)
+
+- **Zero-cache replica reset** required on deploy (`ZERO_AUTO_RESET`) — consequence of the schema rename.
+- **From-scratch `alembic upgrade head` stays pre-existing-broken** (rev 23 conflict); the existing-DB `169 -> 170` path is verified. Separate baseline-squash task.
+- **Planned-downtime deploy**: drain Celery/event queues and restart workers before cutover (renamed event payload / LangGraph state-channel / Redis keys). In-flight state across the boundary is discarded by design — acceptable given the downtime window.
+- **Live Celery worker not exercised end-to-end** (the broker is mocked in tests). The task code paths are covered by unit/integration tests; a real worker + Redis smoke is the one verification not yet run.
+- **Clients are intentionally broken** by the hard cutover until the frontend/satellite umbrellas land — backend correctness is verified via the suite + OpenAPI/route introspection + direct API calls, not the old UI.

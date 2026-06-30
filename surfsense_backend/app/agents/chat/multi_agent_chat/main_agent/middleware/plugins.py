@@ -21,7 +21,7 @@ from ..plugins.loader import (
 def build_plugin_middlewares(
     *,
     flags: AgentFeatureFlags,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
     visibility: ChatVisibility,
     llm: BaseChatModel,
@@ -34,7 +34,7 @@ def build_plugin_middlewares(
             return []
         return load_plugin_middlewares(
             PluginContext.build(
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 thread_visibility=visibility,
                 llm=llm,

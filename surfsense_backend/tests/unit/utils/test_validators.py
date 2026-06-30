@@ -11,7 +11,7 @@ from app.utils.validators import (
     validate_messages,
     validate_research_mode,
     validate_search_mode,
-    validate_search_space_id,
+    validate_workspace_id,
     validate_top_k,
     validate_url,
     validate_uuid,
@@ -34,8 +34,8 @@ pytestmark = pytest.mark.unit
         (" 42 ", 42),
     ],
 )
-def test_validate_search_space_id_valid(valid_input, expected):
-    assert validate_search_space_id(valid_input) == expected
+def test_validate_workspace_id_valid(valid_input, expected):
+    assert validate_workspace_id(valid_input) == expected
 
 
 @pytest.mark.parametrize(
@@ -54,9 +54,9 @@ def test_validate_search_space_id_valid(valid_input, expected):
         "-5",
     ],
 )
-def test_validate_search_space_id_invalid(invalid_input):
+def test_validate_workspace_id_invalid(invalid_input):
     with pytest.raises(HTTPException) as excinfo:
-        validate_search_space_id(invalid_input)
+        validate_workspace_id(invalid_input)
     assert excinfo.value.status_code == 400
 
 

@@ -49,12 +49,12 @@ async def create_presentation_slides(
     """Parse source content into structured presentation slides using LLM."""
 
     configuration = Configuration.from_runnable_config(config)
-    search_space_id = configuration.search_space_id
+    workspace_id = configuration.workspace_id
     user_prompt = configuration.user_prompt
 
-    llm = await get_agent_llm(state.db_session, search_space_id)
+    llm = await get_agent_llm(state.db_session, workspace_id)
     if not llm:
-        error_message = f"No LLM configured for search space {search_space_id}"
+        error_message = f"No LLM configured for workspace {workspace_id}"
         print(error_message)
         raise RuntimeError(error_message)
 
@@ -351,11 +351,11 @@ async def assign_slide_themes(state: State, config: RunnableConfig) -> dict[str,
     Runs in parallel with audio generation since it only needs slide metadata.
     """
     configuration = Configuration.from_runnable_config(config)
-    search_space_id = configuration.search_space_id
+    workspace_id = configuration.workspace_id
 
-    llm = await get_agent_llm(state.db_session, search_space_id)
+    llm = await get_agent_llm(state.db_session, workspace_id)
     if not llm:
-        raise RuntimeError(f"No LLM configured for search space {search_space_id}")
+        raise RuntimeError(f"No LLM configured for workspace {workspace_id}")
 
     slides = state.slides or []
     assignments = await _assign_themes_with_llm(llm, slides)
@@ -372,11 +372,11 @@ async def generate_slide_scene_codes(
     """
 
     configuration = Configuration.from_runnable_config(config)
-    search_space_id = configuration.search_space_id
+    workspace_id = configuration.workspace_id
 
-    llm = await get_agent_llm(state.db_session, search_space_id)
+    llm = await get_agent_llm(state.db_session, workspace_id)
     if not llm:
-        raise RuntimeError(f"No LLM configured for search space {search_space_id}")
+        raise RuntimeError(f"No LLM configured for workspace {workspace_id}")
 
     slides = state.slides or []
     audio_results = state.slide_audio_results or []

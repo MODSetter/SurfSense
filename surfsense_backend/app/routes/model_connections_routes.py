@@ -14,7 +14,7 @@ from app.db import (
     ModelSource,
     NewChatThread,
     Permission,
-    SearchSpace,
+    Workspace,
     get_async_session,
 )
 from app.schemas import (
@@ -88,7 +88,7 @@ def _connection_read(
         api_key=conn.api_key,
         extra=conn.extra or {},
         scope=conn.scope,
-        search_space_id=conn.search_space_id,
+        workspace_id=conn.workspace_id,
         user_id=conn.user_id,
         enabled=conn.enabled,
         has_api_key=bool(conn.api_key),
@@ -142,7 +142,7 @@ def _default_model_for(models: list[Model], capability: str) -> int | None:
 
 async def _load_role_model(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     model_id: int,
 ) -> Model | dict | None:
     if model_id < 0:
@@ -157,7 +157,7 @@ async def _load_role_model(
         .where(Model.id == model_id)
     )
     model = result.scalars().first()
-    if model is None or model.connection.search_space_id != search_space_id:
+    if model is None or model.connection.workspace_id != workspace_id:
         return None
     return model
 
@@ -171,14 +171,14 @@ def _role_model_enabled(model: Model | dict) -> bool:
 async def _validate_role_model_id(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     model_id: int | None,
     capability: str,
 ) -> int:
     if model_id is None or model_id == 0:
         return 0
 
-    model = await _load_role_model(session, search_space_id, model_id)
+    model = await _load_role_model(session, workspace_id, model_id)
     if model and _role_model_enabled(model) and has_capability(model, capability):
         return model_id
 
@@ -191,14 +191,14 @@ async def _validate_role_model_id(
 async def _resolve_role_model_id(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     model_id: int | None,
     capability: str,
 ) -> int:
     try:
         return await _validate_role_model_id(
             session,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             model_id=model_id,
             capability=capability,
         )
@@ -207,28 +207,28 @@ async def _resolve_role_model_id(
 
 
 async def _clear_invalid_roles(
-    session: AsyncSession, search_space_id: int
-) -> SearchSpace:
-    search_space = await _get_search_space(session, search_space_id)
-    search_space.chat_model_id = await _resolve_role_model_id(
+    session: AsyncSession, workspace_id: int
+) -> Workspace:
+    workspace = await _get_workspace(session, workspace_id)
+    workspace.chat_model_id = await _resolve_role_model_id(
         session,
-        search_space_id=search_space_id,
-        model_id=search_space.chat_model_id,
+        workspace_id=workspace_id,
+        model_id=workspace.chat_model_id,
         capability="chat",
     )
-    search_space.vision_model_id = await _resolve_role_model_id(
+    workspace.vision_model_id = await _resolve_role_model_id(
         session,
-        search_space_id=search_space_id,
-        model_id=search_space.vision_model_id,
+        workspace_id=workspace_id,
+        model_id=workspace.vision_model_id,
         capability="vision",
     )
-    search_space.image_gen_model_id = await _resolve_role_model_id(
+    workspace.image_gen_model_id = await _resolve_role_model_id(
         session,
-        search_space_id=search_space_id,
-        model_id=search_space.image_gen_model_id,
+        workspace_id=workspace_id,
+        model_id=workspace.image_gen_model_id,
         capability="image_gen",
     )
-    return search_space
+    return workspace
 
 
 async def _default_unset_roles(
@@ -236,24 +236,24 @@ async def _default_unset_roles(
     conn: Connection,
     models: list[Model],
 ) -> None:
-    if conn.scope != ConnectionScope.SEARCH_SPACE or conn.search_space_id is None:
+    if conn.scope != ConnectionScope.SEARCH_SPACE or conn.workspace_id is None:
         return
-    search_space = await _get_search_space(session, conn.search_space_id)
-    if search_space.chat_model_id is None:
-        search_space.chat_model_id = _default_model_for(models, "chat")
-    if search_space.vision_model_id is None:
+    workspace = await _get_workspace(session, conn.workspace_id)
+    if workspace.chat_model_id is None:
+        workspace.chat_model_id = _default_model_for(models, "chat")
+    if workspace.vision_model_id is None:
         vision_default = None
-        if search_space.chat_model_id:
+        if workspace.chat_model_id:
             chat_model = next(
-                (m for m in models if m.id == search_space.chat_model_id), None
+                (m for m in models if m.id == workspace.chat_model_id), None
             )
             if chat_model and has_capability(chat_model, "vision"):
                 vision_default = chat_model.id
-        search_space.vision_model_id = vision_default or _default_model_for(
+        workspace.vision_model_id = vision_default or _default_model_for(
             models, "vision"
         )
-    if search_space.image_gen_model_id is None:
-        search_space.image_gen_model_id = _default_model_for(models, "image_gen")
+    if workspace.image_gen_model_id is None:
+        workspace.image_gen_model_id = _default_model_for(models, "image_gen")
 
 
 @router.get("/model-providers", response_model=list[ModelProviderRead])
@@ -274,14 +274,14 @@ async def list_model_providers(auth: AuthContext = Depends(require_session_conte
     ]
 
 
-async def _get_search_space(session: AsyncSession, search_space_id: int) -> SearchSpace:
+async def _get_workspace(session: AsyncSession, workspace_id: int) -> Workspace:
     result = await session.execute(
-        select(SearchSpace).where(SearchSpace.id == search_space_id)
+        select(Workspace).where(Workspace.id == workspace_id)
     )
-    search_space = result.scalars().first()
-    if not search_space:
-        raise HTTPException(status_code=404, detail="Search space not found")
-    return search_space
+    workspace = result.scalars().first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    return workspace
 
 
 async def _load_connection(session: AsyncSession, connection_id: int) -> Connection:
@@ -304,13 +304,13 @@ async def _assert_connection_access(
     allow_spaceless_pat: bool = False,
 ) -> None:
     user = auth.user
-    if conn.search_space_id:
+    if conn.workspace_id:
         await check_permission(
             session,
             auth,
-            conn.search_space_id,
+            conn.workspace_id,
             permission,
-            "You don't have permission to manage model connections in this search space",
+            "You don't have permission to manage model connections in this workspace",
         )
         return
     if conn.user_id != user.id:
@@ -346,21 +346,21 @@ async def list_global_connections(auth: AuthContext = Depends(require_session_co
 
 @router.get("/model-connections", response_model=list[ConnectionRead])
 async def list_connections(
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     user = auth.user
     stmt = select(Connection).options(selectinload(Connection.models))
-    if search_space_id is not None:
+    if workspace_id is not None:
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.LLM_CONFIGS_CREATE.value,
-            "You don't have permission to view model connections in this search space",
+            "You don't have permission to view model connections in this workspace",
         )
-        stmt = stmt.where(Connection.search_space_id == search_space_id)
+        stmt = stmt.where(Connection.workspace_id == workspace_id)
     else:
         stmt = stmt.where(Connection.user_id == user.id)
     result = await session.execute(stmt.order_by(Connection.id))
@@ -379,25 +379,25 @@ async def create_connection(
     if data.scope == ConnectionScope.GLOBAL:
         raise HTTPException(status_code=400, detail="GLOBAL connections are YAML-only")
     if data.scope == ConnectionScope.SEARCH_SPACE:
-        if data.search_space_id is None:
-            raise HTTPException(status_code=400, detail="search_space_id is required")
+        if data.workspace_id is None:
+            raise HTTPException(status_code=400, detail="workspace_id is required")
         await check_permission(
             session,
             auth,
-            data.search_space_id,
+            data.workspace_id,
             Permission.LLM_CONFIGS_CREATE.value,
-            "You don't have permission to create model connections in this search space",
+            "You don't have permission to create model connections in this workspace",
         )
     elif auth.is_gated:
         raise HTTPException(
             status_code=403,
             detail="Managing personal model connections requires an interactive session",
         )
-    payload = data.model_dump(exclude={"search_space_id", "models"})
+    payload = data.model_dump(exclude={"workspace_id", "models"})
 
     conn = Connection(
         **payload,
-        search_space_id=data.search_space_id
+        workspace_id=data.workspace_id
         if data.scope == ConnectionScope.SEARCH_SPACE
         else None,
         user_id=user.id,
@@ -430,13 +430,13 @@ async def preview_connection_models(
     auth: AuthContext = Depends(get_auth_context),
 ):
     user = auth.user
-    if data.scope == ConnectionScope.SEARCH_SPACE and data.search_space_id is not None:
+    if data.scope == ConnectionScope.SEARCH_SPACE and data.workspace_id is not None:
         await check_permission(
             session,
             auth,
-            data.search_space_id,
+            data.workspace_id,
             Permission.LLM_CONFIGS_CREATE.value,
-            "You don't have permission to create model connections in this search space",
+            "You don't have permission to create model connections in this workspace",
         )
     elif auth.is_gated:
         raise HTTPException(
@@ -451,7 +451,7 @@ async def preview_connection_models(
         extra=data.extra or {},
         scope=data.scope,
         enabled=data.enabled,
-        search_space_id=data.search_space_id
+        workspace_id=data.workspace_id
         if data.scope == ConnectionScope.SEARCH_SPACE
         else None,
         user_id=user.id,
@@ -470,13 +470,13 @@ async def test_preview_connection_model(
     auth: AuthContext = Depends(get_auth_context),
 ):
     user = auth.user
-    if data.scope == ConnectionScope.SEARCH_SPACE and data.search_space_id is not None:
+    if data.scope == ConnectionScope.SEARCH_SPACE and data.workspace_id is not None:
         await check_permission(
             session,
             auth,
-            data.search_space_id,
+            data.workspace_id,
             Permission.LLM_CONFIGS_CREATE.value,
-            "You don't have permission to create model connections in this search space",
+            "You don't have permission to create model connections in this workspace",
         )
     elif auth.is_gated:
         raise HTTPException(
@@ -495,7 +495,7 @@ async def test_preview_connection_model(
         extra=data.extra or {},
         scope=data.scope,
         enabled=data.enabled,
-        search_space_id=data.search_space_id
+        workspace_id=data.workspace_id
         if data.scope == ConnectionScope.SEARCH_SPACE
         else None,
         user_id=user.id,
@@ -525,12 +525,12 @@ async def update_connection(
     await _assert_connection_access(
         session, auth, conn, Permission.LLM_CONFIGS_UPDATE.value
     )
-    search_space_id = conn.search_space_id
+    workspace_id = conn.workspace_id
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(conn, key, value)
     await session.commit()
-    if search_space_id is not None:
-        await _clear_invalid_roles(session, search_space_id)
+    if workspace_id is not None:
+        await _clear_invalid_roles(session, workspace_id)
         await session.commit()
     conn = await _load_connection(session, connection_id)
     return _connection_read(conn, list(conn.models))
@@ -546,11 +546,11 @@ async def delete_connection(
     await _assert_connection_access(
         session, auth, conn, Permission.LLM_CONFIGS_DELETE.value
     )
-    search_space_id = conn.search_space_id
+    workspace_id = conn.workspace_id
     await session.delete(conn)
     await session.commit()
-    if search_space_id is not None:
-        await _clear_invalid_roles(session, search_space_id)
+    if workspace_id is not None:
+        await _clear_invalid_roles(session, workspace_id)
         await session.commit()
     return {"status": "deleted"}
 
@@ -611,8 +611,8 @@ async def discover_connection_models(
     await session.commit()
     conn = await _load_connection(session, connection_id)
     await _default_unset_roles(session, conn, list(conn.models))
-    if conn.search_space_id is not None:
-        await _clear_invalid_roles(session, conn.search_space_id)
+    if conn.workspace_id is not None:
+        await _clear_invalid_roles(session, conn.workspace_id)
     await session.commit()
     conn = await _load_connection(session, connection_id)
     return [_model_read(model) for model in conn.models]
@@ -654,8 +654,8 @@ async def add_manual_model(
     await session.refresh(model)
     conn = await _load_connection(session, connection_id)
     await _default_unset_roles(session, conn, list(conn.models))
-    if conn.search_space_id is not None:
-        await _clear_invalid_roles(session, conn.search_space_id)
+    if conn.workspace_id is not None:
+        await _clear_invalid_roles(session, conn.workspace_id)
     await session.commit()
     await session.refresh(model)
     return _model_read(model)
@@ -674,7 +674,7 @@ async def bulk_update_models(
     await _assert_connection_access(
         session, auth, conn, Permission.LLM_CONFIGS_UPDATE.value
     )
-    search_space_id = conn.search_space_id
+    workspace_id = conn.workspace_id
 
     model_ids = set(data.model_ids)
     await session.execute(
@@ -684,8 +684,8 @@ async def bulk_update_models(
     )
     await session.commit()
     session.expire_all()
-    if search_space_id is not None:
-        await _clear_invalid_roles(session, search_space_id)
+    if workspace_id is not None:
+        await _clear_invalid_roles(session, workspace_id)
         await session.commit()
         session.expire_all()
 
@@ -715,14 +715,14 @@ async def update_model(
     await _assert_connection_access(
         session, auth, model.connection, Permission.LLM_CONFIGS_UPDATE.value
     )
-    search_space_id = model.connection.search_space_id
+    workspace_id = model.connection.workspace_id
     update = data.model_dump(exclude_unset=True)
     for key, value in update.items():
         setattr(model, key, value)
     await session.commit()
     await session.refresh(model)
-    if search_space_id is not None:
-        await _clear_invalid_roles(session, search_space_id)
+    if workspace_id is not None:
+        await _clear_invalid_roles(session, workspace_id)
         await session.commit()
         await session.refresh(model)
     return _model_read(model)
@@ -753,35 +753,35 @@ async def test_connection_model(
 
 
 @router.get(
-    "/search-spaces/{search_space_id}/model-roles", response_model=ModelRolesRead
+    "/workspaces/{workspace_id}/model-roles", response_model=ModelRolesRead
 )
 async def get_model_roles(
-    search_space_id: int,
+    workspace_id: int,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.LLM_CONFIGS_CREATE.value,
-        "You don't have permission to view model roles in this search space",
+        "You don't have permission to view model roles in this workspace",
     )
-    search_space = await _clear_invalid_roles(session, search_space_id)
+    workspace = await _clear_invalid_roles(session, workspace_id)
     await session.commit()
-    await session.refresh(search_space)
+    await session.refresh(workspace)
     return ModelRolesRead(
-        chat_model_id=search_space.chat_model_id,
-        vision_model_id=search_space.vision_model_id,
-        image_gen_model_id=search_space.image_gen_model_id,
+        chat_model_id=workspace.chat_model_id,
+        vision_model_id=workspace.vision_model_id,
+        image_gen_model_id=workspace.image_gen_model_id,
     )
 
 
 @router.put(
-    "/search-spaces/{search_space_id}/model-roles", response_model=ModelRolesRead
+    "/workspaces/{workspace_id}/model-roles", response_model=ModelRolesRead
 )
 async def update_model_roles(
-    search_space_id: int,
+    workspace_id: int,
     data: ModelRolesUpdate,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
@@ -789,51 +789,51 @@ async def update_model_roles(
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.LLM_CONFIGS_UPDATE.value,
-        "You don't have permission to update model roles in this search space",
+        "You don't have permission to update model roles in this workspace",
     )
-    search_space = await _get_search_space(session, search_space_id)
+    workspace = await _get_workspace(session, workspace_id)
     updates = data.model_dump(exclude_unset=True)
     if "chat_model_id" in updates:
-        previous_chat_model_id = search_space.chat_model_id
+        previous_chat_model_id = workspace.chat_model_id
         next_chat_model_id = await _validate_role_model_id(
             session,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             model_id=updates["chat_model_id"],
             capability="chat",
         )
-        search_space.chat_model_id = next_chat_model_id
+        workspace.chat_model_id = next_chat_model_id
         if next_chat_model_id != previous_chat_model_id:
             await session.execute(
                 update(NewChatThread)
-                .where(NewChatThread.search_space_id == search_space_id)
+                .where(NewChatThread.workspace_id == workspace_id)
                 .values(pinned_llm_config_id=None)
             )
             logger.info(
-                "Cleared auto model pins for search_space_id=%s after chat_model_id change (%s -> %s)",
-                search_space_id,
+                "Cleared auto model pins for workspace_id=%s after chat_model_id change (%s -> %s)",
+                workspace_id,
                 previous_chat_model_id,
                 next_chat_model_id,
             )
     if "vision_model_id" in updates:
-        search_space.vision_model_id = await _validate_role_model_id(
+        workspace.vision_model_id = await _validate_role_model_id(
             session,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             model_id=updates["vision_model_id"],
             capability="vision",
         )
     if "image_gen_model_id" in updates:
-        search_space.image_gen_model_id = await _validate_role_model_id(
+        workspace.image_gen_model_id = await _validate_role_model_id(
             session,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             model_id=updates["image_gen_model_id"],
             capability="image_gen",
         )
     await session.commit()
-    await session.refresh(search_space)
+    await session.refresh(workspace)
     return ModelRolesRead(
-        chat_model_id=search_space.chat_model_id,
-        vision_model_id=search_space.vision_model_id,
-        image_gen_model_id=search_space.image_gen_model_id,
+        chat_model_id=workspace.chat_model_id,
+        vision_model_id=workspace.vision_model_id,
+        image_gen_model_id=workspace.image_gen_model_id,
     )

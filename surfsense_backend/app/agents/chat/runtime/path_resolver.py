@@ -98,12 +98,12 @@ class PathIndex:
 
 async def _build_folder_paths(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
 ) -> dict[int, str]:
     """Compute ``Folder.id`` -> absolute virtual path under ``/documents``."""
     result = await session.execute(
         select(Folder.id, Folder.name, Folder.parent_id).where(
-            Folder.search_space_id == search_space_id
+            Folder.workspace_id == workspace_id
         )
     )
     rows = result.all()
@@ -133,11 +133,11 @@ async def _build_folder_paths(
 
 async def build_path_index(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     *,
     populate_occupants: bool = True,
 ) -> PathIndex:
-    """Build a :class:`PathIndex` for a search space.
+    """Build a :class:`PathIndex` for a workspace.
 
     ``populate_occupants`` controls whether the occupancy map is pre-seeded
     from existing ``Document`` rows. Most callers want this so that
@@ -145,12 +145,12 @@ async def build_path_index(
     the persistence middleware sets this to ``False`` when it is iterating to
     decide where to place fresh documents.
     """
-    folder_paths = await _build_folder_paths(session, search_space_id)
+    folder_paths = await _build_folder_paths(session, workspace_id)
     occupants: dict[str, int] = {}
     if populate_occupants:
         rows = await session.execute(
             select(Document.id, Document.title, Document.folder_id).where(
-                Document.search_space_id == search_space_id,
+                Document.workspace_id == workspace_id,
             )
         )
         for row in rows.all():
@@ -189,7 +189,7 @@ def doc_to_virtual_path(
 async def virtual_path_to_doc(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     virtual_path: str,
 ) -> Document | None:
     """Resolve a virtual path back to a ``Document`` row.
@@ -198,7 +198,7 @@ async def virtual_path_to_doc(
     1. ``Document.unique_identifier_hash`` lookup (fast path for paths created
        by SurfSense itself — every NOTE write goes through this hash).
     2. If the basename carries a ``" (<doc_id>).xml"`` disambiguation suffix,
-       try a direct id lookup constrained to the search space.
+       try a direct id lookup constrained to the workspace.
     3. Title-from-basename + folder-resolution lookup as a last resort.
     """
     if not virtual_path or not virtual_path.startswith(DOCUMENTS_ROOT):
@@ -207,11 +207,11 @@ async def virtual_path_to_doc(
     unique_hash = generate_unique_identifier_hash(
         DocumentType.NOTE,
         virtual_path,
-        search_space_id,
+        workspace_id,
     )
     result = await session.execute(
         select(Document).where(
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
             Document.unique_identifier_hash == unique_hash,
         )
     )
@@ -232,7 +232,7 @@ async def virtual_path_to_doc(
     if suffix_doc_id is not None:
         result = await session.execute(
             select(Document).where(
-                Document.search_space_id == search_space_id,
+                Document.workspace_id == workspace_id,
                 Document.id == suffix_doc_id,
             )
         )
@@ -241,7 +241,7 @@ async def virtual_path_to_doc(
             return document
 
     folder_id = await _resolve_folder_id(
-        session, search_space_id=search_space_id, folder_parts=folder_parts
+        session, workspace_id=workspace_id, folder_parts=folder_parts
     )
     title_candidates: list[str] = []
     raw_title = stem
@@ -253,7 +253,7 @@ async def virtual_path_to_doc(
         if not candidate:
             continue
         query = select(Document).where(
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
             Document.title == candidate,
         )
         if folder_id is None:
@@ -272,7 +272,7 @@ async def virtual_path_to_doc(
     # filename back here. Scan all documents in the resolved folder and match
     # by ``safe_filename(title)`` to recover the original document.
     folder_scan = select(Document).where(
-        Document.search_space_id == search_space_id,
+        Document.workspace_id == workspace_id,
     )
     if folder_id is None:
         folder_scan = folder_scan.where(Document.folder_id.is_(None))
@@ -289,7 +289,7 @@ async def virtual_path_to_doc(
 async def _resolve_folder_id(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     folder_parts: list[str],
 ) -> int | None:
     """Look up the leaf folder id for a chain of folder names; return ``None`` if missing."""
@@ -299,7 +299,7 @@ async def _resolve_folder_id(
     for raw in folder_parts:
         name = safe_folder_segment(raw)
         query = select(Folder.id).where(
-            Folder.search_space_id == search_space_id,
+            Folder.workspace_id == workspace_id,
             Folder.name == name,
         )
         if parent_id is None:

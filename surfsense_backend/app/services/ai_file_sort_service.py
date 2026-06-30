@@ -271,7 +271,7 @@ async def ai_sort_document(
 
     leaf_folder = await ensure_folder_hierarchy_with_depth_validation(
         session,
-        document.search_space_id,
+        document.workspace_id,
         segments,
     )
 
@@ -282,13 +282,13 @@ async def ai_sort_document(
 
 async def ai_sort_all_documents(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     llm,
 ) -> tuple[int, int]:
-    """Sort all documents in a search space. Returns (sorted_count, failed_count)."""
+    """Sort all documents in a workspace. Returns (sorted_count, failed_count)."""
     stmt = (
         select(Document)
-        .where(Document.search_space_id == search_space_id)
+        .where(Document.workspace_id == workspace_id)
         .options(selectinload(Document.connector))
     )
     result = await session.execute(stmt)
@@ -310,7 +310,7 @@ async def ai_sort_all_documents(
 
             leaf_folder = await ensure_folder_hierarchy_with_depth_validation(
                 session,
-                search_space_id,
+                workspace_id,
                 segments,
             )
             doc.folder_id = leaf_folder.id
@@ -321,8 +321,8 @@ async def ai_sort_all_documents(
 
     await session.commit()
     logger.info(
-        "AI sort complete for search_space=%d: sorted=%d, failed=%d",
-        search_space_id,
+        "AI sort complete for workspace=%d: sorted=%d, failed=%d",
+        workspace_id,
         sorted_count,
         failed_count,
     )

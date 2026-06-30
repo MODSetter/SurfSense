@@ -22,8 +22,8 @@ from app.db import (
     ImageGeneration,
     Model,
     Permission,
-    SearchSpace,
-    SearchSpaceMembership,
+    Workspace,
+    WorkspaceMembership,
     get_async_session,
 )
 from app.schemas import (
@@ -68,7 +68,7 @@ def _get_global_connection(connection_id: int) -> dict | None:
 async def _resolve_billing_for_image_gen(
     session: AsyncSession,
     config_id: int | None,
-    search_space: SearchSpace,
+    workspace: Workspace,
 ) -> tuple[str, str, int]:
     """Resolve ``(billing_tier, base_model, reserve_micros)`` for a request.
 
@@ -84,18 +84,18 @@ async def _resolve_billing_for_image_gen(
     """
     resolved_id = config_id
     if resolved_id is None:
-        resolved_id = search_space.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
+        resolved_id = workspace.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
 
     if is_image_gen_auto_mode(resolved_id):
         candidates = await auto_model_candidates(
             session,
-            search_space_id=search_space.id,
-            user_id=search_space.user_id,
+            workspace_id=workspace.id,
+            user_id=workspace.user_id,
             capability="image_gen",
         )
         if not candidates:
             return ("free", "auto", DEFAULT_IMAGE_RESERVE_MICROS)
-        selected = choose_auto_model_candidate(candidates, search_space.id)
+        selected = choose_auto_model_candidate(candidates, workspace.id)
         resolved_id = int(selected["id"])
 
     if resolved_id < 0:
@@ -119,19 +119,19 @@ async def _resolve_billing_for_image_gen(
 async def _execute_image_generation(
     session: AsyncSession,
     image_gen: ImageGeneration,
-    search_space: SearchSpace,
+    workspace: Workspace,
 ) -> None:
     """
     Call litellm.aimage_generation() with the appropriate config.
 
     Resolution order:
     1. Explicit image_gen_model_id on the request
-    2. Search space's image_gen_model_id preference
+    2. Workspace's image_gen_model_id preference
     3. Falls back to Auto mode if available
     """
     config_id = image_gen.image_gen_model_id
     if config_id is None:
-        config_id = search_space.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
+        config_id = workspace.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
         image_gen.image_gen_model_id = config_id
 
     # Build kwargs
@@ -150,13 +150,13 @@ async def _execute_image_generation(
     if is_image_gen_auto_mode(config_id):
         candidates = await auto_model_candidates(
             session,
-            search_space_id=search_space.id,
-            user_id=search_space.user_id,
+            workspace_id=workspace.id,
+            user_id=workspace.user_id,
             capability="image_gen",
         )
         if not candidates:
             raise ValueError("No image-generation models are available for Auto mode")
-        config_id = int(choose_auto_model_candidate(candidates, search_space.id)["id"])
+        config_id = int(choose_auto_model_candidate(candidates, workspace.id)["id"])
         image_gen.image_gen_model_id = config_id
 
     if config_id < 0:
@@ -191,9 +191,9 @@ async def _execute_image_generation(
         if not db_model or not db_model.connection or not db_model.connection.enabled:
             raise ValueError(f"Image generation model {config_id} not found")
         conn = db_model.connection
-        if conn.search_space_id is not None and conn.search_space_id != search_space.id:
+        if conn.workspace_id is not None and conn.workspace_id != workspace.id:
             raise ValueError(f"Image generation model {config_id} not found")
-        if conn.user_id is not None and conn.user_id != search_space.user_id:
+        if conn.user_id is not None and conn.user_id != workspace.user_id:
             raise ValueError(f"Image generation model {config_id} not found")
         if not has_capability(db_model, "image_gen"):
             raise ValueError(f"Model {config_id} is not image-generation capable")
@@ -254,7 +254,7 @@ async def create_image_generation(
     Premium configs are gated by the user's shared premium credit pool.
     The flow is:
 
-    1. Permission check + load the search space (cheap, no provider call).
+    1. Permission check + load the workspace (cheap, no provider call).
     2. Resolve which config will run so we know its billing tier and the
        worst-case reservation size *before* opening any DB rows.
     3. Wrap the entire ImageGeneration row insert + provider call in
@@ -273,20 +273,20 @@ async def create_image_generation(
         await check_permission(
             session,
             auth,
-            data.search_space_id,
+            data.workspace_id,
             Permission.IMAGE_GENERATIONS_CREATE.value,
-            "You don't have permission to create image generations in this search space",
+            "You don't have permission to create image generations in this workspace",
         )
 
         result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == data.search_space_id)
+            select(Workspace).filter(Workspace.id == data.workspace_id)
         )
-        search_space = result.scalars().first()
-        if not search_space:
-            raise HTTPException(status_code=404, detail="Search space not found")
+        workspace = result.scalars().first()
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
 
         billing_tier, base_model, reserve_micros = await _resolve_billing_for_image_gen(
-            session, data.image_gen_model_id, search_space
+            session, data.image_gen_model_id, workspace
         )
 
         # billable_call runs OUTSIDE the inner try/except so QuotaInsufficientError
@@ -296,8 +296,8 @@ async def create_image_generation(
         # exists when none does, and (2) return HTTP 200 to a client
         # whose request was actively *denied* (issue K).
         async with billable_call(
-            user_id=search_space.user_id,
-            search_space_id=data.search_space_id,
+            user_id=workspace.user_id,
+            workspace_id=data.workspace_id,
             billing_tier=billing_tier,
             base_model=base_model,
             quota_reserve_micros_override=reserve_micros,
@@ -313,14 +313,14 @@ async def create_image_generation(
                 style=data.style,
                 response_format=data.response_format,
                 image_gen_model_id=data.image_gen_model_id,
-                search_space_id=data.search_space_id,
+                workspace_id=data.workspace_id,
                 created_by_id=user.id,
             )
             session.add(db_image_gen)
             await session.flush()
 
             try:
-                await _execute_image_generation(session, db_image_gen, search_space)
+                await _execute_image_generation(session, db_image_gen, workspace)
             except Exception as e:
                 logger.exception("Image generation call failed")
                 db_image_gen.error_message = str(e)
@@ -363,7 +363,7 @@ async def create_image_generation(
 
 @router.get("/image-generations", response_model=list[ImageGenerationListRead])
 async def list_image_generations(
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     skip: int = 0,
     limit: int = 50,
     session: AsyncSession = Depends(get_async_session),
@@ -377,17 +377,17 @@ async def list_image_generations(
         limit = 100
 
     try:
-        if search_space_id is not None:
+        if workspace_id is not None:
             await check_permission(
                 session,
                 auth,
-                search_space_id,
+                workspace_id,
                 Permission.IMAGE_GENERATIONS_READ.value,
-                "You don't have permission to read image generations in this search space",
+                "You don't have permission to read image generations in this workspace",
             )
             result = await session.execute(
                 select(ImageGeneration)
-                .filter(ImageGeneration.search_space_id == search_space_id)
+                .filter(ImageGeneration.workspace_id == workspace_id)
                 .order_by(ImageGeneration.created_at.desc())
                 .offset(skip)
                 .limit(limit)
@@ -395,9 +395,9 @@ async def list_image_generations(
         else:
             result = await session.execute(
                 select(ImageGeneration)
-                .join(SearchSpace)
-                .join(SearchSpaceMembership)
-                .filter(SearchSpaceMembership.user_id == user.id)
+                .join(Workspace)
+                .join(WorkspaceMembership)
+                .filter(WorkspaceMembership.user_id == user.id)
                 .order_by(ImageGeneration.created_at.desc())
                 .offset(skip)
                 .limit(limit)
@@ -434,9 +434,9 @@ async def get_image_generation(
         await check_permission(
             session,
             auth,
-            image_gen.search_space_id,
+            image_gen.workspace_id,
             Permission.IMAGE_GENERATIONS_READ.value,
-            "You don't have permission to read image generations in this search space",
+            "You don't have permission to read image generations in this workspace",
         )
         return image_gen
 
@@ -466,9 +466,9 @@ async def delete_image_generation(
         await check_permission(
             session,
             auth,
-            db_image_gen.search_space_id,
+            db_image_gen.workspace_id,
             Permission.IMAGE_GENERATIONS_DELETE.value,
-            "You don't have permission to delete image generations in this search space",
+            "You don't have permission to delete image generations in this workspace",
         )
 
         await session.delete(db_image_gen)
@@ -500,8 +500,8 @@ async def serve_generated_image(
     Serve a generated image by ID, protected by a signed token.
 
     The token is generated when the image URL is created by the generate_image
-    tool and encodes the image_gen_id, search_space_id, and an expiry timestamp.
-    This ensures only users with access to the search space can view images,
+    tool and encodes the image_gen_id, workspace_id, and an expiry timestamp.
+    This ensures only users with access to the workspace can view images,
     without requiring auth headers (which <img> tags cannot pass).
 
     Args:

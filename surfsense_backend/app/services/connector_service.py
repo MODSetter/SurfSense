@@ -26,11 +26,11 @@ from app.utils.perf import get_perf_logger
 
 
 class ConnectorService:
-    def __init__(self, session: AsyncSession, search_space_id: int | None = None):
+    def __init__(self, session: AsyncSession, workspace_id: int | None = None):
         self.session = session
         self.chunk_retriever = ChucksHybridSearchRetriever(session)
         self.document_retriever = DocumentHybridSearchRetriever(session)
-        self.search_space_id = search_space_id
+        self.workspace_id = workspace_id
         self.source_id_counter = (
             100000  # High starting value to avoid collisions with existing IDs
         )
@@ -40,22 +40,22 @@ class ConnectorService:
 
     async def initialize_counter(self):
         """
-        Initialize the source_id_counter based on the total number of chunks for the search space.
+        Initialize the source_id_counter based on the total number of chunks for the workspace.
         This ensures unique IDs across different sessions.
         """
-        if self.search_space_id:
+        if self.workspace_id:
             try:
-                # Count total chunks for documents belonging to this search space
+                # Count total chunks for documents belonging to this workspace
 
                 result = await self.session.execute(
                     select(func.count(Chunk.id))
                     .join(Document)
-                    .filter(Document.search_space_id == self.search_space_id)
+                    .filter(Document.workspace_id == self.workspace_id)
                 )
                 chunk_count = result.scalar() or 0
                 self.source_id_counter = chunk_count + 1
                 print(
-                    f"Initialized source_id_counter to {self.source_id_counter} for search space {self.search_space_id}"
+                    f"Initialized source_id_counter to {self.source_id_counter} for workspace {self.workspace_id}"
                 )
             except Exception as e:
                 print(f"Error initializing source_id_counter: {e!s}")
@@ -65,7 +65,7 @@ class ConnectorService:
     async def search_crawled_urls(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -77,7 +77,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -87,7 +87,7 @@ class ConnectorService:
         """
         crawled_urls_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="CRAWLED_URL",
             top_k=top_k,
             start_date=start_date,
@@ -155,7 +155,7 @@ class ConnectorService:
     async def search_files(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -167,7 +167,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -177,7 +177,7 @@ class ConnectorService:
         """
         files_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="FILE",
             top_k=top_k,
             start_date=start_date,
@@ -221,7 +221,7 @@ class ConnectorService:
     async def _combined_rrf_search(
         self,
         query_text: str,
-        search_space_id: int,
+        workspace_id: int,
         document_type: str | list[str],
         top_k: int = 20,
         start_date: datetime | None = None,
@@ -243,7 +243,7 @@ class ConnectorService:
 
         Args:
             query_text: The search query text
-            search_space_id: The search space ID to search within
+            workspace_id: The workspace ID to search within
             document_type: Document type(s) to filter (e.g., "FILE", "CRAWLED_URL",
                            or a list for multi-type queries)
             top_k: Number of results to return
@@ -289,7 +289,7 @@ class ConnectorService:
         search_kwargs = {
             "query_text": query_text,
             "top_k": retriever_top_k,
-            "search_space_id": search_space_id,
+            "workspace_id": workspace_id,
             "document_type": resolved_type,
             "start_date": start_date,
             "end_date": end_date,
@@ -388,7 +388,7 @@ class ConnectorService:
             time.perf_counter() - t0,
             len(combined_results),
             document_type,
-            search_space_id,
+            workspace_id,
         )
         return combined_results
 
@@ -458,20 +458,20 @@ class ConnectorService:
     async def get_connector_by_type(
         self,
         connector_type: SearchSourceConnectorType,
-        search_space_id: int,
+        workspace_id: int,
     ) -> SearchSourceConnector | None:
         """
-        Get a connector by type for a specific search space
+        Get a connector by type for a specific workspace
 
         Args:
             connector_type: The connector type to retrieve
-            search_space_id: The search space ID to filter by
+            workspace_id: The workspace ID to filter by
 
         Returns:
             Optional[SearchSourceConnector]: The connector if found, None otherwise
         """
         query = select(SearchSourceConnector).filter(
-            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.workspace_id == workspace_id,
             SearchSourceConnector.connector_type == connector_type,
         )
 
@@ -479,14 +479,14 @@ class ConnectorService:
         return result.scalars().first()
 
     async def search_tavily(
-        self, user_query: str, search_space_id: int, top_k: int = 20
+        self, user_query: str, workspace_id: int, top_k: int = 20
     ) -> tuple:
         """
         Search using Tavily API and return both the source information and documents
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID
+            workspace_id: The workspace ID
             top_k: Maximum number of results to return
 
         Returns:
@@ -494,7 +494,7 @@ class ConnectorService:
         """
         # Get Tavily connector configuration
         tavily_connector = await self.get_connector_by_type(
-            SearchSourceConnectorType.TAVILY_API, search_space_id
+            SearchSourceConnectorType.TAVILY_API, workspace_id
         )
 
         if not tavily_connector:
@@ -587,7 +587,7 @@ class ConnectorService:
     async def search_searxng(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
     ) -> tuple:
         """Search using the platform SearXNG instance.
@@ -614,7 +614,7 @@ class ConnectorService:
     async def search_baidu(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
     ) -> tuple:
         """
@@ -625,7 +625,7 @@ class ConnectorService:
 
         Args:
             user_query: User's search query
-            search_space_id: Search space ID
+            workspace_id: Workspace ID
             top_k: Maximum number of results to return
 
         Returns:
@@ -633,7 +633,7 @@ class ConnectorService:
         """
         # Get Baidu connector configuration
         baidu_connector = await self.get_connector_by_type(
-            SearchSourceConnectorType.BAIDU_SEARCH_API, search_space_id
+            SearchSourceConnectorType.BAIDU_SEARCH_API, workspace_id
         )
 
         if not baidu_connector:
@@ -838,7 +838,7 @@ class ConnectorService:
     async def search_slack(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -850,7 +850,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -860,7 +860,7 @@ class ConnectorService:
         """
         slack_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="SLACK_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -912,7 +912,7 @@ class ConnectorService:
     async def search_notion(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -924,7 +924,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -934,7 +934,7 @@ class ConnectorService:
         """
         notion_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="NOTION_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -982,7 +982,7 @@ class ConnectorService:
     async def search_extension(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -994,7 +994,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -1004,7 +1004,7 @@ class ConnectorService:
         """
         extension_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="EXTENSION",
             top_k=top_k,
             start_date=start_date,
@@ -1079,7 +1079,7 @@ class ConnectorService:
     async def search_youtube(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1091,7 +1091,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -1101,7 +1101,7 @@ class ConnectorService:
         """
         youtube_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="YOUTUBE_VIDEO",
             top_k=top_k,
             start_date=start_date,
@@ -1160,7 +1160,7 @@ class ConnectorService:
     async def search_github(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1172,7 +1172,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -1182,7 +1182,7 @@ class ConnectorService:
         """
         github_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="GITHUB_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -1219,7 +1219,7 @@ class ConnectorService:
     async def search_linear(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1231,7 +1231,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -1241,7 +1241,7 @@ class ConnectorService:
         """
         linear_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="LINEAR_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -1319,7 +1319,7 @@ class ConnectorService:
     async def search_jira(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1331,7 +1331,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -1341,7 +1341,7 @@ class ConnectorService:
         """
         jira_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="JIRA_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -1421,7 +1421,7 @@ class ConnectorService:
     async def search_google_calendar(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1433,7 +1433,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -1443,7 +1443,7 @@ class ConnectorService:
         """
         calendar_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="GOOGLE_CALENDAR_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -1527,7 +1527,7 @@ class ConnectorService:
     async def search_airtable(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1539,7 +1539,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -1549,7 +1549,7 @@ class ConnectorService:
         """
         airtable_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="AIRTABLE_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -1603,7 +1603,7 @@ class ConnectorService:
     async def search_google_gmail(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1615,7 +1615,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -1625,7 +1625,7 @@ class ConnectorService:
         """
         gmail_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="GOOGLE_GMAIL_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -1703,7 +1703,7 @@ class ConnectorService:
     async def search_google_drive(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1715,7 +1715,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -1725,7 +1725,7 @@ class ConnectorService:
         """
         drive_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="GOOGLE_DRIVE_FILE",
             top_k=top_k,
             start_date=start_date,
@@ -1803,7 +1803,7 @@ class ConnectorService:
     async def search_confluence(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1815,7 +1815,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -1825,7 +1825,7 @@ class ConnectorService:
         """
         confluence_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="CONFLUENCE_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -1874,7 +1874,7 @@ class ConnectorService:
     async def search_clickup(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1886,7 +1886,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -1896,7 +1896,7 @@ class ConnectorService:
         """
         clickup_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="CLICKUP_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -1968,7 +1968,7 @@ class ConnectorService:
     async def search_linkup(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         mode: str = "standard",
     ) -> tuple:
         """
@@ -1976,7 +1976,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID
+            workspace_id: The workspace ID
             mode: Search depth mode, can be "standard" or "deep"
 
         Returns:
@@ -1984,7 +1984,7 @@ class ConnectorService:
         """
         # Get Linkup connector configuration
         linkup_connector = await self.get_connector_by_type(
-            SearchSourceConnectorType.LINKUP_API, search_space_id
+            SearchSourceConnectorType.LINKUP_API, workspace_id
         )
 
         if not linkup_connector:
@@ -2089,7 +2089,7 @@ class ConnectorService:
     async def search_discord(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -2101,7 +2101,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -2111,7 +2111,7 @@ class ConnectorService:
         """
         discord_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="DISCORD_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -2164,7 +2164,7 @@ class ConnectorService:
     async def search_teams(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -2176,7 +2176,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -2186,7 +2186,7 @@ class ConnectorService:
         """
         teams_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="TEAMS_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -2238,7 +2238,7 @@ class ConnectorService:
     async def search_luma(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -2250,7 +2250,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -2260,7 +2260,7 @@ class ConnectorService:
         """
         luma_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="LUMA_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -2343,7 +2343,7 @@ class ConnectorService:
     async def search_elasticsearch(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -2355,7 +2355,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -2365,7 +2365,7 @@ class ConnectorService:
         """
         elasticsearch_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="ELASTICSEARCH_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -2429,7 +2429,7 @@ class ConnectorService:
     async def search_notes(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -2441,7 +2441,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -2451,7 +2451,7 @@ class ConnectorService:
         """
         notes_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="NOTE",
             top_k=top_k,
             start_date=start_date,
@@ -2498,7 +2498,7 @@ class ConnectorService:
     async def search_bookstack(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -2511,7 +2511,7 @@ class ConnectorService:
         Args:
             user_query: The user's query
             user_id: The user's ID
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -2521,7 +2521,7 @@ class ConnectorService:
         """
         bookstack_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="BOOKSTACK_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -2572,7 +2572,7 @@ class ConnectorService:
     async def search_circleback(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -2584,7 +2584,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -2594,7 +2594,7 @@ class ConnectorService:
         """
         circleback_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="CIRCLEBACK",
             top_k=top_k,
             start_date=start_date,
@@ -2672,7 +2672,7 @@ class ConnectorService:
     async def search_obsidian(
         self,
         user_query: str,
-        search_space_id: int,
+        workspace_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -2684,7 +2684,7 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            search_space_id: The search space ID to search in
+            workspace_id: The workspace ID to search in
             top_k: Maximum number of results to return
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
@@ -2694,7 +2694,7 @@ class ConnectorService:
         """
         obsidian_docs = await self._combined_rrf_search(
             query_text=user_query,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             document_type="OBSIDIAN_CONNECTOR",
             top_k=top_k,
             start_date=start_date,
@@ -2766,60 +2766,60 @@ class ConnectorService:
 
     async def get_available_connectors(
         self,
-        search_space_id: int,
+        workspace_id: int,
     ) -> list[SearchSourceConnectorType]:
         """
-        Get all available (enabled) connector types for a search space.
+        Get all available (enabled) connector types for a workspace.
 
-        Phase 1.4: results are cached per ``search_space_id`` for
+        Phase 1.4: results are cached per ``workspace_id`` for
         :data:`_DISCOVERY_TTL_SECONDS`. Cache key is independent of session
         identity — the cached value is plain data, safe to share across
         requests. Invalidate on connector add/update/delete via
         :func:`invalidate_connector_discovery_cache`.
 
         Args:
-            search_space_id: The search space ID
+            workspace_id: The workspace ID
 
         Returns:
             List of SearchSourceConnectorType enums for enabled connectors
         """
-        cached = _get_cached_connectors(search_space_id)
+        cached = _get_cached_connectors(workspace_id)
         if cached is not None:
             return list(cached)
 
         query = (
             select(SearchSourceConnector.connector_type)
             .filter(
-                SearchSourceConnector.search_space_id == search_space_id,
+                SearchSourceConnector.workspace_id == workspace_id,
             )
             .distinct()
         )
 
         result = await self.session.execute(query)
         connector_types = list(result.scalars().all())
-        _set_cached_connectors(search_space_id, connector_types)
+        _set_cached_connectors(workspace_id, connector_types)
         return connector_types
 
     async def get_available_document_types(
         self,
-        search_space_id: int,
+        workspace_id: int,
     ) -> list[str]:
         """
-        Get all document types that have at least one document in the search space.
+        Get all document types that have at least one document in the workspace.
 
-        Phase 1.4: cached per ``search_space_id`` for
+        Phase 1.4: cached per ``workspace_id`` for
         :data:`_DISCOVERY_TTL_SECONDS`. Invalidate via
         :func:`invalidate_connector_discovery_cache` when a connector
         finishes indexing new documents (or document types are otherwise
         added/removed).
 
         Args:
-            search_space_id: The search space ID
+            workspace_id: The workspace ID
 
         Returns:
             List of document type strings that have documents indexed
         """
-        cached = _get_cached_doc_types(search_space_id)
+        cached = _get_cached_doc_types(workspace_id)
         if cached is not None:
             return list(cached)
 
@@ -2828,12 +2828,12 @@ class ConnectorService:
         from app.db import Document
 
         query = select(distinct(Document.document_type)).filter(
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
         )
 
         result = await self.session.execute(query)
         doc_types = [str(dt) for dt in result.scalars().all()]
-        _set_cached_doc_types(search_space_id, doc_types)
+        _set_cached_doc_types(workspace_id, doc_types)
         return doc_types
 
 
@@ -2850,7 +2850,7 @@ class ConnectorService:
 # DB roundtrip with bounded staleness.
 #
 # Invalidation: connector mutation routes (create / update / delete) call
-# ``invalidate_connector_discovery_cache(search_space_id)`` to clear the
+# ``invalidate_connector_discovery_cache(workspace_id)`` to clear the
 # entry for the affected space. Multi-replica deployments still pay one
 # DB roundtrip per replica per TTL window, which is fine — staleness is
 # bounded and the alternative (cross-replica fanout) is not worth the
@@ -2858,7 +2858,7 @@ class ConnectorService:
 
 _DISCOVERY_TTL_SECONDS: float = config.CONNECTOR_DISCOVERY_TTL_SECONDS
 
-# Per-search-space caches. Keyed by ``search_space_id``; value is
+# Per-workspace caches. Keyed by ``workspace_id``; value is
 # ``(expires_at_monotonic, payload)``. Plain dicts protected by a lock —
 # read-mostly workload, sub-microsecond contention.
 _connectors_cache: dict[int, tuple[float, list[SearchSourceConnectorType]]] = {}
@@ -2867,55 +2867,55 @@ _cache_lock = Lock()
 
 
 def _get_cached_connectors(
-    search_space_id: int,
+    workspace_id: int,
 ) -> list[SearchSourceConnectorType] | None:
     if _DISCOVERY_TTL_SECONDS <= 0:
         return None
     with _cache_lock:
-        entry = _connectors_cache.get(search_space_id)
+        entry = _connectors_cache.get(workspace_id)
         if entry is None:
             return None
         expires_at, payload = entry
         if time.monotonic() >= expires_at:
-            _connectors_cache.pop(search_space_id, None)
+            _connectors_cache.pop(workspace_id, None)
             return None
         return payload
 
 
 def _set_cached_connectors(
-    search_space_id: int, payload: list[SearchSourceConnectorType]
+    workspace_id: int, payload: list[SearchSourceConnectorType]
 ) -> None:
     if _DISCOVERY_TTL_SECONDS <= 0:
         return
     expires_at = time.monotonic() + _DISCOVERY_TTL_SECONDS
     with _cache_lock:
-        _connectors_cache[search_space_id] = (expires_at, list(payload))
+        _connectors_cache[workspace_id] = (expires_at, list(payload))
 
 
-def _get_cached_doc_types(search_space_id: int) -> list[str] | None:
+def _get_cached_doc_types(workspace_id: int) -> list[str] | None:
     if _DISCOVERY_TTL_SECONDS <= 0:
         return None
     with _cache_lock:
-        entry = _doc_types_cache.get(search_space_id)
+        entry = _doc_types_cache.get(workspace_id)
         if entry is None:
             return None
         expires_at, payload = entry
         if time.monotonic() >= expires_at:
-            _doc_types_cache.pop(search_space_id, None)
+            _doc_types_cache.pop(workspace_id, None)
             return None
         return payload
 
 
-def _set_cached_doc_types(search_space_id: int, payload: list[str]) -> None:
+def _set_cached_doc_types(workspace_id: int, payload: list[str]) -> None:
     if _DISCOVERY_TTL_SECONDS <= 0:
         return
     expires_at = time.monotonic() + _DISCOVERY_TTL_SECONDS
     with _cache_lock:
-        _doc_types_cache[search_space_id] = (expires_at, list(payload))
+        _doc_types_cache[workspace_id] = (expires_at, list(payload))
 
 
-def invalidate_connector_discovery_cache(search_space_id: int | None = None) -> None:
-    """Drop cached discovery results for ``search_space_id`` (or all spaces).
+def invalidate_connector_discovery_cache(workspace_id: int | None = None) -> None:
+    """Drop cached discovery results for ``workspace_id`` (or all spaces).
 
     Connector CRUD routes / indexer pipelines call this when they mutate
     the rows backing :func:`ConnectorService.get_available_connectors` /
@@ -2923,28 +2923,28 @@ def invalidate_connector_discovery_cache(search_space_id: int | None = None) -> 
     useful in tests and on bulk imports.
     """
     with _cache_lock:
-        if search_space_id is None:
+        if workspace_id is None:
             _connectors_cache.clear()
             _doc_types_cache.clear()
         else:
-            _connectors_cache.pop(search_space_id, None)
-            _doc_types_cache.pop(search_space_id, None)
+            _connectors_cache.pop(workspace_id, None)
+            _doc_types_cache.pop(workspace_id, None)
 
 
-def _invalidate_connectors_only(search_space_id: int | None = None) -> None:
+def _invalidate_connectors_only(workspace_id: int | None = None) -> None:
     with _cache_lock:
-        if search_space_id is None:
+        if workspace_id is None:
             _connectors_cache.clear()
         else:
-            _connectors_cache.pop(search_space_id, None)
+            _connectors_cache.pop(workspace_id, None)
 
 
-def _invalidate_doc_types_only(search_space_id: int | None = None) -> None:
+def _invalidate_doc_types_only(workspace_id: int | None = None) -> None:
     with _cache_lock:
-        if search_space_id is None:
+        if workspace_id is None:
             _doc_types_cache.clear()
         else:
-            _doc_types_cache.pop(search_space_id, None)
+            _doc_types_cache.pop(workspace_id, None)
 
 
 def _register_invalidation_listeners() -> None:
@@ -2952,7 +2952,7 @@ def _register_invalidation_listeners() -> None:
 
     Listening on ``after_insert`` / ``after_update`` / ``after_delete``
     means every successful INSERT/UPDATE/DELETE that goes through the ORM
-    invalidates the affected search space's cached discovery payload —
+    invalidates the affected workspace's cached discovery payload —
     no need to sprinkle ``invalidate_*`` calls across 30+ connector
     routes. Bulk operations that bypass the ORM (e.g.
     ``session.execute(insert(...))`` without a mapped object) still need
@@ -2967,12 +2967,12 @@ def _register_invalidation_listeners() -> None:
     from app.db import Document, SearchSourceConnector
 
     def _connector_changed(_mapper, _connection, target) -> None:
-        sid = getattr(target, "search_space_id", None)
+        sid = getattr(target, "workspace_id", None)
         if sid is not None:
             _invalidate_connectors_only(int(sid))
 
     def _document_changed(_mapper, _connection, target) -> None:
-        sid = getattr(target, "search_space_id", None)
+        sid = getattr(target, "workspace_id", None)
         if sid is not None:
             _invalidate_doc_types_only(int(sid))
 

@@ -2,6 +2,10 @@
 
 Part of [00-umbrella-plan.md](00-umbrella-plan.md), Phase 1. Backend only (`surfsense_backend`).
 
+> **Status: SHIPPED** · as of 2026-06-27 · branch `feat/rename-searchspace-to-workspace` · PR [#1546](https://github.com/MODSetter/SurfSense/pull/1546)
+> Last commit of this phase: `49d3001fb` (DB rename through migration 170). Phase 1 + Phase 2 shipped as one atomic PR.
+> The sections below are the **original design/rationale**; the as-built state + how to re-verify live in the [Implementation record](#implementation-record-as-built) at the bottom. Ground truth for files/commits is the PR, not this doc.
+
 ## Goal
 
 Physically rename the `SearchSpace` schema to `WorkSpace` in PostgreSQL via a single Alembic migration, and update the ORM's physical mapping + the Zero publication so the app keeps booting and running — WITHOUT yet touching the ~250 backend files that reference the `search_space_id` Python attribute (that symbolic rename is Phase 2).
@@ -180,3 +184,30 @@ The Alembic migration, the `db.py` edits (shim + constraint `name=` + `_INDEX_DE
 
 - Phase 2: rename Python attribute `search_space_id` -> `workspace_id`, class `SearchSpace` -> `Workspace`, Pydantic schemas, API routes/paths (`/searchspaces` + `/search-spaces` -> `/workspaces`), Redis keys, storage path segments; drop the explicit `Column("workspace_id", ...)` shim.
 - Frontend Zero schema, route segment, i18n — deferred frontend umbrella.
+
+---
+
+## Implementation record (as-built)
+
+### Deviations from the plan
+
+- **Migration 168 idempotency fixed up-front**: the plan flagged from-scratch alembic as pre-existing-broken; we made 168 idempotent so the rename starts from a clean head, but did **not** take on the full baseline-squash. From-scratch `alembic upgrade head` therefore stays pre-existing-broken (rev 23 conflict); only the existing-DB `169 -> 170` path is in scope/verified.
+- **Cosmetic sequence/PK renames applied** (the plan's confirmed decision): `searchspaces_id_seq -> workspaces_id_seq`, `searchspaces_pkey -> workspaces_pkey`, plus the RBAC tables' `*_id_seq` / `*_pkey`, for a clean final schema.
+- Everything else implemented exactly as designed: shim via `Column("workspace_id", ...)`; publication mutated **only** through the blessed `apply_publication` path (no raw DROP/CREATE PUBLICATION, per migration 116); `__table_args__` inner column-reference strings deliberately **left** as `search_space_id` (flipped in Phase 2).
+
+### Carve-outs as-shipped (Phase 1)
+
+- `'SEARCH_SPACE'` CHECK literal in `ck_connections_scope_owner` kept; only the `search_space_id` column reference flipped to `workspace_id`. No enum/data migration.
+
+### Verify current state (re-runnable)
+
+Each line is a command + the last captured result. Re-run to confirm the *current* truth instead of trusting the snapshot. Schema gates assume a DB at rev `170` (locally `surfsense_oldshape`) with `AUTH_TYPE=LOCAL` (so the env-gated `oauth_account` table isn't in the ORM metadata).
+
+- **Schema drift (ORM ↔ physical @170)** —
+  `AUTH_TYPE=LOCAL DATABASE_URL=postgresql+asyncpg://…@localhost:5432/surfsense_oldshape uv run alembic check`
+  → last (2026-06-27): `No new upgrade operations detected.` (With `AUTH_TYPE=GOOGLE` the only delta is the env-gated `oauth_account` table — unrelated to the rename.)
+- **Publication columns** —
+  `rg -n 'workspace_id|search_space_id' app/zero_publication.py`
+  → last (2026-06-27): all four lists = `workspace_id`, zero `search_space_id`.
+
+Validated during the build run (2026-06-26), **not** reproducible on a `create_all`-built snapshot (it has no `zero_publication` object): `python -m app.zero_publication --verify` → verified (interlock-footgun guard, finding 2); `alembic upgrade 170 → downgrade -1 → upgrade 170` round-trip (SQL reversibility; downgrade restores the `search_space_id` publication shape via hardcoded lists, per finding 7).

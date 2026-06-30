@@ -22,7 +22,7 @@ async def build_main_agent_for_thread(
     agent_factory: Any,
     *,
     llm: Any,
-    search_space_id: int,
+    workspace_id: int,
     db_session: Any,
     connector_service: ConnectorService,
     checkpointer: Any,
@@ -38,7 +38,7 @@ async def build_main_agent_for_thread(
 ) -> Any:
     return await agent_factory(
         llm=llm,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         db_session=db_session,
         connector_service=connector_service,
         checkpointer=checkpointer,

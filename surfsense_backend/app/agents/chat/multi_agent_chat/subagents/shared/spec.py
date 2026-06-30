@@ -13,7 +13,7 @@ from app.agents.chat.multi_agent_chat.shared.permissions import Ruleset
 # A context-hint provider receives the parent-agent ``runtime.state`` mapping
 # and the ``description`` the orchestrator wrote, and returns a short string
 # the runtime prepends to the subagent's first ``HumanMessage``. Used for
-# things like "current search-space id is X" or "the user is in workspace Y" —
+# things like "current workspace id is X" or "the user is in workspace Y" —
 # never for full corpora, since the prepended text consumes the subagent's
 # prompt budget on every invocation. Return ``None`` (or an empty string) to
 # skip the hint for this call.
@@ -52,7 +52,7 @@ class SurfSenseSubagentSpec:
             invocation, immediately before the subagent runs. Its return
             value is prepended to the subagent's first ``HumanMessage`` so
             the subagent can see things it would otherwise have to discover
-            (active search space, KB root, current user timezone, etc.).
+            (active workspace, KB root, current user timezone, etc.).
             Kept out of the deepagents ``spec`` because that dict is forwarded
             verbatim to upstream code and only recognises its own typed keys.
     """

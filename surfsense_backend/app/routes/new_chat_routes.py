@@ -45,7 +45,7 @@ from app.db import (
     NewChatMessageRole,
     NewChatThread,
     Permission,
-    SearchSpace,
+    Workspace,
     TokenUsage,
     User,
     get_async_session,
@@ -525,7 +525,7 @@ async def check_thread_access(
     Access is granted if:
     - User is the creator of the thread
     - Thread visibility is SEARCH_SPACE (any member can access) - for read/update operations only
-    - Thread is a legacy thread (created_by_id is NULL) - only if user is search space owner
+    - Thread is a legacy thread (created_by_id is NULL) - only if user is workspace owner
 
     Args:
         session: Database session
@@ -558,16 +558,16 @@ async def check_thread_access(
         return True
 
     # For legacy threads (created before visibility feature),
-    # only the search space owner can access
+    # only the workspace owner can access
     if is_legacy:
-        search_space_query = select(SearchSpace).filter(
-            SearchSpace.id == thread.search_space_id
+        workspace_query = select(Workspace).filter(
+            Workspace.id == thread.workspace_id
         )
-        search_space_result = await session.execute(search_space_query)
-        search_space = search_space_result.scalar_one_or_none()
-        is_search_space_owner = search_space and search_space.user_id == user.id
+        workspace_result = await session.execute(workspace_query)
+        workspace = workspace_result.scalar_one_or_none()
+        is_workspace_owner = workspace and workspace.user_id == user.id
 
-        if is_search_space_owner:
+        if is_workspace_owner:
             return True
         # Legacy threads are not accessible to non-owners
         raise HTTPException(
@@ -593,23 +593,23 @@ async def check_thread_access(
 
 @router.get("/threads", response_model=ThreadListResponse)
 async def list_threads(
-    search_space_id: int,
+    workspace_id: int,
     limit: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     user = auth.user
     """
-    List all accessible threads for the current user in a search space.
+    List all accessible threads for the current user in a workspace.
     Returns threads and archived_threads for ThreadListPrimitive.
 
     A user can see threads that are:
     - Created by them (regardless of visibility)
-    - Shared with the search space (visibility = SEARCH_SPACE)
-    - Legacy threads with no creator (created_by_id is NULL) - only if user is search space owner
+    - Shared with the workspace (visibility = SEARCH_SPACE)
+    - Legacy threads with no creator (created_by_id is NULL) - only if user is workspace owner
 
     Args:
-        search_space_id: The search space to list threads for
+        workspace_id: The workspace to list threads for
         limit: Optional limit on number of threads to return (applies to active threads only)
 
     Requires CHATS_READ permission.
@@ -618,36 +618,36 @@ async def list_threads(
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.CHATS_READ.value,
-            "You don't have permission to read chats in this search space",
+            "You don't have permission to read chats in this workspace",
         )
 
-        # Check if user is the search space owner (for legacy thread visibility)
-        search_space_query = select(SearchSpace).filter(
-            SearchSpace.id == search_space_id
+        # Check if user is the workspace owner (for legacy thread visibility)
+        workspace_query = select(Workspace).filter(
+            Workspace.id == workspace_id
         )
-        search_space_result = await session.execute(search_space_query)
-        search_space = search_space_result.scalar_one_or_none()
-        is_search_space_owner = search_space and search_space.user_id == user.id
+        workspace_result = await session.execute(workspace_query)
+        workspace = workspace_result.scalar_one_or_none()
+        is_workspace_owner = workspace and workspace.user_id == user.id
 
         # Build filter conditions:
         # 1. Created by the current user (any visibility)
-        # 2. Shared with the search space (visibility = SEARCH_SPACE)
-        # 3. Legacy threads (created_by_id is NULL) - only visible to search space owner
+        # 2. Shared with the workspace (visibility = SEARCH_SPACE)
+        # 3. Legacy threads (created_by_id is NULL) - only visible to workspace owner
         filter_conditions = [
             NewChatThread.created_by_id == user.id,
             NewChatThread.visibility == ChatVisibility.SEARCH_SPACE,
         ]
 
-        # Only include legacy threads for the search space owner
-        if is_search_space_owner:
+        # Only include legacy threads for the workspace owner
+        if is_workspace_owner:
             filter_conditions.append(NewChatThread.created_by_id.is_(None))
 
         query = (
             select(NewChatThread)
             .filter(
-                NewChatThread.search_space_id == search_space_id,
+                NewChatThread.workspace_id == workspace_id,
                 or_(*filter_conditions),
             )
             .order_by(NewChatThread.updated_at.desc())
@@ -663,7 +663,7 @@ async def list_threads(
         for thread in all_threads:
             # Legacy threads (no creator) are treated as own threads for owner
             is_own_thread = thread.created_by_id == user.id or (
-                thread.created_by_id is None and is_search_space_owner
+                thread.created_by_id is None and is_workspace_owner
             )
             item = ThreadListItem(
                 id=thread.id,
@@ -701,22 +701,22 @@ async def list_threads(
 
 @router.get("/threads/search", response_model=list[ThreadListItem])
 async def search_threads(
-    search_space_id: int,
+    workspace_id: int,
     title: str,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     user = auth.user
     """
-    Search accessible threads by title in a search space.
+    Search accessible threads by title in a workspace.
 
     A user can search threads that are:
     - Created by them (regardless of visibility)
-    - Shared with the search space (visibility = SEARCH_SPACE)
-    - Legacy threads with no creator (created_by_id is NULL) - only if user is search space owner
+    - Shared with the workspace (visibility = SEARCH_SPACE)
+    - Legacy threads with no creator (created_by_id is NULL) - only if user is workspace owner
 
     Args:
-        search_space_id: The search space to search in
+        workspace_id: The workspace to search in
         title: The search query (case-insensitive partial match)
 
     Requires CHATS_READ permission.
@@ -725,18 +725,18 @@ async def search_threads(
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.CHATS_READ.value,
-            "You don't have permission to read chats in this search space",
+            "You don't have permission to read chats in this workspace",
         )
 
-        # Check if user is the search space owner (for legacy thread visibility)
-        search_space_query = select(SearchSpace).filter(
-            SearchSpace.id == search_space_id
+        # Check if user is the workspace owner (for legacy thread visibility)
+        workspace_query = select(Workspace).filter(
+            Workspace.id == workspace_id
         )
-        search_space_result = await session.execute(search_space_query)
-        search_space = search_space_result.scalar_one_or_none()
-        is_search_space_owner = search_space and search_space.user_id == user.id
+        workspace_result = await session.execute(workspace_query)
+        workspace = workspace_result.scalar_one_or_none()
+        is_workspace_owner = workspace and workspace.user_id == user.id
 
         # Build filter conditions
         filter_conditions = [
@@ -744,15 +744,15 @@ async def search_threads(
             NewChatThread.visibility == ChatVisibility.SEARCH_SPACE,
         ]
 
-        # Only include legacy threads for the search space owner
-        if is_search_space_owner:
+        # Only include legacy threads for the workspace owner
+        if is_workspace_owner:
             filter_conditions.append(NewChatThread.created_by_id.is_(None))
 
         # Search accessible threads by title (case-insensitive)
         query = (
             select(NewChatThread)
             .filter(
-                NewChatThread.search_space_id == search_space_id,
+                NewChatThread.workspace_id == workspace_id,
                 NewChatThread.title.ilike(f"%{title}%"),
                 or_(*filter_conditions),
             )
@@ -772,7 +772,7 @@ async def search_threads(
                 # Legacy threads (no creator) are treated as own threads for owner
                 is_own_thread=(
                     thread.created_by_id == user.id
-                    or (thread.created_by_id is None and is_search_space_owner)
+                    or (thread.created_by_id is None and is_workspace_owner)
                 ),
                 created_at=thread.created_at,
                 updated_at=thread.updated_at,
@@ -812,9 +812,9 @@ async def create_thread(
         await check_permission(
             session,
             auth,
-            thread.search_space_id,
+            thread.workspace_id,
             Permission.CHATS_CREATE.value,
-            "You don't have permission to create chats in this search space",
+            "You don't have permission to create chats in this workspace",
         )
 
         now = datetime.now(UTC)
@@ -822,7 +822,7 @@ async def create_thread(
             title=thread.title,
             archived=thread.archived,
             visibility=thread.visibility,
-            search_space_id=thread.search_space_id,
+            workspace_id=thread.workspace_id,
             created_by_id=user.id,
             updated_at=now,
         )
@@ -879,13 +879,13 @@ async def get_thread_messages(
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
 
-        # Check permission to read chats in this search space
+        # Check permission to read chats in this workspace
         await check_permission(
             session,
             auth,
-            thread.search_space_id,
+            thread.workspace_id,
             Permission.CHATS_READ.value,
-            "You don't have permission to read chats in this search space",
+            "You don't have permission to read chats in this workspace",
         )
 
         # Check thread-level access based on visibility
@@ -971,9 +971,9 @@ async def get_thread_full(
         await check_permission(
             session,
             auth,
-            thread.search_space_id,
+            thread.workspace_id,
             Permission.CHATS_READ.value,
-            "You don't have permission to read chats in this search space",
+            "You don't have permission to read chats in this workspace",
         )
 
         # Check thread-level access based on visibility
@@ -1035,9 +1035,9 @@ async def update_thread(
         await check_permission(
             session,
             auth,
-            db_thread.search_space_id,
+            db_thread.workspace_id,
             Permission.CHATS_UPDATE.value,
-            "You don't have permission to update chats in this search space",
+            "You don't have permission to update chats in this workspace",
         )
 
         # For PRIVATE threads, only the creator can update
@@ -1104,16 +1104,16 @@ async def delete_thread(
         await check_permission(
             session,
             auth,
-            db_thread.search_space_id,
+            db_thread.workspace_id,
             Permission.CHATS_DELETE.value,
-            "You don't have permission to delete chats in this search space",
+            "You don't have permission to delete chats in this workspace",
         )
 
         # For PRIVATE threads, only the creator can delete
         # For SEARCH_SPACE threads, any member with permission can delete
         # Legacy threads (created_by_id is NULL) have no recorded creator,
         # so we skip strict ownership and fall through to legacy handling
-        # which allows the search space owner to delete them
+        # which allows the workspace owner to delete them
         if db_thread.visibility == ChatVisibility.PRIVATE:
             await check_thread_access(
                 session,
@@ -1162,7 +1162,7 @@ async def update_thread_visibility(
 
     Only the creator of the thread can change its visibility.
     - PRIVATE: Only the creator can access the thread (default)
-    - SEARCH_SPACE: All members of the search space can access the thread
+    - SEARCH_SPACE: All members of the workspace can access the thread
 
     Requires CHATS_UPDATE permission.
     """
@@ -1178,9 +1178,9 @@ async def update_thread_visibility(
         await check_permission(
             session,
             auth,
-            db_thread.search_space_id,
+            db_thread.workspace_id,
             Permission.CHATS_UPDATE.value,
-            "You don't have permission to update chats in this search space",
+            "You don't have permission to update chats in this workspace",
         )
 
         # Only the creator can change visibility
@@ -1381,9 +1381,9 @@ async def append_message(
         await check_permission(
             session,
             auth,
-            thread.search_space_id,
+            thread.workspace_id,
             Permission.CHATS_UPDATE.value,
-            "You don't have permission to update chats in this search space",
+            "You don't have permission to update chats in this workspace",
         )
 
         # Check thread-level access based on visibility
@@ -1552,7 +1552,7 @@ async def append_message(
                     call_details=token_usage_data.get("call_details"),
                     thread_id=thread_id,
                     message_id=db_message.id,
-                    search_space_id=thread.search_space_id,
+                    workspace_id=thread.workspace_id,
                     user_id=user_uuid,
                 )
                 .on_conflict_do_nothing(
@@ -1632,9 +1632,9 @@ async def list_messages(
         await check_permission(
             session,
             auth,
-            thread.search_space_id,
+            thread.workspace_id,
             Permission.CHATS_READ.value,
-            "You don't have permission to read chats in this search space",
+            "You don't have permission to read chats in this workspace",
         )
 
         # Check thread-level access based on visibility
@@ -1730,9 +1730,9 @@ async def handle_new_chat(
         await check_permission(
             session,
             auth,
-            thread.search_space_id,
+            thread.workspace_id,
             Permission.CHATS_CREATE.value,
-            "You don't have permission to chat in this search space",
+            "You don't have permission to chat in this workspace",
         )
 
         # Check thread-level access based on visibility
@@ -1744,24 +1744,24 @@ async def handle_new_chat(
             local_mounts=request.local_filesystem_mounts,
         )
 
-        # Get search space to check LLM config preferences
-        search_space_result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == request.search_space_id)
+        # Get workspace to check LLM config preferences
+        workspace_result = await session.execute(
+            select(Workspace).filter(Workspace.id == request.workspace_id)
         )
-        search_space = search_space_result.scalars().first()
+        workspace = workspace_result.scalars().first()
 
-        if not search_space:
-            raise HTTPException(status_code=404, detail="Search space not found")
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
 
         # Use the converged model-connections role for chat operations.
         # Positive IDs load Model + Connection rows; negative IDs load
         # virtual GLOBAL models; 0 means Auto.
         llm_config_id = (
-            search_space.chat_model_id if search_space.chat_model_id is not None else 0
+            workspace.chat_model_id if workspace.chat_model_id is not None else 0
         )
 
         # Release the read-transaction so we don't hold ACCESS SHARE locks
-        # on searchspaces/documents for the entire duration of the stream.
+        # on workspaces/documents for the entire duration of the stream.
         # expire_on_commit=False keeps loaded ORM attrs usable.
         await session.commit()
         # Close the dependency session now so its connection returns to
@@ -1791,7 +1791,7 @@ async def handle_new_chat(
         return StreamingResponse(
             stream_new_chat(
                 user_query=request.user_query,
-                search_space_id=request.search_space_id,
+                workspace_id=request.workspace_id,
                 chat_id=request.chat_id,
                 user_id=str(user.id),
                 llm_config_id=llm_config_id,
@@ -1849,9 +1849,9 @@ async def cancel_active_turn(
     await check_permission(
         session,
         auth,
-        thread.search_space_id,
+        thread.workspace_id,
         Permission.CHATS_UPDATE.value,
-        "You don't have permission to update chats in this search space",
+        "You don't have permission to update chats in this workspace",
     )
     await check_thread_access(session, thread, user)
 
@@ -1901,9 +1901,9 @@ async def get_turn_status(
     await check_permission(
         session,
         auth,
-        thread.search_space_id,
+        thread.workspace_id,
         Permission.CHATS_READ.value,
-        "You don't have permission to view chats in this search space",
+        "You don't have permission to view chats in this workspace",
     )
     await check_thread_access(session, thread, user)
 
@@ -1965,9 +1965,9 @@ async def regenerate_response(
         await check_permission(
             session,
             auth,
-            thread.search_space_id,
+            thread.workspace_id,
             Permission.CHATS_UPDATE.value,
-            "You don't have permission to update chats in this search space",
+            "You don't have permission to update chats in this workspace",
         )
 
         # Check thread-level access based on visibility
@@ -2234,21 +2234,21 @@ async def regenerate_response(
                     seen_turns.add(tid)
                     revert_turn_ids.append(tid)
 
-        # Get search space for LLM config
-        search_space_result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == request.search_space_id)
+        # Get workspace for LLM config
+        workspace_result = await session.execute(
+            select(Workspace).filter(Workspace.id == request.workspace_id)
         )
-        search_space = search_space_result.scalars().first()
+        workspace = workspace_result.scalars().first()
 
-        if not search_space:
-            raise HTTPException(status_code=404, detail="Search space not found")
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
 
         llm_config_id = (
-            search_space.chat_model_id if search_space.chat_model_id is not None else 0
+            workspace.chat_model_id if workspace.chat_model_id is not None else 0
         )
 
         # Release the read-transaction so we don't hold ACCESS SHARE locks
-        # on searchspaces/documents for the entire duration of the stream.
+        # on workspaces/documents for the entire duration of the stream.
         # expire_on_commit=False keeps loaded ORM attrs (including messages_to_delete PKs) usable.
         await session.commit()
         await session.close()
@@ -2288,7 +2288,7 @@ async def regenerate_response(
             try:
                 async for chunk in stream_new_chat(
                     user_query=str(user_query_to_use),
-                    search_space_id=request.search_space_id,
+                    workspace_id=request.workspace_id,
                     chat_id=thread_id,
                     user_id=str(user.id),
                     llm_config_id=llm_config_id,
@@ -2390,9 +2390,9 @@ async def resume_chat(
         await check_permission(
             session,
             auth,
-            thread.search_space_id,
+            thread.workspace_id,
             Permission.CHATS_CREATE.value,
-            "You don't have permission to chat in this search space",
+            "You don't have permission to chat in this workspace",
         )
 
         await check_thread_access(session, thread, user)
@@ -2403,29 +2403,29 @@ async def resume_chat(
             local_mounts=request.local_filesystem_mounts,
         )
 
-        search_space_result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == request.search_space_id)
+        workspace_result = await session.execute(
+            select(Workspace).filter(Workspace.id == request.workspace_id)
         )
-        search_space = search_space_result.scalars().first()
+        workspace = workspace_result.scalars().first()
 
-        if not search_space:
-            raise HTTPException(status_code=404, detail="Search space not found")
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
 
         llm_config_id = (
-            search_space.chat_model_id if search_space.chat_model_id is not None else 0
+            workspace.chat_model_id if workspace.chat_model_id is not None else 0
         )
 
         decisions = [d.model_dump() for d in request.decisions]
 
         # Release the read-transaction so we don't hold ACCESS SHARE locks
-        # on searchspaces/documents for the entire duration of the stream.
+        # on workspaces/documents for the entire duration of the stream.
         await session.commit()
         await session.close()
 
         return StreamingResponse(
             stream_resume_chat(
                 chat_id=thread_id,
-                search_space_id=request.search_space_id,
+                workspace_id=request.workspace_id,
                 decisions=decisions,
                 user_id=str(user.id),
                 llm_config_id=llm_config_id,

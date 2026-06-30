@@ -29,13 +29,13 @@ def connector_pointer_fields(
 async def resolve_connector_references(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     connector_ids: list[int],
     chips: list[MentionedDocumentInfo] | None = None,
 ) -> list[ConnectorReference]:
     """Map ``@connector`` ids to references; ids outside the space are dropped.
 
-    The DB check only confirms the connector belongs to this search space;
+    The DB check only confirms the connector belongs to this workspace;
     display fields come from the user's chip.
     """
     if not connector_ids:
@@ -47,7 +47,7 @@ async def resolve_connector_references(
             SearchSourceConnector.name,
             SearchSourceConnector.connector_type,
         ).where(
-            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.workspace_id == workspace_id,
             SearchSourceConnector.id.in_(connector_ids),
         )
     )

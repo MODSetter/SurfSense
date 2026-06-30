@@ -24,8 +24,8 @@ from app.automations.services.model_policy import (
 pytestmark = pytest.mark.unit
 
 
-def _search_space(*, llm: int | None, image: int | None, vision: int | None):
-    """Minimal stand-in for the ``SearchSpace`` ORM row the policy reads."""
+def _workspace(*, llm: int | None, image: int | None, vision: int | None):
+    """Minimal stand-in for the ``Workspace`` ORM row the policy reads."""
     return SimpleNamespace(
         chat_model_id=llm,
         image_gen_model_id=image,
@@ -95,15 +95,15 @@ def test_unknown_global_id_is_blocked(kind: str, patched_globals) -> None:
 
 def test_eligibility_all_billable(patched_globals) -> None:
     """Premium LLM + BYOK image + premium vision → allowed, no violations."""
-    search_space = _search_space(llm=-1, image=5, vision=-1)
-    result = get_automation_model_eligibility(search_space)
+    workspace = _workspace(llm=-1, image=5, vision=-1)
+    result = get_automation_model_eligibility(workspace)
     assert result == {"allowed": True, "violations": []}
 
 
 def test_eligibility_reports_each_violation(patched_globals) -> None:
     """A free LLM, Auto image, and free vision each produce a violation."""
-    search_space = _search_space(llm=-2, image=0, vision=-2)
-    result = get_automation_model_eligibility(search_space)
+    workspace = _workspace(llm=-2, image=0, vision=-2)
+    result = get_automation_model_eligibility(workspace)
 
     assert result["allowed"] is False
     kinds = {v["kind"] for v in result["violations"]}
@@ -115,9 +115,9 @@ def test_eligibility_reports_each_violation(patched_globals) -> None:
 
 def test_assert_raises_with_violations(patched_globals) -> None:
     """``assert_automation_models_billable`` raises when any slot is blocked."""
-    search_space = _search_space(llm=0, image=5, vision=-1)
+    workspace = _workspace(llm=0, image=5, vision=-1)
     with pytest.raises(AutomationModelPolicyError) as exc_info:
-        assert_automation_models_billable(search_space)
+        assert_automation_models_billable(workspace)
 
     assert len(exc_info.value.violations) == 1
     assert exc_info.value.violations[0]["kind"] == "chat"
@@ -125,8 +125,8 @@ def test_assert_raises_with_violations(patched_globals) -> None:
 
 def test_assert_passes_when_all_billable(patched_globals) -> None:
     """No exception when every slot is premium or BYOK."""
-    search_space = _search_space(llm=3, image=-1, vision=4)
-    assert assert_automation_models_billable(search_space) is None
+    workspace = _workspace(llm=3, image=-1, vision=4)
+    assert assert_automation_models_billable(workspace) is None
 
 
 # --- ID-based core (used by the runtime backstop against captured snapshots) ---
@@ -170,9 +170,9 @@ def test_assert_models_billable_passes(patched_globals) -> None:
     )
 
 
-def test_search_space_wrapper_delegates_to_core(patched_globals) -> None:
-    """The search-space wrapper produces the same result as the ID core."""
-    search_space = _search_space(llm=-2, image=0, vision=-2)
-    assert get_automation_model_eligibility(search_space) == get_model_eligibility(
+def test_workspace_wrapper_delegates_to_core(patched_globals) -> None:
+    """The workspace wrapper produces the same result as the ID core."""
+    workspace = _workspace(llm=-2, image=0, vision=-2)
+    assert get_automation_model_eligibility(workspace) == get_model_eligibility(
         chat_model_id=-2, image_gen_model_id=0, vision_model_id=-2
     )

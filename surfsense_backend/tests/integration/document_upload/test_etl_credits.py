@@ -57,7 +57,7 @@ class TestBalanceDecrementsOnSuccess:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
         credits,
     ):
@@ -65,14 +65,14 @@ class TestBalanceDecrementsOnSuccess:
         before = await _get_balance(client, headers)
 
         resp = await upload_file(
-            client, headers, "sample.pdf", search_space_id=search_space_id
+            client, headers, "sample.pdf", workspace_id=workspace_id
         )
         assert resp.status_code == 200
         doc_ids = resp.json()["document_ids"]
         cleanup_doc_ids.extend(doc_ids)
 
         statuses = await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id, timeout=300.0
+            client, headers, doc_ids, workspace_id=workspace_id, timeout=300.0
         )
         for did in doc_ids:
             assert statuses[did]["status"]["state"] == "ready"
@@ -94,21 +94,21 @@ class TestUploadRejectedWhenCreditExhausted:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
         credits,
     ):
         await credits.set(balance_micros=0)
 
         resp = await upload_file(
-            client, headers, "sample.pdf", search_space_id=search_space_id
+            client, headers, "sample.pdf", workspace_id=workspace_id
         )
         assert resp.status_code == 200
         doc_ids = resp.json()["document_ids"]
         cleanup_doc_ids.extend(doc_ids)
 
         statuses = await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id, timeout=300.0
+            client, headers, doc_ids, workspace_id=workspace_id, timeout=300.0
         )
         for did in doc_ids:
             assert statuses[did]["status"]["state"] == "failed"
@@ -121,21 +121,21 @@ class TestUploadRejectedWhenCreditExhausted:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
         credits,
     ):
         await credits.set(balance_micros=0)
 
         resp = await upload_file(
-            client, headers, "sample.pdf", search_space_id=search_space_id
+            client, headers, "sample.pdf", workspace_id=workspace_id
         )
         assert resp.status_code == 200
         doc_ids = resp.json()["document_ids"]
         cleanup_doc_ids.extend(doc_ids)
 
         await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id, timeout=300.0
+            client, headers, doc_ids, workspace_id=workspace_id, timeout=300.0
         )
 
         balance = await _get_balance(client, headers)
@@ -157,28 +157,28 @@ class TestInsufficientCreditsNotification:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
         credits,
     ):
         await credits.set(balance_micros=0)
 
         resp = await upload_file(
-            client, headers, "sample.pdf", search_space_id=search_space_id
+            client, headers, "sample.pdf", workspace_id=workspace_id
         )
         assert resp.status_code == 200
         doc_ids = resp.json()["document_ids"]
         cleanup_doc_ids.extend(doc_ids)
 
         await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id, timeout=300.0
+            client, headers, doc_ids, workspace_id=workspace_id, timeout=300.0
         )
 
         notifications = await get_notifications(
             client,
             headers,
             type_filter="insufficient_credits",
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
         )
         assert len(notifications) >= 1, (
             "Expected at least one insufficient_credits notification"
@@ -206,28 +206,28 @@ class TestDocumentProcessingNotification:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
         credits,
     ):
         await credits.set(balance_micros=credits.pages(1000))
 
         resp = await upload_file(
-            client, headers, "sample.txt", search_space_id=search_space_id
+            client, headers, "sample.txt", workspace_id=workspace_id
         )
         assert resp.status_code == 200
         doc_ids = resp.json()["document_ids"]
         cleanup_doc_ids.extend(doc_ids)
 
         await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id
+            client, headers, doc_ids, workspace_id=workspace_id
         )
 
         notifications = await get_notifications(
             client,
             headers,
             type_filter="document_processing",
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
         )
         completed = [
             n
@@ -252,7 +252,7 @@ class TestBalanceUnchangedOnProcessingFailure:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
         credits,
     ):
@@ -260,7 +260,7 @@ class TestBalanceUnchangedOnProcessingFailure:
         await credits.set(balance_micros=starting)
 
         resp = await upload_file(
-            client, headers, "empty.pdf", search_space_id=search_space_id
+            client, headers, "empty.pdf", workspace_id=workspace_id
         )
         assert resp.status_code == 200
         doc_ids = resp.json()["document_ids"]
@@ -268,7 +268,7 @@ class TestBalanceUnchangedOnProcessingFailure:
 
         if doc_ids:
             statuses = await poll_document_status(
-                client, headers, doc_ids, search_space_id=search_space_id, timeout=120.0
+                client, headers, doc_ids, workspace_id=workspace_id, timeout=120.0
             )
             for did in doc_ids:
                 assert statuses[did]["status"]["state"] == "failed"
@@ -292,7 +292,7 @@ class TestSecondUploadExceedsCredit:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
         credits,
     ):
@@ -301,14 +301,14 @@ class TestSecondUploadExceedsCredit:
         await credits.set(balance_micros=credits.pages(1))
 
         resp1 = await upload_file(
-            client, headers, "sample.pdf", search_space_id=search_space_id
+            client, headers, "sample.pdf", workspace_id=workspace_id
         )
         assert resp1.status_code == 200
         first_ids = resp1.json()["document_ids"]
         cleanup_doc_ids.extend(first_ids)
 
         statuses1 = await poll_document_status(
-            client, headers, first_ids, search_space_id=search_space_id, timeout=300.0
+            client, headers, first_ids, workspace_id=workspace_id, timeout=300.0
         )
         for did in first_ids:
             assert statuses1[did]["status"]["state"] == "ready"
@@ -317,7 +317,7 @@ class TestSecondUploadExceedsCredit:
             client,
             headers,
             "sample.pdf",
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             filename_override="sample_copy.pdf",
         )
         assert resp2.status_code == 200
@@ -325,7 +325,7 @@ class TestSecondUploadExceedsCredit:
         cleanup_doc_ids.extend(second_ids)
 
         statuses2 = await poll_document_status(
-            client, headers, second_ids, search_space_id=search_space_id, timeout=300.0
+            client, headers, second_ids, workspace_id=workspace_id, timeout=300.0
         )
         for did in second_ids:
             assert statuses2[did]["status"]["state"] == "failed"

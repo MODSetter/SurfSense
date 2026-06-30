@@ -65,7 +65,7 @@ async def client(
 async def drive_connector(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space,
+    db_workspace,
 ) -> SearchSourceConnector:
     connector = SearchSourceConnector(
         name="Google Drive (Composio) - e2e-fake@surfsense.example",
@@ -77,7 +77,7 @@ async def drive_connector(
             "toolkit_name": "Google Drive",
             "is_indexable": True,
         },
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user_id=db_user.id,
     )
     db_session.add(connector)

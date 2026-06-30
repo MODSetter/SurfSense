@@ -44,7 +44,7 @@ HEARTBEAT_INTERVAL_SECONDS = 30
 async def index_crawled_urls(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None = None,
     end_date: str | None = None,
@@ -61,7 +61,7 @@ async def index_crawled_urls(
     Args:
         session: Database session
         connector_id: ID of the webcrawler connector
-        search_space_id: ID of the search space to store documents in
+        workspace_id: ID of the workspace to store documents in
         user_id: User ID
         start_date: Start date for filtering (YYYY-MM-DD format) - optional
         end_date: End date for filtering (YYYY-MM-DD format) - optional
@@ -71,7 +71,7 @@ async def index_crawled_urls(
     Returns:
         Tuple containing (number of documents indexed, error message or None)
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     # Log task start
     log_entry = await task_logger.log_task_start(
@@ -184,7 +184,7 @@ async def index_crawled_urls(
             try:
                 # Generate unique identifier hash for this URL
                 unique_identifier_hash = generate_unique_identifier_hash(
-                    DocumentType.CRAWLED_URL, url, search_space_id
+                    DocumentType.CRAWLED_URL, url, workspace_id
                 )
 
                 # Check if document with this unique identifier already exists
@@ -220,7 +220,7 @@ async def index_crawled_urls(
 
                 # Create new document with PENDING status (visible in UI immediately)
                 document = Document(
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     title=url[:100],  # Placeholder - URL as title (truncated)
                     document_type=DocumentType.CRAWLED_URL,
                     document_metadata={
@@ -325,7 +325,7 @@ async def index_crawled_urls(
                     crawl_result, exclude_metadata=True
                 )
                 content_hash = generate_content_hash(
-                    structured_document_for_hash, search_space_id
+                    structured_document_for_hash, workspace_id
                 )
 
                 # Extract useful metadata
@@ -500,15 +500,15 @@ async def index_crawled_urls(
 
 async def get_crawled_url_documents(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     connector_id: int | None = None,
 ) -> list[Document]:
     """
-    Get all crawled URL documents for a search space.
+    Get all crawled URL documents for a workspace.
 
     Args:
         session: Database session
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         connector_id: Optional connector ID to filter by
 
     Returns:
@@ -517,7 +517,7 @@ async def get_crawled_url_documents(
     from sqlalchemy import select
 
     query = select(Document).filter(
-        Document.search_space_id == search_space_id,
+        Document.workspace_id == workspace_id,
         Document.document_type == DocumentType.CRAWLED_URL,
     )
 

@@ -142,7 +142,7 @@ async def _check_and_trigger_schedules():
                         if selected_folders or selected_files:
                             task.delay(
                                 connector.id,
-                                connector.search_space_id,
+                                connector.workspace_id,
                                 str(connector.user_id),
                                 {
                                     "folders": selected_folders,
@@ -180,7 +180,7 @@ async def _check_and_trigger_schedules():
                         if urls:
                             task.delay(
                                 connector.id,
-                                connector.search_space_id,
+                                connector.workspace_id,
                                 str(connector.user_id),
                                 None,  # start_date
                                 None,  # end_date
@@ -202,7 +202,7 @@ async def _check_and_trigger_schedules():
                     else:
                         task.delay(
                             connector.id,
-                            connector.search_space_id,
+                            connector.workspace_id,
                             str(connector.user_id),
                             None,  # start_date - uses last_indexed_at
                             None,  # end_date - uses now

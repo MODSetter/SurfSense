@@ -17,7 +17,7 @@ _GMAIL_TYPES = [
 
 def create_read_gmail_email_tool(
     db_session: AsyncSession | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     user_id: str | None = None,
 ):
     @tool
@@ -32,13 +32,13 @@ def create_read_gmail_email_tool(
         Returns:
             Dictionary with status and the full email content formatted as markdown.
         """
-        if db_session is None or search_space_id is None or user_id is None:
+        if db_session is None or workspace_id is None or user_id is None:
             return {"status": "error", "message": "Gmail tool not properly configured."}
 
         try:
             result = await db_session.execute(
                 select(SearchSourceConnector).filter(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type.in_(_GMAIL_TYPES),
                 )

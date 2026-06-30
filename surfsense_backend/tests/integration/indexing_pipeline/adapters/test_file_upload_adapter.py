@@ -8,19 +8,19 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
-async def test_sets_status_ready(db_session, db_search_space, db_user, mocker):
+async def test_sets_status_ready(db_session, db_workspace, db_user, mocker):
     """Document status is READY after successful indexing."""
     adapter = UploadDocumentAdapter(db_session)
     await adapter.index(
         markdown_content="## Hello\n\nSome content.",
         filename="test.pdf",
         etl_service="UNSTRUCTURED",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user_id=str(db_user.id),
     )
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == db_search_space.id)
+        select(Document).filter(Document.workspace_id == db_workspace.id)
     )
     document = result.scalars().first()
 
@@ -28,19 +28,19 @@ async def test_sets_status_ready(db_session, db_search_space, db_user, mocker):
 
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
-async def test_content_is_source_markdown(db_session, db_search_space, db_user, mocker):
+async def test_content_is_source_markdown(db_session, db_workspace, db_user, mocker):
     """Document content is set to the extracted source markdown."""
     adapter = UploadDocumentAdapter(db_session)
     await adapter.index(
         markdown_content="## Hello\n\nSome content.",
         filename="test.pdf",
         etl_service="UNSTRUCTURED",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user_id=str(db_user.id),
     )
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == db_search_space.id)
+        select(Document).filter(Document.workspace_id == db_workspace.id)
     )
     document = result.scalars().first()
 
@@ -48,19 +48,19 @@ async def test_content_is_source_markdown(db_session, db_search_space, db_user, 
 
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
-async def test_chunks_written_to_db(db_session, db_search_space, db_user, mocker):
+async def test_chunks_written_to_db(db_session, db_workspace, db_user, mocker):
     """Chunks derived from the source markdown are persisted in the DB."""
     adapter = UploadDocumentAdapter(db_session)
     await adapter.index(
         markdown_content="## Hello\n\nSome content.",
         filename="test.pdf",
         etl_service="UNSTRUCTURED",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user_id=str(db_user.id),
     )
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == db_search_space.id)
+        select(Document).filter(Document.workspace_id == db_workspace.id)
     )
     document = result.scalars().first()
 
@@ -74,7 +74,7 @@ async def test_chunks_written_to_db(db_session, db_search_space, db_user, mocker
 
 
 @pytest.mark.usefixtures("patched_embed_texts_raises", "patched_chunk_text")
-async def test_raises_on_indexing_failure(db_session, db_search_space, db_user, mocker):
+async def test_raises_on_indexing_failure(db_session, db_workspace, db_user, mocker):
     """RuntimeError is raised when the indexing step fails so the caller can fire a failure notification."""
     adapter = UploadDocumentAdapter(db_session)
     with pytest.raises(RuntimeError, match=r"Embedding failed|Indexing failed"):
@@ -82,7 +82,7 @@ async def test_raises_on_indexing_failure(db_session, db_search_space, db_user, 
             markdown_content="## Hello\n\nSome content.",
             filename="test.pdf",
             etl_service="UNSTRUCTURED",
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             user_id=str(db_user.id),
         )
 
@@ -93,19 +93,19 @@ async def test_raises_on_indexing_failure(db_session, db_search_space, db_user, 
 
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
-async def test_reindex_updates_content(db_session, db_search_space, db_user, mocker):
+async def test_reindex_updates_content(db_session, db_workspace, db_user, mocker):
     """Document content is updated to the new source markdown after reindexing."""
     adapter = UploadDocumentAdapter(db_session)
     await adapter.index(
         markdown_content="## Original\n\nOriginal content.",
         filename="test.pdf",
         etl_service="UNSTRUCTURED",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user_id=str(db_user.id),
     )
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == db_search_space.id)
+        select(Document).filter(Document.workspace_id == db_workspace.id)
     )
     document = result.scalars().first()
 
@@ -120,7 +120,7 @@ async def test_reindex_updates_content(db_session, db_search_space, db_user, moc
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_reindex_updates_content_hash(
-    db_session, db_search_space, db_user, mocker
+    db_session, db_workspace, db_user, mocker
 ):
     """Content hash is recomputed after reindexing with new source markdown."""
     adapter = UploadDocumentAdapter(db_session)
@@ -128,12 +128,12 @@ async def test_reindex_updates_content_hash(
         markdown_content="## Original\n\nOriginal content.",
         filename="test.pdf",
         etl_service="UNSTRUCTURED",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user_id=str(db_user.id),
     )
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == db_search_space.id)
+        select(Document).filter(Document.workspace_id == db_workspace.id)
     )
     document = result.scalars().first()
     original_hash = document.content_hash
@@ -148,19 +148,19 @@ async def test_reindex_updates_content_hash(
 
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
-async def test_reindex_sets_status_ready(db_session, db_search_space, db_user, mocker):
+async def test_reindex_sets_status_ready(db_session, db_workspace, db_user, mocker):
     """Document status is READY after successful reindexing."""
     adapter = UploadDocumentAdapter(db_session)
     await adapter.index(
         markdown_content="## Original\n\nOriginal content.",
         filename="test.pdf",
         etl_service="UNSTRUCTURED",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user_id=str(db_user.id),
     )
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == db_search_space.id)
+        select(Document).filter(Document.workspace_id == db_workspace.id)
     )
     document = result.scalars().first()
 
@@ -174,7 +174,7 @@ async def test_reindex_sets_status_ready(db_session, db_search_space, db_user, m
 
 
 @pytest.mark.usefixtures("patched_embed_texts")
-async def test_reindex_replaces_chunks(db_session, db_search_space, db_user, mocker):
+async def test_reindex_replaces_chunks(db_session, db_workspace, db_user, mocker):
     """Reindexing replaces old chunks with new content rather than appending."""
     mocker.patch(
         "app.indexing_pipeline.cache.cached_indexing.chunk_text_hybrid",
@@ -186,12 +186,12 @@ async def test_reindex_replaces_chunks(db_session, db_search_space, db_user, moc
         markdown_content="## Original\n\nOriginal content.",
         filename="test.pdf",
         etl_service="UNSTRUCTURED",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user_id=str(db_user.id),
     )
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == db_search_space.id)
+        select(Document).filter(Document.workspace_id == db_workspace.id)
     )
     document = result.scalars().first()
     document_id = document.id
@@ -212,7 +212,7 @@ async def test_reindex_replaces_chunks(db_session, db_search_space, db_user, moc
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_reindex_clears_reindexing_flag(
-    db_session, db_search_space, db_user, mocker
+    db_session, db_workspace, db_user, mocker
 ):
     """After successful reindex, content_needs_reindexing is False."""
     adapter = UploadDocumentAdapter(db_session)
@@ -220,12 +220,12 @@ async def test_reindex_clears_reindexing_flag(
         markdown_content="## Original\n\nOriginal content.",
         filename="test.pdf",
         etl_service="UNSTRUCTURED",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user_id=str(db_user.id),
     )
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == db_search_space.id)
+        select(Document).filter(Document.workspace_id == db_workspace.id)
     )
     document = result.scalars().first()
 
@@ -241,7 +241,7 @@ async def test_reindex_clears_reindexing_flag(
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_reindex_raises_on_failure(
-    db_session, db_search_space, db_user, patched_embed_texts, mocker
+    db_session, db_workspace, db_user, patched_embed_texts, mocker
 ):
     """RuntimeError is raised when reindexing fails so the caller can handle it."""
 
@@ -250,12 +250,12 @@ async def test_reindex_raises_on_failure(
         markdown_content="## Original\n\nOriginal content.",
         filename="test.pdf",
         etl_service="UNSTRUCTURED",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user_id=str(db_user.id),
     )
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == db_search_space.id)
+        select(Document).filter(Document.workspace_id == db_workspace.id)
     )
     document = result.scalars().first()
 
@@ -269,7 +269,7 @@ async def test_reindex_raises_on_failure(
 
 
 async def test_reindex_raises_on_empty_source_markdown(
-    db_session, db_search_space, db_user, mocker
+    db_session, db_workspace, db_user, mocker
 ):
     """Reindexing a document with no source_markdown raises immediately."""
     from app.db import DocumentType
@@ -281,7 +281,7 @@ async def test_reindex_raises_on_empty_source_markdown(
         content_hash="abc123",
         unique_identifier_hash="def456",
         source_markdown="",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         created_by_id=str(db_user.id),
     )
     db_session.add(document)

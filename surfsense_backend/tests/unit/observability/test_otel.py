@@ -170,7 +170,7 @@ class TestMetricHelpers:
         metrics.record_tool_call_error(tool_name="web_search")
         metrics.record_kb_search_duration(
             4.0,
-            search_space_id=1,
+            workspace_id=1,
             surface="documents",
         )
         metrics.record_compaction_run(reason="auto")
@@ -250,7 +250,7 @@ class TestNoopSpansWhenDisabled:
         helpers = [
             otel.tool_call_span("write_file", input_size=42),
             otel.model_call_span(model_id="openai:gpt-4o", provider="openai"),
-            otel.kb_search_span(search_space_id=1, query_chars=99),
+            otel.kb_search_span(workspace_id=1, query_chars=99),
             otel.kb_persist_span(document_type="NOTE", document_id=7),
             otel.compaction_span(reason="overflow", messages_in=120),
             otel.interrupt_span(interrupt_type="permission_ask"),

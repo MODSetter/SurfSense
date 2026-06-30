@@ -31,11 +31,11 @@ logger = logging.getLogger(__name__)
 
 
 def create_generate_video_presentation_tool(
-    search_space_id: int,
+    workspace_id: int,
     db_session: AsyncSession,
     thread_id: int | None = None,
 ):
-    """Create ``generate_video_presentation`` with bound search space and thread; writes use a tool-local session."""
+    """Create ``generate_video_presentation`` with bound workspace and thread; writes use a tool-local session."""
     del db_session  # writes use a fresh tool-local session, see below
 
     @tool
@@ -60,7 +60,7 @@ def create_generate_video_presentation_tool(
                 video_pres = VideoPresentation(
                     title=video_title,
                     status=VideoPresentationStatus.PENDING,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     thread_id=resolve_root_thread_id(runtime, thread_id),
                 )
                 session.add(video_pres)
@@ -75,7 +75,7 @@ def create_generate_video_presentation_tool(
             task = generate_video_presentation_task.delay(
                 video_presentation_id=video_pres_id,
                 source_content=source_content,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_prompt=user_prompt,
             )
 

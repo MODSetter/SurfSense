@@ -42,32 +42,32 @@ async def create_folder(
         await check_permission(
             session,
             auth,
-            request.search_space_id,
+            request.workspace_id,
             Permission.DOCUMENTS_CREATE.value,
-            "You don't have permission to create folders in this search space",
+            "You don't have permission to create folders in this workspace",
         )
 
         if request.parent_id is not None:
             parent = await session.get(Folder, request.parent_id)
             if not parent:
                 raise HTTPException(status_code=404, detail="Parent folder not found")
-            if parent.search_space_id != request.search_space_id:
+            if parent.workspace_id != request.workspace_id:
                 raise HTTPException(
                     status_code=400,
-                    detail="Parent folder belongs to a different search space",
+                    detail="Parent folder belongs to a different workspace",
                 )
 
         await validate_folder_depth(session, request.parent_id)
 
         position = await generate_folder_position(
-            session, request.search_space_id, request.parent_id
+            session, request.workspace_id, request.parent_id
         )
 
         folder = Folder(
             name=request.name,
             position=position,
             parent_id=request.parent_id,
-            search_space_id=request.search_space_id,
+            workspace_id=request.workspace_id,
             created_by_id=user.id,
         )
         session.add(folder)
@@ -91,23 +91,23 @@ async def create_folder(
 
 @router.get("/folders", response_model=list[FolderRead])
 async def list_folders(
-    search_space_id: int,
+    workspace_id: int,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    """List all folders in a search space (flat). Requires DOCUMENTS_READ permission."""
+    """List all folders in a workspace (flat). Requires DOCUMENTS_READ permission."""
     try:
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.DOCUMENTS_READ.value,
-            "You don't have permission to read folders in this search space",
+            "You don't have permission to read folders in this workspace",
         )
 
         result = await session.execute(
             select(Folder)
-            .where(Folder.search_space_id == search_space_id)
+            .where(Folder.workspace_id == workspace_id)
             .order_by(Folder.position)
         )
         return result.scalars().all()
@@ -135,9 +135,9 @@ async def get_folder(
         await check_permission(
             session,
             auth,
-            folder.search_space_id,
+            folder.workspace_id,
             Permission.DOCUMENTS_READ.value,
-            "You don't have permission to read folders in this search space",
+            "You don't have permission to read folders in this workspace",
         )
 
         return folder
@@ -165,9 +165,9 @@ async def get_folder_breadcrumb(
         await check_permission(
             session,
             auth,
-            folder.search_space_id,
+            folder.workspace_id,
             Permission.DOCUMENTS_READ.value,
-            "You don't have permission to read folders in this search space",
+            "You don't have permission to read folders in this workspace",
         )
 
         result = await session.execute(
@@ -208,9 +208,9 @@ async def stop_watching_folder(
     await check_permission(
         session,
         auth,
-        folder.search_space_id,
+        folder.workspace_id,
         Permission.DOCUMENTS_UPDATE.value,
-        "You don't have permission to update folders in this search space",
+        "You don't have permission to update folders in this workspace",
     )
 
     if folder.folder_metadata and isinstance(folder.folder_metadata, dict):
@@ -237,9 +237,9 @@ async def update_folder(
         await check_permission(
             session,
             auth,
-            folder.search_space_id,
+            folder.workspace_id,
             Permission.DOCUMENTS_UPDATE.value,
-            "You don't have permission to update folders in this search space",
+            "You don't have permission to update folders in this workspace",
         )
 
         folder.name = request.name
@@ -277,9 +277,9 @@ async def move_folder(
         await check_permission(
             session,
             auth,
-            folder.search_space_id,
+            folder.workspace_id,
             Permission.DOCUMENTS_UPDATE.value,
-            "You don't have permission to move folders in this search space",
+            "You don't have permission to move folders in this workspace",
         )
 
         if request.new_parent_id is not None:
@@ -288,10 +288,10 @@ async def move_folder(
                 raise HTTPException(
                     status_code=404, detail="Target parent folder not found"
                 )
-            if new_parent.search_space_id != folder.search_space_id:
+            if new_parent.workspace_id != folder.workspace_id:
                 raise HTTPException(
                     status_code=400,
-                    detail="Cannot move folder to a different search space",
+                    detail="Cannot move folder to a different workspace",
                 )
 
         await check_no_circular_reference(session, folder_id, request.new_parent_id)
@@ -299,7 +299,7 @@ async def move_folder(
         await validate_folder_depth(session, request.new_parent_id, subtree_depth)
 
         position = await generate_folder_position(
-            session, folder.search_space_id, request.new_parent_id
+            session, folder.workspace_id, request.new_parent_id
         )
         folder.parent_id = request.new_parent_id
         folder.position = position
@@ -337,14 +337,14 @@ async def reorder_folder(
         await check_permission(
             session,
             auth,
-            folder.search_space_id,
+            folder.workspace_id,
             Permission.DOCUMENTS_UPDATE.value,
-            "You don't have permission to reorder folders in this search space",
+            "You don't have permission to reorder folders in this workspace",
         )
 
         position = await generate_folder_position(
             session,
-            folder.search_space_id,
+            folder.workspace_id,
             folder.parent_id,
             before_position=request.before_position,
             after_position=request.after_position,
@@ -378,9 +378,9 @@ async def delete_folder(
         await check_permission(
             session,
             auth,
-            folder.search_space_id,
+            folder.workspace_id,
             Permission.DOCUMENTS_DELETE.value,
-            "You don't have permission to delete folders in this search space",
+            "You don't have permission to delete folders in this workspace",
         )
 
         subtree_ids = await get_folder_subtree_ids(session, folder_id)
@@ -455,19 +455,19 @@ async def move_document(
         await check_permission(
             session,
             auth,
-            document.search_space_id,
+            document.workspace_id,
             Permission.DOCUMENTS_UPDATE.value,
-            "You don't have permission to move documents in this search space",
+            "You don't have permission to move documents in this workspace",
         )
 
         if request.folder_id is not None:
             target = await session.get(Folder, request.folder_id)
             if not target:
                 raise HTTPException(status_code=404, detail="Target folder not found")
-            if target.search_space_id != document.search_space_id:
+            if target.workspace_id != document.workspace_id:
                 raise HTTPException(
                     status_code=400,
-                    detail="Cannot move document to a folder in a different search space",
+                    detail="Cannot move document to a folder in a different workspace",
                 )
 
         document.folder_id = request.folder_id
@@ -502,14 +502,14 @@ async def bulk_move_documents(
         if not documents:
             raise HTTPException(status_code=404, detail="No documents found")
 
-        search_space_ids = {doc.search_space_id for doc in documents}
-        for ss_id in search_space_ids:
+        workspace_ids = {doc.workspace_id for doc in documents}
+        for ss_id in workspace_ids:
             await check_permission(
                 session,
                 auth,
                 ss_id,
                 Permission.DOCUMENTS_UPDATE.value,
-                "You don't have permission to move documents in this search space",
+                "You don't have permission to move documents in this workspace",
             )
 
         if request.folder_id is not None:
@@ -519,12 +519,12 @@ async def bulk_move_documents(
             mismatched = [
                 doc.id
                 for doc in documents
-                if doc.search_space_id != target.search_space_id
+                if doc.workspace_id != target.workspace_id
             ]
             if mismatched:
                 raise HTTPException(
                     status_code=400,
-                    detail="Cannot move documents to a folder in a different search space",
+                    detail="Cannot move documents to a folder in a different workspace",
                 )
 
         for doc in documents:

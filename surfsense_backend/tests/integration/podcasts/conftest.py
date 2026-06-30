@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.app import app, limiter
 from app.auth.context import AuthContext
 from app.config import config as app_config
-from app.db import SearchSpace, User, get_async_session
+from app.db import Workspace, User, get_async_session
 from app.podcasts.persistence import Podcast, PodcastStatus
 from app.podcasts.schemas import (
     DurationTarget,
@@ -39,7 +39,7 @@ from app.podcasts.schemas import (
 )
 from app.podcasts.service import PodcastService
 from app.podcasts.tts import SynthesisRequest, SynthesizedAudio, TextToSpeech
-from app.routes.search_spaces_routes import create_default_roles_and_membership
+from app.routes.workspaces_routes import create_default_roles_and_membership
 from app.users import get_auth_context
 
 pytestmark = pytest.mark.integration
@@ -248,14 +248,14 @@ def make_podcast(db_session: AsyncSession):
 
     async def _make(
         *,
-        search_space_id: int,
+        workspace_id: int,
         status: PodcastStatus = PodcastStatus.AWAITING_BRIEF,
         title: str = "Test Podcast",
         thread_id: int | None = None,
     ) -> Podcast:
         service = PodcastService(db_session)
         podcast = await service.create(
-            title=title, search_space_id=search_space_id, thread_id=thread_id
+            title=title, workspace_id=workspace_id, thread_id=thread_id
         )
         if status is PodcastStatus.PENDING:
             await db_session.flush()
@@ -298,7 +298,7 @@ def act_as():
 
 @pytest_asyncio.fixture
 async def db_other_user(db_session: AsyncSession) -> User:
-    """A second user who is not a member of ``db_search_space``."""
+    """A second user who is not a member of ``db_workspace``."""
     user = User(
         id=uuid.uuid4(),
         email="stranger@surfsense.net",
@@ -317,9 +317,9 @@ async def foreign_podcast(
     db_session: AsyncSession, db_other_user: User, make_podcast
 ) -> Podcast:
     """A podcast in a space owned by the other user, invisible to db_user."""
-    space = SearchSpace(name="Stranger Space", user_id=db_other_user.id)
+    space = Workspace(name="Stranger Space", user_id=db_other_user.id)
     db_session.add(space)
     await db_session.flush()
     await create_default_roles_and_membership(db_session, space.id, db_other_user.id)
     await db_session.flush()
-    return await make_podcast(search_space_id=space.id, title="Foreign")
+    return await make_podcast(workspace_id=space.id, title="Foreign")

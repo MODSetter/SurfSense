@@ -6,17 +6,17 @@ from pydantic import BaseModel, ConfigDict
 from .base import IDModel, TimestampModel
 
 
-class SearchSpaceBase(BaseModel):
+class WorkspaceBase(BaseModel):
     name: str
     description: str | None = None
 
 
-class SearchSpaceCreate(SearchSpaceBase):
+class WorkspaceCreate(WorkspaceBase):
     citations_enabled: bool = True
     qna_custom_instructions: str | None = None
 
 
-class SearchSpaceUpdate(BaseModel):
+class WorkspaceUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     citations_enabled: bool | None = None
@@ -24,11 +24,11 @@ class SearchSpaceUpdate(BaseModel):
     ai_file_sort_enabled: bool | None = None
 
 
-class SearchSpaceApiAccessUpdate(BaseModel):
+class WorkspaceApiAccessUpdate(BaseModel):
     api_access_enabled: bool
 
 
-class SearchSpaceRead(SearchSpaceBase, IDModel, TimestampModel):
+class WorkspaceRead(WorkspaceBase, IDModel, TimestampModel):
     id: int
     created_at: datetime
     user_id: uuid.UUID
@@ -41,8 +41,8 @@ class SearchSpaceRead(SearchSpaceBase, IDModel, TimestampModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SearchSpaceWithStats(SearchSpaceRead):
-    """Extended search space info with member count and ownership status."""
+class WorkspaceWithStats(WorkspaceRead):
+    """Extended workspace info with member count and ownership status."""
 
     member_count: int = 1
     is_owner: bool = False

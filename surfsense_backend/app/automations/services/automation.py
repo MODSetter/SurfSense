@@ -28,7 +28,7 @@ from app.automations.services.model_policy import (
 )
 from app.automations.triggers import get_trigger
 from app.automations.triggers.builtin.schedule import compute_next_fire_at
-from app.db import Permission, SearchSpace, get_async_session
+from app.db import Permission, Workspace, get_async_session
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
@@ -44,28 +44,28 @@ class AutomationService:
     async def create(self, payload: AutomationCreate) -> Automation:
         """Create an automation and its initial triggers in one transaction."""
         await self._authorize(
-            payload.search_space_id, Permission.AUTOMATIONS_CREATE.value
+            payload.workspace_id, Permission.AUTOMATIONS_CREATE.value
         )
 
         # Capture the model profile onto the definition so runs are insulated
-        # from later chat/search-space model changes. Two sources:
+        # from later chat/workspace model changes. Two sources:
         #   1. Explicit per-automation selection in ``payload.definition.models``
         #      (manual builder + chat approval card). Validate the chosen ids.
-        #   2. Fallback (no selection): snapshot the search space's current prefs.
+        #   2. Fallback (no selection): snapshot the workspace's current prefs.
         # Either way the captured ids are guaranteed billable (premium/BYOK).
         selected_models = payload.definition.models
         if selected_models is not None:
             self._assert_selected_models_billable(selected_models)
         else:
-            search_space = await self._assert_models_billable(payload.search_space_id)
+            workspace = await self._assert_models_billable(payload.workspace_id)
             payload.definition.models = AutomationModels(
-                chat_model_id=search_space.chat_model_id or 0,
-                image_gen_model_id=search_space.image_gen_model_id or 0,
-                vision_model_id=search_space.vision_model_id or 0,
+                chat_model_id=workspace.chat_model_id or 0,
+                image_gen_model_id=workspace.image_gen_model_id or 0,
+                vision_model_id=workspace.vision_model_id or 0,
             )
 
         automation = Automation(
-            search_space_id=payload.search_space_id,
+            workspace_id=payload.workspace_id,
             created_by_user_id=self.user.id,
             name=payload.name,
             description=payload.description,
@@ -82,14 +82,14 @@ class AutomationService:
     async def list(
         self,
         *,
-        search_space_id: int,
+        workspace_id: int,
         limit: int,
         offset: int,
     ) -> tuple[list[Automation], int]:
         """Return a page of automations and the total count."""
-        await self._authorize(search_space_id, Permission.AUTOMATIONS_READ.value)
+        await self._authorize(workspace_id, Permission.AUTOMATIONS_READ.value)
 
-        base = select(Automation).where(Automation.search_space_id == search_space_id)
+        base = select(Automation).where(Automation.workspace_id == workspace_id)
         total = await self.session.scalar(
             select(func.count()).select_from(base.subquery())
         )
@@ -111,7 +111,7 @@ class AutomationService:
         """Get an automation with its triggers loaded."""
         automation = await self._get_with_triggers_or_raise(automation_id)
         await self._authorize(
-            automation.search_space_id, Permission.AUTOMATIONS_READ.value
+            automation.workspace_id, Permission.AUTOMATIONS_READ.value
         )
         return automation
 
@@ -119,7 +119,7 @@ class AutomationService:
         """Patch fields. Bumps ``version`` when ``definition`` changes."""
         automation = await self._get_with_triggers_or_raise(automation_id)
         await self._authorize(
-            automation.search_space_id, Permission.AUTOMATIONS_UPDATE.value
+            automation.workspace_id, Permission.AUTOMATIONS_UPDATE.value
         )
 
         data = patch.model_dump(exclude_unset=True)
@@ -135,7 +135,7 @@ class AutomationService:
             # Model snapshot handling on edit:
             #   * absent in the patch  -> preserve the captured snapshot
             #     (a non-model definition change never silently re-binds the
-            #     automation to the current chat/search-space selection).
+            #     automation to the current chat/workspace selection).
             #   * unchanged from the snapshot -> keep as-is, no re-validation
             #     (so editing an automation whose captured model later drifted
             #     out of premium isn't blocked by an unrelated name/schedule edit).
@@ -158,7 +158,7 @@ class AutomationService:
         """Delete an automation; FK cascades remove triggers and runs."""
         automation = await self._get_or_raise(automation_id)
         await self._authorize(
-            automation.search_space_id, Permission.AUTOMATIONS_DELETE.value
+            automation.workspace_id, Permission.AUTOMATIONS_DELETE.value
         )
         await self.session.delete(automation)
         await self.session.commit()
@@ -184,46 +184,46 @@ class AutomationService:
             )
         return automation
 
-    async def model_eligibility(self, *, search_space_id: int) -> dict:
-        """Return whether a search space's models are billable for automations.
+    async def model_eligibility(self, *, workspace_id: int) -> dict:
+        """Return whether a workspace's models are billable for automations.
 
         ``{"allowed": bool, "violations": [{kind, config_id, reason}, ...]}``.
         """
-        await self._authorize(search_space_id, Permission.AUTOMATIONS_READ.value)
-        search_space = await self.session.get(SearchSpace, search_space_id)
-        if search_space is None:
+        await self._authorize(workspace_id, Permission.AUTOMATIONS_READ.value)
+        workspace = await self.session.get(Workspace, workspace_id)
+        if workspace is None:
             raise HTTPException(
-                status_code=404, detail=f"search space {search_space_id} not found"
+                status_code=404, detail=f"workspace {workspace_id} not found"
             )
-        return get_automation_model_eligibility(search_space)
+        return get_automation_model_eligibility(workspace)
 
-    async def _assert_models_billable(self, search_space_id: int) -> SearchSpace:
-        """Reject creation when the search space's models aren't billable.
+    async def _assert_models_billable(self, workspace_id: int) -> Workspace:
+        """Reject creation when the workspace's models aren't billable.
 
         Automations may only use premium global models or user BYOK models; free
         global models and Auto mode are blocked. Mirrors the runtime backstop in
         ``agent_task`` so users can't save an automation that would fail to run.
 
-        Returns the loaded :class:`SearchSpace` so the caller can capture its
+        Returns the loaded :class:`Workspace` so the caller can capture its
         model prefs without a second DB read.
         """
-        search_space = await self.session.get(SearchSpace, search_space_id)
-        if search_space is None:
+        workspace = await self.session.get(Workspace, workspace_id)
+        if workspace is None:
             raise HTTPException(
-                status_code=404, detail=f"search space {search_space_id} not found"
+                status_code=404, detail=f"workspace {workspace_id} not found"
             )
         try:
-            assert_automation_models_billable(search_space)
+            assert_automation_models_billable(workspace)
         except AutomationModelPolicyError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return search_space
+        return workspace
 
     def _assert_selected_models_billable(self, models: AutomationModels) -> None:
         """Reject creation when an explicitly selected model isn't billable.
 
         Used when the client supplies ``definition.models`` (per-automation
         selection from the builder or chat approval card). Same policy as the
-        search-space path: premium global or BYOK only, no free/Auto.
+        workspace path: premium global or BYOK only, no free/Auto.
         """
         try:
             assert_models_billable(
@@ -234,13 +234,13 @@ class AutomationService:
         except AutomationModelPolicyError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    async def _authorize(self, search_space_id: int, permission: str) -> None:
+    async def _authorize(self, workspace_id: int, permission: str) -> None:
         await check_permission(
             self.session,
             self.auth,
-            search_space_id,
+            workspace_id,
             permission,
-            f"You don't have permission to {permission.split(':')[1]} automations in this search space",
+            f"You don't have permission to {permission.split(':')[1]} automations in this workspace",
         )
 
 

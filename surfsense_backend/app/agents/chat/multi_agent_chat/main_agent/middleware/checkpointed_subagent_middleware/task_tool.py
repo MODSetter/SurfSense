@@ -142,7 +142,7 @@ def build_task_tool_with_parent_config(
     subagents: list[dict[str, Any]],
     task_description: str | None = None,
     *,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     resolve_subagent: Callable[[str], Runnable] | None = None,
 ) -> BaseTool:
     """Upstream ``_build_task_tool`` + parent ``runtime.config`` propagation + resume bridging.
@@ -829,10 +829,10 @@ def build_task_tool_with_parent_config(
         atask_start = time.perf_counter()
         # Ops kill switch: short-circuit every task() call for this workspace
         # so the orchestrator stops hammering downstream APIs.
-        if await is_spawn_paused(search_space_id):
+        if await is_spawn_paused(workspace_id):
             logger.warning(
-                "[hitl_route] atask SPAWN_PAUSED: search_space_id=%s tool_call_id=%s",
-                search_space_id,
+                "[hitl_route] atask SPAWN_PAUSED: workspace_id=%s tool_call_id=%s",
+                workspace_id,
                 runtime.tool_call_id,
             )
             return (

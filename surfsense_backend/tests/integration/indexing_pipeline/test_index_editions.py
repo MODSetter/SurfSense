@@ -50,13 +50,13 @@ async def _load_chunks(db_session, document_id):
 @pytest.mark.usefixtures("paragraph_chunker")
 async def test_edit_keeps_unchanged_rows_and_embeds_only_the_new_text(
     db_session,
-    db_search_space,
+    db_workspace,
     make_connector_document,
     patched_embed_texts,
 ):
     service = IndexingPipelineService(session=db_session)
     doc_v1 = make_connector_document(
-        search_space_id=db_search_space.id, source_markdown=_V1
+        workspace_id=db_workspace.id, source_markdown=_V1
     )
     document = await _index(service, doc_v1)
 
@@ -65,7 +65,7 @@ async def test_edit_keeps_unchanged_rows_and_embeds_only_the_new_text(
 
     edited = "Intro paragraph.\n\nBody paragraph EDITED.\n\nOutro paragraph."
     doc_v2 = make_connector_document(
-        search_space_id=db_search_space.id, source_markdown=edited
+        workspace_id=db_workspace.id, source_markdown=edited
     )
     await _index(service, doc_v2)
 
@@ -94,14 +94,14 @@ async def test_edit_keeps_unchanged_rows_and_embeds_only_the_new_text(
 @pytest.mark.usefixtures("paragraph_chunker", "patched_embed_texts")
 async def test_head_insert_shifts_positions_without_new_rows_for_old_text(
     db_session,
-    db_search_space,
+    db_workspace,
     make_connector_document,
 ):
     service = IndexingPipelineService(session=db_session)
     document = await _index(
         service,
         make_connector_document(
-            search_space_id=db_search_space.id, source_markdown=_V1
+            workspace_id=db_workspace.id, source_markdown=_V1
         ),
     )
     ids_v1 = {c.content: c.id for c in await _load_chunks(db_session, document.id)}
@@ -109,7 +109,7 @@ async def test_head_insert_shifts_positions_without_new_rows_for_old_text(
     await _index(
         service,
         make_connector_document(
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             source_markdown="Brand new opener.\n\n" + _V1,
         ),
     )
@@ -130,14 +130,14 @@ async def test_head_insert_shifts_positions_without_new_rows_for_old_text(
 @pytest.mark.usefixtures("paragraph_chunker", "patched_embed_texts")
 async def test_removed_paragraph_is_deleted_and_order_compacts(
     db_session,
-    db_search_space,
+    db_workspace,
     make_connector_document,
 ):
     service = IndexingPipelineService(session=db_session)
     document = await _index(
         service,
         make_connector_document(
-            search_space_id=db_search_space.id, source_markdown=_V1
+            workspace_id=db_workspace.id, source_markdown=_V1
         ),
     )
     ids_v1 = {c.content: c.id for c in await _load_chunks(db_session, document.id)}
@@ -145,7 +145,7 @@ async def test_removed_paragraph_is_deleted_and_order_compacts(
     await _index(
         service,
         make_connector_document(
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             source_markdown="Intro paragraph.\n\nOutro paragraph.",
         ),
     )
@@ -162,7 +162,7 @@ async def test_removed_paragraph_is_deleted_and_order_compacts(
 @pytest.mark.usefixtures("paragraph_chunker", "patched_embed_texts")
 async def test_kill_switch_falls_back_to_full_replace(
     db_session,
-    db_search_space,
+    db_workspace,
     make_connector_document,
     monkeypatch,
 ):
@@ -172,7 +172,7 @@ async def test_kill_switch_falls_back_to_full_replace(
     document = await _index(
         service,
         make_connector_document(
-            search_space_id=db_search_space.id, source_markdown=_V1
+            workspace_id=db_workspace.id, source_markdown=_V1
         ),
     )
     ids_v1 = {c.id for c in await _load_chunks(db_session, document.id)}
@@ -181,7 +181,7 @@ async def test_kill_switch_falls_back_to_full_replace(
     await _index(
         service,
         make_connector_document(
-            search_space_id=db_search_space.id,
+            workspace_id=db_workspace.id,
             source_markdown=_V1 + "\n\nAppended paragraph.",
         ),
     )

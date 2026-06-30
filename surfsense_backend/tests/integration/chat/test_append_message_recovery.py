@@ -46,7 +46,7 @@ from app.db import (
     NewChatMessage,
     NewChatMessageRole,
     NewChatThread,
-    SearchSpace,
+    Workspace,
     TokenUsage,
     User,
 )
@@ -69,11 +69,11 @@ pytestmark = pytest.mark.integration
 
 @pytest_asyncio.fixture
 async def db_thread(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ) -> NewChatThread:
     thread = NewChatThread(
         title="Test Chat",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         created_by_id=db_user.id,
         visibility=ChatVisibility.PRIVATE,
     )
@@ -109,7 +109,7 @@ def bypass_permission_checks(monkeypatch):
     """Replace RBAC + thread access checks with no-ops.
 
     The append_message route under test calls ``check_permission`` and
-    ``check_thread_access``; those rely on a SearchSpaceMembership row
+    ``check_thread_access``; those rely on a WorkspaceMembership row
     that the existing integration fixtures don't create. The contract
     we want to verify here is the ``IntegrityError`` -> recovery branch,
     not the RBAC plumbing — so stub them.
@@ -208,7 +208,7 @@ class TestToolHeavyTurnFinalize:
         db_session,
         db_user,
         db_thread,
-        db_search_space,
+        db_workspace,
         patched_shielded_session,
     ):
         """End-to-end seam: builder snapshot -> finalize -> DB row.
@@ -221,7 +221,7 @@ class TestToolHeavyTurnFinalize:
         """
         thread_id = db_thread.id
         user_id_str = str(db_user.id)
-        search_space_id = db_search_space.id
+        workspace_id = db_workspace.id
         turn_id = f"{thread_id}:tool_heavy"
 
         msg_id = await persist_assistant_shell(
@@ -258,7 +258,7 @@ class TestToolHeavyTurnFinalize:
         await finalize_assistant_turn(
             message_id=msg_id,
             chat_id=thread_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id_str,
             turn_id=turn_id,
             content=snapshot,
@@ -300,7 +300,7 @@ class TestToolHeavyTurnFinalize:
         assert usage.total_tokens == 280
         assert usage.cost_micros == 22222
         assert usage.thread_id == thread_id
-        assert usage.search_space_id == search_space_id
+        assert usage.workspace_id == workspace_id
 
 
 # ---------------------------------------------------------------------------
@@ -314,7 +314,7 @@ class TestAppendMessageRecoveryAfterFinalize:
         db_session,
         db_user,
         db_thread,
-        db_search_space,
+        db_workspace,
         patched_shielded_session,
         bypass_permission_checks,
     ):
@@ -337,7 +337,7 @@ class TestAppendMessageRecoveryAfterFinalize:
         """
         thread_id = db_thread.id
         user_id_str = str(db_user.id)
-        search_space_id = db_search_space.id
+        workspace_id = db_workspace.id
         turn_id = f"{thread_id}:fe_late_append"
 
         # Step 1: server stream completes. Server-built rich content is
@@ -353,7 +353,7 @@ class TestAppendMessageRecoveryAfterFinalize:
         await finalize_assistant_turn(
             message_id=msg_id,
             chat_id=thread_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id_str,
             turn_id=turn_id,
             content=server_content,
@@ -439,7 +439,7 @@ class TestAppendMessageRecoveryAfterFinalize:
         db_session,
         db_user,
         db_thread,
-        db_search_space,
+        db_workspace,
         patched_shielded_session,
         bypass_permission_checks,
     ):
@@ -456,7 +456,7 @@ class TestAppendMessageRecoveryAfterFinalize:
         """
         thread_id = db_thread.id
         user_id_str = str(db_user.id)
-        search_space_id = db_search_space.id
+        workspace_id = db_workspace.id
         turn_id = f"{thread_id}:fe_first"
 
         # Step 1: legacy FE appendMessage lands first. No prior shell
@@ -490,7 +490,7 @@ class TestAppendMessageRecoveryAfterFinalize:
         await finalize_assistant_turn(
             message_id=adopted_id,
             chat_id=thread_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id_str,
             turn_id=turn_id,
             content=server_content,

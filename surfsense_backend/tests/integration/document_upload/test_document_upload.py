@@ -37,11 +37,11 @@ class TestTxtFileUpload:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
     ):
         resp = await upload_file(
-            client, headers, "sample.txt", search_space_id=search_space_id
+            client, headers, "sample.txt", workspace_id=workspace_id
         )
         assert resp.status_code == 200
 
@@ -54,18 +54,18 @@ class TestTxtFileUpload:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
     ):
         resp = await upload_file(
-            client, headers, "sample.txt", search_space_id=search_space_id
+            client, headers, "sample.txt", workspace_id=workspace_id
         )
         assert resp.status_code == 200
         doc_ids = resp.json()["document_ids"]
         cleanup_doc_ids.extend(doc_ids)
 
         statuses = await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id
+            client, headers, doc_ids, workspace_id=workspace_id
         )
         for did in doc_ids:
             assert statuses[did]["status"]["state"] == "ready"
@@ -78,18 +78,18 @@ class TestPdfFileUpload:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
     ):
         resp = await upload_file(
-            client, headers, "sample.pdf", search_space_id=search_space_id
+            client, headers, "sample.pdf", workspace_id=workspace_id
         )
         assert resp.status_code == 200
         doc_ids = resp.json()["document_ids"]
         cleanup_doc_ids.extend(doc_ids)
 
         statuses = await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id, timeout=300.0
+            client, headers, doc_ids, workspace_id=workspace_id, timeout=300.0
         )
         for did in doc_ids:
             assert statuses[did]["status"]["state"] == "ready"
@@ -107,14 +107,14 @@ class TestMultiFileUpload:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
     ):
         resp = await upload_multiple_files(
             client,
             headers,
             ["sample.txt", "sample.md"],
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
         )
         assert resp.status_code == 200
 
@@ -139,22 +139,22 @@ class TestDuplicateFileUpload:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
     ):
         resp1 = await upload_file(
-            client, headers, "sample.txt", search_space_id=search_space_id
+            client, headers, "sample.txt", workspace_id=workspace_id
         )
         assert resp1.status_code == 200
         first_ids = resp1.json()["document_ids"]
         cleanup_doc_ids.extend(first_ids)
 
         await poll_document_status(
-            client, headers, first_ids, search_space_id=search_space_id
+            client, headers, first_ids, workspace_id=workspace_id
         )
 
         resp2 = await upload_file(
-            client, headers, "sample.txt", search_space_id=search_space_id
+            client, headers, "sample.txt", workspace_id=workspace_id
         )
         assert resp2.status_code == 200
 
@@ -179,18 +179,18 @@ class TestDuplicateContentDetection:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
         tmp_path: Path,
     ):
         resp1 = await upload_file(
-            client, headers, "sample.txt", search_space_id=search_space_id
+            client, headers, "sample.txt", workspace_id=workspace_id
         )
         assert resp1.status_code == 200
         first_ids = resp1.json()["document_ids"]
         cleanup_doc_ids.extend(first_ids)
         await poll_document_status(
-            client, headers, first_ids, search_space_id=search_space_id
+            client, headers, first_ids, workspace_id=workspace_id
         )
 
         src = FIXTURES_DIR / "sample.txt"
@@ -202,7 +202,7 @@ class TestDuplicateContentDetection:
                 "/api/v1/documents/fileupload",
                 headers=headers,
                 files={"files": ("renamed_sample.txt", f)},
-                data={"search_space_id": str(search_space_id)},
+                data={"workspace_id": str(workspace_id)},
             )
         assert resp2.status_code == 200
         second_ids = resp2.json()["document_ids"]
@@ -212,7 +212,7 @@ class TestDuplicateContentDetection:
         )
 
         statuses = await poll_document_status(
-            client, headers, second_ids, search_space_id=search_space_id
+            client, headers, second_ids, workspace_id=workspace_id
         )
         for did in second_ids:
             assert statuses[did]["status"]["state"] == "failed"
@@ -231,11 +231,11 @@ class TestEmptyFileUpload:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
     ):
         resp = await upload_file(
-            client, headers, "empty.pdf", search_space_id=search_space_id
+            client, headers, "empty.pdf", workspace_id=workspace_id
         )
         assert resp.status_code == 200
 
@@ -244,7 +244,7 @@ class TestEmptyFileUpload:
         assert doc_ids, "Expected at least one document id for empty PDF upload"
 
         statuses = await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id, timeout=120.0
+            client, headers, doc_ids, workspace_id=workspace_id, timeout=120.0
         )
         for did in doc_ids:
             assert statuses[did]["status"]["state"] == "failed"
@@ -264,14 +264,14 @@ class TestUnauthenticatedUpload:
     async def test_upload_without_auth_returns_401(
         self,
         client: httpx.AsyncClient,
-        search_space_id: int,
+        workspace_id: int,
     ):
         file_path = FIXTURES_DIR / "sample.txt"
         with open(file_path, "rb") as f:
             resp = await client.post(
                 "/api/v1/documents/fileupload",
                 files={"files": ("sample.txt", f)},
-                data={"search_space_id": str(search_space_id)},
+                data={"workspace_id": str(workspace_id)},
             )
         assert resp.status_code == 401
 
@@ -288,12 +288,12 @@ class TestNoFilesUpload:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
     ):
         resp = await client.post(
             "/api/v1/documents/fileupload",
             headers=headers,
-            data={"search_space_id": str(search_space_id)},
+            data={"workspace_id": str(workspace_id)},
         )
         assert resp.status_code in {400, 422}
 
@@ -310,24 +310,24 @@ class TestDocumentSearchability:
         self,
         client: httpx.AsyncClient,
         headers: dict[str, str],
-        search_space_id: int,
+        workspace_id: int,
         cleanup_doc_ids: list[int],
     ):
         resp = await upload_file(
-            client, headers, "sample.txt", search_space_id=search_space_id
+            client, headers, "sample.txt", workspace_id=workspace_id
         )
         assert resp.status_code == 200
         doc_ids = resp.json()["document_ids"]
         cleanup_doc_ids.extend(doc_ids)
 
         await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id
+            client, headers, doc_ids, workspace_id=workspace_id
         )
 
         search_resp = await client.get(
             "/api/v1/documents/search",
             headers=headers,
-            params={"title": "sample", "search_space_id": search_space_id},
+            params={"title": "sample", "workspace_id": workspace_id},
         )
         assert search_resp.status_code == 200
 

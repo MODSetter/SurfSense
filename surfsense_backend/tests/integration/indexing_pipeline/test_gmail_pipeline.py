@@ -17,7 +17,7 @@ pytestmark = pytest.mark.integration
 
 
 def _gmail_doc(
-    *, unique_id: str, search_space_id: int, connector_id: int, user_id: str
+    *, unique_id: str, workspace_id: int, connector_id: int, user_id: str
 ) -> ConnectorDocument:
     """Build a Gmail-style ConnectorDocument like the real indexer does."""
     return ConnectorDocument(
@@ -25,7 +25,7 @@ def _gmail_doc(
         source_markdown=f"## Email\n\nBody of {unique_id}",
         unique_id=unique_id,
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=connector_id,
         created_by_id=user_id,
         metadata={
@@ -38,13 +38,13 @@ def _gmail_doc(
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_gmail_pipeline_creates_ready_document(
-    db_session, db_search_space, db_connector, db_user, mocker
+    db_session, db_workspace, db_connector, db_user, mocker
 ):
     """A Gmail ConnectorDocument flows through prepare + index to a READY document."""
-    space_id = db_search_space.id
+    space_id = db_workspace.id
     doc = _gmail_doc(
         unique_id="msg-pipeline-1",
-        search_space_id=space_id,
+        workspace_id=space_id,
         connector_id=db_connector.id,
         user_id=str(db_user.id),
     )
@@ -56,7 +56,7 @@ async def test_gmail_pipeline_creates_ready_document(
     await service.index(prepared[0], doc)
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == space_id)
+        select(Document).filter(Document.workspace_id == space_id)
     )
     row = result.scalars().first()
 
@@ -68,10 +68,10 @@ async def test_gmail_pipeline_creates_ready_document(
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_gmail_legacy_doc_migrated_then_reused(
-    db_session, db_search_space, db_connector, db_user, mocker
+    db_session, db_workspace, db_connector, db_user, mocker
 ):
     """A legacy Composio Gmail doc is migrated then reused by the pipeline."""
-    space_id = db_search_space.id
+    space_id = db_workspace.id
     user_id = str(db_user.id)
     msg_id = "msg-legacy-gmail"
 
@@ -85,7 +85,7 @@ async def test_gmail_legacy_doc_migrated_then_reused(
         content_hash=f"ch-{legacy_hash[:12]}",
         unique_identifier_hash=legacy_hash,
         source_markdown="## Old content",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=user_id,
         embedding=[0.1] * _EMBEDDING_DIM,
         status={"state": "ready"},
@@ -96,7 +96,7 @@ async def test_gmail_legacy_doc_migrated_then_reused(
 
     connector_doc = _gmail_doc(
         unique_id=msg_id,
-        search_space_id=space_id,
+        workspace_id=space_id,
         connector_id=db_connector.id,
         user_id=user_id,
     )

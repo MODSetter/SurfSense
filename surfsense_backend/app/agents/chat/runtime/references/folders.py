@@ -20,7 +20,7 @@ def folder_pointer_path(folder_id: int, folder_paths: dict[int, str]) -> str:
 async def resolve_folder_references(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     folder_ids: list[int],
     index: PathIndex,
 ) -> list[FolderReference]:
@@ -30,7 +30,7 @@ async def resolve_folder_references(
 
     rows = await session.execute(
         select(Folder).where(
-            Folder.search_space_id == search_space_id,
+            Folder.workspace_id == workspace_id,
             Folder.id.in_(folder_ids),
         )
     )

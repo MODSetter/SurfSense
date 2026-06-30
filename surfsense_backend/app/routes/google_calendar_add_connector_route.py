@@ -141,7 +141,7 @@ async def reauth_calendar(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.workspace_id == space_id,
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
             )
@@ -286,7 +286,7 @@ async def calendar_callback(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.id == reauth_connector_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.search_space_id == space_id,
+                    SearchSourceConnector.workspace_id == space_id,
                     SearchSourceConnector.connector_type
                     == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
                 )
@@ -343,7 +343,7 @@ async def calendar_callback(
                 name=connector_name,
                 connector_type=SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
                 config=creds_dict,
-                search_space_id=space_id,
+                workspace_id=space_id,
                 user_id=user_id,
                 is_indexable=False,
             )

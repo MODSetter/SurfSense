@@ -14,12 +14,12 @@ pytestmark = pytest.mark.integration
 BASE = "/api/v1/podcasts"
 
 
-async def _create(client, search_space_id: int) -> dict:
+async def _create(client, workspace_id: int) -> dict:
     resp = await client.post(
         BASE,
         json={
             "title": "Episode",
-            "search_space_id": search_space_id,
+            "workspace_id": workspace_id,
             "source_content": "Source content.",
         },
     )
@@ -28,20 +28,20 @@ async def _create(client, search_space_id: int) -> dict:
 
 
 async def test_approve_brief_starts_drafting_and_enqueues_draft(
-    client, db_search_space, captured_tasks
+    client, db_workspace, captured_tasks
 ):
-    podcast = await _create(client, db_search_space.id)
+    podcast = await _create(client, db_workspace.id)
 
     resp = await client.post(f"{BASE}/{podcast['id']}/brief/approve")
 
     assert resp.status_code == 200
     assert resp.json()["status"] == "drafting"
-    assert captured_tasks.draft == [((podcast["id"], db_search_space.id), {})]
+    assert captured_tasks.draft == [((podcast["id"], db_workspace.id), {})]
     assert captured_tasks.render == []
 
 
-async def test_update_spec_bumps_version_and_persists(client, db_search_space):
-    podcast = await _create(client, db_search_space.id)
+async def test_update_spec_bumps_version_and_persists(client, db_workspace):
+    podcast = await _create(client, db_workspace.id)
     spec = podcast["spec"]
     spec["focus"] = "A sharper angle"
 
@@ -57,8 +57,8 @@ async def test_update_spec_bumps_version_and_persists(client, db_search_space):
     assert body["status"] == "awaiting_brief"
 
 
-async def test_update_spec_with_stale_version_conflicts(client, db_search_space):
-    podcast = await _create(client, db_search_space.id)
+async def test_update_spec_with_stale_version_conflicts(client, db_workspace):
+    podcast = await _create(client, db_workspace.id)
 
     resp = await client.patch(
         f"{BASE}/{podcast['id']}/spec",
@@ -68,8 +68,8 @@ async def test_update_spec_with_stale_version_conflicts(client, db_search_space)
     assert resp.status_code == 409
 
 
-async def test_update_spec_after_approval_is_rejected(client, db_search_space):
-    podcast = await _create(client, db_search_space.id)
+async def test_update_spec_after_approval_is_rejected(client, db_workspace):
+    podcast = await _create(client, db_workspace.id)
     await client.post(f"{BASE}/{podcast['id']}/brief/approve")
 
     resp = await client.patch(
