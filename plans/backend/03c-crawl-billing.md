@@ -1,11 +1,13 @@
 # Phase 3c — Crawl credit billing ($1 / 1000 successful requests)
 
+> **Status: ✅ IMPLEMENTED (`ci_mvp` @ `17bdb0682`).** `WebCrawlCreditService` added (mirrors `EtlCreditService`: gate → `check_credits` → `charge_credits`, plus static `billing_enabled`/`successes_to_micros`). Price is fully config-driven (`WEB_CRAWL_MICROS_PER_SUCCESS`, default `1000` = $1/1000; `WEB_CRAWL_CREDIT_BILLING_ENABLED`, default FALSE) — no hardcoded rate. Indexer wires owner-resolution + pre-flight block + audit-then-charge; both `scrape_webpage` tools fold one success into the turn accumulator (`call_kind="web_crawl"`). 20 new unit tests pass (service, config-driven price, indexer wiring, chat fold); `connector_indexers` suite green (120). Functional e2e (3a/3b/3c) green via `scripts/e2e_phase3_crawl_billing.py` (live proxy egress flip, static-tier crawl, chat fold = 1000µ, indexer bills owner 2×1000µ not trigger). Captcha per-attempt unit (`03d`) seam left open. **No migration** (`web_crawl` rides the existing `TokenUsage.usage_type` String(50)).
+
 > Part of **Phase 3 — WebURL Crawler & Crawl Billing**. See `00-umbrella-plan.md`.
 > Depends on `03a-crawler-core.md` (the `CrawlOutcomeStatus.SUCCESS` signal + `crawls_succeeded` counter). Siblings: `03b-proxy-expansion.md`, `03e-stealth-hardening.md`, `03d-captcha-solving.md` (now active). `03d` extends this service with a **separate per-attempt captcha unit** (see §"Captcha billing seam" + `03d §4`).
 
 ## Objective
 
-Charge **$1 per 1000 successful crawl requests** = **1000 micro-USD per successful crawl**, drawn from the existing unified credit wallet, **off by default for self-hosted/OSS** installs. Two surfaces crawl, so both are metered:
+Charge **$1 per 1000 successful crawl requests** = **1000 micro-USD per successful crawl**, drawn from the existing unified credit wallet, **off by default for self-hosted/OSS** installs. The rate is **fully config-driven** — a single env/`Config` knob (`WEB_CRAWL_MICROS_PER_SUCCESS`) with **no hardcoded price anywhere** — so it can be retuned to any future rate with just an env change + restart, never a code edit (same convention as `MICROS_PER_PAGE`). $1/1000 is only the *default*. Two surfaces crawl, so both are metered:
 
 - **Connector / pipeline crawls** (the `webcrawler_indexer` path) → billed to the **workspace owner** via a dedicated `WebCrawlCreditService` (check + charge).
 - **Ad-hoc chat scrapes** (`scrape_webpage` tools) → the crawl cost is **folded into the chat turn's existing bill** (added to the turn accumulator), so it settles with the turn's normal premium finalize (`start_turn()` + `credit_finalize`). No second wallet hit. (Implies a second gate: only charged when the turn itself is a premium/billed turn — see §3.)
@@ -101,8 +103,9 @@ One unit per `CrawlOutcomeStatus.SUCCESS` — a URL that yielded usable extracte
 
 - `config/__init__.py` (next to `ETL_CREDIT_BILLING_ENABLED`/`MICROS_PER_PAGE`, `:649–655`):
   - `WEB_CRAWL_CREDIT_BILLING_ENABLED = os.getenv(..., "FALSE").upper() == "TRUE"`
-  - `WEB_CRAWL_MICROS_PER_SUCCESS = int(os.getenv("WEB_CRAWL_MICROS_PER_SUCCESS", "1000"))`
-- `.env.example`: document both (commented), noting hosted = TRUE, self-hosted = FALSE.
+  - `WEB_CRAWL_MICROS_PER_SUCCESS = int(os.getenv("WEB_CRAWL_MICROS_PER_SUCCESS", "1000"))` — **the single source of truth for crawl price.** No literal price may appear in the service or call sites; every charge/estimate reads this. Default `1000` = $1/1000 crawls.
+- **Retuning formula (document in both `config` comment + `.env.example`):** `WEB_CRAWL_MICROS_PER_SUCCESS = round(USD_per_crawl * 1_000_000)`, equivalently `round(USD_per_1000_crawls * 1_000)`. Examples: $1/1000 → `1000`; $2/1000 → `2000`; $0.50/1000 → `500`; $5/1000 → `5000`. Change the env value and restart — no code/migration.
+- `.env.example`: document both (commented), noting hosted = TRUE, self-hosted = FALSE, and the conversion formula above.
 
 ## Work items
 
