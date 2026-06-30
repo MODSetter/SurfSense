@@ -59,11 +59,15 @@ flowchart TD
 
 ### Phase 1 — Rename foundation (DB) [`subplan: 01-rename-db.md`]
 
+> **✅ SHIPPED** (2026-06-27) · branch `feat/rename-searchspace-to-workspace` · PR [#1546](https://github.com/MODSetter/SurfSense/pull/1546) (merged to `ci_mvp` via [#1562](https://github.com/MODSetter/SurfSense/pull/1562)). Migration `170` (chains `169`, current head) does the physical rename + Zero-publication reconcile. Shipped atomically with Phase 2. As-built record + re-runnable verification live in `01-rename-db.md`. **Deploy caveat:** zero-cache replica reset (`ZERO_AUTO_RESET`) required; from-scratch `alembic upgrade head` stays pre-existing-broken (rev 23 conflict — separate baseline-squash task), only the `169→170` path is verified.
+
 - Alembic migration: rename `searchspaces` -> `workspaces`; rename `search_space_id` -> `workspace_id` on ~20 child tables; rename RBAC tables and their FKs; rename indexes/constraints (`uq_searchspace_*`, `idx_documents_search_space_id`, etc.); update Rocicorp Zero publication column lists (backend-owned `publication` definition; frontend Zero schema rename happens in the later frontend umbrella).
 - Decide transition strategy: hard cutover (simplest for MVP) vs temporary API aliases for clients.
 - Key files: `surfsense_backend/app/db.py`, `surfsense_backend/alembic/versions/` (new migration).
 
 ### Phase 2 — Rename backend (code + API) [`subplan: 02-rename-backend.md`]
+
+> **✅ SHIPPED** (2026-06-27) · branch `feat/rename-searchspace-to-workspace` · PR [#1546](https://github.com/MODSetter/SurfSense/pull/1546) (merged to `ci_mvp` via [#1562](https://github.com/MODSetter/SurfSense/pull/1562)). Symbolic rename across `app/` + `tests/` (Phase-1 shim dropped), API consolidated to `/workspaces` (legacy `/searchspaces` · `/search-spaces` · `/search-space` all retired/404). Verified (ground-truth `git grep`, 2026-06-29): every residual `search_space`/`SEARCH_SPACE` is a documented carve-out — enum values (`ConnectionScope`/`ChatVisibility.SEARCH_SPACE`), the `'SEARCH_SPACE'` CHECK literal (now paired with `workspace_id`), Celery wire names (`delete_search_space_background`, `ai_sort_search_space`), OTel key `search_space.id`, and the `SEARCH_SPACE_FORBIDDEN` error code; `alembic/versions/` untouched except `168`+`170`. Suite: `3016 passed, 1 skipped`. As-built record in `02-rename-backend.md`. **Clients are intentionally broken** until the frontend/satellite umbrellas land (hard cutover).
 
 - Rename models/schemas/services/routes/agents/tasks identifiers: `SearchSpace*` -> `Workspace*`, `search_space_id` -> `workspace_id`.
 - Consolidate API to `/workspaces` and fix the `/searchspaces` vs `/search-spaces` inconsistency.
@@ -168,8 +172,8 @@ These are recorded for continuity but are NOT planned in this umbrella. They sta
 
 | Phase | Subplan file | Status |
 |-------|--------------|--------|
-| 1 | `01-rename-db.md` | drafted |
-| 2 | `02-rename-backend.md` | drafted |
+| 1 | `01-rename-db.md` | **SHIPPED** (2026-06-27, PR [#1546](https://github.com/MODSetter/SurfSense/pull/1546)/[#1562](https://github.com/MODSetter/SurfSense/pull/1562); migration `170`) |
+| 2 | `02-rename-backend.md` | **SHIPPED** (2026-06-27, PR [#1546](https://github.com/MODSetter/SurfSense/pull/1546)/[#1562](https://github.com/MODSetter/SurfSense/pull/1562)) |
 | 3 | `03a-crawler-core.md` | drafted |
 | 3 | `03b-proxy-expansion.md` | drafted |
 | 3 | `03c-crawl-billing.md` | drafted |

@@ -3,7 +3,7 @@
 > Part of **Phase 3 — WebURL Crawler & Crawl Billing**. See `00-umbrella-plan.md`.
 > Depends on `03a-crawler-core.md` (Scrapling-only crawler). Siblings: `03c-crawl-billing.md`, `03e-stealth-hardening.md`, `03d-captcha-solving.md`.
 
-> **Implementation note.** Same convention as `03a`: citations use **today's** names (`search_space_id`/`SearchSpace`) — map to `workspace_id`/`Workspace` post Phases 1–2. Crucially, the `webcrawler_connector.py` line numbers below (e.g. the three tiers at 287/329/359) and the `scrape_webpage.py` lines **predate `03a`'s Firecrawl removal + `crawl_url` refactor**, so they will have moved by the time `03b` is implemented. Locate code by **symbol/grep**, not absolute lines.
+> **Implementation note.** Same convention as `03a`: Phases 1–2 are **SHIPPED**, so the live code already says `workspace_id`/`Workspace` — substitute for the old `search_space_*`/`SearchSpace` names in citations below and grep the new name. Crucially, the `webcrawler_connector.py` line numbers below (e.g. the three tiers at 287/329/359) and the `scrape_webpage.py` lines **predate `03a`'s Firecrawl removal + `crawl_url` refactor**, so they will have moved by the time `03b` is implemented. Locate code by **symbol/grep**, not absolute lines.
 
 ## Objective
 

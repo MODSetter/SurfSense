@@ -3,7 +3,7 @@
 > Part of the **CI Pivot MVP**. See `00-umbrella-plan.md` (Phase 7) — the final backend phase.
 > Precondition: Phase 5 (`05-pipelines-model.md`) live (`pipelines`/`pipeline_runs` tables, `PipelineRunTrigger.UPLOAD`, `connector_id` nullable) and Phase 6 (`06-pipelines-exec.md`) live (run engine, which **explicitly fails `connector_id IS NULL` runs**). No sibling ahead — this closes the backend umbrella.
 
-> **Implementation note (post-rename).** Citations use **today's** identifiers (`search_space_id` / `SearchSpace`). Phases 1–2 rename them to `workspace_id` / `Workspace`; map accordingly. Locate code by **symbol/grep**, not the absolute line numbers cited here (the rename + Phases 3–6 shift them).
+> **Implementation note (post-rename).** Phases 1–2 are **SHIPPED**, so the live code already uses `workspace_id` / `Workspace`. Citations below that still show `search_space_id` / `SearchSpace` are pre-rename — substitute the `workspace_*` equivalent and grep the new name. **New code in this plan uses the canonical `workspace_*` names** (snippets below updated). Locate code by **symbol/grep**, not the absolute line numbers cited here (the rename + Phases 3–6 shift them).
 
 ## Objective
 
@@ -99,7 +99,7 @@ After Phase 2 dispatch (`documents_routes.py:307-316`), before building the resp
 
 ```python
 if files_to_process:                              # only when something was actually queued
-    await record_upload_run(session, workspace_id=search_space_id,
+    await record_upload_run(session, workspace_id=workspace_id,
                             created_by_id=str(user.id),
                             documents_indexed=len(files_to_process))
     await session.commit()
@@ -113,7 +113,7 @@ if files_to_process:                              # only when something was actu
 Folder-upload dispatches one batch task, so record the run at request time with the file count (`documents_routes.py` before the `return` at `:1743`):
 
 ```python
-await record_upload_run(session, workspace_id=search_space_id,
+await record_upload_run(session, workspace_id=workspace_id,
                         created_by_id=str(user.id), documents_indexed=len(files))
 await session.commit()   # best-effort / logged, same as §3
 ```

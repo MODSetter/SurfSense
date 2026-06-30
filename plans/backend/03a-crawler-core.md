@@ -3,7 +3,7 @@
 > Part of **Phase 3 — WebURL Crawler & Crawl Billing**. See `00-umbrella-plan.md`.
 > Sibling subplans: `03b-proxy-expansion.md`, `03c-crawl-billing.md`, `03e-stealth-hardening.md`, `03d-captcha-solving.md`, `03f-undetectability-testing.md` (manual scorecard).
 
-> **Implementation note (applies to all Phase-3 plans).** Phase 3 lands **after** Phases 1–2, which rename `SearchSpace`→`Workspace` and `search_space_id`→`workspace_id` everywhere. Citations below use **today's** names so they stay greppable against current code; when implementing, the live code will already say `workspace_*` — map accordingly. Apply every edit by **symbol/grep** (e.g. `firecrawl_api_key`, `crawl_url`, `FIRECRAWL_API_KEY`), **not** by the absolute line numbers cited here — Phase 2's rename (and `03a`'s own Firecrawl removal) shift line numbers.
+> **Implementation note (applies to all Phase-3 plans).** Phases 1–2 are **SHIPPED** (2026-06-27) — `SearchSpace`→`Workspace` and `search_space_id`→`workspace_id` are renamed everywhere, so the **live code already says `workspace_*`**. Where citations below use the **old** `search_space_*`/`SearchSpace` names (written pre-rename), substitute the `workspace_*` equivalent and **grep the new name** (grepping the old name now returns nothing). Apply every edit by **symbol/grep** (e.g. `firecrawl_api_key`, `crawl_url`, `FIRECRAWL_API_KEY`), **not** by the absolute line numbers cited here — the rename (and `03a`'s own Firecrawl removal) shifted them.
 
 ## Objective
 

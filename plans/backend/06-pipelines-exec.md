@@ -3,7 +3,7 @@
 > Part of the **CI Pivot MVP**. See `00-umbrella-plan.md` (Phase 6).
 > Precondition: Phase 5 (`05-pipelines-model.md`) live — `pipelines` / `pipeline_runs` tables, schemas, Zero, CRUD + `/run` (currently enqueues a **stub** `run_pipeline(run_id)`). Depends on `03a-crawler-core.md` (`crawl_url` SUCCESS signal + `crawls_succeeded` counter) and `03c-crawl-billing.md` (`WebCrawlCreditService`). Sibling ahead: `07-upload-pipeline-kb.md` (uploads-as-pipeline).
 
-> **Implementation note (post-rename).** Citations use **today's** identifiers (`search_space_id` / `SearchSpace` / `searchspaces`). Phases 1–2 rename them to `workspace_id` / `Workspace` / `workspaces`; map accordingly. Locate code by **symbol/grep**, not the absolute line numbers cited here (the rename + Phases 3–5 shift them).
+> **Implementation note (post-rename).** Phases 1–2 are **SHIPPED**, so the live code already uses `workspace_id` / `Workspace` / `workspaces`. Citations below that still show `search_space_id` / `SearchSpace` / `searchspaces` are pre-rename — substitute the `workspace_*` equivalent and grep the new name. **New code in this plan uses the canonical `workspace_*` names** (snippets below updated; e.g. the `get_pipeline_runs` tool's dep key is `workspace_id`, matching the renamed deps dict). Locate code by **symbol/grep**, not the absolute line numbers cited here (the rename + Phases 3–5 shift them).
 
 ## Objective
 
@@ -28,7 +28,7 @@ This is backend-only; the Pipelines UI is deferred to the frontend umbrella.
 | Scheduler | New `pipeline_schedule_select` Beat task modeled on `automations/triggers/builtin/schedule/selector.py` (cron, `FOR UPDATE SKIP LOCKED`, self-heal of NULL `next_scheduled_at`), **not** the simpler connector `frequency_minutes` checker — because Phase 5 chose `schedule_cron`. Reuses the existing `croniter` util (`automations/triggers/builtin/schedule/cron.py`). |
 | Schedule timezone | Cron needs a timezone (`compute_next_fire_at(cron, timezone, …)`). Phase 5's model has only `schedule_cron`. **Add `schedule_timezone VARCHAR NOT NULL DEFAULT 'UTC'` to `pipelines`** (small additive amendment to `05` — see "Required 05 amendment"). Matches how automations store cron **and** timezone (`schedule/selector.py:86-89`). |
 | Concurrency | Per-pipeline Redis lock + (when connector-backed) the **existing connector lock** `utils/indexing_locks.py` so a pipeline run and any residual connector index can't double-crawl the same connector. |
-| Chat context | A main-agent **tool** `get_pipeline_runs` (registry pattern, `main_agent/tools/registry.py:85-102`), opening its own `shielded_async_session()` (like `KnowledgeTreeMiddleware`) and scoping to the build-time `search_space_id`. Always-on middleware injection is **deferred** (token cost; tool is on-demand). |
+| Chat context | A main-agent **tool** `get_pipeline_runs` (registry pattern, `main_agent/tools/registry.py:85-102`), opening its own `shielded_async_session()` (like `KnowledgeTreeMiddleware`) and scoping to the build-time `workspace_id`. Always-on middleware injection is **deferred** (token cost; tool is on-demand). |
 | Code location | New `app/pipelines/` package: `engine.py` (`execute_pipeline_run`), `tasks.py` (Celery `run_pipeline` + `pipeline_schedule_select`), `scheduler.py` (the tick), `storage.py` (blob key). The Phase-5 stub `run_pipeline` is **replaced** by the real task here; the `/run` route + scheduler enqueue it. (ORM stays in `db.py` per Phase 5; only the *engine* is a package, mirroring `app/automations/`.) |
 
 ## Current state (cited)
@@ -255,7 +255,7 @@ When a pipeline that **wraps a connector** is created or enabled (Phase 5 routes
 A read-only tool registered in the main-agent registry (umbrella default = tool):
 
 ```python
-def create_get_pipeline_runs_tool(*, search_space_id: int) -> BaseTool:
+def create_get_pipeline_runs_tool(*, workspace_id: int) -> BaseTool:
     @tool
     async def get_pipeline_runs(pipeline_id: int | None = None, limit: int = 20) -> str:
         """Recent pipeline run history for THIS workspace: name, status, trigger,
@@ -263,7 +263,7 @@ def create_get_pipeline_runs_tool(*, search_space_id: int) -> BaseTool:
         async with shielded_async_session() as session:     # knowledge_tree/middleware.py:199 pattern
             q = (select(PipelineRun, Pipeline.name, Pipeline.schedule_cron)
                  .join(Pipeline, PipelineRun.pipeline_id == Pipeline.id)
-                 .where(Pipeline.workspace_id == search_space_id))
+                 .where(Pipeline.workspace_id == workspace_id))
             if pipeline_id is not None:
                 q = q.where(Pipeline.id == pipeline_id)
             rows = (await session.execute(
@@ -272,9 +272,9 @@ def create_get_pipeline_runs_tool(*, search_space_id: int) -> BaseTool:
     return get_pipeline_runs
 ```
 
-- **Registration**: add `"get_pipeline_runs": (_build_get_pipeline_runs_tool, ("search_space_id",))` to `_MAIN_AGENT_TOOL_FACTORIES` (`registry.py:85-102`); add the name to `main_agent/tools/index`; add display metadata to `shared/tools/catalog`.
-- **Workspace scope is structural** — the tool only ever sees its build-time `search_space_id`; no cross-workspace leakage (same guarantee `KnowledgeTreeMiddleware` relies on).
-- **Anonymous / no-workspace turns**: exclude the tool when there's no `search_space_id` (anonymous chat has no workspace/pipelines), the same way `KnowledgeTreeMiddleware` is CLOUD-only (`knowledge_tree/middleware.py:130-131`). The registry factory requires `search_space_id`, so just don't enable it in the anonymous tool set.
+- **Registration**: add `"get_pipeline_runs": (_build_get_pipeline_runs_tool, ("workspace_id",))` to `_MAIN_AGENT_TOOL_FACTORIES` (`registry.py:85-102`) — the dep key is `workspace_id`, matching the post-rename deps dict; add the name to `main_agent/tools/index`; add display metadata to `shared/tools/catalog`.
+- **Workspace scope is structural** — the tool only ever sees its build-time `workspace_id`; no cross-workspace leakage (same guarantee `KnowledgeTreeMiddleware` relies on).
+- **Anonymous / no-workspace turns**: exclude the tool when there's no `workspace_id` (anonymous chat has no workspace/pipelines), the same way `KnowledgeTreeMiddleware` is CLOUD-only (`knowledge_tree/middleware.py:130-131`). The registry factory requires `workspace_id`, so just don't enable it in the anonymous tool set.
 - The tool reads `pipelines`/`pipeline_runs` directly (no Zero dependency), so it works server-side immediately even though client Zero sync is dormant until the frontend lands (Phase 5 note).
 - **Deferred**: an always-on `<pipeline_activity>` middleware injection (à la `KnowledgeTreeMiddleware`) — adds per-turn token cost; revisit if the agent under-uses the tool.
 

@@ -3,7 +3,7 @@
 > Part of **Phase 4 — Connector two-type restructure (backend)**. See `00-umbrella-plan.md`.
 > Sibling: `04b-source-discovery.md` (web-search repurposing). Precondition: Phases 1–2 (rename) live.
 
-> **Implementation note.** Citations use **today's** names (`search_space_id`/`SearchSpace`); post Phases 1–2 the live code says `workspace_id`/`Workspace` — map accordingly. Locate code by **symbol/grep**, not the absolute line numbers cited here, since the rename shifts them.
+> **Implementation note.** Phases 1–2 are **SHIPPED**, so the live code already says `workspace_id`/`Workspace` — substitute for the old `search_space_*`/`SearchSpace` names in citations below and grep the new name. Locate code by **symbol/grep**, not the absolute line numbers cited here, since the rename shifted them.
 
 ## Objective
 

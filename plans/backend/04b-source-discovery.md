@@ -3,7 +3,7 @@
 > Part of **Phase 4 — Connector two-type restructure (backend)**. See `00-umbrella-plan.md`.
 > Sibling: `04a-connector-category.md`. Best sequenced **after** `04a` (taxonomy in place). Precondition: Phases 1–2 (rename) live.
 
-> **Implementation note.** Citations use **today's** names (`search_space_id`/`SearchSpace`); post Phases 1–2 the live code says `workspace_id`/`Workspace` — map accordingly, and locate code by **symbol/grep**, not the absolute line numbers cited.
+> **Implementation note.** Phases 1–2 are **SHIPPED**, so the live code already says `workspace_id`/`Workspace` — substitute for the old `search_space_*`/`SearchSpace` names in citations below and grep the new name; locate code by **symbol/grep**, not the absolute line numbers cited.
 
 ## Objective
 

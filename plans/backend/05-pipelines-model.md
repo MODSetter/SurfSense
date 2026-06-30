@@ -3,7 +3,7 @@
 > Part of the **CI Pivot MVP**. See `00-umbrella-plan.md` (Phase 5).
 > Precondition: Phases 1–2 (rename) live, Phase 4a (connector registry) live. Siblings ahead: `06-pipelines-exec.md` (run engine + scheduling), `07-upload-pipeline-kb.md` (uploads-as-pipeline).
 
-> **Implementation note (post-rename).** This phase adds **brand-new** tables, created *after* the rename, so they use the canonical names natively: table `workspaces`, column `workspace_id`, ORM class `Workspace`. Existing code cited below still shows the **pre-rename** names (`searchspaces`/`search_space_id`/`SearchSpace`) because those citations were taken against today's tree — Phases 1–2 rename them; map accordingly. Locate code by **symbol/grep**, not the absolute line numbers cited here (the rename + Phase 3/4 migrations shift them).
+> **Implementation note (post-rename).** This phase adds **brand-new** tables, created *after* the rename, so they use the canonical names natively: table `workspaces`, column `workspace_id`, ORM class `Workspace`. Phases 1–2 are now **SHIPPED**, so the live code uses the `workspace_*` names. Existing code cited below that still shows the **pre-rename** names (`searchspaces`/`search_space_id`/`SearchSpace`) was captured pre-rename — substitute the `workspace_*` equivalent and grep the new name. Locate code by **symbol/grep**, not the absolute line numbers cited here (the rename + Phase 3/4 migrations shift them).
 
 ## Objective
 
@@ -125,7 +125,7 @@ Add the inverse `pipelines = relationship("Pipeline", back_populates=...)` on **
 
 > **Ownership decision (review).** Earlier draft used connector-style `user_id NOT NULL CASCADE`. Corrected to `created_by_id … SET NULL` because pipelines are **workspace-shared** content (closer to `Folder`/`Automation` than to the per-user `SearchSourceConnector`): removing a member must not delete the workspace's pipelines or erase run-history audit. For *connector-backed* pipelines this also avoids surprising double-cascade (the connector's own `user_id CASCADE` would already drop them on member deletion via `connector_id`); for the Phase-7 Uploads pipeline (`connector_id` NULL) it's the only thing keeping the pipeline alive after its creator leaves.
 
-> **FK target naming:** `workspaces` / `workspace_id` assume Phases 1–2 are merged (the table is `workspaces` by then). If sequencing slips and Phase 5 lands before the rename, the FK target is `searchspaces` and the column `search_space_id` — but per the umbrella the rename is strictly first, so author against `workspaces`.
+> **FK target naming:** Phases 1–2 are **SHIPPED**, so the table is `workspaces` and the column `workspace_id` — author the FK against `workspaces` / `workspace_id`. (The earlier "if sequencing slips before the rename" caveat is now moot.)
 
 ### 3. `pipeline_runs` table (`db.py`)
 

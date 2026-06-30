@@ -3,7 +3,7 @@
 > Part of **Phase 3 — WebURL Crawler & Crawl Billing**. See `00-umbrella-plan.md`.
 > Depends on `03a` (Scrapling StealthyFetcher tier + `FetchStrategy` seam + `CrawlOutcome`) and `03b` (app-wide proxy provider). Precedes `03d` (captcha) in the escalation order — hardening **avoids** challenges; captcha solving is the paid last resort for the ones we can't avoid. Touches `03c` only via the deferred paid-unblocker tier (its own billing, decided if/when built).
 
-> **Implementation note.** Same convention as `03a`–`03d`: citations use **today's** names (`search_space_id`/`SearchSpace`) and predate `03a`'s `crawl_url` refactor; locate code by **symbol/grep**, not absolute lines. Scrapling references point at the on-disk (gitignored) `references/Scrapling/` checkout pinned to `scrapling[fetchers]>=0.4.9` (`pyproject.toml:91`).
+> **Implementation note.** Same convention as `03a`–`03d`: Phases 1–2 are **SHIPPED** (live code says `workspace_id`/`Workspace` — substitute for any old `search_space_*`/`SearchSpace` citations and grep the new name); citations also predate `03a`'s `crawl_url` refactor; locate code by **symbol/grep**, not absolute lines. Scrapling references point at the on-disk (gitignored) `references/Scrapling/` checkout pinned to `scrapling[fetchers]>=0.4.9` (`pyproject.toml:91`).
 
 ## Objective
 
