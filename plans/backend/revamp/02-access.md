@@ -37,6 +37,41 @@ All three are **generated from the one capability registry** (Domain ①). REST 
 is cheap precisely because the routes are generated, not hand-written — it's a go-to-market choice,
 not an engineering cost.
 
+## Natural language is THE surface (verbs are internal) — non-negotiable
+
+The human-facing product is **the conversation**. A user **never** names a verb, fills an
+`input_schema`, or knows "Product A vs B" exists — they describe a *need* or a *worry* in plain
+language and the agent does the rest. Verbs/schemas/jobs/deltas are things the agent manages **on the
+user's behalf**. (The raw typed verbs are exposed only on the REST/MCP doors, which serve
+**developers/external agents**, not humans — that's the whole reason those doors exist separately.)
+
+The chat agent therefore owns three responsibilities on every message:
+
+1. **Understand intent** (what does the user actually want?).
+2. **Pick & fill the verbs** — infer URLs / queries / locations / place refs from the conversation and
+   compose one or more capability calls (incl. the natural chains, e.g.
+   `discover → scrape`, `search → place → reviews`).
+3. **Answer in plain language** (results, not envelopes).
+
+### The intent router (the one new orchestration rule)
+
+The agent classifies each request along the stateless/stateful line **from the language**, so the
+user never has to:
+
+```
+"compare / find / what is / pull / summarize / right now"      → ONE-SHOT  → call verbs, answer        (Product A, stateless)
+"watch / track / notify me when / every week / keep an eye / over time" → STANDING → start the Lens setup flow (Product B, stateful → ③)
+```
+
+- **One-shot** → orchestrate verbs now, synthesize an answer; nothing persists beyond chat.
+- **Standing concern** → hand off to the Intelligence setup flow (`03`): sample-fetch → agent proposes
+  schema/thresholds/identity → user validates & locks → Lens runs on a trigger.
+- **Ambiguous** → ask exactly **one** clarifying question — *"just this once, or should I keep watching
+  it for you?"* — which is the entire A-vs-B decision expressed in human terms.
+
+This router is the friendly seam between the two products; it lives in the chat door and is the only
+human-facing decision point.
+
 ## The two MCP directions (keep distinct)
 
 - **We *serve* MCP** — our capabilities as a remote MCP server (door #3, new). "External agents gain
@@ -82,6 +117,11 @@ job via `GET /v1/jobs/{id}` (and an MCP equivalent).
 
 ## Locked decisions
 
+0. **Natural language is the only human-facing surface.** Users never name verbs/schemas/jobs; the
+   chat agent understands intent, picks & fills verbs, and answers in plain language. An **intent
+   router** classifies one-shot (Product A) vs standing-concern (Product B) from the language, asking
+   one clarifying question only when ambiguous. Raw verbs are exposed solely on REST/MCP (dev/agent
+   doors).
 1. Three doors, generated from the capability registry; order chat → REST → MCP.
 2. REST is **public day one** (cheap; go-to-market choice).
 3. API keys: **reuse existing infra**, billed to workspace owner.
