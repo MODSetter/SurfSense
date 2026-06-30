@@ -696,7 +696,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				onKeyDown?.(e);
 				if (e.defaultPrevented) return;
 
-				if (e.key === "Enter" && !e.shiftKey) {
+				// Ignore Enter while an IME composition is active (e.g. confirming a
+				// Japanese/Chinese/Korean conversion) so it doesn't submit the message.
+				if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
 					e.preventDefault();
 					onSubmit?.();
 					return;
