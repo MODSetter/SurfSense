@@ -1,7 +1,7 @@
 # Phase 3a — WebURL Crawler core (Scrapling-only) + success semantics
 
 > Part of **Phase 3 — WebURL Crawler & Crawl Billing**. See `00-umbrella-plan.md`.
-> Sibling subplans: `03b-proxy-expansion.md`, `03c-crawl-billing.md`, `03d-captcha-solving.md` (deferred).
+> Sibling subplans: `03b-proxy-expansion.md`, `03c-crawl-billing.md`, `03e-stealth-hardening.md`, `03d-captcha-solving.md`, `03f-undetectability-testing.md` (manual scorecard).
 
 > **Implementation note (applies to all Phase-3 plans).** Phase 3 lands **after** Phases 1–2, which rename `SearchSpace`→`Workspace` and `search_space_id`→`workspace_id` everywhere. Citations below use **today's** names so they stay greppable against current code; when implementing, the live code will already say `workspace_*` — map accordingly. Apply every edit by **symbol/grep** (e.g. `firecrawl_api_key`, `crawl_url`, `FIRECRAWL_API_KEY`), **not** by the absolute line numbers cited here — Phase 2's rename (and `03a`'s own Firecrawl removal) shift line numbers.
 
@@ -11,7 +11,7 @@ Make the Universal WebURL Crawler a **single-framework (Scrapling) component** w
 
 Two hard requirements from the decisions log:
 
-1. **Remove Firecrawl entirely.** No other scraping framework now or planned. Scrapling's `StealthyFetcher` can bypass Cloudflare Turnstile when invoked with `solve_cloudflare=True` (see tier design below); captcha-tools (`03d`, deferred) covers the rest.
+1. **Remove Firecrawl entirely.** No other scraping framework now or planned. Scrapling's `StealthyFetcher` can bypass Cloudflare Turnstile when invoked with `solve_cloudflare=True` (see tier design below); captcha-tools (`03d`) covers reCAPTCHA/hCaptcha, and `03e` adds the broader stealth-hardening that makes the crawler "undetectable" as far as free tooling reaches.
 2. **One billable unit = one URL that yields usable extracted content**, regardless of how many internal fallback tiers ran. `03a` must expose that signal; `03c` meters it.
 
 This subplan does NOT touch proxy rotation (→ `03b`), credit metering (→ `03c`), or captcha (→ `03d`).
@@ -25,7 +25,11 @@ This subplan does NOT touch proxy rotation (→ `03b`), credit metering (→ `03
 1. **Firecrawl** (premium, if `firecrawl_api_key` set) — `_crawl_with_firecrawl()` (lines 89–100, 223–272), imports `from firecrawl import AsyncFirecrawlApp` (line 22).
 2. Scrapling `AsyncFetcher` (static HTTP, curl_cffi) — `_crawl_with_async_fetcher()` (lines 274–310).
 3. Scrapling `DynamicFetcher` (browser, run in a thread) — `_crawl_with_dynamic()` (lines 312–339).
-4. Scrapling `StealthyFetcher` (Camoufox anti-bot, run in a thread) — `_crawl_with_stealthy()` (lines 341–369).
+4. Scrapling `StealthyFetcher` (patchright-Chromium anti-bot, run in a thread) — `_crawl_with_stealthy()` (lines 341–369).
+
+> **Engine note (do not say "Camoufox").** As of the pinned `scrapling[fetchers]>=0.4.9` (`pyproject.toml:91`), `StealthyFetcher` is **"completely stealthy built on top of Chromium"** (`references/Scrapling/scrapling/fetchers/stealth_chrome.py:8`) driven by **patchright** (`references/Scrapling/scrapling/engines/_browsers/_stealth.py:8–9`), **not** Camoufox — Scrapling removed Camoufox (zero matches in the 0.4.9 tree; `uv.lock` carries `patchright`, no `camoufox`). The default Playwright `channel` is `"chromium"` (patchright), or `"chrome"` when `real_chrome=True` (`_browsers/_base.py:469`). Stealth = the compiled-in flag set `DEFAULT_ARGS + STEALTH_ARGS` (`engines/constants.py:24–99`, incl. `--disable-blink-features=AutomationControlled` `:94`) + a persistent context by default (`_stealth.py:90–93`) — this is **runtime/config-level** stealth, which sets the realistic ceiling (see `03e`).
+>
+> **Scrub the in-code "Camoufox" mentions too.** The connector still carries stale Camoufox wording in its own docstrings — the module header tier list (`webcrawler_connector.py:10–12`) and `_crawl_with_stealthy`'s docstring (`:343` "StealthyFetcher (Camoufox)"). Fix these in the 03a refactor so the code matches reality (patchright-Chromium).
 
 Extraction is Trafilatura HTML→markdown in `_build_result()` (lines 371–469). Every Scrapling tier passes `proxy=get_proxy_url()` (lines 287, 329, 359). `crawl_url()` returns a tuple `(result_dict | None, error | None)`; `result_dict` has `content` / `metadata` / `crawler_type`.
 
@@ -57,7 +61,7 @@ Firecrawl's API key is plumbed end-to-end and must be removed everywhere:
 
 ### Runtime/deps already in place
 
-- `Dockerfile:112–115` runs `RUN scrapling install` to fetch patchright Chromium + Camoufox; the `scrapling[fetchers]` extra pulls playwright/patchright. **No new install step needed** once Firecrawl is gone.
+- `Dockerfile:112–115` runs `RUN scrapling install`; the `scrapling[fetchers]` extra pulls playwright/patchright. **No new install step needed** once Firecrawl is gone. *(Accuracy fix: the Dockerfile comment says "patchright Chromium + Camoufox", but `scrapling install` in 0.4.9 only fetches Chromium — `references/Scrapling/scrapling/cli.py:122,131` runs `playwright install chromium` + `install-deps chromium`, no Camoufox. Drop the stale "+ Camoufox" wording from the comment when touching this file. `03e` may add `install-deps` extras for fonts/Xvfb.)*
 - Proxy is read via `app/utils/proxy/get_proxy_url()` (`__init__.py:13`), backed by the `PROXY_PROVIDER` registry (`config/__init__.py:983`). `03a` leaves this single-URL model untouched (rotation is `03b`).
 
 ## Target design
@@ -66,9 +70,9 @@ Firecrawl's API key is plumbed end-to-end and must be removed everywhere:
 
 `crawl_url()` becomes a 3-tier ladder, preserving the existing thread-offload + `NotImplementedError` handling for the browser tiers (Windows `SelectorEventLoop` cannot spawn subprocesses — lines 134–141, 161–168):
 
-1. `AsyncFetcher.get(...)` — fast static HTTP.
+1. `AsyncFetcher.get(...)` — fast static HTTP. **TLS gap to close:** the current call passes `stealthy_headers=True` but **not** `impersonate` (`webcrawler_connector.py:284–289`), so its TLS ClientHello is curl_cffi's *default* JA3 — trivially bot-flagged and incoherent with the browser tiers' UA. Add an `impersonate="chrome"` profile here (Scrapling's static engine accepts it — `references/Scrapling/scrapling/engines/static.py:36–47`). Tracked as a lever in `03e §2b` and validated by `03f §S3`.
 2. `DynamicFetcher.fetch(...)` — full browser (via `asyncio.to_thread`).
-3. `StealthyFetcher.fetch(...)` — Camoufox anti-bot, last resort. Enable Cloudflare solving here by passing **`solve_cloudflare=True`** — a documented `StealthyFetcher.fetch` kwarg ("Solves all types of the Cloudflare's Turnstile/Interstitial challenges before returning the response", `references/Scrapling/scrapling/fetchers/stealth_chrome.py:38`; it's a `StealthSession` TypedDict key passed via `**kwargs`). The current stealthy call (connector lines 354–360) passes `headless`/`network_idle`/`block_ads`/`proxy` but **not** `solve_cloudflare`, so this is a real behavior add. (Note: `solve_cloudflare` runs the full browser challenge loop, so it's correctly scoped to the last-resort tier only.)
+3. `StealthyFetcher.fetch(...)` — patchright-Chromium anti-bot, last resort. Enable Cloudflare solving here by passing **`solve_cloudflare=True`** — a documented `StealthyFetcher.fetch` kwarg ("Solves all types of the Cloudflare's Turnstile/Interstitial challenges before returning the response", `references/Scrapling/scrapling/fetchers/stealth_chrome.py:38`; it's a `StealthSession` TypedDict key passed via `**kwargs`). The current stealthy call (connector lines 354–360) passes `headless`/`network_idle`/`block_ads`/`proxy` but **not** `solve_cloudflare`, so this is a real behavior add. (Note: `solve_cloudflare` runs the full browser challenge loop, so it's correctly scoped to the last-resort tier only.)
 
 Trafilatura extraction (`_build_result`) and `format_to_structured_document()` are unchanged.
 
@@ -83,7 +87,7 @@ class CrawlOutcomeStatus(str, Enum):
     FAILED  = "failed"    # invalid URL or every tier errored
 ```
 
-`crawl_url()` returns a small dataclass `CrawlOutcome(status, result, error, tier)` — **commit to the dataclass** (not a tuple): `03c` keys billing off `status == SUCCESS`, and Phase 6's fetch-only path (`06-pipelines-exec.md`) consumes `outcome.status` / `outcome.result` / `outcome.error` as attributes, so a tuple form would break that consumer. The **billable success predicate is single-sourced**: `status == CrawlOutcomeStatus.SUCCESS`.
+`crawl_url()` returns a small dataclass `CrawlOutcome(status, result, error, tier)` — **commit to the dataclass** (not a tuple): `03c` keys billing off `status == SUCCESS`, and Phase 6's fetch-only path (`06-pipelines-exec.md`) consumes `outcome.status` / `outcome.result` / `outcome.error` as attributes, so a tuple form would break that consumer. The **billable success predicate is single-sourced**: `status == CrawlOutcomeStatus.SUCCESS`. Picking a dataclass (over a tuple) also leaves room for later subplans to **append fields without breaking callers** — `03d` adds `captcha_attempts` / `captcha_solved` for per-attempt billing, and `03e`'s block classifier can attach a `block_type`. (This is distinct from the indexer's positional return, which must stay 2-tuple — see the wrapper note below.)
 
 | Outcome | When | Billable (`03c`)? | Document status (indexer) |
 |---------|------|-------------------|---------------------------|
@@ -92,6 +96,17 @@ class CrawlOutcomeStatus(str, Enum):
 | `FAILED` | invalid URL, or all tiers raised | No | `failed(<error>)` |
 
 **Billing-policy note for `03c`:** success is the *crawl* succeeding (we fetched + extracted), independent of downstream KB dedupe. The indexer currently marks unchanged content as `skipped` (`webcrawler_indexer.py:341–347`) and cross-connector duplicates as `failed` (`:350–369`) — those still represent a **successful crawl** and should bill. `03c` must count `CrawlOutcomeStatus.SUCCESS`, not `documents_indexed`. Flagging here; final call lives in `03c`.
+
+### Extensibility seam (the tier ladder is a strategy chain)
+
+The 3-tier ladder is the first instance of a deliberate **`FetchStrategy` seam**: an *ordered list of strategies*, each `(url, ctx) -> CrawlOutcome`, tried in order until one returns `SUCCESS`. `crawl_url()` owns the chain; **every caller depends only on `CrawlOutcome`, never on which strategy produced it** (the indexer, the chat tool, and `03c` metering already do — keep that invariant sacred). This is what lets the moat grow without rework:
+
+- `03d` (captcha) attaches by escalating to the StealthyFetcher strategy with a `page_action` token-injector — a *parameterization* of the last tier, not a new caller contract.
+- `03e` (stealth-hardening) tunes/adds strategies (humanize, headed/Xvfb, persistent profiles, fingerprint flags) **behind the same return type**.
+- A future **paid-unblocker tier** (deferred — see `03e`) is just one more strategy appended last, flippable by config; no caller changes.
+- Future **platform actors** (Phase 8) reuse the same fetch strategies under their own structured extractors.
+
+MVP scope here is only the 3 Scrapling tiers + the `CrawlOutcome` contract; the seam is a design constraint (keep tiers pluggable + callers outcome-only), **not** a call for a heavyweight Strategy framework now.
 
 ### Success counter for the indexer
 
@@ -113,7 +128,7 @@ Drop the Firecrawl-only `formats=["markdown"]` arg (markdown is already the Traf
 
 ## Risks / trade-offs
 
-- **Loss of a managed fallback.** Firecrawl was a hosted last resort for hostile anti-bot sites. Mitigation: `StealthyFetcher` + Cloudflare solving now, `03b` proxy rotation, `03d` captcha solving. Acceptable per the decisions log (single-framework intent).
+- **Loss of a managed fallback.** Firecrawl was a hosted last resort for hostile anti-bot sites. Mitigation: the in-house stack — `StealthyFetcher` + Cloudflare solving (this plan), `03b` proxy rotation, `03e` stealth-hardening (humanize/headed/profiles/fonts + block-classifier), `03d` captcha solving — plus a **deferred paid-unblocker tier** behind the seam for the hostile residual. Realistic ceiling: this defeats Cloudflare + the long tail of moderate anti-bot, but runtime-level (patchright) stealth does **not** reliably beat top-tier fingerprinting (DataDome/Kasada/reCAPTCHA-Enterprise) — that's the deferred paid tier's job (`03e`). Acceptable per the decisions log (single-framework intent + in-house moat).
 - **Browser tiers on dev/Windows.** `DynamicFetcher`/`StealthyFetcher` need subprocess support; the existing `to_thread` + `NotImplementedError` guards (lines 134–141, 161–168) are preserved so static-only crawling still works in `uvicorn --reload`.
 - **`uv.lock` churn.** Removing `firecrawl-py` requires a lockfile regen + image rebuild; no new runtime deps are added.
 
@@ -121,5 +136,6 @@ Drop the Firecrawl-only `formats=["markdown"]` arg (markdown is already the Traf
 
 - Proxy provider expansion + rotation → `03b`.
 - Crawl credit metering on `CrawlOutcomeStatus.SUCCESS` → `03c`.
-- reCAPTCHA/hCaptcha solving via captcha-tools → `03d` (deferred). Cloudflare Turnstile stays in-framework (Scrapling).
+- reCAPTCHA/hCaptcha solving via captcha-tools → `03d` (**now active**, sequenced after `03e`). Cloudflare Turnstile stays in-framework (Scrapling).
+- Stealth-hardening (humanize, headed/Xvfb, persistent profiles, fonts, geoip locale/tz, block-classifier + per-domain strategy memory) and the deferred paid-unblocker tier → `03e`.
 - Whether ad-hoc **chat** scrapes are billed (vs only pipeline crawls) → decided in `03c`.
