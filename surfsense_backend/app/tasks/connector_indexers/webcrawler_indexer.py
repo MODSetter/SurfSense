@@ -18,7 +18,10 @@ from app.proprietary.web_crawler import (
     WebCrawlerConnector,
 )
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
+from app.services.etl_credit_service import InsufficientCreditsError
 from app.services.task_logging_service import TaskLoggingService
+from app.services.token_tracking_service import record_token_usage
+from app.services.web_crawl_credit_service import WebCrawlCreditService
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
@@ -42,6 +45,23 @@ HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 
 # Heartbeat interval in seconds
 HEARTBEAT_INTERVAL_SECONDS = 30
+
+
+async def _resolve_workspace_owner(session: AsyncSession, workspace_id: int):
+    """Return the ``user_id`` that owns ``workspace_id`` (the crawl payer).
+
+    Phase 3c bills the **workspace owner**, not the triggering user (which for
+    periodic/scheduled runs may differ). Returns ``None`` if the workspace is
+    gone, letting the caller fall back to the triggering user.
+    """
+    from sqlalchemy import select
+
+    from app.db import Workspace
+
+    result = await session.execute(
+        select(Workspace.user_id).where(Workspace.id == workspace_id)
+    )
+    return result.scalar_one_or_none()
 
 
 async def index_crawled_urls(
@@ -153,6 +173,32 @@ async def index_crawled_urls(
                 {"error_type": "ValidationError", "connector_name": connector.name},
             )
             return 0, "No URLs provided for indexing"
+
+        # =======================================================================
+        # Phase 3c: crawl-credit pre-flight. Bill the workspace OWNER. ``len(urls)``
+        # is a safe upper bound on successes, so a passing check guarantees the
+        # wallet can't go negative from this run. No-op when billing is disabled
+        # (self-hosted/OSS) — we also skip the owner lookup in that case.
+        # =======================================================================
+        credit_service = WebCrawlCreditService(session)
+        owner_user_id = user_id
+        if credit_service.billing_enabled():
+            owner_user_id = (
+                await _resolve_workspace_owner(session, workspace_id) or user_id
+            )
+            try:
+                await credit_service.check_credits(owner_user_id, len(urls))
+            except InsufficientCreditsError as credit_error:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Insufficient crawl credit for connector {connector_id}",
+                    str(credit_error),
+                    {"error_type": "InsufficientCreditsError"},
+                )
+                logger.warning(
+                    f"Skipping crawl for connector {connector_id}: {credit_error!s}"
+                )
+                return 0, f"Insufficient crawl credit: {credit_error!s}"
 
         await task_logger.log_task_progress(
             log_entry,
@@ -457,6 +503,28 @@ async def index_crawled_urls(
                 await session.rollback()
             else:
                 raise
+
+        # =======================================================================
+        # Phase 3c: charge the workspace owner for successful crawls. Audit row
+        # is staged first (add only); charge_credits' commit flushes both the
+        # ``web_crawl`` TokenUsage row and the balance debit in one transaction.
+        # Skipped when billing is disabled or nothing crawled successfully.
+        # =======================================================================
+        if credit_service.billing_enabled() and crawls_succeeded > 0:
+            await record_token_usage(
+                session,
+                usage_type="web_crawl",
+                workspace_id=workspace_id,
+                user_id=owner_user_id,
+                cost_micros=credit_service.successes_to_micros(crawls_succeeded),
+                call_details={
+                    "urls": len(urls),
+                    "successes": crawls_succeeded,
+                    "connector_id": connector_id,
+                },
+                message_id=None,
+            )
+            await credit_service.charge_credits(owner_user_id, crawls_succeeded)
 
         # Build warning message if there were issues
         warning_parts = []

@@ -654,6 +654,22 @@ class Config:
     )
     MICROS_PER_PAGE = int(os.getenv("MICROS_PER_PAGE", "1000"))
 
+    # Web-crawl billing debits the credit wallet per *successful* crawl request
+    # (CrawlOutcomeStatus.SUCCESS). Off by default so self-hosted / OSS installs
+    # keep crawling effectively-free; hosted deployments set this TRUE.
+    #
+    # The price is fully config-driven — there is no hardcoded rate anywhere.
+    # ``WEB_CRAWL_MICROS_PER_SUCCESS`` is the single source of truth; retune it
+    # to any rate with just an env change + restart (no code/migration):
+    #   WEB_CRAWL_MICROS_PER_SUCCESS = round(USD_per_1000_crawls * 1_000)
+    #   $1/1000 -> 1000 (default) | $2/1000 -> 2000 | $0.50/1000 -> 500
+    WEB_CRAWL_CREDIT_BILLING_ENABLED = (
+        os.getenv("WEB_CRAWL_CREDIT_BILLING_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    WEB_CRAWL_MICROS_PER_SUCCESS = int(
+        os.getenv("WEB_CRAWL_MICROS_PER_SUCCESS", "1000")
+    )
+
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service
     # so the UI can nudge the user to top up / enable auto-reload. $0.50.
     CREDIT_LOW_BALANCE_WARNING_MICROS = int(

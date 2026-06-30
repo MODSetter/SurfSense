@@ -28,6 +28,33 @@ from app.utils.proxy import get_proxy_url, get_requests_proxies
 logger = logging.getLogger(__name__)
 
 
+def _bill_successful_scrape() -> None:
+    """Fold one successful crawl into the current chat turn's bill (Phase 3c).
+
+    The cost rides the turn accumulator and settles at the premium
+    ``finalize_credit`` step — no separate wallet hit. Free / BYOK / anonymous
+    turns (which never reserve/finalize) still record the line in the
+    breakdown but are never debited. No-op when crawl billing is disabled or
+    there is no active turn (e.g. non-chat callers).
+    """
+    from app.services.token_tracking_service import get_current_accumulator
+    from app.services.web_crawl_credit_service import WebCrawlCreditService
+
+    if not WebCrawlCreditService.billing_enabled():
+        return
+    acc = get_current_accumulator()
+    if acc is None:
+        return
+    acc.add(
+        model="web_crawl",
+        prompt_tokens=0,
+        completion_tokens=0,
+        total_tokens=0,
+        cost_micros=WebCrawlCreditService.successes_to_micros(1),
+        call_kind="web_crawl",
+    )
+
+
 def extract_domain(url: str) -> str:
     """Extract the domain from a URL."""
     try:
@@ -243,6 +270,7 @@ def create_scrape_webpage_tool():
                 }
 
             result = outcome.result
+            _bill_successful_scrape()
             content = result.get("content", "")
             metadata = result.get("metadata", {})
 
