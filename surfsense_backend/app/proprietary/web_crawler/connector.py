@@ -23,15 +23,17 @@ which tier produced it.
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
 import trafilatura
 import validators
+from scrapling.engines.toolbelt import is_proxy_error
 from scrapling.fetchers import AsyncFetcher, DynamicFetcher, StealthyFetcher
 
-from app.utils.proxy import get_proxy_url
+from app.utils.proxy import get_proxy_url, is_pool_backed
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +106,9 @@ class WebCrawlerConnector:
             tier_start = time.perf_counter()
             try:
                 logger.info(f"[webcrawler] Using Scrapling AsyncFetcher for: {url}")
-                result = await self._crawl_with_async_fetcher(url)
+                result = await self._run_tier_with_proxy_retry(
+                    "scrapling-static", lambda: self._crawl_with_async_fetcher(url)
+                )
                 if result:
                     self._log_tier_outcome(
                         "scrapling-static", url, tier_start, "success"
@@ -128,7 +132,9 @@ class WebCrawlerConnector:
             tier_start = time.perf_counter()
             try:
                 logger.info(f"[webcrawler] Using Scrapling DynamicFetcher for: {url}")
-                result = await self._crawl_with_dynamic(url)
+                result = await self._run_tier_with_proxy_retry(
+                    "scrapling-dynamic", lambda: self._crawl_with_dynamic(url)
+                )
                 if result:
                     self._log_tier_outcome(
                         "scrapling-dynamic", url, tier_start, "success"
@@ -160,7 +166,9 @@ class WebCrawlerConnector:
             tier_start = time.perf_counter()
             try:
                 logger.info(f"[webcrawler] Using Scrapling StealthyFetcher for: {url}")
-                result = await self._crawl_with_stealthy(url)
+                result = await self._run_tier_with_proxy_retry(
+                    "scrapling-stealthy", lambda: self._crawl_with_stealthy(url)
+                )
                 if result:
                     self._log_tier_outcome(
                         "scrapling-stealthy", url, tier_start, "success"
@@ -205,6 +213,36 @@ class WebCrawlerConnector:
                 status=CrawlOutcomeStatus.FAILED,
                 error=f"Error crawling URL {url}: {e!s}",
             )
+
+    async def _run_tier_with_proxy_retry(
+        self,
+        tier: str,
+        attempt: Callable[[], Awaitable[dict[str, Any] | None]],
+    ) -> dict[str, Any] | None:
+        """Run one fetch tier, retrying once on a proxy error when pool-backed.
+
+        ``03b`` rotation: a pool-backed ``CustomProxyProvider`` yields the *next*
+        endpoint on every ``get_proxy_url()`` call, so simply re-invoking the tier
+        rotates the proxy. Bounded to a single extra attempt per tier — no
+        unbounded fan-out on billable crawls. Single-endpoint providers
+        (including the server-side-rotating ``anonymous_proxies``) skip the retry
+        entirely (``is_pool_backed()`` is ``False``), since retrying the same
+        static endpoint would just re-hit the same dead proxy. Non-proxy errors
+        (and ``NotImplementedError`` from the browser tiers) propagate unchanged
+        for the caller's existing per-tier handling.
+        """
+        try:
+            return await attempt()
+        except Exception as exc:
+            if is_proxy_error(exc) and is_pool_backed():
+                logger.warning(
+                    "%s tier=%s proxy error; rotating endpoint, retrying once: %s",
+                    _PERF,
+                    tier,
+                    exc,
+                )
+                return await attempt()
+            raise
 
     @staticmethod
     def _log_tier_outcome(

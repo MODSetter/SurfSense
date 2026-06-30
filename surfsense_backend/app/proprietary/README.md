@@ -30,3 +30,11 @@ Apache-2.0* — instead of per-file headers scattered across the tree.
   chat `scrape_webpage` tools do); that does not move them under this license.
 - Depend only on the public API exported from each subpackage's `__init__`, not
   on internal modules, so the boundary stays clean and swappable.
+- **Boundary test:** put code here only if it is used *exclusively* by the moat.
+  Generic infrastructure that Apache-2 features also depend on stays Apache-2
+  even when the crawler uses it too. Example: `app/utils/proxy/` (provider
+  abstraction, registry, `CustomProxyProvider` + rotation — a thin wrapper over
+  Scrapling's public `ProxyRotator`) is shared with the YouTube/transcript and
+  chat features, so it stays Apache-2; only the crawl-ladder-coupled
+  rotation-retry orchestration (`web_crawler/connector.py::_run_tier_with_proxy_retry`)
+  lives here.

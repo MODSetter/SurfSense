@@ -25,6 +25,14 @@ def get_requests_proxies() -> dict[str, str] | None:
     return get_active_provider().get_requests_proxies()
 
 
+def is_pool_backed() -> bool:
+    """Whether the active provider rotates across a client-side pool of endpoints.
+
+    The crawler gates its bounded proxy-error rotation-retry on this.
+    """
+    return get_active_provider().is_pool_backed
+
+
 def get_residential_proxy_url() -> str | None:
     """Backward-compatible alias for :func:`get_proxy_url`."""
     return get_proxy_url()
@@ -37,4 +45,5 @@ __all__ = [
     "get_proxy_url",
     "get_requests_proxies",
     "get_residential_proxy_url",
+    "is_pool_backed",
 ]

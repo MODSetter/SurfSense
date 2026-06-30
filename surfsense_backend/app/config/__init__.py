@@ -1017,6 +1017,14 @@ class Config:
     RESIDENTIAL_PROXY_LOCATION = os.getenv("RESIDENTIAL_PROXY_LOCATION", "")
     RESIDENTIAL_PROXY_TYPE = int(os.getenv("RESIDENTIAL_PROXY_TYPE", "1"))
 
+    # Custom (BYO) proxy provider, selected via PROXY_PROVIDER="custom".
+    # Consumed by the "custom" provider (app/utils/proxy/providers/custom.py).
+    # Provide a single endpoint (CUSTOM_PROXY_URL) and/or a comma-separated pool
+    # (CUSTOM_PROXY_URLS); a pool of >1 rotates client-side via Scrapling's
+    # ProxyRotator. Each value is a full http://user:pass@host:port URL.
+    CUSTOM_PROXY_URL = os.getenv("CUSTOM_PROXY_URL")
+    CUSTOM_PROXY_URLS = os.getenv("CUSTOM_PROXY_URLS")
+
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")
     TTS_SERVICE_API_BASE = os.getenv("TTS_SERVICE_API_BASE")

@@ -44,3 +44,15 @@ class ProxyProvider(ABC):
         if proxy_url is None:
             return None
         return {"http": proxy_url, "https": proxy_url}
+
+    @property
+    def is_pool_backed(self) -> bool:
+        """Whether this provider rotates across a *client-side* pool of endpoints.
+
+        ``False`` for single-endpoint providers (including server-side rotating
+        gateways like ``anonymous_proxies``, whose rotation happens upstream).
+        The crawler performs its bounded proxy-error rotation-retry **only** when
+        this is ``True`` — retrying a single static endpoint would just re-hit the
+        same dead proxy.
+        """
+        return False

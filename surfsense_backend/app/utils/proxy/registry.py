@@ -10,12 +10,14 @@ import logging
 from app.config import Config
 from app.utils.proxy.base import ProxyProvider
 from app.utils.proxy.providers.anonymous_proxies import AnonymousProxiesProvider
+from app.utils.proxy.providers.custom import CustomProxyProvider
 
 logger = logging.getLogger(__name__)
 
 # Registered proxy providers, keyed by their ``name``.
 _PROVIDERS: dict[str, type[ProxyProvider]] = {
     AnonymousProxiesProvider.name: AnonymousProxiesProvider,
+    CustomProxyProvider.name: CustomProxyProvider,
 }
 
 _DEFAULT_PROVIDER = AnonymousProxiesProvider.name

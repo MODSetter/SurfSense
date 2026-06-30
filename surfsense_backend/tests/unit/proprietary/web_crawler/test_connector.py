@@ -11,6 +11,7 @@ from app.proprietary.web_crawler import (
     CrawlOutcomeStatus,
     WebCrawlerConnector,
 )
+from app.proprietary.web_crawler import connector as connector_module
 
 pytestmark = pytest.mark.unit
 
@@ -116,3 +117,76 @@ async def test_all_tiers_raise_is_failed(monkeypatch: pytest.MonkeyPatch) -> Non
 
     assert outcome.status is CrawlOutcomeStatus.FAILED
     assert "fetch exploded" in (outcome.error or "")
+
+
+async def test_proxy_error_rotates_once_when_pool_backed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """03b: a pool-backed provider retries the tier once on a proxy error."""
+    crawler = WebCrawlerConnector()
+    calls = {"n": 0}
+
+    async def _flaky(_url: str) -> dict:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("connection refused by upstream proxy")
+        return _result("scrapling-static")
+
+    monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _flaky)
+    monkeypatch.setattr(connector_module, "is_pool_backed", lambda: True)
+
+    outcome = await crawler.crawl_url("https://example.com")
+
+    assert outcome.status is CrawlOutcomeStatus.SUCCESS
+    assert outcome.tier == "scrapling-static"
+    assert calls["n"] == 2  # original attempt + one rotation retry
+
+
+async def test_proxy_error_no_retry_when_single_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Single-endpoint providers skip the retry (no re-hit of the dead proxy)."""
+    crawler = WebCrawlerConnector()
+    static_calls = {"n": 0}
+
+    async def _proxy_err(_url: str) -> None:
+        static_calls["n"] += 1
+        raise RuntimeError("connection refused by upstream proxy")
+
+    async def _empty(_url: str) -> None:
+        return None
+
+    monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _proxy_err)
+    monkeypatch.setattr(crawler, "_crawl_with_dynamic", _empty)
+    monkeypatch.setattr(crawler, "_crawl_with_stealthy", _empty)
+    monkeypatch.setattr(connector_module, "is_pool_backed", lambda: False)
+
+    outcome = await crawler.crawl_url("https://example.com")
+
+    assert static_calls["n"] == 1  # no retry
+    assert outcome.status is CrawlOutcomeStatus.EMPTY
+
+
+async def test_non_proxy_error_never_retries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-proxy error is not retried even when pool-backed."""
+    crawler = WebCrawlerConnector()
+    calls = {"n": 0}
+
+    async def _boom(_url: str) -> None:
+        calls["n"] += 1
+        raise RuntimeError("totally unrelated failure")
+
+    async def _empty(_url: str) -> None:
+        return None
+
+    monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _boom)
+    monkeypatch.setattr(crawler, "_crawl_with_dynamic", _empty)
+    monkeypatch.setattr(crawler, "_crawl_with_stealthy", _empty)
+    monkeypatch.setattr(connector_module, "is_pool_backed", lambda: True)
+
+    outcome = await crawler.crawl_url("https://example.com")
+
+    assert calls["n"] == 1  # not retried (not a proxy error)
+    assert outcome.status is CrawlOutcomeStatus.EMPTY
