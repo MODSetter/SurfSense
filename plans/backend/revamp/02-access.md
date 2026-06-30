@@ -60,12 +60,12 @@ user never has to:
 
 ```
 "compare / find / what is / pull / summarize / right now"      → ONE-SHOT  → call verbs, answer        (Product A, stateless)
-"watch / track / notify me when / every week / keep an eye / over time" → STANDING → start the Lens setup flow (Product B, stateful → ③)
+"watch / track / notify me when / every week / keep an eye / over time" → STANDING → start the Tracker setup flow (Product B, stateful → ③)
 ```
 
 - **One-shot** → orchestrate verbs now, synthesize an answer; nothing persists beyond chat.
 - **Standing concern** → hand off to the Intelligence setup flow (`03`): sample-fetch → agent proposes
-  schema/thresholds/identity → user validates & locks → Lens runs on a trigger.
+  schema/thresholds/identity → user validates & locks → Tracker runs on a trigger.
 - **Ambiguous** → ask exactly **one** clarifying question — *"just this once, or should I keep watching
   it for you?"* — which is the entire A-vs-B decision expressed in human terms.
 

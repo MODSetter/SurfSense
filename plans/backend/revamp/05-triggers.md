@@ -6,13 +6,13 @@
 
 ## Purpose
 
-Decide **when** a Lens refreshes. Intelligence exposes a single entry point — **`refresh(lens)`** —
+Decide **when** a Tracker refreshes. Intelligence exposes a single entry point — **`refresh(tracker)`** —
 and every trigger is just a caller. Intelligence never knows which trigger fired; remove any trigger
 and the engine still works.
 
 This replaces Phase 6's cron scheduler — and the resolution is **not** to rebuild a scheduler at all,
 but to **reuse the automations subsystem** for the in-app recurring path (it already has a hardened
-clock + run record + delivery). A trigger only ever calls `refresh(lens)`.
+clock + run record + delivery). A trigger only ever calls `refresh(tracker)`.
 
 ## The adapters
 
@@ -20,8 +20,8 @@ clock + run record + delivery). A trigger only ever calls `refresh(lens)`.
 |---------|----------|------|
 | **Manual** | user "refresh now" (chat tool / REST) | ✅ |
 | **Agent** | the in-app agent calls `refresh` as a tool | ✅ |
-| **External cron** | the user's own scheduler hits `POST /v1/lenses/{id}/refresh` | ✅ (zero infra on us) |
-| **CI automation action** | a **CI action on the existing automations** — its schedule trigger fires `refresh(lens)` **and delivers** the material changes | ✅ (the in-app recurrence + alert path) |
+| **External cron** | the user's own scheduler hits `POST /v1/trackers/{id}/refresh` | ✅ (zero infra on us) |
+| **CI automation action** | a **CI action on the existing automations** — its schedule trigger fires `refresh(tracker)` **and delivers** the material changes | ✅ (the in-app recurrence + alert path) |
 
 ## Recurrence + delivery — a CI action on existing automations (NOT a new scheduler, NOT a new shape)
 
@@ -38,25 +38,25 @@ to the existing automations subsystem**:
   the user. **(closes the old Gap E — alert delivery.)**
 
 **Why a CI *action*, not a new automation shape:** a new shape would duplicate triggers, runs, and
-delivery that already exist. A single `refresh_lens` action reuses all of it. (If implementation finds
+delivery that already exist. A single `refresh_tracker` action reuses all of it. (If implementation finds
 the action too constraining, a thin CI-specific shape is the fallback — but the action is the default.)
 
 ### Decoupling is preserved (automations is still optional)
 
-CI **core** — `refresh(lens)` + Timeline (`03`/`04`) — has **zero** automations dependency and runs via
+CI **core** — `refresh(tracker)` + Timeline (`03`/`04`) — has **zero** automations dependency and runs via
 manual / agent / external-cron. Automations is the **optional adapter** that adds recurrence + delivery
 + audit for in-app users. So we honor "don't glue CI to automations" *and* get its machinery for free.
 
 ## Where it lives / decoupling
 
-- The **CI action** lives with automations (its action registry); it imports `refresh(lens)` from
+- The **CI action** lives with automations (its action registry); it imports `refresh(tracker)` from
   `app/intelligence/`. No new scheduler/Beat task.
 - The **external-cron** and **REST manual** paths are just Access-door routes (`POST
-  /v1/lenses/{id}/refresh`) — Domain ② plumbing.
+  /v1/trackers/{id}/refresh`) — Domain ② plumbing.
 
 ## Locked decisions
 
-1. Intelligence exposes `refresh(lens)`; all triggers are callers. Fully decoupled.
+1. Intelligence exposes `refresh(tracker)`; all triggers are callers. Fully decoupled.
 2. Adapters: manual · agent · external-cron · **CI automation action** (recurrence + delivery).
 3. **No bespoke scheduler and no new run table** — the recurring path reuses the automations schedule
    selector + `AutomationRun`; delivery reuses automations' output. (Closes old Gaps A/B/E.)
@@ -68,5 +68,5 @@ manual / agent / external-cron. Automations is the **optional adapter** that add
 - CI **action** vs a thin CI-specific automation **shape** (default: action; shape is the fallback).
 - What the delivered payload looks like (the material `entity_changes` since last fire — summarized by
   the agent, or raw deltas).
-- Concurrency: skip a refresh if the Lens already has one in flight (per-Lens lock, like the connector
+- Concurrency: skip a refresh if the Tracker already has one in flight (per-Tracker lock, like the connector
   indexing lock) — even with the automation run-gate, belt-and-suspenders.

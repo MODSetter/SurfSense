@@ -3,7 +3,7 @@
 > **WIP design doc.** Part of the Phase 4 → end revamp. Pairs with `04-timeline.md` (the state it writes).
 > **Scope guardrail:** Phases 1–3 SHIPPED/FIXED. This is net-new and is **not** the KB and **not**
 > the automations subsystem.
-> **Working name:** the standing-concern primitive is called a **Lens** (provisional — easily renamed).
+> **Name:** the standing-concern primitive is the **Tracker**.
 
 ## The stateless / stateful line
 
@@ -20,7 +20,7 @@ below the Access→Intelligence boundary stays pure functions.
 Turn repeated capability calls into **decision-relevant structured signal**. The motto: **the agent
 judges, code computes.** This replaces the old "pipeline" as the *standing concern*.
 
-## The primitive — `Lens`
+## The primitive — `Tracker`
 
 A saved, decision-grounded subject that accumulates structured signal over time:
 
@@ -31,7 +31,7 @@ A saved, decision-grounded subject that accumulates structured signal over time:
 | `definition` (locked, versioned) | `{ field_schema, identity_rule, materiality }` — the agent-drafted, human-locked contract |
 | `status` | `draft` → `locked`/`active` |
 
-One **entity per Lens for MVP** (one place / one URL). Multi-entity (`maps.search → many`) is deferred
+One **entity per Tracker for MVP** (one place / one URL). Multi-entity (`maps.search → many`) is deferred
 (the Timeline model stays multi-entity-ready so it's additive).
 
 ## Setup (once) — the agent-designed schema flow (IN MVP)
@@ -52,7 +52,7 @@ no UI needed):
 5. **Versioned** — a locked `definition` is a snapshot; edits create a new version (mirrors how
    `automations` snapshots `definition`).
 
-## The hot loop (per refresh) — `refresh(lens)`
+## The hot loop (per refresh) — `refresh(tracker)`
 
 1. **Crawl** — call the bound capability (Domain ①) → raw data.
 2. **Cheap pre-check** — content hash via the existing
@@ -84,12 +84,12 @@ description reworded       → code: no rule → ASK AGENT → NOISE
 
 - New **Apache-2** package `app/intelligence/` (the schema-design agent, the hot loop, the materiality
   evaluator). Calls capability `executor`s directly (not through a door).
-- Exposes **`refresh(lens)`**. *Who* calls it (manual / agent / external cron / optional automation) is
+- Exposes **`refresh(tracker)`**. *Who* calls it (manual / agent / external cron / optional automation) is
   the **Triggers** domain's concern — Intelligence has **no dependency** on any scheduler.
 
 ## Refresh execution & idempotency — ride the invoking surface (no new run table)
 
-`refresh(lens)` is a **headless unit of work**; the **run/audit record + idempotency live on whatever
+`refresh(tracker)` is a **headless unit of work**; the **run/audit record + idempotency live on whatever
 surface invoked it**, so we do *not* rebuild old Phase-6 `pipeline_runs`:
 
 - **Recurring (in-app):** invoked by the **CI automation action** (`05`) → the existing
@@ -112,7 +112,7 @@ into the **KB as normal** — uploads create `Document`s and are indexed/embedde
 **(The "don't index" rule applies only to *crawled* data, not to user uploads.)** The CI-specific part
 is purely **organization + use**:
 
-- **Routed to a dedicated folder** for that CI chat/Lens (reuse the existing folder-upload /
+- **Routed to a dedicated folder** for that CI chat/Tracker (reuse the existing folder-upload /
   `destination_folder` machinery), so the chat's reference files are scoped together.
 - **The judge step (5) may consult them** — retrieved from the KB, scoped to that folder — when ruling
   materiality:
@@ -129,21 +129,21 @@ works without it); design the seam now so the judge can read the folder later.
 ## MVP cut vs north star
 
 - **MVP:** agent-designed-schema flow (conversational, sample-grounded, human-locked) · single entity
-  per Lens · the hot loop with content-hash pre-check + code-threshold + agent-on-ambiguous ·
-  `refresh(lens)` fired manually / by agent / by external cron.
+  per Tracker · the hot loop with content-hash pre-check + code-threshold + agent-on-ambiguous ·
+  `refresh(tracker)` fired manually / by agent / by external cron.
 - **North star (deferred):** schema **auto-evolution** from recurring `notable_signals` · multi-entity
-  Lenses (`maps.search`) · backward-replay reconstruction · coverage-confidence · full
+  Trackers (`maps.search`) · backward-replay reconstruction · coverage-confidence · full
   provenance/explainability · the resale/data-product stage.
 
 ## Locked decisions
 
-1. `Lens` (provisional name) is the standing-concern primitive; replaces "pipeline".
+1. `Tracker` is the standing-concern primitive; replaces "pipeline".
 2. Stateless (①②/Product A) vs stateful (③④/Product B) is the Access→Intelligence boundary.
 3. **Agent-designed schema flow is in MVP** (not hand-authored) — sample-grounded, human-locked, versioned.
-4. Single entity per Lens for MVP.
+4. Single entity per Tracker for MVP.
 5. Materiality = deterministic numeric/clear rules in code + agent only on ambiguous.
 6. Content-hash pre-check short-circuits unchanged pages before any LLM spend.
-7. `app/intelligence/` Apache-2; `refresh(lens)` is trigger-agnostic.
+7. `app/intelligence/` Apache-2; `refresh(tracker)` is trigger-agnostic.
 8. **No new run table** — refresh audit/idempotency ride `AutomationRun` (recurring) or the chat job
    record; billing idempotency is per-capability-call + the content-hash gate. Only Timeline (`04`) is
    new state.
@@ -157,4 +157,4 @@ works without it); design the seam now so the judge can read the folder later.
   confirmation for MVP?).
 - Versioning policy on re-lock (new version vs in-place) — lean new version.
 - Where the schema-design agent itself runs (a setup capability? a chat sub-flow?).
-- Context-folder → judge wiring (how much of the folder to load; per-Lens vs per-chat scope).
+- Context-folder → judge wiring (how much of the folder to load; per-Tracker vs per-chat scope).
