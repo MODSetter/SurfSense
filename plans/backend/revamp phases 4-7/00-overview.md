@@ -2,7 +2,8 @@
 
 > **What this is.** The CI pivot re-architects the old "pipeline" Phases `04`–`07` into small,
 > single-responsibility domains, now packaged as **4 phases (04–07)** that mirror the slots they replace.
-> This file is the map + the reconciliation + the subplan index.
+> This file is the map + the reconciliation + the subplan index. **End-to-end flow diagrams (stateless &
+> stateful paths) live in `00b-pipeline-diagrams.md`.**
 > **Scope guardrail:** Phases **1–3 are SHIPPED/FIXED** (rename/DB, proxy/captcha/stealth, crawl billing).
 > The revamp is **Phase 4 → end only**. We do **not** touch 1–3.
 
@@ -103,6 +104,7 @@ instead of building a tick. See `06`.)*
 
 | Phase | Subplan file | Status |
 |-------|--------------|--------|
+| — | `00b-pipeline-diagrams.md` | end-to-end flow diagrams |
 | 04 | `04a-capabilities.md` | drafted |
 | 04 | `04b-access.md` | drafted |
 | 05 | `05a-timeline.md` | drafted |
