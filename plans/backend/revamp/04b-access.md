@@ -1,139 +1,136 @@
-# Domain ② — Access / Surfaces (CI pivot revamp · WIP)
+# Phase 4b — Access / Surfaces (chat · REST · MCP doors)
 
-> **WIP design doc.** Part of the Phase 4 → end revamp. Sits on top of Domain ① (Capabilities).
-> **Scope guardrail:** Phases 1–3 are SHIPPED and FIXED. Identity/Tenancy, API keys, the chat
-> agent + its tool registry, the streaming layer, and Metering (`03c`) already exist — Access
-> *reuses* them.
+> Part of **Phase 4 — Capabilities & Access**. Sits on top of `04a-capabilities.md` (the registry it exposes).
+> **Build after** `04a`. Together, `04a + 04b` ship **Product A** (stateless utility) — revenue day one.
+> **Depends on** SHIPPED infra: Identity/Tenancy, **API keys**, the chat agent + its tool registry, the
+> streaming layer, and Metering (`03c`). Access *reuses* them — it builds none net-new.
+> **Scope guardrail:** Phases 1–3 SHIPPED/FIXED. Locate code by **symbol/grep**, not the cited lines.
 
-## Role in the universe
+## Objective
 
-```
-FIXED:   Acquisition · Metering (03c) · Identity/Tenancy · API keys · chat agent · streaming
-SCOPE:   Capabilities → ▶ Access ◀ → Intelligence + Timeline → Triggers
-```
+Expose the capability registry (`04a`) to callers, **authenticated + metered**, through three doors —
+**chat tools, REST + API keys, MCP server** — all **generated from the one registry** so the I/O
+contract cannot drift between surfaces. Access contains **no business logic**: every door is the same
+thin adapter.
 
-Access is the set of **doors** onto the capability registry. It contains **no business logic** —
-every door is the same thin adapter.
+## Current state (cited)
 
-## Purpose
+- **API keys** — existing per-workspace key infra (reuse; do **not** build net-new); billed to the
+  workspace owner via `03c`.
+- **Chat agent + tool registry** — capability tools register *into* the existing registry; the seed is
+  `research/tools/scrape_webpage.py` (capability executor + access door + `03c` turn-accumulator billing).
+- **Slow-job pattern** — `subagents/builtins/deliverables/deliverable_wait.py`: dispatch a Celery task,
+  poll the row's `status` until `READY`/`FAILED` (1.5s cadence), bounded by
+  `SURFSENSE_SUBAGENT_INVOKE_TIMEOUT_SECONDS` (default 300s); `deliverables/tools/podcast.py` is the
+  "return now + live card tracks progress" model.
+- **BYO-`MCP_CONNECTOR`** (old `04a`) — the user's own external MCP tools inside our chat agent; its
+  routing-map gap is the one "connector" worth fixing, and it lands **here**.
 
-Expose the capability registry to callers, **authenticated + metered**. One adapter shape for every
-verb, on every door:
+## Target design
+
+### The adapter shape (identical on every door)
 
 ```
 parse input → validate against verb.input_schema → authn/authz → meter-gate (03c)
-  → call the SAME executor → serialize verb.output_schema → return the uniform envelope
+  → call the SAME executor (04a) → serialize verb.output_schema → return the uniform envelope
 ```
 
-## The three doors (locked order: chat → REST → MCP)
+### The three doors (locked order: chat → REST → MCP)
 
 | Door | Who | Auth | Status |
 |------|-----|------|--------|
 | **Chat tools** | in-app agent (Product B delivery + interactive) | existing session + workspace | partly exists (`scrape_webpage`) |
-| **REST + API keys** | external developers (Product A) | **existing API-key infra** (reuse, do not build net-new) | **public day one** |
-| **MCP server** | external agents (Cursor/ChatGPT/Claude) | OAuth 2.1 **or** bearer — *chosen at implementation* | **fast-follow** after chat+REST |
+| **REST + API keys** | external developers (Product A) | **existing API-key infra** | **public day one** |
+| **MCP server** | external agents (Cursor/ChatGPT/Claude) | OAuth 2.1 **or** bearer — chosen at implementation | **fast-follow** |
 
-All three are **generated from the one capability registry** (Domain ①). REST being public day one
-is cheap precisely because the routes are generated, not hand-written — it's a go-to-market choice,
-not an engineering cost.
+REST being public day one is cheap precisely because the routes are **generated**, not hand-written —
+it's a go-to-market choice, not an engineering cost.
 
-## Natural language is THE surface (verbs are internal) — non-negotiable
+### Natural language is THE surface (verbs are internal) — non-negotiable
 
-The human-facing product is **the conversation**. A user **never** names a verb, fills an
-`input_schema`, or knows "Product A vs B" exists — they describe a *need* or a *worry* in plain
-language and the agent does the rest. Verbs/schemas/jobs/deltas are things the agent manages **on the
-user's behalf**. (The raw typed verbs are exposed only on the REST/MCP doors, which serve
-**developers/external agents**, not humans — that's the whole reason those doors exist separately.)
-
-The chat agent therefore owns three responsibilities on every message:
-
-1. **Understand intent** (what does the user actually want?).
-2. **Pick & fill the verbs** — infer URLs / queries / locations / place refs from the conversation and
-   compose one or more capability calls (incl. the natural chains, e.g.
-   `discover → scrape`, `search → place → reviews`).
-3. **Answer in plain language** (results, not envelopes).
+The human-facing product is **the conversation**. A user **never** names a verb, fills an `input_schema`,
+or knows "Product A vs B" exists — they describe a *need* in plain language and the agent does the rest.
+Raw typed verbs are exposed only on the REST/MCP doors (devs/external agents). The chat agent owns three
+responsibilities per message: **understand intent** → **pick & fill verbs** (incl. chains like
+`discover → scrape`, `search → place → reviews`) → **answer in plain language** (results, not envelopes).
 
 ### The intent router (the one new orchestration rule)
 
-The agent classifies each request along the stateless/stateful line **from the language**, so the
-user never has to:
+The agent classifies each request along the stateless/stateful line **from the language**:
 
 ```
-"compare / find / what is / pull / summarize / right now"      → ONE-SHOT  → call verbs, answer        (Product A, stateless)
-"watch / track / notify me when / every week / keep an eye / over time" → STANDING → start the Tracker setup flow (Product B, stateful → ③)
+"compare / find / what is / pull / summarize / right now"               → ONE-SHOT  → call verbs, answer  (Product A, stateless)
+"watch / track / notify me when / every week / keep an eye / over time" → STANDING  → start Tracker setup (Product B, stateful → 05b)
+ambiguous → ask ONE question: "just this once, or should I keep watching it for you?"
 ```
 
-- **One-shot** → orchestrate verbs now, synthesize an answer; nothing persists beyond chat.
-- **Standing concern** → hand off to the Intelligence setup flow (`03`): sample-fetch → agent proposes
-  schema/thresholds/identity → user validates & locks → Tracker runs on a trigger.
-- **Ambiguous** → ask exactly **one** clarifying question — *"just this once, or should I keep watching
-  it for you?"* — which is the entire A-vs-B decision expressed in human terms.
+This router is the friendly seam between the two products; it lives in the chat door (its prompt lives
+in the `intelligence_agent`, `07`) and is the only human-facing decision point.
 
-This router is the friendly seam between the two products; it lives in the chat door and is the only
-human-facing decision point.
+### The two MCP directions (keep distinct)
 
-## The two MCP directions (keep distinct)
+- **We *serve* MCP** — our capabilities as a remote MCP server (door #3, new): Streamable-HTTP `/mcp`,
+  stateless, bounded/paginated outputs, untrusted inputs, least-privilege (read-only verbs).
+- **We *consume* MCP** — the BYO-`MCP_CONNECTOR` (old 04a): the user's own external MCP tools inside our
+  chat agent. The 04a routing-gap fix lands **here**, not in Capabilities.
 
-- **We *serve* MCP** — our capabilities as a remote MCP server (door #3, new). "External agents gain
-  the real web." Remote Streamable-HTTP `/mcp`, stateless, bounded/paginated outputs, untrusted
-  inputs, least-privilege (read-only verbs). Auth depth decided at implementation.
-- **We *consume* MCP** — the BYO-`MCP_CONNECTOR` from old 04a: the user's *own* external MCP tools
-  inside our chat agent. This is the only "connector" worth keeping; the 04a routing-gap fix lands
-  **here** (Access/Conversation), not in Capabilities.
+### Chat ↔ slow jobs — reuse the existing background-worker pattern
 
-## Chat ↔ slow jobs — reuse the existing background-worker pattern
+Do **not** invent a chat-async mechanism. A slow verb (`web.scrape` over many URLs, `maps.search`,
+`maps.reviews`) invoked from chat dispatches the **job** (the `04a` job record) and uses the
+`deliverable_wait` poll-until-terminal path; the capability **job record's `status`** is what the helper
+polls. Most calls finish inside the poll window → results inline; genuinely long ones surface a tracked
+card. REST/MCP expose the same job via `GET /v1/jobs/{id}` (and an MCP equivalent).
 
-Do **not** invent a chat-async mechanism. The deliverables stack already solves it:
+## Work items
 
-- `subagents/builtins/deliverables/deliverable_wait.py` — a shared **poll-until-terminal** helper:
-  dispatch the Celery task, poll the row's `status` until `READY`/`FAILED` (1.5s cadence), return a
-  real terminal outcome. Bounded by `SURFSENSE_SUBAGENT_INVOKE_TIMEOUT_SECONDS` (default 300s) in
-  multi-agent mode.
-- `deliverables/tools/podcast.py` — the "return now + a live card tracks progress" model for very
-  long work; streaming emission frames live under
-  `tasks/chat/streaming/handlers/tools/deliverables/...`.
+1. **Door generator**: from the `04a` registry, emit (a) chat tool defs + handlers, (b) REST routes +
+   request/response models, (c) MCP tool schemas + handlers — one adapter shape.
+2. **REST surface**: public routes + API-key auth (reuse existing) + the `03c` meter-gate; `GET /v1/jobs/{id}`.
+3. **Chat tools**: generalize `scrape_webpage` into the registry-backed set; wire slow verbs through
+   `deliverable_wait` polling the `04a` job record's `status`.
+4. **Intent router**: the A-vs-B classifier (its home is the `07` subagent prompt; the seam is here).
+5. **MCP server (fast-follow)**: Streamable-HTTP `/mcp`, least-privilege; auth depth chosen at implementation.
+6. **Consume-MCP fix**: repair the BYO-`MCP_CONNECTOR` routing-map gap (old 04a).
 
-**Mapping to capabilities:** a slow verb (`web.scrape` over many URLs, `maps.search`, `maps.reviews`)
-invoked from chat dispatches the **job** (Domain ① job record) and uses the `deliverable_wait`
-poll-until-terminal path; the capability **job record's `status`** is what the helper polls (the
-analogue of the podcast/artifact status row). Most calls finish inside the poll window → the tool
-returns results inline; genuinely long ones surface a tracked card. REST/MCP doors expose the same
-job via `GET /v1/jobs/{id}` (and an MCP equivalent).
+## Tests
 
-## Reused / fixed (not built here)
+- **Generated parity**: a verb added to the registry appears on chat + REST (+ MCP) with identical I/O.
+- **Auth + meter**: REST without a valid key → 401; an over-budget call → blocked by the `03c` gate
+  before execute; a success charges once.
+- **Chat slow verb**: a many-URL `web.scrape` returns inline when fast; surfaces a tracked card when long;
+  `GET /v1/jobs/{id}` reflects the same terminal status.
+- **Intent router**: "compare X and Y" → one-shot; "watch X weekly" → Tracker setup handoff; ambiguous →
+  exactly one clarifying question.
+- **Consume-MCP**: a configured BYO MCP tool is reachable by the chat agent (routing-gap closed).
 
-- **API keys** — existing infra; keys scope to a workspace; billed to the workspace owner via `03c`.
-- **Identity & Tenancy** — workspace/user/permission checks on every door.
-- **Chat agent + tool registry** — capability tools are *registered into* the existing registry.
-- **Streaming layer** — existing SSE/card emission for chat job progress.
-- **Metering (`03c`)** — the balance gate before execute + charge after, on every door.
+## Risks / trade-offs
 
-## Relationship to the drafted Phase 4
+- **Public REST day one** → needs bounded inputs + per-key quotas / abuse posture (design alongside launch).
+- **MCP auth depth** deferred to implementation (OAuth 2.1 vs bearer) — don't over-build before a consumer exists.
+- **Serve-vs-consume MCP confusion** — keep the two directions explicitly separate in code and docs.
 
-- **04a BYO-`MCP_CONNECTOR` routing fix** → lands here (we *consume* the user's MCP tools).
-- Old connector-config routes for data sources are **not** the surface anymore — the capability
-  REST/MCP/chat doors are. Legacy branded connectors stay only for backward-compat (separate
-  hygiene task).
+## Resolved decisions
 
-## Locked decisions
-
-0. **Natural language is the only human-facing surface.** Users never name verbs/schemas/jobs; the
-   chat agent understands intent, picks & fills verbs, and answers in plain language. An **intent
-   router** classifies one-shot (Product A) vs standing-concern (Product B) from the language, asking
-   one clarifying question only when ambiguous. Raw verbs are exposed solely on REST/MCP (dev/agent
-   doors).
+0. **Natural language is the only human-facing surface.** Users never name verbs/schemas/jobs; the chat
+   agent understands intent, picks & fills verbs, answers in plain language; an intent router classifies
+   one-shot (A) vs standing-concern (B), asking one question only when ambiguous. Raw verbs live only on REST/MCP.
 1. Three doors, generated from the capability registry; order chat → REST → MCP.
 2. REST is **public day one** (cheap; go-to-market choice).
 3. API keys: **reuse existing infra**, billed to workspace owner.
 4. MCP server is a **fast-follow**; auth depth (OAuth 2.1 vs bearer) chosen at implementation.
-5. Chat ↔ slow jobs: **reuse `deliverable_wait` poll-until-terminal + live card**, polling the
-   capability job record's `status`.
-6. "Serve MCP" (our tools out) vs "consume MCP" (BYO tools in) are distinct; the 04a fix is the
-   consume side.
+5. Chat ↔ slow jobs: **reuse `deliverable_wait` poll-until-terminal + live card**, polling the `04a` job record's `status`.
+6. "Serve MCP" (our tools out) vs "consume MCP" (BYO tools in) are distinct; the old-04a fix is the consume side.
+
+## Out of scope (hand-offs)
+
+- **The verbs themselves** (executors, registry, billing units) → `04a`.
+- **The CI subagent + its prompt/playbook** (where the intent router actually lives) → `07`.
+- **Stateful flows** (Tracker crafting, refresh, timeline reads) → `05b`/`05a`, surfaced via chat tools in `07`.
+- Legacy branded connectors stay only for backward-compat (separate hygiene task).
 
 ## Open questions (carry forward)
 
 - MCP auth depth (decide at implementation).
-- Public REST rate-limiting / abuse posture (bounded inputs, per-key quotas) — design alongside the
-  public launch.
-- Whether `web.discover` is metered or free (carried from Domain ①).
+- Public REST rate-limiting / abuse posture (bounded inputs, per-key quotas).
+- Whether `web.discover` is metered or free (carried from `04a`).
