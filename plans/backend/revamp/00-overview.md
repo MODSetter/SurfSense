@@ -47,7 +47,7 @@ PRODUCT B — decision-grounded CI   ③ Intelligence + ④ Timeline  (+ ⑤ Tri
 | `04b-source-discovery.md` | **absorbed** | becomes the `web.discover` capability in ① |
 | `05-pipelines-model.md` | **dissolved** | the "pipeline" concept → the `Lens` (③) + Timeline tables (④); no `pipeline`/`pipeline_runs` |
 | `06-pipelines-exec.md` | **dissolved** | execution → the hot loop (③); scheduling/runs/delivery → **reuse automations** via a CI action (⑤) — its selector + `AutomationRun`, **not** a rebuilt cron |
-| `07-upload-pipeline-kb.md` | **dropped (crawl→KB + uploads-as-pipeline audit)** | "don't index *crawled* data" holds. **User file-upload-to-KB remains a pre-existing, untouched feature.** For CI, uploaded files land in a dedicated **context `Folder`** (not the KB) and may feed the judge (`03`, F) |
+| `07-upload-pipeline-kb.md` | **dropped (crawl→KB + uploads-as-pipeline audit)** | "don't index *crawled* data" holds. **User file-upload-to-KB remains a pre-existing, untouched feature** (uploads still become indexed KB Documents). For CI, uploads are routed to a dedicated **folder** and may feed the judge (`03`, F) |
 
 **Net:** the old `05/06/07` pipeline+KB stack is replaced by `①②③④⑤⑥`. KB indexing of *crawled* data is
 out; *user uploads* still work (and gain a CI context-folder role).
@@ -98,6 +98,7 @@ action instead of building a tick. See `05`.)*
   provider; `maps.*` / `web.discover` register their own units there (pricing stays pluggable).
 - The **Google Maps actor is net-new** (not in shipped Phases 1–3) and is designed/built as a
   **separate effort**; `maps.*` verbs are contracts against it and don't block this design.
-- **CI context files (F):** files uploaded in a CI chat land in a dedicated `Folder` (not the KB) and
-  may feed the materiality judge — the user's private context shapes what counts as material.
+- **CI context files (F):** files uploaded in a CI chat go into the **KB as normal** (indexed), routed
+  to a dedicated `Folder`, and may feed the materiality judge via KB retrieval — the user's private
+  context shapes what counts as material. ("Don't index" applies only to *crawled* data.)
 - License: new domains **Apache-2**; the moat stays in proprietary Acquisition + the Maps extractor.

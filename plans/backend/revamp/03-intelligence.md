@@ -107,19 +107,24 @@ Net: the only genuinely new state is the **Timeline** (`04`); execution accounti
 
 ## User-supplied context files (the F idea, generalized)
 
-A CI chat/Lens may have an associated **context folder** (a normal `Folder`): files the user uploads
-*in that CI chat* (e.g. "our own price list", a competitor brochure) land there directly — **not** the
-global KB. Those files are **decision context**, and the **judge step (5) may consult them** when
-ruling materiality:
+When a user uploads a file *in a CI chat* (e.g. "our own price list", a competitor brochure), it goes
+into the **KB as normal** — uploads create `Document`s and are indexed/embedded, exactly as today.
+**(The "don't index" rule applies only to *crawled* data, not to user uploads.)** The CI-specific part
+is purely **organization + use**:
+
+- **Routed to a dedicated folder** for that CI chat/Lens (reuse the existing folder-upload /
+  `destination_folder` machinery), so the chat's reference files are scoped together.
+- **The judge step (5) may consult them** — retrieved from the KB, scoped to that folder — when ruling
+  materiality:
 
 ```
 competitor price 12.00 → 9.90   + user's context file says "our price is 10.00"
    → agent: competitor crossed *below our price* → MATERIAL (and explain why)
 ```
 
-So the user's private context **shapes what counts as material** — a real differentiator, and it
-reuses the existing `Folder`/upload machinery without resurrecting KB indexing. **MVP-optional**
-(the loop works without it); design the seam now so judgement can read the folder later.
+So the user's private context **shapes what counts as material** — a real differentiator — and it
+reuses the existing KB upload + folder + retrieval machinery (nothing new). **MVP-optional** (the loop
+works without it); design the seam now so the judge can read the folder later.
 
 ## MVP cut vs north star
 
@@ -142,8 +147,9 @@ reuses the existing `Folder`/upload machinery without resurrecting KB indexing. 
 8. **No new run table** — refresh audit/idempotency ride `AutomationRun` (recurring) or the chat job
    record; billing idempotency is per-capability-call + the content-hash gate. Only Timeline (`04`) is
    new state.
-9. **CI context folder** (F): user files uploaded in a CI chat land in a dedicated `Folder` and may
-   feed the judge step; reuses existing upload machinery, **not** the KB. MVP-optional seam.
+9. **CI context folder** (F): user files uploaded in a CI chat go into the **KB as normal** (indexed),
+   routed to a dedicated `Folder`, and may feed the judge step via KB retrieval. The "don't index"
+   rule is for *crawled* data only. MVP-optional seam.
 
 ## Open questions (carry forward)
 
