@@ -34,7 +34,12 @@ from scrapling.engines.toolbelt import is_proxy_error
 from scrapling.fetchers import AsyncFetcher, DynamicFetcher, StealthyFetcher
 
 from app.proprietary.web_crawler.captcha import build_captcha_page_action
+from app.proprietary.web_crawler.stealth import (
+    build_stealthy_kwargs,
+    get_stealth_config,
+)
 from app.utils.captcha import captcha_enabled, get_captcha_config
+from app.utils.crawl import BlockType, classify_block
 from app.utils.proxy import get_proxy_url, is_pool_backed
 
 logger = logging.getLogger(__name__)
@@ -64,6 +69,11 @@ class CrawlOutcome:
     them off the outcome regardless of crawl SUCCESS (the solver charges per
     *attempt*). They are populated only by the StealthyFetcher tier when captcha
     solving is enabled; every other path leaves the defaults (0 / False).
+
+    Phase 3e ``block_type`` is purely *additive* telemetry: the block classifier
+    labels the last fetched page (Cloudflare / captcha / DataDome / rate-limited
+    / ...) for tuning + future escalation routing. It does NOT influence the
+    billable ``SUCCESS`` predicate above.
     """
 
     status: CrawlOutcomeStatus
@@ -72,6 +82,7 @@ class CrawlOutcome:
     tier: str | None = None
     captcha_attempts: int = 0
     captcha_solved: bool = False
+    block_type: BlockType = BlockType.UNKNOWN
 
 
 class WebCrawlerConnector:
@@ -102,11 +113,17 @@ class WebCrawlerConnector:
         # billing can read it regardless of crawl SUCCESS. Per-call (not on
         # ``self``) => safe under concurrent ``crawl_url`` calls.
         captcha_state: dict[str, Any] = {"attempts": 0, "solved": False}
+        # Per-call block-classifier telemetry (03e). ``_build_result`` (the one
+        # place with raw_html + status) classifies each fetched page into here;
+        # crawl_url stamps it onto every outcome. Additive only — never gates
+        # SUCCESS. Per-call (not on ``self``) => concurrency-safe.
+        block_state: dict[str, Any] = {"block_type": BlockType.UNKNOWN}
         try:
             if not validators.url(url):
                 return CrawlOutcome(
                     status=CrawlOutcomeStatus.FAILED,
                     error=f"Invalid URL: {url}",
+                    block_type=block_state["block_type"],
                 )
 
             errors: list[str] = []
@@ -120,7 +137,8 @@ class WebCrawlerConnector:
             try:
                 logger.info(f"[webcrawler] Using Scrapling AsyncFetcher for: {url}")
                 result = await self._run_tier_with_proxy_retry(
-                    "scrapling-static", lambda: self._crawl_with_async_fetcher(url)
+                    "scrapling-static",
+                    lambda: self._crawl_with_async_fetcher(url, block_state),
                 )
                 if result:
                     self._log_tier_outcome(
@@ -131,6 +149,7 @@ class WebCrawlerConnector:
                         status=CrawlOutcomeStatus.SUCCESS,
                         result=result,
                         tier="scrapling-static",
+                        block_type=block_state["block_type"],
                     )
                 reached_without_content = True
                 errors.append("Scrapling static: empty extraction")
@@ -146,7 +165,8 @@ class WebCrawlerConnector:
             try:
                 logger.info(f"[webcrawler] Using Scrapling DynamicFetcher for: {url}")
                 result = await self._run_tier_with_proxy_retry(
-                    "scrapling-dynamic", lambda: self._crawl_with_dynamic(url)
+                    "scrapling-dynamic",
+                    lambda: self._crawl_with_dynamic(url, block_state),
                 )
                 if result:
                     self._log_tier_outcome(
@@ -157,6 +177,7 @@ class WebCrawlerConnector:
                         status=CrawlOutcomeStatus.SUCCESS,
                         result=result,
                         tier="scrapling-dynamic",
+                        block_type=block_state["block_type"],
                     )
                 reached_without_content = True
                 errors.append("Scrapling dynamic: empty extraction")
@@ -181,7 +202,9 @@ class WebCrawlerConnector:
                 logger.info(f"[webcrawler] Using Scrapling StealthyFetcher for: {url}")
                 result = await self._run_tier_with_proxy_retry(
                     "scrapling-stealthy",
-                    lambda: self._crawl_with_stealthy(url, captcha_state),
+                    lambda: self._crawl_with_stealthy(
+                        url, captcha_state, block_state
+                    ),
                 )
                 if result:
                     self._log_tier_outcome(
@@ -194,6 +217,7 @@ class WebCrawlerConnector:
                         tier="scrapling-stealthy",
                         captcha_attempts=captcha_state["attempts"],
                         captcha_solved=captcha_state["solved"],
+                        block_type=block_state["block_type"],
                     )
                 reached_without_content = True
                 errors.append("Scrapling stealthy: empty extraction")
@@ -219,12 +243,14 @@ class WebCrawlerConnector:
                     error=f"No content extracted for {url}. {'; '.join(errors)}",
                     captcha_attempts=captcha_state["attempts"],
                     captcha_solved=captcha_state["solved"],
+                    block_type=block_state["block_type"],
                 )
             return CrawlOutcome(
                 status=CrawlOutcomeStatus.FAILED,
                 error=f"All crawl methods failed for {url}. {'; '.join(errors)}",
                 captcha_attempts=captcha_state["attempts"],
                 captcha_solved=captcha_state["solved"],
+                block_type=block_state["block_type"],
             )
 
         except Exception as e:
@@ -234,6 +260,7 @@ class WebCrawlerConnector:
                 error=f"Error crawling URL {url}: {e!s}",
                 captcha_attempts=captcha_state["attempts"],
                 captcha_solved=captcha_state["solved"],
+                block_type=block_state["block_type"],
             )
 
     async def _run_tier_with_proxy_retry(
@@ -307,7 +334,9 @@ class WebCrawlerConnector:
             total_ms,
         )
 
-    async def _crawl_with_async_fetcher(self, url: str) -> dict[str, Any] | None:
+    async def _crawl_with_async_fetcher(
+        self, url: str, block_state: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """
         Crawl URL using Scrapling's AsyncFetcher (static HTTP) + Trafilatura.
 
@@ -331,6 +360,13 @@ class WebCrawlerConnector:
 
         status = getattr(page, "status", None)
         if status is not None and status >= 400:
+            # 03e: classify here too — this early return skips _build_result, and
+            # the static tier is the first/cheapest hit, so the 403/429 bot-gate
+            # (the most common block signal) would otherwise never be labeled.
+            if block_state is not None:
+                block_state["block_type"] = classify_block(
+                    status, getattr(page, "html_content", None)
+                )
             logger.info(
                 "%s tier=scrapling-static url=%s fetch_ms=%.1f status=%s outcome=http_error",
                 _PERF,
@@ -347,18 +383,25 @@ class WebCrawlerConnector:
             allow_raw_fallback=False,
             fetch_ms=fetch_ms,
             status=status,
+            block_state=block_state,
         )
 
-    async def _crawl_with_dynamic(self, url: str) -> dict[str, Any] | None:
+    async def _crawl_with_dynamic(
+        self, url: str, block_state: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """
         Crawl URL using Scrapling's DynamicFetcher (full browser) + Trafilatura.
 
         Runs the sync fetch in a worker thread so it works on any event loop,
         including Windows ``SelectorEventLoop`` which cannot spawn subprocesses.
         """
-        return await asyncio.to_thread(self._crawl_with_dynamic_sync, url)
+        return await asyncio.to_thread(
+            self._crawl_with_dynamic_sync, url, block_state
+        )
 
-    def _crawl_with_dynamic_sync(self, url: str) -> dict[str, Any] | None:
+    def _crawl_with_dynamic_sync(
+        self, url: str, block_state: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """Synchronous DynamicFetcher crawl executed in a worker thread."""
         fetch_start = time.perf_counter()
         page = DynamicFetcher.fetch(
@@ -376,10 +419,14 @@ class WebCrawlerConnector:
             allow_raw_fallback=False,
             fetch_ms=fetch_ms,
             status=getattr(page, "status", None),
+            block_state=block_state,
         )
 
     async def _crawl_with_stealthy(
-        self, url: str, captcha_state: dict[str, Any] | None = None
+        self,
+        url: str,
+        captcha_state: dict[str, Any] | None = None,
+        block_state: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """
         Crawl URL using Scrapling's StealthyFetcher (patchright-Chromium) + Trafilatura.
@@ -390,13 +437,18 @@ class WebCrawlerConnector:
 
         ``captcha_state`` (03d) is mutated in place by the captcha page_action
         (attempts/solved) so ``crawl_url`` can surface it on the outcome.
+        ``block_state`` (03e) is populated by ``_build_result`` with the block
+        classification of the fetched page.
         """
         return await asyncio.to_thread(
-            self._crawl_with_stealthy_sync, url, captcha_state
+            self._crawl_with_stealthy_sync, url, captcha_state, block_state
         )
 
     def _crawl_with_stealthy_sync(
-        self, url: str, captcha_state: dict[str, Any] | None = None
+        self,
+        url: str,
+        captcha_state: dict[str, Any] | None = None,
+        block_state: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """Synchronous StealthyFetcher crawl executed in a worker thread."""
         fetch_start = time.perf_counter()
@@ -425,6 +477,11 @@ class WebCrawlerConnector:
             "solve_cloudflare": True,
             "proxy": proxy,
         }
+        # 03e Slice A: merge config-driven stealth levers (block_webrtc,
+        # hide_canvas, google_search, dns_over_https, geoip locale/timezone).
+        # Keys never collide with the core kwargs above; defaults preserve
+        # today's behavior and add no crawl-speed regression.
+        fetch_kwargs.update(build_stealthy_kwargs(get_stealth_config()))
         if page_action is not None:
             fetch_kwargs["page_action"] = page_action
         page = StealthyFetcher.fetch(url, **fetch_kwargs)
@@ -436,6 +493,7 @@ class WebCrawlerConnector:
             allow_raw_fallback=True,
             fetch_ms=fetch_ms,
             status=getattr(page, "status", None),
+            block_state=block_state,
         )
 
     def _build_result(
@@ -447,6 +505,7 @@ class WebCrawlerConnector:
         allow_raw_fallback: bool,
         fetch_ms: float | None = None,
         status: int | None = None,
+        block_state: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """
         Extract markdown + metadata from raw HTML using Trafilatura.
@@ -465,6 +524,12 @@ class WebCrawlerConnector:
         Returns:
             Result dict (content/metadata/crawler_type) or ``None``.
         """
+        # 03e: classify the fetched page (additive telemetry/routing only — never
+        # gates SUCCESS). Done before the early returns so EMPTY/no-extraction
+        # pages still get labeled. Last tier to fetch wins in block_state.
+        if block_state is not None:
+            block_state["block_type"] = classify_block(status, raw_html)
+
         html_len = len(raw_html) if raw_html else 0
 
         if not raw_html or len(raw_html.strip()) == 0:

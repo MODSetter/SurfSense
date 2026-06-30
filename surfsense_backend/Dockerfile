@@ -30,6 +30,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     dos2unix \
     git \
+    # ── Phase 3e stealth hardening ──────────────────────────────────────────
+    # Xvfb: virtual framebuffer so the stealth browser can run headful
+    # (headless=False) without a real display — many WAFs flag headless Chromium.
+    # Gated at runtime by CRAWL_HEADED_XVFB_ENABLED (Slice B); installed now so
+    # the image is ready. Real font packages make canvas/emoji/font-enumeration
+    # fingerprints resemble a real desktop (set proven against Kasada/Akamai).
+    xvfb \
+    fonts-noto-color-emoji \
+    fonts-unifont \
+    fonts-ipafont-gothic \
+    fonts-wqy-zenhei \
+    fonts-tlwg-loma-otf \
+    fonts-dejavu \
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
 RUN which ffmpeg && ffmpeg -version

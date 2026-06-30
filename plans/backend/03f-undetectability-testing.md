@@ -1,7 +1,9 @@
 # Phase 3f — Undetectability & extraction test harness (manual scorecard)
 
 > Part of **Phase 3 — WebURL Crawler & Crawl Billing**. See `00-umbrella-plan.md`.
-> **Status: ACTIVE, sequenced last in Phase 3** (after `03a`–`03e` ship — the harness measures what those built). **Manual-only** — no CI/automated gating for now (resolved decision); it's a dev-run scorecard, not a build gate. Depends on `03a` (the Scrapling tiers + `FetchStrategy`/`CrawlOutcome`), `03b` (proxy provider), `03e` (the stealth levers being tested), and reuses the `page_action` + closure-cell mechanism shared with `03d`.
+> **Status: ✅ IMPLEMENTED + first baseline run (`ci_mvp`, 2026-06-30).** Harness lives under the **proprietary boundary** at `surfsense_backend/app/proprietary/web_crawler/testbench/` (package: `core.py` scorecard/closure-cell helper, `suite_stealth.py` Suite S, `suite_extraction.py` Suite E, `__main__.py` CLI, `README.md` runbook) — it's the moat's measurement tool, so it carries the `app/proprietary/LICENSE`, not Apache-2. Run: `python -m app.proprietary.web_crawler.testbench --suite all [--proxy URL] [--headed] [--no-screenshots]`. Suite S builds the StealthyFetcher tier from the **shipped** `build_stealthy_kwargs(get_stealth_config())` (no drift); Suite E drives the real `crawl_url` against ToS-safe sandboxes with deterministic assertions. Writes timestamped `scorecard-*.json`/`.md` + diffs the last run; the **whole `results/` tree is gitignored** (run-local: scorecards, `latest.json`, screenshots, dumps). Captcha forced OFF (unaided score). **Not** pytest-collected (live internet + proxy). **Manual-only** — no CI/automated gating (resolved decision); it's a dev-run scorecard, not a build gate. **First baseline: see "First baseline results" below.**
+>
+> **Post-implementation notes (reconciled to shipped code):** (1) the `03a`/`03e` "`FetchStrategy` seam" never shipped — levers are a centralized kwargs builder, reflected below; (2) **every detection site is now auto-graded from its real DOM verdict** — the initial "INFO + screenshot, read manually" fallback was replaced after a first run by per-site parsers written against actual DOM dumps (reCAPTCHA-v3 reads the server `"score"` JSON, CreepJS the headless-% + boolean spoof tells incl. `hasHeadlessWorkerUA`, incolumitas the fpscanner FAIL keys + `is_datacenter`, fingerprint-scan the `Bot Risk Score`, FingerprintJS the block message, BrowserScan the Normal/Abnormal count, iphey the masthead verdict, Cloudflare the bypass line). `INFO` is now reserved for purely informational rows (TLS JA3/JA4, exit IP) + the manual browserleaks links; screenshots are still captured as a backstop. Each site is one entry in `suite_stealth.py`, so tightening a parser is a one-function change. Depends on `03a` (the Scrapling tier ladder + `CrawlOutcome`), `03b` (proxy provider), `03e` (the stealth levers being tested), and reuses the `page_action` + closure-cell mechanism shared with `03d`.
 
 > **Convention note.** This is **dev/operator tooling**, not a product code path, so it's untouched by the Phase 1–2 rename (no `search_space_id`/`workspace_id` concern). Citations to the gitignored reference checkouts (`references/CloakBrowser/`, `references/Scrapling/`) are pinned to what's on disk; locate code by **symbol/grep** if lines drift.
 
@@ -30,22 +32,26 @@ Their shipped bars (we adopt as **aspirational targets**, see Scorecard): sannys
 We are **not** a single browser; we're the `03a` tier ladder. The harness therefore tests **per tier**, and extracts verdicts two ways:
 
 - **DOM/JSON-rendered verdicts** → just `StealthyFetcher.fetch(url, …)` (or `Fetcher.get` for JSON endpoints) and parse the **returned post-JS page** with Scrapling's selector (`load_dom` is on by default — `references/Scrapling/scrapling/fetchers/stealth_chrome.py:43`). Covers sannysoft, incolumitas, deviceandbrowserinfo, the reCAPTCHA score text, and every JSON endpoint (`tls.peet.ws/api/all`, `httpbin/headers`).
-- **Internal JS-object verdicts** (CreepJS `window.Fingerprint`, Castle.js score node) → a **`page_action`** that runs `page.evaluate()` and stashes the result into a **closure cell**, because Scrapling **discards `page_action`'s return value** (sync `_stealth.py:260`, async `:536`). **This is the exact same `page_action`+closure-cell plumbing as `03d`'s token injector** — building the harness de-risks `03d` (and vice-versa); factor it once.
+- **Internal JS-object verdicts** → a **`page_action`** that runs `page.evaluate()` and stashes the result into a **closure cell**, because Scrapling **discards `page_action`'s return value** (sync `_stealth.py:260`, async `:536`). **This is the exact same `page_action`+closure-cell plumbing as `03d`'s token injector** — building the harness de-risks `03d` (and vice-versa); factor it once. *(As-built: CreepJS/fingerprint-scan turned out to render their verdicts into the visible DOM, so their parsers read the post-JS page text directly; the closure-cell `page_action` path is retained as the mechanism for any future `window.*`-only verdict + for the screenshot backstop.)*
 
 ## Suite S — Stealth / anti-bot
 
 ### S1. Browser tier (StealthyFetcher — the "undetectable" tier)
 
+All rows are **auto-graded** from the post-JS DOM text (no manual screenshot read); the `Extraction` column names the actual marker each parser keys on.
+
 | Site | Signal | Extraction | Aspirational bar |
 |---|---|---|---|
-| `bot.sannysoft.com` | webdriver/chrome/plugins/UA leaks | DOM table | 0 fails |
-| `bot.incolumitas.com` | 30+ checks incl. behavioral | JSON-in-body | ≤ `{WEBDRIVER, connectionRTT}` |
-| `browserscan.net/bot-detection` | WebDriver/CDP/Navigator | DOM text | 0 Abnormal |
-| `deviceandbrowserinfo.com/are_you_a_bot` | fingerprint + behavioral | JSON `isBot` | `isBot=false` |
-| `abrahamjuliot.github.io/creepjs` | fingerprint **consistency/lies**, headless% | `window.Fingerprint` (page_action) | headless ≤30%, stealth ≤30% |
-| `fingerprint-scan.com` | Castle.js bot-risk + headless signals | DOM node + evaluate | low risk; headless signals 0 |
-| `demo.fingerprint.com/web-scraping` | **behavioral block** (click→blocked vs flights) | page_action click + DOM | not blocked |
-| `recaptcha-demo.appspot.com/...v3-request-scores.php` | Google server-verified human score | `wait_for_function` + regex (`recaptcha_score.py:22–28`) | score ≥0.7 |
+| `bot.sannysoft.com` | webdriver/chrome/plugins/UA leaks | `class="failed"` cell count | 0 fails |
+| `bot.incolumitas.com` | 30+ checks incl. behavioral + IP class | `"<key>":"FAIL"` keys, `is_datacenter` | 0 fpscanner FAIL |
+| `browserscan.net/bot-detection` | WebDriver/CDP/Navigator | `Normal`/`Abnormal` count | 0 Abnormal |
+| `deviceandbrowserinfo.com/are_you_a_bot` | fingerprint + behavioral | `"isBot":` JSON | `isBot=false` |
+| `abrahamjuliot.github.io/creepjs` | fingerprint **consistency/lies**, headless% | `N% headless` + boolean tells (`hasHeadlessWorkerUA`…) | headless ≤30%, no tells |
+| `fingerprint-scan.com` | Castle.js bot-risk + headless signals | `Bot Risk Score: N/100` | risk < 50 |
+| `demo.fingerprint.com/web-scraping` | **behavioral block** (FingerprintJS Pro Smart Signals) | block message (`access denied` / `tampering detected`) | not blocked |
+| `recaptcha-demo.appspot.com/...v3-request-scores.php` | Google server-verified human score | server verify `"score":` JSON | score ≥0.7 |
+| `www.scrapingcourse.com/cloudflare-challenge` | **Cloudflare challenge** (only row exercising `solve_cloudflare`) | `you bypassed the cloudflare challenge` line | bypassed |
+| `iphey.com` | cross-layer fingerprint+IP+geo coherence | masthead `Your Digital Identity Looks <verdict>` (async, ~25 s settle) | `Trustworthy` |
 
 ### S2. Per-property fingerprint detail (manual/debug — validates `03e` levers directly)
 
@@ -76,31 +82,56 @@ Purpose-built, ToS-safe sandboxes — validates the HTTP vs **DynamicFetcher (JS
 
 Assertion style: known expected values (e.g. first book title, quote count per page) so extraction regressions are caught deterministically.
 
+## First baseline results (2026-06-30, headless, rotating residential proxy)
+
+First real run of the free stack (patchright-Chromium + curl_cffi `impersonate="chrome"` + `anonymous_proxies` rotating residential), captcha solving OFF, Slice-A levers only (`CRAWL_GEOIP_MATCH_ENABLED=false`). **Suite S: 6 PASS / 4 FAIL across the 10 detection sites** (the other 6 rows are informational: TLS, exit IP, 4 browserleaks manual links).
+
+| Site | Verdict | Observed |
+|---|---|---|
+| sannysoft | ✅ PASS | 0 failed cells |
+| deviceandbrowserinfo | ✅ PASS | `isBot=false` (incl. `isPlaywright=false`, `isAutomatedWithCDP=false`) |
+| reCAPTCHA v3 | ✅ PASS | server score **0.9** |
+| BrowserScan | ✅ PASS | Test Results: Normal, 0 Abnormal (WebDriver/CDP/Navigator) |
+| fingerprint-scan | ✅ PASS | Bot Risk **35/100** (site flags >50) |
+| cloudflare_challenge | ✅ PASS | turnstile **solved** → "you bypassed the Cloudflare challenge" |
+| **CreepJS** | ❌ FAIL | headless **33%**, **`hasHeadlessWorkerUA: true`** (worker UA leaks `HeadlessChrome`) |
+| **incolumitas** | ❌ FAIL | only legacy `fpscanner WEBDRIVER: FAIL`; all modern tests OK |
+| **FingerprintJS Pro** | ❌ FAIL | "anti-detect tampering detected, access denied" |
+| **iphey** | ❌ FAIL | verdict **Unreliable** |
+
+**Reading the failures (maps directly to the moat roadmap):**
+- **FingerprintJS Pro** = the commercial bar (the documented free-stack ceiling). Needs WebGL/GPU + deeper patches (`03e` Slice B/C) or the deferred paid-unblocker (`03e §8`). Hardest.
+- **CreepJS `hasHeadlessWorkerUA`** = the **Web Worker** `navigator.userAgent` still reports `HeadlessChrome` (main-thread UA is clean). Known patchright leak, **plausibly fixable** (worker UA override) → concrete `03e` Slice-B candidate.
+- **iphey "Unreliable"** = almost certainly **geoip incoherence** (browser tz/locale default `America/Los_Angeles` vs the rotating proxy's exit geo, because `CRAWL_GEOIP_MATCH_ENABLED` is default-off in Slice A). iphey is now a **live regression test for the `03e` geoip-coherence lever** — flipping `CRAWL_GEOIP_MATCH_ENABLED` is the expected fix to validate.
+- **incolumitas** = a single 2017-era `fpscanner WEBDRIVER` check that even some real browsers trip; modern checks (webdriverPresent, SELENIUM_DRIVER, HEADCHR_*, CDP) all OK. Lowest priority.
+
+**Proxy-quality note:** incolumitas's IP classifier returned `is_datacenter: true` on one rotation and `false` on another — the `anonymous_proxies` rotating pool **mixes datacenter and residential exits**, a real undetectability variable independent of our code (input to future proxy-provider evaluation).
+
 ## Scorecard & thresholds (resolved)
 
-- **Adopt CloakBrowser's bars as aspirational targets** (above), but the harness's primary output is **our actual measured numbers recorded as the baseline** — a committed `scorecard.md`/JSON snapshot per run (date, tier, proxy on/off, headed/headless, per-site result). Subsequent runs diff against the last baseline so we see drift (ours improving, or a WAF tightening).
+- **Adopt CloakBrowser's bars as aspirational targets** (above), but the harness's primary output is **our actual measured numbers recorded as the baseline** — a `scorecard.md`/JSON snapshot per run (date, tier, proxy on/off, headed/headless, per-site result), written to the **gitignored** `results/` tree. Subsequent runs diff against the last on-disk baseline so we see drift (ours improving, or a WAF tightening).
 - Each row reports: site, tier, verdict, numeric (where applicable), PASS/FAIL vs aspirational bar, and screenshot path.
 - A run is summarized as `passed/total` per suite (like `stealth_test.py:314–317`), **never blocking** anything.
 
 ## Harness design
 
-- Lives under dev tooling (e.g. `surfsense_backend/scripts/crawler_testbench/` or `tests/manual/` — not collected by the normal pytest run, since it hits the live internet + needs proxies). A thin CLI mirrors `bin/cloaktest`: `python -m ... [--proxy URL] [--headed] [--headless] [--suite S|E|all] [--no-screenshots]`.
+- Lives under the **proprietary boundary** at `surfsense_backend/app/proprietary/web_crawler/testbench/` (moat measurement tooling — not Apache-2; not collected by the normal pytest run, since it hits the live internet + needs proxies). It is moved here as a coherent package because it can't be cleanly *partially* moved (a proprietary Suite S would otherwise back-import generic scaffolding from `scripts/`, a forbidden app→scripts direction). A thin CLI mirrors `bin/cloaktest`: `python -m app.proprietary.web_crawler.testbench [--proxy URL] [--headed] [--suite S|E|all] [--no-screenshots]`.
 - **Reuse split (important — `crawl_url` is *not* a drop-in here):**
   - **Suite E** drives the **real `crawl_url`** end-to-end — extraction correctness *is* the production path (auto-ladder + Trafilatura markdown is exactly what we want to assert).
   - **Suite S** does **not** use `crawl_url`. Two reasons: (1) `crawl_url` auto-ladders and stops at the first `SUCCESS`, so a detection site might be answered by the cheap HTTP tier when we mean to grade the **StealthyFetcher** tier; (2) `crawl_url` returns Trafilatura **markdown** (`_build_result`), but verdict parsing needs the **raw post-JS DOM** (and `window.*` objects need a live page). So Suite S drives the **individual Scrapling fetchers directly**, per tier.
-  - **Avoid test-vs-prod drift:** Suite S must construct each fetcher from the **same centralized stealth-config builder** `03e` introduces (the single source of truth for `locale`/`timezone_id`/`hide_canvas`/`block_webrtc`/`impersonate`/profile/headed), **not** a hand-rolled kwargs set — otherwise the scorecard grades a browser we don't ship. (`03e` work item: expose that builder so both the crawler and this harness import it.)
+  - **Avoid test-vs-prod drift:** Suite S must construct the StealthyFetcher tier from the **same centralized stealth-config builder** `03e` shipped — `build_stealthy_kwargs(get_stealth_config())` in `app/proprietary/web_crawler/stealth.py` (the single source of truth for `block_webrtc`/`hide_canvas`/`google_search`/`dns_over_https` + geoip `locale`/`timezone_id`) — **not** a hand-rolled kwargs set, otherwise the scorecard grades a browser we don't ship. The static (HTTP) tier's `impersonate="chrome"` anchor stays hardcoded in the connector (`03a` §2b); `real_chrome`/headed/persistent-profile are Slice B/C and **not** yet in the builder, so the harness exercises today's Slice-A browser.
 - Outputs: console summary + screenshots + the `scorecard` snapshot.
 - Runs with the app-wide proxy provider (`03b`) and `03e` levers on, so the scorecard reflects production fetch behavior — **except captcha solving, which Suite S forces OFF** (`CAPTCHA_SOLVING_ENABLED=false`): we measure the *unaided* stealth/score, and it avoids the `03d` injector firing paid solves against the reCAPTCHA-demo / FingerprintJS rows. Captcha solving is exercised separately (functional `03d` test), not in the stealth scorecard.
 
 ## The ceiling-decision loop (why this matters)
 
-The scorecard is the evidence base for the moat strategy: re-run it (a) on a cadence and (b) whenever crawls start failing in the wild. When the **hard** rows (FingerprintJS demo, reCAPTCHA-v3 ≥0.7, and any DataDome/Kasada targets) degrade and `03e` levers can't recover them, that's the documented trigger to flip the **deferred paid-unblocker `FetchStrategy`** (`03e §8`). Without this harness, that decision is guesswork.
+The scorecard is the evidence base for the moat strategy: re-run it (a) on a cadence and (b) whenever crawls start failing in the wild. When the **hard** rows (FingerprintJS demo, reCAPTCHA-v3 ≥0.7, and any DataDome/Kasada targets) degrade and `03e` levers can't recover them, that's the documented trigger to flip the **deferred paid-unblocker tier** (`03e §8`). Without this harness, that decision is guesswork.
 
 ## Config / dependencies
 
 - **No new production dependencies** — reuses Scrapling (already pinned) + the crawler. Optionally a tiny dev helper for the scorecard diff (or just stdlib `json`).
 - Needs **residential proxy creds** (the `03b` env) to be meaningful; document a "no-proxy" mode that still runs but is expected to fail the harder rows (datacenter IP).
-- A results dir (gitignored screenshots; committed `scorecard` snapshots).
+- A results dir — **entirely gitignored** (run-local scorecards, `latest.json`, screenshots, dumps); kept tracked only via its `.gitignore`.
 
 ## Work items
 

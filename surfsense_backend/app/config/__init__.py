@@ -1086,6 +1086,38 @@ class Config:
     CAPTCHA_V3_MIN_SCORE = float(os.getenv("CAPTCHA_V3_MIN_SCORE", "0.7"))
     CAPTCHA_V3_ACTION = os.getenv("CAPTCHA_V3_ACTION", "verify")
 
+    # =====================================================================
+    # Phase 3e — Stealth hardening (Slice A): runtime/config-level levers
+    # layered on Scrapling's patchright-Chromium StealthyFetcher tier. All are
+    # consumed by the centralized kwargs builder in
+    # app/proprietary/web_crawler/stealth.py (proprietary — bypass tuning), which
+    # is the single source of truth imported by the crawler AND the 03f harness
+    # (no test-vs-prod drift). Defaults preserve today's behavior /
+    # introduce no crawl-speed regression. See plans/backend/03e-stealth-hardening.md.
+    # =====================================================================
+    # Map the configured proxy region (RESIDENTIAL_PROXY_LOCATION) -> browser
+    # locale/timezone so the fingerprint coheres with the proxy exit geo. No
+    # exit-IP lookup (zero added latency); unknown/empty region => skip.
+    CRAWL_GEOIP_MATCH_ENABLED = (
+        os.getenv("CRAWL_GEOIP_MATCH_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    # Force WebRTC to respect the proxy (prevents real-local-IP leak). Cheap +
+    # safe => default TRUE.
+    CRAWL_BLOCK_WEBRTC = os.getenv("CRAWL_BLOCK_WEBRTC", "TRUE").upper() == "TRUE"
+    # Random canvas noise. An UNSTABLE canvas hash is itself a fingerprint tell,
+    # so default FALSE (opt-in + 03f-validated). See 03e §2.
+    CRAWL_HIDE_CANVAS = os.getenv("CRAWL_HIDE_CANVAS", "FALSE").upper() == "TRUE"
+    # Set a Google referer so the first hit looks like organic arrival.
+    CRAWL_GOOGLE_SEARCH_REFERER = (
+        os.getenv("CRAWL_GOOGLE_SEARCH_REFERER", "TRUE").upper() == "TRUE"
+    )
+    # Route DNS via Cloudflare DoH (anti DNS-leak behind proxies). Adds a DNS
+    # round-trip => default FALSE to honor the "no speed regression" bar; flip on
+    # when leak-safety outweighs the marginal latency.
+    CRAWL_DNS_OVER_HTTPS = (
+        os.getenv("CRAWL_DNS_OVER_HTTPS", "FALSE").upper() == "TRUE"
+    )
+
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")
     TTS_SERVICE_API_BASE = os.getenv("TTS_SERVICE_API_BASE")
