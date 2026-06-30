@@ -47,7 +47,7 @@ async def test_static_tier_success_short_circuits(
         later_calls.append("dynamic")
         return None
 
-    async def _record_stealthy(_url: str) -> None:
+    async def _record_stealthy(_url: str, *_args) -> None:
         later_calls.append("stealthy")
         return None
 
@@ -89,7 +89,7 @@ async def test_all_tiers_empty_is_empty(monkeypatch: pytest.MonkeyPatch) -> None
     """Every tier fetched but extracted nothing -> EMPTY (not billable)."""
     crawler = WebCrawlerConnector()
 
-    async def _empty(_url: str) -> None:
+    async def _empty(_url: str, *_args) -> None:
         return None
 
     monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _empty)
@@ -106,7 +106,7 @@ async def test_all_tiers_raise_is_failed(monkeypatch: pytest.MonkeyPatch) -> Non
     """Every tier raising (none reachable) -> FAILED with aggregated errors."""
     crawler = WebCrawlerConnector()
 
-    async def _boom(_url: str) -> None:
+    async def _boom(_url: str, *_args) -> None:
         raise RuntimeError("fetch exploded")
 
     monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _boom)
@@ -153,7 +153,7 @@ async def test_proxy_error_no_retry_when_single_endpoint(
         static_calls["n"] += 1
         raise RuntimeError("connection refused by upstream proxy")
 
-    async def _empty(_url: str) -> None:
+    async def _empty(_url: str, *_args) -> None:
         return None
 
     monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _proxy_err)
@@ -167,6 +167,77 @@ async def test_proxy_error_no_retry_when_single_endpoint(
     assert outcome.status is CrawlOutcomeStatus.EMPTY
 
 
+async def test_captcha_defaults_zero_on_non_stealthy_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """03d: a static success never touches captcha → fields stay 0/False."""
+    crawler = WebCrawlerConnector()
+
+    async def _static(_url: str) -> dict:
+        return _result("scrapling-static")
+
+    monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _static)
+    outcome = await crawler.crawl_url("https://example.com")
+
+    assert outcome.status is CrawlOutcomeStatus.SUCCESS
+    assert outcome.captcha_attempts == 0
+    assert outcome.captcha_solved is False
+
+
+async def test_captcha_state_surfaced_onto_outcome(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """03d: the stealthy tier's captcha_state is stamped onto the outcome,
+    even when the lower tiers missed and stealthy itself succeeds."""
+    crawler = WebCrawlerConnector()
+
+    async def _empty(_url: str, *_args) -> None:
+        return None
+
+    async def _stealthy(_url: str, captcha_state: dict) -> dict:
+        # Simulate the page_action having solved a captcha mid-fetch.
+        captcha_state["attempts"] = 2
+        captcha_state["solved"] = True
+        return _result("scrapling-stealthy")
+
+    monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _empty)
+    monkeypatch.setattr(crawler, "_crawl_with_dynamic", _empty)
+    monkeypatch.setattr(crawler, "_crawl_with_stealthy", _stealthy)
+
+    outcome = await crawler.crawl_url("https://example.com")
+
+    assert outcome.status is CrawlOutcomeStatus.SUCCESS
+    assert outcome.tier == "scrapling-stealthy"
+    assert outcome.captcha_attempts == 2
+    assert outcome.captcha_solved is True
+
+
+async def test_captcha_attempts_surface_even_when_crawl_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """03d: attempts are billed per-attempt → must surface on a FAILED outcome."""
+    crawler = WebCrawlerConnector()
+
+    async def _empty(_url: str, *_args) -> None:
+        return None
+
+    async def _stealthy_attempt_then_empty(_url: str, captcha_state: dict) -> None:
+        captcha_state["attempts"] = 1  # solve attempted but crawl still empty
+        return None
+
+    monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _empty)
+    monkeypatch.setattr(crawler, "_crawl_with_dynamic", _empty)
+    monkeypatch.setattr(
+        crawler, "_crawl_with_stealthy", _stealthy_attempt_then_empty
+    )
+
+    outcome = await crawler.crawl_url("https://example.com")
+
+    assert outcome.status is CrawlOutcomeStatus.EMPTY
+    assert outcome.captcha_attempts == 1
+    assert outcome.captcha_solved is False
+
+
 async def test_non_proxy_error_never_retries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -178,7 +249,7 @@ async def test_non_proxy_error_never_retries(
         calls["n"] += 1
         raise RuntimeError("totally unrelated failure")
 
-    async def _empty(_url: str) -> None:
+    async def _empty(_url: str, *_args) -> None:
         return None
 
     monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _boom)

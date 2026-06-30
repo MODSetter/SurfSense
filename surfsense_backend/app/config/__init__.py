@@ -670,6 +670,21 @@ class Config:
         os.getenv("WEB_CRAWL_MICROS_PER_SUCCESS", "1000")
     )
 
+    # Phase 3d captcha-solve billing. Captcha can't ride the per-success crawl
+    # meter above: the solver charges per *attempt* regardless of whether the
+    # crawl ultimately succeeds, so solves are metered as a SEPARATE per-attempt
+    # unit (usage_type="web_crawl_captcha"). Off by default; independent of the
+    # crawl-billing flag. Price is config-driven (no hardcoded rate):
+    #   WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE = round(USD_per_1000_solves * 1_000)
+    #   $3/1000 -> 3000 (default) | $5/1000 -> 5000
+    # Set with margin over the solver vendor's per-attempt price.
+    WEB_CRAWL_CAPTCHA_BILLING_ENABLED = (
+        os.getenv("WEB_CRAWL_CAPTCHA_BILLING_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE = int(
+        os.getenv("WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE", "3000")
+    )
+
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service
     # so the UI can nudge the user to top up / enable auto-reload. $0.50.
     CREDIT_LOW_BALANCE_WARNING_MICROS = int(
@@ -1040,6 +1055,36 @@ class Config:
     # ProxyRotator. Each value is a full http://user:pass@host:port URL.
     CUSTOM_PROXY_URL = os.getenv("CUSTOM_PROXY_URL")
     CUSTOM_PROXY_URLS = os.getenv("CUSTOM_PROXY_URLS")
+
+    # =====================================================================
+    # Phase 3d — Captcha solving (reCAPTCHA v2/v3, hCaptcha) via captchatools.
+    # The LAST-resort bypass tier: only fires on the StealthyFetcher browser
+    # tier, only when a sitekey is detected, and only when explicitly enabled.
+    # Cloudflare Turnstile is already handled free in-framework (03a), NOT here.
+    # One app-wide config (mirrors the single PROXY_PROVIDER model) — no
+    # per-connector config. Off by default => zero solve attempts, zero cost.
+    # Solving may violate a target site's ToS; treat as opt-in/owner-acknowledged
+    # and public-data only (no logged-in bypass).
+    # =====================================================================
+    CAPTCHA_SOLVING_ENABLED = (
+        os.getenv("CAPTCHA_SOLVING_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    # captchatools "solving_site": capmonster | 2captcha | anticaptcha |
+    # capsolver | captchaai. captchatools is itself the provider registry, so we
+    # do not rebuild a vendor hierarchy.
+    CAPTCHA_SOLVER_PROVIDER = os.getenv("CAPTCHA_SOLVER_PROVIDER", "capsolver")
+    CAPTCHA_SOLVER_API_KEY = os.getenv("CAPTCHA_SOLVER_API_KEY")
+    # Per-URL solve cap so one hostile page can't burn unbounded solver credit.
+    CAPTCHA_MAX_ATTEMPTS_PER_URL = int(
+        os.getenv("CAPTCHA_MAX_ATTEMPTS_PER_URL", "1")
+    )
+    # Abort a single solve after this many seconds (solves take 10-60s).
+    CAPTCHA_SOLVE_TIMEOUT_S = int(os.getenv("CAPTCHA_SOLVE_TIMEOUT_S", "120"))
+    # Default captcha type when detection is ambiguous: v2 | v3 | hcaptcha.
+    CAPTCHA_TYPE_DEFAULT = os.getenv("CAPTCHA_TYPE_DEFAULT", "v2")
+    # reCAPTCHA v3 tuning (only used for v3 challenges).
+    CAPTCHA_V3_MIN_SCORE = float(os.getenv("CAPTCHA_V3_MIN_SCORE", "0.7"))
+    CAPTCHA_V3_ACTION = os.getenv("CAPTCHA_V3_ACTION", "verify")
 
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")

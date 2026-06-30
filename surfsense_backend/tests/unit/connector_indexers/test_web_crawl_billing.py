@@ -53,7 +53,12 @@ def _make_session(owner_id, balance_micros, reserved_micros=0):
     return session, fake_user
 
 
-def _outcome(success: bool, content: str = "Hello content"):
+def _outcome(
+    success: bool,
+    content: str = "Hello content",
+    captcha_attempts: int = 0,
+    captcha_solved: bool = False,
+):
     o = MagicMock()
     if success:
         o.status = CrawlOutcomeStatus.SUCCESS
@@ -67,6 +72,9 @@ def _outcome(success: bool, content: str = "Hello content"):
         o.status = CrawlOutcomeStatus.FAILED
         o.result = None
         o.error = "blocked"
+    # Real ints/bools (not MagicMock) so 03d accumulation arithmetic is safe.
+    o.captcha_attempts = captcha_attempts
+    o.captcha_solved = captcha_solved
     return o
 
 
@@ -188,3 +196,111 @@ async def test_disabled_skips_billing_but_still_crawls(indexer_env, monkeypatch)
     indexer_env["crawler"].crawl_url.assert_awaited_once()
     indexer_env["record_usage"].assert_not_awaited()
     assert user.credit_micros_balance == 100_000
+
+
+# ===================================================================
+# Phase 3d — captcha per-attempt billing in the indexer
+# ===================================================================
+
+
+async def test_captcha_attempts_charged_to_owner(indexer_env, monkeypatch):
+    """Captcha billed per attempt to the OWNER as a separate web_crawl_captcha
+    unit. Crawl billing OFF here to isolate the captcha charge."""
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", False)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_BILLING_ENABLED", True)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE", 3000)
+    session, user = _make_session(_OWNER_USER, balance_micros=100_000)
+    indexer_env["crawler"].crawl_url.side_effect = [
+        _outcome(True, captcha_attempts=1, captcha_solved=True),
+        _outcome(True, captcha_attempts=1, captcha_solved=True),
+    ]
+
+    total, _warning = await _run(
+        indexer_env, session, ["https://a.com", "https://b.com"]
+    )
+
+    assert total == 2
+    # Owner debited 2 attempts * 3000 (no crawl charge — crawl billing off).
+    assert user.credit_micros_balance == 100_000 - 6000
+    indexer_env["record_usage"].assert_awaited_once()
+    kwargs = indexer_env["record_usage"].await_args.kwargs
+    assert kwargs["usage_type"] == "web_crawl_captcha"
+    assert kwargs["user_id"] == _OWNER_USER
+    assert kwargs["cost_micros"] == 6000
+    assert kwargs["call_details"]["attempts"] == 2
+    assert kwargs["call_details"]["solved"] == 2
+
+
+async def test_captcha_attempt_billed_even_when_crawl_fails(indexer_env, monkeypatch):
+    """A failed solve still cost solver money → bill the attempt anyway."""
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", False)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_BILLING_ENABLED", True)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE", 3000)
+    session, user = _make_session(_OWNER_USER, balance_micros=100_000)
+    indexer_env["crawler"].crawl_url.side_effect = [
+        _outcome(False, captcha_attempts=1, captcha_solved=False)
+    ]
+
+    total, _warning = await _run(indexer_env, session, ["https://a.com"])
+
+    assert total == 0  # crawl failed → not indexed
+    assert user.credit_micros_balance == 100_000 - 3000  # but solve attempt billed
+    kwargs = indexer_env["record_usage"].await_args.kwargs
+    assert kwargs["usage_type"] == "web_crawl_captcha"
+    assert kwargs["call_details"]["attempts"] == 1
+    assert kwargs["call_details"]["solved"] == 0
+
+
+async def test_captcha_billing_on_but_solving_off_does_not_overreserve(
+    indexer_env, monkeypatch
+):
+    """Regression: captcha billing ON but solving OFF must NOT reserve the
+    worst-case captcha budget in pre-flight.
+
+    With solving off, attempts can never happen, so a balance below the
+    (would-be) worst-case reservation must still let the run proceed rather than
+    being wrongly blocked for captcha that never runs.
+    """
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", False)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_BILLING_ENABLED", True)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE", 3000)
+    monkeypatch.setattr(config, "CAPTCHA_MAX_ATTEMPTS_PER_URL", 3)
+    # Solving OFF → captcha_enabled() is False (no flag + no key).
+    monkeypatch.setattr(config, "CAPTCHA_SOLVING_ENABLED", False)
+    monkeypatch.setattr(config, "CAPTCHA_SOLVER_API_KEY", "")
+
+    # Balance (5000) is below the buggy worst-case reservation
+    # (2 URLs * 3 attempts * 3000 = 18000) but the run must still proceed.
+    session, user = _make_session(_OWNER_USER, balance_micros=5000)
+    indexer_env["crawler"].crawl_url.side_effect = [
+        _outcome(True, captcha_attempts=0),
+        _outcome(True, captcha_attempts=0),
+    ]
+
+    total, warning = await _run(
+        indexer_env, session, ["https://a.com", "https://b.com"]
+    )
+
+    assert total == 2
+    assert warning is None
+    assert indexer_env["crawler"].crawl_url.await_count == 2
+    # Nothing billed: crawl billing off, no captcha attempts.
+    indexer_env["record_usage"].assert_not_awaited()
+    assert user.credit_micros_balance == 5000
+
+
+async def test_captcha_disabled_skips_captcha_billing(indexer_env, monkeypatch):
+    """Captcha billing OFF (default) → attempts on the outcome are ignored."""
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_BILLING_ENABLED", False)
+    session, user = _make_session(_OWNER_USER, balance_micros=100_000)
+    indexer_env["crawler"].crawl_url.side_effect = [
+        _outcome(True, captcha_attempts=5, captcha_solved=True)
+    ]
+
+    total, _warning = await _run(indexer_env, session, ["https://a.com"])
+
+    assert total == 1
+    # Only the crawl unit billed (1 * 1000); captcha ignored entirely.
+    assert user.credit_micros_balance == 100_000 - 1000
+    kwargs = indexer_env["record_usage"].await_args.kwargs
+    assert kwargs["usage_type"] == "web_crawl"

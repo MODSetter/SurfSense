@@ -49,6 +49,36 @@ def _bill_successful_scrape() -> None:
     )
 
 
+def _bill_captcha_attempts(outcome) -> None:
+    """Fold captcha solve attempts (Phase 3d) into the current chat turn's bill.
+
+    Per *attempt*, not per success: a solve that didn't rescue the crawl still
+    cost real solver money, so this runs before the success/failure branch.
+    Mirrors :func:`_bill_successful_scrape` (rides the turn accumulator, settles
+    at ``finalize_credit``; record-only on free/anonymous turns). No-op when
+    captcha billing is off, there were no attempts, or no turn is active.
+    """
+    from app.services.token_tracking_service import get_current_accumulator
+    from app.services.web_crawl_credit_service import WebCrawlCreditService
+
+    if not WebCrawlCreditService.captcha_billing_enabled():
+        return
+    attempts = getattr(outcome, "captcha_attempts", 0) or 0
+    if attempts <= 0:
+        return
+    acc = get_current_accumulator()
+    if acc is None:
+        return
+    acc.add(
+        model="web_crawl_captcha",
+        prompt_tokens=0,
+        completion_tokens=0,
+        total_tokens=0,
+        cost_micros=WebCrawlCreditService.captcha_solves_to_micros(attempts),
+        call_kind="web_crawl_captcha",
+    )
+
+
 def extract_domain(url: str) -> str:
     """Extract the domain from a URL."""
     try:
@@ -251,6 +281,9 @@ def create_scrape_webpage_tool():
 
             connector = WebCrawlerConnector()
             outcome = await connector.crawl_url(url)
+
+            # 03d: bill any captcha attempts (even if the crawl ultimately failed).
+            _bill_captcha_attempts(outcome)
 
             if outcome.status is not CrawlOutcomeStatus.SUCCESS or not outcome.result:
                 return {

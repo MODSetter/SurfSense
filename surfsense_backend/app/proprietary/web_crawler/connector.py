@@ -33,6 +33,8 @@ import validators
 from scrapling.engines.toolbelt import is_proxy_error
 from scrapling.fetchers import AsyncFetcher, DynamicFetcher, StealthyFetcher
 
+from app.proprietary.web_crawler.captcha import build_captcha_page_action
+from app.utils.captcha import captcha_enabled, get_captcha_config
 from app.utils.proxy import get_proxy_url, is_pool_backed
 
 logger = logging.getLogger(__name__)
@@ -56,14 +58,20 @@ class CrawlOutcome:
     The **billable success predicate is single-sourced**:
     ``status == CrawlOutcomeStatus.SUCCESS`` (Phase 3c meters on it). Picking a
     dataclass over a tuple lets later subplans append fields without breaking
-    callers (03d adds ``captcha_attempts``/``captcha_solved`` for per-attempt
-    billing; 03e's block classifier can attach a ``block_type``).
+    callers (03e's block classifier can attach a ``block_type``).
+
+    Phase 3d captcha fields are surfaced here so per-attempt billing can read
+    them off the outcome regardless of crawl SUCCESS (the solver charges per
+    *attempt*). They are populated only by the StealthyFetcher tier when captcha
+    solving is enabled; every other path leaves the defaults (0 / False).
     """
 
     status: CrawlOutcomeStatus
     result: dict[str, Any] | None = None
     error: str | None = None
     tier: str | None = None
+    captcha_attempts: int = 0
+    captcha_solved: bool = False
 
 
 class WebCrawlerConnector:
@@ -89,6 +97,11 @@ class WebCrawlerConnector:
                 - crawler_type: Identifier of the tier that produced the content
         """
         total_start = time.perf_counter()
+        # Per-call captcha telemetry (03d). Mutated only by the StealthyFetcher
+        # tier's page_action; stamped onto the returned outcome so per-attempt
+        # billing can read it regardless of crawl SUCCESS. Per-call (not on
+        # ``self``) => safe under concurrent ``crawl_url`` calls.
+        captcha_state: dict[str, Any] = {"attempts": 0, "solved": False}
         try:
             if not validators.url(url):
                 return CrawlOutcome(
@@ -167,7 +180,8 @@ class WebCrawlerConnector:
             try:
                 logger.info(f"[webcrawler] Using Scrapling StealthyFetcher for: {url}")
                 result = await self._run_tier_with_proxy_retry(
-                    "scrapling-stealthy", lambda: self._crawl_with_stealthy(url)
+                    "scrapling-stealthy",
+                    lambda: self._crawl_with_stealthy(url, captcha_state),
                 )
                 if result:
                     self._log_tier_outcome(
@@ -178,6 +192,8 @@ class WebCrawlerConnector:
                         status=CrawlOutcomeStatus.SUCCESS,
                         result=result,
                         tier="scrapling-stealthy",
+                        captcha_attempts=captcha_state["attempts"],
+                        captcha_solved=captcha_state["solved"],
                     )
                 reached_without_content = True
                 errors.append("Scrapling stealthy: empty extraction")
@@ -201,10 +217,14 @@ class WebCrawlerConnector:
                 return CrawlOutcome(
                     status=CrawlOutcomeStatus.EMPTY,
                     error=f"No content extracted for {url}. {'; '.join(errors)}",
+                    captcha_attempts=captcha_state["attempts"],
+                    captcha_solved=captcha_state["solved"],
                 )
             return CrawlOutcome(
                 status=CrawlOutcomeStatus.FAILED,
                 error=f"All crawl methods failed for {url}. {'; '.join(errors)}",
+                captcha_attempts=captcha_state["attempts"],
+                captcha_solved=captcha_state["solved"],
             )
 
         except Exception as e:
@@ -212,6 +232,8 @@ class WebCrawlerConnector:
             return CrawlOutcome(
                 status=CrawlOutcomeStatus.FAILED,
                 error=f"Error crawling URL {url}: {e!s}",
+                captcha_attempts=captcha_state["attempts"],
+                captcha_solved=captcha_state["solved"],
             )
 
     async def _run_tier_with_proxy_retry(
@@ -356,29 +378,56 @@ class WebCrawlerConnector:
             status=getattr(page, "status", None),
         )
 
-    async def _crawl_with_stealthy(self, url: str) -> dict[str, Any] | None:
+    async def _crawl_with_stealthy(
+        self, url: str, captcha_state: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """
         Crawl URL using Scrapling's StealthyFetcher (patchright-Chromium) + Trafilatura.
 
         Last-resort tier with anti-bot features. Runs the sync fetch in a worker
         thread for the same event-loop-safety reasons as DynamicFetcher. Falls
         back to the raw HTML when Trafilatura extraction is empty.
-        """
-        return await asyncio.to_thread(self._crawl_with_stealthy_sync, url)
 
-    def _crawl_with_stealthy_sync(self, url: str) -> dict[str, Any] | None:
+        ``captcha_state`` (03d) is mutated in place by the captcha page_action
+        (attempts/solved) so ``crawl_url`` can surface it on the outcome.
+        """
+        return await asyncio.to_thread(
+            self._crawl_with_stealthy_sync, url, captcha_state
+        )
+
+    def _crawl_with_stealthy_sync(
+        self, url: str, captcha_state: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """Synchronous StealthyFetcher crawl executed in a worker thread."""
         fetch_start = time.perf_counter()
+        # Capture the proxy endpoint ONCE so the captcha solver egresses from the
+        # SAME IP as this fetch (tokens are IP-bound). Re-calling get_proxy_url()
+        # inside the page_action would rotate a pool-backed provider to a
+        # different IP and invalidate the token (03d proxy-coherence caveat).
+        proxy = get_proxy_url()
+
+        # Build the captcha page_action only when solving is enabled (and not
+        # process-latched). ``None`` => stealth tier behaves exactly as before.
+        page_action = None
+        if captcha_state is not None and captcha_enabled():
+            page_action = build_captcha_page_action(
+                captcha_state, proxy, get_captcha_config()
+            )
+
         # ``solve_cloudflare=True`` runs the full Turnstile/Interstitial challenge
         # loop; scoped to this last-resort tier only (it spins up the browser).
-        page = StealthyFetcher.fetch(
-            url,
-            headless=True,
-            network_idle=True,
-            block_ads=True,
-            solve_cloudflare=True,
-            proxy=get_proxy_url(),
-        )
+        # Scrapling runs solve_cloudflare BEFORE page_action, so Cloudflare is
+        # cleared first, then our captcha injector runs.
+        fetch_kwargs: dict[str, Any] = {
+            "headless": True,
+            "network_idle": True,
+            "block_ads": True,
+            "solve_cloudflare": True,
+            "proxy": proxy,
+        }
+        if page_action is not None:
+            fetch_kwargs["page_action"] = page_action
+        page = StealthyFetcher.fetch(url, **fetch_kwargs)
         fetch_ms = (time.perf_counter() - fetch_start) * 1000
         return self._build_result(
             page.html_content,

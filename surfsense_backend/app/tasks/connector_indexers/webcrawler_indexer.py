@@ -17,11 +17,13 @@ from app.proprietary.web_crawler import (
     CrawlOutcomeStatus,
     WebCrawlerConnector,
 )
+from app.config import config
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.etl_credit_service import InsufficientCreditsError
 from app.services.task_logging_service import TaskLoggingService
 from app.services.token_tracking_service import record_token_usage
 from app.services.web_crawl_credit_service import WebCrawlCreditService
+from app.utils.captcha import captcha_enabled
 from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
@@ -175,19 +177,31 @@ async def index_crawled_urls(
             return 0, "No URLs provided for indexing"
 
         # =======================================================================
-        # Phase 3c: crawl-credit pre-flight. Bill the workspace OWNER. ``len(urls)``
-        # is a safe upper bound on successes, so a passing check guarantees the
-        # wallet can't go negative from this run. No-op when billing is disabled
-        # (self-hosted/OSS) — we also skip the owner lookup in that case.
+        # Phase 3c/3d: crawl-credit pre-flight. Bill the workspace OWNER. The
+        # estimate is a safe UPPER BOUND so the wallet can't strand mid-batch:
+        #   crawl   = len(urls) successes        (3c; actual successes are <=)
+        #   captcha = len(urls) * MAX_ATTEMPTS   (3d; per-attempt, worst case)
+        # No-op (and no owner lookup) when both billers are disabled.
         # =======================================================================
         credit_service = WebCrawlCreditService(session)
         owner_user_id = user_id
-        if credit_service.billing_enabled():
+        if credit_service.billing_enabled() or credit_service.captcha_billing_enabled():
             owner_user_id = (
                 await _resolve_workspace_owner(session, workspace_id) or user_id
             )
+            required_micros = 0
+            if credit_service.billing_enabled():
+                required_micros += credit_service.successes_to_micros(len(urls))
+            # Only reserve captcha budget when solving is actually enabled;
+            # with solving off, attempts can never happen, so reserving would
+            # wrongly block runs for captcha that will never be attempted.
+            if credit_service.captcha_billing_enabled() and captcha_enabled():
+                worst_case_attempts = len(urls) * config.CAPTCHA_MAX_ATTEMPTS_PER_URL
+                required_micros += credit_service.captcha_solves_to_micros(
+                    worst_case_attempts
+                )
             try:
-                await credit_service.check_credits(owner_user_id, len(urls))
+                await credit_service.check_balance(owner_user_id, required_micros)
             except InsufficientCreditsError as credit_error:
                 await task_logger.log_task_failure(
                     log_entry,
@@ -218,6 +232,11 @@ async def index_crawled_urls(
         # extracted content, independent of downstream KB dedupe/unchanged
         # bucketing. This is the billable unit Phase 3c meters on.
         crawls_succeeded = 0
+        # Phase 3d: per-attempt captcha telemetry summed across the batch. Only
+        # accumulated when captcha billing is on (avoids touching the outcome
+        # field otherwise — and keeps MagicMock outcomes in tests arithmetic-safe).
+        total_captcha_attempts = 0
+        total_captcha_solved = 0
 
         # Heartbeat tracking - update notification periodically to prevent appearing stuck
         last_heartbeat_time = time.time()
@@ -344,6 +363,13 @@ async def index_crawled_urls(
 
                 # Crawl the URL
                 outcome = await crawler.crawl_url(url)
+
+                # Phase 3d: count captcha attempts BEFORE the success branch — a
+                # failed solve still cost real solver money and must bill.
+                if credit_service.captcha_billing_enabled():
+                    total_captcha_attempts += outcome.captcha_attempts
+                    if outcome.captcha_solved:
+                        total_captcha_solved += 1
 
                 if (
                     outcome.status is not CrawlOutcomeStatus.SUCCESS
@@ -525,6 +551,29 @@ async def index_crawled_urls(
                 message_id=None,
             )
             await credit_service.charge_credits(owner_user_id, crawls_succeeded)
+
+        # =======================================================================
+        # Phase 3d: charge the workspace owner per captcha *attempt* (separate
+        # unit; charged even when the crawl ultimately failed). Same stage +
+        # owner as the crawl charge above.
+        # =======================================================================
+        if credit_service.captcha_billing_enabled() and total_captcha_attempts > 0:
+            await record_token_usage(
+                session,
+                usage_type="web_crawl_captcha",
+                workspace_id=workspace_id,
+                user_id=owner_user_id,
+                cost_micros=credit_service.captcha_solves_to_micros(
+                    total_captcha_attempts
+                ),
+                call_details={
+                    "attempts": total_captcha_attempts,
+                    "solved": total_captcha_solved,
+                    "connector_id": connector_id,
+                },
+                message_id=None,
+            )
+            await credit_service.charge_captcha(owner_user_id, total_captcha_attempts)
 
         # Build warning message if there were issues
         warning_parts = []
