@@ -188,9 +188,23 @@ async function doRefreshSession(): Promise<boolean> {
 	}
 }
 
+let refreshPromise: Promise<boolean> | null = null;
+
 export async function refreshSession(): Promise<boolean> {
-	if (typeof navigator !== "undefined" && "locks" in navigator) {
-		return navigator.locks.request("ss-token-refresh", () => doRefreshSession());
+	if (refreshPromise) {
+		return refreshPromise;
 	}
-	return doRefreshSession();
+
+	refreshPromise = (async () => {
+		if (typeof navigator !== "undefined" && "locks" in navigator) {
+			return navigator.locks.request("ss-token-refresh", () => doRefreshSession());
+		}
+		return doRefreshSession();
+	})();
+
+	try {
+		return await refreshPromise;
+	} finally {
+		refreshPromise = null;
+	}
 }

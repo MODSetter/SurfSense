@@ -1,7 +1,7 @@
 # Phase 3b — Proxy provider expansion + rotation
 
 > Part of **Phase 3 — WebURL Crawler & Crawl Billing**. See `00-umbrella-plan.md`.
-> Depends on `03a-crawler-core.md` (Scrapling-only crawler). Siblings: `03c-crawl-billing.md`, `03d-captcha-solving.md` (deferred).
+> Depends on `03a-crawler-core.md` (Scrapling-only crawler). Siblings: `03c-crawl-billing.md`, `03e-stealth-hardening.md`, `03d-captcha-solving.md`.
 
 > **Implementation note.** Same convention as `03a`: citations use **today's** names (`search_space_id`/`SearchSpace`) — map to `workspace_id`/`Workspace` post Phases 1–2. Crucially, the `webcrawler_connector.py` line numbers below (e.g. the three tiers at 287/329/359) and the `scrape_webpage.py` lines **predate `03a`'s Firecrawl removal + `crawl_url` refactor**, so they will have moved by the time `03b` is implemented. Locate code by **symbol/grep**, not absolute lines.
 
@@ -123,4 +123,6 @@ Because there is one global provider and rotation lives **inside** it, the crawl
 - Branded-vendor provider subclasses → not planned (use `CustomProxyProvider`).
 - **Static / sticky-session proxies (future).** A later capability will add **static proxy** support — sticky IPs held for the duration of a session — most likely paired with **authenticated/account-based scraping** to bypass logged-in platforms (the deferred platform connectors: LinkedIn, Instagram, etc.). This is a *different axis* from the rotating pool here: rotation maximizes IP diversity, whereas account bypass needs IP **stability** so a session/cookie stays bound to one IP. It is additive to this design — a new `ProxyProvider` (or a "sticky" mode/flag on `CustomProxyProvider`) registered under a new `PROXY_PROVIDER` key, with no change to the zero-arg getter contract — and stays consistent with the single-provider model (the active provider would be the static one when that workflow is selected). Build it alongside the platform connectors, not in Phase 3.
 - Crawl credit metering (proxy cost is absorbed into the flat `$1 / 1000 successful` price, **not** metered separately) → `03c`.
-- Captcha solving → `03d` (deferred).
+- Captcha solving → `03d`.
+- **Geoip fingerprint coherence** (matching browser `locale`/`timezone_id` to the proxy's exit geo) → `03e`. 03b only owns *selecting* the proxy; `03e` consumes the chosen endpoint's geo. The provider's `RESIDENTIAL_PROXY_LOCATION` (`config/__init__.py`) is one input; resolving the actual exit IP's geo is `03e`'s job.
+- **Surfacing the crawl's chosen endpoint into the strategy.** Both `03d` (IP-bound captcha solves) and `03e` (geoip + sticky reuse) need the **exact** endpoint a crawl used, *not* a fresh `get_proxy_url()` call (which rotates on a pool-backed `CustomProxyProvider`). The capture-once seam lives in `03a`'s `FetchStrategy` context; 03b only guarantees the rotating getter and notes the consumers.

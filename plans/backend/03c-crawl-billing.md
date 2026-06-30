@@ -1,7 +1,7 @@
 # Phase 3c — Crawl credit billing ($1 / 1000 successful requests)
 
 > Part of **Phase 3 — WebURL Crawler & Crawl Billing**. See `00-umbrella-plan.md`.
-> Depends on `03a-crawler-core.md` (the `CrawlOutcomeStatus.SUCCESS` signal + `crawls_succeeded` counter). Sibling: `03b-proxy-expansion.md`. `03d` is deferred.
+> Depends on `03a-crawler-core.md` (the `CrawlOutcomeStatus.SUCCESS` signal + `crawls_succeeded` counter). Siblings: `03b-proxy-expansion.md`, `03e-stealth-hardening.md`, `03d-captcha-solving.md` (now active). `03d` extends this service with a **separate per-attempt captcha unit** (see §"Captcha billing seam" + `03d §4`).
 
 ## Objective
 
@@ -48,6 +48,8 @@ New `app/services/web_crawl_credit_service.py` — a dedicated service (independ
 - `charge_credits(owner_user_id, successes)` → no-op when disabled; else debit `credit_micros_balance -= successes_to_micros(successes)`, commit, `maybe_trigger_auto_reload`.
 
 A separate `CreditMeterService` generalization is deliberately deferred until a third per-unit biller appears — exposing the price/flag as statics already lets the chat surface share the math without coupling the two flows.
+
+**Captcha billing seam (for `03d`).** `03d` (now active) adds a **separate per-attempt** captcha unit to this same service — `captcha_solves_to_micros(n) = n * config.WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE`, gated by `WEB_CRAWL_CAPTCHA_BILLING_ENABLED` (both new knobs, default FALSE), with `usage_type="web_crawl_captcha"`. It is **independent** of crawl SUCCESS because solvers charge per *attempt* regardless of crawl outcome (the asymmetry in the §"Risks" proxy/captcha note). Build the `WebCrawlCreditService` statics so `03d` can add one more `*_to_micros` static + one charge path without restructuring — no need to implement the captcha methods in `03c`, just leave the shape open.
 
 ### 2. Wiring in `webcrawler_indexer.py`
 
@@ -117,7 +119,8 @@ One unit per `CrawlOutcomeStatus.SUCCESS` — a URL that yielded usable extracte
 - **Session coupling.** `charge_credits` commits the indexer session; placing it after the final doc commit avoids entangling a debit with mid-run document state.
 - **Gating asymmetry (intended).** The **indexer** path bills whenever `WEB_CRAWL_CREDIT_BILLING_ENABLED` is on and the owner has credit — no "premium tier" requirement (matches ETL, which gates only on its own flag). The **chat** path additionally requires the turn to be premium, because it piggybacks the turn's reserve/finalize machinery. Same price, two different gate sets — call this out in the credit-status UI copy (frontend phase).
 - **No cross-surface double charge.** A chat scrape calls `crawl_url` directly and never enters `webcrawler_indexer`, so a given crawl is billed by exactly one surface.
-- **Proxy/captcha cost.** Absorbed into the flat $1/1000 (margin), **not** metered separately (see `03b`, and `03d` for captcha which has its own per-solve upstream cost — revisit there).
+- **Proxy cost.** Absorbed into the flat $1/1000 (margin), **not** metered separately (see `03b`).
+- **Captcha cost.** **Metered separately** as a per-attempt unit (`03d §4`, decided: option (a)) because the solver charges per attempt regardless of crawl success — it cannot ride the per-success flat rate. The `captcha_solves_to_micros` seam above is where it attaches.
 
 ## Resolved decisions (this pass)
 
@@ -128,5 +131,5 @@ One unit per `CrawlOutcomeStatus.SUCCESS` — a URL that yielded usable extracte
 ## Out of scope (hand-offs)
 
 - Per-**pipeline** run accounting / `charged_micros` persistence for idempotency → Phases 5–7. Specifically, **Phase 6 moves pipeline-run billing out of the indexer to the run level**: it adds a `bill: bool = True` param to this indexer wiring and calls `index_crawled_urls(bill=False)` from the pipeline engine, which then does its own `check_credits` + `charge_credits(crawls_succeeded)` and stamps `PipelineRun.charged_micros` (idempotency). So this phase's in-indexer billing keeps serving the **connector `/index` + periodic** paths; the "pipeline crawls" half of the objective is refined by `06`. Structure the §2 wiring so it's easy to gate behind that flag.
-- Captcha-solver upstream cost pass-through → `03d` (deferred).
+- Captcha-solver upstream cost pass-through → `03d` (now active; separate per-attempt `web_crawl_captcha` unit via the seam above).
 - Surfacing crawl spend in the credit-status UI → frontend umbrella.

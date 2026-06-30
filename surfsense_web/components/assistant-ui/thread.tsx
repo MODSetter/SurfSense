@@ -713,6 +713,10 @@ const Composer: FC = () => {
 	// Arrow / Enter / Escape navigation for the active picker.
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
+			// While an IME composition is active (e.g. confirming a Japanese/Chinese/
+			// Korean conversion), let the Enter/Arrow keys reach the IME instead of
+			// driving picker navigation/selection.
+			if (e.nativeEvent.isComposing) return;
 			if (showPromptPicker) {
 				if (e.key === "ArrowDown") {
 					e.preventDefault();

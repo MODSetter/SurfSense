@@ -4,7 +4,7 @@ export type RuntimeAuthUiMode = "GOOGLE" | "LOCAL";
 
 export function resolveRuntimeAuthUiMode(
 	value: string | null | undefined,
-	fallback: string | null | undefined = "GOOGLE"
+	fallback: string | null | undefined = "LOCAL"
 ): RuntimeAuthUiMode {
 	const candidate = value?.trim().toUpperCase();
 	if (candidate === "GOOGLE") return "GOOGLE";

@@ -99,7 +99,9 @@ export const FreeComposer: FC = () => {
 				gate("mention documents");
 				return;
 			}
-			if (e.key === "Enter" && !e.shiftKey) {
+			// Ignore Enter while an IME composition is active (e.g. confirming a
+			// Japanese/Chinese/Korean conversion) so it doesn't submit the message.
+			if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
 				e.preventDefault();
 				if (text.trim()) {
 					aui.composer().send();

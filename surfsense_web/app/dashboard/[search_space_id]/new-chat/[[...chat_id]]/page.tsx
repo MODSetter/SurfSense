@@ -71,7 +71,7 @@ import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { useThreadDetail, useThreadMessages } from "@/hooks/use-thread-queries";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { getDesktopAccessToken } from "@/lib/auth-fetch";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -932,14 +932,11 @@ export default function NewChatPage() {
 	// Cancel ongoing request
 	const cancelRun = useCallback(async () => {
 		if (threadId) {
-			const token = await getDesktopAccessToken();
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					buildBackendUrl(`/api/v1/threads/${threadId}/cancel-active-turn`),
 					{
 						method: "POST",
-						headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-						credentials: "include",
 					}
 				);
 				if (response.ok) {
@@ -985,8 +982,6 @@ export default function NewChatPage() {
 			const { userQuery, userImages } = extractUserTurnForNewChatApi(message, urlsSnapshot);
 
 			if (!userQuery.trim() && userImages.length === 0) return;
-
-			const token = await getDesktopAccessToken();
 
 			// Lazy thread creation: create thread on first message if it doesn't exist
 			let currentThreadId = threadId;
@@ -1159,13 +1154,11 @@ export default function NewChatPage() {
 				const hasThreadIds = mentionPayload.thread_ids.length > 0;
 
 				const response = await fetchWithTurnCancellingRetry(() =>
-					fetch(buildBackendUrl("/api/v1/new_chat"), {
+					authenticatedFetch(buildBackendUrl("/api/v1/new_chat"), {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
-							...(token ? { Authorization: `Bearer ${token}` } : {}),
 						},
-						credentials: "include",
 						body: JSON.stringify({
 							chat_id: currentThreadId,
 							user_query: userQuery.trim(),
@@ -1546,8 +1539,6 @@ export default function NewChatPage() {
 			stagedDecisionsByInterruptIdRef.current.clear();
 			setIsRunning(true);
 
-			const token = await getDesktopAccessToken();
-
 			const controller = new AbortController();
 			abortControllerRef.current = controller;
 
@@ -1648,13 +1639,11 @@ export default function NewChatPage() {
 					localFilesystemEnabled,
 				});
 				const response = await fetchWithTurnCancellingRetry(() =>
-					fetch(buildBackendUrl(`/api/v1/threads/${resumeThreadId}/resume`), {
+					authenticatedFetch(buildBackendUrl(`/api/v1/threads/${resumeThreadId}/resume`), {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
-							...(token ? { Authorization: `Bearer ${token}` } : {}),
 						},
-						credentials: "include",
 						body: JSON.stringify({
 							search_space_id: searchSpaceId,
 							decisions,
@@ -1986,8 +1975,6 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 
-			const token = await getDesktopAccessToken();
-
 			// Extract the original user query BEFORE removing messages (for reload mode)
 			let userQueryToDisplay: string | undefined;
 			let originalUserMessageContent: ThreadMessageLike["content"] | null = null;
@@ -2105,13 +2092,11 @@ export default function NewChatPage() {
 					}
 				}
 				const response = await fetchWithTurnCancellingRetry(() =>
-					fetch(getRegenerateUrl(threadId), {
+					authenticatedFetch(getRegenerateUrl(threadId), {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
-							...(token ? { Authorization: `Bearer ${token}` } : {}),
 						},
-						credentials: "include",
 						body: JSON.stringify(requestBody),
 						signal: controller.signal,
 					})

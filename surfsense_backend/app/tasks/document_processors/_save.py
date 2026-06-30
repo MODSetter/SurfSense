@@ -10,6 +10,7 @@ from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
+    truncate_for_embedding,
 )
 
 from ._helpers import (
@@ -73,7 +74,9 @@ async def save_file_document(
             if should_skip:
                 return doc
 
-        document_content = f"File: {file_name}\n\n{markdown_content[:4000]}"
+        document_content = (
+            f"File: {file_name}\n\n{truncate_for_embedding(markdown_content)}"
+        )
         document_embedding = embed_text(document_content)
         chunks = await create_document_chunks(markdown_content)
         doc_metadata = {"FILE_NAME": file_name, "ETL_SERVICE": etl_service}
