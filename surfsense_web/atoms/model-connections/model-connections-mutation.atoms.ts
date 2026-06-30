@@ -4,7 +4,6 @@ import type {
 	ConnectionCreateRequest,
 	ConnectionRead,
 	ConnectionUpdateRequest,
-	ModelCreateRequest,
 	ModelPreviewRead,
 	ModelRead,
 	ModelRoles,
@@ -95,13 +94,7 @@ export const verifyModelConnectionMutationAtom = atomWithMutation((get) => {
 			if (result.ok) {
 				toast.success("Connection verified");
 			} else {
-				// Non-fatal: many providers lack a /models endpoint yet still serve
-				// chat. Guide the user to add model IDs manually instead of alarming.
-				toast.warning(
-					result.message
-						? `${result.message} Chat may still work — add model IDs manually.`
-						: "Couldn't list models. Chat may still work — add model IDs manually."
-				);
+				toast.warning(result.message || "Couldn't verify this connection.");
 			}
 			invalidateModelConnections(searchSpaceId);
 		},
@@ -145,20 +138,6 @@ export const testPreviewModelMutationAtom = atomWithMutation(() => {
 			}
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to test model"),
-	};
-});
-
-export const addManualModelMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
-	return {
-		mutationKey: ["models", "add-manual"],
-		mutationFn: ({ connectionId, data }: { connectionId: number; data: ModelCreateRequest }) =>
-			modelConnectionsApiService.addManualModel(connectionId, data),
-		onSuccess: () => {
-			toast.success("Model added");
-			invalidateModelConnections(searchSpaceId);
-		},
-		onError: (error: Error) => toast.error(error.message || "Failed to add model"),
 	};
 });
 
