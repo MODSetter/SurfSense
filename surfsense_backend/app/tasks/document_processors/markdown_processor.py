@@ -13,6 +13,7 @@ from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
+    truncate_for_embedding,
 )
 
 from ._helpers import (
@@ -182,7 +183,9 @@ async def add_received_markdown_file_document(
                 return doc
             # Content changed - continue to update
 
-        summary_content = f"File: {file_name}\n\n{file_in_markdown[:4000]}"
+        summary_content = (
+            f"File: {file_name}\n\n{truncate_for_embedding(file_in_markdown)}"
+        )
         summary_embedding = embed_text(summary_content)
 
         # Process chunks
