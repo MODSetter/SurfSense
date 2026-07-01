@@ -153,15 +153,17 @@ flowchart LR
   RF --> TLW[("writes Timeline · 05a")]
 
   CA -. "schedule selector" .-> SEL["hardened cron selector"]
-  CA -. "run record + idempotency" .-> AR["AutomationRun (PENDING-gate)"]
-  CA -. "delivery" .-> DEL["alert / output to user"]
+  CA -. "run record + idempotency" .-> AR["AutomationRun (PENDING-gate, non-atomic → + per-Tracker lock)"]
+  RF -. "on material change" .-> DEL["alert via app/notifications (Zero-synced)"]
 
   classDef opt fill:#3a2f1f,stroke:#bf975b,color:#f7efe6;
-  class CA,SEL,AR,DEL opt;
+  class CA,SEL,AR opt;
 ```
 
 CI **core** (`refresh` + Timeline) has **zero** automations dependency — manual/agent/cron all work
-standalone. The CI **action** is the *optional* adapter that buys recurrence + idempotency + delivery.
+standalone. The CI **action** is the *optional* adapter that buys recurrence + audit. **Delivery is not
+from automations** (no such path) — alerts on material change ride the separate `app/notifications/`
+system; concurrency is guarded by a per-Tracker lock (the automation PENDING-gate is non-atomic).
 
 ## 6. The persisted state — Timeline data model (05a)
 

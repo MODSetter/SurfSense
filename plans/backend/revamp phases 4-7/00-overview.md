@@ -84,15 +84,18 @@ data is out; *user uploads* still work (and gain a CI context-folder role).
   per Tracker; materiality = code thresholds (numeric/clear) + agent on ambiguous; content-hash pre-check.
 - Orchestration is a first-class deliverable: a **net-new CI-expert subagent** (`intelligence_agent`) on
   the existing chat runtime, with registry-backed verb tools + Tracker/Timeline tools.
-- **Recurrence + alert delivery = a CI *action* on the existing automations** (not a new scheduler, not a
-  new shape): reuses the hardened schedule selector, `AutomationRun` (audit + idempotency), and delivery.
-  CI core still runs with **zero** automations dependency (manual/agent/cron).
+- **Recurrence = a CI *action* on the existing automations** (not a new scheduler, not a new shape):
+  reuses the hardened schedule selector + `AutomationRun` (audit). The PENDING-gate is **non-atomic**, so a
+  **per-Tracker lock** is the real concurrency guard. **Alert delivery is separate** — automations have no
+  delivery path (`run.output` unwritten); alerts ride `app/notifications/`. CI core still runs with **zero**
+  automations dependency (manual/agent/cron).
 - **No new run table:** refresh audit/idempotency ride `AutomationRun` or the chat job record; billing
   idempotency is per-capability-call + the content-hash pre-check. Only the Timeline is new state.
 - **Billing is delegated to the billing service:** verbs declare a `billing_unit`; `03c` is the first
   provider; `maps.*` / `web.discover` register their own units there.
-- The **Google Maps actor is net-new** (not in shipped Phases 1–3) and is designed/built as a **separate
-  effort**; `maps.*` verbs are contracts against it and don't block this design.
+- **Any platform actor** (e.g. a Maps actor — illustrative, **not committed for MVP**) is net-new (not in
+  shipped Phases 1–3) and would be designed/built as a **separate effort**; per-platform verbs (`<platform>.*`,
+  e.g. `maps.*`) are contracts against it and don't block this design.
 - **CI context files:** files uploaded in a CI chat go into the **KB as normal** (indexed), routed to a
   dedicated `Folder`, and may feed the materiality judge via KB retrieval. ("Don't index" applies only to
   *crawled* data.)
