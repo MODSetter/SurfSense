@@ -114,3 +114,14 @@ async def test_disabled_is_noop(monkeypatch, record_usage):
     record_usage.assert_not_awaited()
     session.execute.assert_not_called()
     assert user.credit_micros_balance == 100_000
+
+
+async def test_free_verb_without_a_unit_is_noop(monkeypatch, record_usage):
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", True)
+    session, user = _make_session(_OWNER, balance_micros=100_000)
+
+    await charge_capability(_output("success", "success"), None, _ctx(session))
+
+    record_usage.assert_not_awaited()
+    session.execute.assert_not_called()
+    assert user.credit_micros_balance == 100_000

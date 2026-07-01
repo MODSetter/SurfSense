@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class BillingUnit(StrEnum):
-    """The meter a verb charges on (priced by the billing service, 03c)."""
+    """The meter a verb charges on (priced by the billing service, 03c). ``None`` = free."""
 
     WEB_CRAWL = "web_crawl"
 
@@ -44,4 +44,4 @@ class Capability:
     input_schema: type[BaseModel]
     output_schema: type[BaseModel]
     executor: Executor
-    billing_unit: BillingUnit
+    billing_unit: BillingUnit | None

@@ -17,9 +17,11 @@ if TYPE_CHECKING:
 
 
 async def charge_capability(
-    output: BillableOutput, unit: BillingUnit, ctx: CapabilityContext
+    output: BillableOutput, unit: BillingUnit | None, ctx: CapabilityContext
 ) -> None:
-    """Bill the workspace owner for this result's billable successes (03c)."""
+    """Bill the workspace owner for this result's billable successes (03c). ``None`` = free."""
+    if unit is None:
+        return
     units = output.billable_units
     if units <= 0:
         return
