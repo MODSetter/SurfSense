@@ -12,10 +12,11 @@ from uuid import UUID
 import pytest
 
 import app.capabilities.billing as billing
-from app.capabilities.billing import charge_capability
+from app.capabilities.billing import charge_capability, gate_capability
 from app.capabilities.types import BillingUnit, CapabilityContext
-from app.capabilities.web.scrape.schemas import ScrapeOutput, ScrapeRow
+from app.capabilities.web.scrape.schemas import ScrapeInput, ScrapeOutput, ScrapeRow
 from app.config import config
+from app.services.web_crawl_credit_service import InsufficientCreditsError
 
 pytestmark = pytest.mark.unit
 
@@ -125,3 +126,60 @@ async def test_free_verb_without_a_unit_is_noop(monkeypatch, record_usage):
     record_usage.assert_not_awaited()
     session.execute.assert_not_called()
     assert user.credit_micros_balance == 100_000
+
+
+def _gate_session(owner_id, balance_micros):
+    """Mock session serving owner-resolution and the spendable-balance read."""
+    session = AsyncMock()
+
+    def _make_result(*_args, **_kwargs):
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = owner_id  # owner resolution
+        result.first.return_value = (balance_micros, 0)  # balance, reserved
+        return result
+
+    session.execute = AsyncMock(side_effect=_make_result)
+    return session
+
+
+async def test_gate_blocks_when_worst_case_exceeds_balance(monkeypatch):
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", True)
+    monkeypatch.setattr(config, "WEB_CRAWL_MICROS_PER_SUCCESS", 1000)
+    session = _gate_session(_OWNER, balance_micros=1500)  # affords 1 crawl, not 2
+
+    with pytest.raises(InsufficientCreditsError):
+        await gate_capability(
+            ScrapeInput(urls=["https://a.com", "https://b.com"]),
+            BillingUnit.WEB_CRAWL,
+            _ctx(session),
+        )
+
+
+async def test_gate_passes_when_balance_covers_worst_case(monkeypatch):
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", True)
+    monkeypatch.setattr(config, "WEB_CRAWL_MICROS_PER_SUCCESS", 1000)
+    session = _gate_session(_OWNER, balance_micros=100_000)
+
+    await gate_capability(
+        ScrapeInput(urls=["https://a.com", "https://b.com"]),
+        BillingUnit.WEB_CRAWL,
+        _ctx(session),
+    )
+
+
+async def test_gate_is_noop_when_disabled(monkeypatch):
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", False)
+    session = _gate_session(_OWNER, balance_micros=0)
+
+    await gate_capability(
+        ScrapeInput(urls=["https://a.com"]), BillingUnit.WEB_CRAWL, _ctx(session)
+    )
+
+
+async def test_gate_is_noop_for_free_verb(monkeypatch):
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", True)
+    session = _gate_session(_OWNER, balance_micros=0)
+
+    await gate_capability(ScrapeInput(urls=["https://a.com"]), None, _ctx(session))
+
+    session.execute.assert_not_called()
