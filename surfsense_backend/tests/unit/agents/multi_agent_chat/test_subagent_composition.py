@@ -19,7 +19,7 @@ from app.agents.chat.multi_agent_chat.subagents.registry import (
 
 pytestmark = pytest.mark.unit
 
-# The full specialist roster the main agent composes from: 4 builtins + 15
+# The full specialist roster the main agent composes from: 5 builtins + 15
 # connector routes. Adding/removing a specialist is a deliberate product change
 # and must be reflected here.
 _EXPECTED_SUBAGENTS = frozenset(
@@ -33,6 +33,7 @@ _EXPECTED_SUBAGENTS = frozenset(
         "dropbox",
         "gmail",
         "google_drive",
+        "intelligence_agent",
         "jira",
         "knowledge_base",
         "linear",

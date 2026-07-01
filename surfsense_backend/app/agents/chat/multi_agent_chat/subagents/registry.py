@@ -15,6 +15,9 @@ from app.agents.chat.multi_agent_chat.constants import (
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.agent import (
     build_subagent as build_deliverables_subagent,
 )
+from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.agent import (
+    build_subagent as build_intelligence_agent_subagent,
+)
 from app.agents.chat.multi_agent_chat.subagents.builtins.knowledge_base.agent import (
     build_subagent as build_knowledge_base_subagent,
 )
@@ -99,6 +102,7 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "dropbox": build_dropbox_subagent,
     "gmail": build_gmail_subagent,
     "google_drive": build_google_drive_subagent,
+    "intelligence_agent": build_intelligence_agent_subagent,
     "jira": build_jira_subagent,
     "knowledge_base": build_knowledge_base_subagent,
     "linear": build_linear_subagent,
