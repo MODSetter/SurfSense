@@ -32,11 +32,12 @@ The main agent delegates CI-/scraping-flavored requests to it via `description.m
 
 | Tool | Wraps | Billing |
 |------|-------|---------|
-| capability verbs (`web.scrape`, `web.discover`, `maps.search`, `maps.place`, `maps.reviews`) | `04` executors (direct-return) | `03c` turn accumulator (as `scrape_webpage` does) |
+| capability verbs (`web.scrape`, `web.discover`, `maps.search`, `maps.place`, `maps.reviews`) | `04` executors (direct-return) | `03c` owner-wallet charge via `charge_capability` (same path as REST/MCP) |
 | `start_watch(intent)` *(deferred)* | hands off to `06` | per re-invocation (design with `06`) |
 
-Capability verbs are a shared, registry-generated tool module (`04`) that `research` can also load; the
-`intelligence_agent` adds the CI prompt and the `06` handoff.
+Verbs reach the subagent through the chat door generator `access/chat.py::build_capability_tools` (`05`),
+which turns registry verbs (`04`) into tools with owner-wallet billing. The `intelligence_agent` owns these
+CI-flavored calls; the main agent's `web_search`/`scrape_webpage` stay untouched.
 
 ## Boundaries
 
@@ -49,7 +50,7 @@ Capability verbs are a shared, registry-generated tool module (`04`) that `resea
 1. Subagent scaffold: `subagents/builtins/intelligence_agent/` (`agent.py` / `tools/index.py` /
    `description.md` / `system_prompt.md`), packed via `pack_subagent`.
 2. CI playbook prompt: intent routing (one clarifying question), verb chains, "what changed" reasoning.
-3. Shared verb tool module: registry-backed (`04`), reusable by `research`.
+3. Chat door generator: `access/chat.py::build_capability_tools` turns registry verbs (`04`) into tools (`05`).
 4. `start_watch` seam to `06` (wired when `06` is designed).
 5. Router registration: `description.md` for main-agent delegation.
 
@@ -69,5 +70,4 @@ Capability verbs are a shared, registry-generated tool module (`04`) that `resea
 
 ## Open questions
 
-- Whether CI one-shot scraping stays in `research` or the `intelligence_agent` owns all CI-flavored calls.
 - The `start_watch` handoff shape (settled with `06`).
