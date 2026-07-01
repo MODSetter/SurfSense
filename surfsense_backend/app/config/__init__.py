@@ -554,8 +554,12 @@ class Config:
         os.getenv("SURFSENSE_CONNECTOR_DISCOVERY_TTL_SECONDS", "30")
     )
 
-    # Platform web search (SearXNG)
+    # Platform web search providers for the web.discover capability (env-keyed).
     SEARXNG_DEFAULT_HOST = os.getenv("SEARXNG_DEFAULT_HOST")
+    LINKUP_API_KEY = os.getenv("LINKUP_API_KEY")
+    BAIDU_API_KEY = os.getenv("BAIDU_API_KEY")
+    BAIDU_MODEL = os.getenv("BAIDU_MODEL", "ernie-3.5-8k")
+    BAIDU_SEARCH_SOURCE = os.getenv("BAIDU_SEARCH_SOURCE", "baidu_search_v2")
 
     SURFSENSE_PUBLIC_URL = os.getenv("SURFSENSE_PUBLIC_URL")
     NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL") or SURFSENSE_PUBLIC_URL
