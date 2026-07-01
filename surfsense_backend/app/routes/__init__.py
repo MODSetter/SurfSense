@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends
 
+import app.capabilities.web  # noqa: F401  (registers web.* verbs before the door builds)
 from app.automations.api import router as automations_router
+from app.capabilities.access.rest import build_capabilities_router
 from app.file_storage.api import router as file_storage_router
 from app.gateway import require_gateway_enabled
 from app.notifications.api import router as notifications_router
@@ -61,12 +63,12 @@ from .rbac_routes import router as rbac_router
 from .reports_routes import router as reports_router
 from .sandbox_routes import router as sandbox_router
 from .search_source_connectors_routes import router as search_source_connectors_router
-from .workspaces_routes import router as workspaces_router
 from .slack_add_connector_route import router as slack_add_connector_router
 from .stripe_routes import router as stripe_router
 from .team_memory_routes import router as team_memory_router
 from .teams_add_connector_route import router as teams_add_connector_router
 from .video_presentations_routes import router as video_presentations_router
+from .workspaces_routes import router as workspaces_router
 from .youtube_routes import router as youtube_router
 
 router = APIRouter()
@@ -138,3 +140,4 @@ router.include_router(memory_router)  # User personal memory (memory.md style)
 router.include_router(team_memory_router)  # Workspace team memory
 router.include_router(automations_router)  # Automations CRUD + run history
 router.include_router(file_storage_router)  # Original file metadata + download
+router.include_router(build_capabilities_router())  # Scraper-API capability doors (05)
