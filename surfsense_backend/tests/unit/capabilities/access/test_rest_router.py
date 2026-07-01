@@ -26,6 +26,7 @@ async def _echo_executor(payload: _EchoInput) -> _EchoOutput:
 
 _ECHO = Capability(
     name="test.echo",
+    description="Echo the input back for tests.",
     input_schema=_EchoInput,
     output_schema=_EchoOutput,
     executor=_echo_executor,

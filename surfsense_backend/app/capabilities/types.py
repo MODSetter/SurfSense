@@ -48,6 +48,7 @@ class Capability:
     """One typed verb; the source of truth the doors (05) and agent (07) read."""
 
     name: str
+    description: str
     input_schema: type[BaseModel]
     output_schema: type[BaseModel]
     executor: Executor
