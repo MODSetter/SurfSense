@@ -6,7 +6,12 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from app.capabilities.types import BillableOutput, BillingUnit, CapabilityContext
+from app.capabilities.types import (
+    BillableInput,
+    BillableOutput,
+    BillingUnit,
+    CapabilityContext,
+)
 from app.services.token_tracking_service import record_token_usage
 from app.services.web_crawl_credit_service import WebCrawlCreditService
 
@@ -14,6 +19,30 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.ext.asyncio import AsyncSession
+
+
+async def gate_capability(
+    payload: BillableInput, unit: BillingUnit | None, ctx: CapabilityContext
+) -> None:
+    """Pre-flight: block an over-budget owner before the executor runs (03c).
+
+    Raises ``InsufficientCreditsError`` when the wallet can't cover the input's
+    worst-case ``estimated_units``. ``None`` unit = free = no gate.
+    """
+    if unit is None:
+        return
+    if unit is BillingUnit.WEB_CRAWL:
+        await _gate_web_crawl(ctx, payload.estimated_units)
+
+
+async def _gate_web_crawl(ctx: CapabilityContext, estimated_successes: int) -> None:
+    service = WebCrawlCreditService(ctx.session)
+    if not service.billing_enabled():
+        return
+    owner_user_id = await _resolve_workspace_owner(ctx.session, ctx.workspace_id)
+    if owner_user_id is None:
+        return
+    await service.check_credits(owner_user_id, estimated_successes)
 
 
 async def charge_capability(

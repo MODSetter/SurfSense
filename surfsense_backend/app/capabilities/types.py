@@ -18,6 +18,13 @@ class BillingUnit(StrEnum):
     WEB_CRAWL = "web_crawl"
 
 
+class BillableInput(Protocol):
+    """A billed verb's input that reports its worst-case unit count for pre-flight."""
+
+    @property
+    def estimated_units(self) -> int: ...
+
+
 class BillableOutput(Protocol):
     """A capability output that reports its own billable count."""
 
