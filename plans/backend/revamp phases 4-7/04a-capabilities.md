@@ -19,8 +19,10 @@ back from* — no `SearchSourceConnector` row to configure, no KB write, no sche
 ## Current state (cited)
 
 - `WebCrawlerConnector.crawl_url(url) -> CrawlOutcome` — single-URL fetch returning `{content,
-  metadata, crawler_type}` on `SUCCESS`; billable predicate single-sourced as `status == SUCCESS`
-  (`app/proprietary/web_crawler/`).
+  metadata, crawler_type}` on `SUCCESS`. `CrawlOutcomeStatus.SUCCESS` documents the billable signal, but
+  **operationally every caller checks `status == SUCCESS and outcome.result`** (see `scrape_webpage.py` and
+  `webcrawler_indexer.py`) — the predicate is duplicated, not one helper. **The executor (below) should
+  single-source it** in a shared `is_billable(outcome)` helper (`app/proprietary/web_crawler/`).
 - `WebCrawlCreditService` (`03c`) — per-success metering with the static `billing_enabled()` /
   `successes_to_micros()` seam (`app/services/web_crawl_credit_service.py`).
 - Proxy / stealth / captcha tiers — all behind `crawl_url`; callers never see the tier (`03b`/`03d`/`03e`).
@@ -32,8 +34,16 @@ back from* — no `SearchSourceConnector` row to configure, no KB write, no sche
 
 ### The verb set (MVP) — namespaced, nothing top-level
 
-Two namespaces: **`web.*`** (generic crawler product) and **`maps.*`** (the one platform actor).
-Future platforms slot in as their own namespace (`linkedin.*`, `amazon.*`, …).
+Two namespaces: **`web.*`** (generic crawler product) and **`<platform>.*`** (per-platform scrapers).
+Future platforms slot in as their own namespace (`maps.*`, `linkedin.*`, `amazon.*`, …).
+
+> **Scope clarification (2026-06-30).** Platform-specific scrapers are a **family of individual scraping
+> endpoints**, **not** one committed integration — **no specific platform (incl. Google Maps) is committed
+> for MVP**; `maps.*` below is an **illustrative example** of the pattern. Each such scraper is *just
+> another capability verb*: adding one lights up (a) an **agent tool** (chat) and (b) a **dev-callable REST
+> endpoint behind the platform API key** — same executor, same billing, zero new machinery. **The MVP
+> builds only `web.scrape` + `web.discover` executors**; every `<platform>.*` row is a **contract stub**
+> demonstrating that the registry + generated doors (`04b`) make per-platform endpoints a drop-in.
 
 | Verb | Input → Output | Mode | Executes over | Bills (03c) |
 |------|----------------|------|---------------|-------------|
@@ -101,9 +111,20 @@ A capability only **declares a `billing_unit`** in its registry entry; charging 
 The registry says *"this verb bills unit X"*; the **billing service owns what unit X costs.** Verbs
 stay pure; pricing stays pluggable.
 
-### The Maps actor (clarification)
+> **Charge at the executor, not the turn accumulator (locked 2026-06-30).** The billable charge fires
+> **inside the capability executor** (this phase), so *every* caller meters identically — chat,
+> **automation/recurring**, REST, MCP, external-cron. This is deliberate: a code review confirmed the
+> automation path (`run_agent_task` → `agent_task`) establishes **no chat turn accumulator**, so the
+> existing `scrape_webpage` billing (which no-ops when `get_current_accumulator()` is `None`) would let
+> **automation-run crawls bill nothing**. The interactive chat **turn accumulator stays only as an
+> optional presentation fold** (so a chat turn still shows the crawl line on its bill) — it is **not** the
+> charging mechanism. Billing idempotency is **per capability call** (+ the `05b` content-hash pre-check),
+> not per run.
 
-- **Google-Maps-agnostic** — works for *any* place type (restaurants, gyms, hotels, retail, …).
+### Platform scrapers (illustrated with a Maps actor — example only, not committed)
+
+- Each platform scraper is a **standalone endpoint**; the one shown here (a hypothetical Maps actor) is
+  **Google-Maps-agnostic** — works for *any* place type (restaurants, gyms, hotels, retail, …).
 - Returns **typed structured objects** (`{name, rating, review_count, hours, price_level, …}`), not raw
   markdown — exactly what the Intelligence/Timeline layer needs to diff reliably.
 - The "restaurant" use case is an **Intelligence-domain wedge** (one Tracker), **not** a constraint on

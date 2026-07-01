@@ -24,10 +24,16 @@ STATEFUL  (Product B):  05b Intelligence + 05a Timeline  → the Timeline IS the
 - **Capability executors** (`04a`) — called directly by the loop (not through a door).
 - **Content-hash pre-check** — `WebCrawlerConnector.format_to_structured_document(exclude_metadata=True)`
   produces the stable text the loop hashes against `entity_current_state.content_hash` (`05a`).
-- **Run/audit substrate to reuse** — the existing **`AutomationRun`** (status/error/timing/`step_results`)
-  + the automations executor's PENDING→running idempotency gate (safe under Celery `acks_late`); and the
-  chat **job record** (`04a`) + `deliverable_wait`. **No new run table.**
-- **CI context uploads** — the existing folder-upload / `destination_folder` machinery + KB retrieval.
+- **Run/audit substrate to reuse** — the existing **`AutomationRun`** (status/error/timing/`step_results`;
+  note the executor writes results to `step_results[n].result`, **not** `run.output`/`artifacts`, which stay
+  unwritten) + the automations executor's PENDING→running gate (`execute_run()` early-returns unless
+  `status == PENDING`; `acks_late` is global). **Caveat:** the gate is **not atomic** (no
+  `UPDATE … WHERE status='pending'`), so it stops terminal/post-`mark_running` redelivery but **not**
+  concurrent double-claim — pair it with the per-Tracker lock (`06`). Plus the chat **job record** (`04a`) +
+  `deliverable_wait`. **No new run table.**
+- **CI context uploads** — the existing folder-upload machinery (`POST /documents/folder-upload`, param
+  `root_folder_id` — there is no `destination_folder`) + KB retrieval scoped via mention-pins →
+  `referenced_document_ids(folder_ids=…)` → `SearchScope.document_ids` (no direct `folder_id` on search).
 
 ## Target design
 
@@ -90,8 +96,9 @@ description reworded        → code: no rule → ASK AGENT → NOISE
 surface invoked it**:
 
 - **Recurring (in-app):** invoked by the **CI automation action** (`06`) → the existing **`AutomationRun`**
-  is the run record and the automations executor provides the **PENDING→running idempotency gate**. This is
-  exactly the rigor old `06` hand-built — reused, not re-written.
+  is the run record and the automations executor's PENDING-gate handles redelivery. Reused, not re-written —
+  but the gate is **not atomic** against concurrent claims, so the **per-Tracker lock (`06`)** is the actual
+  double-refresh guard.
 - **Chat (manual / agent):** invoked via the chat **job record** (`04a`) + `deliverable_wait`.
 - **Billing idempotency is per *capability call*, not per run:** each `executor` bills a success once via
   the billing service (`04a`); the content-hash pre-check (step 2) prevents needless re-crawls/charges. No
@@ -105,8 +112,11 @@ When a user uploads a file *in a CI chat* (e.g. "our own price list"), it goes i
 uploads create `Document`s and are indexed/embedded, exactly as today. **(The "don't index" rule applies
 only to *crawled* data.)** The CI-specific part is **organization + use**:
 
-- **Routed to a dedicated folder** for that CI chat/Tracker (reuse the existing folder-upload machinery).
-- **The judge step (5) may consult them** — retrieved from the KB, scoped to that folder:
+- **Routed to a dedicated folder** for that CI chat/Tracker (reuse `POST /documents/folder-upload` with
+  `root_folder_id`; uploads land as `Document`s with `folder_id`).
+- **The judge step (5) may consult them** — retrieved from the KB, scoped to that folder via the mention-pin
+  path (`referenced_document_ids(folder_ids=…)` → `SearchScope.document_ids`), since search has no direct
+  `folder_id` filter:
 
 ```
 competitor price 12.00 → 9.90   + user's context file says "our price is 10.00"
@@ -158,8 +168,9 @@ retrieval machinery (nothing new). **MVP-optional** (the loop works without it);
 5. Materiality = deterministic numeric/clear rules in code + agent only on ambiguous.
 6. Content-hash pre-check short-circuits unchanged pages before any LLM spend.
 7. `app/intelligence/` Apache-2; `refresh(tracker)` is trigger-agnostic.
-8. **No new run table** — refresh audit/idempotency ride `AutomationRun` (recurring) or the chat job record;
-   billing idempotency is per-capability-call + the content-hash gate. Only Timeline (`05a`) is new state.
+8. **No new run table** — refresh audit rides `AutomationRun` (recurring) or the chat job record; redelivery
+   is stopped by the PENDING-gate **plus a per-Tracker lock** (the gate is non-atomic); billing idempotency
+   is per-capability-call + the content-hash gate. Only Timeline (`05a`) is new state.
 9. **CI context folder** (F): user files uploaded in a CI chat go into the **KB as normal** (indexed),
    routed to a dedicated `Folder`, and may feed the judge via KB retrieval. "Don't index" is for *crawled*
    data only. MVP-optional seam.

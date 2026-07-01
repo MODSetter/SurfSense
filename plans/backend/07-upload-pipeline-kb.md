@@ -1,5 +1,8 @@
 # Phase 7 — File upload as a pipeline + KB-save-secondary
 
+> # ❌ SUPERSEDED (2026-06-30)
+> **This entire phase is dropped.** Per the **Architecture correction** in `00-umbrella-plan.md`, there is no "Uploads pipeline" and no upload `PipelineRun`. Uploads simply populate the **input-only KB** through the existing upload routes (an upload creates a `Document` — that *is* KB membership). The umbrella's KB-input invariant ("uploads always land in the KB") is inherent and needs no pipeline wrapper. Retained **for historical context only** — do **not** implement it. **The CI-relevant successor is the "context folder" idea in [`revamp phases 4-7/05b-intelligence.md`](revamp%20phases%204-7/05b-intelligence.md)**: files uploaded in a CI chat go into the KB as normal (indexed), routed to a dedicated folder, and may feed the materiality judge via KB retrieval. (Canonical Phase 7 is now **Orchestration** — [`revamp/07-orchestration.md`](revamp%20phases%204-7/07-orchestration.md) — unrelated to uploads.)
+
 > Part of the **CI Pivot MVP**. See `00-umbrella-plan.md` (Phase 7) — the final backend phase.
 > Precondition: Phase 5 (`05-pipelines-model.md`) live (`pipelines`/`pipeline_runs` tables, `PipelineRunTrigger.UPLOAD`, `connector_id` nullable) and Phase 6 (`06-pipelines-exec.md`) live (run engine, which **explicitly fails `connector_id IS NULL` runs**). No sibling ahead — this closes the backend umbrella.
 

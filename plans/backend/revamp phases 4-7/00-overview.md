@@ -6,6 +6,18 @@
 > stateful paths) live in `00b-pipeline-diagrams.md`.**
 > **Scope guardrail:** Phases **1–3 are SHIPPED/FIXED** (rename/DB, proxy/captcha/stealth, crawl billing).
 > The revamp is **Phase 4 → end only**. We do **not** touch 1–3.
+>
+> **Citation verification — 2026-06-30 (principal-engineer pass).** All load-bearing code citations in this
+> revamp were re-checked against `surfsense_backend`. Confirmed accurate: the schedule selector
+> (`selector.py` — `FOR UPDATE SKIP LOCKED`, `next_fire_at`, self-heal, `catchup=False`, `croniter`), the
+> `AutomationRun` model/fields, `format_to_structured_document(exclude_metadata=True)` content-hashing, the
+> MCP routing gap (`constants.py::CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS`), the connector enum, and the
+> `MANUAL` trigger placeholder. **Corrected during this pass:** (a) automations have **no** delivery/
+> notification path and `automation_runs.output` is never written — CI alerts wire to `app/notifications/`
+> (`06`/`05b`); (b) the automation PENDING-gate is **not atomic** — the per-Tracker lock is the real
+> concurrency guard (`06`/`05b`); (c) folder upload uses `root_folder_id` (not `destination_folder`) and KB
+> folder scoping goes through `referenced_document_ids → SearchScope.document_ids` (`05b`); (d) the billable
+> predicate is `SUCCESS and outcome.result`, to be single-sourced in the executor (`04a`).
 
 ## The two products
 
@@ -64,8 +76,8 @@ data is out; *user uploads* still work (and gain a CI context-folder role).
   understands intent, composes verbs, answers in plain language. An **intent router** classifies one-shot
   (A) vs standing-concern (B) from the wording (one clarifying question if ambiguous). Raw verbs live only
   on the REST/MCP dev doors.
-- MVP surface = Google Maps actor + general web crawler, exposed chat + REST (MCP fast-follow).
-- Verbs namespaced per platform (`web.*`, `maps.*`); `web.scrape` takes a URL **array** (inline-or-job).
+- MVP surface = the **general web crawler + search** (`web.scrape` + `web.discover`), exposed chat + REST (MCP fast-follow). **Platform-specific scrapers are a family of individual endpoints added incrementally — none (incl. Google Maps) is committed for MVP;** each is just another verb → agent tool + dev API-key REST endpoint.
+- Verbs namespaced per platform (`web.*`, and `<platform>.*` per scraper, e.g. `maps.*` as an example); `web.scrape` takes a URL **array** (inline-or-job).
 - **Don't index** crawled data into the KB; the Timeline (deltas) is the only persisted CI state.
 - CI is **decoupled from automations** (automations = one optional Trigger adapter).
 - Intelligence: **agent-designed schema** (sample-grounded, human-locked, versioned) in MVP; single entity

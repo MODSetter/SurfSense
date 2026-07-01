@@ -53,7 +53,7 @@ Both are **publicly importable**: `from scrapling.engines.toolbelt import ProxyR
 The user expects a **single proxy provider across the entire app**, so 03b's selection scope is simply the **global, env-configured provider** — no per-connector or per-crawl override is built now. That is both the fastest path and, with one thin seam, the most scalable later:
 
 - All resolution stays behind today's `get_active_provider()` (env-selected, process-cached). One provider, app-wide.
-- "Scalable in future": if per-pipeline proxying is ever wanted (Phase 5+), it layers on as an **optional argument** to a resolver (`resolve_proxy(override=pipeline.config)`) with **zero** changes to existing call sites — but it is explicitly **not** implemented in 03b (YAGNI for a single-provider app).
+- "Scalable in future": if per-capability / per-Tracker proxying is ever wanted (revamp Phase 4a/5+), it layers on as an **optional argument** to a resolver (`resolve_proxy(override=...)`) with **zero** changes to existing call sites — but it is explicitly **not** implemented in 03b (YAGNI for a single-provider app).
 
 ## Target design
 
@@ -92,7 +92,7 @@ Because there is one global provider and rotation lives **inside** it, the crawl
 
 - All three Scrapling tiers keep calling `get_proxy_url()` (which yields the rotating value when pool-backed). The only crawler edit is the bounded `is_proxy_error` retry from §4.
 - **No change** to YouTube/chat-tool consumers — same zero-arg getters, same global provider.
-- Future seam (NOT built): if per-pipeline proxying is ever needed, resolve a provider from `pipeline.config` and pass its `get_proxy_url` into the crawl — an additive optional arg, no change to today's call sites.
+- Future seam (NOT built): if per-capability / per-Tracker proxying is ever needed, resolve a provider from the capability/Tracker config and pass its `get_proxy_url` into the crawl — an additive optional arg, no change to today's call sites.
 
 ## Config / env changes
 
@@ -110,18 +110,18 @@ Because there is one global provider and rotation lives **inside** it, the crawl
 
 - **Backward compatibility of the getters.** The zero-arg `get_proxy_url()` contract is consumed in 4+ places; the design keeps it **completely intact** — no signature changes, no per-caller keys. Only the cached active provider's *implementation* changes when `PROXY_PROVIDER="custom"`.
 - **Over-rotation cost.** Rotation-retry is bounded to one extra attempt per tier so a billable crawl can't silently multiply upstream proxy usage.
-- **Single provider is a deliberate constraint.** One global provider app-wide (resolved). Per-pipeline/per-connector selection is intentionally deferred behind a no-op seam (§5); not built now.
+- **Single provider is a deliberate constraint.** One global provider app-wide (resolved). Per-capability/per-Tracker/per-connector selection is intentionally deferred behind a no-op seam (§5); not built now.
 - **Pool rotation under `to_thread`.** `ProxyRotator`'s `Lock` makes the rotating `get_proxy_url()` safe to call from the browser tiers `03a` offloads via `asyncio.to_thread`.
 
 ## Resolved decisions
 
 - **Branded vendors → NONE.** Ship `CustomProxyProvider` (BYO) only; no Webshare/BrightData/Smartproxy/etc. subclasses. A user who wants a specific vendor points `CUSTOM_PROXY_URLS` at it.
-- **Selection scope → single global provider, app-wide.** No per-connector/per-crawl override is built; resolution is env-only via `Config.PROXY_PROVIDER`. A future per-pipeline override is left as a no-op seam (§5) so it stays "scalable + fast to add later."
+- **Selection scope → single global provider, app-wide.** No per-connector/per-crawl override is built; resolution is env-only via `Config.PROXY_PROVIDER`. A future per-capability/per-Tracker override is left as a no-op seam (§5) so it stays "scalable + fast to add later."
 - **Client-side rotation → built, but only active for a pool-backed `CustomProxyProvider`.** `anonymous_proxies` (server-side rotating) and single-URL custom configs skip it automatically. Rotation lives inside the provider so it's transparent to all callers.
 
 ## Out of scope (hand-offs)
 
-- Per-**pipeline** / per-connector proxy selection → deferred (Phases 5–7 *if ever needed*); §5 leaves a no-op seam, nothing is wired now.
+- Per-**capability** / per-Tracker / per-connector proxy selection → deferred (revamp Phase 4a/5 *if ever needed*); §5 leaves a no-op seam, nothing is wired now.
 - Branded-vendor provider subclasses → not planned (use `CustomProxyProvider`).
 - **Static / sticky-session proxies (future).** A later capability will add **static proxy** support — sticky IPs held for the duration of a session — most likely paired with **authenticated/account-based scraping** to bypass logged-in platforms (the deferred platform connectors: LinkedIn, Instagram, etc.). This is a *different axis* from the rotating pool here: rotation maximizes IP diversity, whereas account bypass needs IP **stability** so a session/cookie stays bound to one IP. It is additive to this design — a new `ProxyProvider` (or a "sticky" mode/flag on `CustomProxyProvider`) registered under a new `PROXY_PROVIDER` key, with no change to the zero-arg getter contract — and stays consistent with the single-provider model (the active provider would be the static one when that workflow is selected). Build it alongside the platform connectors, not in Phase 3.
 - Crawl credit metering (proxy cost is absorbed into the flat `$1 / 1000 successful` price, **not** metered separately) → `03c`.

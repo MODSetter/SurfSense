@@ -3,7 +3,7 @@
 > **Phase 6** of the CI-pivot revamp — the thinnest phase. **Build after** Phase 5 (`05b` exposes
 > `refresh(tracker)`).
 > **Depends on** `05b` (`refresh(tracker)`), `04b` (the REST manual/cron routes), and the SHIPPED
-> automations subsystem (its schedule selector + `AutomationRun` + delivery).
+> automations subsystem (its schedule selector + `AutomationRun`) plus `app/notifications/` for alert delivery.
 > **Scope guardrail:** Phases 1–3 SHIPPED/FIXED. This phase is **decoupled** — Intelligence (`05b`) has no
 > dependency on it, and **automations is at most one optional adapter, never required**.
 
@@ -19,9 +19,20 @@ rebuild a scheduler at all, but to **reuse the automations subsystem** for the i
 - **`refresh(tracker)`** — the headless unit of work exposed by `05b`.
 - **Automations schedule selector** — the already-hardened cron selector (`FOR UPDATE SKIP LOCKED`
   claiming, `next_fire_at` advance, self-heal, duplicate-run suppression, `catchup=False`), reusing the
-  `croniter` util.
-- **`AutomationRun`** — the existing run record + PENDING-gate (audit + idempotency).
-- **Automations output/delivery** — the existing path that carries results to the user.
+  `croniter` util. *(Verified: `app/automations/triggers/builtin/schedule/selector.py::_claim_due_triggers`
+  + `schedule/cron.py::compute_next_fire_at`.)*
+- **`AutomationRun`** — the existing run record + a PENDING-gate. *(Verified with a caveat: the gate is
+  `execute_run()` early-returning unless `status == PENDING` + `mark_running`, and `acks_late` /
+  `task_reject_on_worker_lost` are set globally — so **terminal redelivery and post-`mark_running`
+  redelivery are no-ops**. But there is **no atomic `UPDATE … WHERE status='pending'` claim**, so two
+  concurrent workers can both read PENDING → double-run. The per-Tracker lock below is therefore the
+  primary concurrency guard, not just belt-and-suspenders.)*
+- **Delivery ≠ automations (correction).** Automations have **no** push/email/notification path, and
+  `automation_runs.output` is **never written** by the executor (results live in `step_results[n].result`);
+  today "delivery" is only **pull via `GET /automations/{id}/runs/{run_id}`** + **Zero dashboard sync**
+  (`zero_publication.AUTOMATION_RUN_COLS`). In-app alerts must wire to the **separate `app/notifications/`
+  system** — `NotificationService.create_notification(...)` (DB-backed, Zero-synced, typed
+  `NotificationType`). So alert delivery is a **small net-new wiring**, not a free automations reuse.
 - **Access routes** (`04b`) — where the external-cron and manual REST endpoints live.
 
 ## Target design
@@ -33,7 +44,7 @@ rebuild a scheduler at all, but to **reuse the automations subsystem** for the i
 | **Manual** | user "refresh now" (chat tool / REST) | ✅ |
 | **Agent** | the in-app agent calls `refresh` as a tool | ✅ |
 | **External cron** | the user's own scheduler hits `POST /v1/trackers/{id}/refresh` | ✅ (zero infra on us) |
-| **CI automation action** | a **CI action on the existing automations** — its schedule trigger fires `refresh(tracker)` **and delivers** the material changes | ✅ (the in-app recurrence + alert path) |
+| **CI automation action** | a **CI action on the existing automations** — its schedule trigger fires `refresh(tracker)`, persists deltas to the Timeline, **and emits an in-app alert** via `app/notifications/` | ✅ (the in-app recurrence + alert path) |
 
 ### Recurrence + delivery — a CI action on existing automations (NOT a new scheduler, NOT a new shape)
 
@@ -43,9 +54,12 @@ building a bespoke tick, we **add a CI *action* to the existing automations subs
 - **Schedule** → the automation's existing **schedule trigger** (the already-hardened selector). No new
   scheduler. **(closes old Gap B — scheduler rigor.)**
 - **Run record + idempotency** → the automation's existing **`AutomationRun`** + PENDING-gate. No new run
-  table. **(closes old Gap A — run/idempotency, see `05b`.)**
-- **Delivery / alert** → the automation's existing **output/delivery** carries the material changes to the
-  user. **(closes old Gap E — alert delivery.)**
+  table. **(closes old Gap A — run/idempotency)** — *but* pair it with the per-Tracker lock (the gate is
+  non-atomic; see Current state + `05b`).
+- **Delivery / alert** → **not** free from automations. Persist the material change to the **Timeline**
+  (`05a`), then emit an in-app alert via **`app/notifications/`** (`NotificationService.create_notification`
+  with a new CI notification type; Zero-synced to the UI). **(old Gap E — alert delivery — is *mostly*
+  closed but needs this small wiring, not zero-cost reuse.)**
 
 **Why a CI *action*, not a new automation shape:** a new shape would duplicate triggers, runs, and delivery
 that already exist. A single `refresh_tracker` action reuses all of it. (If implementation finds the action
@@ -54,8 +68,9 @@ too constraining, a thin CI-specific shape is the fallback — but the action is
 ### Decoupling is preserved (automations is still optional)
 
 CI **core** — `refresh(tracker)` + Timeline (`05a`/`05b`) — has **zero** automations dependency and runs
-via manual / agent / external-cron. Automations is the **optional adapter** that adds recurrence + delivery
-+ audit for in-app users. So we honor "don't glue CI to automations" *and* get its machinery for free.
+via manual / agent / external-cron. Automations is the **optional adapter** that adds recurrence + audit
+for in-app users (alerts ride `app/notifications/`, not automations). So we honor "don't glue CI to
+automations" *and* get its machinery for free.
 
 ### Where it lives
 
@@ -69,8 +84,12 @@ via manual / agent / external-cron. Automations is the **optional adapter** that
 1. **Manual / agent triggers**: a `refresh_tracker(tracker_id)` chat tool + REST route → `refresh(tracker)`.
 2. **External-cron route**: `POST /v1/trackers/{id}/refresh` (API-key authed) → `refresh(tracker)`.
 3. **CI automation action**: register a `refresh_tracker` action in the automations action registry that
-   calls `refresh(tracker)` and routes the resulting material changes into automations delivery.
-4. **Concurrency guard**: a per-Tracker in-flight lock (belt-and-suspenders over the automation run-gate).
+   calls `refresh(tracker)` and, on material change, emits an in-app alert via `app/notifications/`
+   (`NotificationService.create_notification`, new CI notification type). *(Not "automations delivery" —
+   that path doesn't exist; see Current state.)*
+4. **Concurrency guard**: a per-Tracker in-flight lock — the **primary** guard against concurrent
+   double-refresh, since the automation PENDING-gate is non-atomic (also protects the manual/cron paths
+   that don't go through automations).
 
 ## Tests
 
@@ -94,7 +113,8 @@ via manual / agent / external-cron. Automations is the **optional adapter** that
 1. Intelligence exposes `refresh(tracker)`; all triggers are callers. Fully decoupled.
 2. Adapters: manual · agent · external-cron · **CI automation action** (recurrence + delivery).
 3. **No bespoke scheduler and no new run table** — the recurring path reuses the automations schedule
-   selector + `AutomationRun`; delivery reuses automations' output. (Closes old Gaps A/B/E.)
+   selector + `AutomationRun` (Closes old Gaps A/B). **Delivery does NOT reuse automations** (no such
+   path; `run.output` is unwritten) — alerts go through `app/notifications/` (Gap E: small wiring).
 4. Recurrence is a **CI *action*** on the existing automations, **not a new automation shape**.
 5. CI core stays runnable with **zero** automations dependency (manual/agent/external-cron).
 

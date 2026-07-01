@@ -1,5 +1,15 @@
 # Phase 4a — Connector taxonomy (Type-1/Type-2) + availability gating + MCP routing fix
 
+> ## ↪ REDIRECT / DEMOTED (2026-06-30) — superseded by the revamp
+> **The canonical Phase 4 is now [`revamp phases 4-7/04a-capabilities.md`](revamp%20phases%204-7/04a-capabilities.md) + [`04b-access.md`](revamp%20phases%204-7/04b-access.md)** (typed capability verbs + generated doors — see `00-umbrella-plan.md`). This file's connector-taxonomy work is **demoted to backward-compat hygiene**: it is **not** the core of Phase 4. Read the revamp first.
+>
+> What survives from this doc, and where it goes:
+> - **The one genuinely useful piece — the `MCP_CONNECTOR` (BYO MCP) routing-gap fix — moves to `revamp/04b`** (the "consume-user-MCP" work). That's the actionable carry-over.
+> - **Keeping legacy branded natives `MIGRATING` (off) + existing indexed KB docs searchable, and Obsidian/Circleback `DISABLED`** — still true; a small hygiene task, no longer a headline phase.
+> - **`is_pipeline_eligible` is dropped** (no pipelines); **Type-1 = file/KB-input only** (Drive/Dropbox/OneDrive + uploads → input-only KB); **`WEBCRAWLER_CONNECTOR` is RETIRED** (native `scrape_webpage` tool, now a `web.scrape` capability verb).
+>
+> The static-registry design below is retained for reference, but do not treat "connector two-type restructure" as the Phase 4 deliverable — the deliverable is the **capability registry** in `revamp/04a`.
+
 > Part of **Phase 4 — Connector two-type restructure (backend)**. See `00-umbrella-plan.md`.
 > Sibling: `04b-source-discovery.md` (web-search repurposing). Precondition: Phases 1–2 (rename) live.
 

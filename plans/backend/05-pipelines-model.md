@@ -1,5 +1,8 @@
 # Phase 5 — Pipelines data model (tables, schemas, migration, Zero, CRUD + run routes)
 
+> # ❌ SUPERSEDED (2026-06-30)
+> **This entire phase is dropped.** Per the **Architecture correction** in `00-umbrella-plan.md`, the CI pivot no longer uses a Pipelines concept: the KB is **input-only** (user files), the crawler/search are **platform-native tools**, connectors are **MCP**, and the recurring-fetch + run-history need is met by the existing **automations** system (`app/automations/`). There are **no `pipelines`/`pipeline_runs` tables**. This document is retained **for historical context only** — do **not** implement it. **The replacement is the canonical revamp Phase 5 — [`revamp phases 4-7/05a-timeline.md`](revamp%20phases%204-7/05a-timeline.md) + [`05b-intelligence.md`](revamp%20phases%204-7/05b-intelligence.md)**: the `Tracker` primitive + a 3-store delta **Timeline** (the durable CI state / moat). "Diffable run history" lives in the Timeline's `entity_changes`, **not** in `automation_runs.output`. (The earlier "Phase 5′" framing is retired.)
+
 > Part of the **CI Pivot MVP**. See `00-umbrella-plan.md` (Phase 5).
 > Precondition: Phases 1–2 (rename) live, Phase 4a (connector registry) live. Siblings ahead: `06-pipelines-exec.md` (run engine + scheduling), `07-upload-pipeline-kb.md` (uploads-as-pipeline).
 

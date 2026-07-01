@@ -21,9 +21,12 @@ where "user-friendly" is won or lost, so the orchestration layer is **designed, 
   `pack_subagent(name, description, system_prompt, tools, ruleset, …)`), `tools/index.py`
   (`NAME · RULESET · load_tools(dependencies)`), `description.md` (router one-liner), `system_prompt.md`
   (the playbook), optional middleware (e.g. `citation_state`). Peers: `research`, `deliverables`.
-- **Tool shape** — `research/tools/scrape_webpage.py` already demonstrates **tool = capability executor +
-  access door + 03c billing**: calls `WebCrawlerConnector.crawl_url`, bills via the turn accumulator
-  (`get_current_accumulator()` + `WebCrawlCreditService`), returns a typed dict. CI tools follow this exactly.
+- **Tool shape** — `research/tools/scrape_webpage.py` shows the **tool = capability executor + access door**
+  pattern (calls `WebCrawlerConnector.crawl_url`, returns a typed dict). **Billing note:** its current
+  `get_current_accumulator()` fold is **interactive-chat-only** and no-ops outside a chat turn — so CI tools
+  do **not** copy that as the charging path. Per `04a` (locked), **the charge fires in the capability
+  executor**; the chat turn accumulator stays only as an optional presentation fold. This is what makes the
+  recurring `06 → refresh → verb → crawl` path (no chat turn) bill correctly.
 - **Slow-job path** — `deliverable_wait` poll-until-terminal + the podcast-style live card (`04b`).
 
 ## Target design
@@ -49,7 +52,7 @@ happen. It owns the **CI playbook** in `system_prompt.md`:
 
 | Tool | Wraps | Mode | Billing |
 |------|-------|------|---------|
-| capability verbs (`web.scrape`, `web.discover`, `maps.search`, `maps.place`, `maps.reviews`) | `04a` executors | inline-or-job (slow → `deliverable_wait`) | `03c` turn accumulator (as `scrape_webpage` already does) |
+| capability verbs (`web.scrape`, `web.discover`, `maps.search`, `maps.place`, `maps.reviews`) | `04a` executors | inline-or-job (slow → `deliverable_wait`) | at the `04a` executor (per-call); chat turn accumulator = optional presentation fold only |
 | `craft_tracker(decision, binding)` | `05b` schema-design agent | inline (sample-fetch + proposes) | sample crawl billed |
 | `lock_tracker(draft)` / `update_tracker` | `05b` Tracker persistence | inline | — |
 | `refresh_tracker(tracker_id)` | `05b` `refresh(tracker)` (via `06`) | job → `deliverable_wait` | per capability call |
@@ -103,7 +106,7 @@ happen. It owns the **CI playbook** in `system_prompt.md`:
 
 1. CI orchestration is a **net-new builtin subagent** (`intelligence_agent`) on the existing runtime — not
    a runtime rebuild.
-2. Tools follow the `scrape_webpage` shape: capability executor + access door + `03c` billing.
+2. Tools follow the `scrape_webpage` executor+door shape, but **billing fires in the `04a` executor** (not the chat turn accumulator, which is interactive-only and would skip automation/cron runs).
 3. Capability verbs are a **shared, registry-generated** tool module; the `intelligence_agent` adds
    Tracker/Timeline tools + the CI prompt.
 4. Intent routing (A vs B) lives **in the subagent prompt**; the headless logic stays in `05a`/`05b`.

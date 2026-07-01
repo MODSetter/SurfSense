@@ -1,7 +1,10 @@
 # Phase 4b — Web-search repurposing + source-discovery endpoint
 
-> Part of **Phase 4 — Connector two-type restructure (backend)**. See `00-umbrella-plan.md`.
-> Sibling: `04a-connector-category.md`. Best sequenced **after** `04a` (taxonomy in place). Precondition: Phases 1–2 (rename) live.
+> ## ↪ REDIRECT / ABSORBED (2026-06-30) — superseded by the revamp
+> **This subplan is absorbed into the canonical [`revamp phases 4-7/04a-capabilities.md`](revamp%20phases%204-7/04a-capabilities.md) as the `web.discover` verb.** The substance still holds — drop the 5 search `connector_type` values (`SERPER_API`/`TAVILY_API`/`SEARXNG_API`/`LINKUP_API`/`BAIDU_SEARCH_API`) + their paths (destructive migration), move SearXNG/Linkup/Baidu to **platform env** config, and rewire the chat `web_search` tool onto them — but the "source-discovery endpoint" is now a **capability verb** (`web.discover(query, top_k)`) in the registry, exposed identically via chat/REST/MCP (not a bespoke route), and its output feeds the agent (or a Tracker binding), **not** "a pipeline." Read `revamp/04a` (`web.discover`) as canonical; use the provider/migration detail here as implementation reference.
+>
+> Part of **Phase 4 — Capabilities & Access (backend)**. See `00-umbrella-plan.md`.
+> Sibling (old): `04a-connector-category.md` (demoted to hygiene). Precondition: Phases 1–2 (rename) live.
 
 > **Implementation note.** Phases 1–2 are **SHIPPED**, so the live code already says `workspace_id`/`Workspace` — substitute for the old `search_space_*`/`SearchSpace` names in citations below and grep the new name; locate code by **symbol/grep**, not the absolute line numbers cited.
 
