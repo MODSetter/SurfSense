@@ -11,6 +11,10 @@ from app.capabilities.access.agent import build_capability_tools
 from app.capabilities.web.discover.definition import WEB_DISCOVER
 from app.capabilities.web.scrape.definition import WEB_SCRAPE
 
+from .refresh_watch import create_refresh_watch_tool
+from .start_watch import create_start_watch_tool
+from .stop_watch import create_stop_watch_tool
+
 NAME = "intelligence_agent"
 
 RULESET = Ruleset(origin=NAME, rules=[])
@@ -22,7 +26,23 @@ def load_tools(
     *, dependencies: dict[str, Any] | None = None, **kwargs: Any
 ) -> list[BaseTool]:
     d = {**(dependencies or {}), **kwargs}
-    return build_capability_tools(
+    tools: list[BaseTool] = build_capability_tools(
         workspace_id=d.get("workspace_id"),
         capabilities=_CI_VERBS,
     )
+
+    # Watch tools bind a recurring automation to the current chat, so they are
+    # only offered when we have a chat to bind to and auth to manage it.
+    thread_id = d.get("thread_id")
+    auth_context = d.get("auth_context")
+    if thread_id is not None and auth_context is not None:
+        binding = {
+            "workspace_id": d.get("workspace_id"),
+            "thread_id": thread_id,
+            "auth_context": auth_context,
+        }
+        tools.append(create_start_watch_tool(**binding))
+        tools.append(create_stop_watch_tool(**binding))
+        tools.append(create_refresh_watch_tool(**binding))
+
+    return tools
