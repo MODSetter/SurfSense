@@ -395,24 +395,91 @@ async def _playlist_flow(
     data = await _post(
         INNERTUBE_BROWSE_URL, build_innertube_payload(browse_id=f"VL{playlist_id}")
     )
-    if not data:
-        return
-    # ponytail: reads the first browse page only (~100 items). Upgrade path:
-    # follow the continuation token for playlists longer than one page.
-    video_ids = parse_playlist_video_ids(data)
+    # Phase 1: page the playlist for video ids (cheap browse calls, sequential
+    # because each continuation depends on the last).
+    seen: set[str] = set()
+    ordered_ids: list[str] = []
+    while data and len(ordered_ids) < limit:
+        ids, token = parse_playlist_video_ids(data)
+        # A short playlist emits a spurious continuation whose page is empty;
+        # stopping on "no new ids" ends both real exhaustion and that loop.
+        new_ids = [v for v in ids if v not in seen]
+        if not new_ids:
+            break
+        for vid in new_ids:
+            seen.add(vid)
+            ordered_ids.append(vid)
+            if len(ordered_ids) >= limit:
+                break
+        if not token:
+            break
+        data = await _post(
+            INNERTUBE_BROWSE_URL, build_innertube_payload(continuation_token=token)
+        )
 
-    for order, vid in enumerate(video_ids):
-        if order >= limit:
-            return
-        async for item in _video_flow(
+    # Phase 2: resolve the videos concurrently — the per-video watch-page fetch
+    # is the bottleneck, so fan them out (each carries its playlist position in
+    # ``order``; fan_out emits as they finish, not in playlist order).
+    # ponytail: nested fan_out — when many playlist URLs run at once this can
+    # stack pools (outer × inner) of proxy sessions. Fine for the common
+    # single/few-playlist case; cap inner concurrency if bulk-playlist runs trip it.
+    jobs = [
+        _video_flow(
             vid,
             input_model=input_model,
             source_input=source_input,
             from_url=source_input,
-            order=order,
+            order=i,
             content_type="video",
-        ):
-            yield item
+        )
+        for i, vid in enumerate(ordered_ids)
+    ]
+    async for item in fan_out(jobs):
+        yield item
+
+
+async def _hashtag_flow(
+    tag: str,
+    *,
+    input_model: YouTubeScrapeInput,
+    source_input: str,
+) -> AsyncIterator[dict[str, Any]]:
+    """Scrape the dedicated hashtag feed (not a #tag search).
+
+    The hashtag page embeds its feed as ``videoRenderer`` lockups (reused via
+    ``parse_search_response``). ponytail: YouTube exposes no continuation for the
+    hashtag feed through this path, so it is a single page (~20-35 videos); the
+    paging loop is kept for the day a token appears. Upgrade path for more depth:
+    fall back to the ``#tag`` search route.
+    """
+    limit = input_model.maxResults
+    if limit <= 0:
+        return
+    url = f"https://www.youtube.com/hashtag/{quote(tag)}"
+    html = await fetch_html(url)
+    if not html:
+        return
+    data = extract_yt_initial_data(html)
+    order = 0
+    while data:
+        items, token = parse_search_response(data)
+        for it in items:
+            if order >= limit:
+                return
+            yield await _finalize(
+                it,
+                input_model=input_model,
+                source_input=source_input,
+                from_url=url,
+                order=order,
+                content_type="video",
+            )
+            order += 1
+        if not token or order >= limit:
+            return
+        data = await _post(
+            INNERTUBE_BROWSE_URL, build_innertube_payload(continuation_token=token)
+        )
 
 
 async def _dispatch(
@@ -439,12 +506,14 @@ async def _dispatch(
             resolved.value, input_model=input_model, source_input=resolved.url
         ):
             yield item
-    elif resolved.kind in ("search", "hashtag"):
-        # ponytail: hashtag pages have their own layout; MVP routes the tag
-        # through search (query "#tag"). Upgrade path: dedicated hashtag browse.
-        query = resolved.value if resolved.kind == "search" else f"#{resolved.value}"
+    elif resolved.kind == "hashtag":
+        async for item in _hashtag_flow(
+            resolved.value, input_model=input_model, source_input=resolved.url
+        ):
+            yield item
+    elif resolved.kind == "search":
         async for item in _search_flow(
-            query, input_model=input_model, source_input=resolved.url
+            resolved.value, input_model=input_model, source_input=resolved.url
         ):
             yield item
 

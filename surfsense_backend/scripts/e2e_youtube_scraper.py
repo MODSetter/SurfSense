@@ -1,4 +1,4 @@
-"""Manual functional e2e for the YouTube scraper (app/scrapers/youtube).
+"""Manual functional e2e for the YouTube scraper (app/proprietary/scrapers/youtube).
 
 Run from the backend directory:
     cd surfsense_backend
@@ -31,20 +31,20 @@ for _candidate in (_BACKEND_ROOT / ".env", _BACKEND_ROOT.parent / ".env"):
         load_dotenv(_candidate)
         break
 
-from app.scrapers.youtube import (  # noqa: E402
+from app.proprietary.scrapers.youtube import (  # noqa: E402
     YouTubeCommentsInput,
     YouTubeScrapeInput,
     scrape_comments,
     scrape_youtube,
 )
-from app.scrapers.youtube.innertube import (  # noqa: E402
+from app.proprietary.scrapers.youtube.innertube import (  # noqa: E402
     INNERTUBE_PUBLIC_API_KEY,
     INNERTUBE_SEARCH_URL,
     build_innertube_payload,
     fetch_html,
     post_innertube,
 )
-from app.scrapers.youtube.parsers import (  # noqa: E402
+from app.proprietary.scrapers.youtube.parsers import (  # noqa: E402
     extract_yt_initial_data,
     extract_yt_initial_player_response,
 )

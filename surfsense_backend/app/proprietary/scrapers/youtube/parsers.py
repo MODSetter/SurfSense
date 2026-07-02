@@ -590,12 +590,14 @@ def _continuation_token(data: dict) -> str | None:
     return tokens[-1] if tokens else None
 
 
-def parse_playlist_video_ids(data: dict) -> list[str]:
-    """Ordered, de-duped video ids from a playlist ``/browse`` response.
+def parse_playlist_video_ids(data: dict) -> tuple[list[str], str | None]:
+    """Ordered, de-duped video ids + paging token from a playlist ``/browse``.
 
     Playlist entries are ``lockupViewModel`` (the old ``playlistVideoRenderer``
     is retired); ``contentId`` holds the id. The 11-char guard keeps only videos
-    and drops any playlist/channel lockup (e.g. the sidebar self-lockup).
+    and drops any playlist/channel lockup (e.g. the sidebar self-lockup). The
+    token pages long playlists; callers must still guard against an empty page,
+    since a short playlist can emit a spurious (non-paging) continuation.
     """
     seen: set[str] = set()
     ids: list[str] = []
@@ -604,7 +606,7 @@ def parse_playlist_video_ids(data: dict) -> list[str]:
         if vid and len(vid) == 11 and vid not in seen:
             seen.add(vid)
             ids.append(vid)
-    return ids
+    return ids, _continuation_token(data)
 
 
 def parse_channel_videos(data: dict) -> tuple[list[dict[str, Any]], str | None]:

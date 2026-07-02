@@ -11,8 +11,8 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from app.scrapers.youtube import innertube, scraper
-from app.scrapers.youtube.innertube import (
+from app.proprietary.scrapers.youtube import innertube, scraper
+from app.proprietary.scrapers.youtube.innertube import (
     INNERTUBE_SEARCH_URL,
     _current_session,
     fetch_html,

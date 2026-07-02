@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from app.scrapers.youtube.parsers import (
+from app.proprietary.scrapers.youtube.parsers import (
     channel_about_tokens,
     comment_next_token,
     comment_reply_tokens,
@@ -35,9 +35,9 @@ from app.scrapers.youtube.parsers import (
     parse_video_page,
     seconds_to_duration,
 )
-from app.scrapers.youtube.schemas import YouTubeScrapeInput
-from app.scrapers.youtube.search_filters import build_search_params
-from app.scrapers.youtube.url_resolver import resolve_url
+from app.proprietary.scrapers.youtube.schemas import YouTubeScrapeInput
+from app.proprietary.scrapers.youtube.search_filters import build_search_params
+from app.proprietary.scrapers.youtube.url_resolver import resolve_url
 
 pytestmark = pytest.mark.unit
 
@@ -429,8 +429,13 @@ def test_parse_playlist_video_ids():
         },
         # a playlist self-lockup (non-video, longer id) that must be ignored
         "sidebar": {"lockupViewModel": {"contentId": "PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab"}},
+        "continuationItemRenderer": {
+            "continuationEndpoint": {"continuationCommand": {"token": "PAGE2"}}
+        },
     }
-    assert parse_playlist_video_ids(data) == ["fNk_zzaMoSs", "k7RM-ot2NWY"]
+    ids, token = parse_playlist_video_ids(data)
+    assert ids == ["fNk_zzaMoSs", "k7RM-ot2NWY"]
+    assert token == "PAGE2"
 
 
 # --- search filter (sp=) encoder --------------------------------------------
