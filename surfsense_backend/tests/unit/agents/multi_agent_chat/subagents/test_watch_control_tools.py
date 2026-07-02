@@ -33,7 +33,7 @@ def _watch(automation_id: int) -> Any:
 async def test_stop_watch_stops_every_watch_on_the_chat(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools import (
+    from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools import (
         stop_watch as mod,
     )
 
@@ -59,7 +59,7 @@ async def test_stop_watch_stops_every_watch_on_the_chat(
 async def test_stop_watch_reports_when_nothing_to_stop(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools import (
+    from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools import (
         stop_watch as mod,
     )
 
@@ -80,7 +80,7 @@ async def test_stop_watch_reports_when_nothing_to_stop(
 async def test_refresh_watch_runs_each_watch_now(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools import (
+    from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools import (
         refresh_watch as mod,
     )
 
@@ -104,7 +104,7 @@ async def test_refresh_watch_runs_each_watch_now(
 
 
 def test_load_tools_includes_control_tools_when_bindable() -> None:
-    from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools.index import (
+    from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools.index import (
         load_tools,
     )
 

@@ -1,4 +1,4 @@
-"""Unit tests for the ``start_watch`` tool on the intelligence_agent.
+"""Unit tests for the ``start_watch`` tool on the scraping sub-agent.
 
 ``start_watch`` binds a recurring watch to the *current* chat: it distils the
 question + cadence the agent extracted and creates a ``schedule`` +
@@ -26,7 +26,7 @@ class _FakeSessionCM:
 
 
 def _patch_deps(monkeypatch: pytest.MonkeyPatch, *, created: Any) -> AsyncMock:
-    from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools import (
+    from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools import (
         start_watch as mod,
     )
 
@@ -41,7 +41,7 @@ def _patch_deps(monkeypatch: pytest.MonkeyPatch, *, created: Any) -> AsyncMock:
 async def test_start_watch_binds_watch_to_current_chat(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools import (
+    from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools import (
         start_watch as mod,
     )
 
@@ -75,7 +75,7 @@ async def test_start_watch_binds_watch_to_current_chat(
 async def test_start_watch_errors_without_thread_or_auth(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools import (
+    from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools import (
         start_watch as mod,
     )
 
@@ -101,7 +101,7 @@ async def test_start_watch_errors_without_thread_or_auth(
 
 
 def test_load_tools_includes_start_watch_only_when_bindable() -> None:
-    from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools.index import (
+    from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools.index import (
         load_tools,
     )
 

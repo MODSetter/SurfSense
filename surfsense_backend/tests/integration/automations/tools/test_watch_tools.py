@@ -13,13 +13,13 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools.refresh_watch import (
+from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools.refresh_watch import (
     create_refresh_watch_tool,
 )
-from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools.start_watch import (
+from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools.start_watch import (
     create_start_watch_tool,
 )
-from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools.stop_watch import (
+from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools.stop_watch import (
     create_stop_watch_tool,
 )
 from app.auth.context import AuthContext

@@ -33,7 +33,6 @@ _EXPECTED_SUBAGENTS = frozenset(
         "dropbox",
         "gmail",
         "google_drive",
-        "intelligence_agent",
         "jira",
         "knowledge_base",
         "linear",
@@ -42,6 +41,7 @@ _EXPECTED_SUBAGENTS = frozenset(
         "notion",
         "onedrive",
         "research",
+        "scraping",
         "slack",
         "teams",
     }

@@ -63,7 +63,7 @@ def tools_use_test_session(monkeypatch, db_session: AsyncSession) -> None:
     async def _session_cm():
         yield db_session  # owned by the outer fixture; do not close
 
-    from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.tools import (
+    from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools import (
         refresh_watch,
         start_watch,
         stop_watch,

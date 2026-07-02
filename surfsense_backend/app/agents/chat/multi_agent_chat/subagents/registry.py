@@ -15,9 +15,6 @@ from app.agents.chat.multi_agent_chat.constants import (
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.agent import (
     build_subagent as build_deliverables_subagent,
 )
-from app.agents.chat.multi_agent_chat.subagents.builtins.intelligence_agent.agent import (
-    build_subagent as build_intelligence_agent_subagent,
-)
 from app.agents.chat.multi_agent_chat.subagents.builtins.knowledge_base.agent import (
     build_subagent as build_knowledge_base_subagent,
 )
@@ -26,6 +23,9 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.memory.agent import (
 )
 from app.agents.chat.multi_agent_chat.subagents.builtins.research.agent import (
     build_subagent as build_research_subagent,
+)
+from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.agent import (
+    build_subagent as build_scraping_subagent,
 )
 from app.agents.chat.multi_agent_chat.subagents.connectors.airtable.agent import (
     build_subagent as build_airtable_subagent,
@@ -102,7 +102,6 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "dropbox": build_dropbox_subagent,
     "gmail": build_gmail_subagent,
     "google_drive": build_google_drive_subagent,
-    "intelligence_agent": build_intelligence_agent_subagent,
     "jira": build_jira_subagent,
     "knowledge_base": build_knowledge_base_subagent,
     "linear": build_linear_subagent,
@@ -111,6 +110,7 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "notion": build_notion_subagent,
     "onedrive": build_onedrive_subagent,
     "research": build_research_subagent,
+    "scraping": build_scraping_subagent,
     "slack": build_slack_subagent,
     "teams": build_teams_subagent,
 }

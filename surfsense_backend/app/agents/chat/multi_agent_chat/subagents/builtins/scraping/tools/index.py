@@ -1,4 +1,4 @@
-"""``intelligence_agent`` tools: web.* verbs generated from the capability registry."""
+"""``scraping`` sub-agent tools: scraper capability verbs + chat-watch controls."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from .refresh_watch import create_refresh_watch_tool
 from .start_watch import create_start_watch_tool
 from .stop_watch import create_stop_watch_tool
 
-NAME = "intelligence_agent"
+NAME = "scraping"
 
 RULESET = Ruleset(origin=NAME, rules=[])
 

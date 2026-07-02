@@ -1,4 +1,4 @@
-"""``intelligence_agent`` route: ``SurfSenseSubagentSpec`` builder for deepagents."""
+"""``scraping`` route: ``SurfSenseSubagentSpec`` builder for deepagents."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def build_subagent(
     tools = [*load_tools(dependencies=dependencies), *(mcp_tools or [])]
     description = (
         read_md_file(__package__, "description").strip()
-        or "Gathers and compares web intelligence for this workspace."
+        or "Scrapes live public web pages and search results for this workspace."
     )
     system_prompt = read_md_file(__package__, "system_prompt").strip()
     return pack_subagent(
