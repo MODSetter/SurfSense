@@ -20,7 +20,7 @@ Premium, open-source, self-hostable **scraper APIs** (Bright Data / Firecrawl / 
 > - **Automation = a persistent ongoing chat** that periodically re-invokes verbs. This replaces the `Triggers` subsystem; the periodic mechanism is **design-deferred** (Phase 6).
 > - **KB stays input-only**; crawled data is never indexed.
 >
-> **Phase mapping:** **04 Capabilities** · **05 Access** · **06 Ongoing-Automation** (deferred) · **07 Orchestration** (`intelligence_agent`). The subplans `05a-timeline`/`05b-intelligence`/`06-triggers` are **removed** (history in git); `04a`/`04b` are folded into `04`/`05`.
+> **Phase mapping:** **04 Capabilities** · **05 Access** · **06 Ongoing-Automation** · **07 Orchestration** (`scraping` subagent). The subplans `05a-timeline`/`05b-intelligence`/`06-triggers` are **removed** (history in git); `04a`/`04b` are folded into `04`/`05`.
 
 ## ⚠️ Architecture correction (2026-06-30) — Pipelines dropped; automations + input-only KB adopted
 
@@ -52,11 +52,11 @@ flowchart TD
   REG["Capability registry (P4): web.scrape · web.discover · maps.search/place/reviews — typed verbs, cleaned AI-ready output, bill at executor"]
   ACQ --> REG
   REG --> DOORS["Access doors (P5): REST + API key · MCP server · chat tools — generated from the registry"]
-  DOORS --> AGENT["intelligence_agent subagent (P7): intent routing · verb chains · 'what changed' from chat history"]
+  DOORS --> AGENT["scraping subagent (P7): intent routing · verb chains · 'what changed' from chat history"]
   KB[("Knowledge Base — input-only: user files/context (uploads + Drive/Dropbox/OneDrive)")] --> AGENT
   CONN["Connectors = MCP tools (BYO) + file/KB-input"] --> AGENT
   AGENT -->|one-shot| ANS["plain-language answer (nothing persists)"]
-  AGENT -.->|standing need| ONG["Ongoing-Automation (P6, DEFERRED): persistent chat re-invokes verbs; memory = chat history"]
+  AGENT -.->|standing need| ONG["Ongoing-Automation (P6): persistent chat re-invokes verbs; memory = chat history"]
   ONG -.-> REG
   APIKEY["Platform API key"] --> DOORS
 ```
@@ -168,16 +168,16 @@ The Universal WebURL Crawler is the flagship Type-1 data source (**the moat**). 
 
 ### Phase 6 — Ongoing-Automation (backend) [`subplan: 06-ongoing-automation.md`]
 
-> **Canonical subplan:** [`06-ongoing-automation.md`](06-ongoing-automation.md) — **⚠️ design deferred.** The periodic mechanism is designed separately, after `04`/`05`/`07`. **Depends on `04`** (the verbs it re-invokes) and `05` (the chat surface + delivery channel).
+> **Canonical subplan:** [`06-ongoing-automation.md`](06-ongoing-automation.md) — **shipped.** A chat watch is an `Automation` bound to the current chat (`schedule` + `chat_message`); the durable checkpointer is the memory. **Depends on `04`** (the verbs it re-invokes) and `05` (the chat surface + delivery channel).
 
 - Support **"keep watching"** with no stateful storage: a **persistent, ongoing chat** where the agent periodically re-invokes scraper verbs and drops results into the session; the agent reports "what's new" by reading the chat history. Open questions (resolved together): periodicity driver, delivery channel (SSE vs Zero-published table), context-window limit, loop owner, stop/cost controls.
 
 ### Phase 7 — Orchestration (backend) [`subplan: 07-orchestration.md`]
 
-> **Canonical subplan:** [`07-orchestration.md`](07-orchestration.md) — the human-facing brain. **Build last** (atop `04`/`05`, and `06` for the ongoing mode). We plug into the shipped multi-agent runtime; we don't rebuild it.
+> **Canonical subplan:** [`07-orchestration.md`](07-orchestration.md) — the human-facing brain. **Shipped for the web verbs** (atop `04`/`05`/`06`). We plug into the shipped multi-agent runtime; we don't rebuild it.
 
-- Ship the net-new builtin **`intelligence_agent`** subagent (peer to `research`/`deliverables`): **intent routing** (one-shot vs keep-watching, one clarifying question when ambiguous), **verb composition** (`web.discover → web.scrape`, `maps.search → maps.place → maps.reviews`), and **"what changed" from the chat history** (re-invoke a verb, compare against prior tool outputs already in context — no timeline, no diff store).
-- Toolset: registry-backed capability verbs (shared with `research`) + a deferred `start_watch` handoff to `06`. Tools follow the shipped `scrape_webpage` shape (executor + door + 03c billing), **direct-return** (no `deliverable_wait`).
+- Ship the builtin **`scraping`** subagent (peer to `research`/`deliverables`): **intent routing** (one-shot vs keep-watching, block on ambiguous cadence), **verb composition** (`web.discover → web.scrape`; `maps.*` chains deferred until the Maps actor exists), and **"what changed" from the chat history** (re-invoke a verb, compare against prior tool outputs already in context — no timeline, no diff store).
+- Toolset: registry-backed capability verbs + `start_watch`/`stop_watch`/`refresh_watch` bound to the current chat (`06`). Tools follow the shipped `scrape_webpage` shape (executor + door + 03c billing), **direct-return** (no `deliverable_wait`).
 
 ### (Future) Platform API-key + public MCP
 
@@ -249,9 +249,9 @@ These are recorded for continuity but are NOT planned in this umbrella. They sta
 | 3 | `03d-captcha-solving.md` | **IMPLEMENTED** (`ci_mvp`) — `captchatools` page_action (proprietary) + Apache-2 config + per-attempt `web_crawl_captcha` billing; off by default |
 | 3 | `03f-undetectability-testing.md` | **IMPLEMENTED** (`ci_mvp`) — manual scorecard under the **proprietary boundary** at `app/proprietary/web_crawler/testbench/` (`python -m app.proprietary.web_crawler.testbench`); Suite S (stealth, shipped builder) + Suite E (extraction via real `crawl_url`) + scorecard JSON/MD baseline diff |
 | — | `00b-pipeline-diagrams.md` | end-to-end flow diagrams (companion to this umbrella) |
-| 4 | `04-capabilities.md` | **CANONICAL** · drafted — capability registry + verbs `web.scrape`/`web.discover`/`maps.*` → cleaned data; bill at executor. **← build next** |
-| 5 | `05-access.md` | **CANONICAL** · drafted — generated REST/MCP/chat doors + intent router + BYO-MCP routing fix |
-| 6 | `06-ongoing-automation.md` | **CANONICAL** · **design deferred** — chat-native "keep watching" (periodic re-invocation) |
-| 7 | `07-orchestration.md` | **CANONICAL** · drafted — `intelligence_agent` subagent; "what changed" from chat history |
+| 4 | `04-capabilities.md` | **IMPLEMENTED (web verbs)** — capability registry + `web.scrape`/`web.discover` → cleaned data, bill at executor (top_k bounds, max_length truncation, per-attempt captcha metering). `maps.*` deferred (Maps actor) |
+| 5 | `05-access.md` | **IMPLEMENTED (REST + chat doors)** — generated REST/API-key + chat tools from the registry. MCP door + BYO-MCP routing fix deferred (MCP server) |
+| 6 | `06-ongoing-automation.md` | **IMPLEMENTED** — chat-native "keep watching": `Automation` bound to the chat (`schedule` + `chat_message`), worker-safe durable checkpointer, watch tools + REST controls |
+| 7 | `07-orchestration.md` | **IMPLEMENTED (web verbs)** — `scraping` subagent; intent routing, verb composition, "what changed" from chat history |
 
 Frontend & client subplans will be added under a separate umbrella later (see "Deferred — Frontend & client phases").

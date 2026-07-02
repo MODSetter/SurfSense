@@ -1,6 +1,6 @@
 # Phase 6 — Ongoing Automation (chat-native "keep watching")
 
-> Depends on `04` (the verbs it re-invokes), `05` (the agent tools), and `07` (the `intelligence_agent`).
+> Depends on `04` (the verbs it re-invokes), `05` (the agent tools), and `07` (the `scraping` subagent).
 > Reuses the existing chat + automations machinery; adds no parallel engine.
 
 ## Objective
@@ -28,7 +28,7 @@ chat's own checkpoint is the memory.
   opened them, but Celery uses a fresh loop per task (`PoolTimeout`). Dispose the checkpointer pool per
   task in `run_async_celery_task`, mirroring `_dispose_shared_db_engine`, so a worker can use the *durable*
   checkpointer (not `InMemorySaver`) that "what changed" requires.
-- **`start_watch`** — an `intelligence_agent` tool that binds a watch to the *current* chat: it distills
+- **`start_watch`** — a `scraping` subagent tool that binds a watch to the *current* chat: it distills
   the recurring question + cadence and creates the automation (`schedule` + `chat_message(thread_id =
   current chat)`).
 - **"Is this chat watched?"** — derived: an active automation with a `chat_message` action targeting the
@@ -44,7 +44,7 @@ chat's own checkpoint is the memory.
 2. `chat_message` action: params + factory + handler (drains `stream_new_chat`); concurrency guard. **[done]**
 3. Watch service: create (bind `schedule` + `chat_message` automation to a chat) / stop (delete) /
    find-for-thread (is-watched) / run-now. **[done]**
-4. `start_watch` tool on `intelligence_agent` (+ prompt line); binds to the current chat. **[done]**
+4. `start_watch` tool on the `scraping` subagent (+ prompt line); binds to the current chat. **[done]**
 5. Controls — chat tools (`stop_watch`, `refresh_watch`) + REST (`GET /automations/watches`,
    `POST /automations/{id}/run`; stop = `DELETE /automations/{id}`). **[done]**
 

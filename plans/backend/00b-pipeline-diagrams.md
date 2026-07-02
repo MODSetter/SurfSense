@@ -16,8 +16,8 @@ flowchart LR
   subgraph SCOPE["OUR SCOPE · Phase 04 -> 07"]
     CAP["04 Capabilities<br/>web.* · maps.*<br/>cleaned, AI-ready output"]
     ACC["05 Access<br/>REST · MCP · chat doors"]
-    ORC["07 Orchestration<br/>intelligence_agent"]
-    ONG["06 Ongoing-Automation<br/>(keep-watching · DEFERRED)"]
+    ORC["07 Orchestration<br/>scraping subagent"]
+    ONG["06 Ongoing-Automation<br/>(keep-watching)"]
   end
 
   ACQ --> CAP
@@ -77,20 +77,19 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-  U(["User speaks in natural language"]) --> R{"Intent router<br/>(intelligence_agent prompt, 07)"}
+  U(["User speaks in natural language"]) --> R{"Intent router<br/>(scraping prompt, 07)"}
   R -->|"find / compare / what is / right now"| A["ONE-SHOT<br/>compose verbs, answer (section 3)"]
-  R -->|"watch / track / notify me / over time"| B["KEEP-WATCHING<br/>hand to Ongoing-Automation (06)"]
-  R -->|ambiguous| Q["Ask ONE question:<br/>'just once, or keep watching?'"]
+  R -->|"watch / track / notify me / over time"| B["KEEP-WATCHING<br/>start_watch -> Ongoing-Automation (06)"]
+  R -->|ambiguous cadence| Q["Block: ask for the missing cadence / timezone"]
   Q -->|once| A
   Q -->|keep watching| B
-  B -.->|DESIGN DEFERRED| X["06 mechanism TBD<br/>(periodicity · delivery · context limits)"]
 ```
 
 ## 5. "What changed" — chat history is the memory
 
 ```mermaid
 flowchart LR
-  P["Prior tool outputs<br/>(already in chat context)"] --> AG["intelligence_agent"]
+  P["Prior tool outputs<br/>(already in chat context)"] --> AG["scraping subagent"]
   NEW["Fresh verb call (04)"] --> AG
   AG --> ANS["'Here's what's new since last time'<br/>(reasoned from chat history)"]
 ```
