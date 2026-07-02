@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 from pydantic import BaseModel, Field
 
-from app.capabilities.types import BillingUnit, Capability
+from app.capabilities.core.types import BillingUnit, Capability
 from app.services.web_crawl_credit_service import InsufficientCreditsError
 
 pytestmark = pytest.mark.asyncio
@@ -54,7 +54,7 @@ class _FakeSessionCtx:
 @pytest.fixture
 def isolate(monkeypatch):
     """Stub the billing session + charge/gate so tools never hit the DB."""
-    from app.capabilities.access import agent as mod
+    from app.capabilities.core.access import agent as mod
 
     monkeypatch.setattr(mod, "async_session_maker", lambda: _FakeSessionCtx())
     charge = AsyncMock()

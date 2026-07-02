@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from app.capabilities.types import (
+from app.capabilities.core.types import (
     BillableInput,
     BillableOutput,
     BillingUnit,

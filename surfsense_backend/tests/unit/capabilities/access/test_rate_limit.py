@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
-from app.capabilities.access import rate_limit
+from app.capabilities.core.access import rate_limit
 
 
 def _request(workspace_id: int) -> Request:

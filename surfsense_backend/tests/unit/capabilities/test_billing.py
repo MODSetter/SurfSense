@@ -11,9 +11,9 @@ from uuid import UUID
 
 import pytest
 
-import app.capabilities.billing as billing
-from app.capabilities.billing import charge_capability, gate_capability
-from app.capabilities.types import BillingUnit, CapabilityContext
+import app.capabilities.core.billing as billing
+from app.capabilities.core.billing import charge_capability, gate_capability
+from app.capabilities.core.types import BillingUnit, CapabilityContext
 from app.capabilities.web.scrape.schemas import ScrapeInput, ScrapeOutput, ScrapeRow
 from app.config import config
 from app.services.web_crawl_credit_service import InsufficientCreditsError

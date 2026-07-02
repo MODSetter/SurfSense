@@ -7,8 +7,8 @@ import pytest
 from app.capabilities import (
     web,  # noqa: F401  — importing the namespace registers its verbs
 )
-from app.capabilities.store import get_capability
-from app.capabilities.types import BillingUnit
+from app.capabilities.core.store import get_capability
+from app.capabilities.core.types import BillingUnit
 from app.capabilities.web.discover.schemas import DiscoverInput, DiscoverOutput
 from app.capabilities.web.scrape.schemas import ScrapeInput, ScrapeOutput
 

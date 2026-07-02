@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from langchain_core.tools import BaseTool, StructuredTool
 
-from app.capabilities.billing import charge_capability, gate_capability
-from app.capabilities.store import all_capabilities
-from app.capabilities.types import Capability, CapabilityContext
+from app.capabilities.core.billing import charge_capability, gate_capability
+from app.capabilities.core.store import all_capabilities
+from app.capabilities.core.types import Capability, CapabilityContext
 from app.db import async_session_maker
 from app.services.web_crawl_credit_service import InsufficientCreditsError
 

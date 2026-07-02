@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from app.capabilities.types import Executor
+from app.capabilities.core import Executor
 from app.capabilities.web.discover.providers.base import DiscoverProvider
 from app.capabilities.web.discover.schemas import DiscoverInput, DiscoverOutput
 

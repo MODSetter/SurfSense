@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.capabilities.types import Executor
+from app.capabilities.core import Executor
 from app.capabilities.web.scrape.schemas import ScrapeInput, ScrapeOutput, ScrapeRow
 from app.proprietary.web_crawler import (
     CrawlOutcome,

@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from app.capabilities.store import register_capability
-from app.capabilities.types import BillingUnit, Capability
+from app.capabilities.core import BillingUnit, Capability, register_capability
 from app.capabilities.web.scrape.executor import build_scrape_executor
 from app.capabilities.web.scrape.schemas import ScrapeInput, ScrapeOutput
 

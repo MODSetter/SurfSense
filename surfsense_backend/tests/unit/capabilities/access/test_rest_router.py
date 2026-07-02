@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel
 
-from app.capabilities.types import Capability
+from app.capabilities.core.types import Capability
 from app.db import get_async_session
 from app.users import get_auth_context
 
@@ -36,8 +36,8 @@ _ECHO = Capability(
 
 def _build_app(capabilities, monkeypatch) -> FastAPI:
     """Mount the generated door with auth/workspace/session/rate-limit stubbed."""
-    from app.capabilities.access import rest
-    from app.capabilities.access.rate_limit import enforce_capability_rate_limit
+    from app.capabilities.core.access import rest
+    from app.capabilities.core.access.rate_limit import enforce_capability_rate_limit
 
     monkeypatch.setattr(rest, "check_workspace_access", _noop_async, raising=True)
 
@@ -91,7 +91,7 @@ async def test_input_is_validated_against_the_verb_schema(monkeypatch):
 def test_registered_verbs_appear_on_rest():
     """A verb in the registry shows up as a route with no per-verb wiring."""
     import app.capabilities.web  # noqa: F401  (registers web.* at import)
-    from app.capabilities.access import rest
+    from app.capabilities.core.access import rest
 
     router = rest.build_capabilities_router()
     paths = {route.path for route in router.routes}
@@ -101,7 +101,7 @@ def test_registered_verbs_appear_on_rest():
 
 @pytest.mark.asyncio
 async def test_over_budget_is_blocked_before_the_executor(monkeypatch):
-    from app.capabilities.access import rest
+    from app.capabilities.core.access import rest
     from app.services.web_crawl_credit_service import InsufficientCreditsError
 
     async def _raise(*args, **kwargs):
@@ -123,7 +123,7 @@ async def test_over_budget_is_blocked_before_the_executor(monkeypatch):
 @pytest.mark.asyncio
 async def test_rate_limit_blocks_the_workspace(monkeypatch):
     """The generated route enforces the per-workspace limit (429)."""
-    from app.capabilities.access import rate_limit, rest
+    from app.capabilities.core.access import rate_limit, rest
 
     monkeypatch.setattr(rest, "check_workspace_access", _noop_async, raising=True)
     monkeypatch.setattr(
@@ -153,7 +153,7 @@ async def test_rate_limit_blocks_the_workspace(monkeypatch):
 async def test_success_charges_once(monkeypatch):
     from unittest.mock import AsyncMock
 
-    from app.capabilities.access import rest
+    from app.capabilities.core.access import rest
 
     charge = AsyncMock()
     monkeypatch.setattr(rest, "charge_capability", charge, raising=True)

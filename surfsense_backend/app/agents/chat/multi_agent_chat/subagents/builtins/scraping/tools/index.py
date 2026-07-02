@@ -7,7 +7,7 @@ from typing import Any
 from langchain_core.tools import BaseTool
 
 from app.agents.chat.multi_agent_chat.shared.permissions import Ruleset
-from app.capabilities.access.agent import build_capability_tools
+from app.capabilities.core.access.agent import build_capability_tools
 from app.capabilities.web.discover.definition import WEB_DISCOVER
 from app.capabilities.web.scrape.definition import WEB_SCRAPE
 

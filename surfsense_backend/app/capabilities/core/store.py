@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.capabilities.types import Capability
+from app.capabilities.core.types import Capability
 
 _REGISTRY: dict[str, Capability] = {}
 

@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.capabilities.access.rate_limit import enforce_capability_rate_limit
-from app.capabilities.billing import charge_capability, gate_capability
-from app.capabilities.store import all_capabilities
-from app.capabilities.types import Capability, CapabilityContext
+from app.capabilities.core.access.rate_limit import enforce_capability_rate_limit
+from app.capabilities.core.billing import charge_capability, gate_capability
+from app.capabilities.core.store import all_capabilities
+from app.capabilities.core.types import Capability, CapabilityContext
 from app.db import get_async_session
 from app.services.web_crawl_credit_service import InsufficientCreditsError
 from app.users import get_auth_context

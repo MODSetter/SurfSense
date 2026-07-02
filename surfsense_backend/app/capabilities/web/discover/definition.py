@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from app.capabilities.store import register_capability
-from app.capabilities.types import Capability
+from app.capabilities.core import Capability, register_capability
 from app.capabilities.web.discover.executor import build_discover_executor
 from app.capabilities.web.discover.schemas import DiscoverInput, DiscoverOutput
 
