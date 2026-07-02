@@ -27,7 +27,9 @@ def build_discover_executor(
                 "(set a SearXNG host or a Linkup/Baidu key)."
             )
         hits = await provider.search(payload.query, payload.top_k)
-        return DiscoverOutput(hits=hits)
+        # Enforce the verb's documented cap here, once, for every provider:
+        # some backends (e.g. SearXNG) treat `top_k` as a hint and over-return.
+        return DiscoverOutput(hits=hits[: payload.top_k])
 
     return execute
 

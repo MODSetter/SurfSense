@@ -77,3 +77,23 @@ async def test_self_disables_when_no_provider_is_configured():
 
     with pytest.raises(NoDiscoverProviderError):
         await execute(DiscoverInput(query="q"))
+
+
+async def test_caps_hits_to_top_k_when_provider_over_returns():
+    # SearXNG treats `limit` as a hint and can return more rows than asked; the
+    # verb must honor its own documented `top_k` cap regardless of the provider.
+    over = _FakeProvider(
+        "searxng",
+        available=True,
+        hits=[_hit(f"https://{i}.com", "searxng") for i in range(5)],
+    )
+    execute = build_discover_executor(providers=[over])
+
+    out = await execute(DiscoverInput(query="q", top_k=3))
+
+    assert len(out.hits) == 3
+    assert [h.url for h in out.hits] == [
+        "https://0.com",
+        "https://1.com",
+        "https://2.com",
+    ]
