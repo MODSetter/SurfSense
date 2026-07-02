@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends
 
-import app.capabilities.web  # noqa: F401  (registers web.* verbs before the door builds)
+# Import verb namespaces for their registration side effects before the door builds.
+import app.capabilities.web
+import app.capabilities.youtube  # noqa: F401
 from app.automations.api import router as automations_router
 from app.capabilities.core.access.rest import build_capabilities_router
 from app.file_storage.api import router as file_storage_router
