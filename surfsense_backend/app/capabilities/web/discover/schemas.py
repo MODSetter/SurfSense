@@ -10,7 +10,7 @@ class DiscoverInput(BaseModel):
         description="What to search the web for, phrased in natural language."
     )
     top_k: int = Field(
-        default=10, description="Maximum number of results to return (1-50)."
+        default=10, ge=1, le=50, description="Maximum number of results to return (1-50)."
     )
 
 

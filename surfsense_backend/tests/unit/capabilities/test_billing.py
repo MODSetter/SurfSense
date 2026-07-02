@@ -92,6 +92,53 @@ async def test_charges_workspace_owner_per_successful_crawl(monkeypatch, record_
     assert kwargs["cost_micros"] == 2000
 
 
+def _output_with_captcha(*statuses: str, attempts: int, solved: int) -> ScrapeOutput:
+    out = _output(*statuses)
+    out.captcha_attempts = attempts
+    out.captcha_solved = solved
+    return out
+
+
+async def test_charges_workspace_owner_per_captcha_attempt_even_when_crawl_failed(
+    monkeypatch, record_usage
+):
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", True)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_BILLING_ENABLED", True)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE", 3000)
+    session, user = _make_session(_OWNER, balance_micros=100_000)
+
+    # Crawl failed (no billable success) but the solver ran twice — attempts bill.
+    await charge_capability(
+        _output_with_captcha("failed", attempts=2, solved=1),
+        BillingUnit.WEB_CRAWL,
+        _ctx(session),
+    )
+
+    assert user.credit_micros_balance == 100_000 - 2 * 3000
+    record_usage.assert_awaited_once()
+    kwargs = record_usage.await_args.kwargs
+    assert kwargs["usage_type"] == "web_crawl_captcha"
+    assert kwargs["user_id"] == _OWNER
+    assert kwargs["cost_micros"] == 6000
+
+
+async def test_captcha_billing_disabled_does_not_charge_attempts(
+    monkeypatch, record_usage
+):
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", True)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_BILLING_ENABLED", False)
+    session, user = _make_session(_OWNER, balance_micros=100_000)
+
+    await charge_capability(
+        _output_with_captcha("failed", attempts=2, solved=1),
+        BillingUnit.WEB_CRAWL,
+        _ctx(session),
+    )
+
+    record_usage.assert_not_awaited()
+    assert user.credit_micros_balance == 100_000
+
+
 async def test_no_successful_rows_is_free(monkeypatch, record_usage):
     monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", True)
     session, user = _make_session(_OWNER, balance_micros=100_000)
@@ -171,6 +218,32 @@ async def test_gate_is_noop_when_disabled(monkeypatch):
     monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", False)
     session = _gate_session(_OWNER, balance_micros=0)
 
+    await gate_capability(
+        ScrapeInput(urls=["https://a.com"]), BillingUnit.WEB_CRAWL, _ctx(session)
+    )
+
+
+async def test_gate_reserves_worst_case_captcha_when_solving_enabled(monkeypatch):
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", False)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_BILLING_ENABLED", True)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE", 3000)
+    monkeypatch.setattr(config, "CAPTCHA_MAX_ATTEMPTS_PER_URL", 3)
+    monkeypatch.setattr(billing, "captcha_enabled", lambda: True)
+    session = _gate_session(_OWNER, balance_micros=5000)  # < 1 url * 3 * 3000
+
+    with pytest.raises(InsufficientCreditsError):
+        await gate_capability(
+            ScrapeInput(urls=["https://a.com"]), BillingUnit.WEB_CRAWL, _ctx(session)
+        )
+
+
+async def test_gate_does_not_reserve_captcha_when_solving_disabled(monkeypatch):
+    monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", False)
+    monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_BILLING_ENABLED", True)
+    monkeypatch.setattr(billing, "captcha_enabled", lambda: False)
+    session = _gate_session(_OWNER, balance_micros=0)
+
+    # Solving off → attempts can never happen → nothing to reserve → passes.
     await gate_capability(
         ScrapeInput(urls=["https://a.com"]), BillingUnit.WEB_CRAWL, _ctx(session)
     )

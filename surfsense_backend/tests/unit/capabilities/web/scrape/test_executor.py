@@ -71,6 +71,53 @@ async def test_scrape_returns_one_row_per_url_in_input_order():
     assert [row.content for row in out.rows] == ["A", "B", "C"]
 
 
+async def test_content_longer_than_max_length_is_truncated():
+    url = "https://long.com"
+    crawler = _FakeCrawler({url: _success("A" * 100, {"title": "Long"})})
+    execute = build_scrape_executor(engine=crawler)
+
+    out = await execute(ScrapeInput(urls=[url], max_length=10))
+
+    assert out.rows[0].content == "A" * 10
+
+
+async def test_content_within_max_length_is_untouched():
+    url = "https://short.com"
+    crawler = _FakeCrawler({url: _success("hello", {"title": "Short"})})
+    execute = build_scrape_executor(engine=crawler)
+
+    out = await execute(ScrapeInput(urls=[url], max_length=10))
+
+    assert out.rows[0].content == "hello"
+
+
+async def test_scrape_surfaces_total_captcha_attempts_for_billing():
+    ok, blocked = "https://ok.com", "https://blocked.com"
+    crawler = _FakeCrawler(
+        {
+            ok: CrawlOutcome(
+                status=CrawlOutcomeStatus.SUCCESS,
+                result={"content": "OK", "metadata": {}},
+                captcha_attempts=2,
+                captcha_solved=True,
+            ),
+            blocked: CrawlOutcome(
+                status=CrawlOutcomeStatus.FAILED,
+                error="blocked",
+                captcha_attempts=1,
+                captcha_solved=False,
+            ),
+        }
+    )
+    execute = build_scrape_executor(engine=crawler)
+
+    out = await execute(ScrapeInput(urls=[ok, blocked]))
+
+    # Attempts bill even when the crawl ultimately failed (Phase 3d).
+    assert out.captcha_attempts == 3
+    assert out.captcha_solved == 1
+
+
 async def test_partial_failure_keeps_the_batch_and_labels_each_url():
     ok, empty, failed = "https://ok.com", "https://empty.com", "https://failed.com"
     crawler = _FakeCrawler(

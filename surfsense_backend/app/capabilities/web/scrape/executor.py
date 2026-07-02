@@ -16,18 +16,29 @@ def build_scrape_executor(engine: WebCrawlerConnector | None = None) -> Executor
     engine = engine or WebCrawlerConnector()
 
     async def execute(payload: ScrapeInput) -> ScrapeOutput:
-        rows = [_to_row(url, await engine.crawl_url(url)) for url in payload.urls]
-        return ScrapeOutput(rows=rows)
+        outcomes = [await engine.crawl_url(url) for url in payload.urls]
+        rows = [
+            _to_row(url, outcome, payload.max_length)
+            for url, outcome in zip(payload.urls, outcomes, strict=True)
+        ]
+        return ScrapeOutput(
+            rows=rows,
+            captcha_attempts=sum(o.captcha_attempts for o in outcomes),
+            captcha_solved=sum(1 for o in outcomes if o.captcha_solved),
+        )
 
     return execute
 
 
-def _to_row(url: str, outcome: CrawlOutcome) -> ScrapeRow:
+def _to_row(url: str, outcome: CrawlOutcome, max_length: int) -> ScrapeRow:
     if outcome.status is CrawlOutcomeStatus.SUCCESS and outcome.result:
+        content = outcome.result.get("content")
+        if content is not None:
+            content = content[:max_length]
         return ScrapeRow(
             url=url,
             status="success",
-            content=outcome.result.get("content"),
+            content=content,
             metadata=outcome.result.get("metadata"),
         )
     status = "empty" if outcome.status is CrawlOutcomeStatus.EMPTY else "failed"

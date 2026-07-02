@@ -56,6 +56,10 @@ class ScrapeOutput(BaseModel):
     rows: list[ScrapeRow] = Field(
         description="One result per requested URL, in the same order."
     )
+    # Billing-only telemetry (Phase 3d), excluded from the client-facing result:
+    # captcha solves are metered per attempt, independent of crawl success.
+    captcha_attempts: int = Field(default=0, exclude=True)
+    captcha_solved: int = Field(default=0, exclude=True)
 
     @property
     def billable_units(self) -> int:
