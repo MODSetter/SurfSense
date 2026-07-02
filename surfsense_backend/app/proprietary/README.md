@@ -1,7 +1,11 @@
 # `app.proprietary` — non-Apache-2 license boundary
 
 Everything in this directory tree is licensed **separately** from the rest of
-SurfSense (which is Apache-2.0). See [`LICENSE`](./LICENSE).
+SurfSense (which is Apache-2.0), under the **Business Source License 1.1** —
+see [`LICENSE`](./LICENSE). In short: source-available; production use is
+permitted (including self-hosting the whole app) *except* offering it to third
+parties as a commercial product or hosted/managed service; each released
+version converts to Apache-2.0 four years after its release.
 
 ## Why this exists
 
