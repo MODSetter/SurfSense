@@ -2,7 +2,7 @@
 
 Uses the library's built-in formatters (no hand-rolled srt/vtt conversion). The
 transcript API has no XML formatter, so ``xml`` falls back to the raw snippet
-data. Fetch/proxy wiring mirrors ``youtube_processor.py``.
+data.
 """
 
 from __future__ import annotations

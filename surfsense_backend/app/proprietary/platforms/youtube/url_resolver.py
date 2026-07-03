@@ -1,8 +1,7 @@
 """Classify a YouTube URL and extract its identifier.
 
 Covers the ``startUrls`` shapes the Apify spec accepts: video, channel,
-playlist, hashtag, and search-results pages. Video-ID extraction reuses the
-logic already in ``app/tasks/document_processors/youtube_processor.py``.
+playlist, hashtag, and search-results pages.
 """
 
 from __future__ import annotations

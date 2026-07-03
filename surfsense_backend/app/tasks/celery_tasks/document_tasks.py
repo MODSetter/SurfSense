@@ -19,7 +19,6 @@ from app.tasks.connector_indexers.local_folder_indexer import (
 )
 from app.tasks.document_processors import (
     add_extension_received_document,
-    add_youtube_video_document,
 )
 
 logger = logging.getLogger(__name__)
@@ -403,131 +402,6 @@ async def _process_extension_document(
 
             logger.error(f"Error processing extension document: {e!s}")
             raise
-
-
-@celery_app.task(name="process_youtube_video", bind=True)
-def process_youtube_video_task(self, url: str, workspace_id: int, user_id: str):
-    """
-    Celery task to process YouTube video.
-
-    Args:
-        url: YouTube video URL
-        workspace_id: ID of the workspace
-        user_id: ID of the user
-    """
-    return run_async_celery_task(
-        lambda: _process_youtube_video(url, workspace_id, user_id)
-    )
-
-
-async def _process_youtube_video(url: str, workspace_id: int, user_id: str):
-    """Process YouTube video with new session."""
-    async with get_celery_session_maker()() as session:
-        task_logger = TaskLoggingService(session, workspace_id)
-
-        # Extract video title from URL for notification (will be updated later)
-        video_name = url.split("v=")[-1][:11] if "v=" in url else url
-
-        # Create notification for document processing
-        notification = (
-            await NotificationService.document_processing.notify_processing_started(
-                session=session,
-                user_id=UUID(user_id),
-                document_type="YOUTUBE_VIDEO",
-                document_name=f"YouTube: {video_name}",
-                workspace_id=workspace_id,
-            )
-        )
-
-        # Start Redis heartbeat for stale task detection
-        _start_heartbeat(notification.id)
-        heartbeat_task = asyncio.create_task(_run_heartbeat_loop(notification.id))
-
-        log_entry = await task_logger.log_task_start(
-            task_name="process_youtube_video",
-            source="document_processor",
-            message=f"Starting YouTube video processing for: {url}",
-            metadata={"document_type": "YOUTUBE_VIDEO", "url": url, "user_id": user_id},
-        )
-
-        try:
-            # Update notification: parsing (fetching transcript)
-            await NotificationService.document_processing.notify_processing_progress(
-                session,
-                notification,
-                stage="parsing",
-                stage_message="Fetching video transcript",
-            )
-
-            result = await add_youtube_video_document(
-                session, url, workspace_id, user_id, notification=notification
-            )
-
-            if result:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"Successfully processed YouTube video: {result.title}",
-                    {
-                        "document_id": result.id,
-                        "video_id": result.document_metadata.get("video_id"),
-                        "content_hash": result.content_hash,
-                    },
-                )
-
-                # Update notification on success
-                await (
-                    NotificationService.document_processing.notify_processing_completed(
-                        session=session,
-                        notification=notification,
-                        document_id=result.id,
-                        chunks_count=None,
-                    )
-                )
-            else:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"YouTube video document already exists (duplicate): {url}",
-                    {"duplicate_detected": True},
-                )
-
-                # Update notification for duplicate
-                await (
-                    NotificationService.document_processing.notify_processing_completed(
-                        session=session,
-                        notification=notification,
-                        error_message="Video already exists (duplicate)",
-                    )
-                )
-        except Exception as e:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Failed to process YouTube video: {url}",
-                str(e),
-                {"error_type": type(e).__name__},
-            )
-
-            # Update notification on failure - wrapped in try-except to ensure it doesn't fail silently
-            try:
-                # Refresh notification to ensure it's not stale after any rollback
-                await session.refresh(notification)
-                await (
-                    NotificationService.document_processing.notify_processing_completed(
-                        session=session,
-                        notification=notification,
-                        error_message=str(e)[:100],
-                    )
-                )
-            except Exception as notif_error:
-                logger.error(
-                    f"Failed to update notification on failure: {notif_error!s}"
-                )
-
-            logger.error(f"Error processing YouTube video: {e!s}")
-            raise
-        finally:
-            # Stop heartbeat — key deleted on success, expires on crash
-            heartbeat_task.cancel()
-            _stop_heartbeat(notification.id)
 
 
 @celery_app.task(name="process_file_upload", bind=True)

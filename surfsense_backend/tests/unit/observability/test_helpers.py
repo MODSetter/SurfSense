@@ -26,7 +26,6 @@ def _disable_otel(monkeypatch: pytest.MonkeyPatch):
         ("delete_folder_documents_background", "delete"),
         ("delete_search_space_background", "delete"),
         ("process_extension_document", "process"),
-        ("process_youtube_video", "process"),
         ("process_file_upload", "process"),
         ("process_file_upload_with_document", "process"),
         ("process_circleback_meeting", "process"),
