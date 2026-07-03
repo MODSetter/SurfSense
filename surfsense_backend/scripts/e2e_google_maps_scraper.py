@@ -1,4 +1,4 @@
-"""Manual functional e2e for the Google Maps scraper (app/proprietary/scrapers/google_maps).
+"""Manual functional e2e for the Google Maps scraper (app/proprietary/platforms/google_maps).
 
 Run from the backend directory:
     cd surfsense_backend
@@ -9,7 +9,7 @@ NOT a pytest test (needs live network + optional proxy creds). It:
   Step 1 — scrapes a known place URL and prints the core fields.
   Step 2 — scrapes the same place by bare placeId (HTML -> fid -> RPC path).
   Step 3 — dumps the raw place darray (jd[6] of /maps/preview/place) to
-      tests/unit/scrapers/google_maps/fixtures/ for the offline parser test.
+      tests/unit/platforms/google_maps/fixtures/ for the offline parser test.
   Step 4 — scrapes reviews via the Reviews endpoint (BOQ feed), checks fields.
   Step 5 — paginates past one page (maxReviews=15) and checks the count.
   Step 6 — place scrape with maxReviews>0 attaches inline reviews[].
@@ -36,19 +36,19 @@ for _candidate in (_BACKEND_ROOT / ".env", _BACKEND_ROOT.parent / ".env"):
         load_dotenv(_candidate)
         break
 
-from app.proprietary.scrapers.google_maps import (  # noqa: E402
+from app.proprietary.platforms.google_maps import (  # noqa: E402
     GoogleMapsReviewsInput,
     GoogleMapsScrapeInput,
     scrape_places,
     scrape_reviews,
 )
-from app.proprietary.scrapers.google_maps.fetch import (  # noqa: E402
+from app.proprietary.platforms.google_maps.fetch import (  # noqa: E402
     build_search_url,
     fetch_place_darray,
     fetch_rpc_json,
     iter_reviews_pages,
 )
-from app.proprietary.scrapers.google_maps.url_resolver import extract_fid  # noqa: E402
+from app.proprietary.platforms.google_maps.url_resolver import extract_fid  # noqa: E402
 
 # A well-known, stable place (the restaurant used in the Apify output example).
 _PLACE_URL = (
@@ -58,7 +58,7 @@ _PLACE_URL = (
 )
 
 _FIXTURE_DIR = (
-    _BACKEND_ROOT / "tests" / "unit" / "scrapers" / "google_maps" / "fixtures"
+    _BACKEND_ROOT / "tests" / "unit" / "platforms" / "google_maps" / "fixtures"
 )
 
 

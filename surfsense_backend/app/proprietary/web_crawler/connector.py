@@ -38,6 +38,7 @@ from app.proprietary.web_crawler.stealth import (
     build_stealthy_kwargs,
     get_stealth_config,
 )
+from app.proprietary.web_crawler.url_policy import extract_links
 from app.utils.captcha import captcha_enabled, get_captcha_config
 from app.utils.crawl import BlockType, classify_block
 from app.utils.proxy import get_proxy_url, is_pool_backed
@@ -597,6 +598,9 @@ class WebCrawlerConnector:
             "content": content,
             "metadata": metadata,
             "crawler_type": crawler_type,
+            # Next-hop targets for ``site_crawler.crawl_site``; ignored by
+            # single-URL callers.
+            "links": extract_links(raw_html, url),
         }
 
     @staticmethod

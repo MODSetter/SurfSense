@@ -1050,34 +1050,6 @@ async def index_connector_content(
             )
             response_message = "Elasticsearch indexing started in the background."
 
-        elif connector.connector_type == SearchSourceConnectorType.WEBCRAWLER_CONNECTOR:
-            from app.tasks.celery_tasks.connector_tasks import index_crawled_urls_task
-            from app.utils.webcrawler_utils import parse_webcrawler_urls
-
-            # Check if URLs are configured before triggering indexing
-            connector_config = connector.config or {}
-            urls = parse_webcrawler_urls(connector_config.get("INITIAL_URLS"))
-
-            if not urls:
-                # URLs are optional - skip indexing gracefully
-                logger.info(
-                    f"Webcrawler connector {connector_id} has no URLs configured, skipping indexing"
-                )
-                response_message = "No URLs configured for this connector. Add URLs in the connector settings to enable indexing."
-                indexing_started = False
-            else:
-                logger.info(
-                    f"Triggering web pages indexing for connector {connector_id} into workspace {workspace_id} from {indexing_from} to {indexing_to}"
-                )
-                index_crawled_urls_task.delay(
-                    connector_id,
-                    workspace_id,
-                    str(user.id),
-                    indexing_from,
-                    indexing_to,
-                )
-                response_message = "Web page indexing started in the background."
-
         elif (
             connector.connector_type
             == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
@@ -2472,58 +2444,6 @@ async def run_elasticsearch_indexing(
         start_date=start_date,
         end_date=end_date,
         indexing_function=index_elasticsearch_documents,
-        update_timestamp_func=_update_connector_timestamp_by_id,
-        supports_heartbeat_callback=True,
-    )
-
-
-# Add new helper functions for crawled web page indexing
-async def run_web_page_indexing_with_new_session(
-    connector_id: int,
-    workspace_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Create a new session and run the Web page indexing task.
-    This prevents session leaks by creating a dedicated session for the background task.
-    """
-    async with async_session_maker() as session:
-        await run_web_page_indexing(
-            session, connector_id, workspace_id, user_id, start_date, end_date
-        )
-
-
-async def run_web_page_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    workspace_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Background task to run Web page indexing.
-
-    Args:
-        session: Database session
-        connector_id: ID of the webcrawler connector
-        workspace_id: ID of the workspace
-        user_id: ID of the user
-        start_date: Start date for indexing
-        end_date: End date for indexing
-    """
-    from app.tasks.connector_indexers import index_crawled_urls
-
-    await _run_indexing_with_notifications(
-        session=session,
-        connector_id=connector_id,
-        workspace_id=workspace_id,
-        user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
-        indexing_function=index_crawled_urls,
         update_timestamp_func=_update_connector_timestamp_by_id,
         supports_heartbeat_callback=True,
     )

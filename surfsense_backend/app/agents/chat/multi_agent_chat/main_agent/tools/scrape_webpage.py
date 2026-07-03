@@ -18,11 +18,11 @@ from requests import Session
 from scrapling.fetchers import AsyncFetcher
 from youtube_transcript_api import YouTubeTranscriptApi
 
+from app.proprietary.platforms.youtube.url_resolver import get_youtube_video_id
 from app.proprietary.web_crawler import (
     CrawlOutcomeStatus,
     WebCrawlerConnector,
 )
-from app.tasks.document_processors.youtube_processor import get_youtube_video_id
 from app.utils.proxy import get_proxy_url, get_requests_proxies
 
 logger = logging.getLogger(__name__)

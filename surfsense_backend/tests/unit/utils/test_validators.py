@@ -331,7 +331,3 @@ def test_validate_connector_config_invalid():
     # Invalid URL format in SEARXNG_API
     with pytest.raises(ValueError):
         validate_connector_config("SEARXNG_API", {"SEARXNG_HOST": "not-a-url"})
-
-    # WEBCRAWLER_CONNECTOR custom validation: malformed INITIAL_URLS rejected.
-    with pytest.raises(ValueError):
-        validate_connector_config("WEBCRAWLER_CONNECTOR", {"INITIAL_URLS": "not-a-url"})

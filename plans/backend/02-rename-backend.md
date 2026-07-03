@@ -133,7 +133,7 @@ These do not move with a symbol rename; each is decided here.
 
 - Frontend route segment `[search_space_id] -> [workspace_id]`, `search-space-settings/`, TS types, atoms, i18n, frontend Zero schema — deferred frontend umbrella.
 - Satellite apps (desktop, Obsidian, browser extension, evals) + docs — deferred.
-- Connector `category` discriminator and `SearchSourceConnector` handling — Phase 4 ([04a-connector-category.md](04a-connector-category.md)).
+- Connector `category` discriminator and `SearchSourceConnector` handling — Phase 4 ([04-capabilities.md](04-capabilities.md)).
 - Enum VALUE migration and observability-key rename — deliberately deferred announced changes.
 
 ---

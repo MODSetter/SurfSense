@@ -1,0 +1,52 @@
+# =============================================================================
+# SurfSense — Isolated deps for the watch (Phase 6) manual E2E
+# =============================================================================
+# Fresh Postgres + Redis ONLY, with their own project name, volumes, and host
+# ports so they never collide with the day-to-day `surfsense-deps` stack.
+#
+# Backend + Celery run on the HOST (tests/e2e/run_backend.py / run_celery.py)
+# pointed at these ports via env:
+#   DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5442/surfsense
+#   CELERY_BROKER_URL / CELERY_RESULT_BACKEND / REDIS_APP_URL=redis://localhost:6389/0
+#
+# Up:    docker compose -p surfsense-watch -f docker/docker-compose.watch-e2e.yml up -d
+# Down:  docker compose -p surfsense-watch -f docker/docker-compose.watch-e2e.yml down -v
+# =============================================================================
+
+name: surfsense-watch
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    ports:
+      - "5442:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=surfsense
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d surfsense"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6389:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres_data:
+    name: surfsense-watch-postgres
+  redis_data:
+    name: surfsense-watch-redis

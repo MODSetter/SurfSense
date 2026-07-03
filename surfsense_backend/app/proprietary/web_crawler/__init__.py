@@ -9,5 +9,12 @@ from app.proprietary.web_crawler.connector import (
     CrawlOutcomeStatus,
     WebCrawlerConnector,
 )
+from app.proprietary.web_crawler.site_crawler import CrawlPage, crawl_site
 
-__all__ = ["CrawlOutcome", "CrawlOutcomeStatus", "WebCrawlerConnector"]
+__all__ = [
+    "CrawlOutcome",
+    "CrawlOutcomeStatus",
+    "CrawlPage",
+    "WebCrawlerConnector",
+    "crawl_site",
+]

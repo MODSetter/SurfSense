@@ -1,4 +1,4 @@
-"""Manual functional e2e for the YouTube scraper (app/proprietary/scrapers/youtube).
+"""Manual functional e2e for the YouTube scraper (app/proprietary/platforms/youtube).
 
 Run from the backend directory:
     cd surfsense_backend
@@ -13,7 +13,7 @@ This is NOT a pytest test (it needs live network + optional proxy creds). It:
   Step 2 — runs a search query and prints the first few results.
   Step 3 — scrapes a small channel's latest videos.
   Step 4 — dumps trimmed raw ytInitialData / ytInitialPlayerResponse fixtures to
-      tests/unit/scrapers/youtube/fixtures/ for the offline parser test.
+      tests/unit/platforms/youtube/fixtures/ for the offline parser test.
 """
 
 import asyncio
@@ -31,20 +31,20 @@ for _candidate in (_BACKEND_ROOT / ".env", _BACKEND_ROOT.parent / ".env"):
         load_dotenv(_candidate)
         break
 
-from app.proprietary.scrapers.youtube import (  # noqa: E402
+from app.proprietary.platforms.youtube import (  # noqa: E402
     YouTubeCommentsInput,
     YouTubeScrapeInput,
     scrape_comments,
     scrape_youtube,
 )
-from app.proprietary.scrapers.youtube.innertube import (  # noqa: E402
+from app.proprietary.platforms.youtube.innertube import (  # noqa: E402
     INNERTUBE_PUBLIC_API_KEY,
     INNERTUBE_SEARCH_URL,
     build_innertube_payload,
     fetch_html,
     post_innertube,
 )
-from app.proprietary.scrapers.youtube.parsers import (  # noqa: E402
+from app.proprietary.platforms.youtube.parsers import (  # noqa: E402
     extract_yt_initial_data,
     extract_yt_initial_player_response,
 )
@@ -58,7 +58,7 @@ _COLLAB_VIDEO_URL = "https://www.youtube.com/watch?v=AI2BwwLX_7s"
 # MrBeast localizes titles/descriptions into many languages (translation flow).
 _TRANSLATED_VIDEO_URL = "https://www.youtube.com/watch?v=iYlODtkyw_I"
 
-_FIXTURE_DIR = _BACKEND_ROOT / "tests" / "unit" / "scrapers" / "youtube" / "fixtures"
+_FIXTURE_DIR = _BACKEND_ROOT / "tests" / "unit" / "platforms" / "youtube" / "fixtures"
 
 
 def _hr(title: str) -> None:

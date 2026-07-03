@@ -84,16 +84,9 @@ async def build_dependencies(
     connector_service = await setup_connector_service(
         session, workspace_id=workspace_id
     )
-    # Per-task InMemorySaver: the shared Postgres checkpointer's connection
-    # pool binds connections to the loop that opened them, but Celery uses a
-    # fresh loop per task, so the next task hangs 30s on a dead-loop connection
-    # (`PoolTimeout`). InMemorySaver has no pool and dies with the task — fine
-    # while runs are one-shot (the checkpoint only spans one graph execution).
-    #
-    # TODO(checkpointer): when runs need durability (crash-resume or HITL
-    # interrupt/resume across tasks), dispose the checkpointer pool around each
-    # Celery task in `run_async_celery_task` — as `_dispose_shared_db_engine`
-    # already does for the SQLAlchemy pool — then use the shared checkpointer.
+    # One-shot runs on a fresh thread don't outlive a single execution, so an
+    # in-memory checkpointer suffices. Ongoing chat-thread turns that need
+    # durable memory use the shared Postgres checkpointer via stream_new_chat.
     checkpointer = InMemorySaver()
     return AgentDependencies(
         llm=llm,

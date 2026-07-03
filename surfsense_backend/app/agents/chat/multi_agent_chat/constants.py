@@ -26,6 +26,9 @@ CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS: dict[str, str] = {
 SUBAGENT_TO_REQUIRED_CONNECTOR_MAP: dict[str, frozenset[str]] = {
     "deliverables": frozenset(),
     "knowledge_base": frozenset(),
+    "web_crawler": frozenset(),
+    "youtube": frozenset(),
+    "google_maps": frozenset(),
     "airtable": frozenset({"AIRTABLE_CONNECTOR"}),
     "calendar": frozenset({"GOOGLE_CALENDAR_CONNECTOR"}),
     "clickup": frozenset({"CLICKUP_CONNECTOR"}),

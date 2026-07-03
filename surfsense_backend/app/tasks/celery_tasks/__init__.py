@@ -94,6 +94,21 @@ def _dispose_shared_db_engine(loop: asyncio.AbstractEventLoop) -> None:
         logger.warning("Shared DB engine dispose() failed", exc_info=True)
 
 
+def _dispose_shared_checkpointer_pool(loop: asyncio.AbstractEventLoop) -> None:
+    """Drop the shared checkpointer pool so the next task opens a fresh one.
+
+    The durable ``AsyncPostgresSaver`` pool binds asyncpg connections to the
+    loop that opened them; a later task on a fresh loop stalls on a stale
+    connection (``PoolTimeout``). Failure is logged, not raised.
+    """
+    try:
+        from app.agents.chat.runtime.checkpointer import close_checkpointer
+
+        loop.run_until_complete(close_checkpointer())
+    except Exception:
+        logger.warning("Shared checkpointer pool dispose() failed", exc_info=True)
+
+
 T = TypeVar("T")
 
 
@@ -129,11 +144,13 @@ def run_async_celery_task[T](coro_factory: Callable[[], Awaitable[T]]) -> T:
         # Defense-in-depth: prior task may have crashed before
         # disposing. Idempotent — no-op if pool is already empty.
         _dispose_shared_db_engine(loop)
+        _dispose_shared_checkpointer_pool(loop)
         return loop.run_until_complete(coro_factory())
     finally:
         # Drop any connections this task opened so they don't leak
         # into the next task's loop.
         _dispose_shared_db_engine(loop)
+        _dispose_shared_checkpointer_pool(loop)
         with contextlib.suppress(Exception):
             loop.run_until_complete(loop.shutdown_asyncgens())
         with contextlib.suppress(Exception):

@@ -32,7 +32,7 @@ for _candidate in (_BACKEND_ROOT / ".env", _BACKEND_ROOT.parent / ".env"):
         load_dotenv(_candidate)
         break
 
-from app.proprietary.scrapers.google_maps import (  # noqa: E402
+from app.proprietary.platforms.google_maps import (  # noqa: E402
     GoogleMapsReviewsInput,
     GoogleMapsScrapeInput,
     scrape_places,

@@ -1,6 +1,11 @@
 from fastapi import APIRouter, Depends
 
+# Import verb namespaces for their registration side effects before the door builds.
+import app.capabilities.google_maps
+import app.capabilities.web
+import app.capabilities.youtube  # noqa: F401
 from app.automations.api import router as automations_router
+from app.capabilities.core.access.rest import build_capabilities_router
 from app.file_storage.api import router as file_storage_router
 from app.gateway import require_gateway_enabled
 from app.notifications.api import router as notifications_router
@@ -39,7 +44,6 @@ from .google_drive_add_connector_route import (
 from .google_gmail_add_connector_route import (
     router as google_gmail_add_connector_router,
 )
-from .google_maps_routes import router as google_maps_router
 from .image_generation_routes import router as image_generation_router
 from .incentive_tasks_routes import router as incentive_tasks_router
 from .jira_add_connector_route import router as jira_add_connector_router
@@ -134,9 +138,9 @@ router.include_router(public_chat_router)  # Public chat sharing and cloning
 router.include_router(incentive_tasks_router)  # Incentive tasks for earning free pages
 router.include_router(stripe_router)  # Stripe checkout for additional page packs
 router.include_router(youtube_router)  # YouTube playlist resolution
-router.include_router(google_maps_router)  # Google Maps places + reviews scraper
 router.include_router(prompts_router)
 router.include_router(memory_router)  # User personal memory (memory.md style)
 router.include_router(team_memory_router)  # Workspace team memory
 router.include_router(automations_router)  # Automations CRUD + run history
 router.include_router(file_storage_router)  # Original file metadata + download
+router.include_router(build_capabilities_router())  # Scraper-API capability doors (05)
