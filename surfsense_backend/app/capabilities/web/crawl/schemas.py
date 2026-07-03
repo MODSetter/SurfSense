@@ -1,13 +1,12 @@
-# ruff: noqa: N815 - public field names intentionally mirror the Apify camelCase spec
+# ruff: noqa: N815 - public field names intentionally use camelCase
 """``web.crawl`` I/O contracts.
 
-An Apify *Website Content Crawler*-style surface (see apify.com/apify/website-
-content-crawler and docs.firecrawl.dev): one verb that either scrapes the given
+A Website Content Crawler-style surface: one verb that either scrapes the given
 URLs (``maxCrawlDepth == 0``) or spiders their site (``maxCrawlDepth > 0``),
 bounded by ``maxCrawlPages`` and kept on the seed's site.
 
-Fields are trimmed to what the proprietary engine honors today. Apify knobs the
-engine handles automatically (crawler type, proxy, dynamic-render waits) are
+Fields are trimmed to what the proprietary engine honors today. Knobs the engine
+handles automatically (crawler type, proxy, dynamic-render waits) are
 intentionally omitted, as are features we haven't built (URL globs, output
 formats, click actions, PII handling).
 """

@@ -1,4 +1,4 @@
-"""``youtube.scrape`` executor: verb input → Apify actor → video items."""
+"""``youtube.scrape`` executor: verb input → scraper → video items."""
 
 from __future__ import annotations
 

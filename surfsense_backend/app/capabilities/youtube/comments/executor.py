@@ -1,4 +1,4 @@
-"""``youtube.comments`` executor: verb input → Apify actor → comment items."""
+"""``youtube.comments`` executor: verb input → scraper → comment items."""
 
 from __future__ import annotations
 

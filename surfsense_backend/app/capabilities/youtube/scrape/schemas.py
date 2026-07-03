@@ -1,9 +1,9 @@
 """``youtube.scrape`` I/O contracts.
 
-A lean, agent-friendly surface over the Apify-compatible ``YouTubeScrapeInput``
-(``app/proprietary/platforms/youtube``). The executor maps this to the full actor
-input; the actor's ``VideoItem`` is reused verbatim as the output element so the
-verb stays parity-faithful with the underlying Apify shape.
+A lean, agent-friendly surface over ``YouTubeScrapeInput``
+(``app/proprietary/platforms/youtube``). The executor maps this to the full
+scraper input; the scraper's ``VideoItem`` is reused verbatim as the output
+element.
 """
 
 from __future__ import annotations

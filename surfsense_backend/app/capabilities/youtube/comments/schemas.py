@@ -1,7 +1,7 @@
 """``youtube.comments`` I/O contracts.
 
-A lean surface over the Apify-compatible ``YouTubeCommentsInput``; the actor's
-``CommentItem`` is reused verbatim as the output element for parity.
+A lean surface over ``YouTubeCommentsInput``; the scraper's ``CommentItem`` is
+reused verbatim as the output element.
 """
 
 from __future__ import annotations
