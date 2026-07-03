@@ -9,12 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from scrapling.fetchers import AsyncFetcher
 
 from app.auth.context import AuthContext
-from app.proprietary.platforms.youtube import (
-    YouTubeCommentsInput,
-    YouTubeScrapeInput,
-    scrape_comments,
-    scrape_youtube,
-)
 from app.users import require_session_context
 from app.utils.proxy import get_proxy_url
 
@@ -30,45 +24,6 @@ _INNERTUBE_CLIENT = {
     "hl": "en",
     "gl": "US",
 }
-
-
-@router.post("/youtube/scrape")
-async def scrape_youtube_route(
-    payload: YouTubeScrapeInput,
-    _auth: AuthContext = Depends(require_session_context),
-) -> list[dict]:
-    """Scrape public YouTube data (search / video / channel / playlist / shorts).
-
-    Apify YouTube Scraper-compatible input/output. The scrape runs inline and is
-    bounded only by the request's own ``maxResults`` / ``maxResultsShorts`` /
-    ``maxResultStreams`` — no separate per-request ceiling.
-    """
-    try:
-        return await scrape_youtube(payload)
-    except Exception as e:
-        logger.error("YouTube scrape failed: %s", e)
-        raise HTTPException(
-            status_code=502, detail=f"YouTube scrape failed: {e!s}"
-        ) from e
-
-
-@router.post("/youtube/comments")
-async def scrape_comments_route(
-    payload: YouTubeCommentsInput,
-    _auth: AuthContext = Depends(require_session_context),
-) -> list[dict]:
-    """Scrape YouTube comments (+ replies) for the given video URLs.
-
-    Apify "YouTube Comments Scraper"-compatible. Runs inline and is bounded only
-    by the request's own ``maxComments`` — no separate per-request ceiling.
-    """
-    try:
-        return await scrape_comments(payload)
-    except Exception as e:
-        logger.error("YouTube comments scrape failed: %s", e)
-        raise HTTPException(
-            status_code=502, detail=f"YouTube comments scrape failed: {e!s}"
-        ) from e
 
 
 @router.get("/youtube/playlist-videos")
