@@ -14,7 +14,7 @@ import pytest
 import app.capabilities.core.billing as billing
 from app.capabilities.core.billing import charge_capability, gate_capability
 from app.capabilities.core.types import BillingUnit, CapabilityContext
-from app.capabilities.web.scrape.schemas import ScrapeInput, ScrapeOutput, ScrapeRow
+from app.capabilities.web.crawl.schemas import CrawlInput, CrawlItem, CrawlOutput
 from app.config import config
 from app.services.web_crawl_credit_service import InsufficientCreditsError
 
@@ -46,10 +46,10 @@ def _make_session(owner_id, balance_micros):
     return session, fake_user
 
 
-def _output(*statuses: str) -> ScrapeOutput:
-    return ScrapeOutput(
-        rows=[
-            ScrapeRow(url=f"https://{i}.com", status=status)
+def _output(*statuses: str) -> CrawlOutput:
+    return CrawlOutput(
+        items=[
+            CrawlItem(url=f"https://{i}.com", status=status)
             for i, status in enumerate(statuses)
         ]
     )
@@ -92,7 +92,7 @@ async def test_charges_workspace_owner_per_successful_crawl(monkeypatch, record_
     assert kwargs["cost_micros"] == 2000
 
 
-def _output_with_captcha(*statuses: str, attempts: int, solved: int) -> ScrapeOutput:
+def _output_with_captcha(*statuses: str, attempts: int, solved: int) -> CrawlOutput:
     out = _output(*statuses)
     out.captcha_attempts = attempts
     out.captcha_solved = solved
@@ -196,7 +196,7 @@ async def test_gate_blocks_when_worst_case_exceeds_balance(monkeypatch):
 
     with pytest.raises(InsufficientCreditsError):
         await gate_capability(
-            ScrapeInput(urls=["https://a.com", "https://b.com"]),
+            CrawlInput(startUrls=["https://a.com", "https://b.com"]),
             BillingUnit.WEB_CRAWL,
             _ctx(session),
         )
@@ -208,7 +208,7 @@ async def test_gate_passes_when_balance_covers_worst_case(monkeypatch):
     session = _gate_session(_OWNER, balance_micros=100_000)
 
     await gate_capability(
-        ScrapeInput(urls=["https://a.com", "https://b.com"]),
+        CrawlInput(startUrls=["https://a.com", "https://b.com"]),
         BillingUnit.WEB_CRAWL,
         _ctx(session),
     )
@@ -219,7 +219,7 @@ async def test_gate_is_noop_when_disabled(monkeypatch):
     session = _gate_session(_OWNER, balance_micros=0)
 
     await gate_capability(
-        ScrapeInput(urls=["https://a.com"]), BillingUnit.WEB_CRAWL, _ctx(session)
+        CrawlInput(startUrls=["https://a.com"]), BillingUnit.WEB_CRAWL, _ctx(session)
     )
 
 
@@ -233,7 +233,7 @@ async def test_gate_reserves_worst_case_captcha_when_solving_enabled(monkeypatch
 
     with pytest.raises(InsufficientCreditsError):
         await gate_capability(
-            ScrapeInput(urls=["https://a.com"]), BillingUnit.WEB_CRAWL, _ctx(session)
+            CrawlInput(startUrls=["https://a.com"]), BillingUnit.WEB_CRAWL, _ctx(session)
         )
 
 
@@ -245,7 +245,7 @@ async def test_gate_does_not_reserve_captcha_when_solving_disabled(monkeypatch):
 
     # Solving off → attempts can never happen → nothing to reserve → passes.
     await gate_capability(
-        ScrapeInput(urls=["https://a.com"]), BillingUnit.WEB_CRAWL, _ctx(session)
+        CrawlInput(startUrls=["https://a.com"]), BillingUnit.WEB_CRAWL, _ctx(session)
     )
 
 
@@ -253,6 +253,6 @@ async def test_gate_is_noop_for_free_verb(monkeypatch):
     monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", True)
     session = _gate_session(_OWNER, balance_micros=0)
 
-    await gate_capability(ScrapeInput(urls=["https://a.com"]), None, _ctx(session))
+    await gate_capability(CrawlInput(startUrls=["https://a.com"]), None, _ctx(session))
 
     session.execute.assert_not_called()

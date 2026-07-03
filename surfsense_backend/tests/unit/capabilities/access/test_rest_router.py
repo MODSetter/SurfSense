@@ -95,8 +95,7 @@ def test_registered_verbs_appear_on_rest():
 
     router = rest.build_capabilities_router()
     paths = {route.path for route in router.routes}
-    assert "/workspaces/{workspace_id}/capabilities/web.scrape" in paths
-    assert "/workspaces/{workspace_id}/capabilities/web.discover" in paths
+    assert "/workspaces/{workspace_id}/capabilities/web.crawl" in paths
 
 
 @pytest.mark.asyncio

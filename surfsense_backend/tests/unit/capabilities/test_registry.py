@@ -9,25 +9,15 @@ from app.capabilities import (
 )
 from app.capabilities.core.store import get_capability
 from app.capabilities.core.types import BillingUnit
-from app.capabilities.web.discover.schemas import DiscoverInput, DiscoverOutput
-from app.capabilities.web.scrape.schemas import ScrapeInput, ScrapeOutput
+from app.capabilities.web.crawl.schemas import CrawlInput, CrawlOutput
 
 pytestmark = pytest.mark.unit
 
 
-def test_web_scrape_is_registered_with_its_schemas_and_billing_unit():
-    cap = get_capability("web.scrape")
+def test_web_crawl_is_registered_with_its_schemas_and_billing_unit():
+    cap = get_capability("web.crawl")
 
-    assert cap.name == "web.scrape"
-    assert cap.input_schema is ScrapeInput
-    assert cap.output_schema is ScrapeOutput
+    assert cap.name == "web.crawl"
+    assert cap.input_schema is CrawlInput
+    assert cap.output_schema is CrawlOutput
     assert cap.billing_unit is BillingUnit.WEB_CRAWL
-
-
-def test_web_discover_is_registered_and_free():
-    cap = get_capability("web.discover")
-
-    assert cap.name == "web.discover"
-    assert cap.input_schema is DiscoverInput
-    assert cap.output_schema is DiscoverOutput
-    assert cap.billing_unit is None

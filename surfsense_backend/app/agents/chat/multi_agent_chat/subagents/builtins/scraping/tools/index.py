@@ -8,8 +8,7 @@ from langchain_core.tools import BaseTool
 
 from app.agents.chat.multi_agent_chat.shared.permissions import Ruleset
 from app.capabilities.core.access.agent import build_capability_tools
-from app.capabilities.web.discover.definition import WEB_DISCOVER
-from app.capabilities.web.scrape.definition import WEB_SCRAPE
+from app.capabilities.web.crawl.definition import WEB_CRAWL
 from app.capabilities.youtube.comments.definition import YOUTUBE_COMMENTS
 from app.capabilities.youtube.scrape.definition import YOUTUBE_SCRAPE
 
@@ -21,7 +20,7 @@ NAME = "scraping"
 
 RULESET = Ruleset(origin=NAME, rules=[])
 
-_CI_VERBS = [WEB_DISCOVER, WEB_SCRAPE, YOUTUBE_SCRAPE, YOUTUBE_COMMENTS]
+_CI_VERBS = [WEB_CRAWL, YOUTUBE_SCRAPE, YOUTUBE_COMMENTS]
 
 
 def load_tools(
