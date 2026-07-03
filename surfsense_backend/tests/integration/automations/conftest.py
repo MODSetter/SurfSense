@@ -5,9 +5,6 @@ behavior runs against real Postgres and rolls back at test end:
 
 * ``client`` — httpx over ASGI with ``get_async_session``/``get_auth_context``
   overridden to the test session + owner.
-* ``tools_use_test_session`` — the watch tools open their own
-  ``async_session_maker()``; repoint it at ``db_session`` so they join the
-  test transaction (and can see the fixture's uncommitted membership/models).
 * ``enqueue_spy`` — capture ``automation_run_execute.apply_async`` so run-now
   can be asserted without a Redis broker.
 """
@@ -15,7 +12,6 @@ behavior runs against real Postgres and rolls back at test end:
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 
 import httpx
 import pytest
@@ -53,24 +49,6 @@ async def client(
     finally:
         app.dependency_overrides.clear()
         app.dependency_overrides.update(previous)
-
-
-@pytest.fixture
-def tools_use_test_session(monkeypatch, db_session: AsyncSession) -> None:
-    """Make the watch tools' ``async_session_maker()`` yield the test session."""
-
-    @asynccontextmanager
-    async def _session_cm():
-        yield db_session  # owned by the outer fixture; do not close
-
-    from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.tools import (
-        refresh_watch,
-        start_watch,
-        stop_watch,
-    )
-
-    for module in (start_watch, stop_watch, refresh_watch):
-        monkeypatch.setattr(module, "async_session_maker", _session_cm)
 
 
 @pytest.fixture
