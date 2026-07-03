@@ -21,9 +21,6 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.knowledge_base.agent im
 from app.agents.chat.multi_agent_chat.subagents.builtins.memory.agent import (
     build_subagent as build_memory_subagent,
 )
-from app.agents.chat.multi_agent_chat.subagents.builtins.research.agent import (
-    build_subagent as build_research_subagent,
-)
 from app.agents.chat.multi_agent_chat.subagents.builtins.web_crawler.agent import (
     build_subagent as build_web_crawler_subagent,
 )
@@ -112,7 +109,6 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "memory": build_memory_subagent,
     "notion": build_notion_subagent,
     "onedrive": build_onedrive_subagent,
-    "research": build_research_subagent,
     "slack": build_slack_subagent,
     "teams": build_teams_subagent,
     "web_crawler": build_web_crawler_subagent,
@@ -127,7 +123,7 @@ def _route_resource_package(builder: SubagentBuilder) -> str:
 
 def main_prompt_registry_subagent_lines(exclude: list[str]) -> list[tuple[str, str]]:
     """(name, description) for registry specialists included for **task** (same rules as ``build_subagents``)."""
-    banned = frozenset(("memory", "research")) | frozenset(exclude)
+    banned = frozenset(("memory",)) | frozenset(exclude)
     rows: list[tuple[str, str]] = []
     for name in sorted(SUBAGENT_BUILDERS_BY_NAME):
         if name in banned:
@@ -197,10 +193,10 @@ def build_subagents(
     disabled_tools: list[str] | None = None,
     ask_kb_tool: BaseTool | None = None,
 ) -> list[SubAgent]:
-    """Build registry subagents; skip memory/research; skip names in exclude."""
+    """Build registry subagents; skip memory; skip names in exclude."""
     mcp = mcp_tools_by_agent or {}
     specs: list[SubAgent] = []
-    excluded = ["memory", "research"]
+    excluded = ["memory"]
     if exclude:
         excluded.extend(exclude)
     disabled_names = frozenset(disabled_tools or ())
