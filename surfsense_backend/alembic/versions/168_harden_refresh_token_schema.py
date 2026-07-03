@@ -6,6 +6,8 @@ Revises: 167
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "168"
@@ -48,9 +50,7 @@ def upgrade() -> None:
             """
         )
 
-    op.execute(
-        "ALTER TABLE refresh_tokens ALTER COLUMN token_hash TYPE VARCHAR(64)"
-    )
+    op.execute("ALTER TABLE refresh_tokens ALTER COLUMN token_hash TYPE VARCHAR(64)")
     op.execute("ALTER TABLE refresh_tokens DROP COLUMN IF EXISTS is_revoked")
 
 
@@ -74,8 +74,6 @@ def downgrade() -> None:
         """
     )
     op.execute("ALTER TABLE refresh_tokens ALTER COLUMN is_revoked DROP DEFAULT")
-    op.execute(
-        "ALTER TABLE refresh_tokens ALTER COLUMN token_hash TYPE VARCHAR(256)"
-    )
+    op.execute("ALTER TABLE refresh_tokens ALTER COLUMN token_hash TYPE VARCHAR(256)")
     op.execute("ALTER TABLE refresh_tokens DROP COLUMN IF EXISTS absolute_expiry")
     op.execute("ALTER TABLE refresh_tokens DROP COLUMN IF EXISTS revoked_at")

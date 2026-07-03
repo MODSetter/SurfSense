@@ -11,10 +11,10 @@ from app.utils.validators import (
     validate_messages,
     validate_research_mode,
     validate_search_mode,
-    validate_workspace_id,
     validate_top_k,
     validate_url,
     validate_uuid,
+    validate_workspace_id,
 )
 
 pytestmark = pytest.mark.unit
@@ -334,6 +334,4 @@ def test_validate_connector_config_invalid():
 
     # WEBCRAWLER_CONNECTOR custom validation: malformed INITIAL_URLS rejected.
     with pytest.raises(ValueError):
-        validate_connector_config(
-            "WEBCRAWLER_CONNECTOR", {"INITIAL_URLS": "not-a-url"}
-        )
+        validate_connector_config("WEBCRAWLER_CONNECTOR", {"INITIAL_URLS": "not-a-url"})

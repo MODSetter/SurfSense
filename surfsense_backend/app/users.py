@@ -22,10 +22,10 @@ from app.auth.session_cookies import access_expires_at, write_session
 from app.config import config
 from app.db import (
     Prompt,
+    User,
     Workspace,
     WorkspaceMembership,
     WorkspaceRole,
-    User,
     async_session_maker,
     get_async_session,
     get_default_roles_config,
@@ -207,9 +207,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                     f"Created default workspace (ID: {default_workspace.id}) for user {user.id}"
                 )
         except Exception as e:
-            logger.error(
-                f"Failed to create default workspace for user {user.id}: {e}"
-            )
+            logger.error(f"Failed to create default workspace for user {user.id}: {e}")
 
     async def on_after_forgot_password(
         self, user: User, token: str, request: Request | None = None
@@ -326,7 +324,7 @@ def _token_meets_epoch(token: str) -> bool:
         return False
 
     issued_at = payload.get("iat")
-    return isinstance(issued_at, (int, float)) and int(issued_at) >= min_issued_at
+    return isinstance(issued_at, int | float) and int(issued_at) >= min_issued_at
 
 
 async def get_auth_context(

@@ -55,9 +55,7 @@ def _agent_config_from_resolved(
     )
 
 
-async def _load_workspace(
-    session: AsyncSession, workspace_id: int
-) -> Workspace | None:
+async def _load_workspace(session: AsyncSession, workspace_id: int) -> Workspace | None:
     result = await session.execute(
         select(Workspace).where(Workspace.id == workspace_id)
     )

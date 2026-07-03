@@ -225,9 +225,7 @@ async def test_updated_at_advances_when_title_only_changes(
     db_session, db_workspace, make_connector_document
 ):
     """updated_at advances even when only the title changes."""
-    original = make_connector_document(
-        workspace_id=db_workspace.id, title="Old Title"
-    )
+    original = make_connector_document(workspace_id=db_workspace.id, title="Old Title")
     service = IndexingPipelineService(session=db_session)
 
     first = await service.prepare_for_indexing([original])
@@ -238,9 +236,7 @@ async def test_updated_at_advances_when_title_only_changes(
     )
     updated_at_v1 = result.scalars().first().updated_at
 
-    renamed = make_connector_document(
-        workspace_id=db_workspace.id, title="New Title"
-    )
+    renamed = make_connector_document(workspace_id=db_workspace.id, title="New Title")
     await service.prepare_for_indexing([renamed])
 
     result = await db_session.execute(

@@ -86,7 +86,7 @@ def parse_count(value: Any) -> int | None:
     """
     if value is None:
         return None
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return int(value)
     if not isinstance(value, str):
         return None
@@ -267,7 +267,10 @@ def _comments_turned_off(initial: dict) -> bool | None:
 def _is_members_only(player: dict, initial: dict) -> bool:
     """True for members-only videos (a members badge or a members-only offer)."""
     for badge in find_all(initial, "metadataBadgeRenderer"):
-        if isinstance(badge, dict) and badge.get("style") == "BADGE_STYLE_TYPE_MEMBERS_ONLY":
+        if (
+            isinstance(badge, dict)
+            and badge.get("style") == "BADGE_STYLE_TYPE_MEMBERS_ONLY"
+        ):
             return True
     status = player.get("playabilityStatus") or {}
     return find_first(status, "offerId") == "sponsors_only_video"
@@ -421,7 +424,9 @@ def parse_translation(next_data: dict) -> tuple[str | None, str | None]:
     language. Videos without a localization return their original text.
     """
     vpir = find_first(next_data, "videoPrimaryInfoRenderer") or {}
-    title = "".join(r.get("text", "") for r in (dig(vpir, "title", "runs") or [])) or None
+    title = (
+        "".join(r.get("text", "") for r in (dig(vpir, "title", "runs") or [])) or None
+    )
 
     vsir = find_first(next_data, "videoSecondaryInfoRenderer") or {}
     description = dig(vsir, "attributedDescription", "content")
@@ -440,7 +445,9 @@ def parse_collaborators(initial: dict) -> list[dict[str, str | None]] | None:
     ``attributedTitle`` whose tap opens a dialog listing each credited channel
     (``listItemViewModel``). Returns ``None`` for ordinary single-owner videos.
     """
-    owner = dig(find_first(initial, "videoSecondaryInfoRenderer"), "owner", "videoOwnerRenderer")
+    owner = dig(
+        find_first(initial, "videoSecondaryInfoRenderer"), "owner", "videoOwnerRenderer"
+    )
     attributed = owner.get("attributedTitle") if isinstance(owner, dict) else None
     if not isinstance(attributed, dict):
         return None
@@ -460,8 +467,12 @@ def parse_collaborators(initial: dict) -> list[dict[str, str | None]] | None:
         collaborators.append(
             {
                 "name": name,
-                "username": base[2:] if isinstance(base, str) and base.startswith("/@") else None,
-                "url": f"https://www.youtube.com{base}" if isinstance(base, str) and base else None,
+                "username": base[2:]
+                if isinstance(base, str) and base.startswith("/@")
+                else None,
+                "url": f"https://www.youtube.com{base}"
+                if isinstance(base, str) and base
+                else None,
             }
         )
     return collaborators or None
@@ -537,9 +548,10 @@ def parse_video_page(html: str) -> dict[str, Any] | None:
 
         # Verified badge on the channel owner.
         badges = find_all(initial, "metadataBadgeRenderer")
-        result["isChannelVerified"] = any(
-            isinstance(b, dict) and b.get("tooltip") == "Verified" for b in badges
-        ) or None
+        result["isChannelVerified"] = (
+            any(isinstance(b, dict) and b.get("tooltip") == "Verified" for b in badges)
+            or None
+        )
 
     return result
 
@@ -632,7 +644,9 @@ def parse_channel_videos(data: dict) -> tuple[list[dict[str, Any]], str | None]:
                 "publishedTimeText": dig(parts, 1, "text", "content"),
                 "duration": _lockup_duration(lockup),
                 "thumbnailUrl": _best_thumbnail(
-                    dig(lockup, "contentImage", "thumbnailViewModel", "image", "sources")
+                    dig(
+                        lockup, "contentImage", "thumbnailViewModel", "image", "sources"
+                    )
                 ),
             }
         )
@@ -673,9 +687,7 @@ def parse_channel_shorts(data: dict) -> tuple[list[dict[str, Any]], str | None]:
 
 
 def _lockup_duration(lockup: dict) -> str | None:
-    overlays = dig(
-        lockup, "contentImage", "thumbnailViewModel", "overlays"
-    ) or []
+    overlays = dig(lockup, "contentImage", "thumbnailViewModel", "overlays") or []
     for overlay in overlays:
         text = dig(
             overlay,

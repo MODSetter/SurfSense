@@ -84,9 +84,7 @@ class NotionToolMetadataService:
                 "error": "No Notion accounts connected",
             }
 
-        parent_pages = await self._get_parent_pages_by_account(
-            workspace_id, accounts
-        )
+        parent_pages = await self._get_parent_pages_by_account(workspace_id, accounts)
 
         accounts_with_status = []
         for acc in accounts:

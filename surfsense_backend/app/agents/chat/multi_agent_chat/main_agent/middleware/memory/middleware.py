@@ -18,7 +18,7 @@ from langgraph.runtime import Runtime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import ChatVisibility, Workspace, User, shielded_async_session
+from app.db import ChatVisibility, User, Workspace, shielded_async_session
 from app.services.memory import MEMORY_HARD_LIMIT, MEMORY_SOFT_LIMIT
 from app.utils.perf import get_perf_logger
 

@@ -886,9 +886,7 @@ async def list_connections(
                 baileys_account_ids.add(int(account.id))
                 route_type = "account"
                 connection_id = account.id
-                workspace_id = (
-                    account.owner_workspace_id or binding.workspace_id
-                )
+                workspace_id = account.owner_workspace_id or binding.workspace_id
                 display_name = "WhatsApp Bridge"
 
         connections.append(
@@ -907,7 +905,6 @@ async def list_connections(
                     else binding.external_username
                 ),
                 "workspace_name": workspace_name,
-                "workspace_id": workspace_id,
                 "health_status": account.health_status.value,
                 "suspended_reason": binding.suspended_reason,
             }
@@ -940,7 +937,6 @@ async def list_connections(
                     "display_name": "WhatsApp Bridge",
                     "external_username": None,
                     "workspace_name": account_state.get("display_phone_number"),
-                    "workspace_id": account_state.get("phone_number_id"),
                     "health_status": account.health_status.value,
                     "suspended_reason": account.suspended_reason,
                 }

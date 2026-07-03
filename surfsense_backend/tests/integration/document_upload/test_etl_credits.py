@@ -219,9 +219,7 @@ class TestDocumentProcessingNotification:
         doc_ids = resp.json()["document_ids"]
         cleanup_doc_ids.extend(doc_ids)
 
-        await poll_document_status(
-            client, headers, doc_ids, workspace_id=workspace_id
-        )
+        await poll_document_status(client, headers, doc_ids, workspace_id=workspace_id)
 
         notifications = await get_notifications(
             client,

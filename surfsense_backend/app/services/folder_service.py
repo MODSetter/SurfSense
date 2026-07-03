@@ -174,9 +174,7 @@ async def ensure_folder_hierarchy_with_depth_validation(
 
         if folder is None:
             await validate_folder_depth(session, parent_id, subtree_depth=0)
-            position = await generate_folder_position(
-                session, workspace_id, parent_id
-            )
+            position = await generate_folder_position(session, workspace_id, parent_id)
             folder = Folder(
                 name=name,
                 workspace_id=workspace_id,

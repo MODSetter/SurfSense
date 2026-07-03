@@ -46,9 +46,9 @@ from app.db import (
     NewChatMessage,
     NewChatMessageRole,
     NewChatThread,
-    Workspace,
     TokenUsage,
     User,
+    Workspace,
 )
 from app.routes import new_chat_routes
 from app.services.token_tracking_service import TurnTokenAccumulator

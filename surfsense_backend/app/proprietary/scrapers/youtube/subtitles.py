@@ -56,7 +56,9 @@ def _select_transcript(transcript_list, language: str, prefer_generated: bool):
     return transcript_list.find_transcript(codes)
 
 
-def _fetch_subtitles_sync(video_id: str, language: str, fmt: str, prefer_generated: bool):
+def _fetch_subtitles_sync(
+    video_id: str, language: str, fmt: str, prefer_generated: bool
+):
     api = _build_client()
     transcript_list = api.list(video_id)
     transcript = _select_transcript(transcript_list, language, prefer_generated)

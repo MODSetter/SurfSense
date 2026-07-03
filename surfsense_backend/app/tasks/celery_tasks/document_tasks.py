@@ -212,9 +212,7 @@ async def _delete_folder_documents(
 )
 def delete_workspace_task(self, workspace_id: int):
     """Celery task to delete a workspace and heavy child rows in batches."""
-    return run_async_celery_task(
-        lambda: _delete_workspace_background(workspace_id)
-    )
+    return run_async_celery_task(lambda: _delete_workspace_background(workspace_id))
 
 
 async def _delete_workspace_background(workspace_id: int) -> None:

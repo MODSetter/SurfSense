@@ -36,9 +36,7 @@ def _make_placeholder(**overrides) -> PlaceholderInfo:
 
 
 def _uid_hash(p: PlaceholderInfo) -> str:
-    return compute_identifier_hash(
-        p.document_type.value, p.unique_id, p.workspace_id
-    )
+    return compute_identifier_hash(p.document_type.value, p.unique_id, p.workspace_id)
 
 
 def _session_with_existing_hashes(existing: set[str] | None = None):

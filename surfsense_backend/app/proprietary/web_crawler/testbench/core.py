@@ -14,11 +14,12 @@ change their DOM and the harness is manual.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -30,7 +31,7 @@ RESULTS_DIR = _PKG_DIR / "results"
 SCREENSHOTS_DIR = RESULTS_DIR / "screenshots"
 
 
-class CheckStatus(str, Enum):
+class CheckStatus(StrEnum):
     """Outcome of a single scorecard row."""
 
     PASS = "PASS"  # met the aspirational bar
@@ -76,7 +77,7 @@ class RunMeta:
         *, suites: str, proxy: str | None, headed: bool, scrapling_version: str
     ) -> RunMeta:
         return RunMeta(
-            timestamp=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            timestamp=datetime.now(UTC).isoformat(timespec="seconds"),
             suites=suites,
             proxy=mask_proxy(proxy),
             headed=headed,
@@ -120,15 +121,13 @@ def make_page_action(
 
     def _action(page: Any) -> Any:
         if pre_wait_ms > 0:
-            try:
+            with contextlib.suppress(Exception):
                 page.wait_for_timeout(pre_wait_ms)
-            except Exception:
-                pass
         if evaluate_js is not None:
             try:
                 cell.value = page.evaluate(evaluate_js)
                 cell.captured = True
-            except Exception as exc:  # noqa: BLE001 - tolerant by design
+            except Exception as exc:
                 cell.error = f"{type(exc).__name__}: {exc}"
         if screenshot_path is not None:
             try:
@@ -137,7 +136,7 @@ def make_page_action(
                 # create it for us, so a missing dir silently drops every screenshot.
                 Path(screenshot_path).parent.mkdir(parents=True, exist_ok=True)
                 page.screenshot(path=screenshot_path, full_page=True)
-            except Exception as exc:  # noqa: BLE001 - tolerant, but surface the cause
+            except Exception as exc:
                 if cell.error is None:
                     cell.error = f"screenshot: {type(exc).__name__}: {exc}"
         return page
@@ -168,7 +167,7 @@ def ensure_dirs() -> None:
 
 def scrapling_version() -> str:
     try:
-        import scrapling  # noqa: PLC0415
+        import scrapling
 
         return getattr(scrapling, "__version__", "unknown")
     except Exception:
@@ -178,9 +177,7 @@ def scrapling_version() -> str:
 # --- scorecard I/O -----------------------------------------------------------
 
 
-def write_scorecard(
-    results: list[CheckResult], meta: RunMeta
-) -> tuple[Path, Path]:
+def write_scorecard(results: list[CheckResult], meta: RunMeta) -> tuple[Path, Path]:
     """Write the JSON snapshot (committed, baseline) + a readable markdown report.
 
     The JSON filename is timestamped so prior runs are kept as the baseline trail;
@@ -250,9 +247,7 @@ def diff_against_baseline(
             lines.append(f"+ NEW  [{r.suite}] {r.name}: {r.status.value}")
             continue
         if was["status"] != r.status.value:
-            lines.append(
-                f"~ {r.name}: status {was['status']} -> {r.status.value}"
-            )
+            lines.append(f"~ {r.name}: status {was['status']} -> {r.status.value}")
         old_n, new_n = was.get("numeric"), r.numeric
         if old_n is not None and new_n is not None and abs(old_n - new_n) > 1e-9:
             lines.append(f"~ {r.name}: numeric {old_n} -> {new_n}")
@@ -281,8 +276,10 @@ def render_console(results: list[CheckResult]) -> None:
         by_suite.setdefault(r.suite, []).append(r)
 
     for suite in sorted(by_suite):
-        label = "Suite S - stealth/anti-bot" if suite == "S" else (
-            "Suite E - extraction" if suite == "E" else f"Suite {suite}"
+        label = (
+            "Suite S - stealth/anti-bot"
+            if suite == "S"
+            else ("Suite E - extraction" if suite == "E" else f"Suite {suite}")
         )
         print(f"\n=== {label} ===")
         for r in by_suite[suite]:

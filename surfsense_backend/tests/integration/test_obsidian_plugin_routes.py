@@ -32,8 +32,8 @@ from app.auth.context import AuthContext
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    Workspace,
     User,
+    Workspace,
 )
 from app.routes.obsidian_plugin_routes import (
     obsidian_connect,

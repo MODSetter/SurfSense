@@ -119,9 +119,7 @@ async def test_reindex_updates_content(db_session, db_workspace, db_user, mocker
 
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
-async def test_reindex_updates_content_hash(
-    db_session, db_workspace, db_user, mocker
-):
+async def test_reindex_updates_content_hash(db_session, db_workspace, db_user, mocker):
     """Content hash is recomputed after reindexing with new source markdown."""
     adapter = UploadDocumentAdapter(db_session)
     await adapter.index(

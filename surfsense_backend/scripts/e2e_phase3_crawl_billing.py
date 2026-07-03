@@ -93,7 +93,7 @@ async def stage1_crawl_and_proxy() -> bool:
     try:
         direct = await AsyncFetcher.get(_IP_ECHO, impersonate="chrome", timeout=30)
         direct_ip = direct.json().get("ip")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"  [INFO] direct IP fetch failed: {exc}")
     if proxy_url:
         try:
@@ -101,7 +101,7 @@ async def stage1_crawl_and_proxy() -> bool:
                 _IP_ECHO, impersonate="chrome", proxy=proxy_url, timeout=45
             )
             proxied_ip = via.json().get("ip")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"  [INFO] proxied IP fetch failed: {exc}")
     print(f"  egress IP (direct)    : {direct_ip}")
     print(f"  egress IP (via proxy) : {proxied_ip}")
@@ -327,7 +327,7 @@ async def main() -> int:
     ):
         try:
             results[name] = await coro()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             import traceback
 
             traceback.print_exc()

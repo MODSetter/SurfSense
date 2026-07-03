@@ -45,9 +45,9 @@ from app.db import (
     NewChatMessageRole,
     NewChatThread,
     Permission,
-    Workspace,
     TokenUsage,
     User,
+    Workspace,
     get_async_session,
     shielded_async_session,
 )
@@ -560,9 +560,7 @@ async def check_thread_access(
     # For legacy threads (created before visibility feature),
     # only the workspace owner can access
     if is_legacy:
-        workspace_query = select(Workspace).filter(
-            Workspace.id == thread.workspace_id
-        )
+        workspace_query = select(Workspace).filter(Workspace.id == thread.workspace_id)
         workspace_result = await session.execute(workspace_query)
         workspace = workspace_result.scalar_one_or_none()
         is_workspace_owner = workspace and workspace.user_id == user.id
@@ -624,9 +622,7 @@ async def list_threads(
         )
 
         # Check if user is the workspace owner (for legacy thread visibility)
-        workspace_query = select(Workspace).filter(
-            Workspace.id == workspace_id
-        )
+        workspace_query = select(Workspace).filter(Workspace.id == workspace_id)
         workspace_result = await session.execute(workspace_query)
         workspace = workspace_result.scalar_one_or_none()
         is_workspace_owner = workspace and workspace.user_id == user.id
@@ -731,9 +727,7 @@ async def search_threads(
         )
 
         # Check if user is the workspace owner (for legacy thread visibility)
-        workspace_query = select(Workspace).filter(
-            Workspace.id == workspace_id
-        )
+        workspace_query = select(Workspace).filter(Workspace.id == workspace_id)
         workspace_result = await session.execute(workspace_query)
         workspace = workspace_result.scalar_one_or_none()
         is_workspace_owner = workspace and workspace.user_id == user.id

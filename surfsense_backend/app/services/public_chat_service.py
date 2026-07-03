@@ -31,10 +31,10 @@ from app.db import (
     PodcastStatus,
     PublicChatSnapshot,
     Report,
-    WorkspaceMembership,
     User,
     VideoPresentation,
     VideoPresentationStatus,
+    WorkspaceMembership,
 )
 from app.utils.rbac import check_permission
 

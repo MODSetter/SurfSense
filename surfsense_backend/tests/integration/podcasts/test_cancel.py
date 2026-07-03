@@ -38,9 +38,7 @@ async def test_cancel_from_a_terminal_state_conflicts(
     assert resp.status_code == 409
 
 
-async def test_cancel_of_a_regeneration_is_rejected(
-    client, db_workspace, make_podcast
-):
+async def test_cancel_of_a_regeneration_is_rejected(client, db_workspace, make_podcast):
     # Cancelling here would destroy a playable episode; reverting the
     # regeneration is the way back.
     podcast = await make_podcast(

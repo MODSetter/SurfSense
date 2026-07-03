@@ -213,9 +213,7 @@ class LinearKBSyncService:
 
             document.title = f"{issue_identifier}: {issue_title}"
             document.content = summary_content
-            document.content_hash = generate_content_hash(
-                issue_content, workspace_id
-            )
+            document.content_hash = generate_content_hash(issue_content, workspace_id)
             document.embedding = summary_embedding
             from sqlalchemy.orm.attributes import flag_modified
 

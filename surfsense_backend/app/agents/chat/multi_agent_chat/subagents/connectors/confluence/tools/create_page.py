@@ -52,9 +52,7 @@ def create_create_confluence_page_tool(
 
         try:
             metadata_service = ConfluenceToolMetadataService(db_session)
-            context = await metadata_service.get_creation_context(
-                workspace_id, user_id
-            )
+            context = await metadata_service.get_creation_context(workspace_id, user_id)
 
             if "error" in context:
                 return {"status": "error", "message": context["error"]}

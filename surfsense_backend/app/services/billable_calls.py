@@ -492,9 +492,7 @@ async def _resolve_agent_billing_for_workspace(
 
     chat_model_id = workspace.chat_model_id
     if chat_model_id is None:
-        raise ValueError(
-            f"Workspace {workspace_id} has no chat_model_id configured"
-        )
+        raise ValueError(f"Workspace {workspace_id} has no chat_model_id configured")
 
     owner_user_id: UUID = workspace.user_id
 

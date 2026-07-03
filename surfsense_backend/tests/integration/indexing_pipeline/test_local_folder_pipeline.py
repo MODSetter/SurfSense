@@ -14,8 +14,8 @@ from app.db import (
     DocumentType,
     DocumentVersion,
     Folder,
-    Workspace,
     User,
+    Workspace,
 )
 
 pytestmark = pytest.mark.integration

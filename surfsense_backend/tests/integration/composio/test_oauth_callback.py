@@ -9,8 +9,8 @@ from app.config import config
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    Workspace,
     User,
+    Workspace,
 )
 from app.utils.oauth_security import OAuthStateManager
 
@@ -57,8 +57,7 @@ async def test_callback_with_error_param_redirects_to_denied_page(
     assert response.status_code in {302, 303, 307}
     location = response.headers["location"]
     assert (
-        f"/dashboard/{db_workspace.id}/connectors/callback?"
-        "error=composio_oauth_denied"
+        f"/dashboard/{db_workspace.id}/connectors/callback?error=composio_oauth_denied"
     ) in location
 
     connectors = await _drive_connectors(

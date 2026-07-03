@@ -469,9 +469,7 @@ async def get_vision_llm(
             if not candidates:
                 logger.error("No vision-capable models available for Auto mode")
                 return None
-            config_id = int(
-                choose_auto_model_candidate(candidates, workspace_id)["id"]
-            )
+            config_id = int(choose_auto_model_candidate(candidates, workspace_id)["id"])
 
         if config_id < 0:
             global_model = get_global_model(config_id)
@@ -532,9 +530,7 @@ async def get_vision_llm(
         return SanitizedChatLiteLLM(**litellm_kwargs)
 
     except Exception as e:
-        logger.error(
-            f"Error getting vision LLM for workspace {workspace_id}: {e!s}"
-        )
+        logger.error(f"Error getting vision LLM for workspace {workspace_id}: {e!s}")
         return None
 
 

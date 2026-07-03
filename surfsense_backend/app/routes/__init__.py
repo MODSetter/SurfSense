@@ -39,6 +39,7 @@ from .google_drive_add_connector_route import (
 from .google_gmail_add_connector_route import (
     router as google_gmail_add_connector_router,
 )
+from .google_maps_routes import router as google_maps_router
 from .image_generation_routes import router as image_generation_router
 from .incentive_tasks_routes import router as incentive_tasks_router
 from .jira_add_connector_route import router as jira_add_connector_router
@@ -61,12 +62,12 @@ from .rbac_routes import router as rbac_router
 from .reports_routes import router as reports_router
 from .sandbox_routes import router as sandbox_router
 from .search_source_connectors_routes import router as search_source_connectors_router
-from .workspaces_routes import router as workspaces_router
 from .slack_add_connector_route import router as slack_add_connector_router
 from .stripe_routes import router as stripe_router
 from .team_memory_routes import router as team_memory_router
 from .teams_add_connector_route import router as teams_add_connector_router
 from .video_presentations_routes import router as video_presentations_router
+from .workspaces_routes import router as workspaces_router
 from .youtube_routes import router as youtube_router
 
 router = APIRouter()
@@ -133,6 +134,7 @@ router.include_router(public_chat_router)  # Public chat sharing and cloning
 router.include_router(incentive_tasks_router)  # Incentive tasks for earning free pages
 router.include_router(stripe_router)  # Stripe checkout for additional page packs
 router.include_router(youtube_router)  # YouTube playlist resolution
+router.include_router(google_maps_router)  # Google Maps places + reviews scraper
 router.include_router(prompts_router)
 router.include_router(memory_router)  # User personal memory (memory.md style)
 router.include_router(team_memory_router)  # Workspace team memory

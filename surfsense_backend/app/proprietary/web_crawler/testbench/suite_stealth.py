@@ -22,6 +22,7 @@ parser later is a one-function change (the spec list is the extension point).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -83,10 +84,8 @@ def _full_text(page: Any, limit: int = 200_000) -> str:
 def _parse_sannysoft(page: Any, _cell: EvalCell):
     """Count failed result cells (JS sets class='failed' on red rows)."""
     html = ""
-    try:
+    with contextlib.suppress(Exception):
         html = page.html_content or ""
-    except Exception:
-        pass
     fails = len(re.findall(r'class="[^"]*\bfailed\b[^"]*"', html))
     if not html:
         return (CheckStatus.ERROR, None, "no html returned")
@@ -184,8 +183,7 @@ def _parse_incolumitas(page: Any, _cell: EvalCell):
     if not fails and dc is None:
         return (CheckStatus.INFO, None, f"unparsed: {txt[:120]!r}")
     detail = (
-        f"fpscanner FAIL={fails or 'none'} datacenter={datacenter} "
-        f"behavioral={bscore}"
+        f"fpscanner FAIL={fails or 'none'} datacenter={datacenter} behavioral={bscore}"
     )
     return (
         CheckStatus.PASS if not fails else CheckStatus.FAIL,
@@ -375,7 +373,7 @@ def _run_browser_site(
 
     try:
         page = StealthyFetcher.fetch(site.url, **kwargs)
-    except Exception as exc:  # noqa: BLE001 - never crash the run
+    except Exception as exc:
         return CheckResult(
             suite="S",
             name=site.name,
@@ -388,7 +386,7 @@ def _run_browser_site(
 
     try:
         status, numeric, detail = site.parse(page, cell)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         status, numeric, detail = (
             CheckStatus.ERROR,
             None,
@@ -429,7 +427,7 @@ async def _run_tls(proxy: str | None) -> CheckResult:
             bar="informational (diff vs real Chrome)",
             detail=f"ja3={ja3} ja4={ja4} peet={peet}",
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return CheckResult(
             suite="S",
             name="tls_fingerprint",
@@ -460,7 +458,7 @@ async def _run_proxy_leak(proxy: str | None) -> CheckResult:
             bar="not your real/datacenter IP",
             detail=f"exit_ip={ip} ({note})",
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return CheckResult(
             suite="S",
             name="exit_ip",

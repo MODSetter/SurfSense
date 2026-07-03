@@ -373,7 +373,9 @@ def _neutralize_column_list_tables(conn) -> None:
     for table in PUBLICATION_COLUMN_LIST_TABLES:
         if _is_publication_member(conn, table):
             conn.execute(
-                sa.text(f"ALTER PUBLICATION {_quote(PUBLICATION_NAME)} DROP TABLE {table}")
+                sa.text(
+                    f"ALTER PUBLICATION {_quote(PUBLICATION_NAME)} DROP TABLE {table}"
+                )
             )
 
 
@@ -440,7 +442,9 @@ def _restore_downgrade_publication(conn) -> None:
     for table in PUBLICATION_COLUMN_LIST_TABLES:
         if _is_publication_member(conn, table):
             conn.execute(
-                sa.text(f"ALTER PUBLICATION {_quote(PUBLICATION_NAME)} DROP TABLE {table}")
+                sa.text(
+                    f"ALTER PUBLICATION {_quote(PUBLICATION_NAME)} DROP TABLE {table}"
+                )
             )
 
     entries: list[str] = []

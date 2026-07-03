@@ -127,8 +127,7 @@ async def _generate_video_presentation(
                 )
             except ValueError as resolve_err:
                 logger.error(
-                    "VideoPresentation %s: cannot resolve billing for "
-                    "workspace=%s: %s",
+                    "VideoPresentation %s: cannot resolve billing for workspace=%s: %s",
                     video_pres.id,
                     workspace_id,
                     resolve_err,

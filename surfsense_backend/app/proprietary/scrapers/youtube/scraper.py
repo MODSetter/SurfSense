@@ -100,9 +100,7 @@ async def fan_out(
             if holder is not None:
                 await holder.close()
 
-    tasks = [
-        asyncio.create_task(worker()) for _ in range(min(concurrency, len(jobs)))
-    ]
+    tasks = [asyncio.create_task(worker()) for _ in range(min(concurrency, len(jobs)))]
     try:
         for _ in range(len(jobs)):
             for item in await results.get():
@@ -421,7 +419,7 @@ async def _playlist_flow(
     # is the bottleneck, so fan them out (each carries its playlist position in
     # ``order``; fan_out emits as they finish, not in playlist order).
     # ponytail: nested fan_out — when many playlist URLs run at once this can
-    # stack pools (outer × inner) of proxy sessions. Fine for the common
+    # stack pools (outer x inner) of proxy sessions. Fine for the common
     # single/few-playlist case; cap inner concurrency if bulk-playlist runs trip it.
     jobs = [
         _video_flow(

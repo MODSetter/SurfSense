@@ -21,11 +21,11 @@ from sqlalchemy.orm import selectinload
 from app.auth.context import AuthContext
 from app.db import (
     Permission,
+    User,
     Workspace,
     WorkspaceInvite,
     WorkspaceMembership,
     WorkspaceRole,
-    User,
     get_async_session,
 )
 from app.schemas import (
@@ -256,9 +256,7 @@ async def list_roles(
         )
 
         result = await session.execute(
-            select(WorkspaceRole).filter(
-                WorkspaceRole.workspace_id == workspace_id
-            )
+            select(WorkspaceRole).filter(WorkspaceRole.workspace_id == workspace_id)
         )
         return result.scalars().all()
 
@@ -982,9 +980,7 @@ async def get_invite_info(
         # Check if invite is still valid
         if not invite.is_active:
             return InviteInfoResponse(
-                workspace_name=invite.workspace.name
-                if invite.workspace
-                else "",
+                workspace_name=invite.workspace.name if invite.workspace else "",
                 role_name=invite.role.name if invite.role else None,
                 is_valid=False,
                 message="This invite is no longer active",
@@ -992,9 +988,7 @@ async def get_invite_info(
 
         if invite.expires_at and invite.expires_at < datetime.now(UTC):
             return InviteInfoResponse(
-                workspace_name=invite.workspace.name
-                if invite.workspace
-                else "",
+                workspace_name=invite.workspace.name if invite.workspace else "",
                 role_name=invite.role.name if invite.role else None,
                 is_valid=False,
                 message="This invite has expired",
@@ -1002,9 +996,7 @@ async def get_invite_info(
 
         if invite.max_uses and invite.uses_count >= invite.max_uses:
             return InviteInfoResponse(
-                workspace_name=invite.workspace.name
-                if invite.workspace
-                else "",
+                workspace_name=invite.workspace.name if invite.workspace else "",
                 role_name=invite.role.name if invite.role else None,
                 is_valid=False,
                 message="This invite has reached its maximum uses",

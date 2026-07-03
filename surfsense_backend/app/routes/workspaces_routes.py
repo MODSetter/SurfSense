@@ -279,9 +279,7 @@ async def update_workspace(
         ) from e
 
 
-@router.put(
-    "/workspaces/{workspace_id}/api-access", response_model=WorkspaceRead
-)
+@router.put("/workspaces/{workspace_id}/api-access", response_model=WorkspaceRead)
 async def update_workspace_api_access(
     workspace_id: int,
     body: WorkspaceApiAccessUpdate,

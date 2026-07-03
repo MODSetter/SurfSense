@@ -111,9 +111,7 @@ async def _ensure_folder_hierarchy(
             sibling_query = (
                 select(Folder.position).order_by(Folder.position.desc()).limit(1)
             )
-            sibling_query = sibling_query.where(
-                Folder.workspace_id == workspace_id
-            )
+            sibling_query = sibling_query.where(Folder.workspace_id == workspace_id)
             if parent_id is None:
                 sibling_query = sibling_query.where(Folder.parent_id.is_(None))
             else:
@@ -1241,9 +1239,7 @@ async def commit_staged_filesystem_state(
 
             await session.commit()
     except Exception:  # pragma: no cover - rollback safety net
-        logger.exception(
-            "kb_persistence: commit failed (workspace=%s)", workspace_id
-        )
+        logger.exception("kb_persistence: commit failed (workspace=%s)", workspace_id)
         # Outer commit raised: everything above rolled back, so drop the
         # deferred dispatches.
         deferred_dispatches.clear()

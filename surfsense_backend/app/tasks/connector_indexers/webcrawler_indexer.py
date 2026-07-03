@@ -13,12 +13,12 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import config
+from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.proprietary.web_crawler import (
     CrawlOutcomeStatus,
     WebCrawlerConnector,
 )
-from app.config import config
-from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.etl_credit_service import InsufficientCreditsError
 from app.services.task_logging_service import TaskLoggingService
 from app.services.token_tracking_service import record_token_usage

@@ -172,9 +172,7 @@ async def get_editor_content(
     return _build_response(markdown_content)
 
 
-@router.get(
-    "/workspaces/{workspace_id}/documents/{document_id}/download-markdown"
-)
+@router.get("/workspaces/{workspace_id}/documents/{document_id}/download-markdown")
 async def download_document_markdown(
     workspace_id: int,
     document_id: int,

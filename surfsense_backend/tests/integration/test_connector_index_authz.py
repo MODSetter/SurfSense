@@ -27,8 +27,8 @@ from app.auth.context import AuthContext
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    Workspace,
     User,
+    Workspace,
 )
 from app.routes.search_source_connectors_routes import index_connector_content
 from app.routes.workspaces_routes import create_default_roles_and_membership

@@ -18,7 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from contextvars import ContextVar
 from typing import Any
 
@@ -78,10 +78,8 @@ class _RotatingSession:
 
     async def close(self) -> None:
         if self._cm is not None:
-            try:
+            with suppress(Exception):  # best-effort teardown
                 await self._cm.__aexit__(None, None, None)
-            except Exception:  # best-effort teardown
-                pass
         self._cm = self.session = None
 
     async def rotate(self) -> Any | None:
@@ -123,6 +121,7 @@ async def proxy_session():
             yield holder
     finally:
         await holder.close()
+
 
 # Consent cookies to dodge the EU consent interstitial that otherwise returns a
 # page with no ``ytInitialData``. Mirrors app/routes/youtube_routes.py.
@@ -224,7 +223,9 @@ async def post_innertube(
             if page.status == 200:
                 return page.json()
             logger.warning("InnerTube POST %s returned %s", base_url, page.status)
-            if not (holder and page.status in _BLOCK_STATUSES and attempt < _MAX_ROTATIONS):
+            if not (
+                holder and page.status in _BLOCK_STATUSES and attempt < _MAX_ROTATIONS
+            ):
                 return None
         except Exception as e:
             logger.warning("InnerTube POST %s failed: %s", base_url, e)
@@ -270,7 +271,9 @@ async def fetch_html(url: str, *, cookies: dict[str, str] | None = None) -> str 
             if page.status == 200:
                 return page.html_content
             logger.warning("HTML GET %s returned %s", url, page.status)
-            if not (holder and page.status in _BLOCK_STATUSES and attempt < _MAX_ROTATIONS):
+            if not (
+                holder and page.status in _BLOCK_STATUSES and attempt < _MAX_ROTATIONS
+            ):
                 break
         except Exception as e:
             logger.warning("HTML GET %s failed: %s", url, e)

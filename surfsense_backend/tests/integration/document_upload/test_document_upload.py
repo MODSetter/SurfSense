@@ -320,9 +320,7 @@ class TestDocumentSearchability:
         doc_ids = resp.json()["document_ids"]
         cleanup_doc_ids.extend(doc_ids)
 
-        await poll_document_status(
-            client, headers, doc_ids, workspace_id=workspace_id
-        )
+        await poll_document_status(client, headers, doc_ids, workspace_id=workspace_id)
 
         search_resp = await client.get(
             "/api/v1/documents/search",

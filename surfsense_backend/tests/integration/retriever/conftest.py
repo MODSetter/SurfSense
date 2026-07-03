@@ -9,7 +9,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config as app_config
-from app.db import Chunk, Document, DocumentType, Workspace, User
+from app.db import Chunk, Document, DocumentType, User, Workspace
 
 EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 DUMMY_EMBEDDING = [0.1] * EMBEDDING_DIM

@@ -142,7 +142,9 @@ async def test_charges_owner_for_successful_crawls(indexer_env):
     session, user = _make_session(_OWNER_USER, balance_micros=100_000)
     indexer_env["crawler"].crawl_url.side_effect = [_outcome(True), _outcome(True)]
 
-    total, warning = await _run(indexer_env, session, ["https://a.com", "https://b.com"])
+    total, warning = await _run(
+        indexer_env, session, ["https://a.com", "https://b.com"]
+    )
 
     assert total == 2
     assert warning is None

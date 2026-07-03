@@ -489,8 +489,7 @@ async def update_search_source_connector(
         if key == "connector_type" and value != db_connector.connector_type:
             check_result = await session.execute(
                 select(SearchSourceConnector).filter(
-                    SearchSourceConnector.workspace_id
-                    == db_connector.workspace_id,
+                    SearchSourceConnector.workspace_id == db_connector.workspace_id,
                     SearchSourceConnector.connector_type == value,
                     SearchSourceConnector.id != connector_id,
                 )
