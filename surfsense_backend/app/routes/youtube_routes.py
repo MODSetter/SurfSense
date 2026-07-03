@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from scrapling.fetchers import AsyncFetcher
 
 from app.auth.context import AuthContext
-from app.proprietary.scrapers.youtube import (
+from app.proprietary.platforms.youtube import (
     YouTubeCommentsInput,
     YouTubeScrapeInput,
     scrape_comments,

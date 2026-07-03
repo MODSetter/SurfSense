@@ -10,7 +10,7 @@ import pytest
 
 from app.capabilities.youtube.scrape.executor import build_scrape_executor
 from app.capabilities.youtube.scrape.schemas import ScrapeInput, ScrapeOutput
-from app.proprietary.scrapers.youtube import YouTubeScrapeInput
+from app.proprietary.platforms.youtube import YouTubeScrapeInput
 
 pytestmark = pytest.mark.unit
 

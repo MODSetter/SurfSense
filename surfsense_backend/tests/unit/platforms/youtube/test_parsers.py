@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from app.proprietary.scrapers.youtube.parsers import (
+from app.proprietary.platforms.youtube.parsers import (
     channel_about_tokens,
     comment_next_token,
     comment_reply_tokens,
@@ -21,23 +21,23 @@ from app.proprietary.scrapers.youtube.parsers import (
     dig,
     find_all,
     parse_channel_about,
-    parse_collaborators,
-    parse_comment_entities,
-    parse_description_links,
-    parse_location,
-    parse_translation,
     parse_channel_metadata,
     parse_channel_shorts,
-    parse_playlist_video_ids,
+    parse_collaborators,
+    parse_comment_entities,
     parse_count,
     parse_date,
+    parse_description_links,
+    parse_location,
+    parse_playlist_video_ids,
     parse_search_response,
+    parse_translation,
     parse_video_page,
     seconds_to_duration,
 )
-from app.proprietary.scrapers.youtube.schemas import YouTubeScrapeInput
-from app.proprietary.scrapers.youtube.search_filters import build_search_params
-from app.proprietary.scrapers.youtube.url_resolver import resolve_url
+from app.proprietary.platforms.youtube.schemas import YouTubeScrapeInput
+from app.proprietary.platforms.youtube.search_filters import build_search_params
+from app.proprietary.platforms.youtube.url_resolver import resolve_url
 
 pytestmark = pytest.mark.unit
 

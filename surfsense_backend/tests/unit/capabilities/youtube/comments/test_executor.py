@@ -6,7 +6,7 @@ import pytest
 
 from app.capabilities.youtube.comments.executor import build_comments_executor
 from app.capabilities.youtube.comments.schemas import CommentsInput, CommentsOutput
-from app.proprietary.scrapers.youtube import YouTubeCommentsInput
+from app.proprietary.platforms.youtube import YouTubeCommentsInput
 
 pytestmark = pytest.mark.unit
 

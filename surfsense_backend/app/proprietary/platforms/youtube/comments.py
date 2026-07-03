@@ -27,8 +27,8 @@ from .parsers import (
     parse_count,
     parse_video_page,
 )
-from .scraper import _post, _published_date, fan_out
 from .schemas import CommentItem, YouTubeCommentsInput
+from .scraper import _post, _published_date, fan_out
 from .url_resolver import resolve_url
 
 logger = logging.getLogger(__name__)

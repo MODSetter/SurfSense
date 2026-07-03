@@ -13,7 +13,7 @@ No API keys, no Apify account, no headless browser on the happy path.
 ## Quick start
 
 ```python
-from app.proprietary.scrapers.youtube import (
+from app.proprietary.platforms.youtube import (
     YouTubeScrapeInput, scrape_youtube,
     YouTubeCommentsInput, scrape_comments,
 )

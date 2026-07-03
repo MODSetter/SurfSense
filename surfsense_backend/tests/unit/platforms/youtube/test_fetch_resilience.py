@@ -9,10 +9,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-import pytest
-
-from app.proprietary.scrapers.youtube import innertube, scraper
-from app.proprietary.scrapers.youtube.innertube import (
+from app.proprietary.platforms.youtube import innertube, scraper
+from app.proprietary.platforms.youtube.innertube import (
     INNERTUBE_SEARCH_URL,
     _current_session,
     fetch_html,
@@ -40,7 +38,7 @@ class _FakeSession:
         self.exc = exc
         self.calls = 0
 
-    async def post(self, url, json=None):  # noqa: A002 - mirror scrapling API
+    async def post(self, url, json=None):
         self.calls += 1
         if self.exc:
             raise ConnectionError("boom")

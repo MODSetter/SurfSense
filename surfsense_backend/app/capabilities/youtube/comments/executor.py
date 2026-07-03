@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 
 from app.capabilities.core import Executor
 from app.capabilities.youtube.comments.schemas import CommentsInput, CommentsOutput
-from app.proprietary.scrapers.youtube import (
+from app.proprietary.platforms.youtube import (
     YouTubeCommentsInput,
     scrape_comments,
 )

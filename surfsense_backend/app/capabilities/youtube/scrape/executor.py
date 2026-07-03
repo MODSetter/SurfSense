@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 
 from app.capabilities.core import Executor
 from app.capabilities.youtube.scrape.schemas import ScrapeInput, ScrapeOutput
-from app.proprietary.scrapers.youtube import (
+from app.proprietary.platforms.youtube import (
     YouTubeScrapeInput,
     scrape_youtube,
 )

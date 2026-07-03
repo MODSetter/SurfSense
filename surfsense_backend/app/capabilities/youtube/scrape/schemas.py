@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.proprietary.scrapers.youtube import VideoItem
+from app.proprietary.platforms.youtube import VideoItem
 
 MAX_YOUTUBE_SOURCES = 20
 """Per-call cap on URLs + queries: bounds a synchronous request's fan-out (05)."""

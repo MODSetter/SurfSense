@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.proprietary.scrapers.youtube import CommentItem
+from app.proprietary.platforms.youtube import CommentItem
 
 MAX_COMMENT_VIDEOS = 20
 """Per-call cap on how many video URLs one request may harvest comments from."""
