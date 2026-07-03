@@ -29,9 +29,7 @@ def create_list_discord_channels_tool(
             }
 
         try:
-            connector = await get_discord_connector(
-                db_session, workspace_id, user_id
-            )
+            connector = await get_discord_connector(db_session, workspace_id, user_id)
             if not connector:
                 return {"status": "error", "message": "No Discord connector found."}
 

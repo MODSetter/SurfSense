@@ -7,7 +7,7 @@ import pytest_asyncio
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Document, DocumentType, DocumentVersion, Workspace, User
+from app.db import Document, DocumentType, DocumentVersion, User, Workspace
 
 pytestmark = pytest.mark.integration
 

@@ -43,9 +43,7 @@ class AutomationService:
 
     async def create(self, payload: AutomationCreate) -> Automation:
         """Create an automation and its initial triggers in one transaction."""
-        await self._authorize(
-            payload.workspace_id, Permission.AUTOMATIONS_CREATE.value
-        )
+        await self._authorize(payload.workspace_id, Permission.AUTOMATIONS_CREATE.value)
 
         # Capture the model profile onto the definition so runs are insulated
         # from later chat/workspace model changes. Two sources:

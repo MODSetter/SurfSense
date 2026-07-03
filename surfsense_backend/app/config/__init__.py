@@ -1079,9 +1079,7 @@ class Config:
     CAPTCHA_SOLVER_PROVIDER = os.getenv("CAPTCHA_SOLVER_PROVIDER", "capsolver")
     CAPTCHA_SOLVER_API_KEY = os.getenv("CAPTCHA_SOLVER_API_KEY")
     # Per-URL solve cap so one hostile page can't burn unbounded solver credit.
-    CAPTCHA_MAX_ATTEMPTS_PER_URL = int(
-        os.getenv("CAPTCHA_MAX_ATTEMPTS_PER_URL", "1")
-    )
+    CAPTCHA_MAX_ATTEMPTS_PER_URL = int(os.getenv("CAPTCHA_MAX_ATTEMPTS_PER_URL", "1"))
     # Abort a single solve after this many seconds (solves take 10-60s).
     CAPTCHA_SOLVE_TIMEOUT_S = int(os.getenv("CAPTCHA_SOLVE_TIMEOUT_S", "120"))
     # Default captcha type when detection is ambiguous: v2 | v3 | hcaptcha.
@@ -1118,9 +1116,7 @@ class Config:
     # Route DNS via Cloudflare DoH (anti DNS-leak behind proxies). Adds a DNS
     # round-trip => default FALSE to honor the "no speed regression" bar; flip on
     # when leak-safety outweighs the marginal latency.
-    CRAWL_DNS_OVER_HTTPS = (
-        os.getenv("CRAWL_DNS_OVER_HTTPS", "FALSE").upper() == "TRUE"
-    )
+    CRAWL_DNS_OVER_HTTPS = os.getenv("CRAWL_DNS_OVER_HTTPS", "FALSE").upper() == "TRUE"
 
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")

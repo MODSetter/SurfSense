@@ -22,8 +22,8 @@ from app.db import (
     DocumentType,
     SearchSourceConnector,
     SearchSourceConnectorType,
-    Workspace,
     User,
+    Workspace,
     get_async_session,
 )
 from app.notifications.service import NotificationService

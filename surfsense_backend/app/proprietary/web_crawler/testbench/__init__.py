@@ -21,5 +21,5 @@ creds). Run it from the backend directory:
 
 See ``README.md`` for the runbook and ``plans/backend/03f-undetectability-testing.md``
 for the design. This package is dev/operator tooling, untouched by the product
-rename, and only *measures* what 03a–03e built.
+rename, and only *measures* what 03a-03e built.
 """

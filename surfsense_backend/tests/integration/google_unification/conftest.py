@@ -18,8 +18,8 @@ from app.db import (
     DocumentType,
     SearchSourceConnector,
     SearchSourceConnectorType,
-    Workspace,
     User,
+    Workspace,
 )
 
 EMBEDDING_DIM = app_config.embedding_model_instance.dimension
@@ -275,9 +275,7 @@ async def seed_connector(
         session.add(user)
         await session.flush()
 
-        space = Workspace(
-            name=f"{name_prefix} {uuid.uuid4().hex[:6]}", user_id=user.id
-        )
+        space = Workspace(name=f"{name_prefix} {uuid.uuid4().hex[:6]}", user_id=user.id)
         session.add(space)
         await session.flush()
         space_id = space.id

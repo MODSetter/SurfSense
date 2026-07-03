@@ -16,9 +16,7 @@ ALLOW_ANY_EXPECTED = {
     "routes/obsidian_plugin_routes.py": (
         "_auth: AuthContext = Depends(allow_any_principal)"
     ),
-    "routes/workspaces_routes.py": (
-        "auth: AuthContext = Depends(allow_any_principal)"
-    ),
+    "routes/workspaces_routes.py": ("auth: AuthContext = Depends(allow_any_principal)"),
 }
 
 CONNECTOR_LISTERS = [

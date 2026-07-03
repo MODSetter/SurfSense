@@ -25,7 +25,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import trafilatura
@@ -34,11 +34,11 @@ from scrapling.engines.toolbelt import is_proxy_error
 from scrapling.fetchers import AsyncFetcher, DynamicFetcher, StealthyFetcher
 
 from app.proprietary.web_crawler.captcha import build_captcha_page_action
-from app.proprietary.web_crawler.url_policy import extract_links
 from app.proprietary.web_crawler.stealth import (
     build_stealthy_kwargs,
     get_stealth_config,
 )
+from app.proprietary.web_crawler.url_policy import extract_links
 from app.utils.captcha import captcha_enabled, get_captcha_config
 from app.utils.crawl import BlockType, classify_block
 from app.utils.proxy import get_proxy_url, is_pool_backed
@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 _PERF = "[webcrawler][perf]"
 
 
-class CrawlOutcomeStatus(str, Enum):
+class CrawlOutcomeStatus(StrEnum):
     """Deterministic per-URL crawl result, single-sourcing the billable signal."""
 
     SUCCESS = "success"  # a tier returned usable extracted content
@@ -203,9 +203,7 @@ class WebCrawlerConnector:
                 logger.info(f"[webcrawler] Using Scrapling StealthyFetcher for: {url}")
                 result = await self._run_tier_with_proxy_retry(
                     "scrapling-stealthy",
-                    lambda: self._crawl_with_stealthy(
-                        url, captcha_state, block_state
-                    ),
+                    lambda: self._crawl_with_stealthy(url, captcha_state, block_state),
                 )
                 if result:
                     self._log_tier_outcome(
@@ -396,9 +394,7 @@ class WebCrawlerConnector:
         Runs the sync fetch in a worker thread so it works on any event loop,
         including Windows ``SelectorEventLoop`` which cannot spawn subprocesses.
         """
-        return await asyncio.to_thread(
-            self._crawl_with_dynamic_sync, url, block_state
-        )
+        return await asyncio.to_thread(self._crawl_with_dynamic_sync, url, block_state)
 
     def _crawl_with_dynamic_sync(
         self, url: str, block_state: dict[str, Any] | None = None

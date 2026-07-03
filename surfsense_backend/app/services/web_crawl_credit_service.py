@@ -184,9 +184,7 @@ class WebCrawlCreditService:
 
         return user.credit_micros_balance
 
-    async def charge_credits(
-        self, user_id: str | UUID, successes: int
-    ) -> int | None:
+    async def charge_credits(self, user_id: str | UUID, successes: int) -> int | None:
         """Debit the wallet for ``successes`` successful crawls.
 
         No-op when crawl billing is disabled or ``successes <= 0``. Returns the
@@ -198,9 +196,7 @@ class WebCrawlCreditService:
             return None
         return await self._apply_debit(user_id, self.successes_to_micros(successes))
 
-    async def charge_captcha(
-        self, user_id: str | UUID, attempts: int
-    ) -> int | None:
+    async def charge_captcha(self, user_id: str | UUID, attempts: int) -> int | None:
         """Debit the wallet for ``attempts`` captcha solves (Phase 3d).
 
         Per-attempt (not per-success): the solver charges for every attempt even

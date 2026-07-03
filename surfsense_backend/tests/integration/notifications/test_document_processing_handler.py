@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Workspace, User
+from app.db import User, Workspace
 from app.notifications.service import NotificationService
 
 pytestmark = pytest.mark.integration

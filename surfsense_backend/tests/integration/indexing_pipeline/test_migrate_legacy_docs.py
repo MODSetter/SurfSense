@@ -59,9 +59,7 @@ async def test_legacy_composio_gmail_doc_migrated_in_db(
     assert reloaded.document_type == DocumentType.GOOGLE_GMAIL_CONNECTOR
 
 
-async def test_no_legacy_doc_is_noop(
-    db_session, db_workspace, make_connector_document
-):
+async def test_no_legacy_doc_is_noop(db_session, db_workspace, make_connector_document):
     """When no legacy document exists, migrate_legacy_docs does nothing."""
     connector_doc = make_connector_document(
         document_type=DocumentType.GOOGLE_CALENDAR_CONNECTOR,

@@ -44,9 +44,7 @@ def validate_workspace_id(workspace_id: Any) -> int:
     if isinstance(workspace_id, str):
         # Check if it's a valid integer string
         if not workspace_id.strip():
-            raise HTTPException(
-                status_code=400, detail="workspace_id cannot be empty"
-            )
+            raise HTTPException(status_code=400, detail="workspace_id cannot be empty")
 
         # Check for valid integer format (no leading zeros, no decimal points)
         if not re.match(r"^[1-9]\d*$", workspace_id.strip()):

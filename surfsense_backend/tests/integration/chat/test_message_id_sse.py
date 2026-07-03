@@ -48,8 +48,8 @@ from app.db import (
     NewChatMessage,
     NewChatMessageRole,
     NewChatThread,
-    Workspace,
     User,
+    Workspace,
 )
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat import persistence as persistence_module

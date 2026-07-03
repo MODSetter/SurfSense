@@ -70,9 +70,7 @@ def create_create_calendar_event_tool(
 
         try:
             metadata_service = GoogleCalendarToolMetadataService(db_session)
-            context = await metadata_service.get_creation_context(
-                workspace_id, user_id
-            )
+            context = await metadata_service.get_creation_context(workspace_id, user_id)
 
             if "error" in context:
                 logger.error(f"Failed to fetch creation context: {context['error']}")

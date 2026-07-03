@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.app import app, limiter
 from app.auth.context import AuthContext
 from app.config import config as app_config
-from app.db import Workspace, User, get_async_session
+from app.db import User, Workspace, get_async_session
 from app.podcasts.persistence import Podcast, PodcastStatus
 from app.podcasts.schemas import (
     DurationTarget,

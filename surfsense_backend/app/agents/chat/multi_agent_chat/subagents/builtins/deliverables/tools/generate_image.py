@@ -116,9 +116,7 @@ def create_generate_image_tool(
                     # later workspace changes. No workspace read needed.
                     config_id = image_gen_model_id_override or IMAGE_GEN_AUTO_MODE_ID
                 else:
-                    config_id = (
-                        workspace.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
-                    )
+                    config_id = workspace.image_gen_model_id or IMAGE_GEN_AUTO_MODE_ID
 
                 # size/quality/style are intentionally omitted: valid values
                 # differ per model, so we let each model use its own defaults.
@@ -191,10 +189,7 @@ def create_generate_image_tool(
                     ):
                         err = f"Image generation model {config_id} not found"
                         return _failed({"error": err}, error=err)
-                    if (
-                        conn.user_id is not None
-                        and conn.user_id != workspace.user_id
-                    ):
+                    if conn.user_id is not None and conn.user_id != workspace.user_id:
                         err = f"Image generation model {config_id} not found"
                         return _failed({"error": err}, error=err)
                     if not has_capability(db_model, "image_gen"):

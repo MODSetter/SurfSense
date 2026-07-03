@@ -206,9 +206,7 @@ async def _resolve_role_model_id(
         return 0
 
 
-async def _clear_invalid_roles(
-    session: AsyncSession, workspace_id: int
-) -> Workspace:
+async def _clear_invalid_roles(session: AsyncSession, workspace_id: int) -> Workspace:
     workspace = await _get_workspace(session, workspace_id)
     workspace.chat_model_id = await _resolve_role_model_id(
         session,
@@ -752,9 +750,7 @@ async def test_connection_model(
     )
 
 
-@router.get(
-    "/workspaces/{workspace_id}/model-roles", response_model=ModelRolesRead
-)
+@router.get("/workspaces/{workspace_id}/model-roles", response_model=ModelRolesRead)
 async def get_model_roles(
     workspace_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -777,9 +773,7 @@ async def get_model_roles(
     )
 
 
-@router.put(
-    "/workspaces/{workspace_id}/model-roles", response_model=ModelRolesRead
-)
+@router.put("/workspaces/{workspace_id}/model-roles", response_model=ModelRolesRead)
 async def update_model_roles(
     workspace_id: int,
     data: ModelRolesUpdate,

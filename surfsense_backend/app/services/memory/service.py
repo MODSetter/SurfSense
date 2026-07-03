@@ -11,7 +11,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Workspace, User
+from app.db import User, Workspace
 from app.services.memory.document import parse_memory_document, render_memory_document
 from app.services.memory.rewrite import forced_rewrite
 from app.services.memory.schemas import MemoryLimits

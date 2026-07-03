@@ -23,6 +23,7 @@ balance can get the IP **temporarily banned**, so ``ErrNoBalance`` /
 won't change without a restart). ``reset_solver_latch()`` clears it for tests.
 """
 
+import contextlib
 import logging
 import re
 from collections.abc import Callable
@@ -107,8 +108,10 @@ def detect_challenge(page: Any, cfg: CaptchaConfig) -> tuple[str, str] | None:
                     m = _RENDER_SITEKEY.search(src)
                     if m and m.group(1) != "explicit":
                         return "v3", m.group(1)
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("%s detection error (treated as no challenge): %s", _CAPTCHA_LOG, exc)
+    except Exception as exc:
+        logger.debug(
+            "%s detection error (treated as no challenge): %s", _CAPTCHA_LOG, exc
+        )
     return None
 
 
@@ -131,7 +134,7 @@ def proxy_url_to_captchatools(proxy_url: str | None) -> str | None:
         if p.username and p.password:
             return f"{p.hostname}:{p.port}:{p.username}:{p.password}"
         return f"{p.hostname}:{p.port}"
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -220,11 +223,9 @@ _INJECT_JS = r"""
 def _inject_and_submit(page: Any, challenge_type: str, token: str) -> None:
     try:
         page.evaluate(_INJECT_JS, {"token": token, "ctype": challenge_type})
-        try:
+        with contextlib.suppress(Exception):
             page.wait_for_load_state("networkidle", timeout=15000)
-        except Exception:  # noqa: BLE001
-            pass
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("%s injection error: %s", _CAPTCHA_LOG, exc)
 
 
@@ -264,7 +265,7 @@ def build_captcha_page_action(
         page_url = getattr(page, "url", "") or ""
         try:
             user_agent = page.evaluate("() => navigator.userAgent")
-        except Exception:  # noqa: BLE001
+        except Exception:
             user_agent = None
 
         # This counts as an attempt the moment we call the (paid) solver.
@@ -296,7 +297,7 @@ def build_captcha_page_action(
         except FuturesTimeout:
             logger.warning("%s solve timed out after %ss", _CAPTCHA_LOG, cfg.timeout_s)
             return page
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if _is_unrecoverable(exc):
                 _latch_solver(repr(exc))
             else:
@@ -310,7 +311,9 @@ def build_captcha_page_action(
 
         _inject_and_submit(page, challenge_type, token)
         state["solved"] = True
-        logger.info("%s solved type=%s site=%s", _CAPTCHA_LOG, challenge_type, sitekey[:12])
+        logger.info(
+            "%s solved type=%s site=%s", _CAPTCHA_LOG, challenge_type, sitekey[:12]
+        )
         return page
 
     return page_action

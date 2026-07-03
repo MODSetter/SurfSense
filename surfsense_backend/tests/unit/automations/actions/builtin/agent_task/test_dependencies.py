@@ -158,9 +158,7 @@ async def test_build_dependencies_falls_back_to_workspace(
     )
 
     workspace = SimpleNamespace(chat_model_id=-7)
-    result = await build_dependencies(
-        session=_FakeSession(workspace), workspace_id=42
-    )
+    result = await build_dependencies(session=_FakeSession(workspace), workspace_id=42)
 
     assert captured == {"config_id": -7}
     assert result.llm.name == "llm"

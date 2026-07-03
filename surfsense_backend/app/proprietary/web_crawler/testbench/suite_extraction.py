@@ -68,7 +68,7 @@ async def _run_case(
     bar = f"SUCCESS + contains {len(case.must_contain)} marker(s)"
     try:
         outcome = await connector.crawl_url(case.url)
-    except Exception as exc:  # noqa: BLE001 - never crash the run
+    except Exception as exc:
         return CheckResult(
             suite="E",
             name=case.name,

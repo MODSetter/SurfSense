@@ -19,9 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.context import AuthContext
 from app.db import (
     Permission,
+    VideoPresentation,
     Workspace,
     WorkspaceMembership,
-    VideoPresentation,
     get_async_session,
 )
 from app.schemas import VideoPresentationRead

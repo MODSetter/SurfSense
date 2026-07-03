@@ -517,9 +517,7 @@ async def bulk_move_documents(
             if not target:
                 raise HTTPException(status_code=404, detail="Target folder not found")
             mismatched = [
-                doc.id
-                for doc in documents
-                if doc.workspace_id != target.workspace_id
+                doc.id for doc in documents if doc.workspace_id != target.workspace_id
             ]
             if mismatched:
                 raise HTTPException(

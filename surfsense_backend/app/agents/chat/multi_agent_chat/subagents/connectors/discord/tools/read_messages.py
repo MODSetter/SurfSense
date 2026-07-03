@@ -39,9 +39,7 @@ def create_read_discord_messages_tool(
         limit = min(limit, 50)
 
         try:
-            connector = await get_discord_connector(
-                db_session, workspace_id, user_id
-            )
+            connector = await get_discord_connector(db_session, workspace_id, user_id)
             if not connector:
                 return {"status": "error", "message": "No Discord connector found."}
 

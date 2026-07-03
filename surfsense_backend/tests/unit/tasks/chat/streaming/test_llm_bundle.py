@@ -32,9 +32,7 @@ def _patch_common_bundle_dependencies(monkeypatch: pytest.MonkeyPatch):
 
     _CapturedChatLiteLLM.calls = []
 
-    async def _fake_workspace(
-        _session: Any, _workspace_id: int
-    ) -> SimpleNamespace:
+    async def _fake_workspace(_session: Any, _workspace_id: int) -> SimpleNamespace:
         return SimpleNamespace(id=42, user_id="user-1")
 
     monkeypatch.setattr(llm_bundle, "_load_workspace", _fake_workspace)

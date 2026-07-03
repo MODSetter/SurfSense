@@ -823,9 +823,7 @@ class ExternalChatAccount(Base, TimestampMixin):
     )
 
     owner = relationship("User", foreign_keys=[owner_user_id])
-    owner_workspace = relationship(
-        "Workspace", foreign_keys=[owner_workspace_id]
-    )
+    owner_workspace = relationship("Workspace", foreign_keys=[owner_workspace_id])
     bindings = relationship(
         "ExternalChatBinding",
         back_populates="account",
@@ -984,9 +982,7 @@ class ExternalChatBinding(Base, TimestampMixin):
             postgresql_where=text("state = 'pending'"),
         ),
         Index("ix_external_chat_bindings_user_state", "user_id", "state"),
-        Index(
-            "ix_external_chat_bindings_workspace_state", "workspace_id", "state"
-        ),
+        Index("ix_external_chat_bindings_workspace_state", "workspace_id", "state"),
     )
 
 
@@ -1902,9 +1898,7 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
-    workspace = relationship(
-        "Workspace", back_populates="search_source_connectors"
-    )
+    workspace = relationship("Workspace", back_populates="search_source_connectors")
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False

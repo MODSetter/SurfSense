@@ -105,12 +105,19 @@ def _video_html() -> str:
             "keywords": ["#tech"],
             "thumbnail": {
                 "thumbnails": [
-                    {"url": "https://i.ytimg.com/vi/abc123/hq.jpg", "width": 480, "height": 360}
+                    {
+                        "url": "https://i.ytimg.com/vi/abc123/hq.jpg",
+                        "width": 480,
+                        "height": 360,
+                    }
                 ]
             },
         },
         "microformat": {
-            "playerMicroformatRenderer": {"publishDate": "2024-08-27", "isFamilySafe": True}
+            "playerMicroformatRenderer": {
+                "publishDate": "2024-08-27",
+                "isFamilySafe": True,
+            }
         },
         "adPlacements": [{"adPlacementRenderer": {}}],
     }
@@ -200,7 +207,9 @@ def test_parse_video_page_members_only_and_paid():
     player = {
         "videoDetails": {"videoId": "m", "title": "t"},
         "playabilityStatus": {"errorScreen": {"x": {"offerId": "sponsors_only_video"}}},
-        "paidContentOverlay": {"paidContentOverlayRenderer": {"text": "Includes paid promotion"}},
+        "paidContentOverlay": {
+            "paidContentOverlayRenderer": {"text": "Includes paid promotion"}
+        },
     }
     initial = {
         "badges": [
@@ -237,7 +246,11 @@ def test_parse_channel_metadata():
                 "externalId": "UCabc123",
                 "description": "We scrape the web.",
                 "vanityChannelUrl": "https://www.youtube.com/@Apify",
-                "avatar": {"thumbnails": [{"url": "https://a/avatar.jpg", "width": 88, "height": 88}]},
+                "avatar": {
+                    "thumbnails": [
+                        {"url": "https://a/avatar.jpg", "width": 88, "height": 88}
+                    ]
+                },
             }
         },
         "header": {
@@ -246,7 +259,11 @@ def test_parse_channel_metadata():
                     "imageBannerViewModel": {
                         "image": {
                             "sources": [
-                                {"url": "https://a/banner.jpg", "width": 1060, "height": 175}
+                                {
+                                    "url": "https://a/banner.jpg",
+                                    "width": 1060,
+                                    "height": 175,
+                                }
                             ]
                         }
                     }
@@ -290,7 +307,9 @@ def test_parse_description_links():
                 {
                     "startIndex": 4,
                     "length": 4,
-                    "onTap": {"innertubeCommand": {"urlEndpoint": {"url": "/hashtag/tag"}}},
+                    "onTap": {
+                        "innertubeCommand": {"urlEndpoint": {"url": "/hashtag/tag"}}
+                    },
                 },
                 {
                     "startIndex": 21,
@@ -318,8 +337,16 @@ def test_parse_description_links():
 
 def test_channel_about_tokens():
     initial = {
-        "a": {"showEngagementPanelEndpoint": {"x": {"continuationCommand": {"token": "T1"}}}},
-        "b": {"showEngagementPanelEndpoint": {"y": {"continuationCommand": {"token": "T2"}}}},
+        "a": {
+            "showEngagementPanelEndpoint": {
+                "x": {"continuationCommand": {"token": "T1"}}
+            }
+        },
+        "b": {
+            "showEngagementPanelEndpoint": {
+                "y": {"continuationCommand": {"token": "T2"}}
+            }
+        },
     }
     assert channel_about_tokens(initial) == ["T1", "T2"]
     assert channel_about_tokens({}) == []
@@ -340,7 +367,11 @@ def test_parse_search_response():
                     "shortViewCountText": {"simpleText": "451K views"},
                     "thumbnail": {
                         "thumbnails": [
-                            {"url": "https://i.ytimg.com/vi/x/hq.jpg", "width": 360, "height": 202}
+                            {
+                                "url": "https://i.ytimg.com/vi/x/hq.jpg",
+                                "width": 360,
+                                "height": 202,
+                            }
                         ]
                     },
                     "ownerText": {
@@ -395,7 +426,11 @@ def test_parse_channel_shorts():
                     "thumbnailViewModel": {
                         "image": {
                             "sources": [
-                                {"url": "https://i.ytimg.com/s.jpg", "width": 405, "height": 720}
+                                {
+                                    "url": "https://i.ytimg.com/s.jpg",
+                                    "width": 405,
+                                    "height": 720,
+                                }
                             ]
                         }
                     },
@@ -422,13 +457,30 @@ def test_parse_playlist_video_ids():
     data = {
         "contents": {
             "items": [
-                {"lockupViewModel": {"contentId": "fNk_zzaMoSs", "contentType": "VIDEO"}},
-                {"lockupViewModel": {"contentId": "k7RM-ot2NWY", "contentType": "VIDEO"}},
-                {"lockupViewModel": {"contentId": "fNk_zzaMoSs", "contentType": "VIDEO"}},  # dup
+                {
+                    "lockupViewModel": {
+                        "contentId": "fNk_zzaMoSs",
+                        "contentType": "VIDEO",
+                    }
+                },
+                {
+                    "lockupViewModel": {
+                        "contentId": "k7RM-ot2NWY",
+                        "contentType": "VIDEO",
+                    }
+                },
+                {
+                    "lockupViewModel": {
+                        "contentId": "fNk_zzaMoSs",
+                        "contentType": "VIDEO",
+                    }
+                },  # dup
             ]
         },
         # a playlist self-lockup (non-video, longer id) that must be ignored
-        "sidebar": {"lockupViewModel": {"contentId": "PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab"}},
+        "sidebar": {
+            "lockupViewModel": {"contentId": "PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab"}
+        },
         "continuationItemRenderer": {
             "continuationEndpoint": {"continuationCommand": {"token": "PAGE2"}}
         },
@@ -494,7 +546,11 @@ def _primary_info(super_title_link):
                 "results": {
                     "results": {
                         "contents": [
-                            {"videoPrimaryInfoRenderer": {"superTitleLink": super_title_link}}
+                            {
+                                "videoPrimaryInfoRenderer": {
+                                    "superTitleLink": super_title_link
+                                }
+                            }
                         ]
                     }
                 }
@@ -536,7 +592,9 @@ def _owner(video_owner_renderer):
                         "contents": [
                             {
                                 "videoSecondaryInfoRenderer": {
-                                    "owner": {"videoOwnerRenderer": video_owner_renderer}
+                                    "owner": {
+                                        "videoOwnerRenderer": video_owner_renderer
+                                    }
                                 }
                             }
                         ]
@@ -556,14 +614,19 @@ def _collab_row(name, base_url):
                     {
                         "onTap": {
                             "innertubeCommand": {
-                                "browseEndpoint": {"browseId": "UCx", "canonicalBaseUrl": base_url}
+                                "browseEndpoint": {
+                                    "browseId": "UCx",
+                                    "canonicalBaseUrl": base_url,
+                                }
                             }
                         }
                     }
                 ],
             },
             # A nested subscribe submenu — must NOT be picked up as a collaborator.
-            "subscribeMenu": {"listItemViewModel": {"title": {"content": "Unsubscribe"}}},
+            "subscribeMenu": {
+                "listItemViewModel": {"title": {"content": "Unsubscribe"}}
+            },
         }
     }
 
@@ -583,15 +646,20 @@ def test_parse_collaborators_from_dialog():
                                             "dialogViewModel": {
                                                 "header": {
                                                     "dialogHeaderViewModel": {
-                                                        "headline": {"content": "Collaborators"}
+                                                        "headline": {
+                                                            "content": "Collaborators"
+                                                        }
                                                     }
                                                 },
                                                 "customContent": {
                                                     "listViewModel": {
                                                         "listItems": [
-                                                            _collab_row("Alice", "/@alice"),
                                                             _collab_row(
-                                                                "Bob", "/channel/UCbob123"
+                                                                "Alice", "/@alice"
+                                                            ),
+                                                            _collab_row(
+                                                                "Bob",
+                                                                "/channel/UCbob123",
                                                             ),
                                                         ]
                                                     }
@@ -610,7 +678,11 @@ def test_parse_collaborators_from_dialog():
     collaborators = parse_collaborators(initial)
     assert collaborators == [
         {"name": "Alice", "username": "alice", "url": "https://www.youtube.com/@alice"},
-        {"name": "Bob", "username": None, "url": "https://www.youtube.com/channel/UCbob123"},
+        {
+            "name": "Bob",
+            "username": None,
+            "url": "https://www.youtube.com/channel/UCbob123",
+        },
     ]
 
 
@@ -627,8 +699,23 @@ def test_parse_translation_from_next():
                 "results": {
                     "results": {
                         "contents": [
-                            {"videoPrimaryInfoRenderer": {"title": {"runs": [{"text": "Título "}, {"text": "traducido"}]}}},
-                            {"videoSecondaryInfoRenderer": {"attributedDescription": {"content": "Descripción traducida"}}},
+                            {
+                                "videoPrimaryInfoRenderer": {
+                                    "title": {
+                                        "runs": [
+                                            {"text": "Título "},
+                                            {"text": "traducido"},
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "videoSecondaryInfoRenderer": {
+                                    "attributedDescription": {
+                                        "content": "Descripción traducida"
+                                    }
+                                }
+                            },
                         ]
                     }
                 }
@@ -642,7 +729,9 @@ def test_parse_translation_from_next():
 
 def test_parse_translation_description_runs_fallback():
     next_data = {
-        "videoSecondaryInfoRenderer": {"description": {"runs": [{"text": "old "}, {"text": "style"}]}}
+        "videoSecondaryInfoRenderer": {
+            "description": {"runs": [{"text": "old "}, {"text": "style"}]}
+        }
     }
     title, description = parse_translation(next_data)
     assert title is None
@@ -671,6 +760,7 @@ def _comment_cep(cid, *, level=0, hearted=False, owner=False, replies="5"):
 
 def _next_comments_response():
     """A /next comments response: sort menu, two threads, a page token."""
+
     def _reply_loader(token):
         return {
             "continuationItemRenderer": {
@@ -692,7 +782,13 @@ def _next_comments_response():
         "frameworkUpdates": {
             "entityBatchUpdate": {
                 "mutations": [
-                    {"payload": {"commentEntityPayload": _comment_cep("C1", hearted=True, owner=True)}},
+                    {
+                        "payload": {
+                            "commentEntityPayload": _comment_cep(
+                                "C1", hearted=True, owner=True
+                            )
+                        }
+                    },
                     {"payload": {"commentEntityPayload": _comment_cep("C2")}},
                 ]
             }
@@ -717,8 +813,14 @@ def _next_comments_response():
         "header": {
             "sortFilterSubMenuRenderer": {
                 "subMenuItems": [
-                    {"title": "Top", "serviceEndpoint": {"continuationCommand": {"token": "TOPTOK"}}},
-                    {"title": "Newest", "serviceEndpoint": {"continuationCommand": {"token": "NEWTOK"}}},
+                    {
+                        "title": "Top",
+                        "serviceEndpoint": {"continuationCommand": {"token": "TOPTOK"}},
+                    },
+                    {
+                        "title": "Newest",
+                        "serviceEndpoint": {"continuationCommand": {"token": "NEWTOK"}},
+                    },
                 ]
             }
         },
@@ -749,7 +851,13 @@ def test_comment_entity_reply_level_and_empty_reply_count():
             "frameworkUpdates": {
                 "entityBatchUpdate": {
                     "mutations": [
-                        {"payload": {"commentEntityPayload": _comment_cep("R1", level=1, replies="")}}
+                        {
+                            "payload": {
+                                "commentEntityPayload": _comment_cep(
+                                    "R1", level=1, replies=""
+                                )
+                            }
+                        }
                     ]
                 }
             }
@@ -789,7 +897,9 @@ def test_comment_section_token_from_watch_page():
                                         {
                                             "continuationItemRenderer": {
                                                 "continuationEndpoint": {
-                                                    "continuationCommand": {"token": "SECTIONTOK"}
+                                                    "continuationCommand": {
+                                                        "token": "SECTIONTOK"
+                                                    }
                                                 }
                                             }
                                         }
@@ -815,9 +925,17 @@ def test_comment_section_token_from_watch_page():
         ("https://youtu.be/dQw4w9WgXcQ", "video", "dQw4w9WgXcQ"),
         ("https://www.youtube.com/shorts/abc123", "video", "abc123"),
         ("https://www.youtube.com/@Apify", "channel", "Apify"),
-        ("https://www.youtube.com/channel/UC123456789abc/videos", "channel", "UC123456789abc"),
+        (
+            "https://www.youtube.com/channel/UC123456789abc/videos",
+            "channel",
+            "UC123456789abc",
+        ),
         ("https://www.youtube.com/playlist?list=PL123", "playlist", "PL123"),
-        ("https://www.youtube.com/results?search_query=web+scraping", "search", "web scraping"),
+        (
+            "https://www.youtube.com/results?search_query=web+scraping",
+            "search",
+            "web scraping",
+        ),
         ("https://www.youtube.com/hashtag/tech", "hashtag", "tech"),
     ],
 )

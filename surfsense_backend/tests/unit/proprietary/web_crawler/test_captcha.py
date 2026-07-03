@@ -15,16 +15,16 @@ pytestmark = pytest.mark.unit
 
 
 def _cfg(**overrides) -> CaptchaConfig:
-    base = dict(
-        enabled=True,
-        solving_site="capsolver",
-        api_key="key-123",
-        max_attempts_per_url=1,
-        timeout_s=30,
-        captcha_type_default="v2",
-        v3_min_score=0.7,
-        v3_action="verify",
-    )
+    base = {
+        "enabled": True,
+        "solving_site": "capsolver",
+        "api_key": "key-123",
+        "max_attempts_per_url": 1,
+        "timeout_s": 30,
+        "captcha_type_default": "v2",
+        "v3_min_score": 0.7,
+        "v3_action": "verify",
+    }
     base.update(overrides)
     return CaptchaConfig(**base)
 
@@ -40,7 +40,9 @@ class _FakeEl:
 class _FakePage:
     """Minimal sync-Playwright-ish page for detection/injection tests."""
 
-    def __init__(self, widgets=None, iframes=None, scripts=None, url="https://t.test/p"):
+    def __init__(
+        self, widgets=None, iframes=None, scripts=None, url="https://t.test/p"
+    ):
         self._widgets = widgets or {}  # selector -> _FakeEl
         self._iframes = iframes or []  # list[_FakeEl]
         self._scripts = scripts or []  # list[_FakeEl]
@@ -116,7 +118,9 @@ class TestDetect:
 
     def test_v3_render_param_when_default_v3(self):
         page = _FakePage(
-            scripts=[_FakeEl({"src": "https://www.google.com/recaptcha/api.js?render=SK_V3"})]
+            scripts=[
+                _FakeEl({"src": "https://www.google.com/recaptcha/api.js?render=SK_V3"})
+            ]
         )
         assert cap.detect_challenge(page, _cfg(captcha_type_default="v3")) == (
             "v3",
@@ -217,11 +221,11 @@ class TestPageAction:
         assert state == {"attempts": 1, "solved": False}
 
     def test_no_balance_latches_and_stops(self, monkeypatch):
-        class ErrNoBalance(Exception):
+        class NoBalanceError(Exception):
             pass
 
         def _boom(*_a, **_k):
-            raise ErrNoBalance("out of balance")
+            raise NoBalanceError("out of balance")
 
         monkeypatch.setattr(cap, "_harvest_token", _boom)
         state = {"attempts": 0, "solved": False}

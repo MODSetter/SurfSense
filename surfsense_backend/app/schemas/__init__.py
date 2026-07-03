@@ -103,14 +103,6 @@ from .search_source_connector import (
     SearchSourceConnectorRead,
     SearchSourceConnectorUpdate,
 )
-from .workspace import (
-    WorkspaceApiAccessUpdate,
-    WorkspaceBase,
-    WorkspaceCreate,
-    WorkspaceRead,
-    WorkspaceUpdate,
-    WorkspaceWithStats,
-)
 from .stripe import (
     CreateCreditCheckoutSessionRequest,
     CreateCreditCheckoutSessionResponse,
@@ -127,6 +119,14 @@ from .video_presentations import (
     VideoPresentationCreate,
     VideoPresentationRead,
     VideoPresentationUpdate,
+)
+from .workspace import (
+    WorkspaceApiAccessUpdate,
+    WorkspaceBase,
+    WorkspaceCreate,
+    WorkspaceRead,
+    WorkspaceUpdate,
+    WorkspaceWithStats,
 )
 
 __all__ = [
@@ -242,13 +242,6 @@ __all__ = [
     "SearchSourceConnectorCreate",
     "SearchSourceConnectorRead",
     "SearchSourceConnectorUpdate",
-    "WorkspaceApiAccessUpdate",
-    # Workspace schemas
-    "WorkspaceBase",
-    "WorkspaceCreate",
-    "WorkspaceRead",
-    "WorkspaceUpdate",
-    "WorkspaceWithStats",
     "StripeWebhookResponse",
     "ThreadHistoryLoadResponse",
     "ThreadListItem",
@@ -257,12 +250,19 @@ __all__ = [
     # User schemas
     "UserCreate",
     "UserRead",
-    "UserWorkspaceAccess",
     "UserUpdate",
+    "UserWorkspaceAccess",
     "VerifyConnectionResponse",
     # Video Presentation schemas
     "VideoPresentationBase",
     "VideoPresentationCreate",
     "VideoPresentationRead",
     "VideoPresentationUpdate",
+    "WorkspaceApiAccessUpdate",
+    # Workspace schemas
+    "WorkspaceBase",
+    "WorkspaceCreate",
+    "WorkspaceRead",
+    "WorkspaceUpdate",
+    "WorkspaceWithStats",
 ]

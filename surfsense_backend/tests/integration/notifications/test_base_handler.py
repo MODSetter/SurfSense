@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Workspace, User
+from app.db import User, Workspace
 from app.notifications.persistence import Notification
 from app.notifications.service import NotificationService
 

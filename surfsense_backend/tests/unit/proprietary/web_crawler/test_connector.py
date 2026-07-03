@@ -10,8 +10,8 @@ import pytest
 from app.proprietary.web_crawler import (
     CrawlOutcomeStatus,
     WebCrawlerConnector,
+    connector as connector_module,
 )
-from app.proprietary.web_crawler import connector as connector_module
 from app.utils.crawl import BlockType
 
 pytestmark = pytest.mark.unit
@@ -230,9 +230,7 @@ async def test_captcha_attempts_surface_even_when_crawl_fails(
 
     monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _empty)
     monkeypatch.setattr(crawler, "_crawl_with_dynamic", _empty)
-    monkeypatch.setattr(
-        crawler, "_crawl_with_stealthy", _stealthy_attempt_then_empty
-    )
+    monkeypatch.setattr(crawler, "_crawl_with_stealthy", _stealthy_attempt_then_empty)
 
     outcome = await crawler.crawl_url("https://example.com")
 
@@ -341,9 +339,7 @@ async def test_static_4xx_is_classified(
     monkeypatch.setattr(connector_module, "get_proxy_url", lambda: None)
 
     block_state: dict = {"block_type": BlockType.UNKNOWN}
-    result = await crawler._crawl_with_async_fetcher(
-        "https://example.com", block_state
-    )
+    result = await crawler._crawl_with_async_fetcher("https://example.com", block_state)
 
     assert result is None  # 4xx => fall through to next tier
     assert block_state["block_type"] is BlockType.CLOUDFLARE
@@ -354,7 +350,9 @@ def test_build_result_ok_on_real_content() -> None:
     crawler = WebCrawlerConnector()
     block_state: dict = {"block_type": BlockType.UNKNOWN}
 
-    html = "<html><body><article>" + ("Real content. " * 40) + "</article></body></html>"
+    html = (
+        "<html><body><article>" + ("Real content. " * 40) + "</article></body></html>"
+    )
     crawler._build_result(
         html,
         "https://example.com",

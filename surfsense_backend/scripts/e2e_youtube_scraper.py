@@ -1,4 +1,4 @@
-"""Manual functional e2e for the YouTube scraper (app/proprietary/scrapers/youtube).
+"""Manual functional e2e for the YouTube scraper (app/proprietary/platforms/youtube).
 
 Run from the backend directory:
     cd surfsense_backend
@@ -13,7 +13,7 @@ This is NOT a pytest test (it needs live network + optional proxy creds). It:
   Step 2 — runs a search query and prints the first few results.
   Step 3 — scrapes a small channel's latest videos.
   Step 4 — dumps trimmed raw ytInitialData / ytInitialPlayerResponse fixtures to
-      tests/unit/scrapers/youtube/fixtures/ for the offline parser test.
+      tests/unit/platforms/youtube/fixtures/ for the offline parser test.
 """
 
 import asyncio
@@ -58,7 +58,7 @@ _COLLAB_VIDEO_URL = "https://www.youtube.com/watch?v=AI2BwwLX_7s"
 # MrBeast localizes titles/descriptions into many languages (translation flow).
 _TRANSLATED_VIDEO_URL = "https://www.youtube.com/watch?v=iYlODtkyw_I"
 
-_FIXTURE_DIR = _BACKEND_ROOT / "tests" / "unit" / "scrapers" / "youtube" / "fixtures"
+_FIXTURE_DIR = _BACKEND_ROOT / "tests" / "unit" / "platforms" / "youtube" / "fixtures"
 
 
 def _hr(title: str) -> None:
@@ -125,9 +125,7 @@ async def step4_dump_fixtures() -> bool:
         (_FIXTURE_DIR / "video_initial_data.json").write_text(
             json.dumps(initial), encoding="utf-8"
         )
-    return _check(
-        "dumped fixtures", bool(player), f"-> {_FIXTURE_DIR}"
-    )
+    return _check("dumped fixtures", bool(player), f"-> {_FIXTURE_DIR}")
 
 
 async def step5_comments() -> bool:
@@ -137,11 +135,16 @@ async def step5_comments() -> bool:
     )
     items = await scrape_comments(inp)
     for it in items[:6]:
-        print(f"  - [{it.get('type')}] {it.get('author')} | {it.get('voteCount')} votes")
+        print(
+            f"  - [{it.get('type')}] {it.get('author')} | {it.get('voteCount')} votes"
+        )
     ok = bool(items) and all(it.get("cid") and it.get("videoId") for it in items)
     has_reply = any(it.get("type") == "reply" and it.get("replyToCid") for it in items)
-    return _check("comments scraped (cid+videoId, reply linkage)", ok and has_reply,
-                  f"{len(items)} items")
+    return _check(
+        "comments scraped (cid+videoId, reply linkage)",
+        ok and has_reply,
+        f"{len(items)} items",
+    )
 
 
 async def step6_location_collaborators() -> bool:
@@ -165,13 +168,17 @@ async def step6_location_collaborators() -> bool:
 async def step7_translation() -> bool:
     _hr("STEP 7 — translatedTitle/translatedText (subtitlesLanguage=es)")
     items = await scrape_youtube(
-        YouTubeScrapeInput(startUrls=[{"url": _TRANSLATED_VIDEO_URL}], subtitlesLanguage="es")
+        YouTubeScrapeInput(
+            startUrls=[{"url": _TRANSLATED_VIDEO_URL}], subtitlesLanguage="es"
+        )
     )
     it = items[0] if items else {}
     print(f"  title          : {it.get('title')}")
     print(f"  translatedTitle: {it.get('translatedTitle')}")
     # A localized video's translated title differs from the canonical English one.
-    ok = bool(it.get("translatedTitle")) and it.get("translatedTitle") != it.get("title")
+    ok = bool(it.get("translatedTitle")) and it.get("translatedTitle") != it.get(
+        "title"
+    )
     return _check("translatedTitle differs from original", ok)
 
 

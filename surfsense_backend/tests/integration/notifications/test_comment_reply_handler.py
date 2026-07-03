@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Workspace, User
+from app.db import User, Workspace
 from app.notifications.service import NotificationService
 
 pytestmark = pytest.mark.integration
@@ -47,9 +47,7 @@ async def test_comment_reply_truncates_long_preview(
     db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """A long comment preview is truncated in the reply message."""
-    notification = await _notify(
-        db_session, db_user, db_workspace, preview="y" * 150
-    )
+    notification = await _notify(db_session, db_user, db_workspace, preview="y" * 150)
 
     assert notification.message == "y" * 100 + "..."
 

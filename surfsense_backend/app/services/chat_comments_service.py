@@ -17,8 +17,8 @@ from app.db import (
     NewChatMessageRole,
     NewChatThread,
     Permission,
-    WorkspaceMembership,
     User,
+    WorkspaceMembership,
     has_permission,
 )
 from app.notifications.service import NotificationService

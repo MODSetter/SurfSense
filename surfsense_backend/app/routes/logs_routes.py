@@ -277,9 +277,7 @@ async def get_logs_summary(
         # Get logs from the time window
         result = await session.execute(
             select(Log)
-            .filter(
-                and_(Log.workspace_id == workspace_id, Log.created_at >= since)
-            )
+            .filter(and_(Log.workspace_id == workspace_id, Log.created_at >= since))
             .order_by(desc(Log.created_at))
         )
         logs = result.scalars().all()

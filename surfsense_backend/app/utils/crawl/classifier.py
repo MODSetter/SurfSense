@@ -12,10 +12,10 @@ our enterprise targets). Regexes are compiled once at import (hot-path hygiene).
 """
 
 import re
-from enum import Enum
+from enum import StrEnum
 
 
-class BlockType(str, Enum):
+class BlockType(StrEnum):
     """Coarse label for what a fetched page represents."""
 
     OK = "ok"  # usable content, no challenge detected

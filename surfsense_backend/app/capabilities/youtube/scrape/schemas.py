@@ -1,7 +1,7 @@
 """``youtube.scrape`` I/O contracts.
 
 A lean, agent-friendly surface over the Apify-compatible ``YouTubeScrapeInput``
-(``app/proprietary/scrapers/youtube``). The executor maps this to the full actor
+(``app/proprietary/platforms/youtube``). The executor maps this to the full actor
 input; the actor's ``VideoItem`` is reused verbatim as the output element so the
 verb stays parity-faithful with the underlying Apify shape.
 """

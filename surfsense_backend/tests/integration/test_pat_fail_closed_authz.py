@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.db import PersonalAccessToken, Workspace, User
+from app.db import PersonalAccessToken, User, Workspace
 from app.users import allow_any_principal, require_session_context
 from app.utils.rbac import check_workspace_access
 

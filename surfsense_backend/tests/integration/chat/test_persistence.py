@@ -38,9 +38,9 @@ from app.db import (
     NewChatMessage,
     NewChatMessageRole,
     NewChatThread,
-    Workspace,
     TokenUsage,
     User,
+    Workspace,
 )
 from app.services.token_tracking_service import TurnTokenAccumulator
 from app.tasks.chat import persistence as persistence_module

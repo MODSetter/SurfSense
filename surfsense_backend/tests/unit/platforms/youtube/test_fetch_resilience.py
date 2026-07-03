@@ -93,7 +93,9 @@ async def test_post_rotates_on_connection_error_then_succeeds():
 
 async def test_post_gives_up_after_max_rotations():
     # Every IP is blocked -> rotate up to the cap, then return None.
-    holder = _FakeHolder([_FakeSession(429) for _ in range(innertube._MAX_ROTATIONS + 1)])
+    holder = _FakeHolder(
+        [_FakeSession(429) for _ in range(innertube._MAX_ROTATIONS + 1)]
+    )
     token = _current_session.set(holder)
     try:
         result = await post_innertube(INNERTUBE_SEARCH_URL, _payload())
@@ -134,7 +136,9 @@ async def test_fetch_html_falls_back_to_stealthy_when_all_blocked(monkeypatch):
         return "<html>stealthy</html>"
 
     monkeypatch.setattr(innertube, "_fetch_html_stealthy", _fake_stealthy)
-    holder = _FakeHolder([_FakeSession(429) for _ in range(innertube._MAX_ROTATIONS + 1)])
+    holder = _FakeHolder(
+        [_FakeSession(429) for _ in range(innertube._MAX_ROTATIONS + 1)]
+    )
     token = _current_session.set(holder)
     try:
         html = await fetch_html("https://www.youtube.com/watch?v=zzz")

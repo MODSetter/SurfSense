@@ -19,10 +19,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.context import AuthContext
 from app.db import (
     ChatVisibility,
+    User,
     Workspace,
     WorkspaceMembership,
     WorkspaceRole,
-    User,
 )
 from app.routes import new_chat_routes
 from app.schemas.new_chat import (

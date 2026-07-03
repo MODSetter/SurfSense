@@ -39,10 +39,14 @@ _SORT_LABELS = {"TOP_COMMENTS": "Top", "NEWEST_FIRST": "Newest"}
 
 
 async def _post_next(token: str) -> dict[str, Any] | None:
-    return await _post(INNERTUBE_NEXT_URL, build_innertube_payload(continuation_token=token))
+    return await _post(
+        INNERTUBE_NEXT_URL, build_innertube_payload(continuation_token=token)
+    )
 
 
-def _finalize(partial: dict[str, Any], base: dict[str, Any], reply_to: str | None) -> dict:
+def _finalize(
+    partial: dict[str, Any], base: dict[str, Any], reply_to: str | None
+) -> dict:
     return CommentItem(**{**base, **partial, "replyToCid": reply_to}).to_output()
 
 
@@ -132,7 +136,7 @@ async def _comments_for_video(
                 for cid, tok in pending
             )
         )
-        replies_by_cid = {cid: r for (cid, _), r in zip(pending, fetched)}
+        replies_by_cid = {cid: r for (cid, _), r in zip(pending, fetched, strict=False)}
 
         for entity in entities:
             if count >= limit:

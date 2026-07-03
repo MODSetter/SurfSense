@@ -98,9 +98,7 @@ async def create_multi_agent_chat_deep_agent(
 
     _t0 = time.perf_counter()
     try:
-        connector_types = await connector_service.get_available_connectors(
-            workspace_id
-        )
+        connector_types = await connector_service.get_available_connectors(workspace_id)
         available_connectors = map_connectors_to_searchable_types(connector_types)
 
         available_document_types = await connector_service.get_available_document_types(
@@ -153,9 +151,7 @@ async def create_multi_agent_chat_deep_agent(
 
     _t0 = time.perf_counter()
     try:
-        mcp_tools_by_agent = await load_mcp_tools_by_connector(
-            db_session, workspace_id
-        )
+        mcp_tools_by_agent = await load_mcp_tools_by_connector(db_session, workspace_id)
     except Exception as e:
         # Degrade to builtins-only rather than aborting the turn: a transient
         # DB or MCP-server hiccup should not deny the user a response.
