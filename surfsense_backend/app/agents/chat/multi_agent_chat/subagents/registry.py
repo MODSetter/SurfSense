@@ -24,8 +24,11 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.memory.agent import (
 from app.agents.chat.multi_agent_chat.subagents.builtins.research.agent import (
     build_subagent as build_research_subagent,
 )
-from app.agents.chat.multi_agent_chat.subagents.builtins.scraping.agent import (
-    build_subagent as build_scraping_subagent,
+from app.agents.chat.multi_agent_chat.subagents.builtins.web_crawler.agent import (
+    build_subagent as build_web_crawler_subagent,
+)
+from app.agents.chat.multi_agent_chat.subagents.builtins.youtube.agent import (
+    build_subagent as build_youtube_subagent,
 )
 from app.agents.chat.multi_agent_chat.subagents.connectors.airtable.agent import (
     build_subagent as build_airtable_subagent,
@@ -110,9 +113,10 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "notion": build_notion_subagent,
     "onedrive": build_onedrive_subagent,
     "research": build_research_subagent,
-    "scraping": build_scraping_subagent,
     "slack": build_slack_subagent,
     "teams": build_teams_subagent,
+    "web_crawler": build_web_crawler_subagent,
+    "youtube": build_youtube_subagent,
 }
 
 
