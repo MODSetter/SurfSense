@@ -34,6 +34,7 @@ from scrapling.engines.toolbelt import is_proxy_error
 from scrapling.fetchers import AsyncFetcher, DynamicFetcher, StealthyFetcher
 
 from app.proprietary.web_crawler.captcha import build_captcha_page_action
+from app.proprietary.web_crawler.url_policy import extract_links
 from app.proprietary.web_crawler.stealth import (
     build_stealthy_kwargs,
     get_stealth_config,
@@ -601,6 +602,9 @@ class WebCrawlerConnector:
             "content": content,
             "metadata": metadata,
             "crawler_type": crawler_type,
+            # Next-hop targets for ``site_crawler.crawl_site``; ignored by
+            # single-URL callers.
+            "links": extract_links(raw_html, url),
         }
 
     @staticmethod
