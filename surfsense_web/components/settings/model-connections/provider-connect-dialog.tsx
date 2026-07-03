@@ -92,7 +92,8 @@ export function ProviderConnectDialog({
 		return "Select the models to enable for this provider";
 	})();
 
-	const canRefreshModels = !isAzure && !isVertex && (!isBedrock || canSubmit);
+	const supportsModelRefresh = !isAzure && !isVertex;
+	const canRefreshModels = supportsModelRefresh && canSubmit;
 	const hasEnabledModel =
 		previewModels.some((model) => model.enabled) || Boolean(currentDraft.seedModelId);
 	const canConnect = canSubmit && hasEnabledModel;
@@ -136,8 +137,9 @@ export function ProviderConnectDialog({
 								models={previewModels}
 								description={modelDescription}
 								isRefreshing={isPreviewingModels}
+								isRefreshDisabled={!canRefreshModels}
 								refreshLabel={`Refresh ${meta.name} models`}
-								onRefresh={canRefreshModels ? () => onPreviewModels?.(currentDraft) : undefined}
+								onRefresh={supportsModelRefresh ? () => onPreviewModels?.(currentDraft) : undefined}
 								onToggleModel={onTogglePreviewModel}
 								onBulkToggle={onBulkTogglePreviewModels}
 							/>

@@ -17,6 +17,7 @@ interface ModelsSelectionPanelProps {
 	emptyMessage?: string;
 	refreshLabel?: string;
 	isRefreshing?: boolean;
+	isRefreshDisabled?: boolean;
 	isUpdatingModel?: boolean;
 	isBulkUpdating?: boolean;
 	onRefresh?: () => void;
@@ -30,6 +31,7 @@ export function ModelsSelectionPanel({
 	emptyMessage = "No models available.",
 	refreshLabel = "Refresh models",
 	isRefreshing = false,
+	isRefreshDisabled = false,
 	isUpdatingModel = false,
 	isBulkUpdating = false,
 	onRefresh,
@@ -74,7 +76,7 @@ export function ModelsSelectionPanel({
 							size="icon"
 							type="button"
 							onClick={onRefresh}
-							disabled={isRefreshing}
+							disabled={isRefreshing || isRefreshDisabled}
 							aria-label={refreshLabel}
 						>
 							<RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
