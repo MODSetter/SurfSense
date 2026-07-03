@@ -148,6 +148,76 @@ async def test_rate_limit_blocks_the_workspace(monkeypatch):
     assert resp.status_code == 429
 
 
+def _register_surfsense_handler(app: FastAPI) -> None:
+    """Minimal stand-in for the app's global SurfSenseError handler."""
+    from starlette.responses import JSONResponse
+
+    from app.exceptions import SurfSenseError
+
+    async def _handler(_request, exc: SurfSenseError):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"code": exc.code, "message": exc.message},
+        )
+
+    app.add_exception_handler(SurfSenseError, _handler)
+
+
+@pytest.mark.asyncio
+async def test_executor_fault_becomes_502(monkeypatch):
+    """Any non-SurfSense executor error is surfaced as a clean 502, not a 500."""
+
+    async def _boom(_payload: _EchoInput) -> _EchoOutput:
+        raise RuntimeError("upstream provider exploded")
+
+    boom = Capability(
+        name="test.boom",
+        description="Always fails for tests.",
+        input_schema=_EchoInput,
+        output_schema=_EchoOutput,
+        executor=_boom,
+        billing_unit=None,
+    )
+
+    app = _build_app([boom], monkeypatch)
+    _register_surfsense_handler(app)
+    async with _client(app) as client:
+        resp = await client.post(
+            "/api/v1/workspaces/7/capabilities/test.boom",
+            json={"value": "hi"},
+        )
+    assert resp.status_code == 502
+    assert resp.json()["code"] == "CAPABILITY_UPSTREAM_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_surfsense_error_passes_through(monkeypatch):
+    """Intentional, status-carrying errors (e.g. a 403 wall) are not remapped."""
+    from app.exceptions import ForbiddenError
+
+    async def _forbidden(_payload: _EchoInput) -> _EchoOutput:
+        raise ForbiddenError("sign in required", code="GOOGLE_SIGNIN_REQUIRED")
+
+    forbidden = Capability(
+        name="test.forbidden",
+        description="Raises a domain 403 for tests.",
+        input_schema=_EchoInput,
+        output_schema=_EchoOutput,
+        executor=_forbidden,
+        billing_unit=None,
+    )
+
+    app = _build_app([forbidden], monkeypatch)
+    _register_surfsense_handler(app)
+    async with _client(app) as client:
+        resp = await client.post(
+            "/api/v1/workspaces/7/capabilities/test.forbidden",
+            json={"value": "hi"},
+        )
+    assert resp.status_code == 403
+    assert resp.json()["code"] == "GOOGLE_SIGNIN_REQUIRED"
+
+
 @pytest.mark.asyncio
 async def test_success_charges_once(monkeypatch):
     from unittest.mock import AsyncMock

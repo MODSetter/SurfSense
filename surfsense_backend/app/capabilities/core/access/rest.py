@@ -13,6 +13,7 @@ from app.capabilities.core.billing import charge_capability, gate_capability
 from app.capabilities.core.store import all_capabilities
 from app.capabilities.core.types import Capability, CapabilityContext
 from app.db import get_async_session
+from app.exceptions import ExternalServiceError, SurfSenseError
 from app.services.web_crawl_credit_service import InsufficientCreditsError
 from app.users import get_auth_context
 from app.utils.rbac import check_workspace_access
@@ -55,7 +56,17 @@ def _register_verb(router: APIRouter, capability: Capability) -> None:
                     "required_micros": exc.required_micros,
                 },
             ) from exc
-        output = await executor(payload)
+
+        try:
+            output = await executor(payload)
+        except (SurfSenseError, HTTPException):
+            raise
+        except Exception as exc:
+            raise ExternalServiceError(
+                f"The '{capability.name}' capability failed due to an upstream error.",
+                code="CAPABILITY_UPSTREAM_ERROR",
+            ) from exc
+
         await charge_capability(output, unit, ctx)
         return output
 
