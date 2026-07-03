@@ -49,7 +49,6 @@ async def _check_and_trigger_schedules():
             # Teams, Gmail, Calendar, Luma) use real-time tools instead.
             from app.tasks.celery_tasks.connector_tasks import (
                 index_confluence_pages_task,
-                index_crawled_urls_task,
                 index_elasticsearch_documents_task,
                 index_github_repos_task,
                 index_google_drive_files_task,
@@ -61,7 +60,6 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.GITHUB_CONNECTOR: index_github_repos_task,
                 SearchSourceConnectorType.CONFLUENCE_CONNECTOR: index_confluence_pages_task,
                 SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
-                SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
                 SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
                 SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
             }
@@ -155,40 +153,6 @@ async def _check_and_trigger_schedules():
                             # to prevent checking every minute
                             logger.info(
                                 f"Google Drive connector {connector.id} has no folders or files selected, "
-                                "skipping periodic indexing (will check again at next scheduled time)"
-                            )
-                            from datetime import timedelta
-
-                            connector.next_scheduled_at = now + timedelta(
-                                minutes=connector.indexing_frequency_minutes
-                            )
-                            await session.commit()
-                            continue
-
-                    # Special handling for Webcrawler - skip if no URLs configured
-                    elif (
-                        connector.connector_type
-                        == SearchSourceConnectorType.WEBCRAWLER_CONNECTOR
-                    ):
-                        from app.utils.webcrawler_utils import parse_webcrawler_urls
-
-                        connector_config = connector.config or {}
-                        urls = parse_webcrawler_urls(
-                            connector_config.get("INITIAL_URLS")
-                        )
-
-                        if urls:
-                            task.delay(
-                                connector.id,
-                                connector.workspace_id,
-                                str(connector.user_id),
-                                None,  # start_date
-                                None,  # end_date
-                            )
-                        else:
-                            # No URLs configured - skip indexing but still update next_scheduled_at
-                            logger.info(
-                                f"Webcrawler connector {connector.id} has no URLs configured, "
                                 "skipping periodic indexing (will check again at next scheduled time)"
                             )
                             from datetime import timedelta

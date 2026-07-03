@@ -469,14 +469,6 @@ def validate_connector_config(
         if not isinstance(value, list) or not value:
             raise ValueError(f"{field_name} must be a non-empty list of strings")
 
-    def validate_initial_urls() -> None:
-        initial_urls = config.get("INITIAL_URLS", "")
-        if initial_urls and initial_urls.strip():
-            urls = [url.strip() for url in initial_urls.split("\n") if url.strip()]
-            for url in urls:
-                if not validators.url(url):
-                    raise ValueError(f"Invalid URL format in INITIAL_URLS: {url}")
-
     # Lookup table for connector validation rules
     connector_rules = {
         "SERPER_API": {"required": ["SERPER_API_KEY"], "validators": {}},
@@ -562,13 +554,6 @@ def validate_connector_config(
         #     "validators": {}
         # },
         "LUMA_CONNECTOR": {"required": ["LUMA_API_KEY"], "validators": {}},
-        "WEBCRAWLER_CONNECTOR": {
-            "required": [],  # No required fields - URLs are optional
-            "optional": ["INITIAL_URLS"],
-            "validators": {
-                "INITIAL_URLS": lambda: validate_initial_urls(),
-            },
-        },
     }
 
     rules = connector_rules.get(connector_type_str)
