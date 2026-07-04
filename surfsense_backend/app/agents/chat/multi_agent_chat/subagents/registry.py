@@ -18,6 +18,9 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.agent impo
 from app.agents.chat.multi_agent_chat.subagents.builtins.google_maps.agent import (
     build_subagent as build_google_maps_subagent,
 )
+from app.agents.chat.multi_agent_chat.subagents.builtins.google_search.agent import (
+    build_subagent as build_google_search_subagent,
+)
 from app.agents.chat.multi_agent_chat.subagents.builtins.knowledge_base.agent import (
     build_subagent as build_knowledge_base_subagent,
 )
@@ -106,6 +109,7 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "gmail": build_gmail_subagent,
     "google_drive": build_google_drive_subagent,
     "google_maps": build_google_maps_subagent,
+    "google_search": build_google_search_subagent,
     "jira": build_jira_subagent,
     "knowledge_base": build_knowledge_base_subagent,
     "linear": build_linear_subagent,
