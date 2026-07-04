@@ -1,6 +1,6 @@
 """Classify a Reddit URL into a scrape job.
 
-Covers the ``startUrls`` shapes the Apify spec accepts: a post (permalink), a
+Covers the supported ``startUrls`` shapes: a post (permalink), a
 subreddit listing, a user profile, and a search-results page. Non-Reddit hosts
 resolve to ``None`` so the orchestrator can skip them. Mirrors the frozen
 ``ResolvedUrl`` dataclass shape of ``../youtube/url_resolver.py``, widened with

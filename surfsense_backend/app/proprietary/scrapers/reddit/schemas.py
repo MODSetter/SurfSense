@@ -1,9 +1,8 @@
-# ruff: noqa: N815 - field names intentionally mirror the Apify camelCase spec
-"""Apify-compatible input/output models for the Reddit scraper.
+# ruff: noqa: N815 - field names intentionally use the public camelCase API
+"""Input/output models for the Reddit scraper.
 
-The models mirror the public Apify "Reddit Scraper" actor spec so the endpoint
-can be a drop-in. The MVP populates a reliably-sourced subset; every other field
-is accepted (input) or emitted as ``None``/``[]`` (output) so parity is additive.
+The MVP populates a reliably-sourced subset of fields; every other output field
+is emitted as ``None``/``[]`` so the contract can expand additively.
 
 **Anonymous only.** There is deliberately **no** authentication field on the
 input (no username/password/token/``login*``) — the scraper holds only Reddit's
@@ -23,7 +22,7 @@ RedditDataType = Literal["post", "comment", "community", "user"]
 
 
 class StartUrl(BaseModel):
-    """A single direct URL entry (Apify passes ``{"url": ...}`` objects)."""
+    """A single direct URL entry (``{"url": ...}``; extra keys ignored)."""
 
     model_config = ConfigDict(extra="allow")
 
@@ -31,7 +30,7 @@ class StartUrl(BaseModel):
 
 
 class RedditScrapeInput(BaseModel):
-    """Full Apify "Reddit Scraper" input surface (anonymous, no auth fields).
+    """Reddit scraper input surface (anonymous, no auth fields).
 
     Caps (``maxItems``/``maxPostCount``/...) are collector policy applied by
     :func:`scrape_reddit`, NOT ceilings baked into the streaming flows. Fields
@@ -71,7 +70,7 @@ class RedditItem(BaseModel):
     """Single flat output item, keyed by ``dataType``.
 
     One model for post/comment/community/user (union of fields, unsourced
-    default ``None``/``[]``), matching the Apify actor's single-dataset shape.
+    default ``None``/``[]``), using a single flat-dataset shape.
     ``extra="allow"`` keeps the contract open so added fields never break
     consumers.
     """
@@ -123,5 +122,5 @@ class RedditItem(BaseModel):
     scrapedAt: str | None = None
 
     def to_output(self) -> dict[str, Any]:
-        """Serialize to the flat dict shape Apify emits (keeps extras)."""
+        """Serialize to the flat output dict shape (keeps extras)."""
         return self.model_dump(exclude_none=False)

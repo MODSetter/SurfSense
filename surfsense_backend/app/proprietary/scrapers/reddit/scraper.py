@@ -362,7 +362,7 @@ def _capped_targets(
 async def iter_reddit(
     input_model: RedditScrapeInput,
 ) -> AsyncIterator[dict[str, Any]]:
-    """Yield Apify-shaped Reddit items. ``startUrls`` override ``searches``.
+    """Yield flat Reddit items. ``startUrls`` override ``searches``.
 
     Independent targets fan out concurrently; each target's ``after`` paging
     stays sequential.

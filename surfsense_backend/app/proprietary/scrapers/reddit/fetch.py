@@ -96,7 +96,7 @@ _LOID_COOKIE = "loid"
 
 
 def now_iso() -> str:
-    """UTC timestamp in the millisecond ISO shape the Apify actor stamps."""
+    """UTC timestamp in the millisecond ISO shape used by scraper output."""
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 

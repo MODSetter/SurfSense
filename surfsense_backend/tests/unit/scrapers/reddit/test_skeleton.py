@@ -26,8 +26,8 @@ def test_input_defaults():
 
 
 def test_input_allows_extra_inert_fields():
-    # extra="allow": Apify fields we don't act on are accepted, not rejected.
-    model = RedditScrapeInput(debugMode=True, proxy={"useApifyProxy": True})
+    # extra="allow": unknown inert fields are accepted, not rejected.
+    model = RedditScrapeInput(debugMode=True, proxy={"provider": "custom"})
     assert model.model_dump().get("debugMode") is True
 
 

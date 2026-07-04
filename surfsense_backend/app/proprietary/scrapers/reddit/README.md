@@ -1,6 +1,6 @@
 # Reddit scraper (anonymous, no browser)
 
-Platform-native Reddit scraper, Apify "Reddit Scraper"-compatible. Standalone
+Platform-native Reddit scraper (anonymous, no browser). Standalone
 module: it depends only on `app.utils.proxy` + `scrapling` and exposes a stable
 public API. It is **not** wired into routes, `connector_service.py`, ingestion,
 or Celery — integration later is a thin `reddit_routes.py` + one `include_router`
@@ -38,7 +38,7 @@ rotation surfaces as `RedditAccessBlockedError` (mirrors google_maps'
 | File | Responsibility |
 |---|---|
 | `__init__.py` | Public exports: `RedditScrapeInput`, `RedditItem`, `iter_reddit`, `scrape_reddit`, `RedditAccessBlockedError`. |
-| `schemas.py` | Apify-shaped `RedditScrapeInput` (`extra="allow"`, no auth fields) + single flat `RedditItem` keyed by `dataType` + `StartUrl`. |
+| `schemas.py` | `RedditScrapeInput` (`extra="allow"`, no auth fields) + single flat `RedditItem` keyed by `dataType` + `StartUrl`. |
 | `fetch.py` | The core. Rotate-on-block sticky `_RotatingSession` + `_current_session` ContextVar + `warm_session` (loid) + `fetch_json`. No browser imports. |
 | `url_resolver.py` | Classify a Reddit URL → `post`/`subreddit`/`user`/`search`; non-Reddit → `None`. |
 | `parsers.py` | Pure JSON→item mapping (`parse_post`, `parse_comment`, `parse_community`, `flatten_comments`, `children`/`after`). I/O-free. |
