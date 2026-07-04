@@ -29,6 +29,7 @@ SUBAGENT_TO_REQUIRED_CONNECTOR_MAP: dict[str, frozenset[str]] = {
     "web_crawler": frozenset(),
     "youtube": frozenset(),
     "google_maps": frozenset(),
+    "google_search": frozenset(),
     "airtable": frozenset({"AIRTABLE_CONNECTOR"}),
     "calendar": frozenset({"GOOGLE_CALENDAR_CONNECTOR"}),
     "clickup": frozenset({"CLICKUP_CONNECTOR"}),
