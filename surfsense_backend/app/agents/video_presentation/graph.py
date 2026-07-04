@@ -24,9 +24,10 @@ def build_graph():
     workflow.add_edge("create_presentation_slides", "create_slide_audio")
     workflow.add_edge("create_presentation_slides", "assign_slide_themes")
 
-    # Fan-in: scene code generation waits for both audio and themes.
-    workflow.add_edge("create_slide_audio", "generate_slide_scene_codes")
-    workflow.add_edge("assign_slide_themes", "generate_slide_scene_codes")
+    # Fan-in: wait for BOTH audio and themes (barrier).
+    workflow.add_edge(
+        ["create_slide_audio", "assign_slide_themes"], "generate_slide_scene_codes"
+    )
 
     workflow.add_edge("generate_slide_scene_codes", "__end__")
 
