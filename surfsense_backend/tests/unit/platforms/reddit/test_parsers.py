@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from app.proprietary.scrapers.reddit.parsers import (
+from app.proprietary.platforms.reddit.parsers import (
     after,
     children,
     flatten_comments,

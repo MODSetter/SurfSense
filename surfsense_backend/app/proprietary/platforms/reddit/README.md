@@ -60,17 +60,17 @@ rotation surfaces as `RedditAccessBlockedError` (mirrors google_maps'
 
 ## Testing
 
-- Offline unit tests: `tests/unit/scrapers/reddit/` — `test_skeleton.py`
+- Offline unit tests: `tests/unit/platforms/reddit/` — `test_skeleton.py`
   (schema + URL resolver), `test_parsers.py` (fixture-pinned mapping),
   `test_fetch_resilience.py` (warm / rotate / backoff loop with fake sessions,
   no network).
 - Live e2e (needs network + residential proxy): `scripts/e2e_reddit_scraper.py`
   — step 0 is the go/no-go `loid` probe; later steps exercise the flows and dump
-  trimmed fixtures into `tests/unit/scrapers/reddit/fixtures/`.
+  trimmed fixtures into `tests/unit/platforms/reddit/fixtures/`.
 
 ```bash
 cd surfsense_backend
-.venv/bin/python -m pytest tests/unit/scrapers/reddit/
+.venv/bin/python -m pytest tests/unit/platforms/reddit/
 .venv/bin/python scripts/e2e_reddit_scraper.py   # live; regenerates fixtures
 ```
 

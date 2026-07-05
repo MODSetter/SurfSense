@@ -11,8 +11,8 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 
-from app.proprietary.scrapers.reddit import fetch, scraper
-from app.proprietary.scrapers.reddit.fetch import (
+from app.proprietary.platforms.reddit import fetch, scraper
+from app.proprietary.platforms.reddit.fetch import (
     RedditAccessBlockedError,
     _current_session,
     fetch_json,

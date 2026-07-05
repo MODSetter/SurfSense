@@ -27,6 +27,9 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.knowledge_base.agent im
 from app.agents.chat.multi_agent_chat.subagents.builtins.memory.agent import (
     build_subagent as build_memory_subagent,
 )
+from app.agents.chat.multi_agent_chat.subagents.builtins.reddit.agent import (
+    build_subagent as build_reddit_subagent,
+)
 from app.agents.chat.multi_agent_chat.subagents.builtins.web_crawler.agent import (
     build_subagent as build_web_crawler_subagent,
 )
@@ -117,6 +120,7 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "memory": build_memory_subagent,
     "notion": build_notion_subagent,
     "onedrive": build_onedrive_subagent,
+    "reddit": build_reddit_subagent,
     "slack": build_slack_subagent,
     "teams": build_teams_subagent,
     "web_crawler": build_web_crawler_subagent,

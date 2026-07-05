@@ -1,4 +1,4 @@
-"""Manual functional e2e for the Reddit scraper (app/proprietary/scrapers/reddit).
+"""Manual functional e2e for the Reddit scraper (app/proprietary/platforms/reddit).
 
 Run from the backend directory:
     cd surfsense_backend
@@ -18,7 +18,7 @@ It:
   Step 3 — run a search query.
   Step 4 — scrape a user profile.
   Step 5 — dump trimmed raw ``.json`` fixtures into
-      tests/unit/scrapers/reddit/fixtures/ for the offline parser tests.
+      tests/unit/platforms/reddit/fixtures/ for the offline parser tests.
 """
 
 import asyncio
@@ -36,22 +36,22 @@ for _candidate in (_BACKEND_ROOT / ".env", _BACKEND_ROOT.parent / ".env"):
         load_dotenv(_candidate)
         break
 
-from app.proprietary.scrapers.reddit import (  # noqa: E402
+from app.proprietary.platforms.reddit import (  # noqa: E402
     RedditScrapeInput,
     scrape_reddit,
 )
-from app.proprietary.scrapers.reddit.fetch import (  # noqa: E402
+from app.proprietary.platforms.reddit.fetch import (  # noqa: E402
     fetch_json,
     proxy_session,
     warm_session,
 )
-from app.proprietary.scrapers.reddit.parsers import children  # noqa: E402
+from app.proprietary.platforms.reddit.parsers import children  # noqa: E402
 
 _SUBREDDIT = "python"
 _SEARCH_TERM = "async web scraping"
 _USER = "spez"
 
-_FIXTURE_DIR = _BACKEND_ROOT / "tests" / "unit" / "scrapers" / "reddit" / "fixtures"
+_FIXTURE_DIR = _BACKEND_ROOT / "tests" / "unit" / "platforms" / "reddit" / "fixtures"
 
 
 def _hr(title: str) -> None:

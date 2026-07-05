@@ -6,8 +6,8 @@ input surface, the flat item serialization contract, and URL classification.
 
 from __future__ import annotations
 
-from app.proprietary.scrapers.reddit.schemas import RedditItem, RedditScrapeInput
-from app.proprietary.scrapers.reddit.url_resolver import resolve_url
+from app.proprietary.platforms.reddit.schemas import RedditItem, RedditScrapeInput
+from app.proprietary.platforms.reddit.url_resolver import resolve_url
 
 
 def test_input_has_no_auth_fields():
