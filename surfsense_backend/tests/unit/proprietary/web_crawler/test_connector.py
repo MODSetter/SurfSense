@@ -86,6 +86,100 @@ async def test_escalates_to_dynamic_on_static_miss(
     assert outcome.tier == "scrapling-dynamic"
 
 
+def test_dropped_currency_amounts_detection() -> None:
+    """Fires only when the DOM has currency figures that the markdown lost."""
+    dropped = connector_module.dropped_currency_amounts
+    html = "<html><body><div>Pro plan <b>$49</b>/mo</div></body></html>"
+    assert dropped(html, "Pro plan without figures")
+    assert not dropped(html, "Pro plan $49/mo")  # markdown kept it
+    assert not dropped("<html><body>no prices here</body></html>", "text")
+    # Country-agnostic: symbol-after-amount and ISO codes count too.
+    assert dropped("<html><body>ab 49€ pro Monat</body></html>", "ab pro Monat")
+    assert dropped("<html><body>USD 2,500 per year</body></html>", "per year")
+    # Script content is not visible: a JSON payload price must not trigger.
+    assert not dropped(
+        "<html><body><script>{'price':'$9'}</script>hi</body></html>", "hi"
+    )
+
+
+def test_build_result_repairs_pricing_card_loss() -> None:
+    """div-grid pricing cards dropped by trafilatura get recovered."""
+    cards = "".join(
+        f"<div class='col'><h3>{name}</h3><div class='price'>${price}</div>"
+        f"<ul><li>feature a</li><li>feature b</li></ul>"
+        f"<a href='/signup'>Choose {name}</a></div>"
+        for name, price in (("Free", 0), ("Pro", 49), ("Enterprise", 199))
+    )
+    html = (
+        "<html><head><title>Pricing</title></head><body>"
+        "<article><h1>Simple pricing</h1><p>"
+        + "Choose the plan that fits your team best. " * 30
+        + "</p></article><section class='grid'>"
+        + cards
+        + "</section></body></html>"
+    )
+    result = WebCrawlerConnector()._build_result(
+        html, "https://x.com/pricing", "t", allow_raw_fallback=False
+    )
+    assert result is not None
+    assert "$49" in result["content"]
+    assert "$199" in result["content"]
+
+
+def test_looks_like_js_shell_thresholds() -> None:
+    """Shell = huge HTML AND near-empty extraction; either alone is healthy."""
+    shell = connector_module.looks_like_js_shell
+    assert shell(4_200_000, 597)  # a16z.com/team
+    assert not shell(200_000, 13_092)  # a16z investment-list: normal page
+    assert not shell(45_000, 1_356)  # small brochure page: small is not thin
+    assert not shell(4_200_000, 50_000)  # huge but content-rich (long article)
+
+
+async def test_thin_static_shell_escalates_to_dynamic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A JS-shell static result escalates; the hydrated dynamic result wins."""
+    crawler = WebCrawlerConnector()
+
+    async def _thin_static(_url: str, *_args) -> dict:
+        return _result("scrapling-static") | {"thin_static": True}
+
+    async def _dynamic(_url: str, *_args) -> dict:
+        return _result("scrapling-dynamic")
+
+    monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _thin_static)
+    monkeypatch.setattr(crawler, "_crawl_with_dynamic", _dynamic)
+
+    outcome = await crawler.crawl_url("https://example.com")
+
+    assert outcome.status is CrawlOutcomeStatus.SUCCESS
+    assert outcome.tier == "scrapling-dynamic"
+
+
+async def test_thin_static_is_fallback_when_browser_tiers_fail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Browser tiers unavailable -> the partial static content still returns."""
+    crawler = WebCrawlerConnector()
+
+    async def _thin_static(_url: str, *_args) -> dict:
+        return _result("scrapling-static") | {"thin_static": True}
+
+    async def _unavailable(_url: str, *_args) -> None:
+        raise NotImplementedError("no subprocess support")
+
+    monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _thin_static)
+    monkeypatch.setattr(crawler, "_crawl_with_dynamic", _unavailable)
+    monkeypatch.setattr(crawler, "_crawl_with_stealthy", _unavailable)
+
+    outcome = await crawler.crawl_url("https://example.com")
+
+    assert outcome.status is CrawlOutcomeStatus.SUCCESS
+    assert outcome.tier == "scrapling-static"
+    assert outcome.result is not None
+    assert "thin_static" not in outcome.result  # internal tag never leaks
+
+
 async def test_all_tiers_empty_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     """Every tier fetched but extracted nothing -> EMPTY (not billable)."""
     crawler = WebCrawlerConnector()
@@ -343,6 +437,46 @@ async def test_static_4xx_is_classified(
 
     assert result is None  # 4xx => fall through to next tier
     assert block_state["block_type"] is BlockType.CLOUDFLARE
+
+
+class _FakeScrollPage:
+    """Playwright-page stand-in: height grows per scroll until a plateau."""
+
+    def __init__(self, heights: list[int]):
+        self._heights = heights
+        self._i = 0
+        self.scrolls = 0
+
+    def evaluate(self, script: str):
+        if "scrollHeight" in script and "scrollTo" not in script:
+            return self._heights[min(self._i, len(self._heights) - 1)]
+        self.scrolls += 1
+        self._i += 1
+        return None
+
+    def wait_for_timeout(self, _ms: int) -> None:
+        pass
+
+
+def test_scroll_to_bottom_stops_when_height_stops_growing() -> None:
+    page = _FakeScrollPage([1000, 2000, 3000, 3000])
+    assert connector_module.scroll_to_bottom(page) is page
+    assert page.scrolls == 3  # scrolled at 1000/2000/3000; 3000-again broke the loop
+
+
+def test_scroll_to_bottom_is_bounded_on_endless_feeds() -> None:
+    page = _FakeScrollPage([i * 1000 for i in range(1, 100)])  # never stabilizes
+    connector_module.scroll_to_bottom(page)
+    assert page.scrolls == connector_module._SCROLL_MAX_ROUNDS
+
+
+def test_scroll_to_bottom_swallows_page_errors() -> None:
+    class _Broken:
+        def evaluate(self, _script: str):
+            raise RuntimeError("target closed")
+
+    page = _Broken()
+    assert connector_module.scroll_to_bottom(page) is page  # never raises
 
 
 def test_build_result_ok_on_real_content() -> None:

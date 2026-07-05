@@ -304,8 +304,14 @@ async def _search_flow(
     *,
     input_model: RedditScrapeInput,
     subreddit: str | None = None,
+    max_items: int | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
-    """Global search, or in-subreddit when ``subreddit`` is set. De-dupes by id."""
+    """Global search, or in-subreddit when ``subreddit`` is set. De-dupes by id.
+
+    ``max_items`` overrides ``input_model.maxItems`` as this one query's cap —
+    used by :func:`iter_reddit` to fair-share the global budget across
+    concurrent searches.
+    """
     params: dict[str, Any] = {"q": query, "sort": input_model.sort}
     if input_model.time:
         params["t"] = input_model.time
@@ -320,7 +326,7 @@ async def _search_flow(
         path,
         params,
         frozenset({"t3"}),
-        max_items=input_model.maxItems,
+        max_items=input_model.maxItems if max_items is None else max_items,
         include_nsfw=input_model.includeNSFW,
         date_limit=input_model.postDateLimit,
     ):
@@ -402,15 +408,31 @@ async def iter_reddit(
             yield item
         return
 
+    # Fair-share the item budget across queries: with a shared cap, the
+    # first-finishing (often broadest/noisiest) search would fill the whole
+    # collector limit and starve the precise queries.
+    # ponytail: ceil-split leaves slack unredistributed when a query
+    # under-fills its share; a work-stealing budget would fix that.
+    n = len(input_model.searches)
+    per_query = -(-input_model.maxItems // n) if n else 0
     jobs = [
         _search_flow(
             query,
             input_model=input_model,
             subreddit=input_model.searchCommunityName,
+            max_items=per_query,
         )
         for query in input_model.searches
     ]
+    # Cross-query de-dup: each flow only de-dups within itself, but the same
+    # hot post matches several phrasings and would eat the collector budget.
+    seen_ids: set[str] = set()
     async for item in fan_out(jobs):
+        item_id = item.get("id")
+        if isinstance(item_id, str):
+            if item_id in seen_ids:
+                continue
+            seen_ids.add(item_id)
         yield item
 
 

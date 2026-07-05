@@ -127,7 +127,9 @@ def _patch_session(monkeypatch, value, calls):
 
 
 def _tools():
-    read_run, search_run = run_reader.build_run_reader_tools(workspace_id=7)
+    read_run, search_run, _export_run = run_reader.build_run_reader_tools(
+        workspace_id=7
+    )
     return read_run, search_run
 
 
@@ -148,6 +150,46 @@ async def test_read_run_paginates(monkeypatch):
     assert "item_0" not in out and "item_5" not in out
     # Scoped by workspace_id in the query.
     assert "workspace_id" in calls[0]
+
+
+@pytest.mark.asyncio
+async def test_read_run_char_offset_pages_inside_one_huge_item(monkeypatch):
+    """A single item bigger than the cap is fully reachable via char_offset."""
+    huge_line = "A" * RUN_OUTPUT_CHAR_CAP + "MARKER" + "B" * 1000
+    _patch_session(monkeypatch, huge_line, [])
+    read_run, _ = _tools()
+    ref = "run_" + "0" * 8 + "-0000-0000-0000-000000000000"
+
+    first = await read_run.ainvoke({"ref": ref, "offset": 0, "limit": 1})
+    assert "MARKER" not in first  # clipped at the cap
+    assert f"char_offset={RUN_OUTPUT_CHAR_CAP}" in first  # continuation hint
+
+    second = await read_run.ainvoke(
+        {"ref": ref, "offset": 0, "limit": 1, "char_offset": RUN_OUTPUT_CHAR_CAP}
+    )
+    assert "MARKER" in second
+    assert "truncated" not in second  # remainder fits
+
+    past_end = await read_run.ainvoke(
+        {"ref": ref, "offset": 0, "limit": 1, "char_offset": len(huge_line) + 5}
+    )
+    assert "No content at char_offset" in past_end
+
+
+@pytest.mark.asyncio
+async def test_search_run_excerpts_huge_matched_line(monkeypatch):
+    """A match inside a huge line returns a window around it, not the whole line."""
+    huge_line = "x" * 100_000 + "NEEDLE" + "y" * 100_000
+    _patch_session(monkeypatch, huge_line, [])
+    _, search_run = _tools()
+
+    out = await search_run.ainvoke(
+        {"ref": "run_" + "0" * 8 + "-0000-0000-0000-000000000000",
+         "pattern": "NEEDLE"}
+    )
+    assert "NEEDLE" in out
+    assert "match at char 100000" in out
+    assert len(out) < 2000  # excerpt, not the 200k line
 
 
 @pytest.mark.asyncio
@@ -178,6 +220,97 @@ async def test_search_run_matches(monkeypatch):
     )
     assert "item_7" in out
     assert "item_1" not in out.split("item_7")[0]
+
+
+# --- export_run ------------------------------------------------------------
+
+
+_CRAWL_BODY = "\n".join(
+    [
+        json.dumps(
+            {
+                "url": "https://x.com/team/",
+                "status": "success",
+                "links": [
+                    {"url": "https://x.com/author/jane/", "text": "Jane Doe",
+                     "context": "Jane Doe General Partner", "kind": "internal"},
+                    {"url": "https://x.com/author/bob/", "text": "Bob Roe",
+                     "context": "Bob Roe Operations", "kind": "internal"},
+                    # Duplicate of Jane (nav + card) — must dedupe.
+                    {"url": "https://x.com/author/jane/", "text": "Jane Doe",
+                     "context": "Jane Doe General Partner", "kind": "internal"},
+                    {"url": "https://x.com/about/", "text": "About", "kind": "internal"},
+                ],
+            }
+        ),
+        json.dumps({"url": "https://x.com/jobs/", "status": "failed", "links": []}),
+        "not json — skipped",
+    ]
+)
+
+
+def test_rows_from_body_links_explode_and_items():
+    links = run_reader._rows_from_body(_CRAWL_BODY, "links")
+    assert len(links) == 4
+    assert links[0]["page"] == "https://x.com/team/"
+    assert links[0]["text"] == "Jane Doe"
+
+    items = run_reader._rows_from_body(_CRAWL_BODY, "items")
+    assert [i["url"] for i in items] == ["https://x.com/team/", "https://x.com/jobs/"]
+
+
+def test_rows_to_csv_dedupes_and_orders_columns():
+    records = run_reader._rows_from_body(_CRAWL_BODY, "links")
+    csv_text, count = run_reader._rows_to_csv(records, ["page", "url", "text"])
+    lines = csv_text.strip().split("\n")
+    assert lines[0] == "page,url,text"
+    assert count == 3  # 4 records - 1 duplicate
+    assert len(lines) == 4  # header + 3 rows
+    assert "Jane Doe" in lines[1]
+
+
+@pytest.mark.asyncio
+async def test_export_run_filters_and_saves(monkeypatch):
+    _patch_session(monkeypatch, _CRAWL_BODY, [])
+    saved: dict = {}
+
+    async def _fake_save(*, virtual_path, content, workspace_id):
+        saved["path"] = virtual_path
+        saved["content"] = content
+        saved["workspace_id"] = workspace_id
+        return 42, "/documents/exports/team.csv"
+
+    monkeypatch.setattr(run_reader, "_save_export_document", _fake_save)
+    _, _, export_run = run_reader.build_run_reader_tools(workspace_id=7)
+
+    out = await export_run.ainvoke(
+        {
+            "ref": "run_" + "0" * 8 + "-0000-0000-0000-000000000000",
+            "path": "exports/team.csv",
+            "rows": "links",
+            "include_pattern": "/author/",
+        }
+    )
+    assert "Exported 2 rows" in out  # Jane + Bob; About filtered; dupe deduped
+    assert "/documents/exports/team.csv" in out
+    assert "document id 42" in out
+    assert saved["workspace_id"] == 7
+    assert "About" not in saved["content"]
+    assert "Bob Roe" in saved["content"]
+
+
+@pytest.mark.asyncio
+async def test_export_run_empty_filter_is_error(monkeypatch):
+    _patch_session(monkeypatch, _CRAWL_BODY, [])
+    _, _, export_run = run_reader.build_run_reader_tools(workspace_id=7)
+    out = await export_run.ainvoke(
+        {
+            "ref": "run_" + "0" * 8 + "-0000-0000-0000-000000000000",
+            "path": "exports/none.csv",
+            "include_pattern": "no-such-thing-anywhere",
+        }
+    )
+    assert out.startswith("Error: no rows to export")
 
 
 @pytest.mark.asyncio

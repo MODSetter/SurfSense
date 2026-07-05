@@ -244,15 +244,23 @@ def create_scrape_webpage_tool():
         Scrape and extract the main content from a webpage.
 
         Use this tool when the user wants you to read, summarize, or answer
-        questions about a specific webpage's content. This tool actually
-        fetches and reads the full page content. For YouTube video URLs it
-        fetches the transcript directly instead of crawling the page.
+        questions about a specific webpage's content, or to pull a site's
+        contact details (emails, phone numbers, social profiles) for lead or
+        competitive-intelligence work. This tool actually fetches and reads the
+        full page content; JS-rendered pages are loaded in a real browser and
+        auto-scrolled, so lazy-loaded listings (directories, infinite-scroll
+        feeds) are captured too. For YouTube video URLs it fetches the
+        transcript directly instead of crawling the page.
+
+        For a single page this returns its content plus any contacts found. To
+        sweep a whole site (e.g. hunt a contact/privacy page for an email), use
+        the web.crawl capability with maxCrawlDepth > 0 instead.
 
         Common triggers:
         - "Read this article and summarize it"
         - "What does this page say about X?"
         - "Summarize this blog post for me"
-        - "Tell me the key points from this article"
+        - "Find the contact email / socials for this company"
         - "What's in this webpage?"
 
         Args:
@@ -271,6 +279,11 @@ def create_scrape_webpage_tool():
             - domain: The domain name
             - word_count: Approximate word count
             - was_truncated: Whether content was truncated
+            - contacts: {emails, phones, socials} harvested from the page
+            - links: every link on the page as {url, text, rel, kind} where
+              kind is internal/external/social/email/tel. Use the anchor text
+              to tie a link to an entity (e.g. which person a LinkedIn URL
+              belongs to) and to pick the next page to scrape.
             - error: Error message (if scraping failed)
         """
         scrape_id = generate_scrape_id(url)
@@ -335,6 +348,12 @@ def create_scrape_webpage_tool():
                 "crawler_type": result.get("crawler_type", "unknown"),
                 "author": metadata.get("author"),
                 "date": metadata.get("date"),
+                # Contact/social signals from raw HTML (footer/legal boilerplate
+                # the markdown omits) — surfaced for lead/CI discovery.
+                "contacts": result.get("contacts"),
+                # Per-anchor inventory (url/text/rel/kind): anchor text is the
+                # raw material for tying targets to entities.
+                "links": result.get("link_records"),
             }
 
         except Exception as e:

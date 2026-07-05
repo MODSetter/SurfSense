@@ -5,10 +5,9 @@ from __future__ import annotations
 import pytest
 
 from app.proprietary.web_crawler.url_policy import (
-    canonicalize_url,
+    extract_link_records,
     extract_links,
     host_of,
-    same_site,
 )
 
 pytestmark = pytest.mark.unit
@@ -60,30 +59,67 @@ def test_extract_links_on_empty_or_blank_html_is_empty() -> None:
     assert extract_links(None, "https://e.com") == []
 
 
-def test_canonicalize_lowercases_host_sorts_query_and_drops_fragment() -> None:
-    assert (
-        canonicalize_url("https://E.com/a?b=2&a=1#frag") == "https://e.com/a?a=1&b=2"
-    )
+def test_extract_link_records_classifies_kinds_and_keeps_anchor_text() -> None:
+    html = """
+    <a href="/about">  About\n  us </a>
+    <a href="https://other.com/x">External</a>
+    <a href="https://www.linkedin.com/in/jane">Jane Doe</a>
+    <a href="mailto:a@b.com?subject=hi">Mail</a>
+    <a href="tel:+1-555-0100">Call</a>
+    """
+    records = {r["url"]: r for r in extract_link_records(html, "https://example.com/")}
+    assert records["https://example.com/about"]["kind"] == "internal"
+    assert records["https://example.com/about"]["text"] == "About us"  # collapsed ws
+    assert records["https://other.com/x"]["kind"] == "external"
+    assert records["https://www.linkedin.com/in/jane"] == {
+        "url": "https://www.linkedin.com/in/jane",
+        "text": "Jane Doe",
+        "context": "",
+        "rel": "",
+        "kind": "social",
+    }
+    assert records["a@b.com"]["kind"] == "email"  # mailto query stripped
+    assert records["+1-555-0100"]["kind"] == "tel"
 
 
-def test_canonicalize_collapses_fragment_and_empty_query_to_one_key() -> None:
-    # The three forms must dedupe to the same visited-set key.
-    canonical = canonicalize_url("https://e.com/a")
-    assert canonicalize_url("https://e.com/a#frag") == canonical
-    assert canonicalize_url("https://e.com/a?") == canonical
+def test_percent_encoded_tel_and_mailto_are_decoded() -> None:
+    """Seen live: <a href="tel:+1%20408-629-1770"> must not leak %20."""
+    html = """
+    <a href="tel:+1%20408-629-1770">Call</a>
+    <a href="mailto:hello%40acme.io">Email</a>
+    """
+    records = {r["kind"]: r for r in extract_link_records(html, "https://example.com/")}
+    assert records["tel"]["url"] == "+1 408-629-1770"
+    assert records["email"]["url"] == "hello@acme.io"
 
 
-def test_canonicalize_keeps_nondefault_port() -> None:
-    assert canonicalize_url("https://e.com:8443/x") == "https://e.com:8443/x"
+def test_icon_only_social_link_gets_ancestor_context() -> None:
+    html = """
+    <div class="team-card">
+      <h3>Jane Doe</h3><p>General Partner</p>
+      <a href="https://linkedin.com/in/jane"><svg></svg></a>
+    </div>
+    """
+    (record,) = extract_link_records(html, "https://example.com/")
+    assert record["text"] == ""
+    assert record["context"] == "Jane Doe General Partner"
+
+
+def test_icon_social_link_prefers_aria_label_over_context() -> None:
+    html = '<div>Footer<a href="https://x.com/acme" aria-label="Acme on X"><svg></svg></a></div>'
+    (record,) = extract_link_records(html, "https://example.com/")
+    assert record["text"] == "Acme on X"
+    assert record["context"] == ""
+
+
+def test_extract_link_records_dedupes_keeping_first_nonempty_text() -> None:
+    html = '<a href="/p"><img src="logo.png"/></a><a href="/p">Pricing</a>'
+    records = extract_link_records(html, "https://example.com/")
+    assert records == [
+        {"url": "https://example.com/p", "text": "Pricing", "rel": "", "kind": "internal"}
+    ]
 
 
 def test_host_of_strips_www_and_lowercases() -> None:
     assert host_of("https://www.Example.com/x") == "example.com"
     assert host_of("https://Example.com/x") == "example.com"
-
-
-def test_same_site_matches_on_normalized_host() -> None:
-    allowed = {"example.com"}
-    assert same_site("https://www.example.com/a", allowed) is True
-    assert same_site("https://example.com/b", allowed) is True
-    assert same_site("https://other.com/c", allowed) is False

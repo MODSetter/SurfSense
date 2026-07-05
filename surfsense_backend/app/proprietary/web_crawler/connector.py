@@ -22,6 +22,7 @@ which tier produced it.
 
 import asyncio
 import logging
+import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -30,6 +31,8 @@ from typing import Any
 
 import trafilatura
 import validators
+from lxml import html as lxml_html
+from markdownify import markdownify
 from scrapling.engines.toolbelt import is_proxy_error
 from scrapling.fetchers import AsyncFetcher, DynamicFetcher, StealthyFetcher
 
@@ -38,15 +41,123 @@ from app.proprietary.web_crawler.stealth import (
     build_stealthy_kwargs,
     get_stealth_config,
 )
-from app.proprietary.web_crawler.url_policy import extract_links
+from app.proprietary.web_crawler.url_policy import extract_link_records
 from app.utils.captcha import captcha_enabled, get_captcha_config
-from app.utils.crawl import BlockType, classify_block
+from app.utils.crawl import BlockType, classify_block, extract_contacts
 from app.utils.proxy import get_proxy_url, is_pool_backed
 
 logger = logging.getLogger(__name__)
 
 # Prefix for performance/timing log lines so they are easy to grep/filter.
 _PERF = "[webcrawler][perf]"
+
+# Thin-page (JS-shell) escalation: a static fetch can "succeed" on an SPA that
+# server-renders only a hero paragraph and hydrates the real content client-side
+# (a16z.com/team: 4.2MB of HTML -> 597 chars extracted), so success alone must
+# not stop the ladder. Calibrated on live pages (probe_thin_calibration): true
+# shells shipped >=3.4MB with <0.05% text, while every healthy page was under
+# ~650KB — so require BOTH a huge document and near-empty extraction.
+# ponytail: ~150KB semi-shells (ycombinator.com/people) stay on static; their
+# server-rendered link records still carry the content. Upgrade path: DOM
+# hydration-marker sniffing instead of size thresholds.
+_JS_SHELL_MIN_HTML_BYTES = 1_000_000
+_JS_SHELL_MAX_CONTENT_CHARS = 2_500
+
+
+def looks_like_js_shell(html_len: int, content_len: int) -> bool:
+    """True when a static fetch smells like an unhydrated SPA shell."""
+    return (
+        html_len >= _JS_SHELL_MIN_HTML_BYTES
+        and content_len < _JS_SHELL_MAX_CONTENT_CHARS
+    )
+
+
+# Lossy-extraction repair: trafilatura's main-content detection drops div-grid
+# pricing cards / stat tables as "boilerplate" (seen live: duplicati.com/pricing
+# kept 15% of visible text, goauthentik.io/pricing 0 of 5 currency figures while
+# every price sat in the static DOM). Currency amounts are the one token class
+# that is (a) trivially detectable, (b) never navigation chrome, and (c) the
+# payload of exactly the pages agents ask for (pricing/plans). So: if the raw
+# DOM shows a currency amount that the markdown lost, re-extract with
+# favor_recall; if still lost, fall back to sanitized markdownify of the whole
+# body (bounded — callers truncate via maxLength anyway).
+# Covers $ € £ ¥ ₹ ₩ ₪ ₫ ₴ ₦ ₱ ฿ plus ISO codes like "USD 49"/"49 EUR" so the
+# trigger is country-agnostic, and amounts-before-symbol ("49€", French/German).
+_CURRENCY_AMOUNT_RE = re.compile(
+    r"[$€£¥₹₩₪₫₴₦₱฿]\s?\d"
+    r"|\d\s?[$€£¥₹₩₪₫₴₦₱฿]"
+    r"|\b(USD|EUR|GBP|JPY|CNY|INR|BRL|MXN|CAD|AUD|CHF|KRW|SEK|NOK|DKK|PLN)\s?\d"
+    r"|\d\s?(USD|EUR|GBP|JPY|CNY|INR|BRL|MXN|CAD|AUD|CHF|KRW|SEK|NOK|DKK|PLN)\b",
+    re.IGNORECASE,
+)
+
+_STRIP_XPATH = "//script | //style | //noscript | //template | //svg | //iframe | //head"
+
+
+def _visible_text(raw_html: str) -> str:
+    """Text of the DOM minus script/style — what a reader actually sees."""
+    root = lxml_html.fromstring(raw_html)
+    for bad in root.xpath(_STRIP_XPATH):
+        bad.getparent().remove(bad)
+    return " ".join(" ".join(root.itertext()).split())
+
+
+def dropped_currency_amounts(raw_html: str, markdown: str) -> bool:
+    """True when the visible DOM has currency figures but the markdown has none."""
+    if _CURRENCY_AMOUNT_RE.search(markdown):
+        return False
+    try:
+        return bool(_CURRENCY_AMOUNT_RE.search(_visible_text(raw_html)))
+    except Exception:
+        return False
+
+
+def markdown_of_whole_body(raw_html: str) -> str | None:
+    """Sanitized markdownify of the full DOM — recall 100%, precision be damned.
+
+    Last resort when main-content extraction provably dropped the payload:
+    nav/footer noise is acceptable, silently missing prices is not.
+    """
+    try:
+        root = lxml_html.fromstring(raw_html)
+        for bad in root.xpath(_STRIP_XPATH):
+            bad.getparent().remove(bad)
+        md = markdownify(lxml_html.tostring(root, encoding="unicode"))
+        md = re.sub(r"\n{3,}", "\n\n", md).strip()
+        return md or None
+    except Exception:
+        return None
+
+
+# Auto-scroll bounds for the browser tiers. JS directories/feeds lazy-load on
+# scroll, so the initial render misses most items (e.g. YC's batch directory
+# shows 40 of 100+ companies). The round cap keeps endless feeds (social
+# timelines) from holding a billable fetch hostage; static-height pages exit
+# after one no-growth check, costing a single settle wait.
+_SCROLL_MAX_ROUNDS = 8
+_SCROLL_SETTLE_MS = 700
+
+
+def scroll_to_bottom(page: Any) -> Any:
+    """``page_action`` that scrolls until the document height stops growing.
+
+    ponytail: jumps straight to the bottom each round, which is enough for
+    sentinel-based infinite scroll (Algolia et al.); lazy loaders keyed to
+    intersection of mid-page elements would need viewport-sized steps. Errors
+    mid-scroll keep whatever is already rendered instead of failing the fetch.
+    """
+    try:
+        last_height = 0
+        for _ in range(_SCROLL_MAX_ROUNDS):
+            height = page.evaluate("document.body.scrollHeight")
+            if not height or height <= last_height:
+                break
+            last_height = height
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_timeout(_SCROLL_SETTLE_MS)
+    except Exception as exc:
+        logger.debug("[webcrawler] auto-scroll aborted: %s", exc)
+    return page
 
 
 class CrawlOutcomeStatus(StrEnum):
@@ -132,6 +243,9 @@ class WebCrawlerConnector:
             # (distinguishes EMPTY from FAILED, where every tier raised/was
             # unavailable).
             reached_without_content = False
+            # Static result tagged as a JS shell: escalate to the browser tiers
+            # for the hydrated page, but keep it as a last-resort fallback.
+            thin_static_result: dict[str, Any] | None = None
 
             # --- 1. Scrapling AsyncFetcher (fast static HTTP) ---
             tier_start = time.perf_counter()
@@ -141,7 +255,16 @@ class WebCrawlerConnector:
                     "scrapling-static",
                     lambda: self._crawl_with_async_fetcher(url, block_state),
                 )
-                if result:
+                if result and result.pop("thin_static", False):
+                    thin_static_result = result
+                    errors.append(
+                        "Scrapling static: JS-shell page (huge HTML, near-empty "
+                        "extraction); escalating to browser"
+                    )
+                    self._log_tier_outcome(
+                        "scrapling-static", url, tier_start, "thin_shell"
+                    )
+                elif result:
                     self._log_tier_outcome(
                         "scrapling-static", url, tier_start, "success"
                     )
@@ -152,9 +275,12 @@ class WebCrawlerConnector:
                         tier="scrapling-static",
                         block_type=block_state["block_type"],
                     )
-                reached_without_content = True
-                errors.append("Scrapling static: empty extraction")
-                self._log_tier_outcome("scrapling-static", url, tier_start, "empty")
+                else:
+                    reached_without_content = True
+                    errors.append("Scrapling static: empty extraction")
+                    self._log_tier_outcome(
+                        "scrapling-static", url, tier_start, "empty"
+                    )
             except Exception as exc:
                 errors.append(f"Scrapling static: {exc!s}")
                 self._log_tier_outcome(
@@ -233,6 +359,19 @@ class WebCrawlerConnector:
                 errors.append(f"Scrapling stealthy: {exc!s}")
                 self._log_tier_outcome(
                     "scrapling-stealthy", url, tier_start, "error", exc
+                )
+
+            # Browser tiers all failed/empty: the thin static extraction is
+            # still real (partial) content — better than reporting nothing.
+            if thin_static_result is not None:
+                self._log_total(url, "scrapling-static-thin", total_start)
+                return CrawlOutcome(
+                    status=CrawlOutcomeStatus.SUCCESS,
+                    result=thin_static_result,
+                    tier="scrapling-static",
+                    captcha_attempts=captcha_state["attempts"],
+                    captcha_solved=captcha_state["solved"],
+                    block_type=block_state["block_type"],
                 )
 
             self._log_total(url, "none", total_start)
@@ -375,7 +514,7 @@ class WebCrawlerConnector:
             )
             return None
 
-        return self._build_result(
+        result = self._build_result(
             page.html_content,
             url,
             "scrapling-static",
@@ -384,6 +523,14 @@ class WebCrawlerConnector:
             status=status,
             block_state=block_state,
         )
+        if result and looks_like_js_shell(
+            len(page.html_content or ""), len(result.get("content") or "")
+        ):
+            # Tag rather than drop: crawl_url escalates to the browser tiers but
+            # keeps this as a fallback if they all fail (e.g. no subprocess
+            # support on Windows dev loops).
+            result["thin_static"] = True
+        return result
 
     async def _crawl_with_dynamic(
         self, url: str, block_state: dict[str, Any] | None = None
@@ -407,6 +554,7 @@ class WebCrawlerConnector:
             network_idle=True,
             timeout=30000,
             proxy=get_proxy_url(),
+            page_action=scroll_to_bottom,
         )
         fetch_ms = (time.perf_counter() - fetch_start) * 1000
         return self._build_result(
@@ -456,12 +604,19 @@ class WebCrawlerConnector:
         proxy = get_proxy_url()
 
         # Build the captcha page_action only when solving is enabled (and not
-        # process-latched). ``None`` => stealth tier behaves exactly as before.
-        page_action = None
+        # process-latched); auto-scroll always runs after it so lazy-loaded
+        # content behind a bot wall is captured too (captcha first: scrolling a
+        # challenge interstitial is pointless).
+        captcha_action = None
         if captcha_state is not None and captcha_enabled():
-            page_action = build_captcha_page_action(
+            captcha_action = build_captcha_page_action(
                 captcha_state, proxy, get_captcha_config()
             )
+
+        def page_action(page: Any) -> Any:
+            if captcha_action is not None:
+                page = captcha_action(page)
+            return scroll_to_bottom(page)
 
         # ``solve_cloudflare=True`` runs the full Turnstile/Interstitial challenge
         # loop; scoped to this last-resort tier only (it spins up the browser).
@@ -479,8 +634,7 @@ class WebCrawlerConnector:
         # Keys never collide with the core kwargs above; defaults preserve
         # today's behavior and add no crawl-speed regression.
         fetch_kwargs.update(build_stealthy_kwargs(get_stealth_config()))
-        if page_action is not None:
-            fetch_kwargs["page_action"] = page_action
+        fetch_kwargs["page_action"] = page_action
         page = StealthyFetcher.fetch(url, **fetch_kwargs)
         fetch_ms = (time.perf_counter() - fetch_start) * 1000
         return self._build_result(
@@ -555,6 +709,35 @@ class WebCrawlerConnector:
         except Exception:
             extracted_content = None
 
+        # Repair chain for provably lossy extraction: trafilatura sometimes
+        # classifies pricing cards / stat grids as boilerplate. If the DOM shows
+        # currency amounts the markdown lost, retry with favor_recall, then fall
+        # back to sanitized whole-body markdown. Guarded by the currency check,
+        # so ordinary pages never pay for a second extraction pass.
+        if extracted_content and dropped_currency_amounts(raw_html, extracted_content):
+            try:
+                recall = trafilatura.extract(
+                    raw_html,
+                    output_format="markdown",
+                    include_comments=False,
+                    include_tables=True,
+                    include_images=True,
+                    include_links=True,
+                    favor_recall=True,
+                )
+            except Exception:
+                recall = None
+            if recall and _CURRENCY_AMOUNT_RE.search(recall):
+                extracted_content = recall
+            else:
+                whole = markdown_of_whole_body(raw_html)
+                if whole and _CURRENCY_AMOUNT_RE.search(whole):
+                    extracted_content = whole
+            logger.info(
+                f"{_PERF} event=lossy_repair url={url} recovered="
+                f"{bool(_CURRENCY_AMOUNT_RE.search(extracted_content))}"
+            )
+
         extract_ms = (time.perf_counter() - extract_start) * 1000
 
         if not extracted_content and not allow_raw_fallback:
@@ -594,13 +777,24 @@ class WebCrawlerConnector:
             "extracted" if extracted_content else "raw_fallback",
         )
 
+        # One DOM parse feeds both views: the rich per-anchor inventory (agent
+        # output — anchor text is the raw material for entity extraction) and
+        # the URL-only frontier for ``site_crawler.crawl_site``.
+        link_records = extract_link_records(raw_html, url)
         return {
             "content": content,
             "metadata": metadata,
             "crawler_type": crawler_type,
             # Next-hop targets for ``site_crawler.crawl_site``; ignored by
             # single-URL callers.
-            "links": extract_links(raw_html, url),
+            "links": [
+                r["url"] for r in link_records if r["kind"] not in ("email", "tel")
+            ],
+            "link_records": link_records,
+            # Lead-gen signals harvested from raw HTML (footer/legal boilerplate
+            # that Trafilatura strips from ``content``). Dict form so callers can
+            # pass it straight through without importing the dataclass.
+            "contacts": extract_contacts(raw_html).as_dict(),
         }
 
     @staticmethod

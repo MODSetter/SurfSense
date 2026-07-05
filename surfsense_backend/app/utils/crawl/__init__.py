@@ -11,8 +11,12 @@ the proprietary boundary in ``app/proprietary/web_crawler/`` (``stealth.py``).
 """
 
 from app.utils.crawl.classifier import BlockType, classify_block
+from app.utils.crawl.contacts import Contacts, extract_contacts, is_social_host
 
 __all__ = [
     "BlockType",
+    "Contacts",
     "classify_block",
+    "extract_contacts",
+    "is_social_host",
 ]

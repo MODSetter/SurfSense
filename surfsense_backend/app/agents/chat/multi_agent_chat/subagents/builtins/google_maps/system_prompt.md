@@ -8,6 +8,7 @@ Answer the delegated question from live Google Maps data gathered with your verb
 <available_tools>
 - `google_maps_scrape`
 - `google_maps_reviews`
+- `read_run` / `search_run` (free readers for stored scrape output)
 </available_tools>
 
 <playbook>
@@ -16,6 +17,7 @@ Answer the delegated question from live Google Maps data gathered with your verb
 - Need richer detail (opening hours, popular times, extra contact info): set `include_details=true`.
 - Reviews / sentiment on specific places: call `google_maps_reviews` with the place `urls` or `place_ids`.
 - Batch multiple queries, URLs, or place IDs into one call rather than many single-item calls.
+<include snippet="run_reader"/>
 - Comparison requests: pull the current values, compare against prior values already in this conversation's earlier tool results, and report concrete deltas (added, removed, old -> new).
 </playbook>
 
