@@ -185,6 +185,46 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
         ),
         account_metadata_keys=["user_id", "user_email"],
     ),
+    "notion": MCPServiceConfig(
+        name="Notion",
+        mcp_url="https://mcp.notion.com/mcp",
+        connector_type="NOTION_CONNECTOR",
+        # DCR (RFC 7591): Notion issues its own client credentials. It expires
+        # DCR registrations, but refresh reuses the original persisted
+        # ``mcp_oauth.client_id`` (see _refresh_connector_token).
+        allowed_tools=[
+            "search",
+            "fetch",
+            "create-pages",
+            "update-page",
+        ],
+        readonly_tools=frozenset({"search", "fetch"}),
+        account_metadata_keys=["workspace_name"],
+    ),
+    "confluence": MCPServiceConfig(
+        name="Confluence",
+        # Same Atlassian Rovo server as Jira; tool sets are kept disjoint by
+        # curation so a workspace can connect both as separate connectors.
+        mcp_url="https://mcp.atlassian.com/v1/mcp",
+        connector_type="CONFLUENCE_CONNECTOR",
+        allowed_tools=[
+            "getAccessibleAtlassianResources",
+            "getConfluenceSpaces",
+            "getConfluencePage",
+            "searchConfluenceUsingCql",
+            "createConfluencePage",
+            "updateConfluencePage",
+        ],
+        readonly_tools=frozenset(
+            {
+                "getAccessibleAtlassianResources",
+                "getConfluenceSpaces",
+                "getConfluencePage",
+                "searchConfluenceUsingCql",
+            }
+        ),
+        account_metadata_keys=["cloud_id", "site_name", "base_url"],
+    ),
 }
 
 _CONNECTOR_TYPE_TO_SERVICE: dict[str, MCPServiceConfig] = {
@@ -205,6 +245,25 @@ LIVE_CONNECTOR_TYPES: frozenset[SearchSourceConnectorType] = frozenset(
         SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
         SearchSourceConnectorType.DISCORD_CONNECTOR,
         SearchSourceConnectorType.LUMA_CONNECTOR,
+        # Migrated to hosted MCP — indexing pipelines deprecated (KB is
+        # files/notes/uploads only). LIVE membership blocks the index route
+        # and auto-disables periodic indexing.
+        SearchSourceConnectorType.NOTION_CONNECTOR,
+        SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
+    }
+)
+
+# Indexing-only connectors retired with the KB "files, notes, and uploads only"
+# shift: their ingestion pipelines are deprecated. Like LIVE membership, this
+# blocks the index route and auto-disables periodic indexing — but the message
+# frames it as a deprecation, not a real-time-tools swap. Obsidian is
+# intentionally excluded (file-like vault content still enriches the KB).
+DEPRECATED_INDEXING_CONNECTOR_TYPES: frozenset[SearchSourceConnectorType] = frozenset(
+    {
+        SearchSourceConnectorType.GITHUB_CONNECTOR,
+        SearchSourceConnectorType.BOOKSTACK_CONNECTOR,
+        SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR,
+        SearchSourceConnectorType.CIRCLEBACK_CONNECTOR,
     }
 )
 

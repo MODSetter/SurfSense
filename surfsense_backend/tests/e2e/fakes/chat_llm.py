@@ -142,6 +142,13 @@ class FakeChatLLM(BaseChatModel):
             and CLICKUP_CANARY_TOKEN in latest_tool_text
         ):
             return f"ClickUp live tool content found: {CLICKUP_CANARY_TOKEN}"
+        if latest_tool_name == "search" and NOTION_CANARY_TOKEN in latest_tool_text:
+            return f"Notion live tool content found: {NOTION_CANARY_TOKEN}"
+        if (
+            latest_tool_name == "searchConfluenceUsingCql"
+            and CONFLUENCE_CANARY_TOKEN in latest_tool_text
+        ):
+            return f"Confluence live tool content found: {CONFLUENCE_CANARY_TOKEN}"
 
         wants_gmail = _contains_any(
             latest_human,
@@ -556,7 +563,7 @@ class FakeChatLLM(BaseChatModel):
         # Marker unique to a connector subagent's prompt: the main agent must
         # delegate via ``task``; only the subagent has connector tools registered.
         in_connector_subagent = (
-            "specialist for the user's connected" in _messages_to_text(messages)
+            "connected-apps specialist" in _messages_to_text(messages)
         )
 
         # Main agent: delegate live-tool connector work to its subagent (which
@@ -579,8 +586,12 @@ class FakeChatLLM(BaseChatModel):
                 ("linear", ("linear", "issue", LINEAR_CANARY_TITLE)),
                 ("slack", ("slack", SLACK_CANARY_TOKEN)),
                 ("clickup", ("clickup", CLICKUP_CANARY_TITLE)),
+                ("notion", ("notion", NOTION_CANARY_TITLE)),
+                ("confluence", ("confluence", CONFLUENCE_CANARY_TITLE)),
             )
-            for subagent_type, needles in connector_delegations:
+            # Every MCP-backed connector is now one ``mcp_discovery`` route; the
+            # needle set only decides which canary the delegation targets.
+            for connector_key, needles in connector_delegations:
                 if _contains_any(latest_human, needles):
                     return AIMessage(
                         content="",
@@ -588,10 +599,10 @@ class FakeChatLLM(BaseChatModel):
                             {
                                 "name": "task",
                                 "args": {
-                                    "subagent_type": subagent_type,
+                                    "subagent_type": "mcp_discovery",
                                     "description": latest_human,
                                 },
-                                "id": f"call_e2e_task_{subagent_type}",
+                                "id": f"call_e2e_task_{connector_key}",
                             }
                         ],
                     )
@@ -714,6 +725,38 @@ class FakeChatLLM(BaseChatModel):
                         "name": "clickup_search",
                         "args": {"query": CLICKUP_CANARY_TITLE, "limit": 5},
                         "id": "call_e2e_search_clickup_tasks",
+                    }
+                ],
+            )
+
+        # Confluence check precedes Notion: the Confluence prompt also contains
+        # the word "page", so Notion's needle omits it to avoid cross-matching.
+        if latest_tool is None and _contains_any(
+            latest_human,
+            ("confluence", CONFLUENCE_CANARY_TITLE),
+        ):
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "searchConfluenceUsingCql",
+                        "args": {"cql": f'text ~ "{CONFLUENCE_CANARY_TITLE}"'},
+                        "id": "call_e2e_search_confluence",
+                    }
+                ],
+            )
+
+        if latest_tool is None and _contains_any(
+            latest_human,
+            ("notion", NOTION_CANARY_TITLE),
+        ):
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "search",
+                        "args": {"query": NOTION_CANARY_TITLE},
+                        "id": "call_e2e_search_notion",
                     }
                 ],
             )

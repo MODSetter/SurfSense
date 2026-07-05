@@ -64,12 +64,20 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
             }
 
-            from app.services.mcp_oauth.registry import LIVE_CONNECTOR_TYPES
+            from app.services.mcp_oauth.registry import (
+                DEPRECATED_INDEXING_CONNECTOR_TYPES,
+                LIVE_CONNECTOR_TYPES,
+            )
 
-            # Disable obsolete periodic indexing for live connectors in one batch.
+            # Disable obsolete periodic indexing in one batch: live connectors
+            # (now real-time agent tools) and deprecated-indexing connectors
+            # (KB is files/notes/uploads only) no longer index on a schedule.
             live_disabled = []
             for connector in due_connectors:
-                if connector.connector_type in LIVE_CONNECTOR_TYPES:
+                if (
+                    connector.connector_type in LIVE_CONNECTOR_TYPES
+                    or connector.connector_type in DEPRECATED_INDEXING_CONNECTOR_TYPES
+                ):
                     connector.periodic_indexing_enabled = False
                     connector.next_scheduled_at = None
                     live_disabled.append(connector)
@@ -77,7 +85,7 @@ async def _check_and_trigger_schedules():
                 await session.commit()
                 for c in live_disabled:
                     logger.info(
-                        "Disabled obsolete periodic indexing for live connector %s (%s)",
+                        "Disabled obsolete periodic indexing for connector %s (%s)",
                         c.id,
                         c.connector_type.value,
                     )

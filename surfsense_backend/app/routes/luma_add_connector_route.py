@@ -13,6 +13,7 @@ from app.db import (
     get_async_session,
 )
 from app.users import require_session_context
+from app.utils.validators import raise_if_connector_deprecated
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,8 @@ async def add_luma_connector(
     """
     user = auth.user
     try:
+        raise_if_connector_deprecated(SearchSourceConnectorType.LUMA_CONNECTOR)
+
         # Check if a Luma connector already exists for this workspace and user
         result = await session.execute(
             select(SearchSourceConnector).filter(

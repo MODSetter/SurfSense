@@ -29,6 +29,7 @@ from app.utils.connector_naming import (
     generate_unique_connector_name,
 )
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
+from app.utils.validators import raise_if_connector_deprecated
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,8 @@ async def connect_teams(
     """
     user = auth.user
     try:
+        raise_if_connector_deprecated(SearchSourceConnectorType.TEAMS_CONNECTOR)
+
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
 

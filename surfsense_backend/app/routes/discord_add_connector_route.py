@@ -31,6 +31,7 @@ from app.utils.connector_naming import (
 )
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 from app.utils.rbac import check_workspace_access
+from app.utils.validators import raise_if_connector_deprecated
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,8 @@ async def connect_discord(
     """
     user = auth.user
     try:
+        raise_if_connector_deprecated(SearchSourceConnectorType.DISCORD_CONNECTOR)
+
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
 

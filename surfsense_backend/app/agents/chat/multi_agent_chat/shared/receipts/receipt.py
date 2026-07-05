@@ -33,10 +33,13 @@ from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
 
-# Subagent that emitted this receipt.
+# Subagent that emitted this receipt. ``mcp_discovery`` is the current
+# connected-apps route; the per-connector literals below it are retained so
+# historical receipts (persisted in old checkpoints) still type-check.
 ReceiptRoute = Literal[
     "deliverables",
     "knowledge_base",
+    "mcp_discovery",
     "notion",
     "slack",
     "gmail",

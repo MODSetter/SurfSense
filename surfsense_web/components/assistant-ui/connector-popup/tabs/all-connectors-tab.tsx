@@ -12,6 +12,7 @@ import {
 	CONNECTOR_CATEGORY_LABELS,
 	type ConnectorCategory,
 	CRAWLERS,
+	DEPRECATED_CONNECTOR_TYPES,
 	getConnectorCategory,
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
@@ -146,6 +147,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 				documentCount={documentCount}
 				accountCount={accountCount}
 				isIndexing={isIndexing}
+				deprecated={DEPRECATED_CONNECTOR_TYPES.has(connector.connectorType)}
 				onConnect={() => onConnectOAuth(connector)}
 				onManage={
 					isConnected && onViewAccountsList
@@ -194,6 +196,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 				documentCount={documentCount}
 				connectorCount={mcpConnectorCount}
 				isIndexing={isIndexing}
+				deprecated={DEPRECATED_CONNECTOR_TYPES.has(connector.connectorType)}
 				onConnect={handleConnect}
 				onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
 			/>

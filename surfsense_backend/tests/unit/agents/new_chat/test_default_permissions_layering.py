@@ -9,7 +9,7 @@ earliest -> latest:
 3. (future) user-defined rules from the Agent Permissions UI
 
 Without #1 every read-only built-in (``ls``, ``read_file``, ``grep``,
-``glob``, ``web_search`` …) defaulted to ``ask`` because
+``glob``, ``scrape_webpage`` …) defaulted to ``ask`` because
 ``permissions.evaluate`` returns ``ask`` when no rule matches. That
 caused two production-painful behaviors:
 
@@ -58,7 +58,6 @@ class TestReadOnlyToolsAllowed:
             "read_file",
             "grep",
             "glob",
-            "web_search",
             "scrape_webpage",
             "get_connected_accounts",
             "write_todos",

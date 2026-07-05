@@ -14,7 +14,6 @@ import {
 	ChevronDown,
 	ChevronRight,
 	Clipboard,
-	Globe,
 	Plus,
 	Settings2,
 	SquareIcon,
@@ -1057,12 +1056,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		});
 	}, []);
 
-	const hasWebSearchTool = agentTools?.some((t) => t.name === "web_search") ?? false;
-	const isWebSearchEnabled = hasWebSearchTool && !disabledToolsSet.has("web_search");
-	const filteredTools = useMemo(
-		() => agentTools?.filter((t) => t.name !== "web_search"),
-		[agentTools]
-	);
+	const filteredTools = agentTools;
 	const groupedTools = useMemo(() => {
 		if (!filteredTools) return [];
 		const toolsByName = new Map(filteredTools.map((t) => [t.name, t]));
@@ -1143,22 +1137,6 @@ const ComposerAction: FC<ComposerActionProps> = ({
 									<Upload className="size-4" />
 									Upload Files
 								</DropdownMenuItem>
-								{hasWebSearchTool && (
-									<DropdownMenuItem
-										onSelect={(event) => {
-											event.preventDefault();
-											toggleTool("web_search");
-										}}
-									>
-										<Globe className="size-4" />
-										<span className="flex-1">Web Search</span>
-										<Switch
-											checked={isWebSearchEnabled}
-											tabIndex={-1}
-											className="pointer-events-none shrink-0 origin-right scale-[0.6]"
-										/>
-									</DropdownMenuItem>
-								)}
 								<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
 									<Unplug className="size-4" />
 									Manage Connectors
@@ -1379,26 +1357,6 @@ const ComposerAction: FC<ComposerActionProps> = ({
 								<Camera className="h-4 w-4" />
 								Take a screenshot
 							</DropdownMenuItem>
-							{hasWebSearchTool && (
-								<DropdownMenuItem
-									onSelect={(event) => {
-										event.preventDefault();
-										toggleTool("web_search");
-									}}
-									className={cn(
-										"hover:bg-accent hover:text-accent-foreground",
-										isWebSearchEnabled && "text-primary"
-									)}
-								>
-									<Globe className="h-4 w-4" />
-									<span className="flex-1 min-w-0 truncate">Web Search</span>
-									<Switch
-										checked={isWebSearchEnabled}
-										tabIndex={-1}
-										className="pointer-events-none shrink-0 origin-right scale-[0.6]"
-									/>
-								</DropdownMenuItem>
-							)}
 							<DropdownMenuSub
 								open={toolsPopoverOpen}
 								onOpenChange={(open) => {

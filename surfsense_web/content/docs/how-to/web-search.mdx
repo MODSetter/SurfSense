@@ -1,189 +1,53 @@
 ---
 title: Web Search
-description: How SurfSense web search works and how to configure it for production with residential proxies
+description: How SurfSense web search works and how to add Tavily or Linkup via a Custom MCP connector
 ---
 
 # Web Search
 
-SurfSense uses [SearXNG](https://docs.searxng.org/) as a bundled meta-search engine to provide web search across all search spaces. SearXNG aggregates results from multiple search engines (Google, DuckDuckGo, Brave, Bing, and more) without requiring any API keys.
+SurfSense performs public web search through the built-in **Google Search** specialist. When the assistant needs real-time or public information (news, prices, weather, exchange rates, current events, or "who ranks for X"), it delegates the query to the Google Search subagent, which returns ranked results the assistant can cite and hand off for crawling.
 
-You can also add live search connectors such as Baidu Search, Tavily, and Linkup to a search space. When those connectors are active, SurfSense queries them in parallel with SearXNG and merges the results before passing sources to the assistant.
+There is nothing to configure — Google web search is available in every workspace out of the box.
+
+<Callout type="info" title="Google-only web search">
+SurfSense previously bundled a multi-engine web-search tool backed by SearXNG, Tavily, Linkup, and Baidu. Those have been consolidated: public web search now runs exclusively through the Google Search specialist. The **Tavily**, **Linkup**, **Baidu Search**, and **SearXNG** connectors are deprecated and can no longer be connected.
+</Callout>
 
 ## How It Works
 
-When a user triggers a web search in SurfSense:
+When the assistant decides a request needs the open web:
 
-1. The backend sends a query to the bundled SearXNG instance via its JSON API
-2. SearXNG fans out the query to all enabled search engines simultaneously
-3. Results are aggregated, deduplicated, and ranked by engine weight
-4. If the current search space has live search connectors, the backend queries them in parallel
-5. The backend deduplicates the merged results and presents them to the user
+1. The main agent delegates the query to the `google_search` specialist.
+2. The specialist runs a Google search and returns ranked result items (title, URL, snippet).
+3. The assistant summarizes the findings and can follow up by crawling a specific result page.
 
-SearXNG runs as a Docker container alongside the backend. It is never exposed to the internet. Only the backend communicates with it over the internal Docker network.
+Google web search is workspace-scoped and is not available in the free / anonymous (no-login) chat, which answers purely from the model's own knowledge.
 
-## Live Search Connectors
+## Still want Tavily or Linkup?
 
-Live search connectors are optional API-backed search providers configured per search space. They are useful when you need a specialized index, authenticated search API, or stronger regional coverage.
+If you relied on Tavily or Linkup, you can add them back yourself through the generic **Custom MCP connector** (the **MCPs** card in the Connectors dashboard). Both providers expose a hosted MCP server that authenticates with an API key sent as a request header:
 
-| Connector | Best For | Setup |
-|-----------|----------|-------|
-| Baidu Search | Chinese web search and China-focused current information | [Baidu Search connector](/docs/connectors/baidu-search) |
-| Tavily | General web research through Tavily's search API | Add the Tavily connector from the Connectors dashboard |
-| Linkup | General web search through Linkup's search API | Add the Linkup connector from the Connectors dashboard |
+| Provider | MCP server URL | Auth header |
+|----------|----------------|-------------|
+| Tavily | `https://mcp.tavily.com/mcp/` | `Authorization: Bearer <your Tavily API key>` |
+| Linkup | `https://mcp.linkup.so/mcp` | `Authorization: Bearer <your Linkup API key>` |
 
-<Callout type="info" title="Search Space Scoped">
-Live search connectors only run for the search space where they are configured. They do not replace SearXNG globally.
+Steps:
+
+1. Open the Connectors dashboard and choose **MCPs** (Custom MCP connector).
+2. Enter the provider's MCP server URL from the table above.
+3. Add an `Authorization` header with the value `Bearer <your API key>`.
+4. Save. The provider's search tools become available to the assistant through the connected-apps specialist.
+
+<Callout type="info" title="No SurfSense API keys needed">
+Tavily/Linkup keys live only in your Custom MCP connector configuration. SurfSense no longer ships first-party Tavily, Linkup, Baidu, or SearXNG integrations.
 </Callout>
 
-## Docker Setup
+## Deprecated connectors
 
-SearXNG is included in both `docker-compose.yml` and `docker-compose.dev.yml` and works out of the box with no configuration needed.
+The following connectors are deprecated. Existing rows remain readable/manageable, but new connections are refused (HTTP 410), and their catalog cards show a **Deprecated** badge:
 
-The backend connects to SearXNG automatically via the `SEARXNG_DEFAULT_HOST` environment variable (defaults to `http://searxng:8080`).
-
-### Disabling SearXNG
-
-If you don't need web search, you can skip the SearXNG container entirely:
-
-```bash
-docker compose up --scale searxng=0
-```
-
-### Using Your Own SearXNG Instance
-
-To point SurfSense at an external SearXNG instance instead of the bundled one, set in your `docker/.env`:
-
-```bash
-SEARXNG_DEFAULT_HOST=http://your-searxng:8080
-```
-
-## Configuration
-
-SearXNG is configured via `docker/searxng/settings.yml`. The key sections are:
-
-### Engines
-
-SearXNG queries multiple search engines in parallel. Each engine has a **weight** that influences how its results rank in the merged output:
-
-| Engine | Weight | Notes |
-|--------|--------|-------|
-| Google | 1.2 | Highest priority, best general results |
-| DuckDuckGo | 1.1 | Strong privacy-focused alternative |
-| Brave | 1.0 | Independent search index |
-| Bing | 0.9 | Different index from Google |
-| Wikipedia | 0.8 | Encyclopedic results |
-| StackOverflow | 0.7 | Technical/programming results |
-| Yahoo | 0.7 | Powered by Bing's index |
-| Wikidata | 0.6 | Structured data results |
-| Currency | default | Currency conversion |
-| DDG Definitions | default | Instant answers from DuckDuckGo |
-
-All engines are free. SearXNG scrapes public search pages, no API keys required.
-
-### Engine Suspension
-
-When a search engine returns an error (CAPTCHA, rate limit, access denied), SearXNG suspends it for a configurable duration. After the suspension expires, the engine is automatically retried.
-
-The default suspension times are tuned for use with rotating residential proxies (shorter bans since each retry goes through a different IP):
-
-| Error Type | Suspension | Default (without override) |
-|------------|-----------|---------------------------|
-| Access Denied (403) | 1 hour | 24 hours |
-| CAPTCHA | 1 hour | 24 hours |
-| Too Many Requests (429) | 10 minutes | 1 hour |
-| Cloudflare CAPTCHA | 2 hours | 15 days |
-| Cloudflare Access Denied | 1 hour | 24 hours |
-| reCAPTCHA | 2 hours | 7 days |
-
-### Timeouts
-
-| Setting | Value | Description |
-|---------|-------|-------------|
-| `request_timeout` | 12s | Default timeout per engine request |
-| `max_request_timeout` | 20s | Maximum allowed timeout (must be ≥ `request_timeout`) |
-| `extra_proxy_timeout` | 10s | Extra seconds added when using a proxy |
-| `retries` | 1 | Retries on HTTP error (uses a different proxy IP per retry) |
-
-## Production: Residential Proxies
-
-In production, search engines may rate-limit or block your server's IP. To avoid this, configure a residential proxy so SearXNG's outgoing requests appear to come from rotating residential IPs.
-
-### Step 1: Build the Proxy URL
-
-Use any residential proxy that exposes a standard `http://user:pass@host:port` endpoint. For example, [DataImpulse](https://dataimpulse.com/) encodes country routing as a username suffix (`<token>__cr.<country>`):
-
-```
-http://<token>__cr.us:<password>@gw.dataimpulse.com:823
-```
-
-The general proxy URL format is:
-
-```
-http://<username>:<password>@<hostname>:<port>/
-```
-
-### Step 2: Add to SearXNG Settings
-
-In `docker/searxng/settings.yml`, add the proxy URL under `outgoing.proxies`:
-
-```yaml
-outgoing:
-  proxies:
-    all://:
-      - http://username:base64password@proxy-host:port/
-```
-
-The `all://:` key routes both HTTP and HTTPS requests through the proxy. If you have multiple proxy endpoints, list them and SearXNG will round-robin between them:
-
-```yaml
-  proxies:
-    all://:
-      - http://user:pass@proxy1:port/
-      - http://user:pass@proxy2:port/
-```
-
-### Step 3: Restart SearXNG
-
-```bash
-docker compose restart searxng
-```
-
-### Verify
-
-Check that SearXNG is healthy:
-
-```bash
-curl http://localhost:8888/healthz
-```
-
-## Troubleshooting
-
-### SearXNG Fails to Start
-
-**`ValueError: Invalid settings.yml`** - Check the error line above the traceback. Common causes:
-- `extra_proxy_timeout` must be an integer (use `10`, not `10.0`)
-- `KeyError: 'engine_name'` means an engine was removed but other engines reference its network. Remove all variants (e.g., removing `qwant` also requires removing `qwant news`, `qwant images`, `qwant videos`)
-
-### Engines Getting Suspended
-
-If an engine is suspended (visible in SearXNG logs as `suspended_time=N`), it will automatically recover after the suspension period. With residential proxies, the next request after recovery goes through a different IP and typically succeeds.
-
-### No Web Search Results
-
-1. Check SearXNG health: `curl http://localhost:8888/healthz`
-2. Check SearXNG logs: `docker compose logs searxng`
-3. Verify the backend can reach SearXNG: the `SEARXNG_DEFAULT_HOST` env var should point to `http://searxng:8080` (Docker) or `http://localhost:8888` (local dev)
-
-### Proxy Not Working
-
-- Verify the base64 password is correctly encoded
-- Check that `extra_proxy_timeout` is set (proxies add latency)
-- Ensure `max_request_timeout` is high enough to accommodate `request_timeout + extra_proxy_timeout`
-
-## Environment Variables Reference
-
-| Variable | Location | Description | Default |
-|----------|----------|-------------|---------|
-| `SEARXNG_DEFAULT_HOST` | `docker/.env` | URL of the SearXNG instance | `http://searxng:8080` |
-| `SEARXNG_SECRET` | `docker/.env` | Secret key for SearXNG | `surfsense-searxng-secret` |
-| `SEARXNG_PORT` | `docker/.env` | Port to expose SearXNG UI on the host | `8888` |
+- **Tavily** — add via Custom MCP connector (see above).
+- **Linkup** — add via Custom MCP connector (see above).
+- **Baidu Search** — no longer bundled; use the built-in Google Search or a Custom MCP connector for a provider of your choice.
+- **SearXNG** — the bundled SearXNG container and its `SEARXNG_*` environment variables have been removed from all Docker Compose files.

@@ -454,12 +454,12 @@ export async function runNativeGoogleCalendarOAuth(
 }
 
 /**
- * Drives the Notion OAuth flow programmatically.
+ * Drives the Notion MCP OAuth flow programmatically.
  *
- * The E2E backend keeps SurfSense's OAuth add/callback routes real and
- * patches only Notion's external token endpoint. Notion's authorization
- * URL stays off-origin, so this helper extracts the signed state and calls
- * the backend callback directly with the deterministic fake code.
+ * Notion migrated from indexed OAuth to the hosted Notion MCP server, so this
+ * uses SurfSense's generic MCP OAuth routes. The E2E backend keeps those routes
+ * real and patches Notion's external discovery/DCR/token/MCP tool boundaries
+ * (see surfsense_backend/tests/e2e/fakes/notion_mcp_module.py).
  */
 export async function runNotionOAuth(
 	request: APIRequestContext,
@@ -471,26 +471,26 @@ export async function runNotionOAuth(
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/notion/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/notion/connector/add?space_id=${searchSpaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
 		throw new Error(
-			`Notion initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
+			`Notion MCP initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
 		);
 	}
 	const { auth_url } = (await initiateResp.json()) as { auth_url: string };
 	if (!auth_url) {
-		throw new Error("Notion initiate response missing auth_url");
+		throw new Error("Notion MCP initiate response missing auth_url");
 	}
 
 	const state = new URL(auth_url).searchParams.get("state");
 	if (!state) {
-		throw new Error(`Notion auth_url missing state: ${auth_url}`);
+		throw new Error(`Notion MCP auth_url missing state: ${auth_url}`);
 	}
 
 	const callbackResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/notion/connector/callback?code=fake-notion-oauth-code&state=${encodeURIComponent(state)}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/notion/connector/callback?code=fake-notion-oauth-code&state=${encodeURIComponent(state)}`,
 		{
 			headers: authHeaders(token),
 			maxRedirects: 0,
@@ -506,10 +506,14 @@ export async function runNotionOAuth(
 }
 
 /**
- * Drives the Confluence OAuth flow programmatically.
+ * Drives the Confluence MCP OAuth flow programmatically.
  *
- * The E2E backend keeps SurfSense's OAuth add/callback routes real and
- * patches only Atlassian's external token/resource endpoints.
+ * Confluence migrated to the hosted Atlassian Rovo MCP server (shared with
+ * Jira), so this uses SurfSense's generic MCP OAuth routes. The E2E backend
+ * keeps those routes real and patches the shared Atlassian
+ * discovery/DCR/token/MCP tool boundaries (see
+ * surfsense_backend/tests/e2e/fakes/jira_module.py). The OAuth code is the
+ * shared Atlassian one because both connectors hit the same token endpoint.
  */
 export async function runConfluenceOAuth(
 	request: APIRequestContext,
@@ -521,26 +525,26 @@ export async function runConfluenceOAuth(
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/confluence/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/confluence/connector/add?space_id=${searchSpaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
 		throw new Error(
-			`Confluence initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
+			`Confluence MCP initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
 		);
 	}
 	const { auth_url } = (await initiateResp.json()) as { auth_url: string };
 	if (!auth_url) {
-		throw new Error("Confluence initiate response missing auth_url");
+		throw new Error("Confluence MCP initiate response missing auth_url");
 	}
 
 	const state = new URL(auth_url).searchParams.get("state");
 	if (!state) {
-		throw new Error(`Confluence auth_url missing state: ${auth_url}`);
+		throw new Error(`Confluence MCP auth_url missing state: ${auth_url}`);
 	}
 
 	const callbackResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/confluence/connector/callback?code=fake-confluence-oauth-code&state=${encodeURIComponent(state)}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/confluence/connector/callback?code=fake-jira-oauth-code&state=${encodeURIComponent(state)}`,
 		{
 			headers: authHeaders(token),
 			maxRedirects: 0,

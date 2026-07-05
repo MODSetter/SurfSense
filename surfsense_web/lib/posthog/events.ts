@@ -200,14 +200,12 @@ export function trackAnonymousChatMessageSent(options: {
 	modelSlug: string;
 	messageLength?: number;
 	hasUploadedDoc?: boolean;
-	webSearchEnabled?: boolean;
 	surface?: "free_chat_page" | "free_model_page";
 }) {
 	safeCapture("anonymous_chat_message_sent", {
 		model_slug: options.modelSlug,
 		message_length: options.messageLength,
 		has_uploaded_doc: options.hasUploadedDoc ?? false,
-		web_search_enabled: options.webSearchEnabled,
 		surface: options.surface,
 	});
 }

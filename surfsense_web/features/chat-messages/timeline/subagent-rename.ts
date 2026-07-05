@@ -5,6 +5,15 @@ function asNonEmptyString(v: unknown): string | undefined {
 }
 
 /**
+ * Explicit display labels for subagents whose title-cased id reads poorly.
+ * Legacy per-connector names (gmail, slack, ...) intentionally fall through
+ * to {@link titleCaseSubagent} so historical conversations keep their labels.
+ */
+const SUBAGENT_DISPLAY_LABELS: Record<string, string> = {
+	mcp_discovery: "Connected Apps",
+};
+
+/**
  * Title-case a subagent identifier:
  *   "notion"        → "Notion"
  *   "doc_research"  → "Doc Research"
@@ -27,7 +36,8 @@ export function titleCaseSubagent(raw: string): string {
 export function resolveSubagentTitle(item: ToolCallItem): string | undefined {
 	if (item.toolName !== "task") return undefined;
 	const subagent = asNonEmptyString(item.args?.subagent_type);
-	return subagent ? titleCaseSubagent(subagent) : undefined;
+	if (!subagent) return undefined;
+	return SUBAGENT_DISPLAY_LABELS[subagent] ?? titleCaseSubagent(subagent);
 }
 
 /**

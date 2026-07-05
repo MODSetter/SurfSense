@@ -54,7 +54,7 @@ def _resolve_citations(
 ) -> list[dict[str, Any]]:
     """Rewrite ``[n]`` -> ``[citation:<payload>]`` in each text part before persisting.
 
-    No-op when the turn registered no citable sources; ``web_search``'s existing
+    No-op when the turn registered no citable sources; any pre-existing
     ``[citation:url]`` markers pass through untouched (the regex matches bare ``[n]``).
     """
     registry = _as_registry(raw_registry)

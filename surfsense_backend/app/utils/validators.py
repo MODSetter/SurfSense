@@ -12,6 +12,52 @@ from typing import Any
 import validators
 from fastapi import HTTPException
 
+# Connectors retired during the MCP migration: no viable official MCP server
+# exists yet, so new connections are refused. Existing rows keep working until
+# the user removes them. If demand returns, reinstate the connector by dropping
+# it from this set and re-enabling its subagent/route.
+#
+# The four search APIs (TAVILY/SEARXNG/LINKUP/BAIDU) are deprecated alongside the
+# Google-only web-search consolidation: public web search now runs through the
+# google_search subagent, and users who still want Tavily/Linkup can add them via
+# the generic Custom MCP connector (API-key headers).
+DEPRECATED_CONNECTOR_TYPES: frozenset[str] = frozenset(
+    {
+        "DISCORD_CONNECTOR",
+        "TEAMS_CONNECTOR",
+        "LUMA_CONNECTOR",
+        "TAVILY_API",
+        "SEARXNG_API",
+        "LINKUP_API",
+        "BAIDU_SEARCH_API",
+    }
+)
+
+
+def raise_if_connector_deprecated(connector_type: str | Any) -> None:
+    """Refuse new connections for a deprecated connector type (HTTP 410 Gone)."""
+    connector_type_str = (
+        connector_type.value
+        if hasattr(connector_type, "value")
+        else str(connector_type)
+    )
+    if connector_type_str in DEPRECATED_CONNECTOR_TYPES:
+        pretty = (
+            connector_type_str.replace("_CONNECTOR", "")
+            .replace("_SEARCH_API", "")
+            .replace("_API", "")
+            .replace("_", " ")
+            .title()
+        )
+        raise HTTPException(
+            status_code=410,
+            detail=(
+                f"The {pretty} connector has been deprecated and can no longer be "
+                "connected. If you were relying on it heavily, let us know and we'll "
+                "consider bringing it back."
+            ),
+        )
+
 
 def validate_workspace_id(workspace_id: Any) -> int:
     """

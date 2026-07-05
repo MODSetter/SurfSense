@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.utils.validators import (
+    raise_if_connector_deprecated,
     validate_connector_config,
     validate_connectors,
     validate_document_ids,
@@ -331,3 +332,31 @@ def test_validate_connector_config_invalid():
     # Invalid URL format in SEARXNG_API
     with pytest.raises(ValueError):
         validate_connector_config("SEARXNG_API", {"SEARXNG_HOST": "not-a-url"})
+
+
+@pytest.mark.parametrize(
+    "connector_type",
+    [
+        "DISCORD_CONNECTOR",
+        "TEAMS_CONNECTOR",
+        "LUMA_CONNECTOR",
+        "TAVILY_API",
+        "SEARXNG_API",
+        "LINKUP_API",
+        "BAIDU_SEARCH_API",
+    ],
+)
+def test_raise_if_connector_deprecated_blocks(connector_type):
+    """Deprecated connector types are refused with HTTP 410."""
+    with pytest.raises(HTTPException) as excinfo:
+        raise_if_connector_deprecated(connector_type)
+    assert excinfo.value.status_code == 410
+
+
+@pytest.mark.parametrize(
+    "connector_type",
+    ["SLACK_CONNECTOR", "NOTION_CONNECTOR", "SERPER_API", "MCP_CONNECTOR"],
+)
+def test_raise_if_connector_deprecated_allows_active(connector_type):
+    """Active connector types pass through without raising."""
+    raise_if_connector_deprecated(connector_type)

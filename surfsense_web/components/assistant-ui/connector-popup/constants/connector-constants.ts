@@ -1,6 +1,26 @@
 import { EnumConnectorName } from "@/contracts/enums/connector";
 
 /**
+ * Connectors retired during the MCP migration (no viable official MCP server).
+ * The catalog card is shown disabled with a "Deprecated" badge so existing
+ * users understand why; the backend `/add` routes also refuse with HTTP 410.
+ * Reinstate by removing the type here and in the backend
+ * `DEPRECATED_CONNECTOR_TYPES` if demand returns.
+ */
+export const DEPRECATED_CONNECTOR_TYPES = new Set<string>([
+	EnumConnectorName.DISCORD_CONNECTOR,
+	EnumConnectorName.TEAMS_CONNECTOR,
+	EnumConnectorName.LUMA_CONNECTOR,
+	// Search APIs retired by the Google-only web-search consolidation. Public
+	// web search now runs through the google_search subagent; Tavily/Linkup can
+	// still be added via the generic Custom MCP connector (API-key headers).
+	EnumConnectorName.TAVILY_API,
+	EnumConnectorName.SEARXNG_API,
+	EnumConnectorName.LINKUP_API,
+	EnumConnectorName.BAIDU_SEARCH_API,
+]);
+
+/**
  * Connectors that operate in real time (no background indexing).
  * Used to adjust UI: hide sync controls, show "Connected" instead of doc counts.
  */
@@ -17,6 +37,9 @@ export const LIVE_CONNECTOR_TYPES = new Set<string>([
 	EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
 	EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR,
 	EnumConnectorName.LUMA_CONNECTOR,
+	// Migrated to hosted MCP: real-time agent tools, no background indexing.
+	EnumConnectorName.NOTION_CONNECTOR,
+	EnumConnectorName.CONFLUENCE_CONNECTOR,
 ]);
 
 // OAuth Connectors (Quick Connect)
@@ -55,9 +78,9 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "notion-connector",
 		title: "Notion",
-		description: "Search your Notion pages",
+		description: "Search, read, and create pages",
 		connectorType: EnumConnectorName.NOTION_CONNECTOR,
-		authEndpoint: "/api/v1/auth/notion/connector/add",
+		authEndpoint: "/api/v1/auth/mcp/notion/connector/add/",
 	},
 	{
 		id: "linear-connector",
@@ -104,16 +127,16 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "jira-connector",
 		title: "Jira",
-		description: "Rework in progress.",
+		description: "Search, read, and manage issues",
 		connectorType: EnumConnectorName.JIRA_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/jira/connector/add/",
 	},
 	{
 		id: "confluence-connector",
 		title: "Confluence",
-		description: "Rework in progress.",
+		description: "Search, read, and create pages",
 		connectorType: EnumConnectorName.CONFLUENCE_CONNECTOR,
-		authEndpoint: "/api/v1/auth/confluence/connector/add/",
+		authEndpoint: "/api/v1/auth/mcp/confluence/connector/add/",
 	},
 	{
 		id: "clickup-connector",

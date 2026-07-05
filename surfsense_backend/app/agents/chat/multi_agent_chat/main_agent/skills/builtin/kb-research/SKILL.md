@@ -1,7 +1,7 @@
 ---
 name: kb-research
 description: Structured approach to finding and synthesizing information from the user's knowledge base
-allowed-tools: scrape_webpage, read_file, ls_tree, grep, web_search
+allowed-tools: scrape_webpage, read_file, ls_tree, grep
 ---
 
 # Knowledge-base research

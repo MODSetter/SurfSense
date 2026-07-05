@@ -337,11 +337,6 @@ async def stream_anonymous_chat(
             await TokenQuotaService.anon_release(session_key, ip_key, request_id)
             raise HTTPException(status_code=500, detail="Failed to create LLM instance")
 
-        # Server-side tool allow-list enforcement
-        anon_allowed_tools = {"web_search"}
-        client_disabled = set(body.disabled_tools) if body.disabled_tools else set()
-        enabled_for_agent = anon_allowed_tools - client_disabled
-
     except HTTPException:
         await TokenQuotaService.anon_release_stream_slot(client_ip)
         raise
@@ -369,15 +364,14 @@ async def stream_anonymous_chat(
                 # Load the optional uploaded document as read-only context.
                 anon_doc = await _load_anon_document(session_id)
 
-                # Minimal Q/A agent: web_search only (when enabled), no
-                # filesystem / persistence / subagents. The uploaded document
-                # is injected into the system prompt as read-only context.
+                # Minimal Q/A agent: no tools, no filesystem / persistence /
+                # subagents. The uploaded document is injected into the system
+                # prompt as read-only context.
                 agent = await create_anonymous_chat_agent(
                     llm=llm,
                     checkpointer=checkpointer,
                     anon_session_id=session_id,
                     anon_doc=anon_doc,
-                    enable_web_search="web_search" in enabled_for_agent,
                 )
 
                 langchain_messages = []

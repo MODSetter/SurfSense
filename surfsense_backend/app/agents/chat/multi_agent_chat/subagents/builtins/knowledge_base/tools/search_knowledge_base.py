@@ -38,13 +38,15 @@ _DEFAULT_TOP_K = 5
 _MAX_TOP_K = 20
 
 _TOOL_DESCRIPTION = (
-    "Search the user's knowledge base (their indexed documents, files, and "
-    "connector content) for passages relevant to a query, using hybrid "
-    "semantic + keyword retrieval.\n\n"
+    "Search the user's knowledge base — their own uploaded files, documents, "
+    "and notes — for passages relevant to a query, using hybrid semantic + "
+    "keyword retrieval.\n\n"
     "Use this FIRST to ground any factual or informational answer about the "
-    "user's own documents, notes, or connected sources. It returns a "
-    "<retrieved_context> block: each matched passage is labelled [n]. Cite a "
-    "passage by writing that [n] after the statement it supports.\n\n"
+    "user's personal files and notes. It returns a <retrieved_context> block: "
+    "each matched passage is labelled [n]. Cite a passage by writing that [n] "
+    "after the statement it supports.\n\n"
+    "This searches only the user's stored files and notes — live data in "
+    "connected apps (Slack, Jira, Notion, Gmail, etc.) is not indexed here.\n\n"
     "Write a focused, specific query containing the concrete entities, "
     "acronyms, people, projects, or terms you are looking for."
 )

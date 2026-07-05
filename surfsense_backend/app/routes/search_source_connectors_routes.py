@@ -73,6 +73,7 @@ from app.utils.periodic_scheduler import (
     update_periodic_schedule,
 )
 from app.utils.rbac import check_permission
+from app.utils.validators import raise_if_connector_deprecated
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -185,6 +186,12 @@ async def create_search_source_connector(
     The config must contain the appropriate keys for the connector type.
     """
     try:
+        # Refuse new connections for deprecated connector types (HTTP 410). The
+        # search APIs (Tavily/SearXNG/Linkup/Baidu) are created through this
+        # generic route rather than a dedicated OAuth route, so this is the
+        # single choke point that must enforce the deprecation.
+        raise_if_connector_deprecated(connector.connector_type)
+
         # Check if user has permission to create connectors
         await check_permission(
             session,
@@ -827,13 +834,30 @@ async def index_connector_content(
             # For non-calendar connectors, cap at today
             indexing_to = end_date if end_date else today_str
 
-        from app.services.mcp_oauth.registry import LIVE_CONNECTOR_TYPES
+        from app.services.mcp_oauth.registry import (
+            DEPRECATED_INDEXING_CONNECTOR_TYPES,
+            LIVE_CONNECTOR_TYPES,
+        )
 
         if connector.connector_type in LIVE_CONNECTOR_TYPES:
             return {
                 "message": (
                     f"{connector.connector_type.value} uses real-time agent tools; "
                     "background indexing is disabled."
+                ),
+                "indexing_started": False,
+                "connector_id": connector_id,
+                "workspace_id": workspace_id,
+                "indexing_from": indexing_from,
+                "indexing_to": indexing_to,
+            }
+
+        if connector.connector_type in DEPRECATED_INDEXING_CONNECTOR_TYPES:
+            return {
+                "message": (
+                    f"Indexing for {connector.connector_type.value} has been "
+                    "deprecated. The knowledge base now stores files, notes, and "
+                    "uploads only."
                 ),
                 "indexing_started": False,
                 "connector_id": connector_id,

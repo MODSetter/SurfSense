@@ -23,6 +23,7 @@ from langchain_core.tools import StructuredTool
 from langgraph.errors import GraphInterrupt
 from langgraph.types import Command, Interrupt
 
+from app.agents.chat.multi_agent_chat.constants import LEGACY_SUBAGENT_ALIASES
 from app.agents.chat.multi_agent_chat.subagents.shared.invocation import (
     EXCLUDED_STATE_KEYS,
     subagent_invoke_config,
@@ -157,6 +158,26 @@ def build_task_tool_with_parent_config(
     case a trivial dict-backed resolver is used.
     """
     subagent_names: set[str] = {spec["name"] for spec in subagents}
+
+    def _canonical_subagent_type(subagent_type: str) -> str:
+        """Resolve a legacy connector subagent name to its consolidated route.
+
+        Only rewrites when the requested name is unavailable but its alias is
+        (checkpoint resume of a pre-consolidation ``task(...)`` call). Current
+        routing never emits legacy names, so live traffic is untouched.
+        """
+        if subagent_type in subagent_names:
+            return subagent_type
+        alias = LEGACY_SUBAGENT_ALIASES.get(subagent_type)
+        if alias is not None and alias in subagent_names:
+            logger.info(
+                "[hitl_route] aliasing legacy subagent %r -> %r",
+                subagent_type,
+                alias,
+            )
+            return alias
+        return subagent_type
+
     if resolve_subagent is None:
         _eager_graphs: dict[str, Runnable] = {
             spec["name"]: spec["runnable"] for spec in subagents if "runnable" in spec
@@ -482,6 +503,7 @@ def build_task_tool_with_parent_config(
         batched HITL is intentionally out of scope.
         """
         async with semaphore:
+            subagent_type = _canonical_subagent_type(subagent_type)
             if subagent_type not in subagent_names:
                 allowed_types = ", ".join([f"`{k}`" for k in subagent_names])
                 return (
@@ -658,6 +680,7 @@ def build_task_tool_with_parent_config(
                 "task: must provide either single-mode (`description`+`subagent_type`) "
                 "or batch-mode (`tasks`)."
             )
+        subagent_type = _canonical_subagent_type(subagent_type)
         if subagent_type not in subagent_names:
             allowed_types = ", ".join([f"`{k}`" for k in subagent_names])
             return (
@@ -867,6 +890,7 @@ def build_task_tool_with_parent_config(
             subagent_type,
             runtime.tool_call_id,
         )
+        subagent_type = _canonical_subagent_type(subagent_type)
         if subagent_type not in subagent_names:
             allowed_types = ", ".join([f"`{k}`" for k in subagent_names])
             return (

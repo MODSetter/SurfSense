@@ -21,7 +21,6 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.chat.shared.tools.web_search import create_web_search_tool
 from app.db import ChatVisibility
 
 from .scrape_webpage import create_scrape_webpage_tool
@@ -33,13 +32,6 @@ from .update_memory import (
 
 def _build_scrape_webpage_tool(_deps: dict[str, Any]) -> BaseTool:
     return create_scrape_webpage_tool()
-
-
-def _build_web_search_tool(deps: dict[str, Any]) -> BaseTool:
-    return create_web_search_tool(
-        workspace_id=deps.get("workspace_id"),
-        available_connectors=deps.get("available_connectors"),
-    )
 
 
 def _build_create_automation_tool(deps: dict[str, Any]) -> BaseTool:
@@ -71,13 +63,12 @@ def _build_update_memory_tool(deps: dict[str, Any]) -> BaseTool:
 
 
 # Ordered to match the historical main-agent binding order:
-# scrape_webpage, web_search, create_automation, update_memory.
+# scrape_webpage, create_automation, update_memory.
 # Each entry is ``(factory, required_dependency_names)``.
 _MAIN_AGENT_TOOL_FACTORIES: dict[
     str, tuple[Callable[[dict[str, Any]], BaseTool], tuple[str, ...]]
 ] = {
     "scrape_webpage": (_build_scrape_webpage_tool, ()),
-    "web_search": (_build_web_search_tool, ()),
     "create_automation": (
         _build_create_automation_tool,
         ("workspace_id", "user_id", "llm"),

@@ -6,7 +6,6 @@ Connector integrations, MCP, deliverables, etc. are delegated via ``task`` subag
 from __future__ import annotations
 
 MAIN_AGENT_SURFSENSE_TOOL_NAMES_ORDERED: tuple[str, ...] = (
-    "web_search",
     "scrape_webpage",
     "update_memory",
     "create_automation",

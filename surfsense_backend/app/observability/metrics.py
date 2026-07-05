@@ -36,7 +36,11 @@ _ERROR_CATEGORY_HINTS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 
 def _package_version() -> str:
-    with contextlib.suppress(metadata.PackageNotFoundError):
+    # Best-effort telemetry tag only: never let a version lookup crash the
+    # request path. Besides PackageNotFoundError, a malformed/dynamic editable
+    # install can have distribution metadata with no "Version" field, which
+    # raises KeyError deep in importlib.metadata. Suppress broadly.
+    with contextlib.suppress(Exception):
         return metadata.version("surf-new-backend")
     return "unknown"
 
