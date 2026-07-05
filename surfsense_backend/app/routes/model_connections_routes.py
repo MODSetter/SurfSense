@@ -21,7 +21,6 @@ from app.schemas import (
     ConnectionCreate,
     ConnectionRead,
     ConnectionUpdate,
-    ModelCreate,
     ModelPreviewRead,
     ModelProviderRead,
     ModelRead,
@@ -616,49 +615,6 @@ async def discover_connection_models(
     await session.commit()
     conn = await _load_connection(session, connection_id)
     return [_model_read(model) for model in conn.models]
-
-
-@router.post("/model-connections/{connection_id}/models", response_model=ModelRead)
-async def add_manual_model(
-    connection_id: int,
-    data: ModelCreate,
-    session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
-):
-    conn = await _load_connection(session, connection_id)
-    await _assert_connection_access(
-        session, auth, conn, Permission.LLM_CONFIGS_UPDATE.value
-    )
-
-    model_id = data.model_id.strip()
-    if not model_id:
-        raise HTTPException(status_code=400, detail="model_id is required")
-    if any(existing.model_id == model_id for existing in conn.models):
-        raise HTTPException(
-            status_code=400, detail="Model already exists on this connection"
-        )
-
-    capabilities = derive_capabilities(conn, model_id)
-    model = Model(
-        connection_id=conn.id,
-        model_id=model_id,
-        display_name=data.display_name or None,
-        source=ModelSource.MANUAL,
-        capabilities_override={},
-        enabled=True,
-        catalog={},
-    )
-    _apply_model_facts(model, capabilities)
-    session.add(model)
-    await session.commit()
-    await session.refresh(model)
-    conn = await _load_connection(session, connection_id)
-    await _default_unset_roles(session, conn, list(conn.models))
-    if conn.search_space_id is not None:
-        await _clear_invalid_roles(session, conn.search_space_id)
-    await session.commit()
-    await session.refresh(model)
-    return _model_read(model)
 
 
 @router.patch(

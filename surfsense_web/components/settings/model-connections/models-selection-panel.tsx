@@ -1,10 +1,7 @@
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import {
 	capability,
 	capabilityLabels,
@@ -18,14 +15,12 @@ interface ModelsSelectionPanelProps {
 	models: SelectableModel[];
 	description?: string;
 	emptyMessage?: string;
-	manualInputPlaceholder?: string;
 	refreshLabel?: string;
 	isRefreshing?: boolean;
-	isAddingManual?: boolean;
+	isRefreshDisabled?: boolean;
 	isUpdatingModel?: boolean;
 	isBulkUpdating?: boolean;
 	onRefresh?: () => void;
-	onAddManual?: (modelId: string) => void;
 	onToggleModel?: (model: SelectableModel, enabled: boolean) => void;
 	onBulkToggle?: (models: SelectableModel[], enabled: boolean) => void;
 }
@@ -34,18 +29,15 @@ export function ModelsSelectionPanel({
 	models,
 	description = "Select models to make available for this provider.",
 	emptyMessage = "No models available.",
-	manualInputPlaceholder = "Add a model ID manually",
 	refreshLabel = "Refresh models",
 	isRefreshing = false,
-	isAddingManual = false,
+	isRefreshDisabled = false,
 	isUpdatingModel = false,
 	isBulkUpdating = false,
 	onRefresh,
-	onAddManual,
 	onToggleModel,
 	onBulkToggle,
 }: ModelsSelectionPanelProps) {
-	const [manualModelId, setManualModelId] = useState("");
 	const [modelFilter, setModelFilter] = useState<ModelCapabilityFilter | null>(null);
 
 	const filteredModels = modelFilter
@@ -53,13 +45,6 @@ export function ModelsSelectionPanel({
 		: models;
 	const allFilteredModelsEnabled =
 		filteredModels.length > 0 && filteredModels.every((model) => model.enabled);
-
-	function addModel() {
-		const modelId = manualModelId.trim();
-		if (!modelId || !onAddManual) return;
-		onAddManual(modelId);
-		setManualModelId("");
-	}
 
 	function toggleFilteredModels() {
 		const nextEnabled = !allFilteredModelsEnabled;
@@ -91,7 +76,7 @@ export function ModelsSelectionPanel({
 							size="icon"
 							type="button"
 							onClick={onRefresh}
-							disabled={isRefreshing}
+							disabled={isRefreshing || isRefreshDisabled}
 							aria-label={refreshLabel}
 						>
 							<RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
@@ -99,32 +84,6 @@ export function ModelsSelectionPanel({
 					) : null}
 				</div>
 			</div>
-
-			{onAddManual ? (
-				<div className="flex gap-2">
-					<Input
-						value={manualModelId}
-						onChange={(event) => setManualModelId(event.target.value)}
-						onKeyDown={(event) => {
-							if (event.key === "Enter") {
-								event.preventDefault();
-								addModel();
-							}
-						}}
-						placeholder={manualInputPlaceholder}
-					/>
-					<Button
-						size="sm"
-						type="button"
-						onClick={addModel}
-						disabled={isAddingManual || !manualModelId.trim()}
-						className="relative min-w-[88px]"
-					>
-						<span className={isAddingManual ? "opacity-0" : ""}>Add model</span>
-						{isAddingManual ? <Spinner size="xs" className="absolute" /> : null}
-					</Button>
-				</div>
-			) : null}
 
 			{models.length > 0 ? (
 				<div className="flex flex-wrap items-center gap-2">
@@ -179,11 +138,6 @@ export function ModelsSelectionPanel({
 							<div className="min-w-0 flex-1">
 								<div className="flex items-center gap-2 text-sm font-medium">
 									<span className="truncate">{modelLabel(model)}</span>
-									{model.source === "MANUAL" ? (
-										<Badge variant="outline" className="text-[10px]">
-											manual
-										</Badge>
-									) : null}
 								</div>
 								<div className="text-xs text-muted-foreground">
 									{capabilityLabels(model) || "No discovered capabilities"}

@@ -64,6 +64,22 @@ def test_openai_compatible_resolver_uses_explicit_api_base() -> None:
     assert ensure_v1("http://example.com/v1") == "http://example.com/v1"
 
 
+def test_lm_studio_resolver_supplies_dummy_api_key_when_empty() -> None:
+    model, kwargs = to_litellm(
+        {
+            "provider": "lm_studio",
+            "base_url": "http://host.docker.internal:1234/v1",
+            "api_key": None,
+            "extra": {},
+        },
+        "tinyllama-1.1b-chat-v0.6",
+    )
+
+    assert model == "openai/tinyllama-1.1b-chat-v0.6"
+    assert kwargs["api_base"] == "http://host.docker.internal:1234/v1"
+    assert kwargs["api_key"] == "not-needed"
+
+
 def test_ollama_resolver_uses_native_api_base() -> None:
     model, kwargs = to_litellm(
         {

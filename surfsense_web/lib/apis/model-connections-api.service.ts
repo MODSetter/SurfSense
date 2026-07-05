@@ -8,7 +8,6 @@ import {
 	connectionUpdateRequest,
 	type GlobalLlmConfigStatus,
 	globalLlmConfigStatus,
-	type ModelCreateRequest,
 	type ModelPreviewRead,
 	type ModelProviderRead,
 	type ModelRead,
@@ -16,7 +15,6 @@ import {
 	type ModelsBulkUpdateRequest,
 	type ModelTestPreviewRequest,
 	type ModelUpdateRequest,
-	modelCreateRequest,
 	modelListResponse,
 	modelPreviewListResponse,
 	modelProviderListResponse,
@@ -108,19 +106,6 @@ class ModelConnectionsApiService {
 			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
 		}
 		return baseApiService.post(`/api/v1/model-connections/test-preview`, verifyConnectionResponse, {
-			body: parsed.data,
-		});
-	};
-
-	addManualModel = async (
-		connectionId: number,
-		request: ModelCreateRequest
-	): Promise<ModelRead> => {
-		const parsed = modelCreateRequest.safeParse(request);
-		if (!parsed.success) {
-			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
-		}
-		return baseApiService.post(`/api/v1/model-connections/${connectionId}/models`, modelRead, {
 			body: parsed.data,
 		});
 	};
