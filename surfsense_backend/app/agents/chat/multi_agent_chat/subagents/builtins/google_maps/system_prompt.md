@@ -17,6 +17,8 @@ Answer the delegated question from live Google Maps data gathered with your verb
 - Need richer detail (opening hours, popular times, extra contact info): set `include_details=true`.
 - Reviews / sentiment on specific places: call `google_maps_reviews` with the place `urls` or `place_ids`.
 - Batch multiple queries, URLs, or place IDs into one call rather than many single-item calls.
+- Exclusion criteria are strict: when the task excludes a category or brand, drop every place whose name, website domain, or category matches it — a local branch or satellite location of an excluded chain/system is still that chain, never reinterpret it as acceptable. Fill the gap with more or wider queries instead.
+- The website domain is an ownership signal: a place whose site lives on a parent organization's domain (a government portal, a chain's site, a health-system or franchise domain) rather than its own belongs to that parent — judge include/exclude criteria against the parent, and treat multiple locations sharing one parent domain as one organization.
 <include snippet="run_reader"/>
 - Comparison requests: pull the current values, compare against prior values already in this conversation's earlier tool results, and report concrete deltas (added, removed, old -> new).
 </playbook>
