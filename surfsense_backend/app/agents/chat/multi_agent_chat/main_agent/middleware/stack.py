@@ -7,6 +7,11 @@ retrieval are owned by the ``knowledge_base`` subagent and reached via the
 the main agent only sees the specialist's grounded summary. The stack here
 computes the workspace tree, commits any subagent-side staged writes at end of
 turn (cloud mode), and wires the supporting middleware.
+
+One deliberate, read-only exception to the pure-router stance: the main agent
+also carries the ``read_run``/``search_run`` tools (added in ``runtime/factory``)
+so it can follow the context-editing spill placeholder — evicted tool output is
+persisted to ``tool_output_spills`` and the placeholder advertises those tools.
 """
 
 from __future__ import annotations
@@ -260,7 +265,7 @@ def build_main_agent_deepagent_middleware(
             flags=flags,
             max_input_tokens=max_input_tokens,
             tools=tools,
-            backend_resolver=backend_resolver,
+            workspace_id=workspace_id,
         ),
         build_compaction_mw(llm),
         build_noop_injection_mw(flags),

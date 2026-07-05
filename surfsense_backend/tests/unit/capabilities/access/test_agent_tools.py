@@ -64,7 +64,12 @@ def isolate(monkeypatch):
     return SimpleNamespace(module=mod, charge=charge, gate=gate)
 
 
-async def test_registry_becomes_one_tool_per_verb(isolate):
+def _verb_tool(tools, name: str):
+    """Pick one capability tool out of the list (readers are appended after)."""
+    return next(t for t in tools if t.name == name)
+
+
+async def test_registry_becomes_one_tool_per_verb_plus_readers(isolate):
     caps = [
         _capability(name="web.scrape", output=_EchoOutput(echoed="a")),
         _capability(name="web.discover", output=_EchoOutput(echoed="b"), unit=None),
@@ -73,7 +78,8 @@ async def test_registry_becomes_one_tool_per_verb(isolate):
     tools = isolate.module.build_capability_tools(workspace_id=7, capabilities=caps)
 
     by_name = {t.name: t for t in tools}
-    assert set(by_name) == {"web_scrape", "web_discover"}
+    # One tool per verb, plus the two shared run-reader tools.
+    assert set(by_name) == {"web_scrape", "web_discover", "read_run", "search_run"}
     assert by_name["web_scrape"].description == "web.scrape does a thing."
     assert by_name["web_scrape"].args_schema is _EchoInput
 
@@ -81,17 +87,20 @@ async def test_registry_becomes_one_tool_per_verb(isolate):
 async def test_input_field_docs_reach_the_model(isolate):
     """Per-field descriptions must surface in the tool's args schema (LLM context)."""
     cap = _capability(name="web.scrape", output=_EchoOutput(echoed="a"))
-    [tool] = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
+    tools = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
+    tool = _verb_tool(tools, "web_scrape")
 
     assert tool.args["text"]["description"] == "The text to echo back."
 
 
 async def test_tool_runs_executor_and_returns_serialized_output(isolate):
     cap = _capability(name="web.scrape", output=_EchoOutput(echoed="hi there"))
-    [tool] = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
+    tools = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
+    tool = _verb_tool(tools, "web_scrape")
 
     result = await tool.ainvoke({"text": "ping"})
 
+    # Fake session makes record_run fail -> no run_id key, plain serialized output.
     assert result == {"echoed": "hi there"}
     assert cap.executor.seen.text == "ping"
 
@@ -99,7 +108,8 @@ async def test_tool_runs_executor_and_returns_serialized_output(isolate):
 async def test_tool_charges_owner(isolate):
     output = _EchoOutput(echoed="hi")
     cap = _capability(name="web.scrape", output=output)
-    [tool] = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
+    tools = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
+    tool = _verb_tool(tools, "web_scrape")
 
     await tool.ainvoke({"text": "ping"})
 
@@ -117,7 +127,8 @@ async def test_over_budget_returns_friendly_message(isolate):
         balance_micros=0,
         required_micros=1_000_000,
     )
-    [tool] = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
+    tools = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
+    tool = _verb_tool(tools, "web_scrape")
 
     result = await tool.ainvoke({"text": "ping"})
 

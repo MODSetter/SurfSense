@@ -2779,6 +2779,81 @@ class PersonalAccessToken(BaseModel, TimestampMixin):
         return not self.is_expired
 
 
+class Run(Base, TimestampMixin):
+    """One row per scraper-capability invocation, from either the agent door
+    or the REST/API-key door.
+
+    Backs the user-facing Scraper-API logs and the agent's tool-boundary
+    truncation: the full output lives here while the model sees only a capped
+    preview plus this row's id. ``output_text`` is stored as JSONL (one item
+    per line, ``exclude_none``) so ``read_run``/``search_run`` can page and grep
+    by line without parsing the whole payload. Retained ~30 days via opportunistic
+    bounded cleanup on insert.
+
+    ``cost_micros`` ships nullable and unpopulated in this pass; the planned
+    per-verb pricing rework will fill it. ``thread_id`` is a free-form string
+    (subagent ids look like ``"2099::task:call_x"``), so it is intentionally not
+    a foreign key.
+    """
+
+    __tablename__ = "runs"
+    __allow_unmapped__ = True
+
+    __table_args__ = (
+        Index("ix_runs_workspace_created", "workspace_id", "created_at"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    thread_id = Column(String(255), nullable=True)
+    capability = Column(String(100), nullable=False, index=True)
+    origin = Column(String(16), nullable=False)
+    status = Column(String(16), nullable=False)
+    error = Column(Text, nullable=True)
+    input = Column(JSONB, nullable=True)
+    output_text = Column(Text, nullable=True)
+    item_count = Column(Integer, nullable=False, default=0)
+    char_count = Column(Integer, nullable=False, default=0)
+    duration_ms = Column(Integer, nullable=True)
+    cost_micros = Column(BigInteger, nullable=True)
+
+
+class ToolOutputSpill(Base, TimestampMixin):
+    """Internal scratch store for main-agent context-editing spills.
+
+    Kept separate from ``runs`` so customer-facing scraper logs stay clean.
+    The full ``ToolMessage`` content that context editing evicts is written here
+    and the message body is replaced with a ``spill_{id}`` placeholder the agent
+    can read back via ``read_run``/``search_run``. Retained ~7 days.
+    """
+
+    __tablename__ = "tool_output_spills"
+    __allow_unmapped__ = True
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    thread_id = Column(String(255), nullable=True)
+    tool_name = Column(String(255), nullable=True)
+    content = Column(Text, nullable=False)
+    char_count = Column(Integer, nullable=False, default=0)
+
+
 # Register model packages that live outside this file so their classes
 # are present in Base.metadata before configure_mappers() resolves any
 # string-based relationship() references.

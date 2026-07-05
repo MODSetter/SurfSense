@@ -1,16 +1,26 @@
 """Generate the agent door from the capability registry (05).
 
 One LangChain tool per verb; each runs the same thin adapter as the REST door
-(``access/rest.py``): meter-gate -> executor -> charge. The tool returns the
-verb's serialized output so the model can reason over it; UI cards are the SSE
-emission handler's job, not this generator's.
+(``access/rest.py``): meter-gate -> executor -> charge. Every run is recorded to
+the ``runs`` table (best-effort). Outputs that fit under ``RUN_OUTPUT_CHAR_CAP``
+are returned inline; larger ones are stored and the model gets a char-budgeted
+preview plus a ``run_<id>`` reference it can page with ``read_run``/``search_run``.
+Those two read tools are appended to the tool list so every capability-using
+subagent can follow a truncation reference without extra wiring.
 """
 
 from __future__ import annotations
 
+import time
+
 from langchain_core.tools import BaseTool, StructuredTool
 
 from app.capabilities.core.billing import charge_capability, gate_capability
+from app.capabilities.core.runs import (
+    RUN_OUTPUT_CHAR_CAP,
+    record_run,
+    serialize_output,
+)
 from app.capabilities.core.store import all_capabilities
 from app.capabilities.core.types import Capability, CapabilityContext
 from app.db import async_session_maker
@@ -22,31 +32,129 @@ def build_capability_tools(
     workspace_id: int,
     capabilities: list[Capability] | None = None,
 ) -> list[BaseTool]:
-    """Emit one tool per verb (defaults to the whole registry)."""
+    """Emit one tool per verb (defaults to the whole registry), plus the run readers."""
     caps = capabilities if capabilities is not None else all_capabilities()
-    return [_capability_tool(cap, workspace_id) for cap in caps]
+    tools = [_capability_tool(cap, workspace_id) for cap in caps]
+    # Deferred import: the reader lives in the agents package (which imports from
+    # here), so importing it lazily avoids an import-time cycle.
+    from app.agents.chat.multi_agent_chat.subagents.shared.run_reader import (
+        build_run_reader_tools,
+    )
+
+    tools.extend(build_run_reader_tools(workspace_id=workspace_id))
+    return tools
+
+
+def _current_thread_id() -> str | None:
+    """Best-effort ``configurable.thread_id`` from the active LangGraph config."""
+    try:
+        from langgraph.config import get_config
+
+        cfg = get_config()
+        tid = (cfg.get("configurable") or {}).get("thread_id")
+        return str(tid) if tid is not None else None
+    except Exception:
+        return None
 
 
 def _capability_tool(capability: Capability, workspace_id: int) -> BaseTool:
     input_model = capability.input_schema
     unit = capability.billing_unit
     executor = capability.executor
+    name = capability.name
 
     async def _run(**kwargs: object) -> dict | str:
         payload = input_model(**kwargs)
+        input_dump = payload.model_dump(exclude_none=True)
+        thread_id = _current_thread_id()
+
         async with async_session_maker() as session:
             ctx = CapabilityContext(session=session, workspace_id=workspace_id)
             try:
                 await gate_capability(payload, unit, ctx)
             except InsufficientCreditsError as exc:
                 return str(exc)
-            output = await executor(payload)
+
+            started = time.perf_counter()
+            try:
+                output = await executor(payload)
+            except Exception as exc:
+                duration_ms = int((time.perf_counter() - started) * 1000)
+                async with async_session_maker() as rec_session:
+                    await record_run(
+                        rec_session,
+                        workspace_id=workspace_id,
+                        capability=name,
+                        origin="agent",
+                        status="error",
+                        input=input_dump,
+                        error=str(exc),
+                        thread_id=thread_id,
+                        duration_ms=duration_ms,
+                    )
+                raise
+
+            duration_ms = int((time.perf_counter() - started) * 1000)
             await charge_capability(output, unit, ctx)
-            return output.model_dump()
+
+        serialized = serialize_output(output)
+        async with async_session_maker() as rec_session:
+            run_id = await record_run(
+                rec_session,
+                workspace_id=workspace_id,
+                capability=name,
+                origin="agent",
+                status="success",
+                serialized=serialized,
+                input=input_dump,
+                thread_id=thread_id,
+                duration_ms=duration_ms,
+            )
+
+        if serialized.char_count <= RUN_OUTPUT_CHAR_CAP:
+            dump = output.model_dump(exclude_none=True)
+            if run_id is not None:
+                dump["run_id"] = f"run_{run_id}"
+            return dump
+
+        return _build_preview(serialized, run_id)
 
     return StructuredTool.from_function(
         coroutine=_run,
-        name=capability.name.replace(".", "_"),
+        name=name.replace(".", "_"),
         description=capability.description,
         args_schema=input_model,
+    )
+
+
+def _build_preview(serialized, run_id: str | None) -> str:
+    """Char-budgeted preview: whole JSONL items until the cap is spent."""
+    lines = serialized.text.split("\n")
+    preview_lines: list[str] = []
+    used = 0
+    for line in lines:
+        cost = len(line) + 1
+        if used + cost > RUN_OUTPUT_CHAR_CAP:
+            break
+        preview_lines.append(line)
+        used += cost
+
+    if not preview_lines and lines:
+        # A single item larger than the cap: show a clipped head so the model
+        # still sees the shape and can page/search for the rest.
+        preview_lines = [lines[0][:RUN_OUTPUT_CHAR_CAP]]
+
+    shown = len(preview_lines)
+    preview = "\n".join(preview_lines)
+
+    if run_id is None:
+        return (
+            f"{preview}\n\n...Showing {shown} of {serialized.item_count} items "
+            f"({serialized.char_count} chars). Full output unavailable (storage error)."
+        )
+    return (
+        f"{preview}\n\n...Showing {shown} of {serialized.item_count} items "
+        f"({serialized.char_count} chars). Full run stored as run_{run_id}. Use "
+        f"read_run('run_{run_id}', offset, limit) or search_run('run_{run_id}', "
+        "pattern) to inspect the rest."
     )

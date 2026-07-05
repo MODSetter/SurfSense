@@ -224,6 +224,15 @@ async def create_multi_agent_chat_deep_agent(
         additional_tools=list(additional_tools) if additional_tools else None,
     )
 
+    # Read-only exception to the "main agent is a pure router" stance: the
+    # context-editing spill placeholder points at read_run/search_run, so the
+    # main agent needs those tools to follow it. See middleware/stack.py.
+    from app.agents.chat.multi_agent_chat.subagents.shared.run_reader import (
+        build_run_reader_tools,
+    )
+
+    tools = [*list(tools), *build_run_reader_tools(workspace_id=workspace_id)]
+
     _flags: AgentFeatureFlags = get_flags()
     if _flags.enable_tool_call_repair and INVALID_TOOL_NAME not in {
         t.name for t in tools

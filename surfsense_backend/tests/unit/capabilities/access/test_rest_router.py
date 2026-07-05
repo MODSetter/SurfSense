@@ -40,6 +40,7 @@ def _build_app(capabilities, monkeypatch) -> FastAPI:
     from app.capabilities.core.access.rate_limit import enforce_capability_rate_limit
 
     monkeypatch.setattr(rest, "check_workspace_access", _noop_async, raising=True)
+    monkeypatch.setattr(rest, "_record_rest_run", _fake_record, raising=True)
 
     app = FastAPI()
     app.include_router(rest.build_capabilities_router(capabilities), prefix="/api/v1")
@@ -57,6 +58,11 @@ async def _noop_async(*args, **kwargs) -> None:
     return None
 
 
+async def _fake_record(**kwargs) -> str:
+    """Stand-in for the DB-backed recorder so unit tests never touch a database."""
+    return "test-run-id"
+
+
 async def _allow() -> None:
     return None
 
@@ -70,11 +76,12 @@ async def test_verb_is_exposed_as_typed_post_route(monkeypatch):
     app = _build_app([_ECHO], monkeypatch)
     async with _client(app) as client:
         resp = await client.post(
-            "/api/v1/workspaces/7/capabilities/test.echo",
+            "/api/v1/workspaces/7/scrapers/test/echo",
             json={"value": "hi"},
         )
     assert resp.status_code == 200
     assert resp.json() == {"echo": "hi"}
+    assert resp.headers["X-Run-Id"] == "run_test-run-id"
 
 
 @pytest.mark.asyncio
@@ -82,7 +89,7 @@ async def test_input_is_validated_against_the_verb_schema(monkeypatch):
     app = _build_app([_ECHO], monkeypatch)
     async with _client(app) as client:
         resp = await client.post(
-            "/api/v1/workspaces/7/capabilities/test.echo",
+            "/api/v1/workspaces/7/scrapers/test/echo",
             json={"wrong": "field"},
         )
     assert resp.status_code == 422
@@ -95,7 +102,7 @@ def test_registered_verbs_appear_on_rest():
 
     router = rest.build_capabilities_router()
     paths = {route.path for route in router.routes}
-    assert "/workspaces/{workspace_id}/capabilities/web.crawl" in paths
+    assert "/workspaces/{workspace_id}/scrapers/web/crawl" in paths
 
 
 @pytest.mark.asyncio
@@ -113,7 +120,7 @@ async def test_over_budget_is_blocked_before_the_executor(monkeypatch):
     app = _build_app([_ECHO], monkeypatch)
     async with _client(app) as client:
         resp = await client.post(
-            "/api/v1/workspaces/7/capabilities/test.echo",
+            "/api/v1/workspaces/7/scrapers/test/echo",
             json={"value": "hi"},
         )
     assert resp.status_code == 402
@@ -142,7 +149,7 @@ async def test_rate_limit_blocks_the_workspace(monkeypatch):
 
     async with _client(app) as client:
         resp = await client.post(
-            "/api/v1/workspaces/7/capabilities/test.echo",
+            "/api/v1/workspaces/7/scrapers/test/echo",
             json={"value": "hi"},
         )
     assert resp.status_code == 429
@@ -183,7 +190,7 @@ async def test_executor_fault_becomes_502(monkeypatch):
     _register_surfsense_handler(app)
     async with _client(app) as client:
         resp = await client.post(
-            "/api/v1/workspaces/7/capabilities/test.boom",
+            "/api/v1/workspaces/7/scrapers/test/boom",
             json={"value": "hi"},
         )
     assert resp.status_code == 502
@@ -211,11 +218,102 @@ async def test_surfsense_error_passes_through(monkeypatch):
     _register_surfsense_handler(app)
     async with _client(app) as client:
         resp = await client.post(
-            "/api/v1/workspaces/7/capabilities/test.forbidden",
+            "/api/v1/workspaces/7/scrapers/test/forbidden",
             json={"value": "hi"},
         )
     assert resp.status_code == 403
     assert resp.json()["code"] == "GOOGLE_SIGNIN_REQUIRED"
+
+
+def _fake_run_row(**overrides):
+    from datetime import UTC, datetime
+    from uuid import uuid4
+
+    defaults = {
+        "id": uuid4(),
+        "capability": "test.echo",
+        "origin": "api",
+        "status": "success",
+        "item_count": 2,
+        "char_count": 42,
+        "duration_ms": 10,
+        "cost_micros": None,
+        "error": None,
+        "created_at": datetime.now(UTC),
+        "thread_id": None,
+        "input": {"value": "hi"},
+        "output_text": '{"echo": "hi"}',
+    }
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
+def _build_app_with_rows(monkeypatch, rows):
+    """App whose fake session answers select() with the given Run-like rows."""
+    from app.capabilities.core.access import rest
+
+    monkeypatch.setattr(rest, "check_workspace_access", _noop_async, raising=True)
+
+    class _Result:
+        def scalars(self):
+            return self
+
+        def all(self):
+            return rows
+
+        def scalar_one_or_none(self):
+            return rows[0] if rows else None
+
+    class _Session:
+        async def execute(self, stmt):
+            return _Result()
+
+    app = FastAPI()
+    app.include_router(rest.build_capabilities_router([]), prefix="/api/v1")
+    app.dependency_overrides[get_auth_context] = lambda: SimpleNamespace(user=None)
+
+    async def _session():
+        yield _Session()
+
+    app.dependency_overrides[get_async_session] = _session
+    return app
+
+
+@pytest.mark.asyncio
+async def test_runs_list_returns_metadata_without_output(monkeypatch):
+    row = _fake_run_row()
+    app = _build_app_with_rows(monkeypatch, [row])
+    async with _client(app) as client:
+        resp = await client.get("/api/v1/workspaces/7/scrapers/runs")
+    assert resp.status_code == 200
+    [item] = resp.json()
+    assert item["id"] == f"run_{row.id}"
+    assert item["capability"] == "test.echo"
+    assert "output_text" not in item  # list is metadata-only
+
+
+@pytest.mark.asyncio
+async def test_run_detail_includes_output(monkeypatch):
+    row = _fake_run_row()
+    app = _build_app_with_rows(monkeypatch, [row])
+    async with _client(app) as client:
+        resp = await client.get(f"/api/v1/workspaces/7/scrapers/runs/run_{row.id}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["output_text"] == '{"echo": "hi"}'
+    assert body["input"] == {"value": "hi"}
+
+
+@pytest.mark.asyncio
+async def test_run_detail_404s(monkeypatch):
+    app = _build_app_with_rows(monkeypatch, [])
+    async with _client(app) as client:
+        missing = await client.get(
+            "/api/v1/workspaces/7/scrapers/runs/run_00000000-0000-0000-0000-000000000000"
+        )
+        malformed = await client.get("/api/v1/workspaces/7/scrapers/runs/garbage")
+    assert missing.status_code == 404
+    assert malformed.status_code == 404  # bad UUID must not become a 500
 
 
 @pytest.mark.asyncio
@@ -230,7 +328,7 @@ async def test_success_charges_once(monkeypatch):
     app = _build_app([_ECHO], monkeypatch)
     async with _client(app) as client:
         resp = await client.post(
-            "/api/v1/workspaces/7/capabilities/test.echo",
+            "/api/v1/workspaces/7/scrapers/test/echo",
             json={"value": "hi"},
         )
     assert resp.status_code == 200
