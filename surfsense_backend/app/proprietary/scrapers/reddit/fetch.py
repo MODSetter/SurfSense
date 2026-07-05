@@ -72,10 +72,17 @@ _MAX_ROTATIONS = 3
 _MAX_BACKOFFS = 4
 _BACKOFF_BASE_S = 5.0
 
-# Reddit 429s aggressively (~60-100 req/min/IP). Pace each sticky session to
-# ~1 req/s + jitter to stay under the per-IP threshold.
-_MIN_INTERVAL_S = 1.0
-_PACE_JITTER_S = 0.5
+# Reddit 429s aggressively (~60-100 req/min/IP). Pace each sticky session so a
+# fast IP can't burst past the per-IP threshold. A live probe (12 rapid fetches
+# on one sticky IP => 0x429; scripts/_bench_reddit2.py) showed the natural
+# ~0.85s request latency already holds a session near ~1 req/s, so the old 1.0s
+# floor just ADDED ~0.4s of dead sleep to every fetch. A 0.5s floor is a no-op
+# for typical fetches yet still caps a fast IP at ~2 req/s; the 429 backoff below
+# is the real safety net if an IP's limit is tighter.
+# ponytail: 0.5s is tuned to dataimpulse residential exits. A pool with a
+# stricter per-IP cap may need it raised — watch for 429 log spam and bump it.
+_MIN_INTERVAL_S = 0.5
+_PACE_JITTER_S = 0.25
 
 _HEADERS = {"Accept-Language": "en-US,en;q=0.9"}
 

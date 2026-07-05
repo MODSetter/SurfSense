@@ -15,12 +15,12 @@ pytestmark = pytest.mark.unit
 @pytest.fixture(autouse=True)
 def _clear_proxy_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Default both knobs to unset; individual tests set what they need."""
-    monkeypatch.setattr(Config, "CUSTOM_PROXY_URL", None)
-    monkeypatch.setattr(Config, "CUSTOM_PROXY_URLS", None)
+    monkeypatch.setattr(Config, "PROXY_URL", None)
+    monkeypatch.setattr(Config, "PROXY_URLS", None)
 
 
 def test_single_url_is_static(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(Config, "CUSTOM_PROXY_URL", "http://u:p@host:8080")
+    monkeypatch.setattr(Config, "PROXY_URL", "http://u:p@host:8080")
     provider = CustomProxyProvider()
 
     assert provider.is_pool_backed is False
@@ -32,7 +32,7 @@ def test_single_url_is_static(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_pool_rotates_cyclically(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         Config,
-        "CUSTOM_PROXY_URLS",
+        "PROXY_URLS",
         "http://a:1@h1:8080, http://b:2@h2:8080 ,http://c:3@h3:8080",
     )
     provider = CustomProxyProvider()
@@ -48,9 +48,9 @@ def test_pool_rotates_cyclically(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_single_plus_pool_dedupes(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A URL present in both CUSTOM_PROXY_URL and the pool is not duplicated."""
-    monkeypatch.setattr(Config, "CUSTOM_PROXY_URLS", "http://a@h1:80,http://b@h2:80")
-    monkeypatch.setattr(Config, "CUSTOM_PROXY_URL", "http://a@h1:80")
+    """A URL present in both PROXY_URL and the pool is not duplicated."""
+    monkeypatch.setattr(Config, "PROXY_URLS", "http://a@h1:80,http://b@h2:80")
+    monkeypatch.setattr(Config, "PROXY_URL", "http://a@h1:80")
     provider = CustomProxyProvider()
 
     assert provider.is_pool_backed is True
@@ -69,7 +69,7 @@ def test_unconfigured_returns_none() -> None:
 def test_playwright_proxy_parses_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(Config, "CUSTOM_PROXY_URL", "http://user:pass@host:8080")
+    monkeypatch.setattr(Config, "PROXY_URL", "http://user:pass@host:8080")
     provider = CustomProxyProvider()
 
     assert provider.get_playwright_proxy() == {

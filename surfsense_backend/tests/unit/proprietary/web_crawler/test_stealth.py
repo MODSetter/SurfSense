@@ -3,6 +3,7 @@
 import pytest
 
 from app.config import config
+from app.proprietary.web_crawler import stealth
 from app.proprietary.web_crawler.stealth import (
     build_stealthy_kwargs,
     get_stealth_config,
@@ -10,6 +11,16 @@ from app.proprietary.web_crawler.stealth import (
 )
 
 pytestmark = pytest.mark.unit
+
+
+def _set_proxy_location(monkeypatch: pytest.MonkeyPatch, location: str) -> None:
+    """Point get_stealth_config at a stub provider with the given exit region."""
+
+    class _StubProvider:
+        def get_location(self) -> str:
+            return location
+
+    monkeypatch.setattr(stealth, "get_active_provider", lambda: _StubProvider())
 
 
 class TestLocationToLocaleTimezone:
@@ -58,7 +69,7 @@ class TestBuildStealthyKwargs:
         monkeypatch.setattr(config, "CRAWL_HIDE_CANVAS", False)
         monkeypatch.setattr(config, "CRAWL_GOOGLE_SEARCH_REFERER", True)
         monkeypatch.setattr(config, "CRAWL_DNS_OVER_HTTPS", False)
-        monkeypatch.setattr(config, "RESIDENTIAL_PROXY_LOCATION", "us")
+        _set_proxy_location(monkeypatch, "us")
 
         kwargs = build_stealthy_kwargs(get_stealth_config())
 
@@ -77,7 +88,7 @@ class TestBuildStealthyKwargs:
         monkeypatch.setattr(config, "CRAWL_HIDE_CANVAS", True)
         monkeypatch.setattr(config, "CRAWL_GOOGLE_SEARCH_REFERER", False)
         monkeypatch.setattr(config, "CRAWL_DNS_OVER_HTTPS", True)
-        monkeypatch.setattr(config, "RESIDENTIAL_PROXY_LOCATION", "")
+        _set_proxy_location(monkeypatch, "")
 
         kwargs = build_stealthy_kwargs(get_stealth_config())
 
@@ -92,7 +103,7 @@ class TestBuildStealthyKwargs:
         monkeypatch.setattr(config, "CRAWL_HIDE_CANVAS", False)
         monkeypatch.setattr(config, "CRAWL_GOOGLE_SEARCH_REFERER", True)
         monkeypatch.setattr(config, "CRAWL_DNS_OVER_HTTPS", False)
-        monkeypatch.setattr(config, "RESIDENTIAL_PROXY_LOCATION", "de")
+        _set_proxy_location(monkeypatch, "de")
 
         kwargs = build_stealthy_kwargs(get_stealth_config())
 
@@ -105,7 +116,7 @@ class TestBuildStealthyKwargs:
         monkeypatch.setattr(config, "CRAWL_HIDE_CANVAS", False)
         monkeypatch.setattr(config, "CRAWL_GOOGLE_SEARCH_REFERER", True)
         monkeypatch.setattr(config, "CRAWL_DNS_OVER_HTTPS", False)
-        monkeypatch.setattr(config, "RESIDENTIAL_PROXY_LOCATION", "atlantis")
+        _set_proxy_location(monkeypatch, "atlantis")
 
         kwargs = build_stealthy_kwargs(get_stealth_config())
 

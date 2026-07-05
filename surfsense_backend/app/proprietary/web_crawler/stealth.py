@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.config import config
+from app.utils.proxy import get_active_provider
 
 # Coarse region -> (locale, IANA timezone) map. Country granularity only: per the
 # 03e "Geoip accuracy" risk, wrong-but-coherent beats a default mismatch and
@@ -131,8 +132,9 @@ def location_to_locale_timezone(
 ) -> tuple[str | None, str | None]:
     """Map a free-form proxy region string -> (locale, timezone_id).
 
-    ``location`` is the vendor-specific ``RESIDENTIAL_PROXY_LOCATION`` value
-    (``03b``). Best-effort: matches an ISO-3166 alpha-2 code (e.g. ``"us"``) or a
+    ``location`` is the active proxy provider's exit region
+    (``ProxyProvider.get_location()``). Best-effort: matches an ISO-3166 alpha-2
+    code (e.g. ``"us"``) or a
     common country name (e.g. ``"Germany"``); only the leading token is honored,
     so vendor strings like ``"us:nyc"`` or ``"de region"`` still resolve. Returns
     ``(None, None)`` for empty/unknown input (caller then leaves the browser
@@ -181,7 +183,7 @@ def get_stealth_config() -> StealthConfig:
     """Build a :class:`StealthConfig` from the current process config/env."""
     return StealthConfig(
         geoip_match_enabled=config.CRAWL_GEOIP_MATCH_ENABLED,
-        proxy_location=config.RESIDENTIAL_PROXY_LOCATION or "",
+        proxy_location=get_active_provider().get_location(),
         block_webrtc=config.CRAWL_BLOCK_WEBRTC,
         hide_canvas=config.CRAWL_HIDE_CANVAS,
         google_search=config.CRAWL_GOOGLE_SEARCH_REFERER,

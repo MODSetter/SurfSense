@@ -273,7 +273,7 @@ class WebCrawlerConnector:
         endpoint on every ``get_proxy_url()`` call, so simply re-invoking the tier
         rotates the proxy. Bounded to a single extra attempt per tier — no
         unbounded fan-out on billable crawls. Single-endpoint providers
-        (including the server-side-rotating ``anonymous_proxies``) skip the retry
+        (including the server-side-rotating ``dataimpulse``) skip the retry
         entirely (``is_pool_backed()`` is ``False``), since retrying the same
         static endpoint would just re-hit the same dead proxy. Non-proxy errors
         (and ``NotImplementedError`` from the browser tiers) propagate unchanged

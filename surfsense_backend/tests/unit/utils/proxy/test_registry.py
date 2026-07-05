@@ -1,16 +1,16 @@
-"""Unit tests for proxy provider selection (Phase 3b).
+"""Unit tests for proxy provider selection.
 
-``PROXY_PROVIDER`` selects the single app-wide provider; ``custom`` is now
-registered alongside ``anonymous_proxies``, and unknown values still warn and
-fall back to the default.
+``PROXY_PROVIDER`` selects the single app-wide provider; ``custom`` (the default)
+and ``dataimpulse`` are registered, and unknown values still warn and fall back
+to the default.
 """
 
 import pytest
 
 from app.config import Config
 from app.utils.proxy import registry
-from app.utils.proxy.providers.anonymous_proxies import AnonymousProxiesProvider
 from app.utils.proxy.providers.custom import CustomProxyProvider
+from app.utils.proxy.providers.dataimpulse import DataImpulseProvider
 
 pytestmark = pytest.mark.unit
 
@@ -26,11 +26,11 @@ def test_resolves_custom(monkeypatch: pytest.MonkeyPatch) -> None:
     assert isinstance(registry.get_active_provider(), CustomProxyProvider)
 
 
-def test_resolves_anonymous(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(Config, "PROXY_PROVIDER", "anonymous_proxies")
-    assert isinstance(registry.get_active_provider(), AnonymousProxiesProvider)
+def test_resolves_dataimpulse(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(Config, "PROXY_PROVIDER", "dataimpulse")
+    assert isinstance(registry.get_active_provider(), DataImpulseProvider)
 
 
 def test_unknown_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Config, "PROXY_PROVIDER", "does_not_exist")
-    assert isinstance(registry.get_active_provider(), AnonymousProxiesProvider)
+    assert isinstance(registry.get_active_provider(), CustomProxyProvider)

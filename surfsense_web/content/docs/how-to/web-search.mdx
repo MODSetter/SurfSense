@@ -110,17 +110,16 @@ In production, search engines may rate-limit or block your server's IP. To avoid
 
 ### Step 1: Build the Proxy URL
 
-SurfSense uses [anonymous-proxies.net](https://anonymous-proxies.net/) style residential proxies where the password is a base64-encoded JSON object. Build the URL using your proxy credentials:
-
-```bash
-# Encode the password (replace with your actual values)
-echo -n '{"p": "YOUR_PASSWORD", "l": "LOCATION", "t": PROXY_TYPE}' | base64
-```
-
-The full proxy URL format is:
+Use any residential proxy that exposes a standard `http://user:pass@host:port` endpoint. For example, [DataImpulse](https://dataimpulse.com/) encodes country routing as a username suffix (`<token>__cr.<country>`):
 
 ```
-http://<username>:<base64_password>@<hostname>:<port>/
+http://<token>__cr.us:<password>@gw.dataimpulse.com:823
+```
+
+The general proxy URL format is:
+
+```
+http://<username>:<password>@<hostname>:<port>/
 ```
 
 ### Step 2: Add to SearXNG Settings

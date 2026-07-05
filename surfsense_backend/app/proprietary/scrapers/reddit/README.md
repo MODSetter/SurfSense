@@ -77,8 +77,9 @@ cd surfsense_backend
 ## TODO / out of scope (v1)
 
 - Sticky-IP provider support: the fetch layer assumes a sticky exit IP per
-  session (the `loid` binds to it). `anonymous_proxies` does not yet set the
-  `"si"` sticky key — add it (proxy layer) before high-volume production use.
+  session (the `loid` binds to it). The `dataimpulse` provider does not yet emit
+  a sticky `__sid.<id>` username suffix — add it (proxy layer) before high-volume
+  production use.
 - `/api/morechildren` deep-comment expansion — `more` stubs terminate the tree
   walk today.
 - Routes / `connector_service.py` / ingestion / Celery wiring.

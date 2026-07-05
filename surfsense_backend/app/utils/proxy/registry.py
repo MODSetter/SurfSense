@@ -9,18 +9,20 @@ import logging
 
 from app.config import Config
 from app.utils.proxy.base import ProxyProvider
-from app.utils.proxy.providers.anonymous_proxies import AnonymousProxiesProvider
 from app.utils.proxy.providers.custom import CustomProxyProvider
+from app.utils.proxy.providers.dataimpulse import DataImpulseProvider
 
 logger = logging.getLogger(__name__)
 
 # Registered proxy providers, keyed by their ``name``.
 _PROVIDERS: dict[str, type[ProxyProvider]] = {
-    AnonymousProxiesProvider.name: AnonymousProxiesProvider,
     CustomProxyProvider.name: CustomProxyProvider,
+    DataImpulseProvider.name: DataImpulseProvider,
 }
 
-_DEFAULT_PROVIDER = AnonymousProxiesProvider.name
+# BYO ``custom`` is the neutral default: it needs no vendor and returns no proxy
+# until PROXY_URL(S) is set, so an unconfigured install simply runs direct.
+_DEFAULT_PROVIDER = CustomProxyProvider.name
 
 _active_provider: ProxyProvider | None = None
 

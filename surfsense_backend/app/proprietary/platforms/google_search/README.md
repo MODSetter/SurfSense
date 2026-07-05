@@ -40,7 +40,7 @@ results only materialize after the page's JS runs. So `fetch.py` needs both a
 A warm fetch (browser up, IP cached) runs ~8 s; the first fetch of a process
 also pays the ~5 s Chromium launch and a vetting round. Requires the browser
 tier (patchright Chromium via Scrapling's `AsyncStealthySession`) and a
-residential proxy — set `PROXY_PROVIDER=custom` + `CUSTOM_PROXY_URL` (see
+residential proxy — set `PROXY_PROVIDER` + `PROXY_URL` (see
 `.env`). Long-running callers can `await fetch.close_sessions()` on shutdown;
 scripts that exit anyway can skip it.
 

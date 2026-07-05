@@ -1,16 +1,15 @@
 """Bring-your-own (BYO) custom proxy provider.
 
-Reads one or more proxy endpoints from env (``CUSTOM_PROXY_URL`` and/or the
-comma-separated ``CUSTOM_PROXY_URLS``). With a single endpoint it behaves like a
-static proxy; with a pool (>1) it rotates client-side via Scrapling's thread-safe
+Reads one or more proxy endpoints from the shared env (``PROXY_URL`` and/or the
+comma-separated ``PROXY_URLS``). With a single endpoint it behaves like a static
+proxy; with a pool (>1) it rotates client-side via Scrapling's thread-safe
 ``ProxyRotator`` (cyclic), transparently to every caller of the zero-arg getters.
 
 No vendor-specific auth assumptions: a user who wants a specific vendor points
-``CUSTOM_PROXY_URLS`` at that vendor's ``http://user:pass@host:port`` endpoints.
+``PROXY_URLS`` at that vendor's ``http://user:pass@host:port`` endpoints.
 """
 
 import logging
-from urllib.parse import urlsplit
 
 from scrapling.engines.toolbelt import ProxyRotator
 
@@ -31,19 +30,19 @@ class CustomProxyProvider(ProxyProvider):
         self._rotator = ProxyRotator(self._urls) if len(self._urls) > 1 else None
         if not self._urls:
             logger.warning(
-                "PROXY_PROVIDER='custom' selected but neither CUSTOM_PROXY_URL nor "
-                "CUSTOM_PROXY_URLS is set; crawls will run without a proxy."
+                "PROXY_PROVIDER='custom' selected but neither PROXY_URL nor "
+                "PROXY_URLS is set; crawls will run without a proxy."
             )
 
     @staticmethod
     def _load_urls() -> list[str]:
         """Collect proxy URLs from env (pool first, then single), de-duplicated."""
         urls: list[str] = []
-        pool = Config.CUSTOM_PROXY_URLS
+        pool = Config.PROXY_URLS
         if pool:
             urls.extend(part.strip() for part in pool.split(",") if part.strip())
 
-        single = (Config.CUSTOM_PROXY_URL or "").strip()
+        single = (Config.PROXY_URL or "").strip()
         if single and single not in urls:
             urls.append(single)
 
@@ -60,23 +59,3 @@ class CustomProxyProvider(ProxyProvider):
             # Advances the cyclic index on every call (thread-safe).
             return self._rotator.get_proxy()
         return self._urls[0]
-
-    def get_playwright_proxy(self) -> dict[str, str] | None:
-        proxy_url = self.get_proxy_url()
-        if not proxy_url:
-            return None
-
-        parts = urlsplit(proxy_url)
-        if not parts.hostname:
-            return None
-
-        server = f"{parts.scheme or 'http'}://{parts.hostname}"
-        if parts.port:
-            server = f"{server}:{parts.port}"
-
-        proxy: dict[str, str] = {"server": server}
-        if parts.username:
-            proxy["username"] = parts.username
-        if parts.password:
-            proxy["password"] = parts.password
-        return proxy

@@ -1041,24 +1041,17 @@ class Config:
 
     # Proxy provider selection. Maps to a ProxyProvider implementation registered
     # in app/utils/proxy/registry.py. Add new vendors there and switch via this var.
-    PROXY_PROVIDER = os.getenv("PROXY_PROVIDER", "anonymous_proxies")
+    PROXY_PROVIDER = os.getenv("PROXY_PROVIDER", "custom")
 
-    # Residential Proxy Configuration (anonymous-proxies.net)
-    # Used for web crawling and YouTube transcript fetching to avoid IP bans.
-    # Consumed by the "anonymous_proxies" proxy provider.
-    RESIDENTIAL_PROXY_USERNAME = os.getenv("RESIDENTIAL_PROXY_USERNAME")
-    RESIDENTIAL_PROXY_PASSWORD = os.getenv("RESIDENTIAL_PROXY_PASSWORD")
-    RESIDENTIAL_PROXY_HOSTNAME = os.getenv("RESIDENTIAL_PROXY_HOSTNAME")
-    RESIDENTIAL_PROXY_LOCATION = os.getenv("RESIDENTIAL_PROXY_LOCATION", "")
-    RESIDENTIAL_PROXY_TYPE = int(os.getenv("RESIDENTIAL_PROXY_TYPE", "1"))
-
-    # Custom (BYO) proxy provider, selected via PROXY_PROVIDER="custom".
-    # Consumed by the "custom" provider (app/utils/proxy/providers/custom.py).
-    # Provide a single endpoint (CUSTOM_PROXY_URL) and/or a comma-separated pool
-    # (CUSTOM_PROXY_URLS); a pool of >1 rotates client-side via Scrapling's
-    # ProxyRotator. Each value is a full http://user:pass@host:port URL.
-    CUSTOM_PROXY_URL = os.getenv("CUSTOM_PROXY_URL")
-    CUSTOM_PROXY_URLS = os.getenv("CUSTOM_PROXY_URLS")
+    # Proxy endpoint(s), shared across all providers — PROXY_PROVIDER selects how
+    # they're interpreted, not a different env name. PROXY_URL is a single full
+    # http://user:pass@host:port endpoint (used by every provider); e.g. DataImpulse
+    # encodes country as a "__cr.<country>" username suffix that its provider parses
+    # for geoip-match. PROXY_URLS is a comma-separated pool that the "custom" provider
+    # rotates client-side (server-side-rotating gateways ignore it). Leave unset to
+    # disable proxying.
+    PROXY_URL = os.getenv("PROXY_URL")
+    PROXY_URLS = os.getenv("PROXY_URLS")
 
     # =====================================================================
     # Phase 3d — Captcha solving (reCAPTCHA v2/v3, hCaptcha) via captchatools.
@@ -1097,9 +1090,9 @@ class Config:
     # (no test-vs-prod drift). Defaults preserve today's behavior /
     # introduce no crawl-speed regression. See plans/backend/03e-stealth-hardening.md.
     # =====================================================================
-    # Map the configured proxy region (RESIDENTIAL_PROXY_LOCATION) -> browser
-    # locale/timezone so the fingerprint coheres with the proxy exit geo. No
-    # exit-IP lookup (zero added latency); unknown/empty region => skip.
+    # Map the active proxy provider's exit region (ProxyProvider.get_location())
+    # -> browser locale/timezone so the fingerprint coheres with the proxy exit
+    # geo. No exit-IP lookup (zero added latency); unknown/empty region => skip.
     CRAWL_GEOIP_MATCH_ENABLED = (
         os.getenv("CRAWL_GEOIP_MATCH_ENABLED", "FALSE").upper() == "TRUE"
     )

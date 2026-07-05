@@ -56,6 +56,14 @@ _LISTING_LIMIT = 100
 _MAX_PAGES = 10
 _EMPTY_STREAK_ABORT = 2
 
+# A subreddit's per-post comment fetches are independent (each is a separate
+# .json), so after paging the listing on one sticky IP we fan them across their
+# own warm sessions instead of walking them sequentially — the dominant cost of
+# a subreddit+comments scrape (~3.6x on the comment phase; scripts/_bench_reddit2).
+# Kept below the top-level fan-out width: with N concurrent subreddit targets the
+# worst case is N x this many proxy IPs, so this bounds that multiplication.
+_COMMENT_CONCURRENCY = 8
+
 # Search sorts differ from listing sorts; fall back to "new" for a listing path
 # when the input carries a search-only sort.
 _LISTING_SORTS = frozenset({"hot", "new", "top", "rising", "controversial", "best"})
@@ -227,6 +235,7 @@ async def _subreddit_flow(
     if sort == "top" and input_model.time:
         params["t"] = input_model.time
 
+    post_ids: list[str] = []
     async for data in _paginate_listing(
         f"r/{subreddit}/{sort}",
         params,
@@ -238,14 +247,24 @@ async def _subreddit_flow(
         item = _emit(parse_post(data), include_nsfw=input_model.includeNSFW)
         if item is not None:
             yield item
-        if not input_model.skipComments and isinstance(data.get("id"), str):
-            async for comment in _post_flow(
-                data["id"],
+        # Collect ids now; fetch the comment trees in parallel below. Walking
+        # them here would serialize one .json per post on this single sticky IP.
+        parsed_id = data.get("id")
+        if not input_model.skipComments and isinstance(parsed_id, str):
+            post_ids.append(parsed_id)
+
+    if post_ids:
+        comment_jobs = [
+            _post_flow(
+                pid,
                 input_model=input_model,
                 subreddit=subreddit,
                 include_post=False,
-            ):
-                yield comment
+            )
+            for pid in post_ids
+        ]
+        async for comment in fan_out(comment_jobs, concurrency=_COMMENT_CONCURRENCY):
+            yield comment
 
 
 async def _user_flow(
