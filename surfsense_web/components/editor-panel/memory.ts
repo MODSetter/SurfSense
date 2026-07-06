@@ -27,7 +27,7 @@ interface MemoryReadResponse {
 function getMemoryPath(scope: MemoryScope, searchSpaceId?: number | null) {
 	if (scope === "user") return "/api/v1/users/me/memory";
 	if (!searchSpaceId) throw new Error("Missing search space context");
-	return `/api/v1/searchspaces/${searchSpaceId}/memory`;
+	return `/api/v1/workspaces/${searchSpaceId}/memory`;
 }
 
 export function getMemoryLimitState(length: number, limits?: MemoryLimits | null) {

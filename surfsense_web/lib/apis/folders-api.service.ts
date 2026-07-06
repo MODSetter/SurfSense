@@ -27,14 +27,14 @@ class FoldersApiService {
 				`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`
 			);
 		}
-		return baseApiService.post("/api/v1/folders", folder, { body: parsed.data });
+		const { search_space_id, ...body } = parsed.data;
+		return baseApiService.post("/api/v1/folders", folder, {
+			body: { ...body, workspace_id: search_space_id },
+		});
 	};
 
 	listFolders = async (searchSpaceId: number) => {
-		return baseApiService.get(
-			`/api/v1/folders?search_space_id=${searchSpaceId}`,
-			folderListResponse
-		);
+		return baseApiService.get(`/api/v1/folders?workspace_id=${searchSpaceId}`, folderListResponse);
 	};
 
 	getFolder = async (folderId: number) => {

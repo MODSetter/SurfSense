@@ -81,6 +81,7 @@ import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { buildBackendUrl } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
@@ -228,7 +229,7 @@ function AuthenticatedDocumentsSidebarBase({
 	const platformElectronAPI = useElectronAPI();
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
-	const searchSpaceId = Number(params.search_space_id);
+	const searchSpaceId = getWorkspaceIdNumber(params) ?? 0;
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
@@ -828,7 +829,7 @@ function AuthenticatedDocumentsSidebarBase({
 					const endpoint =
 						doc.document_type === "USER_MEMORY"
 							? buildBackendUrl("/api/v1/users/me/memory")
-							: buildBackendUrl(`/api/v1/searchspaces/${searchSpaceId}/memory`);
+							: buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/memory`);
 					const response = await authenticatedFetch(endpoint, { method: "GET" });
 					if (!response.ok) {
 						const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
@@ -1038,7 +1039,7 @@ function AuthenticatedDocumentsSidebarBase({
 			const endpoint =
 				doc.document_type === "USER_MEMORY"
 					? buildBackendUrl("/api/v1/users/me/memory/reset")
-					: buildBackendUrl(`/api/v1/searchspaces/${searchSpaceId}/memory/reset`);
+					: buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/memory/reset`);
 			try {
 				const response = await authenticatedFetch(endpoint, { method: "POST" });
 				if (!response.ok) {

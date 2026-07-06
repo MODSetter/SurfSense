@@ -15,7 +15,7 @@ class PromptsApiService {
 	list = async (searchSpaceId?: number) => {
 		const params = new URLSearchParams();
 		if (searchSpaceId !== undefined) {
-			params.set("search_space_id", String(searchSpaceId));
+			params.set("workspace_id", String(searchSpaceId));
 		}
 		const queryString = params.toString();
 		const url = queryString ? `/api/v1/prompts?${queryString}` : "/api/v1/prompts";
@@ -30,8 +30,9 @@ class PromptsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
+		const { search_space_id, ...body } = parsed.data;
 		return baseApiService.post("/api/v1/prompts", promptRead, {
-			body: parsed.data,
+			body: { ...body, workspace_id: search_space_id },
 		});
 	};
 

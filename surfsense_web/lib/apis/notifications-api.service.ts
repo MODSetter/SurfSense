@@ -42,7 +42,7 @@ class NotificationsApiService {
 		const params = new URLSearchParams();
 
 		if (queryParams.search_space_id !== undefined) {
-			params.append("search_space_id", String(queryParams.search_space_id));
+			params.append("workspace_id", String(queryParams.search_space_id));
 		}
 		if (queryParams.type) {
 			params.append("type", queryParams.type);
@@ -113,7 +113,7 @@ class NotificationsApiService {
 	getSourceTypes = async (searchSpaceId?: number): Promise<GetSourceTypesResponse> => {
 		const params = new URLSearchParams();
 		if (searchSpaceId !== undefined) {
-			params.append("search_space_id", String(searchSpaceId));
+			params.append("workspace_id", String(searchSpaceId));
 		}
 		const queryString = params.toString();
 
@@ -136,7 +136,7 @@ class NotificationsApiService {
 	): Promise<GetUnreadCountResponse> => {
 		const params = new URLSearchParams();
 		if (searchSpaceId !== undefined) {
-			params.append("search_space_id", String(searchSpaceId));
+			params.append("workspace_id", String(searchSpaceId));
 		}
 		if (type) {
 			params.append("type", type);
@@ -159,7 +159,7 @@ class NotificationsApiService {
 	getBatchUnreadCounts = async (searchSpaceId?: number): Promise<GetBatchUnreadCountResponse> => {
 		const params = new URLSearchParams();
 		if (searchSpaceId !== undefined) {
-			params.append("search_space_id", String(searchSpaceId));
+			params.append("workspace_id", String(searchSpaceId));
 		}
 		const queryString = params.toString();
 

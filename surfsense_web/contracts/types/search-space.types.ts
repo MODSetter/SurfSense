@@ -81,7 +81,7 @@ export const updateSearchSpaceApiAccessResponse = searchSpace.omit({
 export const deleteSearchSpaceRequest = searchSpace.pick({ id: true });
 
 export const deleteSearchSpaceResponse = z.object({
-	message: z.literal("Search space deleted successfully"),
+	message: z.literal("Workspace deleted successfully"),
 });
 
 /**

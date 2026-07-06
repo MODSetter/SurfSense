@@ -200,12 +200,18 @@ export const documentTitleRead = z.object({
 });
 
 export const searchDocumentTitlesRequest = z.object({
-	queryParams: z.object({
-		search_space_id: z.number(),
-		title: z.string().optional(),
-		page: z.number().optional(),
-		page_size: z.number().optional(),
-	}),
+	queryParams: z
+		.object({
+			search_space_id: z.number().optional(),
+			workspace_id: z.number().optional(),
+			title: z.string().optional(),
+			page: z.number().optional(),
+			page_size: z.number().optional(),
+		})
+		.refine((params) => params.search_space_id !== undefined || params.workspace_id !== undefined, {
+			message: "workspace_id is required",
+			path: ["search_space_id"],
+		}),
 });
 
 export const searchDocumentTitlesResponse = z.object({

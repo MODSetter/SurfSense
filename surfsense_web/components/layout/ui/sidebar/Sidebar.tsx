@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsAnonymous } from "@/contexts/anonymous-mode";
+import { getWorkspaceIdParam } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
@@ -377,7 +378,7 @@ function SidebarUsageFooter({
 	onNavigate?: () => void;
 }) {
 	const params = useParams();
-	const searchSpaceId = params?.search_space_id ?? "";
+	const searchSpaceId = getWorkspaceIdParam(params) ?? "";
 	const isAnonymous = useIsAnonymous();
 
 	if (isCollapsed) return null;

@@ -126,6 +126,11 @@ export function ModelProviderConnectionsPanel({
 	// Each provider connect form builds its own credential payload; the backend
 	// resolver (`to_litellm`) forwards `extra.litellm_params` straight to LiteLLM.
 	function handleCreate(draft: ConnectionDraft) {
+		if (!Number.isFinite(searchSpaceId) || searchSpaceId <= 0) {
+			toast.error("Workspace is still loading. Please try again.");
+			return;
+		}
+
 		const models = connectionModelsForDraft(draft);
 		const testModel = representativeTestModel(models);
 		if (!testModel) {
@@ -165,6 +170,11 @@ export function ModelProviderConnectionsPanel({
 		setProvider(providerId);
 		setIsAddProviderOpen(true);
 		if (providerId === "vertex_ai") {
+			if (!Number.isFinite(searchSpaceId) || searchSpaceId <= 0) {
+				toast.error("Workspace is still loading. Please try again.");
+				return;
+			}
+
 			previewModels.mutate(
 				{
 					provider: providerId,
@@ -184,6 +194,11 @@ export function ModelProviderConnectionsPanel({
 	}
 
 	function refreshConnectModels(draft: ConnectionDraft) {
+		if (!Number.isFinite(searchSpaceId) || searchSpaceId <= 0) {
+			toast.error("Workspace is still loading. Please try again.");
+			return;
+		}
+
 		previewModels.mutate(
 			{
 				provider,

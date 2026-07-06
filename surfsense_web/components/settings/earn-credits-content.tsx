@@ -20,6 +20,7 @@ import {
 	trackIncentiveTaskClicked,
 	trackIncentiveTaskCompleted,
 } from "@/lib/posthog/events";
+import { getWorkspaceIdParam } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 
 // Compact dollar label for a task's reward (e.g. "+$0.03").
@@ -32,7 +33,7 @@ const formatRewardUsd = (micros: number) => {
 export function EarnCreditsContent() {
 	const params = useParams();
 	const queryClient = useQueryClient();
-	const searchSpaceId = params?.search_space_id ?? "";
+	const searchSpaceId = getWorkspaceIdParam(params) ?? "";
 
 	useEffect(() => {
 		trackIncentivePageViewed();

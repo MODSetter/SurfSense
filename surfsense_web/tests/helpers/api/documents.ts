@@ -21,7 +21,7 @@ export async function listDocuments(
 	limit = 100
 ): Promise<DocumentRow[]> {
 	const response = await request.get(
-		`${BACKEND_URL}/api/v1/documents?search_space_id=${searchSpaceId}&limit=${limit}`,
+		`${BACKEND_URL}/api/v1/documents?workspace_id=${searchSpaceId}&limit=${limit}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!response.ok()) {

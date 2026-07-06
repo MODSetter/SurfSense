@@ -29,7 +29,7 @@ export const chatThreadFixtures = {
 			headers: authHeaders(apiToken),
 			data: {
 				title: "e2e-drive-journey",
-				search_space_id: searchSpace.id,
+				workspace_id: searchSpace.id,
 				visibility: "PRIVATE",
 			},
 		});

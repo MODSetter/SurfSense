@@ -16,7 +16,7 @@ export async function listConnectors(
 	searchSpaceId: number
 ): Promise<ConnectorRow[]> {
 	const response = await request.get(
-		`${BACKEND_URL}/api/v1/search-source-connectors?search_space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/search-source-connectors?workspace_id=${searchSpaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!response.ok()) {
@@ -115,7 +115,7 @@ export async function triggerIndex(
 	body: IndexBody
 ): Promise<{ ok: true }> {
 	const response = await request.post(
-		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?search_space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?workspace_id=${searchSpaceId}`,
 		{ headers: authHeaders(token), data: body }
 	);
 	if (!response.ok()) {
@@ -134,7 +134,7 @@ export async function triggerIndexExpectDisabled(
 	body: IndexBody = {}
 ): Promise<{ indexing_started: false; message?: string }> {
 	const response = await request.post(
-		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?search_space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?workspace_id=${searchSpaceId}`,
 		{ headers: authHeaders(token), data: body }
 	);
 	if (!response.ok()) {

@@ -86,7 +86,7 @@ class ChatThreadsApiService {
 		}
 
 		return baseApiService.get(
-			`/api/v1/searchspaces/${parsed.data.search_space_id}/snapshots`,
+			`/api/v1/workspaces/${parsed.data.search_space_id}/snapshots`,
 			publicChatSnapshotsBySpaceResponse
 		);
 	};

@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { stripeApiService } from "@/lib/apis/stripe-api.service";
 import { AppError } from "@/lib/error";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { queries } from "@/zero/queries";
 
 const microsToDollars = (micros: number | null | undefined): string => {
@@ -38,7 +39,7 @@ export function AutoReloadSettings() {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const queryClient = useQueryClient();
-	const searchSpaceId = Number(params?.search_space_id);
+	const searchSpaceId = getWorkspaceIdNumber(params) ?? 0;
 
 	const [enabled, setEnabled] = useState(false);
 	const [thresholdInput, setThresholdInput] = useState("");

@@ -58,6 +58,7 @@ import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { convertRenderedToDisplay } from "@/lib/comments/utils";
 import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
@@ -165,7 +166,7 @@ export function InboxSidebarContent({
 	const router = useRouter();
 	const params = useParams();
 	const isMobile = !useMediaQuery("(min-width: 640px)");
-	const searchSpaceId = params?.search_space_id ? Number(params.search_space_id) : null;
+	const searchSpaceId = getWorkspaceIdNumber(params) ?? null;
 
 	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 

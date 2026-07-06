@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { stripeApiService } from "@/lib/apis/stripe-api.service";
 import { AppError } from "@/lib/error";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import { queries } from "@/zero/queries";
 
@@ -37,7 +38,7 @@ const formatUsd = (micros: number) => {
 
 export function BuyCreditsContent() {
 	const params = useParams();
-	const searchSpaceId = Number(params?.search_space_id);
+	const searchSpaceId = getWorkspaceIdNumber(params) ?? 0;
 	const [quantity, setQuantity] = useState(1);
 	// Raw text of the amount field so the user can clear it while typing;
 	// committed back to a clamped integer on blur.

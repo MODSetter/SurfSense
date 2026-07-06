@@ -108,6 +108,7 @@ import { useElectronAPI } from "@/hooks/use-platform";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { slideoutOpenedTickAtom } from "@/lib/layout-events";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import {
 	DocumentMentionPicker,
@@ -458,7 +459,9 @@ const Composer: FC = () => {
 	const prevMentionedDocsRef = useRef<Map<string, MentionedDocumentInfo>>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
-	const { search_space_id, chat_id } = useParams();
+	const params = useParams();
+	const workspaceId = getWorkspaceIdNumber(params);
+	const chat_id = params.chat_id;
 	const aui = useAui();
 	// Desktop-only auto-focus; on mobile, programmatic focus would
 	// summon the soft keyboard on every picker close / thread switch.
@@ -824,7 +827,6 @@ const Composer: FC = () => {
 
 	const handleDocumentsMention = useCallback(
 		(mentions: MentionedDocumentInfo[]) => {
-			const parsedSearchSpaceId = Number(search_space_id);
 			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
 			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
@@ -832,8 +834,8 @@ const Composer: FC = () => {
 				const key = getMentionDocKey(mention);
 				if (editorDocKeys.has(key)) continue;
 				editorRef.current?.insertMentionChip(mention);
-				if (Number.isFinite(parsedSearchSpaceId)) {
-					promoteRecentMention(parsedSearchSpaceId, mention);
+				if (workspaceId) {
+					promoteRecentMention(workspaceId, mention);
 				}
 				// Track within the loop so a duplicate-in-batch can't double-insert.
 				editorDocKeys.add(key);
@@ -844,7 +846,7 @@ const Composer: FC = () => {
 			setMentionQuery("");
 			setSuggestionAnchorPoint(null);
 		},
-		[search_space_id]
+		[workspaceId]
 	);
 
 	useEffect(() => {
@@ -893,7 +895,7 @@ const Composer: FC = () => {
 						<ComposerSuggestionPopoverContent side="top">
 							<DocumentMentionPicker
 								ref={documentPickerRef}
-								searchSpaceId={Number(search_space_id)}
+								searchSpaceId={workspaceId ?? 0}
 								enableChatMentions
 								currentChatId={threadId}
 								onSelectionChange={handleDocumentsMention}
@@ -959,7 +961,7 @@ const Composer: FC = () => {
 					</div>
 					<ComposerAction
 						isBlockedByOtherUser={isBlockedByOtherUser}
-						searchSpaceId={Number(search_space_id)}
+						searchSpaceId={workspaceId ?? 0}
 						onChatModelSelected={handleChatModelSelected}
 					/>
 					<ConnectorIndicator showTrigger={false} />

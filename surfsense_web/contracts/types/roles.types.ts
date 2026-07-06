@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const role = z.object({
+const roleBase = z.object({
 	id: z.number(),
 	name: z.string().min(1).max(100),
 	description: z.string().max(500).nullable(),
@@ -11,12 +11,22 @@ export const role = z.object({
 	created_at: z.string(),
 });
 
+export const role = z.preprocess((value) => {
+	if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+		const record = value as Record<string, unknown>;
+		if (record.search_space_id === undefined && record.workspace_id !== undefined) {
+			return { ...record, search_space_id: record.workspace_id };
+		}
+	}
+	return value;
+}, roleBase);
+
 /**
  * Create role
  */
 export const createRoleRequest = z.object({
 	search_space_id: z.number(),
-	data: role.pick({
+	data: roleBase.pick({
 		name: true,
 		description: true,
 		permissions: true,
@@ -51,7 +61,7 @@ export const getRoleByIdResponse = role;
 export const updateRoleRequest = z.object({
 	search_space_id: z.number(),
 	role_id: z.number(),
-	data: role
+	data: roleBase
 		.pick({
 			name: true,
 			description: true,

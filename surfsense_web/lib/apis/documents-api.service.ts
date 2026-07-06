@@ -61,11 +61,12 @@ class DocumentsApiService {
 		const transformedQueryParams = parsedRequest.data.queryParams
 			? Object.fromEntries(
 					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => {
+						const key = k === "search_space_id" ? "workspace_id" : k;
 						// Handle array values (document_type)
 						if (Array.isArray(v)) {
-							return [k, v.join(",")];
+							return [key, v.join(",")];
 						}
-						return [k, String(v)];
+						return [key, String(v)];
 					})
 				)
 			: undefined;
@@ -106,8 +107,9 @@ class DocumentsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
+		const { search_space_id, ...body } = parsedRequest.data;
 		return baseApiService.post(`/api/v1/documents`, createDocumentResponse, {
-			body: parsedRequest.data,
+			body: { ...body, workspace_id: search_space_id },
 		});
 	};
 
@@ -143,7 +145,7 @@ class DocumentsApiService {
 		for (const batch of batches) {
 			const formData = new FormData();
 			for (const file of batch) formData.append("files", file);
-			formData.append("search_space_id", String(search_space_id));
+			formData.append("workspace_id", String(search_space_id));
 			formData.append("use_vision_llm", String(use_vision_llm));
 			formData.append("processing_mode", processing_mode);
 
@@ -191,7 +193,7 @@ class DocumentsApiService {
 
 		const { search_space_id, document_ids } = parsedRequest.data.queryParams;
 		const params = new URLSearchParams({
-			search_space_id: String(search_space_id),
+			workspace_id: String(search_space_id),
 			document_ids: document_ids.join(","),
 		});
 
@@ -218,11 +220,12 @@ class DocumentsApiService {
 		const transformedQueryParams = parsedRequest.data.queryParams
 			? Object.fromEntries(
 					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => {
+						const key = k === "search_space_id" ? "workspace_id" : k;
 						// Handle array values (document_type)
 						if (Array.isArray(v)) {
-							return [k, v.join(",")];
+							return [key, v.join(",")];
 						}
-						return [k, String(v)];
+						return [key, String(v)];
 					})
 				)
 			: undefined;
@@ -254,7 +257,10 @@ class DocumentsApiService {
 		const transformedQueryParams = Object.fromEntries(
 			Object.entries(parsedRequest.data.queryParams)
 				.filter(([, v]) => v !== undefined)
-				.map(([k, v]) => [k, String(v)])
+				.map(([k, v]) => [
+					k === "search_space_id" || k === "workspace_id" ? "workspace_id" : k,
+					String(v),
+				])
 		);
 
 		const queryParams = new URLSearchParams(transformedQueryParams).toString();
@@ -268,7 +274,7 @@ class DocumentsApiService {
 
 	getDocumentByVirtualPath = async (request: { search_space_id: number; virtual_path: string }) => {
 		const params = new URLSearchParams({
-			search_space_id: String(request.search_space_id),
+			workspace_id: String(request.search_space_id),
 			virtual_path: request.virtual_path,
 		});
 		return baseApiService.get(
@@ -295,7 +301,10 @@ class DocumentsApiService {
 		// Transform query params to be string values
 		const transformedQueryParams = parsedRequest.data.queryParams
 			? Object.fromEntries(
-					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => [k, String(v)])
+					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => [
+						k === "search_space_id" ? "workspace_id" : k,
+						String(v),
+					])
 				)
 			: undefined;
 
@@ -375,9 +384,10 @@ class DocumentsApiService {
 		}
 
 		const { id, data } = parsedRequest.data;
+		const { search_space_id, ...body } = data;
 
 		return baseApiService.put(`/api/v1/documents/${id}`, updateDocumentResponse, {
-			body: data,
+			body: { ...body, workspace_id: search_space_id },
 		});
 	};
 
@@ -406,8 +416,9 @@ class DocumentsApiService {
 		search_space_id: number;
 		files: { relative_path: string; mtime: number }[];
 	}): Promise<{ files_to_upload: string[] }> => {
+		const { search_space_id, ...rest } = body;
 		return baseApiService.post(`/api/v1/documents/folder-mtime-check`, undefined, {
-			body,
+			body: { ...rest, workspace_id: search_space_id },
 		}) as unknown as { files_to_upload: string[] };
 	};
 
@@ -428,7 +439,7 @@ class DocumentsApiService {
 			formData.append("files", file);
 		}
 		formData.append("folder_name", metadata.folder_name);
-		formData.append("search_space_id", String(metadata.search_space_id));
+		formData.append("workspace_id", String(metadata.search_space_id));
 		formData.append("relative_paths", JSON.stringify(metadata.relative_paths));
 		if (metadata.root_folder_id != null) {
 			formData.append("root_folder_id", String(metadata.root_folder_id));
@@ -462,8 +473,9 @@ class DocumentsApiService {
 		root_folder_id: number | null;
 		relative_paths: string[];
 	}): Promise<{ deleted_count: number }> => {
+		const { search_space_id, ...rest } = body;
 		return baseApiService.post(`/api/v1/documents/folder-unlink`, undefined, {
-			body,
+			body: { ...rest, workspace_id: search_space_id },
 		}) as unknown as { deleted_count: number };
 	};
 
@@ -473,14 +485,15 @@ class DocumentsApiService {
 		root_folder_id: number | null;
 		all_relative_paths: string[];
 	}): Promise<{ deleted_count: number }> => {
+		const { search_space_id, ...rest } = body;
 		return baseApiService.post(`/api/v1/documents/folder-sync-finalize`, undefined, {
-			body,
+			body: { ...rest, workspace_id: search_space_id },
 		}) as unknown as { deleted_count: number };
 	};
 
 	getWatchedFolders = async (searchSpaceId: number) => {
 		return baseApiService.get(
-			`/api/v1/documents/watched-folders?search_space_id=${searchSpaceId}`,
+			`/api/v1/documents/watched-folders?workspace_id=${searchSpaceId}`,
 			folderListResponse
 		);
 	};

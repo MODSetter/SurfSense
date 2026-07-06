@@ -26,6 +26,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { parseMentionSegments } from "@/lib/chat/parse-mention-segments";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 
 interface AuthorMetadata {
 	displayName: string | null;
@@ -75,13 +76,7 @@ const UserTextPart: FC = () => {
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const router = useRouter();
 	const params = useParams();
-	const searchSpaceIdParam = params?.search_space_id;
-	const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
-		? Number(searchSpaceIdParam[0])
-		: Number(searchSpaceIdParam);
-	const resolvedSearchSpaceId = Number.isFinite(parsedSearchSpaceId)
-		? parsedSearchSpaceId
-		: undefined;
+	const resolvedSearchSpaceId = getWorkspaceIdNumber(params);
 
 	const handleOpenDoc = useCallback(
 		(docId: number, title: string) => {

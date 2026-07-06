@@ -5,7 +5,7 @@ export const documentTable = table("documents")
 		id: number(),
 		title: string(),
 		documentType: string().from("document_type"),
-		searchSpaceId: number().from("search_space_id"),
+		searchSpaceId: number().from("workspace_id"),
 		folderId: number().optional().from("folder_id"),
 		createdById: string().optional().from("created_by_id"),
 		status: json(),
@@ -24,7 +24,7 @@ export const searchSourceConnectorTable = table("search_source_connectors")
 		periodicIndexingEnabled: boolean().from("periodic_indexing_enabled"),
 		indexingFrequencyMinutes: number().optional().from("indexing_frequency_minutes"),
 		nextScheduledAt: number().optional().from("next_scheduled_at"),
-		searchSpaceId: number().from("search_space_id"),
+		searchSpaceId: number().from("workspace_id"),
 		userId: string().from("user_id"),
 		createdAt: number().from("created_at"),
 	})

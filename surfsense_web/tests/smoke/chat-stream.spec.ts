@@ -12,7 +12,7 @@ test.describe("Smoke", () => {
 			headers: authHeaders(apiToken),
 			data: {
 				title: "e2e-chat-stream-smoke",
-				search_space_id: searchSpace.id,
+				workspace_id: searchSpace.id,
 				visibility: "PRIVATE",
 			},
 		});

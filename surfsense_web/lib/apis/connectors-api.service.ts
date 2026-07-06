@@ -59,7 +59,7 @@ class ConnectorsApiService {
 					Object.entries(parsedRequest.data.queryParams)
 						.filter(([_, v]) => v !== undefined && v !== null)
 						.map(([k, v]) => {
-							return [k, String(v)];
+							return [k === "search_space_id" ? "workspace_id" : k, String(v)];
 						})
 				)
 			: undefined;
@@ -113,7 +113,7 @@ class ConnectorsApiService {
 			Object.entries(queryParams)
 				.filter(([_, v]) => v !== undefined && v !== null)
 				.map(([k, v]) => {
-					return [k, String(v)];
+					return [k === "search_space_id" ? "workspace_id" : k, String(v)];
 				})
 		);
 
@@ -187,7 +187,7 @@ class ConnectorsApiService {
 			Object.entries(queryParams)
 				.filter(([_, v]) => v !== undefined && v !== null)
 				.map(([k, v]) => {
-					return [k, String(v)];
+					return [k === "search_space_id" ? "workspace_id" : k, String(v)];
 				})
 		);
 
@@ -314,7 +314,7 @@ class ConnectorsApiService {
 		const { search_space_id } = request.queryParams;
 
 		const queryString = new URLSearchParams({
-			search_space_id: String(search_space_id),
+			workspace_id: String(search_space_id),
 		}).toString();
 
 		return baseApiService.get<MCPConnectorRead[]>(`/api/v1/connectors/mcp?${queryString}`);
@@ -334,7 +334,7 @@ class ConnectorsApiService {
 		const { data, queryParams } = request;
 
 		const queryString = new URLSearchParams({
-			search_space_id: String(queryParams.search_space_id),
+			workspace_id: String(queryParams.search_space_id),
 		}).toString();
 
 		return baseApiService.post<MCPConnectorRead>(

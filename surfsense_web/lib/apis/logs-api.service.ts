@@ -36,11 +36,12 @@ class LogsApiService {
 		const transformedQueryParams = parsedRequest.data.queryParams
 			? Object.fromEntries(
 					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => {
+						const key = k === "search_space_id" ? "workspace_id" : k;
 						// Handle array values (document_type)
 						if (Array.isArray(v)) {
-							return [k, v.join(",")];
+							return [key, v.join(",")];
 						}
-						return [k, String(v)];
+						return [key, String(v)];
 					})
 				)
 			: undefined;
@@ -74,8 +75,9 @@ class LogsApiService {
 			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
+		const { search_space_id, ...body } = parsedRequest.data;
 		return baseApiService.post(`/api/v1/logs`, createLogResponse, {
-			body: parsedRequest.data,
+			body: { ...body, workspace_id: search_space_id },
 		});
 	};
 
@@ -89,8 +91,9 @@ class LogsApiService {
 			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
+		const { search_space_id, ...body } = parsedRequest.data;
 		return baseApiService.put(`/api/v1/logs/${logId}`, updateLogResponse, {
-			body: parsedRequest.data,
+			body: search_space_id === undefined ? body : { ...body, workspace_id: search_space_id },
 		});
 	};
 
@@ -118,7 +121,7 @@ class LogsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 		const { search_space_id, hours } = parsedRequest.data;
-		const url = `/api/v1/logs/search-space/${search_space_id}/summary${hours ? `?hours=${hours}` : ""}`;
+		const url = `/api/v1/logs/workspaces/${search_space_id}/summary${hours ? `?hours=${hours}` : ""}`;
 		return baseApiService.get(url, getLogSummaryResponse);
 	};
 }

@@ -108,7 +108,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 
 				const response = await authenticatedFetch(
 					buildBackendUrl("/api/v1/search-source-connectors", {
-						search_space_id: spaceId,
+						workspace_id: spaceId,
 					}),
 					{
 						method: "GET",
@@ -167,7 +167,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		try {
 			const response = await authenticatedFetch(
 				buildBackendUrl("/api/v1/search-source-connectors", {
-					search_space_id: spaceId,
+					workspace_id: spaceId,
 				}),
 				{
 					method: "POST",
@@ -269,7 +269,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		try {
 			const response = await authenticatedFetch(
 				buildBackendUrl(`/api/v1/search-source-connectors/${connectorId}/index`, {
-					search_space_id: searchSpaceId,
+					workspace_id: searchSpaceId,
 					start_date: startDate,
 					end_date: endDate,
 				}),

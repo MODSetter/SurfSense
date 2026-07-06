@@ -95,7 +95,7 @@ export async function fetchThreads(
 	searchSpaceId: number,
 	limit?: number
 ): Promise<ThreadListResponse> {
-	const params = new URLSearchParams({ search_space_id: String(searchSpaceId) });
+	const params = new URLSearchParams({ workspace_id: String(searchSpaceId) });
 	if (limit) params.append("limit", String(limit));
 	return baseApiService.get<ThreadListResponse>(`/api/v1/threads?${params}`);
 }
@@ -108,7 +108,7 @@ export async function searchThreads(
 	title: string
 ): Promise<ThreadListItem[]> {
 	const params = new URLSearchParams({
-		search_space_id: String(searchSpaceId),
+		workspace_id: String(searchSpaceId),
 		title,
 	});
 	return baseApiService.get<ThreadListItem[]>(`/api/v1/threads/search?${params}`);
@@ -125,7 +125,7 @@ export async function createThread(
 		body: {
 			title,
 			archived: false,
-			search_space_id: searchSpaceId,
+			workspace_id: searchSpaceId,
 		},
 	});
 }
