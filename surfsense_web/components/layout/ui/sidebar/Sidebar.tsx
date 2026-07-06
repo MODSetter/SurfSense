@@ -77,10 +77,6 @@ interface SidebarProps {
 	onChatArchive?: (chat: ChatItem) => void;
 	onViewAllChats?: () => void;
 	isAllChatsActive?: boolean;
-	documentsPanel?: {
-		open: boolean;
-		onOpenChange: (open: boolean) => void;
-	};
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -118,7 +114,6 @@ export function Sidebar({
 	onChatArchive,
 	onViewAllChats,
 	isAllChatsActive = false,
-	documentsPanel,
 	user,
 	onSettings,
 	onManageMembers,
@@ -155,16 +150,11 @@ export function Sidebar({
 		() => navItems.find((item) => item.url.endsWith("/artifacts")),
 		[navItems]
 	);
-	const documentsItem = useMemo(
-		() => navItems.find((item) => item.url === "#documents"),
-		[navItems]
-	);
 	const footerNavItems = useMemo(
 		() =>
 			navItems.filter(
 				(item) =>
 					item.url !== "#inbox" &&
-					item.url !== "#documents" &&
 					!item.url.endsWith("/automations") &&
 					!item.url.endsWith("/artifacts")
 			),
@@ -277,16 +267,6 @@ export function Sidebar({
 							tooltipContent={isCollapsed ? artifactsItem.title : undefined}
 						/>
 					)}
-					{documentsItem && (
-						<SidebarButton
-							icon={documentsItem.icon}
-							label={documentsItem.title}
-							onClick={() => onNavItemClick?.(documentsItem)}
-							isCollapsed={isCollapsed}
-							isActive={documentsItem.isActive}
-							tooltipContent={isCollapsed ? documentsItem.title : undefined}
-						/>
-					)}
 				</div>
 
 				{/* Chat sections - fills available space */}
@@ -344,11 +324,9 @@ export function Sidebar({
 								<p className="px-2 py-1 text-sm text-muted-foreground/60">{t("no_chats")}</p>
 							)}
 						</SidebarSection>
-						{documentsPanel?.open ? (
-							<div className="min-h-0 flex flex-1 flex-col">
-								<DocumentsSidebar embedded />
-							</div>
-						) : null}
+						<div className="min-h-0 flex flex-1 flex-col">
+							<DocumentsSidebar embedded />
+						</div>
 					</div>
 				)}
 			</div>

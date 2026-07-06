@@ -144,10 +144,6 @@ interface LayoutShellProps {
 	// Inbox props
 	inbox?: InboxProps;
 	isLoadingChats?: boolean;
-	documentsPanel?: {
-		open: boolean;
-		onOpenChange: (open: boolean) => void;
-	};
 	onTabSwitch?: (tab: Tab) => void;
 	onTabPrefetch?: (tab: Tab) => void;
 }
@@ -250,7 +246,6 @@ export function LayoutShell({
 	onSlideoutPanelChange,
 	inbox,
 	isLoadingChats = false,
-	documentsPanel,
 	onTabSwitch,
 	onTabPrefetch,
 }: LayoutShellProps) {
@@ -312,7 +307,6 @@ export function LayoutShell({
 							onChatArchive={onChatArchive}
 							onViewAllChats={onViewAllChats}
 							isAllChatsActive={isAllChatsPage}
-							documentsPanel={documentsPanel}
 							user={user}
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}
@@ -432,7 +426,6 @@ export function LayoutShell({
 								onChatArchive={onChatArchive}
 								onViewAllChats={onViewAllChats}
 								isAllChatsActive={isAllChatsPage}
-								documentsPanel={documentsPanel}
 								user={user}
 								onSettings={onSettings}
 								onManageMembers={onManageMembers}

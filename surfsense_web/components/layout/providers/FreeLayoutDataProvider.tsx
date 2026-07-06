@@ -1,13 +1,12 @@
 "use client";
 
-import { Inbox, LibraryBig } from "lucide-react";
+import { Inbox } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import { useAnnouncements } from "@/hooks/use-announcements";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import type { ChatItem, NavItem, PageUsage, Workspace } from "../types/layout.types";
 import { LayoutShell } from "../ui/shell";
@@ -28,15 +27,8 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 	const router = useRouter();
 	const { gate } = useLoginGate();
 	const anonMode = useAnonymousMode();
-	const isMobile = useIsMobile();
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
 	const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
-	const [isDocsSidebarOpen, setIsDocsSidebarOpen] = useState(false);
-
-	// Keep docs sidebar closed on mobile; auto-open only on desktop after hydration
-	useEffect(() => {
-		setIsDocsSidebarOpen(!isMobile);
-	}, [isMobile]);
 
 	useEffect(() => {
 		anonymousChatApiService
@@ -65,17 +57,9 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 						icon: Inbox,
 						isActive: false,
 					},
-					isMobile
-						? {
-								title: "Documents",
-								url: "#documents",
-								icon: LibraryBig,
-								isActive: false,
-							}
-						: null,
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
-		[isMobile]
+		[]
 	);
 
 	const pageUsage: PageUsage | undefined = quota
@@ -87,7 +71,6 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
 			if (item.title === "Inbox") gate("use the inbox");
-			else if (item.title === "Documents") setIsDocsSidebarOpen((v) => !v);
 		},
 		[gate]
 	);
@@ -127,10 +110,6 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 			pageUsage={pageUsage}
 			isChatPage
 			isLoadingChats={false}
-			documentsPanel={{
-				open: isDocsSidebarOpen,
-				onOpenChange: setIsDocsSidebarOpen,
-			}}
 		>
 			{children}
 		</LayoutShell>

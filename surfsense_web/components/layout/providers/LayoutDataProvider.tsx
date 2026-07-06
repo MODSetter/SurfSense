@@ -1,18 +1,16 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { AlarmClock, AlertTriangle, Boxes, Inbox, LibraryBig } from "lucide-react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { AlarmClock, AlertTriangle, Boxes, Inbox } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
-import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
-import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { deleteWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
@@ -44,7 +42,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
@@ -80,7 +77,6 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 	const params = useParams();
 	const pathname = usePathname();
 	const { theme, setTheme } = useTheme();
-	const isMobile = useIsMobile();
 
 	// Announcements
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
@@ -130,21 +126,6 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 	const [activeSlideoutPanel, setActiveSlideoutPanel] = useState<SlideoutPanel>(null);
 
 	const isInboxSidebarOpen = activeSlideoutPanel === "inbox";
-
-	// Documents sidebar state (shared atom so Composer can toggle it)
-	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
-
-	// Open documents sidebar by default on desktop (docked mode)
-	const documentsInitialized = useRef(false);
-	useEffect(() => {
-		if (!documentsInitialized.current) {
-			documentsInitialized.current = true;
-			const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
-			if (isDesktop) {
-				setIsDocumentsSidebarOpen(true);
-			}
-		}
-	}, [setIsDocumentsSidebarOpen]);
 
 	// Search space dialog state
 	const [isCreateWorkspaceDialogOpen, setIsCreateWorkspaceDialogOpen] = useState(false);
@@ -361,20 +342,10 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 						icon: Boxes,
 						isActive: isArtifactsActive,
 					},
-					isMobile
-						? {
-								title: "Documents",
-								url: "#documents",
-								icon: LibraryBig,
-								isActive: isDocumentsSidebarOpen,
-							}
-						: null,
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
 		[
-			isMobile,
 			isInboxSidebarOpen,
-			isDocumentsSidebarOpen,
 			totalUnreadCount,
 			workspaceId,
 			isAutomationsActive,
@@ -520,18 +491,9 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 				setActiveSlideoutPanel((prev) => (prev === "inbox" ? null : "inbox"));
 				return;
 			}
-			if (item.url === "#documents") {
-				setIsDocumentsSidebarOpen((prev) => {
-					if (!prev) {
-						setActiveSlideoutPanel(null);
-					}
-					return !prev;
-				});
-				return;
-			}
 			router.push(item.url);
 		},
-		[router, setIsDocumentsSidebarOpen]
+		[router]
 	);
 
 	const handleNewChat = useCallback(() => {
@@ -798,10 +760,6 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 						markAsRead: statusInbox.markAsRead,
 						markAllAsRead: statusInbox.markAllAsRead,
 					},
-				}}
-				documentsPanel={{
-					open: isDocumentsSidebarOpen,
-					onOpenChange: setIsDocumentsSidebarOpen,
 				}}
 				onTabSwitch={handleTabSwitch}
 				onTabPrefetch={handleTabPrefetch}

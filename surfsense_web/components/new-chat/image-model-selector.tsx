@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
-import { Check, ChevronDown, ImagePlus, Search, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { UIEvent } from "react";
 import { useCallback, useMemo, useState } from "react";
@@ -268,11 +268,9 @@ export function ImageModelSelector({
 				showIconOnlyTrigger && "h-9 w-auto shrink-0 justify-center gap-1 px-2"
 			)}
 		>
-			{selected ? (
-				getProviderIcon(selected.provider, { className: "size-4 shrink-0" })
-			) : (
-				<ImagePlus className="size-4 shrink-0" />
-			)}
+			{selected
+				? getProviderIcon(selected.provider, { className: "size-4 shrink-0" })
+				: getProviderIcon(AUTO_PROVIDER_ICON_KEY, { className: "size-4 shrink-0" })}
 			{showIconOnlyTrigger ? null : (
 				<span className="min-w-0 flex-1 truncate text-sm">
 					{selected ? modelName(selected) : "Auto"}
