@@ -214,7 +214,7 @@ export function DashboardClientLayout({
 	return (
 		<DocumentUploadDialogProvider>
 			<OnboardingTour />
-			<LayoutDataProvider workspaceId={workspaceId}>{children}</LayoutDataProvider>
+			<LayoutDataProvider searchSpaceId={workspaceId}>{children}</LayoutDataProvider>
 		</DocumentUploadDialogProvider>
 	);
 }

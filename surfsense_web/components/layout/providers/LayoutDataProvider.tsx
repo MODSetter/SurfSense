@@ -111,8 +111,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		? Number(Array.isArray(params.chat_id) ? params.chat_id[0] : params.chat_id)
 		: currentThreadState.id;
 
-	// Fetch current search space (for caching purposes)
-	useQuery({
+	// Fetch current workspace as a fallback for the selector while the full list catches up.
+	const { data: currentWorkspace } = useQuery({
 		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId),
 		queryFn: () => searchSpacesApiService.getSearchSpace({ id: Number(searchSpaceId) }),
 		enabled: !!searchSpaceId,
@@ -267,11 +267,22 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		}));
 	}, [searchSpacesData]);
 
-	// Find active search space from list (has is_owner and member_count)
+	// Find active workspace from list, falling back to the route-scoped detail query.
 	const activeSearchSpace: SearchSpace | null = useMemo(() => {
-		if (!searchSpaceId || !searchSpaces.length) return null;
-		return searchSpaces.find((s) => s.id === Number(searchSpaceId)) ?? null;
-	}, [searchSpaceId, searchSpaces]);
+		if (!searchSpaceId) return null;
+		const searchSpaceIdNumber = Number(searchSpaceId);
+		const listedSpace = searchSpaces.find((s) => s.id === searchSpaceIdNumber);
+		if (listedSpace) return listedSpace;
+		if (!currentWorkspace || currentWorkspace.id !== searchSpaceIdNumber) return null;
+		return {
+			id: currentWorkspace.id,
+			name: currentWorkspace.name,
+			description: currentWorkspace.description,
+			isOwner: false,
+			memberCount: 0,
+			createdAt: currentWorkspace.created_at,
+		};
+	}, [currentWorkspace, searchSpaceId, searchSpaces]);
 
 	// Safety redirect: if the current search space is no longer in the user's list
 	// (e.g. deleted by background task, membership revoked), redirect to a valid space.
@@ -280,7 +291,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			return;
 		if (searchSpaces.length > 0 && !activeSearchSpace) {
 			router.replace(`/dashboard/${searchSpaces[0].id}/new-chat`);
-		} else if (searchSpaces.length === 0 && searchSpacesLoaded) {
+		} else if (searchSpaces.length === 0 && searchSpacesLoaded && !activeSearchSpace) {
 			router.replace("/dashboard");
 		}
 	}, [
