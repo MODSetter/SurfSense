@@ -140,17 +140,6 @@ class SearchSpacesApiService {
 	};
 
 	/**
-	 * Trigger AI file sorting for all documents in a search space
-	 */
-	triggerAiSort = async (searchSpaceId: number) => {
-		return baseApiService.post(
-			`/api/v1/workspaces/${searchSpaceId}/ai-sort`,
-			z.object({ message: z.string() }),
-			{}
-		);
-	};
-
-	/**
 	 * Leave a search space (remove own membership)
 	 * This is used by non-owners to leave a shared search space
 	 */

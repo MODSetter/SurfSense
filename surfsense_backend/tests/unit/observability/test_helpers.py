@@ -35,7 +35,6 @@ def _disable_otel(monkeypatch: pytest.MonkeyPatch):
         ("cleanup_stale_indexing_notifications", "cleanup"),
         ("reconcile_pending_stripe_credit_purchases", "reconcile"),
         ("check_periodic_schedules", "check"),
-        ("ai_sort_search_space", "ai"),
         ("index_notion_pages", "index"),
         ("index_github_repos", "index"),
         ("index_google_drive_files", "index"),

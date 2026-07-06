@@ -427,8 +427,6 @@ class IndexingPipelineService:
             log_index_success(ctx, chunk_count=chunk_count)
             outcome_status = "success"
 
-            await self._enqueue_ai_sort_if_enabled(document)
-
         except RETRYABLE_LLM_ERRORS as e:
             ot.record_error(persist_span, e)
             log_retryable_llm_error(ctx, e)
@@ -563,29 +561,6 @@ class IndexingPipelineService:
             deleted=len(plan.to_delete),
         )
         return len(new_texts)
-
-    async def _enqueue_ai_sort_if_enabled(self, document: Document) -> None:
-        """Fire-and-forget: enqueue incremental AI sort if the workspace has it enabled."""
-        try:
-            from app.db import Workspace
-
-            result = await self.session.execute(
-                select(Workspace.ai_file_sort_enabled).where(
-                    Workspace.id == document.workspace_id
-                )
-            )
-            enabled = result.scalar()
-            if not enabled:
-                return
-
-            from app.tasks.celery_tasks.document_tasks import ai_sort_document_task
-
-            user_id = str(document.created_by_id) if document.created_by_id else ""
-            ai_sort_document_task.delay(document.workspace_id, user_id, document.id)
-        except Exception:
-            logging.getLogger(__name__).warning(
-                "Failed to enqueue AI sort for document %s", document.id, exc_info=True
-            )
 
     async def index_batch_parallel(
         self,

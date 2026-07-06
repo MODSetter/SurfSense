@@ -35,7 +35,6 @@ import {
 	folderWatchDialogOpenAtom,
 	folderWatchInitialFolderAtom,
 } from "@/atoms/folder-sync/folder-sync.atoms";
-import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import { DocumentsFilters } from "@/components/documents/DocumentsFilters";
@@ -76,7 +75,6 @@ import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { buildBackendUrl } from "@/lib/env-config";
@@ -361,47 +359,6 @@ function AuthenticatedDocumentsSidebarBase({
 		},
 		[electronAPI, searchSpaceId]
 	);
-
-	// AI File Sort state
-	const { data: searchSpaces, refetch: refetchSearchSpaces } = useAtomValue(searchSpacesAtom);
-	const activeSearchSpace = useMemo(
-		() => searchSpaces?.find((s) => s.id === searchSpaceId),
-		[searchSpaces, searchSpaceId]
-	);
-	const aiSortEnabled = activeSearchSpace?.ai_file_sort_enabled ?? false;
-	const [aiSortBusy, setAiSortBusy] = useState(false);
-	const [aiSortConfirmOpen, setAiSortConfirmOpen] = useState(false);
-
-	const handleToggleAiSort = useCallback(() => {
-		if (aiSortEnabled) {
-			// Disable: just update the setting, no confirmation needed
-			setAiSortBusy(true);
-			searchSpacesApiService
-				.updateSearchSpace({ id: searchSpaceId, data: { ai_file_sort_enabled: false } })
-				.then(() => {
-					refetchSearchSpaces();
-					toast.success("AI file sorting disabled");
-				})
-				.catch(() => toast.error("Failed to disable AI file sorting"))
-				.finally(() => setAiSortBusy(false));
-		} else {
-			setAiSortConfirmOpen(true);
-		}
-	}, [aiSortEnabled, searchSpaceId, refetchSearchSpaces]);
-
-	const handleConfirmEnableAiSort = useCallback(() => {
-		setAiSortConfirmOpen(false);
-		setAiSortBusy(true);
-		searchSpacesApiService
-			.updateSearchSpace({ id: searchSpaceId, data: { ai_file_sort_enabled: true } })
-			.then(() => searchSpacesApiService.triggerAiSort(searchSpaceId))
-			.then(() => {
-				refetchSearchSpaces();
-				toast.success("AI file sorting enabled — organizing your documents in the background");
-			})
-			.catch(() => toast.error("Failed to enable AI file sorting"))
-			.finally(() => setAiSortBusy(false));
-	}, [searchSpaceId, refetchSearchSpaces]);
 
 	const handleWatchLocalFolder = useCallback(async () => {
 		const api = window.electronAPI;
@@ -1251,9 +1208,6 @@ function AuthenticatedDocumentsSidebarBase({
 						onToggleType={onToggleType}
 						activeTypes={activeTypes}
 						onCreateFolder={() => handleCreateFolder(null)}
-						aiSortEnabled={aiSortEnabled}
-						aiSortBusy={aiSortBusy}
-						onToggleAiSort={handleToggleAiSort}
 					/>
 				</div>
 
@@ -1588,22 +1542,6 @@ function AuthenticatedDocumentsSidebarBase({
 				</AlertDialogContent>
 			</AlertDialog>
 
-			<AlertDialog open={aiSortConfirmOpen} onOpenChange={setAiSortConfirmOpen}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Enable AI File Sorting?</AlertDialogTitle>
-						<AlertDialogDescription>
-							All documents in this search space will be organized into folders by connector type,
-							date, and AI-generated categories. New documents will also be sorted automatically.
-							You can disable this at any time.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={handleConfirmEnableAiSort}>Enable</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
 		</>
 	);
 
@@ -1935,7 +1873,6 @@ function AnonymousDocumentsSidebar({
 						onToggleType={() => {}}
 						activeTypes={[]}
 						onCreateFolder={() => gate("create folders")}
-						aiSortEnabled={false}
 						onUploadClick={handleAnonUploadClick}
 					/>
 				</div>

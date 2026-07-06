@@ -1,6 +1,6 @@
 """``document.entered_folder``: a document became a member of a folder.
 
-Fires once per arrival, however the document got there (upload, AI sort, move).
+Fires once per arrival, however the document got there (upload or move).
 The payload carries the fields a user can filter a trigger on.
 """
 
