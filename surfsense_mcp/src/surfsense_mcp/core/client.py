@@ -13,7 +13,7 @@ import httpx
 from .errors import ToolError
 
 _FAILURE_HINTS: dict[int, str] = {
-    401: "Authentication failed — check that SURFSENSE_PAT is a valid, unexpired token.",
+    401: "Authentication failed — check that SURFSENSE_API_KEY is a valid, unexpired key.",
     402: "The workspace is out of credits for this operation.",
     403: (
         "Access denied — the token lacks permission, or API access is disabled "
@@ -27,12 +27,12 @@ _FAILURE_HINTS: dict[int, str] = {
 class SurfSenseClient:
     """Issues authenticated requests against ``{base_url}{api_prefix}``."""
 
-    def __init__(self, *, api_base: str, pat: str, timeout: float) -> None:
+    def __init__(self, *, api_base: str, api_key: str, timeout: float) -> None:
         self._api_base = api_base
         self._http = httpx.AsyncClient(
             base_url=api_base,
             headers={
-                "Authorization": f"Bearer {pat}",
+                "Authorization": f"Bearer {api_key}",
                 "Accept": "application/json",
             },
             timeout=timeout,

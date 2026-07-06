@@ -19,7 +19,7 @@ class Settings:
     """Resolved configuration for a server process."""
 
     base_url: str
-    pat: str
+    api_key: str
     api_prefix: str
     timeout: float
     default_workspace: str | None
@@ -30,11 +30,11 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> Settings:
-        pat = os.environ.get("SURFSENSE_PAT", "").strip()
-        if not pat:
+        api_key = os.environ.get("SURFSENSE_API_KEY", "").strip()
+        if not api_key:
             raise SystemExit(
-                "SURFSENSE_PAT is required. Create a Personal Access Token in "
-                "SurfSense (Settings -> API) and pass it via the SURFSENSE_PAT "
+                "SURFSENSE_API_KEY is required. Create an API key in SurfSense "
+                "(Settings -> API) and pass it via the SURFSENSE_API_KEY "
                 "environment variable."
             )
 
@@ -55,7 +55,7 @@ class Settings:
 
         return cls(
             base_url=base_url,
-            pat=pat,
+            api_key=api_key,
             api_prefix=api_prefix,
             timeout=timeout,
             default_workspace=default_workspace,

@@ -43,7 +43,7 @@ _MIN_DESCRIPTION_CHARS = 40
 async def _collect_tools() -> dict[str, object]:
     settings = Settings(
         base_url="http://localhost:8000",
-        pat="ss_pat_selfcheck",
+        api_key="ss_pat_selfcheck",
         api_prefix="/api/v1",
         timeout=5.0,
         default_workspace=None,

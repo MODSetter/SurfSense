@@ -15,7 +15,7 @@ def _response(status: int, **kwargs) -> httpx.Response:
 
 def test_explains_401_with_token_hint():
     message = SurfSenseClient._explain_failure(_response(401, json={"detail": "bad"}))
-    assert "SURFSENSE_PAT" in message
+    assert "SURFSENSE_API_KEY" in message
     assert "bad" in message
 
 

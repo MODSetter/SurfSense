@@ -2,8 +2,8 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes
 SurfSense to MCP clients like **Claude Code**, **Cursor**, and **Claude Desktop**.
-It talks to a running SurfSense backend purely over its REST API using a Personal
-Access Token — it imports no backend code and can point at any instance (local or
+It talks to a running SurfSense backend purely over its REST API using a SurfSense
+API key — it imports no backend code and can point at any instance (local or
 hosted) by changing two environment variables.
 
 ## Tools
@@ -32,7 +32,7 @@ model carries them between calls.
 ## Prerequisites
 
 1. A running SurfSense backend (default `http://localhost:8000`).
-2. A **Personal Access Token**: SurfSense → Settings → API → create token (`ss_pat_…`).
+2. A **SurfSense API key**: SurfSense → Settings → API → create key (`ss_pat_…`).
 3. **API access enabled** on the workspace(s) you want to use (workspace settings).
 
 ## Setup
@@ -59,7 +59,7 @@ Add to `~/.cursor/mcp.json` (or a project `.cursor/mcp.json`):
       "args": ["run", "--directory", "/absolute/path/to/SurfSense/surfsense_mcp", "python", "-m", "surfsense_mcp"],
       "env": {
         "SURFSENSE_BASE_URL": "http://localhost:8000",
-        "SURFSENSE_PAT": "ss_pat_your_token_here"
+        "SURFSENSE_API_KEY": "ss_pat_your_token_here"
       }
     }
   }
@@ -71,7 +71,7 @@ Add to `~/.cursor/mcp.json` (or a project `.cursor/mcp.json`):
 ```bash
 claude mcp add surfsense \
   -e SURFSENSE_BASE_URL=http://localhost:8000 \
-  -e SURFSENSE_PAT=ss_pat_your_token_here \
+  -e SURFSENSE_API_KEY=ss_pat_your_token_here \
   -- uv run --directory /absolute/path/to/SurfSense/surfsense_mcp python -m surfsense_mcp
 ```
 
