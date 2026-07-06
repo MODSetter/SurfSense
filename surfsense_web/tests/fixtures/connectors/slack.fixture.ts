@@ -1,18 +1,18 @@
 import { type ConnectorRow, deleteConnector, runSlackOAuth } from "../../helpers/api/connectors";
-import { searchSpaceFixtures } from "../workspace.fixture";
+import { workspaceFixtures } from "../workspace.fixture";
 
 export type SlackFixtures = {
 	/**
-	 * A pre-connected Slack connector inside the fixture's `searchSpace`.
+	 * A pre-connected Slack connector inside the fixture's `workspace`.
 	 * OAuth and MCP tool calls use E2E Slack fakes and are cleaned up
 	 * automatically after the test.
 	 */
 	slackConnector: ConnectorRow;
 };
 
-export const slackFixtures = searchSpaceFixtures.extend<SlackFixtures>({
-	slackConnector: async ({ request, apiToken, searchSpace }, use) => {
-		const { connector } = await runSlackOAuth(request, apiToken, searchSpace.id);
+export const slackFixtures = workspaceFixtures.extend<SlackFixtures>({
+	slackConnector: async ({ request, apiToken, workspace }, use) => {
+		const { connector } = await runSlackOAuth(request, apiToken, workspace.id);
 		if (!connector) {
 			throw new Error(
 				"slackConnector fixture: OAuth completed but no SLACK_CONNECTOR was created. " +

@@ -223,7 +223,7 @@ export const FAKE_CLICKUP_TASKS = {
 	},
 } as const;
 
-/** Generate a unique-per-run search space name. Keeps parallel tests isolated. */
-export function uniqueSearchSpaceName(prefix = "e2e"): string {
+/** Generate a unique-per-run workspace name. Keeps parallel tests isolated. */
+export function uniqueWorkspaceName(prefix = "e2e"): string {
 	return `${prefix}-${randomUUID().slice(0, 8)}`;
 }

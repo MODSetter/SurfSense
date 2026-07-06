@@ -36,11 +36,12 @@ class LogsApiService {
 		const transformedQueryParams = parsedRequest.data.queryParams
 			? Object.fromEntries(
 					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => {
+						const key = k;
 						// Handle array values (document_type)
 						if (Array.isArray(v)) {
-							return [k, v.join(",")];
+							return [key, v.join(",")];
 						}
-						return [k, String(v)];
+						return [key, String(v)];
 					})
 				)
 			: undefined;
@@ -74,8 +75,9 @@ class LogsApiService {
 			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
+		const { workspace_id, ...body } = parsedRequest.data;
 		return baseApiService.post(`/api/v1/logs`, createLogResponse, {
-			body: parsedRequest.data,
+			body: { ...body, workspace_id },
 		});
 	};
 
@@ -89,8 +91,9 @@ class LogsApiService {
 			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
+		const { workspace_id, ...body } = parsedRequest.data;
 		return baseApiService.put(`/api/v1/logs/${logId}`, updateLogResponse, {
-			body: parsedRequest.data,
+			body: workspace_id === undefined ? body : { ...body, workspace_id },
 		});
 	};
 
@@ -108,7 +111,7 @@ class LogsApiService {
 	};
 
 	/**
-	 * Get summary for logs by search space
+	 * Get summary for logs by workspace
 	 */
 	getLogSummary = async (request: GetLogSummaryRequest) => {
 		const parsedRequest = getLogSummaryRequest.safeParse(request);

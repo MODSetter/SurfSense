@@ -110,10 +110,10 @@ class NotificationsApiService {
 	 * Get distinct source types (connector + document types) across all
 	 * status notifications. Used to populate the inbox Status tab filter.
 	 */
-	getSourceTypes = async (searchSpaceId?: number): Promise<GetSourceTypesResponse> => {
+	getSourceTypes = async (workspaceId?: number): Promise<GetSourceTypesResponse> => {
 		const params = new URLSearchParams();
-		if (searchSpaceId !== undefined) {
-			params.append("workspace_id", String(searchSpaceId));
+		if (workspaceId !== undefined) {
+			params.append("workspace_id", String(workspaceId));
 		}
 		const queryString = params.toString();
 
@@ -125,18 +125,18 @@ class NotificationsApiService {
 
 	/**
 	 * Get unread notification count with split between total and recent
-	 * @param searchSpaceId - Optional search space ID to filter by
+	 * @param workspaceId - Optional workspace ID to filter by
 	 * @param type - Optional notification type to filter by (type-safe enum)
 	 * @param category - Optional category filter ('comments' or 'status')
 	 */
 	getUnreadCount = async (
-		searchSpaceId?: number,
+		workspaceId?: number,
 		type?: InboxItemTypeEnum,
 		category?: NotificationCategory
 	): Promise<GetUnreadCountResponse> => {
 		const params = new URLSearchParams();
-		if (searchSpaceId !== undefined) {
-			params.append("workspace_id", String(searchSpaceId));
+		if (workspaceId !== undefined) {
+			params.append("workspace_id", String(workspaceId));
 		}
 		if (type) {
 			params.append("type", type);
@@ -156,10 +156,10 @@ class NotificationsApiService {
 	 * Get unread counts for all categories in a single request.
 	 * Replaces 2 separate getUnreadCount calls (comments + status).
 	 */
-	getBatchUnreadCounts = async (searchSpaceId?: number): Promise<GetBatchUnreadCountResponse> => {
+	getBatchUnreadCounts = async (workspaceId?: number): Promise<GetBatchUnreadCountResponse> => {
 		const params = new URLSearchParams();
-		if (searchSpaceId !== undefined) {
-			params.append("workspace_id", String(searchSpaceId));
+		if (workspaceId !== undefined) {
+			params.append("workspace_id", String(workspaceId));
 		}
 		const queryString = params.toString();
 

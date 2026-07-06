@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { createSearchSpaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
+import { createWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { trackSearchSpaceCreated } from "@/lib/posthog/events";
+import { trackWorkspaceCreated } from "@/lib/posthog/events";
 
 const formSchema = z.object({
 	name: z.string().min(1, "Name is required"),
@@ -36,18 +36,18 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface CreateSearchSpaceDialogProps {
+interface CreateWorkspaceDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }
 
-export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpaceDialogProps) {
-	const t = useTranslations("searchSpace");
+export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDialogProps) {
+	const t = useTranslations("workspace");
 	const tCommon = useTranslations("common");
 	const router = useRouter();
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	const { mutateAsync: createSearchSpace } = useAtomValue(createSearchSpaceMutationAtom);
+	const { mutateAsync: createWorkspace } = useAtomValue(createWorkspaceMutationAtom);
 
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
@@ -60,16 +60,16 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 	const handleSubmit = async (values: FormValues) => {
 		setIsSubmitting(true);
 		try {
-			const result = await createSearchSpace({
+			const result = await createWorkspace({
 				name: values.name,
 				description: values.description || "",
 			});
 
-			trackSearchSpaceCreated(result.id, values.name);
+			trackWorkspaceCreated(result.id, values.name);
 
 			router.push(`/dashboard/${result.id}/new-chat`);
 		} catch (error) {
-			console.error("Failed to create search space:", error);
+			console.error("Failed to create workspace:", error);
 			setIsSubmitting(false);
 		}
 	};

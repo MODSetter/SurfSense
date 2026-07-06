@@ -160,7 +160,7 @@ const CATEGORY_CONFIG: Record<
 	settings: {
 		label: "Settings",
 		icon: Settings,
-		description: "Manage search space settings",
+		description: "Manage workspace settings",
 		order: 10,
 	},
 	public_sharing: {
@@ -172,7 +172,7 @@ const CATEGORY_CONFIG: Record<
 	general: {
 		label: "General",
 		icon: SlidersHorizontal,
-		description: "General search space permissions",
+		description: "General workspace permissions",
 		order: 12,
 	},
 };
@@ -269,7 +269,7 @@ type PermissionWithDescription = PermissionInfo;
 
 // ============ Roles Manager (for Settings page) ============
 
-export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
+export function RolesManager({ workspaceId }: { workspaceId: number }) {
 	const { data: access = null } = useAtomValue(myAccessAtom);
 
 	const hasPermission = useCallback(
@@ -278,9 +278,9 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 	);
 
 	const { data: roles = [], isLoading: rolesLoading } = useQuery({
-		queryKey: cacheKeys.roles.all(searchSpaceId.toString()),
-		queryFn: () => rolesApiService.getRoles({ workspace_id: searchSpaceId }),
-		enabled: !!searchSpaceId,
+		queryKey: cacheKeys.roles.all(workspaceId.toString()),
+		queryFn: () => rolesApiService.getRoles({ workspace_id: workspaceId }),
+		enabled: !!workspaceId,
 	});
 
 	const { data: permissionsData } = useAtomValue(permissionsAtom);
@@ -311,36 +311,36 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 			}
 		): Promise<Role> => {
 			const request: UpdateRoleRequest = {
-				workspace_id: searchSpaceId,
+				workspace_id: workspaceId,
 				role_id: roleId,
 				data: data,
 			};
 			return await updateRole(request);
 		},
-		[updateRole, searchSpaceId]
+		[updateRole, workspaceId]
 	);
 
 	const handleDeleteRole = useCallback(
 		async (roleId: number): Promise<boolean> => {
 			const request: DeleteRoleRequest = {
-				workspace_id: searchSpaceId,
+				workspace_id: workspaceId,
 				role_id: roleId,
 			};
 			await deleteRole(request);
 			return true;
 		},
-		[deleteRole, searchSpaceId]
+		[deleteRole, workspaceId]
 	);
 
 	const handleCreateRole = useCallback(
 		async (roleData: CreateRoleRequest["data"]): Promise<Role> => {
 			const request: CreateRoleRequest = {
-				workspace_id: searchSpaceId,
+				workspace_id: workspaceId,
 				data: roleData,
 			};
 			return await createRole(request);
 		},
-		[createRole, searchSpaceId]
+		[createRole, workspaceId]
 	);
 
 	return (
@@ -884,7 +884,7 @@ function CreateRoleDialog({
 				<DialogHeader className="px-5 pt-5 pb-4 shrink-0">
 					<DialogTitle className="text-lg">Create Custom Role</DialogTitle>
 					<DialogDescription className="text-sm text-muted-foreground">
-						Define permissions for a new role in this search space
+						Define permissions for a new role in this workspace
 					</DialogDescription>
 				</DialogHeader>
 				<div className="flex-1 min-h-0 overflow-y-auto">

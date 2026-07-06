@@ -7,7 +7,7 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 interface FileChangedEvent {
 	id: string;
 	rootFolderId: number | null;
-	searchSpaceId: number;
+	workspaceId: number;
 	folderPath: string;
 	folderName: string;
 	relativePath: string;
@@ -29,7 +29,7 @@ interface FileEntry {
 interface BatchItem {
 	folderPath: string;
 	folderName: string;
-	searchSpaceId: number;
+	workspaceId: number;
 	rootFolderId: number | null;
 	files: FileEntry[];
 	ackIds: string[];
@@ -66,7 +66,7 @@ export function useFolderSync() {
 
 					await documentsApiService.folderUploadFiles(files, {
 						folder_name: batch.folderName,
-						workspace_id: batch.searchSpaceId,
+						workspace_id: batch.workspaceId,
 						relative_paths: addChangeFiles.map((f) => f.relativePath),
 						root_folder_id: batch.rootFolderId,
 					});
@@ -75,7 +75,7 @@ export function useFolderSync() {
 				if (unlinkFiles.length > 0) {
 					await documentsApiService.folderNotifyUnlinked({
 						folder_name: batch.folderName,
-						workspace_id: batch.searchSpaceId,
+						workspace_id: batch.workspaceId,
 						root_folder_id: batch.rootFolderId,
 						relative_paths: unlinkFiles.map((f) => f.relativePath),
 					});
@@ -128,7 +128,7 @@ export function useFolderSync() {
 			pendingByFolder.current.set(folderKey, {
 				folderPath: event.folderPath,
 				folderName: event.folderName,
-				searchSpaceId: event.searchSpaceId,
+				workspaceId: event.workspaceId,
 				rootFolderId: event.rootFolderId,
 				files: [
 					{

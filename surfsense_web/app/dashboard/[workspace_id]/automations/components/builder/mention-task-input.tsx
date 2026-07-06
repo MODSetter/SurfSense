@@ -73,6 +73,9 @@ function toChipInput(mention: MentionedDocumentInfo): MentionChipInput {
 	if (mention.kind === "folder") {
 		return { id: mention.id, title: mention.title, kind: "folder" };
 	}
+	if (mention.kind === "thread") {
+		return { id: mention.id, title: mention.title, kind: "thread" };
+	}
 	return {
 		id: mention.id,
 		title: mention.title,

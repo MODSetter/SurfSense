@@ -47,7 +47,7 @@ export function DeleteAutomationDialog({
 	async function handleConfirm() {
 		setSubmitting(true);
 		try {
-			await deleteAutomation({ automationId, workspaceId });
+			await deleteAutomation({ automationId, workspaceId: workspaceId });
 			onDeleted?.();
 			onOpenChange(false);
 		} finally {

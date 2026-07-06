@@ -40,7 +40,7 @@ export function AutomationsEmptyState({ workspaceId, canCreate }: AutomationsEmp
 				</div>
 			) : (
 				<p className="mt-6 text-xs text-muted-foreground">
-					You don't have permission to create automations in this search space.
+					You don't have permission to create automations in this workspace.
 				</p>
 			)}
 		</div>

@@ -189,7 +189,6 @@ async def read_workspaces(
                     citations_enabled=space.citations_enabled,
                     api_access_enabled=space.api_access_enabled,
                     qna_custom_instructions=space.qna_custom_instructions,
-                    ai_file_sort_enabled=space.ai_file_sort_enabled,
                     member_count=member_count,
                     is_owner=is_owner,
                 )
@@ -323,43 +322,6 @@ async def update_workspace_api_access(
         await session.rollback()
         raise HTTPException(
             status_code=500, detail=f"Failed to update API access: {e!s}"
-        ) from e
-
-
-@router.post("/workspaces/{workspace_id}/ai-sort")
-async def trigger_ai_sort(
-    workspace_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
-):
-    user = auth.user
-    """Trigger a full AI file sort for all documents in the workspace."""
-    try:
-        await check_permission(
-            session,
-            auth,
-            workspace_id,
-            Permission.SETTINGS_UPDATE.value,
-            "You don't have permission to trigger AI sort on this workspace",
-        )
-
-        result = await session.execute(
-            select(Workspace).filter(Workspace.id == workspace_id)
-        )
-        db_workspace = result.scalars().first()
-        if not db_workspace:
-            raise HTTPException(status_code=404, detail="Workspace not found")
-
-        from app.tasks.celery_tasks.document_tasks import ai_sort_workspace_task
-
-        ai_sort_workspace_task.delay(workspace_id, str(user.id))
-        return {"message": "AI sort started"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to trigger AI sort: {e!s}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to trigger AI sort: {e!s}"
         ) from e
 
 

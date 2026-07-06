@@ -101,5 +101,5 @@ import pytest
 pytestmark = pytest.mark.integration  # or pytest.mark.unit
 ```
 
-3. Use fixtures from `conftest.py` — `client`, `headers`, `search_space_id`, and `cleanup_doc_ids` are available to integration tests. Unit tests get `make_connector_document` and sample ID fixtures.
+3. Use fixtures from `conftest.py` — `client`, `headers`, `workspace_id`, and `cleanup_doc_ids` are available to integration tests. Unit tests get `make_connector_document` and sample ID fixtures.
 4. Register any new markers in `pyproject.toml` under `markers`.

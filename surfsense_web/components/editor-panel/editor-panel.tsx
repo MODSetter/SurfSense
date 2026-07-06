@@ -146,7 +146,7 @@ export function EditorPanelContent({
 	documentId,
 	localFilePath,
 	memoryScope,
-	searchSpaceId,
+	workspaceId,
 	title,
 	onClose,
 }: {
@@ -154,7 +154,7 @@ export function EditorPanelContent({
 	documentId?: number;
 	localFilePath?: string;
 	memoryScope?: "user" | "team";
-	searchSpaceId?: number;
+	workspaceId?: number;
 	title: string | null;
 	onClose?: () => void;
 }) {
@@ -186,14 +186,14 @@ export function EditorPanelContent({
 			}
 			try {
 				const mounts = (await electronAPI.getAgentFilesystemMounts(
-					searchSpaceId
+					workspaceId
 				)) as AgentFilesystemMount[];
 				return normalizeLocalVirtualPathForEditor(candidatePath, mounts);
 			} catch {
 				return candidatePath;
 			}
 		},
-		[electronAPI, searchSpaceId]
+		[electronAPI, workspaceId]
 	);
 
 	const plateMaxBytes = editorDoc?.editor_plate_max_bytes ?? LARGE_DOCUMENT_THRESHOLD;
@@ -234,7 +234,7 @@ export function EditorPanelContent({
 					const resolvedLocalPath = await resolveLocalVirtualPath(localFilePath);
 					const readResult = await electronAPI.readAgentLocalFileText(
 						resolvedLocalPath,
-						searchSpaceId
+						workspaceId
 					);
 					if (!readResult.ok) {
 						throw new Error(readResult.error || "Failed to read local file");
@@ -257,7 +257,7 @@ export function EditorPanelContent({
 					if (!memoryScope) throw new Error("Missing memory context");
 					const { document, limits } = await fetchMemoryEditorDocument({
 						scope: memoryScope,
-						searchSpaceId,
+						workspaceId,
 						title,
 						signal: controller.signal,
 					});
@@ -271,12 +271,12 @@ export function EditorPanelContent({
 					return;
 				}
 
-				if (!documentId || !searchSpaceId) {
+				if (!documentId || !workspaceId) {
 					throw new Error("Missing document context");
 				}
 				const response = await authenticatedFetch(
 					buildBackendUrl(
-						`/api/v1/workspaces/${searchSpaceId}/documents/${documentId}/editor-content`
+						`/api/v1/workspaces/${workspaceId}/documents/${documentId}/editor-content`
 					),
 					{ method: "GET" }
 				);
@@ -323,7 +323,7 @@ export function EditorPanelContent({
 		localFilePath,
 		memoryScope,
 		resolveLocalVirtualPath,
-		searchSpaceId,
+		workspaceId,
 		title,
 	]);
 
@@ -382,7 +382,7 @@ export function EditorPanelContent({
 					const writeResult = await electronAPI.writeAgentLocalFileText(
 						resolvedLocalPath,
 						contentToSave,
-						searchSpaceId
+						workspaceId
 					);
 					if (!writeResult.ok) {
 						throw new Error(writeResult.error || "Failed to save local file");
@@ -395,7 +395,7 @@ export function EditorPanelContent({
 					if (!memoryScope) throw new Error("Missing memory context");
 					const { markdown: savedContent, limits } = await saveMemoryMarkdown({
 						scope: memoryScope,
-						searchSpaceId,
+						workspaceId,
 						markdown: markdownRef.current,
 					});
 					markdownRef.current = savedContent;
@@ -408,11 +408,11 @@ export function EditorPanelContent({
 					return true;
 				}
 
-				if (!searchSpaceId || !documentId) {
+				if (!workspaceId || !documentId) {
 					throw new Error("Missing document context");
 				}
 				const response = await authenticatedFetch(
-					buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/documents/${documentId}/save`),
+					buildBackendUrl(`/api/v1/workspaces/${workspaceId}/documents/${documentId}/save`),
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
@@ -460,7 +460,7 @@ export function EditorPanelContent({
 			plateMaxBytes,
 			plateMaxLines,
 			resolveLocalVirtualPath,
-			searchSpaceId,
+			workspaceId,
 		]
 	);
 
@@ -515,12 +515,12 @@ export function EditorPanelContent({
 	}, [editorDoc?.source_markdown]);
 
 	const handleDownloadMarkdown = useCallback(async () => {
-		if (!searchSpaceId || !documentId) return;
+		if (!workspaceId || !documentId) return;
 		setDownloading(true);
 		try {
 			const response = await authenticatedFetch(
 				buildBackendUrl(
-					`/api/v1/workspaces/${searchSpaceId}/documents/${documentId}/download-markdown`
+					`/api/v1/workspaces/${workspaceId}/documents/${documentId}/download-markdown`
 				),
 				{ method: "GET" }
 			);
@@ -542,7 +542,7 @@ export function EditorPanelContent({
 		} finally {
 			setDownloading(false);
 		}
-	}, [documentId, editorDoc?.title, searchSpaceId]);
+	}, [documentId, editorDoc?.title, workspaceId]);
 
 	const largeDocAlert = viewerMode === "monaco" && !isLocalFileMode && editorDoc && (
 		<Alert className="m-4 shrink-0">
@@ -574,28 +574,14 @@ export function EditorPanelContent({
 		<>
 			{showDesktopHeader ? (
 				<div className="shrink-0">
-					<div className="shrink-0 flex h-12 items-center justify-between px-3 border-b">
-						<h2 className="select-none text-lg font-semibold">File</h2>
-						<div className="flex items-center gap-1 shrink-0">
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={onClose}
-								className="h-8 w-8 rounded-full shrink-0 text-muted-foreground hover:text-accent-foreground"
-							>
-								<XIcon className="h-4 w-4" />
-								<span className="sr-only">Close editor panel</span>
-							</Button>
-						</div>
-					</div>
-					<div className="grid h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
+					<div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
 						<div className="min-w-0 flex flex-1 items-center gap-2">
 							<p className="truncate text-sm text-muted-foreground">{displayTitle}</p>
 							{memoryLimitState && (
 								<>
 									<Separator
 										orientation="vertical"
-										className="mx-1 bg-border data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-white/10"
+										className="mx-1.5 bg-muted-foreground/20 data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-muted-foreground/25"
 									/>
 									<span className={`shrink-0 text-xs ${memoryCounterClassName}`}>
 										{memoryLimitState.label}
@@ -671,6 +657,19 @@ export function EditorPanelContent({
 									)}
 								</>
 							)}
+							<Separator
+								orientation="vertical"
+								className="mx-1.5 bg-muted-foreground/20 data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-muted-foreground/25"
+							/>
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={onClose}
+								className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+							>
+								<XIcon className="size-4" />
+								<span className="sr-only">Close editor panel</span>
+							</Button>
 						</div>
 					</div>
 				</div>
@@ -890,7 +889,7 @@ function DesktopEditorPanel() {
 
 	const hasTarget =
 		panelState.kind === "document"
-			? !!panelState.documentId && !!panelState.searchSpaceId
+			? !!panelState.documentId && !!panelState.workspaceId
 			: panelState.kind === "local_file"
 				? !!panelState.localFilePath
 				: !!panelState.memoryScope;
@@ -903,7 +902,7 @@ function DesktopEditorPanel() {
 				documentId={panelState.documentId ?? undefined}
 				localFilePath={panelState.localFilePath ?? undefined}
 				memoryScope={panelState.memoryScope ?? undefined}
-				searchSpaceId={panelState.searchSpaceId ?? undefined}
+				workspaceId={panelState.workspaceId ?? undefined}
 				title={panelState.title}
 				onClose={closePanel}
 			/>
@@ -919,7 +918,7 @@ function MobileEditorDrawer() {
 
 	const hasTarget =
 		panelState.kind === "document"
-			? !!panelState.documentId && !!panelState.searchSpaceId
+			? !!panelState.documentId && !!panelState.workspaceId
 			: !!panelState.memoryScope;
 	if (!hasTarget) return null;
 
@@ -943,7 +942,7 @@ function MobileEditorDrawer() {
 						documentId={panelState.documentId ?? undefined}
 						localFilePath={panelState.localFilePath ?? undefined}
 						memoryScope={panelState.memoryScope ?? undefined}
-						searchSpaceId={panelState.searchSpaceId ?? undefined}
+						workspaceId={panelState.workspaceId ?? undefined}
 						title={panelState.title}
 					/>
 				</div>
@@ -957,7 +956,7 @@ export function EditorPanel() {
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const hasTarget =
 		panelState.kind === "document"
-			? !!panelState.documentId && !!panelState.searchSpaceId
+			? !!panelState.documentId && !!panelState.workspaceId
 			: panelState.kind === "local_file"
 				? !!panelState.localFilePath
 				: !!panelState.memoryScope;
@@ -977,7 +976,7 @@ export function MobileEditorPanel() {
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const hasTarget =
 		panelState.kind === "document"
-			? !!panelState.documentId && !!panelState.searchSpaceId
+			? !!panelState.documentId && !!panelState.workspaceId
 			: panelState.kind === "local_file"
 				? !!panelState.localFilePath
 				: !!panelState.memoryScope;

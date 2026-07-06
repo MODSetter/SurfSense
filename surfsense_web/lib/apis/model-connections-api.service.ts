@@ -44,9 +44,9 @@ class ModelConnectionsApiService {
 		return baseApiService.get(`/api/v1/model-providers`, modelProviderListResponse);
 	};
 
-	getConnections = async (searchSpaceId: number): Promise<ConnectionRead[]> => {
+	getConnections = async (workspaceId: number): Promise<ConnectionRead[]> => {
 		return baseApiService.get(
-			`/api/v1/model-connections?workspace_id=${searchSpaceId}`,
+			`/api/v1/model-connections?workspace_id=${workspaceId}`,
 			connectionListResponse
 		);
 	};
@@ -56,8 +56,15 @@ class ModelConnectionsApiService {
 		if (!parsed.success) {
 			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
 		}
+		const { workspace_id, ...body } = parsed.data;
+		if (
+			body.scope === "SEARCH_SPACE" &&
+			(!Number.isFinite(workspace_id) || (workspace_id ?? 0) <= 0)
+		) {
+			throw new ValidationError("workspace_id is required");
+		}
 		return baseApiService.post(`/api/v1/model-connections`, connectionRead, {
-			body: parsed.data,
+			body: { ...body, workspace_id },
 		});
 	};
 
@@ -91,11 +98,18 @@ class ModelConnectionsApiService {
 		if (!parsed.success) {
 			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
 		}
+		const { workspace_id, ...body } = parsed.data;
+		if (
+			body.scope === "SEARCH_SPACE" &&
+			(!Number.isFinite(workspace_id) || (workspace_id ?? 0) <= 0)
+		) {
+			throw new ValidationError("workspace_id is required");
+		}
 		return baseApiService.post(
 			`/api/v1/model-connections/discover-preview`,
 			modelPreviewListResponse,
 			{
-				body: parsed.data,
+				body: { ...body, workspace_id },
 			}
 		);
 	};
@@ -107,8 +121,15 @@ class ModelConnectionsApiService {
 		if (!parsed.success) {
 			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
 		}
+		const { workspace_id, ...body } = parsed.data;
+		if (
+			body.scope === "SEARCH_SPACE" &&
+			(!Number.isFinite(workspace_id) || (workspace_id ?? 0) <= 0)
+		) {
+			throw new ValidationError("workspace_id is required");
+		}
 		return baseApiService.post(`/api/v1/model-connections/test-preview`, verifyConnectionResponse, {
-			body: parsed.data,
+			body: { ...body, workspace_id },
 		});
 	};
 
@@ -158,12 +179,12 @@ class ModelConnectionsApiService {
 		return baseApiService.post(`/api/v1/models/${id}/test`, verifyConnectionResponse);
 	};
 
-	getModelRoles = async (searchSpaceId: number): Promise<ModelRoles> => {
-		return baseApiService.get(`/api/v1/workspaces/${searchSpaceId}/model-roles`, modelRoles);
+	getModelRoles = async (workspaceId: number): Promise<ModelRoles> => {
+		return baseApiService.get(`/api/v1/workspaces/${workspaceId}/model-roles`, modelRoles);
 	};
 
-	updateModelRoles = async (searchSpaceId: number, roles: ModelRoles): Promise<ModelRoles> => {
-		return baseApiService.put(`/api/v1/workspaces/${searchSpaceId}/model-roles`, modelRoles, {
+	updateModelRoles = async (workspaceId: number, roles: ModelRoles): Promise<ModelRoles> => {
+		return baseApiService.put(`/api/v1/workspaces/${workspaceId}/model-roles`, modelRoles, {
 			body: roles,
 		});
 	};

@@ -1,25 +1,25 @@
 import { atom } from "jotai";
 import { atomWithQuery } from "jotai-tanstack-query";
-import type { GetSearchSpacesRequest } from "@/contracts/types/workspace.types";
-import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
+import type { GetWorkspacesRequest } from "@/contracts/types/workspace.types";
+import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export const activeWorkspaceIdAtom = atom<string | null>(null);
 
-export const searchSpacesQueryParamsAtom = atom<GetSearchSpacesRequest["queryParams"]>({
+export const workspacesQueryParamsAtom = atom<GetWorkspacesRequest["queryParams"]>({
 	skip: 0,
 	limit: 10,
 	owned_only: false,
 });
 
-export const searchSpacesAtom = atomWithQuery((get) => {
-	const queryParams = get(searchSpacesQueryParamsAtom);
+export const workspacesAtom = atomWithQuery((get) => {
+	const queryParams = get(workspacesQueryParamsAtom);
 
 	return {
-		queryKey: cacheKeys.searchSpaces.withQueryParams(queryParams),
+		queryKey: cacheKeys.workspaces.withQueryParams(queryParams),
 		staleTime: 5 * 60 * 1000,
 		queryFn: async () => {
-			return searchSpacesApiService.getSearchSpaces({
+			return workspacesApiService.getWorkspaces({
 				queryParams,
 			});
 		},

@@ -6,41 +6,41 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-	updateSearchSpaceApiAccessMutationAtom,
-	updateSearchSpaceMutationAtom,
+	updateWorkspaceApiAccessMutationAtom,
+	updateWorkspaceMutationAtom,
 } from "@/atoms/workspaces/workspace-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
+import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
 
 interface GeneralSettingsManagerProps {
-	searchSpaceId: number;
+	workspaceId: number;
 }
 
-export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManagerProps) {
-	const t = useTranslations("searchSpaceSettings");
+export function GeneralSettingsManager({ workspaceId }: GeneralSettingsManagerProps) {
+	const t = useTranslations("workspaceSettings");
 	const tCommon = useTranslations("common");
 	const {
-		data: searchSpace,
+		data: workspace,
 		isLoading: loading,
 		isError,
-		refetch: fetchSearchSpace,
+		refetch: fetchWorkspace,
 	} = useQuery({
-		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
-		queryFn: () => searchSpacesApiService.getSearchSpace({ id: searchSpaceId }),
-		enabled: !!searchSpaceId,
+		queryKey: cacheKeys.workspaces.detail(workspaceId.toString()),
+		queryFn: () => workspacesApiService.getWorkspace({ id: workspaceId }),
+		enabled: !!workspaceId,
 	});
 
-	const { mutateAsync: updateSearchSpace } = useAtomValue(updateSearchSpaceMutationAtom);
-	const { mutateAsync: updateSearchSpaceApiAccess } = useAtomValue(
-		updateSearchSpaceApiAccessMutationAtom
+	const { mutateAsync: updateWorkspace } = useAtomValue(updateWorkspaceMutationAtom);
+	const { mutateAsync: updateWorkspaceApiAccess } = useAtomValue(
+		updateWorkspaceApiAccessMutationAtom
 	);
 
 	const [name, setName] = useState("");
@@ -48,16 +48,16 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 	const [saving, setSaving] = useState(false);
 	const [savingApiAccess, setSavingApiAccess] = useState(false);
 	const [isExporting, setIsExporting] = useState(false);
-	const hasSearchSpace = !!searchSpace;
-	const searchSpaceName = searchSpace?.name;
-	const searchSpaceDescription = searchSpace?.description;
+	const hasWorkspace = !!workspace;
+	const workspaceName = workspace?.name;
+	const workspaceDescription = workspace?.description;
 
 	const handleExportKB = useCallback(async () => {
 		if (isExporting) return;
 		setIsExporting(true);
 		try {
 			const response = await authenticatedFetch(
-				buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/export`),
+				buildBackendUrl(`/api/v1/workspaces/${workspaceId}/export`),
 				{ method: "GET" }
 			);
 			if (!response.ok) {
@@ -80,37 +80,37 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 		} finally {
 			setIsExporting(false);
 		}
-	}, [searchSpaceId, isExporting]);
+	}, [workspaceId, isExporting]);
 
-	// Initialize state from fetched search space
+	// Initialize state from fetched workspace
 	useEffect(() => {
-		if (hasSearchSpace) {
-			setName(searchSpaceName || "");
-			setDescription(searchSpaceDescription || "");
+		if (hasWorkspace) {
+			setName(workspaceName || "");
+			setDescription(workspaceDescription || "");
 		}
-	}, [hasSearchSpace, searchSpaceName, searchSpaceDescription]);
+	}, [hasWorkspace, workspaceName, workspaceDescription]);
 
 	// Derive hasChanges during render
 	const hasChanges =
-		!!searchSpace &&
-		((searchSpace.name || "") !== name || (searchSpace.description || "") !== description);
+		!!workspace &&
+		((workspace.name || "") !== name || (workspace.description || "") !== description);
 
 	const handleSave = async () => {
 		try {
 			setSaving(true);
 
-			await updateSearchSpace({
-				id: searchSpaceId,
+			await updateWorkspace({
+				id: workspaceId,
 				data: {
 					name: name.trim(),
 					description: description.trim() || undefined,
 				},
 			});
 
-			await fetchSearchSpace();
+			await fetchWorkspace();
 		} catch (error: unknown) {
-			console.error("Error saving search space details:", error);
-			toast.error(error instanceof Error ? error.message : "Failed to save search space details");
+			console.error("Error saving workspace details:", error);
+			toast.error(error instanceof Error ? error.message : "Failed to save workspace details");
 		} finally {
 			setSaving(false);
 		}
@@ -125,11 +125,11 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 		async (enabled: boolean) => {
 			try {
 				setSavingApiAccess(true);
-				await updateSearchSpaceApiAccess({
-					id: searchSpaceId,
+				await updateWorkspaceApiAccess({
+					id: workspaceId,
 					api_access_enabled: enabled,
 				});
-				await fetchSearchSpace();
+				await fetchWorkspace();
 			} catch (error) {
 				console.error("Error updating API access:", error);
 				toast.error(error instanceof Error ? error.message : "Failed to update API access");
@@ -137,7 +137,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 				setSavingApiAccess(false);
 			}
 		},
-		[fetchSearchSpace, searchSpaceId, updateSearchSpaceApiAccess]
+		[fetchWorkspace, workspaceId, updateWorkspaceApiAccess]
 	);
 
 	if (loading) {
@@ -155,7 +155,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 		return (
 			<div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
 				<p className="text-sm text-destructive">Failed to load settings.</p>
-				<Button variant="outline" size="sm" onClick={() => fetchSearchSpace()}>
+				<Button variant="outline" size="sm" onClick={() => fetchWorkspace()}>
 					Retry
 				</Button>
 			</div>
@@ -167,9 +167,9 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 			<form onSubmit={onSubmit} className="space-y-6">
 				<div className="flex flex-col gap-6">
 					<div className="space-y-2">
-						<Label htmlFor="search-space-name">{t("general_name_label")}</Label>
+						<Label htmlFor="workspace-name">{t("general_name_label")}</Label>
 						<Input
-							id="search-space-name"
+							id="workspace-name"
 							maxLength={100}
 							placeholder={t("general_name_placeholder")}
 							value={name}
@@ -179,12 +179,12 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 					</div>
 
 					<div className="space-y-2">
-						<Label htmlFor="search-space-description">
+						<Label htmlFor="workspace-description">
 							{t("general_description_label")}{" "}
 							<span className="text-muted-foreground font-normal">({tCommon("optional")})</span>
 						</Label>
 						<Input
-							id="search-space-description"
+							id="workspace-description"
 							placeholder={t("general_description_placeholder")}
 							value={description}
 							onChange={(e) => setDescription(e.target.value)}
@@ -209,13 +209,11 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 			<div className="border-t pt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<div className="space-y-1">
 					<Label htmlFor="api-access-enabled">API key access</Label>
-					<p className="text-xs text-muted-foreground">
-						Allow API keys to access this search space.
-					</p>
+					<p className="text-xs text-muted-foreground">Allow API keys to access this workspace.</p>
 				</div>
 				<Switch
 					id="api-access-enabled"
-					checked={!!searchSpace?.api_access_enabled}
+					checked={!!workspace?.api_access_enabled}
 					disabled={savingApiAccess}
 					onCheckedChange={handleApiAccessToggle}
 				/>
@@ -225,7 +223,7 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 				<div className="space-y-1">
 					<Label>Export knowledge base</Label>
 					<p className="text-xs text-muted-foreground">
-						Download all documents in this search space as a ZIP of markdown files.
+						Download all documents in this workspace as a ZIP of markdown files.
 					</p>
 				</div>
 				<Button

@@ -2,24 +2,20 @@ import fs from "node:fs";
 import path from "node:path";
 import { test as base } from "@playwright/test";
 import { acquireTestToken } from "../helpers/api/auth";
-import {
-	createSearchSpace,
-	deleteSearchSpace,
-	type SearchSpaceRow,
-} from "../helpers/api/workspaces";
-import { uniqueSearchSpaceName } from "../helpers/canary";
+import { createWorkspace, deleteWorkspace, type WorkspaceRow } from "../helpers/api/workspaces";
+import { uniqueWorkspaceName } from "../helpers/canary";
 
-export type SearchSpaceFixtures = {
+export type WorkspaceFixtures = {
 	/**
 	 * Bearer token for the seeded test user. Worker-scoped so we only
 	 * log in once per worker (logins are cheap, but caching is cheaper).
 	 */
 	apiToken: string;
 	/**
-	 * A fresh, named search space for the current test. Cleaned up
+	 * A fresh, named workspace for the current test. Cleaned up
 	 * automatically after the test finishes.
 	 */
-	searchSpace: SearchSpaceRow;
+	workspace: WorkspaceRow;
 };
 
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "surfsense_session";
@@ -45,7 +41,7 @@ function loadCachedSessionToken(): string | null {
 	return null;
 }
 
-export const searchSpaceFixtures = base.extend<SearchSpaceFixtures, { apiTokenWorker: string }>({
+export const workspaceFixtures = base.extend<WorkspaceFixtures, { apiTokenWorker: string }>({
 	apiTokenWorker: [
 		async ({ playwright }, use) => {
 			const cached = loadCachedSessionToken();
@@ -66,16 +62,16 @@ export const searchSpaceFixtures = base.extend<SearchSpaceFixtures, { apiTokenWo
 	apiToken: async ({ apiTokenWorker }, use) => {
 		await use(apiTokenWorker);
 	},
-	searchSpace: async ({ request, apiToken }, use) => {
-		const space = await createSearchSpace(
+	workspace: async ({ request, apiToken }, use) => {
+		const space = await createWorkspace(
 			request,
 			apiToken,
-			uniqueSearchSpaceName("composio-drive-e2e")
+			uniqueWorkspaceName("composio-drive-e2e")
 		);
 		try {
 			await use(space);
 		} finally {
-			await deleteSearchSpace(request, apiToken, space.id);
+			await deleteWorkspace(request, apiToken, space.id);
 		}
 	},
 });

@@ -13,15 +13,15 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import type { SearchSpace } from "@/contracts/types/workspace.types";
+import type { Workspace } from "@/contracts/types/workspace.types";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
+import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 
 export function DesktopContent() {
 	const api = useElectronAPI();
 	const [loading, setLoading] = useState(true);
 
-	const [searchSpaces, setSearchSpaces] = useState<SearchSpace[]>([]);
+	const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 	const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
 
 	const [autoLaunchEnabled, setAutoLaunchEnabled] = useState(false);
@@ -40,14 +40,14 @@ export function DesktopContent() {
 		setAutoLaunchSupported(hasAutoLaunchApi);
 
 		Promise.all([
-			api.getActiveSearchSpace?.() ?? Promise.resolve(null),
-			searchSpacesApiService.getSearchSpaces(),
+			api.getActiveWorkspace?.() ?? Promise.resolve(null),
+			workspacesApiService.getWorkspaces(),
 			hasAutoLaunchApi ? api.getAutoLaunch() : Promise.resolve(null),
 		])
 			.then(([spaceId, spaces, autoLaunch]) => {
 				if (!mounted) return;
 				setActiveSpaceId(spaceId);
-				if (spaces) setSearchSpaces(spaces);
+				if (spaces) setWorkspaces(spaces);
 				if (autoLaunch) {
 					setAutoLaunchEnabled(autoLaunch.enabled);
 					setAutoLaunchHidden(autoLaunch.openAsHidden);
@@ -136,30 +136,30 @@ export function DesktopContent() {
 		}
 	};
 
-	const handleSearchSpaceChange = (value: string) => {
+	const handleWorkspaceChange = (value: string) => {
 		setActiveSpaceId(value);
-		api.setActiveSearchSpace?.(value);
-		toast.success("Default search space updated");
+		api.setActiveWorkspace?.(value);
+		toast.success("Default workspace updated");
 	};
 
 	return (
 		<div className="flex flex-col gap-4 md:gap-6">
 			<section>
 				<div className="pb-2 md:pb-3">
-					<h2 className="text-base md:text-lg font-semibold">Default Search Space</h2>
+					<h2 className="text-base md:text-lg font-semibold">Default Workspace</h2>
 					<p className="text-xs md:text-sm text-muted-foreground">
-						Choose which search space General Assist, Screenshot Assist, and Quick Assist use by
+						Choose which workspace General Assist, Screenshot Assist, and Quick Assist use by
 						default.
 					</p>
 				</div>
 				<div>
-					{searchSpaces.length > 0 ? (
-						<Select value={activeSpaceId ?? undefined} onValueChange={handleSearchSpaceChange}>
+					{workspaces.length > 0 ? (
+						<Select value={activeSpaceId ?? undefined} onValueChange={handleWorkspaceChange}>
 							<SelectTrigger className="w-full">
-								<SelectValue placeholder="Select a search space" />
+								<SelectValue placeholder="Select a workspace" />
 							</SelectTrigger>
 							<SelectContent>
-								{searchSpaces.map((space) => (
+								{workspaces.map((space) => (
 									<SelectItem key={space.id} value={String(space.id)}>
 										{space.name}
 									</SelectItem>
@@ -167,9 +167,7 @@ export function DesktopContent() {
 							</SelectContent>
 						</Select>
 					) : (
-						<p className="text-sm text-muted-foreground">
-							No search spaces found. Create one first.
-						</p>
+						<p className="text-sm text-muted-foreground">No workspaces found. Create one first.</p>
 					)}
 				</div>
 			</section>

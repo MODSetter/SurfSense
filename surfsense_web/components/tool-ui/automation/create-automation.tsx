@@ -108,9 +108,9 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 	const draft = useMemo(() => extractDraft(effectiveArgs), [effectiveArgs]);
 
 	// Per-automation model selection. The card always supplies models (chosen
-	// here, not snapshotted from the search space), so Approve dispatches an
+	// here, not snapshotted from the workspace), so Approve dispatches an
 	// `edit` decision carrying `definition.models`.
-	const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const eligibleModels = useAutomationEligibleModels();
 	const [modelSelection, setModelSelection] = useState<AutomationModelSelection>({
 		chatModelId: 0,
@@ -156,7 +156,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 		const plan = Array.isArray(baseDefinition.plan) ? baseDefinition.plan : [];
 		const triggers = Array.isArray(baseArgs.triggers) ? baseArgs.triggers : [];
 		trackAutomationChatApproved({
-			workspace_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+			workspace_id: workspaceId ? Number(workspaceId) : undefined,
 			edited: pendingEdits !== null,
 			task_count: plan.length,
 			trigger_type:
@@ -184,17 +184,17 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 		args,
 		pendingEdits,
 		resolvedModels,
-		searchSpaceId,
+		workspaceId,
 	]);
 
 	const handleReject = useCallback(() => {
 		if (phase !== "pending" || !canReject || isEditing) return;
 		setRejected();
 		trackAutomationChatRejected({
-			workspace_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+			workspace_id: workspaceId ? Number(workspaceId) : undefined,
 		});
 		onDecision({ type: "reject", message: "User rejected the automation draft." });
-	}, [phase, canReject, isEditing, setRejected, onDecision, searchSpaceId]);
+	}, [phase, canReject, isEditing, setRejected, onDecision, workspaceId]);
 
 	useEffect(() => {
 		if (isEditing) return;
@@ -268,7 +268,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 							setPendingEdits(parsed);
 							setIsEditing(false);
 							trackAutomationChatDraftEdited({
-								workspace_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+								workspace_id: workspaceId ? Number(workspaceId) : undefined,
 							});
 						}}
 						onCancel={() => setIsEditing(false)}
@@ -284,7 +284,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 					<div className="px-5 py-4">
 						<p className="mb-3 text-xs font-medium text-foreground">Models</p>
 						<AutomationModelFields
-							searchSpaceId={Number(searchSpaceId)}
+							workspaceId={Number(workspaceId)}
 							value={resolvedModels}
 							onChange={(patch) => setModelSelection((prev) => ({ ...prev, ...patch }))}
 						/>
@@ -385,7 +385,7 @@ function JsonEditor({ initialValue, onSave, onCancel }: JsonEditorProps) {
 // ----------------------------------------------------------------------------
 
 function SavedCard({ result }: { result: SavedResult }) {
-	const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const tracked = useRef(false);
 	useEffect(() => {
 		if (tracked.current) return;
@@ -393,12 +393,12 @@ function SavedCard({ result }: { result: SavedResult }) {
 		trackAutomationChatCreateSucceeded({
 			automation_id: result.automation_id,
 			name: result.name,
-			workspace_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+			workspace_id: workspaceId ? Number(workspaceId) : undefined,
 		});
-	}, [result.automation_id, result.name, searchSpaceId]);
+	}, [result.automation_id, result.name, workspaceId]);
 
-	const detailHref = searchSpaceId
-		? `/dashboard/${searchSpaceId}/automations/${result.automation_id}`
+	const detailHref = workspaceId
+		? `/dashboard/${workspaceId}/automations/${result.automation_id}`
 		: null;
 
 	return (
@@ -429,7 +429,7 @@ function SavedCard({ result }: { result: SavedResult }) {
 }
 
 function InvalidCard({ result }: { result: InvalidResult }) {
-	const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const tracked = useRef(false);
 	useEffect(() => {
 		if (tracked.current) return;
@@ -437,9 +437,9 @@ function InvalidCard({ result }: { result: InvalidResult }) {
 		trackAutomationChatCreateFailed({
 			reason: "invalid",
 			issue_count: result.issues.length,
-			workspace_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+			workspace_id: workspaceId ? Number(workspaceId) : undefined,
 		});
-	}, [result.issues.length, searchSpaceId]);
+	}, [result.issues.length, workspaceId]);
 
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
@@ -464,7 +464,7 @@ function InvalidCard({ result }: { result: InvalidResult }) {
 }
 
 function ErrorCard({ result }: { result: ErrorResult }) {
-	const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const tracked = useRef(false);
 	useEffect(() => {
 		if (tracked.current) return;
@@ -472,9 +472,9 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 		trackAutomationChatCreateFailed({
 			reason: "error",
 			message: result.message,
-			workspace_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+			workspace_id: workspaceId ? Number(workspaceId) : undefined,
 		});
-	}, [result.message, searchSpaceId]);
+	}, [result.message, workspaceId]);
 
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">

@@ -4,16 +4,16 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { activeWorkspaceIdAtom } from "../workspaces/workspace-query.atoms";
 
 export const connectorsAtom = atomWithQuery((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 
 	return {
-		queryKey: cacheKeys.connectors.all(searchSpaceId!),
-		enabled: !!searchSpaceId,
+		queryKey: cacheKeys.connectors.all(workspaceId!),
+		enabled: !!workspaceId,
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		queryFn: async () => {
 			return connectorsApiService.getConnectors({
 				queryParams: {
-					workspace_id: searchSpaceId!,
+					workspace_id: workspaceId!,
 				},
 			});
 		},

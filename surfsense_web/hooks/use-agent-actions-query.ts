@@ -80,12 +80,12 @@ export interface ActionLogSseEvent {
 export function applyActionLogSse(
 	queryClient: QueryClient,
 	threadId: number,
-	searchSpaceId: number,
+	workspaceId: number,
 	event: ActionLogSseEvent
 ): void {
 	dbg("applyActionLogSse: incoming SSE event", {
 		threadId,
-		searchSpaceId,
+		workspaceId,
 		event,
 	});
 	queryClient.setQueryData<AgentActionListResponse>(agentActionsQueryKey(threadId), (prev) => {
@@ -93,7 +93,7 @@ export function applyActionLogSse(
 			id: event.id,
 			thread_id: threadId,
 			user_id: null,
-			workspace_id: searchSpaceId,
+			workspace_id: workspaceId,
 			tool_name: event.tool_name,
 			args: null,
 			result_id: null,

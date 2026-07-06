@@ -13,7 +13,7 @@ import { getConnectorTelemetryMeta } from "@/lib/connector-telemetry";
  *
  * Categories:
  * - auth: Authentication events
- * - search_space: Search space management
+ * - workspace: Search space management
  * - document: Document management
  * - chat: Chat and messaging (authenticated + anonymous)
  * - connector: External connector events (all lifecycle stages)
@@ -78,22 +78,22 @@ export function trackLogout() {
 // SEARCH SPACE EVENTS
 // ============================================
 
-export function trackSearchSpaceCreated(searchSpaceId: number, name: string) {
-	safeCapture("search_space_created", {
-		workspace_id: searchSpaceId,
+export function trackWorkspaceCreated(workspaceId: number, name: string) {
+	safeCapture("workspace_created", {
+		workspace_id: workspaceId,
 		name,
 	});
 }
 
-export function trackSearchSpaceDeleted(searchSpaceId: number) {
-	safeCapture("search_space_deleted", {
-		workspace_id: searchSpaceId,
+export function trackWorkspaceDeleted(workspaceId: number) {
+	safeCapture("workspace_deleted", {
+		workspace_id: workspaceId,
 	});
 }
 
-export function trackSearchSpaceViewed(searchSpaceId: number) {
-	safeCapture("search_space_viewed", {
-		workspace_id: searchSpaceId,
+export function trackWorkspaceViewed(workspaceId: number) {
+	safeCapture("workspace_viewed", {
+		workspace_id: workspaceId,
 	});
 }
 
@@ -101,15 +101,15 @@ export function trackSearchSpaceViewed(searchSpaceId: number) {
 // CHAT EVENTS
 // ============================================
 
-export function trackChatCreated(searchSpaceId: number, chatId: number) {
+export function trackChatCreated(workspaceId: number, chatId: number) {
 	safeCapture("chat_created", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		chat_id: chatId,
 	});
 }
 
 export function trackChatMessageSent(
-	searchSpaceId: number,
+	workspaceId: number,
 	chatId: number,
 	options?: {
 		hasAttachments?: boolean;
@@ -118,7 +118,7 @@ export function trackChatMessageSent(
 	}
 ) {
 	safeCapture("chat_message_sent", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		chat_id: chatId,
 		has_attachments: options?.hasAttachments ?? false,
 		has_mentioned_documents: options?.hasMentionedDocuments ?? false,
@@ -126,16 +126,16 @@ export function trackChatMessageSent(
 	});
 }
 
-export function trackChatResponseReceived(searchSpaceId: number, chatId: number) {
+export function trackChatResponseReceived(workspaceId: number, chatId: number) {
 	safeCapture("chat_response_received", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		chat_id: chatId,
 	});
 }
 
-export function trackChatError(searchSpaceId: number, chatId: number, error?: string) {
+export function trackChatError(workspaceId: number, chatId: number, error?: string) {
 	safeCapture("chat_error", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		chat_id: chatId,
 		error,
 	});
@@ -151,14 +151,14 @@ export interface ChatFailureTelemetry {
 }
 
 export function trackChatBlocked(
-	searchSpaceId: number,
+	workspaceId: number,
 	chatId: number | null,
 	payload: ChatFailureTelemetry
 ) {
 	safeCapture(
 		"chat_blocked",
 		compact({
-			workspace_id: searchSpaceId,
+			workspace_id: workspaceId,
 			chat_id: chatId ?? undefined,
 			flow: payload.flow,
 			kind: payload.kind,
@@ -171,14 +171,14 @@ export function trackChatBlocked(
 }
 
 export function trackChatErrorDetailed(
-	searchSpaceId: number,
+	workspaceId: number,
 	chatId: number | null,
 	payload: ChatFailureTelemetry
 ) {
 	safeCapture(
 		"chat_error",
 		compact({
-			workspace_id: searchSpaceId,
+			workspace_id: workspaceId,
 			chat_id: chatId ?? undefined,
 			flow: payload.flow,
 			kind: payload.kind,
@@ -215,48 +215,48 @@ export function trackAnonymousChatMessageSent(options: {
 // ============================================
 
 export function trackDocumentUploadStarted(
-	searchSpaceId: number,
+	workspaceId: number,
 	fileCount: number,
 	totalSizeBytes: number
 ) {
 	safeCapture("document_upload_started", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		file_count: fileCount,
 		total_size_bytes: totalSizeBytes,
 	});
 }
 
-export function trackDocumentUploadSuccess(searchSpaceId: number, fileCount: number) {
+export function trackDocumentUploadSuccess(workspaceId: number, fileCount: number) {
 	safeCapture("document_upload_success", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		file_count: fileCount,
 	});
 }
 
-export function trackDocumentUploadFailure(searchSpaceId: number, error?: string) {
+export function trackDocumentUploadFailure(workspaceId: number, error?: string) {
 	safeCapture("document_upload_failure", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		error,
 	});
 }
 
-export function trackDocumentDeleted(searchSpaceId: number, documentId: number) {
+export function trackDocumentDeleted(workspaceId: number, documentId: number) {
 	safeCapture("document_deleted", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		document_id: documentId,
 	});
 }
 
-export function trackDocumentBulkDeleted(searchSpaceId: number, count: number) {
+export function trackDocumentBulkDeleted(workspaceId: number, count: number) {
 	safeCapture("document_bulk_deleted", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		count,
 	});
 }
 
-export function trackYouTubeImport(searchSpaceId: number, url: string) {
+export function trackYouTubeImport(workspaceId: number, url: string) {
 	safeCapture("youtube_import_started", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		url,
 	});
 }
@@ -281,7 +281,7 @@ export type ConnectorEventStage =
 	| "synced";
 
 export interface ConnectorEventOptions {
-	searchSpaceId?: number | null;
+	workspaceId?: number | null;
 	connectorId?: number | null;
 	/** Source of the action (e.g. "oauth_callback", "non_oauth_form", "webcrawler_quick_add"). */
 	source?: string;
@@ -303,7 +303,7 @@ export function trackConnectorEvent(
 	const meta = getConnectorTelemetryMeta(connectorType);
 	safeCapture(`connector_${stage}`, {
 		...compact({
-			workspace_id: options.searchSpaceId ?? undefined,
+			workspace_id: options.workspaceId ?? undefined,
 			connector_id: options.connectorId ?? undefined,
 			source: options.source,
 			error: options.error,
@@ -319,64 +319,64 @@ export function trackConnectorEvent(
 // ---- Convenience wrappers kept for backward compatibility ----
 
 export function trackConnectorSetupStarted(
-	searchSpaceId: number,
+	workspaceId: number,
 	connectorType: string,
 	source?: string
 ) {
-	trackConnectorEvent("setup_started", connectorType, { searchSpaceId, source });
+	trackConnectorEvent("setup_started", connectorType, { workspaceId, source });
 }
 
 export function trackConnectorSetupSuccess(
-	searchSpaceId: number,
+	workspaceId: number,
 	connectorType: string,
 	connectorId: number
 ) {
-	trackConnectorEvent("setup_success", connectorType, { searchSpaceId, connectorId });
+	trackConnectorEvent("setup_success", connectorType, { workspaceId, connectorId });
 }
 
 export function trackConnectorSetupFailure(
-	searchSpaceId: number | null | undefined,
+	workspaceId: number | null | undefined,
 	connectorType: string,
 	error?: string,
 	source?: string
 ) {
 	trackConnectorEvent("setup_failure", connectorType, {
-		searchSpaceId: searchSpaceId ?? undefined,
+		workspaceId: workspaceId ?? undefined,
 		error,
 		source,
 	});
 }
 
 export function trackConnectorDeleted(
-	searchSpaceId: number,
+	workspaceId: number,
 	connectorType: string,
 	connectorId: number
 ) {
-	trackConnectorEvent("deleted", connectorType, { searchSpaceId, connectorId });
+	trackConnectorEvent("deleted", connectorType, { workspaceId, connectorId });
 }
 
 export function trackConnectorSynced(
-	searchSpaceId: number,
+	workspaceId: number,
 	connectorType: string,
 	connectorId: number
 ) {
-	trackConnectorEvent("synced", connectorType, { searchSpaceId, connectorId });
+	trackConnectorEvent("synced", connectorType, { workspaceId, connectorId });
 }
 
 // ============================================
 // SETTINGS EVENTS
 // ============================================
 
-export function trackSettingsViewed(searchSpaceId: number, section: string) {
+export function trackSettingsViewed(workspaceId: number, section: string) {
 	safeCapture("settings_viewed", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		section,
 	});
 }
 
-export function trackSettingsUpdated(searchSpaceId: number, section: string, setting: string) {
+export function trackSettingsUpdated(workspaceId: number, section: string, setting: string) {
 	safeCapture("settings_updated", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		section,
 		setting,
 	});
@@ -386,16 +386,16 @@ export function trackSettingsUpdated(searchSpaceId: number, section: string, set
 // FEATURE USAGE EVENTS
 // ============================================
 
-export function trackPodcastGenerated(searchSpaceId: number, chatId: number) {
+export function trackPodcastGenerated(workspaceId: number, chatId: number) {
 	safeCapture("podcast_generated", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		chat_id: chatId,
 	});
 }
 
-export function trackSourcesTabViewed(searchSpaceId: number, tab: string) {
+export function trackSourcesTabViewed(workspaceId: number, tab: string) {
 	safeCapture("sources_tab_viewed", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		tab,
 	});
 }
@@ -414,59 +414,59 @@ export function trackDesktopDownloadClicked(options: {
 // SEARCH SPACE INVITE EVENTS
 // ============================================
 
-export function trackSearchSpaceInviteSent(
-	searchSpaceId: number,
+export function trackWorkspaceInviteSent(
+	workspaceId: number,
 	options?: {
 		roleName?: string;
 		hasExpiry?: boolean;
 		hasMaxUses?: boolean;
 	}
 ) {
-	safeCapture("search_space_invite_sent", {
-		workspace_id: searchSpaceId,
+	safeCapture("workspace_invite_sent", {
+		workspace_id: workspaceId,
 		role_name: options?.roleName,
 		has_expiry: options?.hasExpiry ?? false,
 		has_max_uses: options?.hasMaxUses ?? false,
 	});
 }
 
-export function trackSearchSpaceInviteAccepted(
-	searchSpaceId: number,
-	searchSpaceName: string,
+export function trackWorkspaceInviteAccepted(
+	workspaceId: number,
+	workspaceName: string,
 	roleName?: string | null
 ) {
-	safeCapture("search_space_invite_accepted", {
-		workspace_id: searchSpaceId,
-		search_space_name: searchSpaceName,
+	safeCapture("workspace_invite_accepted", {
+		workspace_id: workspaceId,
+		workspace_name: workspaceName,
 		role_name: roleName,
 	});
 }
 
-export function trackSearchSpaceInviteDeclined(searchSpaceName?: string) {
-	safeCapture("search_space_invite_declined", {
-		search_space_name: searchSpaceName,
+export function trackWorkspaceInviteDeclined(workspaceName?: string) {
+	safeCapture("workspace_invite_declined", {
+		workspace_name: workspaceName,
 	});
 }
 
-export function trackSearchSpaceUserAdded(
-	searchSpaceId: number,
-	searchSpaceName: string,
+export function trackWorkspaceUserAdded(
+	workspaceId: number,
+	workspaceName: string,
 	roleName?: string | null
 ) {
-	safeCapture("search_space_user_added", {
-		workspace_id: searchSpaceId,
-		search_space_name: searchSpaceName,
+	safeCapture("workspace_user_added", {
+		workspace_id: workspaceId,
+		workspace_name: workspaceName,
 		role_name: roleName,
 	});
 }
 
-export function trackSearchSpaceUsersViewed(
-	searchSpaceId: number,
+export function trackWorkspaceUsersViewed(
+	workspaceId: number,
 	userCount: number,
 	ownerCount: number
 ) {
-	safeCapture("search_space_users_viewed", {
-		workspace_id: searchSpaceId,
+	safeCapture("workspace_users_viewed", {
+		workspace_id: workspaceId,
 		user_count: userCount,
 		owner_count: ownerCount,
 	});
@@ -477,12 +477,12 @@ export function trackSearchSpaceUsersViewed(
 // ============================================
 
 export function trackConnectorConnected(
-	searchSpaceId: number,
+	workspaceId: number,
 	connectorType: string,
 	connectorId?: number
 ) {
 	trackConnectorEvent("connected", connectorType, {
-		searchSpaceId,
+		workspaceId,
 		connectorId: connectorId ?? undefined,
 	});
 }
@@ -492,19 +492,19 @@ export function trackConnectorConnected(
 // ============================================
 
 export function trackIndexWithDateRangeOpened(
-	searchSpaceId: number,
+	workspaceId: number,
 	connectorType: string,
 	connectorId: number
 ) {
 	safeCapture("index_with_date_range_opened", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		connector_type: connectorType,
 		connector_id: connectorId,
 	});
 }
 
 export function trackIndexWithDateRangeStarted(
-	searchSpaceId: number,
+	workspaceId: number,
 	connectorType: string,
 	connectorId: number,
 	options?: {
@@ -513,7 +513,7 @@ export function trackIndexWithDateRangeStarted(
 	}
 ) {
 	safeCapture("index_with_date_range_started", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		connector_type: connectorType,
 		connector_id: connectorId,
 		has_start_date: options?.hasStartDate ?? false,
@@ -522,37 +522,37 @@ export function trackIndexWithDateRangeStarted(
 }
 
 export function trackQuickIndexClicked(
-	searchSpaceId: number,
+	workspaceId: number,
 	connectorType: string,
 	connectorId: number
 ) {
 	safeCapture("quick_index_clicked", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		connector_type: connectorType,
 		connector_id: connectorId,
 	});
 }
 
 export function trackConfigurePeriodicIndexingOpened(
-	searchSpaceId: number,
+	workspaceId: number,
 	connectorType: string,
 	connectorId: number
 ) {
 	safeCapture("configure_periodic_indexing_opened", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		connector_type: connectorType,
 		connector_id: connectorId,
 	});
 }
 
 export function trackPeriodicIndexingStarted(
-	searchSpaceId: number,
+	workspaceId: number,
 	connectorType: string,
 	connectorId: number,
 	frequencyMinutes: number
 ) {
 	safeCapture("periodic_indexing_started", {
-		workspace_id: searchSpaceId,
+		workspace_id: workspaceId,
 		connector_type: connectorType,
 		connector_id: connectorId,
 		frequency_minutes: frequencyMinutes,

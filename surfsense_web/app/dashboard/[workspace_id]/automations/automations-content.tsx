@@ -13,7 +13,7 @@ interface AutomationsContentProps {
 
 /**
  * Client orchestrator for the automations list page. Pulls the active
- * search space's first page (via ``useAutomations`` → ``automationsListAtom``)
+ * workspace's first page (via ``useAutomations`` → ``automationsListAtom``)
  * and the user's permissions, then decides between empty / loading / table.
  *
  * Read access is mandatory; anything else is hidden behind RBAC. The
@@ -46,7 +46,7 @@ export function AutomationsContent({ workspaceId }: AutomationsContentProps) {
 				<ShieldAlert className="mx-auto h-10 w-10 text-muted-foreground" aria-hidden />
 				<h2 className="mt-3 text-base font-semibold text-foreground">Access denied</h2>
 				<p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
-					You don't have permission to view automations in this search space.
+					You don't have permission to view automations in this workspace.
 				</p>
 			</div>
 		);

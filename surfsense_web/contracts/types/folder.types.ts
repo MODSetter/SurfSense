@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const folder = z.object({
+const folderBase = z.object({
 	id: z.number(),
 	name: z.string(),
 	position: z.string(),
@@ -11,6 +11,8 @@ export const folder = z.object({
 	updated_at: z.string(),
 	metadata: z.record(z.string(), z.any()).nullable().optional(),
 });
+
+export const folder = folderBase;
 
 export const folderCreateRequest = z.object({
 	name: z.string().min(1).max(255),

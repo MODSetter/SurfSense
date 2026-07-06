@@ -4,18 +4,18 @@ import { chatThreadsApiService } from "@/lib/apis/chat-threads-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export const publicChatSnapshotsAtom = atomWithQuery((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 
 	return {
-		queryKey: cacheKeys.publicChatSnapshots.bySearchSpace(Number(searchSpaceId) || 0),
-		enabled: !!searchSpaceId,
+		queryKey: cacheKeys.publicChatSnapshots.byWorkspace(Number(workspaceId) || 0),
+		enabled: !!workspaceId,
 		staleTime: 5 * 60 * 1000,
 		queryFn: async () => {
-			if (!searchSpaceId) {
+			if (!workspaceId) {
 				return { snapshots: [] };
 			}
-			return chatThreadsApiService.listPublicChatSnapshotsForSearchSpace({
-				workspace_id: Number(searchSpaceId),
+			return chatThreadsApiService.listPublicChatSnapshotsForWorkspace({
+				workspace_id: Number(workspaceId),
 			});
 		},
 	};

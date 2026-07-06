@@ -26,6 +26,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { parseMentionSegments } from "@/lib/chat/parse-mention-segments";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 
 interface AuthorMetadata {
 	displayName: string | null;
@@ -75,39 +76,33 @@ const UserTextPart: FC = () => {
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const router = useRouter();
 	const params = useParams();
-	const searchSpaceIdParam = params?.workspace_id;
-	const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
-		? Number(searchSpaceIdParam[0])
-		: Number(searchSpaceIdParam);
-	const resolvedSearchSpaceId = Number.isFinite(parsedSearchSpaceId)
-		? parsedSearchSpaceId
-		: undefined;
+	const resolvedWorkspaceId = getWorkspaceIdNumber(params);
 
 	const handleOpenDoc = useCallback(
 		(docId: number, title: string) => {
-			if (!resolvedSearchSpaceId) {
-				toast.error("Cannot open document outside a search space.");
+			if (!resolvedWorkspaceId) {
+				toast.error("Cannot open document outside a workspace.");
 				return;
 			}
 			openEditorPanel({
 				kind: "document",
 				documentId: docId,
-				searchSpaceId: resolvedSearchSpaceId,
+				workspaceId: resolvedWorkspaceId,
 				title,
 			});
 		},
-		[openEditorPanel, resolvedSearchSpaceId]
+		[openEditorPanel, resolvedWorkspaceId]
 	);
 
 	const handleOpenThread = useCallback(
 		(threadId: number) => {
-			if (!resolvedSearchSpaceId) {
-				toast.error("Cannot open chat outside a search space.");
+			if (!resolvedWorkspaceId) {
+				toast.error("Cannot open chat outside a workspace.");
 				return;
 			}
-			router.push(`/dashboard/${resolvedSearchSpaceId}/new-chat/${threadId}`);
+			router.push(`/dashboard/${resolvedWorkspaceId}/new-chat/${threadId}`);
 		},
-		[resolvedSearchSpaceId, router]
+		[resolvedWorkspaceId, router]
 	);
 
 	const segments = parseMentionSegments(text, mentionedDocs);
@@ -118,40 +113,37 @@ const UserTextPart: FC = () => {
 				if (segment.type === "text") {
 					return <span key={`txt-${segment.start}`}>{segment.value}</span>;
 				}
-				const isFolder = segment.doc.kind === "folder";
-				const isConnector = segment.doc.kind === "connector";
-				const isThread = segment.doc.kind === "thread";
-				const icon = isFolder ? (
-					<FolderIcon className="size-3.5" />
-				) : isThread ? (
-					<MessageSquare className="size-3.5" />
-				) : isConnector ? (
-					(getConnectorIcon(segment.doc.connector_type, "size-3.5") ?? (
-						<Plug className="size-3.5" />
-					))
-				) : (
-					getConnectorIcon(segment.doc.document_type ?? "UNKNOWN", "size-3.5")
-				);
+				const doc = segment.doc;
+				const icon =
+					doc.kind === "folder" ? (
+						<FolderIcon className="size-3.5" />
+					) : doc.kind === "thread" ? (
+						<MessageSquare className="size-3.5" />
+					) : doc.kind === "connector" ? (
+						(getConnectorIcon(doc.connector_type, "size-3.5") ?? <Plug className="size-3.5" />)
+					) : (
+						getConnectorIcon(doc.document_type ?? "UNKNOWN", "size-3.5")
+					);
 				return (
 					<MentionChip
-						key={`mention-${getMentionDocKey(segment.doc)}-${segment.start}`}
+						key={`mention-${getMentionDocKey(doc)}-${segment.start}`}
 						icon={icon}
-						label={segment.doc.title}
+						label={doc.title}
 						tooltip={
-							isFolder
-								? `Folder: ${segment.doc.title}`
-								: isThread
-									? `Chat: ${segment.doc.title}`
-									: isConnector
-										? `Connector account: ${segment.doc.title}`
-										: segment.doc.title
+							doc.kind === "folder"
+								? `Folder: ${doc.title}`
+								: doc.kind === "thread"
+									? `Chat: ${doc.title}`
+									: doc.kind === "connector"
+										? `Connector account: ${doc.title}`
+										: doc.title
 						}
 						onClick={
-							isThread
-								? () => handleOpenThread(segment.doc.id)
-								: isFolder || isConnector
+							doc.kind === "thread"
+								? () => handleOpenThread(doc.id)
+								: doc.kind === "folder" || doc.kind === "connector"
 									? undefined
-									: () => handleOpenDoc(segment.doc.id, segment.doc.title)
+									: () => handleOpenDoc(doc.id, doc.title)
 						}
 						className="mx-0.5"
 					/>

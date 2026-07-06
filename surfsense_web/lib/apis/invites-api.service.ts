@@ -45,7 +45,7 @@ class InvitesApiService {
 	};
 
 	/**
-	 * Get all invites for a search space
+	 * Get all invites for a workspace
 	 */
 	getInvites = async (request: GetInvitesRequest) => {
 		const parsedRequest = getInvitesRequest.safeParse(request);

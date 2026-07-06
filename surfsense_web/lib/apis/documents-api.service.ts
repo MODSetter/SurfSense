@@ -61,11 +61,12 @@ class DocumentsApiService {
 		const transformedQueryParams = parsedRequest.data.queryParams
 			? Object.fromEntries(
 					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => {
+						const key = k;
 						// Handle array values (document_type)
 						if (Array.isArray(v)) {
-							return [k, v.join(",")];
+							return [key, v.join(",")];
 						}
-						return [k, String(v)];
+						return [key, String(v)];
 					})
 				)
 			: undefined;
@@ -106,8 +107,9 @@ class DocumentsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
+		const { workspace_id, ...body } = parsedRequest.data;
 		return baseApiService.post(`/api/v1/documents`, createDocumentResponse, {
-			body: parsedRequest.data,
+			body: { ...body, workspace_id },
 		});
 	};
 
@@ -218,11 +220,12 @@ class DocumentsApiService {
 		const transformedQueryParams = parsedRequest.data.queryParams
 			? Object.fromEntries(
 					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => {
+						const key = k;
 						// Handle array values (document_type)
 						if (Array.isArray(v)) {
-							return [k, v.join(",")];
+							return [key, v.join(",")];
 						}
-						return [k, String(v)];
+						return [key, String(v)];
 					})
 				)
 			: undefined;
@@ -375,9 +378,10 @@ class DocumentsApiService {
 		}
 
 		const { id, data } = parsedRequest.data;
+		const { workspace_id, ...body } = data;
 
 		return baseApiService.put(`/api/v1/documents/${id}`, updateDocumentResponse, {
-			body: data,
+			body: { ...body, workspace_id },
 		});
 	};
 
@@ -406,8 +410,9 @@ class DocumentsApiService {
 		workspace_id: number;
 		files: { relative_path: string; mtime: number }[];
 	}): Promise<{ files_to_upload: string[] }> => {
+		const { workspace_id, ...rest } = body;
 		return baseApiService.post(`/api/v1/documents/folder-mtime-check`, undefined, {
-			body,
+			body: { ...rest, workspace_id },
 		}) as unknown as { files_to_upload: string[] };
 	};
 
@@ -462,8 +467,9 @@ class DocumentsApiService {
 		root_folder_id: number | null;
 		relative_paths: string[];
 	}): Promise<{ deleted_count: number }> => {
+		const { workspace_id, ...rest } = body;
 		return baseApiService.post(`/api/v1/documents/folder-unlink`, undefined, {
-			body,
+			body: { ...rest, workspace_id },
 		}) as unknown as { deleted_count: number };
 	};
 
@@ -473,14 +479,15 @@ class DocumentsApiService {
 		root_folder_id: number | null;
 		all_relative_paths: string[];
 	}): Promise<{ deleted_count: number }> => {
+		const { workspace_id, ...rest } = body;
 		return baseApiService.post(`/api/v1/documents/folder-sync-finalize`, undefined, {
-			body,
+			body: { ...rest, workspace_id },
 		}) as unknown as { deleted_count: number };
 	};
 
-	getWatchedFolders = async (searchSpaceId: number) => {
+	getWatchedFolders = async (workspaceId: number) => {
 		return baseApiService.get(
-			`/api/v1/documents/watched-folders?workspace_id=${searchSpaceId}`,
+			`/api/v1/documents/watched-folders?workspace_id=${workspaceId}`,
 			folderListResponse
 		);
 	};

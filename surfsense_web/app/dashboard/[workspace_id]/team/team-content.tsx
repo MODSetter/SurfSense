@@ -96,7 +96,7 @@ import type { Role } from "@/contracts/types/roles.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { formatRelativeDate } from "@/lib/format-date";
-import { trackSearchSpaceInviteSent, trackSearchSpaceUsersViewed } from "@/lib/posthog/events";
+import { trackWorkspaceInviteSent, trackWorkspaceUsersViewed } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
@@ -229,7 +229,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 	useEffect(() => {
 		if (members.length > 0 && !membersLoading) {
 			const ownerCount = members.filter((m) => m.is_owner).length;
-			trackSearchSpaceUsersViewed(workspaceId, members.length, ownerCount);
+			trackWorkspaceUsersViewed(workspaceId, members.length, ownerCount);
 		}
 	}, [members, membersLoading, workspaceId]);
 
@@ -581,7 +581,7 @@ function MemberRow({
 											<AlertDialogTitle>Remove member?</AlertDialogTitle>
 											<AlertDialogDescription>
 												This will remove <span className="font-medium">{member.user_email}</span>{" "}
-												from this search space. They will lose access to all resources.
+												from this workspace. They will lose access to all resources.
 											</AlertDialogDescription>
 										</AlertDialogHeader>
 										<AlertDialogFooter>
@@ -654,7 +654,7 @@ function CreateInviteDialog({
 			setCreatedInvite(invite);
 
 			const roleName = roleId ? roles.find((r) => r.id.toString() === roleId)?.name : undefined;
-			trackSearchSpaceInviteSent(workspaceId, {
+			trackWorkspaceInviteSent(workspaceId, {
 				roleName,
 				hasExpiry: !!expiresAt,
 				hasMaxUses: !!maxUses,
@@ -709,7 +709,7 @@ function CreateInviteDialog({
 								Invite Created!
 							</DialogTitle>
 							<DialogDescription>
-								Share this link to invite people to your search space.
+								Share this link to invite people to your workspace.
 							</DialogDescription>
 						</DialogHeader>
 						<div className="space-y-3 py-2 md:py-4">
@@ -748,7 +748,7 @@ function CreateInviteDialog({
 						<DialogHeader>
 							<DialogTitle>Invite Members</DialogTitle>
 							<DialogDescription>
-								Create a link to invite people to this search space.
+								Create a link to invite people to this workspace.
 							</DialogDescription>
 						</DialogHeader>
 						<div className="space-y-3 py-2 md:py-4">

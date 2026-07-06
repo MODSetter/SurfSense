@@ -26,21 +26,21 @@ export const modelProvidersAtom = atomWithQuery(() => ({
 }));
 
 export const modelConnectionsAtom = atomWithQuery((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
-		queryKey: cacheKeys.modelConnections.all(searchSpaceId),
-		enabled: !!searchSpaceId,
+		queryKey: cacheKeys.modelConnections.all(workspaceId),
+		enabled: !!workspaceId,
 		staleTime: 5 * 60 * 1000,
-		queryFn: () => modelConnectionsApiService.getConnections(searchSpaceId),
+		queryFn: () => modelConnectionsApiService.getConnections(workspaceId),
 	};
 });
 
 export const modelRolesAtom = atomWithQuery((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
-		queryKey: cacheKeys.modelConnections.roles(searchSpaceId),
-		enabled: !!searchSpaceId,
+		queryKey: cacheKeys.modelConnections.roles(workspaceId),
+		enabled: !!workspaceId,
 		staleTime: 5 * 60 * 1000,
-		queryFn: () => modelConnectionsApiService.getModelRoles(searchSpaceId),
+		queryFn: () => modelConnectionsApiService.getModelRoles(workspaceId),
 	};
 });

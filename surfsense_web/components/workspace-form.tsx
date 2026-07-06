@@ -35,15 +35,15 @@ import { Tilt } from "@/components/ui/tilt";
 import { cn } from "@/lib/utils";
 
 // Define the form schema with Zod
-const searchSpaceFormSchema = z.object({
+const workspaceFormSchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	description: z.string().optional(),
 });
 
 // Define the type for the form values
-type SearchSpaceFormValues = z.infer<typeof searchSpaceFormSchema>;
+type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>;
 
-interface SearchSpaceFormProps {
+interface WorkspaceFormProps {
 	onSubmit?: (data: { name: string; description?: string }) => void;
 	onDelete?: () => void;
 	className?: string;
@@ -51,19 +51,19 @@ interface SearchSpaceFormProps {
 	initialData?: { name: string; description?: string };
 }
 
-export function SearchSpaceForm({
+export function WorkspaceForm({
 	onSubmit,
 	onDelete,
 	className,
 	isEditing = false,
 	initialData = { name: "", description: "" },
-}: SearchSpaceFormProps) {
+}: WorkspaceFormProps) {
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const router = useRouter();
 
 	// Initialize the form with React Hook Form and Zod validation
-	const form = useForm<SearchSpaceFormValues>({
-		resolver: zodResolver(searchSpaceFormSchema),
+	const form = useForm<WorkspaceFormValues>({
+		resolver: zodResolver(workspaceFormSchema),
 		defaultValues: {
 			name: initialData.name,
 			description: initialData.description,
@@ -71,7 +71,7 @@ export function SearchSpaceForm({
 	});
 
 	// Handle form submission
-	const handleFormSubmit = (values: SearchSpaceFormValues) => {
+	const handleFormSubmit = (values: WorkspaceFormValues) => {
 		if (onSubmit) {
 			onSubmit(values);
 		}
@@ -119,7 +119,7 @@ export function SearchSpaceForm({
 			<motion.div className="flex items-center justify-between" variants={itemVariants}>
 				<div className="flex flex-col space-y-2">
 					<h2 className="text-2xl md:text-3xl font-bold tracking-tight">
-						{isEditing ? "Edit Search Space" : "Create Search Space"}
+						{isEditing ? "Edit Workspace" : "Create Workspace"}
 					</h2>
 				</div>
 				<Button
@@ -163,7 +163,7 @@ export function SearchSpaceForm({
 								<span className="p-3 rounded-full bg-blue-100 dark:bg-blue-950/50">
 									<Search className="size-6 text-blue-500" />
 								</span>
-								<h3 className="text-xl font-semibold">Search Space</h3>
+								<h3 className="text-xl font-semibold">Workspace</h3>
 							</div>
 							{isEditing && onDelete && (
 								<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -193,7 +193,7 @@ export function SearchSpaceForm({
 							)}
 						</div>
 						<p className="text-muted-foreground">
-							A search space is your personal workspace. Connect external sources, upload documents,
+							A workspace is your personal workspace. Connect external sources, upload documents,
 							take notes, and get work done with AI agents.
 						</p>
 					</div>
@@ -211,9 +211,9 @@ export function SearchSpaceForm({
 							<FormItem>
 								<FormLabel>Name</FormLabel>
 								<FormControl>
-									<Input placeholder="Enter search space name" {...field} />
+									<Input placeholder="Enter workspace name" {...field} />
 								</FormControl>
-								<FormDescription>A unique name for your search space.</FormDescription>
+								<FormDescription>A unique name for your workspace.</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}
@@ -228,10 +228,10 @@ export function SearchSpaceForm({
 									Description <span className="text-muted-foreground font-normal">(optional)</span>
 								</FormLabel>
 								<FormControl>
-									<Input placeholder="Enter search space description" {...field} />
+									<Input placeholder="Enter workspace description" {...field} />
 								</FormControl>
 								<FormDescription>
-									A brief description of what this search space will be used for.
+									A brief description of what this workspace will be used for.
 								</FormDescription>
 								<FormMessage />
 							</FormItem>
@@ -250,4 +250,4 @@ export function SearchSpaceForm({
 	);
 }
 
-export default SearchSpaceForm;
+export default WorkspaceForm;

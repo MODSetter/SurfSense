@@ -1,10 +1,10 @@
-/** Deliverable kinds surfaced in the search-space-wide artifacts library. */
+/** Deliverable kinds surfaced in the workspace-wide artifacts library. */
 export type LibraryArtifactKind = "report" | "resume" | "podcast" | "video" | "image";
 
 export type LibraryArtifactStatus = "ready" | "running" | "error";
 
 /**
- * A deliverable aggregated from the search space's list endpoints. The heavy
+ * A deliverable aggregated from the workspace's list endpoints. The heavy
  * content (report body, audio, video frames, image bytes) is fetched lazily by
  * the viewer when a card is opened.
  */

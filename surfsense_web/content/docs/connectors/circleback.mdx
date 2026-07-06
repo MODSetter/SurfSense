@@ -44,7 +44,7 @@ The Circleback connector uses a **webhook-based integration**. Unlike other conn
 3. Click **Connect** to create the connector
 
 <Callout type="info" title="No Credentials Needed">
-Circleback uses webhooks, so no API key or authentication is required. The webhook URL is unique to your search space.
+Circleback uses webhooks, so no API key or authentication is required. The webhook URL is unique to your workspace.
 </Callout>
 
 ### Step 2: Copy Your Webhook URL
@@ -57,7 +57,7 @@ After creating the connector:
 
 The webhook URL looks like:
 ```
-https://your-surfsense-url/api/v1/webhooks/circleback/{search_space_id}
+https://your-surfsense-url/api/v1/webhooks/circleback/{workspace_id}
 ```
 
 ### Step 3: Configure Circleback Automation
@@ -101,7 +101,7 @@ Once configured, new meetings will automatically appear in SurfSense after Circl
 
 1. Attend or process a meeting with Circleback
 2. Wait for Circleback to complete processing (usually a few minutes after the meeting ends)
-3. Check your SurfSense search space for the new meeting document
+3. Check your SurfSense workspace for the new meeting document
 
 Each meeting document includes:
 - A direct link to view the meeting on Circleback

@@ -52,12 +52,12 @@ export function DashboardClientLayout({
 
 	const isOnboardingPage = pathname?.includes("/onboard");
 	const isOwner = access?.is_owner ?? false;
-	const isSearchSpaceReady = activeWorkspaceId === workspaceId;
+	const isWorkspaceReady = activeWorkspaceId === workspaceId;
 
 	useEffect(() => {
-		if (isSearchSpaceReady) return;
+		if (isWorkspaceReady) return;
 		setHasCheckedOnboarding(false);
-	}, [isSearchSpaceReady]);
+	}, [isWorkspaceReady]);
 
 	useEffect(() => {
 		if (isOnboardingPage) {
@@ -66,7 +66,7 @@ export function DashboardClientLayout({
 		}
 
 		if (
-			isSearchSpaceReady &&
+			isWorkspaceReady &&
 			!loading &&
 			!accessLoading &&
 			!globalConfigsLoading &&
@@ -75,7 +75,7 @@ export function DashboardClientLayout({
 			!hasCheckedOnboarding
 		) {
 			// Onboarding is only relevant when no operator-provided
-			// global_llm_config.yaml exists. When it does, search spaces inherit
+			// global_llm_config.yaml exists. When it does, workspaces inherit
 			// the global config and should never be forced into onboarding.
 			if (globalConfigStatus?.exists) {
 				setHasCheckedOnboarding(true);
@@ -102,7 +102,7 @@ export function DashboardClientLayout({
 			setHasCheckedOnboarding(true);
 		}
 	}, [
-		isSearchSpaceReady,
+		isWorkspaceReady,
 		loading,
 		accessLoading,
 		globalConfigsLoading,
@@ -153,13 +153,13 @@ export function DashboardClientLayout({
 		setActiveWorkspaceIdState(activeSeacrhSpaceId);
 
 		// Sync to Electron store if stored value is null (first navigation)
-		if (electronAPI?.getActiveSearchSpace && electronAPI.setActiveSearchSpace) {
-			const setActiveSearchSpace = electronAPI.setActiveSearchSpace;
+		if (electronAPI?.getActiveWorkspace && electronAPI.setActiveWorkspace) {
+			const setActiveWorkspace = electronAPI.setActiveWorkspace;
 			electronAPI
-				.getActiveSearchSpace()
+				.getActiveWorkspace()
 				.then((stored: string | null) => {
 					if (!stored) {
-						setActiveSearchSpace(activeSeacrhSpaceId);
+						setActiveWorkspace(activeSeacrhSpaceId);
 					}
 				})
 				.catch(() => {});
@@ -169,7 +169,7 @@ export function DashboardClientLayout({
 	// Determine if we should show loading
 	const shouldShowLoading =
 		!hasCheckedOnboarding &&
-		(!isSearchSpaceReady ||
+		(!isWorkspaceReady ||
 			loading ||
 			accessLoading ||
 			globalConfigsLoading ||

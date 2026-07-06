@@ -18,13 +18,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export async function streamChatToCompletion(
 	request: APIRequestContext,
 	token: string,
-	args: { searchSpaceId: number; threadId: number; query: string }
+	args: { workspaceId: number; threadId: number; query: string }
 ): Promise<ChatStreamResult> {
 	const response = await request.post(`${BACKEND_URL}/api/v1/new_chat`, {
 		headers: authHeaders(token),
 		data: {
 			chat_id: args.threadId,
-			workspace_id: args.searchSpaceId,
+			workspace_id: args.workspaceId,
 			user_query: args.query,
 		},
 	});

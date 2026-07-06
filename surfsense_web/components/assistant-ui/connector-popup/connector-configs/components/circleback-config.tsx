@@ -165,7 +165,7 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 						<AlertDescription>
 							Configure this URL in Circleback Settings → Automations → Create automation → Send
 							webhook request. The webhook will automatically send meeting notes, transcripts, and
-							action items to this search space.
+							action items to this workspace.
 						</AlertDescription>
 					</Alert>
 				)}

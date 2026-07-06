@@ -1,34 +1,34 @@
 import { z } from "zod";
 import {
-	type CreateSearchSpaceRequest,
-	createSearchSpaceRequest,
-	createSearchSpaceResponse,
-	type DeleteSearchSpaceRequest,
-	deleteSearchSpaceRequest,
-	deleteSearchSpaceResponse,
-	type GetSearchSpaceRequest,
-	type GetSearchSpacesRequest,
-	getSearchSpaceRequest,
-	getSearchSpaceResponse,
-	getSearchSpacesRequest,
-	getSearchSpacesResponse,
-	leaveSearchSpaceResponse,
-	type UpdateSearchSpaceApiAccessRequest,
-	type UpdateSearchSpaceRequest,
-	updateSearchSpaceApiAccessRequest,
-	updateSearchSpaceApiAccessResponse,
-	updateSearchSpaceRequest,
-	updateSearchSpaceResponse,
+	type CreateWorkspaceRequest,
+	createWorkspaceRequest,
+	createWorkspaceResponse,
+	type DeleteWorkspaceRequest,
+	deleteWorkspaceRequest,
+	deleteWorkspaceResponse,
+	type GetWorkspaceRequest,
+	type GetWorkspacesRequest,
+	getWorkspaceRequest,
+	getWorkspaceResponse,
+	getWorkspacesRequest,
+	getWorkspacesResponse,
+	leaveWorkspaceResponse,
+	type UpdateWorkspaceApiAccessRequest,
+	type UpdateWorkspaceRequest,
+	updateWorkspaceApiAccessRequest,
+	updateWorkspaceApiAccessResponse,
+	updateWorkspaceRequest,
+	updateWorkspaceResponse,
 } from "@/contracts/types/workspace.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
-class SearchSpacesApiService {
+class WorkspacesApiService {
 	/**
-	 * Get a list of search spaces with optional filtering and pagination
+	 * Get a list of workspaces with optional filtering and pagination
 	 */
-	getSearchSpaces = async (request?: GetSearchSpacesRequest) => {
-		const parsedRequest = getSearchSpacesRequest.safeParse(request || {});
+	getWorkspaces = async (request?: GetWorkspacesRequest) => {
+		const parsedRequest = getWorkspacesRequest.safeParse(request || {});
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
@@ -50,14 +50,14 @@ class SearchSpacesApiService {
 			? new URLSearchParams(transformedQueryParams).toString()
 			: "";
 
-		return baseApiService.get(`/api/v1/workspaces?${queryParams}`, getSearchSpacesResponse);
+		return baseApiService.get(`/api/v1/workspaces?${queryParams}`, getWorkspacesResponse);
 	};
 
 	/**
-	 * Create a new search space
+	 * Create a new workspace
 	 */
-	createSearchSpace = async (request: CreateSearchSpaceRequest) => {
-		const parsedRequest = createSearchSpaceRequest.safeParse(request);
+	createWorkspace = async (request: CreateWorkspaceRequest) => {
+		const parsedRequest = createWorkspaceRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
@@ -66,16 +66,16 @@ class SearchSpacesApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.post(`/api/v1/workspaces`, createSearchSpaceResponse, {
+		return baseApiService.post(`/api/v1/workspaces`, createWorkspaceResponse, {
 			body: parsedRequest.data,
 		});
 	};
 
 	/**
-	 * Get a single search space by ID
+	 * Get a single workspace by ID
 	 */
-	getSearchSpace = async (request: GetSearchSpaceRequest) => {
-		const parsedRequest = getSearchSpaceRequest.safeParse(request);
+	getWorkspace = async (request: GetWorkspaceRequest) => {
+		const parsedRequest = getWorkspaceRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
@@ -84,14 +84,14 @@ class SearchSpacesApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.get(`/api/v1/workspaces/${request.id}`, getSearchSpaceResponse);
+		return baseApiService.get(`/api/v1/workspaces/${request.id}`, getWorkspaceResponse);
 	};
 
 	/**
-	 * Update an existing search space
+	 * Update an existing workspace
 	 */
-	updateSearchSpace = async (request: UpdateSearchSpaceRequest) => {
-		const parsedRequest = updateSearchSpaceRequest.safeParse(request);
+	updateWorkspace = async (request: UpdateWorkspaceRequest) => {
+		const parsedRequest = updateWorkspaceRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
@@ -100,13 +100,13 @@ class SearchSpacesApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.put(`/api/v1/workspaces/${request.id}`, updateSearchSpaceResponse, {
+		return baseApiService.put(`/api/v1/workspaces/${request.id}`, updateWorkspaceResponse, {
 			body: parsedRequest.data.data,
 		});
 	};
 
-	updateSearchSpaceApiAccess = async (request: UpdateSearchSpaceApiAccessRequest) => {
-		const parsedRequest = updateSearchSpaceApiAccessRequest.safeParse(request);
+	updateWorkspaceApiAccess = async (request: UpdateWorkspaceApiAccessRequest) => {
+		const parsedRequest = updateWorkspaceApiAccessRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
@@ -116,7 +116,7 @@ class SearchSpacesApiService {
 
 		return baseApiService.put(
 			`/api/v1/workspaces/${request.id}/api-access`,
-			updateSearchSpaceApiAccessResponse,
+			updateWorkspaceApiAccessResponse,
 			{
 				body: { api_access_enabled: parsedRequest.data.api_access_enabled },
 			}
@@ -124,10 +124,10 @@ class SearchSpacesApiService {
 	};
 
 	/**
-	 * Delete a search space
+	 * Delete a workspace
 	 */
-	deleteSearchSpace = async (request: DeleteSearchSpaceRequest) => {
-		const parsedRequest = deleteSearchSpaceRequest.safeParse(request);
+	deleteWorkspace = async (request: DeleteWorkspaceRequest) => {
+		const parsedRequest = deleteWorkspaceRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
@@ -136,30 +136,30 @@ class SearchSpacesApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.delete(`/api/v1/workspaces/${request.id}`, deleteSearchSpaceResponse);
+		return baseApiService.delete(`/api/v1/workspaces/${request.id}`, deleteWorkspaceResponse);
 	};
 
 	/**
-	 * Trigger AI file sorting for all documents in a search space
+	 * Trigger AI file sorting for all documents in a workspace
 	 */
-	triggerAiSort = async (searchSpaceId: number) => {
+	triggerAiSort = async (workspaceId: number) => {
 		return baseApiService.post(
-			`/api/v1/workspaces/${searchSpaceId}/ai-sort`,
+			`/api/v1/workspaces/${workspaceId}/ai-sort`,
 			z.object({ message: z.string() }),
 			{}
 		);
 	};
 
 	/**
-	 * Leave a search space (remove own membership)
-	 * This is used by non-owners to leave a shared search space
+	 * Leave a workspace (remove own membership)
+	 * This is used by non-owners to leave a shared workspace
 	 */
-	leaveSearchSpace = async (searchSpaceId: number) => {
+	leaveWorkspace = async (workspaceId: number) => {
 		return baseApiService.delete(
-			`/api/v1/workspaces/${searchSpaceId}/members/me`,
-			leaveSearchSpaceResponse
+			`/api/v1/workspaces/${workspaceId}/members/me`,
+			leaveWorkspaceResponse
 		);
 	};
 }
 
-export const searchSpacesApiService = new SearchSpacesApiService();
+export const workspacesApiService = new WorkspacesApiService();

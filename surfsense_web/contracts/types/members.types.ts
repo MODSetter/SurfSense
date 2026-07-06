@@ -52,13 +52,13 @@ export const deleteMembershipResponse = z.object({
 });
 
 /**
- * Leave search space
+ * Leave workspace
  */
-export const leaveSearchSpaceRequest = z.object({
+export const leaveWorkspaceRequest = z.object({
 	workspace_id: z.number(),
 });
 
-export const leaveSearchSpaceResponse = z.object({
+export const leaveWorkspaceResponse = z.object({
 	message: z.string(),
 });
 
@@ -84,7 +84,7 @@ export type UpdateMembershipRequest = z.infer<typeof updateMembershipRequest>;
 export type UpdateMembershipResponse = z.infer<typeof updateMembershipResponse>;
 export type DeleteMembershipRequest = z.infer<typeof deleteMembershipRequest>;
 export type DeleteMembershipResponse = z.infer<typeof deleteMembershipResponse>;
-export type LeaveSearchSpaceRequest = z.infer<typeof leaveSearchSpaceRequest>;
-export type LeaveSearchSpaceResponse = z.infer<typeof leaveSearchSpaceResponse>;
+export type LeaveWorkspaceRequest = z.infer<typeof leaveWorkspaceRequest>;
+export type LeaveWorkspaceResponse = z.infer<typeof leaveWorkspaceResponse>;
 export type GetMyAccessRequest = z.infer<typeof getMyAccessRequest>;
 export type GetMyAccessResponse = z.infer<typeof getMyAccessResponse>;

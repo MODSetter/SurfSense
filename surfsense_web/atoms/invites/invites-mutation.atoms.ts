@@ -79,7 +79,7 @@ export const acceptInviteMutationAtom = atomWithMutation(() => ({
 		return invitesApiService.acceptInvite(request);
 	},
 	onSuccess: () => {
-		queryClient.invalidateQueries({ queryKey: cacheKeys.searchSpaces.all });
+		queryClient.invalidateQueries({ queryKey: cacheKeys.workspaces.all });
 		toast.success("Invite accepted successfully");
 	},
 	onError: (error: Error) => {

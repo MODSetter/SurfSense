@@ -6,13 +6,11 @@ export const globalDocumentsQueryParamsAtom = atom<GetDocumentsRequest["queryPar
 	page: 0,
 });
 
-export const documentsSidebarOpenAtom = atom(false);
-
 export interface AgentCreatedDocument {
 	id: number;
 	title: string;
 	documentType: string;
-	searchSpaceId: number;
+	workspaceId: number;
 	folderId: number | null;
 	createdById: string | null;
 }

@@ -17,8 +17,8 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { SearchSpace } from "@/contracts/types/workspace.types";
-import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
+import type { Workspace } from "@/contracts/types/workspace.types";
+import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
@@ -79,7 +79,7 @@ export function MessagingChannelsContent() {
 	const workspaceId = Number(params.workspace_id);
 	const [gatewayConfig, setGatewayConfig] = useState<GatewayConfigState>(null);
 	const [connections, setConnections] = useState<GatewayConnection[]>([]);
-	const [searchSpaces, setSearchSpaces] = useState<SearchSpace[]>([]);
+	const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 	const [pairing, setPairing] = useState<Pairing | null>(null);
 	const [pairingPlatform, setPairingPlatform] = useState<PairingPlatform | null>(null);
 	const [baileysHealth, setBaileysHealth] = useState<BaileysHealth | null>(null);
@@ -114,11 +114,11 @@ export function MessagingChannelsContent() {
 	const refresh = useCallback(async () => {
 		const [nextConnections, spaces, nextGatewayConfig] = await Promise.all([
 			fetchConnections(),
-			searchSpacesApiService.getSearchSpaces(),
+			workspacesApiService.getWorkspaces(),
 			fetchGatewayConfig(),
 		]);
 		setConnections(nextConnections);
-		setSearchSpaces(spaces);
+		setWorkspaces(spaces);
 		setGatewayConfig(nextGatewayConfig);
 	}, [fetchConnections, fetchGatewayConfig]);
 
@@ -210,10 +210,7 @@ export function MessagingChannelsContent() {
 		await refreshPlatform(connection.platform as GatewayPlatform);
 	}
 
-	async function updateConnectionSearchSpace(
-		connection: GatewayConnection,
-		nextWorkspaceId: string
-	) {
+	async function updateConnectionWorkspace(connection: GatewayConnection, nextWorkspaceId: string) {
 		const previousConnections = connections;
 		const parsedWorkspaceId = Number(nextWorkspaceId);
 		const targetKey = connectionKey(connection);
@@ -324,14 +321,14 @@ export function MessagingChannelsContent() {
 							<div className="flex flex-wrap items-center gap-2">
 								<Select
 									value={String(connection.workspace_id)}
-									onValueChange={(value) => updateConnectionSearchSpace(connection, value)}
-									disabled={searchSpaces.length === 0}
+									onValueChange={(value) => updateConnectionWorkspace(connection, value)}
+									disabled={workspaces.length === 0}
 								>
 									<SelectTrigger className="h-8 min-w-[180px] flex-1 text-xs">
-										<SelectValue placeholder="Select search space" />
+										<SelectValue placeholder="Select workspace" />
 									</SelectTrigger>
 									<SelectContent>
-										{searchSpaces.map((space) => (
+										{workspaces.map((space) => (
 											<SelectItem key={space.id} value={String(space.id)}>
 												{space.name}
 											</SelectItem>
@@ -409,7 +406,7 @@ export function MessagingChannelsContent() {
 					<AlertDescription>
 						<p>
 							Soon you'll be able to connect WhatsApp, Telegram, Slack, and Discord to your
-							SurfSense agent so you can ask questions, route messages to search spaces, and get
+							SurfSense agent so you can ask questions, route messages to workspaces, and get
 							answers from your knowledge base without leaving your chat app.
 						</p>
 					</AlertDescription>

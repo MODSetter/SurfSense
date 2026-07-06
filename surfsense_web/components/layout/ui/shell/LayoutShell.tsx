@@ -18,7 +18,7 @@ import {
 	SIDEBAR_MIN_WIDTH,
 	useSidebarResize,
 } from "../../hooks/useSidebarResize";
-import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
 import {
@@ -27,8 +27,6 @@ import {
 	RightPanelToggleButton,
 } from "../right-panel/RightPanel";
 import {
-	AllChatsSidebarContent,
-	DocumentsSidebar,
 	InboxSidebarContent,
 	MobileSidebar,
 	MobileSidebarTrigger,
@@ -93,7 +91,7 @@ interface TabDataSource {
 	markAllAsRead: () => Promise<boolean>;
 }
 
-export type ActiveSlideoutPanel = "inbox" | "chats" | null;
+export type ActiveSlideoutPanel = "inbox" | null;
 
 // Inbox-related props — per-tab data sources with independent loading/pagination
 interface InboxProps {
@@ -104,13 +102,13 @@ interface InboxProps {
 }
 
 interface LayoutShellProps {
-	searchSpaces: SearchSpace[];
-	activeSearchSpaceId: number | null;
-	onSearchSpaceSelect: (id: number) => void;
-	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
-	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
-	onAddSearchSpace: () => void;
-	searchSpace: SearchSpace | null;
+	workspaces: Workspace[];
+	activeWorkspaceId: number | null;
+	onWorkspaceSelect: (id: number) => void;
+	onWorkspaceDelete?: (workspace: Workspace) => void;
+	onWorkspaceSettings?: (workspace: Workspace) => void;
+	onAddWorkspace: () => void;
+	workspace: Workspace | null;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
@@ -134,6 +132,7 @@ interface LayoutShellProps {
 	setTheme?: (theme: "light" | "dark" | "system") => void;
 	defaultCollapsed?: boolean;
 	isChatPage?: boolean;
+	isAllChatsPage?: boolean;
 	useWorkspacePanel?: boolean;
 	workspacePanelViewportClassName?: string;
 	workspacePanelContentClassName?: string;
@@ -145,14 +144,6 @@ interface LayoutShellProps {
 	// Inbox props
 	inbox?: InboxProps;
 	isLoadingChats?: boolean;
-	// All chats panel props
-	allChatsPanel?: {
-		searchSpaceId: string;
-	};
-	documentsPanel?: {
-		open: boolean;
-		onOpenChange: (open: boolean) => void;
-	};
 	onTabSwitch?: (tab: Tab) => void;
 	onTabPrefetch?: (tab: Tab) => void;
 }
@@ -191,12 +182,12 @@ function MainContentPanel({
 			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
 				<Header />
 
-				{isDocumentTab && activeTab.documentId && activeTab.searchSpaceId ? (
+				{isDocumentTab && activeTab.documentId && activeTab.workspaceId ? (
 					<div className="flex-1 overflow-hidden">
 						<DocumentTabContent
 							key={activeTab.documentId}
 							documentId={activeTab.documentId}
-							searchSpaceId={activeTab.searchSpaceId}
+							workspaceId={activeTab.workspaceId}
 							title={activeTab.title}
 						/>
 					</div>
@@ -215,13 +206,13 @@ function DesktopWorkspaceRegion({ children }: { children: React.ReactNode }) {
 }
 
 export function LayoutShell({
-	searchSpaces,
-	activeSearchSpaceId,
-	onSearchSpaceSelect,
-	onSearchSpaceDelete,
-	onSearchSpaceSettings,
-	onAddSearchSpace,
-	searchSpace,
+	workspaces,
+	activeWorkspaceId,
+	onWorkspaceSelect,
+	onWorkspaceDelete,
+	onWorkspaceSettings,
+	onAddWorkspace,
+	workspace,
 	navItems,
 	onNavItemClick,
 	chats,
@@ -245,6 +236,7 @@ export function LayoutShell({
 	setTheme,
 	defaultCollapsed = false,
 	isChatPage = false,
+	isAllChatsPage = false,
 	useWorkspacePanel = false,
 	workspacePanelViewportClassName,
 	workspacePanelContentClassName,
@@ -254,8 +246,6 @@ export function LayoutShell({
 	onSlideoutPanelChange,
 	inbox,
 	isLoadingChats = false,
-	allChatsPanel,
-	documentsPanel,
 	onTabSwitch,
 	onTabPrefetch,
 }: LayoutShellProps) {
@@ -285,8 +275,7 @@ export function LayoutShell({
 
 	const anySlideOutOpen = activeSlideoutPanel !== null;
 
-	const panelAriaLabel =
-		activeSlideoutPanel === "inbox" ? "Inbox" : activeSlideoutPanel === "chats" ? "Chats" : "Panel";
+	const panelAriaLabel = activeSlideoutPanel === "inbox" ? "Inbox" : "Panel";
 
 	// Mobile layout
 	if (isMobile) {
@@ -301,11 +290,11 @@ export function LayoutShell({
 						<MobileSidebar
 							isOpen={mobileMenuOpen}
 							onOpenChange={setMobileMenuOpen}
-							searchSpaces={searchSpaces}
-							activeSearchSpaceId={activeSearchSpaceId}
-							onSearchSpaceSelect={onSearchSpaceSelect}
-							onAddSearchSpace={onAddSearchSpace}
-							searchSpace={searchSpace}
+							workspaces={workspaces}
+							activeWorkspaceId={activeWorkspaceId}
+							onWorkspaceSelect={onWorkspaceSelect}
+							onAddWorkspace={onAddWorkspace}
+							workspace={workspace}
 							navItems={navItems}
 							onNavItemClick={onNavItemClick}
 							chats={chats}
@@ -317,7 +306,7 @@ export function LayoutShell({
 							onChatDelete={onChatDelete}
 							onChatArchive={onChatArchive}
 							onViewAllChats={onViewAllChats}
-							isChatsPanelOpen={activeSlideoutPanel === "chats"}
+							isAllChatsActive={isAllChatsPage}
 							user={user}
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}
@@ -369,32 +358,8 @@ export function LayoutShell({
 										/>
 									</motion.div>
 								)}
-								{activeSlideoutPanel === "chats" && allChatsPanel && (
-									<motion.div
-										key="chats"
-										className="h-full flex flex-col"
-										initial={{ opacity: 0 }}
-										animate={{ opacity: 1 }}
-										exit={{ opacity: 0 }}
-										transition={{ duration: 0.15 }}
-									>
-										<AllChatsSidebarContent
-											onOpenChange={(open) => closeSlideout(open)}
-											searchSpaceId={allChatsPanel.searchSpaceId}
-											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-										/>
-									</motion.div>
-								)}
 							</AnimatePresence>
 						</SidebarSlideOutPanel>
-
-						{/* Mobile Documents Sidebar - separate (not part of slide-out group) */}
-						{documentsPanel && (
-							<DocumentsSidebar
-								open={documentsPanel.open}
-								onOpenChange={documentsPanel.onOpenChange}
-							/>
-						)}
 					</div>
 				</TooltipProvider>
 			</SidebarProvider>
@@ -421,12 +386,12 @@ export function LayoutShell({
 							)}
 						>
 							<IconRail
-								searchSpaces={searchSpaces}
-								activeSearchSpaceId={activeSearchSpaceId}
-								onSearchSpaceSelect={onSearchSpaceSelect}
-								onSearchSpaceDelete={onSearchSpaceDelete}
-								onSearchSpaceSettings={onSearchSpaceSettings}
-								onAddSearchSpace={onAddSearchSpace}
+								workspaces={workspaces}
+								activeWorkspaceId={activeWorkspaceId}
+								onWorkspaceSelect={onWorkspaceSelect}
+								onWorkspaceDelete={onWorkspaceDelete}
+								onWorkspaceSettings={onWorkspaceSettings}
+								onAddWorkspace={onAddWorkspace}
 								isSingleRailMode={false}
 								user={user}
 								onUserSettings={onUserSettings}
@@ -446,7 +411,7 @@ export function LayoutShell({
 							)}
 						>
 							<Sidebar
-								searchSpace={searchSpace}
+								workspace={workspace}
 								isCollapsed={isCollapsed}
 								onToggleCollapse={toggleCollapsed}
 								navItems={navItems}
@@ -460,7 +425,7 @@ export function LayoutShell({
 								onChatDelete={onChatDelete}
 								onChatArchive={onChatArchive}
 								onViewAllChats={onViewAllChats}
-								isChatsPanelOpen={activeSlideoutPanel === "chats"}
+								isAllChatsActive={isAllChatsPage}
 								user={user}
 								onSettings={onSettings}
 								onManageMembers={onManageMembers}
@@ -526,21 +491,6 @@ export function LayoutShell({
 											/>
 										</motion.div>
 									)}
-									{activeSlideoutPanel === "chats" && allChatsPanel && (
-										<motion.div
-											key="chats"
-											className="h-full flex flex-col"
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{ opacity: 0 }}
-											transition={{ duration: 0.15 }}
-										>
-											<AllChatsSidebarContent
-												onOpenChange={(open) => closeSlideout(open)}
-												searchSpaceId={allChatsPanel.searchSpaceId}
-											/>
-										</motion.div>
-									)}
 								</AnimatePresence>
 							</SidebarSlideOutPanel>
 						</div>
@@ -568,17 +518,8 @@ export function LayoutShell({
 										{children}
 									</MainContentPanel>
 
-									{/* Right panel — tabbed Sources/Report (desktop only) */}
-									{documentsPanel ? (
-										<RightPanel
-											documentsPanel={{
-												open: documentsPanel.open,
-												onOpenChange: documentsPanel.onOpenChange,
-											}}
-											showCollapseButton={!isMacDesktop}
-											showTopBorder={isMacDesktop}
-										/>
-									) : null}
+									{/* Right panel — Report/Editor/Citations/Artifacts (desktop only) */}
+									<RightPanel showTopBorder={isMacDesktop} />
 								</>
 							)}
 						</DesktopWorkspaceRegion>

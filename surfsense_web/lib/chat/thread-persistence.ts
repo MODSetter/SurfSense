@@ -89,13 +89,13 @@ export interface ThreadHistoryLoadResponse {
 // =============================================================================
 
 /**
- * Fetch list of threads for a search space
+ * Fetch list of threads for a workspace
  */
 export async function fetchThreads(
-	searchSpaceId: number,
+	workspaceId: number,
 	limit?: number
 ): Promise<ThreadListResponse> {
-	const params = new URLSearchParams({ workspace_id: String(searchSpaceId) });
+	const params = new URLSearchParams({ workspace_id: String(workspaceId) });
 	if (limit) params.append("limit", String(limit));
 	return baseApiService.get<ThreadListResponse>(`/api/v1/threads?${params}`);
 }
@@ -103,12 +103,9 @@ export async function fetchThreads(
 /**
  * Search threads by title
  */
-export async function searchThreads(
-	searchSpaceId: number,
-	title: string
-): Promise<ThreadListItem[]> {
+export async function searchThreads(workspaceId: number, title: string): Promise<ThreadListItem[]> {
 	const params = new URLSearchParams({
-		workspace_id: String(searchSpaceId),
+		workspace_id: String(workspaceId),
 		title,
 	});
 	return baseApiService.get<ThreadListItem[]>(`/api/v1/threads/search?${params}`);
@@ -117,15 +114,12 @@ export async function searchThreads(
 /**
  * Create a new thread
  */
-export async function createThread(
-	searchSpaceId: number,
-	title = "New Chat"
-): Promise<ThreadRecord> {
+export async function createThread(workspaceId: number, title = "New Chat"): Promise<ThreadRecord> {
 	return baseApiService.post<ThreadRecord>("/api/v1/threads", undefined, {
 		body: {
 			title,
 			archived: false,
-			workspace_id: searchSpaceId,
+			workspace_id: workspaceId,
 		},
 	});
 }
@@ -212,7 +206,7 @@ export async function getThreadFull(threadId: number): Promise<ThreadRecord> {
  * Regeneration request parameters
  */
 export interface RegenerateParams {
-	searchSpaceId: number;
+	workspaceId: number;
 	userQuery?: string | null; // New user query (for edit). Null/undefined = reload with same query
 	attachments?: Array<{
 		id: string;

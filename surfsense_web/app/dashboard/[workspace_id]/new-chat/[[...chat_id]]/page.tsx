@@ -579,7 +579,7 @@ export default function NewChatPage() {
 				error,
 				flow,
 				context: {
-					workspaceId,
+					workspaceId: workspaceId,
 					threadId,
 				},
 			});
@@ -717,7 +717,7 @@ export default function NewChatPage() {
 		data: typeof threadMessagesQuery.data;
 	}>({ threadId: null, data: undefined });
 
-	// Reset thread-local runtime state on route/search-space changes. Data fetching
+	// Reset thread-local runtime state on route/workspace changes. Data fetching
 	// is handled by React Query below so the chat shell can render immediately.
 	useEffect(() => {
 		const nextThreadId = urlChatId > 0 ? urlChatId : null;

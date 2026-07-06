@@ -18,7 +18,7 @@ test.describe("Confluence connector journey", () => {
 		page,
 		request,
 		apiToken,
-		searchSpace,
+		workspace,
 		confluenceConnector,
 		chatThread,
 	}) => {
@@ -44,7 +44,7 @@ test.describe("Confluence connector journey", () => {
 		expect(confluenceConnector.config.access_token).toBeUndefined();
 		expect(confluenceConnector.config.refresh_token).toBeUndefined();
 
-		await page.goto(`/dashboard/${searchSpace.id}/new-chat`, {
+		await page.goto(`/dashboard/${workspace.id}/new-chat`, {
 			waitUntil: "domcontentloaded",
 		});
 		await openConnectorPopup(page);
@@ -53,20 +53,20 @@ test.describe("Confluence connector journey", () => {
 		await connectorDialog.getByPlaceholder("Search").fill("Confluence");
 		await expect(connectorDialog.getByText("Confluence", { exact: true })).toBeVisible();
 
-		const beforeDocs = await listDocuments(request, apiToken, searchSpace.id);
+		const beforeDocs = await listDocuments(request, apiToken, workspace.id);
 		expect(beforeDocs).toHaveLength(0);
 
 		const disabledIndex = await triggerIndexExpectDisabled(
 			request,
 			apiToken,
 			confluenceConnector.id,
-			searchSpace.id
+			workspace.id
 		);
 		expect(disabledIndex.message ?? "").toContain("real-time agent tools");
 		expect(disabledIndex.message ?? "").toContain("background indexing is disabled");
 
 		const chat = await streamChatToCompletion(request, apiToken, {
-			searchSpaceId: searchSpace.id,
+			workspaceId: workspace.id,
 			threadId: chatThread.id,
 			query: `What is in my Confluence page titled "${FAKE_CONFLUENCE_PAGES.canary.title}"?`,
 		});
@@ -78,13 +78,13 @@ test.describe("Confluence connector journey", () => {
 		const eventText = JSON.stringify(chat.events);
 		expect(eventText).toContain("searchConfluenceUsingCql");
 
-		const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
+		const refreshedConnectors = await listConnectors(request, apiToken, workspace.id);
 		const refreshed = refreshedConnectors.find((c) => c.id === confluenceConnector.id);
 		expect(refreshed?.connector_type).toBe("CONFLUENCE_CONNECTOR");
 		expect(refreshed?.is_indexable).toBe(false);
 		expect(refreshed?.last_indexed_at).toBeNull();
 
-		const afterDocs = await listDocuments(request, apiToken, searchSpace.id);
+		const afterDocs = await listDocuments(request, apiToken, workspace.id);
 		expect(afterDocs).toHaveLength(0);
 	});
 });

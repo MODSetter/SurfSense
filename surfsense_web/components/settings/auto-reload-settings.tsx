@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { stripeApiService } from "@/lib/apis/stripe-api.service";
 import { AppError } from "@/lib/error";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { queries } from "@/zero/queries";
 
 const microsToDollars = (micros: number | null | undefined): string => {
@@ -38,7 +39,7 @@ export function AutoReloadSettings() {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const queryClient = useQueryClient();
-	const searchSpaceId = Number(params?.workspace_id);
+	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
 
 	const [enabled, setEnabled] = useState(false);
 	const [thresholdInput, setThresholdInput] = useState("");
@@ -78,8 +79,7 @@ export function AutoReloadSettings() {
 	}, [searchParams, router, pathname, queryClient]);
 
 	const setupMutation = useMutation({
-		mutationFn: () =>
-			stripeApiService.createAutoReloadSetupSession({ workspace_id: searchSpaceId }),
+		mutationFn: () => stripeApiService.createAutoReloadSetupSession({ workspace_id: workspaceId }),
 		onSuccess: (response) => {
 			window.location.assign(response.checkout_url);
 		},
