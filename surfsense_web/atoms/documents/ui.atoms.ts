@@ -6,8 +6,6 @@ export const globalDocumentsQueryParamsAtom = atom<GetDocumentsRequest["queryPar
 	page: 0,
 });
 
-export const documentsSidebarOpenAtom = atom(false);
-
 export interface AgentCreatedDocument {
 	id: number;
 	title: string;

@@ -29,7 +29,6 @@ interface FolderTreeViewProps {
 	onMoveFolder: (folder: FolderDisplay) => void;
 	onCreateFolder: (parentId: number | null) => void;
 	onPreviewDocument: (doc: DocumentNodeDoc) => void;
-	onEditDocument: (doc: DocumentNodeDoc) => void;
 	onDeleteDocument: (doc: DocumentNodeDoc) => void;
 	onMoveDocument: (doc: DocumentNodeDoc) => void;
 	onResetDocument?: (doc: DocumentNodeDoc) => void;
@@ -72,7 +71,6 @@ export function FolderTreeView({
 	onMoveFolder,
 	onCreateFolder,
 	onPreviewDocument,
-	onEditDocument,
 	onDeleteDocument,
 	onMoveDocument,
 	onResetDocument,
@@ -215,7 +213,6 @@ export function FolderTreeView({
 					isMentioned={!isMemoryDocument && mentionedDocKeys.has(getMentionDocKey(d))}
 					onToggleChatMention={onToggleChatMention}
 					onPreview={onPreviewDocument}
-					onEdit={onEditDocument}
 					onDelete={onDeleteDocument}
 					onMove={onMoveDocument}
 					onReset={onResetDocument}
@@ -224,7 +221,6 @@ export function FolderTreeView({
 					canDelete={!isMemoryDocument}
 					canMove={!isMemoryDocument}
 					canMention={!isMemoryDocument}
-					canEdit
 					contextMenuOpen={openContextMenuId === `doc-${d.id}`}
 					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `doc-${d.id}` : null)}
 				/>
@@ -233,7 +229,6 @@ export function FolderTreeView({
 		[
 			mentionedDocKeys,
 			onDeleteDocument,
-			onEditDocument,
 			onExportDocument,
 			onMoveDocument,
 			onPreviewDocument,

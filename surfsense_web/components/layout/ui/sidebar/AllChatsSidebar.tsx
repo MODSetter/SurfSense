@@ -11,7 +11,6 @@ import {
 	RotateCcwIcon,
 	Search,
 	Trash2,
-	Users,
 	X,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -19,6 +18,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { removeChatTabAtom } from "@/atoms/tabs/tabs.atom";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -301,7 +301,7 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 				</div>
 			</div>
 
-			<div className="flex-1 overflow-y-auto overflow-x-hidden p-1.5">
+			<div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-1.5">
 				{isLoading ? (
 					<div className="space-y-1">
 						{[75, 90, 55, 80, 65, 85].map((titleWidth) => (
@@ -319,15 +319,21 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 						{t("error_loading_chats") || "Error loading chats"}
 					</div>
 				) : threads.length > 0 ? (
-					<div className="space-y-1">
-						{threads.map((thread) => {
+					<div>
+						{threads.map((thread, index) => {
 							const isDeleting = deletingThreadId === thread.id;
 							const isArchiving = archivingThreadId === thread.id;
 							const isBusy = isDeleting || isArchiving;
 							const isActive = currentChatId === thread.id;
 
 							return (
-								<div key={thread.id} className="group/item relative w-full">
+								<div
+									key={thread.id}
+									className={cn(
+										"group/item relative w-full hover:border-t-transparent [&:hover+div]:border-t-transparent",
+										index > 0 && "border-t border-border/60"
+									)}
+								>
 									{isMobile ? (
 										<Button
 											type="button"
@@ -349,7 +355,7 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 												"h-auto w-full justify-start gap-2.5 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
 												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-												thread.visibility === "SEARCH_SPACE" && "pr-10",
+												thread.visibility === "SEARCH_SPACE" && "pr-16",
 												isActive && "bg-accent text-accent-foreground",
 												isBusy && "opacity-50 pointer-events-none"
 											)}
@@ -370,7 +376,7 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 														"h-auto w-full justify-start gap-2.5 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
 														"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 														"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-														thread.visibility === "SEARCH_SPACE" && "pr-10",
+														thread.visibility === "SEARCH_SPACE" && "pr-16",
 														isActive && "bg-accent text-accent-foreground",
 														isBusy && "opacity-50 pointer-events-none"
 													)}
@@ -401,18 +407,20 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 													: "opacity-0 group-hover/item:opacity-100"
 										)}
 									>
-										<div className="relative flex h-7 w-7 items-center justify-center">
+										<div className="relative flex h-7 w-14 items-center justify-end">
 											{thread.visibility === "SEARCH_SPACE" ? (
-												<Users
-													aria-label={t("shared_chat") || "Shared chat"}
+												<Badge
+													variant="secondary"
 													className={cn(
-														"absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 text-muted-foreground/50",
+														"absolute right-0 h-5 shrink-0 rounded-sm border-0 bg-popover-foreground/10 px-1.5 text-[11px] text-popover-foreground transition-opacity hover:bg-popover-foreground/10",
 														!isMobile &&
 															(openDropdownId === thread.id
 																? "opacity-0"
 																: "opacity-100 group-hover/item:opacity-0")
 													)}
-												/>
+												>
+													Shared
+												</Badge>
 											) : null}
 											<DropdownMenu
 												open={openDropdownId === thread.id}

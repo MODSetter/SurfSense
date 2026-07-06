@@ -8,16 +8,10 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
-import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
-import {
-	folderWatchDialogOpenAtom,
-	folderWatchInitialFolderAtom,
-} from "@/atoms/folder-sync/folder-sync.atoms";
-import { workspacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import { getDocumentTypeIcon } from "@/components/documents/DocumentTypeIcon";
@@ -57,7 +51,6 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
-import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
@@ -242,7 +235,6 @@ function AuthenticatedDocumentsSidebarBase({
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
 	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
-	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
@@ -1024,14 +1016,6 @@ function AuthenticatedDocumentsSidebarBase({
 							title: doc.title,
 						});
 					}}
-					onEditDocument={(doc) => {
-						if (openMemoryDocument(doc)) return;
-						openEditorPanel({
-							documentId: doc.id,
-							workspaceId: workspaceId,
-							title: doc.title,
-						});
-					}}
 					onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
 					onMoveDocument={handleMoveDocument}
 					onResetDocument={handleResetMemoryDocument}
@@ -1251,7 +1235,6 @@ function AnonymousDocumentsSidebar({ embedded = false }: DocumentsSidebarProps) 
 					onMoveFolder={() => gate("organize folders")}
 					onCreateFolder={() => gate("create folders")}
 					onPreviewDocument={() => gate("preview documents")}
-					onEditDocument={() => gate("edit documents")}
 					onDeleteDocument={async () => {
 						handleRemoveDoc();
 						setSidebarDocs((prev) => prev.filter((d) => d.kind !== "doc" || d.id !== -1));

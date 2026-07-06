@@ -1,5 +1,4 @@
 const STORE_KEY = 'activeWorkspaceId';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let store: any = null;
 
 async function getStore() {
@@ -12,7 +11,6 @@ async function getStore() {
     // One-time migration from the legacy `active-search-space` store so the
     // user's last-selected workspace survives the rename.
     if (store.get(STORE_KEY) == null) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const legacy: any = new Store({
         name: 'active-search-space',
         defaults: { activeSearchSpaceId: null as string | null },

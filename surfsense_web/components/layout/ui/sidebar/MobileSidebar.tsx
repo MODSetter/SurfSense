@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { WorkspaceAvatar } from "../icon-rail/WorkspaceAvatar";
 import { Sidebar } from "./Sidebar";
+import { SidebarUserProfile } from "./SidebarUserProfile";
 
 interface MobileSidebarProps {
 	isOpen: boolean;
@@ -137,6 +138,30 @@ export function MobileSidebar({
 							</Button>
 						</div>
 					</ScrollArea>
+					<SidebarUserProfile
+						user={user}
+						onUserSettings={
+							onUserSettings
+								? () => {
+										onOpenChange(false);
+										onUserSettings();
+									}
+								: undefined
+						}
+						onAnnouncements={
+							onAnnouncements
+								? () => {
+										onOpenChange(false);
+										onAnnouncements();
+									}
+								: undefined
+						}
+						announcementUnreadCount={announcementUnreadCount}
+						onLogout={onLogout}
+						isCollapsed
+						theme={theme}
+						setTheme={setTheme}
+					/>
 				</div>
 
 				{/* Sidebar Content - right side */}
@@ -209,6 +234,7 @@ export function MobileSidebar({
 						className="w-full border-none"
 						isLoadingChats={isLoadingChats}
 						disableTooltips
+						renderUserProfile={false}
 					/>
 				</div>
 			</SheetContent>
