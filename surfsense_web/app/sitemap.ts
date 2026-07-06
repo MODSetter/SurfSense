@@ -1,6 +1,7 @@
 import { loader } from "fumadocs-core/source";
 import type { MetadataRoute } from "next";
 import { blog, changelog } from "@/.source/server";
+import { getAllConnectorSlugs } from "@/lib/connectors-marketing";
 import { SERVER_BACKEND_URL } from "@/lib/env-config";
 import { source as docsSource } from "@/lib/source";
 
@@ -39,6 +40,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 	const staticPages: MetadataRoute.Sitemap = [
 		{ url: `${BASE_URL}/`, lastModified, changeFrequency: "daily", priority: 1 },
 		{ url: `${BASE_URL}/free`, lastModified, changeFrequency: "daily", priority: 0.95 },
+		{ url: `${BASE_URL}/connectors`, lastModified, changeFrequency: "weekly", priority: 0.9 },
+		{ url: `${BASE_URL}/mcp-connector`, lastModified, changeFrequency: "weekly", priority: 0.85 },
 		{ url: `${BASE_URL}/pricing`, lastModified, changeFrequency: "weekly", priority: 0.9 },
 		{ url: `${BASE_URL}/contact`, lastModified, changeFrequency: "monthly", priority: 0.7 },
 		{ url: `${BASE_URL}/blog`, lastModified, changeFrequency: "daily", priority: 0.9 },
@@ -57,6 +60,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		lastModified,
 		changeFrequency: "daily" as const,
 		priority: 0.9,
+	}));
+
+	const connectorPages: MetadataRoute.Sitemap = getAllConnectorSlugs().map((slug) => ({
+		url: `${BASE_URL}/${slug}`,
+		lastModified,
+		changeFrequency: "weekly" as const,
+		priority: 0.85,
 	}));
 
 	const docsPages: MetadataRoute.Sitemap = docsSource.getPages().map((page) => ({
@@ -80,5 +90,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		priority: 0.5,
 	}));
 
-	return [...staticPages, ...freeModelPages, ...docsPages, ...blogPages, ...changelogPages];
+	return [
+		...staticPages,
+		...connectorPages,
+		...freeModelPages,
+		...docsPages,
+		...blogPages,
+		...changelogPages,
+	];
 }

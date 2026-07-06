@@ -1,0 +1,184 @@
+import { IconBrandYoutube } from "@tabler/icons-react";
+import type { ConnectorPageContent } from "./types";
+
+export const youtube: ConnectorPageContent = {
+	slug: "youtube",
+	name: "YouTube",
+	icon: IconBrandYoutube,
+
+	metaTitle: "YouTube Scraper API for Audience Sentiment | SurfSense",
+	metaDescription:
+		"Scrape YouTube videos, comments, and transcripts at scale with the SurfSense YouTube Scraper API. No Data API quotas, plus a free tier for AI agents. Start now.",
+	keywords: [
+		"youtube scraper",
+		"youtube scraper api",
+		"youtube comment scraper",
+		"youtube comments api",
+		"youtube data api",
+		"youtube data api alternative",
+		"youtube channel scraper",
+		"youtube transcript scraper",
+		"youtube mcp server",
+		"youtube sentiment analysis",
+		"audience research tools",
+	],
+
+	h1: "YouTube API for Audience Sentiment and Content Intelligence",
+	heroLede:
+		"The SurfSense YouTube API pulls videos, channel stats, comments, and transcripts at scale, without YouTube Data API quotas. Feed your AI agents every comment and transcript that matters to your market, so you know what people actually think about your product and your competitors' content.",
+
+	transcript: {
+		prompt: "Summarize how people reacted in the comments on our launch video",
+		toolCall:
+			'youtube.comments({ urls: ["youtube.com/watch?v=launch"],\n  max_comments: 500, sort_by: "TOP_COMMENTS" })',
+		rows: [
+			{
+				primary: '"Finally an API that does not throttle my agent"',
+				secondary: "@devbuilds · 214 likes · creator hearted",
+				tag: "positive",
+			},
+			{
+				primary: '"How does pricing compare to the incumbent?"',
+				secondary: "@growthlee · 96 likes · 12 replies",
+				tag: "buying intent",
+			},
+			{
+				primary: '"Does it handle transcripts too or just metadata?"',
+				secondary: "@ml_ana · 71 likes · 8 replies",
+				tag: "feature ask",
+			},
+		],
+		resultSummary: "500 comments · 78% positive · surfaced in 3.4s",
+	},
+
+	extractIntro:
+		"Give the API video URLs, channel or playlist URLs, or search queries. It returns structured video items; a separate comments call returns full comment and reply trees for any video.",
+	extractFields: [
+		{
+			label: "Video metadata",
+			description: "Title, view count, likes, duration, publish date, hashtags, and description.",
+		},
+		{
+			label: "Channel stats",
+			description: "Subscriber count, total views, total videos, join date, and verified status.",
+		},
+		{
+			label: "Comments and replies",
+			description: "Author, comment text, vote counts, reply counts, and creator-heart flags.",
+		},
+		{
+			label: "Transcripts",
+			description: "Subtitle tracks per video in the language you request, ready as agent context.",
+		},
+		{
+			label: "Content types",
+			description: "Standard videos, Shorts, and live streams, capped independently per source.",
+		},
+		{
+			label: "Engagement",
+			description: "Likes, comment counts, and monetization or members-only flags per video.",
+		},
+	],
+
+	useCasesHeading: "What teams do with the YouTube API",
+	useCases: [
+		{
+			title: "Comment sentiment at scale",
+			description:
+				"Read every comment on your launch video or a competitor's ad, not a sample. Score product feedback and ad reaction so your team knows what actually resonated with the audience.",
+		},
+		{
+			title: "Competitor channel analysis",
+			description:
+				"Pull a rival channel's full catalog with views, likes, and cadence to see which content wins in your niche, then brief an agent to spot the patterns you should copy.",
+		},
+		{
+			title: "Influencer vetting",
+			description:
+				"Before you sponsor a creator, scrape their real view counts, comment sentiment, and posting history so you pay for genuine reach instead of a vanity subscriber number.",
+		},
+		{
+			title: "Transcripts as agent context",
+			description:
+				"Download transcripts to feed RAG pipelines and research agents. Turn hours of video into searchable, citable context your agents can reason over in seconds.",
+		},
+	],
+
+	comparison: {
+		heading: "A YouTube Data API alternative without the quota",
+		intro:
+			"The official YouTube Data API gives you 10,000 units a day, and reading comments burns through it fast. Here is how SurfSense compares.",
+		columnLabel: "YouTube Data API",
+		rows: [
+			{
+				feature: "Quota",
+				official: "10,000 units per day; comment reads drain it fast",
+				surfsense: "No daily unit quota; pay per item returned",
+			},
+			{
+				feature: "Comments",
+				official: "Paginated and quota-heavy at depth",
+				surfsense: "Up to 100,000 comments and replies per video",
+			},
+			{
+				feature: "Transcripts",
+				official: "Not available through the official API",
+				surfsense: "Subtitle tracks included, in the language you pick",
+			},
+			{
+				feature: "Setup",
+				official: "Google Cloud project, OAuth, and API key",
+				surfsense: "One API key, or add the MCP server to your agent",
+			},
+			{
+				feature: "Agent-ready",
+				official: "No; you build the harness yourself",
+				surfsense: "MCP server exposes youtube.scrape as a native tool",
+			},
+		],
+	},
+
+	api: {
+		platform: "youtube",
+		verb: "scrape",
+		mcpTool: "youtube.scrape",
+		requestBody: {
+			search_queries: ["your topic"],
+			max_results: 50,
+			download_subtitles: true,
+			subtitles_language: "en",
+		},
+	},
+
+	faq: [
+		{
+			question: "Is scraping YouTube legal?",
+			answer:
+				"SurfSense reads only public YouTube data, the videos, channels, and comments any visitor can see. It never signs in and cannot access private or unlisted content. Review YouTube's terms and your own compliance needs before running large jobs.",
+		},
+		{
+			question: "Are there quota limits like the YouTube Data API?",
+			answer:
+				"No daily unit quota. Each scrape call takes up to 20 sources with up to 1,000 results each, and a comments call returns up to 100,000 comments and replies per video. You pay per item returned instead of budgeting Google's 10,000 daily units.",
+		},
+		{
+			question: "Can it download transcripts, and in which languages?",
+			answer:
+				"Yes. Set download_subtitles to true and pass a language code such as en or fr, and each video comes back with its subtitle track. Transcripts make excellent context for RAG pipelines and research agents that need to reason over video content.",
+		},
+		{
+			question: "Does it support YouTube Shorts?",
+			answer:
+				"Yes. Channel sources return videos, Shorts, and live streams, each capped independently so one source can return all three types. You can also pass Shorts URLs directly, or use search queries to discover them across the platform.",
+		},
+	],
+
+	related: [
+		{ label: "Reddit API", href: "/reddit" },
+		{ label: "Google Maps API", href: "/google-maps" },
+		{ label: "SERP API", href: "/google-search" },
+		{ label: "Web Crawl API", href: "/web-crawl" },
+		{ label: "MCP Connector", href: "/mcp-connector" },
+		{ label: "Read the docs", href: "/docs" },
+	],
+};

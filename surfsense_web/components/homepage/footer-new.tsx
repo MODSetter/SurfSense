@@ -22,6 +22,10 @@ export function FooterNew() {
 		//   href: "#",
 		// },
 		{
+			title: "Connectors",
+			href: "/connectors",
+		},
+		{
 			title: "Pricing",
 			href: "/pricing",
 		},

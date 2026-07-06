@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	AutomationModelFields,
 	type AutomationModelSelection,
-} from "@/app/dashboard/[search_space_id]/automations/components/builder/automation-model-fields";
+} from "@/app/dashboard/[workspace_id]/automations/components/builder/automation-model-fields";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { JsonView } from "@/components/json-view";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";

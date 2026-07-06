@@ -19,8 +19,8 @@ export function OrganizationJsonLd() {
 				url: "https://www.surfsense.com",
 				logo: "https://www.surfsense.com/logo.png",
 				description:
-					"Open source NotebookLM alternative for teams with no data limits. Use ChatGPT, Claude AI, and any AI model for free.",
-				sameAs: ["https://github.com/MODSetter/SurfSense", "https://discord.gg/Cg2M4GUJ"],
+					"SurfSense is an open-source competitive intelligence platform. AI agents monitor competitors, track rankings, and listen to your market through one API or MCP server.",
+				sameAs: ["https://github.com/MODSetter/SurfSense", "https://discord.gg/ejRNvftDp9"],
 				contactPoint: {
 					"@type": "ContactPoint",
 					email: "rohan@surfsense.com",
@@ -40,7 +40,7 @@ export function WebSiteJsonLd() {
 				name: "SurfSense",
 				url: "https://www.surfsense.com",
 				description:
-					"Open source NotebookLM alternative for teams with no data limits. Free ChatGPT, Claude AI, and any AI model.",
+					"SurfSense is an open-source competitive intelligence platform for AI agents, with live data connectors served through one API or MCP server.",
 				potentialAction: {
 					"@type": "SearchAction",
 					target: {
@@ -70,23 +70,21 @@ export function SoftwareApplicationJsonLd() {
 					description: "Free plan with 500 pages included",
 				},
 				description:
-					"Open source NotebookLM alternative with free access to ChatGPT, Claude AI, and any model. Connect Slack, Google Drive, Notion, Confluence, GitHub, and dozens more data sources.",
+					"SurfSense is an open-source competitive intelligence platform. AI agents monitor competitors, track rankings, and listen to your market with platform-native connectors for Reddit, YouTube, Google Maps, Google Search, and the open web, through one API or MCP server.",
 				url: "https://www.surfsense.com",
 				downloadUrl: "https://github.com/MODSetter/SurfSense/releases",
 				featureList: [
-					"Free access to ChatGPT, Claude AI, and any AI model",
-					"AI-powered semantic search across all connected tools",
-					"Federated search across Slack, Google Drive, Notion, Confluence, GitHub",
+					"Platform-native connectors: Reddit, YouTube, Google Maps, Google Search, Web Crawl",
+					"MCP server that exposes every connector as a native agent tool",
+					"Agent harness with retries, structured output, and credit metering",
+					"Competitor, brand, and rank monitoring with briefs and alerts",
 					"AI automations and agents (scheduled and event-triggered workflows)",
-					"Connector write-back to Notion, Slack, Linear, Jira",
-					"Native desktop app with Quick, General, and Screenshot Assist",
-					"No data limits with open source self-hosting",
+					"AI-powered semantic search across connected tools and documents",
+					"Federated search across Slack, Google Drive, Notion, Confluence, GitHub",
+					"Document Q&A with citations, report, podcast, and video generation",
 					"Real-time collaborative team chats",
-					"Document Q&A with citations",
-					"Report generation",
-					"Podcast and video generation from sources",
-					"Enterprise knowledge management",
-					"Self-hostable and privacy-focused",
+					"Native desktop app with Quick, General, and Screenshot Assist",
+					"Open source and self-hostable with no data limits",
 				],
 			}}
 		/>
