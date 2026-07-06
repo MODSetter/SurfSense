@@ -1,4 +1,4 @@
-<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense，面向 AI 智能体的开源竞争情报平台" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense，面向 AI 智能体的开源竞争情报平台" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -94,7 +94,6 @@ curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape
 
 访问 [surfsense.com](https://www.surfsense.com)，登录后用自然语言向智能体索取实时市场数据。新账户自带 5 美元免费额度，无需订阅。
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/LoginFlowGif.gif" alt="登录" /></p>
 
 ### 免费自托管
 
@@ -126,7 +125,6 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 - "每周一拉取我们门店以及竞争对手门店的最新 Google Maps 评论。"
 - "每月生成一份竞争对手分析报告并保存到我的工作区。"
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI 报告生成器" /></p>
 
 ## 开箱即用的其他能力
 
@@ -146,7 +144,7 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 - 20 秒内基于任意文档或文件夹生成双主持人 AI 播客。
 - 可编辑的幻灯片、带旁白的视频概览以及 AI 图像生成。
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="AI 播客生成器" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI 报告生成器" /></p>
 
 **团队协作**
 

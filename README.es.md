@@ -1,4 +1,4 @@
-<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, la plataforma de inteligencia competitiva de código abierto para agentes de IA" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, la plataforma de inteligencia competitiva de código abierto para agentes de IA" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -94,7 +94,6 @@ Tu agente ahora puede llamar a cada conector como una herramienta nativa.
 
 Ve a [surfsense.com](https://www.surfsense.com), inicia sesión y pídele al agente datos de mercado en vivo en lenguaje natural. Las cuentas nuevas comienzan con $5 de crédito gratuito y sin suscripción.
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/LoginFlowGif.gif" alt="Inicio de sesión" /></p>
 
 ### Autoalójalo gratis
 
@@ -126,7 +125,6 @@ Las automatizaciones ejecutan turnos completos de agente según un horario o en 
 - "Extrae las nuevas reseñas de Google Maps de nuestras ubicaciones y las de nuestros competidores cada lunes."
 - "Ejecuta un informe mensual de análisis de la competencia y guárdalo en mi espacio de trabajo."
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Generador de informes con IA" /></p>
 
 ## Todo lo demás que viene incluido
 
@@ -146,7 +144,7 @@ El espacio de trabajo de investigación que convirtió a SurfSense en la alterna
 - Podcasts de IA con dos presentadores a partir de cualquier documento o carpeta en menos de 20 segundos.
 - Presentaciones de diapositivas editables, resúmenes en video narrados y generación de imágenes con IA.
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="Generador de podcasts con IA" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Generador de informes con IA" /></p>
 
 **Colaboración en equipo**
 

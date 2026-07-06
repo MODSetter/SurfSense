@@ -94,8 +94,6 @@ Your agent can now call every connector as a native tool.
 
 Go to [surfsense.com](https://www.surfsense.com), log in, and ask the agent for live market data in plain English. New accounts start with $5 of free credit and no subscription.
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/LoginFlowGif.gif" alt="Login" /></p>
-
 ### Self-host for free
 
 Run the entire platform, connectors, agents, automations, and the MCP server on your own infrastructure. Self-hosted installs ship with billing off, so scraping, crawling, and agent runs are limited only by your hardware and the model keys you bring.
@@ -126,8 +124,6 @@ Automations run full agent turns on a schedule or in response to events, then wr
 - "Pull new Google Maps reviews for our locations and our competitors' every Monday."
 - "Run a monthly competitor analysis report and save it to my workspace."
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
-
 ## Everything else in the box
 
 The research workspace that made SurfSense the leading open-source NotebookLM alternative is still here, and everything your agents gather lands in it.
@@ -146,7 +142,7 @@ The research workspace that made SurfSense the leading open-source NotebookLM al
 - Two-host AI podcasts from any document or folder in under 20 seconds.
 - Editable slide decks, narrated video overviews, and AI image generation.
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="AI Podcast Generator" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
 
 **Team collaboration**
 

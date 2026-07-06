@@ -1,4 +1,4 @@
-<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, a plataforma open source de inteligência competitiva para agentes de IA" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, a plataforma open source de inteligência competitiva para agentes de IA" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -94,7 +94,6 @@ Seu agente agora pode chamar cada conector como uma ferramenta nativa.
 
 Acesse [surfsense.com](https://www.surfsense.com), faça login e peça ao agente dados de mercado ao vivo em linguagem natural. Contas novas começam com US$ 5 de crédito gratuito e sem assinatura.
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/LoginFlowGif.gif" alt="Login" /></p>
 
 ### Auto-hospede gratuitamente
 
@@ -126,7 +125,6 @@ As automações executam turnos completos de agente de forma agendada ou em resp
 - "Colete os novos reviews do Google Maps das nossas unidades e das dos concorrentes toda segunda-feira."
 - "Execute um relatório mensal de análise de concorrentes e salve no meu workspace."
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Gerador de Relatórios com IA" /></p>
 
 ## Tudo o mais que vem na caixa
 
@@ -146,7 +144,7 @@ O workspace de pesquisa que fez do SurfSense a principal alternativa open source
 - Podcasts de IA com dois apresentadores a partir de qualquer documento ou pasta em menos de 20 segundos.
 - Apresentações de slides editáveis, resumos em vídeo narrados e geração de imagens por IA.
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="Gerador de Podcasts com IA" /></p>
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Gerador de Relatórios com IA" /></p>
 
 **Colaboração em equipe**
 
