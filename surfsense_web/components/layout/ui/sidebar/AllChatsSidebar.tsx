@@ -307,10 +307,10 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 						{[75, 90, 55, 80, 65, 85].map((titleWidth) => (
 							<div
 								key={`skeleton-${titleWidth}`}
-								className="flex items-center gap-2 rounded-md px-2 py-1.5"
+								className="flex items-center gap-2.5 rounded-md px-3 py-2.5"
 							>
 								<Skeleton className="h-4 w-4 shrink-0 rounded" />
-								<Skeleton className="h-4 rounded" style={{ width: `${titleWidth}%` }} />
+								<Skeleton className="h-5 rounded" style={{ width: `${titleWidth}%` }} />
 							</div>
 						))}
 					</div>
@@ -346,10 +346,10 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 											onTouchMove={longPressHandlers.onTouchMove}
 											disabled={isBusy}
 											className={cn(
-												"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
+												"h-auto w-full justify-start gap-2.5 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
 												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-												thread.visibility === "SEARCH_SPACE" && "pr-9",
+												thread.visibility === "SEARCH_SPACE" && "pr-10",
 												isActive && "bg-accent text-accent-foreground",
 												isBusy && "opacity-50 pointer-events-none"
 											)}
@@ -367,10 +367,10 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 													onFocus={() => prefetchChatThread(thread.id)}
 													disabled={isBusy}
 													className={cn(
-														"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
+														"h-auto w-full justify-start gap-2.5 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
 														"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 														"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-														thread.visibility === "SEARCH_SPACE" && "pr-9",
+														thread.visibility === "SEARCH_SPACE" && "pr-10",
 														isActive && "bg-accent text-accent-foreground",
 														isBusy && "opacity-50 pointer-events-none"
 													)}
@@ -390,7 +390,7 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 
 									<div
 										className={cn(
-											"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center rounded-r-md pl-6 pr-1",
+											"pointer-events-none absolute inset-y-0 right-0 flex items-center rounded-r-md pl-6 pr-1",
 											isActive
 												? "bg-gradient-to-l from-accent from-60% to-transparent"
 												: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
@@ -401,7 +401,7 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 													: "opacity-0 group-hover/item:opacity-100"
 										)}
 									>
-										<div className="relative h-6 w-6">
+										<div className="relative flex h-7 w-7 items-center justify-center">
 											{thread.visibility === "SEARCH_SPACE" ? (
 												<Users
 													aria-label={t("shared_chat") || "Shared chat"}
@@ -423,7 +423,7 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 														variant="ghost"
 														size="icon"
 														className={cn(
-															"pointer-events-auto h-6 w-6 hover:bg-transparent",
+															"pointer-events-auto h-7 w-7 hover:bg-transparent",
 															openDropdownId === thread.id && "bg-accent hover:bg-accent",
 															!isMobile &&
 																openDropdownId !== thread.id &&
@@ -434,7 +434,7 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 														{isDeleting ? (
 															<Spinner size="xs" />
 														) : (
-															<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+															<MoreHorizontal className="h-4 w-4 text-muted-foreground" />
 														)}
 														<span className="sr-only">{t("more_options") || "More options"}</span>
 													</Button>
