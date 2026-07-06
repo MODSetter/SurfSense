@@ -256,3 +256,172 @@ async def test_gate_is_noop_for_free_verb(monkeypatch):
     await gate_capability(CrawlInput(startUrls=["https://a.com"]), None, _ctx(session))
 
     session.execute.assert_not_called()
+
+
+# ===================================================================
+# Platform scraper per-item billing (Reddit / Search / Maps / YouTube)
+# ===================================================================
+
+
+class _FakePlatformOutput:
+    """Stand-in for a verb output: only the billing-read properties matter."""
+
+    def __init__(self, items: int, attached_review_count: int = 0):
+        self._items = items
+        self._reviews = attached_review_count
+
+    @property
+    def billable_units(self) -> int:
+        return self._items
+
+    @property
+    def attached_review_count(self) -> int:
+        return self._reviews
+
+
+class _FakePlatformInput:
+    """Stand-in for a verb input reporting its worst-case unit counts."""
+
+    def __init__(self, estimated_units: int, estimated_review_units: int = 0):
+        self._units = estimated_units
+        self._review_units = estimated_review_units
+
+    @property
+    def estimated_units(self) -> int:
+        return self._units
+
+    @property
+    def estimated_review_units(self) -> int:
+        return self._review_units
+
+
+@pytest.fixture
+def _enable_platform_billing(monkeypatch):
+    monkeypatch.setattr(config, "PLATFORM_SCRAPE_BILLING_ENABLED", True)
+
+
+async def test_platform_charges_owner_per_item(
+    monkeypatch, record_usage, _enable_platform_billing
+):
+    monkeypatch.setattr(config, "REDDIT_SCRAPE_MICROS_PER_ITEM", 3500)
+    session, user = _make_session(_OWNER, balance_micros=1_000_000)
+
+    charged = await charge_capability(
+        _FakePlatformOutput(3), BillingUnit.REDDIT_ITEM, _ctx(session)
+    )
+
+    assert charged == 3 * 3500
+    assert user.credit_micros_balance == 1_000_000 - 3 * 3500
+    record_usage.assert_awaited_once()
+    kwargs = record_usage.await_args.kwargs
+    assert kwargs["usage_type"] == "reddit_item"
+    assert kwargs["user_id"] == _OWNER
+    assert kwargs["workspace_id"] == _WORKSPACE_ID
+    assert kwargs["cost_micros"] == 3 * 3500
+
+
+async def test_platform_maps_scrape_dual_meters_places_and_reviews(
+    monkeypatch, record_usage, _enable_platform_billing
+):
+    monkeypatch.setattr(config, "GOOGLE_MAPS_MICROS_PER_PLACE", 5000)
+    monkeypatch.setattr(config, "GOOGLE_MAPS_MICROS_PER_REVIEW", 2000)
+    session, user = _make_session(_OWNER, balance_micros=1_000_000)
+
+    # 2 places + 10 attached reviews -> 2*5000 + 10*2000 = 30000.
+    charged = await charge_capability(
+        _FakePlatformOutput(2, attached_review_count=10),
+        BillingUnit.GOOGLE_MAPS_PLACE,
+        _ctx(session),
+    )
+
+    assert charged == 2 * 5000 + 10 * 2000
+    assert user.credit_micros_balance == 1_000_000 - 30_000
+    assert record_usage.await_count == 2
+    usage_types = {c.kwargs["usage_type"] for c in record_usage.await_args_list}
+    assert usage_types == {"google_maps_place", "google_maps_review"}
+
+
+async def test_platform_charge_disabled_is_noop(monkeypatch, record_usage):
+    monkeypatch.setattr(config, "PLATFORM_SCRAPE_BILLING_ENABLED", False)
+    monkeypatch.setattr(config, "REDDIT_SCRAPE_MICROS_PER_ITEM", 3500)
+    session, user = _make_session(_OWNER, balance_micros=1_000_000)
+
+    charged = await charge_capability(
+        _FakePlatformOutput(3), BillingUnit.REDDIT_ITEM, _ctx(session)
+    )
+
+    assert charged == 0
+    record_usage.assert_not_awaited()
+    session.execute.assert_not_called()
+    assert user.credit_micros_balance == 1_000_000
+
+
+async def test_platform_no_items_is_free(
+    monkeypatch, record_usage, _enable_platform_billing
+):
+    monkeypatch.setattr(config, "YOUTUBE_MICROS_PER_COMMENT", 3500)
+    session, user = _make_session(_OWNER, balance_micros=1_000_000)
+
+    charged = await charge_capability(
+        _FakePlatformOutput(0), BillingUnit.YOUTUBE_COMMENT, _ctx(session)
+    )
+
+    assert charged == 0
+    record_usage.assert_not_awaited()
+    assert user.credit_micros_balance == 1_000_000
+
+
+async def test_platform_gate_blocks_when_worst_case_exceeds_balance(
+    monkeypatch, _enable_platform_billing
+):
+    monkeypatch.setattr(config, "GOOGLE_SEARCH_MICROS_PER_SERP", 5500)
+    session = _gate_session(_OWNER, balance_micros=6000)  # affords 1 SERP, not 2
+
+    with pytest.raises(InsufficientCreditsError):
+        await gate_capability(
+            _FakePlatformInput(estimated_units=2),
+            BillingUnit.GOOGLE_SEARCH_SERP,
+            _ctx(session),
+        )
+
+
+async def test_platform_gate_maps_reserves_places_plus_reviews(
+    monkeypatch, _enable_platform_billing
+):
+    monkeypatch.setattr(config, "GOOGLE_MAPS_MICROS_PER_PLACE", 5000)
+    monkeypatch.setattr(config, "GOOGLE_MAPS_MICROS_PER_REVIEW", 2000)
+    # 1 place (5000) + 10 worst-case reviews (20000) = 25000 required.
+    session = _gate_session(_OWNER, balance_micros=20_000)
+
+    with pytest.raises(InsufficientCreditsError):
+        await gate_capability(
+            _FakePlatformInput(estimated_units=1, estimated_review_units=10),
+            BillingUnit.GOOGLE_MAPS_PLACE,
+            _ctx(session),
+        )
+
+
+async def test_platform_gate_passes_when_affordable(
+    monkeypatch, _enable_platform_billing
+):
+    monkeypatch.setattr(config, "GOOGLE_SEARCH_MICROS_PER_SERP", 5500)
+    session = _gate_session(_OWNER, balance_micros=1_000_000)
+
+    await gate_capability(
+        _FakePlatformInput(estimated_units=2),
+        BillingUnit.GOOGLE_SEARCH_SERP,
+        _ctx(session),
+    )
+
+
+async def test_platform_gate_disabled_is_noop(monkeypatch):
+    monkeypatch.setattr(config, "PLATFORM_SCRAPE_BILLING_ENABLED", False)
+    session = _gate_session(_OWNER, balance_micros=0)
+
+    await gate_capability(
+        _FakePlatformInput(estimated_units=1000),
+        BillingUnit.REDDIT_ITEM,
+        _ctx(session),
+    )
+
+    session.execute.assert_not_called()

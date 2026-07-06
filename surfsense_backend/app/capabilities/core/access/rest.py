@@ -140,7 +140,7 @@ def _register_verb(router: APIRouter, capability: Capability) -> None:
             ) from exc
 
         duration_ms = int((time.perf_counter() - started) * 1000)
-        await charge_capability(output, unit, ctx)
+        cost_micros = await charge_capability(output, unit, ctx)
 
         serialized = serialize_output(output)
         run_id = await _record_rest_run(
@@ -152,6 +152,7 @@ def _register_verb(router: APIRouter, capability: Capability) -> None:
             input=input_dump,
             user_id=user_id,
             duration_ms=duration_ms,
+            cost_micros=cost_micros,
         )
         if run_id is not None:
             response.headers["X-Run-Id"] = f"run_{run_id}"

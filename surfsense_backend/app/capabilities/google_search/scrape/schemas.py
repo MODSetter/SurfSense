@@ -47,9 +47,20 @@ class ScrapeInput(BaseModel):
         description="Restrict results to a single domain, e.g. 'example.com'.",
     )
 
+    @property
+    def estimated_units(self) -> int:
+        """Worst-case billable SERP pages for the pre-flight gate: one page per
+        query per requested result page."""
+        return len(self.queries) * self.max_pages_per_query
+
 
 class ScrapeOutput(BaseModel):
     items: list[SerpItem] = Field(
         default_factory=list,
         description="One item per fetched SERP page, in the scraper's emission order.",
     )
+
+    @property
+    def billable_units(self) -> int:
+        """One fetched SERP page = one billable unit."""
+        return len(self.items)

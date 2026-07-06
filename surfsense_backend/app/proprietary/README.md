@@ -31,7 +31,7 @@ Apache-2.0* — instead of per-file headers scattered across the tree.
 
 - **Do not** add Apache-2.0-intended code here.
 - Apache-2.0 code elsewhere **may import from** this package (the indexer and the
-  chat `scrape_webpage` tools do); that does not move them under this license.
+  `web.crawl` capability do); that does not move them under this license.
 - Depend only on the public API exported from each subpackage's `__init__`, not
   on internal modules, so the boundary stays clean and swappable.
 - **Boundary test:** put code here only if it is used *exclusively* by the moat.

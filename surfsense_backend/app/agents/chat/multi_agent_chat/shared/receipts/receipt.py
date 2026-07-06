@@ -105,7 +105,7 @@ class Receipt(TypedDict, total=False):
     ``None`` only when the operation failed before the backend assigned one."""
 
     verifiable_url: str | None
-    """URL the parent can pass to ``scrape_webpage`` to verify the
+    """URL the parent can crawl (via ``task(web_crawler, …)``) to verify the
     operation. ``None`` when no public URL exists (Gmail, KB, raw images
     stored in the DB)."""
 

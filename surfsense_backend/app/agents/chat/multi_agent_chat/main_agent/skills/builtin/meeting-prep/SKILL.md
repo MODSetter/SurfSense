@@ -1,7 +1,7 @@
 ---
 name: meeting-prep
 description: Pull together briefing materials before a scheduled meeting
-allowed-tools: task, scrape_webpage, read_file
+allowed-tools: task, read_file
 ---
 
 # Meeting preparation

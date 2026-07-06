@@ -83,9 +83,36 @@ class ScrapeInput(BaseModel):
             )
         return self
 
+    @property
+    def estimated_units(self) -> int:
+        """Worst-case billable places: each search query yields up to
+        ``max_places``; direct URLs and place_ids yield one each."""
+        return (
+            len(self.search_queries) * self.max_places
+            + len(self.urls)
+            + len(self.place_ids)
+        )
+
+    @property
+    def estimated_review_units(self) -> int:
+        """Worst-case attached reviews for the dual-meter gate: up to
+        ``max_reviews`` per place across the worst-case place fan-out."""
+        return self.estimated_units * self.max_reviews
+
 
 class ScrapeOutput(BaseModel):
     items: list[PlaceItem] = Field(
         default_factory=list,
         description="One place item per result, in the scraper's emission order.",
     )
+
+    @property
+    def billable_units(self) -> int:
+        """One returned place = one billable place unit."""
+        return len(self.items)
+
+    @property
+    def attached_review_count(self) -> int:
+        """Reviews attached inline across all places — the second (review)
+        meter for this dual-metered verb (populated only when max_reviews > 0)."""
+        return sum(len(item.reviews) for item in self.items)

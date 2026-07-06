@@ -77,8 +77,9 @@ provenance (depth, referrer).
 
 ## Agent tooling layer (outside this package)
 
-- The main chat agent has `scrape_webpage`; the `web_crawler` subagent has the
-  `web.crawl` capability (single URL or site mode).
+- The `web_crawler` subagent exposes the `web.crawl` capability (single URL at
+  `maxCrawlDepth=0`, or site mode at higher depth); the main chat agent reaches
+  it by delegating via `task(web_crawler, …)`.
 - Tool outputs over the 40k-char cap (`RUN_OUTPUT_CHAR_CAP` in
   `app/capabilities/core/runs.py`) are stored as JSONL runs; agents page them
   with `read_run` (line paging + `char_offset` for giant single items), grep

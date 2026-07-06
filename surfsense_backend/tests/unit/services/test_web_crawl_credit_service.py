@@ -175,48 +175,7 @@ class TestChargeCredits:
 
 
 # ===================================================================
-# E) Chat-scrape fold helper
-# ===================================================================
-
-
-class TestChatScrapeFold:
-    """The scrape_webpage tools fold one success into the live turn accumulator."""
-
-    def _import_helper(self):
-        from app.agents.chat.multi_agent_chat.main_agent.tools.scrape_webpage import (
-            _bill_successful_scrape,
-        )
-
-        return _bill_successful_scrape
-
-    def test_folds_into_active_turn_when_enabled(self):
-        from app.services.token_tracking_service import start_turn
-
-        acc = start_turn()
-        self._import_helper()()
-        assert acc.total_cost_micros == 1000
-        assert len(acc.calls) == 1
-        assert acc.calls[0].call_kind == "web_crawl"
-
-    def test_noop_when_billing_disabled(self, monkeypatch):
-        from app.services.token_tracking_service import start_turn
-
-        monkeypatch.setattr(config, "WEB_CRAWL_CREDIT_BILLING_ENABLED", False)
-        acc = start_turn()
-        self._import_helper()()
-        assert acc.calls == []
-        assert acc.total_cost_micros == 0
-
-    def test_noop_when_no_active_turn(self):
-        import contextvars
-
-        # Run in a fresh context so the turn ContextVar resolves to its default
-        # (None) regardless of other tests — must not raise.
-        contextvars.Context().run(self._import_helper())
-
-
-# ===================================================================
-# F) Captcha per-attempt unit (Phase 3d)
+# E) Captcha per-attempt unit (Phase 3d)
 # ===================================================================
 
 
@@ -284,41 +243,3 @@ class TestCheckBalance:
         session.execute.assert_not_called()
 
 
-class TestCaptchaChatFold:
-    """The scrape tools fold captcha attempts into the live turn accumulator."""
-
-    def _import_helper(self):
-        from app.agents.chat.multi_agent_chat.main_agent.tools.scrape_webpage import (
-            _bill_captcha_attempts,
-        )
-
-        return _bill_captcha_attempts
-
-    def _outcome(self, attempts):
-        o = MagicMock()
-        o.captcha_attempts = attempts
-        return o
-
-    def test_folds_attempts_when_enabled(self, _enable_captcha_billing):
-        from app.services.token_tracking_service import start_turn
-
-        acc = start_turn()
-        self._import_helper()(self._outcome(2))
-        assert acc.total_cost_micros == 6000
-        assert len(acc.calls) == 1
-        assert acc.calls[0].call_kind == "web_crawl_captcha"
-
-    def test_noop_when_zero_attempts(self, _enable_captcha_billing):
-        from app.services.token_tracking_service import start_turn
-
-        acc = start_turn()
-        self._import_helper()(self._outcome(0))
-        assert acc.calls == []
-
-    def test_noop_when_billing_disabled(self, monkeypatch):
-        from app.services.token_tracking_service import start_turn
-
-        monkeypatch.setattr(config, "WEB_CRAWL_CAPTCHA_BILLING_ENABLED", False)
-        acc = start_turn()
-        self._import_helper()(self._outcome(3))
-        assert acc.calls == []

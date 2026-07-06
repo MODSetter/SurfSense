@@ -58,9 +58,25 @@ class ScrapeInput(BaseModel):
             raise ValueError("Provide at least one of 'urls' or 'search_queries'.")
         return self
 
+    @property
+    def estimated_units(self) -> int:
+        """Worst-case billable videos for the pre-flight gate.
+
+        The x3 is load-bearing: for a channel source ``max_results`` caps
+        videos, shorts, and streams *independently*, so one source can return
+        up to 3x ``max_results`` items. Over-reserving here keeps the
+        never-go-negative invariant a passing gate promises.
+        """
+        return (len(self.urls) + len(self.search_queries)) * self.max_results * 3
+
 
 class ScrapeOutput(BaseModel):
     items: list[VideoItem] = Field(
         default_factory=list,
         description="One video item per result, in the scraper's emission order.",
     )
+
+    @property
+    def billable_units(self) -> int:
+        """One returned video/short/stream = one billable unit."""
+        return len(self.items)

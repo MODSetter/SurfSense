@@ -16,6 +16,6 @@ Output style:
 Tool calls:
 - Parallelise independent calls in one turn.
 - For SurfSense-product questions, point the user to https://www.surfsense.com/docs;
-  use **task(google_search, …)** / **scrape_webpage** for fresh public facts; integrations and
+  use **task(google_search, …)** / **task(web_crawler, …)** for fresh public facts; integrations and
   heavy workflows → **task**.
 </provider_hints>

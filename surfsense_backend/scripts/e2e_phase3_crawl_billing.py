@@ -1,4 +1,4 @@
-"""Manual functional e2e for Phase 3 crawler + billing (3a / 3b / 3c).
+"""Manual functional e2e for Phase 3 crawler core (3a / 3b).
 
 Run from the backend directory:
     cd surfsense_backend
@@ -8,8 +8,10 @@ Run from the backend directory:
 What it exercises (everything REAL — live network, live proxy, live DB reads):
 
   Stage 1 (3a + 3b) — direct fetch + proxy egress-IP proof + crawl_url ladder.
-  Stage 2 (3c chat surface) — the scrape_webpage tool folds one successful
-      crawl into the current chat turn's accumulator (billed at finalize).
+
+Crawl billing now lives entirely in the ``web.crawl`` capability (charged
+directly on the wallet via ``charge_capability``); there is no longer a
+chat-turn "fold" surface to exercise here.
 
 This is NOT a pytest test (it needs a live stack + proxy creds + network). It
 is the manual functional counterpart to the unit suites; the undetectability /
@@ -31,8 +33,6 @@ for _candidate in (_BACKEND_ROOT / ".env", _BACKEND_ROOT.parent / ".env"):
         load_dotenv(_candidate)
         break
 
-
-from app.config import config  # noqa: E402
 
 # Content-rich, generally crawl-friendly targets (real extraction expected).
 _ARTICLE_URLS = [
@@ -117,44 +117,10 @@ async def stage1_crawl_and_proxy() -> bool:
     return ok
 
 
-# ===========================================================================
-# Stage 2 — chat scrape folds cost into the turn accumulator (3c surface 2)
-# ===========================================================================
-async def stage2_chat_fold() -> bool:
-    _hr("STAGE 2 — chat scrape_webpage folds crawl cost into turn (3c)")
-    config.WEB_CRAWL_CREDIT_BILLING_ENABLED = True
-    price = config.WEB_CRAWL_MICROS_PER_SUCCESS
-
-    from app.agents.chat.multi_agent_chat.main_agent.tools.scrape_webpage import (
-        create_scrape_webpage_tool,
-    )
-    from app.services.token_tracking_service import start_turn
-
-    acc = start_turn()
-    tool = create_scrape_webpage_tool()
-    result = await tool.ainvoke({"url": _ARTICLE_URLS[0]})
-    crawled_ok = "error" not in result and bool(result.get("content"))
-    print(f"  scrape error          : {result.get('error', '<none>')}")
-    print(f"  turn cost_micros      : {acc.total_cost_micros}")
-    print(f"  call kinds            : {[c.call_kind for c in acc.calls]}")
-    if not crawled_ok:
-        print("  [INFO] crawl did not succeed (site/proxy) — cannot assert fold")
-        return False
-    return _check(
-        "one web_crawl line folded at configured price",
-        acc.total_cost_micros == price
-        and any(c.call_kind == "web_crawl" for c in acc.calls),
-        f"expected={price} got={acc.total_cost_micros}",
-    )
-
-
 async def main() -> int:
-    print("Phase 3 functional e2e (3a/3b/3c) — live network + proxy, DB rolled back")
+    print("Phase 3 functional e2e (3a/3b) — live network + proxy, DB rolled back")
     results: dict[str, bool] = {}
-    for name, coro in (
-        ("Stage 1 crawl+proxy", stage1_crawl_and_proxy),
-        ("Stage 2 chat fold", stage2_chat_fold),
-    ):
+    for name, coro in (("Stage 1 crawl+proxy", stage1_crawl_and_proxy),):
         try:
             results[name] = await coro()
         except Exception as exc:

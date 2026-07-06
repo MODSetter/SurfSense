@@ -60,9 +60,20 @@ class ReviewsInput(BaseModel):
             raise ValueError("Provide at least one of 'urls' or 'place_ids'.")
         return self
 
+    @property
+    def estimated_units(self) -> int:
+        """Worst-case billable reviews for the pre-flight gate: up to
+        ``max_reviews`` per source place."""
+        return (len(self.urls) + len(self.place_ids)) * self.max_reviews
+
 
 class ReviewsOutput(BaseModel):
     items: list[ReviewItem] = Field(
         default_factory=list,
         description="One item per review, in the scraper's emission order.",
     )
+
+    @property
+    def billable_units(self) -> int:
+        """One returned review = one billable unit."""
+        return len(self.items)

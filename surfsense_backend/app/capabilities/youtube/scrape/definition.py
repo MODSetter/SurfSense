@@ -1,8 +1,9 @@
-"""``youtube.scrape`` capability registration (free — see 04-capabilities open item)."""
+"""``youtube.scrape`` capability registration (billed per video; see config
+``YOUTUBE_MICROS_PER_VIDEO``)."""
 
 from __future__ import annotations
 
-from app.capabilities.core import Capability, register_capability
+from app.capabilities.core import BillingUnit, Capability, register_capability
 from app.capabilities.youtube.scrape.executor import build_scrape_executor
 from app.capabilities.youtube.scrape.schemas import ScrapeInput, ScrapeOutput
 
@@ -18,7 +19,7 @@ YOUTUBE_SCRAPE = Capability(
     input_schema=ScrapeInput,
     output_schema=ScrapeOutput,
     executor=build_scrape_executor(),
-    billing_unit=None,
+    billing_unit=BillingUnit.YOUTUBE_VIDEO,
 )
 
 register_capability(YOUTUBE_SCRAPE)

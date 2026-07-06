@@ -659,12 +659,12 @@ class Config:
     # ``WEB_CRAWL_MICROS_PER_SUCCESS`` is the single source of truth; retune it
     # to any rate with just an env change + restart (no code/migration):
     #   WEB_CRAWL_MICROS_PER_SUCCESS = round(USD_per_1000_crawls * 1_000)
-    #   $1/1000 -> 1000 (default) | $2/1000 -> 2000 | $0.50/1000 -> 500
+    #   $2/1000 -> 2000 (default) | $1/1000 -> 1000 | $0.50/1000 -> 500
     WEB_CRAWL_CREDIT_BILLING_ENABLED = (
         os.getenv("WEB_CRAWL_CREDIT_BILLING_ENABLED", "FALSE").upper() == "TRUE"
     )
     WEB_CRAWL_MICROS_PER_SUCCESS = int(
-        os.getenv("WEB_CRAWL_MICROS_PER_SUCCESS", "1000")
+        os.getenv("WEB_CRAWL_MICROS_PER_SUCCESS", "2000")
     )
 
     # Phase 3d captcha-solve billing. Captcha can't ride the per-success crawl
@@ -680,6 +680,41 @@ class Config:
     )
     WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE = int(
         os.getenv("WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE", "3000")
+    )
+
+    # Platform-native scraper billing (Reddit, Google Search, Google Maps,
+    # YouTube). Debits the credit wallet per *item returned* — the same
+    # per-unit model as web crawl, one meter per verb. Off by default so
+    # self-hosted / OSS installs keep scraping effectively-free; hosted
+    # deployments set this TRUE.
+    #
+    # Rates are fully config-driven (no hardcoded price). Each is micro-USD
+    # per item; retune with an env change + restart (no code/migration):
+    #   <KEY> = round(USD_per_1000_items * 1_000)
+    #   $3.50/1000 -> 3500 | $5.00/1000 -> 5000 | $2.00/1000 -> 2000
+    # Defaults sit at/above Apify's first-party actor rates (Jul 2026), which
+    # is justified because SurfSense charges no subscription tiers, no
+    # per-run actor-start fees, and no separate proxy/compute/storage billing.
+    PLATFORM_SCRAPE_BILLING_ENABLED = (
+        os.getenv("PLATFORM_SCRAPE_BILLING_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    REDDIT_SCRAPE_MICROS_PER_ITEM = int(
+        os.getenv("REDDIT_SCRAPE_MICROS_PER_ITEM", "3500")
+    )
+    GOOGLE_SEARCH_MICROS_PER_SERP = int(
+        os.getenv("GOOGLE_SEARCH_MICROS_PER_SERP", "5500")
+    )
+    GOOGLE_MAPS_MICROS_PER_PLACE = int(
+        os.getenv("GOOGLE_MAPS_MICROS_PER_PLACE", "5000")
+    )
+    GOOGLE_MAPS_MICROS_PER_REVIEW = int(
+        os.getenv("GOOGLE_MAPS_MICROS_PER_REVIEW", "2000")
+    )
+    YOUTUBE_MICROS_PER_VIDEO = int(os.getenv("YOUTUBE_MICROS_PER_VIDEO", "3500"))
+    # Kept separate from the video rate so comments can be re-tuned toward the
+    # cheaper per-comment market ($0.40-2.00/1k) without touching video pricing.
+    YOUTUBE_MICROS_PER_COMMENT = int(
+        os.getenv("YOUTUBE_MICROS_PER_COMMENT", "3500")
     )
 
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service

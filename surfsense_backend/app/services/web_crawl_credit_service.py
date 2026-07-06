@@ -13,14 +13,13 @@ for self-hosted / OSS installs) every check/charge is a no-op, preserving the
 prior effectively-free crawl behaviour.
 
 ``billing_enabled()`` and ``successes_to_micros()`` are exposed as static
-helpers so the chat ``scrape_webpage`` tools can share the flag/price math:
-they fold a single success into the current chat turn's existing bill (via the
-turn accumulator) instead of debiting the wallet directly.
+helpers so the capability biller (``app/capabilities/core/billing.py``, the
+``web.crawl`` verb) can share the flag/price math when gating and charging a
+crawl run.
 """
 
 from uuid import UUID
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
@@ -28,6 +27,10 @@ from app.config import config
 # Reuse the ETL service's error type so callers (and tests) have one exception
 # to catch for "out of credit" across every per-unit wallet biller.
 from app.services.etl_credit_service import InsufficientCreditsError
+
+# Wallet math (spendable / check / debit) is shared with the platform-scrape
+# biller — see app/services/wallet_credit.py.
+from app.services import wallet_credit
 
 __all__ = ["InsufficientCreditsError", "WebCrawlCreditService"]
 
@@ -76,19 +79,7 @@ class WebCrawlCreditService:
         Used by :meth:`check_balance` for combined (crawl + captcha) pre-flight,
         where the relevant gate is decided by the caller, not by a single flag.
         """
-        from app.db import User
-
-        result = await self.session.execute(
-            select(User.credit_micros_balance, User.credit_micros_reserved).where(
-                User.id == user_id
-            )
-        )
-        row = result.first()
-        if not row:
-            raise ValueError(f"User with ID {user_id} not found")
-
-        balance, reserved = row
-        return balance - reserved
+        return await wallet_credit.spendable_micros(self.session, user_id)
 
     async def get_available_micros(self, user_id: str | UUID) -> int | None:
         """Return spendable credit in micro-USD (``balance - reserved``).
@@ -108,20 +99,7 @@ class WebCrawlCreditService:
         whichever billers are enabled and only calls this when at least one is.
         No-op for a non-positive requirement.
         """
-        if required_micros <= 0:
-            return
-        available = await self._spendable_micros(user_id)
-        if required_micros > available:
-            raise InsufficientCreditsError(
-                message=(
-                    "This run would exceed your available credit. "
-                    f"Available: ${available / 1_000_000:.2f}, "
-                    f"estimated need: ${required_micros / 1_000_000:.2f}. "
-                    "Add more credits to continue."
-                ),
-                balance_micros=available,
-                required_micros=required_micros,
-            )
+        await wallet_credit.check_balance(self.session, user_id, required_micros)
 
     async def check_credits(
         self, user_id: str | UUID, estimated_successes: int = 1
@@ -160,29 +138,7 @@ class WebCrawlCreditService:
         Mirrors ``EtlCreditService.charge_credits``' commit-then-refresh +
         best-effort auto-reload. No-op for a non-positive cost.
         """
-        if cost_micros <= 0:
-            return None
-
-        from app.db import User
-
-        result = await self.session.execute(select(User).where(User.id == user_id))
-        user = result.unique().scalar_one_or_none()
-        if not user:
-            raise ValueError(f"User with ID {user_id} not found")
-
-        user.credit_micros_balance -= cost_micros
-        await self.session.commit()
-        await self.session.refresh(user)
-
-        # Best-effort: fire an auto-reload check if the balance dropped low.
-        try:
-            from app.services.auto_reload_service import maybe_trigger_auto_reload
-
-            await maybe_trigger_auto_reload(user_id)
-        except Exception:
-            pass
-
-        return user.credit_micros_balance
+        return await wallet_credit.apply_debit(self.session, user_id, cost_micros)
 
     async def charge_credits(self, user_id: str | UUID, successes: int) -> int | None:
         """Debit the wallet for ``successes`` successful crawls.

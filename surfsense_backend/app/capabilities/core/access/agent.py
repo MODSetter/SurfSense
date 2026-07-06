@@ -95,7 +95,7 @@ def _capability_tool(capability: Capability, workspace_id: int) -> BaseTool:
                 raise
 
             duration_ms = int((time.perf_counter() - started) * 1000)
-            await charge_capability(output, unit, ctx)
+            cost_micros = await charge_capability(output, unit, ctx)
 
         serialized = serialize_output(output)
         async with async_session_maker() as rec_session:
@@ -109,6 +109,7 @@ def _capability_tool(capability: Capability, workspace_id: int) -> BaseTool:
                 input=input_dump,
                 thread_id=thread_id,
                 duration_ms=duration_ms,
+                cost_micros=cost_micros,
             )
 
         if serialized.char_count <= RUN_OUTPUT_CHAR_CAP:

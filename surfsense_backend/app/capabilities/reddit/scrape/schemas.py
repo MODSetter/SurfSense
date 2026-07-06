@@ -94,9 +94,20 @@ class ScrapeInput(BaseModel):
             )
         return self
 
+    @property
+    def estimated_units(self) -> int:
+        """Worst-case billable items for the pre-flight gate: ``max_items`` is a
+        hard cross-source ceiling (le=100), so no call can exceed it."""
+        return self.max_items
+
 
 class ScrapeOutput(BaseModel):
     items: list[RedditItem] = Field(
         default_factory=list,
         description="One item per result (post/comment/community/user), in emission order.",
     )
+
+    @property
+    def billable_units(self) -> int:
+        """One returned item = one billable unit."""
+        return len(self.items)

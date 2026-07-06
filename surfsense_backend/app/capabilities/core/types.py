@@ -13,9 +13,18 @@ if TYPE_CHECKING:
 
 
 class BillingUnit(StrEnum):
-    """The meter a verb charges on (priced by the billing service, 03c). ``None`` = free."""
+    """The meter a verb charges on (priced by the billing service, 03c). ``None`` = free.
+
+    Each value doubles as the ``TokenUsage.usage_type`` audit string for that meter.
+    """
 
     WEB_CRAWL = "web_crawl"
+    REDDIT_ITEM = "reddit_item"
+    GOOGLE_SEARCH_SERP = "google_search_serp"
+    GOOGLE_MAPS_PLACE = "google_maps_place"
+    GOOGLE_MAPS_REVIEW = "google_maps_review"
+    YOUTUBE_VIDEO = "youtube_video"
+    YOUTUBE_COMMENT = "youtube_comment"
 
 
 class BillableInput(Protocol):

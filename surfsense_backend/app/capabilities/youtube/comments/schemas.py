@@ -36,9 +36,20 @@ class CommentsInput(BaseModel):
         description="Comment ordering: most-liked first, or most-recent first.",
     )
 
+    @property
+    def estimated_units(self) -> int:
+        """Worst-case billable comments for the pre-flight gate: up to
+        ``max_comments`` per video URL."""
+        return len(self.urls) * self.max_comments
+
 
 class CommentsOutput(BaseModel):
     items: list[CommentItem] = Field(
         default_factory=list,
         description="One item per comment or reply, in the scraper's emission order.",
     )
+
+    @property
+    def billable_units(self) -> int:
+        """One returned comment or reply = one billable unit."""
+        return len(self.items)
