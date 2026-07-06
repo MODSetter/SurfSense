@@ -72,7 +72,7 @@ async def add_extension_received_document(
             ),
             (
                 "CONTENT",
-                ["FORMAT: markdown", "TEXT_START", content.pageContent, "TEXT_END"],
+                ["FORMAT: markdown", "TEXT_START", content.page_content, "TEXT_END"],
             ),
         ]
 
@@ -126,7 +126,7 @@ async def add_extension_received_document(
         summary_embedding = embed_text(summary_content)
 
         # Process chunks
-        chunks = await create_document_chunks(content.pageContent)
+        chunks = await create_document_chunks(content.page_content)
 
         # Update or create document
         if existing_document:
