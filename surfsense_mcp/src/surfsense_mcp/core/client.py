@@ -49,6 +49,10 @@ class SurfSenseClient:
         files: Any | None = None,
     ) -> Any:
         """Send a request and return the parsed body, or raise ``ToolError``."""
+        # Omit unset query params: sending them empty makes the API parse ""
+        # as a value (e.g. int("") on folder_id) and fail.
+        if params is not None:
+            params = {key: value for key, value in params.items() if value is not None}
         try:
             response = await self._http.request(
                 method, path, params=params, json=json, data=data, files=files
