@@ -67,7 +67,8 @@ export function SoftwareApplicationJsonLd() {
 					"@type": "Offer",
 					price: "0",
 					priceCurrency: "USD",
-					description: "Free plan with 500 pages included",
+					description:
+						"Free self-hosted from the open-source repo; cloud starts with $5 of free credit, then pay as you go",
 				},
 				description:
 					"SurfSense is an open-source competitive intelligence platform. AI agents monitor competitors, track rankings, and listen to your market with platform-native connectors for Reddit, YouTube, Google Maps, Google Search, and the open web, through one API or MCP server.",
@@ -80,7 +81,7 @@ export function SoftwareApplicationJsonLd() {
 					"Competitor, brand, and rank monitoring with briefs and alerts",
 					"AI automations and agents (scheduled and event-triggered workflows)",
 					"AI-powered semantic search across connected tools and documents",
-					"Federated search across Slack, Google Drive, Notion, Confluence, GitHub",
+					"Knowledge base with file uploads and Google Drive, OneDrive, and Dropbox sync",
 					"Document Q&A with citations, report, podcast, and video generation",
 					"Real-time collaborative team chats",
 					"Native desktop app with Quick, General, and Screenshot Assist",

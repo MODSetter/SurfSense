@@ -546,9 +546,9 @@ const CATEGORIES: HeroCategory[] = [
 			},
 			{
 				id: "connect",
-				title: "Connect & Sync Your Tools",
+				title: "Build Your Knowledge Base",
 				description:
-					"Sync Notion, Slack, Google Drive, Gmail, GitHub, Linear and 25+ sources into the same searchable workspace.",
+					"Upload files or sync Google Drive, OneDrive, and Dropbox into one searchable knowledge base alongside everything your agents gather.",
 				src: `${HERO_TUTORIAL}/ConnectorFlowGif.mp4`,
 			},
 			{
